@@ -101,8 +101,22 @@ fn a_paused_restore_answers_an_ask_not_ready_without_a_commit_or_retained_answer
     assert_eq!(world.commits.len(), commits, "NotReady must not submit a commit");
     assert_eq!(world.store.rows, rows, "no business mutation or retained keyed answer");
     assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
+    world.hold_restart_reads = true;
     world.finish_restore_pages();
     assert_eq!(world.store.rows, with_start_mark(&rows), "whole original restored facts and the start's mark");
+    assert!(!world.domain.ready());
+    let applied = world.store.applied;
+    let commits = world.commits.len();
+    world.send(ask(&world, sign_in, 7101));
+    assert_eq!(reply(&mut world, 7101).1, people::Reply::Again(people::Again::NotReady));
+    world.send(self::sign_in(7102));
+    assert_eq!(reply(&mut world, 7102).1, people::Reply::Again(people::Again::NotReady));
+    assert_eq!(world.store.applied, applied);
+    assert_eq!(world.commits.len(), commits);
+    assert_eq!(world.store.rows, with_start_mark(&rows));
+    world.hold_restart_reads = false;
+    world.drain();
+    assert!(world.domain.ready());
     world.send(ask(&world, sign_in, 7101));
     assert!(matches!(reply(&mut world, 7101).1, people::Reply::Outcome(people::Outcome::Created { .. })));
 }
@@ -197,7 +211,6 @@ fn default_restore_replays_the_same_durable_whole_request_without_making_it_twic
 }
 
 #[test]
-#[ignore = "start: runtime deadline input reaches the core before durable Wires"]
 fn a_held_restore_expires_sign_ins_at_the_current_external_wall_time() {
     let (mut world, sign_in) = world();
     let rows = world.store.rows.clone();
@@ -211,6 +224,10 @@ fn a_held_restore_expires_sign_ins_at_the_current_external_wall_time() {
     assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
     let release_at = world.wall_time();
     world.finish_restore_pages();
+    assert!(world.domain.ready());
+    let marked = with_start_mark(&rows);
+    assert_eq!(world.store.rows, marked, "the captured start precedes expiry; runtime deadlines wait for Open");
+    world.advance(Duration::ZERO);
     let mut expected = rows;
     assert!(expected.remove(&root::Key::Core(core::Key::People(people::Key::SignIn(sign_in)))).is_some());
     let header = expected
@@ -221,11 +238,11 @@ fn a_held_restore_expires_sign_ins_at_the_current_external_wall_time() {
         })
         .expect("whole original deployment header");
     assert_eq!(header.commits, applied);
-    header.commits += 1;
-    assert_eq!(world.store.rows, with_start_mark(&expected), "restore erases the expired sign-in, then marks");
+    header.commits += 2;
+    assert_eq!(world.store.rows, expected, "the runtime deadline erases the expired sign-in after Open");
     let snapshots = world.store_peer.as_mut().expect("store peer").take();
     assert_eq!(snapshots.len(), 2);
-    assert_eq!(snapshots[0].rows, expected);
+    assert_eq!(snapshots[0].rows, marked);
     assert_eq!(snapshots[0].commit, applied + 1);
     assert_eq!(snapshots[1].rows, world.store.rows);
     assert_eq!(snapshots[1].commit, world.store.applied);

@@ -61,19 +61,6 @@ fn kept_account_survives_restore_separately_from_preference() {
 }
 
 #[test]
-fn an_unclaimed_task_cannot_restore_a_kept_account() {
-    let h = preparing();
-    let mut row = h.domain.task(TASK).unwrap().clone();
-    row.kept_account = Some(SELECTED);
-    let mut fresh = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
-    let mut out = skein_lib::Queue::uncapped();
-    crate::step(&mut fresh, &h.env, Event::Restore { record: crate::Stored::Live(Box::new(row)) }, &mut out);
-    let Some(crate::Request::RestoreRefused { .. }) = out.pop() else {
-        panic!("an unclaimed account pin must be refused");
-    };
-}
-
-#[test]
 fn an_account_wait_releases_reserve_and_charges_once_without_a_try() {
     let mut h = preparing();
     claim(&mut h, 1, SELECTED, 10);
@@ -187,7 +174,6 @@ fn restoring_a_kept_account_does_not_repeat_claim_admission() {
     let mut row = h.domain.task(TASK).unwrap().clone();
     row.kept_account = Some(SELECTED);
     let mut fresh = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
-    fresh.start_restore();
     let mut out = skein_lib::Queue::uncapped();
     crate::step(&mut fresh, &h.env, Event::Restore { record: crate::Stored::Live(Box::new(row)) }, &mut out);
     assert!(out.is_empty());

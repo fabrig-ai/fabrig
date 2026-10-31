@@ -447,6 +447,12 @@ impl Core {
                         )
                         .is_err()
                 {
+                    let _refused = self.start_room(
+                        crate::start::LiveSet::RunProofs,
+                        Key::Tasks(tasks::Key::Live(task.number)),
+                        self.restoring_proofs.len(),
+                        self.restoring_proofs.capacity(),
+                    );
                     return false;
                 }
                 true

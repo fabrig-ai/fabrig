@@ -15,28 +15,59 @@ use crate::{
 };
 use skein_lib::{Duration, Time, Wall};
 
-fn deadlines(first: usize) -> Harness {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TimerOwner {
+    Retry,
+    Grace,
+    Subscription,
+    BatchWake,
+    Proposal,
+    Escalation,
+    HoldWait,
+}
+
+#[derive(Clone, Copy)]
+struct TimerCase {
+    owner: TimerOwner,
+    task: u64,
+}
+
+const TIMERS: [TimerCase; 7] = [
+    TimerCase { owner: TimerOwner::Retry, task: 1 },
+    TimerCase { owner: TimerOwner::Grace, task: 2 },
+    TimerCase { owner: TimerOwner::Subscription, task: 3 },
+    TimerCase { owner: TimerOwner::BatchWake, task: 4 },
+    TimerCase { owner: TimerOwner::Proposal, task: 5 },
+    TimerCase { owner: TimerOwner::Escalation, task: 6 },
+    TimerCase { owner: TimerOwner::HoldWait, task: 7 },
+];
+
+fn span(owner: TimerOwner, first: TimerOwner) -> Duration {
+    Duration::from_nanos(if owner == first { 10 } else { 50 })
+}
+
+fn deadlines(first: TimerOwner) -> Harness {
     let mut h = Harness::new();
     h.make((1..=7).map(|n| task(n, &[])).collect());
     h.env.now = Time::from_nanos(100);
     h.env.wall = Wall::from_nanos(1000);
-    let spans: Vec<_> = (0..7).map(|i| Duration::from_nanos(if i == first { 10 } else { 50 })).collect();
-    h.env.limits.proposal_stall = spans[4];
-    h.env.limits.escalation_stall = spans[5];
-    h.env.limits.hold_wait = spans[6];
+    h.env.limits.proposal_stall = span(TimerOwner::Proposal, first);
+    h.env.limits.escalation_stall = span(TimerOwner::Escalation, first);
+    h.env.limits.hold_wait = span(TimerOwner::HoldWait, first);
     let name = Name { connector: 7, path: Box::new([Box::from(&b"wait"[..])]) };
-    for (i, span) in spans.into_iter().enumerate() {
-        let number = u64::try_from(i).unwrap().checked_add(1).unwrap();
+    for case in TIMERS {
+        let number = case.task;
+        let span = span(case.owner, first);
         let mut row = h.domain.task(number).unwrap().clone();
         let at = Wall::from_nanos(h.env.wall.as_nanos().checked_add(span.as_nanos()).unwrap());
-        match i {
-            0 => {
+        match case.owner {
+            TimerOwner::Retry => {
                 row.phase = Phase::Active(Active::BackingOff { until: at });
                 row.holdings = Box::new([Holding::Write { resource: name.clone(), kind: 1 }]);
                 row.refusals = 1;
                 row.retry_notice = Some(RetryNotice::Refused { count: 1 });
             }
-            1 => {
+            TimerOwner::Grace => {
                 row.last_message = 1;
                 row.grace = Some(Grace {
                     by: Party::Person(9),
@@ -45,11 +76,11 @@ fn deadlines(first: usize) -> Harness {
                     message: 1,
                 });
             }
-            2 => {
+            TimerOwner::Subscription => {
                 row.subscriptions =
                     Box::new([Subscription { number: 1, kind: SubscriptionKind::Timer { at, period: None } }]);
             }
-            3 => {
+            TimerOwner::BatchWake => {
                 row.phase = Phase::Active(Active::Idle);
                 row.wake.words = WakeRule::Batch { count: 2, age: span };
                 row.last_message = 1;
@@ -63,7 +94,7 @@ fn deadlines(first: usize) -> Harness {
                     eligible: false,
                 }]);
             }
-            4 => {
+            TimerOwner::Proposal => {
                 row.revision = 1;
                 row.proposal = Some(Box::new(Proposal {
                     number: 1,
@@ -75,7 +106,7 @@ fn deadlines(first: usize) -> Harness {
                     state: ProposalState::Pending { holder: ProposalHolder::Person(9), since: h.env.wall },
                 }));
             }
-            5 => {
+            TimerOwner::Escalation => {
                 row.phase = Phase::Held { was: Was::Active(Active::Due), why: Hold::Stopped, source: None };
                 row.revisions.hold = 1;
                 row.escalation = Escalation::Waiting {
@@ -85,13 +116,12 @@ fn deadlines(first: usize) -> Harness {
                     since: h.env.wall,
                 };
             }
-            6 => {
+            TimerOwner::HoldWait => {
                 row.phase = Phase::Waiting;
                 row.holds_taken = false;
                 row.hold_wait_since = Some(h.env.wall);
                 row.holdings = Box::new([Holding::Write { resource: name.clone(), kind: 1 }]);
             }
-            _ => unreachable!(),
         }
         h.stored.insert(Key::Live(number), Stored::Live(Box::new(row)));
     }
@@ -141,10 +171,11 @@ fn an_empty_task_scheduler_has_no_deadline_before_or_after_restore() {
 
 #[test]
 fn each_of_seven_task_timer_owners_can_supply_the_pure_earliest_deadline() {
-    for first in 0..7 {
+    for case in TIMERS {
+        let first = case.owner;
         let mut h = deadlines(first);
         let before: Vec<_> = (1..=7).map(|n| h.domain.task(n).unwrap().clone()).collect();
-        assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(110)), "timer set {first}");
+        assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(110)), "timer set {first:?}");
         h.env.now = Time::from_nanos(110);
         for _ in 0_u32..3 {
             assert_eq!(h.domain.next_deadline(), Some(h.env.now), "observing a due timer does not expire it");

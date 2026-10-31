@@ -1,15 +1,12 @@
-//! Stored rows exercise the selected fit diagnostics beside admission controls (engine.md, 6).
+//! Stored rows exercise keyed fit diagnostics (engine.md, 6).
 use super::*;
 use crate::{RestoreBound as B, RestoreCause as C, RestoreFailure, RestoreLlmWhy as Why};
 
-fn empty(limits: &crate::Limits, selected: bool) -> Harness {
+fn empty(limits: &crate::Limits) -> Harness {
     let mut cold = Harness::new();
     cold.env.limits = *limits;
     cold.domain = Domain::new(limits, 91, 1, crate::tests::charters(), Box::new([0]));
     cold.stored.clear();
-    if selected {
-        cold.domain.start_restore();
-    }
     assert_eq!(cold.domain.restore_failure(), None);
     cold
 }
@@ -38,7 +35,7 @@ fn refused(cold: &mut Harness, row: Stored, cause: C) {
 fn exact_spec_bytes_fit_and_one_over_keeps_the_first_outer_key() {
     let mut exact = row();
     live(&mut exact).spec.words = vec![1; 64].into_boxed_slice();
-    let mut cold = empty(&LIMITS, true);
+    let mut cold = empty(&LIMITS);
     assert!(cold.send(Event::Restore { record: exact.clone() }).is_empty());
     assert_eq!(cold.domain.restore_failure(), None);
     live(&mut exact).number = 73;
@@ -60,7 +57,7 @@ fn nested_proposal_bytes_keep_person_proposal_key() {
     let mut member = task(71, &[]);
     member.spec.words = vec![1; 65].into_boxed_slice();
     refused(
-        &mut empty(&LIMITS, true),
+        &mut empty(&LIMITS),
         Stored::PersonProposal(Box::new(crate::PersonProposal {
             number: 81,
             proposer: PERSON,
@@ -79,7 +76,7 @@ fn name(number: u64) -> Name {
 
 #[test]
 fn writer_pool_and_ledger_occupancy_preserve_incoming_keys() {
-    let mut cold = empty(&LIMITS, true);
+    let mut cold = empty(&LIMITS);
     let capacity = cold.domain.writers.capacity();
     for number in 1..=u64::from(capacity) {
         assert!(
@@ -105,7 +102,7 @@ fn writer_pool_and_ledger_occupancy_preserve_incoming_keys() {
         bound(B::Writers, u64::from(capacity) + 1, u64::from(capacity)),
     );
 
-    let mut cold = empty(&LIMITS, true);
+    let mut cold = empty(&LIMITS);
     let capacity = cold.domain.pools.capacity();
     for number in 1..=u64::from(capacity) {
         assert!(
@@ -121,7 +118,7 @@ fn writer_pool_and_ledger_occupancy_preserve_incoming_keys() {
         bound(B::Pools, u64::from(capacity) + 1, u64::from(capacity)),
     );
 
-    let mut cold = empty(&LIMITS, true);
+    let mut cold = empty(&LIMITS);
     let capacity = cold.domain.funding.capacity();
     for period in 1..=u64::from(capacity) {
         assert!(cold.send(Event::Restore { record: ledger(period) }).is_empty());
@@ -145,7 +142,7 @@ fn writer_and_pool_nested_names_keep_row_keys() {
     let mut resource = name(1);
     resource.path = Box::new([vec![0; 65].into_boxed_slice()]);
     refused(
-        &mut empty(&LIMITS, true),
+        &mut empty(&LIMITS),
         Stored::Writer(WriterSlot {
             number: 42,
             resource: resource.clone(),
@@ -155,7 +152,7 @@ fn writer_and_pool_nested_names_keep_row_keys() {
         bound(B::HoldBytes, 65, 64),
     );
     refused(
-        &mut empty(&LIMITS, true),
+        &mut empty(&LIMITS),
         Stored::Pool(crate::PoolSlots { number: 43, pool: resource, slots: 0 }),
         bound(B::HoldBytes, 65, 64),
     );
@@ -172,7 +169,7 @@ fn task_and_ledger_numbers_refuse_only_unrepresentable_sums() {
         } else {
             ledger.numbers.spent_below = 1;
         }
-        refused(&mut empty(&LIMITS, true), record, C::Accounting);
+        refused(&mut empty(&LIMITS), record, C::Accounting);
         let mut record = row();
         live(&mut record).numbers.spent = u64::MAX;
         if reserved {
@@ -180,12 +177,12 @@ fn task_and_ledger_numbers_refuse_only_unrepresentable_sums() {
         } else {
             live(&mut record).numbers.spent_below = 1;
         }
-        refused(&mut empty(&LIMITS, true), record, C::Accounting);
+        refused(&mut empty(&LIMITS), record, C::Accounting);
     }
     let mut record = row();
     live(&mut record).numbers.budget = 0;
     live(&mut record).numbers.spent = 1;
-    assert!(empty(&LIMITS, true).send(Event::Restore { record }).is_empty(), "no budget rule");
+    assert!(empty(&LIMITS).send(Event::Restore { record }).is_empty(), "no budget rule");
 }
 
 #[test]
@@ -198,7 +195,7 @@ fn eventual_posting_overflow_names_the_destination_ledger() {
     ledger.numbers.budget = u64::MAX;
     ledger.numbers.reserved = 0;
     ledger.numbers.spent_below = u64::MAX;
-    let mut cold = cold_load_fit_link(&source);
+    let mut cold = cold(&source);
     refusal(&cold.send(Event::Check), Refusal::Restore);
     assert_eq!(cold.domain.restore_failure(), Some(RestoreFailure { key: Key::Ledger(funder), cause: C::Accounting }));
     assert!(cold.send(Event::Restored).is_empty());
@@ -212,7 +209,7 @@ fn project_aggregate_names_the_inspected_live_row() {
         (crate::Limits { project_tasks: 1, ..LIMITS }, bound(B::ProjectTasks, 2, 1)),
         (crate::Limits { project_goals: 1, ..LIMITS }, bound(B::ProjectGoals, 2, 1)),
     ] {
-        let mut cold = empty(&limits, true);
+        let mut cold = empty(&limits);
         for mut record in source.stored.values().filter(|row| row.key().live()).cloned() {
             if let Stored::Live(row) = &mut record {
                 row.tracked = Some(1);
@@ -245,7 +242,7 @@ fn placed_aggregate_names_the_inspected_hold_and_applies_party_cases() {
         (crate::Limits { project_placed_holds: 1, ..LIMITS }, bound(B::ProjectPlacedHolds, 2, 1)),
         (crate::Limits { party_placed_holds: 1, ..LIMITS }, bound(B::PartyPlacedHolds, 2, 1)),
     ] {
-        let mut cold = empty(&limits, true);
+        let mut cold = empty(&limits);
         for number in [31, 32] {
             assert!(cold.send(Event::Restore { record: hold(number, crate::Owner::Party { person: 9 }) }).is_empty());
         }
@@ -274,7 +271,7 @@ fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
                 },
                 subagents: if subagent { Box::new([chosen]) } else { Box::new([]) },
             });
-            let mut cold = empty(&LIMITS, true);
+            let mut cold = empty(&LIMITS);
             cold.domain.efforts = efforts.clone().into_boxed_slice();
             cold.domain.charters = Box::new([crate::CharterModels {
                 number: 1,
@@ -294,7 +291,7 @@ fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
 }
 
 #[test]
-fn nonagent_choice_is_kept_only_by_selected_restore() {
+fn nonagent_choice_is_kept_without_rejudging_admission() {
     for executor in
         [crate::Executor::Procedure { connector: 1, code: 1 }, crate::Executor::Person(crate::PersonAddress::Person(9))]
     {
@@ -306,36 +303,27 @@ fn nonagent_choice_is_kept_only_by_selected_restore() {
             main: crate::ModelEffort { model: 7, effort: Some(9) },
             subagents: Box::new([]),
         });
-        let mut selected = cold_load_fit_link(&source);
-        assert!(selected.send(Event::Check).is_empty());
-        assert!(selected.domain.checked());
-        assert_eq!(selected.domain.restore_failure(), None);
-        let mut admission = cold(&source);
-        admission.send(Event::Check);
-        assert!(!admission.domain.checked());
-        assert_eq!(admission.domain.restore_failure(), None);
+        let mut restored = cold(&source);
+        assert!(restored.send(Event::Check).is_empty());
+        assert!(restored.domain.checked());
+        assert_eq!(restored.domain.restore_failure(), None);
     }
 }
 
 #[test]
-fn success_and_admission_refusals_have_no_detail() {
+fn successful_restore_has_no_failure_detail() {
     let source = one_task();
-    let mut selected = cold_load_fit_link(&source);
-    assert!(selected.send(Event::Check).is_empty());
-    selected.send(Event::Restored);
-    assert!(selected.domain.ready());
-    assert_eq!(selected.domain.restore_failure(), None);
-    let mut bad = row();
-    live(&mut bad).spec.words = vec![0; 65].into_boxed_slice();
-    let mut admission = empty(&LIMITS, false);
-    refusal(&admission.send(Event::Restore { record: bad }), Refusal::Restore);
-    assert_eq!(admission.domain.restore_failure(), None);
+    let mut restored = cold(&source);
+    assert!(restored.send(Event::Check).is_empty());
+    restored.send(Event::Restored);
+    assert!(restored.domain.ready());
+    assert_eq!(restored.domain.restore_failure(), None);
 }
 
 #[test]
 #[should_panic(expected = "duplicate live index")]
 fn duplicate_live_is_an_assertion() {
-    let mut cold = empty(&LIMITS, true);
+    let mut cold = empty(&LIMITS);
     cold.send(Event::Restore { record: row() });
     cold.send(Event::Restore { record: row() });
 }
@@ -346,12 +334,12 @@ fn missing_charter_is_a_required_link() {
     let mut source = one_task();
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("row") };
     row.executor = crate::Executor::Agent { charter: 99 };
-    cold_load_fit_link(&source).send(Event::Check);
+    cold(&source).send(Event::Check);
 }
 
 #[test]
 fn live_stub_proposal_and_revision_capacity_include_the_incoming_row() {
-    let mut cold = empty(&LIMITS, true);
+    let mut cold = empty(&LIMITS);
     for number in 1..=u64::from(LIMITS.tasks) {
         let mut record = row();
         live(&mut record).number = number;
@@ -361,7 +349,7 @@ fn live_stub_proposal_and_revision_capacity_include_the_incoming_row() {
     live(&mut record).number = 300;
     refused(&mut cold, record, bound(B::Tasks, 17, 16));
 
-    let mut cold = empty(&LIMITS, true);
+    let mut cold = empty(&LIMITS);
     let capacity = cold.domain.stubs.capacity();
     for number in 1..=u64::from(capacity) {
         assert!(
@@ -381,13 +369,13 @@ fn live_stub_proposal_and_revision_capacity_include_the_incoming_row() {
         bound(B::Stubs, u64::from(capacity) + 1, u64::from(capacity)),
     );
 
-    let mut cold = empty(&LIMITS, true);
+    let mut cold = empty(&LIMITS);
     for number in 1..=u64::from(LIMITS.tasks) {
         assert!(cold.send(Event::Restore { record: proposal(number) }).is_empty());
     }
     refused(&mut cold, proposal(900), bound(B::PersonProposals, 17, 16));
 
-    let mut cold = empty(&LIMITS, true);
+    let mut cold = empty(&LIMITS);
     let capacity = cold.domain.holders.capacity();
     for number in 1..=u64::from(capacity) {
         let mut record = row();
@@ -444,21 +432,21 @@ fn inbox_payloads_and_separate_reserved_lanes_keep_the_live_key() {
     ] {
         let mut record = row();
         live(&mut record).inbox = Box::new([word(kind, size)]);
-        refused(&mut empty(&LIMITS, true), record, cause);
+        refused(&mut empty(&LIMITS), record, cause);
     }
     let mut record = row();
     live(&mut record).inbox = vec![word(crate::MessageKind::Amendment { revision: 1 }, 0); 3].into_boxed_slice();
-    refused(&mut empty(&LIMITS, true), record, bound(B::AmendmentSlots, 3, 2));
+    refused(&mut empty(&LIMITS), record, bound(B::AmendmentSlots, 3, 2));
     let mut record = row();
     live(&mut record).inbox =
         vec![word(crate::MessageKind::Met { dependency: 9, removed: false }, 0); 2].into_boxed_slice();
-    refused(&mut empty(&LIMITS, true), record, bound(B::MetSlots, 2, 1));
+    refused(&mut empty(&LIMITS), record, bound(B::MetSlots, 2, 1));
     let mut record = row();
     live(&mut record).inbox = vec![word(crate::MessageKind::Words, 32); 5].into_boxed_slice();
-    refused(&mut empty(&LIMITS, true), record, bound(B::InboxBytes, 160, 128));
+    refused(&mut empty(&LIMITS), record, bound(B::InboxBytes, 160, 128));
     let mut record = row();
     live(&mut record).inbox = vec![word(crate::MessageKind::Words, 0); 9].into_boxed_slice();
-    refused(&mut empty(&LIMITS, true), record, bound(B::InboxMessages, 9, 8));
+    refused(&mut empty(&LIMITS), record, bound(B::InboxMessages, 9, 8));
 }
 
 #[test]
@@ -467,7 +455,7 @@ fn nonparty_placed_owners_do_not_acquire_the_party_bound() {
     for number in [31, 32] {
         source.stored.insert(Key::PlacedHold(number), hold(number, crate::Owner::Task { task: DUE }));
     }
-    let mut cold = empty(&crate::Limits { party_placed_holds: 1, ..LIMITS }, true);
+    let mut cold = empty(&crate::Limits { party_placed_holds: 1, ..LIMITS });
     for record in source.stored.values().filter(|row| row.key().live()) {
         assert!(cold.send(Event::Restore { record: record.clone() }).is_empty());
     }
@@ -478,23 +466,23 @@ fn nonparty_placed_owners_do_not_acquire_the_party_bound() {
 
 #[test]
 #[should_panic(expected = "historical row in live load")]
-fn historical_row_is_mode_misuse() {
+fn historical_row_is_phase_misuse() {
     let mut record = row();
     let Stored::Live(task) = &mut record else { panic!("row") };
     let historical = Stored::Ended(task.clone());
-    empty(&LIMITS, true).send(Event::Restore { record: historical });
+    empty(&LIMITS).send(Event::Restore { record: historical });
 }
 
 #[test]
 #[should_panic(expected = "restored completion before link")]
-fn completion_before_link_is_mode_misuse() {
-    empty(&LIMITS, true).send(Event::Restored);
+fn completion_before_link_is_phase_misuse() {
+    empty(&LIMITS).send(Event::Restored);
 }
 
 #[test]
 #[should_panic(expected = "restore row after load completed")]
-fn late_row_is_mode_misuse() {
-    let mut cold = empty(&LIMITS, true);
+fn late_row_is_phase_misuse() {
+    let mut cold = empty(&LIMITS);
     cold.send(Event::Check);
     cold.send(Event::Restore { record: row() });
 }
@@ -506,12 +494,15 @@ fn retained_choices_do_not_rejudge_authority_or_duplicate_models() {
     let chosen = crate::ModelEffort { model: 0, effort: None };
     row.llm = Some(crate::LlmChoice { account: None, main: chosen, subagents: Box::new([chosen, chosen]) });
     row.authority.models = crate::Models::Named(0);
-    let mut selected = cold_load_fit_link(&source);
-    assert!(selected.send(Event::Check).is_empty());
-    assert!(selected.domain.checked());
-    assert_eq!(selected.domain.restore_failure(), None);
-    let mut admission = cold(&source);
-    admission.send(Event::Check);
-    assert!(admission.domain.checked());
-    assert_eq!(admission.domain.restore_failure(), None);
+    let mut restored = cold(&source);
+    assert!(restored.send(Event::Check).is_empty());
+    assert!(restored.domain.checked());
+    assert_eq!(restored.domain.restore_failure(), None);
+    assert_eq!(
+        restored.domain.task(DUE),
+        match &source.stored[&Key::Live(DUE)] {
+            Stored::Live(row) => Some(row.as_ref()),
+            _ => panic!("live row"),
+        }
+    );
 }
