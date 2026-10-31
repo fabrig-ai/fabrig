@@ -70,8 +70,11 @@ Acceptance:
 - Owns `temper-service`'s `stock.rs`, `startup.rs` (`engine_with` and the
   `Given::defaults` call only), `startup/checks.rs` (`stock` only) and
   `tests/stock.rs`.
-- Neighbour edits allowed: the template's one `"policy"` value and the
-  one assertion in `temper-init/src/tests/documents.rs` that reads it.
+- Neighbour edits allowed: the template's one `"policy"` value, the
+  one assertion in `temper-init/src/tests/documents.rs` that reads it,
+  and, in the same file's `the_default_is_the_owned_example_so_edited`,
+  one entry `("/engine/projects/0/policy", json!(2_u32))` in its
+  expected document's table of paths and values.
   Another task of this plan may be changing other lines of the template
   at the same time; touch no other line of it.
 - If `Given::defaults`'s new parameter forces call-site edits elsewhere
@@ -112,3 +115,14 @@ Acceptance:
 
 As the implementer text says; name the masks the template's document
 gives, and any test outside `temper-service` that read policy 1's models.
+
+## Answers
+
+2026-10-31. May the task also change the expected document in
+`temper-init`'s `the_default_is_the_owned_example_so_edited`? Yes: the
+template's `"policy"` of 2 is this task's change, and that test compares
+the template against the owned example, so pinning it is the same
+neighbour edit as the assertion near line 478. Add the one entry
+`("/engine/projects/0/policy", json!(2_u32))` to that test's table of
+expected paths and values, and change nothing else in that test;
+"Owns and may change" now names it.
