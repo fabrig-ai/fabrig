@@ -1,17 +1,12 @@
-use super::lifecycle_tests::{backend, env, request};
+use super::fixtures::{backend, env, request};
 use super::*;
 
 fn active() -> Backend {
     running(backend())
 }
 
-fn running(mut backend: Backend) -> Backend {
-    backend.phase = Phase::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes[0] = Some(Token::new(31));
-    backend.request = Some(request(&backend));
-    backend.owner = Some(Token::new(80));
-    backend
+fn running(backend: Backend) -> Backend {
+    fixtures::records_with(backend)
 }
 
 #[test]
@@ -152,7 +147,7 @@ fn dense_result(element: &[u8], length: u32) -> alloc::vec::Vec<u8> {
 fn result_in_stdout(element: &[u8], length: u32) -> Queue<ToDomain> {
     // Backend::new owns one 4096-byte deferred stdout intake.
     const READ_BYTES: usize = 4096;
-    let mut backend = running(lifecycle_tests::backend_with_line_bytes(REVIEW_LINE_BYTES));
+    let mut backend = running(fixtures::backend_with_line_bytes(REVIEW_LINE_BYTES));
     let mut bytes = dense_result(element, length);
     bytes.push(b'\n');
     let mut up = Queue::with_capacity(32);

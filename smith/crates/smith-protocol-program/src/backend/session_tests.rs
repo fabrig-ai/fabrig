@@ -6,7 +6,7 @@
     reason = "ordinary deterministic harness, programming-model.md 10.2"
 )]
 use super::{
-    lifecycle_tests::{backend, env, request},
+    fixtures::{backend, env, request},
     *,
 };
 use serde_json::json;

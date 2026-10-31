@@ -1,19 +1,10 @@
 use super::{
-    lifecycle_tests::{backend, env, request},
+    fixtures::{env, request},
     *,
 };
 
 fn active() -> Backend {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.child = Some(backend.token(4));
-    backend.owner = Some(Token::new(80));
-    let request = request(&backend);
-    let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
-    let session::Opening::New { id } = session::opening(prompt, None, None) else { panic!("new window") };
-    backend.running = Some(id);
-    backend.request = Some(request);
-    backend
+    fixtures::drained_window()
 }
 
 #[test]

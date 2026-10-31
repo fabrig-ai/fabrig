@@ -3,7 +3,7 @@
     clippy::disallowed_types,
     reason = "ordinary Rust deterministic harness, programming-model.md 10.2"
 )]
-use super::lifecycle_tests::{backend, env, request};
+use super::fixtures::{backend, env, request};
 use super::*;
 use protocol::{Measure, Observation};
 use smith_events::{Block, Role};
@@ -347,7 +347,7 @@ fn held_call_user_text_is_captured() {
         let mut held = reply_tests::call(b"held");
         held.name = b"foo".as_slice().into();
         assert!(backend.ledger.push(held).is_ok());
-        review_tests::connect_server(&mut backend);
+        fixtures::connect_server(&mut backend);
         let server = backend.server.as_mut().expect("server");
         server.from_io(
             env(0).now,
@@ -375,7 +375,7 @@ fn held_call_user_text_is_captured() {
         }
         prompt.messages = Box::new([llm::Message { role: llm::Role::User, content: content.into_boxed_slice() }]);
         backend.resume(&env(0), next, &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
-        let reply = review_tests::server_reply(&mut backend);
+        let reply = fixtures::server_reply(&mut backend);
         let received = reply["result"]["content"][0]["text"].as_str().expect("received reply text");
         assert_eq!(received, if with_text { "done\nnew user text" } else { "done" });
         backend.flush_prompt_measure(Time::ZERO);

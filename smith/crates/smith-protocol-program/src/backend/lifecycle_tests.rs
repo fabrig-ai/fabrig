@@ -3,115 +3,9 @@
     clippy::disallowed_methods,
     reason = "ordinary Rust step harness, programming-model.md 10.2"
 )]
+use super::fixtures::{backend, env, request};
 use super::*;
 use alloc::vec;
-use skein_lib::Wall;
-
-fn limits() -> protocol::ComponentLimits {
-    let client = skein_llm_world::limits();
-    let adapter = protocol::Limits {
-        client,
-        tool_bytes: 4096,
-        history_bytes: 4096,
-        rendered_result: 4096,
-        stated: protocol::Stated {
-            host_part: 4096,
-            path_bytes: 128,
-            read_window: 128,
-            tool_payload: 128,
-            file_bytes: 128,
-            call_input_bytes: 4096,
-            list_entries: 2,
-            search_hits: 2,
-            search_bytes: 128,
-            shell_timeout: Duration::from_secs(1),
-            tool_deadline: Duration::from_secs(1),
-            job_poll: Duration::from_secs(1),
-            job_wait: Duration::from_secs(1),
-            jobs: 1,
-            shell_output: 128,
-            output_ceiling: 128,
-        },
-    };
-    protocol::ComponentLimits {
-        adapter,
-        connection: skein_llm_connection::Limits {
-            memory: 1 << 30,
-            endpoints: 1,
-            connections: 2,
-            calls: 2,
-            per_endpoint: 2,
-            idle_keep: Duration::from_secs(1),
-            io: io::Limits {
-                sockets: 3,
-                names: 0,
-                refusals: 1,
-                intake: 4096,
-                receive: 4096,
-                output: 4096,
-                sends: 2,
-                accepts: 1,
-                backlog: 2,
-                close_timeout: Duration::from_secs(1),
-                retry: Duration::from_millis(10),
-            },
-            tls: skein_tls::client::Limits { read: 4096, send: 4096, records: skein_tls::client::MAX_RECORD },
-        },
-        receiving: protocol::Receiving {
-            max_completion_bytes: 16384,
-            max_completion_blocks: 8,
-            decoded_call_bytes: 4096,
-            max_failure_bytes: 256,
-        },
-        contract_bytes: 4096,
-        llms: 1,
-        accounts: 1,
-        grant_value_bytes: 128,
-    }
-}
-pub(super) fn backend() -> Backend {
-    backend_with_line_bytes(4096)
-}
-
-pub(super) fn backend_with_line_bytes(line_bytes: u32) -> Backend {
-    let limits = limits();
-    Backend::new(
-        Token::new(10),
-        Settings {
-            program: Programs { claude: b"/claude".as_slice().into(), directory: b"/programs".as_slice().into() },
-            directory: None,
-            workspace: None,
-            path_bytes: 4096,
-            relay: b"/agent".as_slice().into(),
-            environment: Box::default(),
-            mcp: mcp::Limits {
-                message_bytes: 4096,
-                answer_bytes: 4096,
-                schema_bytes: 4096,
-                calls: 4,
-                unauthenticated: Time::from_nanos(1000),
-            },
-            adapter: limits.adapter,
-            receiving: limits.receiving,
-            stream_tokens: Settings::stream_tokens(line_bytes),
-            prompt_bytes: 4096,
-            contract_bytes: 4096,
-            line_bytes,
-            input_bytes: 32768,
-            max_turns: 8,
-            grace: Duration::from_secs(1),
-            startup: Duration::from_secs(30),
-        },
-        &Secret::new(Box::new([7; 32])),
-    )
-}
-pub(super) fn env(seconds: u64) -> Env<protocol::ComponentLimits> {
-    Env {
-        now: Time::from_nanos(seconds.checked_mul(1_000_000_000).expect("simulated clock")),
-        wall: Wall::EPOCH,
-        limits: limits(),
-    }
-}
 
 #[test]
 fn a_late_spawn_after_grace_is_terminated_as_a_group() {
@@ -201,42 +95,6 @@ fn a_renewed_grant_survives_its_first_lapse() {
     } else {
         false
     }));
-}
-pub(super) fn request(backend: &Backend) -> FromDomain {
-    FromDomain::Complete {
-        owner: Token::new(80),
-        grant: Some(GrantName { account: 0, generation: 1 }),
-        prompt: llm::Prompt {
-            purpose: llm::Purpose::Ordinary { guard: None },
-            asker: llm::Asker::Main,
-            endpoint: llm::Endpoint(0),
-            affinity: llm::Affinity { key: [0; 16], thread: 0 },
-            model: b"fake".as_slice().into(),
-            effort: None,
-            system: Box::default(),
-            tools: smith_domain::tools::Grants { inspect: false, modify: false, shell: false },
-            namespace: smith_domain::tools::Namespace::NoWorkspace,
-            served: Box::default(),
-            choice: llm::ToolChoice::Auto,
-            messages: Box::default(),
-            max_tokens: 128,
-        },
-        deadlines: smith_domain::session::Deadlines {
-            head: Duration::from_secs(1),
-            idle: Duration::from_secs(1),
-            whole: Time::from_nanos(30_000_000_000),
-        },
-        bounds: backend.settings.receiving,
-        outcome: smith_domain::run::outcome::OutcomeSpec {
-            change: None,
-            verdicts: Box::default(),
-            report: None,
-            failure: None,
-        },
-        deliver: None,
-        observation: None,
-        deltas: smith_protocol_llm::Deltas { text: false, input: false },
-    }
 }
 #[test]
 fn an_accepted_init_uses_the_completion_head_deadline() {

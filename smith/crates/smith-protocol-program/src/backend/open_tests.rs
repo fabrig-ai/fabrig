@@ -1,16 +1,10 @@
 //! Open stream boundaries (protocol/programs.md 5.9).
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust step harness, programming-model.md 10.2")]
-use super::lifecycle_tests::{backend, env, request};
+use super::fixtures::{env, request};
 use super::*;
 
 fn running() -> Backend {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
-    backend.owner = Some(Token::new(80));
-    backend.request = Some(request(&backend));
-    backend
+    fixtures::active()
 }
 
 fn running_with_queues() -> (Backend, Queue<ToDomain>, Queue<Below>) {

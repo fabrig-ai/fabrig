@@ -4,7 +4,7 @@
     clippy::disallowed_types,
     reason = "ordinary backend harness, programming-model.md 10.2"
 )]
-use super::lifecycle_tests::{backend, env, request};
+use super::fixtures::{env, request};
 use super::*;
 use alloc::{vec, vec::Vec};
 use smith_domain::tools::{Effect, Grants};
@@ -13,13 +13,7 @@ const READ: &[u8] = br#"{"type":"assistant","message":{"id":"one","content":[{"t
 
 const RESULT: &[u8] = br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"r","content":[{"type":"text","text":"one"},{"type":"image"},{"type":"text","text":"two"}],"is_error":true}]}}"#;
 fn active() -> Backend {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes[0] = Some(Token::new(31));
-    backend.request = Some(request(&backend));
-    backend.owner = Some(Token::new(80));
-    backend
+    fixtures::records()
 }
 
 #[test]
@@ -603,7 +597,7 @@ fn native_call(name: &str, input: serde_json::Value) -> Backend {
     if let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request {
         prompt.tools = Grants { inspect: true, modify: true, shell: false };
     }
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     native_prompt(&mut backend, "n", name, input);
     backend
 }
@@ -625,7 +619,7 @@ fn native_prompt(backend: &mut Backend, id: &str, name: &str, input: serde_json:
 }
 
 fn allow_native(backend: &mut Backend, input: &serde_json::Value) {
-    let reply = review_tests::server_reply(backend);
+    let reply = fixtures::server_reply(backend);
     let verdict: serde_json::Value =
         serde_json::from_str(reply["result"]["content"][0]["text"].as_str().expect("text")).expect("verdict");
     assert_eq!(verdict["behavior"], "allow");
@@ -881,7 +875,7 @@ fn an_owned_remove_result_reaches_its_mcp_caller() {
         let mut call = reply_tests::call(b"owned");
         call.name = b"foo".as_slice().into();
         backend.ledger.push(call).ok().expect("owned call");
-        review_tests::connect_server(&mut backend);
+        fixtures::connect_server(&mut backend);
         server_call(&mut backend, 1);
         let mut next = request(&backend);
         let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
@@ -893,7 +887,7 @@ fn an_owned_remove_result_reaches_its_mcp_caller() {
             }]),
         }]);
         backend.resume(&env(0), next, &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
-        let reply = review_tests::server_reply(&mut backend);
+        let reply = fixtures::server_reply(&mut backend);
         assert!(reply["result"]["content"][0]["text"].as_str().expect("result text").contains(expected));
         assert_eq!(reply["result"]["isError"], error);
     }
@@ -918,7 +912,7 @@ fn an_mcp_successor_may_arrive_before_its_next_assistant_record() {
         }]),
     }]);
     backend.resume(&env(0), next, &mut up, &mut Queue::with_capacity(64));
-    let reply = review_tests::server_reply(&mut backend);
+    let reply = fixtures::server_reply(&mut backend);
     assert_eq!(reply["id"], 2_u32);
     assert_eq!(reply["result"]["content"][0]["text"], "found");
     assert_eq!(reply["result"]["isError"], false);
@@ -931,7 +925,7 @@ fn an_unannounced_mcp_successor_is_refused_when_the_turn_ends() {
     assert_eq!(backend.calls.len(), 1);
     backend.line(&env(0), br#"{"type":"result","is_error":false}"#, &mut up, &mut Queue::with_capacity(64));
     assert!(backend.calls.is_empty());
-    let reply = review_tests::server_reply(&mut backend);
+    let reply = fixtures::server_reply(&mut backend);
     assert_eq!(reply["result"]["isError"], true);
     assert_eq!(reply["result"]["content"][0]["text"], "smith: this call was not in the model's message");
 }

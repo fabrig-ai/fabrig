@@ -4,17 +4,11 @@
     clippy::disallowed_types,
     reason = "ordinary Rust deterministic harness, programming-model.md 10.2"
 )]
-use super::lifecycle_tests::{backend, env, request};
+use super::fixtures::{env, request};
 use super::*;
 
 fn active() -> Backend {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
-    backend.owner = Some(Token::new(80));
-    backend.request = Some(request(&backend));
-    backend
+    fixtures::active()
 }
 
 fn signal(below: &Queue<Below>, expected: kernel::Signal) -> usize {
@@ -187,7 +181,7 @@ fn prompt_input(backend: &mut Backend, labelled: bool, input: serde_json::Value)
 }
 
 fn decision(backend: &mut Backend) -> serde_json::Value {
-    let reply = review_tests::server_reply(backend);
+    let reply = fixtures::server_reply(backend);
     assert_eq!(reply["id"], serde_json::json!(1_u32));
     serde_json::from_str(reply["result"]["content"][0]["text"].as_str().expect("permission JSON")).expect("verdict")
 }
@@ -196,7 +190,7 @@ fn decision(backend: &mut Backend) -> serde_json::Value {
 fn a_prompt_waits_for_its_complete() {
     let mut backend = active();
     builtin(&mut backend);
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     prompt(&mut backend, true);
     assert_eq!(backend.calls.len(), 1, "the permission prompt is held");
     for request in &backend.io {
@@ -216,7 +210,7 @@ fn a_prompt_after_its_complete_is_answered_at_once() {
     let mut backend = active();
     builtin(&mut backend);
     backend.ledger.get_mut(0).expect("call").input = b"{ }".as_slice().into();
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.resume(&env(0), request(&backend), &mut up, &mut below);
@@ -229,7 +223,7 @@ fn a_prompt_after_its_complete_is_answered_at_once() {
 fn a_built_in_outside_the_choice_is_denied() {
     let mut backend = active();
     builtin(&mut backend);
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     backend.winding = stop::WindDown::Finishing;
     let mut next = request(&backend);
     let FromDomain::Complete { prompt: next_prompt, .. } = &mut next else { panic!("complete") };
@@ -254,7 +248,7 @@ fn an_answered_builtin_does_not_release_the_next_prompt() {
     backend.ledger.get_mut(1).unwrap().message = 2;
     backend.ledger.get_mut(1).unwrap().input = br#"{"a":1}"#.as_slice().into();
     backend.turns.closed = 2;
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     prompt_input(&mut backend, false, serde_json::json!({"a":1_u32}));
     assert_eq!(backend.calls.len(), 1);
     assert!(!backend.ledger.get(1).unwrap().prompted);
@@ -410,7 +404,7 @@ fn a_tail_moves_served_results_after_the_last_assistant() {
 #[test]
 fn a_call_arriving_during_interrupt_is_not_run() {
     let mut backend = active();
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     backend.stop = stop::Stop::Yielding;
     let bytes =
         b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"foo\",\"arguments\":{}}}\n";
@@ -422,7 +416,7 @@ fn a_call_arriving_during_interrupt_is_not_run() {
     let call = backend.server.as_mut().expect("server").up().expect("call");
     backend.calls.push(call).expect("one held call");
     backend.match_calls();
-    let reply = review_tests::server_reply(&mut backend);
+    let reply = fixtures::server_reply(&mut backend);
     assert_eq!(reply["result"]["isError"], true);
     assert_eq!(reply["result"]["content"][0]["text"], "not run: the program turn was interrupted");
 }
@@ -430,7 +424,7 @@ fn a_call_arriving_during_interrupt_is_not_run() {
 #[test]
 fn a_prompt_arriving_during_interrupt_is_not_run() {
     let mut backend = active();
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     backend.stop = stop::Stop::Yielding;
     prompt(&mut backend, true);
     assert_eq!(

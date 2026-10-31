@@ -1,6 +1,6 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary deterministic harness, programming-model.md 10.2")]
 use super::{
-    lifecycle_tests::{backend, env, request},
+    fixtures::{backend, env, request},
     *,
 };
 use alloc::string::ToString;
@@ -126,7 +126,7 @@ fn a_park_while_waiting_interrupts() {
     let mut held = reply_tests::call(b"wait-id");
     held.name = b"foo".as_slice().into();
     backend.ledger.push(held).ok().expect("ledger");
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     let server = backend.server.as_mut().expect("server");
     server.from_io(
         env(0).now,

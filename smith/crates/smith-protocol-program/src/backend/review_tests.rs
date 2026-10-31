@@ -4,22 +4,12 @@
     reason = "ordinary Rust step harness, programming-model.md 10.2"
 )]
 #![expect(clippy::match_like_matches_macro, reason = "the no_std test harness uses explicit record filters")]
-use super::lifecycle_tests::{backend, env, request};
+use super::fixtures::{connect_server, env, request, server_reply};
 use super::*;
 use serde_json::json;
 
 fn active() -> Backend {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
-    backend.owner = Some(Token::new(80));
-    let request = request(&backend);
-    let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
-    let session::Opening::New { id } = session::opening(prompt, None, None) else { panic!("new window") };
-    backend.running = Some(id);
-    backend.request = Some(request);
-    backend
+    fixtures::window()
 }
 fn feed(backend: &mut Backend, value: serde_json::Value, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
     backend.line(&env(0), &serde_json::to_vec(&value).expect("fixture JSON"), up, below);
@@ -169,77 +159,6 @@ fn a_text_message_without_result_obeys_its_idle_deadline() {
     assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Idle });
 }
 
-pub(super) fn connect_server(backend: &mut Backend) {
-    let first = Token::new(100);
-    let owner = Token::new(101);
-    let mut io = Queue::with_capacity(64);
-    let mut server = mcp::Server::new(
-        first,
-        0,
-        &[7; 32],
-        Box::new([mcp::Tool {
-            name: b"foo".as_slice().into(),
-            description: b"Tool".as_slice().into(),
-            input_schema: br#"{"type":"object"}"#.as_slice().into(),
-        }]),
-        backend.settings.mcp,
-        &mut io,
-    )
-    .expect("server");
-    server.from_io(
-        env(0).now,
-        io::Event::Listening {
-            owner: first,
-            listener: Token::new(200),
-            addr: io::Addr::Ip(core::net::SocketAddr::from(([127, 0, 0, 1], 47100))),
-        },
-        &mut io,
-    );
-    let Some(mcp::Up::Listening { .. }) = server.up() else { panic!("listening") };
-    server.from_io(
-        env(0).now,
-        io::Event::Accepted {
-            owner: first,
-            socket: Token::new(201),
-            peer: io::Addr::Ip(core::net::SocketAddr::from(([127, 0, 0, 1], 50000))),
-        },
-        &mut io,
-    );
-    let secret = mcp::secret_text(&[7; 32]);
-    server.from_io(
-        env(0).now,
-        io::Event::Stream { owner, up: skein_lib::stream::Up::Bytes(mcp::json::join(&[&secret, b"\n"])) },
-        &mut io,
-    );
-    let right = io
-        .iter()
-        .find_map(|request| match request {
-            io::Request::Output { down: skein_lib::stream::OutputDown::Room { right, .. }, .. } => Some(*right),
-            io::Request::Listen { .. }
-            | io::Request::Connect { .. }
-            | io::Request::Bind { .. }
-            | io::Request::Reject { .. }
-            | io::Request::Stream { .. }
-            | io::Request::Output { .. }
-            | io::Request::Spawn { .. }
-            | io::Request::Signal { .. }
-            | io::Request::Usage { .. }
-            | io::Request::Window { .. }
-            | io::Request::Close { .. }
-            | io::Request::Abort { .. } => None,
-        })
-        .expect("ack room");
-    server.from_io(
-        env(0).now,
-        io::Event::Output {
-            owner,
-            up: skein_lib::stream::OutputUp::Settled { right, outcome: skein_lib::stream::OutputOutcome::Granted },
-        },
-        &mut io,
-    );
-    assert_eq!(server.up(), Some(mcp::Up::Connected));
-    backend.server = Some(server);
-}
 #[test]
 fn an_unmatched_call_after_text_closes_is_rejected_immediately() {
     let mut backend = active();
@@ -409,49 +328,6 @@ fn an_input_grant_after_stdin_closes_fails_without_writing() {
             false
         }
     }));
-}
-
-pub(super) fn server_reply(backend: &mut Backend) -> serde_json::Value {
-    for _ in 0_u8..16 {
-        for _ in 0..backend.io.capacity() {
-            let Some(request) = backend.io.pop() else { break };
-            match request {
-                io::Request::Output { stream, down: skein_lib::stream::OutputDown::Room { right, .. } }
-                    if stream == Token::new(201) =>
-                {
-                    backend.server.as_mut().expect("server").from_io(
-                        env(0).now,
-                        io::Event::Output {
-                            owner: Token::new(101),
-                            up: skein_lib::stream::OutputUp::Settled {
-                                right,
-                                outcome: skein_lib::stream::OutputOutcome::Granted,
-                            },
-                        },
-                        &mut backend.io,
-                    );
-                }
-                io::Request::Output { stream, down: skein_lib::stream::OutputDown::Send { bytes, .. } }
-                    if stream == Token::new(201) =>
-                {
-                    return serde_json::from_slice(&bytes).expect("MCP reply");
-                }
-                io::Request::Listen { .. }
-                | io::Request::Connect { .. }
-                | io::Request::Bind { .. }
-                | io::Request::Reject { .. }
-                | io::Request::Stream { .. }
-                | io::Request::Output { .. }
-                | io::Request::Spawn { .. }
-                | io::Request::Signal { .. }
-                | io::Request::Usage { .. }
-                | io::Request::Window { .. }
-                | io::Request::Close { .. }
-                | io::Request::Abort { .. } => {}
-            }
-        }
-    }
-    panic!("MCP response pending");
 }
 
 #[test]

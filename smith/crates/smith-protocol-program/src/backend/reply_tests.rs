@@ -1,4 +1,4 @@
-use super::{calls::Call, lifecycle_tests::backend, lifecycle_tests::request, replies, *};
+use super::{calls::Call, fixtures::backend, fixtures::request, replies, *};
 
 pub(super) fn call(id: &[u8]) -> Call {
     Call {

@@ -42,6 +42,8 @@ mod conversation_tests;
 #[cfg(test)]
 mod exit_tests;
 #[cfg(test)]
+mod fixtures;
+#[cfg(test)]
 mod lifecycle_tests;
 #[cfg(test)]
 mod measure_tests;
