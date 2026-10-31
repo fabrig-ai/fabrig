@@ -220,6 +220,7 @@ impl Store {
             models,
             seeded,
         );
+        component.start_restore();
         assert!(component.wires(&WIRES), "valid engine wires before open");
         Self {
             #[cfg(test)]

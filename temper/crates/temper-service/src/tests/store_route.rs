@@ -157,9 +157,9 @@ fn a_forge_page_reaches_the_root_decoded_with_its_last_key() {
     let mut out = Queue::with_capacity(2);
     route::up(
         &mut routes,
-        store::Event::Restored {
+        store::Event::Page {
             owner,
-            rows: Box::new([forge_row(9)]),
+            items: items(Box::new([forge_row(9)])),
             next: Some(store::Cursor {
                 interval: 0,
                 after: store::keys::application(
@@ -215,7 +215,7 @@ fn startup_row_and_byte_cuts_fail_the_original_load_before_delivering_any_prefix
         let mut out = Queue::with_capacity(2);
         route::up(
             &mut routes,
-            store::Event::Restored { owner, rows: Box::new([forge_row(8), forge_row(9)]), next: None },
+            store::Event::Page { owner, items: items(Box::new([forge_row(8), forge_row(9)])), next: None },
             &mut out,
         );
         failed_load(&mut routes, owner, &mut out);
@@ -232,7 +232,8 @@ fn a_corrupt_store_answer_fails_its_original_load_once() {
     };
     assert_ne!(owner, fixtures::OWNER, "store tokens differ from root owners");
     let mut out = Queue::with_capacity(2);
-    route::up(&mut routes, store::Event::Corrupt { owner }, &mut out);
+    route::up(&mut routes, store::Event::PageRefused { owner, failure: refused_page() }, &mut out);
+    assert_eq!(routes.page_failure(), Some(&refused_page()));
     failed_load(&mut routes, owner, &mut out);
 }
 
@@ -257,7 +258,7 @@ fn a_row_that_does_not_decode_fails_its_original_load_once() {
         let mut out = Queue::with_capacity(2);
         route::up(
             &mut routes,
-            store::Event::Restored { owner, rows: Box::new([forge_row(7), row]), next: None },
+            store::Event::Page { owner, items: items(Box::new([forge_row(7), row])), next: None },
             &mut out,
         );
         failed_load(&mut routes, owner, &mut out);
@@ -272,9 +273,9 @@ fn failed_load(routes: &mut route::Routes, owner: Token, out: &mut Queue<Up>) {
     assert_eq!(root, fixtures::OWNER);
     assert!(out.is_empty(), "one terminal, without a generic uncommitted event");
     assert!(routes.idle(), "failed load retired");
-    route::up(routes, store::Event::Corrupt { owner }, out);
+    route::up(routes, store::Event::PageRefused { owner, failure: refused_page() }, out);
     route::up(routes, store::Event::Unread { owner }, out);
-    route::up(routes, store::Event::Restored { owner, rows: Box::new([forge_row(8)]), next: None }, out);
+    route::up(routes, store::Event::Page { owner, items: items(Box::new([forge_row(8)])), next: None }, out);
     assert!(out.is_empty(), "late load answers have no owner or duplicate terminal");
     assert!(routes.idle());
 }
@@ -366,13 +367,13 @@ fn a_task_page_keeps_projections_then_live_tasks_and_drops_calls() {
     let mut out = Queue::with_capacity(2);
     route::up(
         &mut routes,
-        store::Event::Restored {
+        store::Event::Page {
             owner,
-            rows: Box::new([
+            items: items(Box::new([
                 store::Row::Jig(projection.clone()),
                 store::Row::Jig(call_row()),
                 store::Row::Jig(task.clone()),
-            ]),
+            ])),
             next: None,
         },
         &mut out,
@@ -401,7 +402,7 @@ fn a_filtered_page_that_keeps_nothing_asks_again_from_jigs_cursor() {
     let mut out = Queue::with_capacity(2);
     route::up(
         &mut routes,
-        store::Event::Restored { owner, rows: Box::new([store::Row::Jig(call_row())]), next: Some(cursor.clone()) },
+        store::Event::Page { owner, items: items(Box::new([store::Row::Jig(call_row())])), next: Some(cursor.clone()) },
         &mut out,
     );
     let Some(Up::Ask(store::Request::Restore { owner: continued, after, rows: 4, bytes: 8192, .. })) = out.pop() else {
@@ -411,7 +412,7 @@ fn a_filtered_page_that_keeps_nothing_asks_again_from_jigs_cursor() {
     assert_eq!(after, Some(cursor));
     assert!(out.is_empty());
     assert!(!routes.idle());
-    route::up(&mut routes, store::Event::Restored { owner, rows: Box::new([]), next: None }, &mut out);
+    route::up(&mut routes, store::Event::Page { owner, items: items(Box::new([])), next: None }, &mut out);
     let (_, rows, next) = page(&mut out);
     assert!(rows.is_empty());
     assert_eq!(next, None);
@@ -438,9 +439,9 @@ fn a_census_cursor_is_its_index_rows_key_and_interval() {
     let mut out = Queue::with_capacity(2);
     route::up(
         &mut routes,
-        store::Event::Restored {
+        store::Event::Page {
             owner,
-            rows,
+            items: items(rows),
             next: Some(store::Cursor { interval: 2, after: store::keys::encode(&last, u32::MAX).unwrap() }),
         },
         &mut out,
@@ -732,7 +733,7 @@ fn startup_calls_and_proofs_with_zero_identities_reach_the_root_unchanged() {
         let mut out = Queue::with_capacity(2);
         route::up(
             &mut routes,
-            store::Event::Restored { owner, rows: Box::new([store::Row::Jig(record.clone())]), next: None },
+            store::Event::Page { owner, items: items(Box::new([store::Row::Jig(record.clone())])), next: None },
             &mut out,
         );
         let expected: Box<[engine::Record]> = Box::new([engine::Record::Core(record)]);
@@ -756,9 +757,9 @@ fn startup_preserves_rows_before_the_cursor_and_uses_the_stores_continuation() {
     let mut out = Queue::with_capacity(2);
     route::up(
         &mut routes,
-        store::Event::Restored {
+        store::Event::Page {
             owner,
-            rows: Box::new([forge_row(7), forge_row(7), forge_row(6)]),
+            items: items(Box::new([forge_row(7), forge_row(7), forge_row(6)])),
             next: Some(cursor),
         },
         &mut out,
@@ -788,7 +789,7 @@ fn startup_census_cuts_and_cursor_decode_errors_fail_the_original_load_once() {
         let mut out = Queue::with_capacity(2);
         route::up(
             &mut routes,
-            store::Event::Restored { owner, rows: Box::new([ended_row(5), ended_row(5)]), next },
+            store::Event::Page { owner, items: items(Box::new([ended_row(5), ended_row(5)])), next },
             &mut out,
         );
         failed_load(&mut routes, owner, &mut out);
@@ -809,9 +810,9 @@ fn an_empty_filtered_startup_walk_asserts_when_the_store_repeats_its_cursor() {
     let mut out = Queue::with_capacity(2);
     route::up(
         &mut routes,
-        store::Event::Restored {
+        store::Event::Page {
             owner,
-            rows: Box::new([store::Row::Jig(call_row())]),
+            items: items(Box::new([store::Row::Jig(call_row())])),
             next: Some(store::Cursor { interval: 0, after: store::keys::encode(&key, u32::MAX).unwrap() }),
         },
         &mut out,
@@ -836,9 +837,9 @@ fn startup_deep_byte_cut_fails_before_any_fitting_prefix_is_handed_off() {
     let mut out = Queue::with_capacity(2);
     route::up(
         &mut routes,
-        store::Event::Restored {
+        store::Event::Page {
             owner,
-            rows: Box::new([forge_row(7), store::Row::Application { key, value }]),
+            items: items(Box::new([forge_row(7), store::Row::Application { key, value }])),
             next: None,
         },
         &mut out,
@@ -894,11 +895,68 @@ fn startup_asserts_a_decoded_census_cursor_that_cannot_name_its_walk() {
     let mut out = Queue::with_capacity(2);
     route::up(
         &mut routes,
-        store::Event::Restored {
+        store::Event::Page {
             owner,
-            rows: Box::new([]),
+            items: items(Box::new([])),
             next: Some(store::Cursor { interval: 0, after: store::keys::encode(&call_row().key(), u32::MAX).unwrap() }),
         },
         &mut out,
     );
+}
+
+fn items(rows: Box<[store::Row]>) -> Box<[store::restore::Item]> {
+    let mut items = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for row in rows {
+        items.push(store::restore::Item::Row(row)).unwrap();
+    }
+    items.into_boxed()
+}
+
+fn refused_page() -> store::restore::Failure {
+    store::restore::Failure { cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value), row: None }
+}
+
+#[test]
+fn a_missing_owner_reaches_the_root_before_its_page() {
+    let mut routes = fixtures::routes();
+    let range = engine::Range::Census(core::Census { results: Box::new([]), questions: Box::new([]) });
+    let Some(store::Request::Restore { owner, .. }) = route::down(&mut routes, load(range, None, 4, 8192)) else {
+        panic!("startup census")
+    };
+    let record = core::Key::Tasks(jig_domain_tasks::Key::Result { party: 7, position: 1 });
+    let target = core::Key::Tasks(jig_domain_tasks::Key::Ended(5));
+    let mut out = Queue::uncapped();
+    route::up(
+        &mut routes,
+        store::Event::Page {
+            owner,
+            items: Box::new([
+                store::restore::Item::MissingLink { record: record.clone(), target: target.clone() },
+                store::restore::Item::Row(ended_row(5)),
+            ]),
+            next: None,
+        },
+        &mut out,
+    );
+    let Some(Up::Root(event)) = out.pop() else { panic!("missing link first") };
+    let engine::Event::Store(engine::StoreInput::MissingLink { owner, record: found, target: need }) = *event else {
+        panic!("missing link first")
+    };
+    assert_eq!(owner, fixtures::OWNER);
+    assert_eq!(found, record);
+    assert_eq!(need, target);
+    let (owner, rows, next) = page(&mut out);
+    assert_eq!(owner, fixtures::OWNER);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(next, None);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn the_sweep_load_selects_only_people() {
+    let request =
+        route::down(&mut fixtures::routes(), load(engine::Range::Core(engine::CoreRange::Sweep), None, 4, 8192))
+            .unwrap();
+    let store::Request::Restore { range: store::Restore::Jig(ranges), .. } = request else { panic!("startup sweep") };
+    assert_eq!(ranges.as_ref(), [core::RestoreRange::People]);
 }

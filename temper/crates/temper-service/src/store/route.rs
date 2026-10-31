@@ -147,15 +147,33 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
 /// Every store terminal is accepted independently of journal room.
 pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
     match event {
-        store::Event::Page { .. } | store::Event::PageRefused { .. } => {
-            unreachable!("a start's pages need a start-mode store")
+        store::Event::Page { owner, items, next } => {
+            let Some(flight) = routes.pending.get(&owner) else { return };
+            let root_owner = flight.root;
+            let mut rows = List::with_capacity(u32::try_from(items.len()).expect("bounded startup items"));
+            for item in items {
+                match item {
+                    store::restore::Item::Row(row) => rows.push(row).expect("one row per item"),
+                    store::restore::Item::MissingLink { record, target } => {
+                        root(into, engine::StoreInput::MissingLink { owner: root_owner, record, target });
+                    }
+                }
+            }
+            page(routes, owner, rows.into_boxed(), next, None, into);
+        }
+        store::Event::PageRefused { owner, failure } => {
+            if let Some(flight) = routes.pending.remove(&owner) {
+                routes.page_failure = Some(failure);
+                root(into, engine::StoreInput::Unloaded { owner: flight.root });
+            }
         }
         store::Event::Committed { number, fill } => root(into, engine::StoreInput::Committed { number, fill }),
         store::Event::Failed { number } => root(into, engine::StoreInput::Uncommitted { number }),
         store::Event::FrameTooLarge { number, task, bytes, limit } => {
             into.push(Up::FrameTooLarge { number, task, bytes, limit });
         }
-        store::Event::Restored { owner, rows, next } | store::Event::Loaded { owner, rows, next } => {
+        store::Event::Restored { .. } => unreachable!("startup uses typed pages"),
+        store::Event::Loaded { owner, rows, next } => {
             page(routes, owner, rows, next, None, into);
         }
         store::Event::Got { owner, mut row } => {

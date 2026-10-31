@@ -533,9 +533,6 @@ pub(crate) fn answer(engine: &mut Engine) {
         }
         let event = engine.store.above.pop().expect("store terminals");
         match event {
-            jig_protocol_store::Event::Page { .. } | jig_protocol_store::Event::PageRefused { .. } => {
-                unreachable!("a start's pages need a start-mode store")
-            }
             jig_protocol_store::Event::Opened { installation, pending, .. } => {
                 engine.store.opened = true;
                 engine.store.pending_generation = pending;
@@ -578,6 +575,8 @@ pub(crate) fn answer(engine: &mut Engine) {
             event @ (jig_protocol_store::Event::Committed { .. }
             | jig_protocol_store::Event::Failed { .. }
             | jig_protocol_store::Event::FrameTooLarge { .. }
+            | jig_protocol_store::Event::Page { .. }
+            | jig_protocol_store::Event::PageRefused { .. }
             | jig_protocol_store::Event::Restored { .. }
             | jig_protocol_store::Event::Loaded { .. }
             | jig_protocol_store::Event::Read { .. }
