@@ -190,7 +190,7 @@ fn turn_at_its_largest_text_payload_stays_within_the_configured_heap_bound() {
     assert_eq!(meter.held(), 0, "turn allocations released");
 }
 
-use crate::support::events_max as events;
+use crate::support::events;
 
 #[test]
 fn every_event_at_its_largest_payload_stays_within_its_encoded_and_heap_bounds() {
