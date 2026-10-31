@@ -66,31 +66,21 @@ fn the_flow_shows_the_step_its_row_is_at() {
         assert_eq!(connect::step(choice, &State::Unknown, None), Shown::Details(Choice::Elsewhere));
     }
     let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    assert_eq!(connect::step(Some(Choice::Forge(demo.forge)), &rows(C::NotSetUp), Some(&demo)), Shown::Choose);
+    assert_eq!(connect::step(Some(Choice::Forge(demo.forge)), &rows(C::NotSetUp), Some(demo.forge)), Shown::Choose);
     let github = State::Rows(Box::new([row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered)]));
     assert_eq!(connect::step(Some(Choice::Forge(2)), &github, None), Shown::Details(Choice::Forge(2)));
     let fake = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Fake, C::NotSetUp, Offer::Offered)]));
     assert_eq!(connect::step(Some(Choice::Forge(HERE)), &fake, None), Shown::Choose);
 }
 #[test]
-fn choose_offers_github_forgejo_here_and_elsewhere_by_offer() {
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    let state = State::Rows(Box::new([
-        row(demo.forge, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
-        row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
-        row(3, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotUnderTheBox),
-        row(4, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotOffered),
-        row(5, Kind::GitHub, Mode::Fake, C::NotConnected, Offer::NotOffered),
-        row(6, Kind::Forgejo, Mode::Managed, C::NotConnected, Offer::NotOffered),
-        row(7, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
-    ]));
-    // Demo numbers belong to their own fixture; the other six numbers stay distinct.
+fn a_fresh_deployment_lists_no_forge_and_offers_the_kinds() {
+    let state = State::Rows(Box::new([]));
+    assert!(forge::listed::rows(&state, None).is_empty());
     assert_eq!(
-        connect::choices(&state, Some(&demo)).as_slice(),
-        &[Choice::Forge(2), Choice::Forge(3), Choice::Forge(7), Choice::Elsewhere]
+        connect::choices(&state, None, true).as_slice(),
+        &[connect::Choice::GitHub, connect::Choice::Owned, connect::Choice::Managed]
     );
-    assert_eq!(connect::next_number(&State::Rows(Box::new([]))), 1);
-    assert_eq!(connect::next_number(&rows(C::NotSetUp)), 4);
+    assert_eq!(connect::choices(&state, None, false).as_slice(), &[connect::Choice::GitHub, connect::Choice::Managed]);
 }
 fn event(root: &mut crate::Domain, event: Event) -> Queue<Request> {
     event_at(root, event, Time::ZERO)
@@ -303,47 +293,25 @@ fn an_out_of_date_link_unwatches_the_forges() {
 }
 
 #[test]
-fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
-    use forge::listed;
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    let connections = [
-        C::NotConnected,
-        C::NotSetUp,
-        C::SettingUp { step: None },
-        C::SetUpFailed { why: Box::default(), at: None },
-        C::Connecting,
-        C::Connected { id: 42, login: Box::default() },
-        C::Stopped { reason: Box::default() },
-    ];
-    for connection in connections {
-        let expected = match connection {
-            C::NotConnected | C::NotSetUp => false,
-            C::SettingUp { .. } | C::SetUpFailed { .. } | C::Connecting | C::Connected { .. } | C::Stopped { .. } => {
-                true
-            }
-        };
-        let candidate = row(HERE, Kind::Forgejo, Mode::Owned, connection, Offer::Offered);
-        assert_eq!(listed::personal(&candidate, Some(&demo)), expected);
-        let mut fake = candidate.clone();
-        fake.mode = Mode::Fake;
-        assert!(!listed::personal(&fake, None));
-        fake.mode = Mode::Owned;
-        fake.number = demo.forge;
-        assert!(!listed::personal(&fake, Some(&demo)));
+fn the_playground_forge_is_listed_with_nothing_to_add() {
+    let state = State::Rows(Box::new([row(
+        1,
+        Kind::Forgejo,
+        Mode::Fake,
+        C::Connected { id: 1, login: Box::default() },
+        Offer::NotOffered,
+    )]));
+    assert_eq!(forge::listed::rows(&state, Some(1)).len(), 1);
+    assert_eq!(connect::name(forge::listed::rows(&state, Some(1)).get(0).unwrap(), Some(1)), connect::Name::Playground);
+    assert!(connect::choices(&state, Some(1), true).is_empty());
+    assert!(connect::unfinished(&state, Some(1)).is_none());
+}
+#[test]
+fn all_kept_real_records_are_listed() {
+    for connection in [C::NotConnected, C::NotSetUp, C::SettingUp { step: None }, C::Stopped { reason: Box::default() }]
+    {
+        assert_eq!(forge::listed::rows(&rows(connection), None).len(), 1);
     }
-    let state = State::Rows(Box::new([
-        row(demo.forge, Kind::Forgejo, Mode::Connected, C::Connecting, Offer::NotOffered),
-        row(2, Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
-        row(3, Kind::Forgejo, Mode::Fake, C::Connecting, Offer::NotOffered),
-        row(4, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
-        row(5, Kind::Forgejo, Mode::Owned, C::Stopped { reason: Box::default() }, Offer::Offered),
-    ]));
-    let listed = listed::rows(&state, Some(&demo));
-    assert_eq!(listed.len(), 2_u32);
-    assert_eq!(listed.as_slice()[0].number, 2_u16);
-    assert_eq!(listed.as_slice()[1].number, 5_u16);
-    assert!(listed::rows(&State::Unknown, None).is_empty());
-    assert!(listed::rows(&State::Ended, None).is_empty());
 }
 #[test]
 fn the_dot_is_red_for_a_forge_that_needs_the_person_else_amber_while_one_sets_up() {
@@ -376,8 +344,8 @@ fn the_dot_is_red_for_a_forge_that_needs_the_person_else_amber_while_one_sets_up
         row(demo.forge, Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
         row(HERE, Kind::Forgejo, Mode::Fake, C::Stopped { reason: Box::default() }, Offer::NotOffered),
     ]));
-    assert_eq!(listed::dot(&state, Some(&demo)), Dot::None);
-    assert!(connect::underway_forge(&state, Some(&demo)).is_none());
+    assert_eq!(listed::dot(&state, Some(demo.forge)), Dot::Amber);
+    assert!(connect::underway_forge(&state, Some(demo.forge)).is_none());
 }
 
 fn sent(mut out: Queue<Request>) -> (Token, skein_lib::RequestKey, w::Request) {
@@ -1318,4 +1286,201 @@ fn accepting_at_once_on_either_welcome_forge_address_moves_to_model() {
         }
         assert!(moved, "accepted setup opens Model");
     }
+}
+
+#[test]
+fn choosing_github_sends_connect_new_github() {
+    let (mut root, _, _) = opened(true);
+    let (_, _, request) = sent(f::form_act(
+        &mut root,
+        forge::Act::Forges(forges::Act::GitHub { back: b"https://temper.example/forges".as_slice().into() }),
+    ));
+    let w::Request::Connect(request) = request else { panic!("connect") };
+    let w::Making::New(new) = request.forge() else { panic!("new") };
+    assert_eq!(*new.forge(), w::ForgeAsk::Github);
+    let w::How::GithubManifest(_) = request.how() else { panic!("manifest") };
+}
+#[test]
+fn choosing_owned_sends_set_up_new_owned() {
+    let (mut root, _, _) = opened(true);
+    let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::SetUpOwned)));
+    let w::Request::SetUp(request) = request else { panic!("set up") };
+    let w::Making::New(new) = request.forge() else { panic!("new") };
+    assert_eq!(*new.forge(), w::ForgeAsk::Owned);
+    assert_eq!((request.org(), request.repository()), (b"work".as_slice(), b"hello".as_slice()));
+}
+#[test]
+fn an_unfinished_github_with_its_app_offers_go_on_first() {
+    let mut candidate = row(4, Kind::GitHub, Mode::Connected, C::Stopped { reason: Box::default() }, Offer::NotOffered);
+    candidate.app = Some(forges::AppWay::Manifest);
+    let state = State::Rows(Box::new([candidate]));
+    let row = connect::unfinished(&state, None).unwrap();
+    assert_eq!(
+        connect::unfinished_acts(row).as_slice(),
+        &[connect::UnfinishedAct::GoOn, connect::UnfinishedAct::StartOver]
+    );
+}
+#[test]
+fn remove_asks_then_sends_remove_forge() {
+    let (mut root, _, watch) = opened(true);
+    deliver_first(&mut root, watch, w::Connection::NotSetUp, w::FirstState::Making);
+    assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::Remove { forge: HERE })).is_empty());
+    let confirmation = root.forge().setup_form().removal.as_ref().unwrap();
+    assert_eq!(
+        (confirmation.kind, confirmation.mode, confirmation.effect),
+        (Kind::Forgejo, Mode::Owned, forges::RemovalEffect::OwnedDirectory)
+    );
+    let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::ConfirmRemove)));
+    let w::Request::RemoveForge(request) = request else { panic!("remove") };
+    assert_eq!(request.forge(), HERE);
+    assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::ConfirmRemove)).is_empty());
+}
+#[test]
+fn an_unfinished_forgejo_offers_start_over_which_removes_then_chooses() {
+    let (mut root, _, watch) = opened(true);
+    deliver_first(&mut root, watch, w::Connection::NotSetUp, w::FirstState::Making);
+    let row = connect::unfinished(root.forges(), None).unwrap();
+    assert_eq!(connect::unfinished_acts(row).as_slice(), &[connect::UnfinishedAct::StartOver]);
+    let (attempt, _, request) =
+        sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::StartOver { forge: HERE })));
+    let w::Request::RemoveForge(_) = request else { panic!("remove") };
+    let out = reply(&mut root, attempt, w::Outcome::Removed);
+    let mut chose = false;
+    for request in &out {
+        if let Request::Leave { to, .. } = request
+            && to.as_ref() == b"/welcome?at=forge"
+        {
+            chose = true;
+        }
+    }
+    assert!(chose);
+}
+
+#[test]
+fn new_owned_adoption_waits_for_the_answer_and_the_made_rows_number() {
+    for row_first in [false, true] {
+        let (mut root, _, watch) = opened(true);
+        let (attempt, _, _) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::SetUpOwned)));
+        if row_first {
+            assert!(deliver_first(&mut root, watch, connected(), made()).is_empty());
+        } else {
+            reply(&mut root, attempt, w::Outcome::SettingUp);
+        }
+        let out = if row_first {
+            reply(&mut root, attempt, w::Outcome::SettingUp)
+        } else {
+            deliver_first(&mut root, watch, connected(), made())
+        };
+        assert_eq!(root.forge().set_up().unwrap().forge, Some(HERE));
+        assert!(root.forge().setup_form().making.is_none());
+        assert!(root.forge().set_up().unwrap().starting.is_some());
+        assert!(!out.is_empty());
+    }
+}
+#[test]
+fn the_welcome_shows_a_kept_forge_without_its_first_adoption_as_unfinished() {
+    assert_eq!(connect::welcome_step(None, &rows(C::NotSetUp), None), Shown::Unfinished(HERE));
+    assert_eq!(
+        connect::welcome_step(None, &rows(C::Connected { id: 1, login: Box::default() }), None),
+        Shown::Unfinished(HERE)
+    );
+}
+
+#[test]
+fn owned_choices_follow_the_existing_rows_offer() {
+    for (offer, owned) in [(Offer::Offered, true), (Offer::NotOffered, false), (Offer::NotUnderTheBox, false)] {
+        let state = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, offer)]));
+        assert_eq!(connect::choices(&state, None, !owned).as_slice().contains(&connect::Choice::Owned), owned);
+    }
+}
+#[test]
+fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
+    for app in [w::AppWay::Manifest, w::AppWay::Pasted] {
+        let (mut root, _, watch) = opened(true);
+        let mut rows = List::with_capacity(1);
+        rows.push(
+            w::ForgeRow::new(
+                &w::CEILINGS,
+                w::ForgeRowParts {
+                    number: 9,
+                    kind: w::Kind::Github,
+                    mode: w::Mode::Connected,
+                    connection: w::Connection::Stopped(
+                        w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: Box::default() }).unwrap(),
+                    ),
+                    offer: w::Offer::NotOffered,
+                    first: None,
+                    installations: List::with_capacity(0),
+                    ended: None,
+                    app: Some(app.clone()),
+                    web: None,
+                    repositories: List::with_capacity(0),
+                    owned: None,
+                    admin: false,
+                    read_only: false,
+                    ended_stop: None,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        up(
+            &mut root,
+            Up::FamilyDelivered {
+                watch,
+                record: client::Family {
+                    family: wire::FORGE,
+                    version: wire::CLIENT_VERSION,
+                    bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap()),
+                },
+            },
+        );
+        let (_, _, request) = sent(f::form_act(
+            &mut root,
+            forge::Act::Forges(forges::Act::GoOn {
+                forge: 9,
+                back: b"https://temper.example/forges".as_slice().into(),
+            }),
+        ));
+        match app {
+            w::AppWay::Manifest => {
+                let w::Request::Connect(connect) = request else { panic!("connect") };
+                let w::Making::Kept(kept) = connect.forge() else { panic!("kept") };
+                assert_eq!(kept.forge(), 9);
+                let w::How::GithubManifest(_) = connect.how() else { panic!("manifest") };
+            }
+            w::AppWay::Pasted => {
+                let w::Request::Install(install) = request else { panic!("install") };
+                assert_eq!(install.forge(), 9);
+            }
+        }
+    }
+}
+
+#[test]
+fn a_new_github_does_not_rebind_a_retained_owned_setup() {
+    let (mut root, _, watch) = opened(true);
+    setup(&mut root);
+    answered(&mut root, w::Outcome::SettingUp);
+    let (attempt, _, _) = sent(f::form_act(
+        &mut root,
+        forge::Act::Forges(forges::Act::GitHub { back: b"https://temper.example/forges".as_slice().into() }),
+    ));
+    deliver_picker(&mut root, watch, false);
+    assert!(!root.forge().setup_form().making.as_ref().unwrap().accepted);
+    reply(&mut root, attempt, w::Outcome::Connecting);
+    assert!(root.forge().setup_form().making.is_none());
+    assert_eq!(root.forge().set_up().unwrap().forge, Some(HERE));
+}
+
+#[test]
+fn a_pending_new_github_blocks_a_second_new_forge() {
+    let (mut root, _, _) = opened(true);
+    sent(f::form_act(
+        &mut root,
+        forge::Act::Forges(forges::Act::GitHub { back: b"https://temper.example/forges".as_slice().into() }),
+    ));
+    assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::SetUpOwned)).is_empty());
+    assert!(root.forge().set_up().is_none());
+    assert_eq!(root.forge().setup_form().making.as_ref().unwrap().kind, Kind::GitHub);
 }

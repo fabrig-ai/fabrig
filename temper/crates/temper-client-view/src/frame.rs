@@ -365,40 +365,7 @@ pub(crate) fn demo_banner(b: &mut Builder, root: &Domain, words: &crate::words::
         | Address::Inbox { .. }
         | Address::Adopt { .. } => {}
     }
-    if let Some(setup) = temper_client_domain::forge::listed::setup(root) {
-        b.open(Role::Region);
-        b.style(crate::look::SETUP_STRIP);
-        b.name(&words.say(crate::words::Word::Setup, &[]));
-        let word = if setup.forge && setup.model {
-            crate::words::Word::SetupBoth
-        } else if setup.forge {
-            crate::words::Word::SetupForge
-        } else {
-            crate::words::Word::SetupModel
-        };
-        text(b, Role::Paragraph, &words.say(word, &[]), None);
-        setup_underway(b, root, words, bindings);
-        action(
-            b,
-            Role::Link,
-            &words.say(crate::words::Word::SetupContinue, &[]),
-            Act::Go { address: Address::Welcome { step: setup.step } },
-            false,
-            bindings,
-        );
-        if setup.playground {
-            action(
-                b,
-                Role::Button,
-                &words.say(crate::words::Word::WelcomePlayground, &[]),
-                Act::Playground,
-                false,
-                bindings,
-            );
-        }
-        b.close();
-        return;
-    }
+    // t-view-frame
     let Some((_, halves)) = root.demo() else { return };
     b.open(Role::Region);
     b.style(crate::look::ACCOUNTS);
@@ -435,7 +402,10 @@ pub(crate) fn demo_banner(b: &mut Builder, root: &Domain, words: &crate::words::
 }
 
 fn setup_underway(b: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) -> bool {
-    let Some(row) = temper_client_domain::forge::connect::underway_forge(root.forges(), root.forge().demo()) else {
+    let Some(row) = temper_client_domain::forge::connect::underway_forge(
+        root.forges(),
+        temper_client_domain::forge::connect::playground(root.forge()),
+    ) else {
         return false;
     };
     crate::forge::connect::status(b, root, words, row, false);
@@ -471,7 +441,7 @@ fn forges_entry(builder: &mut Builder, root: &Domain, words: &crate::words::Word
         builder.state(skein_ui::State::Current);
     }
     builder.text(Run::Plain, &words.say(crate::words::Word::ForgesTitle, &[]));
-    let dot = match listed::dot(root.forges(), root.forge().demo()) {
+    let dot = match listed::dot(root.forges(), temper_client_domain::forge::connect::playground(root.forge())) {
         Dot::None => None,
         Dot::Amber => Some((crate::look::NAV_LIMITED, crate::words::Word::ForgeDotAmber)),
         Dot::Red => Some((crate::look::NAV_NEEDS, crate::words::Word::ForgeDotRed)),
