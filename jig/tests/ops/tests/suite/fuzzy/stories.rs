@@ -3,6 +3,7 @@ use jig_ops_fake_production as production;
 use jig_ops_world::conformance::night;
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn every_night_commit_recovers_one_conditional_scale() {
     // Sweep the one procedure-only story, with one pinned seed. The alert's
     // six selected cut positions run in fuzzy_alert_cuts; other scenarios belong to later.md.

@@ -1,10 +1,8 @@
 //! The real ops root with withheld store commit answers (dynamic-memory.md, 4.6).
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
-use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_people as people;
-use jig_domain_tasks as tasks;
 use jig_ops_domain as root;
 use jig_ops_domain_observability as observability;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -37,8 +35,7 @@ impl Driver {
     #[must_use]
     pub fn started(seed: u64) -> Self {
         let (configuration, limits) = crate::conformance::config::root(seed);
-        let rows = jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers);
-        let seeded = jig_core_world::fixtures::seeded_project_rows(&configuration.core);
+        let world_configuration_providers = configuration.core.settings.llm_providers.clone();
         let mut world = Self {
             domain: root::Domain::new(configuration, &limits).expect("fixture core configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -51,23 +48,15 @@ impl Driver {
             sign_in: 0,
             owner: Token::new(0),
         };
-        for row in seeded {
+        world.send(root::Event::Restart { pending: false });
+        for row in jig_core_world::fixtures::account_rows(&world_configuration_providers) {
+            let jig_test_domain::Record::Core(row) = row else { panic!("core account fixture") };
             world.send(root::Event::Store(root::Store::Restore(root::Record::Core(row))));
-            world.settle();
         }
-        for row in rows {
-            let jig_test_domain::Record::Core(core::Record::Accounts(record)) = row else {
-                panic!("account fixture row")
-            };
-            world.send(root::Event::Core(core::Event::Account(accounts::Event::Restore { record })));
-        }
+        world.settle();
         for event in [
             core::Event::People(people::Event::Roles { project: 1, holdings: Box::new([]) }),
-            core::Event::People(people::Event::Restored),
-            core::Event::Tasks(tasks::Event::Check),
-            core::Event::Tasks(tasks::Event::Restored),
             core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
-            core::Event::Fleet(fleet::Event::Loaded),
             core::Event::Account(accounts::Event::Want),
             core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
                 form: accounts::Form::Credential(accounts::Scheme::Bearer),
@@ -183,8 +172,7 @@ impl Driver {
                         | root::Released::Observability(_)
                         | root::Released::Host(_)
                         | root::Released::Procedure { .. }
-                        | root::Released::Restart(_)
-                        | root::Released::RestartDone(_) => {}
+                        | root::Released::Start(_) => {}
                     }
                     self.events.push_back(root::Event::Released(child));
                 }
@@ -197,12 +185,14 @@ impl Driver {
                         more: false,
                     })));
                 }
+                root::Output::Load { phase, .. } => {
+                    self.events.push_back(root::Event::Store(root::Store::Restored(phase)));
+                }
+                root::Output::Switch => self.send(root::Event::Store(root::Store::Switched)),
                 other @ (root::Output::ApplicationDocument { .. }
                 | root::Output::ApplicationRead { .. }
                 | root::Output::IncidentAssociationRefused { .. }
                 | root::Output::Application { .. }
-                | root::Output::Switch
-                | root::Output::Load { .. }
                 | root::Output::CoreLoad(_)
                 | root::Output::Core(_)
                 | root::Output::Now(_)

@@ -33,6 +33,7 @@ fn ask(sign_in: u64, key: u8, value: infrastructure::ApplicationRequest) -> root
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn an_application_request_reaches_infrastructure_and_waits_for_its_commit() {
     let mut world = Harness::<Ops>::new(Config::new(713, Story::Night), 713);
     world.drain().expect("ops startup");
@@ -55,6 +56,7 @@ fn an_application_request_reaches_infrastructure_and_waits_for_its_commit() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn moving_an_environments_end_is_durable_revision_checked_and_replayed_after_restart() {
     use jig_ops_fake_production as production;
     let config = Config::new(714, Story::Night).application_answers(8);

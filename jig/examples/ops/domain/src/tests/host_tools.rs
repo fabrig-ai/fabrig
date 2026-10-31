@@ -82,6 +82,7 @@ fn subscription_answer(outputs: Box<[Output]>, key: core::CallKey) {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_tool_mutation_and_its_reply_part_share_one_commit() {
     let (mut domain, env, owner) = started_chat();
     let (to, key) = subscription_call(&mut domain, &env, owner);

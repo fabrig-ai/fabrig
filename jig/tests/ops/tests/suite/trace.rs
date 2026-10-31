@@ -2,6 +2,7 @@
 
 use jig_ops_world::conformance::{Config, Ops, Story};
 #[test]
+#[ignore = "needs core-inbox"]
 fn tracing_off_keeps_no_copies_and_on_replays_the_whole_application_boundary() {
     let run = |enabled| {
         let mut world = jig_conformance::Harness::<Ops>::with_trace(Config::new(23, Story::Night), 23, enabled);

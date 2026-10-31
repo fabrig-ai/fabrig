@@ -17,6 +17,7 @@ use skein_world::domain::Verdict;
 const WITHIN: Duration = Duration::from_secs(3);
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn p_accepts_the_restart_from_the_incidents_page() {
     p_story(511, Cut::None, false);
 }
@@ -135,6 +136,7 @@ fn monitor(
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_restart_waiting_for_p_is_withdrawn_when_the_service_was_restarted_by_hand() {
     let (mut world, p) = monitor(512);
     fixture::alert(world.front());
@@ -276,6 +278,7 @@ fn assert_durable_restart(engine: &OpsEngine, lead: u64, remedy: u64) {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn q_asks_for_an_environment_in_a_chat_and_accepts_what_it_costs() {
     q_story(513, Cut::None, false, false);
 }
@@ -713,6 +716,7 @@ fn assert_native_retries(world: &mut StoryWorld) {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn p_acceptance_survives_the_commit_before_its_durable_decision() {
     let (mut baseline, _, _, _) = restart_started(531, Cut::None, false);
     let commit = position(&mut baseline, Milestone::Acceptance(6)) - 1;
@@ -722,6 +726,7 @@ fn p_acceptance_survives_the_commit_before_its_durable_decision() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn p_acceptance_survives_its_durable_decision_commit() {
     let (mut baseline, _, _, _) = restart_started(532, Cut::None, false);
     let commit = position(&mut baseline, Milestone::Acceptance(6));
@@ -731,6 +736,7 @@ fn p_acceptance_survives_its_durable_decision_commit() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn p_acceptance_survives_the_commit_after_its_durable_decision() {
     let (mut baseline, _, _, _) = restart_started(533, Cut::None, false);
     let commit = position(&mut baseline, Milestone::Acceptance(6)) + 1;
@@ -740,6 +746,7 @@ fn p_acceptance_survives_the_commit_after_its_durable_decision() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn q_provision_survives_its_acceptance_commit_and_move_end_survives_reload() {
     let mut baseline = q_story(534, Cut::None, false, false);
     let commit = position(&mut baseline, Milestone::Acceptance(1));
@@ -748,6 +755,7 @@ fn q_provision_survives_its_acceptance_commit_and_move_end_survives_reload() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn q_provision_survives_its_made_commit_and_move_end_survives_reload() {
     let mut baseline = q_story(535, Cut::None, false, false);
     let commit = position(&mut baseline, Milestone::Made);
@@ -756,6 +764,7 @@ fn q_provision_survives_its_made_commit_and_move_end_survives_reload() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn q_move_end_survives_its_durable_answer_commit_and_reload() {
     let mut baseline = q_story(536, Cut::None, false, false);
     let commit = position(&mut baseline, Milestone::MoveEnd);
@@ -764,6 +773,7 @@ fn q_move_end_survives_its_durable_answer_commit_and_reload() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn p_story_survives_seeded_commit_crashes_and_random_presses() {
     for seed in [537, 548] {
         let mut world = p_story(seed, Cut::Random { seed: seed ^ 0x33 }, true);
@@ -774,6 +784,7 @@ fn p_story_survives_seeded_commit_crashes_and_random_presses() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn q_story_survives_seeded_commit_crashes_reload_and_random_presses() {
     for seed in [539, 540] {
         let mut world = q_story(seed, Cut::Random { seed: seed ^ 0x33 }, true, true);

@@ -12,80 +12,140 @@ use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
 use skein_lib::{Decision, Env, Queue};
 
+/// Translate the core's phases without selecting their successors.
 pub(crate) fn route(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Output>,
-    request: core::RestartRequest,
+    action: core::start::Action,
     work: &mut Queue<Work>,
 ) {
-    match request {
-        core::RestartRequest::Idle
-        | core::RestartRequest::Settings { .. }
-        | core::RestartRequest::HeldPastLimit { .. }
-        | core::RestartRequest::UnheldRevision { .. }
-        | core::RestartRequest::ProjectPolicy { .. }
-        | core::RestartRequest::Unresolved { .. }
-        | core::RestartRequest::Refused { .. } => {}
-        core::RestartRequest::Step(step) => match step {
-            core::RestartStep::LoadCore => held(decision, Output::Load { step, range: Range::Core }),
-            core::RestartStep::LoadInbox => {
-                // The accounts' records came with the core's ranges: want
-                // each real source once its account rows are restored.
-                let requests = core::want_accounts(
-                    &mut domain.core,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                );
-                crate::route::core_out(domain, env, decision, requests, work);
-                let census = domain.core.census(&env.limits.core);
-                held(decision, Output::Load { step, range: Range::Census(census) });
-            }
-            core::RestartStep::RestoreConnector { connector } => {
-                let range = match jig_ops_domain_connectors::connector(connector) {
-                    Some(Connector::Infrastructure) => Range::Infrastructure,
-                    Some(Connector::Observability) => Range::Observability,
-                    None => {
-                        let _request = domain.core.restart_refuse();
-                        return;
+    use core::start::{Action, Phase};
+    match action {
+        Action::Refused(_) => domain.start.state = crate::domain::StartState::Stopped,
+        Action::Idle => {}
+        Action::Commit(continuation) => {
+            domain.start.waiting = true;
+            held(decision, Output::ToChild(crate::Released::Start(continuation)));
+        }
+        Action::Step(phase) => {
+            #[cfg(test)]
+            domain.start_phases.push(phase).expect("the start's finite phase list");
+            match phase {
+                Phase::LoadCore => held(decision, Output::Load { phase, range: Range::Core }),
+                Phase::LoadInbox => {
+                    let census = domain.core.census(&env.limits.core);
+                    held(decision, Output::Load { phase, range: Range::Census(census) });
+                }
+                Phase::RestoreConnector { connector } => {
+                    let range = match jig_ops_domain_connectors::connector(connector) {
+                        Some(Connector::Infrastructure) => Range::Infrastructure,
+                        Some(Connector::Observability) => Range::Observability,
+                        None => {
+                            domain.start.state = crate::domain::StartState::Stopped;
+                            return;
+                        }
+                    };
+                    held(decision, Output::Load { phase, range });
+                }
+                Phase::Link | Phase::Wires => work.push(Work::StartDone(phase)),
+                Phase::Sweep => {
+                    if domain.start.sweep_loaded {
+                        sweep(domain, env, decision, work);
+                    } else {
+                        domain.start.sweep_loaded = true;
+                        held(decision, Output::Load { phase, range: Range::People });
                     }
+                }
+                Phase::Switch => held(decision, Output::Switch),
+                Phase::AdoptRuns => {
+                    for _ in 0..domain.core.adopted.len() {
+                        work.push(Work::Core(core::Event::Fleet(
+                            domain.core.adopted.pop().expect("loaded claim count"),
+                        )));
+                    }
+                    work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::Loaded)));
+                    work.push(Work::StartDone(phase));
+                }
+                Phase::ReadAfresh { connector } => match jig_ops_domain_connectors::connector(connector) {
+                    Some(Connector::Infrastructure) => {
+                        work.push(Work::Infrastructure(infrastructure::Event::ReadAfresh));
+                    }
+                    Some(Connector::Observability) => work.push(Work::Observability(observability::Event::ReadAfresh)),
+                    None => domain.start.state = crate::domain::StartState::Stopped,
+                },
+                Phase::SettleOutbox { connector } => match jig_ops_domain_connectors::connector(connector) {
+                    Some(Connector::Infrastructure) => work.push(Work::Infrastructure(infrastructure::Event::Restart)),
+                    Some(Connector::Observability) => work.push(Work::Observability(observability::Event::Restart)),
+                    None => domain.start.state = crate::domain::StartState::Stopped,
+                },
+                Phase::Open => {
+                    work.push(Work::Infrastructure(infrastructure::Event::SendCloses));
+                    work.push(Work::StartDone(phase));
+                }
+            }
+        }
+    }
+}
+
+pub(crate) fn done(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision<Write, Output>,
+    phase: core::start::Phase,
+    work: &mut Queue<Work>,
+) {
+    let mut out = Queue::uncapped();
+    let action =
+        domain.core.start_done(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, phase, &mut out);
+    if phase == core::start::Phase::Wires {
+        match &action {
+            core::start::Action::Commit(_) => crate::domain::write(domain, decision, Write::Wires),
+            core::start::Action::Refused(_) => {}
+            core::start::Action::Step(_) | core::start::Action::Idle => {
+                unreachable!("Wires needs a durable continuation")
+            }
+        }
+    }
+    let opened = match action {
+        core::start::Action::Idle => phase == core::start::Phase::Open,
+        core::start::Action::Step(_) | core::start::Action::Commit(_) | core::start::Action::Refused(_) => false,
+    };
+    if opened {
+        domain.start.state = crate::domain::StartState::Opened;
+        if let Some(bytes) = domain.start.fill.take() {
+            work.push(Work::Core(core::Event::Fill { bytes }));
+        }
+    }
+    crate::route::core_out(domain, env, decision, core::Requests::Out(out), work);
+    work.push(Work::Start(action));
+}
+
+/// A page may arrive while an earlier expiry erase waits for its commit.
+fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision<Write, Output>, work: &mut Queue<Work>) {
+    for _ in 0..domain.start.sweep.len() {
+        if domain.start.waiting {
+            break;
+        }
+        let input = domain.start.sweep.pop().expect("queued sweep page rows");
+        let mut out = Queue::uncapped();
+        let action =
+            domain.core.start_sweep(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, input, &mut out);
+        crate::route::core_out(domain, env, decision, core::Requests::Out(out), work);
+        match action {
+            core::start::Action::Idle => {}
+            action @ (core::start::Action::Step(_)
+            | core::start::Action::Commit(_)
+            | core::start::Action::Refused(_)) => {
+                domain.start.waiting = match action {
+                    core::start::Action::Commit(_) => true,
+                    core::start::Action::Step(_) | core::start::Action::Refused(_) => false,
+                    core::start::Action::Idle => unreachable!("Idle continues the sweep"),
                 };
-                held(decision, Output::Load { step, range });
+                work.push(Work::Start(action));
+                break;
             }
-            core::RestartStep::Switch => {
-                work.push(Work::Core(core::Event::Tasks(tasks::Event::Check)));
-                work.push(Work::SwitchChecked);
-            }
-            core::RestartStep::AdoptRuns => {
-                work.push(Work::Core(core::Event::Tasks(tasks::Event::Restored)));
-                work.push(Work::AdoptClaims);
-            }
-            core::RestartStep::ReadAfresh { connector } => match jig_ops_domain_connectors::connector(connector) {
-                Some(Connector::Infrastructure) => {
-                    work.push(Work::Infrastructure(infrastructure::Event::ReadAfresh));
-                }
-                Some(Connector::Observability) => {
-                    work.push(Work::Observability(observability::Event::ReadAfresh));
-                }
-                None => {
-                    let _request = domain.core.restart_refuse();
-                }
-            },
-            core::RestartStep::SettleOutbox { connector } => match jig_ops_domain_connectors::connector(connector) {
-                Some(Connector::Infrastructure) => {
-                    work.push(Work::Infrastructure(infrastructure::Event::Restart));
-                }
-                Some(Connector::Observability) => {
-                    work.push(Work::Observability(observability::Event::Restart));
-                }
-                None => {
-                    let _request = domain.core.restart_refuse();
-                }
-            },
-            core::RestartStep::Open => {
-                let _request = domain.core.restart_done(step);
-                work.push(Work::Infrastructure(infrastructure::Event::SendCloses));
-            }
-        },
+        }
     }
 }
 
@@ -105,23 +165,17 @@ pub(crate) fn store(
             if domain.core.stopping() {
                 return;
             }
-            crate::domain::write(domain, decision, Write::Wires);
-            held(decision, Output::ToChild(crate::Released::RestartDone(core::RestartStep::Switch)));
+            work.push(Work::StartDone(core::start::Phase::Switch));
         }
         Store::Committed { .. } | Store::Failed { .. } => unreachable!("store terminals belong to the journal"),
         Store::Loaded(event) => work.push(Work::Core(event)),
-        Store::Restored(step) => {
-            if step == core::RestartStep::LoadCore {
-                if !domain.core.settings_restored(&Env { now: env.now, wall: env.wall, limits: env.limits.core }) {
-                    return;
-                }
-                work.push(Work::Core(core::Event::SettingsCommit { room: env.limits.core.routes }));
-                // The completed core range is also the people's restoration
-                // terminal. Retain it when copying this cold-load adapter.
-                work.push(Work::Core(core::Event::People(people::Event::Restored)));
+        Store::Restored(phase) => {
+            if phase == core::start::Phase::Sweep {
+                domain.start.sweep.push(core::start::SweepInput::Finished);
+                sweep(domain, env, decision, work);
+            } else {
+                work.push(Work::StartDone(phase));
             }
-            let request = domain.core.restart_done(step);
-            work.push(Work::Restart(request));
         }
         Store::Transcript { task, rows, done } => {
             // A message can invalidate preparation while this store read is
@@ -145,19 +199,22 @@ pub(crate) fn store(
             }
         }
         Store::Restore(record) => {
-            let after_settings = match &record {
-                Record::Core(core::Record::Core(core::CoreRecord::Settings(_) | core::CoreRecord::Deployment(_))) => {
-                    false
-                }
-                Record::Core(_) | Record::Infrastructure(_) | Record::Observability(_) => true,
-            };
-            if domain.core.restart_step() == Some(core::RestartStep::LoadCore)
-                && after_settings
-                && !domain.core.settings_restored(&Env { now: env.now, wall: env.wall, limits: env.limits.core })
-            {
+            if domain.start.state == crate::domain::StartState::Stopped || domain.core.start_failure().is_some() {
                 return;
             }
-            let valid = if domain.core.restart_step() == Some(core::RestartStep::LoadInbox) {
+            if domain.core.start_phase() == Some(core::start::Phase::Sweep) {
+                match record {
+                    Record::Core(core::Record::People(row)) => {
+                        domain.start.sweep.push(core::start::SweepInput::Record(row));
+                    }
+                    Record::Core(_) | Record::Infrastructure(_) | Record::Observability(_) => {
+                        unreachable!("people sweep range")
+                    }
+                }
+                sweep(domain, env, decision, work);
+                return;
+            }
+            let valid = if domain.core.start_phase() == Some(core::start::Phase::LoadInbox) {
                 if let Record::Core(row) = record {
                     domain.core.restore_inbox_row(&env.limits.core, &row)
                 } else {
@@ -223,7 +280,7 @@ pub(crate) fn store(
                 }
             };
             if !valid {
-                let _request = domain.core.restart_refuse();
+                assert!(domain.core.start_failure().is_some(), "a refused row records its start failure");
             }
         }
     }

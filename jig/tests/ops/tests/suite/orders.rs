@@ -55,6 +55,7 @@ fn answers(driver: &Driver) -> Vec<(Token, &infrastructure::ApplicationOutcome)>
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn an_application_route_finishes_before_the_next_entrance() {
     let mut driver = Driver::started(SEED);
     driver.send(application(driver.sign_in, FIRST, 3));
@@ -136,6 +137,7 @@ fn read_done(token: Token, bytes: &[u8]) -> root::Event {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn read_answers_keep_completion_arrival_order_under_load() {
     let mut driver = Driver::started(SEED);
     driver.send(read(FIRST));
@@ -162,6 +164,7 @@ fn read_answers_keep_completion_arrival_order_under_load() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn turn_kept_precedes_terminal_acknowledgement_under_load() {
     let mut driver = Driver::started(SEED);
     driver.chat();

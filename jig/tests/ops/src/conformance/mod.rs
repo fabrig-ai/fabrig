@@ -256,9 +256,6 @@ impl Application for Ops {
     }
     fn start(config: &Config, store: &mut Store) -> Vec<root::Event> {
         if store.rows.is_empty() {
-            let record =
-                root::Record::Core(core::Record::People(people::Stored::Roles { project: 1, holdings: Box::new([]) }));
-            store.rows.insert(record.key(), record);
             let configuration = config::root_for(config.seed, config.story == Story::Environment).0;
             for row in jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers) {
                 let jig_test_domain::Record::Core(row) = row else { panic!("account fixture row") };
@@ -430,17 +427,19 @@ impl Application for Ops {
                 vec![Input::Event(root::Event::Released(child))]
             }
             root::Output::Switch => vec![Input::Event(root::Event::Store(root::Store::Switched))],
-            root::Output::Load { step, range } => {
-                let position = match step {
-                    core::RestartStep::LoadCore | core::RestartStep::LoadInbox => 0,
-                    core::RestartStep::RestoreConnector { connector } => u32::from(connector),
-                    core::RestartStep::Switch
-                    | core::RestartStep::AdoptRuns
-                    | core::RestartStep::ReadAfresh { .. }
-                    | core::RestartStep::SettleOutbox { .. }
-                    | core::RestartStep::Open => panic!("only row loads go to the store"),
+            root::Output::Load { phase, range } => {
+                let position = match phase {
+                    core::start::Phase::LoadCore | core::start::Phase::LoadInbox | core::start::Phase::Sweep => 0,
+                    core::start::Phase::RestoreConnector { connector } => u32::from(connector),
+                    core::start::Phase::Link
+                    | core::start::Phase::Wires
+                    | core::start::Phase::Switch
+                    | core::start::Phase::AdoptRuns
+                    | core::start::Phase::ReadAfresh { .. }
+                    | core::start::Phase::SettleOutbox { .. }
+                    | core::start::Phase::Open => panic!("only row loads go to the store"),
                 };
-                if step != core::RestartStep::LoadInbox {
+                if matches!(phase, core::start::Phase::LoadCore | core::start::Phase::RestoreConnector { .. }) {
                     peers.observed.push(r::Observed::RestartStage { position });
                 }
                 let rows: Vec<_> = if range == root::Range::Core {
@@ -460,7 +459,8 @@ impl Application for Ops {
                         .filter_map(|(key, row)| {
                             let admitted = match (&range, key) {
                                 (root::Range::Census(census), root::Key::Core(key)) => census.admits(key),
-                                (root::Range::Observability, root::Key::Observability(_))
+                                (root::Range::People, root::Key::Core(core::Key::People(_)))
+                                | (root::Range::Observability, root::Key::Observability(_))
                                 | (root::Range::Infrastructure, root::Key::Infrastructure(_)) => true,
                                 _ => false,
                             };
@@ -481,7 +481,7 @@ impl Application for Ops {
                     rows
                 };
                 let mut events: Vec<_> = rows.into_iter().map(Input::Restore).collect();
-                events.push(Input::Event(root::Event::Store(root::Store::Restored(step))));
+                events.push(Input::Event(root::Event::Store(root::Store::Restored(phase))));
                 events
             }
             root::Output::Infrastructure(call) => {

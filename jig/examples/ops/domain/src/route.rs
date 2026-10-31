@@ -72,27 +72,8 @@ pub(crate) fn work(
             );
             host_out(domain, env, decision, &mut out, work);
         }
-        Work::Restart(request) => crate::restart::route(domain, env, decision, request, work),
-        Work::SwitchChecked => {
-            if domain.core.restart_checked() {
-                held(decision, Output::Switch);
-            }
-        }
-        Work::AdoptClaims => {
-            // Tasks's restoration terminal produces the claims. Feed it first,
-            // then carry the complete range to the fleet as the core asks.
-            if domain.core.restart_admit_claims() {
-                for _ in 0..domain.core.adopted.len() {
-                    work.push(Work::Core(core::Event::Fleet(domain.core.adopted.pop().expect("loaded claim count"))));
-                }
-                work.push(Work::Core(core::Event::Fleet(fleet::Event::Loaded)));
-                work.push(Work::AdoptDone);
-            }
-        }
-        Work::AdoptDone => {
-            let request = domain.core.restart_done(core::RestartStep::AdoptRuns);
-            work.push(Work::Restart(request));
-        }
+        Work::Start(action) => crate::restart::route(domain, env, decision, action, work),
+        Work::StartDone(phase) => crate::restart::done(domain, env, decision, phase, work),
     }
 }
 
@@ -148,9 +129,9 @@ fn event_in(
         Event::Observability(event) => work.push(Work::Observability(event)),
         Event::Host(event) => work.push(Work::Host(event)),
         Event::Restart { pending } => {
-            domain.restarting = true;
-            let request = domain.core.restart_begin(pending);
-            work.push(Work::Restart(request));
+            domain.start.state = crate::domain::StartState::Starting;
+            let request = domain.core.start_begin(pending, env.wall);
+            work.push(Work::Start(request));
         }
         Event::Store(store) => crate::restart::store(domain, env, decision, store, work),
         Event::Released(released) => match released {
@@ -159,13 +140,19 @@ fn event_in(
             Released::Host(event) => work.push(Work::Host(event)),
             Released::Infrastructure(event) => work.push(Work::Infrastructure(event)),
             Released::Observability(event) => work.push(Work::Observability(event)),
-            Released::RestartDone(step) => {
+            Released::Start(continuation) => {
                 if !domain.core.stopping() {
-                    let request = domain.core.restart_done(step);
-                    work.push(Work::Restart(request));
+                    domain.start.waiting = false;
+                    let mut out = Queue::uncapped();
+                    let action = domain.core.start_resume(
+                        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+                        continuation,
+                        &mut out,
+                    );
+                    core_out(domain, env, decision, core::Requests::Out(out), work);
+                    work.push(Work::Start(action));
                 }
             }
-            Released::Restart(step) => work.push(Work::Restart(core::RestartRequest::Step(step))),
             Released::Procedure { task, step: _, connector, code: _ } => {
                 match jig_ops_domain_connectors::connector(connector) {
                     Some(Connector::Infrastructure) => {
@@ -1131,15 +1118,14 @@ pub(crate) fn infrastructure_out(
             }
             infrastructure::Request::Restarted { stage } => {
                 let step = match stage {
-                    infrastructure::RestartStage::ReadAfresh => core::RestartStep::ReadAfresh {
+                    infrastructure::RestartStage::ReadAfresh => core::start::Phase::ReadAfresh {
                         connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
                     },
-                    infrastructure::RestartStage::Outbox => core::RestartStep::SettleOutbox {
+                    infrastructure::RestartStage::Outbox => core::start::Phase::SettleOutbox {
                         connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
                     },
                 };
-                let request = domain.core.restart_done(step);
-                work.push(Work::Restart(request));
+                work.push(Work::StartDone(step));
             }
         }
     }
@@ -1345,15 +1331,14 @@ pub(crate) fn observability_out(
             }
             observability::Request::Restarted { stage } => {
                 let step = match stage {
-                    observability::RestartStage::ReadAfresh => core::RestartStep::ReadAfresh {
+                    observability::RestartStage::ReadAfresh => core::start::Phase::ReadAfresh {
                         connector: jig_ops_domain_connectors::number(Connector::Observability),
                     },
-                    observability::RestartStage::Outbox => core::RestartStep::SettleOutbox {
+                    observability::RestartStage::Outbox => core::start::Phase::SettleOutbox {
                         connector: jig_ops_domain_connectors::number(Connector::Observability),
                     },
                 };
-                let request = domain.core.restart_done(step);
-                work.push(Work::Restart(request));
+                work.push(Work::StartDone(step));
             }
         }
     }
@@ -1514,7 +1499,7 @@ fn core_now(domain: &mut Domain, env: &Env<Limits>, value: core::Now, work: &mut
         }
 
         core::Now::RestoreRefused => {
-            let _request = domain.core.restart_refuse();
+            assert!(domain.core.start_failure().is_some(), "a refused row records its start failure");
         }
         core::Now::RelayBusy { channel: _, run, attempt, call } => {
             domain.host_calls.remove(&call);
