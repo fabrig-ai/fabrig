@@ -469,13 +469,7 @@ impl Host for Client {
         {
             self.observe(&env);
         }
-        for _ in 0..ROOM {
-            if !self.io.takes() || self.submissions.room() < 2 {
-                break;
-            }
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &io_env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &io_env, &mut self.requests, &mut self.submissions);
         self.private_io(&env);
         self.io.reclaim();
         if let Some(component) = &mut self.component {

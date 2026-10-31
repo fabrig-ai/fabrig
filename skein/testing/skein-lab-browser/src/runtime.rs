@@ -413,18 +413,13 @@ impl Runtime {
             complete.result.map_err(|e| format!("root close: {e:?}"))?;
             self.root_closed = true;
         }
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
-        while let Some(complete) = self.complete.pop() {
+        // The child's pid, read off its spawn's completion before io takes it.
+        for complete in &self.complete {
             if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
                 self.pid = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0);
             }
-            io::up(&mut self.io, &self.ienv, complete, &mut self.io_events, &mut self.submits);
         }
-        while self.io.is_due(time.now) {
-            io::fire(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
+        io::stage::up(&mut self.io, &self.ienv, &mut self.complete, &mut self.io_events, &mut self.submits);
         while let Some(event) = self.io_events.pop() {
             self.io_event(event)?;
         }
@@ -457,7 +452,7 @@ impl Runtime {
             self.requests.extend(listener.requests.drain(..));
         }
         self.requests.extend(self.proxy.requests.drain(..));
-        while self.io.takes() {
+        while self.io.takes() && self.submits.room() >= io::MAX_OUT_DOWN.submissions {
             let Some(request) = self.requests.pop_front() else {
                 break;
             };
@@ -466,6 +461,7 @@ impl Runtime {
         self.io.reclaim();
         self.browser.reclaim();
         let pending = self.io.is_ready()
+            || !self.complete.is_empty()
             || !self.requests.is_empty()
             || !self.answers.is_empty()
             || !self.input_events.is_empty()

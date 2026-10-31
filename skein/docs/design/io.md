@@ -105,7 +105,8 @@ graceful close's, or a retry's), and `down` one request. io's stage in
 the up pass is `resume` until the ready list is empty, then `up` for
 each completion, then `fire` while a deadline is due; the loop hands io
 no completion while the ready list holds something, so what the down
-pass made is told first. Requests to the kernel go out as `Submit`
+pass made is told first. Both stages are written once, as
+`skein_io::stage` (2.1). Requests to the kernel go out as `Submit`
 records into the queue the loop hands the kernel. The kernel's
 submission and completion queues stay capped, with
 `MAX_OUT_DOWN`/`MAX_OUT_UP` and `takes` keeping their room checks
@@ -164,6 +165,48 @@ room there. New external work waits at the root's watermark
   than `Limits::largest_room` (the output cap). A demand past either
   could never be met, and io asserts it, as lib's intake does (lib.md,
   7). A read of what has arrived is met whatever its maximum.
+
+### 2.1 io's stage
+
+A loop calls io once in each pass, through two free functions over io,
+its environment and the loop's queues:
+
+```rust
+// skein_io::stage
+pub fn up(io: &mut Io, env: &Env<Limits>, completions: &mut Queue<Complete>,
+          events: &mut Queue<Event>, subs: &mut Queue<Submit>);
+pub fn down(io: &mut Io, env: &Env<Limits>, requests: &mut Queue<Request>,
+            subs: &mut Queue<Submit>);
+```
+
+- **`up` is the ready list, then the completions, then the deadlines.**
+  `resume` while io is ready, at most once for each entity and each
+  refusal held (`Limits::sockets` plus `Limits::refusals` calls): an
+  entity readied while the stage runs waits for the next stage. Then,
+  only once the ready list is empty, `up` for each completion the queue
+  held when the stage began. Then, only once every completion is taken,
+  `fire` while a deadline is due at `env.now`, at most twice
+  `Limits::sockets` calls (a close's deadline and a retry's per entity),
+  so that progress that came wins over a deadline that passed while the
+  loop waited (programming-model.md, 9).
+- **`down` is the requests, oldest first:** each request the queue held
+  when the stage began, while io takes one (`Io::takes`: it can hold a
+  refusal).
+- **Room before each call.** Each call waits for room in `subs` for the
+  most its entry point submits: `MAX_OUT_RESUME`, `MAX_OUT_UP`,
+  `MAX_OUT_FIRE` or `MAX_OUT_DOWN` (programming-model.md, section 2).
+  What does not fit stays where it was, on the ready list, in its queue
+  or in io's deadline table, for the next iteration's stage, and no later
+  step of `up` runs past an earlier one that waits.
+- **The time is `env.now`,** the one the stage hands every entry point,
+  so a deadline is judged due at the instant `fire` fires it.
+- **The entry points alone.** A loop that must see each call calls the
+  entry points itself, in the same order: a test of io that checks each
+  call's `MAX_OUT` or meters its memory; a harness that plays the kernel
+  one operation at a time, or hands io one entry an iteration on purpose;
+  a host whose completion queue also carries operations that are not
+  io's, or that reads each completion or request as io takes it (a
+  spawn's pid, a request counted).
 
 ## 3. Sockets and pipes
 
@@ -1415,6 +1458,15 @@ simulator's machine seam (testing.md, 4).
   focused suite; 150 of each in the fuzzy one, which asserts that every
   fault fell and that a cancel of each operation io cancels was seen to
   stop it, to come too late, and to go unsubmitted.
+- **The stage** (2.1; `tests/io`, `stage.rs`): `stage::up` and
+  `stage::down` driven by hand, the kernel played by the test: the ready
+  list told before a completion and a completion before a deadline, in
+  one stage and with the kernel's queue near full; each entry point's
+  room, one record short of its `MAX_OUT` and exactly it; a deadline due
+  at `env.now` and not a nanosecond before; a listener that readies
+  itself in the stage resumed only in the next; and requests taken oldest
+  first, waiting for room and for io to hold a refusal. A host's world
+  does not retest the stage.
 - **One exchange over the real ring**, in the focused suite.
 - **Memory:** io driven by hand to its limits and back, every call
   checked under its scenario's named ceiling with headroom by the
