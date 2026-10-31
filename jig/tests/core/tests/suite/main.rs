@@ -55,6 +55,7 @@ mod settings_proposals;
 mod settings_reads;
 mod simulation;
 mod start;
+mod start_connectors;
 mod start_inbox;
 mod start_projections;
 mod stopping;
