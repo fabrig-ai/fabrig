@@ -89,13 +89,12 @@ pub(crate) fn key_file(call: &Call) -> Option<&[u8]> {
         0
     } else if name == b"forge connect" && call.form == 0 {
         3
-    } else if name == b"forge connect" && call.form == 3 {
+    } else if name == b"forge connect" && (call.form == 3 || call.form == 4) {
         2
-    } else if name == b"forge connect" && call.form == 4 {
-        2
-    } else if name == b"forge connect" && call.form == 6 {
-        1
-    } else if name == rows::ADD_KEY.name || name == rows::REPLACE_KEY.name {
+    } else if (name == b"forge connect" && call.form == 6)
+        || name == rows::ADD_KEY.name
+        || name == rows::REPLACE_KEY.name
+    {
         1
     } else {
         return None;

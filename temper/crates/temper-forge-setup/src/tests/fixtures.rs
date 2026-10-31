@@ -38,24 +38,29 @@ pub fn setup() -> Setup {
     }
 }
 pub fn fake_setup() -> Setup {
-    let mut entries = setup().entries.into_vec();
-    entries.push(Entry {
-        forge: 3,
-        directory: b"demo/forge".as_slice().into(),
-        bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.invalid".as_slice().into() },
-        orgs: Box::new([]),
-        asked: false,
-        mode: Mode::Fake(Fake {
-            listen: ([127, 0, 0, 1], 8369).into(),
-            git: b"demo/bin/git".as_slice().into(),
-            owner: b"demo".as_slice().into(),
-            repositories: Box::new([Repository {
-                name: b"widget".as_slice().into(),
-                landing: b"main".as_slice().into(),
-            }]),
-        }),
-    });
-    Setup { entries: entries.into_boxed_slice() }
+    let mut entries = skein_lib::List::with_capacity(3);
+    for entry in setup().entries {
+        entries.push(entry).expect("three fixture entries");
+    }
+    entries
+        .push(Entry {
+            forge: 3,
+            directory: b"demo/forge".as_slice().into(),
+            bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.invalid".as_slice().into() },
+            orgs: Box::new([]),
+            asked: false,
+            mode: Mode::Fake(Fake {
+                listen: ([127, 0, 0, 1], 8369).into(),
+                git: b"demo/bin/git".as_slice().into(),
+                owner: b"demo".as_slice().into(),
+                repositories: Box::new([Repository {
+                    name: b"widget".as_slice().into(),
+                    landing: b"main".as_slice().into(),
+                }]),
+            }),
+        })
+        .expect("three fixture entries");
+    Setup { entries: entries.into_boxed() }
 }
 pub fn owned() -> Owned {
     Owned {
