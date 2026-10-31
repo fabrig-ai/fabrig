@@ -464,34 +464,6 @@ fn application_navigation_is_forwarded_before_start_and_retains_order() {
     assert!(crate::configure_navigation(&mut root, Navigation::new(0)).is_err());
 }
 
-fn connector_parts(number: u16) -> List<contract::Part> {
-    let mut parts = List::with_capacity(9);
-    for part in [
-        contract::Part::Connector { connector: number },
-        contract::Part::Resource {
-            connector: number,
-            path: {
-                let mut path = List::with_capacity(1);
-                path.push(Box::<[u8]>::from(*b"service")).unwrap();
-                path
-            },
-        },
-        contract::Part::Kind { connector: number, kind: 1 },
-        contract::Part::Panel { connector: number, task: 9 },
-        contract::Part::Result { connector: number, task: 9 },
-        contract::Part::Effect {
-            connector: number,
-            proposal: contract::ProposalKey { proposer: contract::Proposer::Task(9), number: 2 },
-        },
-        contract::Part::Hold { connector: number, task: 9 },
-        contract::Part::Project { connector: number, project: 3 },
-        contract::Part::Deployment { connector: number },
-    ] {
-        parts.push(part).unwrap();
-    }
-    parts
-}
-
 #[test]
 fn observability_project_lists_are_admitted_and_priced_whole() {
     use crate::observability::{
