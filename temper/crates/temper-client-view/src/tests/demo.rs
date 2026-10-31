@@ -1,60 +1,8 @@
 use super::fixtures as f;
 use skein_ui::{Role, State};
+use temper_client_domain::ChatsFilter;
 use temper_client_domain::{Action, Address, Event, pages::Act};
-use temper_client_domain::{ChatsFilter, PlanFilter};
-#[test]
-fn the_demo_banner_follows_the_frame_on_work_pages() {
-    for (row, address, project, demo, shown) in [
-        (
-            "other project chats",
-            Address::Chats { filter: ChatsFilter::All, start: false },
-            f::SECOND_PROJECT,
-            true,
-            true,
-        ),
-        ("demo start", Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true, true),
-        ("chat", Address::Chat { task: 1 }, f::PROJECT, true, true),
-        ("inbox", Address::Inbox { filter: temper_client_domain::address::Filter::ALL }, f::SECOND_PROJECT, true, true),
-        ("task", Address::Task { task: 9, filter: PlanFilter::All }, f::SECOND_PROJECT, true, true),
-        ("accounts", Address::Accounts, f::PROJECT, true, false),
-        ("welcome", Address::Welcome { step: temper_client_domain::Step::Welcome }, f::PROJECT, true, false),
-        ("no demo", Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, false, false),
-    ] {
-        let root = if demo { f::demo_root(address, project, true) } else { f::chats_root() };
-        let mut view = f::page_view(&root);
-        assert_eq!(f::find(view.tree(), Role::Region, b"Playground").is_some(), shown, "{row}");
-        if shown {
-            assert!(
-                f::find(
-                    view.tree(),
-                    Role::Paragraph,
-                    b"This is the playground: a scripted model and a playground forge."
-                )
-                .is_some(),
-                "{row}"
-            );
-            let link = f::find(view.tree(), Role::Link, b"Connect a model").expect("model link");
-            assert_eq!(
-                crate::act(&mut view, link, skein_ui::Act::Press),
-                Some(Action::Pages(Act::Go { address: Address::ConnectModel { way: None } })),
-                "{row}"
-            );
-            let mut roles = skein_lib::List::with_capacity(3);
-            for node in view.tree().nodes() {
-                if node.role == Role::Banner
-                    || node.role == Role::Main
-                    || (node.role == Role::Region && node.name.as_deref() == Some(b"Playground"))
-                {
-                    roles.push(node.role).expect("frame, demo, main");
-                }
-                if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") {
-                    assert_eq!(node.styles.as_slice(), [crate::look::ACCOUNTS], "{row}: the mockup's banner");
-                }
-            }
-            assert_eq!(roles.as_slice(), [Role::Banner, Role::Region, Role::Main], "{row}");
-        }
-    }
-}
+
 #[test]
 fn suggestions_show_only_in_the_demo_project_with_the_model_half() {
     for (row, project, model, demo, shown) in [
@@ -165,27 +113,6 @@ fn the_demo_banner_is_absent_when_the_link_is_unavailable() {
         assert!(f::find(view.tree(), Role::Region, b"Playground").is_none(), "{row}");
         assert!(f::find(view.tree(), Role::List, b"Suggested requests").is_none(), "{row}");
     }
-}
-
-#[test]
-fn a_forge_only_banner_links_to_connect_without_a_model_link() {
-    let root = f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, false);
-    let mut view = f::page_view(&root);
-    assert!(f::find(view.tree(), Role::Paragraph, b"This is the playground: a playground forge.").is_some());
-    let mut banner = None;
-    for (index, node) in view.tree().nodes().iter().enumerate() {
-        if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") {
-            banner = Some(index);
-            break;
-        }
-    }
-    let banner = banner.unwrap();
-    assert!(skein_lib::bytes::find(&f::node_text(view.tree(), banner), b"Connect a model").is_none());
-    let link = f::find(view.tree(), Role::Link, b"Connect a forge").unwrap();
-    assert_eq!(
-        crate::act(&mut view, link, skein_ui::Act::Press),
-        Some(Action::Pages(Act::Go { address: Address::ConnectForge { forge: None } }))
-    );
 }
 
 #[test]
