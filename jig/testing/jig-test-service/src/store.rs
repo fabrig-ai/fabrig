@@ -11,7 +11,6 @@ use skein_io::{
 use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
 const ADOPT: Token = Token::new(u64::MAX - 1);
 const CLOSE: Token = Token::new(u64::MAX);
-const MASK: u64 = (1_u64 << 60) - 1;
 /// Three single-flight file drivers, each with at most four kernel records per transition.
 pub(super) const KERNEL_HANDOFF_ENTRIES: u32 = 3 * 4;
 
@@ -308,11 +307,10 @@ impl Store {
         }
     }
     pub(super) fn complete(&mut self, mut complete: Complete) {
-        let index = usize::try_from((complete.op.raw() >> 60_u32).checked_sub(8).expect("driver namespace"))
-            .expect("three drivers");
-        complete.op = Token::new(complete.op.raw() & MASK);
+        let index = crate::tokens::store_index(complete.op).expect("driver namespace");
+        complete.op = Token::new(complete.op.untagged());
         if let Op::Cancel { target } = &mut complete.kind {
-            *target = Token::new(target.raw() & MASK);
+            *target = Token::new(target.untagged());
         }
         let mut submitted = Queue::with_capacity(4);
         let driver = self.drivers.get_mut(index).expect("driver index");
@@ -320,12 +318,12 @@ impl Store {
         self.publish(index, &mut submitted);
     }
     fn publish(&mut self, index: usize, queue: &mut Queue<Submit>) {
-        let prefix = u64::try_from(index).expect("driver index").checked_add(8).expect("driver namespace") << 60_u32;
+        let namespace = *crate::tokens::STORE.get(index).expect("driver index");
         for _ in 0..queue.len() {
             let mut submit = queue.pop().expect("file submissions");
-            submit.op = Token::new(submit.op.raw() | prefix);
+            submit.op = crate::tokens::token(namespace, submit.op.raw());
             if let Op::Cancel { target } = &mut submit.kind {
-                *target = Token::new(target.raw() | prefix);
+                *target = crate::tokens::token(namespace, target.raw());
             }
             self.submitted.push(submit);
         }
@@ -438,7 +436,7 @@ impl Store {
     }
 }
 pub(super) fn owns(token: Token) -> bool {
-    (8..11).contains(&(token.raw() >> 60))
+    crate::tokens::store_index(token).is_some()
 }
 
 fn handles(limits: &protocol::Limits) -> u32 {

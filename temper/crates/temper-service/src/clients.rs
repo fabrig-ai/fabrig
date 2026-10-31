@@ -595,25 +595,14 @@ pub fn owns(token: Token) -> bool {
     token.raw() & (15_u64 << 60) == crate::tokens::SERVER
 }
 #[must_use]
-pub fn tag(mut request: io::Request) -> io::Request {
-    match &mut request {
-        io::Request::Listen { owner, .. }
-        | io::Request::Connect { owner, .. }
-        | io::Request::Bind { owner, .. }
-        | io::Request::Spawn { owner, .. }
-        | io::Request::Usage { owner }
-        | io::Request::Window { owner, .. } => {
+pub fn tag(request: io::Request) -> io::Request {
+    match request.owner() {
+        Some(owner) => {
             assert!(owner.raw() < (1_u64 << 60_u32), "bounded client exchange names");
-            *owner = Token::new(owner.raw() | crate::tokens::SERVER);
+            request.with_owner(Token::new(owner.raw() | crate::tokens::SERVER))
         }
-        io::Request::Reject { .. }
-        | io::Request::Stream { .. }
-        | io::Request::Output { .. }
-        | io::Request::Signal { .. }
-        | io::Request::Close { .. }
-        | io::Request::Abort { .. } => {}
+        None => request,
     }
-    request
 }
 #[must_use]
 pub fn untag(mut event: io::Event) -> io::Event {

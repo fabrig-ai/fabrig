@@ -11,6 +11,7 @@ mod clients;
 pub mod family;
 pub mod program_sources;
 pub mod server;
+mod tokens;
 mod tools;
 mod values;
 mod worker;
@@ -170,7 +171,7 @@ impl Service {
         if self.signals.is_some() {
             return Err(descriptor);
         }
-        match self.io.adopt_signals_for(descriptor, Token::new(1)) {
+        match self.io.adopt_signals_for(descriptor, tokens::SIGNALS) {
             Ok(source) => {
                 self.signals = Some(source);
                 Ok(())
@@ -534,7 +535,7 @@ fn route_events(service: &mut Service, now: Time) {
             service.shutdown();
             continue;
         }
-        if workers::owner(&event) == Some(Token::new(1)) {
+        if event.owner() == Some(tokens::SIGNALS) {
             if let io::Event::Closed { .. } = event {
                 service.signals = None;
             }
@@ -550,14 +551,14 @@ fn route_events(service: &mut Service, now: Time) {
         if let Some(index) = worker_index {
             service.workers.get_mut(index).expect("worker token owner").up(now, event);
         } else if let Some(engine) = &mut service.engine {
-            if match workers::owner(&event) {
+            if match event.owner() {
                 Some(owner) => accounts::owns(owner),
                 None => false,
             } {
                 if let Some(accounts) = &mut engine.accounts {
                     accounts.up(accounts::untag(event));
                 }
-            } else if match workers::owner(&event) {
+            } else if match event.owner() {
                 Some(owner) => clients::owns(owner),
                 None => false,
             } {
