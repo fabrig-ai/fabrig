@@ -623,7 +623,10 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
 
 /// Fire one due child timer, returning its whole bounded request batch.
 pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
-    core.start_runtime_input();
+    core.start_input();
+    if !core.start_opened() {
+        return crate::stopping::empty();
+    }
     core.run_now = env.now;
     core.run_wall = env.wall;
     if core.stopping && crate::stopping::waits(timer) {
