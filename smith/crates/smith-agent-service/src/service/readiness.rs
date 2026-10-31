@@ -49,7 +49,7 @@ pub(super) fn channel_room(service: &Stages, frame: Option<&Frame>) -> bool {
     if frame.is_none() {
         return true;
     }
-    let room = channel::edge_room(&service.limits.channel);
+    let room = channel::edge_room();
     service.channel_events.room() >= room.to_domain && service.channel_below.room() >= room.below
 }
 

@@ -146,7 +146,7 @@ pub(super) fn live_step(service: &mut Stages, frame: Option<&mut Frame>, action:
         below: &mut service.channel_below,
         next: &mut service.next_send,
         failed: false,
-        room: channel::edge_room(&service.limits.channel),
+        room: channel::edge_room(),
         ending,
     };
     service.live.act(action, service.io_env.now, &mut room);
