@@ -1189,4 +1189,3 @@ pub(crate) fn moving(domain: &mut Domain, env: &Env<Limits>, source: u32, out: &
     entry.state = State::Asking;
     changed(domain, env, source, before, out);
 }
-
