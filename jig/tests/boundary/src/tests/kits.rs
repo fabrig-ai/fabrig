@@ -1,4 +1,4 @@
-//! Kit independence (jig/docs/design/README.md, 6.6 and 13).
+//! Kit independence (jig/docs/design/README.md, 6.6).
 
 use super::kit_root;
 use std::{
