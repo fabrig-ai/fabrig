@@ -107,7 +107,33 @@ fn a_fresh_brief_keeps_whole_newest_texts_under_its_own_budget() {
     let mut expected = [b'c'; 80];
     expected.get_mut(..40).unwrap().fill(b'b');
     assert_eq!(tail(&core, 90).as_ref(), expected);
-    let out = watch_outputs(&mut core, &limits, Event::BriefNotes { task: 1, lines: List::with_capacity(0), more: 0 });
+    let mut out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::TranscriptLoaded { task: 1, load: TranscriptLoad::Page { rows: Box::new([]), done: true } },
+    );
+    for _ in 0..limits.notes.scopes {
+        let mut owner = None;
+        for request in &out {
+            if let Request::Held(held) = request
+                && let Held::NotesLoad { owner: loaded, .. } = held.as_ref()
+            {
+                owner = Some(*loaded);
+            }
+        }
+        let Some(owner) = owner else { break };
+        {
+            out = watch_outputs(
+                &mut core,
+                &limits,
+                Event::Notes(notes::Event::Loaded {
+                    owner,
+                    rows: notes::Rows { records: List::with_capacity(limits.notes.load_rows) },
+                    more: false,
+                }),
+            );
+        }
+    }
     let mut planned = false;
     for request in out {
         if let Request::Now(now) = request

@@ -1364,22 +1364,11 @@ fn core_now(domain: &mut Domain, env: &Env<Limits>, value: core::Now, work: &mut
         core::Now::Activate { context } => {
             work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
-        core::Now::PrepareAgent { context } => {
-            let transcript_waiter = if context.ever_turned { Some(Token::new(context.task)) } else { None };
+        core::Now::PrepareAgent { context, load_transcript } => {
+            let transcript_waiter = if load_transcript { Some(Token::new(context.task)) } else { None };
             work.push(Work::Core(core::Event::PreparedAgent { context, transcript_waiter, busy: false }));
         }
-        core::Now::StartPreparation { task, from: None, .. } => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::Prepare {
-                reply_to: ReplyTo::new(Token::new(task)),
-                task,
-            })));
-            work.push(Work::Core(core::Event::StartBrief { task }));
-        }
-        value @ core::Now::StartPreparation { task, from: Some(_), .. } => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::Prepare {
-                reply_to: ReplyTo::new(Token::new(task)),
-                task,
-            })));
+        value @ core::Now::StartPreparation { .. } => {
             now(domain, Output::CoreLoad(value));
         }
         core::Now::BriefCorePlanned { task, sections, .. } => {
@@ -1427,7 +1416,7 @@ fn core_now(domain: &mut Domain, env: &Env<Limits>, value: core::Now, work: &mut
                         .expect("core-selected assignment");
                     work.push(Work::Core(core::Event::ClaimPrepared { task, attempt, budget, writes: Box::new([]) }));
                 }
-                None => work.push(Work::Core(core::Event::PreparationFailed { task })),
+                None => work.push(Work::Core(core::Event::ClaimRefused { task })),
             }
         }
         core::Now::RunPreparationFailed { task } | core::Now::DropAssignment { task } => {

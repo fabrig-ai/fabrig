@@ -4,6 +4,7 @@
 
 use super::NoteRoute;
 use super::run_delegation::propose_batch;
+use crate::routing::Work;
 use crate::{
     CallKey, CallPart, CallRecord, Core, CoreRecord, EscalationChoice, Event, Held, Limits, NamedAction,
     PayloadRefusal, ProposalChoice, Record, Request, RoutedCall, ToolKind, Write,
@@ -60,7 +61,7 @@ pub(super) fn proposal_refused(core: &mut Core, to: ReplyTo, key: CallKey, why: 
 pub(super) fn named_proposal_accept(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
     proposal: tasks::Proposal,
@@ -90,14 +91,14 @@ pub(super) fn named_proposal_accept(
             core.routing_calls.insert(token, RoutedCall::Decide { key, proposal: proposal.number }) == Ok(None),
             "one release acceptance route"
         );
-        work.push(Event::Tasks(tasks::Event::DecideProposal {
+        work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
             reply_to: to,
             proposer: proposal.proposer,
             proposal: proposal.number,
             message: Some(message),
             by: tasks::Party::Task(key.task),
             decision: tasks::ProposalDecision::Accept,
-        }));
+        })));
         return Queue::uncapped();
     }
     match proposal.action {
@@ -215,7 +216,7 @@ pub(super) fn named_proposal_accept(
         ) == Ok(None),
         "one acceptance route"
     );
-    work.push(Event::Tasks(event));
+    work.push(Work::Event(Event::Tasks(event)));
     Queue::uncapped()
 }
 
@@ -223,7 +224,7 @@ pub(super) fn named_proposal_accept(
 pub(super) fn named_proposal_decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
     proposer: u64,
@@ -266,14 +267,14 @@ pub(super) fn named_proposal_decide(
     let token = to.into_token();
     assert!(core.pending_calls.insert(key, true).is_ok(), "proposal decision room reserved");
     assert!(core.routing_calls.insert(token, RoutedCall::Decide { key, proposal }) == Ok(None), "one route");
-    work.push(Event::Tasks(tasks::Event::DecideProposal {
+    work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
         reply_to: ReplyTo::new(token),
         proposer,
         proposal,
         message,
         by: tasks::Party::Task(key.task),
         decision: next,
-    }));
+    })));
     Queue::uncapped()
 }
 
@@ -281,7 +282,7 @@ pub(super) fn named_proposal_decide(
 pub(crate) fn named_propose(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
     mut action: tasks::ProposalAction,
@@ -336,7 +337,7 @@ pub(crate) fn named_propose(
     let token = to.into_token();
     assert!(core.pending_calls.insert(key, true).is_ok(), "proposal call room reserved");
     assert!(core.routing_calls.insert(token, RoutedCall::Propose { key, proposal: number }) == Ok(None), "one route");
-    work.push(Event::Tasks(tasks::Event::Propose {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Propose {
         reply_to: ReplyTo::new(token),
         proposal: tasks::Proposal {
             number,
@@ -347,7 +348,7 @@ pub(crate) fn named_propose(
             as_holder,
             state: tasks::ProposalState::Pending { holder, since: env.wall },
         },
-    }));
+    })));
     Queue::uncapped()
 }
 
@@ -355,7 +356,7 @@ pub(crate) fn named_propose(
 pub(super) fn named_escalation(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
     task: u64,
@@ -414,7 +415,7 @@ pub(super) fn named_escalation(
         core.routing_calls.insert(token, RoutedCall::Escalation { key, task, revision, passed_up }) == Ok(None),
         "one route"
     );
-    work.push(Event::TaskEscalation(tasks::Event::DecideEscalation {
+    work.push(Work::TaskEscalation(tasks::Event::DecideEscalation {
         reply_to: ReplyTo::new(token),
         task,
         revision,
@@ -429,7 +430,7 @@ pub(super) fn named_escalation(
 pub(super) fn named_action(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
     action: NamedAction,
@@ -515,7 +516,7 @@ pub(super) fn named_action(
             };
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             assert!(core.routing_calls.insert(token, RoutedCall::Message(key)) == Ok(None), "one live routed call");
-            work.push(Event::Tasks(tasks::Event::Message {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Message {
                 reply_to: ReplyTo::new(token),
                 project,
                 task: target,
@@ -528,17 +529,17 @@ pub(super) fn named_action(
                     hits: 1,
                     eligible: false,
                 },
-            }));
+            })));
         }
         NamedAction::Introduce { left, right } => {
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             assert!(core.routing_calls.insert(token, RoutedCall::Introduce(key)) == Ok(None), "one live routed call");
-            work.push(Event::Tasks(tasks::Event::Introduce {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Introduce {
                 reply_to: ReplyTo::new(token),
                 by: key.task,
                 left,
                 right,
-            }));
+            })));
         }
         NamedAction::Subscribe { kind } => {
             let Some(subscription) = crate::fresh(&mut core.counters, crate::Family::Message) else {
@@ -561,20 +562,20 @@ pub(super) fn named_action(
                 core.routing_calls.insert(token, RoutedCall::Subscribe { key, subscription }) == Ok(None),
                 "one live routed call"
             );
-            work.push(Event::Tasks(tasks::Event::Subscribe {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Subscribe {
                 reply_to: ReplyTo::new(token),
                 task: key.task,
                 subscription: tasks::Subscription { number: subscription, kind },
-            }));
+            })));
         }
         NamedAction::Unsubscribe { subscription } => {
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             assert!(core.routing_calls.insert(token, RoutedCall::Unsubscribe(key)) == Ok(None), "one live routed call");
-            work.push(Event::Tasks(tasks::Event::Unsubscribe {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Unsubscribe {
                 reply_to: ReplyTo::new(token),
                 task: key.task,
                 subscription,
-            }));
+            })));
         }
         NamedAction::Release { target, revision, again } => {
             let message = match core.release_admit(target, revision, again) {
@@ -631,12 +632,12 @@ pub(super) fn named_action(
                 core.routing_calls.insert(token, RoutedCall::Control { key, target, revised: true }) == Ok(None),
                 "one live routed call"
             );
-            work.push(Event::Tasks(tasks::Event::Control {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Control {
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
                 task: target,
                 control: tasks::Control::Release { again, message },
-            }));
+            })));
         }
         NamedAction::Control { target, control } => {
             return super::run_controls::control(core, work, ReplyTo::new(token), key, target, control);
@@ -672,11 +673,11 @@ pub(super) fn named_action(
                 core.routing_calls.insert(token, RoutedCall::Withdraw { key, proposal, moved: None }) == Ok(None),
                 "one route"
             );
-            work.push(Event::Tasks(tasks::Event::WithdrawProposal {
+            work.push(Work::Event(Event::Tasks(tasks::Event::WithdrawProposal {
                 reply_to: ReplyTo::new(token),
                 proposer: key.task,
                 proposal,
-            }));
+            })));
         }
         NamedAction::DecideProposal { proposer, proposal, choice } => {
             return named_proposal_decide(core, env, work, ReplyTo::new(token), key, proposer, proposal, choice);
@@ -715,12 +716,12 @@ pub(super) fn named_action(
             entry.author = notes::Author::Task { task: key.task, attempt: key.attempt };
             assert!(core.pending_calls.insert(key, true) == Ok(None), "note call record room reserved");
             let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
-            work.push(Event::Notes(notes::Event::Write { owner, entry, recalled }));
+            work.push(Work::Event(Event::Notes(notes::Event::Write { owner, entry, recalled })));
         }
         NamedAction::Recall { by, page } => {
             assert!(core.pending_calls.insert(key, true) == Ok(None), "recall call record room reserved");
             let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
-            work.push(Event::Notes(notes::Event::Recall { owner, by, page }));
+            work.push(Work::Event(Event::Notes(notes::Event::Recall { owner, by, page })));
         }
     }
     out
@@ -753,18 +754,18 @@ pub(super) fn route_named_answer(core: &mut Core, to: ReplyTo, key: CallKey, par
 
 pub(super) fn route_refused_payload(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     problem: tasks::Problem,
     payload: Option<PayloadRefusal>,
 ) -> Queue<Request> {
     match payload {
         Some(PayloadRefusal::Turn { task, attempt, turn }) if problem.task == Some(task) => {
-            work.push(Event::Fleet(fleet::Event::TurnBusy {
+            work.push(Work::Event(Event::Fleet(fleet::Event::TurnBusy {
                 run: Token::new(task),
                 attempt: Token::new(attempt),
                 turn,
-            }));
+            })));
         }
         Some(PayloadRefusal::Answer { task, attempt })
             if problem.task == Some(task) && core.current_proof(task, attempt) =>
@@ -782,14 +783,14 @@ pub(super) fn route_refused_payload(
                 },
                 end: tasks::End::Failed(tasks::Class::Invalid),
             });
-            work.push(Event::Tasks(tasks::Event::Activation {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Activation {
                 reply_to: ReplyTo::new(request),
                 task,
                 attempt,
                 end: tasks::End::Failed(tasks::Class::Invalid),
                 saved: None,
                 cause: tasks::Cause::Unpriced,
-            }));
+            })));
         }
         Some(PayloadRefusal::Turn { .. } | PayloadRefusal::Answer { .. }) | None => {}
     }
@@ -800,7 +801,7 @@ pub(super) fn route_refused_payload(
 pub(super) fn named_amend(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     token: Token,
     key: CallKey,
     target: u64,
@@ -881,7 +882,7 @@ pub(super) fn named_amend(
         core.routing_calls.insert(token, RoutedCall::Control { key, target, revised: true }) == Ok(None),
         "one amendment route"
     );
-    work.push(Event::Tasks(tasks::Event::Amend {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
         places: evidence.places.into_boxed(),
         funder: None,
         reply_to: ReplyTo::new(token),
@@ -890,6 +891,6 @@ pub(super) fn named_amend(
         message,
         stop_run,
         amendment,
-    }));
+    })));
     out
 }

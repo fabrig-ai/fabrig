@@ -10,6 +10,7 @@
 //! | Judging | Final verdict | Terminal | Keep and committed make, or drop and goal news |
 //! | Kept | Outcome | Settled or uncertain | Writer settlement and task news |
 
+use crate::routing::Work;
 use crate::{
     Ask, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, Record, Request, ToolKind,
     Write, connector, fresh,
@@ -315,7 +316,7 @@ fn start_flight(core: &mut Core, env: &Env<Limits>, owner: Token, number: u16, o
 pub(crate) fn connector(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: connector::Event,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -374,34 +375,34 @@ pub(crate) fn connector(
         }
         connector::Event::Closed { task, connector } => closed(core, &env.limits, work, task, connector),
         connector::Event::Drift { task, resource } => {
-            work.push(Event::Tasks(tasks::Event::HoldFrom {
+            work.push(Work::Event(Event::Tasks(tasks::Event::HoldFrom {
                 task,
                 why: tasks::Hold::Drift,
                 source: Box::new(tasks::HoldSource::Resource(resource)),
-            }));
+            })));
         }
         connector::Event::Resource { project, name, role, hold } => {
             crate::resources::role(core, &env.limits, project, name.clone(), role);
             let access = crate::resources::task_access(role);
-            work.push(Event::Tasks(tasks::Event::ResourceAccess { project, name: name.clone(), access }));
+            work.push(Work::Event(Event::Tasks(tasks::Event::ResourceAccess { project, name: name.clone(), access })));
             let hold = match hold {
                 connector::HoldKind::Shared => tasks::HoldKind::Shared,
                 connector::HoldKind::Exclusive { wait } => {
                     tasks::HoldKind::Exclusive { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
                 }
                 connector::HoldKind::Pooled { slots, wait } => {
-                    work.push(Event::Tasks(tasks::Event::Slots { pool: name.clone(), slots }));
+                    work.push(Work::Event(Event::Tasks(tasks::Event::Slots { pool: name.clone(), slots })));
                     tasks::HoldKind::Pooled { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
                 }
             };
-            work.push(Event::Tasks(tasks::Event::Resource { name, hold }));
+            work.push(Work::Event(Event::Tasks(tasks::Event::Resource { name, hold })));
         }
         connector::Event::PoolSlots { name, slots } => {
-            work.push(Event::Tasks(tasks::Event::Slots { pool: name, slots }));
+            work.push(Work::Event(Event::Tasks(tasks::Event::Slots { pool: name, slots })));
         }
         connector::Event::News { task, subscription, class, words, .. } => {
             if let Some(event) = core.connector_news(task, subscription, class, words, env.wall) {
-                work.push(Event::Tasks(event));
+                work.push(Work::Event(Event::Tasks(event)));
             }
         }
         connector::Event::Procedure { .. }
@@ -414,7 +415,7 @@ pub(crate) fn connector(
     out
 }
 
-fn describe_busy(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, out: &mut Queue<Request>, owner: Token) {
+fn describe_busy(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mut Queue<Request>, owner: Token) {
     if let Some(flight) = core.effect_flights.remove(&owner) {
         drop_with(out, flight.connector, owner, authority::Answer::Refuse, connector::EffectRefusal::Capacity);
         if !origin_current(core, flight.connector, &flight.origin) {
@@ -438,7 +439,7 @@ fn describe_busy(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, ou
 fn describe_refused(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     owner: Token,
 ) {
@@ -465,7 +466,7 @@ fn describe_refused(
     }
 }
 
-fn closed(core: &mut Core, limits: &Limits, work: &mut Queue<Event>, task: u64, connector: u16) {
+fn closed(core: &mut Core, limits: &Limits, work: &mut Queue<Work>, task: u64, connector: u16) {
     if core.closing_connectors.remove(&(task, connector)).is_some() {
         core.touch_task_number(limits, task);
         let mut remaining = false;
@@ -473,7 +474,7 @@ fn closed(core: &mut Core, limits: &Limits, work: &mut Queue<Event>, task: u64, 
             remaining |= *number == task;
         }
         if !remaining {
-            work.push(Event::Tasks(tasks::Event::EffectsSettled { task }));
+            work.push(Work::Event(Event::Tasks(tasks::Event::EffectsSettled { task })));
         }
     }
 }
@@ -481,7 +482,7 @@ fn closed(core: &mut Core, limits: &Limits, work: &mut Queue<Event>, task: u64, 
 fn described(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     owner: Token,
     description: Box<connector::EffectDescription>,
@@ -554,7 +555,7 @@ fn described(
     clippy::too_many_lines,
     reason = "one effect decision checks authority and the whole writer set before allocating its entry"
 )]
-fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, out: &mut Queue<Request>, owner: Token) {
+fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mut Queue<Request>, owner: Token) {
     let flight = core.effect_flights.remove(&owner).expect("completed effect flight");
     if !origin_current(core, flight.connector, &flight.origin) {
         discard_origin(core, &flight.origin);
@@ -602,10 +603,10 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, out: &m
                     Some(key) => answer(core, out, to, key, CallPart::ProposalRefused(problem)),
                     None => {
                         let outcome = crate::routing::refusals::person_problem_refusal(core, problem);
-                        work.push(Event::People(jig_domain_people::Event::Decided {
+                        work.push(Work::Event(Event::People(jig_domain_people::Event::Decided {
                             request: to.into_token(),
                             outcome,
-                        }));
+                        })));
                     }
                 },
                 EffectOrigin::Projection { .. } | EffectOrigin::Propose { .. } => unreachable!("task-owned effect"),
@@ -725,12 +726,12 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, out: &m
     };
     let task = origin.task();
     for resource in held_resources(core, &description) {
-        work.push(Event::Tasks(tasks::Event::EffectInFlight {
+        work.push(Work::Event(Event::Tasks(tasks::Event::EffectInFlight {
             reply_to: ReplyTo::new(Token::new(u64::MAX)),
             task,
             resource,
             entry,
-        }));
+        })));
     }
     let purpose = match origin {
         EffectOrigin::Call { to, key, deadline } => {
@@ -883,7 +884,7 @@ fn claim_current(core: &Core, key: CallKey) -> bool {
         }
 }
 
-fn charge(core: &mut Core, work: &mut Queue<Event>, origin: &EffectOrigin, price: Option<u64>) {
+fn charge(core: &mut Core, work: &mut Queue<Work>, origin: &EffectOrigin, price: Option<u64>) {
     if let Some(maximum) = price {
         let funder = match origin {
             EffectOrigin::Projection { .. } => return,
@@ -894,10 +895,10 @@ fn charge(core: &mut Core, work: &mut Queue<Event>, origin: &EffectOrigin, price
                 tasks::Party::Person(person) => {
                     let (period, pool) = core.open_person_pool(proposal.project, person);
                     if let Some(event) = period {
-                        work.push(Event::Tasks(event));
+                        work.push(Work::Event(Event::Tasks(event)));
                     }
                     if let Some(event) = pool {
-                        work.push(Event::Tasks(event));
+                        work.push(Work::Event(Event::Tasks(event)));
                     }
                     tasks::Funder::Pool { project: proposal.project, person, period: core.period(proposal.project) }
                 }
@@ -905,13 +906,13 @@ fn charge(core: &mut Core, work: &mut Queue<Event>, origin: &EffectOrigin, price
             },
             EffectOrigin::Propose { .. } => unreachable!("proposal has no charge"),
         };
-        work.push(Event::Tasks(tasks::Event::ChargeEffect { funder, maximum }));
+        work.push(Work::Event(Event::Tasks(tasks::Event::ChargeEffect { funder, maximum })));
     }
 }
 
 fn complete_accept(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     origin: EffectOrigin,
     number: u16,
@@ -977,8 +978,8 @@ fn complete_accept(
         decision: tasks::ProposalDecision::Accept,
     };
     work.push(match key {
-        Some(_) => Event::Tasks(decided),
-        None => Event::PersonProposal(decided),
+        Some(_) => Work::Event(Event::Tasks(decided)),
+        None => Work::PersonProposal(decided),
     });
     out.push(Request::Ask {
         connector: number,
@@ -991,7 +992,7 @@ fn complete_accept(
 fn complete_proposal(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     owner: Token,
     number: u16,
@@ -1175,7 +1176,7 @@ fn check(
 
 fn accept_refused(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     to: ReplyTo,
     key: Option<CallKey>,
@@ -1206,7 +1207,7 @@ fn accept_refused(
                 );
             }
         }
-        None => work.push(Event::People(jig_domain_people::Event::Decided {
+        None => work.push(Work::Event(Event::People(jig_domain_people::Event::Decided {
             request: to.into_token(),
             outcome: if why == authority::Answer::Wait {
                 jig_domain_people::Outcome::Again(jig_domain_people::Again::Busy)
@@ -1216,7 +1217,7 @@ fn accept_refused(
                     lacking: jig_domain_people::Lack::Shape,
                 }))
             },
-        })),
+        }))),
     }
 }
 
@@ -1226,7 +1227,7 @@ fn accept_refused(
 pub(crate) fn procedure_propose(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     owner: Token,
     connector: u16,
@@ -1274,7 +1275,7 @@ pub(crate) fn procedure_propose(
     core.procedure_proposals
         .insert(owner, ProcedureProposal { task, step, connector, proposal })
         .expect("admitted procedure proposal route");
-    work.push(Event::Tasks(tasks::Event::Propose {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Propose {
         reply_to: ReplyTo::new(owner),
         proposal: tasks::Proposal {
             number: proposal,
@@ -1286,7 +1287,7 @@ pub(crate) fn procedure_propose(
             as_holder: false,
             state: tasks::ProposalState::Pending { holder, since: env.wall },
         },
-    }));
+    })));
 }
 
 pub(crate) fn procedure_proposed(
@@ -1318,19 +1319,19 @@ pub(crate) fn procedure_proposed(
     })
 }
 
-fn procedure_wait(core: &Core, work: &mut Queue<Event>, task: u64, step: u64) {
-    work.push(Event::Tasks(tasks::Event::Procedure {
+fn procedure_wait(core: &Core, work: &mut Queue<Work>, task: u64, step: u64) {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
         reply_to: ReplyTo::new(Token::new(u64::MAX)),
         task,
         step,
         read: core.tasks.procedure_offered(task),
         decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
-    }));
+    })));
 }
 
 fn settled(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     connector_number: u16,
     entry: u64,
@@ -1407,18 +1408,18 @@ fn settled(
         None => false,
     };
     if let Some(event) = core.connector_outbox(task, connector_number, entry, outcome, procedure) {
-        work.push(Event::Tasks(event));
+        work.push(Work::Event(Event::Tasks(event)));
     }
 }
 
-fn settle_writers(core: &Core, work: &mut Queue<Event>, entry: u64, outcome: connector::OutboxOutcome) {
+fn settle_writers(core: &Core, work: &mut Queue<Work>, entry: u64, outcome: connector::OutboxOutcome) {
     match outcome {
         connector::OutboxOutcome::Made
         | connector::OutboxOutcome::Failed
         | connector::OutboxOutcome::Withdrawn
         | connector::OutboxOutcome::NotMade => {
             for resource in core.tasks.effect_writers(entry) {
-                work.push(Event::Tasks(tasks::Event::EffectSettled { resource, entry }));
+                work.push(Work::Event(Event::Tasks(tasks::Event::EffectSettled { resource, entry })));
             }
         }
         connector::OutboxOutcome::Uncertain | connector::OutboxOutcome::Held { .. } => {}
@@ -1459,7 +1460,7 @@ pub(crate) fn deadline(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     out
 }
 
-fn projection_refused(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, goal: u64) {
+fn projection_refused(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, goal: u64) {
     let message = b"Projection write refused";
     let words: &[u8] = message;
     if let Some(row) = core.tasks.task(goal) {
@@ -1472,6 +1473,6 @@ fn projection_refused(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event
         }
     }
     if let Some(event) = core.connector_news(goal, 0, tasks::NewsClass::Kept, Box::from(words), env.wall) {
-        work.push(Event::Tasks(event));
+        work.push(Work::Event(Event::Tasks(event)));
     }
 }

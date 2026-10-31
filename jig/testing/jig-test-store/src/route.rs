@@ -291,7 +291,10 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         }
         Event::Unread { owner } => {
             if let Some(Flight::Window { task, .. }) = routes.pending.remove(&owner) {
-                into.push(Up::Root(root::Event::Core(core::Event::TranscriptUnread { task })));
+                into.push(Up::Root(root::Event::Core(core::Event::TranscriptLoaded {
+                    task,
+                    load: core::TranscriptLoad::Unread,
+                })));
             }
         }
         Event::SecretsNotReady { .. } => unreachable!("the root store route handles public records only"),

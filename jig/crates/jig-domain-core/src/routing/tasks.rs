@@ -5,6 +5,7 @@ use super::children::append_people;
 use super::refusals::{person_message_refusal, person_move_refusal, person_problem_refusal};
 use super::runs::call_decision;
 use super::view_routes::touch_task;
+use crate::routing::Work;
 use crate::{
     Ask, CallPart, Core, CoreKey, CoreRecord, EscalationDecisionRecord, Event, GoalRoute, Held, Key, Limits, Now,
     PersonProposalRoute, PersonTaskRoute, Record, Request, RoutedCall, SentRoute, Write,
@@ -1537,7 +1538,7 @@ pub(super) fn route_person_proposal(core: &mut Core, env: &Env<Limits>, event: t
 
 #[expect(clippy::boxed_local, reason = "the moved route retains its owned event payload")]
 pub(super) fn route_connector_repair(
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     seed: Box<crate::connector::RepairSeed>,
     executor: tasks::Executor,
     spec: tasks::Spec,
@@ -1545,14 +1546,14 @@ pub(super) fn route_connector_repair(
     holdings: Box<[tasks::Holding]>,
 ) -> Queue<Request> {
     if seed.open_period {
-        work.push(Event::Tasks(tasks::Event::OpenPeriod {
+        work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
             reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
             project: seed.project,
             period: seed.period,
             budget: seed.period_budget,
-        }));
+        })));
     }
-    work.push(Event::Tasks(tasks::Event::Make {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Make {
         reply_to: ReplyTo::new(Token::new(u64::MAX - 3)),
         creator: tasks::Party::Deployment { project: seed.project },
         batch: Box::new([tasks::New {
@@ -1574,14 +1575,14 @@ pub(super) fn route_connector_repair(
             recurring: None,
             tracked: None,
         }]),
-    }));
+    })));
     Queue::uncapped()
 }
 
 pub(super) fn route_tasks(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: tasks::Event,
 ) -> Queue<Request> {
     if let tasks::Event::Procedure { task, step, .. } = &event {

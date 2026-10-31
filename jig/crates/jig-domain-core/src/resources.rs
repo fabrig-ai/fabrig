@@ -4,6 +4,7 @@
 //! narrow every effect and workspace check (domain/authority.md, 6). Reports retry the
 //! complete batch against current state. Uncommitted requests are retried by
 //! their sender after restart; this table is never restored from the store.
+use crate::routing::Work;
 use crate::{Core, Event, Limits, connector};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -144,7 +145,7 @@ pub(crate) fn defer(
     None
 }
 
-pub(crate) fn resume(core: &mut Core, work: &mut Queue<Event>) {
+pub(crate) fn resume(core: &mut Core, work: &mut Queue<Work>) {
     // Resume one whole batch per report; later decisions check readiness again.
     let mut ready: Option<Token> = None;
     for (token, batch) in &core.awaiting_resources {
@@ -155,7 +156,7 @@ pub(crate) fn resume(core: &mut Core, work: &mut Queue<Event>) {
     }
     if let Some(token) = ready {
         let batch = core.awaiting_resources.remove(&token).expect("ready pending batch");
-        work.push(Event::Tasks(batch.kind.event(batch.reply_to, batch.members)));
+        work.push(Work::Event(Event::Tasks(batch.kind.event(batch.reply_to, batch.members))));
     }
 }
 

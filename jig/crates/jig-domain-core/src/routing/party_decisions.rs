@@ -5,6 +5,7 @@
 
 use super::PersonEscalation;
 use super::refusals::pool_refused;
+use crate::routing::Work;
 use crate::{Core, Event, GoalRoute, Limits, Now, PersonProposalRoute, Request};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -20,7 +21,7 @@ use skein_lib::{Env, Queue, ReplyTo, Token};
 pub(super) fn goal_decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     _role: Option<people::Role>,
@@ -57,10 +58,10 @@ pub(super) fn goal_decide(
             let (source, _) = core.person_pool(project, person);
             let (period, pool) = core.open_person_pool(project, person);
             if let Some(event) = period {
-                work.push(Event::Tasks(event));
+                work.push(Work::Event(Event::Tasks(event)));
             }
             if let Some(event) = pool {
-                work.push(Event::Tasks(event));
+                work.push(Work::Event(Event::Tasks(event)));
             }
             let event = match proposal.action {
                 tasks::PersonAction::Settings { .. } => unreachable!("settings acceptance has its own decision"),
@@ -129,14 +130,14 @@ pub(super) fn goal_decide(
             return;
         }
     };
-    work.push(Event::Tasks(event));
+    work.push(Work::Event(Event::Tasks(event)));
 }
 
 #[expect(clippy::too_many_arguments, reason = "a keyed proposal decision carries its holder and exact live proposal")]
 pub(super) fn person_proposal_decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     _role: Option<people::Role>,
@@ -206,7 +207,7 @@ pub(super) fn person_proposal_decide(
         ) == Ok(None),
         "one person proposal route"
     );
-    work.push(Event::PersonProposal(tasks::Event::DecideProposal {
+    work.push(Work::PersonProposal(tasks::Event::DecideProposal {
         reply_to: ReplyTo::new(request),
         proposer,
         proposal: number,
@@ -219,7 +220,7 @@ pub(super) fn person_proposal_decide(
 #[expect(clippy::too_many_lines, reason = "one exhaustive authenticated person proposal dispatcher")]
 pub(super) fn person_proposal_accept(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     proposal: tasks::Proposal,
@@ -246,7 +247,7 @@ pub(super) fn person_proposal_accept(
             ) == Ok(None),
             "one release acceptance"
         );
-        work.push(Event::PersonProposal(tasks::Event::DecideProposal {
+        work.push(Work::PersonProposal(tasks::Event::DecideProposal {
             reply_to: ReplyTo::new(request),
             proposer: proposal.proposer,
             proposal: proposal.number,
@@ -265,10 +266,10 @@ pub(super) fn person_proposal_accept(
         tasks::ProposalAction::Amend { .. } | tasks::ProposalAction::Widen { .. } => {
             let (period, pool) = core.open_person_pool(proposal.project, person);
             if let Some(event) = period {
-                work.push(Event::Tasks(event));
+                work.push(Work::Event(Event::Tasks(event)));
             }
             if let Some(event) = pool {
-                work.push(Event::Tasks(event));
+                work.push(Work::Event(Event::Tasks(event)));
             }
         }
         tasks::ProposalAction::Settings { .. }
@@ -281,7 +282,7 @@ pub(super) fn person_proposal_accept(
     let result_followups = core.tasks.result_proposal(proposal.proposer, proposal.number);
     match proposal.action {
         tasks::ProposalAction::Effect { connector, .. } | tasks::ProposalAction::ProcedureEffect { connector, .. } => {
-            work.push(Event::EffectStart {
+            work.push(Work::Event(Event::EffectStart {
                 owner: request,
                 connector,
                 origin: crate::EffectOrigin::Accept {
@@ -290,7 +291,7 @@ pub(super) fn person_proposal_accept(
                     proposal: Box::new(proposal),
                     by: tasks::Party::Person(person),
                 },
-            });
+            }));
             return;
         }
         tasks::ProposalAction::Settings { .. }
@@ -319,10 +320,10 @@ pub(super) fn person_proposal_accept(
                 if proposal.as_holder { tasks::Party::Person(person) } else { tasks::Party::Task(proposal.proposer) };
             let (period, pool) = core.open_person_pool(proposal.project, person);
             if let Some(event) = period {
-                work.push(Event::Tasks(event));
+                work.push(Work::Event(Event::Tasks(event)));
             }
             if let Some(event) = pool {
-                work.push(Event::Tasks(event));
+                work.push(Work::Event(Event::Tasks(event)));
             }
             for member in &mut batch {
                 member.funder =
@@ -419,14 +420,14 @@ pub(super) fn person_proposal_accept(
         ) == Ok(None),
         "one person acceptance route"
     );
-    work.push(Event::PersonProposal(event));
+    work.push(Work::PersonProposal(event));
 }
 
 #[expect(clippy::too_many_arguments, reason = "one keyed held choice carries its person and exact semantic revision")]
 pub(super) fn person_escalation_decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     _role: Option<people::Role>,
@@ -496,7 +497,7 @@ pub(super) fn person_escalation_decide(
         ) == Ok(None),
         "one keyed escalation choice"
     );
-    work.push(Event::PersonEscalation(tasks::Event::DecideEscalation {
+    work.push(Work::PersonEscalation(tasks::Event::DecideEscalation {
         reply_to: ReplyTo::new(request),
         task,
         revision,
@@ -520,7 +521,7 @@ pub(super) fn current_person_escalation(core: &Core, task: u64, revision: u64) -
 pub(super) fn proposal_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -580,7 +581,7 @@ pub(super) fn proposal_request(
                             core.goal_routes
                                 .insert(request, GoalRoute::Deciding { proposer: number, proposal, by: person })
                                 .expect("one settings acceptance");
-                            work.push(Event::Tasks(tasks::Event::DecidePersonProposal {
+                            work.push(Work::Event(Event::Tasks(tasks::Event::DecidePersonProposal {
                                 reply_to: ReplyTo::new(request),
                                 proposer: number,
                                 proposal,
@@ -588,12 +589,12 @@ pub(super) fn proposal_request(
                                 message: None,
                                 revision: Some(revision),
                                 decision: tasks::ProposalDecision::Accept,
-                            }));
+                            })));
                         }
-                        Err(why) => work.push(Event::People(people::Event::Decided {
+                        Err(why) => work.push(Work::Event(Event::People(people::Event::Decided {
                             request,
                             outcome: people::Outcome::Refused(why),
-                        })),
+                        }))),
                     }
                     return;
                 }
@@ -625,7 +626,7 @@ pub(super) fn proposal_request(
 pub(super) fn escalation_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -675,7 +676,7 @@ fn proposal_act(choice: &people::ProposalDecision) -> crate::acts::Act {
 fn task_settings_decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     caller: (Token, u64, u32),
     row: tasks::Proposal,
@@ -743,7 +744,7 @@ fn task_settings_decide(
             },
         )
         .expect("one settings terminal route");
-    work.push(Event::PersonProposal(tasks::Event::DecideSettingsProposal {
+    work.push(Work::PersonProposal(tasks::Event::DecideSettingsProposal {
         reply_to: Some(ReplyTo::new(request)),
         decision: tasks::SettingsDecision {
             proposer: row.proposer,

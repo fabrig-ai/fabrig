@@ -1,4 +1,5 @@
 //! Offered topic calls are reads before they enter the task hub (authority.md, 8.5).
+use crate::routing::Work;
 use crate::{CallKey, CallPart, Core, Event, Family, Held, Limits, Request, fresh};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -9,7 +10,7 @@ use skein_lib::{Env, Queue, ReplyTo};
 pub(super) fn subscribe(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
     connector: u16,
@@ -48,14 +49,14 @@ pub(super) fn subscribe(
     } else if let Some(subscription) = fresh(&mut core.counters, Family::Message) {
         let token = to.into_token();
         assert!(core.reserve_connector_subscription(token, key, subscription), "topic call room preflighted");
-        work.push(Event::Tasks(tasks::Event::SubscribeTopic {
+        work.push(Work::Event(Event::Tasks(tasks::Event::SubscribeTopic {
             reply_to: ReplyTo::new(token),
             task: key.task,
             subscription: tasks::Subscription {
                 number: subscription,
                 kind: tasks::SubscriptionKind::Topic { connector, topic },
             },
-        }));
+        })));
     } else {
         super::runs::call_decision(core, &mut out, to, key, CallPart::Unavailable);
     }

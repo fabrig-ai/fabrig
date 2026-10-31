@@ -4,7 +4,8 @@ use super::{
     parties::begin_creation,
     refusals::{pool_again, pool_refused},
 };
-use crate::{Core, Event, Limits, Now, Request};
+use crate::routing::Work;
+use crate::{Core, Limits, Now, Request};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -26,7 +27,7 @@ pub(super) fn begin(
     core: &mut Core,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut flight: Inputs,
     request: Token,
 ) {
@@ -75,7 +76,7 @@ pub(super) fn loaded(
     core: &mut Core,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     loaded: Loaded,
 ) {
     let Loaded { request, row, busy } = loaded;

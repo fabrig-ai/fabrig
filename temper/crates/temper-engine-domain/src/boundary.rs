@@ -696,7 +696,6 @@ pub(crate) enum Work {
     People(people::Event),
     Fleet(fleet::Event),
     Brief(brief::GatherEvent),
-    StartBrief { task: u64 },
     Forge(forge::Event),
     ForgeRestored,
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),

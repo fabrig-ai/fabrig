@@ -32,9 +32,7 @@ fn ready() -> (Core, Limits) {
 
 fn prepare(core: &mut Core, limits: &Limits, task: u64) -> Box<[Request]> {
     let context = core.tasks.run_context(task).expect("live task");
-    watch_outputs(core, limits, Event::PreparedAgent { context, transcript_waiter: None, busy: false });
-    watch_outputs(core, limits, Event::Tasks(tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(task)), task }));
-    watch_outputs(core, limits, Event::StartBrief { task })
+    watch_outputs(core, limits, Event::PreparedAgent { context, transcript_waiter: None, busy: false })
 }
 
 fn load(out: &[Request]) -> Option<Token> {

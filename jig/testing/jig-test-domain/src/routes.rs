@@ -384,22 +384,11 @@ fn route_now(
         core::Now::Activate { context } => {
             work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
-        core::Now::PrepareAgent { context } => {
-            let transcript_waiter = if context.ever_turned { Some(Token::new(context.task)) } else { None };
+        core::Now::PrepareAgent { context, load_transcript } => {
+            let transcript_waiter = if load_transcript { Some(Token::new(context.task)) } else { None };
             work.push(Work::Core(core::Event::PreparedAgent { context, transcript_waiter, busy: false }));
         }
-        core::Now::StartPreparation { task, from: None, .. } => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::Prepare {
-                reply_to: ReplyTo::new(Token::new(task)),
-                task,
-            })));
-            work.push(Work::Core(core::Event::StartBrief { task }));
-        }
-        value @ core::Now::StartPreparation { task, from: Some(_), .. } => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::Prepare {
-                reply_to: ReplyTo::new(Token::new(task)),
-                task,
-            })));
+        value @ core::Now::StartPreparation { .. } => {
             domain.now.push(crate::Request::Now(value));
         }
         core::Now::BriefCorePlanned { task, sections, .. } => brief::plan(env, task, sections, work),

@@ -1,6 +1,7 @@
 //! Volatile party inbox projections from the task child's durable rows.
 //! The core routes these sibling facts on save and restore (domain/engine.md, 4.4).
 
+use crate::routing::Work;
 mod census;
 pub(crate) use census::Progress;
 
@@ -398,7 +399,7 @@ pub(crate) fn valid_header(core: &Core, limits: &Limits, row: &tasks::TaskRecord
 pub(crate) fn seen_conversation_loaded(
     core: &mut Core,
     env: &skein_lib::Env<Limits>,
-    work: &mut Queue<crate::Event>,
+    work: &mut Queue<Work>,
     request: skein_lib::Token,
     row: Option<Box<tasks::TaskRecord>>,
     busy: bool,
@@ -443,7 +444,7 @@ pub(crate) fn seen_conversation_loaded(
     } else {
         people::Event::Decided { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) }
     };
-    work.push(crate::Event::People(event));
+    work.push(Work::Event(crate::Event::People(event)));
     Queue::uncapped()
 }
 fn matches_ended(phase: &tasks::Phase) -> bool {

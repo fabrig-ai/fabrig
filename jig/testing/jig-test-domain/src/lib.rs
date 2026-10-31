@@ -597,26 +597,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 }
 
 fn transcript_loaded(domain: &mut Domain, env: &Env<Limits>, task: u64, rows: Box<[core::TranscriptRow]>, done: bool) {
-    if !domain.core.transcripts.contains_key(&task) {
-        return;
-    }
-    if rows.len() > usize::try_from(env.limits.core.resume_bytes).expect("u32 fits usize") {
-        return;
-    }
-    for (row, text) in rows {
-        if !domain.core.append_transcript(task, row, text) {
-            decide(domain, env, Work::Core(core::Event::PreparationFailed { task }));
-            return;
-        }
-    }
-    if done {
-        let event = if domain.core.transcript_readable(task) {
-            core::Event::StartBrief { task }
-        } else {
-            core::Event::TranscriptUnread { task }
-        };
-        decide(domain, env, Work::Core(event));
-    }
+    decide(
+        domain,
+        env,
+        Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Page { rows, done } }),
+    );
 }
 
 #[expect(clippy::too_many_lines, reason = "one bounded decision routes the complete root work vocabulary")]

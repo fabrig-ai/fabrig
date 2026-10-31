@@ -1,5 +1,6 @@
 //! One project decision includes its roster, policy, first period and answer
 //! (people.md, 5.1–5.3; core.md, 6.1; contract.md, 3.2).
+use crate::routing::Work;
 use crate::{Core, Event, Limits, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -10,7 +11,7 @@ use skein_lib::{Env, Queue, ReplyTo, Token};
 pub(super) fn rename_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     person: u64,
@@ -36,7 +37,7 @@ pub(super) fn rename_request(
 pub(super) fn make_project_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     maker: u64,
@@ -55,17 +56,17 @@ pub(super) fn make_project_request(
                 name: made.name,
                 value: made.policy,
             }))));
-            work.push(Event::People(people::Event::Roles {
+            work.push(Work::Event(Event::People(people::Event::Roles {
                 project,
                 holdings: Box::new([people::Holding { person: maker, role: people::Role::Owner }]),
-            }));
-            work.push(Event::Tasks(tasks::Event::OpenPeriod {
+            })));
+            work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
                 reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
                 project,
                 period: 1,
                 budget,
-            }));
-            work.push(Event::Tasks(tasks::Event::PeriodNext { project, period: 1, next: None }));
+            })));
+            work.push(Work::Event(Event::Tasks(tasks::Event::PeriodNext { project, period: 1, next: None })));
             core.touch_party(maker);
             out.push(Request::ProjectMade { project });
             decided(work, request, people::Outcome::ProjectMade { project });
@@ -78,7 +79,7 @@ pub(super) fn make_project_request(
 pub(super) fn make_project_act(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     maker: u64,
@@ -91,6 +92,6 @@ pub(super) fn make_project_act(
     make_project_request(core, env, work, out, request, maker, name, policy);
 }
 
-fn decided(work: &mut Queue<Event>, request: Token, outcome: people::Outcome) {
-    work.push(Event::People(people::Event::Decided { request, outcome }));
+fn decided(work: &mut Queue<Work>, request: Token, outcome: people::Outcome) {
+    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
 }

@@ -1,6 +1,7 @@
 //! Historical decision-race answers routed back to authenticated parties
 //! (`domain/people.md`, section 5.1). These complete keyed decisions, not reads.
 
+use crate::routing::Work;
 use crate::{Core, EscalationDecisionRecord, Event, Limits, Request};
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -11,7 +12,7 @@ use skein_lib::{Env, Queue, Token};
 pub(super) fn route_historical_escalation(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -82,14 +83,14 @@ pub(super) fn route_historical_escalation(
     } else {
         people::Outcome::Refused(people::Refusal::Unknown)
     };
-    work.push(Event::People(people::Event::Decided { request, outcome }));
+    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
     Queue::uncapped()
 }
 
 #[expect(clippy::too_many_arguments, reason = "the route retains its event fields")]
 pub(super) fn route_historical_proposal(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -156,7 +157,7 @@ pub(super) fn route_historical_proposal(
     } else {
         people::Outcome::Refused(people::Refusal::Unknown)
     };
-    work.push(Event::People(people::Event::Decided { request, outcome }));
+    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
     Queue::uncapped()
 }
 

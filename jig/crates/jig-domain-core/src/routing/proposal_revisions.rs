@@ -1,4 +1,5 @@
 //! Withdraw proposals whose named spec has moved before answering the accepter.
+use crate::routing::Work;
 use crate::{CallKey, Core, Event, GoalRoute, PersonProposalRoute, RoutedCall};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -20,7 +21,7 @@ fn moved(core: &Core, proposal: &tasks::Proposal) -> Option<(u64, people::Moved)
 }
 pub(super) fn call(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     token: Token,
     key: CallKey,
     proposal: &tasks::Proposal,
@@ -35,16 +36,16 @@ pub(super) fn call(
             .is_ok(),
         "one stale acceptance"
     );
-    work.push(Event::Tasks(tasks::Event::WithdrawProposal {
+    work.push(Work::Event(Event::Tasks(tasks::Event::WithdrawProposal {
         reply_to: ReplyTo::new(token),
         proposer: proposal.proposer,
         proposal: proposal.number,
-    }));
+    })));
     true
 }
 pub(super) fn person(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     by: u64,
     proposal: &tasks::Proposal,
@@ -67,19 +68,14 @@ pub(super) fn person(
             .is_ok(),
         "one stale person acceptance"
     );
-    work.push(Event::PersonProposal(tasks::Event::WithdrawProposal {
+    work.push(Work::PersonProposal(tasks::Event::WithdrawProposal {
         reply_to: ReplyTo::new(request),
         proposer: proposal.proposer,
         proposal: proposal.number,
     }));
     true
 }
-pub(super) fn party(
-    core: &mut Core,
-    work: &mut Queue<Event>,
-    request: Token,
-    proposal: &tasks::PersonProposal,
-) -> bool {
+pub(super) fn party(core: &mut Core, work: &mut Queue<Work>, request: Token, proposal: &tasks::PersonProposal) -> bool {
     let tasks::PersonAction::Amend { task, revision, amendment } = &proposal.action else {
         return false;
     };
@@ -95,10 +91,10 @@ pub(super) fn party(
             .is_ok(),
         "one stale party acceptance"
     );
-    work.push(Event::Tasks(tasks::Event::WithdrawPersonProposal {
+    work.push(Work::Event(Event::Tasks(tasks::Event::WithdrawPersonProposal {
         reply_to: Some(ReplyTo::new(request)),
         proposer: proposal.proposer,
         proposal: proposal.number,
-    }));
+    })));
     true
 }

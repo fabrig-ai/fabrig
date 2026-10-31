@@ -5,6 +5,7 @@
 //! the views child asks for documents from the decision's final live state.
 
 use crate::documents::{self, Proposer, Subject};
+use crate::routing::Work;
 use crate::{Core, Limits, Request};
 use jig_domain_people as people;
 use jig_domain_people::ApplicationScope;
@@ -608,7 +609,7 @@ fn visibility_end(core: &Core, watcher: Token, binding: &crate::WatchBinding) ->
 
 /// A revision moves the settings watch; all documents derived from templates or
 /// future-project policies see one mark.
-pub(super) fn settings_revised(core: &mut Core, _work: &mut Queue<crate::Event>, templates_changed: bool) {
+pub(super) fn settings_revised(core: &mut Core, _work: &mut Queue<Work>, templates_changed: bool) {
     core.touch_settings();
     if templates_changed {
         core.touch_frames();

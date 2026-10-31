@@ -140,8 +140,8 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             let ready = domain.ready() && crate::domain::within_budget(domain, &env.limits);
             domain.work.push(Work::Core(core::Event::Activate { context, ready }));
         }
-        core::Now::PrepareAgent { context } => {
-            let (transcript_waiter, busy) = if context.ever_turned {
+        core::Now::PrepareAgent { context, load_transcript } => {
+            let (transcript_waiter, busy) = if load_transcript {
                 match domain.archive_reads.insert(Some(Read::Transcript { task: context.task })) {
                     Ok(waiter) => (Some(waiter.token()), false),
                     Err(_) => (None, true),
@@ -264,7 +264,6 @@ fn start_preparation(
     transcript_waiter: Option<Token>,
     from: Option<(u64, u32)>,
 ) {
-    domain.work.push(Work::Tasks(tasks::Event::Prepare { reply_to: internal(task), task }));
     if let Some(waiter) = transcript_waiter {
         if let Some(from) = from {
             let range = Range::Core(crate::CoreRange::TaskTranscript { task, from });
@@ -273,7 +272,7 @@ fn start_preparation(
         }
         retire_read(domain, waiter);
     }
-    domain.work.push(Work::StartBrief { task });
+    unreachable!("the core requests a transcript load only with a reserved window");
 }
 
 /// Load one ended owner row the core asked for; a full read table answers busy.

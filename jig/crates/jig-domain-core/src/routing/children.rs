@@ -3,6 +3,7 @@
 
 use super::people_routes::tag_people;
 use super::task_routes::tag_tasks;
+use crate::routing::Work;
 use crate::{Ask, Core, CoreRecord, Event, Held, Key, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -87,7 +88,7 @@ pub(super) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
 pub(super) fn tag_fleet(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut child: Queue<fleet::Request>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -99,7 +100,7 @@ pub(super) fn tag_fleet(
         let Some(next) = pending.pop() else { break };
         let request = match next {
             fleet::Request::ProgramTargets { source, workers } => {
-                work.push(Event::Account(accounts::Event::ProgramTargets { source, hosts: workers }));
+                work.push(Work::Event(Event::Account(accounts::Event::ProgramTargets { source, hosts: workers })));
                 continue;
             }
             fleet::Request::ProgramSignedOut { source, worker, result } => {
@@ -109,7 +110,11 @@ pub(super) fn tag_fleet(
                     fleet::ProgramResult::Lost => accounts::ProgramResult::Lost,
                     fleet::ProgramResult::Failed => accounts::ProgramResult::Failed,
                 };
-                work.push(Event::Account(accounts::Event::ProgramSignedOut { source, host: worker, result }));
+                work.push(Work::Event(Event::Account(accounts::Event::ProgramSignedOut {
+                    source,
+                    host: worker,
+                    result,
+                })));
                 continue;
             }
             fleet::Request::Sources { channel, sources } => Request::Held(Box::new(Held::Sources { channel, sources })),
@@ -441,7 +446,7 @@ fn append_account(core: &mut Core, env: &Env<Limits>, event: accounts::Event, ou
 pub(super) fn tag_account(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut child: Queue<accounts::Request>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -498,7 +503,7 @@ pub(super) fn tag_account(
             // People keeps the answer under the party's key, and replies once it is durable.
             accounts::Request::Answer { request, answer } => {
                 let outcome = super::account_requests::outcome(core, answer);
-                work.push(Event::People(people::Event::Decided { request, outcome }));
+                work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
             }
         }
     }
@@ -558,7 +563,7 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
 pub(super) fn route_account(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: accounts::Event,
 ) -> Queue<Request> {
     let party = account_party(core, &event);
@@ -589,7 +594,7 @@ pub(super) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::Gath
 pub(super) fn route_fleet(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut event: fleet::Event,
 ) -> Queue<Request> {
     if let fleet::Event::Start { run, attempt, placement: Some(placement), .. } = &event
@@ -762,7 +767,7 @@ fn draining_hosts(core: &Core) -> u32 {
 fn append_fleet(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: fleet::Event,
     out: &mut Queue<Request>,
 ) {

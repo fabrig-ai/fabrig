@@ -160,25 +160,10 @@ pub(crate) fn store(
             }
         }
         Store::Transcript { task, rows, done } => {
-            // A message can invalidate preparation while this store read is
-            // in flight. Its old answer belongs to no current preparation.
-            if !domain.core.transcripts.contains_key(&task) {
-                return;
-            }
-            for (row, text) in rows {
-                if !domain.core.append_transcript(task, row, text) {
-                    work.push(Work::Core(core::Event::PreparationFailed { task }));
-                    return;
-                }
-            }
-            if done {
-                let event = if domain.core.transcript_readable(task) {
-                    core::Event::StartBrief { task }
-                } else {
-                    core::Event::TranscriptUnread { task }
-                };
-                work.push(Work::Core(event));
-            }
+            work.push(Work::Core(core::Event::TranscriptLoaded {
+                task,
+                load: core::TranscriptLoad::Page { rows, done },
+            }));
         }
         Store::Restore(record) => {
             if domain.start.state == crate::domain::StartState::Stopped || domain.core.start_failure().is_some() {

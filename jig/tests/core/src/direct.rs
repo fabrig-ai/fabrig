@@ -299,10 +299,7 @@ impl Driver {
                             .collect(),
                     })));
                 }
-                root::Request::Now(core::Now::StartPreparation { task, from: None, .. }) => {
-                    self.events.push_back(root::Event::TranscriptLoaded { task, rows: Box::new([]), done: true });
-                }
-                root::Request::Now(now @ core::Now::StartPreparation { from: Some(_), .. }) => {
+                root::Request::Now(now @ core::Now::StartPreparation { .. }) => {
                     self.store.ask(StoreOut::Now(now));
                 }
                 root::Request::Stop => {
