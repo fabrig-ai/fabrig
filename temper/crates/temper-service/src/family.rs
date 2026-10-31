@@ -657,6 +657,7 @@ pub fn answer(
         Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => w::Outcome::EndRefused(
             w::EndRefused::new(limits, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).ok()?,
         ),
+        None => w::Outcome::Unknown,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(why))) => {
             w::Outcome::SetUpRefused(
@@ -675,7 +676,6 @@ pub fn answer(
                 .ok()?,
             )
         }
-        None => w::Outcome::Unknown,
     };
     let answer = w::Answer::new(limits, w::AnswerParts { outcome }).ok()?;
     Some(wire::answer(&answer))

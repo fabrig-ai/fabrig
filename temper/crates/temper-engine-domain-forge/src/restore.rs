@@ -140,7 +140,14 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
     use RestoreSet::Rows;
     match row {
         Stored::Forge(record) => {
-            room(K::Forge, Rows(K::Forge), d.records.len(), l.forges, d.records.contains_key(&record.number))
+            room(K::Forge, Rows(K::Forge), d.records.len(), l.forges, d.records.contains_key(&record.number))?;
+            room(
+                K::Forge,
+                Rows(K::Forge),
+                d.configured.len(),
+                d.configured.capacity(),
+                d.configured.contains_key(&record.number),
+            )
         }
         Stored::Landing(row) => {
             field(

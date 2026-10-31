@@ -11,7 +11,9 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         demo.state = engine.domain.demo_state();
     }
     match request {
-        root::Request::ForgeKept(_)
+        root::Request::PlaygroundActs { .. }
+        | root::Request::ResetAct { .. }
+        | root::Request::ForgeKept(_)
         | root::Request::ForgeGone { .. }
         | root::Request::BoxGroup { .. }
         | root::Request::BoxRemove { .. } => {}

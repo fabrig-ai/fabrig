@@ -296,6 +296,8 @@ impl Protocol {
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
             | engine::Request::BoxGroup { .. }
+            | engine::Request::PlaygroundActs { .. }
+            | engine::Request::ResetAct { .. }
             | engine::Request::BoxRemove { .. }
             | engine::Request::Connect { .. }
             | engine::Request::Manifest { .. }

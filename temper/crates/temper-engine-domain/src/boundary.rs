@@ -533,6 +533,15 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Playground routing (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+    PlaygroundActs {
+        request: Token,
+        forge: u16,
+    },
+    ResetAct {
+        key: [u8; 16],
+        act: forge::ResetAct,
+    },
     /// Forge runtime routing (temper/docs/design/draft/playground-reset.md, 3–4).
     ForgeKept(forge::ForgeRecord),
     ForgeGone {
