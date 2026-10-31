@@ -15,6 +15,8 @@ pub const FIRST_NAME_BYTES: u32 = 1024;
 /// Capacity of each durable top table and its child.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub forges: u32,
+    pub definition_bytes: u32,
     pub repositories: u32,
     pub tasks: u32,
     pub holds: u32,
@@ -66,7 +68,11 @@ pub struct Limits {
 /// Internal output envelopes and retained heap sums do not constrain admission.
 #[must_use]
 pub fn valid(l: &Limits) -> bool {
-    if l.repositories == 0
+    if l.forges == 0
+        || l.forges > u32::from(u16::MAX)
+        || l.definition_bytes < 256
+        || kept_act_bound(l).is_none()
+        || l.repositories == 0
         || l.tasks == 0
         || l.holds == 0
         || l.subscriptions == 0
@@ -106,4 +112,13 @@ pub(crate) const fn connection_valid(forges: u32, installations: u32) -> bool {
 #[must_use]
 pub const fn demo_act_bound(l: &Limits) -> Option<u32> {
     l.tasks.checked_add(1)
+}
+
+/// One cancel per task and two cleanup acts per retained forge.
+#[must_use]
+pub const fn kept_act_bound(l: &Limits) -> Option<u32> {
+    match l.forges.checked_mul(2) {
+        Some(cleanup) => l.tasks.checked_add(cleanup),
+        None => None,
+    }
 }

@@ -12,6 +12,7 @@ mod client;
 pub(crate) use api::encode_error;
 mod entries;
 mod issues;
+mod kept;
 mod landing;
 mod names;
 mod topics;
@@ -21,6 +22,12 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::Forge(row) => w::Value::Forge(kept::encode_forge(row)),
+        d::Stored::ForgeNumbers { next } => w::Value::ForgeNumbers(
+            w::ForgeNumbers::new(&w::CEILINGS, w::ForgeNumbersParts { next: *next }).expect(FITS),
+        ),
+        d::Stored::Playground(row) => w::Value::Playground(kept::encode_playground(row)),
+        d::Stored::KeptAct(row) => w::Value::KeptAct(kept::encode_act(row)),
         d::Stored::Landing(row) => w::Value::Landing(landing::encode(row)),
         d::Stored::Receipt { key, receipt } => w::Value::Receipt(landing::encode_receipt(key, receipt)),
         d::Stored::Application { token, until, outcome } => {
@@ -93,6 +100,10 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
     Ok(match row.into_parts().value {
+        w::Value::Forge(row) => d::Stored::Forge(kept::decode_forge(row)),
+        w::Value::ForgeNumbers(row) => d::Stored::ForgeNumbers { next: row.into_parts().next },
+        w::Value::Playground(row) => d::Stored::Playground(kept::decode_playground(row)),
+        w::Value::KeptAct(row) => d::Stored::KeptAct(kept::decode_act(row)),
         w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)),
         w::Value::Receipt(row) => landing::decode_receipt(row),
         w::Value::Application(value) => application::decode(value, bounds)?,
@@ -168,6 +179,11 @@ pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undec
 
 pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
+        forge_record_definition: forge.definition_bytes,
+        first_intent_org: d::FIRST_NAME_BYTES,
+        first_intent_repository: d::FIRST_NAME_BYTES,
+        first_intent_label: d::FIRST_NAME_BYTES,
+        new_project_name: d::FIRST_NAME_BYTES,
         landing_state_members: forge.landing_members,
         landing_member_gates: forge.gates,
         landing_row_asks: forge.landing_members,

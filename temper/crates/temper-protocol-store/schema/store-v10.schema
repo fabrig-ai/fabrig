@@ -241,5 +241,21 @@ record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 record Receipt { passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
 record ReceiptRow { key: ReceiptKey receipt: Receipt }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow }
+# Families 31-34 (temper/docs/design/draft/playground-reset.md, 3, 4 and 6.2).
+enum ForgeKind { github, forgejo }
+enum ForgeMode { connected, managed, owned, fake }
+record ExistingProject { project: u32 }
+record NewProject { name: bytes 1024 }
+enum FirstProject { existing: ExistingProject, new: NewProject }
+record FirstIntent { playground: bool org: bytes 1024 repository: bytes 1024 project: FirstProject label: bytes 1024 }
+record ForgeRecord { number: u16 kind: ForgeKind mode: ForgeMode removing: bool definition: bytes 1048576 first: option FirstIntent }
+record ForgeNumbers { next: u16 }
+enum ResetStep { project, forge, account }
+record Resetting { step: ResetStep }
+enum PlaygroundState { running, resetting: Resetting }
+record Playground { state: PlaygroundState forge: option u16 project: option u32 account: option u32 }
+record KeptCancel { project: u32 task: u64 }
+enum KeptActKind { cancel: KeptCancel, remove_group, erase_secrets }
+record KeptAct { key: fixed 16 forge: u16 act: KeptActKind }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: ForgeRecord, forge_numbers: ForgeNumbers, playground: Playground, kept_act: KeptAct }
 versioned record Row { value: Value }
