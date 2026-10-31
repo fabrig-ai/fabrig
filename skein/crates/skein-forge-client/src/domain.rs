@@ -123,6 +123,12 @@ impl Domain {
     pub fn cached(&self, resource: &Resource) -> Option<&crate::Cached> {
         self.keep.cached(resource)
     }
+    /// The retained live rows' keys, in the keep's order (forge-client.md, the keep):
+    /// for a caller naming a row on a failure path; allocates.
+    #[must_use]
+    pub fn live_keys(&self) -> Box<[Resource]> {
+        self.keep.live_keys()
+    }
     /// A stored record exceeded this root's configured capacities or was
     /// structurally inconsistent. The root must reconcile the store/limits;
     /// diagnostics cannot be the only way it learns recovery was refused.

@@ -145,6 +145,7 @@ The client holds the resources the owner names, and nothing else.
   stamps or pages fails `TooLarge` and delivers nothing from that page.
   `cached(resource)` returns the latest values read; a decision that
   depends on one reads it afresh (section 5).
+  `live_keys()` allocates the retained live rows' keys in the keep's order for a caller naming a row on a failure path.
 
 ## 4. Keeping up
 
