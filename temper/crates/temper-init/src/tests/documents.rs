@@ -65,14 +65,15 @@ fn the_default_is_the_owned_example_so_edited() {
         let answered = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("valid facts");
         let actual = parse(content(&answered, b"temper.json"));
         let members = actual["application"]["demo"].as_object().unwrap();
-        assert_eq!(members.len(), 3, "{row}");
-        for name in ["llm", "forge", "project"] {
-            assert!(members.contains_key(name), "{row}: {name}");
+        assert_eq!(members.len(), 1, "{row}");
+        assert!(members.contains_key("llm"), "{row}");
+        for name in ["forges", "identities", "setup"] {
+            assert!(actual["application"].get(name).is_none(), "{row}: {name}");
         }
         let ports = [
             "/application/clients/listener/socket",
-            "/application/forges/0/api/socket",
-            "/application/forges/2/api/socket",
+            "/application/machine/fake/listen/socket",
+            "/application/machine/owned/listen/socket",
             "/application/demo/llm/listen/socket",
             "/application/webhooks/listener/socket",
         ]
@@ -81,7 +82,7 @@ fn the_default_is_the_owned_example_so_edited() {
             assert!(!ports[..index].contains(port), "{row}: five distinct ports");
         }
         assert_eq!(
-            actual["application"]["forges"][2]["api"]["socket"],
+            actual["application"]["machine"]["owned"]["listen"]["socket"],
             format!("127.0.0.1:{}", facts.ports.owned),
             "{row}"
         );
@@ -89,7 +90,7 @@ fn the_default_is_the_owned_example_so_edited() {
         // A review names repository, base, branch, gate and head, then offers two verdicts.
         expected["engine"]["limits"]["overrides"]["tasks.parameters"] = json!(5_u32);
         expected["engine"]["limits"]["overrides"]["tasks.contract_choices"] = json!(2_u32);
-        expected["engine"]["acts"] = json!([{ "connector": 1_u16, "may": ["close", "remove_account"] }]);
+        expected["engine"]["acts"] = json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account"] }]);
         assert!(!actual["engine"]["owners"].as_array().unwrap().is_empty());
         // The startup turn_bounds writer holds these to each document's own
         // agent; init adds a demo endpoint, so smith derives a different T.
@@ -131,40 +132,23 @@ fn the_default_is_the_owned_example_so_edited() {
             ),
             ("/engine/llm/models", json!([owned["engine"]["llm"]["models"][0], demo_model()])),
             (
-                "/application/forges",
-                json!([
-                    {"number": 1_u16, "kind": "forgejo", "api": {"socket": format!("127.0.0.1:{}", facts.ports.forge)},
-                     "transport": "plaintext", "git": format!("http://127.0.0.1:{}", facts.ports.forge), "web": null},
-                    {"number": 2_u16, "kind": "github", "api": null, "transport": null, "git": null, "web": null},
-                    {"number": 3_u16, "kind": "forgejo", "api": {"socket": format!("127.0.0.1:{}", facts.ports.owned)},
-                     "transport": "plaintext", "git": format!("http://127.0.0.1:{}", facts.ports.owned), "web": null}
-                ]),
-            ),
-            (
-                "/application/identities",
-                json!([
-                    {"number": 1_u32, "forge": 2_u16, "login": null, "author": null},
-                    {"number": 2_u32, "forge": 1_u16, "login": "temper",
-                     "author": {"name": "Temper", "email": "temper@localhost"}},
-                    {"number": 3_u32, "forge": 3_u16, "login": "temper",
-                     "author": {"name": "Temper", "email": "temper@localhost"}}
-                ]),
-            ),
-            (
-                "/application/setup",
-                json!([{
-                    "forge": 1_u16, "directory": "demo/forge", "bot": {"login": "temper", "email": "temper@localhost"},
-                    "mode": {"fake": {"listen": {"socket": format!("127.0.0.1:{}", facts.ports.forge)},
-                        "git": "demo/bin/git", "owner": "playground", "repositories": [{"name": "widget", "landing": "main"}]}}
-                }, {
-                    "forge": 3_u16, "directory": "forge-3", "bot": {"login": "temper", "email": "temper@localhost"},
-                    "start": "asked",
-                    "mode": {"owned": {"forgejo": "fetched", "runner": {
-                        "binary": "fetched", "labels": ["temper-host:host"], "capacity": 1_u32,
-                        "path": "/usr/local/bin:/usr/bin:/bin"},
+                "/application/machine",
+                json!({
+                    "owned": {
+                        "forgejo": "fetched", "runner": {
+                            "binary": "fetched", "labels": ["temper-host:host"], "capacity": 1_u32,
+                            "path": "/usr/local/bin:/usr/bin:/bin"},
                         "listen": {"socket": format!("127.0.0.1:{}", facts.ports.owned)},
-                        "person": {"login": "ada", "email": "ada@localhost"}}}
-                }]),
+                        "remote": format!("http://127.0.0.1:{}", facts.ports.owned),
+                        "person": {"login": "ada", "email": "ada@localhost"}
+                    },
+                    "fake": {
+                        "listen": {"socket": format!("127.0.0.1:{}", facts.ports.forge)},
+                        "remote": format!("http://127.0.0.1:{}", facts.ports.forge),
+                        "git": "demo/bin/git"
+                    },
+                    "github": null
+                }),
             ),
             ("/application/demo", demo(facts.ports.llm.get())),
             ("/application/webhooks", json!({"listener": {"socket": format!("127.0.0.1:{}", facts.ports.webhooks)}})),
@@ -240,9 +224,7 @@ fn demo(port: u16) -> Value {
             "otherwise": [
                 demo_turn("I am the scripted model, the playground’s: I answer only the suggested requests, from a script. To ask for other work, connect a model from Accounts: a ChatGPT plan, a Claude subscription or an API key.")
             ]
-        },
-        "forge": 1,
-        "project": 1
+        }
     })
 }
 
@@ -407,9 +389,9 @@ fn no_placeholder_is_left() {
                 (b"\"$agent\"".as_slice(), 2),
                 (b"\"$git\"".as_slice(), 1),
                 (b"\"$listener\"".as_slice(), 1),
-                (b"\"$forge\"".as_slice(), 2),
+                (b"\"$forge\"".as_slice(), 1),
                 (b"\"$forge_git\"".as_slice(), 1),
-                (b"\"$owned\"".as_slice(), 2),
+                (b"\"$owned\"".as_slice(), 1),
                 (b"\"$owned_git\"".as_slice(), 1),
                 (b"\"$login\"".as_slice(), 1),
                 (b"\"$email\"".as_slice(), 1),
@@ -463,7 +445,7 @@ fn the_person_keeps_a_forgejo_login_or_falls_back() {
         assert_eq!(answer.person, person, "{row}");
         let document = parse(content(&answer, b"temper.json"));
         assert_eq!(
-            document["application"]["setup"][1]["mode"]["owned"]["person"],
+            document["application"]["machine"]["owned"]["person"],
             json!({"login": written, "email": format!("{written}@localhost")}),
             "{row}"
         );

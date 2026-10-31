@@ -16,7 +16,7 @@ pub fn world(seed: u64, engine: bool) -> World {
 /// Ask the assigned task to make one named, permitted keyed write.
 pub fn effect(world: &mut World, completion: u32) {
     let (task, attempt) = *world.peers.assignments.last().expect("scripted caller assigned");
-    let mut effect = jig_core_world::effects::World::effect();
+    let mut effect = jig_core_world::world::World::effect();
     effect.resources =
         Box::new([jig_test_connector_world::path(1, u8::try_from(completion).expect("tiny call number"))]);
     world.send(jig_test_domain::Event::EffectCall {

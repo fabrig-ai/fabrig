@@ -23,6 +23,10 @@ pub const ADDRESS: u32 = 2_048;
 /// confirmed the revocation (2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// Close project rows (jig/docs/design/domain/accounts.md, 4.2).
+    ForgetProject {
+        project: u32,
+    },
     Restore {
         record: Stored,
     },

@@ -11,9 +11,15 @@ pub(crate) const fn payer(value: tasks::Payer) -> accounts::Use {
     }
 }
 
-/// Explicit uses replace defaults, including an empty list. Membership is read now, so a
-/// project becoming shared cannot keep using a person's plan through an old `SetUses`.
-pub(crate) fn serves(people: &people::Domain, account: &accounts::Account, payer: accounts::Use) -> bool {
+/// Explicit uses replace defaults, including an empty list. A key naming the task's project
+/// covers its party payer too. Current membership keeps a shared project from using a
+/// person's plan through an old `SetUses`.
+pub(crate) fn serves(
+    people: &people::Domain,
+    account: &accounts::Account,
+    payer: accounts::Use,
+    project: Option<u32>,
+) -> bool {
     match account.holder() {
         accounts::Holder::Party(holder) if people.kind(holder) != Some(people::Kind::Person) => return false,
         accounts::Holder::Party(_) | accounts::Holder::Deployment => {}
@@ -30,7 +36,11 @@ pub(crate) fn serves(people: &people::Domain, account: &accounts::Account, payer
         Some(uses) => {
             let mut named = false;
             for value in uses {
-                if *value == payer {
+                let named_project = match value {
+                    accounts::Use::Party(_) => false,
+                    accounts::Use::Project(value) => project == Some(*value),
+                };
+                if *value == payer || (!account.plan() && named_project) {
                     named = true;
                 }
             }
@@ -77,11 +87,14 @@ impl crate::Core {
     /// Bounded secret-free proofs for the account child. These are transient check data, never
     /// retained as another ledger or trusted after people or uses change.
     #[must_use]
-    pub fn account_coverage(&self, value: tasks::Payer) -> skein_lib::List<accounts::Coverage> {
+    pub fn account_coverage(&self, value: tasks::Payer, project: Option<u32>) -> skein_lib::List<accounts::Coverage> {
         let mut result = skein_lib::List::with_capacity(self.accounts.accounts());
         for (number, account) in self.accounts.accounts_by_number() {
             result
-                .push(accounts::Coverage { account: *number, serves: serves(&self.people, account, payer(value)) })
+                .push(accounts::Coverage {
+                    account: *number,
+                    serves: serves(&self.people, account, payer(value), project),
+                })
                 .expect("one proof per account");
         }
         result

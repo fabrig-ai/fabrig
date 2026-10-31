@@ -224,6 +224,11 @@ impl Protocol {
     }
 }
 impl Front<Test> for Protocol {
+    fn seed(&mut self, seed: jig_client_world::harness::Seed) {
+        assert!(self.clients.is_empty(), "seed before admitting clients");
+        jig_client_world::harness::seed::seed_core(&mut self.engine.driver, self.now, fixtures::wall(self.now), seed);
+        self.advance(self.now, fixtures::wall(self.now));
+    }
     fn constructor(
         &self,
         _: jig_client_world::harness::ClientConstructor<Test>,

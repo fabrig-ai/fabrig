@@ -12,9 +12,9 @@ fn key_bytes(key: &Key) -> Box<[u8]> {
     keys::encode(key, fixtures::KEY_LIMIT).expect("within the key limit")
 }
 
-// The existing generated sample count plus two explicit late-interval keys.
+// Generated samples and explicit late-interval keys.
 const SAMPLES: u32 = 500;
-const BOUNDARY_KEYS: u32 = 2;
+const BOUNDARY_KEYS: u32 = 5;
 // A census and the combined core/tasks request, beside LIVE's single ranges.
 const EXTRA_REQUESTS: u32 = 2;
 fn samples() -> core::ops::Range<u32> {
@@ -44,7 +44,10 @@ fn cursor_keys() -> Box<[Key]> {
     }
     for key in [
         Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector: 1, key: [0; 16] })),
+        Key::People(jig_domain_people::Key::Deletion(1)),
         Key::Tasks(jig_domain_tasks::Key::PlacedHold(TASK)),
+        Key::People(jig_domain_people::Key::Deletion(0)),
+        Key::People(jig_domain_people::Key::Deletion(u32::MAX)),
     ] {
         keys.push(key).expect("counted boundary keys");
     }
@@ -171,11 +174,11 @@ fn no_restart_interval_holds_a_turn_terminal_or_note() {
 fn each_fixed_scope_holds_the_keys_it_admits_and_no_others() {
     use jig_domain_core::reads;
     let mut rng = Rng::new(0x5701_e006);
-    let mut mappings = skein_lib::List::with_capacity(28);
+    let mut mappings = skein_lib::List::with_capacity(30);
     for scope in fixed_scopes() {
         for party in [1, 2] {
             let intervals = intervals::scope(party, &scope).expect("fixed scope");
-            mappings.push((party, scope.clone(), intervals)).expect("fourteen scopes and two parties");
+            mappings.push((party, scope.clone(), intervals)).expect("fifteen scopes and two parties");
         }
     }
     for _ in samples() {
@@ -191,13 +194,14 @@ fn each_fixed_scope_holds_the_keys_it_admits_and_no_others() {
     }
 }
 
-fn fixed_scopes() -> [jig_domain_core::reads::Scope; 14] {
+fn fixed_scopes() -> [jig_domain_core::reads::Scope; 15] {
     use jig_domain_core::reads::Scope;
     [
         Scope::Proposal { proposer: jig_domain_people::Proposer::Party(1), proposal: 1 },
         Scope::Proposal { proposer: jig_domain_people::Proposer::Party(2), proposal: 1 },
         Scope::SettingsHistory { first: 1, last: 3, newest: 3, whole: false },
         Scope::Spend { project: 1 },
+        Scope::Spend { project: 0 },
         Scope::EndedDelegates { task: 1 },
         Scope::Task { task: 1 },
         Scope::PersonTask { task: 1 },
@@ -360,10 +364,14 @@ fn the_accounts_restore_range_stops_before_the_installations_row() {
 }
 
 #[test]
-fn the_people_restore_ranges_include_acted_and_skip_ended_read_positions() {
+fn the_people_restore_ranges_include_acted_and_deletions_and_skip_ended_read_positions() {
     let ranges = intervals::restore(&RestoreRange::People);
     for connector in [0, u16::MAX] {
         let key = Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector, key: [255; 16] }));
+        assert!(fixtures::within(&ranges, &key_bytes(&key)), "{key:?}");
+    }
+    for project in [0, u32::MAX] {
+        let key = Key::People(jig_domain_people::Key::Deletion(project));
         assert!(fixtures::within(&ranges, &key_bytes(&key)), "{key:?}");
     }
     assert_eq!(ranges[0].end.as_deref(), Some([keys::JIG, 2, 7].as_slice()));
@@ -404,5 +412,60 @@ fn tasks_restore_includes_placed_holds_beyond_the_history_families() {
             &ranges,
             &key_bytes(&Key::Tasks(jig_domain_tasks::Key::History { task: number, revision: 1 }))
         ));
+    }
+}
+
+#[test]
+fn project_notes_intervals_follow_the_full_key_cursor_across_scopes() {
+    let scopes = [
+        notes::Scope::Deployment,
+        notes::Scope::Project { project: 0 },
+        notes::Scope::Project { project: 7 },
+        notes::Scope::Project { project: u32::MAX },
+        notes::Scope::Goal { project: 7, goal: 1 },
+        notes::Scope::Goal { project: 8, goal: 1 },
+        notes::Scope::Resources {
+            project: 7,
+            connector: 1,
+            pattern: notes::Pattern { segments: Box::new([]), last: notes::Last::Open(Box::new([])) },
+        },
+    ];
+    let mut keys = skein_lib::List::with_capacity(15);
+    keys.push(notes::Key::Entry { name: 1 }).expect("one entry and fourteen scope lines");
+    for scope in scopes {
+        for name in [1, 2] {
+            keys.push(notes::Key::Line { scope: scope.clone(), name }).expect("fourteen scope lines");
+        }
+    }
+    let mut cursors = skein_lib::List::with_capacity(16);
+    cursors.push(None).expect("initial cursor");
+    for key in &keys {
+        cursors.push(Some(key.clone())).expect("one cursor per key");
+    }
+    for project in [0, 7, u32::MAX] {
+        for after in &cursors {
+            let ranges = intervals::notes(&notes::Range::Project { project, after: after.clone() });
+            for key in &keys {
+                let in_project = match key {
+                    notes::Key::Entry { .. } => false,
+                    notes::Key::Line { scope, .. } => match scope {
+                        notes::Scope::Deployment => false,
+                        notes::Scope::Project { project: found }
+                        | notes::Scope::Goal { project: found, .. }
+                        | notes::Scope::Resources { project: found, .. } => project == *found,
+                    },
+                };
+                let past_cursor = match after {
+                    Some(cursor) => key > cursor,
+                    None => true,
+                };
+                let expected = in_project && past_cursor;
+                assert_eq!(
+                    fixtures::within(&ranges, &key_bytes(&Key::Notes(key.clone()))),
+                    expected,
+                    "{project} {after:?} {key:?}"
+                );
+            }
+        }
     }
 }

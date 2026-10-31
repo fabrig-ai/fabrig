@@ -262,7 +262,17 @@ impl Hooked {
                 io.push(skein_io::Request::Stream { stream: self.socket, down });
             } else if self.hint_state == HintState::Ready && self.hint.is_some() {
                 self.hint_state = HintState::Awaited;
-                up.push(Event::Hint(Hinted { connection: owner, hint: self.hint.take().expect("ready hint") }));
+                let hint = self.hint.take().expect("ready hint");
+                let mut configured = false;
+                for forge in &settings.forges {
+                    if forge.number == hint.repository.forge {
+                        configured = true;
+                        break;
+                    }
+                }
+                if configured {
+                    up.push(Event::Hint(Hinted { connection: owner, hint }));
+                }
             } else if self.closing == Closing::Pending {
                 io.push(skein_io::Request::Close { entity: self.socket });
                 self.closing = Closing::Sent;

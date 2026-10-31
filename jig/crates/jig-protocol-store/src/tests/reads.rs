@@ -680,6 +680,40 @@ fn spend_reads_live_and_closed_periods_of_the_project() {
     assert_eq!(next, None);
 }
 
+#[test]
+fn deployment_spend_pages_live_and_closed_periods_across_projects() {
+    let mut store = fixtures::opened();
+    let expected = [
+        fixtures::ledger_period(3, 2, false),
+        fixtures::ledger_period(3, 1, true),
+        fixtures::ledger_period(7, 3, true),
+    ];
+    fixtures::committed(
+        &mut store,
+        Box::new([
+            fixtures::header(1),
+            fixtures::save(expected.first().expect("live period").clone()),
+            fixtures::save(expected.get(1).expect("closed period").clone()),
+            fixtures::save(expected.get(2).expect("other project").clone()),
+        ]),
+    );
+    let mut range = fixtures::read(ALICE, reads::Scope::Spend { project: 0 });
+    range.rows = 1;
+    let mut found = skein_lib::List::uncapped();
+    for _ in 0_u32..4 {
+        let (rows, next) = page(load(&mut store, range.clone()));
+        for value in values(&rows) {
+            found.push(value).expect("one period per page");
+        }
+        range.after = next;
+        if range.after.is_none() {
+            break;
+        }
+    }
+    assert_eq!(found.as_slice(), expected);
+    assert!(range.after.is_none(), "all periods read");
+}
+
 fn project_scope() -> jig_domain_notes::Scope {
     jig_domain_notes::Scope::Project { project: fixtures::PROJECT }
 }
@@ -881,4 +915,13 @@ fn a_filtered_note_counts_as_examined_before_a_join_cut() {
     range.after = next;
     let result = load(&mut store, range);
     assert_too_linked(&result, NO_JOINS);
+}
+
+#[test]
+fn erasure_scopes_answer_an_empty_page() {
+    let mut store = fixtures::opened();
+    for scope in [reads::Scope::EndedTasks, reads::Scope::TaskRows { task: CHILD }] {
+        let result = load(&mut store, fixtures::read(ALICE, scope));
+        assert_empty(&result);
+    }
 }

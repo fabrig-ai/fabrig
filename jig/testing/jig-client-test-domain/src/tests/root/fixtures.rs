@@ -244,7 +244,7 @@ pub(super) fn family_answer(answer: first::Answer) -> jig_client::Answered {
         first::Answer::Refused(why) => {
             jig_client::Answered::Jig(Answer::Refused { refusal: why.into_refusal(), at: None })
         }
-        answer => jig_client::Answered::Family(jig_client::Family {
+        answer @ first::Answer::Connector(_) => jig_client::Answered::Family(jig_client::Family {
             family: crate::FIRST,
             version: jig_client_test_protocol_wire::VERSION,
             bytes: crate::family::wire::encode_answer(&answer).unwrap(),

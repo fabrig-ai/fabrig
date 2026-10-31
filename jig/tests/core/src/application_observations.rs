@@ -18,7 +18,7 @@ pub(crate) fn requested(store: &Store, event: &mut root::Event) -> Option<r::Obs
         root::Record::Core(_) | root::Record::Connector { .. } => None,
     })?;
     Some(r::Observed::ApplicationRequested {
-        reply: crate::observations::destination(reply_to),
+        reply: jig_conformance::core::destination(reply_to),
         key: r::ApplicationKey { person, key: *key },
         connector: *number,
         digest: *digest,
@@ -57,7 +57,9 @@ pub(crate) fn submitted(store: &Store) -> Vec<r::Observed> {
                 .iter()
                 .find_map(|write| match write {
                     Write::Save(row) => marker(row, *number, token.raw()),
-                    Write::Wires | Write::Erase(_) | Write::CopySettingsRevision(_) => None,
+                    Write::Wires | Write::Erase(_) | Write::CopySettingsRevision(_) | Write::DropTranscript { .. } => {
+                        None
+                    }
                 })
                 .or_else(|| store.rows.values().find_map(|row| marker(row, *number, token.raw())))
                 .expect("owner terminal has its shared key metadata");

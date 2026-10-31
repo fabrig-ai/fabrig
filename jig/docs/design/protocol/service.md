@@ -307,7 +307,7 @@ down:  released and door outputs → components → io submissions
 
 - **The reference service, `jig-test-service`,** among jig's test kits
   but written as step code, so that it can be copied: jig's test
-  application's engine protocol layer (the store, the accounts' component, the
+  application's engine protocol layer (the store's host, the accounts' component, the
   host tools' translation, its server and the clients' component, the
   workers' side, its test connector's system answered in memory); its
   engine runs no agents of its own and a test worker's (the link,

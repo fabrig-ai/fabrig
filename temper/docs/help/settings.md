@@ -87,7 +87,7 @@ default that changed.
 - A value's bound in `temper help settings-fields` is what ctl sends;
   the deployment may refuse a value within it, past one of its own
   limits.
-- The providers, models, forges, listeners, workers and limits are not
+- The providers, models, listeners, workers and limits are not
   settings: they are the configuration document's, read at a start, and
   a change to them needs a restart. Its limits must hold the stock's
   settings: a start refuses one that does not, and another model or a

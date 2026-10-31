@@ -122,6 +122,7 @@ fn command(name: &[u8], arguments: &[&[u8]], kind: Kind) -> Step {
 }
 #[derive(Debug)]
 pub struct Launch {
+    pub args: Box<[Box<[u8]>]>,
     pub name: Box<[u8]>,
     pub environment: Box<[Box<[u8]>]>,
     pub pipes: Box<[skein_io::kernel::Pipe]>,
@@ -288,6 +289,7 @@ impl Harness {
             if let Ask::Spawn { args, env, pipes, .. } = &call.ask {
                 self.launches
                     .push(Launch {
+                        args: args.clone(),
                         name: args.last().expect("step name last").clone(),
                         environment: env.clone(),
                         pipes: pipes.clone(),
@@ -807,6 +809,9 @@ fn is_effect(order: &Order) -> bool {
         | Order::Signal { .. }
         | Order::Close { .. }
         | Order::Record { .. }
+        | Order::WriteGroup { .. }
+        | Order::RunRemover { .. }
+        | Order::Unlink { .. }
         | Order::Say { .. } => true,
     }
 }
@@ -816,6 +821,8 @@ pub fn grouped_steps() -> temper_forge_setup::Steps {
     Steps {
         always: Box::new([long(b"serve", &[b"never"])]),
         asked: Box::new([Group {
+            kind: None,
+            remover: None,
             label: bytes::copy_of(b"Forge 3 (Forgejo)"),
             recorded: true,
             forge: 3,
@@ -824,6 +831,23 @@ pub fn grouped_steps() -> temper_forge_setup::Steps {
                 (Stage::Prepare, once(b"prepare 3", &[b"exit", b"0"])),
                 (Stage::Run, long(b"forgejo 3", &[b"never"])),
             ]),
+        }]),
+    }
+}
+
+/// One kind slot with a one-shot remover and a separate serve process.
+pub fn kind_steps() -> temper_forge_setup::Steps {
+    use temper_forge_setup::{FORGE_ARGUMENT, Group, Stage, Steps, machine::BoxKind};
+    Steps {
+        always: Box::new([long(b"serve", &[b"never"])]),
+        asked: Box::new([Group {
+            kind: Some(BoxKind::Fake),
+            remover: Some(once(b"remove", &[b"exit", b"0", FORGE_ARGUMENT])),
+            label: b"Fake".as_slice().into(),
+            recorded: true,
+            forge: 0,
+            before: 0,
+            steps: Box::new([(Stage::Run, long(b"fake-forge", &[b"never", FORGE_ARGUMENT]))]),
         }]),
     }
 }

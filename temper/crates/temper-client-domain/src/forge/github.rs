@@ -127,7 +127,7 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
             w::Connect::new(
                 &bounds,
                 w::ConnectParts {
-                    forge,
+                    forge: forges::making(side, forge, &bounds).expect("valid target"),
                     how: w::How::GithubApp(w::GitHubApp::new(&bounds, w::GitHubAppParts { id }).expect("valid App id")),
                 },
             )
@@ -153,7 +153,13 @@ pub(crate) fn manifest(side: &mut Side, limits: Limits, forge: u16, back: Box<[u
         w::GitHubManifest::new(&bounds, w::GitHubManifestParts { back: Some(back) })
             .expect("printed flow address fits"),
     );
-    let request = w::Request::Connect(w::Connect::new(&bounds, w::ConnectParts { forge, how }).expect("connect fits"));
+    let request = w::Request::Connect(
+        w::Connect::new(
+            &bounds,
+            w::ConnectParts { forge: forges::making(side, forge, &bounds).expect("valid target"), how },
+        )
+        .expect("connect fits"),
+    );
     dispatch(side, &bounds, forge, request, true, out);
 }
 fn dispatch(
@@ -227,7 +233,19 @@ pub(crate) fn told(
     if let Answer::Link(to) = &answer {
         out.push(Request::Leave { to: to.clone() });
     }
+    let accepted = match &answer {
+        Answer::Connecting | Answer::Link(_) | Answer::Page(_) => true,
+        Answer::NoAccess | Answer::NotFound | Answer::Refused(_) | Answer::Entrance(_) | Answer::Unknown => false,
+    };
     pending.answer = Some(answer);
+    if accepted
+        && pending.forge == 0
+        && let Some(new) = &mut side.setup_form.making
+        && new.kind == forges::Kind::GitHub
+    {
+        new.accepted = true;
+    }
+    forges::maybe_adopt(side, limits, out);
     side.changed();
     true
 }
@@ -273,7 +291,11 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::StartRefused(_)
                 | w::Outcome::StartFailed(_)
                 | w::Outcome::Returning
-                | w::Outcome::Link(_) => None,
+                | w::Outcome::Link(_)
+                | w::Outcome::Removed
+                | w::Outcome::RemoveRefused(_)
+                | w::Outcome::Reset
+                | w::Outcome::EndRefused(_) => None,
             }
         }
         Answered::Jig(_) | Answered::Family(_) => None,

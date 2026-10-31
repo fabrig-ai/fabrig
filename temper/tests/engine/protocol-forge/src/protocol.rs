@@ -136,7 +136,18 @@ impl Protocol {
                 writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author }]),
             },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[],
+            &[top::Configured {
+                number: REPO.forge,
+                kind: top::Kind::Forgejo,
+                mode: top::Mode::Connected,
+                admin_connect: false,
+                bot: Box::new([]),
+                owned: None,
+                git: Box::new([]),
+                web: None,
+                read_only: false,
+                asked: false,
+            }],
             false,
         )
         .expect("configured connector")
@@ -502,11 +513,12 @@ impl Protocol {
                 }
                 other @ (top::Request::Settled { .. }
                 | top::Request::Bound { .. }
-                | top::Request::ListDemoActs
-                | top::Request::SendDemoAct(_)
-                | top::Request::DemoStart { .. }
-                | top::Request::StopGroup { .. }
-                | top::Request::SetUpGroup { .. }
+                | top::Request::PlaygroundActs { .. }
+                | top::Request::ResetAct { .. }
+                | top::Request::ForgeKept(_)
+                | top::Request::ForgeGone { .. }
+                | top::Request::BoxGroup { .. }
+                | top::Request::BoxRemove { .. }
                 | top::Request::Connect { .. }
                 | top::Request::Manifest { .. }
                 | top::Request::Reachable { .. }
@@ -524,6 +536,7 @@ impl Protocol {
                 | top::Request::ContinueRelease { .. }
                 | top::Request::EffectsSettled { .. }
                 | top::Request::Released { .. }
+                | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::WakeProcedure { .. }
@@ -670,12 +683,13 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
-        top::Stored::Demo(row) => top::Key::Demo(row.forge),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
-        top::Stored::DemoAct(row) => top::Key::DemoAct(row.key),
         top::Stored::Flight { task, entry } => top::Key::Flight { task: *task, entry: *entry },
         top::Stored::Release(row) => top::Key::Release(row.task),
         top::Stored::Application { token, .. } => top::Key::Application(*token),
         top::Stored::Writer(row) => top::Key::Writer(row.forge),
+        top::Stored::Forge(row) => top::Key::Forge(row.number),
+        top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
+        top::Stored::Playground(_) => top::Key::Playground,
     }
 }

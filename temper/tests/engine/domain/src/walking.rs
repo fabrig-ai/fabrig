@@ -264,21 +264,24 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
     }
 }
 
-/// Real authority policy and an authenticated owner, rather than allow flags.
-#[must_use]
-pub fn config(seed: u64) -> engine::Config {
-    let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1)]));
-    let rules = authority::Rules {
-        ceiling: ceiling.clone(),
+fn authority_rules(ceiling: authority::Authority) -> authority::Rules {
+    authority::Rules {
+        ceiling,
         period_spend: 1000,
         minimum_run_spend: 1,
         maximum_run_spend: 100,
         implies: authority::Implies::new(Box::new([]), 0).expect("empty implication configuration"),
         requirements: Box::new([]),
-    };
+    }
+}
+
+/// Real authority policy and an authenticated owner, rather than allow flags.
+#[must_use]
+pub fn config(seed: u64) -> engine::Config {
+    let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1)]));
+    let rules = authority_rules(ceiling.clone());
     // Check the same fixture bounds without allocating a discarded live policy table.
-    let policy_limits = authority_limits();
-    assert!(authority::valid_rules(&rules, &policy_limits), "valid authority configuration");
+    assert!(authority::valid_rules(&rules, &authority_limits()), "valid authority configuration");
     let policy = authority::Policy {
         projections: ceiling.grants.clone(),
         escalation_role: Some(0),
@@ -357,9 +360,25 @@ pub fn config(seed: u64) -> engine::Config {
         // worlds name at start (D10).
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: 1,
-        forges: Box::new([]),
+        machine: None,
+        forges: Box::new([configured_forge()]),
         under_box: false,
-        demo: None,
+        playground: None,
+    }
+}
+
+fn configured_forge() -> temper_engine_domain_forge::Configured {
+    temper_engine_domain_forge::Configured {
+        number: 1,
+        kind: temper_engine_domain_forge::Kind::Forgejo,
+        mode: temper_engine_domain_forge::Mode::Connected,
+        admin_connect: false,
+        bot: Box::new([]),
+        owned: None,
+        git: Box::new([]),
+        web: None,
+        read_only: false,
+        asked: false,
     }
 }
 
@@ -792,8 +811,12 @@ impl World {
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
-                | engine::Request::StopGroup { .. }
-                | engine::Request::SetUpGroup { .. }
+                | engine::Request::ForgeKept(_)
+                | engine::Request::ForgeGone { .. }
+                | engine::Request::BoxGroup { .. }
+                | engine::Request::PlaygroundActs { .. }
+                | engine::Request::ResetAct { .. }
+                | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
@@ -912,8 +935,7 @@ impl World {
                 .referee
                 .result(&self.store.rows, person, task, &words)
                 .expect("committed result reaches person once"),
-            Delivery::DemoActed { .. }
-            | Delivery::DemoNote { .. }
+            Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
             | Delivery::Link { .. }
             | Delivery::ForgeCall { .. }
@@ -936,6 +958,7 @@ impl World {
             Delivery::Start(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }

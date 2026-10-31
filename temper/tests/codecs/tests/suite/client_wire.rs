@@ -85,7 +85,9 @@ fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
                         &v1::CEILINGS,
                         v1::SetUpParts {
                             playground: false,
-                            forge: 3,
+                            forge: v1::Making::Kept(
+                                v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge"),
+                            ),
                             org: b"work".as_slice().into(),
                             repository: b"hello".as_slice().into(),
                             project,
@@ -163,7 +165,7 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         for field in 0..3 {
             let parts = v1::SetUpParts {
                 playground: false,
-                forge: 3,
+                forge: v1::Making::Kept(v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge")),
                 org: if field == 0 { name.clone() } else { b"o".as_slice().into() },
                 repository: if field == 1 { name.clone() } else { b"r".as_slice().into() },
                 project: if field == 2 {
@@ -214,7 +216,7 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         for org in [true, false] {
             let parts = v1::SetUpParts {
                 playground: false,
-                forge: 3,
+                forge: v1::Making::Kept(v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge")),
                 org: if org { name.clone() } else { b"o".as_slice().into() },
                 repository: if org { b"r".as_slice().into() } else { name.clone() },
                 project: project(),
@@ -234,7 +236,7 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
 }
 
 #[test]
-fn demo_start_outcomes_round_trip_at_each_boundary() {
+fn playground_start_outcomes_round_trip_at_each_boundary() {
     let limits = v1::CEILINGS;
     let mut outcomes = skein_lib::List::with_capacity(8);
     for outcome in [
@@ -293,46 +295,6 @@ fn demo_start_outcomes_round_trip_at_each_boundary() {
     writer.put(b"x").expect("extra byte");
     let bytes = writer.finish();
     v1::Answer::decode(&limits, &mut Reader::new(&bytes)).expect_err("past ceiling on decode");
-}
-
-#[test]
-fn demo_states_round_trip_at_smallest_and_ceiling() {
-    let limits = v1::CEILINGS;
-    for state in [v1::DemoState::NotStarted, v1::DemoState::Running] {
-        for full in [false, true] {
-            let mut cues = List::with_capacity(limits.demo_answer_cues);
-            if full {
-                for _ in 0..limits.demo_answer_cues {
-                    cues.push(skein_lib::bytes::zeroed(
-                        usize::try_from(limits.demo_answer_cues_item).expect("ceiling"),
-                    ))
-                    .expect("cue room");
-                }
-            }
-            let field = if full { usize::try_from(limits.demo_answer_owner).expect("ceiling") } else { 0 };
-            let record = v1::DemoAnswer::new(
-                &limits,
-                v1::DemoAnswerParts {
-                    project: if full { u32::MAX } else { 0 },
-                    forge: if full { u16::MAX } else { 0 },
-                    provider: if full { u32::MAX } else { 0 },
-                    owner: skein_lib::bytes::zeroed(field),
-                    name: skein_lib::bytes::zeroed(field),
-                    state: state.clone(),
-                    cues,
-                },
-            )
-            .expect("demo answer");
-            let bytes = temper_client_protocol_wire::demo_answer(&record);
-            assert_eq!(temper_client_protocol_wire::decode_demo_answer(&bytes, &limits), Some(record));
-        }
-    }
-    let record =
-        v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartDemo }).expect("start request");
-    assert_eq!(
-        temper_client_protocol_wire::decode_requesting(&temper_client_protocol_wire::requesting(&record), &limits),
-        Some(record)
-    );
 }
 
 #[test]

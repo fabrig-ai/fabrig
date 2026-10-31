@@ -23,9 +23,9 @@ mod capabilities;
 mod ci;
 mod commit;
 mod connect;
-mod demo;
 mod domain;
 mod effect_words;
+mod forges;
 mod gates;
 mod held;
 pub mod items;
@@ -33,10 +33,12 @@ mod judge;
 mod landing;
 mod limits;
 mod panel;
+mod playground;
 pub mod purpose;
 mod result;
 pub use result::{ChangeResult, ResultText};
 mod reconcile;
+mod removal;
 pub mod runs;
 mod views;
 pub use reconcile::{MissingLink, Need, RecordKind};
@@ -52,9 +54,7 @@ pub use commit::commit_text;
 pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
 pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Judges, Reviewer, Verdict as JudgeVerdict};
-pub use limits::{
-    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, demo_act_bound, valid,
-};
+pub use limits::{BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, valid};
 pub use panel::{MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelStep, PanelUsed};
 pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
@@ -221,6 +221,9 @@ pub fn effect_access(repository: &Repository, what: &What, kind: u16) -> Access 
 #[must_use]
 pub fn stored_key(row: &Stored) -> Key {
     match row {
+        Stored::Forge(row) => Key::Forge(row.number),
+        Stored::ForgeNumber { .. } => Key::ForgeNumber,
+        Stored::Playground(_) => Key::Playground,
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -246,9 +249,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Release(row) => Key::Release(row.task),
         Stored::Application { token, .. } => Key::Application(*token),
         Stored::Writer(row) => Key::Writer(row.forge),
-        Stored::Demo(row) => Key::Demo(row.forge),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
-        Stored::DemoAct(row) => Key::DemoAct(row.key),
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
 }
@@ -318,6 +319,30 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
     }
     match record {
+        Stored::Forge(row) => {
+            let mut held = bytes(&row.place.api.host)?
+                .checked_add(bytes(&row.place.git)?)?
+                .checked_add(bytes(&row.bot.login)?)?
+                .checked_add(bytes(&row.bot.name)?)?
+                .checked_add(bytes(&row.bot.email)?)?;
+            if let Some(tls) = &row.place.api.tls {
+                held = held.checked_add(bytes(tls)?)?;
+            }
+            if let Some(web) = &row.place.web {
+                held = held.checked_add(bytes(web)?)?;
+            }
+            if let Some(first) = &row.first {
+                held = held
+                    .checked_add(bytes(&first.org)?)?
+                    .checked_add(bytes(&first.repository)?)?
+                    .checked_add(bytes(&first.label)?)?;
+                match &first.project {
+                    SetUpProject::Existing(_) => {}
+                    SetUpProject::New(name) => held = held.checked_add(bytes(name)?)?,
+                }
+            }
+            Some(held)
+        }
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
@@ -405,11 +430,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address)?.checked_add(bytes(subject)?),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::Ci(_)
+        Stored::ForgeNumber { .. }
+        | Stored::Playground(_)
+        | Stored::Ci(_)
         | Stored::Landed { .. }
         | Stored::Writer(_)
-        | Stored::Demo(_)
-        | Stored::DemoAct(_)
         | Stored::Flight { .. } => Some(0),
         Stored::ProposedEffect(row) => {
             let resource = match &row.resource {

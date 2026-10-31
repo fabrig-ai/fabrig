@@ -1,4 +1,5 @@
-//! The forges and values checked before the host starts (forge-setup.md, 6.3).
+//! Checked forge settings (skein/docs/design/forge-setup.md, 6.3).
+//! Runtime membership follows temper/docs/design/draft/playground-reset.md, 3 and 4.
 use super::{Plan, boundary::Dialect};
 use crate::{github, given::Given};
 use alloc::boxed::Box;
@@ -8,7 +9,7 @@ pub struct Settings {
     pub forges: List<Forge>,
     pub user_agent: Box<[u8]>,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Forge {
     pub kind: Kind,
     pub address: skein_io::Addr,
@@ -73,7 +74,7 @@ pub(super) struct Times {
     pub backoff: Duration,
     pub backoff_max: Duration,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Transport {
     Plaintext {
         name: Option<Box<[u8]>>,

@@ -17,7 +17,7 @@ pub(crate) struct State {
     deliveries: u32,
 }
 fn query() -> documents::TaskQuery {
-    jig_core_world::fixtures::OWN_TASKS
+    jig_test_profile::fixtures::OWN_TASKS
 }
 fn indexed(store: &Store) -> Vec<u64> {
     store
@@ -40,7 +40,7 @@ pub(super) fn advance(world: &mut World, action: Action, phase: &mut u8) -> Resu
     match action {
         Action::WatchQuery => {
             if *phase < 2 && world.peers.children.is_empty() {
-                let request = jig_core_world::fixtures::create_chat(
+                let request = jig_test_profile::fixtures::create_chat(
                     world.peers.peers.creating.as_ref().expect("fixture creating authority"),
                     1,
                     0,

@@ -1,6 +1,8 @@
 //! Connector-owned keyed requests and their synchronous party parts
 //! (`domain/connectors.md`, section 5.5; `domain/core.md`, section 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 
+use super::party::{Party, Routed};
 use crate::routing::Work;
 use crate::{Ask, Core, Event, Family, Held, Limits, Request, fresh};
 use alloc::boxed::Box;
@@ -38,6 +40,21 @@ pub(super) fn start(
     digest: [u8; 32],
     input: Input,
 ) -> Queue<Request> {
+    let closed = match scope {
+        people::ApplicationScope::Project(project) => !core.open_project(project),
+        people::ApplicationScope::Own | people::ApplicationScope::Deployment => false,
+    };
+    if closed && core.people.person(sign_in, env.now, env.wall).is_some() {
+        let mut out = Queue::uncapped();
+        out.push(Request::Held(Box::new(Held::PeopleReply {
+            to: reply_to,
+            reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Role { held: None })),
+        })));
+        if core.connectors.contains(&input.connector) {
+            out.push(Request::Ask { connector: input.connector, ask: Ask::DropApplication { owner: input.owner } });
+        }
+        return first(input.carried, out);
+    }
     assert!(core.application_input.is_none(), "one admission at a time");
     core.application_input = Some(input);
     let connector = input.connector;
@@ -94,18 +111,16 @@ pub(crate) fn first(unused: Option<u64>, requests: Queue<Request>) -> Queue<Requ
     out
 }
 
-#[expect(clippy::too_many_arguments, reason = "the admitted party envelope is passed unchanged")]
 pub(super) fn admitted(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
+    routed: &mut Routed,
+    party: Party,
     connector: u16,
-    person: u64,
     scope: people::ApplicationScope,
-    role: Option<people::Role>,
 ) {
+    let Party { request, person, role, .. } = party;
+
     let input = core.application_input.take();
     let carried = match input {
         Some(input) => input.carried,
@@ -115,9 +130,9 @@ pub(super) fn admitted(
         Some(input) if input.connector == connector && core.connectors.contains(&connector) => input.owner,
         Some(_) | None => {
             if let Some(number) = carried {
-                out.push(unused(number));
+                routed.out.push(unused(number));
             }
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(people::Refusal::NotOffered),
             })));
@@ -126,20 +141,18 @@ pub(super) fn admitted(
     };
     let Some(number) = fresh(&mut core.counters, Family::Application) else {
         if let Some(number) = carried {
-            out.push(unused(number));
+            routed.out.push(unused(number));
         }
-        work.push(Work::Event(Event::People(people::Event::Decided {
+        routed.work.push(Work::Event(Event::People(people::Event::Decided {
             request,
             outcome: people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Arithmetic }),
         })));
         return;
     };
     let token = Token::new(number);
-    assert!(
-        core.applications.insert(request, Flight { connector, token, part: false, carried }).is_ok(),
-        "one application per people flight"
-    );
-    out.push(Request::Ask {
+    let request = core
+        .fly(crate::flight::Flight::Application { request, route: Flight { connector, token, part: false, carried } });
+    routed.out.push(Request::Ask {
         connector,
         ask: Ask::Application {
             request,
@@ -160,16 +173,17 @@ pub(super) fn part(
     request: Token,
     ask: people::Ask,
 ) -> Queue<Request> {
-    let Some(flight) = core.applications.get_mut(&request) else { return empty() };
+    let Some((original, flight)) = core.application_mut(request) else { return empty() };
     assert!(!flight.part, "one synchronous core part at a time");
     let connector = flight.connector;
-    let admitted = people::application_part(&mut core.people, &env.with(env.limits.people), request, ask);
+    let original = core.people_request(original).expect("application party route");
+    let admitted = people::application_part(&mut core.people, &env.with(env.limits.people), original, ask);
     match admitted {
         Ok(route) => {
-            flight.part = true;
+            core.application_mut(request).expect("application part owner").1.part = true;
             let mut child = Queue::uncapped();
             child.push(route);
-            super::people_routes::tag_people(core, env, child, work)
+            super::people_routes::tag_people_part(core, env, child, work, Some((request, original, connector)))
         }
         Err(outcome) => answer(connector, request, outcome),
     }
@@ -188,7 +202,7 @@ pub(super) fn finished(
     request: Token,
     outcome: Result<Token, people::Again>,
 ) -> Queue<Request> {
-    let Some(flight) = core.applications.remove(&request) else { return empty() };
+    let Some((request, flight)) = core.take_application(request) else { return empty() };
     assert!(!flight.part, "core part settled before whole outcome");
     let (outcome, unused) = match outcome {
         Ok(token) => {

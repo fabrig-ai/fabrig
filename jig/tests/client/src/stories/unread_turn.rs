@@ -1,6 +1,6 @@
-//! One malformed archive among committed turns, decoded by the joint translation.
+//! One malformed archive among committed turns (client/domain/testing.md, 4).
 use super::{chat_ready, text};
-use crate::{Scripted, Test, World, joint::wire::activity, test::list};
+use crate::{Scripted, Test, World, test::list};
 use jig_client_domain::contract::*;
 use skein_lib::Wall;
 
@@ -26,34 +26,26 @@ fn readable(number: u32, words: &[u8]) -> ActivityLine {
 #[must_use]
 pub fn world(seed: u64) -> World<Test, Scripted> {
     let mut world = chat_ready(seed);
-    let limits = jig_client::DomainLimits {
-        rows: limits().jig.rows,
-        turn_text: limits().client.domain.turn_text,
-        ..limits().client.domain
-    };
-    let source = jig_domain_tasks::ActivityLine {
-        task: 9,
+    let unread = ActivityLine {
         position: 2,
         at: Wall::EPOCH,
-        line: jig_domain_tasks::Line::Turn { reply: 2, attempt: 1, turn: 2, read: None },
+        event: Activity::Owner {
+            source: Box::new(OwnerActivityLine {
+                task: 9,
+                position: 2,
+                at: Wall::EPOCH,
+                line: OwnerActivity::Turn { reply: 2, attempt: 1, turn: 2, read: None },
+            }),
+            decoded: Some(ArchivedTurn {
+                task: 9,
+                name: TurnName { attempt: 1, number: 2 },
+                cumulative: 2,
+                read: None,
+                at: Wall::EPOCH,
+                turn: TurnRead::Undecodable { why: TurnProblem::Malformed },
+            }),
+        },
     };
-    let source = activity::line(9, &source, &limits).expect("source line");
-    let archive = jig_domain_core::TurnRecord {
-        opens_window: false,
-        task: 9,
-        attempt: 1,
-        turn: 2,
-        spent: 2,
-        read: None,
-        at: Wall::EPOCH,
-        transcript: Box::from([0_u8, 6, 255]),
-    };
-    let codec = jig_protocol_transcript::Limits {
-        smith: smith_transcript::v6::CEILINGS,
-        bytes: 128,
-        turn: TurnLimits { messages: 2, blocks: 2, text: 32 },
-    };
-    let unread = activity::with_archive(&source, &archive, &codec, &limits).expect("undecodable turn retained");
     world
         .front()
         .engine

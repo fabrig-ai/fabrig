@@ -3,7 +3,7 @@ use crate::harness::{ClientId, Front, FrontFault, Observed};
 use crate::test::Test;
 use jig_client::{Ask, Down, Readable, Watchable};
 use jig_client_domain::contract::{
-    ObjectKey, Read, ReadNone, ReadResult, ReadValue, Revision, Subject, VersionRange, WatchEnd, WatchEvent,
+    ObjectKey, Read, ReadNone, ReadResult, ReadValue, Subject, VersionRange, WatchEnd, WatchEvent,
 };
 use jig_client_scripted_engine::{self as engine, Application, ApplicationValue, Decision, Envelope, Truth, Up};
 use jig_client_test_domain::{self as domain, Event, Request, family, first};
@@ -23,26 +23,6 @@ impl Application for Family {
     type Document = family::Document;
     fn decide(&mut self, _: &Truth, _: u64, ask: &Self::Ask, _: Wall) -> Decision<Self::Answer> {
         let answer = match ask {
-            family::Ask::Touch { project, item, revision, parameters } => {
-                let subject =
-                    family::Subject { scope: family::Scope::Project(*project), kind: family::Kind::Item(*item) };
-                match self.documents.get_mut(&subject) {
-                    Some(family::Document::Item(doc)) if doc.revision == *revision => {
-                        doc.revision = Revision { value: doc.revision.value + 1 };
-                        if let Some(value) = parameters {
-                            doc.value = *value;
-                        }
-                        family::Answer::Touched { item: *item, revision: doc.revision }
-                    }
-                    Some(doc) => match doc.revision() {
-                        Some(revision) => family::Answer::Moved { item: *item, revision },
-                        None => family::Answer::Connector(jig_client_test_domain::connector_values::ConnectorAnswer {
-                            value: jig_client_test_domain::connector_values::ApplicationOutcome::Unknown,
-                        }),
-                    },
-                    None => family::Answer::Gone,
-                }
-            }
             family::Ask::ChangeObject { project, object, revision, value } => {
                 let subject =
                     family::Subject { scope: family::Scope::Project(*project), kind: family::Kind::Item(*object) };
@@ -78,9 +58,7 @@ impl Application for Family {
                             jig_client_test_domain::connector_values::ApplicationOutcome::Unknown
                         }
                     },
-                    None | Some(family::Document::Item(_) | family::Document::Part(_)) => {
-                        jig_client_test_domain::connector_values::ApplicationOutcome::Unknown
-                    }
+                    None => jig_client_test_domain::connector_values::ApplicationOutcome::Unknown,
                 };
                 family::Answer::Connector(jig_client_test_domain::connector_values::ConnectorAnswer { value: outcome })
             }
@@ -109,7 +87,6 @@ impl Application for Family {
 }
 fn family_document_fits(document: &family::Document, bounds: &engine::Bounds) -> bool {
     match document {
-        family::Document::Item(_) | family::Document::Part(_) => document.fits(bounds.rows),
         family::Document::Connector(value) => {
             let limits = domain::connector_values::ConnectorLimits {
                 rows: bounds.rows,
@@ -132,6 +109,7 @@ pub struct Scripted {
     /// Whole subjects received at the scripted engine boundary.
     pub opened: Vec<Subject>,
     pub engine: engine::Engine<Family>,
+    pub compositions: BTreeMap<first::Address, family::PageComposition>,
     ledger: Ledger<Token, ()>,
     parties: BTreeMap<ClientId, u64>,
     hellos: std::collections::BTreeSet<ClientId>,
@@ -149,8 +127,64 @@ pub struct Scripted {
     recovery: Option<Time>,
     pending_sign_ins: Vec<u64>,
     pending_faults: Vec<FrontFault>,
+    chat_projects: std::collections::BTreeSet<(u64, u32)>,
 }
 impl Scripted {
+    fn seed_chat(&self, party: u64, project: u32, words: &[u8]) -> jig_client_domain::contract::Task {
+        let number = self
+            .engine
+            .truth()
+            .objects
+            .keys()
+            .filter_map(|key| if let ObjectKey::Task(task) = key { Some(*task) } else { None })
+            .max()
+            .unwrap_or(0)
+            .checked_add(1)
+            .expect("seed task number fits");
+        let mut task = crate::stories::conversations::chat(number, words, Wall::EPOCH);
+        task.project = project;
+        task.requester = jig_client_domain::contract::OwnerRequester::Person(party);
+        task.spec = jig_client_domain::contract::SpecificationDocument {
+            specification: jig_client_domain::contract::DocumentSpecification {
+                words: jig_client_domain::contract::DocumentText::complete(crate::stories::text(words)),
+                parameters: crate::test::list([]),
+                inputs: crate::test::list([]),
+                asks: false,
+            },
+            cut: false,
+        };
+        task
+    }
+
+    fn script_chat(&mut self, party: u64, ask: &jig_client_domain::contract::Ask) {
+        use jig_client_domain::contract::{Answer, Made, Outcome};
+        let jig_client_domain::contract::Ask::Create { project, tasks } = ask else { return };
+        if !self.chat_projects.contains(&(party, *project)) || tasks.len() != 1 {
+            return;
+        }
+        let member = tasks.get(0).expect("one batch member");
+        if !member.flags.conversation {
+            return;
+        }
+        let mut task = self.seed_chat(party, *project, member.spec.words.bytes());
+        task.flags = member.flags;
+        task.label = member.label;
+        self.engine
+            .script(engine::Rule {
+                party: Some(party),
+                ask: ask.clone(),
+                answer: Answer::Done(Outcome::Made {
+                    what: Made::Tasks { tasks: crate::test::list([task.chip.task]) },
+                }),
+                changes: vec![engine::Change::Object {
+                    project: *project,
+                    key: ObjectKey::Task(task.chip.task),
+                    value: ReadValue::Task(Box::new(task)),
+                }],
+            })
+            .expect("seeded project's chat rule fits");
+    }
+
     /// Lose the next shell sign-out before it reaches the engine.
     pub fn lose_next_sign_out(&mut self) {
         self.lose_sign_out = true;
@@ -178,6 +212,7 @@ impl Scripted {
         }
         Self {
             opened: Vec::new(),
+            compositions: BTreeMap::new(),
             ledger: Ledger::new("scripted wire operation"),
             engine: engine::Engine::with_application(script, seed, family).expect("script keeps contract"),
             parties: BTreeMap::new(),
@@ -196,6 +231,7 @@ impl Scripted {
             recovery: None,
             pending_sign_ins: Vec::new(),
             pending_faults: Vec::new(),
+            chat_projects: std::collections::BTreeSet::new(),
         }
     }
     fn transport(&mut self, client: ClientId, local: Token, first: bool, fresh: bool) -> Token {
@@ -286,12 +322,50 @@ impl Scripted {
 }
 
 impl Front<Test> for Scripted {
+    fn seed(&mut self, seed: crate::harness::Seed) {
+        use crate::harness::Seed;
+        match seed {
+            Seed::ChatProject { party, project } => {
+                assert_eq!(project, 1, "the scripted frame's project");
+                self.chat_projects.insert((party, project));
+                self.engine
+                    .act(Time::ZERO, Wall::EPOCH, engine::Change::Me(crate::stories::frame(party)))
+                    .expect("seed frame fits");
+                self.engine
+                    .act(Time::ZERO, Wall::EPOCH, engine::Change::SignedOut { sign_in: party })
+                    .expect("seed sign-out fits");
+            }
+            Seed::Conversation { party, project, words } => {
+                assert!(self.chat_projects.contains(&(party, project)), "seed the conversation's project first");
+                let task = self.seed_chat(party, project, &words);
+                self.engine
+                    .act(
+                        Time::ZERO,
+                        Wall::EPOCH,
+                        engine::Change::Object {
+                            project,
+                            key: ObjectKey::Task(task.chip.task),
+                            value: ReadValue::Task(Box::new(task)),
+                        },
+                    )
+                    .expect("seed conversation fits");
+            }
+        }
+    }
     fn bind(&mut self, client: ClientId, party: u64) {
         self.parties.insert(client, party);
     }
     fn starting(&mut self, client: ClientId) -> Vec<Event> {
         self.hellos.insert(client);
-        vec![crate::test::up(jig_client::Up::SignedIn)]
+        let mut events: Vec<_> = self
+            .compositions
+            .iter()
+            .map(|(address, composition)| {
+                Event::First(first::Event::Compose { address: *address, composition: composition.clone() })
+            })
+            .collect();
+        events.push(crate::test::up(jig_client::Up::SignedIn));
+        events
     }
     fn wire(&mut self, client: ClientId, now: Time, wall: Wall, request: Request) {
         let party = self.parties[&client];
@@ -305,6 +379,7 @@ impl Front<Test> for Scripted {
                 self.last_attempt = Some(attempt);
                 match ask {
                     Ask::Jig(ask) => {
+                        self.script_chat(party, &ask);
                         self.engine.send(now, wall, party, key, attempt, *ask).expect("jig send fits");
                     }
                     Ask::Family { scope, record } => {
@@ -644,6 +719,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
         | engine::Change::Me(_)
         | engine::Change::SignIn { .. }
         | engine::Change::SignedOut { .. }
+        | engine::Change::RemoveProject { .. }
         | engine::Change::OwnerProject(_)
         | engine::Change::Note(_)
         | engine::Change::DeleteNote { .. }

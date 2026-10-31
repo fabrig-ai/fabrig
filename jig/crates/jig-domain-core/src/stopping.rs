@@ -126,6 +126,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::DelegateHoldings { .. }
         | Event::Brief(_)
         | Event::Holdings { .. }
+        | Event::ProjectReleased { .. }
         | Event::Account(_)
         | Event::View(_)
         | Event::Notes(_)
@@ -144,6 +145,9 @@ fn people_gate(event: people::Event) -> Result<Event, Queue<Request>> {
         people::Event::ConversationSeen { .. } => Err(empty()),
         event @ (people::Event::ChatState { .. }
         | people::Event::MoveChat { .. }
+        | people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
         | people::Event::Seed { .. }
@@ -172,7 +176,7 @@ pub(crate) fn waits(timer: Timer) -> bool {
 
 /// The journal holds this terminal behind every earlier commit.
 pub(crate) fn drained(core: &mut Core, out: &mut Queue<Request>) {
-    if core.draining == Some(true) && core.view_subjects.is_empty() {
+    if core.draining == Some(true) && (core.watch_flights() == 0) {
         core.draining = Some(false);
         out.push(Request::Held(Box::new(Held::Drained)));
     }

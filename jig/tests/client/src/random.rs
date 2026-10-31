@@ -90,14 +90,12 @@ fn world_with_heap(seed: u64, heap_ceiling: Option<u64>) -> (Outcome, Reach) {
     let mut family = world.front().engine.application().clone();
     for document in family.documents.values_mut() {
         match document {
-            family::Document::Item(item) => {
-                item.value = rng.below(64);
-                item.touchable = rng.chance(500);
+            family::Document::Connector(doc) => {
+                if let jig_client_test_domain::connector_values::ClientDocument::Object { now, .. } = doc.value.as_mut()
+                {
+                    now.value = rng.below(64);
+                }
             }
-            family::Document::Part(part) => {
-                part.value = rng.below(64);
-            }
-            family::Document::Connector(_) => {}
         }
     }
     world

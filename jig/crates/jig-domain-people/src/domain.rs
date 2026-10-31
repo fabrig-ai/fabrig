@@ -5,6 +5,7 @@
 //! count every live task projection independently of the entry cache. Root owns policy, task creation
 //! and durability; this child never performs IO or retains credential secrets.
 
+mod deletion;
 mod ended;
 mod inbox;
 pub use ended::EndedMark;
@@ -45,6 +46,7 @@ enum Start {
 /// (domain/people.md, sections 2–6).
 #[derive(Debug)]
 pub struct Domain {
+    deletions: Map<u32, crate::DeletionStep>,
     start: Start,
     start_at: Option<Wall>,
     restore_failure: Option<crate::RestoreFailure>,
@@ -87,6 +89,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Kept deletions, restored at start (jig/docs/design/domain/people.md, 5.2).
+    #[must_use]
+    pub fn deletions(&self) -> &Map<u32, crate::DeletionStep> {
+        &self.deletions
+    }
+
     pub(crate) fn input(&mut self) {
         if self.start == Start::NotStarted {
             self.start = Start::Open;
@@ -146,6 +154,7 @@ impl Domain {
             }
         }
         Domain {
+            deletions: Map::with_capacity(limits.projects),
             start: Start::NotStarted,
             start_at: None,
             restore_failure: None,
@@ -482,6 +491,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
         .max(limits.sign_ins.saturating_add(1))
         .max(limits.holdings.saturating_add(1))
         .max(limits.people.saturating_add(1))
+        .max(limits.requests)
 }
 
 /// Apply one root-issued `event` with iteration clocks and immutable configured bounds in `env`
@@ -494,6 +504,9 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.input();
     match event {
+        Event::Deleting { project, step } => deletion::keep(domain, project, step, out),
+        Event::CloseProject { project } => deletion::close(domain, project, out),
+        Event::ForgetProject { project } => deletion::forget(domain, project, out),
         Event::Act { reply_to, connector, key, act } => {
             acts::admit(domain, env, reply_to, crate::ActKey { connector, key }, *act, out);
         }

@@ -19,6 +19,15 @@ const ROOM: u32 = 128;
 const OPERATIONS: u32 = 64;
 
 pub(super) fn run(data: &Path, records: &[(u64, Box<[u8]>)], load: bool) -> Result<Rows, String> {
+    run_with(data, records, load, Vec::new())
+}
+
+pub(super) fn run_with(
+    data: &Path,
+    records: &[(u64, Box<[u8]>)],
+    load: bool,
+    writes: Vec<protocol::Write>,
+) -> Result<Rows, String> {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let own = temper_service::limits::profile(temper_service::limits::Profile::Small);
     let root = temper_service::limits::engine(&jig, &own).ok_or("fixture engine limits")?;
@@ -70,6 +79,7 @@ pub(super) fn run(data: &Path, records: &[(u64, Box<[u8]>)], load: bool) -> Resu
         submissions: Queue::with_capacity(OPERATIONS),
         request: Some(Request::Open { owner: OWNER, root: protocol::Root { token, fd }, installation: [0; 16] }),
         records: records.iter().cloned().collect(),
+        writes,
         rows: Vec::new(),
         load,
         last: 0,
@@ -97,6 +107,7 @@ struct StoreHost {
     submissions: Queue<Submit>,
     request: Option<Request>,
     records: VecDeque<(u64, Box<[u8]>)>,
+    writes: Vec<protocol::Write>,
     rows: Rows,
     load: bool,
     last: u64,
@@ -112,13 +123,13 @@ impl StoreHost {
     }
     fn mark(&mut self, mut header: jig_domain_core::Deployment) {
         header.commits = self.last + 1;
-        self.request = Some(Request::Commit {
-            number: header.commits,
-            writes: Box::new([
-                protocol::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
-                protocol::Write::Wires,
-            ]),
-        });
+        let number = header.commits;
+        let mut writes = std::mem::take(&mut self.writes);
+        writes.extend([
+            protocol::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
+            protocol::Write::Wires,
+        ]);
+        self.request = Some(Request::Commit { number, writes: writes.into() });
     }
     fn next(&mut self) {
         if let Some((number, value)) = self.records.pop_front() {

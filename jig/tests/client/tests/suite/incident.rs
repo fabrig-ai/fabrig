@@ -18,12 +18,13 @@ fn finish(w: &mut World<Test, Scripted>, withdrawn: bool) {
     let now = w.now();
     let mut state = w.front().engine.application().clone();
     let subject = family::Subject { scope: family::Scope::Project(1), kind: family::Kind::Item(1) };
-    let family::Document::Item(item) = state.documents.get_mut(&subject).expect("incident fixture fits and exists")
+    let family::Document::Connector(item) =
+        state.documents.get_mut(&subject).expect("incident fixture fits and exists");
+    let jig_client_test_domain::connector_values::ClientDocument::Object { now: object, .. } = item.value.as_mut()
     else {
-        unreachable!()
+        panic!("incident object")
     };
-    item.state = family::ItemState::Ended;
-    item.revision.value += 1;
+    object.revision += 1;
     let mut delegate = stories::task();
     delegate.chip.task = 10;
     delegate.chip.title = jig_client_domain::contract::DocumentText::complete(stories::text(b"Delegate ten"));
@@ -82,7 +83,7 @@ fn resolved_incident(seed: u64) {
     w.person(
         c,
         vec![
-            see(b"Item 1"),
+            see(b"Object: 1"),
             see(b"Chat nine"),
             Step::Go { address: stories::chat() },
             see(b"delegate"),
@@ -94,7 +95,7 @@ fn resolved_incident(seed: u64) {
             press(b"Confirm"),
             see(b"Accepted"),
             Step::Go { address: RootAddress::Jig(Address::Task { task: 10, section: TaskSection::Panels }) },
-            see(b"Value: 31"),
+            see(b"Result code: 31"),
         ],
     );
     w.person(inbox, vec![see(b"Resolve the incident"), see(b"Accepted")]);
@@ -102,20 +103,19 @@ fn resolved_incident(seed: u64) {
     let now = w.now();
     let mut state = w.front().engine.application().clone();
     let panel = family::Subject { scope: family::Scope::Project(1), kind: family::Kind::Panel(10) };
-    let family::Document::Part(part) = state.documents.get_mut(&panel).expect("incident fixture fits and exists")
-    else {
-        unreachable!()
+    let family::Document::Connector(part) = state.documents.get_mut(&panel).expect("incident fixture fits and exists");
+    let jig_client_test_domain::connector_values::ClientDocument::Panel { result, .. } = part.value.as_mut() else {
+        panic!("incident panel")
     };
-    part.revision.value += 1;
-    part.value = 32;
+    *result = Some(32);
     w.front()
         .engine
         .act_application(now, Wall::EPOCH, jig_client_test_domain::FIRST, 1, state, vec![])
         .expect("incident fixture fits and exists");
-    w.person(c, vec![see(b"Value: 32")]);
+    w.person(c, vec![see(b"Result code: 32")]);
     w.run(Until::Done);
     finish(&mut w, false);
-    w.person(c, vec![Step::Go { address: stories::incident() }, see(b"Ended"), see(b"Incident resolved")]);
+    w.person(c, vec![Step::Go { address: stories::incident() }, see(b"Incident resolved")]);
     w.run(Until::Done);
     assert_eq!(w.front().engine.commits().iter().filter(|c| c.key.is_some()).count(), 1);
 }

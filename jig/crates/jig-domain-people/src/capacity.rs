@@ -69,6 +69,7 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
         Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. } => CapacityAction::Policy,
         Ask::SetPool { person, .. } => CapacityAction::Pool { person: *person },
@@ -105,6 +106,7 @@ pub(crate) fn project(ask: &Ask) -> Option<u32> {
         | Ask::MakeService { project, .. }
         | Ask::Adopt { project, .. }
         | Ask::SetRoles { project, .. }
+        | Ask::RemoveProject { project }
         | Ask::Rename { project, .. }
         | Ask::ChangePolicy { project, .. }
         | Ask::SetPool { project, .. }
@@ -166,6 +168,7 @@ pub(crate) fn permanent(outcome: &Outcome) -> Option<CapacityCause> {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

@@ -102,13 +102,19 @@ pub(super) fn admitted(
 fn take(core: &mut Core, request: Token, always_unused: bool) -> Result<u64, people::Refusal> {
     let carried = core.key_input.take().ok_or(people::Refusal::NotOffered)?;
     let flight = Flight { number: carried.number, always_unused };
-    assert!(core.keys.insert(request, flight) == Ok(None), "one LLM key per people flight");
+    *core.key_mut(request).expect("account continuation").1 = Some(flight);
     Ok(carried.number)
 }
 
 /// A finish is always unused. Only a kept key or adopted moved record consumes its value.
-pub(super) fn finished(core: &mut Core, request: Token, outcome: &people::Outcome) -> Option<u64> {
-    let carried = core.keys.remove(&request)?;
+pub(super) fn finished(core: &mut Core, request: Token, outcome: &people::Outcome) -> Option<(Token, Option<u64>)> {
+    let (request, carried) = core.take_key(request)?;
+    let unused = unused(carried, outcome);
+    Some((request, unused))
+}
+
+fn unused(carried: Option<Flight>, outcome: &people::Outcome) -> Option<u64> {
+    let carried = carried?;
     if carried.always_unused {
         return Some(carried.number);
     }

@@ -13,7 +13,7 @@ use jig_protocol_store::{SecretOwner, Secrets};
 
 const ADMIN: &[u8] = b"admin-token-placeholder-0123";
 
-fn config() -> crate::settings::Engine {
+fn config() -> fixtures::ConfiguredEngine {
     let mut config = local_config(true, false);
     let entry = &mut config.setup[0];
     entry.entry.mode = temper_forge_setup::setup::Mode::Managed { admin_token: None };
@@ -88,7 +88,7 @@ fn ask(service: &mut crate::Service, value: Secret, first: Option<domain::FirstA
         request: Token::new(90),
         token: Token::new(91),
         retention: Duration::from_secs(60),
-        ask: domain::Ask::Connect { forge: 1, how: domain::How::ForgejoAdmin { first } },
+        ask: domain::Ask::Connect { forge: domain::Making::Kept(1), how: domain::How::ForgejoAdmin { first } },
     })));
 }
 fn scan(engine: &crate::engine::Engine) {
@@ -614,17 +614,7 @@ fn an_ended_forge_finishes_the_admin_run_without_keeping_the_token() {
     let mut service = service(&forge);
     let run = pending(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    engine.demo = Some(crate::settings::Demo {
-        project: 1,
-        forge: 1,
-        provider: 1,
-        owner: b"owner".as_slice().into(),
-        name: b"ended".as_slice().into(),
-        cues: Box::new([]),
-        landing: b"main".as_slice().into(),
-        key_file: Box::new([]),
-        state: Some(domain::DemoState::Ended),
-    });
+    end_domain(engine);
     // Replace the fake host's pending read with its terminal, so no stale Need follows Done.
     while engine.setup.above.pop().is_some() {}
     engine.setup.above.push(host::Event::Done { run, outcome: reconcile::Outcome::Nothing });

@@ -26,6 +26,8 @@ pub const LIMITS: Limits = Limits {
 /// A caller-visible answer, observed after the step's writes were committed.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Answer {
+    /// All index lines naming the project have been erased.
+    ProjectDropped,
     /// An index and its remainder count.
     Indexed { lines: List<Line>, more: u32 },
     /// A page of entries.
@@ -80,17 +82,35 @@ impl World {
 
     /// Drive one caller event through store loads and one committed answer.
     pub fn call(&mut self, event: Event) -> Answer {
+        self.drive(event, None).expect("a call has one answer")
+    }
+
+    /// Commit a prefix of a call's decisions, then discard volatile work and restart.
+    pub fn cut_after(&mut self, event: Event, decisions: u32) {
+        assert!(self.drive(event, Some(decisions)).is_none(), "cut precedes the terminal answer");
+        self.restart();
+    }
+
+    fn drive(&mut self, event: Event, cut_after: Option<u32>) -> Option<Answer> {
         let intent = Intent::from_event(&event);
         let caller = intent.owner();
         let mut incoming = VecDeque::from([event]);
         let mut answer = None;
-        for _ in 0..128 {
+        for decision in 0..128 {
+            if cut_after == Some(decision) {
+                incoming.clear();
+                break;
+            }
             let Some(event) = incoming.pop_front() else { break };
             let requests = self.step_once(event);
             let mut writes = Vec::new();
             let mut loads = Vec::new();
             for request in requests {
                 match request {
+                    Request::ProjectDropped { owner } => {
+                        assert_eq!(owner, caller, "project drop echoes caller");
+                        assert!(answer.replace(Answer::ProjectDropped).is_none(), "one answer per call");
+                    }
                     Request::Save { record } => writes.push(Write::Save(record)),
                     Request::Erase { key } => writes.push(Write::Erase(key)),
                     Request::Load { owner, range } => {
@@ -120,6 +140,9 @@ impl World {
                 }
             }
             if !writes.is_empty() {
+                if let Intent::DropProject { .. } = intent {
+                    assert!(writes.len() <= usize::try_from(self.limits.load_rows).expect("page bound fits"));
+                }
                 self.referee.before_commit(&self.store, &writes, &intent);
                 for write in writes {
                     match write {
@@ -143,7 +166,7 @@ impl World {
         }
         assert!(incoming.is_empty(), "a bounded notes call settles");
         self.loads.assert_settled();
-        answer.expect("a call has one answer")
+        answer
     }
 
     /// Restart the child with an empty cache; durable records stay in the store.
@@ -180,6 +203,11 @@ impl World {
         &self.store
     }
 
+    /// Supply a durable fixture, including a shared index line.
+    pub fn seed(&mut self, record: Record) {
+        self.store.insert(key_of(&record), record);
+    }
+
     fn step_once(&mut self, event: Event) -> Vec<Request> {
         self.trace.log(Time::ZERO, format!("in {event:?}"));
         let env = Env { now: Time::ZERO, wall: self.wall, limits: self.limits };
@@ -196,6 +224,29 @@ impl World {
     fn serve(&self, range: &Range) -> (Rows, bool) {
         let mut records = List::with_capacity(self.limits.load_rows);
         match range {
+            Range::Project { project, after } => {
+                let mut more = false;
+                for (key, record) in &self.store {
+                    let in_project = match key {
+                        Key::Entry { .. } => false,
+                        Key::Line { scope, .. } => match scope {
+                            Scope::Deployment => false,
+                            Scope::Project { project: found }
+                            | Scope::Goal { project: found, .. }
+                            | Scope::Resources { project: found, .. } => project == found,
+                        },
+                    };
+                    if in_project && after.as_ref().is_none_or(|cursor| key > cursor) {
+                        if records.room() > 0 {
+                            records.push(record.clone()).expect("store page has room");
+                        } else {
+                            more = true;
+                            break;
+                        }
+                    }
+                }
+                (Rows { records }, more)
+            }
             Range::Entry { name } => {
                 if let Some(record) = self.store.get(&Key::Entry { name: *name }) {
                     records.push(record.clone()).expect("one entry fits one load page");

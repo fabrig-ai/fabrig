@@ -1,30 +1,26 @@
 //! Party task controls, amendments, messages, answers and moves routed to tasks
 //! under current authority (`domain/people.md`, section 5.1).
 
+use super::party::{Amendment, Control, Party, Routed};
 use super::refusals::pool_refused;
 use crate::routing::Work;
 use crate::{Core, Event, Limits, Now, PersonTaskRoute, Request};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Queue, ReplyTo, Token};
+use skein_lib::{Env, ReplyTo};
 
-#[expect(clippy::too_many_arguments, reason = "a keyed amendment carries its person, project and task")]
 pub(super) fn amend_route(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
-    person: u64,
-    role: Option<people::Role>,
-    project: u32,
-    task: u64,
-    revision: u64,
-    amendment: people::Amendment,
-    release: Option<u64>,
+    routed: &mut Routed,
+    party: Party,
+    edit: Amendment,
     evidence: super::amendment_reads::Evidence,
 ) {
+    let Amendment { task, revision, change: amendment, release } = edit;
+    let Party { request, person, project, .. } = party;
+
     if let Some(next) = super::amendment_reads::missing(
         core,
         &env.limits.tasks,
@@ -35,8 +31,8 @@ pub(super) fn amend_route(
     ) {
         super::result_reads::wait(
             core,
-            work,
-            out,
+            &mut routed.work,
+            &mut routed.out,
             next,
             super::amendment_reads::AmendmentRead {
                 replay: super::amendment_reads::Replay::Person {
@@ -54,15 +50,12 @@ pub(super) fn amend_route(
         return;
     }
     let Some(mut amendment) = crate::amendments::translate(amendment, core.kept_models(task), &env.limits.tasks) else {
-        pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Words });
+        pool_refused(&mut routed.work, request, people::Refusal::Limit { which: people::LimitKind::Words });
         return;
     };
     let stop_run = match crate::acts::bounds::amendment_admit_with_places(
         core,
-        person,
-        role,
-        project,
-        task,
+        party.task(task),
         &amendment,
         env.limits.tasks.depth,
         &env.limits.tasks,
@@ -70,21 +63,21 @@ pub(super) fn amend_route(
     ) {
         Ok(admitted) => admitted,
         Err(why) => {
-            pool_refused(work, request, why);
+            pool_refused(&mut routed.work, request, why);
             return;
         }
     };
     if let Err(why) = core.party_amend_revision(task, revision, &amendment) {
-        pool_refused(work, request, why);
+        pool_refused(&mut routed.work, request, why);
         return;
     }
     if let Err(why) = amend_release_admit(core, person, task, release) {
-        pool_refused(work, request, why);
+        pool_refused(&mut routed.work, request, why);
         return;
     }
     amendment.release = release;
     let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-        pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+        pool_refused(&mut routed.work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
         return;
     };
     let released = match core.tasks.task(task).expect("amend admission found task").phase {
@@ -92,7 +85,7 @@ pub(super) fn amend_route(
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
     };
     let request = core.fly_person_task(request, PersonTaskRoute::Amended { task, released });
-    work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
+    routed.work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
         places: evidence.places.into_boxed(),
         funder: None,
         reply_to: ReplyTo::new(request),
@@ -104,26 +97,23 @@ pub(super) fn amend_route(
     })));
 }
 
-#[expect(clippy::too_many_arguments, reason = "one authenticated person-task route carries its output queue")]
 pub(super) fn person_task_request(
     core: &mut Core,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
-    person: u64,
-    project: u32,
-    role: Option<people::Role>,
-    ask: people::Ask,
+    routed: &mut Routed,
+    party: Party,
+    action: crate::person_task::Action,
 ) {
-    let task = crate::person_task::number(&ask);
+    let Party { request, person, project, .. } = party;
+
+    let task = action.task();
     if core.tasks.task(task).is_none() {
-        out.push(Request::Now(Box::new(Now::HistoricalPersonTask { request, person, project, task })));
+        routed.out.push(Request::Now(Box::new(Now::HistoricalPersonTask { request, person, project, task })));
         return;
     }
-    match core.person_task(request, person, project, role, ask) {
-        Ok(event) => work.push(Work::Event(Event::Tasks(event))),
+    match core.person_task(party, action) {
+        Ok(event) => routed.work.push(Work::Event(Event::Tasks(event))),
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -131,28 +121,25 @@ pub(super) fn person_task_request(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
-pub(super) fn stop_request(
-    core: &mut Core,
-    env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    role: Option<people::Role>,
-    ask: people::Ask,
-) {
-    match core.control_admit(&ask, person, project, role, &env.limits.tasks) {
+pub(super) fn stop_request(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, party: Party, task: u64) {
+    let Party { request, person, project, .. } = party;
+
+    match core.control_admit(
+        party.task(task),
+        Control::Stop,
+        &env.limits.tasks,
+        &tasks::CompoundAdmission::new(&core.tasks, 0),
+    ) {
         Ok(task) => {
             let Some(number) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-                work.push(Work::Event(Event::People(people::Event::Decided {
+                routed.work.push(Work::Event(Event::People(people::Event::Decided {
                     request,
                     outcome: people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Arithmetic }),
                 })));
                 return;
             };
             let request = core.fly_person_task(request, PersonTaskRoute::Stop(task));
-            work.push(Work::Event(Event::Tasks(tasks::Event::Place {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Place {
                 reply_to: ReplyTo::new(request),
                 hold: tasks::PlacedHold {
                     number,
@@ -169,7 +156,7 @@ pub(super) fn stop_request(
             })));
         }
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -177,57 +164,32 @@ pub(super) fn stop_request(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn cancel_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    role: Option<people::Role>,
-    ask: people::Ask,
+    routed: &mut Routed,
+    party: Party,
+    task: u64,
+    reason: Box<[u8]>,
+    grace: Option<skein_lib::Duration>,
 ) {
-    let admitted = core.control_admit(&ask, person, project, role, &env.limits.tasks);
-    let (reason, grace) = match ask {
-        people::Ask::Cancel { reason, grace, .. } => (reason, grace),
-        people::Ask::Lift { .. }
-        | people::Ask::Compound { .. }
-        | people::Ask::MarkSeen { .. }
-        | people::Ask::Application { .. }
-        | people::Ask::EditNote { .. }
-        | people::Ask::MakeService { .. }
-        | people::Ask::Adopt { .. }
-        | people::Ask::Create { .. }
-        | people::Ask::Propose { .. }
-        | people::Ask::Withdraw { .. }
-        | people::Ask::Stop { .. }
-        | people::Ask::Release { .. }
-        | people::Ask::TakePerson { .. }
-        | people::Ask::HandBackPerson { .. }
-        | people::Ask::AnswerPerson { .. }
-        | people::Ask::DecideProposal { .. }
-        | people::Ask::Amend { .. }
-        | people::Ask::SetRoles { .. }
-        | people::Ask::Rename { .. }
-        | people::Ask::MakeProject { .. }
-        | people::Ask::ChangeSettings { .. }
-        | people::Ask::MoveToNewest { .. }
-        | people::Ask::ChangePolicy { .. }
-        | people::Ask::SetPool { .. }
-        | people::Ask::DecideEscalation { .. }
-        | people::Ask::Say { .. }
-        | people::Ask::AnswerQuestion { .. }
-        | people::Ask::Move { .. }
-        | people::Ask::AccountSignIn { .. }
-        | people::Ask::AccountSignOut { .. }
-        | people::Ask::AccountChange { .. } => unreachable!("cancel route retains its ask"),
-    };
+    let Party { request, person, .. } = party;
+
+    let admitted = core.control_admit(
+        party.task(task),
+        Control::Cancel { reason_len: reason.len(), grace },
+        &env.limits.tasks,
+        &tasks::CompoundAdmission::new(&core.tasks, 0),
+    );
     match admitted {
         Ok(task) => {
             let message = if grace.is_some() {
                 let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-                    pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+                    pool_refused(
+                        &mut routed.work,
+                        request,
+                        people::Refusal::Limit { which: people::LimitKind::Arithmetic },
+                    );
                     return;
                 };
                 Some(message)
@@ -235,7 +197,7 @@ pub(super) fn cancel_request(
                 None
             };
             let request = core.fly_person_task(request, PersonTaskRoute::Cancel(task));
-            work.push(Work::Event(Event::Tasks(tasks::Event::Control {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Control {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
                 task,
@@ -243,7 +205,7 @@ pub(super) fn cancel_request(
             })));
         }
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -251,62 +213,33 @@ pub(super) fn cancel_request(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn release_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    role: Option<people::Role>,
-    ask: people::Ask,
+    routed: &mut Routed,
+    party: Party,
+    task: u64,
+    revision: u64,
+    again: Option<bool>,
 ) {
-    match core.control_admit(&ask, person, project, role, &env.limits.tasks) {
+    let Party { request, person, .. } = party;
+
+    match core.control_admit(
+        party.task(task),
+        Control::Release { again },
+        &env.limits.tasks,
+        &tasks::CompoundAdmission::new(&core.tasks, 0),
+    ) {
         Ok(task) => {
-            let (revision, again) = match ask {
-                people::Ask::Release { revision, again, .. } => (revision, again),
-                people::Ask::Lift { .. }
-                | people::Ask::Compound { .. }
-                | people::Ask::MarkSeen { .. }
-                | people::Ask::Application { .. }
-                | people::Ask::EditNote { .. }
-                | people::Ask::MakeService { .. }
-                | people::Ask::Adopt { .. }
-                | people::Ask::Create { .. }
-                | people::Ask::Propose { .. }
-                | people::Ask::Withdraw { .. }
-                | people::Ask::Stop { .. }
-                | people::Ask::Cancel { .. }
-                | people::Ask::TakePerson { .. }
-                | people::Ask::HandBackPerson { .. }
-                | people::Ask::AnswerPerson { .. }
-                | people::Ask::Move { .. }
-                | people::Ask::DecideProposal { .. }
-                | people::Ask::Say { .. }
-                | people::Ask::AnswerQuestion { .. }
-                | people::Ask::Amend { .. }
-                | people::Ask::SetRoles { .. }
-                | people::Ask::Rename { .. }
-                | people::Ask::MakeProject { .. }
-                | people::Ask::ChangeSettings { .. }
-                | people::Ask::MoveToNewest { .. }
-                | people::Ask::ChangePolicy { .. }
-                | people::Ask::SetPool { .. }
-                | people::Ask::DecideEscalation { .. }
-                | people::Ask::AccountSignIn { .. }
-                | people::Ask::AccountSignOut { .. }
-                | people::Ask::AccountChange { .. } => unreachable!("release route owns its ask"),
-            };
             let message = match core.release_admit(task, revision, again) {
                 Ok(message) => message,
                 Err(why) => {
-                    pool_refused(work, request, why);
+                    pool_refused(&mut routed.work, request, why);
                     return;
                 }
             };
             let request = core.fly_person_task(request, PersonTaskRoute::Release(task));
-            work.push(Work::Event(Event::Tasks(tasks::Event::Control {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Control {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
                 task,
@@ -314,7 +247,7 @@ pub(super) fn release_request(
             })));
         }
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -322,24 +255,23 @@ pub(super) fn release_request(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn say_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
+    routed: &mut Routed,
+    party: Party,
     task: u64,
     words: Box<[u8]>,
 ) {
+    let Party { request, person, project, .. } = party;
+
     match core.person_message(
         &env.limits,
         crate::PersonMessage { request, person, project, task, question: None, words, at: env.wall },
     ) {
-        Ok(event) => work.push(Work::Event(Event::Tasks(event))),
+        Ok(event) => routed.work.push(Work::Event(Event::Tasks(event))),
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -347,25 +279,24 @@ pub(super) fn say_request(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn answer_question_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
+    routed: &mut Routed,
+    party: Party,
     task: u64,
     question: u64,
     words: Box<[u8]>,
 ) {
+    let Party { request, person, project, .. } = party;
+
     match core.person_message(
         &env.limits,
         crate::PersonMessage { request, person, project, task, question: Some(question), words, at: env.wall },
     ) {
-        Ok(event) => work.push(Work::Event(Event::Tasks(event))),
+        Ok(event) => routed.work.push(Work::Event(Event::Tasks(event))),
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -373,22 +304,25 @@ pub(super) fn answer_question_request(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn move_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    role: Option<people::Role>,
+    routed: &mut Routed,
+    party: Party,
     task: u64,
     reason: Box<[u8]>,
 ) {
-    match core.move_admit(person, role, project, task, env.limits.tasks.tree_tasks, env.limits.tasks.depth) {
+    let Party { request, person, project, .. } = party;
+
+    match core.move_admit(
+        party.task(task),
+        env.limits.tasks.tree_tasks,
+        env.limits.tasks.depth,
+        &tasks::CompoundAdmission::new(&core.tasks, 0),
+    ) {
         Ok(()) => {
             let token = core.fly(crate::flight::Flight::Moving { request, task });
-            work.push(Work::Event(Event::Tasks(tasks::Event::Move {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Move {
                 reply_to: ReplyTo::new(token),
                 task,
                 person,
@@ -399,7 +333,7 @@ pub(super) fn move_request(
             })));
         }
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -409,18 +343,19 @@ pub(super) fn move_request(
 
 pub(super) fn lift_request(
     core: &mut Core,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
+    routed: &mut Routed,
+    party: Party,
     hold: u64,
     revision: u64,
     with_tasks: bool,
 ) {
+    let Party { request, person, .. } = party;
+
     let admission = lift_admit(core, person, hold, revision);
     match admission {
         Ok(()) => {
             let request = core.fly_person_task(request, PersonTaskRoute::Lift(hold));
-            work.push(Work::Event(Event::Tasks(tasks::Event::Lift {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Lift {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
                 hold,
@@ -428,7 +363,7 @@ pub(super) fn lift_request(
                 with_tasks,
             })));
         }
-        Err(why) => pool_refused(work, request, why),
+        Err(why) => pool_refused(&mut routed.work, request, why),
     }
 }
 fn lift_admit(core: &Core, person: u64, hold: u64, revision: u64) -> Result<(), people::Refusal> {

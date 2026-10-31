@@ -128,6 +128,7 @@ fn decode(
         w::Ask::SignOut(value) => {
             p::Ask::AccountSignOut { holder: account_holder(value.holder()), source: value.source() }
         }
+        w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project() },
         w::Ask::Rename(value) => {
             let v = value.into_parts();
             p::Ask::Rename { project: v.project, name: project_name(&v.name, w::Path::RenameName)? }

@@ -53,7 +53,7 @@ fn account_ways_are_ordered_by_provider_then_sign_in_program_and_key() {
     );
 }
 #[test]
-fn account_ways_leave_out_the_demos_provider() {
+fn account_ways_leave_out_the_playgrounds_provider() {
     let ways = accounts::ways(&unordered_offers(), Some(PROVIDER + 1), c::AccountHolder::Own);
     for way in &ways {
         assert_ne!(way.provider(), PROVIDER + 1);

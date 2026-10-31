@@ -67,6 +67,10 @@ pub enum Change {
     Forget {
         key: ObjectKey,
     },
+    /// Remove the scripted project documents and memberships.
+    RemoveProject {
+        project: u32,
+    },
     /// Replace a whole owner project after its name changes.
     OwnerProject(Box<jig_client_domain::contract::OwnerProject>),
     /// Replace a revisioned note.
@@ -122,7 +126,11 @@ impl Change {
             Self::OwnerProject(value) => payload::fits(value, bounds),
             Self::Note(value) => payload::fits(value, bounds),
             Self::OwnerDeployment(value) => payload::fits(value, bounds),
-            Self::SignIn { .. } | Self::SignedOut { .. } | Self::Forget { .. } | Self::DeleteNote { .. } => true,
+            Self::RemoveProject { .. }
+            | Self::SignIn { .. }
+            | Self::SignedOut { .. }
+            | Self::Forget { .. }
+            | Self::DeleteNote { .. } => true,
         };
         if fits { Ok(()) } else { Err(Invalid::Payload) }
     }
@@ -238,6 +246,18 @@ impl Truth {
             Change::Forget { key } => {
                 self.objects.remove(key);
                 self.object_projects.remove(key);
+            }
+            Change::RemoveProject { project } => {
+                self.owner_projects.remove(project);
+                for frame in self.frames.values_mut() {
+                    let mut projects = skein_lib::List::with_capacity(frame.projects.len());
+                    for membership in &frame.projects {
+                        if membership.project != *project {
+                            projects.push(membership.clone()).expect("room for remaining memberships");
+                        }
+                    }
+                    frame.projects = projects;
+                }
             }
             Change::OwnerProject(project) => {
                 self.owner_projects.insert(project.number, (**project).clone());

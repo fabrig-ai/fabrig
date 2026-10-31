@@ -21,8 +21,8 @@ mod assemble;
 mod boundary;
 mod client_documents;
 mod domain;
-mod host_activity;
 mod limits;
+mod link;
 mod restart;
 mod route;
 mod steps;
@@ -35,6 +35,3 @@ pub use limits::{Limits, default_watermark};
 pub use store::{Key, Range, Record, Write};
 #[cfg(test)]
 mod tests;
-
-mod message_refusals;
-mod turn_backoff;

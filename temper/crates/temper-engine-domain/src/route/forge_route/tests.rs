@@ -186,10 +186,40 @@ fn saved_resources_keep_the_forge_in_their_path() {
 
 fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::forge;
-    let (mut domain, env) = crate::tests::resume_fixture::root();
+    let mut config = crate::tests::resume_fixture::config(7);
+    let first = config.forges.first().expect("configured fixture forge").clone();
+    let third = forge::Configured { number: 3, ..first.clone() };
+    config.forges = Box::new([first, third]);
+    let (mut domain, env) = crate::tests::resume_fixture::root_with_config(config);
     domain.forge.restore_begin(env.wall);
     let mut out = skein_lib::Queue::uncapped();
     for number in [1, 3] {
+        forge::step(
+            &mut domain.forge,
+            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+            forge::Event::Restore {
+                record: forge::Stored::Forge(forge::ForgeRecord {
+                    number,
+                    kind: forge::Kind::Forgejo,
+                    mode: forge::Mode::Connected,
+                    state: forge::ForgeState::Kept,
+                    place: forge::Place {
+                        api: forge::Address { host: b"forge.example".as_slice().into(), port: 443, tls: None },
+                        git: Box::new([]),
+                        web: None,
+                    },
+                    read_only: false,
+                    bot: forge::Bot {
+                        login: b"bot".as_slice().into(),
+                        name: b"Bot".as_slice().into(),
+                        email: Box::new([]),
+                    },
+                    asked: false,
+                    first: None,
+                }),
+            },
+            &mut out,
+        );
         forge::step(
             &mut domain.forge,
             &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
@@ -273,28 +303,13 @@ fn writable_repositories_exclude_context_and_missing_push() {
 fn writable_repositories_exclude_an_ended_forge() {
     use super::forge;
     let (mut domain, env) = two_forges();
-    domain.forge.configure_demo(Some(forge::DemoConfig {
-        provider: 1,
-        adoption: forge::Adoption {
-            project: 5,
-            home: true,
-            forge: 1,
-            host: Box::from(&b"forge.example"[..]),
-            owner: Box::from(&b"org"[..]),
-            name: Box::from(&b"repo"[..]),
-            prefix: Box::from(&b"temper/"[..]),
-            role: forge::Role::Owned,
-            landing: Box::from(&b"main"[..]),
-            ci: true,
-            checks: Box::new([]),
-        },
-        deadline: skein_lib::Duration::from_secs(60),
-    }));
+    let mut record = domain.forge.record(1).expect("kept forge").clone();
+    record.state = forge::ForgeState::Ended { secrets_erased: false, box_removed: false };
     let mut out = skein_lib::Queue::uncapped();
     forge::step(
         &mut domain.forge,
         &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
-        forge::Event::Restore { record: forge::Stored::Demo(forge::Demo { forge: 1, state: forge::DemoState::Ended }) },
+        forge::Event::Restore { record: forge::Stored::Forge(record) },
         &mut out,
     );
     let repositories = domain.forge.writable_repositories(5);

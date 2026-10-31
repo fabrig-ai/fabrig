@@ -1360,3 +1360,186 @@ fn a_ready_probe_deadline_waits_for_request_credit() {
     harness.sim.assert_quiescent(harness.pid);
     harness.sim.assert_no_open_fds(harness.pid);
 }
+
+#[test]
+fn a_kind_start_writes_then_runs_and_removal_unlinks_both_records() {
+    use skein_fake_machine::{How, Refusal};
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &[], true);
+    h.run_until_idle();
+    h.ask(b"start 17 fake\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"step 17 run\nstarted 17\n");
+    let root = h.machine.reopen_root(0);
+    let group = h.machine.open(root, b"box/groups/17", How::Read).unwrap();
+    assert_eq!(h.machine.read(group, 0, 8).unwrap(), b"fake\n");
+    h.machine.close(group);
+    let record = h.machine.open(root, b"box/started/17", How::Read).unwrap();
+    h.machine.close(record);
+    let log = h.machine.open(root, b"box/logs/fake-forge-17.log", How::Read).unwrap();
+    h.machine.close(log);
+    h.ask(b"start 18 fake\n");
+    h.run_until_idle();
+    assert!(h.reply_bytes().ends_with(b"failed 18 busy\n"));
+    h.replies.clear();
+    h.ask(b"remove 17\n");
+    h.run_until_idle();
+    let pid = h.hosted.get(h.child_index(b"fake-forge")).unwrap().pid;
+    h.sim.finish_service(pid, Exit::Code(0));
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"removed 17\n");
+    assert_eq!(h.machine.open(root, b"box/groups/17", How::Read), Err(Refusal::NotFound));
+    assert_eq!(h.machine.open(root, b"box/started/17", How::Read), Err(Refusal::NotFound));
+    h.ask(b"start 18 fake\n");
+    h.run_until_idle();
+    assert!(h.reply_bytes().ends_with(b"started 18\n"));
+    let log = h.machine.open(root, b"box/logs/fake-forge-18.log", How::Read).unwrap();
+    h.machine.close(log);
+    h.machine.close(root);
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+#[test]
+fn a_failed_remover_reports_its_exit_and_preserves_both_records_for_retry() {
+    use skein_fake_machine::How;
+    use temper_forge_setup::FORGE_ARGUMENT;
+    let mut steps = super::fixtures::kind_steps();
+    steps.asked.get_mut(0).unwrap().remover = Some(once(b"remove", &[b"exit", b"7", FORGE_ARGUMENT]));
+    let mut h = Harness::grouped(steps, &[], true);
+    h.run_until_idle();
+    h.ask(b"start 17 fake\n");
+    h.run_until_idle();
+    h.replies.clear();
+    for attempt in 1..=2 {
+        h.ask(b"remove 17\n");
+        h.run_until_idle();
+        if attempt == 1 {
+            let pid = h.hosted.get(h.child_index(b"fake-forge")).unwrap().pid;
+            h.sim.finish_service(pid, Exit::Code(0));
+            h.run_until_idle();
+        }
+        assert!(h.reply_bytes().ends_with(b"failed 17 remove: exited 7\n"));
+        assert_eq!(h.spawn_times(b"remove").len(), attempt);
+        let root = h.machine.reopen_root(0);
+        for path in [b"box/groups/17".as_slice(), b"box/started/17"] {
+            let file = h.machine.open(root, path, How::Read).expect("retry keeps both files");
+            h.machine.close(file);
+        }
+        h.machine.close(root);
+    }
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+
+#[test]
+fn an_unknown_remove_unlinks_an_orphan_started_record() {
+    use skein_fake_machine::{How, Item, Refusal};
+    let items = [Item::directory(b"box"), Item::directory(b"box/started"), Item::file(b"box/started/99", b"")];
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
+    h.run_until_idle();
+    h.ask(b"remove 99\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"removed 99\n");
+    assert_eq!(h.spawn_times(b"remove").len(), 0);
+    let root = h.machine.reopen_root(0);
+    assert_eq!(h.machine.open(root, b"box/started/99", How::Read), Err(Refusal::NotFound));
+    h.machine.close(root);
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+#[test]
+fn a_failed_group_file_write_starts_no_group_step() {
+    use skein_fake_machine::Item;
+    let items = [Item::directory(b"box"), Item::directory(b"box/groups").mode(0o500)];
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
+    h.run_until_idle();
+    h.ask(b"start 17 fake\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"failed 17 record not written\n");
+    assert_eq!(h.spawn_times(b"fake-forge").len(), 0);
+    assert_eq!(h.spawn_times(b"remove").len(), 0);
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+#[test]
+fn an_unlink_failure_reports_failure_and_keeps_the_started_record() {
+    use skein_fake_machine::{How, Item};
+    let items = [
+        Item::directory(b"box"),
+        Item::directory(b"box/groups").mode(0o500),
+        Item::directory(b"box/started"),
+        Item::file(b"box/groups/17", b"fake\n"),
+        Item::file(b"box/started/17", b""),
+    ];
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
+    h.run_until_idle();
+    h.ask(b"remove 17\n");
+    h.run_until_idle();
+    let pid = h.hosted.get(h.child_index(b"fake-forge")).unwrap().pid;
+    h.sim.finish_service(pid, Exit::Code(0));
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"failed 17 remove: files not removed\n");
+    let root = h.machine.reopen_root(0);
+    for path in [b"box/groups/17".as_slice(), b"box/started/17"] {
+        let file = h.machine.open(root, path, How::Read).unwrap();
+        h.machine.close(file);
+    }
+    h.machine.close(root);
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+#[test]
+fn a_kind_can_run_when_its_log_directory_is_unavailable() {
+    use skein_fake_machine::Item;
+    let items = [Item::directory(b"box"), Item::file(b"box/logs", b"kept")];
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
+    h.run_until_idle();
+    h.ask(b"start 17 fake\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"step 17 run\nstarted 17\n");
+    let child = h.child_index(b"fake-forge");
+    h.write_child(child, 2, b"diagnostic\n");
+    h.run_until_idle();
+    assert!(Harness::contains(&h.stderr(), b"fake-forge-17: diagnostic\n"));
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+
+#[test]
+fn an_absent_group_file_does_not_reset_a_numbered_groups_live_state() {
+    let mut h = Harness::grouped(grouped_steps(), &[], true);
+    h.run_until_idle();
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    h.replies.clear();
+    h.ask(b"remove 3\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"removed 3\n");
+    h.replies.clear();
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"started 3\n");
+    assert_eq!(h.spawn_times(b"forgejo 3").len(), 1);
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}

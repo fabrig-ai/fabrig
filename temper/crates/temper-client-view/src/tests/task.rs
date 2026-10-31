@@ -15,8 +15,8 @@ const ONE: u32 = 1;
 const NO_ROWS: u32 = 0;
 const HEADINGS: u32 = 5;
 #[test]
-fn the_task_header_names_the_demo_project_playground() {
-    let (mut root, _, watch, _, _) = fixtures::root_at_with_demo(
+fn the_task_header_names_the_playground_project_playground() {
+    let (mut root, _, watch, _, _) = fixtures::root_at_with_playground(
         temper_client_domain::Address::Task { task: TASK, filter: PlanFilter::All },
         &fixtures::domain_limits(),
         b"Project 1",
@@ -1171,7 +1171,7 @@ fn the_budget_card_names_each_funder() {
 #[test]
 fn the_budget_card_names_its_models() {
     let mut names = List::with_capacity(2);
-    for name in [b"demo".as_slice(), b"second"] {
+    for name in [crate::words::SCRIPTED_MODEL, b"second"] {
         names.push(Box::from(name)).expect("two model names");
     }
     for (models, expected) in [

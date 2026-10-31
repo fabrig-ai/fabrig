@@ -7,7 +7,7 @@ use skein_lib::Duration;
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "the fixture lists every child bound")]
 pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
-    let mut core_limits = jig_core_world::world::limits().core;
+    let mut core_limits = jig_test_profile::limits().core;
     core_limits.fleet.engine_slots = 1;
     core_limits.tasks.tasks = 8;
     core_limits.tasks.hold_kinds = 3;
@@ -92,7 +92,7 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
     let mut config = Config {
         agent_bounds: super::agent_bounds(),
         tools: crate::protocol::tools(Duration::from_secs(30)),
-        core: jig_core_world::world::config(seed).core,
+        core: jig_test_profile::config(seed).core,
         triage_templates: Box::new([jig_ops_domain_observability::TriageTemplate {
             number: 1,
             delegate: super::scripts::triage(),
@@ -339,6 +339,6 @@ pub fn task_authority(spend: u64) -> tasks::Authority {
 pub fn chat(words: &[u8]) -> jig_domain_people::Ask {
     const CONFIG_SEED: u64 = 0;
     let (config, limits) = root(CONFIG_SEED);
-    let members = jig_core_world::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks);
-    jig_core_world::fixtures::create_chat(&members, 1, 0, words.into())
+    let members = jig_test_profile::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks);
+    jig_test_profile::fixtures::create_chat(&members, 1, 0, words.into())
 }

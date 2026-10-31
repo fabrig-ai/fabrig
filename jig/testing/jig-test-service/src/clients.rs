@@ -450,7 +450,10 @@ impl Clients {
                         endings.push(number).expect("bounded commit writes");
                     }
                 }
-                root::Write::Wires | root::Write::Save(_) | root::Write::CopySettingsRevision(_) => {}
+                root::Write::DropTranscript { .. }
+                | root::Write::Wires
+                | root::Write::Save(_)
+                | root::Write::CopySettingsRevision(_) => {}
             }
         }
         if !endings.is_empty() {
@@ -503,6 +506,7 @@ fn ended(key: &root::Key) -> Option<u64> {
                 | people::Key::EndedRead { .. }
                 | people::Key::ReadConversation { .. }
                 | people::Key::Roles(..)
+                | people::Key::Deletion(..)
                 | people::Key::Policy(..)
                 | people::Key::Acted(..)
                 | people::Key::Answer(..),

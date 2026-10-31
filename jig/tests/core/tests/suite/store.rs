@@ -1,7 +1,7 @@
 use jig_core_world::Fault;
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::World;
 use jig_core_world::fixtures::finish_chat;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -173,7 +173,7 @@ fn a_runs_write_answer_waits_for_an_unrelated_commit_in_flight() {
 }
 
 fn start_chat(world: &mut World, number: u8) {
-    jig_core_world::stories::reads::request(
+    crate::read_support::request(
         world,
         number,
         jig_core_world::fixtures::chat(world, 1, b"new chat".as_slice().into()),
@@ -182,7 +182,7 @@ fn start_chat(world: &mut World, number: u8) {
 
 fn filled_chat(seed: u64) -> World {
     let mut world = World::new(Setup { seed, ..Setup::default() });
-    world.fill = jig_core_world::world::limits().core.fill_mark + 1;
+    world.fill = jig_test_profile::limits().core.fill_mark + 1;
     world.turn(1, 1, None, b"fill reported with this commit");
     world
 }
@@ -205,7 +205,7 @@ fn a_running_chat_goes_on_above_the_fill_mark() {
 #[test]
 fn a_fill_below_the_mark_admits_a_chat_again() {
     let mut world = filled_chat(131);
-    world.fill = jig_core_world::world::limits().core.fill_mark - 1;
+    world.fill = jig_test_profile::limits().core.fill_mark - 1;
     finish_chat(&mut world, 1, b"finished chat");
     start_chat(&mut world, 81);
     assert!(
@@ -226,7 +226,7 @@ fn a_seen_conversation_is_read_back_through_the_store_after_restart() {
     finish_chat(&mut world, 3, b"done");
     world.restart(127, false);
     let seen = jig_domain_people::Seen::Conversation { task, through: 1 };
-    jig_core_world::stories::reads::request(&mut world, 62, jig_domain_people::Ask::MarkSeen { seen });
+    crate::read_support::request(&mut world, 62, jig_domain_people::Ask::MarkSeen { seen });
     assert_eq!(
         world.people_answers.last(),
         Some(&jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::MarkedSeen { seen }))
@@ -261,7 +261,7 @@ fn a_historical_escalation_is_read_through_the_store() {
 }
 
 fn release_escalation(world: &mut World, key: u8, task: u64, revision: u64) {
-    jig_core_world::stories::reads::request(
+    crate::read_support::request(
         world,
         key,
         jig_domain_people::Ask::DecideEscalation {
@@ -278,7 +278,7 @@ fn submit_delayed_turn(world: &mut World, task: u64, attempt: u64) {
     let env = skein_lib::Env {
         now: skein_lib::Time::from_nanos(world.wall_time().as_nanos()),
         wall: skein_lib::Wall::from_nanos(world.wall_time().as_nanos()),
-        limits: jig_core_world::world::limits(),
+        limits: jig_test_profile::limits(),
     };
     root::step(
         &mut world.domain,

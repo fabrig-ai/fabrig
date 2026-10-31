@@ -79,7 +79,7 @@ const WORD: &[u8] = b"temper";
 #[expect(clippy::type_complexity, reason = "the reader supplies raw KV key/value pairs")]
 pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits) -> Result<Evidence, Reason> {
     // Evidence can outlive the task limits of the engine which wrote it.
-    let bounds = temper_protocol_store::bounds(limits, temper_protocol_store::v10::CEILINGS.change_row_title)
+    let bounds = temper_protocol_store::bounds(limits, temper_protocol_store::v11::CEILINGS.change_row_title)
         .ok_or(Reason::StoreUnreadable)?;
     let count = u32::try_from(rows.len()).or(Err(Reason::StoreUnreadable))?;
     let mut repositories = Map::with_capacity(count);
@@ -139,9 +139,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
                     }
                 }
             }
-            d::Stored::Demo(_)
-            | d::Stored::DemoAct(_)
-            | d::Stored::Flight { .. }
+            d::Stored::Flight { .. }
             | d::Stored::Call { .. }
             | d::Stored::ProposedEffect(_)
             | d::Stored::Hold(_)
@@ -156,7 +154,10 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Application { .. }
             | d::Stored::Binding { .. }
             | d::Stored::Landing(_)
-            | d::Stored::Receipt { .. } => {}
+            | d::Stored::Receipt { .. }
+            | d::Stored::Forge(_)
+            | d::Stored::ForgeNumber { .. }
+            | d::Stored::Playground(_) => {}
         }
     }
     let client = client.ok_or(Reason::ClientUnknown)?;

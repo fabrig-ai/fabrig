@@ -9,6 +9,7 @@ mod observations;
 mod protocol;
 mod scripts;
 pub use scripts::agent_bounds;
+mod store;
 mod systems;
 
 use jig_conformance::referee as r;
@@ -21,7 +22,7 @@ use jig_ops_domain as root;
 use jig_ops_domain_infrastructure as infra;
 use jig_ops_domain_observability as obs;
 use jig_ops_fake_production as production;
-use observations::Store;
+pub use observations::Store;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall};
 pub use systems::Systems;
 
@@ -113,7 +114,7 @@ pub struct Peers {
     applied: u64,
     observed: Vec<r::Observed>,
     application_observed: Vec<r::Observed>,
-    intents: jig_core_world::observations::intents::Intents,
+    intents: jig_conformance::core::intents::Intents,
     application_requests: bool,
     pub sign_in: Option<u64>,
     account_ready: bool,
@@ -168,8 +169,8 @@ fn env(config: &Config, clock: Clock) -> Env<root::Limits> {
 
 impl Application for Ops {
     type Domain = root::Domain;
-    type Store = jig_fake_store::Store<root::Key, root::Record>;
-    type Write = jig_fake_store::Write<root::Key, root::Record>;
+    type Store = Store;
+    type Write = root::Write;
     type Config = Config;
     type Systems = Systems;
     type Peers = Peers;
@@ -179,7 +180,7 @@ impl Application for Ops {
     type Delivery = Delivery;
 
     fn store(_: &Config) -> Self::Store {
-        jig_fake_store::Store::new()
+        Store::default()
     }
     fn build(config: &Config) -> root::Domain {
         let mut configuration = config::root_for(config.seed, config.story == Story::Environment).0;
@@ -201,7 +202,7 @@ impl Application for Ops {
             applied: 0,
             observed: Vec::new(),
             application_observed: Vec::new(),
-            intents: jig_core_world::observations::intents::Intents::default(),
+            intents: jig_conformance::core::intents::Intents::default(),
             application_requests: false,
             sign_in: None,
             account_ready: false,
@@ -257,7 +258,7 @@ impl Application for Ops {
     fn start(config: &Config, store: &mut Store) -> Vec<root::Event> {
         if store.rows.is_empty() {
             let configuration = config::root_for(config.seed, config.story == Story::Environment).0;
-            for row in jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers) {
+            for row in jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers) {
                 let jig_test_domain::Record::Core(row) = row else { panic!("account fixture row") };
                 let row = root::Record::Core(row);
                 store.rows.insert(row.key(), row);
@@ -294,11 +295,7 @@ impl Application for Ops {
         };
         root::step(domain, &env(config, clock), event);
     }
-    fn release(
-        domain: &mut root::Domain,
-        config: &Config,
-        clock: Clock,
-    ) -> Vec<Output<jig_fake_store::Write<root::Key, root::Record>, Delivery>> {
+    fn release(domain: &mut root::Domain, config: &Config, clock: Clock) -> Vec<Output<root::Write, Delivery>> {
         let mut queue = Queue::with_capacity(256);
         root::release(domain, &env(config, clock), &mut queue);
         let mut outputs = Vec::new();
@@ -320,12 +317,13 @@ impl Application for Ops {
                                         }
                                     }
                                 }
-                                jig_fake_store::Write::Save { key: row.key(), row }
+                                root::Write::Save(row)
                             }
+                            root::Write::DropTranscript { task } => root::Write::DropTranscript { task },
                             root::Write::CopySettingsRevision(_) => {
                                 unreachable!("this scripted ops world restarts with identical defaults")
                             }
-                            root::Write::Erase(key) => jig_fake_store::Write::Erase(key),
+                            root::Write::Erase(key) => root::Write::Erase(key),
                         });
                     }
                     outputs.push(Output::Commit { number, writes: rows.into_boxed_slice() });
@@ -428,18 +426,7 @@ impl Application for Ops {
             }
             root::Output::Switch => vec![Input::Event(root::Event::Store(root::Store::Switched))],
             root::Output::Load { phase, range } => {
-                let position = match phase {
-                    core::start::Phase::LoadCore | core::start::Phase::LoadInbox | core::start::Phase::Sweep => 0,
-                    core::start::Phase::RestoreConnector { connector } => u32::from(connector),
-                    core::start::Phase::Link
-                    | core::start::Phase::Wires
-                    | core::start::Phase::Switch
-                    | core::start::Phase::AdoptRuns
-                    | core::start::Phase::ReadAfresh { .. }
-                    | core::start::Phase::SettleOutbox { .. }
-                    | core::start::Phase::Open => panic!("only row loads go to the store"),
-                };
-                if matches!(phase, core::start::Phase::LoadCore | core::start::Phase::RestoreConnector { .. }) {
+                if let Some(position) = jig_conformance::core::peers::restart_position(phase, 2) {
                     peers.observed.push(r::Observed::RestartStage { position });
                 }
                 let rows: Vec<_> = if range == root::Range::Core {
@@ -623,22 +610,11 @@ impl Application for Ops {
                 peers.read_results.push(payload);
                 vec![Input::Event(root::Event::ResultRead { payload, end: crate::protocol::result(&outcome) })]
             }
-            root::Output::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Want {
-                account,
-            }))) => {
-                vec![Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                    accounts::FromComponent::Granted {
-                        form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                        account,
-                        generation: 1,
-                        valid: Duration::from_secs(7200),
-                    },
-                ))))]
-            }
-            root::Output::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Close))) => {
-                vec![Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                    accounts::FromComponent::Closed,
-                ))))]
+            root::Output::Now(core::Now::Account(accounts::Request::Component(request))) => {
+                jig_conformance::core::peers::account(request, Duration::from_secs(7200))
+                    .into_iter()
+                    .map(|event| Input::Event(root::Event::Core(event)))
+                    .collect()
             }
             root::Output::Core(core::Held::PeopleReply { mut to, reply }) => {
                 let token = std::mem::replace(&mut to, ReplyTo::new(Token::new(0))).into_token();
@@ -667,36 +643,18 @@ impl Application for Ops {
                 Vec::new()
             }
             root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
-                vec![Input::Event(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
+                vec![Input::Event(root::Event::Core(jig_conformance::core::peers::notes_loaded(
                     owner,
-                    rows: jig_domain_notes::Rows { records: List::with_capacity(0) },
-                    more: false,
-                })))]
+                    List::with_capacity(0),
+                    false,
+                )))]
             }
             root::Output::CoreLoad(core::Now::StartPreparation { task, from, .. }) => {
-                let mut rows: Vec<_> = store
-                    .rows
-                    .values()
-                    .filter_map(|record| match record {
-                        root::Record::Core(core::Record::Core(core::CoreRecord::Turn(row)))
-                            if row.task == task && from.is_some_and(|start| (row.attempt, row.turn) >= start) =>
-                        {
-                            Some(row.clone())
-                        }
-                        root::Record::Core(_) | root::Record::Infrastructure(_) | root::Record::Observability(_) => {
-                            None
-                        }
-                    })
-                    .collect();
-                rows.sort_by_key(|row| (row.attempt, row.turn));
-                if let Some(start) = from
-                    && !rows.first().is_some_and(|row| (row.attempt, row.turn) == start && row.opens_window)
-                {
-                    return vec![Input::Event(root::Event::Core(core::Event::TranscriptLoaded {
-                        task,
-                        load: core::TranscriptLoad::Unread,
-                    }))];
-                }
+                let records = observations::core_store(store).rows;
+                let rows = match jig_conformance::core::peers::transcript(&records, task, from) {
+                    Ok(rows) => rows,
+                    Err(event) => return vec![Input::Event(root::Event::Core(*event))],
+                };
                 vec![Input::Event(root::Event::Store(root::Store::Transcript {
                     task,
                     rows: rows

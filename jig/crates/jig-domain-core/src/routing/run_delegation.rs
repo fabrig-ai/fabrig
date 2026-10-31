@@ -145,22 +145,17 @@ pub(super) fn delegate_validated(
     let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
     assert!(remaining > 0, "delegation has a numbered connector");
     let asked = holdings_need(root, &members, env.limits.tasks.batch);
-    assert!(
-        core.creating_delegates
-            .insert(
-                request,
-                DelegateCreation {
-                    key,
-                    kind: BatchKind::Delegation { stubs, given },
-                    members,
-                    remaining,
-                    answered: List::with_capacity(remaining),
-                    failed: false,
-                }
-            )
-            .is_ok(),
-        "one named delegation flight"
-    );
+    let request = core.fly(crate::flight::Flight::CreatingDelegates {
+        request,
+        route: DelegateCreation {
+            key,
+            kind: BatchKind::Delegation { stubs, given },
+            members,
+            remaining,
+            answered: List::with_capacity(remaining),
+            failed: false,
+        },
+    });
     let mut out = Queue::uncapped();
     for &connector in core.connectors.as_ref() {
         out.push(Request::Ask {
@@ -179,14 +174,12 @@ pub(super) fn delegate_holdings(
     connector: u16,
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
 ) -> Queue<Request> {
-    let Some(flight) = core.creating_delegates.get_mut(&request) else {
+    let known = core.connectors.contains(&connector);
+    let Some((_, flight)) = core.delegate_creation_mut(request) else {
         return Queue::uncapped();
     };
     assert!(flight.remaining > 0, "one holdings answer per connector");
-    assert!(
-        core.connectors.contains(&connector) && !flight.answered.as_slice().contains(&connector),
-        "one answer per connector"
-    );
+    assert!(known && !flight.answered.as_slice().contains(&connector), "one answer per connector");
     flight.answered.push(connector).expect("configured connector bound");
     flight.remaining = flight.remaining.checked_sub(1).expect("one connector answer");
     match holdings {
@@ -207,7 +200,7 @@ pub(super) fn delegate_holdings(
     if flight.remaining > 0 {
         return Queue::uncapped();
     }
-    let mut flight = core.creating_delegates.remove(&request).expect("completed delegate holdings");
+    let (request, mut flight) = core.take_delegate_creation(request).expect("completed delegate holdings");
     if flight.failed {
         return match flight.kind {
             BatchKind::Delegation { .. } => {
@@ -221,10 +214,7 @@ pub(super) fn delegate_holdings(
     match flight.kind {
         BatchKind::Delegation { stubs, given } => {
             super::deadlines::resolve(&mut flight.members, env.wall);
-            assert!(
-                core.delegating.insert(request, (flight.key, stubs, given)) == Ok(None),
-                "one pending delegated call"
-            );
+            let request = core.fly(crate::flight::Flight::Delegating { request, route: (flight.key, stubs, given) });
             work.push(Work::Event(Event::Tasks(tasks::Event::Make {
                 reply_to: ReplyTo::new(request),
                 creator: tasks::Party::Task(flight.key.task),
@@ -330,22 +320,17 @@ pub(super) fn propose_batch(
     let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
     assert!(remaining > 0, "proposal has a numbered connector");
     let asked = holdings_need(root, &members, env.limits.tasks.batch);
-    assert!(
-        core.creating_delegates
-            .insert(
-                request,
-                DelegateCreation {
-                    key,
-                    kind: BatchKind::Proposal { reason, as_holder },
-                    members,
-                    remaining,
-                    answered: List::with_capacity(remaining),
-                    failed: false,
-                }
-            )
-            .is_ok(),
-        "one proposal holdings flight"
-    );
+    let request = core.fly(crate::flight::Flight::CreatingDelegates {
+        request,
+        route: DelegateCreation {
+            key,
+            kind: BatchKind::Proposal { reason, as_holder },
+            members,
+            remaining,
+            answered: List::with_capacity(remaining),
+            failed: false,
+        },
+    });
     let mut out = Queue::uncapped();
     for &connector in core.connectors.as_ref() {
         out.push(Request::Ask {
@@ -508,21 +493,18 @@ pub(super) fn procedure_step(
                     })
                     .expect("one holdings request per member");
             }
-            assert!(
-                core.creating_procedures
-                    .insert(
-                        (task, step),
-                        ProcedureCreation {
-                            decision: parts,
-                            members,
-                            remaining,
-                            answered: List::with_capacity(remaining),
-                            failed: false,
-                        }
-                    )
-                    .is_ok(),
-                "one procedure holdings flight"
-            );
+            assert!(core.procedure_creation_token(task, step).is_none(), "one procedure holdings flight");
+            core.fly(crate::flight::Flight::ProcedureCreation {
+                task,
+                step,
+                route: ProcedureCreation {
+                    decision: parts,
+                    members,
+                    remaining,
+                    answered: List::with_capacity(remaining),
+                    failed: false,
+                },
+            });
             for &connector in core.connectors.as_ref() {
                 out.push(Request::Ask {
                     connector,
@@ -543,14 +525,15 @@ pub(super) fn procedure_holdings(
     connector: u16,
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
 ) -> Queue<Request> {
-    let Some(flight) = core.creating_procedures.get_mut(&(task, step)) else {
+    let known = core.connectors.contains(&connector);
+    let Some(token) = core.procedure_creation_token(task, step) else { return Queue::uncapped() };
+    let Some(crate::flight::Flight::ProcedureCreation { route: flight, .. }) =
+        core.flights.get_mut(skein_lib::Id::from_token(token))
+    else {
         return Queue::uncapped();
     };
     assert!(flight.remaining > 0, "one procedure answer per connector");
-    assert!(
-        core.connectors.contains(&connector) && !flight.answered.as_slice().contains(&connector),
-        "one answer per connector"
-    );
+    assert!(known && !flight.answered.as_slice().contains(&connector), "one answer per connector");
     flight.answered.push(connector).expect("configured connector bound");
     flight.remaining = flight.remaining.checked_sub(1).expect("one connector answer");
     match holdings {
@@ -570,7 +553,11 @@ pub(super) fn procedure_holdings(
     }
     let out = Queue::uncapped();
     if flight.remaining == 0 {
-        let flight = core.creating_procedures.remove(&(task, step)).expect("completed procedure holdings");
+        let Some(crate::flight::Flight::ProcedureCreation { route: flight, .. }) =
+            core.land_kind(token, crate::flight::Kind::ProcedureCreation)
+        else {
+            return out;
+        };
         if flight.failed {
             return super::procedure_steps::refused(
                 core,
@@ -658,10 +645,11 @@ pub(super) fn route_period(
     budget: u64,
     next: Option<skein_lib::Wall>,
 ) -> Queue<Request> {
-    let allowed = match core.authority.policy(project) {
-        Some(policy) => budget <= policy.period_spend,
-        None => false,
-    };
+    let allowed = core.open_project(project)
+        && match core.authority.policy(project) {
+            Some(policy) => budget <= policy.period_spend,
+            None => false,
+        };
     if period > 0 && period >= core.period(project) && allowed {
         if period != core.period(project) {
             core.touch_frames();
@@ -692,7 +680,9 @@ pub(super) fn route_start_recurring(
     authority: tasks::Authority,
     template: tasks::RecurringTemplate,
 ) -> Queue<Request> {
-    start_recurring(core, work, project, authority, template);
+    if core.open_project(project) {
+        start_recurring(core, work, project, authority, template);
+    }
     Queue::uncapped()
 }
 

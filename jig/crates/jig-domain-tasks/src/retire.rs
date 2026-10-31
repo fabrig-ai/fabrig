@@ -25,15 +25,7 @@ pub(crate) fn retire(domain: &mut Domain, out: &mut Queue<Request>) {
             }
         }
         let Some((pool, parent, numbers)) = ready else { break };
-        let period = domain.funding.get_mut(&parent).expect("original period kept");
-        period.numbers.reserved = period.numbers.reserved.checked_sub(numbers.budget).expect("pool reserved");
-        period.numbers.spent_below = period
-            .numbers
-            .spent_below
-            .checked_add(total(numbers).expect("valid pool"))
-            .expect("pool spend representable");
-        close(domain, pool, out);
-        save_funding(domain, parent, out);
+        close_allotment(domain, pool, parent, numbers, out);
     }
     let count = domain.funding.len();
     for _ in 0..count {
@@ -56,7 +48,26 @@ pub(crate) fn retire(domain: &mut Domain, out: &mut Queue<Request>) {
     }
 }
 
-fn close(domain: &mut Domain, funder: Funder, out: &mut Queue<Request>) {
+pub(crate) fn close_allotment(
+    domain: &mut Domain,
+    funder: Funder,
+    parent: Funder,
+    numbers: crate::Numbers,
+    out: &mut Queue<Request>,
+) {
+    assert_eq!(numbers.reserved, 0, "allotment has no live reservations");
+    let period = domain.funding.get_mut(&parent).expect("original period kept");
+    period.numbers.reserved = period.numbers.reserved.checked_sub(numbers.budget).expect("allotment reserved");
+    period.numbers.spent_below = period
+        .numbers
+        .spent_below
+        .checked_add(total(numbers).expect("valid allotment"))
+        .expect("allotment spend representable");
+    close(domain, funder, out);
+    save_funding(domain, parent, out);
+}
+
+pub(crate) fn close(domain: &mut Domain, funder: Funder, out: &mut Queue<Request>) {
     let mut row = domain.funding.remove(&funder).expect("funding source kept until closure");
     row.closed = true;
     out.push(Request::Erase { key: Key::Ledger(funder) });

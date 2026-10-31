@@ -1,5 +1,6 @@
 //! An amendment waits without deciding, then repeats admission on current state
 //! (`domain/engine.md`, 5.3; `domain/tasks.md`, section 7).
+use super::party::Party;
 use crate::routing::Work;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -122,7 +123,8 @@ pub(crate) fn missing(
 }
 
 pub(super) fn waiting(core: &Core, key: CallKey) -> bool {
-    for (_, read) in &core.result_reads {
+    for (_, flight) in &core.flights {
+        let crate::flight::Flight::ResultRead(read) = flight else { continue };
         match &read.why {
             super::result_reads::ReadFor::DeploymentClose { .. } | super::result_reads::ReadFor::Preparation { .. } => {
             }
@@ -175,24 +177,17 @@ pub(super) fn resume(
             super::runs::named_amend(core, env, work, token, key, target, revision, amendment, read.evidence)
         }
         Replay::Person { request, person, project, task, revision, amendment, release } => {
-            let mut out = Queue::uncapped();
+            let mut routed = super::party::Routed::new(work);
             let role = core.people.role(person, project);
             super::party_controls::amend_route(
                 core,
                 env,
-                work,
-                &mut out,
-                request,
-                person,
-                role,
-                project,
-                task,
-                revision,
-                amendment,
-                release,
+                &mut routed,
+                Party { request, person, project, role },
+                super::party::Amendment { task, revision, change: amendment, release },
                 read.evidence,
             );
-            out
+            routed.finish(work)
         }
     }
 }

@@ -8,6 +8,7 @@ mod orders;
 mod protocol;
 mod referee;
 mod settings;
+mod shared;
 mod turn_read;
 
 mod fuzzy {

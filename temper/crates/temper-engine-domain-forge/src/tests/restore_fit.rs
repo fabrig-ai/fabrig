@@ -14,6 +14,7 @@ fn name(number: u32) -> Name {
 fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
+        RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
             landing: policy::Landing {
                 task: n,
@@ -81,10 +82,6 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             Stored::Binding { address: Box::new([u8::try_from(number).unwrap()]), subject: Box::new([]) }
         }
         RecordKind::Flight => Stored::Flight { task: n, entry: n },
-        RecordKind::DemoAct => Stored::DemoAct(DemoAct {
-            key: [u8::try_from(number).unwrap(); 16],
-            act: DemoActKind::Close { project: 5, task: n },
-        }),
         RecordKind::Writer => {
             Stored::Writer(skein_forge_client::Writer { forge: u16::try_from(number).unwrap(), author: n })
         }
@@ -114,7 +111,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             effects_settled: true,
             releasing: true,
         }),
-        RecordKind::Client | RecordKind::Demo => panic!("no own table"),
+        RecordKind::Client => panic!("no own table"),
     }
 }
 fn application(token: u64, until: Wall) -> Stored {
@@ -144,7 +141,6 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
         (K::Entry, LIMITS.entries),
         (K::Binding, LIMITS.bindings),
         (K::Flight, LIMITS.entries),
-        (K::DemoAct, demo_act_bound(&LIMITS).unwrap()),
         (K::Writer, CLIENT.repositories),
         (K::Change, LIMITS.changes),
         (K::Issue, LIMITS.issues),
@@ -604,9 +600,6 @@ fn noncanonical_binding_bytes_restore_unchanged_while_bind_normalizes() {
 }
 
 fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
-    if kind == RecordKind::Demo {
-        return Stored::Demo(Demo { forge: u16::try_from(number).unwrap(), state: DemoState::Ended });
-    }
     let mut record = row(kind, number);
     if let Stored::Repository(row) = &mut record {
         row.provider.forge = 99;
@@ -654,7 +647,6 @@ fn missing_links_scan_retained_keys_after_lower_insertions_and_replacements() {
         (K::Receipt, LOWER),
         (K::Flight, FIRST),
         (K::Writer, FIRST),
-        (K::Demo, FIRST),
     ] {
         let mut d = domain();
         let first = unlinked_row(kind, FIRST);
