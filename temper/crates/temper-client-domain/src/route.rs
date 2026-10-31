@@ -12,7 +12,7 @@ pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, o
         let pending = match root.forge.picker(adopted.forge) {
             Some(picker) => picker.adoption.as_ref(),
             None => match root.forge.set_up() {
-                Some(last) if last.forge == adopted.forge => last.adoption.as_ref(),
+                Some(last) if last.forge == Some(adopted.forge) => last.adoption.as_ref(),
                 Some(_) | None => None,
             },
         };

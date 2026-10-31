@@ -819,6 +819,7 @@ impl World {
             Delivery::Restart(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::ReadEscalationDecision { .. }

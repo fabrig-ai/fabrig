@@ -60,6 +60,12 @@ impl Tokens {
         }
         Self { forges }
     }
+    pub(crate) fn forget(&mut self, forge: u16) -> Option<u32> {
+        match self.forges.remove(&forge) {
+            Some(state) => Some(state.number),
+            None => None,
+        }
+    }
     pub(crate) fn keep(&mut self, identity: &settings::Identity, installations: u32) {
         self.forges
             .insert(

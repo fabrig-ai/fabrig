@@ -1401,3 +1401,54 @@ fn an_accounts_row_keeps_its_header_sources_facts_and_acts_in_order() {
             .any(|node| node.name.as_deref() == Some(b"Used by") || node.name.as_deref() == Some(b"Waiting for it"))
     );
 }
+
+#[test]
+fn accounts_lists_the_scripted_model_with_nothing_to_add() {
+    let root = fixtures::demo_root(d::Address::Accounts, fixtures::PROJECT, true);
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(words);
+        let tree = fixtures::build(&mut view, &root);
+        let rows: Vec<_> =
+            tree.nodes().iter().filter(|node| node.styles.as_slice().contains(&crate::look::ACCOUNT_ROW)).collect();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0].name.as_deref(),
+            Some("Scripted model · the playground’s · held by the deployment".as_bytes())
+        );
+        for name in [b"Connect a model".as_slice(), b"+ Connect a model", b"Add an API key"] {
+            assert!(fixtures::find(tree, Role::Link, name).is_none(), "{name:?}");
+            assert!(fixtures::find(tree, Role::Button, name).is_none(), "{name:?}");
+        }
+    }
+}
+
+#[test]
+fn a_real_account_added_before_is_ready_in_the_playground() {
+    for playground in [false, true] {
+        let (mut root, _, _, _, watch) = fixtures::root_at_with_demo(
+            d::Address::Accounts,
+            &fixtures::domain_limits(),
+            b"Shop",
+            playground.then_some((fixtures::PROJECT, true)),
+        );
+        let mut doc = card_document(b"openai", b"Pat", c::OwnerAccountKind::SignIn);
+        doc.accounts.get_mut(0).unwrap().provider = Some(PROVIDER + 1);
+        deliver(&mut root, watch.unwrap(), doc);
+        let view = fixtures::page_view(&root);
+        let tree = view.tree();
+        let row = tree
+            .nodes()
+            .iter()
+            .find(|node| node.name.as_deref() == Some("ChatGPT · Pat · OpenAI · held by Pat".as_bytes()))
+            .unwrap();
+        assert!(core::str::from_utf8(row.description.as_deref().unwrap()).unwrap().contains("Ready"));
+        assert_eq!(
+            tree.nodes().iter().filter(|node| node.styles.as_slice().contains(&crate::look::ACCOUNT_ROW)).count(),
+            if playground { 2 } else { 1 }
+        );
+        assert_eq!(
+            crate::pages::accounts::first_usable_heading(&root, &fixtures::words()).unwrap().as_ref(),
+            "ChatGPT · Pat · OpenAI · held by Pat".as_bytes()
+        );
+    }
+}

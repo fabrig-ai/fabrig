@@ -464,6 +464,7 @@ pub fn incoming(
         | Delivery::Host(_)
         | Delivery::Link { .. }
         | Delivery::ProjectMade { .. }
+        | Delivery::ProjectReleased { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::ForgeCall { .. }
         | Delivery::Bound { .. }

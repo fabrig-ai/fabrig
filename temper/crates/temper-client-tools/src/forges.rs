@@ -157,7 +157,7 @@ pub const CONNECT: Tool = Tool {
     ],
     keyed: Keyed::Required,
     area: 6,
-    notes: b"The key or token file holds 1 to 4089 bytes after one final\nnewline is trimmed. An App another owns is set read-only in the\nconfiguration before the start (temper help github). Then forge\nlist --until connected:FORGE, or, after a browser, --until settled.\nWith `--first`, it goes on to make and adopt that repository, and\nprints its project. `connected already` (exit 2): the forge holds a\nkey, which this build cannot replace.\n",
+    notes: b"The key or token file holds 1 to 4089 bytes after one final\nnewline is trimmed. Then forge list --until connected:FORGE, or,\nafter a browser, --until settled.\nWith `--first`, it goes on to make and adopt that repository, and\nprints its project. `connected already` (exit 2): the forge holds a\nkey, which this build cannot replace.\n",
 };
 pub const INSTALL: Tool = Tool {
     name: b"forge install",
@@ -214,7 +214,7 @@ pub const DEMO_START: Tool = Tool {
     name: b"playground start",
     line: b"Start the playground; run it again to finish what is not done",
     prints: b"`running`",
-    result: b"demo-start",
+    result: b"playground-start",
     forms: &[&[]],
     keyed: Keyed::Optional,
     area: 6,

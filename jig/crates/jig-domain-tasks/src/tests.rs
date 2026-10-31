@@ -37,6 +37,7 @@ mod periods;
 mod last_batch;
 
 mod changed;
+mod control;
 
 mod address;
 mod instructions;

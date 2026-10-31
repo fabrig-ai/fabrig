@@ -120,7 +120,7 @@ fn a_provider_without_a_plan_names_its_sign_in_by_its_brand() {
     assert!(control_names(&ways_root(providers, false)).contains(&b"Sign in to Anthropic".to_vec()));
 }
 #[test]
-fn the_demos_provider_offers_no_way() {
+fn the_playgrounds_provider_offers_no_way() {
     let mut providers = List::with_capacity(2);
     providers.push(offer(PROVIDER, b"demo", true, true)).unwrap();
     providers.push(offer(PROVIDER + 1, b"openai", true, false)).unwrap();
@@ -436,17 +436,7 @@ fn the_accounts_banner_links_each_way_to_its_address_and_is_hidden_in_the_flow()
     );
     assert!(!words(&root).contains("Agents need an LLM account to run."));
 }
-#[test]
-fn the_demo_banner_links_to_choose() {
-    let root =
-        fixtures::demo_root(d::Address::Chats { filter: d::ChatsFilter::All, start: false }, fixtures::PROJECT, true);
-    let mut view = fixtures::page_view(&root);
-    let id = fixtures::find(view.tree(), Role::Link, b"Connect a model").unwrap();
-    assert_eq!(
-        crate::act(&mut view, id, Act::Press),
-        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::ConnectModel { way: None } }))
-    );
-}
+
 #[test]
 fn ready_remembers_that_the_playgrounds_scripted_model_stepped_aside() {
     let provider = PROVIDER + 1;
@@ -530,49 +520,6 @@ fn a_returned_source_still_signing_offers_the_paste_unfolded() {
     assert!(fixtures::find(tree.tree(), Role::TextField, b"Address of the page that couldn't be reached").is_some());
     assert!(fixtures::find(tree.tree(), Role::Button, b"Finish connecting").is_some());
     assert!(fixtures::find(tree.tree(), Role::Disclosure, b"Signed in, but the page couldn't be reached?").is_none());
-}
-
-#[test]
-fn a_retired_reload_offers_no_demo_key_or_card() {
-    use temper_client_protocol_wire::v1 as w;
-    for address in [d::Address::ConnectModel { way: None }, d::Address::Welcome { step: d::Step::Model { way: None } }]
-    {
-        let (mut root, watch, _, _, _, _) = fixtures::root_at_with_forges(
-            address,
-            &fixtures::domain_limits(),
-            b"Shop",
-            Some((fixtures::PROJECT, true, w::DemoState::Ended)),
-            None,
-            Some(List::with_capacity(0)),
-        );
-        let mut me = root.pages().me(root.client()).unwrap().clone();
-        me.providers = List::with_capacity(2);
-        me.providers.push(offer(PROVIDER, b"demo", true, true)).unwrap();
-        me.providers.push(offer(PROVIDER + 1, b"openai", true, false)).unwrap();
-        fixtures::root_event(
-            &mut root,
-            d::Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched {
-                        watch,
-                        event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
-                    },
-                },
-            },
-        );
-        for words in [fixtures::words(), fixtures::browser_words()] {
-            let mut view = fixtures::view_of(words);
-            let tree = fixtures::build(&mut view, &root);
-            assert!(fixtures::find(tree, Role::Button, b"Continue with ChatGPT").is_some());
-            assert!(fixtures::find(tree, Role::Button, b"Try the playground").is_none());
-            assert!(fixtures::find(tree, Role::Link, b"Use a demo API key").is_none());
-            for node in tree.nodes() {
-                if let Some(name) = &node.name {
-                    assert!(!name.windows(b"demo".len()).any(|part| part == b"demo"), "{name:?}");
-                }
-            }
-        }
-    }
 }
 
 const PASTE_FIELD: &[u8] = b"Address of the page that couldn't be reached";

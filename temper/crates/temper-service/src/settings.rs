@@ -2,7 +2,8 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 
-/// The deployment's demo as the clients read it (client/README.md, 8; protocol/setup.md, 8.4).
+/// The scripted playground settings (temper/docs/design/draft/playground-reset.md, 6.1).
+/// Demo ids and state serve `StartDemo` and `Read::Demo`.
 #[derive(Debug)]
 pub struct Demo {
     pub project: u32,

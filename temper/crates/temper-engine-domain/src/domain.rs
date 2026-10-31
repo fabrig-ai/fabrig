@@ -166,6 +166,11 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
+    /// The playground row as the service reads it (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+    #[must_use]
+    pub fn playground(&self) -> Option<&forge::Playground> {
+        self.forge.playground()
+    }
     /// The connector's durable demo end, shared with setup readiness scans.
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
@@ -1044,6 +1049,9 @@ fn released_into(
     out: &mut Queue<Request>,
 ) {
     match released.0 {
+        Delivery::ProjectReleased { connector, project } => {
+            domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
+        }
         Delivery::ProjectMade { project } => {
             if let Some(row) = domain.core.tasks.funding(tasks::Funder::Period { project, period: 1 })
                 && let Some(times) = row.period

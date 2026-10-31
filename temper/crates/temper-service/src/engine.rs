@@ -351,6 +351,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();
     }
+    engine.clients.playground = engine.domain.playground().copied();
     engine.clients.iterate(
         now,
         wall,
@@ -559,6 +560,12 @@ pub(crate) fn answer(engine: &mut Engine) {
             event @ jig_protocol_store::Event::Site { .. } => {
                 crate::store::route::up(&mut engine.store.routes, event, &mut engine.store.routed);
             }
+            jig_protocol_store::Event::Erased { owner } if crate::forge::gone::owns(owner) => {
+                crate::forge::gone::answer(engine, owner);
+            }
+            jig_protocol_store::Event::Corrupt { owner } if crate::forge::gone::owns(owner) => {
+                stop::unavailable(engine, b"forge secrets erase");
+            }
             event @ (jig_protocol_store::Event::SecretsNotReady { owner }
             | jig_protocol_store::Event::Kept { owner }
             | jig_protocol_store::Event::Stale { owner }
@@ -566,7 +573,9 @@ pub(crate) fn answer(engine: &mut Engine) {
             | jig_protocol_store::Event::Carried { owner, .. }
             | jig_protocol_store::Event::Secret { owner, .. }
             | jig_protocol_store::Event::SecretsLoaded { owner, .. }) => {
-                if owner == crate::forge::records::LOAD {
+                if crate::forge::gone::owns(owner) {
+                    stop::unavailable(engine, b"forge secrets erase");
+                } else if owner == crate::forge::records::LOAD {
                     if let jig_protocol_store::Event::SecretsLoaded { rows, next, .. } = event {
                         engine.forge_records.loaded(rows, next);
                     } else if let jig_protocol_store::Event::Erased { .. } = event {

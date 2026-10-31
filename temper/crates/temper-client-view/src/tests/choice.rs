@@ -1246,7 +1246,7 @@ fn ready_does_not_pair_another_providers_account_with_the_model() {
     assert_eq!(crate::choice::ready_model(&root, &fixtures::words()).as_ref(), b"gpt-6-luna");
 }
 
-/// Keep the catalogue unchanged across the playground's retirement.
+/// The playground and real providers share a supplied catalogue.
 pub(super) fn playground_offers_root(address: Address, playground: bool) -> (d::Domain, Token) {
     use temper_client_protocol_wire::v1 as w;
     let (mut root, me_watch, _, _, accounts, forges) = fixtures::root_at_with_forges(
@@ -1294,50 +1294,10 @@ pub(super) fn playground_offers_root(address: Address, playground: bool) -> (d::
     (root, forges.unwrap())
 }
 
-pub(super) fn retire_playground(root: &mut d::Domain, watch: Token) -> Token {
-    use temper_client_protocol_wire::v1 as w;
-    let mut out = super::connect_forge::deliver(
-        root,
-        watch,
-        super::connect_forge::rows(super::connect_forge::connected(), w::Offer::Offered),
-    );
-    while let Some(request) = out.pop() {
-        if let d::Request::Client {
-            request:
-                jig_client::Request::Down {
-                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
-                },
-        } = request
-        {
-            assert_eq!(
-                temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read(),
-                &w::Read::Demo
-            );
-            return read;
-        }
-    }
-    panic!("a real forge's connection rereads the demo");
-}
-
-pub(super) fn answer_retired_playground(root: &mut d::Domain, read: Token) {
-    fixtures::root_event(
-        root,
-        d::Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Family { family: temper_client_protocol_wire::FORGE, record: None },
-                },
-            },
-        },
-    );
-    assert!(root.forge().demo().is_none());
-}
-
 #[test]
-fn forge_banners_exclude_the_playgrounds_provider_before_and_after_retirement() {
+fn the_model_choice_leaves_the_scripted_provider_out() {
     for address in [Address::ConnectForge { forge: None }, Address::Forges] {
-        let (mut root, watch) = playground_offers_root(address.clone(), true);
+        let (root, _) = playground_offers_root(address.clone(), true);
         let check = |root: &d::Domain| {
             let mut view = fixtures::page_view(root);
             let tree = view.tree();
@@ -1354,10 +1314,6 @@ fn forge_banners_exclude_the_playgrounds_provider_before_and_after_retirement() 
                 );
             }
         };
-        check(&root);
-        let read = retire_playground(&mut root, watch);
-        check(&root);
-        answer_retired_playground(&mut root, read);
         check(&root);
         // A provider named demo in a configuration without a playground is a legitimate key offer.
         let (root, _) = playground_offers_root(address, false);
