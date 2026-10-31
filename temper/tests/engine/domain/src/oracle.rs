@@ -2,7 +2,6 @@
 //! temper/docs/design/domain/testing.md, 2).
 pub(crate) enum Fixture {
     Checked,
-    Closed,
     Broken,
 }
 
@@ -40,16 +39,13 @@ pub fn rebuilt(key: &Key) -> Option<&'static str> {
 /// Last answers and retained rows at a quiescent boundary.
 pub struct Snapshot {
     rows: BTreeMap<Key, Record>,
-    expired: std::collections::BTreeSet<Key>,
+    wall: skein_lib::Wall,
     pub queries: Vec<(u64, Read)>,
     pub answers: Vec<Answer>,
 }
 impl Snapshot {
     #[must_use]
     pub fn new(rows: &BTreeMap<Key, Record>, wall: skein_lib::Wall) -> Self {
-        let expired: std::collections::BTreeSet<_> = rows.iter().filter_map(|(key, row)| {
-            matches!(row, Record::Core(core::Record::People(people::Stored::SignIn { expires, .. })) if *expires <= wall).then(|| key.clone())
-        }).collect();
         let sessions: Vec<_> = rows
             .values()
             .filter_map(|row| {
@@ -70,17 +66,21 @@ impl Snapshot {
                 }
             }
         }
-        Self { rows: rows.clone(), expired, queries, answers: Vec::new() }
+        Self { rows: rows.clone(), wall, queries, answers: Vec::new() }
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) {
         for key in self.rows.keys().chain(rows.keys()) {
-            // Startup discards sessions whose durable expiry is already past.
-            if self.expired.contains(key) {
-                continue;
-            }
             let mut before = self.rows.get(key).cloned();
             let mut after = rows.get(key).cloned();
+            // Startup discards sessions whose durable expiry is already past.
+            for row in [&mut before, &mut after] {
+                if let Some(Record::Core(core::Record::People(people::Stored::SignIn { expires, .. }))) = row
+                    && *expires <= self.wall
+                {
+                    *row = None;
+                }
+            }
             if rebuilt(key).is_some() {
                 for row in [&mut before, &mut after] {
                     if let Some(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))) = row {
@@ -187,7 +187,6 @@ impl Driver {
             compare_forge(*project, *subject, before, after);
         }
         self.oracle_settle();
-        self.broken = Fixture::Closed;
     }
 
     fn oracle_settle(&mut self) {
@@ -327,7 +326,7 @@ pub fn close_world(
     std::mem::swap(&mut driver.root, root);
     std::mem::swap(&mut driver.store, store);
     std::mem::swap(&mut driver.protocol, protocol);
-    driver.broken = Fixture::Closed;
+    driver.broken = Fixture::Broken;
 }
 
 /// Public forge subjects are discovered from retained owners, including ended tasks.
@@ -410,7 +409,7 @@ pub fn compare_forges(before: temper_engine_domain_forge::Forges, after: temper_
 
 impl Drop for Driver {
     fn drop(&mut self) {
-        if !std::thread::panicking() && matches!(self.broken, Fixture::Checked) {
+        if !std::thread::panicking() {
             self.close();
         }
     }

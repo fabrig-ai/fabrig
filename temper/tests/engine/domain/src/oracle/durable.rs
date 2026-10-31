@@ -1,7 +1,7 @@
 //! Each restart-rebuilt document field is declared here (jig engine.md, 15).
 use jig_domain_core::{documents as docs, reads::Answer};
 
-pub fn answer(mut answer: Answer) -> Answer {
+pub(super) fn answer(mut answer: Answer) -> Answer {
     if let Answer::Document(document) = &mut answer {
         match document.as_mut() {
             docs::Document::Frame(frame) => durable_frame(frame),

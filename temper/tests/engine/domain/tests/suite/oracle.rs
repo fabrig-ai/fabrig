@@ -120,3 +120,14 @@ fn live_ci_is_rebuilt_but_terminal_ci_and_task_identity_are_durable() {
     changed.ci = Status::Unknown;
     assert_ne!(durable::forge(Some(Document::Change(ended))), durable::forge(Some(Document::Change(changed))));
 }
+
+#[test]
+#[should_panic(expected = "story failure before startup")]
+fn dropping_during_a_story_panic_preserves_that_failure() {
+    let _driver = Driver::cold(
+        Store::new(),
+        temper_engine_domain_world::walking::config(71),
+        &temper_engine_domain_world::walking::limits(),
+    );
+    panic!("story failure before startup");
+}

@@ -74,15 +74,12 @@ pub(crate) fn readback(procs: &mut [Proc]) -> bool {
         }
         let caller = procs
             .iter_mut()
-            .find_map(|proc| match proc {
-                Proc::Calls(caller) => Some(caller),
-                _ => None,
-            })
+            .find_map(|proc| if let Proc::Calls(caller) = proc { Some(caller) } else { None })
             .expect("crash world has an oracle caller");
         if !state.sent {
             assert!(!state.link.is_empty(), "oracle has the printed sign-in link");
             let mut sign_in = Command::new(&[b"sign-in", b"-"]);
-            sign_in.input = state.link.clone();
+            sign_in.input.clone_from(&state.link);
             caller.commands.push_back(sign_in);
             commands(caller);
             state.sent = true;
@@ -132,7 +129,7 @@ pub(crate) fn cold(
     settings: Settings,
     mut disk: skein_fake_machine::Machine,
     mut previous: Store,
-    run: Rc<RefCell<referee::Run>>,
+    run: &Rc<RefCell<referee::Run>>,
 ) {
     let before = STATE.with(|state| {
         let mut state = state.borrow_mut();
@@ -165,4 +162,11 @@ pub(crate) fn cold(
 
 pub(crate) fn caller(inherited: &skein_world::Inherited) -> Proc {
     Proc::Calls(Box::new(Caller::restartable(inherited)))
+}
+
+pub(crate) fn spawn<R: skein_world::Referee<Proc>>(world: &mut skein_world::World<Proc, R, Machine>) {
+    world.spawn_restartable(
+        vec![skein_world::StartupRoot { name: b"oracle".as_slice().into(), path: b"client".as_slice().into() }],
+        caller,
+    );
 }

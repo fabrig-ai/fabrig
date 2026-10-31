@@ -128,9 +128,6 @@ impl Driver {
     /// Offer one input through admission; an input the journal cannot take
     /// is handed back to the world, which keeps it (jig's `domain/root.md`, 3).
     pub fn send(&mut self, event: engine::Event) {
-        if matches!(self.broken, crate::oracle::Fixture::Closed) {
-            self.broken = crate::oracle::Fixture::Checked;
-        }
         if crate::waits_for_start(&self.root, &event) {
             self.events.push_back(event);
             return;
