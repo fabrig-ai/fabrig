@@ -28,8 +28,10 @@ extern crate alloc;
 
 mod face;
 mod fs;
+mod rooted;
 #[cfg(test)]
 mod tests;
 
 pub use face::{kernel_error, serve, step};
 pub use fs::{Facts, How, Is, Item, Listed, Machine, Made, Opened, Refusal};
+pub use rooted::Rooted;

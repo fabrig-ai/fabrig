@@ -22,7 +22,7 @@ pub mod llm;
 pub mod oauth;
 pub mod transport;
 
-pub use face::{Error, Limits};
+pub use face::{Error, Face, Limits};
 pub use transport::Transport;
 
 /// A listening peer borrowed by a real loop (ui-web.md, section 14.2).
