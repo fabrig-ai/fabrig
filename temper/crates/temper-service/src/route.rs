@@ -314,7 +314,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Fleet(_)
             | root::Delivery::ReadLoad { .. }
             | root::Delivery::NotesLoad { .. }
-            | root::Delivery::Restart(_)
+            | root::Delivery::Start(_)
             | root::Delivery::Load { .. }
             | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
         },

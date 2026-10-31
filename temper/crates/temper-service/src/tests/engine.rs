@@ -903,7 +903,7 @@ fn a_forge_fit_failure_reaches_the_typed_start_ending_before_switch() {
         assert_eq!(service.end(), Some(&expected));
         let engine = service.engine.as_ref().unwrap();
         assert!(!engine.store.component.mark_durable());
-        assert!(!engine.domain.connectors_restored());
+        assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 }));
         assert!(!engine.domain.ready());
         assert_eq!(engine.domain.forge_fit_failure(), Some(&failure));
         assert_eq!(engine.store.pending_generation, pending, "no switch");
