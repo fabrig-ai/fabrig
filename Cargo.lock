@@ -3149,6 +3149,7 @@ dependencies = [
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3176,6 +3177,7 @@ dependencies = [
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3204,6 +3206,7 @@ dependencies = [
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
+ "smith-protocol-translate",
 ]
 
 [[package]]
@@ -3267,7 +3270,6 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "smith-agent-process-world",
- "smith-agent-service",
  "smith-agent-world",
  "smith-channel",
  "smith-charter",
@@ -3277,6 +3279,7 @@ dependencies = [
  "smith-host-protocol",
  "smith-host-world",
  "smith-protocol-channel",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3388,6 +3391,7 @@ dependencies = [
  "smith-host-world",
  "smith-protocol-channel",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3435,6 +3439,7 @@ dependencies = [
  "smith-local-shell",
  "smith-protocol-channel",
  "smith-protocol-program",
+ "smith-protocol-translate",
 ]
 
 [[package]]
@@ -3500,6 +3505,7 @@ dependencies = [
  "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3520,6 +3526,7 @@ dependencies = [
  "smith-local-domain",
  "smith-local-protocol",
  "smith-protocol-channel",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3557,6 +3564,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3596,6 +3604,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-real-world",
  "smith-transcript",
  "toml",
@@ -3642,6 +3651,7 @@ dependencies = [
  "smith-domain",
  "smith-domain-session",
  "smith-domain-tools",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3655,8 +3665,8 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "smith-events",
- "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-protocol-translate",
 ]
 
 [[package]]
@@ -3700,6 +3710,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-llm",
+ "smith-protocol-translate",
  "smith-session-world",
  "smith-tools-world",
  "smith-transcript",
@@ -3731,6 +3742,20 @@ dependencies = [
  "smith-domain",
  "smith-events",
  "smith-protocol-llm",
+]
+
+[[package]]
+name = "smith-protocol-translate"
+version = "0.0.0"
+dependencies = [
+ "skein-channel",
+ "skein-lib",
+ "smith-channel",
+ "smith-charter",
+ "smith-domain",
+ "smith-domain-session",
+ "smith-domain-tools",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -3782,6 +3807,7 @@ dependencies = [
  "smith-domain-tools",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-protocol-translate",
  "smith-tools-world",
  "smith-transcript",
 ]

@@ -41,7 +41,10 @@ fn a_colocated_host_gets_typed_machine_terminals_without_an_agent_channel() {
         name: domain::GrantName { account: 0, generation: 1 },
         valid: Duration::from_secs(60),
     };
-    let value = channel::GrantValue::Withdrawn { account_id: Box::from(&b"acc"[..]), bearer: Box::from(&b"token"[..]) };
+    let value = smith_protocol_translate::GrantValue::Withdrawn {
+        account_id: Box::from(&b"acc"[..]),
+        bearer: Box::from(&b"token"[..]),
+    };
     effects.grant(grant, &value, Time::ZERO).expect("first grant");
     effects.grant(grant, &value, Time::from_nanos(1)).expect("same saved generation on another activation");
     effects.close();
@@ -53,8 +56,8 @@ fn a_colocated_host_gets_typed_machine_terminals_without_an_agent_channel() {
 
 #[test]
 fn each_grant_value_installs_its_scheme() {
-    use channel::GrantValue;
     use skein_llm::Scheme;
+    use smith_protocol_translate::GrantValue;
     let rows = [
         (GrantValue::Bearer(Box::from(&b"value"[..])), Scheme::Bearer, &b""[..]),
         (GrantValue::Key(Box::from(&b"value"[..])), Scheme::Key, &b""[..]),
@@ -530,13 +533,13 @@ fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
     enter(
         &mut service,
         Input::Host(channel::OpenEvent::Start {
-            start: Box::new(channel::DecodedStart {
+            start: Box::new(smith_protocol_translate::DecodedStart {
                 live: None,
                 identity: None,
                 messages: Box::default(),
                 activation: 1,
                 charter: charter(&smith_agent_world::Settings::calm(1)),
-                mounts: Some(Box::new([channel::Mount {
+                mounts: Some(Box::new([smith_protocol_translate::Mount {
                     name: Box::from(b"work".as_slice()),
                     path: Box::from(b"/work".as_slice()),
                     writable: false,

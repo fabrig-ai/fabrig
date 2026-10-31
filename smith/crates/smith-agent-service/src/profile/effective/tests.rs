@@ -9,12 +9,12 @@ use alloc::boxed::Box;
 use skein_lib::List;
 use smith_events::LimitValue;
 
-fn names() -> smith_protocol_channel::Endpoints {
+fn names() -> smith_protocol_translate::Endpoints {
     let mut entries = List::with_capacity(2);
     for (number, name) in [(7, b"codex".as_slice()), (8, b"other".as_slice())] {
-        entries.push(smith_protocol_channel::Endpoint { number, name: name.into(), dialect: 91 }).expect("names");
+        entries.push(smith_protocol_translate::Endpoint { number, name: name.into(), dialect: 91 }).expect("names");
     }
-    smith_protocol_channel::Endpoints::new(entries)
+    smith_protocol_translate::Endpoints::new(entries)
 }
 
 #[test]

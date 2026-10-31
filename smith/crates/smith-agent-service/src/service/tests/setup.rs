@@ -8,7 +8,7 @@ pub(super) fn limits() -> Limits {
 
 pub(crate) fn configuration() -> Config {
     let limits = limits();
-    let channel_endpoints = channel::Endpoints::new(List::with_capacity(1));
+    let channel_endpoints = smith_protocol_translate::Endpoints::new(List::with_capacity(1));
     let llm_endpoints = llm::Endpoints::new(Box::new([]), 1).expect("empty endpoint table");
     Config {
         program: None,

@@ -1170,7 +1170,7 @@ impl Scenario {
 }
 
 /// Decode the settled files outside every process, through the shared record codecs.
-pub fn load_chat(path: &Path, endpoints: &smith_protocol_channel::Endpoints) -> local::Event {
+pub fn load_chat(path: &Path, endpoints: &smith_protocol_translate::Endpoints) -> local::Event {
     let state = std::fs::read(path.join("state"))
         .ok()
         .map(|bytes| smith_local_protocol::decode_state(&bytes).expect("state record"));

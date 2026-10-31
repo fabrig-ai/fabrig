@@ -1,10 +1,11 @@
+use crate::fixture::SMALL;
 use crate::{Capture, Error, Event, Limits, read, write};
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "an independent frozen wire fixture reproduces the reader defect")]
 #[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn provider_failure_metadata_and_capture_detail_survive_the_reader() {
-    let limits = Limits { string: 256, content: 1024, items: 16 };
+    let limits = Limits { string: 256, items: 16, ..SMALL };
     let original =
         core::str::from_utf8(include_bytes!("../golden/v4/outcome_failed.jsonl")).expect("valid deterministic fixture");
     let source = original.replace(
@@ -28,7 +29,7 @@ fn provider_failure_metadata_and_capture_detail_survive_the_reader() {
 
 #[test]
 fn observed_producer_receiving_caps_construct_without_a_cartesian_product() {
-    let limits = Limits { string: 524_288, content: 4096, items: 32 };
+    let limits = receiving_limits();
     let ceiling = u32::try_from(END_WITH_UNREAD_USAGE.len()).expect("terminal length");
     let mut reader = crate::Reader::with_ceiling(&limits, ceiling).expect("valid writer-derived receiving bounds");
     let line = reader.feed(END_WITH_UNREAD_USAGE).expect("observed bounded terminal");
@@ -40,7 +41,7 @@ fn observed_producer_receiving_caps_construct_without_a_cartesian_product() {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn joint_line_ceiling_is_inclusive_and_one_more_byte_refuses_in_both_paths() {
-    let limits = Limits { string: 524_288, content: 4096, items: 32 };
+    let limits = receiving_limits();
     let ceiling = u32::try_from(END_WITH_UNREAD_USAGE.len()).expect("terminal length");
     let expected = crate::read_with_ceiling(END_WITH_UNREAD_USAGE, &limits, ceiling).expect("exact ceiling");
     assert!(expected.is_some());
@@ -71,7 +72,8 @@ fn joint_line_ceiling_is_inclusive_and_one_more_byte_refuses_in_both_paths() {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn joint_line_bound_never_relaxes_string_content_or_list_caps() {
-    let limits = Limits { string: 32, content: 8, items: 1 };
+    let mut limits = Limits { string: 32, content: 8, ..SMALL };
+    limits.items = 1;
     let base = "{\"v\":4,\"type\":\"message.received\",\"t_ms\":0,\"run\":1,\"name\":2,\"bytes\":8,\"label\":\"LABEL\",\"text\":\"12345678\"}\n";
     let at_cap = base.replace("LABEL", &"x".repeat(32));
     assert!(crate::read_with_ceiling(at_cap.as_bytes(), &limits, 1024).expect("semantic boundaries").is_some());
@@ -94,7 +96,7 @@ fn joint_line_bound_never_relaxes_string_content_or_list_caps() {
 
 #[test]
 fn another_version_is_named() {
-    let limits = Limits { string: 64, content: 1024, items: 4 };
+    let limits = SMALL;
     assert_eq!(read(b"{\"v\":5,\"type\":\"future\",\"t_ms\":0}\n", &limits), Err(Error::Version(5)));
 }
 
@@ -102,7 +104,7 @@ const END_WITH_UNREAD_USAGE: &[u8] = b"{\"v\":4,\"type\":\"session.ended\",\"t_m
 
 #[test]
 fn joint_writer_ceiling_round_trips_and_never_weakens_semantic_caps() {
-    let limits = Limits { string: 524_288, content: 13_056_000, items: 52_754 };
+    let limits = Limits { content: 13_056_000, items: 52_754, ..receiving_limits() };
     let ceiling = u32::try_from(END_WITH_UNREAD_USAGE.len()).expect("terminal length");
     let record = crate::read_with_ceiling(END_WITH_UNREAD_USAGE, &limits, ceiling)
         .expect("valid deterministic fixture")
@@ -129,7 +131,7 @@ fn joint_writer_ceiling_round_trips_and_never_weakens_semantic_caps() {
 
 #[test]
 fn unread_resource_usage_is_null_and_round_trips_without_changing_the_terminal() {
-    let limits = Limits { string: 64, content: 1024, items: 4 };
+    let limits = SMALL;
     let record =
         read(END_WITH_UNREAD_USAGE, &limits).expect("unread usage is a valid observation").expect("end record");
     let Event::SessionEnded(end) = &record.event else { panic!("session end") };
@@ -147,7 +149,7 @@ fn unread_resource_usage_is_null_and_round_trips_without_changing_the_terminal()
 #[test]
 #[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn measured_resource_objects_round_trip_with_exact_values() {
-    let limits = Limits { string: 64, content: 1024, items: 4 };
+    let limits = SMALL;
     let known = core::str::from_utf8(END_WITH_UNREAD_USAGE)
         .expect("fixture UTF-8")
         .replace("\"cpu_ms\":null", "\"cpu_ms\":{\"user\":1,\"system\":2,\"children_user\":3,\"children_system\":4}")
@@ -280,7 +282,7 @@ fn each_settled_budget_answer_names_its_used_and_bound() {
 
 #[test]
 fn a_stream_of_version_two_is_refused() {
-    let limits = Limits { string: 64, content: 1024, items: 4 };
+    let limits = SMALL;
     assert_eq!(read(b"{\"v\":2,\"type\":\"future\",\"t_ms\":0}\n", &limits), Err(Error::Version(2)));
 }
 
@@ -400,7 +402,7 @@ fn program_detail_escapes_terminal_controls() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "a frozen wire fixture checks capture without sharing the writer")]
 fn an_unknown_capture_policy_omits_tool_input_like_none() {
-    let limits = Limits { string: 64, content: 1024, items: 4 };
+    let limits = SMALL;
     let record = read(include_bytes!("../golden/v4/tool_started_calls.jsonl"), &limits)
         .expect("tool record")
         .expect("known event");
@@ -411,4 +413,10 @@ fn an_unknown_capture_policy_omits_tool_input_like_none() {
         crate::limits::largest_size(&record.event, &unknown, &limits),
         crate::limits::largest_size(&record.event, &Capture::None, &limits),
     );
+}
+
+fn receiving_limits() -> Limits {
+    let mut limits = Limits { string: 524_288, content: 4096, ..SMALL };
+    limits.items = 32;
+    limits
 }

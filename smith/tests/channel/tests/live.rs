@@ -5,7 +5,7 @@ use smith_channel::CEILINGS;
 use smith_channel_world::{Observation, World, window_turn_fixture};
 use smith_host_domain::channel::LiveAsk;
 
-fn start(live: Option<LiveAsk>) -> Box<smith_protocol_channel::DecodedStart> {
+fn start(live: Option<LiveAsk>) -> Box<smith_protocol_translate::DecodedStart> {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
     let charter = include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");

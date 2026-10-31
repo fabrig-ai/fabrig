@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use skein_channel::{Control, Direction, Lower, LowerEvent, StreamMode, Term, control_frame, frame_writer};
 use skein_lib::{Duration, List, Queue, Token, Writer, stream};
 use smith_host_domain::{Form, Scheme, SourceName};
-use smith_protocol_channel::GrantValue;
+use smith_protocol_translate::GrantValue;
 
 fn mismatched_values() -> [GrantValue; 2] {
     [GrantValue::Key(Box::from(b"key".as_slice())), GrantValue::Program(Box::from(b"claude-code".as_slice()))]

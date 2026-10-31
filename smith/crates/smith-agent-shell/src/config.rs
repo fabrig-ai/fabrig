@@ -15,7 +15,6 @@ use skein_llm_connection as connection;
 use skein_tls as tls;
 use smith_agent_service as service;
 use smith_domain::{self as domain, run};
-use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
 
@@ -126,7 +125,7 @@ fn effective_header(
     profile: &service::profile::Profile,
     declarations: &service::profile::Configuration,
     limits: &service::Limits,
-    names: &channel::Endpoints,
+    names: &smith_protocol_translate::Endpoints,
     endpoints: &llm::Endpoints,
 ) -> Result<List<smith_events::EffectiveLimit>, ConfigurationRefusal> {
     let inventory =
@@ -258,7 +257,7 @@ fn check_limits(config: &service::Config) -> Result<(), ConfigurationRefusal> {
 
 struct PreparedEndpoints {
     domain: Box<[run::charter::Endpoint]>,
-    channel: channel::Endpoints,
+    channel: smith_protocol_translate::Endpoints,
     llm: Box<[llm::ConfiguredEndpoint]>,
 }
 
@@ -325,7 +324,7 @@ fn build_endpoints(
         let identity = endpoint_identity(endpoint.identity.as_deref())?;
         domain_endpoints.push(run::charter::Endpoint(endpoint.number));
         channel_endpoints
-            .push(channel::Endpoint {
+            .push(smith_protocol_translate::Endpoint {
                 name: endpoint.name.into_bytes().into(),
                 number: endpoint.number,
                 dialect: endpoint.dialect,
@@ -352,7 +351,7 @@ fn build_endpoints(
     }
     Ok(PreparedEndpoints {
         domain: domain_endpoints.into_boxed_slice(),
-        channel: channel::Endpoints::new(channel_endpoints),
+        channel: smith_protocol_translate::Endpoints::new(channel_endpoints),
         llm: llm_endpoints.into_boxed_slice(),
     })
 }

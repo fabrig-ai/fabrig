@@ -35,12 +35,7 @@ fn a_host_whose_terms_are_too_small_is_refused_at_the_opening() {
 
 #[test]
 fn a_start_that_decodes_reaches_the_agent() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
+    let world = World::started();
     assert!(world.observations().contains(&Observation::AgentStart));
 }
 
@@ -99,21 +94,21 @@ fn a_start_record_that_does_not_decode_breaks_the_channel_rules() {
 fn the_agent_resolves_the_charters_endpoint_before_admission() {
     let mut entries = skein_lib::List::with_capacity(1);
     entries
-        .push(smith_protocol_channel::Endpoint { name: Box::default(), number: 17, dialect: 23 })
+        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 17, dialect: 23 })
         .expect("one endpoint");
-    let endpoints = smith_protocol_channel::Endpoints::new(entries);
+    let endpoints = smith_protocol_translate::Endpoints::new(entries);
     let bytes = include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");
     let charter =
-        smith_protocol_channel::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints).expect("v4 charter");
+        smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints).expect("v4 charter");
     assert_eq!(charter.llm.endpoint.0, 17);
     assert_eq!(charter.llm.dialect, 23);
     assert_eq!(charter.llm.account, None);
     assert!(charter.brief.sections.is_empty());
     assert!(charter.models.is_empty());
-    let unknown = smith_protocol_channel::decode_charter(
+    let unknown = smith_protocol_translate::decode_charter(
         bytes,
         &smith_charter::CEILINGS,
-        &smith_protocol_channel::Endpoints::new(skein_lib::List::with_capacity(0)),
+        &smith_protocol_translate::Endpoints::new(skein_lib::List::with_capacity(0)),
     );
     assert!(matches!(unknown, Err(smith_domain::run::Invalid::Endpoint)));
 }
@@ -125,17 +120,17 @@ fn the_full_charter_keeps_contracts_tools_and_model_prices() {
         .expect("full charter");
     let mut entries = skein_lib::List::with_capacity(1 + wire.models().len());
     entries
-        .push(smith_protocol_channel::Endpoint { name: Box::from(wire.main().endpoint()), number: 17, dialect: 23 })
+        .push(smith_protocol_translate::Endpoint { name: Box::from(wire.main().endpoint()), number: 17, dialect: 23 })
         .expect("main endpoint");
     for model in wire.models() {
         entries
-            .push(smith_protocol_channel::Endpoint { name: Box::from(model.endpoint()), number: 17, dialect: 23 })
+            .push(smith_protocol_translate::Endpoint { name: Box::from(model.endpoint()), number: 17, dialect: 23 })
             .expect("model endpoint");
     }
-    let charter = smith_protocol_channel::decode_charter(
+    let charter = smith_protocol_translate::decode_charter(
         bytes,
         &smith_charter::CEILINGS,
-        &smith_protocol_channel::Endpoints::new(entries),
+        &smith_protocol_translate::Endpoints::new(entries),
     )
     .expect("translated charter");
     assert_eq!(charter.instructions.as_ref(), wire.instructions());
@@ -164,7 +159,7 @@ fn an_accepted_report_keeps_its_fields_in_the_charter() {
             value: Box::from(*b"agent"),
         }]),
     });
-    let bytes = smith_protocol_channel::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
+    let bytes = smith_protocol_translate::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
     let record = smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("result decodes");
     assert!(matches!(record.form(), smith_charter::Form::Report));
@@ -187,7 +182,7 @@ fn an_accepted_verdict_keeps_its_label_and_items() {
             }]),
         }]),
     });
-    let bytes = smith_protocol_channel::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
+    let bytes = smith_protocol_translate::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
     let record = smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("result decodes");
     assert!(matches!(record.form(), smith_charter::Form::Verdict));
@@ -198,12 +193,7 @@ fn an_accepted_verdict_keeps_its_label_and_items() {
 
 #[test]
 fn a_run_goes_from_start_to_answer() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
+    let mut world = World::started();
     assert!(world.observations().contains(&Observation::AgentStart));
     world.agent_admits_and_parks();
     world.settle();
@@ -236,9 +226,14 @@ fn a_model_failure_keeps_transport_evidence_and_cooldown() {
         spent: smith_domain::run::Spend::ZERO,
         turns: 2,
     };
-    let record =
-        smith_protocol_channel::answer_record(skein_lib::Time::ZERO, answer, None, &CEILINGS, &smith_charter::CEILINGS)
-            .expect("bounded failure");
+    let record = smith_protocol_translate::answer_record(
+        skein_lib::Time::ZERO,
+        answer,
+        None,
+        &CEILINGS,
+        &smith_charter::CEILINGS,
+    )
+    .expect("bounded failure");
     assert_eq!(record.turns(), 2);
     let smith_channel::RunResult::Failed(failed) = record.result() else {
         panic!("expected failure");
@@ -259,7 +254,7 @@ fn a_model_failure_reaches_the_host_domain_in_its_typed_vocabulary() {
     use smith_domain::run;
     use smith_host_domain as host;
     for (fault, expected) in channel_faults() {
-        let mut world = admitted_channel();
+        let mut world = World::admitted();
         world.agent_answers(run::Answer::Failed {
             failure: run::Failure::Model(fault),
             spent: run::Spend::ZERO,
@@ -303,18 +298,6 @@ fn channel_faults() -> [(smith_domain::run::Fault, smith_host_domain::ModelFault
         channel_completion(run::CompletionFailure::Refused, host::CompletionFailure::Refused),
         channel_completion(run::CompletionFailure::Unsupported, host::CompletionFailure::Unsupported),
     ]
-}
-
-fn admitted_channel() -> World {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
-    world
 }
 
 fn channel_completion(
@@ -611,14 +594,7 @@ fn a_run_parked_resumed_and_parked_again_keeps_its_identity_and_numbers_turns_pe
 
 #[test]
 fn a_message_reaches_the_llm_with_its_senders_label() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let name = skein_lib::Token::new(31);
     world.send_message(name, Box::from(*b"Ada"), Box::from(*b"Please retry"), false);
     world.settle();
@@ -635,7 +611,7 @@ fn a_message_reaches_the_llm_with_its_senders_label() {
 
 #[test]
 fn finish_requested_crosses_the_live_wire_with_name_label_and_text() {
-    let mut world = admitted_channel();
+    let mut world = World::admitted();
     for (name, finish_requested) in [(31, false), (32, true)] {
         let name = skein_lib::Token::new(name);
         world.send_message(name, Box::from(*b"Ada"), Box::from(*b"Please finish"), finish_requested);
@@ -651,14 +627,7 @@ fn finish_requested_crosses_the_live_wire_with_name_label_and_text() {
 
 #[test]
 fn a_long_operation_stretches_progress_until_its_end() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let span = skein_lib::Duration::from_nanos(42);
     world.agent_starts_long(smith_domain::Operation::Checks, span);
     world.settle();
@@ -711,14 +680,7 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
             ]),
         }]),
     };
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let read = Some(skein_lib::Token::new(31));
     world.agent_tells_turn(1, read, &turn);
     world.settle();
@@ -736,14 +698,14 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
         .expect("one forwarded turn");
     let mut endpoints = skein_lib::List::with_capacity(1);
     endpoints
-        .push(smith_protocol_channel::Endpoint { name: Box::default(), number: 0, dialect: 0 })
+        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 0, dialect: 0 })
         .expect("one endpoint");
-    let transcript = smith_protocol_channel::decode_transcript(
-        &smith_protocol_channel::transcript_piece(&[body]).expect("fixture piece"),
+    let transcript = smith_protocol_translate::decode_transcript(
+        &smith_protocol_translate::transcript_piece(&[body]).expect("fixture piece"),
         1,
         u32::MAX,
         &smith_transcript::CEILINGS,
-        &smith_protocol_channel::Endpoints::new(endpoints),
+        &smith_protocol_translate::Endpoints::new(endpoints),
     )
     .expect("decoded turn")
     .expect("one turn");
@@ -764,14 +726,7 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
 
 #[test]
 fn facts_are_dropped_under_pressure_and_waiting_still_passes() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let elapsed = skein_lib::Duration::from_nanos(7);
     let mut kept = 0_u64;
     for _ in 0..12 {
@@ -849,23 +804,11 @@ fn account_notices_reach_the_host_without_values() {
         ),
     ];
     for (report, expected) in rows {
-        let mut world = admitted_notice_world();
+        let mut world = World::admitted();
         report(&mut world);
         world.settle();
         assert!(world.observations().contains(&expected), "{expected:?}");
     }
-}
-
-fn admitted_notice_world() -> World {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
-    world
 }
 
 #[test]
@@ -953,14 +896,7 @@ fn cancellation_records_and_end_each_wait_for_their_read() {
 
 #[test]
 fn a_cancel_with_a_host_call_in_flight_keeps_its_terminal_and_one_answer() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
     let relay = smith_domain::run::RelayName { owner: skein_lib::Token::new(41), attempt: 1 };
     world.agent_calls_host(name, relay);
@@ -983,14 +919,7 @@ fn a_cancel_with_a_host_call_in_flight_keeps_its_terminal_and_one_answer() {
 
 #[test]
 fn a_failed_agent_write_does_not_end_its_read_stream() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     world.agent_next_write_fails();
     world.agent_waits(None);
     world.settle();
@@ -1007,14 +936,7 @@ fn a_failed_agent_write_does_not_end_its_read_stream() {
 
 #[test]
 fn host_tools_answered_busy_are_asked_again_under_their_names() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
     let first = smith_domain::run::RelayName { owner: skein_lib::Token::new(40), attempt: 1 };
     world.agent_calls_host(name, first);
@@ -1133,14 +1055,7 @@ fn a_host_tool_answered_as_the_channel_is_lost_is_asked_again_under_its_name() {
 
 #[test]
 fn a_withdrawn_host_call_still_returns_under_its_live_relay() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
     let relay = smith_domain::run::RelayName { owner: skein_lib::Token::new(40), attempt: 1 };
     world.agent_calls_host(name, relay);
@@ -1159,14 +1074,7 @@ fn a_withdrawn_host_call_still_returns_under_its_live_relay() {
 
 #[test]
 fn a_delivery_keeps_fields_and_a_settled_landing_or_stale_terminal() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let owner = skein_lib::Token::new(50);
     world.agent_delivers(smith_domain::run::CallName { activation: 1, completion: 1, position: 0 }, owner);
     world.settle();
@@ -1212,14 +1120,7 @@ fn a_delivery_keeps_fields_and_a_settled_landing_or_stale_terminal() {
 
 #[test]
 fn a_fact_projects_its_emission_time_relative_to_the_activation_start() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let fact = smith_domain::Fact::Run {
         opening: None,
         fact: smith_domain::run::facts::Fact {
@@ -1242,7 +1143,7 @@ fn a_fact_projects_its_emission_time_relative_to_the_activation_start() {
 #[cfg(test)]
 mod charter_round_trip {
     use skein_lib::{List, Reader};
-    use smith_protocol_channel::{Endpoints, encode_charter};
+    use smith_protocol_translate::{Endpoints, encode_charter};
 
     #[test]
     fn complete_charter_policy_round_trips_without_local_contract_assumptions() {
@@ -1251,21 +1152,24 @@ mod charter_round_trip {
             smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(bytes)).expect("full golden");
         let mut names = List::with_capacity(16);
         names
-            .push(smith_protocol_channel::Endpoint { name: Box::from(wire.main().endpoint()), number: 0, dialect: 0 })
+            .push(smith_protocol_translate::Endpoint { name: Box::from(wire.main().endpoint()), number: 0, dialect: 0 })
             .expect("main endpoint");
         for model in wire.models() {
             if model.endpoint() != wire.main().endpoint() {
                 let number = names.len();
                 names
-                    .push(smith_protocol_channel::Endpoint { name: Box::from(model.endpoint()), number, dialect: 0 })
+                    .push(smith_protocol_translate::Endpoint { name: Box::from(model.endpoint()), number, dialect: 0 })
                     .expect("child endpoint");
             }
         }
         let endpoints = Endpoints::new(names);
-        let policy = smith_protocol_channel::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints)
+        let policy = smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints)
             .expect("typed full policy");
         let encoded = encode_charter(&policy, &smith_charter::CEILINGS, &endpoints).expect("full policy encodes");
-        assert_eq!(smith_protocol_channel::decode_charter(&encoded, &smith_charter::CEILINGS, &endpoints), Ok(policy));
+        assert_eq!(
+            smith_protocol_translate::decode_charter(&encoded, &smith_charter::CEILINGS, &endpoints),
+            Ok(policy)
+        );
     }
 }
 
@@ -1310,14 +1214,7 @@ fn facts_outside_observed_admission_are_counted_without_failing_the_channel() {
 
 #[test]
 fn overlapping_kinds_have_exactly_one_terminal_per_begin() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     assert!(!world.agent_try_ends_long(), "no span has begun");
     for operation in [smith_domain::Operation::Completion, smith_domain::Operation::Command] {
         world.agent_starts_long(operation, skein_lib::Duration::from_secs(30));
@@ -1406,7 +1303,7 @@ fn account_fault_record(fault: smith_domain::run::Fault) -> smith_channel::Answe
         spent: smith_domain::run::Spend::ZERO,
         turns: 0,
     };
-    smith_protocol_channel::answer_record(
+    smith_protocol_translate::answer_record(
         skein_lib::Time::from_nanos(20_000_000),
         answer,
         None,
@@ -1446,8 +1343,8 @@ fn a_refused_account_is_written_with_its_code() {
     }
 }
 
-fn grant_shape(value: Option<smith_protocol_channel::GrantValue>) -> Option<(&'static str, usize, usize)> {
-    use smith_protocol_channel::GrantValue;
+fn grant_shape(value: Option<smith_protocol_translate::GrantValue>) -> Option<(&'static str, usize, usize)> {
+    use smith_protocol_translate::GrantValue;
     value.map(|value| match value {
         GrantValue::Bearer(bytes) => ("bearer", bytes.len(), 0),
         GrantValue::Key(bytes) => ("key", bytes.len(), 0),
@@ -1458,7 +1355,7 @@ fn grant_shape(value: Option<smith_protocol_channel::GrantValue>) -> Option<(&'s
 
 #[test]
 fn each_grant_form_reaches_the_table_by_its_tag() {
-    use smith_protocol_channel::GrantValue;
+    use smith_protocol_translate::GrantValue;
     // Sizes follow the fixture words below.
     const VALUE_BYTES: usize = 5;
     const SOURCE_BYTES: usize = 6;
@@ -1483,7 +1380,7 @@ fn each_grant_form_reaches_the_table_by_its_tag() {
 
 #[test]
 fn a_grant_values_debug_shows_no_bytes() {
-    use smith_protocol_channel::GrantValue;
+    use smith_protocol_translate::GrantValue;
     const HIDDEN: &str = "[redacted grant value]";
     let rows = [
         (GrantValue::Bearer(Box::from(&b"secret"[..])), HIDDEN),

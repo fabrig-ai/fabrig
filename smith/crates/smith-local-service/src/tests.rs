@@ -125,7 +125,7 @@ pub(crate) fn config() -> Config {
             push: None,
         },
         limits: Limits { envelope_bytes, queue, watermark: queue, ..crate::fixture::small(local_limits, process) },
-        endpoints: smith_protocol_channel::Endpoints::new(List::with_capacity(0)),
+        endpoints: smith_protocol_translate::Endpoints::new(List::with_capacity(0)),
         paths: Box::new([]),
         launch: Launch {
             program: Box::from(&b"smith"[..]),
@@ -741,7 +741,7 @@ fn colocated_grant(service: &mut Service) {
             renewable: true,
             valid: Duration::from_secs(7200),
         },
-        smith_protocol_channel::GrantValue::Withdrawn {
+        smith_protocol_translate::GrantValue::Withdrawn {
             account_id: Box::from(&b"acc"[..]),
             bearer: Box::from(&b"token"[..]),
         },

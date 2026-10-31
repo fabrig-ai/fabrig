@@ -79,10 +79,12 @@ pub fn limits() -> StoreLimits {
 
 /// The fixture's single main endpoint: number 2, dialect 1, without an address.
 #[must_use]
-pub fn endpoints() -> smith_protocol_channel::Endpoints {
+pub fn endpoints() -> smith_protocol_translate::Endpoints {
     let mut entries = List::with_capacity(1);
-    entries.push(smith_protocol_channel::Endpoint { name: b"main".as_slice().into(), number: 2, dialect: 1 }).unwrap();
-    smith_protocol_channel::Endpoints::new(entries)
+    entries
+        .push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 2, dialect: 1 })
+        .unwrap();
+    smith_protocol_translate::Endpoints::new(entries)
 }
 
 /// A concrete real directory and the explicitly closed Store/`FileIo`/kernel stack.

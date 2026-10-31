@@ -42,9 +42,9 @@ impl PrivateWorld {
         let mut config = crate::tests::config();
         let mut endpoints = List::with_capacity(1);
         endpoints
-            .push(smith_protocol_channel::Endpoint { name: b"main".as_slice().into(), number: 4, dialect: 1 })
+            .push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 4, dialect: 1 })
             .unwrap();
-        config.endpoints = smith_protocol_channel::Endpoints::new(endpoints);
+        config.endpoints = smith_protocol_translate::Endpoints::new(endpoints);
         let mut service = Service::new(config, seed).unwrap();
         service.adopt_store(store).unwrap();
         service.ephemeral(parent, PRIVATE.into()).unwrap();
