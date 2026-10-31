@@ -2,9 +2,11 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, Token, Wall};
 
 use super::*;
+use crate::triage::watch_result;
 
 fn limits() -> Limits {
     Limits {
+        vocabulary: Vocabulary::reference(),
         services: 4,
         subscriptions: 8,
         watches: 2,
@@ -625,6 +627,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "step association count",
             Limits {
+                vocabulary: Vocabulary::reference(),
                 watches: 2,
                 alerts_per_batch: u32::MAX / 2,
                 services_per_watch: 0,
@@ -637,6 +640,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "message subscription count",
             Limits {
+                vocabulary: Vocabulary::reference(),
                 watches: 1,
                 alerts_per_batch: u32::MAX - 2,
                 services_per_watch: 0,
@@ -649,6 +653,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "message final slot",
             Limits {
+                vocabulary: Vocabulary::reference(),
                 watches: 1,
                 alerts_per_batch: u32::MAX - 1,
                 services_per_watch: 0,
@@ -755,4 +760,81 @@ fn deferred_health_rechecks_the_kept_replica_count() {
     );
     let out = event(&mut domain, FRESH_SECONDS, Event::System(rest.expect("changed count")));
     assert!(out.is_empty(), "returning to the captured count cancels health news and never replays a judge");
+}
+
+fn triage_fields(alerts: &[u8]) -> Box<[ResultField]> {
+    Box::new([
+        ResultField { name: Box::from(&b"alerts"[..]), value: Box::from(alerts) },
+        ResultField { name: Box::from(&b"environment"[..]), value: Box::from(&b"production"[..]) },
+        ResultField { name: Box::from(&b"service"[..]), value: Box::from(&b"checkout"[..]) },
+        ResultField { name: Box::from(&b"severity"[..]), value: Box::from(&b"3"[..]) },
+    ])
+}
+
+#[test]
+fn a_closed_verdict_translates_only_explicit_machine_fields_to_the_watch() {
+    let bounds = limits();
+    let limits = &bounds;
+    assert_eq!(
+        watch_result(100, &ResultKind::Verdict { code: 1, fields: Box::new([]) }, limits),
+        WatchMessage::Triage { child: 100, verdict: TriageVerdict::Noise }
+    );
+    assert_eq!(
+        watch_result(100, &ResultKind::Verdict { code: 2, fields: triage_fields(b"12 13") }, limits),
+        WatchMessage::Triage {
+            child: 100,
+            verdict: TriageVerdict::Incident {
+                alerts: Box::new([12, 13]),
+                service: Service::new(Box::from(&b"production"[..]), Box::from(&b"checkout"[..])),
+                severity: 3,
+            }
+        }
+    );
+}
+
+#[test]
+fn malformed_machine_fields_are_refused_without_reading_an_explanation() {
+    let bounds = limits();
+    let limits = &bounds;
+    for alerts in [b"".as_slice(), b"12 ", b"12 report 13", b"18446744073709551616"] {
+        assert_eq!(
+            watch_result(100, &ResultKind::Verdict { code: 2, fields: triage_fields(alerts) }, limits),
+            WatchMessage::InvalidTriage { child: 100 }
+        );
+    }
+    let mut fields = triage_fields(b"12");
+    fields[1].name = Box::from(&b"alerts"[..]);
+    assert_eq!(
+        watch_result(100, &ResultKind::Verdict { code: 2, fields }, limits),
+        WatchMessage::InvalidTriage { child: 100 }
+    );
+    assert_eq!(
+        watch_result(100, &ResultKind::Verdict { code: 2, fields: Box::new([]) }, limits),
+        WatchMessage::InvalidTriage { child: 100 }
+    );
+}
+
+#[test]
+fn watch_contract_and_spec_use_the_deployments_identifiers() {
+    let mut bounds = limits();
+    bounds.vocabulary.noise_verdict = 7;
+    assert_eq!(
+        watch_result(100, &ResultKind::Verdict { code: 1, fields: Box::new([]) }, &bounds),
+        WatchMessage::InvalidTriage { child: 100 }
+    );
+    assert_eq!(
+        watch_result(100, &ResultKind::Verdict { code: 7, fields: Box::new([]) }, &bounds),
+        WatchMessage::Triage { child: 100, verdict: TriageVerdict::Noise }
+    );
+    bounds.vocabulary.watch_template_parameter = 13;
+    let mut spec = Spec {
+        parameters: Box::new([
+            Parameter::Bytes { name: 1, value: Box::from(*b"prod") },
+            Parameter::Bytes { name: 2, value: Box::from(*b"checkout") },
+            Parameter::Number { name: 3, value: 9 },
+        ]),
+    };
+    assert_eq!(watch_spec(&spec, &bounds.vocabulary), None);
+    spec.parameters[2] = Parameter::Number { name: 13, value: 9 };
+    assert_eq!(watch_spec(&spec, &bounds.vocabulary), Some(WatchSpec { service: service(), template: 9 }));
 }

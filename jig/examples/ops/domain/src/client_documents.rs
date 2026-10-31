@@ -1,6 +1,6 @@
 //! Same-decision assembly of the application's client documents.
 use crate::domain::{Work, held};
-use crate::route::{core_out, infrastructure_out, observability_out};
+use crate::route::{ConnectorRequest, connector_out, core_out};
 use crate::{ClientDocument, ClientMissing, ClientSubject, Domain, Limits, Output, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -242,9 +242,7 @@ pub(crate) fn read(
                     | infrastructure::Request::Save { .. }
                     | infrastructure::Request::Erase { .. }
                     | infrastructure::Request::System(_)) => {
-                        let mut requests = Queue::uncapped();
-                        requests.push(request);
-                        infrastructure_out(domain, env, decision, &mut requests, work);
+                        connector_out(domain, env, decision, ConnectorRequest::Infrastructure(request), work);
                     }
                 }
             }
@@ -296,9 +294,7 @@ pub(crate) fn read(
                     | observability::Request::Erase { .. }
                     | observability::Request::System(_)
                     | observability::Request::Changed { .. }) => {
-                        let mut requests = Queue::uncapped();
-                        requests.push(request);
-                        observability_out(domain, env, decision, &mut requests, work);
+                        connector_out(domain, env, decision, ConnectorRequest::Observability(request), work);
                     }
                 }
             }
