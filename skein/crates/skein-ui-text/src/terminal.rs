@@ -201,10 +201,7 @@ impl Terminal {
         } else {
             None
         };
-        match (self.io.next_deadline(), print) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, b) => a.or(b),
-        }
+        Time::earliest(self.io.next_deadline(), print)
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {

@@ -42,11 +42,7 @@ pub trait Host {
     /// Its earliest deadline, over every layer: the earlier of its mechanism
     /// and policy deadlines.
     fn next_deadline(&self) -> Option<Time> {
-        match (self.next_mechanism_deadline(), self.next_policy_deadline()) {
-            (Some(mechanism), Some(policy)) => Some(mechanism.min(policy)),
-            (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
-            (None, None) => None,
-        }
+        Time::earliest(self.next_mechanism_deadline(), self.next_policy_deadline())
     }
 
     /// Whether it holds nothing: every slab empty, nothing in flight, every
