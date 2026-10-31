@@ -100,7 +100,7 @@ fn bounds() -> Bounds {
 fn owner_inbox_recursive_reserved_groups_reply_and_link_boxes_fit_exact_and_refuse_one_under_unchanged() {
     let source = whole();
     let unchanged = source.clone();
-    let chip_heap = u64::try_from((size_of::<ChipPhase>() + size_of::<OwnerChipDetails>())).unwrap()
+    let chip_heap = u64::try_from(size_of::<ChipPhase>() + size_of::<OwnerChipDetails>()).unwrap()
         + List::<u64>::price(3).unwrap()
         + 4;
     let expected = u64::try_from(size_of::<OwnerInbox>()).unwrap()

@@ -61,7 +61,7 @@ fn result_metadata_prices_allocated_lists_nested_chips_and_verdict_field_bytes()
         .checked_add(3)
         .unwrap();
     let chip = 3_u64
-        .checked_add(u64::try_from((size_of::<ChipPhase>() + size_of::<OwnerChipDetails>())).unwrap())
+        .checked_add(u64::try_from(size_of::<ChipPhase>() + size_of::<OwnerChipDetails>()).unwrap())
         .unwrap()
         .checked_add(List::<u64>::price(3).unwrap())
         .unwrap();
@@ -100,7 +100,7 @@ fn result_metadata_prices_opaque_approval_paths_and_every_task_link_form() {
         .checked_add(List::<OwnerTaskLink>::price(2).unwrap())
         .unwrap();
     let chip_heap = 3_u64
-        .checked_add(u64::try_from((size_of::<ChipPhase>() + size_of::<OwnerChipDetails>())).unwrap())
+        .checked_add(u64::try_from(size_of::<ChipPhase>() + size_of::<OwnerChipDetails>()).unwrap())
         .unwrap()
         .checked_add(List::<u64>::price(3).unwrap())
         .unwrap();

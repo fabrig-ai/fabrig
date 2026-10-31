@@ -56,14 +56,18 @@ fn whole_history_page_prices_all_boxes_stored_presence_and_reserved_rows_without
     bounds.rows = 3;
     bounds.document_bytes = u64::MAX;
     let values = [semantic(), milestone()];
+    let mut rows = List::with_capacity(3);
+    for value in &values {
+        rows.push(value.clone()).unwrap();
+    }
     let page = HistoryPage {
         cut: true,
-        rows: list(values.to_vec()),
+        rows,
         before: Some(Cursor::new(Box::from(b"opaque before".as_slice()), 1024).expect("bounded opaque cursor")),
         after: Some(Cursor::new(Box::from(b"opaque after".as_slice()), 1024).expect("bounded opaque cursor")),
     };
     let mut expected = u64::try_from(size_of::<HistoryPage>()).unwrap()
-        + List::<HistoryRow>::price(2).unwrap()
+        + List::<HistoryRow>::price(3).unwrap()
         + u64::try_from(b"opaque before".len() + b"opaque after".len()).unwrap();
     for value in &values {
         match value {

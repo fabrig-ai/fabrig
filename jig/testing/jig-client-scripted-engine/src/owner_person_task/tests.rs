@@ -75,7 +75,7 @@ fn person_owner_admission_prices_reserved_slots_boxes_and_optional_whole_results
     let b = bounds();
     let untouched = value.clone();
     let chip_heap = 4
-        + u64::try_from((size_of::<ChipPhase>() + size_of::<OwnerChipDetails>())).expect("size fits")
+        + u64::try_from(size_of::<ChipPhase>() + size_of::<OwnerChipDetails>()).expect("size fits")
         + List::<u64>::price(3).expect("dependencies fit");
     let expected = u64::try_from(size_of::<OwnerPersonTask>()).expect("size fits")
         + chip_heap
