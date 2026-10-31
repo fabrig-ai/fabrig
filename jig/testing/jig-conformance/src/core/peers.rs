@@ -50,7 +50,7 @@ pub fn notes_loaded(owner: Token, records: List<notes::Record>, more: bool) -> c
 /// Load a committed transcript window in attempt/turn order.
 ///
 /// # Errors
-/// Returns `TranscriptUnread` when the requested opening turn is missing.
+/// Returns an unread `TranscriptLoaded` answer when the requested opening turn is missing.
 pub fn transcript(
     records: &BTreeMap<core::Key, &core::Record>,
     task: u64,
@@ -73,7 +73,7 @@ pub fn transcript(
     if let Some(start) = from
         && !rows.first().is_some_and(|row| (row.attempt, row.turn) == start && row.opens_window)
     {
-        return Err(Box::new(core::Event::TranscriptUnread { task }));
+        return Err(Box::new(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Unread }));
     }
     Ok(rows)
 }

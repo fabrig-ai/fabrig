@@ -5,7 +5,7 @@ use jig_domain_host as host;
 use jig_ops_domain as root;
 
 pub(super) fn agent(peers: &mut Peers, request: host::ToAgent) -> Vec<Input<root::Event, root::Record>> {
-    if let host::ToAgent::Answer { reply: host::Reply::Relayed { error, text }, .. } = &request {
+    if let host::ToAgent::Answer { answer: host::CallAnswer::Relayed { error, text }, .. } = &request {
         peers.call_answers.push((*error, text.clone()));
     }
     peers.agents.answer(request)

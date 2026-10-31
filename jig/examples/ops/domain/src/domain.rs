@@ -80,7 +80,7 @@ pub struct Domain {
     pub(crate) core: core::Core,
     pub(crate) observability: observability::Domain,
     pub(crate) infrastructure: infrastructure::Domain,
-    pub(crate) host: host::Domain,
+    pub(crate) host: host::Hub,
     pub(crate) journal: Journal<Write, Output>,
     pub(crate) charter_endpoints: Box<[jig_protocol_charter::EndpointName]>,
     pub(crate) assignments: Map<u64, Assignment>,
@@ -175,7 +175,7 @@ impl Domain {
             observability: observability::Domain::with_templates(&limits.observability, config.triage_templates)
                 .with_leads(&limits.observability, config.lead_templates),
             infrastructure: infrastructure::Domain::new(config.backend, &limits.infrastructure),
-            host: host::Domain::new(&limits.host),
+            host: host::Hub::new(&limits.host),
             journal: Journal::uncapped(limits.release, 0),
             charter_endpoints: config.charter_endpoints,
             assignments: Map::with_capacity(limits.core.tasks.tasks),

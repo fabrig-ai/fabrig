@@ -149,7 +149,7 @@ pub fn refused(why: &[u8]) -> Request {
     Request::Answer {
         run: RUN,
         attempt: ATTEMPT,
-        answer: host::Answer {
+        answer: host::RunAnswer {
             read: None,
             refused: Box::new([]),
             turns: 0,

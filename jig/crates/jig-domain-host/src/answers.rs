@@ -1,19 +1,19 @@
 //! Answers retained on their run slots until acknowledged (hosts.md, 6.2).
-use crate::domain::Domain;
-use crate::{Answer, Bounds, Hello, Hosting, LinkUp, Phase, Request};
+use crate::domain::Hub;
+use crate::{Bounds, Hello, Hosting, LinkUp, Phase, Request, RunAnswer};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Queue, Token};
 
 #[derive(Debug)]
 pub(crate) struct Kept {
-    pub(crate) answer: Answer,
+    pub(crate) answer: RunAnswer,
 }
 
-pub(crate) fn kept(domain: &Domain) -> u32 {
+pub(crate) fn kept(domain: &Hub) -> u32 {
     domain.answers.len()
 }
 
-pub(crate) fn at(domain: &Domain, index: u32) -> Option<LinkUp> {
+pub(crate) fn at(domain: &Hub, index: u32) -> Option<LinkUp> {
     for (at, (_, id)) in domain.answers.iter().enumerate() {
         if u32::try_from(at).expect("bounded answer slots") == index {
             let run = domain.hosted.get(*id).expect("an answer holds its slot");
@@ -24,7 +24,7 @@ pub(crate) fn at(domain: &Domain, index: u32) -> Option<LinkUp> {
     None
 }
 
-pub(crate) fn acknowledge(domain: &mut Domain, run: Token, attempt: Token) {
+pub(crate) fn acknowledge(domain: &mut Hub, run: Token, attempt: Token) {
     if let Some(id) = domain.answers.remove(&(run, attempt)) {
         domain.hosted.get_mut(id).expect("retained answer").answer = None;
         domain.hosted.retire(id);
@@ -32,7 +32,7 @@ pub(crate) fn acknowledge(domain: &mut Domain, run: Token, attempt: Token) {
 }
 
 pub(crate) fn opened(
-    domain: &Domain,
+    domain: &Hub,
     slots: u32,
     stop_bound: Duration,
     workstreams: Box<[u64]>,

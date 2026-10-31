@@ -73,7 +73,7 @@ pub fn class(event: &Event) -> Class {
 
 fn host_class(event: &host::Event) -> Class {
     match event {
-        host::Event::Called { .. } | host::Event::Opened { .. } => Class::New,
+        host::Event::Agent(host::FromAgent::Called { .. }) | host::Event::Opened { .. } => Class::New,
         host::Event::Down(event) => match event {
             host::LinkDown::Sources { .. }
             | host::LinkDown::Check { .. }
@@ -88,24 +88,26 @@ fn host_class(event: &host::Event) -> Class {
         },
         host::Event::SourceAnswered { .. }
         | host::Event::SourceLost
-        | host::Event::Turn { .. }
-        | host::Event::Withdrawn { .. }
-        | host::Event::Piece { .. }
-        | host::Event::Activity { .. }
-        | host::Event::Unauthorized { .. }
-        | host::Event::Limited { .. }
-        | host::Event::AccountRefused { .. }
-        | host::Event::Finished { .. }
+        | host::Event::Agent(
+            host::FromAgent::Turn { .. }
+            | host::FromAgent::Withdrawn { .. }
+            | host::FromAgent::Piece { .. }
+            | host::FromAgent::Activity { .. }
+            | host::FromAgent::Unauthorized { .. }
+            | host::FromAgent::Limited { .. }
+            | host::FromAgent::AccountRefused { .. }
+            | host::FromAgent::Finished { .. }
+            | host::FromAgent::Started { .. }
+            | host::FromAgent::StartRefused { .. }
+            | host::FromAgent::Refused { .. }
+            | host::FromAgent::Yielded { .. }
+            | host::FromAgent::Faulted { .. }
+            | host::FromAgent::Gone { .. },
+        )
         | host::Event::RelayCancelled { .. }
         | host::Event::CancelAll { .. }
         | host::Event::Prepared { .. }
         | host::Event::Unprepared { .. }
-        | host::Event::Started { .. }
-        | host::Event::StartRefused { .. }
-        | host::Event::Refused { .. }
-        | host::Event::Yielded { .. }
-        | host::Event::Faulted { .. }
-        | host::Event::Gone { .. }
         | host::Event::Delivered { .. }
         | host::Event::Saved { .. } => Class::Admitted,
     }

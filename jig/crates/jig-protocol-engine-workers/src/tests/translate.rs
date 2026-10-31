@@ -11,7 +11,7 @@ fn up(record: translate::Up) -> jig_domain_host::LinkUp {
     assert!(parts.is_empty(), "this record has no application parts");
     link
 }
-fn answer(record: jig_protocol_worker_wire::Answer) -> (jig_domain_host::Answer, translate::Parts) {
+fn answer(record: jig_protocol_worker_wire::Answer) -> (jig_domain_host::RunAnswer, translate::Parts) {
     let (link, parts) = translated(translate::Up::Answer(record));
     let jig_domain_host::LinkUp::Answer { run, attempt, answer } = link else {
         panic!("an answer");
@@ -69,7 +69,7 @@ fn a_fact_record_becomes_the_hubs_activity() {
         jig_domain_host::LinkUp::Activity {
             run: Token::new(7),
             attempt: Token::new(2),
-            activity: jig_domain_host::Activity::Count {
+            activity: jig_domain_host::AgentActivity::Count {
                 kind: jig_domain_host::CountKind::LlmStarted,
                 elapsed: Duration::from_secs(2),
                 count: 3

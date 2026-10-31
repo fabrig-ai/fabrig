@@ -83,14 +83,11 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         Event::Stopping
         | Event::Activate { .. }
         | Event::PreparedAgent { .. }
-        | Event::StartBrief { .. }
-        | Event::BriefNotes { .. }
         | Event::BriefAssembled { .. }
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
-        | Event::PreparationFailed { .. }
-        | Event::TranscriptUnread { .. }
+        | Event::TranscriptLoaded { .. }
         | Event::ProcedureStep { .. }
         | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
@@ -118,7 +115,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }
         | Event::RefusedPayload { .. }
-        | Event::Forget { .. }
         | Event::EndedReadLoaded { .. }
         | Event::SeenConversationLoaded { .. }
         | Event::HistoricalProposal { .. }

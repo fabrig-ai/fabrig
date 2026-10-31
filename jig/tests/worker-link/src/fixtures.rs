@@ -176,7 +176,10 @@ pub fn up_records() -> Vec<(host::LinkUp, Box<[Part]>)> {
             host::LinkUp::Activity {
                 run: RUN_SEVEN,
                 attempt: ATTEMPT_TWO,
-                activity: host::Activity::Long { operation: host::Operation::Command, span: Duration::from_secs(2) },
+                activity: host::AgentActivity::Long {
+                    operation: host::AgentOperation::Command,
+                    span: Duration::from_secs(2),
+                },
             },
             Box::new([]),
         ),
@@ -208,7 +211,7 @@ pub fn answer() -> host::LinkUp {
     host::LinkUp::Answer {
         run: RUN_SEVEN,
         attempt: ATTEMPT_TWO,
-        answer: host::Answer {
+        answer: host::RunAnswer {
             read: Some(Token::new(5)),
             refused: Box::new([]),
             turns: 1,

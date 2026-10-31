@@ -763,7 +763,7 @@ fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
     match name.get(..dot) {
         Some(b"hub") => {
             if fits.hub.is_none() {
-                fits.hub = Some(jig_domain_host::valid(&limits.hub));
+                fits.hub = Some(jig_domain_host::valid_hub(&limits.hub));
             }
             fits.hub.expect("hub fit checked")
         }

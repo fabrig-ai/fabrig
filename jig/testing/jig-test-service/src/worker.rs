@@ -105,8 +105,7 @@ impl Worker {
         )
         .or(Err(problem(index, b"limits", What::Bound)))?;
         let slots = config.slots;
-        let prefix = worker_prefix(u64::from(index).checked_add(1).ok_or(problem(index, b"slots", What::Bound))?)
-            .ok_or(problem(index, b"slots", What::Bound))?;
+        let prefix = crate::tokens::worker(index).ok_or(problem(index, b"slots", What::Bound))?;
         Ok(Self {
             root: root::Domain::new(&root_limits),
             root_steps: 0,
@@ -196,7 +195,7 @@ impl Worker {
         }
     }
     pub(super) fn accepts(&self, event: &io::Event) -> bool {
-        match crate::workers::owner(event) {
+        match event.owner() {
             Some(owner) => {
                 self.sources.owns(owner)
                     || owner == Token::new(self.prefix)
@@ -231,7 +230,7 @@ impl Worker {
         self.admission_waits
     }
     pub(super) fn up(&mut self, now: Time, mut event: io::Event) {
-        let owner = crate::workers::owner(&event).expect("routed owner");
+        let owner = event.owner().expect("routed owner");
         if self.sources.owns(owner) {
             self.sources.from_io(event, &mut self.source_events, &mut self.io);
             return;
@@ -712,12 +711,6 @@ impl Worker {
             false
         }
     }
-}
-fn worker_prefix(index: u64) -> Option<u64> {
-    if index >= (1_u64 << 12_u32) {
-        return None;
-    }
-    (3_u64 << 60).checked_add(index.checked_shl(48)?)
 }
 fn grant_value(table: &Table, grant: &smith::Grant, now: Time) -> Option<host::Values> {
     let value = account(table, grant, now)?;

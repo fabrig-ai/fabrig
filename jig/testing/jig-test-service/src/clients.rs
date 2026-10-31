@@ -11,7 +11,6 @@ use skein_io as io;
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 mod translation;
 pub(super) use translation::{application, immediate, to_component};
-const PREFIX: u64 = 4_u64 << 60;
 const HOST_BYTES: u32 = 64;
 
 #[derive(Debug)]
@@ -393,47 +392,13 @@ impl Clients {
     }
 }
 pub(super) fn owns(token: Token) -> bool {
-    token.raw() & (15_u64 << 60) == PREFIX
+    token.tag() == crate::tokens::CLIENTS
 }
-pub(super) fn tag(mut request: io::Request) -> io::Request {
-    match &mut request {
-        io::Request::Listen { owner, .. }
-        | io::Request::Connect { owner, .. }
-        | io::Request::Bind { owner, .. }
-        | io::Request::Spawn { owner, .. }
-        | io::Request::Usage { owner }
-        | io::Request::Window { owner, .. } => {
-            assert!(owner.raw() < (1_u64 << 60_u32), "bounded client exchange names");
-            *owner = Token::new(owner.raw() | PREFIX);
-        }
-        io::Request::Reject { .. }
-        | io::Request::Stream { .. }
-        | io::Request::Output { .. }
-        | io::Request::Signal { .. }
-        | io::Request::Close { .. }
-        | io::Request::Abort { .. } => {}
-    }
-    request
+pub(super) fn tag(request: io::Request) -> io::Request {
+    crate::tokens::tag(request, crate::tokens::CLIENTS)
 }
-pub(super) fn untag(mut event: io::Event) -> io::Event {
-    match &mut event {
-        io::Event::Listening { owner, .. }
-        | io::Event::Accepted { owner, .. }
-        | io::Event::Connecting { owner, .. }
-        | io::Event::Connected { owner }
-        | io::Event::Stream { owner, .. }
-        | io::Event::Output { owner, .. }
-        | io::Event::Spawned { owner, .. }
-        | io::Event::Exited { owner, .. }
-        | io::Event::Usage { owner, .. }
-        | io::Event::Window { owner, .. }
-        | io::Event::Failed { owner, .. }
-        | io::Event::Closed { owner } => {
-            *owner = Token::new(owner.raw() & !(15_u64 << 60));
-        }
-        io::Event::Resized | io::Event::Shutdown { .. } => {}
-    }
-    event
+pub(super) fn untag(event: io::Event) -> io::Event {
+    crate::tokens::untag(event)
 }
 
 impl Clients {
@@ -607,7 +572,7 @@ impl Clients {
         for _ in 0..self.secrets.len() {
             let request = self.secrets.pop().expect("client secrets requests");
             let (owner, request) = secret_request(request);
-            let token = Token::new(PREFIX.checked_add(self.next_secret).expect("secret routing name"));
+            let token = crate::tokens::token(crate::tokens::CLIENTS, self.next_secret);
             self.next_secret = self.next_secret.checked_add(1).expect("secret routing sequence");
             self.secret_owners.insert(token, owner).expect("secret request correlation");
             if let Some(answer) = store.secrets(token, request) {

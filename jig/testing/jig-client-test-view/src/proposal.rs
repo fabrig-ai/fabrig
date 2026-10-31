@@ -1,7 +1,7 @@
 //! An application-owned proposal section and dialog (client/domain/testing.md, 4).
 use crate::bindings::{Bindings, Meaning};
-use jig_client::contract::{ActKind, Effect, ObjectKey, Proposal, ProposalKey, ReleaseEffect};
-use jig_client::words::{DecisionWord as D, Word};
+use alloc::boxed::Box;
+use jig_client::contract::{ActKind, ObjectKey, OwnerProposal, ProposalKey};
 use jig_client_test_domain::{
     Domain,
     first::{
@@ -10,15 +10,14 @@ use jig_client_test_domain::{
     },
 };
 use jig_client_view::{objects::Body, phrases::jig::JigPhrase as P, words::Words};
-use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Region, Role, Run};
 const REGION: Region = Region { owner: skein_ui::Owner { number: 1 }, number: 30 };
-fn document(root: &Domain, key: ProposalKey) -> Option<Proposal> {
+fn document(root: &Domain, key: ProposalKey) -> Option<OwnerProposal> {
     let client = root.jig().borrow(root.client());
     let objects = client.objects();
     let id = objects.find(ObjectKey::Proposal(key))?;
     let object = objects.get(id)?;
-    let Some(Body::Proposal(proposal)) = object.body else {
+    let Some(Body::OwnerProposal(proposal)) = object.body else {
         return None;
     };
     Some(*proposal)
@@ -38,9 +37,9 @@ pub(crate) fn section(
     b.open(Role::Region);
     b.region(REGION);
     b.name(&family.say(crate::words::Word::Proposal, &[]));
-    b.text(Run::Plain, proposal.why.bytes());
+    b.text(Run::Plain, proposal.reason.bytes.bytes());
     for (kind, accept, phrase) in [(ActKind::Accept, true, P::ActAccept), (ActKind::Reject, false, P::ActReject)] {
-        if jig_client::facts::offer(proposal.acts.as_slice(), kind).is_some() && proposal.ending.is_none() {
+        if jig_client::facts::offer(proposal.acts.as_slice(), kind).is_some() {
             facts(b, &proposal, kind, words, hide);
             button(
                 b,
@@ -70,7 +69,7 @@ pub(crate) fn confirmation(
     b.open(Role::Dialog);
     b.region(REGION);
     b.name(&family.say(crate::words::Word::ReviewProposal, &[]));
-    b.text(Run::Plain, proposal.why.bytes());
+    b.text(Run::Plain, proposal.reason.bytes.bytes());
     facts(b, &proposal, if choice.accept { ActKind::Accept } else { ActKind::Reject }, words, hide);
     button(b, words, P::Confirm, Act::Confirm, bindings);
     button(b, words, P::Dismiss, Act::Dismiss, bindings);
@@ -82,59 +81,13 @@ fn button(b: &mut Builder, words: &Words, phrase: P, act: Act, bindings: &mut Bi
     b.bind(bindings.insert(Meaning::Action(first::Act::Proposal(act))));
     b.close();
 }
-fn facts(b: &mut Builder, proposal: &Proposal, kind: ActKind, words: &Words, hide: bool) {
+fn facts(b: &mut Builder, proposal: &OwnerProposal, kind: ActKind, words: &Words, hide: bool) {
     if hide {
         return;
     }
-    if jig_client::facts::dangerous(kind) {
-        words.status(b, P::Word(Word::Decision(D::Dangerous)), &[]);
-    }
-    if let Some(effect) = jig_client::facts::effect(proposal.acts.as_slice(), kind) {
-        match effect {
-            Effect::Move { reservation } => {
-                words.text(b, P::Word(Word::Decision(D::TakeoverFunds)), &[Hole::Amount(*reservation)]);
-            }
-            Effect::Release(effect) => words.text(
-                b,
-                match effect {
-                    ReleaseEffect::Judged => P::Word(Word::Decision(D::ReleaseFresh)),
-                    ReleaseEffect::RunAgain => P::Word(Word::Decision(D::ResumeRelease)),
-                    ReleaseEffect::Uncertain => P::Word(Word::Decision(D::EngineFollowsChoice)),
-                },
-                &[],
-            ),
-            Effect::Cancel(impact) => {
-                for (phrase, number) in [
-                    (P::Word(Word::Decision(D::TasksWaiting)), impact.tasks.waiting),
-                    (P::Word(Word::Decision(D::TasksRunning)), impact.tasks.running),
-                    (P::Word(Word::Decision(D::TasksHeld)), impact.tasks.held),
-                    (P::Word(Word::Decision(D::TasksClosing)), impact.tasks.closing),
-                    (P::Word(Word::Decision(D::TasksDone)), impact.tasks.done),
-                    (P::Word(Word::Decision(D::TasksFailed)), impact.tasks.failed),
-                    (P::Word(Word::Decision(D::TasksCancelled)), impact.tasks.cancelled),
-                    (P::Word(Word::Decision(D::LiveRuns)), impact.live_runs),
-                    (P::Word(Word::Decision(D::PendingProposals)), impact.proposals),
-                ] {
-                    words.text(b, phrase, &[Hole::Number(u64::from(number))]);
-                }
-                if impact.tasks.ended > 0 {
-                    words.text(
-                        b,
-                        P::Word(Word::Decision(D::TasksEnded)),
-                        &[Hole::Number(u64::from(impact.tasks.ended))],
-                    );
-                }
-                words.text(b, P::Word(Word::Decision(D::EffectsSettle)), &[]);
-            }
-        }
-    }
-    if kind == ActKind::Accept
-        && let Some(after) = proposal.funding.left.checked_sub(proposal.needs.budget)
-    {
-        words.text(
-            b,
-            P::Word(Word::Decision(D::Funds)),
-            &[Hole::Amount(proposal.needs.budget), Hole::Amount(proposal.funding.left), Hole::Amount(after)],
-        );
+    let document = jig_client::contract::ReadValue::OwnerProposal(Box::new(proposal.clone()));
+    let facts = jig_client::facts::decision(Some(&document), kind);
+    for text in jig_client::words::decision(&facts, words.book(), words.language()).into_boxed() {
+        b.text(Run::Plain, &text);
     }
 }

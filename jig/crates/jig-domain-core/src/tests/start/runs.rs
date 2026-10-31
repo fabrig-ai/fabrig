@@ -191,6 +191,6 @@ fn due_agent_preparation_waits_until_open() {
     assert_eq!(context.task, DUE);
     let mut after = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     let Some(Request::Now(request)) = after.pop() else { panic!("agent preparation request") };
-    let Now::PrepareAgent { context } = *request else { panic!("due agent begins preparation") };
+    let Now::PrepareAgent { context, .. } = *request else { panic!("due agent begins preparation") };
     assert_eq!(context.task, DUE);
 }

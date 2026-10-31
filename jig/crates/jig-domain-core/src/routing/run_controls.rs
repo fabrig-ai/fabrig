@@ -1,11 +1,12 @@
 //! Task-origin controls fill the finish message before entering the tasks child.
+use crate::routing::Work;
 use crate::{CallKey, CallPart, Core, Event, Request, RoutedCall};
 use jig_domain_tasks as tasks;
 use skein_lib::{Queue, ReplyTo};
 
 pub(super) fn control(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
     target: u64,
@@ -33,11 +34,11 @@ pub(super) fn control(
     let token = to.into_token();
     assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
     let token = core.fly_call(token, RoutedCall::Control { key, target, revised: false });
-    work.push(Event::Tasks(tasks::Event::Control {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Control {
         reply_to: ReplyTo::new(token),
         by: tasks::Party::Task(key.task),
         task: target,
         control,
-    }));
+    })));
     out
 }

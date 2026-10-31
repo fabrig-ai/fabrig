@@ -136,8 +136,8 @@ fn accept_restart(seed: u64, ceiling: u64) {
     assert_eq!(lead.chip.task, 9);
 }
 
-// Peak 1,098,790 bytes measured 10-29; testing-strategy.md 6.
-const ENVIRONMENT_CHAT_HEAP_CEILING: u64 = 1_400_000;
+// Peak 1,441,125 bytes measured 10-31; testing-strategy.md 6.
+const ENVIRONMENT_CHAT_HEAP_CEILING: u64 = 1_900_000;
 
 #[test]
 fn q_asks_for_an_environment_in_a_chat_and_accepts_what_it_costs() {

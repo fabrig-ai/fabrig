@@ -1,12 +1,14 @@
 //! Requests are decided once in the party's key space and released after durability.
 //! Revision and decided-first checks precede scripted outcomes; contract.md, 3–4.
 mod creating;
+mod decisions;
+use decisions::{decided, repeated};
 mod priorities;
 mod projects;
 use crate::{Engine, Envelope, Invalid, Keyed, RequestIdentity, Retained, Up, payload};
 use jig_client_domain::contract::{
-    ActKind, Actor, Admission, Answer, Ask, ChipPhase, CurrentHold, Decision, Ending, Moved, ObjectKey, Offered,
-    Outcome, OwnerRequester, Phase, ReadValue, Recipient, Refusal, Revision, Runtime, TaskHold,
+    ActKind, Admission, Answer, Ask, CurrentHold, Decision, Ending, Moved, ObjectKey, Offered, Outcome, OwnerRequester,
+    ReadValue, Recipient, Refusal, Revision, TaskHold,
 };
 use jig_client_domain::contract::{AnswerOn, DecideOn, Operation};
 use skein_lib::{List, Time, Token, Wall};
@@ -150,8 +152,8 @@ impl<A: crate::Application> Engine<A> {
             let Some(value) = self.truth.objects.get(&key) else {
                 return Ok((Answer::Refused { refusal: Refusal::Unknown, at: None }, Vec::new()));
             };
-            if let Some(Ending::Decided { party: Some(by), how: Some(how), at, .. }) = ending(value) {
-                return Ok((Answer::Done(Outcome::DecidedFirst { by: by.clone(), how: how.clone(), at }), Vec::new()));
+            if let Some(outcome) = repeated(value, ask) {
+                return Ok((Answer::Done(Outcome::Owner(outcome)), Vec::new()));
             }
             if let Some(how) = ending(value) {
                 return Ok((Answer::Refused { refusal: Refusal::Ended { how: how.clone() }, at: None }, Vec::new()));
@@ -276,38 +278,58 @@ impl<A: crate::Application> Engine<A> {
                 ));
             }
             let waiting = match value {
-                ReadValue::Proposal(value) => Some(&value.waiting),
-                ReadValue::Escalation(value) => Some(&value.waiting),
-                ReadValue::Historical(_)
-                | ReadValue::OwnerProposal(_)
-                | ReadValue::OwnerEscalation(_)
+                ReadValue::OwnerProposal(value) => match value.waiting.holder {
+                    jig_client_domain::contract::OwnerHistoryHolder::Person(person) => Some(Recipient::Party(person)),
+                    jig_client_domain::contract::OwnerHistoryHolder::Task(task) => Some(Recipient::Task(task)),
+                    jig_client_domain::contract::OwnerHistoryHolder::Policy { .. } => None,
+                },
+                ReadValue::OwnerEscalation(value) => value.task.hold.as_ref().and_then(|hold| match hold {
+                    TaskHold::Owner(hold) => match hold.escalation {
+                        Some(jig_client_domain::contract::OwnerHoldEscalation::Waiting { holder, .. }) => {
+                            Some(match holder {
+                                jig_client_domain::contract::OwnerEscalationHolder::Person(person) => {
+                                    Recipient::Party(person)
+                                }
+                                jig_client_domain::contract::OwnerEscalationHolder::Task(task) => Recipient::Task(task),
+                                jig_client_domain::contract::OwnerEscalationHolder::Role { project, role } => {
+                                    Recipient::Role { project, role }
+                                }
+                            })
+                        }
+                        _ => None,
+                    },
+                    TaskHold::Document(_) => None,
+                }),
+                ReadValue::Settings(_)
+                | ReadValue::Setting(_)
+                | ReadValue::Revision(_)
+                | ReadValue::Revisions(_)
                 | ReadValue::Tasks(_)
+                | ReadValue::OwnerProject(_)
+                | ReadValue::Historical(_)
                 | ReadValue::Me(_)
+                | ReadValue::Turn(_)
                 | ReadValue::Task(_)
+                | ReadValue::Proposal(_)
+                | ReadValue::Escalation(_)
                 | ReadValue::Question(_)
                 | ReadValue::PersonTask(_)
                 | ReadValue::OwnerPersonTask(_)
                 | ReadValue::Result(_)
                 | ReadValue::Ended(_)
+                | ReadValue::OwnerEnded(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
-                | ReadValue::Turn(_)
                 | ReadValue::Inbox(_)
                 | ReadValue::OwnerInbox(_)
                 | ReadValue::Spend(_)
-                | ReadValue::OwnerEnded(_)
                 | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
                 | ReadValue::Project(_)
                 | ReadValue::Notes(_)
-                | ReadValue::Settings(_)
-                | ReadValue::Setting(_)
-                | ReadValue::Revision(_)
-                | ReadValue::Revisions(_)
                 | ReadValue::Deployment(_)
                 | ReadValue::OwnerDeployment(_) => None,
             };
-            if waiting.is_some_and(|waiting| !recipient(&self.truth, party, waiting)) {
+            if waiting.as_ref().is_some_and(|waiting| !recipient(&self.truth, party, waiting)) {
                 return Ok((
                     Answer::Refused {
                         refusal: Refusal::Moved { now: Revision { value: 0 }, what: Moved::Waiting },
@@ -317,6 +339,7 @@ impl<A: crate::Application> Engine<A> {
                 ));
             }
         }
+
         let note_offers = match ask {
             Ask::EditNote { note, .. } | Ask::DeleteNote { note, .. } => {
                 self.truth.notes.get(note).map(|note| &note.acts)
@@ -354,7 +377,6 @@ impl<A: crate::Application> Engine<A> {
                 .and_then(|key| self.truth.objects.get(&key))
                 .and_then(offers)
                 .or_else(|| project.and_then(|p| self.truth.owner_projects.get(&p).map(|p| &p.acts)))
-                .or_else(|| project.and_then(|p| self.truth.projects.get(&p).map(|p| &p.acts)))
         });
         let creating = self.creating_admission(party, ask);
         let admission = match &creating {
@@ -434,10 +456,7 @@ impl<A: crate::Application> Engine<A> {
                 if (matches!(admission, Some(Admission::Proposed { .. })) || matches!(ask, Ask::Propose { .. }))
                     && !matches!(
                         rule.answer,
-                        Answer::Done(
-                            Outcome::Proposed { .. }
-                                | Outcome::Owner(jig_client_domain::contract::OwnerOutcome::Proposed { .. })
-                        )
+                        Answer::Done(Outcome::Owner(jig_client_domain::contract::OwnerOutcome::Proposed { .. }))
                     )
                 {
                     return Err(Invalid::Script);
@@ -447,10 +466,7 @@ impl<A: crate::Application> Engine<A> {
                     && matches!(admission, Some(Admission::Allowed))
                     && matches!(
                         rule.answer,
-                        Answer::Done(
-                            Outcome::Proposed { .. }
-                                | Outcome::Owner(jig_client_domain::contract::OwnerOutcome::Proposed { .. })
-                        )
+                        Answer::Done(Outcome::Owner(jig_client_domain::contract::OwnerOutcome::Proposed { .. }))
                     )
                 {
                     return Err(Invalid::Script);
@@ -508,63 +524,15 @@ impl<A: crate::Application> Engine<A> {
             if matches!(how, Decision::PassedUp | Decision::LeftHeld { .. }) {
                 return Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()));
             }
-            let by = self.truth.frames.get(&party).expect("signed-in party has a frame").party.clone();
-            let mut value = self.truth.objects.get(&key).expect("target checked").clone();
-            // Terminal Party labels have no loss carrier; retain the exact actor
-            // number and only a complete supplied optional name. Me keeps its cut.
-            let label = by.name.whole().map(|name| jig_client_domain::contract::Party {
-                number: by.number,
-                kind: by.kind,
-                name,
-            });
-            let terminal = Ending::Decided { by: by.number, party: label, how: Some(how.clone()), at: wall };
-            match &mut value {
-                ReadValue::Proposal(v) => v.ending = Some(terminal),
-                ReadValue::Escalation(v) => v.ending = Some(terminal),
-                ReadValue::Task(v) => {
-                    v.hold = None;
-                    if let Some(context) = &mut v.context {
-                        context.escalation = None;
-                        context.runtime = Runtime::Starting;
-                    }
-                    v.chip.phase = Phase::Due;
-                    *v.chip.details = ChipPhase::Starting;
-                }
-                ReadValue::Historical(_)
-                | ReadValue::OwnerProposal(_)
-                | ReadValue::OwnerEscalation(_)
-                | ReadValue::Tasks(_)
-                | ReadValue::Me(_)
-                | ReadValue::Question(_)
-                | ReadValue::PersonTask(_)
-                | ReadValue::OwnerPersonTask(_)
-                | ReadValue::Result(_)
-                | ReadValue::Ended(_)
-                | ReadValue::History(_)
-                | ReadValue::Activity(_)
-                | ReadValue::Turn(_)
-                | ReadValue::Inbox(_)
-                | ReadValue::OwnerInbox(_)
-                | ReadValue::Spend(_)
-                | ReadValue::OwnerEnded(_)
-                | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
-                | ReadValue::Project(_)
-                | ReadValue::Notes(_)
-                | ReadValue::Settings(_)
-                | ReadValue::Setting(_)
-                | ReadValue::Revision(_)
-                | ReadValue::Revisions(_)
-                | ReadValue::Deployment(_)
-                | ReadValue::OwnerDeployment(_) => {
-                    return Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()));
-                }
-            }
+            let value = self.truth.objects.get(&key).expect("target checked").clone();
+            let Some((value, outcome)) = decided(value, ask, party, wall, &how) else {
+                return Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()));
+            };
             let change =
                 crate::Change::Object { project: project.expect("object requests name a project"), key, value };
             change.validate(&self.bounds)?;
             self.truth.apply(&change)?;
-            return Ok((Answer::Done(Outcome::Decided { by: Actor::Party(party), how, at: wall }), vec![change]));
+            return Ok((Answer::Done(Outcome::Owner(outcome)), vec![change]));
         }
         Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()))
     }

@@ -57,16 +57,13 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::RunText { .. }
         | core::Event::Tasks(..)
         | core::Event::StartRecurring { .. }
-        | core::Event::StartBrief { .. }
-        | core::Event::BriefNotes { .. }
         | core::Event::BriefAssembled { .. }
         | core::Event::WorkspacePrepared { .. }
         | core::Event::ClaimPrepared { .. }
         | core::Event::ClaimRefused { .. }
         | core::Event::ConnectorRepair { .. }
         | core::Event::Period { .. }
-        | core::Event::PreparationFailed { .. }
-        | core::Event::TranscriptUnread { .. }
+        | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
         | core::Event::TurnPayload { .. }
@@ -75,7 +72,6 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
         | core::Event::PreparedAgent { .. }
-        | core::Event::Forget { .. }
         | core::Event::EndedTaskLoaded { .. }
         | core::Event::SeenConversationLoaded { .. }
         | core::Event::EndedReadLoaded { .. }

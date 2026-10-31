@@ -20,7 +20,6 @@ use skein_lib::{CryptoRng, Env, List, Map, Queue, Secret, Time, Token, Wall};
 use skein_oauth as oauth;
 use skein_oauth_accounts as driver;
 
-pub(super) const PREFIX: u64 = 3_u64 << 60;
 #[derive(Debug)]
 pub struct AccountsRuntime {
     /// LLM account sign-in endpoints and origins, keyed by provider number.
@@ -237,7 +236,9 @@ impl Accounts {
                 Effect::Child(event) => events.push(root::Event::Core(core::Event::Account(event))),
                 Effect::Io(request) => self.io.push(request),
                 Effect::Store { exchange, request } => {
-                    if let Some(event) = store.secrets(Token::new(PREFIX | exchange.raw()), request) {
+                    if let Some(event) =
+                        store.secrets(crate::tokens::token(crate::tokens::ACCOUNTS, exchange.raw()), request)
+                    {
                         self.component.step(&self.env, Event::Store(untag_store(event)), &mut self.effects);
                     }
                 }
@@ -264,7 +265,7 @@ fn untag_store(mut event: store::Event) -> store::Event {
         | store::Event::Kept { owner }
         | store::Event::Stale { owner }
         | store::Event::Erased { owner }
-        | store::Event::SecretsLoaded { owner, .. } => *owner = Token::new(owner.raw() & !PREFIX),
+        | store::Event::SecretsLoaded { owner, .. } => *owner = Token::new(owner.untagged()),
         store::Event::Opened { .. }
         | store::Event::Switched { .. }
         | store::Event::OpenRefused { .. }
@@ -358,47 +359,13 @@ impl Kernel {
 }
 
 pub(super) fn owns(token: Token) -> bool {
-    token.raw() & (15_u64 << 60) == PREFIX
+    token.tag() == crate::tokens::ACCOUNTS
 }
-pub(super) fn tag(mut request: io::Request) -> io::Request {
-    match &mut request {
-        io::Request::Listen { owner, .. }
-        | io::Request::Connect { owner, .. }
-        | io::Request::Bind { owner, .. }
-        | io::Request::Spawn { owner, .. }
-        | io::Request::Usage { owner }
-        | io::Request::Window { owner, .. } => {
-            assert!(owner.raw() < (1_u64 << 60_u32), "bounded accounts exchange slots");
-            *owner = Token::new(owner.raw() | PREFIX);
-        }
-        io::Request::Reject { .. }
-        | io::Request::Stream { .. }
-        | io::Request::Output { .. }
-        | io::Request::Signal { .. }
-        | io::Request::Close { .. }
-        | io::Request::Abort { .. } => {}
-    }
-    request
+pub(super) fn tag(request: io::Request) -> io::Request {
+    crate::tokens::tag(request, crate::tokens::ACCOUNTS)
 }
-pub(super) fn untag(mut event: io::Event) -> io::Event {
-    match &mut event {
-        io::Event::Listening { owner, .. }
-        | io::Event::Accepted { owner, .. }
-        | io::Event::Connecting { owner, .. }
-        | io::Event::Connected { owner }
-        | io::Event::Stream { owner, .. }
-        | io::Event::Output { owner, .. }
-        | io::Event::Spawned { owner, .. }
-        | io::Event::Exited { owner, .. }
-        | io::Event::Usage { owner, .. }
-        | io::Event::Window { owner, .. }
-        | io::Event::Failed { owner, .. }
-        | io::Event::Closed { owner } => {
-            *owner = Token::new(owner.raw() & !(15_u64 << 60));
-        }
-        io::Event::Resized | io::Event::Shutdown { .. } => {}
-    }
-    event
+pub(super) fn untag(event: io::Event) -> io::Event {
+    crate::tokens::untag(event)
 }
 
 fn copy_endpoint(endpoint: &driver::Endpoint) -> driver::Endpoint {

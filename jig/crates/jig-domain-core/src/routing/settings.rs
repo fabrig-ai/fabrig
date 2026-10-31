@@ -1,4 +1,5 @@
 //! Owner settings decisions, atomic with their keyed answer (engine.md, 17.2).
+use crate::routing::Work;
 use crate::{Core, Event, Limits, Request, settings as s};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -8,7 +9,7 @@ use skein_lib::{Env, Map, Queue, ReplyTo, Token};
 pub(super) fn start(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     reply_to: ReplyTo,
     sign_in: u64,
     key: [u8; 16],
@@ -46,7 +47,7 @@ pub(super) fn start(
 pub(super) fn admitted(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     person: u64,
@@ -65,7 +66,7 @@ pub(super) fn admitted(
         Some((Err(failure), _)) => malformed(failure),
         None => people::Outcome::Refused(people::Refusal::NotOffered),
     };
-    work.push(Event::People(people::Event::Decided { request, outcome }));
+    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
 }
 pub(super) fn malformed(failure: s::Failure) -> people::Outcome {
     people::Outcome::Refused(malformed_refusal(failure))
@@ -83,7 +84,7 @@ fn malformed_refusal(failure: s::Failure) -> people::Refusal {
 pub(super) fn decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     by: s::Decider,
     proposal: Option<(people::Proposer, u32)>,
@@ -194,7 +195,7 @@ pub(super) fn route_writes(limits: &Limits) -> Option<u32> {
 pub(super) fn propose_start(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     reply_to: ReplyTo,
     sign_in: u64,
     key: [u8; 16],
@@ -227,7 +228,7 @@ pub(super) fn propose_start(
 pub(super) fn propose_admitted(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     against: u32,
@@ -237,7 +238,10 @@ pub(super) fn propose_admitted(
     let change = match result {
         Ok(change) => change,
         Err(why) => {
-            work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+            work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
             return;
         }
     };
@@ -264,7 +268,7 @@ pub(super) fn propose_admitted(
         request,
         crate::GoalRoute::Offering { proposal: fresh, to: people::Role::Owner.number(), stubs: Box::new([]) },
     );
-    work.push(Event::Tasks(jig_domain_tasks::Event::ProposePerson {
+    work.push(Work::Event(Event::Tasks(jig_domain_tasks::Event::ProposePerson {
         reply_to: ReplyTo::new(request),
         proposal: jig_domain_tasks::PersonProposal {
             number: fresh,
@@ -274,7 +278,7 @@ pub(super) fn propose_admitted(
             reason,
             state: jig_domain_tasks::PersonProposalState::Pending { since: env.wall },
         },
-    }));
+    })));
 }
 fn proposal_check(core: &mut Core, env: &Env<Limits>, against: u32) -> Result<Box<s::Proposal>, people::Refusal> {
     let input = core.proposed_input.take().ok_or(people::Refusal::NotOffered)?;
@@ -445,12 +449,7 @@ pub(super) fn move_to_newest(
 fn move_tasks(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, from: Option<u32>) -> Moved {
     use jig_domain_tasks as tasks;
     let mut child = Queue::uncapped();
-    tasks::step(
-        &mut core.tasks,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-        tasks::Event::MoveToNewest { from },
-        &mut child,
-    );
+    crate::routing::step::step_tasks(core, env, tasks::Event::MoveToNewest { from }, &mut child);
     let mut counts = None;
     for _ in 0..child.len() {
         let request = child.pop().expect("move output count");
@@ -488,7 +487,7 @@ fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32, items: Box
 pub(super) fn propose_run(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     to: ReplyTo,
     key: crate::CallKey,
     change: s::Proposed,
@@ -541,7 +540,7 @@ pub(super) fn propose_run(
     core.settings_offering = Some((token, key.task, number, set));
     core.pending_calls.insert(key, true).expect("call room reserved");
     let token = core.fly_call(token, crate::RoutedCall::Propose { key, proposal: next });
-    work.push(Event::Tasks(tasks::Event::Propose { reply_to: ReplyTo::new(token), proposal }));
+    work.push(Work::Event(Event::Tasks(tasks::Event::Propose { reply_to: ReplyTo::new(token), proposal })));
     Queue::uncapped()
 }
 
@@ -549,7 +548,7 @@ pub(super) fn propose_run(
 pub(super) fn accept(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     person: u64,
     key: (people::Proposer, u32),

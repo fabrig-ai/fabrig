@@ -1,4 +1,6 @@
 //! Check message refusals at the hub's public boundary (hosts.md, 11).
+use jig_domain_host::FromAgent;
+use jig_domain_host::ToAgent;
 use jig_domain_host::{Event, LinkDown, LinkUp, Refused, Request};
 use skein_lib::Token;
 use std::collections::{BTreeMap, BTreeSet};
@@ -14,35 +16,37 @@ impl Referee {
             Event::Down(LinkDown::Message { run, attempt, name, .. }) => {
                 self.pending.entry((*run, *attempt)).or_default().insert(*name);
             }
-            Event::Started { owner, agent } => {
+            Event::Agent(FromAgent::Started { owner, agent }) => {
                 if let Some(key) = self.owners.get(owner) {
                     self.agents.insert(*agent, *key);
                 }
             }
-            Event::Refused { owner, name, .. } => {
+            Event::Agent(FromAgent::Refused { owner, name, .. }) => {
                 if let Some(key) = self.owners.get(owner) {
                     self.pending.entry(*key).or_default().insert(*name);
                 }
             }
-            Event::Turn { .. }
-            | Event::Called { .. }
-            | Event::Withdrawn { .. }
-            | Event::Piece { .. }
-            | Event::Activity { .. }
-            | Event::Unauthorized { .. }
-            | Event::Limited { .. }
-            | Event::AccountRefused { .. }
-            | Event::Finished { .. }
+            Event::Agent(
+                FromAgent::Turn { .. }
+                | FromAgent::Called { .. }
+                | FromAgent::Withdrawn { .. }
+                | FromAgent::Piece { .. }
+                | FromAgent::Activity { .. }
+                | FromAgent::Unauthorized { .. }
+                | FromAgent::Limited { .. }
+                | FromAgent::AccountRefused { .. }
+                | FromAgent::Finished { .. }
+                | FromAgent::StartRefused { .. }
+                | FromAgent::Yielded { .. }
+                | FromAgent::Faulted { .. }
+                | FromAgent::Gone { .. },
+            )
             | Event::RelayCancelled { .. }
             | Event::CancelAll { .. }
             | Event::Opened { .. }
             | Event::Down(_)
             | Event::Prepared { .. }
             | Event::Unprepared { .. }
-            | Event::StartRefused { .. }
-            | Event::Yielded { .. }
-            | Event::Faulted { .. }
-            | Event::Gone { .. }
             | Event::Delivered { .. }
             | Event::SourceAnswered { .. }
             | Event::SourceLost
@@ -55,7 +59,7 @@ impl Referee {
     pub(crate) fn request(&mut self, request: &Request) {
         match request {
             Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
-            Request::Message { agent, name, .. } => {
+            Request::Agent(ToAgent::Message { agent, name, .. }) => {
                 if let Some(key) = self.agents.get(agent) {
                     self.pending.entry(*key).or_default().remove(name);
                 }
@@ -66,15 +70,17 @@ impl Referee {
             }
             Request::Up(_)
             | Request::Hello { .. }
-            | Request::Reply { .. }
-            | Request::Start { .. }
-            | Request::AcknowledgeAgentTurn { .. }
+            | Request::Agent(
+                ToAgent::Answer { .. }
+                | ToAgent::Start { .. }
+                | ToAgent::Acknowledge { .. }
+                | ToAgent::Cancel { .. }
+                | ToAgent::Grant { .. },
+            )
             | Request::Deliver { .. }
             | Request::CancelRelay { .. }
             | Request::Prepare { .. }
             | Request::Abort { .. }
-            | Request::Stop { .. }
-            | Request::Grant { .. }
             | Request::Save { .. }
             | Request::Release { .. } => {}
         }
@@ -95,7 +101,7 @@ impl Referee {
 
 #[cfg(test)]
 mod tests {
-    use super::Referee;
+    use super::{FromAgent, Referee};
     use jig_domain_host::{Event, LinkUp, MessageRefusal, Request, Turn};
     use skein_lib::Token;
     #[test]
@@ -103,7 +109,11 @@ mod tests {
     fn a_missing_refusal_at_a_passing_fence_is_rejected() {
         let mut referee = Referee::default();
         referee.admitted(Token::new(1), Token::new(31), Token::new(932));
-        referee.event(&Event::Refused { owner: Token::new(1), name: Token::new(7), reason: MessageRefusal::Full });
+        referee.event(&Event::Agent(FromAgent::Refused {
+            owner: Token::new(1),
+            name: Token::new(7),
+            reason: MessageRefusal::Full,
+        }));
         referee.request(&Request::Up(LinkUp::Turn {
             run: Token::new(31),
             attempt: Token::new(932),

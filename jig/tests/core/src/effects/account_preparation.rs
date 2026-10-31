@@ -12,12 +12,8 @@ impl World {
                 accounts::FromComponent::Failed { account: 1, failure: accounts::Failure::SignInAgain },
             ))));
         }
-        if let core::Now::StartPreparation { task, from, .. } = &now {
-            if from.is_none() {
-                self.events.push_back(root::Event::TranscriptLoaded { task: *task, rows: Box::new([]), done: true });
-            } else {
-                self.store.ask(super::StoreOut::Now(now));
-            }
+        if let core::Now::StartPreparation { .. } = &now {
+            self.store.ask(super::StoreOut::Now(now));
         } else {
             panic!("preparation route");
         }

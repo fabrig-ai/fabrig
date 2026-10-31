@@ -3,6 +3,7 @@
 
 use super::people_routes::tag_people;
 use super::task_routes::tag_task_outputs;
+use crate::routing::Work;
 use crate::{Ask, Core, CoreRecord, Event, Held, Key, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -13,9 +14,8 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token};
 
 pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<Request>) {
-    super::view_routes::touch_people_event(core, &env.limits, &event);
     let mut child = Queue::uncapped();
-    people::step(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, event, &mut child);
+    crate::routing::step::step_people(core, env, event, &mut child);
     let mut work = Queue::uncapped();
     let mut routed = tag_people(core, env, child, &mut work);
     assert!(work.is_empty(), "a keyed party terminal does not start a task route");
@@ -27,7 +27,7 @@ pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
 
 pub(super) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
+    crate::routing::step::step_tasks(core, env, event, &mut child);
     let mut routed = tag_task_outputs(core, env, child);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("task route count");
@@ -87,7 +87,7 @@ pub(super) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
 pub(super) fn tag_fleet(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut child: Queue<fleet::Request>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -99,7 +99,7 @@ pub(super) fn tag_fleet(
         let Some(next) = pending.pop() else { break };
         let request = match next {
             fleet::Request::ProgramTargets { source, workers } => {
-                work.push(Event::Account(accounts::Event::ProgramTargets { source, hosts: workers }));
+                work.push(Work::Event(Event::Account(accounts::Event::ProgramTargets { source, hosts: workers })));
                 continue;
             }
             fleet::Request::ProgramSignedOut { source, worker, result } => {
@@ -109,7 +109,11 @@ pub(super) fn tag_fleet(
                     fleet::ProgramResult::Lost => accounts::ProgramResult::Lost,
                     fleet::ProgramResult::Failed => accounts::ProgramResult::Failed,
                 };
-                work.push(Event::Account(accounts::Event::ProgramSignedOut { source, host: worker, result }));
+                work.push(Work::Event(Event::Account(accounts::Event::ProgramSignedOut {
+                    source,
+                    host: worker,
+                    result,
+                })));
                 continue;
             }
             fleet::Request::Sources { channel, sources } => Request::Held(Box::new(Held::Sources { channel, sources })),
@@ -141,12 +145,7 @@ pub(super) fn tag_fleet(
                 // core has the complete proofs needed to reject a stale run.
                 if core.start_opened() && !claimed {
                     let mut follow = Queue::uncapped();
-                    fleet::step(
-                        &mut core.fleet,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.fleet },
-                        fleet::Event::Cancel { run, attempt },
-                        &mut follow,
-                    );
+                    crate::routing::step::step_fleet(core, env, fleet::Event::Cancel { run, attempt }, &mut follow);
                     for _ in 0..follow.len() {
                         pending.push(follow.pop().expect("fenced listing output count"));
                     }
@@ -271,12 +270,7 @@ pub(super) fn tag_fleet(
                         &mut out,
                     );
                     let mut cancelled = Queue::uncapped();
-                    fleet::step(
-                        &mut core.fleet,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.fleet },
-                        fleet::Event::Cancel { run, attempt },
-                        &mut cancelled,
-                    );
+                    crate::routing::step::step_fleet(core, env, fleet::Event::Cancel { run, attempt }, &mut cancelled);
                     for _ in 0..cancelled.len() {
                         pending.push(cancelled.pop().expect("cancelled placement outputs"));
                     }
@@ -373,12 +367,7 @@ pub(super) fn tag_fleet(
             }
             fleet::Request::Turned { run, attempt, turn, body } if core.stopping => {
                 let mut follow = Queue::uncapped();
-                fleet::step(
-                    &mut core.fleet,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.fleet },
-                    fleet::Event::TurnBusy { run, attempt, turn },
-                    &mut follow,
-                );
+                crate::routing::step::step_fleet(core, env, fleet::Event::TurnBusy { run, attempt, turn }, &mut follow);
                 for _ in 0..follow.len() {
                     pending.push(follow.pop().expect("busy turn outputs"));
                 }
@@ -445,7 +434,7 @@ fn append_account(core: &mut Core, env: &Env<Limits>, event: accounts::Event, ou
 pub(super) fn tag_account(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut child: Queue<accounts::Request>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -502,7 +491,7 @@ pub(super) fn tag_account(
             // People keeps the answer under the party's key, and replies once it is durable.
             accounts::Request::Answer { request, answer } => {
                 let outcome = super::account_requests::outcome(core, answer);
-                work.push(Event::People(people::Event::Decided { request, outcome }));
+                work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
             }
         }
     }
@@ -562,17 +551,12 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
 pub(super) fn route_account(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: accounts::Event,
 ) -> Queue<Request> {
     let party = account_party(core, &event);
     let mut out = Queue::uncapped();
-    accounts::step(
-        &mut core.accounts,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.accounts },
-        event,
-        &mut out,
-    );
+    crate::routing::step::step_accounts(core, env, event, &mut out);
     core.touch_deployment();
     core.touch_run_waits();
     core.touch_accounts(party);
@@ -581,19 +565,14 @@ pub(super) fn route_account(
 
 pub(super) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::GatherEvent) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    brief::gather_step(
-        &mut core.brief,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.brief },
-        event,
-        &mut out,
-    );
+    crate::routing::step::step_brief(core, env, event, &mut out);
     tag_brief(core, env, out)
 }
 
 pub(super) fn route_fleet(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut event: fleet::Event,
 ) -> Queue<Request> {
     if let fleet::Event::Start { run, attempt, placement: Some(placement), .. } = &event
@@ -672,7 +651,7 @@ pub(super) fn route_fleet(
     let shape = host_shape(&event);
     let draining = draining_hosts(core);
     let mut out = Queue::uncapped();
-    fleet::step(&mut core.fleet, &Env { now: env.now, wall: env.wall, limits: env.limits.fleet }, event, &mut out);
+    crate::routing::step::step_fleet(core, env, event, &mut out);
     if shape || draining != draining_hosts(core) {
         core.touch_accounts(None);
     }
@@ -767,7 +746,7 @@ fn draining_hosts(core: &Core) -> u32 {
 fn append_fleet(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: fleet::Event,
     out: &mut Queue<Request>,
 ) {

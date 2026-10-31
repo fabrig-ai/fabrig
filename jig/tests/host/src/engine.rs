@@ -19,6 +19,7 @@
 //! the refusal it expects for one beyond the limits and none other, and that
 //! what an answer says landed or saved names the workspace's items.
 
+use jig_domain_host::ToAgent;
 use jig_domain_host::{LinkDown, LinkUp};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -207,21 +208,23 @@ impl Engine {
             }
             Request::Up(LinkUp::Call { run, attempt, call, .. }) => self.relay(run, attempt, call),
 
-            Request::Up(LinkUp::Turn { .. }) | Request::AcknowledgeAgentTurn { .. } => {
+            Request::Up(LinkUp::Turn { .. }) | Request::Agent(ToAgent::Acknowledge { .. }) => {
                 unreachable!("turns are exercised by turn_world")
             }
             Request::Hello { .. }
             | Request::CancelRelay { .. }
             | Request::Prepare { .. }
             | Request::Abort { .. }
-            | Request::Start { .. }
-            | Request::Message { .. }
-            | Request::Reply { .. }
-            | Request::Stop { .. }
+            | Request::Agent(
+                ToAgent::Start { .. }
+                | ToAgent::Message { .. }
+                | ToAgent::Answer { .. }
+                | ToAgent::Cancel { .. }
+                | ToAgent::Grant { .. },
+            )
             | Request::Deliver { .. }
             | Request::Save { .. }
-            | Request::Release { .. }
-            | Request::Grant { .. } => {
+            | Request::Release { .. } => {
                 unreachable!("for the top level or the parent")
             }
         }

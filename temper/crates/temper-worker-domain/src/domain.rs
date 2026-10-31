@@ -33,7 +33,7 @@ use crate::workspace::{Items, Workspace};
 /// child domains emit within an entry point.
 #[derive(Debug)]
 pub struct Domain {
-    pub(crate) host: host::Domain,
+    pub(crate) host: host::Hub,
     pub(crate) checkout: checkout::Domain,
     pub(crate) agent: agent::Domain,
     /// The agents smith started, by their runs' tokens.
@@ -149,7 +149,7 @@ impl Domain {
         let slots = limits.host.slots;
         let agents = limits.agent.agents;
         Domain {
-            host: host::Domain::new(&limits.host),
+            host: host::Hub::new(&limits.host),
             checkout: checkout::Domain::new(&limits.checkout),
             agent: agent::Domain::new(&limits.agent),
             agents: Map::with_capacity(agents),
@@ -176,7 +176,7 @@ impl Domain {
 
     /// The host child domain, for a world to look at.
     #[must_use]
-    pub const fn host(&self) -> &host::Domain {
+    pub const fn host(&self) -> &host::Hub {
         &self.host
     }
 

@@ -1,4 +1,5 @@
 //! Held loads serialize marks over one ended conversation (people.md, 6).
+use crate::routing::Work;
 use crate::{Core, Event, Limits, Request};
 use jig_domain_people as people;
 use skein_lib::{Env, Queue, Token};
@@ -12,7 +13,7 @@ pub(crate) struct Loaded {
     pub owner: Option<crate::forget::Owner>,
 }
 
-pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, answer: Answer) -> Queue<Request> {
+pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, answer: Answer) -> Queue<Request> {
     let Answer { request, task, party, through, busy } = answer;
     let Some(mark) = core.ended_marks.remove(&request) else { return Queue::uncapped() };
     let Some((person, people::Seen::Conversation { task: number, through: wanted })) =
@@ -22,15 +23,15 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>
     };
     assert!(person == party && number == task && mark.task == task && mark.party == party, "correlated ended position");
     if busy {
-        work.push(Event::People(people::Event::Decided {
+        work.push(Work::Event(Event::People(people::Event::Decided {
             request,
             outcome: people::Outcome::Again(people::Again::Busy),
-        }));
+        })));
         return Queue::uncapped();
     }
     let mut child = Queue::uncapped();
     core.people.mark_ended(
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
+        &env.with(env.limits.people),
         people::EndedMark { request, project: mark.project, last_reply: mark.last_reply, seen: through },
         &mut child,
     );

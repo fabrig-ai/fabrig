@@ -1074,7 +1074,6 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::People(_)
             | Work::Fleet(_)
             | Work::Brief(_)
-            | Work::StartBrief { .. }
             | Work::Forge(_)
             | Work::ProjectGoal(_)
             | Work::AgreedGoal(_)

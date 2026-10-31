@@ -1046,7 +1046,7 @@ fn a_retained_turn_retry_fires_at_the_watermark() {
     step(
         &mut domain,
         &env,
-        Event::Host(host::Event::Turn {
+        Event::Host(host::Event::Agent(host::FromAgent::Turn {
             owner,
             turn: host::Turn {
                 turn: TURN,
@@ -1056,7 +1056,7 @@ fn a_retained_turn_retry_fires_at_the_watermark() {
                 refused: Box::new([]),
                 body: b"kept turn".as_slice().into(),
             },
-        }),
+        })),
     );
     take(&mut domain, &env);
     crate::turn_backoff::busy(&mut domain, &env, RUN, ATTEMPT, TURN);

@@ -1,6 +1,7 @@
 //!  Worker host peers: engine commits, a lossy link, and an
 //! agent and workspace that settle through the host's requests.
 
+use jig_domain_host::FromAgent;
 use jig_domain_host::{AnsweredCall, DeliveryOutcome, Ending, Failure, Reason, RunFailure, SettledAnswer};
 use jig_host_world::turn_world::World;
 use skein_lib::{Duration, Token};
@@ -213,7 +214,10 @@ fn a_relayed_error_reaches_the_agent_as_an_error() {
     let mut world = World::new();
     world.assign(false);
     world.relay_answer(jig_domain_host::Relayed::Answer { error: true, text: Box::from(&b"denied"[..]) });
-    assert_eq!(world.reply(), Some(&jig_domain_host::Reply::Relayed { error: true, text: Box::from(&b"denied"[..]) }));
+    assert_eq!(
+        world.reply(),
+        Some(&jig_domain_host::CallAnswer::Relayed { error: true, text: Box::from(&b"denied"[..]) })
+    );
 }
 
 #[test]
@@ -221,7 +225,7 @@ fn a_relayed_busy_reaches_the_agent_as_busy() {
     let mut world = World::new();
     world.assign(false);
     world.relay_answer(jig_domain_host::Relayed::Busy);
-    assert_eq!(world.reply(), Some(&jig_domain_host::Reply::Busy));
+    assert_eq!(world.reply(), Some(&jig_domain_host::CallAnswer::Busy));
 }
 
 #[test]
@@ -425,8 +429,8 @@ fn live_world() -> World {
     world
 }
 
-fn count(count: u64) -> jig_domain_host::Activity {
-    jig_domain_host::Activity::Count {
+fn count(count: u64) -> jig_domain_host::AgentActivity {
+    jig_domain_host::AgentActivity::Count {
         kind: jig_domain_host::CountKind::TextArrived,
         elapsed: Duration::from_nanos(17),
         count,
@@ -490,9 +494,9 @@ fn a_notice_of_a_fenced_attempt_is_dropped() {
     world.hold_stop();
     world.shutdown();
     world.reports.clear();
-    world.agent_report(jig_domain_host::FromAgent::Unauthorized { owner, account: 7, generation: 4 });
-    world.agent_report(jig_domain_host::FromAgent::Limited { owner, account: 7, reset: Some(Duration::from_secs(5)) });
-    world.agent_report(jig_domain_host::FromAgent::AccountRefused {
+    world.agent_report(FromAgent::Unauthorized { owner, account: 7, generation: 4 });
+    world.agent_report(FromAgent::Limited { owner, account: 7, reset: Some(Duration::from_secs(5)) });
+    world.agent_report(FromAgent::AccountRefused {
         owner,
         account: 7,
         code: Box::from(&b"forbidden"[..]),
@@ -507,8 +511,8 @@ fn a_notice_of_a_fenced_attempt_is_dropped() {
 #[test]
 fn a_long_operation_reaches_the_link() {
     let mut world = live_world();
-    let activity = jig_domain_host::Activity::Long {
-        operation: jig_domain_host::Operation::Completion,
+    let activity = jig_domain_host::AgentActivity::Long {
+        operation: jig_domain_host::AgentOperation::Completion,
         span: Duration::from_secs(37),
     };
     world.activity(activity);

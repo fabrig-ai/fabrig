@@ -533,17 +533,8 @@ impl Application for Testing {
                         .map(|event| Input::Event(root::Event::Core(event)))
                         .collect()
                 }
-                Delivery::Now(core::Now::StartPreparation { task, from: None, .. }) => {
-                    let rows = jig_conformance::core::peers::transcript(&std::collections::BTreeMap::new(), task, None)
-                        .expect("new conversation has no transcript window");
-                    vec![Input::Event(root::Event::TranscriptLoaded {
-                        task,
-                        rows: rows.into_iter().map(|row| (row, None)).collect(),
-                        done: true,
-                    })]
-                }
                 Delivery::Now(
-                    now @ (core::Now::StartPreparation { from: Some(_), .. }
+                    now @ (core::Now::StartPreparation { .. }
                     | core::Now::SeenConversation { .. }
                     | core::Now::LoadEndedRead { .. }
                     | core::Now::HistoricalPersonTask { .. }

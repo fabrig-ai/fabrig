@@ -18,6 +18,7 @@ fn preparing() -> (Core, Limits) {
     context.dependencies = Box::new([DEPENDENCY]);
     context.spec.inputs = Box::new([INPUT]);
     core.contexts.insert(PREPARING, context).unwrap();
+    core.begin_transcript(PREPARING, 0);
     (core, limits)
 }
 
@@ -35,7 +36,14 @@ pub(super) fn requested(out: &[Request], wanted: u64) -> Token {
 }
 
 fn start(core: &mut Core, limits: &Limits) -> Token {
-    requested(&watch_outputs(core, limits, Event::StartBrief { task: PREPARING }), DEPENDENCY)
+    requested(
+        &watch_outputs(
+            core,
+            limits,
+            Event::TranscriptLoaded { task: PREPARING, load: TranscriptLoad::Page { rows: Box::new([]), done: true } },
+        ),
+        DEPENDENCY,
+    )
 }
 
 fn ended(number: u64) -> Box<tasks::TaskRecord> {

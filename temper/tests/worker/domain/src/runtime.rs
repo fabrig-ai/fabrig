@@ -316,7 +316,7 @@ impl World {
         self.stats.copies += 1;
     }
 
-    fn answered(&mut self, answer: &host::Answer, work: &wire::Work) {
+    fn answered(&mut self, answer: &host::RunAnswer, work: &wire::Work) {
         assert_eq!(answer.turns, u32::try_from(self.observed.len()).expect("bounded"));
         let host::Ending::Parked { .. } = &answer.ending else { panic!("script only parks: {answer:?}") };
         assert_eq!(work.saved.is_some(), !self.settings.merging, "a merge in progress saves nothing");

@@ -4,6 +4,7 @@
 use super::refusals::note_person_refusal;
 use super::runs::call_decision;
 use super::{NoteBrief, NoteRoute};
+use crate::routing::Work;
 use crate::{CallPart, Core, Event, Held, Key, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -15,11 +16,11 @@ use skein_lib::{Env, List, Queue, Token};
 pub(super) fn route_notes(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: notes::Event,
 ) -> Queue<Request> {
     let mut child = Queue::uncapped();
-    notes::step(&mut core.notes, &Env { now: env.now, wall: env.wall, limits: env.limits.notes }, event, &mut child);
+    crate::routing::step::step_notes(core, env, event, &mut child);
     tag_notes(core, work, child)
 }
 
@@ -59,7 +60,7 @@ pub(super) fn person_note_change(change: people::NoteChange) -> notes::Change {
     }
 }
 
-pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Queue<notes::Request>) -> Queue<Request> {
+pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Work>, mut child: Queue<notes::Request>) -> Queue<Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("note output count") {
@@ -72,18 +73,18 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Que
                 Some(NoteRoute::Call { to, key }) => {
                     call_decision(core, &mut out, to, key, CallPart::NoteWritten { name, revision });
                 }
-                Some(NoteRoute::Person { request }) => work.push(Event::People(people::Event::Decided {
+                Some(NoteRoute::Person { request }) => work.push(Work::Event(Event::People(people::Event::Decided {
                     request,
                     outcome: people::Outcome::NoteEdited { name },
-                })),
+                }))),
                 Some(NoteRoute::Brief { .. }) => unreachable!("an index cannot write an entry"),
                 None => unreachable!("a note write has a waiting caller"),
             },
             notes::Request::Deleted { owner, name } => match core.note_routes.remove(&owner) {
-                Some(NoteRoute::Person { request }) => work.push(Event::People(people::Event::Decided {
+                Some(NoteRoute::Person { request }) => work.push(Work::Event(Event::People(people::Event::Decided {
                     request,
                     outcome: people::Outcome::NoteEdited { name },
-                })),
+                }))),
                 Some(NoteRoute::Call { .. } | NoteRoute::Brief { .. }) | None => {
                     unreachable!("only a party deletes a note")
                 }
@@ -98,7 +99,7 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Que
                 }
             },
             notes::Request::Indexed { owner, lines, more } => match core.note_routes.remove(&owner) {
-                Some(NoteRoute::Brief { task }) => work.push(Event::BriefNotes { task, lines, more }),
+                Some(NoteRoute::Brief { task }) => work.push(Work::BriefNotes { task, lines, more }),
                 Some(NoteRoute::Call { .. } | NoteRoute::Person { .. }) | None => {
                     unreachable!("brief preparation owns note index")
                 }
@@ -119,7 +120,10 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Que
                     }
                 },
                 Some(NoteRoute::Person { request }) => {
-                    work.push(Event::People(people::Event::Decided { request, outcome: note_person_refusal(why) }));
+                    work.push(Work::Event(Event::People(people::Event::Decided {
+                        request,
+                        outcome: note_person_refusal(why),
+                    })));
                 }
                 Some(NoteRoute::Brief { task }) => match why {
                     notes::Refusal::Busy => {
@@ -137,13 +141,18 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Que
                     | notes::Refusal::Missing
                     | notes::Refusal::Moved { .. }
                     | notes::Refusal::RevisionExhausted => {
-                        work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
+                        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
                     }
                 },
                 None => out.push(Request::Now(Box::new(Now::NotesRefused { owner, why }))),
             },
         }
     }
+    resume_brief(core, work);
+    out
+}
+
+fn resume_brief(core: &mut Core, work: &mut Queue<Work>) {
     if !core.notes.busy() {
         let mut waiting = None;
         for (&task, state) in &core.pending_note_briefs {
@@ -154,19 +163,18 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Que
         }
         if let Some(task) = waiting {
             let _pending = core.pending_note_briefs.remove(&task);
-            work.push(Event::StartBrief { task });
+            work.push(Work::StartBrief { task });
         }
     }
-    out
 }
 
-fn defer_brief(core: &mut Core, work: &mut Queue<Event>, task: u64) {
+fn defer_brief(core: &mut Core, work: &mut Queue<Work>, task: u64) {
     super::result_reads::clear(core, task);
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
     drop(core.transcripts.remove(&task));
     core.pending_note_briefs.insert(task, NoteBrief::Activation).expect("brief count bounds deferred activations");
-    work.push(Event::Tasks(tasks::Event::PreparationWaiting { task }));
+    work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
 }
 
 pub(super) fn recalled_part(core: &Core, task: u64, entries: List<notes::Entry>, more: bool) -> CallPart {
@@ -184,7 +192,7 @@ pub(super) fn recalled_part(core: &Core, task: u64, entries: List<notes::Entry>,
 #[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn edit_note_request(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -198,11 +206,14 @@ pub(super) fn edit_note_request(
         people::NoteChange::Delete { .. } => crate::acts::Act::DeleteNote,
     };
     if let Err(why) = crate::acts::note(core, person, project, &scope, act) {
-        work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+        work.push(Work::Event(Event::People(people::Event::Decided {
+            request,
+            outcome: people::Outcome::Refused(why),
+        })));
     } else {
         let owner = core.begin_note_route(NoteRoute::Person { request });
         let scope = person_note_scope(project, *scope);
         let change = person_note_change(change);
-        work.push(Event::Notes(notes::Event::Edit { owner, party: person, name, scope, change }));
+        work.push(Work::Event(Event::Notes(notes::Event::Edit { owner, party: person, name, scope, change })));
     }
 }

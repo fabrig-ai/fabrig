@@ -3,7 +3,7 @@ use super::*;
 use crate::payload::Payload;
 use core::mem::size_of;
 
-fn empty() -> OwnerDeployment {
+pub(super) fn empty() -> OwnerDeployment {
     OwnerDeployment {
         providers: List::with_capacity(0),
         providers_cut: false,
@@ -40,7 +40,11 @@ fn chip(number: u64) -> Chip {
         title: DocumentText::complete(text(b"task")),
         executor: Executor::Agent { charter: 1 },
         phase: Phase::Waiting,
-        details: Box::new(ChipPhase::Waiting { dependencies: List::with_capacity(2), hold: None }),
+        details: Box::new(chip_details(OwnerChipPhase::Waiting {
+            dependencies: list(vec![]),
+            more: false,
+            holds: false,
+        })),
     }
 }
 fn run(task: OwnerTaskLink, state: OwnerAttemptState, location: OwnerRunLocation) -> OwnerHostRun {
@@ -401,7 +405,7 @@ fn deployment_heap_counts_every_reserved_list_box_chip_text_and_exact_carrier_th
     let bounds = Bounds { rows: 2, text: 4, ..Bounds::default() };
     assert_eq!(value.heap(&bounds), Some(u64::try_from(capacity_bytes).unwrap()));
     let item = chip(7);
-    let chip_heap = size_of::<ChipPhase>() + 4 + 2 * size_of::<u64>();
+    let chip_heap = size_of::<ChipPhase>() + size_of::<OwnerChipDetails>() + 4;
     value
         .hosts
         .push(OwnerHost {

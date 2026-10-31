@@ -1,4 +1,4 @@
-use super::{ClientId, Event, Reply, Session, Time, Wall, core, packets, people, root};
+use super::{ClientId, Event, Session, Time, Wall, packets, people};
 impl Session {
     /// Retry sign-in using the supplied identity, not the expected party number.
     pub fn sign_in(&mut self, client: ClientId, now: Time, wall: Wall) {
@@ -6,8 +6,9 @@ impl Session {
         self.unsigned.remove(&client);
         self.sign_in_again.remove(&client);
         self.sign_in_failures.remove(&client);
-        let event = self.driver.transport.start_sign_in(client);
-        self.source(now, wall, root::Event::Core(event));
+        self.component.clock(now, wall);
+        self.component.sign_in(client, self.driver.transport.identity(client));
+        self.pump(now, wall).expect("component sign-in");
     }
 
     /// The source terminal of the latest provider exchange. It establishes no
@@ -33,8 +34,9 @@ impl Session {
             return;
         }
         let Some(sign_in) = self.driver.transport.sign_in(client) else { return };
-        let reply_to = self.driver.transport.reply_to(Reply::SignOut { client, sign_in });
+        self.component.clock(now, wall);
         self.lifecycle.push(crate::harness::Observed::SignInEnded { client });
-        self.source(now, wall, root::Event::Core(core::Event::People(people::Event::SignOut { reply_to, sign_in })));
+        self.component.sign_out(client, sign_in);
+        self.pump(now, wall).expect("component sign-out");
     }
 }

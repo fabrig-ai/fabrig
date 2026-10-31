@@ -226,7 +226,7 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if !jig_domain_core::valid(limits) {
         problems.push(Path::root().member(b"limits"), What::Bound);
     }
-    if !jig_domain_host::valid(&engine.limits.hub) {
+    if !jig_domain_host::valid_hub(&engine.limits.hub) {
         problems.push(Path::root().member(b"limits"), What::Bound);
     }
 }

@@ -60,7 +60,7 @@ mod agreement {
         world.run();
         let (received, parts) = up(&world);
         let mut expected = fixtures::answer();
-        let host::LinkUp::Answer { answer: host::Answer { ending: host::Ending::Ended { work, .. }, .. }, .. } =
+        let host::LinkUp::Answer { answer: host::RunAnswer { ending: host::Ending::Ended { work, .. }, .. }, .. } =
             &mut expected
         else {
             panic!("ended")
@@ -81,7 +81,10 @@ mod agreement {
         host::LinkUp::Activity {
             run: RUN_SEVEN,
             attempt: ATTEMPT_TWO,
-            activity: host::Activity::Long { operation: host::Operation::Command, span: Duration::from_secs(2) },
+            activity: host::AgentActivity::Long {
+                operation: host::AgentOperation::Command,
+                span: Duration::from_secs(2),
+            },
         }
     }
     #[test]

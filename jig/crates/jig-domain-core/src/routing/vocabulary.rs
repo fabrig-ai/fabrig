@@ -288,8 +288,8 @@ pub enum Now {
     /// Ask the root for its current readiness before a due activation route.
     Activate { context: Box<tasks::RunContext> },
     /// Reserve the root's transcript read slot for an admitted agent run.
-    PrepareAgent { context: Box<tasks::RunContext> },
-    /// Load the current window in key order from its first turn; None loads nothing.
+    PrepareAgent { context: Box<tasks::RunContext>, load_transcript: bool },
+    /// Load the current transcript window in key order from its first turn.
     StartPreparation { task: u64, transcript_waiter: Option<Token>, from: Option<(u64, u32)> },
     /// Load one proposal decision that has left live task memory.
     SeenConversation { request: Token, task: u64 },
@@ -503,10 +503,6 @@ pub enum Event {
     Tasks(tasks::Event),
     /// An application asks for one admitted recurring core procedure.
     StartRecurring { project: u32, authority: tasks::Authority, template: tasks::RecurringTemplate },
-    /// Begin core-owned brief planning for one preparing task.
-    StartBrief { task: u64 },
-    /// The notes child supplied the brief's bounded index before connector gathering.
-    BriefNotes { task: u64, lines: List<notes::Line>, more: u32 },
     /// The root assembled all selected connector sections, or found a missing owner.
     BriefAssembled { task: u64, ready: bool },
     /// The root translated the selected connector's workspace writes.
@@ -525,10 +521,8 @@ pub enum Event {
     },
     /// A new deployment funding period, checked against core policy.
     Period { project: u32, period: u64, budget: u64, next: Option<Wall> },
-    /// A required preparation read or connector section could not be assembled.
-    PreparationFailed { task: u64 },
-    /// The store could not read the current transcript window.
-    TranscriptUnread { task: u64 },
+    /// One page or terminal outcome of the transcript load requested by the core.
+    TranscriptLoaded { task: u64, load: TranscriptLoad },
     /// Party identity or request.
     People(people::Event),
     /// Host, run or attempt.
@@ -572,8 +566,6 @@ pub enum Event {
     Activate { context: Box<tasks::RunContext>, ready: bool },
     /// The root's transcript slot reservation for an admitted agent run.
     PreparedAgent { context: Box<tasks::RunContext>, transcript_waiter: Option<Token>, busy: bool },
-    /// Forget a fully read ended task and its read marker in one decision.
-    Forget { owner: crate::forget::Owner },
     /// Return the ended owner header for an authenticated conversation mark.
     SeenConversationLoaded { request: Token, row: Option<Box<tasks::TaskRecord>>, busy: bool },
     /// The ended position loaded for an authenticated mark, zero if absent.
@@ -836,22 +828,18 @@ impl Event {
             | Self::RunCall { .. }
             | Self::RunInput { .. }
             | Self::RunText { .. }
-            | Self::StartBrief { .. }
-            | Self::BriefNotes { .. }
             | Self::BriefAssembled { .. }
             | Self::WorkspacePrepared { .. }
             | Self::ClaimPrepared { .. }
             | Self::ClaimRefused { .. }
             | Self::ConnectorRepair { .. }
-            | Self::PreparationFailed { .. }
-            | Self::TranscriptUnread { .. }
+            | Self::TranscriptLoaded { .. }
             | Self::TurnPayload { .. }
             | Self::AnswerPayload { .. }
             | Self::AcceptedTurn { .. }
             | Self::RefusedPayload { .. }
             | Self::Activate { .. }
             | Self::PreparedAgent { .. }
-            | Self::Forget { .. }
             | Self::SeenConversationLoaded { .. }
             | Self::EndedReadLoaded { .. }
             | Self::DecidedProposal { .. }
@@ -1141,4 +1129,40 @@ mod admission_tests {
             assert_eq!(timer.new_work(), new, "the timer's work fixes its admission");
         }
     }
+}
+
+/// Core-owned continuations drained within one decision (jig/docs/design/domain/engine.md, 4.3).
+#[derive(Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "public entrances move through the decision queue without a separate allocation"
+)]
+pub(crate) enum Work {
+    Event(Event),
+    /// A required preparation read or connector section could not be assembled.
+    PreparationFailed {
+        task: u64,
+    },
+    /// Begin core-owned brief planning for one preparing task.
+    StartBrief {
+        task: u64,
+    },
+    /// Forget a fully read ended task and its read marker in one decision.
+    Forget {
+        owner: crate::forget::Owner,
+    },
+    /// The notes child supplied the brief's bounded index before connector gathering.
+    BriefNotes {
+        task: u64,
+        lines: List<notes::Line>,
+        more: u32,
+    },
+}
+
+/// The store transport's transcript answer (jig/docs/design/domain/engine.md, 4.1 and 7.2).
+#[derive(Debug)]
+pub enum TranscriptLoad {
+    Page { rows: Box<[crate::TranscriptRow]>, done: bool },
+    Unread,
+    Failed,
 }

@@ -48,7 +48,7 @@ pub fn answer() -> host::LinkUp {
     host::LinkUp::Answer {
         run: RUN,
         attempt: ATTEMPT,
-        answer: host::Answer {
+        answer: host::RunAnswer {
             turns: 1,
             spent: 12,
             read: Some(Token::new(7)),

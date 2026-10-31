@@ -2,6 +2,7 @@
 //! (`domain/engine.md`, sections 5.3 and 9).
 
 use super::amendment_reads::{self, AmendmentRead, Replay};
+use crate::routing::Work;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token};
@@ -56,7 +57,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
     }
 }
 
-pub(super) fn begin(core: &mut Core, work: &mut Queue<Event>, task: u64, ids: Box<[u64]>) -> Queue<Request> {
+pub(super) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box<[u64]>) -> Queue<Request> {
     let mut out = Queue::uncapped();
     for (_, read) in &core.result_reads {
         match read.why {
@@ -67,7 +68,7 @@ pub(super) fn begin(core: &mut Core, work: &mut Queue<Event>, task: u64, ids: Bo
         }
     }
     if core.result_reads.len() == core.result_reads.capacity() {
-        work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
+        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
     } else {
         let request = Token::new(core.next_result_request);
         core.next_result_request = core.next_result_request.checked_add(1).expect("transient result request space");
@@ -97,7 +98,7 @@ fn ask(out: &mut Queue<Request>, request: Token, read: &ResultRead) {
 pub(super) fn loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     row: Option<Box<tasks::TaskRecord>>,
     busy: bool,
@@ -108,7 +109,7 @@ pub(super) fn loaded(
     match read.why {
         ReadFor::DeploymentClose { request, project } => {
             let outcome = closed_outcome(project, *read.ids.first().expect("one close subject"), row, busy);
-            work.push(Event::People(jig_domain_people::Event::Decided { request, outcome }));
+            work.push(Work::Event(Event::People(jig_domain_people::Event::Decided { request, outcome })));
         }
         ReadFor::Amendment(mut amendment) => {
             if !amendment_reads::current(core, &amendment.replay) {
@@ -172,7 +173,7 @@ pub(super) fn loaded(
                 }
             };
             let Some(result) = result else {
-                work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
+                work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
                 return out;
             };
             read.results.push(result).expect("one result per ID");
@@ -185,7 +186,7 @@ pub(super) fn loaded(
                     core.dependency_results.insert(task, read.results.into_boxed()).is_ok(),
                     "live task results room"
                 );
-                work.push(Event::StartBrief { task });
+                work.push(Work::StartBrief { task });
             }
         }
     }
@@ -195,7 +196,7 @@ pub(super) fn loaded(
 /// Holds only transient replay inputs; no call record or task change precedes the load.
 pub(super) fn wait(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     next: u64,
     amendment: AmendmentRead,
@@ -245,17 +246,17 @@ pub(super) fn clear_person(core: &mut Core, person: u64) {
 /// A close of an archived chat uses the existing durable ended-task point load.
 pub(super) fn closed_subject(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     project: u32,
     task: u64,
 ) {
     if core.result_reads.len() == core.result_reads.capacity() {
-        work.push(Event::People(jig_domain_people::Event::Decided {
+        work.push(Work::Event(Event::People(jig_domain_people::Event::Decided {
             request,
             outcome: jig_domain_people::Outcome::Again(jig_domain_people::Again::Busy),
-        }));
+        })));
         return;
     }
     let load = Token::new(core.next_result_request);
