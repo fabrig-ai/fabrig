@@ -8,7 +8,7 @@ pub(crate) mod amendment_reads;
 pub(crate) mod application_routes;
 pub(crate) mod create;
 pub(crate) mod deadlines;
-mod deployment_acts;
+pub(crate) mod deployment_acts;
 pub(crate) mod key_routes;
 pub(crate) mod party_inputs;
 mod propose;
@@ -63,7 +63,7 @@ mod parties;
 mod party_controls;
 mod party_decisions;
 #[path = "people.rs"]
-mod people_routes;
+pub(crate) mod people_routes;
 pub(crate) mod procedure_steps;
 mod projects;
 mod proposal_revisions;
@@ -464,6 +464,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Requests {
     let mut work = Queue::uncapped();
     let Requests::Out(mut out) = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
+    crate::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
     Requests::Out(out)
 }
@@ -482,7 +483,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
             settings::propose_start(core, env, work, reply_to, sign_in, key, digest, *change)
         }
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
-        Event::ProjectReleased { .. } => crate::stopping::empty(),
+        Event::ProjectReleased { connector, project } => crate::deletion::released(core, env, connector, project),
         Event::Fill { bytes } => {
             core.fill = bytes;
             crate::stopping::empty()
@@ -530,7 +531,13 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::RunText { run, attempt, turn, retry, offset, text, call } => {
             view_routes::run_text(core, env, run, attempt, turn, retry, offset, text, call)
         }
-        Event::Tasks(event) => route_tasks(core, env, work, event),
+        Event::Tasks(event) => {
+            let Requests::Out(mut out) = route_tasks(core, env, work, event);
+            if !core.deletions.in_route() {
+                crate::deletion::advance(core, env, &mut out);
+            }
+            Requests::Out(out)
+        }
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
@@ -715,4 +722,33 @@ pub(crate) fn tag_ended_mark(
     work: &mut Queue<Event>,
 ) -> Requests {
     people_routes::tag_people(core, env, child, work)
+}
+
+/// Drain deletion's bounded sibling decisions without a new root input or extent.
+pub(crate) fn deletion_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<Request>) {
+    children::append_people(core, env, event, out);
+}
+
+/// Drain deletion's bounded sibling decisions without a new root input or extent.
+pub(crate) fn deletion_event(core: &mut Core, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    let previous = core.deletions.route(true);
+    let mut work = Queue::uncapped();
+    work.push(event);
+    for _ in 0..env.limits.routes {
+        let Some(event) = work.pop() else { break };
+        let Requests::Out(mut batch) = step_one(core, env, event, &mut work);
+        for _ in 0..batch.len() {
+            let request = batch.pop().expect("deletion child output count");
+            match request {
+                Request::Decided => {}
+                request @ (Request::ProjectMade { .. }
+                | Request::Write(_)
+                | Request::Ask { .. }
+                | Request::Held(_)
+                | Request::Now(_)) => out.push(request),
+            }
+        }
+    }
+    assert!(work.is_empty(), "deletion sibling routes drained");
+    let _previous = core.deletions.route(previous);
 }

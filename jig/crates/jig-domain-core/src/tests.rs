@@ -5,6 +5,7 @@ use crate::documents::*;
 use crate::*;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
+mod deletion;
 mod start;
 
 #[test]
