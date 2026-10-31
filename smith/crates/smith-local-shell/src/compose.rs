@@ -15,6 +15,9 @@ use skein_lib::Wall;
 use skein_shell::{Clock, Config, Kernel};
 use std::path::{Path, PathBuf};
 
+/// Kernel operations held by the result file owner.
+pub const RESULT_FILE_OPERATIONS: u32 = 4;
+
 /// The agent placement chosen by the product or supplied by a library host.
 #[derive(Clone)]
 pub enum AgentKind {
@@ -121,7 +124,7 @@ fn open_settings(
                 Refused::Local(startup::Failure::Configuration { detail: "local operation bound overflows".into() })
             })?;
     let operations = operations
-        .checked_add(if invocation.output.is_some() { 4 } else { 0 })
+        .checked_add(if invocation.output.is_some() { RESULT_FILE_OPERATIONS } else { 0 })
         .ok_or_else(|| Refused::Usage(Usage("the output operation bound overflows".into())))?;
     let mut kernel = Kernel::open(Config { operations })
         .map_err(|why| Refused::Local(startup::Failure::Host { detail: format!("local kernel: {why}") }))?;
@@ -192,11 +195,8 @@ fn compose(
     trace_admission(&resolved, &workspace)?;
     deliver_contract(&mut resolved.local, invocation.deliver);
     let WorkspaceRoots { paths, delivery_roots, effect_roots } = workspace_roots(&resolved.local, kind)?;
-    let host_limits = host_limits(&resolved.agent, matches!(kind, AgentKind::Spawned { .. })).map_err(|why| {
-        Refused::Local(startup::Failure::Configuration {
-            detail: String::from_utf8_lossy(&smith_agent_service::profile::words(&why)).into_owned(),
-        })
-    })?;
+    let host_limits = host_limits(&resolved.agent, matches!(kind, AgentKind::Spawned { .. }))
+        .map_err(|why| Refused::Local(startup::Failure::Configuration { detail: startup::profile_refusal(why) }))?;
     if matches!(kind, AgentKind::Spawned { .. }) {
         resolved.limits.agent = smith_local_domain::AgentLimits::Spawned(host_limits);
     }
@@ -586,76 +586,4 @@ fn run_opened(
 }
 
 #[cfg(test)]
-mod trace_admission_tests {
-    use super::*;
-
-    #[test]
-    fn trace_admission_resolves_existing_files_absent_files_and_aliases_before_opening() {
-        let scratch = smith_real_world::Scratch::new();
-        let chats = scratch.path().join("chats");
-        let chat = chats.join("old");
-        std::fs::create_dir_all(&chat).unwrap();
-        let state = chat.join("state");
-        std::fs::write(&state, b"older bytes").unwrap();
-        let outside = scratch.path().join("outside");
-        trace_outside(&outside, &chats).unwrap_or_else(|why| panic!("{}", why.line()));
-        assert!(!outside.exists(), "admission does not open an ordinary outside destination");
-        let alias = scratch.path().join("alias");
-        std::os::unix::fs::symlink(&chat, &alias).unwrap();
-        let link = scratch.path().join("linked-file");
-        std::os::unix::fs::symlink(&state, &link).unwrap();
-        for path in [&state, &chat.join("trace"), &alias.join("state"), &alias.join("trace"), &link] {
-            let Err(refused) = trace_outside(path, &chats) else {
-                panic!("trace inside chats must refuse");
-            };
-            assert_eq!(refused.code(), 2);
-            assert!(refused.line().contains("inside this workspace's chats tree"));
-            assert_eq!(std::fs::read(&state).unwrap(), b"older bytes");
-            assert!(!chat.join("trace").exists());
-        }
-    }
-}
-
-#[cfg(test)]
-mod configured_trace_tests {
-    use super::*;
-
-    #[test]
-    fn configured_local_and_generated_child_traces_are_admitted_before_any_open() {
-        let scratch = smith_real_world::Scratch::new();
-        let workspace = scratch.path().canonicalize().unwrap();
-        let paths =
-            settings::Paths { state_home: Some(scratch.path().join("state").into()), ..settings::Paths::default() };
-        let tree = chats_tree(&workspace, &paths).unwrap_or_else(|why| panic!("{}", why.line()));
-        let chat = tree.join("old");
-        std::fs::create_dir_all(&chat).unwrap();
-        std::fs::write(chat.join("state"), b"old state").unwrap();
-        let alias = scratch.path().join("alias");
-        std::os::unix::fs::symlink(&chat, &alias).unwrap();
-        let certificate =
-            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
-        for (path, allowed) in
-            [(scratch.path().join("outside"), true), (chat.join("state"), false), (alias.join("trace"), false)]
-        {
-            let source = settings::Source {
-                layer: settings::Layer::User,
-                path: "trace-admission.toml".into(),
-                text: format!(
-                    "model='codex/gpt-6-luna'\ntrace.path='{}'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n",
-                    path.display()
-                ),
-            };
-            let mut settings = settings::from_sources(&crate::command::Shared::default(), workspace.clone(), &[source])
-                .unwrap_or_else(|why| panic!("{}", why.line()));
-            settings.paths = paths.clone();
-            let (resolved, document) =
-                settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
-            let document: serde_json::Value = serde_json::from_slice(&document).unwrap();
-            assert_eq!(document["trace"]["path"].as_str(), path.to_str());
-            assert_eq!(trace_admission(&resolved, &workspace).is_ok(), allowed);
-            assert_eq!(std::fs::read(chat.join("state")).unwrap(), b"old state");
-            assert!(!chat.join("trace").exists());
-            assert!(!scratch.path().join("outside").exists());
-        }
-    }
-}
+mod tests;

@@ -8,7 +8,7 @@ use skein_shell::Host;
 use smith_local_service::{Accounts, CredentialRequest, Settled};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Stage {
+pub(super) enum State {
     SignIn,
     SignOut,
     Rollback,
@@ -18,7 +18,7 @@ pub(super) struct Login {
     pub driver: Accounts,
     pub name: String,
     pub outcome: Option<LoginOutcome>,
-    pub operation: Stage,
+    pub state: State,
     pub closing: bool,
     pub notice: bool,
     pub others: Vec<(String, std::path::PathBuf)>,
@@ -37,13 +37,13 @@ impl Login {
                         match sign_in::record(file) {
                             Ok(Some(record)) if record.subject.as_deref() == Some(subject.as_ref()) => {
                                 eprintln!("smith: account {}: already signed in as account {name}", self.name);
-                                self.operation = Stage::Rollback;
+                                self.state = State::Rollback;
                                 self.driver.sign_out(0);
                                 return;
                             }
                             Err(_) => {
                                 eprintln!("smith: account {name}: unreadable sign-in record");
-                                self.operation = Stage::Rollback;
+                                self.state = State::Rollback;
                                 self.driver.sign_out(0);
                                 return;
                             }
@@ -71,7 +71,7 @@ impl Login {
                 }
                 eprintln!("account {}: signed out", self.name);
                 self.outcome =
-                    Some(if self.operation == Stage::Rollback { LoginOutcome::Refused } else { LoginOutcome::Usable });
+                    Some(if self.state == State::Rollback { LoginOutcome::Refused } else { LoginOutcome::Usable });
             }
             Settled::Failed { failure, .. } => {
                 let refused = match failure {
@@ -92,12 +92,12 @@ impl Login {
                         eprintln!(
                             "account {}: {}",
                             self.name,
-                            if self.operation == Stage::SignOut { "not signed out" } else { "not signed in" }
+                            if self.state == State::SignOut { "not signed out" } else { "not signed in" }
                         );
                         false
                     }
                 };
-                self.outcome = Some(if refused || self.operation == Stage::Rollback {
+                self.outcome = Some(if refused || self.state == State::Rollback {
                     LoginOutcome::Refused
                 } else {
                     LoginOutcome::Unavailable

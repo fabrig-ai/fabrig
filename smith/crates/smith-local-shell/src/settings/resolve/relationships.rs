@@ -205,7 +205,7 @@ pub(super) fn profile(settings: &Settings, models: &[Model], why: profile::Refus
         | profile::Refusal::Environment { .. }
         | profile::Refusal::Connection(_)
         | profile::Refusal::Llm { .. } => {
-            let words = String::from_utf8(profile::words(&why).into_vec()).expect("native refusal is UTF-8");
+            let words = crate::startup::profile_refusal(why);
             input::refuse(settings, "deployment", &words)
         }
     }

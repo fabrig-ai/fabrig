@@ -4,8 +4,8 @@ use std::os::unix::fs::PermissionsExt;
 
 #[test]
 fn piped_keys_replace_privately() {
-    let files = Files::new();
-    let path = files.0.join("keys/work");
+    let files = Files::new("smith-credentials");
+    let path = files.path().join("keys/work");
     keep(&path, &mut b"key-for-work\n".as_slice(), false).unwrap();
     assert!(key::read(&path).unwrap().as_ref() == b"key-for-work", "trailing newline removed");
     assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
@@ -17,19 +17,19 @@ fn piped_keys_replace_privately() {
 
 #[test]
 fn terminal_input_is_refused() {
-    let files = Files::new();
-    assert!(keep(&files.0.join("work"), &mut b"key-for-work".as_slice(), true).is_err());
-    assert!(!files.0.join("work").exists());
+    let files = Files::new("smith-credentials");
+    assert!(keep(&files.path().join("work"), &mut b"key-for-work".as_slice(), true).is_err());
+    assert!(!files.path().join("work").exists());
 }
 
 #[test]
 fn empty_input_is_refused() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     for input in [b"".as_slice(), b"\n", b"key with spaces", b"key\n\n"] {
-        let result = keep(&files.0.join("work"), &mut &*input, false);
+        let result = keep(&files.path().join("work"), &mut &*input, false);
         assert!(result.is_err());
     }
-    assert!(!files.0.join("work").exists());
+    assert!(!files.path().join("work").exists());
 }
 
 #[test]

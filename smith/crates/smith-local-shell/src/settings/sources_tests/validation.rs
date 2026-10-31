@@ -77,14 +77,14 @@ fn credential_paths_use_only_the_supplied_environment() {
 
 #[test]
 fn program_documents_use_the_supplied_path() {
-    let files = Files::new();
-    let executable = files.0.join("claude");
+    let files = Files::new("smith-credentials");
+    let executable = files.path().join("claude");
     std::fs::write(&executable, b"#!/bin/sh\nexit 0\n").expect("scratch executable");
     std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
     let mut settings = resolution::configured(&files, "program", true);
     settings.values.remove("programs.claude_code");
-    settings.paths.path = Some(files.0.clone().into());
-    let (_, bytes) = resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
+    settings.paths.path = Some(files.path().to_path_buf().into());
+    let (_, bytes) = crate::fixture::ready(resolve::resolve_startup(&settings));
     let document: serde_json::Value = serde_json::from_slice(&bytes).expect("agent document");
     assert!(document["programs"]["claude_code"]["path"].as_str() == executable.to_str(), "supplied PATH used");
 }

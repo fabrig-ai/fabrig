@@ -121,7 +121,7 @@ impl Referee<Process> for Judge {
         let authenticated = procs.iter().any(|p| matches!(p, Process::Script(Proc::Issuer(_))));
         if authenticated && !self.saved && procs.iter().any(|p| matches!(p, Process::Script(Proc::Peer(p)) if smith_local_process_world::llm::queries(p).next().is_some())) {
             let bytes = std::fs::read(&self.tokens).expect("saved before grant use");
-            let record = skein_oauth::decode_record(&bytes, &smith_local_shell::local_host::token_limits()).expect("private token record");
+            let record = skein_oauth::decode_record(&bytes, &smith_local_shell::credentials::token_limits()).expect("private token record");
             let directory = self.tokens.ancestors().nth(3).expect("scratch credential path");
             assert!(record.access_token == fixture_access(directory), "token persists before provider query");
             self.saved = true;

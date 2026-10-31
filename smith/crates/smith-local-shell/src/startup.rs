@@ -77,7 +77,7 @@ pub(crate) fn service_limits(
     Ok(service::Limits { local, envelope_bytes: host.answer_bytes, process, queue, watermark: queue })
 }
 
-fn profile_refusal(refusal: smith_agent_service::profile::Refusal) -> String {
+pub(crate) fn profile_refusal(refusal: smith_agent_service::profile::Refusal) -> String {
     String::from_utf8(smith_agent_service::profile::words(&refusal).into_vec()).expect("refusal words are UTF-8")
 }
 

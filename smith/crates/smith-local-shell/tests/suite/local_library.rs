@@ -1,11 +1,10 @@
-use std::path::PathBuf;
-
 use skein_lib::{Duration, Wall};
 use skein_shell::Host;
 use smith_local_domain as local;
 use smith_local_process_world::credential_fixture;
 use smith_local_service as service;
-use smith_local_shell::local_host::{Local, Resources, token_limits};
+use smith_local_shell::credentials::token_limits;
+use smith_local_shell::local_host::{Local, Resources};
 
 fn configuration(root: skein_io::kernel::Fd) -> (service::Config, smith_agent_service::Config) {
     smith_local_process_world::process::configuration(root, false)
@@ -23,13 +22,13 @@ struct Invocation {
     output: skein_io::kernel::Fd,
     seen: Vec<u8>,
     closed: bool,
-    directory: PathBuf,
+    _scratch: skein_scratch::Scratch,
 }
 
 impl Invocation {
     fn new(name: &str, seed: u64) -> Self {
-        let directory = std::env::temp_dir().join(format!("smith-library-{}-{name}", std::process::id()));
-        std::fs::create_dir_all(&directory).expect("test directory");
+        let scratch = skein_scratch::Scratch::new(name);
+        let directory = scratch.path();
         let mut config = skein_sim::Config::calm();
         config.wall = skein_tls_world::pki::VALID;
         let mut sim = skein_sim::Sim::new(seed, config);
@@ -103,7 +102,7 @@ impl Invocation {
             output,
             seen: Vec::new(),
             closed: false,
-            directory,
+            _scratch: scratch,
         }
     }
 
@@ -178,12 +177,6 @@ impl Invocation {
         );
         self.sim.assert_quiescent(self.pid);
         self.sim.assert_no_open_fds(self.pid);
-    }
-}
-
-impl Drop for Invocation {
-    fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.directory));
     }
 }
 

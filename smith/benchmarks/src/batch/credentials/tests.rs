@@ -80,7 +80,7 @@ fn record(generation: u64) -> Box<[u8]> {
         earliest_refresh_at: None,
         metadata: None,
     };
-    skein_oauth::encode_record(&record, &smith_local_shell::local_host::token_limits()).expect("synthetic token")
+    skein_oauth::encode_record(&record, &smith_local_shell::credentials::token_limits()).expect("synthetic token")
 }
 
 #[test]

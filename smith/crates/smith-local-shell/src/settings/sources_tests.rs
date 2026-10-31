@@ -72,7 +72,7 @@ fn a_program_account_on_a_program_endpoint_resolves() {
         "model='codex/gpt-6-luna'\n[accounts.codex]\nsource='program'\n[endpoints.codex]\nprogram='claude_code'\n",
     )
     .expect("program selection");
-    assert_eq!(selected.accounts[0].source(), "program", "selected source");
+    assert_eq!(selected.accounts[0].source(), resolve::AccountSource::Program, "selected source");
 }
 
 #[test]

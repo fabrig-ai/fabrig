@@ -5,7 +5,7 @@ use crate::{settings, startup};
 use std::path::Path;
 
 pub(crate) fn program_account(accounts: &[settings::resolve::Account]) -> bool {
-    accounts.first().expect("main account is selected first").source() == "program"
+    accounts.first().expect("main account is selected first").source() == settings::resolve::AccountSource::Program
 }
 
 /// Price the child's validated teardown before selecting the host's grace.
@@ -88,20 +88,19 @@ mod tests {
         for (source, spawned) in
             [("program", true), ("key", false), ("env", false), ("sign_in", false), ("none", false)]
         {
-            let settings = settings::merge(
+            let settings = crate::fixture::ready(settings::merge(
                 &crate::command::Shared::default(),
                 "/workspace".into(),
                 &[settings::Source {
                     layer: settings::Layer::User,
                     path: "placement.toml".into(),
-                    text: format!("model='anthropic/claude-opus-5-5'\n[accounts.anthropic]\nsource='{source}'\n[endpoints.anthropic]\nprogram='claude_code'\n"),
+                    text: format!(
+                        "model='anthropic/claude-opus-5-5'\n[accounts.anthropic]\nsource='{source}'\n[endpoints.anthropic]\nprogram='claude_code'\n"
+                    ),
                 }],
-            )
-            .unwrap_or_else(|why| panic!("{}", why.line()));
+            ));
             assert_eq!(
-                program_account(
-                    &settings::resolve::select(&settings).unwrap_or_else(|why| panic!("{}", why.line())).accounts
-                ),
+                program_account(&crate::fixture::ready(settings::resolve::select(&settings)).accounts),
                 spawned,
                 "source {source}"
             );
