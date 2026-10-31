@@ -192,6 +192,28 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
         forge::step(
             &mut domain.forge,
             &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+            forge::Event::Restore {
+                record: forge::Stored::Forge(forge::ForgeRecord {
+                    number,
+                    kind: forge::Kind::Forgejo,
+                    mode: forge::Mode::Connected,
+                    state: forge::ForgeState::Kept,
+                    place: forge::Place {
+                        api: forge::Address { host: Box::new([]), port: 0, tls: None },
+                        git: Box::new([]),
+                        web: None,
+                    },
+                    read_only: false,
+                    bot: forge::Bot { login: Box::new([]), name: Box::new([]), email: Box::new([]) },
+                    asked: false,
+                    first: None,
+                }),
+            },
+            &mut out,
+        );
+        forge::step(
+            &mut domain.forge,
+            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
             forge::Event::Restore { record: forge::Stored::Repository(adopted(number)) },
             &mut out,
         );

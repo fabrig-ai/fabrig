@@ -2848,6 +2848,18 @@ fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
     }
 }
 
+// The deployment cancels the procedure through its task control path
+// (temper/docs/design/draft/playground-reset.md, 4).
+fn cancel_change(domain: &mut Domain, task: u64) {
+    let Some(row) = domain.core.tasks.task(task) else { return };
+    domain.work.push(Work::Tasks(tasks::Event::Control {
+        reply_to: super::internal(u64::MAX),
+        by: tasks::Party::Deployment { project: row.project },
+        task,
+        control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+    }));
+}
+
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != CHANGE_CODE {
@@ -2904,9 +2916,8 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
             }
         }
         forge_change::Decision::Wait { until } => wait_change_decision(domain, env, task, until),
-        forge_change::Decision::None | forge_change::Decision::Effect(_) | forge_change::Decision::Cancel => {
-            ProcedureStep::new(StepEnd::Wait)
-        }
+        forge_change::Decision::Cancel => unreachable!("cancel is routed before procedure admission"),
+        forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
             let Some(delegate) = change_delegate(domain, env, task, kind) else {
                 let held = holds::decision(
@@ -3478,8 +3489,8 @@ pub(crate) fn outputs(
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
                 | forge_change::Decision::Finish { .. }
-                | forge_change::Decision::Cancel
                 | forge_change::Decision::Hold(_) => change_decision(domain, env, task, choice),
+                forge_change::Decision::Cancel => cancel_change(domain, task),
             },
             forge::Request::ProjectionSettled { goal } => {
                 domain.forge.projection_settled(goal);
