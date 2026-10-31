@@ -83,30 +83,15 @@ fn repeated_step_keeps_first_readable_value() {
 }
 
 #[test]
-fn null_demo_owner_stays_and_offers_only_setup() {
-    let mut world = f::accounts_world(f::SEED);
-    let client = open_from_chats(&mut world, Step::Welcome);
-    follow(
-        &mut world,
-        client,
-        vec![see(Role::Heading { level: 1 }, b"Welcome to temper"), see(Role::Region, b"Set up temper")],
-    );
-    follow(&mut world, client, vec![
-        gone(Role::Button, b"Try the playground"),
-            gone(Role::Link, b"Try the playground"),
-            gone(Role::Region, b"Try the playground"),
-        gone(Role::Region, b"Playground"),
-        gone(Role::Paragraph, b"Started in the playground? Connect your own forge and model whenever you like; the playground then steps aside."),
-        gone(Role::Link, b"Inbox"),
-            gone(Role::Link, b"Accounts"),
-            gone(Role::Link, b"Project 1"),
-            gone(Role::Button, b"Menu"),
-        gone(Role::Status, b"Live"),
-    ]);
+fn unfinished_owner_opens_at_forge_and_does_not_offer_the_playground() {
+    use temper_client_world::front::account_acts;
+    let (_, root) = account_acts::welcome_fixture(f::SEED);
+    assert_eq!(root.person().pages().address(), &welcome(Step::Forge { forge: None }));
+    assert_eq!(temper_client_domain::pages::welcome::playground_offered(root.person()), Some(false));
 }
 
 #[test]
-fn null_demo_later_steps_never_offer_the_playground() {
+fn unfinished_later_steps_never_offer_the_playground() {
     for (step, heading) in [
         (Step::Forge { forge: None }, b"Connect a forge".as_slice()),
         (Step::Model { way: None }, b"Connect a model"),
@@ -143,7 +128,7 @@ fn non_deployment_owner_without_account_can_set_up() {
     follow(
         &mut world,
         client,
-        vec![see(Role::Heading { level: 1 }, b"Welcome to temper"), gone(Role::Region, b"Playground")],
+        vec![see(Role::Heading { level: 1 }, b"Connect a forge"), gone(Role::Region, b"Playground")],
     );
 }
 
@@ -166,18 +151,16 @@ fn later_welcome_steps_do_not_redirect_on_their_own() {
 }
 
 #[test]
-fn welcome_setup_card_offers_its_link_to_the_forge_step() {
-    let mut world = f::accounts_world(f::SEED);
-    let client = open_from_chats(&mut world, Step::Welcome);
-    follow(&mut world, client, vec![see(Role::Heading { level: 1 }, b"Welcome to temper")]);
-    let nodes = world.tree(client).nodes();
-    assert!(
-        // "Set up temper" moves to the Forge step: a move is a link, drawn as the card's button
-        // (client/README.md, 5.6; browser.md, 2.3).
-        nodes.iter().any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Set up temper")),
-        "client/README.md, 5.6 promises each card its button, the set up card's a link; drawing: {:?}",
-        nodes.iter().map(|node| (node.role, node.name.as_deref().map(String::from_utf8_lossy))).collect::<Vec<_>>()
-    );
+fn empty_welcome_offers_setup_and_the_playground() {
+    use jig_client_world::harness::App;
+    use temper_client_world::front::account_acts;
+    let (_, root) = account_acts::empty_welcome_fixture(f::SEED);
+    let (_, mut view) = Temper::new(f::SEED);
+    let mut patches = skein_lib::Queue::with_capacity(Temper::patch_limit(&view));
+    Temper::build(&mut view, &root, &mut patches);
+    for (role, name) in [(Role::Button, b"Try the playground".as_slice()), (Role::Link, b"Set up temper")] {
+        assert!(Temper::tree(&view).nodes().iter().any(|node| node.role == role && node.name.as_deref() == Some(name)));
+    }
 }
 
 #[test]
@@ -201,7 +184,7 @@ fn printed_link_home_opens_welcome_without_link_state() {
 }
 
 #[test]
-#[ignore = "needs: per-subject delivery hold/release for demo, accounts, forges and me; run all 24 arrival orders"]
+#[ignore = "needs: per-subject delivery hold/release for playground, accounts, forges and me; run all 24 arrival orders"]
 fn landing_waits_for_every_fact_in_each_order() {
     let mut world = f::accounts_world(f::SEED);
     let client = world.client(f::PARTY, welcome(Step::Welcome));
@@ -215,7 +198,7 @@ fn landing_waits_for_every_fact_in_each_order() {
 }
 
 #[test]
-#[ignore = "needs: per-subject refused/failed/ended/not-served replies for demo, accounts, forges and me"]
+#[ignore = "needs: per-subject refused/failed/ended/not-served replies for playground, accounts, forges and me"]
 fn terminal_missing_facts_stop_waiting_without_inventing_setup() {
     let mut world = f::accounts_world(f::SEED);
     let client = world.client(f::PARTY, welcome(Step::Welcome));
@@ -227,25 +210,4 @@ fn terminal_missing_facts_stop_waiting_without_inventing_setup() {
 fn noncanonical_address_is_replaced_without_a_history_entry() {
     assert_eq!(address::parse(b"/welcome?at=done"), Place::Address(welcome(Step::Welcome)));
     // Open the raw URL, then observe replace('/welcome') and Back.
-}
-
-#[test]
-#[ignore = "needs: non-null demo fixture and demo model/forge half controls; Joint answers every family read with none"]
-fn playground_banner_follows_accounts_and_precedes_every_chatbar() {
-    let mut world = f::accounts_world(f::SEED);
-    let task = f::chat(world.front(), b"Playground banner QA");
-    let client = world.client(f::PARTY, f::chat_page(task));
-    // With the demo installed, compare semantic tree order on Chat,
-    // demo-project Chats (New chat), and ordinary Chats; repeat each half.
-    follow(&mut world, client, vec![see(Role::Region, b"Playground")]);
-}
-
-#[test]
-#[ignore = "needs: non-null running demo fixture and Show history observer"]
-fn running_demo_redirects_once_and_welcome_never_draws_banner() {
-    let mut world = f::accounts_world(f::SEED);
-    let client = world.client(f::PARTY, welcome(Step::Welcome));
-    follow(&mut world, client, vec![see(Role::Heading { level: 1 }, b"Chats")]);
-    // Observe one replacement; reopening Welcome at Forge must stay there,
-    // with neither Playground nor the accounts banner nor setup strip.
 }

@@ -153,12 +153,28 @@ pub fn request(
                 request: engine::Application::Forge(owner::Ask::Install { forge: value.forge, back: value.back }),
             });
         }
-        v1::Request::RemoveForge(_)
-        | v1::Request::StartPlayground
+        v1::Request::RemoveForge(value) => {
+            let reply_to = transport.reply_to(Reply::Keyed {
+                client: who,
+                attempt,
+                key,
+                owner: KeyedOwner::Application { connector: crate::fixtures::FORGE },
+            });
+            return engine::Event::Party(PartyInput::Application {
+                scope: jig_domain_people::ApplicationScope::Deployment,
+                reply_to,
+                sign_in: transport.sign_in(who).expect("authenticated removal"),
+                key,
+                digest: skein_lib::sha256::digest(&ask.bytes),
+                carried: None,
+                request: engine::Application::Forge(owner::Ask::RemoveForge { forge: value.forge() }),
+            });
+        }
+        v1::Request::StartPlayground
         | v1::Request::EndPlayground
         | v1::Request::Accept(_)
         | v1::Request::Reachable(_) => {
-            panic!("client sends no demo start yet")
+            panic!("the front handles playground starts and reachable reads")
         }
         v1::Request::Connect(connect) => {
             assert_eq!(scope, jig_client::contract::Scope::Deployment);
@@ -244,19 +260,27 @@ fn admin_request(
 ) -> engine::Event {
     use temper_client_protocol_wire::v1;
     let connect = connect.into_parts();
-    let v1::How::ForgejoAdmin(admin) = connect.how else { panic!("admin fixture") };
-    let first = admin.into_parts().first.map(|first| {
-        let first = first.into_parts();
-        owner::FirstAsk {
-            org: first.org,
-            repository: first.repository,
-            label: first.label,
-            project: match first.project {
-                v1::SetUpProject::New(project) => owner::SetUpProject::New(project.into_parts().name),
-                v1::SetUpProject::Existing(project) => owner::SetUpProject::Existing(project.project()),
-            },
+    let how = match connect.how {
+        v1::How::GithubApp(value) => {
+            owner::How::GitHubApp { app: core::num::NonZeroU64::new(value.id()).expect("nonzero App") }
         }
-    });
+        v1::How::GithubManifest(value) => owner::How::GitHubManifest { back: value.into_parts().back },
+        v1::How::ForgejoAdmin(admin) => {
+            let first = admin.into_parts().first.map(|first| {
+                let first = first.into_parts();
+                owner::FirstAsk {
+                    org: first.org,
+                    repository: first.repository,
+                    label: first.label,
+                    project: match first.project {
+                        v1::SetUpProject::New(project) => owner::SetUpProject::New(project.into_parts().name),
+                        v1::SetUpProject::Existing(project) => owner::SetUpProject::Existing(project.project()),
+                    },
+                }
+            });
+            owner::How::ForgejoAdmin { first }
+        }
+    };
     let reply_to = transport.reply_to(Reply::Keyed {
         client: who,
         attempt,
@@ -270,10 +294,7 @@ fn admin_request(
         key,
         digest: skein_lib::sha256::digest(&ask.bytes),
         carried,
-        request: engine::Application::Forge(owner::Ask::Connect {
-            forge: kept_forge(connect.forge),
-            how: owner::How::ForgejoAdmin { first },
-        }),
+        request: engine::Application::Forge(owner::Ask::Connect { forge: making(connect.forge), how }),
     })
 }
 /// Open only the forge's whole, project-scoped change subject (client/forge.md, 9.2).
@@ -587,7 +608,7 @@ fn set_up_request(
         carried: None,
         request: temper_engine_domain::Application::Forge(owner::Ask::SetUp {
             playground: setup.playground,
-            forge: kept_forge(setup.forge),
+            forge: making(setup.forge),
             org: setup.org,
             repository: setup.repository,
             project: match setup.project {
@@ -660,13 +681,25 @@ fn delivered_forges(
     ))
 }
 
-fn kept_forge(value: temper_client_protocol_wire::v1::Making) -> owner::Making {
+fn making(value: temper_client_protocol_wire::v1::Making) -> owner::Making {
     match value {
         temper_client_protocol_wire::v1::Making::Kept(value) => owner::Making::Kept(value.forge()),
-        temper_client_protocol_wire::v1::Making::New(_) => panic!("client world sends kept forges"),
+        temper_client_protocol_wire::v1::Making::New(value) => owner::Making::New(match value.into_parts().forge {
+            temper_client_protocol_wire::v1::ForgeAsk::Github => owner::ForgeAsk::GitHub,
+            temper_client_protocol_wire::v1::ForgeAsk::Owned => owner::ForgeAsk::Owned,
+            temper_client_protocol_wire::v1::ForgeAsk::Managed(value) => {
+                let value = value.into_parts();
+                owner::ForgeAsk::Managed {
+                    place: owner::Place {
+                        api: owner::Address { host: value.host, port: value.port, tls: value.tls },
+                        git: value.git,
+                        web: value.web,
+                    },
+                }
+            }
+        }),
     }
 }
-
 #[cfg(test)]
 mod watch_tests {
     use super::*;
