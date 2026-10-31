@@ -1041,6 +1041,7 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::SignIn { .. }
         | accounts::Event::SignOut { .. } => true,
         accounts::Event::Restore { .. }
+        | accounts::Event::DropProject { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }
         | accounts::Event::Component(..)
@@ -1087,6 +1088,7 @@ fn notes_new_work(event: &notes::Event) -> bool {
         | notes::Event::Write { .. }
         | notes::Event::Edit { .. } => true,
         notes::Event::LoadFailed { .. }
+        | notes::Event::DropProject { .. }
         | notes::Event::Loaded { .. }
         | notes::Event::Restore { .. }
         | notes::Event::Restored => false,

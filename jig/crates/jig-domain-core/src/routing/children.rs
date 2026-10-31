@@ -566,6 +566,7 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
             None
         }
         accounts::Event::Withdrawn { .. }
+        | accounts::Event::DropProject { .. }
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }

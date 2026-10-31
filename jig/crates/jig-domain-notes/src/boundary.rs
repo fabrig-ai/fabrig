@@ -159,6 +159,8 @@ pub enum Refusal {
 /// Events from the parent and the store.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Forget a deleted project's scope indexes (temper/docs/design/draft/playground-reset.md, 5).
+    DropProject { project: u32 },
     /// Lines in the requested scopes, capped to `most`, with a remainder count.
     Index { owner: Token, scopes: List<Scope>, most: u32 },
     /// One zero-based page of entries by name or description search.
