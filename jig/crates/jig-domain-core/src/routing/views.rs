@@ -20,7 +20,7 @@ pub(super) fn route_view(core: &mut Core, env: &Env<Limits>, event: views::Event
     crate::routing::step::step_views(core, env, event, &mut out);
     made_outputs(core, env, out)
 }
-pub(super) use super::watch_marks::{touch_number, touch_people_event, touch_people_row, touch_task};
+pub(super) use super::watch_marks::{touch_number, touch_people_row, touch_task};
 
 // Construct and move each document into the decision that asked for it.
 pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<views::Request>) -> Queue<Request> {

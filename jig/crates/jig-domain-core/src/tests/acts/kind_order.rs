@@ -103,13 +103,23 @@ fn budget_only_amendments_preserve_narrower_implied_grants_and_follow_direct_har
     let revisions = before.revisions;
     let draft = change(&core, 150);
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &draft, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &draft,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Ok(false)
     );
     let mut mixed = change(&core, 550);
     mixed.authority.as_mut().unwrap().grants[0].pattern.last = tasks::Last::Exact(b"zeta".as_slice().into());
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &mixed, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &mixed,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Err(people::Refusal::Authority {
             lacking: people::Lack::Budget { needs: 550, left: 500 },
             proposable: Some(people::Accepter::Role(0))
@@ -133,7 +143,12 @@ fn budget_only_amendments_preserve_narrower_implied_grants_and_follow_direct_har
         people::Refusal::Authority { lacking: people::Lack::Approver, proposable: Some(people::Accepter::Nobody) }
     );
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &mixed, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &mixed,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Err(people::Refusal::Authority {
             lacking: people::Lack::Budget { needs: 550, left: 500 },
             proposable: Some(people::Accepter::Nobody)
@@ -141,7 +156,12 @@ fn budget_only_amendments_preserve_narrower_implied_grants_and_follow_direct_har
     );
     mixed.authority = change(&core, 90).authority;
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &mixed, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &mixed,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Ok(true)
     );
     assert_eq!(core.tasks.task(1).unwrap().revisions, revisions, "pure admission moves no named revision");
