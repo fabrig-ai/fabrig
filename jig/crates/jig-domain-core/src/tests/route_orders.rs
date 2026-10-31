@@ -6,7 +6,7 @@ const VALUE: u64 = 1_u64 << 63;
 const OWNER: Token = Token::new(9706);
 const KEY: [u8; 16] = [75; 16];
 const CONNECTOR: u16 = 1;
-const ABSENT_PROJECT: u32 = 2;
+const UNHELD_PROJECT: u32 = 2;
 // An unused application admission can erase an expired answer, save its
 // replacement, answer, and drop the owner's input, then end the decision.
 const OUTPUTS: u32 = 6;
@@ -17,6 +17,7 @@ const OUTPUTS: u32 = 6;
 #[test]
 fn an_unused_carried_value_leaves_before_the_rest_of_a_wide_route() {
     let (mut core, mut limits) = core();
+    core.projects.push(UNHELD_PROJECT).expect("an open project without a held role");
     // Keep the sign-in alive beyond the retained answer's expiry.
     limits.people.sign_in_lifetime = Duration::from_secs(600);
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -70,7 +71,7 @@ fn application(sign_in: u64, carried: Option<Carried>) -> Event {
         reply_to: ReplyTo::new(REPLY),
         sign_in,
         key: KEY,
-        scope: people::ApplicationScope::Project(ABSENT_PROJECT),
+        scope: people::ApplicationScope::Project(UNHELD_PROJECT),
         connector: CONNECTOR,
         digest: [7; 32],
         owner: OWNER,

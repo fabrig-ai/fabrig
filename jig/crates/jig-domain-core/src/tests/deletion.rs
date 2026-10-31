@@ -1,4 +1,4 @@
-//! Core deletion decisions and kept-step recovery (temper/docs/design/draft/playground-reset.md, 5).
+//! Core deletion decisions and kept-step recovery (jig/docs/design/domain/people.md, 5.2).
 use super::*;
 
 fn environment(limits: &Limits) -> Env<Limits> {

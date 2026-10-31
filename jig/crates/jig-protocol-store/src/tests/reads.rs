@@ -885,7 +885,7 @@ fn a_filtered_note_counts_as_examined_before_a_join_cut() {
 
 #[test]
 fn erasure_scopes_answer_an_empty_page() {
-    let mut store = child_store();
+    let mut store = fixtures::opened();
     for scope in [reads::Scope::EndedTasks, reads::Scope::TaskRows { task: CHILD }] {
         let result = load(&mut store, fixtures::read(ALICE, scope));
         assert_empty(&result);
