@@ -386,7 +386,14 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
     });
     build(&mut host);
-    let shown = host.view.tree().nodes().iter().flat_map(|node| &node.text).filter(|run| run.text.as_ref() == b"Run 44 began").count();
+    let shown = host
+        .view
+        .tree()
+        .nodes()
+        .iter()
+        .flat_map(|node| &node.text)
+        .filter(|run| run.text.as_ref() == b"Run 44 began")
+        .count();
     assert_eq!(shown, usize::try_from(ONE_LINE).expect("one line fits"), "first activity answer must reach the page");
 }
 
