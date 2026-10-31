@@ -189,7 +189,7 @@ fn fixtures_name_the_path_and_the_breach() {
     let word = ["for", "ge"].concat();
     let source = format!("const SUBJECT: &str = \"{word}\";");
     let failures = vocabulary_breaches(Path::new("fixture/src/lib.rs"), &source, &forbidden_words());
-    assert_eq!(failures, [format!("fixture/src/lib.rs: {word}")]);
+    assert_eq!(failures, [format!("fixture/src/lib.rs:1: {word}")]);
 }
 
 #[test]
@@ -203,11 +203,15 @@ fn name_fixture_reports_each_file_line_and_breach() {
             "fixture/names.rs:2: identifier finish_v19",
             "fixture/names.rs:3: identifier TypedCall",
             "fixture/names.rs:4: identifier UntypedCall",
-            "fixture/names.rs:5: identifier LegacyCall",
+            concat!("fixture/names.rs:5: identifier ", "Leg", "acy", "Call"),
             "fixture/names.rs:6: identifier assign_typed",
-            "fixture/names.rs:7: identifier legacy_call",
-            "fixture/names.rs:8: comment LEGACY",
-            "fixture/names.rs:10: comment legacy",
+            concat!("fixture/names.rs:7: identifier ", "leg", "acy", "_call"),
+            concat!("fixture/names.rs:8: comment ", "LEG", "ACY"),
+            concat!("fixture/names.rs:10: comment ", "leg", "acy"),
+            concat!("fixture/names.rs:12: string ", "leg", "acy"),
+            concat!("fixture/names.rs:13: string ", "leg", "acy"),
+            concat!("fixture/names.rs:14: string ", "leg", "acy"),
+            concat!("fixture/names.rs:15: string ", "leg", "acy"),
         ]
     );
 }
@@ -233,7 +237,8 @@ fn one_source_walk_checks_all_patterns_in_quotes_comments_and_name_boundaries() 
             if !before.is_some_and(word_char)
                 && (!after.is_some_and(word_char) || after.is_some_and(char::is_uppercase))
             {
-                expected.push(format!("{}: {word}", path.display()));
+                let line = source[..at].matches('\n').count() + 1;
+                expected.push(format!("{}:{line}: {word}", path.display()));
             }
         }
     }
@@ -279,8 +284,31 @@ fn vocabulary_fixture_reports_schema_and_source_past_a_byte_split() {
     assert_eq!(
         failures,
         [
-            format!("{}: {word}", fixture.0.join("crates/sample/schema/example.schema").display()),
-            format!("{}: {word}", fixture.0.join("crates/sample/src/lib.rs").display()),
+            format!("{}:1: {word}", fixture.0.join("crates/sample/schema/example.schema").display()),
+            format!("{}:1: {word}", fixture.0.join("crates/sample/src/lib.rs").display()),
         ]
     );
+}
+
+#[test]
+fn banned_words_are_reported_in_identifiers_comments_and_strings() {
+    let path = Path::new("fixture/words.rs");
+    for word in [["leg", "acy"].concat(), ["hist", "orical"].concat()] {
+        let upper = word.to_ascii_uppercase();
+        let source = format!(
+            "fn read_{word}() {{}}\nstruct {upper}Call;\n// {word}\n/* current\n {upper} */\n\
+             const TEXT: &str = \"{word}\";\nconst RAW: &str = r#\"current\n{upper}\"#;\n"
+        );
+        let expected = [
+            format!("fixture/words.rs:1: identifier read_{word}"),
+            format!("fixture/words.rs:2: identifier {upper}Call"),
+            format!("fixture/words.rs:3: comment {word}"),
+            format!("fixture/words.rs:5: comment {upper}"),
+            format!("fixture/words.rs:6: string {word}"),
+            format!("fixture/words.rs:8: string {upper}"),
+        ];
+        assert_eq!(super::super::names::breaches(path, &source), expected);
+        let current = format!("fn {word}ness() {{}} // x{word}\nconst TEXT: &str = \"{word}s\";");
+        assert!(super::super::names::breaches(path, &current).is_empty());
+    }
 }

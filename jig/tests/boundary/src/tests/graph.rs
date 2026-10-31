@@ -333,8 +333,6 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-domain-tasks",
                 "jig-domain-views",
                 "jig-domain-notes",
-                // Reuse the actual root/store/workers/systems and referee, not a harness copy.
-                "jig-core-world",
                 "jig-test-profile",
                 // Scripted parties remain beside the real joint protocol peer.
                 "jig-fake-parties",
@@ -344,7 +342,8 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client-test-kit",
                 "sha2"
             ]
-            .contains(&d.as_str())),
+            .contains(&d.as_str())
+                || super::kits::pending_world_dependency("jig-client-world", d)),
             "{}",
             manifest.path.display()
         );
@@ -698,9 +697,6 @@ fn the_identity_dependency_is_allowed_for_the_test_service_alone() {
     }
 }
 
-/// Client crates outside the prefix until the client's restructuring removes them.
-const PENDING: [&str; 0] = [];
-
 #[test]
 fn client_crates_carry_the_client_prefix() {
     let allowed = [
@@ -715,7 +711,8 @@ fn client_crates_carry_the_client_prefix() {
         "jig-channel-world",
         "jig-ops-world",
     ];
-    assert_eq!(crate::client_names::breaches(&kit_root(), "jig", &allowed), PENDING);
+    let failures = crate::client_names::breaches(&kit_root(), "jig", &allowed);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]
