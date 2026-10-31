@@ -32,10 +32,37 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/draft/component-kit.md, 3.6"
 
+[[part]]
+id = "echo-first"
+title = "The echo example's host and client on the shared io stage, its story green"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.2"
+
+[[part]]
+id = "stage-sites"
+title = "The other io::resume sites on skein_io::stage, one crate or family per task, their worlds on the world surfaces"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.3"
+
+[[part]]
+id = "lib-sites"
+title = "The private copies of lib's primitives on lib, one crate or family per task"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.4"
+
 [[slice]]
 id = 1
-story = "the kit's surface is on the trunk: lib's primitives, skein_io::stage and the counts"
-parts = ["kit-contract"]
+story = "the kit's surface is on the trunk, and the echo example's host runs end to end on skein_io::stage, its story test green"
+parts = ["kit-contract", "echo-first"]
+walk = false
+
+[[slice]]
+id = 2
+story = "every io stage site and every private copy of lib's primitives on the kit: the counts at their targets"
+parts = ["stage-sites", "lib-sites"]
 walk = false
 
 [[slice]]
@@ -43,3 +70,13 @@ id = 3
 story = "every world on the referee defaults and the forwarding Host; both forge components take Abort"
 parts = ["world-surfaces", "abort"]
 walk = false
+
+[[question]]
+id = "mechanism-deadline-required"
+parts = ["world-surfaces"]
+text = """Host::next_mechanism_deadline lands provided, defaulting to None, so that the 146 Host impls in skein, smith, jig and temper compile unchanged; skein's hosts move onto it in this run. A required method would make a host that forgets io's close and retry deadlines fail to build instead of sleeping past them, but it changes a public interface every tree implements (AGENTS.md, 7). Options: (a) keep it provided with the None default; (b) make it required in a later run that moves every tree's hosts at once; (c) make it required now, with this run's tasks editing smith, jig and temper. Recommendation: (b): the run stays inside skein, and the later run is mechanical once skein's hosts show the shape."""
+
+[[question]]
+id = "component-kit-role"
+parts = ["kit-contract"]
+text = """The draft's 6.2: a component-kit role in programming-model.md, 4, changes the code's rules, so it is the user's; this plan proposes it and lands nothing. Proposed wording, a row after lib in the role table: "component kit: shared mechanism a component holds by value or calls as free functions, concrete step pieces with no trait, no generic item and no dyn (10); it depends on lib and io only, and no component's private copy of what it holds survives its landing. Its members today: skein_io::stage; later the shared transport." Options: (a) land the row as worded, in a docs task after this run; (b) land it with the shared transport's run, when the kit has its second member; (c) no role: kit items live in lib or io by fit, as this run places them. Recommendation: (b): one member is not yet a tier, and the stage fits io's own role today."""
