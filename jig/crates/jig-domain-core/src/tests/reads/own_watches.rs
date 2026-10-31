@@ -365,7 +365,7 @@ fn a_delivered_watch_permits_idle_but_an_unanswered_request_does_not() {
     assert!(core.quiescent(true), "a retained watch awaits no answer");
     let owner = core.effect_owner();
     assert!(!core.quiescent(true), "a staged effect still needs its answer");
-    drop(core.land_kind(owner, crate::flight::Kind::EffectStaging));
+    drop(core.land_kind(owner, flight::Kind::EffectStaging));
     assert!(core.quiescent(true));
     drop(watch_outputs(&mut core, &limits, Event::Unwatch { watcher: Token::new(30) }));
     drop(watch_outputs(&mut core, &limits, Event::Delivered { watcher: Token::new(30) }));
@@ -402,7 +402,7 @@ fn an_application_wait_permits_idle_while_its_effect_is_unanswered() {
     assert!(core.quiescent(true), "external application action is a permitted wait");
     let effect = core.effect_owner();
     assert!(!core.quiescent(true), "active application work still prevents idle");
-    drop(core.land_kind(effect, crate::flight::Kind::EffectStaging));
+    drop(core.land_kind(effect, flight::Kind::EffectStaging));
     assert!(core.quiescent(true));
     drop(watch_outputs(&mut core, &limits, Event::ApplicationFinished { request, outcome: Ok(token) }));
     let _committed = core.counters.next_commit();

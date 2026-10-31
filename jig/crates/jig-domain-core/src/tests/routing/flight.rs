@@ -479,7 +479,7 @@ fn an_adoption_part_names_its_parent_until_its_own_answer_arrives() {
     let current = core.effect_owner();
     assert_ne!(current, request);
     assert_eq!(core.application_part_request(request), None);
-    drop(core.land_kind(current, crate::flight::Kind::EffectStaging));
-    drop(core.land_kind(waiting, crate::flight::Kind::Party));
+    drop(core.land_kind(current, flight::Kind::EffectStaging));
+    drop(core.land_kind(waiting, flight::Kind::Party));
     assert!(core.flights.is_empty());
 }
