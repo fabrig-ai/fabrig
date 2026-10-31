@@ -536,6 +536,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
     use jig_domain_people as people;
     use skein_lib::ReplyTo;
     let (mut domain, env) = fixture_with_commits(2);
+    domain.core.projects.push(1).expect("open fixture project");
     let identity = people::Identity {
         key: people::IdentityKey { provider: 0, subject: Box::from(*b"party") },
         login: Box::from(*b"party"),

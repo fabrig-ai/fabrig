@@ -158,6 +158,12 @@ fn a_watch_on_a_closed_project_is_refused_and_a_live_one_ends() {
     };
     assert_eq!((*ended, *why), (application_watcher, views::End::Gone));
     assert!(core.view_subjects.is_empty());
+    let Requests::Out(mut repeated) =
+        routing::view_routes::close_views(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, 1);
+    assert_eq!(repeated.len(), 1, "retired subjects need no second ending");
+    let Some(Request::Decided) = repeated.pop() else {
+        panic!("repeated close decision");
+    };
     for project in [1, 99] {
         let out = watch_outputs(
             &mut core,

@@ -201,7 +201,11 @@ pub(super) fn uses(core: &Core, account: &accounts::Account) -> Option<List<acco
     let mut result = List::with_capacity(accounts::USES);
     for payer in uses {
         match payer {
-            accounts::Use::Project(project) if !core.open_project(*project) => continue,
+            accounts::Use::Project(project)
+                if *project != jig_domain_people::DEPLOYMENT && !core.open_project(*project) =>
+            {
+                continue;
+            }
             accounts::Use::Project(_) | accounts::Use::Party(_) => {}
         }
         result.push(*payer).expect("the child bounds uses");

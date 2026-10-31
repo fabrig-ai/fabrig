@@ -78,8 +78,11 @@ fn closed_subject(core: &Core, subject: &Subject) -> bool {
     expect(dead_code, reason = "the deletion driver calls this integration point when beginning deletion")
 )]
 pub(crate) fn close_views(core: &mut Core, env: &Env<Limits>, project: u32) -> Requests {
-    let mut subjects = List::with_capacity(core.view_subjects.len());
+    let mut subjects = List::with_capacity(core.view_names.len());
     for (name, watched) in &core.view_names {
+        if watched.watchers == 0 {
+            continue;
+        }
         let belongs = subject_project(core, &watched.subject) == Some(project);
         if belongs {
             subjects.push(name.token()).expect("bounded watched subjects");
@@ -111,7 +114,7 @@ pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
         match child.pop().expect("view output count") {
             views::Request::Make { watcher, .. } => {
                 if let Some((connector, subject, scope, party, window)) = application_subject(core, watcher)
-                    && (scope.project() == jig_domain_people::DEPLOYMENT || core.open_project(scope.project()))
+                    && !watch_closed(core, watcher)
                 {
                     out.push(Request::Ask {
                         connector,

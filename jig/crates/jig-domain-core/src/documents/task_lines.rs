@@ -1,5 +1,4 @@
 //! The shared task line, constructed from a live or loaded ended owner row.
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
 use super::{BudgetLine, Chip, Count, Missing, PhaseCounts, WaitsOn};
 use crate::{Core, Limits};
 use jig_domain_tasks as tasks;
@@ -39,7 +38,7 @@ pub fn task_line(
     row: &tasks::TaskRecord,
     ended_read: Option<u64>,
 ) -> Result<TaskLine, Missing> {
-    if !core.open_project(row.project) || core.people.role(party, row.project).is_none() {
+    if core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
     let mut phases = PhaseCounts::ZERO;
