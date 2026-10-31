@@ -1,10 +1,10 @@
 //! Loaded-place admission and its transient reads, scripted by an ordinary Rust parent.
-#![allow(
+#![expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::wildcard_enum_match_arm,
-    reason = "input tables and output observations are ordinary Rust tests"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::*;
 use crate::routing::amendment_reads::{Evidence, missing};

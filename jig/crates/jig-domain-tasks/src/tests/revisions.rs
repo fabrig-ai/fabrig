@@ -1,11 +1,11 @@
 //! Entry-point tests use ordinary Rust to script the parent and inspect outputs.
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "unit-test parent scripts are ordinary Rust under programming-model.md section 10.2"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use crate::{
     Amendment, Authority, Budget, Contract, Control, Delegation, Domain, EscalationDecision, EscalationHolder,

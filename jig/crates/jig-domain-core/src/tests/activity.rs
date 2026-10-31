@@ -1,11 +1,10 @@
 //! Ordinary Rust parent scripts verify the core's immutable activity archives.
-#![allow(
-    clippy::disallowed_macros,
+#![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "unit-test parent scripts are ordinary Rust under programming-model.md section 10.2"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::*;
 

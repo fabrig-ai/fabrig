@@ -1,8 +1,8 @@
 //! Settings asks carry admission facts, never the held set (engine.md, 17.6).
-#![allow(
+#![expect(
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "step tests inspect selected boundary records (programming-model.md, 10.2)"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::*;
 const PARTY: u64 = 1;

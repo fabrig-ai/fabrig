@@ -1,9 +1,9 @@
 //! Opaque shell token routes and the finite Ops protocol adapter, beside the shared world.
-#![allow(clippy::wildcard_imports, reason = "adapter exhaustively translates owner boundary vocabularies")]
 use super::{Document, Ops, OpsScript, Subject};
-use jig_client_domain::contract::*;
+use jig_client_domain::contract::{Activity, ObjectKey, Read, ReadNone, ReadValue, VersionRange, WatchEnd, WatchEvent};
 use jig_client_scripted_engine::{self as engine, ApplicationScope, Envelope, Up};
-use jig_client_world::{harness::*, observe};
+use jig_client_world::harness::{ClientId, Front, FrontFault, Observed};
+use jig_client_world::observe;
 use jig_ops_client_domain::{self as domain, Event, Request, infrastructure as infra, observability as obs};
 use jig_ops_domain_connectors::{Connector, number};
 use sha2::{Digest, Sha256};

@@ -1,7 +1,7 @@
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_types,
-    reason = "test scripts are ordinary Rust under programming-model.md section 10.2"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::revisions::{Harness, LIMITS, task, to};
 use crate::{Event, Funder, Party, Payer, PayerLink};

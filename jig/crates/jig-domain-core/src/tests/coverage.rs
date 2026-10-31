@@ -1,9 +1,9 @@
 //! Pure people/accounts joins; no run or core-world routing is needed.
-#![allow(
+#![expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,
     clippy::disallowed_methods,
-    reason = "test tables are ordinary Rust"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::accounts_document::{account, fixture, source};
 use super::*;

@@ -1,11 +1,10 @@
 //! Person address replacements through the task owner's public entrance.
-#![allow(
-    clippy::disallowed_macros,
+#![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "ordinary Rust test parent"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::revisions::{Harness, task, to};
 use crate::{AddressChange, Amendment, Event, Executor, Key, Party, PersonAddress, Refusal, Request, Stored};
