@@ -23,7 +23,6 @@ mod production_contract;
 mod production_render;
 mod production_tools;
 mod referee;
-mod root_memory;
 mod root_wire;
 mod workspace;
 

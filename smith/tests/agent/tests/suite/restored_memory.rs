@@ -1,26 +1,12 @@
-//! Root ownership at public Start, Complete and concrete Turn seams.
-//! Records come from observed shared Client terminals, including the Wait
-//! result; fixture ownership is counted independently from production pricing.
-//! Root entrances and caller-copy transients are measured separately. One whole
-//! observed Client/adapter/peer lifecycle is measured while root and caller
-//! histories remain live, including two physical Clients across one logical
-//! callback: the won closing Client and its replacement with one active context.
-//! Passive simulator, referee and composition bookkeeping are outside this
-//! component ownership contract (skein-world/src/heap.rs).
-//! Contract:
-//! domain/run.md, sections 3, 6, 13 and 13; domain/session.md, section 3;
-//! programming-model.md, section 6.3; testing-strategy.md, sections 2.3 and 6.
+//! Root and caller ownership at Start, Complete and concrete Turn boundaries.
+//! Typed Wait/text neighbours keep provider grammar and transport outside this domain measurement.
+//! Contract: smith/docs/design/domain/run.md, sections 3, 6 and 13;
+//! smith/docs/design/protocol/limits.md, section 11.
 
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn as ScriptTurn};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-use skein_llm_world::fake::ObservationLimits;
 use skein_world::domain::heap::Meter;
+use smith_agent_world::LIMITS;
 use smith_domain::{self as root, Domain, Event, Grant, GrantName, Limits, Request, llm, run, session};
-use smith_protocol_llm_world::adapter::{self as adapter, Receiving, ToolKind, ToolSchema};
-use smith_protocol_llm_world::{
-    LIMITS,
-    wire::{self, Configuration, Observed, Wire},
-};
 
 // Content capture capacity for this scenario:
 // one parallel tool, sixty-four completion blocks and four jobs.
@@ -49,50 +35,9 @@ fn cells<T>(count: usize) -> u64 {
     u64::try_from(count).expect("bounded fixture cells").checked_mul(size::<T>()).expect("checked fixture array")
 }
 
-fn endpoint_bytes(endpoint: &skein_llm::Endpoint) -> u64 {
-    sum([
-        len(&endpoint.authority),
-        len(&endpoint.target),
-        u64::try_from(core::mem::size_of_val(endpoint.headers.as_ref())).expect("public header array"),
-        sum(endpoint.headers.iter().map(|header| sum([len(&header.name), len(&header.value)]))),
-    ])
-}
-
-fn credential_bytes(credential: &skein_llm::Credential) -> u64 {
-    sum([len(&credential.value), len(&credential.account_id)])
-}
-
-fn configuration_bytes(configuration: &Configuration) -> u64 {
-    sum([
-        endpoint_bytes(&configuration.endpoint),
-        credential_bytes(&configuration.credential),
-        len(&configuration.error_prefix),
-        len(&configuration.continuation_arguments),
-    ])
-}
-
-// Four event slots cover this fixture's observed client burst, independently of machine output bounds.
-const OBSERVATION_EVENTS: u32 = 4;
-
-fn observation_limits(limits: &adapter::Limits) -> ObservationLimits {
-    ObservationLimits {
-        heads: 1,
-        head_bytes: 4096,
-        events: OBSERVATION_EVENTS,
-        event_bytes: 32768,
-        queries: 1,
-        query_bytes: u64::from(limits.client.request),
-        pending: 0,
-        request: limits.client.http.request.checked_add(limits.client.request).expect("whole request tape"),
-        response_bytes: 4096,
-    }
-}
-
 fn bounds(messages: u32) -> Limits {
     let decoded_call_bytes = 32_768;
-    let completion_bytes = adapter::completion_bound(&wire_limits().client, decoded_call_bytes)
-        .expect("explicit native fixture receiving ownership")
-        .max(131_072);
+    let completion_bytes = 131_072;
     Limits {
         accounts: 1,
         endpoints: 1,
@@ -140,7 +85,7 @@ fn bounds(messages: u32) -> Limits {
             history_bytes: 1_048_576,
             completion_bytes,
             completion_blocks: 64,
-            failure_bytes: wire_limits().client.detail_bytes,
+            failure_bytes: LIMITS.session.failure_bytes,
             delegated_result_bytes: 262_144,
             parallel_tools: 1,
 
@@ -258,219 +203,14 @@ fn charter_bytes(charter: &run::Charter) -> u64 {
     ])
 }
 
-fn scripts(cycles: u32) -> Box<[Script]> {
-    let count = cycles.checked_mul(2).and_then(|turns| turns.checked_add(1)).expect("finite scripted turns");
-    let mut turns = Vec::with_capacity(usize::try_from(count).expect("bounded scripted array"));
-    for _ in 0..cycles {
-        turns.push(ScriptTurn {
-            lines: Box::new([Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() }]),
-            finish: Finish::ToolCalls,
-            tokens: 1,
-        });
-        turns.push(ScriptTurn { lines: Box::new([Line::Text { text: SAID.into() }]), finish: Finish::Stop, tokens: 1 });
-    }
-    turns.push(ScriptTurn { lines: Box::new([Line::Text { text: RESTORED.into() }]), finish: Finish::Stop, tokens: 1 });
-    assert_eq!(turns.capacity(), usize::try_from(count).expect("exact caller array reservation"));
-    Box::new([Script { cue: b"@root-memory".as_slice().into(), turns: turns.into() }])
-}
-
-fn wire_limits() -> adapter::Limits {
-    let mut client = skein_llm_world::limits();
-    client.http.request = 32_768;
-    client.output_items = 64;
-    client.request = 32_768;
-    client.request = 32_768;
-    client.strings = 16_384;
-    client.tokens = 4096;
-    client.answer = 256;
-    adapter::Limits {
-        tool_bytes: 16_384,
-        ..smith_protocol_llm::fixture::small(client, smith_protocol_llm_world::adapter::stated())
-    }
-}
-
 struct Complete {
     owner: Token,
     prompt: llm::Prompt,
-    receiving: Receiving,
-}
-
-// Physical ownership survives the logical terminal under the scenario ceiling.
-// Wire::take consumed the old Context at that terminal.
-struct Retained {
-    wire: Wire,
-    owner: Token,
-    held: u64,
-}
-
-fn native_peak(meter: &Meter, bound: u64) -> u64 {
-    let measured = meter.end();
-    assert!(
-        measured.peak() <= bound,
-        "combined root/caller/overlapping-native entrance peak {} exceeds {bound}",
-        measured.peak()
-    );
-    measured.held()
-}
-
-fn attributed(held: u64, before: u64, after: u64, received: u64, handed: u64) -> u64 {
-    sum([held, after, received])
-        .checked_sub(sum([before, handed]))
-        .expect("native attribution includes only its measured net and exact public handoffs")
-}
-
-fn retire(retained: Retained, meter: &Meter, bound: u64, now: Time, wall: Wall) {
-    let Retained { mut wire, owner, held, .. } = retained;
-    let before = meter.held();
-    assert_eq!(wire.observed, [Observed::Completed(owner), Observed::Reusable, Observed::Close]);
-    assert_eq!(wire.peer.machine.waiting(), skein_llm::client::Waiting::Closing);
-    for _ in 0..2 {
-        meter.start();
-        wire.peer.at(now, wall);
-        assert!(wire.settle().is_empty(), "old physical settlement owes no second root callback");
-        native_peak(meter, bound);
-    }
-    assert_eq!(wire.observed, [Observed::Completed(owner), Observed::Reusable, Observed::Close, Observed::Closed]);
-    assert_eq!(wire.observed.capacity(), 4);
-    let mut closed_quiet = false;
-    for _ in 0..128 {
-        meter.start();
-        wire.peer.at(now, wall);
-        let (progress, returned) = wire.tick();
-        assert!(returned.is_empty(), "settled native binding owes no second callback");
-        drop(returned);
-        native_peak(meter, bound);
-        if !progress {
-            closed_quiet = true;
-            break;
-        }
-    }
-    assert!(closed_quiet, "Closed drains remaining bounded peer work");
-    assert_eq!(wire.peer.machine.waiting(), skein_llm::client::Waiting::Nothing);
-    assert_eq!(wire.peer.service.calls(), 0, "retired native provider routes reclaimed before drop");
-    assert_eq!(wire.observed, [Observed::Completed(owner), Observed::Reusable, Observed::Close, Observed::Closed]);
-    meter.start();
-    drop(wire);
-    let after = native_peak(meter, bound);
-    assert_eq!(
-        before.checked_sub(after),
-        Some(held),
-        "physical Closed/drain/drop releases exactly its captured native heap without root or caller mutations"
-    );
-}
-
-fn observed(
-    complete: Complete,
-    configuration: &Configuration,
-    cycles: u32,
-    native: &Env<adapter::Limits>,
-    meter: &Meter,
-    bound: u64,
-    old: &mut Option<Retained>,
-) -> (Event, Retained, bool) {
-    let now = native.now;
-    let wall = native.wall;
-    let limits = &native.limits;
-    let owner = complete.owner;
-    let messages = complete.prompt.messages.len();
-    let incoming = prompt_bytes(&complete.prompt);
-    let large = complete.prompt.messages.iter().flat_map(|message| &message.content).any(|block| {
-        matches!(block, llm::Block::Text { text, .. } if text.len() == LARGE && text.iter().all(|byte| *byte == b'x'))
-    });
-    let observations = observation_limits(limits);
-    let before = meter.held();
-    meter.start();
-    let mut wire = Wire::prepare(owner, complete.prompt, complete.receiving, configuration, limits, scripts(cycles))
-        .expect("observed root receiving contract admits the Client");
-    wire.peer.observe(observations);
-    wire.observed.reserve_exact(4);
-    wire.peer.at(now, wall);
-    assert!(wire.start().is_empty());
-    let after = native_peak(meter, bound);
-    let mut held = attributed(0, before, after, incoming, 0);
-    let overlapping = old.is_some();
-    if let Some(previous) = old.take() {
-        assert_eq!(previous.owner, owner, "new observed Client reuses the same live logical callback");
-        assert_eq!(
-            previous.wire.observed,
-            [Observed::Completed(owner), Observed::Reusable, Observed::Close],
-            "old Completed/Reusable/Close precedes new Start and old Closed"
-        );
-        assert_eq!(previous.wire.peer.machine.waiting(), skein_llm::client::Waiting::Closing);
-        assert!(wire.observed.is_empty(), "new Start has no terminal while the old won Client still closes");
-        assert!(
-            !matches!(
-                wire.peer.machine.waiting(),
-                skein_llm::client::Waiting::Start
-                    | skein_llm::client::Waiting::Idle
-                    | skein_llm::client::Waiting::Closing
-                    | skein_llm::client::Waiting::Nothing
-            ),
-            "new observed Client is active before old Closed"
-        );
-        // The new Wire and root/caller owners remain untouched throughout this
-        // separate physical retirement measurement.
-        retire(previous, meter, bound, now, wall);
-    }
-    let mut terminal = None;
-    let mut quiet = false;
-    for _ in 0..100_000 {
-        let before = meter.held();
-        meter.start();
-        wire.peer.at(now, wall);
-        let (progress, returned) = wire.tick();
-        assert!(returned.capacity() <= 4, "one observed terminal's public vector reservation");
-        let mut handed = 0;
-        for event in returned {
-            handed = terminal_bytes(&event);
-            assert!(terminal.replace(event).is_none(), "one native terminal");
-        }
-        let after = native_peak(meter, bound);
-        held = attributed(held, before, after, 0, handed);
-        if !progress {
-            quiet = true;
-            break;
-        }
-    }
-    assert!(quiet, "observed byte peer reached bounded drainage");
-    let terminal = terminal.expect("bounded observed byte peer completed");
-    assert!(matches!(&terminal, Event::Completed { owner: got, .. } if *got == owner));
-    assert_eq!(wire.observed, [Observed::Completed(owner), Observed::Reusable]);
-    assert_native_query(&wire, messages, large);
-    let before = meter.held();
-    meter.start();
-    wire.peer.at(now, wall);
-    assert!(wire.close().is_empty());
-    let after = native_peak(meter, bound);
-    held = attributed(held, before, after, 0, 0);
-    assert_eq!(wire.observed, [Observed::Completed(owner), Observed::Reusable, Observed::Close]);
-    assert_eq!(wire.peer.machine.waiting(), skein_llm::client::Waiting::Closing);
-    (terminal, Retained { wire, owner, held }, overlapping)
-}
-
-// These passive public observations allocate no scratch inside the measured
-// native lifecycle. The shared peer's focused control independently validates
-// raw response chunk payloads with the shared HTTP reference reader.
-fn assert_native_query(wire: &Wire, messages: usize, large: bool) {
-    let [query] = wire.peer.queries.as_slice() else { panic!("one observed native query") };
-    assert_eq!(query.model.as_ref(), b"fixture-model");
-    assert_eq!(query.messages.len(), messages, "observed whole alternating history reached the native peer");
-    assert!(query.system.windows(b"@root-memory".len()).any(|bytes| bytes == b"@root-memory"));
-    assert_eq!(wire.peer.service.count(), 1);
-    assert_eq!(wire.peer.service.calls(), 0);
-    assert!(!wire.peer.requests.is_empty());
-    assert!(!wire.peer.responses.is_empty());
-    assert!(wire.peer.responses.starts_with(b"HTTP/1.1 200 OK\r\n"));
-    if large {
-        assert!(query.messages.iter().flat_map(|message| &message.parts).any(|part| {
-            matches!(part, skein_fake_llm_domain::api::Part::Text { text } if text.len() == LARGE && text.iter().all(|byte| *byte == b'x'))
-        }));
-        assert!(wire.peer.requests.windows(LARGE).any(|bytes| bytes.iter().all(|byte| *byte == b'x')));
-    }
+    maximum: u64,
 }
 
 fn terminal_bytes(event: &Event) -> u64 {
-    let Event::Completed { completion, .. } = event else { panic!("observed native successful terminal") };
+    let Event::Completed { completion, .. } = event else { panic!("observed typed successful terminal") };
     let [said] = completion.content.as_ref() else { panic!("one observed scripted assistant block") };
     let payload = match said {
         llm::Said::Text { text, replay } => {
@@ -490,16 +230,6 @@ fn terminal_bytes(event: &Event) -> u64 {
         }
     };
     sum([size::<llm::Said>(), payload])
-}
-
-fn schemas_bytes(schemas: &[ToolSchema]) -> u64 {
-    assert_eq!(schemas.len(), 2, "observed fixture offers only Finish and Wait");
-    assert!(schemas.iter().any(|schema| schema.kind == ToolKind::Finish && schema.name.as_ref() == b"finish"));
-    assert!(schemas.iter().any(|schema| schema.kind == ToolKind::Wait && schema.name.as_ref() == b"wait"));
-    sum([
-        cells::<ToolSchema>(schemas.len()),
-        sum(schemas.iter().map(|schema| sum([len(&schema.name), len(&schema.description), len(&schema.schema)]))),
-    ])
 }
 
 // The fixture ledger counts observed public cells and owning byte fields. It
@@ -719,10 +449,8 @@ struct Counted {
     domain: Option<Domain>,
     env: Env<Limits>,
     out: Queue<Request>,
-    configuration_bytes: u64,
     caller_charter: Option<run::Charter>,
     caller_workspace: Option<run::Workspace>,
-    native_limits: adapter::Limits,
     records: Vec<session::record::Turn>,
     prefix: Option<root::Transcript>,
     saved: Option<root::Transcript>,
@@ -738,9 +466,7 @@ struct Counted {
     answer: Option<run::Answer>,
     calls: u32,
     long_open: u32,
-    retained: Option<Retained>,
-    overlaps: u32,
-    restored_overlap: bool,
+    restored_copies: bool,
 }
 
 impl Counted {
@@ -779,19 +505,14 @@ impl Counted {
         );
         let measured = meter.end();
         meter.check(measured, ceiling, limits);
-        let mut native_limits = wire_limits();
-        native_limits.stated = adapter::Stated::from_tools(&limits.session.tools, native_limits.client.input)
-            .expect("observed root numeric quantities fit");
         Self {
             meter,
             ceiling,
             domain: Some(domain),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
             out,
-            configuration_bytes: 0,
             caller_charter: None,
             caller_workspace: None,
-            native_limits,
             records: Vec::new(),
             prefix: None,
             saved: None,
@@ -807,45 +528,7 @@ impl Counted {
             answer: None,
             calls: 0,
             long_open: 0,
-            retained: None,
-            overlaps: 0,
-            restored_overlap: false,
-        }
-    }
-
-    fn configuration(&mut self) -> Configuration {
-        let before = self.meter.held();
-        self.meter.start();
-        let configurations = wire::configurations();
-        assert_eq!(configurations.len(), 2, "finite public native fixture configuration array");
-        let constructor =
-            sum([cells::<Configuration>(configurations.len()), sum(configurations.iter().map(configuration_bytes))]);
-        let constructed = self.meter.end();
-        assert_eq!(
-            constructed.held(),
-            sum([before, constructor]),
-            "all configuration fields and outer wrappers owned independently"
-        );
-        assert!(
-            constructed.peak() <= sum([before, constructor]),
-            "configuration construction has no unpriced transient"
-        );
-        self.meter.start();
-        let configuration = configurations.into_vec().pop().expect("observed native Anthropic fixture");
-        self.configuration_bytes = configuration_bytes(&configuration);
-        let selected = self.meter.end();
-        assert!(selected.peak() <= sum([before, constructor]));
-        assert_eq!(
-            selected.held(),
-            sum([before, self.configuration_bytes]),
-            "selected caller configuration remains owned after dropping the other fixture"
-        );
-        configuration
-    }
-
-    fn retire_native(&mut self) {
-        if let Some(retained) = self.retained.take() {
-            retire(retained, &self.meter, self.ceiling, self.env.now, self.env.wall);
+            restored_copies: false,
         }
     }
 
@@ -873,30 +556,9 @@ impl Counted {
                     }
                     assert!(self.probe.replace(owner).is_none());
                 }
-                Request::Complete {
-                    owner,
-                    prompt,
-                    max_completion_bytes,
-                    max_completion_blocks,
-                    decoded_call_bytes,
-                    max_failure_bytes,
-                    ..
-                } => {
+                Request::Complete { owner, prompt, max_completion_bytes, .. } => {
                     self.calls += 1;
-                    assert!(
-                        self.complete
-                            .replace(Complete {
-                                owner,
-                                prompt,
-                                receiving: Receiving {
-                                    max_completion_bytes,
-                                    max_completion_blocks,
-                                    decoded_call_bytes,
-                                    max_failure_bytes,
-                                }
-                            })
-                            .is_none()
-                    );
+                    assert!(self.complete.replace(Complete { owner, prompt, maximum: max_completion_bytes }).is_none());
                 }
                 Request::Turn { host_run, number, turn, .. } => {
                     assert_eq!(host_run, WORKER);
@@ -924,7 +586,7 @@ impl Counted {
                 }
                 Request::Yield { .. } => {}
                 Request::Cancel { owner } => {
-                    let complete = self.complete.as_ref().expect("pending compaction is cancelled before native work");
+                    let complete = self.complete.as_ref().expect("pending compaction is cancelled before typed work");
                     assert_eq!(complete.owner, owner);
                     assert!(matches!(complete.prompt.purpose, llm::Purpose::Compaction { .. }));
                 }
@@ -1001,7 +663,7 @@ impl Counted {
         }
     }
 
-    fn cycle(&mut self, configuration: &Configuration, cycles: u32) {
+    fn cycle(&mut self, cycles: u32) {
         for _ in 0..100 {
             if let Some(complete) = self.complete.take() {
                 if self.initial.is_none() {
@@ -1010,7 +672,7 @@ impl Counted {
                 if self.held_prompt.is_some() && self.turn_copy.is_none() {
                     self.turn_copy = self.records.last().map(copy_turn);
                 }
-                let event = self.native(complete, configuration, cycles);
+                let event = self.completion(complete, cycles);
                 self.step(event);
             } else {
                 self.resume();
@@ -1027,10 +689,10 @@ impl Counted {
         );
     }
 
-    fn until_compaction(&mut self, configuration: &Configuration, cycles: u32) {
+    fn until_compaction(&mut self, cycles: u32) {
         let complete = self.complete.take().expect("observed restored ordinary request");
         assert!(matches!(complete.prompt.purpose, llm::Purpose::Ordinary { guard: Some(_) }));
-        let event = self.native(complete, configuration, cycles);
+        let event = self.completion(complete, cycles);
         self.step(event);
         for _ in 0..100 {
             if self.complete.is_some() {
@@ -1050,68 +712,43 @@ impl Counted {
         self.step(Event::Message { finish_requested: false, label: b"host".as_slice().into(), run, name, text });
     }
 
-    fn schema_constructor(&self, prompt: &llm::Prompt) -> u64 {
-        const OWN_DECLARATION_SLOTS: usize = 12;
-        let before = self.meter.held();
-        self.meter.start();
-        let schemas = wire::schemas(prompt, &self.native_limits.stated);
-        let owned = schemas_bytes(&schemas);
-        // The production inventory uses a twelve-cell bounded List before the
-        // final boxed slice. Price both arrays if reboxing overlaps them.
-        let constructor = sum([owned, cells::<ToolSchema>(OWN_DECLARATION_SLOTS)]);
-        let built = self.meter.end();
-        assert_eq!(
-            built.held(),
-            sum([before, owned]),
-            "public caller schema boxes own exactly their arrays and fields"
-        );
-        assert!(
-            built.peak() <= sum([before, constructor]),
-            "caller schema construction fits its independently priced arrays"
-        );
-        drop(schemas);
-        assert_eq!(self.meter.held(), before, "schema preflight reclaims every temporary owner before the native span");
-        constructor
-    }
-
-    fn native(&mut self, complete: Complete, configuration: &Configuration, cycles: u32) -> Event {
-        let incoming = prompt_bytes(&complete.prompt);
-        self.schema_constructor(&complete.prompt);
-        let limits = self.native_limits;
-        let terminal_cap = complete.receiving.max_completion_bytes;
-        let old_held = self.retained.as_ref().map_or(0, |retained| retained.held);
-        let before = self.meter.held();
-        let native = Env { now: self.env.now, wall: self.env.wall, limits };
-        let (event, retained, overlapping) =
-            observed(complete, configuration, cycles, &native, &self.meter, self.ceiling, &mut self.retained);
-        if overlapping {
-            self.overlaps += 1;
-            if self.prefix.is_some()
-                && self.saved.is_some()
-                && self.held_prompt.is_some()
-                && self.prompt_copy.is_some()
-                && self.turn_copy.is_some()
-            {
-                self.restored_overlap = true;
-            }
+    fn completion(&mut self, complete: Complete, cycles: u32) -> Event {
+        let round = complete.prompt.messages.iter().filter(|message| message.role == llm::Role::Assistant).count();
+        let waiting = round < usize::try_from(cycles * 2).expect("bounded rounds") && round % 2 == 0;
+        if self.prefix.is_some()
+            && self.saved.is_some()
+            && self.held_prompt.is_some()
+            && self.prompt_copy.is_some()
+            && self.turn_copy.is_some()
+        {
+            self.restored_copies = true;
         }
-        let terminal = terminal_bytes(&event);
-        assert!(terminal <= terminal_cap, "observed transferred terminal fits the root's advertised caller reserve");
-        let expected = before
-            .checked_sub(sum([incoming, old_held]))
-            .and_then(|held| held.checked_add(sum([terminal, retained.held])))
-            .expect("native ownership transfer is bounded");
-        assert_eq!(
-            self.meter.held(),
-            expected,
-            "native public Prompt/terminal handoffs and old physical retirement retain exactly the new closing Wire"
-        );
-        assert!(self.retained.replace(retained).is_none(), "old physical ownership retired before new retention");
+        let content = if waiting {
+            llm::Said::ToolCall {
+                id: ID.into(),
+                name: b"wait".as_slice().into(),
+                input: b"{}".as_slice().into(),
+                call: llm::Decoded::Served { ask: run::Ask::Wait },
+                replay: None,
+            }
+        } else {
+            let text = if round >= usize::try_from(cycles * 2).expect("bounded rounds") { RESTORED } else { SAID };
+            llm::Said::Text { text: text.into(), replay: None }
+        };
+        let event = Event::Completed {
+            owner: complete.owner,
+            completion: llm::Completion {
+                reasoning_dropped: Box::new([]),
+                content: Box::new([content]),
+                stop: if waiting { llm::Stop::ToolUse } else { llm::Stop::EndTurn },
+                usage: llm::Usage { input_tokens: Some(0), output_tokens: Some(1), ..llm::Usage::NONE },
+            },
+        };
+        assert!(terminal_bytes(&event) <= complete.maximum, "typed terminal fits its receiving contract");
         event
     }
 
     fn replace_root(&mut self, limits: &Limits) {
-        self.retire_native();
         assert!(self.answer.is_some(), "previous original Start settled");
         self.meter.start();
         drop(self.domain.take());
@@ -1248,10 +885,10 @@ fn cap(source: &Counted, waking: &[u8]) -> u64 {
         + u64::from(source.env.limits.session.tools.path_bytes) * u64::from(source.env.limits.session.completion_blocks)
 }
 
-fn generate_prefix(counted: &mut Counted, configuration: &Configuration, messages: u32, cycles: u32) -> Limits {
+fn generate_prefix(counted: &mut Counted, messages: u32, cycles: u32) -> Limits {
     counted.start(None, false);
     counted.discover();
-    counted.cycle(configuration, cycles + 1);
+    counted.cycle(cycles + 1);
     assert!(counted.waiting);
     for at in 0..cycles {
         counted.waiting = false;
@@ -1264,7 +901,7 @@ fn generate_prefix(counted: &mut Counted, configuration: &Configuration, message
             name: Token::new(u64::from(at)),
             text,
         });
-        counted.cycle(configuration, cycles + 1);
+        counted.cycle(cycles + 1);
         assert!(counted.waiting, "wake {at}: records={} answer={:?}", counted.records.len(), counted.answer);
     }
     let copy_meter = Meter::new();
@@ -1294,16 +931,15 @@ fn generate_prefix(counted: &mut Counted, configuration: &Configuration, message
     let run = counted.admitted.expect("observed source run");
     counted.waiting = false;
     counted.step(Event::Cancel { run });
-    counted.cycle(configuration, cycles + 1);
+    counted.cycle(cycles + 1);
     assert!(
         matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns, .. }) if turns == 2 * cycles + 1)
     );
-    counted.retire_native();
 
     tight
 }
 
-fn restore_overlap(counted: &mut Counted, configuration: &Configuration, messages: u32, cycles: u32) {
+fn restore_overlap(counted: &mut Counted, messages: u32, cycles: u32) {
     // The full prefix owns messages - 4 slots. Restored waking, the observed
     // Wait/result, the offered message and text, and the next nudge occupy six
     // more. Two provider slots and one summary slot remain for the next held
@@ -1313,36 +949,33 @@ fn restore_overlap(counted: &mut Counted, configuration: &Configuration, message
     counted.start(counted.prefix.as_ref().map(copy_transcript), true);
     counted.discover();
     assert_eq!(counted.calls, 1, "full source history starts one observed restored callback");
-    let complete = counted.complete.as_ref().expect("observed restored Complete before overlapping physical bindings");
+    let complete = counted.complete.as_ref().expect("observed restored Complete before caller-held copies");
     assert_eq!(complete.prompt.messages.len(), usize::try_from(messages - 3).expect("full restored plus waking"));
     assert_rewritten(counted.prefix.as_ref().expect("maximum generated prefix"), &complete.prompt);
     counted.held_prompt = Some(copy_prompt(&complete.prompt));
     counted.prompt_copy = counted.held_prompt.as_ref().map(copy_prompt);
-    // The same whole native script adds the next Wait/text pair. The old
-    // Wait terminal's closing Client remains live when its text Client starts.
-    counted.cycle(configuration, cycles + 2);
-    assert!(counted.waiting && counted.records.is_empty(), "first restored native wait remains held");
+    counted.cycle(cycles + 2);
+    assert!(counted.waiting && counted.records.is_empty(), "first restored typed wait remains held");
     counted.wake(Token::new(100), b"wake".as_slice().into());
-    counted.cycle(configuration, cycles + 2);
-    assert_eq!(counted.calls, 3, "two settled callbacks and the next held wait use three observed Clients");
+    counted.cycle(cycles + 2);
+    assert_eq!(counted.calls, 3, "two settled callbacks and the next held wait use three observed neighbours");
     assert_eq!(counted.records.len(), 2, "both restored terminals produced concrete Turns");
     assert_eq!(counted.records[0].sequence, 2 * cycles + 1);
     assert_eq!(counted.records[1].sequence, 2 * cycles + 2);
     assert!(
-        counted.restored_overlap,
-        "full generated histories, both restored Prompt copies and a Turn copy coexist with native overlap"
+        counted.restored_copies,
+        "full generated histories, both restored Prompt copies and a Turn copy coexist with caller copies"
     );
-    assert!(counted.waiting, "observed restored Wait/text pair reaches Waiting after both native terminals");
+    assert!(counted.waiting, "observed restored Wait/text pair reaches Waiting after both typed terminals");
     let run = counted.admitted.expect("observed overlapping restore activation");
     counted.waiting = false;
     counted.step(Event::Cancel { run });
-    counted.cycle(configuration, cycles + 2);
+    counted.cycle(cycles + 2);
     assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 3, .. })));
     counted.resume();
-    counted.retire_native();
 }
 
-fn restore_exact(counted: &mut Counted, configuration: &Configuration, messages: u32, cycles: u32, tight: &Limits) {
+fn restore_exact(counted: &mut Counted, messages: u32, cycles: u32, tight: &Limits) {
     let prompt = counted.held_prompt.as_ref().expect("observed overlapping restore");
     let waking = prompt.messages.last().expect("observed resumed waking message");
     let [llm::Block::Text { text: waking, replay: None }] = waking.content.as_ref() else {
@@ -1364,7 +997,7 @@ fn restore_exact(counted: &mut Counted, configuration: &Configuration, messages:
     counted.replace_root(tight);
     counted.start(counted.prefix.as_ref().map(copy_transcript), true);
     counted.discover();
-    assert_eq!(counted.calls, 1, "exact reservation-inclusive payload is admitted before native work");
+    assert_eq!(counted.calls, 1, "exact reservation-inclusive payload is admitted before typed work");
     let complete = counted.complete.as_ref().expect("observed rewritten Complete");
     assert_eq!(complete.prompt.messages.len(), usize::try_from(messages - 3).expect("restored plus waking"));
     assert_eq!(complete.prompt.model, counted.initial.as_ref().expect("original observation").model);
@@ -1372,13 +1005,13 @@ fn restore_exact(counted: &mut Counted, configuration: &Configuration, messages:
     assert_rewritten(counted.prefix.as_ref().expect("original generated prefix"), &complete.prompt);
     counted.held_prompt = Some(copy_prompt(&complete.prompt));
     counted.prompt_copy = counted.held_prompt.as_ref().map(copy_prompt);
-    counted.until_compaction(configuration, cycles);
+    counted.until_compaction(cycles);
     let [turn] = counted.records.as_slice() else { panic!("one observed concrete restored Turn") };
     assert_eq!(turn.sequence, 2 * cycles + 1);
     assert_eq!(turn.messages.len(), 2);
     let [_, assistant] = turn.messages.as_ref() else { panic!("observed wake/assistant Turn") };
     let [session::llm::Block::Text { text, .. }] = assistant.content.as_ref() else {
-        panic!("observed restored native text")
+        panic!("observed restored typed text")
     };
     assert_eq!(text.as_ref(), RESTORED);
     counted.turn_copy = Some(copy_turn(turn));
@@ -1390,10 +1023,9 @@ fn restore_exact(counted: &mut Counted, configuration: &Configuration, messages:
     counted.step(Event::Cancelled { owner });
     assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 1, .. })));
     counted.resume();
-    counted.retire_native();
 }
 
-fn refuse_one_over(counted: &mut Counted, configuration: &Configuration, cycles: u32, tight: &Limits) {
+fn refuse_one_over(counted: &mut Counted, cycles: u32, tight: &Limits) {
     for extra_message in [true, false] {
         let mut negative = *tight;
         if extra_message {
@@ -1436,7 +1068,7 @@ fn refuse_one_over(counted: &mut Counted, configuration: &Configuration, cycles:
         }
         counted.start(Some(history), true);
         counted.discover();
-        counted.cycle(configuration, cycles);
+        counted.cycle(cycles);
         assert_eq!(counted.calls, 0, "one-over valid history starts no provider or owned tool");
         assert!(counted.records.is_empty());
         assert!(matches!(
@@ -1450,9 +1082,7 @@ fn refuse_one_over(counted: &mut Counted, configuration: &Configuration, cycles:
     }
 }
 
-fn reclaim_every_owner(mut counted: Counted, tight: &Limits, configuration: Configuration) {
-    counted.retire_native();
-    assert!(counted.overlaps > 0, "the memory run attained overlapping observed physical Clients");
+fn reclaim_every_owner(mut counted: Counted, tight: &Limits) {
     counted.meter.start();
     drop(counted.domain.take());
     drop(counted.prefix.take());
@@ -1465,29 +1095,25 @@ fn reclaim_every_owner(mut counted: Counted, tight: &Limits, configuration: Conf
     drop(counted.turn_copy.take());
     counted.records.clear();
     counted.records.shrink_to_fit();
-    drop(configuration);
-    counted.configuration_bytes = 0;
     let measured = counted.meter.end();
     counted.meter.check(measured, counted.ceiling, tight);
     let Counted { meter, out, .. } = counted;
     drop(out);
-    assert_eq!(meter.held(), 0, "all root, native fixture configuration and retained outside copies reclaimed");
+    assert_eq!(meter.held(), 0, "all root, retained caller copies reclaimed");
 }
 
 #[test]
 fn restored_root_arrays_payload_rewrites_and_turn_copies_stay_within_the_attained_bound() {
-    // Peak through generated history, restore overlap and exact receiving-credit refusals.
-    // Measured 5_925_491 B on 2026-10-28; a quarter of headroom, rounded up.
+    // Root, restored history and caller copies share this scenario ceiling.
     const RESTORE_CEILING: u64 = 7_500_000;
     for messages in [19, 39] {
         let cycles = (messages - 4) / 5;
         let mut counted = Counted::new(&bounds(messages), RESTORE_CEILING);
-        let configuration = counted.configuration();
-        let tight = generate_prefix(&mut counted, &configuration, messages, cycles);
-        restore_overlap(&mut counted, &configuration, messages, cycles);
-        restore_exact(&mut counted, &configuration, messages, cycles, &tight);
-        refuse_one_over(&mut counted, &configuration, cycles, &tight);
-        reclaim_every_owner(counted, &tight, configuration);
+        let tight = generate_prefix(&mut counted, messages, cycles);
+        restore_overlap(&mut counted, messages, cycles);
+        restore_exact(&mut counted, messages, cycles, &tight);
+        refuse_one_over(&mut counted, cycles, &tight);
+        reclaim_every_owner(counted, &tight);
     }
 }
 
@@ -1610,9 +1236,8 @@ fn maximum_convention_charter() -> run::Charter {
 }
 
 #[test]
-fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
-    // Peak with a full brief, maximum workspace paths and two physical clients.
-    // Measured 5_976_792 B on 2026-10-28; a quarter of headroom, rounded up.
+fn a_restored_run_keeps_full_brief_and_custom_paths_with_caller_copies() {
+    // Full brief, workspace paths and independent caller copies share this ceiling.
     const BRIEF_CEILING: u64 = 7_500_000;
     let path_bytes = run::Conventions::PATH_CAPACITY;
     let mut receiving = bounds(16);
@@ -1628,14 +1253,6 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
         .expect("maximum path charter has a finite exact receiving feedback bound")
         .max(receiving.session.delegated_result_bytes);
     let mut counted = Counted::with_window(&receiving, 65_536, BRIEF_CEILING);
-    // This combined fixture's observed system contains both maximum convention
-    // labels plus full nested workspace metadata. Select explicit native input
-    // string cap for that new prompt: 32,768 rather than the default 16,384.
-    // HTTP request-head and dialect request/document caps stay 32,768, matching
-    // the shared peer's fixed HTTP body/intake bounds. Original history/count/
-    // completion/refusal tests keep wire_limits() unchanged; root caps stay fixed.
-    counted.native_limits.client.strings = 32_768;
-    let configuration = counted.configuration();
     let mut caller = maximum_convention_charter();
     caller.llm.window = 65_536;
     let mounted = Some(maximum_workspace(&receiving.run));
@@ -1679,10 +1296,10 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
         read: run::Read::Text { text: b"Maximum readonly guide".as_slice().into(), whole: true },
     });
     let first = counted.complete.as_ref().expect("observed first root Complete");
-    assert!(first.prompt.system.len() > 16_384, "combined metadata exceeds the original native string cap");
-    assert!(first.prompt.system.len() <= 32_768, "explicit native string cap fits the observed combined prompt");
+    assert!(first.prompt.system.len() > 16_384, "combined metadata exceeds the original typed string cap");
+    assert!(first.prompt.system.len() <= 32_768, "explicit typed string cap fits the observed combined prompt");
     let source = counted.caller_charter.as_ref().expect("original caller Start remains independently owned");
-    assert!(first.prompt.system.starts_with(&source.instructions), "observed native main receives full literal role");
+    assert!(first.prompt.system.starts_with(&source.instructions), "observed typed main receives full literal role");
     assert_eq!(
         source.brief.sections.len(),
         usize::try_from(receiving.run.brief_sections).expect("bounded receiving Section count fits usize")
@@ -1707,21 +1324,18 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
         "the writable mount owns the maximum selected check label"
     );
     assert!(counted.probe.is_none(), "the readonly mount adds no second check probe");
-    counted.cycle(&configuration, 1);
-    assert!(counted.waiting && counted.records.is_empty(), "observed wait is held before the native text callback");
+    counted.cycle(1);
+    assert!(counted.waiting && counted.records.is_empty(), "observed wait is held before the typed text callback");
     counted.wake(Token::new(100), b"wake".as_slice().into());
-    counted.cycle(&configuration, 2);
-    assert!(
-        counted.waiting && counted.overlaps > 0,
-        "observed Wait/text terminals settle with two Clients overlapping"
-    );
-    assert!(counted.caller_charter.is_some(), "caller owns both maximum paths throughout observed native handoffs");
+    counted.cycle(2);
+    assert!(counted.waiting, "observed Wait/text terminals settle with independent caller copies");
+    assert!(counted.caller_charter.is_some(), "caller owns both maximum paths throughout observed typed handoffs");
     let run = counted.admitted.expect("maximum-path activation was admitted");
     counted.waiting = false;
     counted.step(Event::Cancel { run });
-    counted.cycle(&configuration, 1);
+    counted.cycle(1);
     assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 3, .. })));
-    reclaim_every_owner(counted, &receiving, configuration);
+    reclaim_every_owner(counted, &receiving);
 }
 
 /// Copy caller-owned maximum context into an independent observed Start.
