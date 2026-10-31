@@ -67,6 +67,8 @@ pub struct Clients {
     next_secret: u64,
     #[cfg(test)]
     pub(crate) secret_terminals: Option<Queue<kit::SecretOwner>>,
+    // The read view for this clients pass (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+    pub(crate) playground: Option<temper_engine_domain_forge::Playground>,
     demo_starts: Map<Token, root::Event>,
     demo_reads: Queue<crate::HandoverRead>,
     demo_ready: Queue<root::Event>,
@@ -281,6 +283,7 @@ impl Clients {
             next_secret: 1,
             #[cfg(test)]
             secret_terminals: None,
+            playground: None,
             demo_starts: Map::with_capacity(DEMO_STARTS),
             demo_reads: Queue::with_capacity(DEMO_STARTS),
             demo_ready: Queue::with_capacity(DEMO_STARTS),
@@ -488,10 +491,20 @@ impl Clients {
                     Err(value) => self.down(*value),
                 },
                 kit::Request::Application(value) => {
-                    match crate::family::to_root(value, forges, demo, &temper_client_protocol_wire::v1::CEILINGS) {
+                    match crate::family::to_root(
+                        value,
+                        forges,
+                        demo,
+                        self.playground.as_ref(),
+                        &temper_client_protocol_wire::v1::CEILINGS,
+                    ) {
                         Ok(mut value) => {
                             if let root::Event::Party(root::PartyInput::Application {
-                                request: root::Application::Forge(temper_engine_domain_forge::Ask::StartDemo),
+                                request:
+                                    root::Application::Forge(
+                                        temper_engine_domain_forge::Ask::StartDemo
+                                        | temper_engine_domain_forge::Ask::StartPlayground,
+                                    ),
                                 ..
                             }) = &value
                                 && let Some(demo) = demo
@@ -507,7 +520,7 @@ impl Clients {
                                 self.next_demo = self.next_demo.checked_add(1).expect("demo read sequence");
                                 self.demo_starts.insert(run, value).expect("bounded parked starts");
                                 self.demo_reads.push(crate::HandoverRead {
-                                    forge: demo.forge,
+                                    forge: 0,
                                     run,
                                     path: demo.key_file.clone(),
                                     max: 4097,

@@ -1,4 +1,4 @@
-//! The demo's fake LLM, forge and project (protocol/setup.md, 8.4).
+//! The scripted playground settings (temper/docs/design/draft/playground-reset.md, 6.1).
 use super::{Forge, Problems, What, read, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};
@@ -37,8 +37,13 @@ pub(super) fn parse(
     }
     let path = Path::root().member(b"application").member(b"demo");
     let mut object = read::object(document, at, &path, problems)?;
-    let project = read::number(&mut object, document, b"project", &path, problems)?;
-    let forge = read::short(&mut object, document, b"forge", &path, problems)?;
+    let project = if object.member(document, b"project").is_some() {
+        read::number(&mut object, document, b"project", &path, problems)?
+    } else {
+        0
+    };
+    let has_forge = object.member(document, b"forge").is_some();
+    let forge = if has_forge { read::short(&mut object, document, b"forge", &path, problems)? } else { 0 };
     let at = read::required(&mut object, document, b"llm", &path, problems)?;
     let llm_path = path.member(b"llm");
     let mut llm = read::object(document, at, &llm_path, problems)?;
@@ -54,6 +59,19 @@ pub(super) fn parse(
         let mut asked = read::object(document, *at, &path, problems)?;
         let cue = text(document, &mut asked, b"cue", w::CEILINGS.demo_answer_cues_item, &path, problems)?;
         cues.push(cue).expect("bounded demo cues");
+    }
+    if !has_forge {
+        return Some(settings::Demo {
+            project,
+            forge,
+            provider,
+            owner: b"playground".as_slice().into(),
+            name: b"widget".as_slice().into(),
+            cues: cues.into_boxed(),
+            landing: b"main".as_slice().into(),
+            key_file,
+            state: None,
+        });
     }
     let mut configured = false;
     for value in forges {

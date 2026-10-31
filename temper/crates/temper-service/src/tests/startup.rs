@@ -2231,3 +2231,19 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     assert_eq!(landing.by, temper_engine_domain::Way::Queue);
     assert!(landing.repositories.is_empty());
 }
+
+#[test]
+fn a_document_without_demo_forge_and_project_is_read() {
+    let input = fixtures::demo_application();
+    let input = core::str::from_utf8(&input).unwrap().replace(",\n\"forge\":1,\"project\":1", "");
+    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+    assert_eq!(&*lines(&problems), b"");
+    let demo = members.unwrap().demo.unwrap();
+    assert_eq!(demo.provider, 3);
+    assert_eq!((demo.project, demo.forge), (0, 0));
+    assert_eq!(demo.owner.as_ref(), b"playground");
+    assert_eq!(demo.name.as_ref(), b"widget");
+    assert_eq!(demo.landing.as_ref(), b"main");
+    assert!(demo.key_file.ends_with(b"demo/llm.key"));
+    assert_eq!(demo.cues.len(), 3);
+}

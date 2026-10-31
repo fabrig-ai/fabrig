@@ -28,6 +28,7 @@ pub fn to_root(
     exchange: kit::ToApplication,
     forges: &crate::forges::Forges,
     demo: Option<&crate::settings::Demo>,
+    playground: Option<&forge::Playground>,
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
     match exchange {
@@ -285,6 +286,14 @@ pub fn to_root(
                 )
                 .expect("demo checked at startup");
                 answer = Some(wire::demo_answer(&record));
+            }
+            if family == wire::FORGE
+                && version == wire::CLIENT_VERSION
+                && let Some(reading) = wire::decode_reading(&record, limits)
+                && *reading.read() == w::Read::Playground
+                && let (Some(row), Some(demo)) = (playground, demo)
+            {
+                answer = Some(playground_answer(row, demo, limits));
             }
             Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: answer })))
         }
@@ -1160,4 +1169,31 @@ fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
         forge::ForgeRefusal::NoKey => w::ForgeRefusal::NoKey,
         forge::ForgeRefusal::FirstIsBot => w::ForgeRefusal::FirstIsBot,
     }
+}
+
+/// The kept row supplies progress and ids; settings supply the scripted model's public view.
+/// temper/docs/design/draft/playground-reset.md, 6.1–6.2.
+fn playground_answer(row: &forge::Playground, demo: &crate::settings::Demo, limits: &w::Limits) -> Box<[u8]> {
+    let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded playground cues"));
+    for cue in &demo.cues {
+        cues.push(cue.clone()).expect("bounded playground cues");
+    }
+    let answer = w::PlaygroundAnswer::new(
+        limits,
+        w::PlaygroundAnswerParts {
+            state: match row.state {
+                forge::PlaygroundState::Starting => w::PlaygroundState::Starting,
+                forge::PlaygroundState::Running => w::PlaygroundState::Running,
+                forge::PlaygroundState::Resetting(_) => w::PlaygroundState::Resetting,
+            },
+            forge: row.forge,
+            project: row.project,
+            provider: demo.provider,
+            owner: demo.owner.clone(),
+            name: demo.name.clone(),
+            cues,
+        },
+    )
+    .expect("playground checked at startup");
+    wire::playground_answer(&answer)
 }
