@@ -456,7 +456,7 @@ impl skein_shell::Host for Shell {
     fn work_pending(&self, _now: skein_lib::Time) -> bool {
         !self.completions.is_empty() || (!self.finished && !self.pending)
     }
-    fn next_deadline(&self) -> Option<skein_lib::Time> {
+    fn next_mechanism_deadline(&self) -> Option<skein_lib::Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<skein_lib::Time> {

@@ -312,7 +312,7 @@ impl skein_shell::Host for StoreHost {
                         })
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.drivers.iter().filter_map(|d| d.io.next_deadline()).min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

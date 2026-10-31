@@ -2775,7 +2775,6 @@ fn a_mixed_document_exits_1_naming_its_path() {
         settled: bool,
     }
     impl skein_world::Referee<Binary> for Refusal {
-        fn act(&mut self, _now: skein_lib::Time, _hosts: &mut [Binary]) {}
         fn observe(&mut self, _now: skein_lib::Time, hosts: &[Binary]) {
             self.settled = hosts.iter().all(skein_shell::Host::is_empty);
         }

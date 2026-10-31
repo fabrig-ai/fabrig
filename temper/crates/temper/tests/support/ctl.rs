@@ -1059,12 +1059,8 @@ impl Host for Calls {
             || self.retry.is_some_and(|retry| retry <= now)
             || self.member.as_ref().is_some_and(|member| member.work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.retry
-            .into_iter()
-            .chain(self.deadline.as_ref().and_then(Patience::until))
-            .chain(self.member.as_ref().and_then(member::Member::next_deadline))
-            .min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.retry
@@ -1402,12 +1398,6 @@ mod read_condition_tests {
         }
         fn observe(&mut self, _now: Time, procs: &[Process]) {
             self.settled = procs.iter().all(Host::is_empty);
-        }
-        fn next_deadline(&self) -> Option<Time> {
-            None
-        }
-        fn overdue(&self, _now: Time) -> Option<String> {
-            None
         }
         fn passed(&self) -> bool {
             self.settled

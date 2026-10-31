@@ -304,7 +304,7 @@ impl skein_shell::Host for Disk {
     fn work_pending(&self, now: Time) -> bool {
         self.shell.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.shell.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -325,7 +325,6 @@ impl skein_world::Machine for DiskMachine {
 }
 struct DiskJudge;
 impl skein_world::Referee<Disk> for DiskJudge {
-    fn act(&mut self, _now: Time, _procs: &mut [Disk]) {}
     fn observe(&mut self, _now: Time, _procs: &[Disk]) {}
     fn next_deadline(&self) -> Option<Time> {
         Some(Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1)))

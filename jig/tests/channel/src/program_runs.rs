@@ -347,9 +347,6 @@ impl skein_world::Referee<Proc> for Judge {
         self.record(procs, turns, terminals, signed_out);
     }
     fn observe(&mut self, _now: Time, _procs: &[Proc]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
     fn overdue(&self, now: Time) -> Option<String> {
         (now > Time::ZERO.saturating_add(SETTLE)).then(|| {
             format!(

@@ -136,7 +136,7 @@ impl Host for Child {
         self.submissions.push(next);
         self.pending = true;
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -267,7 +267,7 @@ impl Host for Prepared {
             || !self.completions.is_empty()
             || !self.submissions.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {

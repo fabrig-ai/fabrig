@@ -3,7 +3,7 @@ use crate::{fixtures, relay::Relay, world::Capture};
 use jig_test_service::Service;
 use skein_io::kernel;
 use skein_lib::{Queue, Time, Wall};
-use skein_shell::Host;
+use skein_shell::{Delegate, Host};
 use skein_world::{Inherited, PipeHost};
 use smith_agent_process_world as agent_fixture;
 use std::collections::{BTreeMap, BTreeSet};
@@ -123,7 +123,7 @@ impl Host for ServiceHost {
     fn work_pending(&self, now: Time) -> bool {
         self.service.work_pending(now) || self.relay.ready(now) || (!self.holding && !self.held.is_empty())
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         [self.service.next_deadline(), self.relay.until].into_iter().flatten().min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -136,7 +136,7 @@ impl Host for ServiceHost {
         self.service.operations()
     }
 }
-impl Proc {
+impl Delegate for Proc {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Engine(host) | Self::Worker(host) => host.as_ref(),
@@ -147,6 +147,7 @@ impl Proc {
             Self::Probe(peer) => peer.as_ref(),
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Engine(host) | Self::Worker(host) => host.as_mut(),
@@ -158,39 +159,6 @@ impl Proc {
         }
     }
 }
-impl Host for Proc {
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn exit(&self) -> Option<kernel::Exit> {
-        self.host().exit()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
-    }
-}
-
 pub(crate) fn engine(inherited: &Inherited) -> Proc {
     engine_configured(inherited, false)
 }

@@ -519,7 +519,7 @@ impl Host for Fake {
             || (self.code.is_some() && (self.config.root.is_some() || self.config.mcp.is_some()) && self.files.takes())
     }
 
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io
             .next_deadline()
             .into_iter()

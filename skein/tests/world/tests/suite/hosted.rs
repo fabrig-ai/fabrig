@@ -210,8 +210,8 @@ impl Host for CuttingScript {
     fn work_pending(&self, now: Time) -> bool {
         self.script.work_pending(now) || (self.script.is_empty() && self.signal.is_some())
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.script.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.script.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.script.next_policy_deadline()
@@ -250,14 +250,7 @@ impl Machine for CuttingMachine {
 struct CuttingJudge;
 
 impl Referee<CuttingScript> for CuttingJudge {
-    fn act(&mut self, _now: Time, _procs: &mut [CuttingScript]) {}
     fn observe(&mut self, _now: Time, _procs: &[CuttingScript]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }

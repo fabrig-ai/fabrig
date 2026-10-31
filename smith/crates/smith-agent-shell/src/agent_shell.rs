@@ -446,7 +446,7 @@ impl Host for Agent {
             || !self.submissions.is_empty()
     }
 
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         if self.result.is_none() { service::next_deadline(&self.service) } else { None }
     }
 

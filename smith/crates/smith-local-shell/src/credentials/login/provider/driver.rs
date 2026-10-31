@@ -148,8 +148,8 @@ impl Host for Login {
     fn work_pending(&self, now: Time) -> bool {
         self.driver.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.driver.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.driver.next_deadline()

@@ -495,7 +495,7 @@ impl<T: Transport> Host for Git<T> {
     fn work_pending(&self, _now: Time) -> bool {
         self.pending.is_none() && !self.finished
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {

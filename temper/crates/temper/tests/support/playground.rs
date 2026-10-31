@@ -66,9 +66,6 @@ impl Referee<NativeClient> for Judge {
     fn next_deadline(&self) -> Option<Time> {
         (!matches!(self.page, Page::Done)).then_some(self.until)
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         matches!(self.page, Page::Done)
     }

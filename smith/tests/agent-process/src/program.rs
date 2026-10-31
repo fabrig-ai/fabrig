@@ -4,8 +4,8 @@
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::kernel::{self, Exit, Spawn};
-use skein_lib::{Duration, Queue, Reader, Secret, Time, Wall};
-use skein_shell::Host;
+use skein_lib::{Duration, Queue, Reader, Secret, Time};
+use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Referee};
 use smith_fake_claude::{Fake, Story};
 
@@ -59,7 +59,7 @@ enum Proc {
     Relay { process: Box<smith_agent_shell::relay::Process>, environment: Vec<String> },
 }
 
-impl Proc {
+impl Delegate for Proc {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Parent(host) => host.as_ref(),
@@ -68,6 +68,7 @@ impl Proc {
             Self::Relay { process, .. } => process.as_ref(),
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Parent(host) => host.as_mut(),
@@ -75,39 +76,6 @@ impl Proc {
             Self::Fake(host) => host.as_mut(),
             Self::Relay { process, .. } => process.as_mut(),
         }
-    }
-}
-
-impl Host for Proc {
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn exit(&self) -> Option<Exit> {
-        self.host().exit()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 
@@ -440,9 +408,6 @@ impl Referee<Proc> for Judge {
     }
     fn next_deadline(&self) -> Option<Time> {
         self.cancel.or(self.waiting.deadline())
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         self.cancel.is_none() && self.waiting.passed() && (!self.wait_for_exit || self.ended)
