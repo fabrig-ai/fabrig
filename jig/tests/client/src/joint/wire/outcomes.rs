@@ -68,6 +68,7 @@ pub fn outcome(value: &people::Outcome, limits: &Limits) -> Result<Outcome, owne
         people::Outcome::RolesSet { project } => client::OwnerOutcome::RolesSet { project: *project },
         people::Outcome::Renamed { project } => client::OwnerOutcome::Renamed { project: *project },
         people::Outcome::ProjectMade { project } => client::OwnerOutcome::ProjectMade { project: *project },
+        people::Outcome::ProjectRemoved { project } => client::OwnerOutcome::ProjectRemoved { project: *project },
         people::Outcome::PolicyChanged { project } => client::OwnerOutcome::PolicyChanged { project: *project },
         people::Outcome::PoolSet { project, person } => {
             client::OwnerOutcome::PoolSet { project: *project, person: *person }

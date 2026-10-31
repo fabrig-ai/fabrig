@@ -146,6 +146,10 @@ pub enum OwnerOutcome {
     ProjectMade {
         project: u32,
     },
+    /// Project deletion committed (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectRemoved {
+        project: u32,
+    },
     /// A person's project pool was opened or resized.
     PoolSet {
         project: u32,

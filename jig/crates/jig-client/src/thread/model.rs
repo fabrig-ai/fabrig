@@ -284,6 +284,7 @@ fn number(value: &OwnerOutcome, task: u64, place: u32) -> Option<u64> {
         | OwnerOutcome::AccountSignedOut { .. }
         | OwnerOutcome::Renamed { .. }
         | OwnerOutcome::ProjectMade { .. }
+        | OwnerOutcome::ProjectRemoved { .. }
         | OwnerOutcome::PoolSet { .. }
         | OwnerOutcome::EscalationDecided { .. } => None,
     }

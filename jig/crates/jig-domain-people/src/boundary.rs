@@ -534,6 +534,10 @@ pub enum Outcome {
     ProjectMade {
         project: u32,
     },
+    /// Project deletion committed (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectRemoved {
+        project: u32,
+    },
     /// One person's finite pool was opened or resized in its original period.
     PoolSet {
         project: u32,
@@ -642,6 +646,19 @@ pub struct ActKey {
 /// One act a connector makes in the deployment's name (people.md, 5.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Act {
+    /// The project's deletion in the deployment's name
+    /// (temper/docs/design/draft/playground-reset.md, 5).
+    RemoveProject {
+        project: u32,
+    },
+    /// Compound cancel of a task and its delegates, whatever its requester
+    /// (temper/docs/design/draft/playground-reset.md, 4; jig/docs/design/domain/tasks.md, 7).
+    Cancel {
+        project: u32,
+        task: u64,
+        grace: Option<Duration>,
+        reason: Box<[u8]>,
+    },
     MakeProject {
         maker: u64,
         name: Box<str>,
@@ -676,11 +693,21 @@ pub enum ActKind {
     RemoveAccount,
     Adopt,
     MakeProject,
+    RemoveProject,
+    Cancel,
 }
 
 impl ActKind {
     /// Every deployment act kind; also bounds a configured grant's owned entries.
-    pub const ALL: &[Self] = &[Self::Close, Self::AddKey, Self::RemoveAccount, Self::Adopt, Self::MakeProject];
+    pub const ALL: &[Self] = &[
+        Self::Close,
+        Self::AddKey,
+        Self::RemoveAccount,
+        Self::Adopt,
+        Self::MakeProject,
+        Self::RemoveProject,
+        Self::Cancel,
+    ];
 }
 
 /// A connector's configured deployment authority (people.md, 5.3).

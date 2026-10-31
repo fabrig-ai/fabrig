@@ -57,6 +57,8 @@ fn grant(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> 
             }
         };
         let kind = match &*name {
+            b"remove_project" => ActKind::RemoveProject,
+            b"cancel" => ActKind::Cancel,
             b"close" => ActKind::Close,
             b"add_key" => ActKind::AddKey,
             b"remove_account" => ActKind::RemoveAccount,

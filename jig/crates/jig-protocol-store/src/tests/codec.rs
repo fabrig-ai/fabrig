@@ -1345,6 +1345,13 @@ fn acted_rows_round_trip_every_deployment_act() {
         },
         Act::AddKey { provider: u32::MAX, join: Some(7), digest: [255; 32] },
         Act::RemoveAccount { account: u32::MAX },
+        Act::RemoveProject { project: u32::MAX },
+        Act::Cancel {
+            project: 1,
+            task: u64::MAX,
+            grace: Some(skein_lib::Duration::from_secs(5)),
+            reason: b"cancelled".as_slice().into(),
+        },
         Act::MakeProject { maker: 1, name: "Tally".into(), policy: 1 },
         Act::Adopt {
             project: 1,
@@ -1362,6 +1369,17 @@ fn acted_rows_round_trip_every_deployment_act() {
             at: skein_lib::Wall::from_nanos(u64::MAX),
         });
     }
+}
+
+#[test]
+fn removed_project_outcome_round_trips() {
+    use jig_domain_people::{Act, ActKey, Outcome, Stored};
+    people_round_trip(Stored::Acted {
+        key: ActKey { connector: 1, key: [7; 16] },
+        act: Act::RemoveProject { project: u32::MAX },
+        outcome: Outcome::ProjectRemoved { project: u32::MAX },
+        at: skein_lib::Wall::EPOCH,
+    });
 }
 
 #[test]

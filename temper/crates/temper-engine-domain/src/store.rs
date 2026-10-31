@@ -298,6 +298,11 @@ pub struct CallRecord {
 /// (jig's domain/engine.md, 5.3–5.6).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
+    /// Root-only transcript address (temper/docs/design/draft/playground-reset.md, 5;
+    /// jig/docs/design/protocol/store.md, 8.5).
+    Transcript {
+        task: u64,
+    },
     Wires,
     Core(jig_domain_core::Key),
     Forge(temper_engine_domain_forge::Key),
@@ -379,7 +384,7 @@ impl Range {
     #[must_use]
     pub fn contains(&self, key: &Key) -> bool {
         let core = match key {
-            Key::Wires => return false,
+            Key::Wires | Key::Transcript { .. } => return false,
             Key::Core(core) => core,
             Key::Forge(_) => return *self == Range::Forge,
         };
@@ -550,6 +555,8 @@ impl Record {
 /// (domain/root.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Write {
+    /// Drop a task's transcript (temper/docs/design/draft/playground-reset.md, 5).
+    DropTranscript { task: u64 },
     /// Persist the shell-supplied wire versions in the start’s mark.
     Wires,
     /// Copy a held revision to its history destination before its held row is erased.
@@ -570,6 +577,7 @@ impl Write {
                 jig_domain_core::CoreKey::Settings(jig_domain_core::settings::Key::History(*number)),
             )),
             Write::Wires => Key::Wires,
+            Write::DropTranscript { task } => Key::Transcript { task: *task },
             Write::Save(row) => row.key(),
             Write::Erase(key) => key.clone(),
         }
@@ -777,10 +785,14 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
             }
             jig_domain_people::Stored::Acted { act, outcome, .. } => {
                 let payload = match act {
-                    jig_domain_people::Act::Close { reason, .. } => u64::try_from(reason.len()).ok()?,
+                    jig_domain_people::Act::Close { reason, .. } | jig_domain_people::Act::Cancel { reason, .. } => {
+                        u64::try_from(reason.len()).ok()?
+                    }
                     jig_domain_people::Act::AddKey { .. } | jig_domain_people::Act::RemoveAccount { .. } => 0,
                     jig_domain_people::Act::Adopt { adoption, .. } => adoption_bytes(adoption)?,
-                    jig_domain_people::Act::MakeProject { .. } => unreachable!("demo never makes a project"),
+                    jig_domain_people::Act::MakeProject { .. } | jig_domain_people::Act::RemoveProject { .. } => {
+                        unreachable!("demo never makes a project")
+                    }
                 };
                 payload.checked_add(program_answer_bytes(outcome)?)
             }
@@ -823,6 +835,7 @@ pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
             note_scope_bytes(scope)
         }
         Write::Wires
+        | Write::DropTranscript { .. }
         | Write::Erase(
             Key::Core(
                 jig_domain_core::Key::Notes(jig_domain_notes::Key::Entry { .. })
@@ -842,6 +855,7 @@ pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
                 | jig_domain_core::Key::Accounts(_),
             )
             | Key::Wires
+            | Key::Transcript { .. }
             | Key::Forge(_),
         ) => Some(0),
     }
@@ -959,6 +973,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::Compound { .. }
         | Outcome::CompoundRefused { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::Renamed { .. }
         | Outcome::Created { .. }
         | Outcome::MarkedSeen { .. }

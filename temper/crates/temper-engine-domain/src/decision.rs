@@ -295,9 +295,11 @@ impl Decision {
         assert!(*limits == self.limits, "decision uses its configured limits");
         let within = match &write {
             Write::CopySettingsRevision(number) => *number != 0,
+            Write::DropTranscript { task } => *task != 0,
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(_))))
             | Write::Erase(
                 Key::Wires
+                | Key::Transcript { .. }
                 | Key::Core(jig_domain_core::Key::Core(
                     jig_domain_core::CoreKey::Deployment
                     | jig_domain_core::CoreKey::EscalationDecision { .. }

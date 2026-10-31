@@ -128,6 +128,8 @@ pub enum Ask {
 /// Store mutation issued by a child of the core.
 #[derive(Debug)]
 pub enum Write {
+    /// Drop a task's transcript (temper/docs/design/draft/playground-reset.md, 5).
+    DropTranscript { task: u64 },
     /// Copy the old held revision to history without materialising it in the core.
     CopySettingsRevision(u32),
     /// Save one authentic core or child record.

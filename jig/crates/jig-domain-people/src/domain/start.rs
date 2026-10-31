@@ -103,6 +103,7 @@ impl Domain {
                 | Outcome::PolicyChanged { .. }
                 | Outcome::Renamed { .. }
                 | Outcome::ProjectMade { .. }
+                | Outcome::ProjectRemoved { .. }
                 | Outcome::SettingsChanged { .. }
                 | Outcome::MovedToNewest { .. }
                 | Outcome::PoolSet { .. }

@@ -216,6 +216,10 @@ pub struct AdoptedParty {
 /// What the core asks a numbered connector to do.
 #[derive(Debug)]
 pub enum Ask {
+    /// Erase a project's connector rows (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectRemoved {
+        project: u32,
+    },
     Names {
         task: u64,
         resources: Box<[tasks::Name]>,

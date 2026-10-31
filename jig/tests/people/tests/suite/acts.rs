@@ -17,6 +17,8 @@ fn grants() -> Box<[ActGrant]> {
             connector,
             may: Box::new([
                 ActKind::Close,
+                ActKind::Cancel,
+                ActKind::RemoveProject,
                 ActKind::Adopt,
                 ActKind::MakeProject,
                 ActKind::AddKey,
@@ -63,6 +65,8 @@ fn any_act_with_no_owner_lacks_the_role_and_is_unsaved() {
     let mut world = World::configured(Settings::calm(952), Box::new([]), grants());
     for act in [
         close(),
+        Act::Cancel { project: PROJECT, task: TASK, grace: None, reason: Box::new([]) },
+        Act::RemoveProject { project: PROJECT },
         Act::AddKey { provider: 1, join: None, digest: [7; 32] },
         Act::RemoveAccount { account: 1 },
         Act::MakeProject { maker: 1, name: "Tally".into(), policy: 1 },
