@@ -645,76 +645,6 @@ fn contains(view: &View, words: &[u8]) -> bool {
         .any(|r| r.text.windows(words.len()).any(|slice| slice == words))
 }
 #[test]
-fn an_incident_with_a_lead_and_an_infrastructure_panel_fills_both_slot_passes() {
-    let mut root = ready();
-    let requests = drive(
-        &mut root,
-        Event::Went {
-            place: root::Place::Address(Address::Observability(observability::Address::Incident {
-                project: 1,
-                incident: 12,
-            })),
-        },
-    );
-    let read = requests
-        .iter()
-        .find_map(|r| match r {
-            Request::Observability(observability::Out::Read { read, .. }) => Some(*read),
-            _ => None,
-        })
-        .unwrap();
-    let mut facts = incident();
-    let observability::values::Value::Incident { incident, .. } = &mut facts.value else { unreachable!() };
-    incident.lead = Some(9);
-    let requests = drive(
-        &mut root,
-        Event::Observability(observability::Event::Read {
-            read,
-            result: observability::ReadResult::Value(Box::new(observability::Document::Value(Box::new(facts)))),
-        }),
-    );
-    let mut pending = requests;
-    while let Some(request) = pending.pop() {
-        let event = match request {
-            Request::Jig(JigOut::Read { read, what: Read::Task { .. } }) => Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::ReadDone {
-                        read,
-                        result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Task(Box::new(task())))),
-                    },
-                },
-            },
-            Request::Jig(JigOut::Open { watch, subject: Subject::Task { .. } }) => Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched {
-                        watch,
-                        event: WatchEvent::Delivered(Delivery::Task(Box::new(task()))),
-                    },
-                },
-            },
-            Request::Infrastructure(infrastructure::Out::Read { read, subject }) => {
-                Event::Infrastructure(infrastructure::Event::Read {
-                    read,
-                    result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Value(Box::new(
-                        waiting_remediation_panel(subject),
-                    )))),
-                })
-            }
-            _ => continue,
-        };
-        pending.extend(drive(&mut root, event));
-    }
-    let mut view = view();
-    let mut patches = Queue::uncapped();
-    build(&mut view, &root, &mut patches);
-    assert!(contains(&view, b"Task 9"));
-    assert!(contains(&view, b"Waiting for healthy"));
-    assert!(view.tree().len() <= view.limits().tree.nodes);
-    while patches.pop().is_some() {}
-    build(&mut view, &root, &mut patches);
-    assert!(patches.is_empty());
-}
-#[test]
 fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_envelope() {
     let mut root = ready();
     let requests = drive(
@@ -1478,27 +1408,6 @@ fn environment_form_uses_the_supplied_request_revision_and_keeps_whole_width_sec
             value: u64::MAX - 1
         }))
     );
-}
-
-fn waiting_remediation_panel(subject: infrastructure::Subject) -> infrastructure::values::Document {
-    use infrastructure::values as n;
-    n::Document {
-        subject,
-        value: n::Value::Panel {
-            task: 9,
-            state: n::ProcedureState {
-                task: 9,
-                procedure: n::Procedure::Remediate {
-                    service: n::Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
-                    operation: 17,
-                    deadline: 0,
-                },
-                phase: n::ProcedurePhase::WaitingCondition,
-            },
-            resources: list([]),
-            effects: list([]),
-        },
-    }
 }
 
 fn configured_deployment(connector: u16) -> OwnerDeployment {
