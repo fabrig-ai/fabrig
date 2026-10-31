@@ -78,7 +78,8 @@ pub(super) fn read(world: &mut World, read: reads::Read) -> Option<reads::Answer
 }
 
 fn task_line(world: &mut World, project: u32, task: u64) -> Option<documents::TaskLine> {
-    let query = documents::TaskQuery { project: Some(project), requester: None, ..jig_core_world::fixtures::OWN_TASKS };
+    let query =
+        documents::TaskQuery { project: Some(project), requester: None, ..jig_test_profile::fixtures::OWN_TASKS };
     let Some(reads::Answer::Tasks(page)) = read(world, reads::Read::Tasks { query, live: None, ended: None }) else {
         return None;
     };

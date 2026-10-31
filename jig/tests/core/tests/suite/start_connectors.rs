@@ -1,6 +1,6 @@
 //! Direct core starts and connector recovery (jig/docs/design/domain/engine.md, 6).
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::World;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -43,7 +43,7 @@ impl Harness {
         reason = "one fixture loads a sampled core store and hand-built connector records"
     )]
     fn new(recovery: u16) -> Self {
-        let (configuration, limits) = jig_core_world::effects::fixture(SEED, false);
+        let (configuration, limits) = jig_core_world::world::fixture(SEED, false);
         let mut source = World::new(Setup { seed: SEED, ..Setup::default() });
         let task = source.assigned.as_ref().expect("source run").task;
         source.end(tasks::End::Parked, 0);

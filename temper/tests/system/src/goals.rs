@@ -146,16 +146,16 @@ fn goal(driver: &Driver, spec: &[u8], budget: u64, priority: u32) -> people::Ask
     temper_engine_domain_world::walking::goal_from(
         driver.chat_ask(1, spec),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget, priority, deadline: None },
+        jig_test_profile::fixtures::Goal { budget, priority, deadline: None },
     )
 }
 
 fn proposed_goal(spec: &[u8], budget: u64, priority: u32) -> people::Ask {
-    let mut ask = jig_core_world::fixtures::propose_goal(temper_engine_domain_world::walking::goal(
+    let mut ask = jig_test_profile::fixtures::propose_goal(temper_engine_domain_world::walking::goal(
         1,
         spec,
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget, priority, deadline: None },
+        jig_test_profile::fixtures::Goal { budget, priority, deadline: None },
     ));
     let people::Ask::Propose { action: people::Action::Batch(batch), .. } = &mut ask else { panic!("goal proposal") };
     batch[0].authority.tools = 3;

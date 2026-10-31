@@ -1,9 +1,9 @@
 //! The inbox census builds the same projections through either start entrance.
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    effects::{World, fixture},
-    fixtures::{ask_as, chat, people_member},
-};
+use jig_core_world::fixtures::ask_as;
+use jig_core_world::fixtures::chat;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
+use jig_core_world::world::fixture;
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -11,6 +11,7 @@ use jig_domain_core::{
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
+use jig_test_profile::fixtures::people_member;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::BTreeMap;
 

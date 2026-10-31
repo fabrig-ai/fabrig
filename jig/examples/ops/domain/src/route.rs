@@ -224,7 +224,7 @@ fn event_in(
             crate::assemble::connector_read(domain, to, task, tool, read, work);
         }
         Event::Effect { to, key, effect, deadline, proposal } => {
-            let owner = domain.token();
+            let owner = domain.core.effect_owner();
             let origin = match proposal {
                 Some(reason) => core::EffectOrigin::Propose { to, key, reason, as_holder: false },
                 None => core::EffectOrigin::Call { to, key, deadline },
@@ -1024,7 +1024,7 @@ pub(crate) fn infrastructure_out(
                 let Some(Procedure { step, connector, code }) = domain.hub_link.take_procedure(task) else { continue };
                 match action {
                     infrastructure::StepDecision::Effect(effect) => {
-                        let owner = domain.token();
+                        let owner = domain.core.effect_owner();
                         domain.hub_link.keep_effect_procedure(owner, task);
                         work.push(Work::Effect {
                             owner,

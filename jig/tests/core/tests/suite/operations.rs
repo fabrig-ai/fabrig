@@ -1,11 +1,12 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::fixtures::{live_row, person_unchanged};
+use crate::read_support::{request, world};
+use jig_core_world::fixtures::live_row;
 use jig_core_world::stories::delegates::delegate_pair;
-use jig_core_world::stories::reads::{request, world};
+use jig_core_world::world::Setup;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
+use jig_test_profile::fixtures::person_unchanged;
 use skein_lib::Duration;
 
 const PROJECT: u32 = 1;
@@ -105,10 +106,10 @@ fn compound(operations: impl IntoIterator<Item = people::Operation>) -> people::
     people::Ask::Compound { project: PROJECT, operations: bounded }
 }
 
-fn compound_world(seed: u64) -> jig_core_world::effects::World {
+fn compound_world(seed: u64) -> jig_core_world::world::World {
     let (config, mut limits) = jig_core_world::faults::plan_fixture(seed);
     limits.core.people.operations = 3;
-    jig_core_world::effects::World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() })
+    jig_core_world::world::World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() })
 }
 
 fn closing(chat: u64, cancelled: u64, moved: u64) -> people::Ask {
@@ -174,7 +175,7 @@ fn a_compound_refused_at_its_second_operation_makes_nothing() {
 #[test]
 fn a_compound_naming_another_projects_task_is_refused_at_its_place() {
     let (config, limits) = jig_core_world::fixtures::two_projects(1109);
-    let mut world = jig_core_world::effects::World::new(Setup {
+    let mut world = jig_core_world::world::World::new(Setup {
         seed: 1109,
         configuration: Some(config),
         limits,
@@ -223,7 +224,7 @@ fn a_compound_reorders_two_goals_at_once() {
 
 #[test]
 fn a_compound_sent_again_after_a_crash_is_made_once_and_answered_once() {
-    use jig_core_world::effects::Cut;
+    use jig_core_world::world::Cut;
     let mut world = compound_world(1111);
     let chat = world.assignments[0].0;
     let (cancelled, moved) = delegate_pair(&mut world);
@@ -306,7 +307,7 @@ fn an_earlier_compound_amendment_sets_the_next_spec_revision() {
     assert_eq!(live_row(&world, task).spec.words.as_ref(), b"second");
 }
 
-fn another_requester(world: &mut jig_core_world::effects::World) -> u64 {
+fn another_requester(world: &mut jig_core_world::world::World) -> u64 {
     let first = world.sign_in.expect("first requester signed in");
     world.send(root::Event::Core(core::Event::SignIn {
         held: None,
@@ -347,7 +348,7 @@ fn a_compound_moved_conversation_starts_its_new_requester_with_nothing_read() {
     assert_moved_read(&mut world, task, ask);
 }
 
-fn assert_moved_read(world: &mut jig_core_world::effects::World, task: u64, ask: people::Ask) {
+fn assert_moved_read(world: &mut jig_core_world::world::World, task: u64, ask: people::Ask) {
     world.turn(FIRST_MOVE_TURN, 0, None, b"unread after move");
     let second = another_requester(world);
     request(

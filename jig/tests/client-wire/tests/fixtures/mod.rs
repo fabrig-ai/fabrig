@@ -24,19 +24,19 @@ pub const SUBJECT_KINDS: [family::Kind; 10] = [
 
 pub fn assert_document(value: family::Document) {
     let bytes = family::wire::encode_document(&value);
-    let bounds = jig_core_world::world::limits().connector;
+    let bounds = jig_test_profile::limits().connector;
     let limits = ConnectorLimits { rows: 2, paths: 2, segments: 2, segment_bytes: 32, bytes: 65536 };
     assert_eq!(family::wire::decode_document(&bytes, &bounds, &limits), Ok(value));
 }
 pub fn assert_answer(value: family::Answer) {
     let bytes = family::wire::encode_answer(&value).expect("application answer");
-    let bounds = jig_core_world::world::limits().connector;
+    let bounds = jig_test_profile::limits().connector;
     assert_eq!(family::wire::decode_answer(&bytes, &bounds), Ok(value));
 }
 pub fn assert_subject(subject: family::Subject) {
     use jig_client_test_protocol_wire::codec;
     let (_, value) = family::wire::subject(subject);
-    let bounds = jig_core_world::world::limits().connector;
+    let bounds = jig_test_profile::limits().connector;
     let bytes = codec::family::subject(value.clone());
     let decoded = codec::family::subject_value(&bytes, &bounds).expect("family subject");
     assert_eq!(family::wire::subject_value(decoded), subject, "subject: {subject:?}");
@@ -49,7 +49,7 @@ pub fn assert_change(supplied: u64) {
     let ask = family::Ask::ChangeObject { project: PROJECT, object: ITEM, revision: REVISION, value: supplied };
     let (project, value) = family::wire::request(&ask);
     let bytes = codec::family::request_record(project, value);
-    let bounds = jig_core_world::world::limits().connector;
+    let bounds = jig_test_profile::limits().connector;
     let decoded = codec::family::request_value(&bytes, &bounds).expect("family request");
     let decoded_value = decoded.value.into_parts();
     assert_eq!(decoded.project, PROJECT);

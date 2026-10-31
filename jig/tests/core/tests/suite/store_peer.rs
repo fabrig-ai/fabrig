@@ -1,11 +1,10 @@
 use jig_core_world::Fault;
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    Store,
-    client_peer::ClientPeer,
-    effects::{Cut, World},
-    store_peer::StorePeer,
-};
+use jig_core_world::Store;
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::store_peer::StorePeer;
+use jig_core_world::world::Cut;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -85,7 +84,7 @@ fn repeated_drains_and_released_acknowledgements_do_not_duplicate_a_snapshot() {
     assert_eq!(world.client_peer.as_ref().expect("client").delivered.len(), 1);
     assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
     let mut empty = StorePeer::new();
-    empty.capture(Time::from_nanos(1), &Store::new(&jig_core_world::world::limits(), &[]));
+    empty.capture(Time::from_nanos(1), &Store::new(&jig_test_profile::limits(), &[]));
     assert!(empty.take().is_empty(), "no invented Durable0");
 }
 
@@ -108,7 +107,7 @@ fn a_single_drain_preserves_every_intermediate_applied_number_and_whole_snapshot
 
 #[test]
 fn whole_opaque_rows_remain_immutable_after_later_save_erase_and_store_mutation() {
-    let mut store = Store::new(&jig_core_world::world::limits(), &[]);
+    let mut store = Store::new(&jig_test_profile::limits(), &[]);
     let mut peer = StorePeer::new();
     let original = opaque_turn(&[0, 255, 128, 1, 0, 254]);
     let key = original.key();
@@ -136,7 +135,7 @@ fn whole_opaque_rows_remain_immutable_after_later_save_erase_and_store_mutation(
 
 #[test]
 fn pending_failed_and_abandoned_transactions_emit_nothing_and_crash_preserves_captured_rows() {
-    let mut store = Store::new(&jig_core_world::world::limits(), &[]);
+    let mut store = Store::new(&jig_test_profile::limits(), &[]);
     let mut peer = StorePeer::new();
     let durable = opaque_turn(b"actually applied");
     let key = durable.key();
@@ -168,7 +167,7 @@ fn pending_failed_and_abandoned_transactions_emit_nothing_and_crash_preserves_ca
 
 #[test]
 fn supplied_monotonic_time_is_exact_and_independent_of_wall_corrections() {
-    let mut store = Store::new(&jig_core_world::world::limits(), &[]);
+    let mut store = Store::new(&jig_test_profile::limits(), &[]);
     let mut peer = StorePeer::new();
     let row = opaque_turn(b"independent wall timestamp");
     store.submit(1, writes(1, Write::Save(row)), 0);

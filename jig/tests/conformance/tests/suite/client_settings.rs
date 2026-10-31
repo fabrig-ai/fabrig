@@ -164,7 +164,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     let bytes = encoded!(&w::DeliveryValue::Settings(wire));
     assert_eq!(translate::watches::delivery(&bytes, &limits), Ok(c::Delivery::Settings(document)));
 
-    let mut config = jig_core_world::world::config(9371);
+    let mut config = jig_test_profile::config(9371);
     config.core.defaults.rules.ceiling.models = jig_domain_authority::Models::ALL;
     let spend = config.core.defaults.rules.period_spend;
     let source = reads::SettingDocument {

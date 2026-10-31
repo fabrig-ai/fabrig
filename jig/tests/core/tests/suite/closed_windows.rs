@@ -2,19 +2,20 @@
 
 use super::fresh_windows as windows;
 
-use jig_core_world::{effects, fixtures};
+use jig_core_world::fixtures;
+use jig_core_world::world;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use skein_lib::Duration;
 
-fn wake(world: &mut effects::World) {
+fn wake(world: &mut world::World) {
     world.say(87);
 }
-fn unchanged(world: &effects::World, tries: tasks::Tries, refused: u32) {
+fn unchanged(world: &world::World, tries: tasks::Tries, refused: u32) {
     assert_eq!(windows::tries(world), tries, "closing spends no try");
     assert_eq!(fixtures::live_row(world, windows::proof(world).task).refusals, refused);
 }
-fn closed(world: &effects::World) {
+fn closed(world: &world::World) {
     assert_eq!(windows::proof(world).window, Some(core::CurrentWindow { attempt: 2, turn: 1, closed: true }));
 }
 
@@ -108,7 +109,7 @@ fn first_turn_after_closed_window_opens_a_resumable_conversation() {
 fn closed_tail_loads_past_the_resume_limit() {
     let mut world = windows::parked();
     world.store.patch_sets(windows::AFTER);
-    let mut config = effects::fixture(windows::SEED, false).0;
+    let mut config = world::fixture(windows::SEED, false).0;
     config.core.settings.resume_bytes = 1;
     world.restart_with(config);
     windows::hello(&mut world);

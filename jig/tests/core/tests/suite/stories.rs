@@ -1,7 +1,7 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::{World, fixture};
 pub(crate) use jig_core_world::fixtures::{configure_resources, resource_member};
 use jig_core_world::fixtures::{delegate, live_row, member};
+use jig_core_world::world::Setup;
+use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_notes as notes;
@@ -893,7 +893,7 @@ fn a_context_adoption_still_refuses_effects_after_a_cold_restart() {
 pub(crate) fn amendment(words: &[u8]) -> people::Amendment {
     people::Amendment {
         spec: Some(people::Spec { asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) }),
-        ..jig_core_world::fixtures::person_unchanged(b"new evidence")
+        ..jig_test_profile::fixtures::person_unchanged(b"new evidence")
     }
 }
 
@@ -1314,9 +1314,9 @@ fn a_goal_with_a_deadline_is_held_past_it() {
         1,
         b"finish before the deadline".as_slice().into(),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 600, deadline: Some(deadline), ..Default::default() },
+        jig_test_profile::fixtures::Goal { budget: 600, deadline: Some(deadline), ..Default::default() },
     );
-    ask(&mut world, 90, jig_core_world::fixtures::propose_goal(proposed_goal));
+    ask(&mut world, 90, jig_test_profile::fixtures::propose_goal(proposed_goal));
     let Some(people::Reply::Outcome(people::Outcome::Proposed { proposal, to: 0 })) =
         world.people_answers.last().cloned()
     else {

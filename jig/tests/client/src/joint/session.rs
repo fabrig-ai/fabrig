@@ -817,11 +817,11 @@ mod tests {
     use skein_lib::Token;
 
     fn session() -> (Session, Time, Wall) {
-        configured_session(jig_core_world::world::config(8455), Peers::new(Vec::new(), Vec::new()))
+        configured_session(jig_test_profile::config(8455), Peers::new(Vec::new(), Vec::new()))
     }
 
     fn configured_session(configuration: root::Config, peers: Peers) -> (Session, Time, Wall) {
-        session_with_limits(configuration, jig_core_world::world::limits(), peers)
+        session_with_limits(configuration, jig_test_profile::limits(), peers)
     }
 
     fn session_with_limits(
@@ -1120,8 +1120,7 @@ mod tests {
     #[test]
     fn requests_wait_for_authentication_independently_of_me_durability() {
         let (mut session, now, wall) = session();
-        session.driver.world.cut =
-            Some(jig_core_world::effects::Cut::Submitted(session.driver.world.store.applied + 1));
+        session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(session.driver.world.store.applied + 1));
         session.bind(ClientId(0), 1, identity(), now, wall);
         let native = Token::new(u64::MAX);
         session.send(ClientId(0), now, wall, frame(native)).expect("original request parks");
@@ -1408,7 +1407,7 @@ mod tests {
         assert_eq!(session.parked.get(&ClientId(0)).expect("parked retry"), &[request(retry)]);
         assert!(session.business_poll(now, wall).expect("no timed fake recovery").is_empty());
         let until = now.saturating_add(skein_lib::Duration::from_secs(1));
-        session.restart(jig_core_world::world::config(8455), now, wall, until).expect("actual cold root");
+        session.restart(jig_test_profile::config(8455), now, wall, until).expect("actual cold root");
         assert!(session.business_poll(now, wall).expect("supplied offline span").is_empty());
         let callbacks = session.business_poll(until, wall).expect("real restart and original retry");
         assert!(callbacks.iter().any(|(client, value)| *client == ClientId(0)
@@ -1481,8 +1480,7 @@ mod tests {
         let first = session.driver.transport.sign_in(ClientId(0)).expect("first owner session");
         let sibling = session.driver.transport.sign_in(ClientId(1)).expect("sibling owner session");
         assert_ne!(first, sibling);
-        session.driver.world.cut =
-            Some(jig_core_world::effects::Cut::Submitted(session.driver.world.store.applied + 1));
+        session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(session.driver.world.store.applied + 1));
         session.sign_out(ClientId(0), now, wall);
         assert!(session.driver.withhold_completion().expect("actual session erasure is durable").is_none());
         assert!(session.business_poll(now, wall).expect("withheld actual sign-out completion").is_empty());
@@ -1526,7 +1524,7 @@ mod tests {
             1
         );
         let until = now.saturating_add(skein_lib::Duration::from_secs(1));
-        session.restart(jig_core_world::world::config(8455), now, wall, until).expect("actual cold restart");
+        session.restart(jig_test_profile::config(8455), now, wall, until).expect("actual cold restart");
         assert!(session.offline());
         assert_eq!(session.next_due(), Some(until));
         let retry = Token::new(312);
@@ -1576,7 +1574,7 @@ mod tests {
         assert_eq!(old.len(), 2);
         let owner = session.driver.transport.watch_token(ClientId(0), native).expect("original owner token");
         let until = now.saturating_add(skein_lib::Duration::from_secs(1));
-        session.restart(jig_core_world::world::config(8455), now, wall, until).expect("cold root restart");
+        session.restart(jig_test_profile::config(8455), now, wall, until).expect("cold root restart");
         let dropped = session.business_poll(now, wall).expect("only original departed watches");
         assert_eq!(dropped.len(), 2);
         for client in [ClientId(0), ClientId(1)] {

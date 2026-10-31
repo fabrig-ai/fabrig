@@ -1,6 +1,6 @@
 //! Clock fixtures share the same party request path as the ordinary batch stories.
 use super::ask_as;
-use crate::effects::World;
+use crate::world::World;
 use jig_domain_people as people;
 use skein_lib::{Time, Wall};
 const PARTY: u64 = 1;

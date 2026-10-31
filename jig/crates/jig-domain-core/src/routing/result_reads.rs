@@ -26,9 +26,11 @@ pub(crate) enum ReadFor {
 
 pub(crate) fn clear(core: &mut Core, task: u64) {
     // Several calls can wait for one run; remove all of its reads.
-    for _ in 0..core.result_reads.capacity() {
+    for _ in 0..core.flight_tasks_capacity {
         let mut request = None;
-        for (&token, read) in &core.result_reads {
+        for (id, flight) in &core.flights {
+            let crate::flight::Flight::ResultRead(read) = flight else { continue };
+            let token = id.token();
             let owner = match &read.why {
                 ReadFor::DeploymentClose { .. } => None,
                 ReadFor::Preparation { task, .. } => Some(*task),
@@ -43,7 +45,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
             }
         }
         let Some(request) = request else { break };
-        if let Some(read) = core.result_reads.remove(&request) {
+        if let Some(read) = core.take_result_read(request) {
             match read.why {
                 ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
                 ReadFor::Amendment(amendment) => match amendment.replay {
@@ -59,7 +61,8 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
 
 pub(super) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box<[u64]>) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    for (_, read) in &core.result_reads {
+    for (_, flight) in &core.flights {
+        let crate::flight::Flight::ResultRead(read) = flight else { continue };
         match read.why {
             ReadFor::Preparation { task: owner, .. } if owner == task => {
                 return out;
@@ -67,11 +70,9 @@ pub(super) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box
             ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } | ReadFor::Amendment(_) => {}
         }
     }
-    if core.result_reads.len() == core.result_reads.capacity() {
+    if core.result_read_flights() == core.flight_tasks_capacity {
         work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
     } else {
-        let request = Token::new(core.next_result_request);
-        core.next_result_request = core.next_result_request.checked_add(1).expect("transient result request space");
         let read = ResultRead {
             why: ReadFor::Preparation {
                 task,
@@ -81,18 +82,16 @@ pub(super) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box
             ids,
             at: 0,
         };
-        ask(&mut out, request, &read);
-        assert!(core.result_reads.insert(request, read).is_ok(), "admitted result read");
+        retain(core, &mut out, read);
     }
     out
 }
 
 // Held, so that it sees the commit that ended the dependency (`domain/engine.md`, 5.3).
-fn ask(out: &mut Queue<Request>, request: Token, read: &ResultRead) {
-    out.push(Request::Held(Box::new(Held::Load(Box::new(Now::EndedTask {
-        request,
-        task: *read.ids.get(read.at).expect("pending result ID"),
-    })))));
+fn retain(core: &mut Core, out: &mut Queue<Request>, read: ResultRead) {
+    let task = *read.ids.get(read.at).expect("pending result ID");
+    let request = core.fly(crate::flight::Flight::ResultRead(read));
+    out.push(Request::Held(Box::new(Held::Load(Box::new(Now::EndedTask { request, task })))));
 }
 
 pub(super) fn loaded(
@@ -105,7 +104,7 @@ pub(super) fn loaded(
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
 
-    let Some(mut read) = core.result_reads.remove(&request) else { return out };
+    let Some(mut read) = core.take_result_read(request) else { return out };
     match read.why {
         ReadFor::DeploymentClose { request, project } => {
             let outcome = closed_outcome(project, *read.ids.first().expect("one close subject"), row, busy);
@@ -113,6 +112,7 @@ pub(super) fn loaded(
         }
         ReadFor::Amendment(mut amendment) => {
             if !amendment_reads::current(core, &amendment.replay) {
+                discard_party(core, amendment.replay);
                 return out;
             }
             if busy {
@@ -179,8 +179,7 @@ pub(super) fn loaded(
             read.results.push(result).expect("one result per ID");
             read.at = read.at.checked_add(1).expect("bounded result position");
             if read.at < read.ids.len() {
-                ask(&mut out, request, &read);
-                assert!(core.result_reads.insert(request, read).is_ok(), "continuing result read");
+                retain(core, &mut out, read);
             } else {
                 assert!(
                     core.dependency_results.insert(task, read.results.into_boxed()).is_ok(),
@@ -201,7 +200,7 @@ pub(super) fn wait(
     next: u64,
     amendment: AmendmentRead,
 ) {
-    if core.result_reads.len() == core.result_reads.capacity() {
+    if core.result_read_flights() == core.flight_tasks_capacity {
         amendment_reads::busy(core, work, out, amendment.replay);
         return;
     }
@@ -211,22 +210,21 @@ pub(super) fn wait(
         }
         Replay::Person { .. } => {}
     }
-    let request = Token::new(core.next_result_request);
-    core.next_result_request = core.next_result_request.checked_add(1).expect("transient result request space");
     let read = ResultRead {
         why: ReadFor::Amendment(Box::new(amendment)),
         ids: Box::new([next]),
         at: 0,
         results: List::with_capacity(0),
     };
-    ask(out, request, &read);
-    assert!(core.result_reads.insert(request, read).is_ok(), "admitted amendment read");
+    retain(core, out, read);
 }
 
 pub(super) fn clear_person(core: &mut Core, person: u64) {
-    for _ in 0..core.result_reads.capacity() {
+    for _ in 0..core.flight_tasks_capacity {
         let mut found = None;
-        for (&request, read) in &core.result_reads {
+        for (id, flight) in &core.flights {
+            let crate::flight::Flight::ResultRead(read) = flight else { continue };
+            let request = id.token();
             match &read.why {
                 ReadFor::Amendment(read) => match &read.replay {
                     Replay::Person { person: owner, .. } if *owner == person => {
@@ -239,7 +237,12 @@ pub(super) fn clear_person(core: &mut Core, person: u64) {
             }
         }
         let Some(request) = found else { break };
-        drop(core.result_reads.remove(&request));
+        if let Some(read) = core.take_result_read(request) {
+            match read.why {
+                ReadFor::Amendment(read) => discard_party(core, read.replay),
+                ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
+            }
+        }
     }
 }
 
@@ -252,23 +255,20 @@ pub(super) fn closed_subject(
     project: u32,
     task: u64,
 ) {
-    if core.result_reads.len() == core.result_reads.capacity() {
+    if core.result_read_flights() == core.flight_tasks_capacity {
         work.push(Work::Event(Event::People(jig_domain_people::Event::Decided {
             request,
             outcome: jig_domain_people::Outcome::Again(jig_domain_people::Again::Busy),
         })));
         return;
     }
-    let load = Token::new(core.next_result_request);
-    core.next_result_request = core.next_result_request.checked_add(1).expect("transient result request space");
     let read = ResultRead {
         why: ReadFor::DeploymentClose { request, project },
         ids: Box::new([task]),
         at: 0,
         results: List::with_capacity(0),
     };
-    ask(out, load, &read);
-    assert!(core.result_reads.insert(load, read).is_ok(), "admitted close subject load");
+    retain(core, out, read);
 }
 
 fn closed_outcome(
@@ -291,5 +291,14 @@ fn closed_outcome(
             Some(_) | None => jig_domain_people::Refusal::Unknown,
         };
         jig_domain_people::Outcome::Refused(why)
+    }
+}
+
+fn discard_party(core: &mut Core, replay: Replay) {
+    match replay {
+        Replay::Person { request, .. } => {
+            drop(core.land_kind(request, crate::flight::Kind::Party));
+        }
+        Replay::Agent { .. } => {}
     }
 }
