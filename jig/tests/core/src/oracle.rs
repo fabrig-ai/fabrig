@@ -1,5 +1,6 @@
 //! The cold restart oracle (`jig/docs/design/domain/engine.md`, sections 6 and 15).
 use crate::{effects::World, reads};
+use jig_domain_accounts as accounts;
 use jig_domain_core::{self as core, documents::Document};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -158,7 +159,11 @@ impl World {
             let expired = exception.is_some()
                 && !restored.contains_key(key)
                 && keys::decode(key).is_some_and(|key| self.expired(&records, &key));
-            if !(exception.is_some() && (header || wires || expired)) {
+            let refreshed_move = keys::decode(key).is_some_and(|key| {
+                let key = root::Key::Core(key);
+                refreshed_move(records.get(&key), recovered.get(&key))
+            });
+            if !(refreshed_move || exception.is_some() && (header || wires || expired)) {
                 assert_eq!(
                     inventory.get(key),
                     restored.get(key),
@@ -245,6 +250,25 @@ fn deployment(records: &BTreeMap<root::Key, root::Record>) -> core::Deployment {
         panic!("restart oracle deployment header")
     };
     *row
+}
+
+// accounts.md 6: restart cancels an in-flight move; the first refreshed grant clears its Moving hold.
+fn refreshed_move(before: Option<&root::Record>, after: Option<&root::Record>) -> bool {
+    let (
+        Some(root::Record::Core(core::Record::Accounts(before))),
+        Some(root::Record::Core(core::Record::Accounts(after))),
+    ) = (before, after)
+    else {
+        return false;
+    };
+    let mut expected = before.clone();
+    if let accounts::Stored::Source { kind: accounts::Kind::SignIn, held, .. } = &mut expected
+        && *held == Some(accounts::Held::Moving)
+    {
+        *held = None;
+        return &expected == after;
+    }
+    false
 }
 
 /// Every exception names its rebuilding step; other keys are durable.
@@ -371,4 +395,45 @@ fn compare_answer(key: &(u64, Option<u64>), expected: &core::reads::Answer, foun
         }
     }
     assert_eq!(expected, found, "restart oracle document {document} field answer (sign-in {})", key.0);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{accounts, core, refreshed_move, root};
+
+    fn source(kind: accounts::Kind, held: Option<accounts::Held>, place: u32) -> root::Record {
+        root::Record::Core(core::Record::Accounts(accounts::Stored::Source {
+            account: 3,
+            number: 2,
+            place,
+            kind,
+            name: Box::new([]),
+            held,
+        }))
+    }
+
+    #[test]
+    fn only_a_signed_in_moves_cleared_hold_is_rebuilt() {
+        let moving = source(accounts::Kind::SignIn, Some(accounts::Held::Moving), 0);
+        let granted = source(accounts::Kind::SignIn, None, 0);
+        assert!(refreshed_move(Some(&moving), Some(&granted)));
+        for held in [None, Some(accounts::Held::Refused), Some(accounts::Held::Limited { reset: None })] {
+            let before = source(accounts::Kind::SignIn, held, 0);
+            assert!(!refreshed_move(Some(&before), Some(&granted)));
+            let after = source(accounts::Kind::SignIn, held, 0);
+            assert_eq!(refreshed_move(Some(&moving), Some(&after)), held.is_none());
+        }
+        let key = source(accounts::Kind::Key, Some(accounts::Held::Moving), 0);
+        let key_granted = source(accounts::Kind::Key, None, 0);
+        assert!(!refreshed_move(Some(&key), Some(&key_granted)));
+    }
+
+    #[test]
+    fn a_cancelled_move_keeps_its_source_and_other_fields() {
+        let moving = source(accounts::Kind::SignIn, Some(accounts::Held::Moving), 0);
+        let reordered = source(accounts::Kind::SignIn, None, 1);
+        assert!(!refreshed_move(Some(&moving), Some(&reordered)));
+        assert!(!refreshed_move(Some(&moving), None));
+        assert!(!refreshed_move(None, Some(&reordered)));
+    }
 }

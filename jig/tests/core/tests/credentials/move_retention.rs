@@ -109,8 +109,6 @@ fn an_unacknowledged_move_can_export_again_after_restart() {
     world.restart_with(signing_configuration(SEED).0);
     fresh_session(&mut world);
     export_again(&mut world, account, source);
-    // Finding: restart rewrites Accounts Source { account: 3, number: 2 }.held.
-    world.broken();
 }
 
 #[test]
@@ -214,8 +212,6 @@ fn an_existing_full_store_waits_for_answers_to_expire() {
         (matches!(before, Some(people::Reply::Again(people::Again::Full { held: LAST_REQUEST, .. }))), after),
         (true, Some(people::Reply::Outcome(people::Outcome::AccountMovingOut { account, number, source })))
     );
-    // Finding: restart rewrites Accounts Source { account: 3, number: 2 }.held.
-    world.broken();
 }
 
 #[test]
@@ -245,6 +241,4 @@ fn closing_accounts_releases_the_unwritten_moves_answer_place() {
     world.send(root::Event::Core(core::Event::Account(accounts::Event::Close)));
     // The request reaches the closed accounts child instead of failing people's capacity check.
     assert_eq!(retry(&mut world, source), Some(people::Reply::Again(people::Again::NotReady)));
-    // Finding: restart rewrites Accounts Source { account: 3, number: 2 }.held.
-    world.broken();
 }
