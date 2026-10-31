@@ -176,7 +176,7 @@ fn tasks_fit_refusal_keeps_the_key_without_failing_the_other_script() {
             row.numbers.spent_below = 1;
         } else {
             row.spec.words =
-                vec![b'x'; usize::try_from(env.limits.tasks.spec_bytes + 1).expect("small spec")].into_boxed_slice();
+                vec![b'x'; skein_lib::length::usize_of(env.limits.tasks.spec_bytes + 1)].into_boxed_slice();
         }
         let key = Key::Tasks(tasks::Key::Live(row.number));
         restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row)));
@@ -206,7 +206,7 @@ fn people_fit_refusal_keeps_the_key_without_failing_the_other_script() {
             identity: people::Identity {
                 key: people::IdentityKey {
                     provider: 0,
-                    subject: vec![b'x'; usize::try_from(held).expect("small identity")].into_boxed_slice(),
+                    subject: vec![b'x'; skein_lib::length::usize_of(held)].into_boxed_slice(),
                 },
                 login: Box::new([]),
                 name: Box::new([]),

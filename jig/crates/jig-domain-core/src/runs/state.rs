@@ -218,7 +218,6 @@ impl Core {
     }
 
     /// Begin a bounded transcript load for a due task's previous attempt.
-    #[expect(clippy::manual_map, reason = "the strict subset translates windows with an explicit match")]
     pub fn begin_transcript(&mut self, task: u64, previous_attempt: u64) {
         self.start_input();
         let window = match self.proofs.get(&task) {

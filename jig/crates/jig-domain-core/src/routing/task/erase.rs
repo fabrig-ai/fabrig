@@ -55,7 +55,6 @@ pub(crate) fn scan(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>,
     next_record(core, env, out);
 }
 
-#[expect(clippy::manual_map, reason = "step code builds the optional ended cursor explicitly")]
 fn next_record(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>) {
     let after = core.erasures.walk.as_ref().expect("active erasure walk").after;
     let after = match after {
@@ -94,7 +93,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: re
             return out;
         }
     };
-    assert!(rows.len() <= usize::try_from(range.rows).expect("read row bound"), "bounded erasure page");
+    assert!(rows.len() <= skein_lib::length::usize_of(range.rows), "bounded erasure page");
     let mut walk = core.erasures.walk.take().expect("load belongs to active erasure walk");
     match walk.task.take() {
         None => {

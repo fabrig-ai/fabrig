@@ -374,7 +374,7 @@ pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
                         charters = charters.saturating_add(1);
                         if charters > limits.tasks.charters
                             || value.policy.alternatives.len()
-                                > usize::try_from(limits.settings.alternatives).expect("alternative count")
+                                > skein_lib::length::usize_of(limits.settings.alternatives)
                         {
                             return false;
                         }
@@ -466,7 +466,7 @@ pub(super) fn from_store(
     next: Option<super::Position>,
 ) -> Answer {
     let (first, last, newest, whole) = selected(&range.scope);
-    if next.is_some() || raw.len() > usize::try_from(range.rows).expect("row cap") {
+    if next.is_some() || raw.len() > skein_lib::length::usize_of(range.rows) {
         return Answer::None(Why::Busy);
     }
     let oldest = oldest(core, limits);
@@ -539,7 +539,7 @@ pub(super) fn from_store(
         let Some(revision) = found.remove(&number) else { continue };
         let total = u32::try_from(revision.items.len()).expect("checked item count");
         let mut items = List::with_capacity(total.min(limits.documents.lines));
-        for item in revision.items.iter().take(usize::try_from(limits.documents.lines).expect("line cap")) {
+        for item in revision.items.iter().take(skein_lib::length::usize_of(limits.documents.lines)) {
             let edit = match item.edit {
                 settings::Edit::Set(_) => RevisionEdit::Set,
                 settings::Edit::Removed => RevisionEdit::Removed,

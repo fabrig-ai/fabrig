@@ -78,7 +78,7 @@ fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
             let mut child = Queue::uncapped();
             tasks::step(
                 &mut core.tasks,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                &env.with(env.limits.tasks),
                 tasks::Event::Restore { record: tasks::Stored::Pool(pool) },
                 &mut child,
             );

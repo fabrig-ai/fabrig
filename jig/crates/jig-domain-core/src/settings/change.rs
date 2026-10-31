@@ -7,8 +7,9 @@ use skein_lib::List;
 
 pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {
     if items.len()
-        > usize::try_from(super::capacity(limits).expect("settings capacity").checked_mul(2).expect("item union"))
-            .expect("item count")
+        > skein_lib::length::usize_of(
+            super::capacity(limits).expect("settings capacity").checked_mul(2).expect("item union"),
+        )
     {
         return Err(Failure { setting: items.first().expect("past nonzero capacity").setting, fault: Fault::Count });
     }
@@ -39,7 +40,6 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
     Ok(())
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code borrows the default explicitly without a closure")]
 pub(crate) fn changes_current(current: &Current, items: &[Item]) -> bool {
     for item in items {
         let after = match &item.edit {

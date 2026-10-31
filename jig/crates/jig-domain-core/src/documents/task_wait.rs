@@ -91,7 +91,6 @@ pub(super) fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWai
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
 fn source_state(state: accounts::State) -> TaskSourceState {
     match state {
         accounts::State::Moving => TaskSourceState::Moving,

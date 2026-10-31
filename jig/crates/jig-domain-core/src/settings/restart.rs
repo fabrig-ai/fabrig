@@ -95,7 +95,7 @@ impl Core {
                 "duplicate {:?}",
                 crate::Key::Core(CoreKey::Settings(Key::Proposal { proposer, proposal }))
             );
-            if value.items.len() > usize::try_from(tasks::SETTINGS_ITEMS).expect("item bound")
+            if value.items.len() > skein_lib::length::usize_of(tasks::SETTINGS_ITEMS)
                 || self.settings_proposals.len() >= self.settings_proposals.capacity()
             {
                 self.refuse_restore(crate::start::Failure::Settings {

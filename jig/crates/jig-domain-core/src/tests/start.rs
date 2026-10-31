@@ -460,7 +460,7 @@ fn actual_account_outputs_wait_for_wires_release() {
     let mut child = Queue::uncapped();
     crate::accounts::step(
         &mut core.accounts,
-        &Env { now: env.now, wall: env.wall, limits: limits.accounts },
+        &env.with(limits.accounts),
         crate::accounts::Event::Restore { record: crate::accounts::Stored::Next { number: 3 } },
         &mut child,
     );
@@ -606,7 +606,7 @@ fn frozen_expiry_and_stale_cleanup_continuation() {
     let mut child = Queue::uncapped();
     people::step(
         &mut core.people,
-        &Env { now: env.now, wall: env.wall, limits: limits.people },
+        &env.with(limits.people),
         people::Event::Restore { record: row.clone() },
         &mut child,
     );

@@ -387,9 +387,7 @@ fn bounded_query(read: &Read, limits: &Limits) -> bool {
         Read::ScopedNotes { scope, description, .. } => {
             jig_domain_notes::valid_scope(scope, &limits.notes)
                 && match description {
-                    Some(query) => {
-                        query.len() <= usize::try_from(limits.notes.description_bytes).expect("description bound fits")
-                    }
+                    Some(query) => query.len() <= skein_lib::length::usize_of(limits.notes.description_bytes),
                     None => true,
                 }
         }
@@ -592,7 +590,6 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
     terminal(reply, answer)
 }
 
-#[expect(clippy::manual_map, reason = "step code matches the optional live continuation")]
 fn task_live(
     core: &Core,
     env: &Env<Limits>,

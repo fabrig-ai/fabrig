@@ -39,8 +39,7 @@ pub(crate) fn route_ended_escalation(
             let bounded = match &row.decision {
                 people::EscalationDecision::Release | people::EscalationDecision::Pass => true,
                 people::EscalationDecision::Reject { reason } => {
-                    reason.len()
-                        <= usize::try_from(env.limits.escalation_reason_bytes).expect("reason bound fits usize")
+                    reason.len() <= skein_lib::length::usize_of(env.limits.escalation_reason_bytes)
                 }
             };
             let private = row.project == project
