@@ -1,4 +1,5 @@
 //! First-repository promises exercised through the person and ctl on the real engine.
+//! The kept owned forge follows temper/docs/design/draft/playground-reset.md, 3.
 use jig_client_world::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step};
 use skein_lib::Token;
@@ -8,7 +9,7 @@ use temper_client_domain::{Address, Choice};
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::{direct::Driver, walking};
+use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 
 type ClientWorld = World<Temper, Joint>;
 const FORGE: u16 = 1;
@@ -17,28 +18,41 @@ const REPOSITORY: u32 = 7;
 fn configured(under_box: bool) -> ClientWorld {
     let mut world = fixtures::world(fixtures::SEED);
     world.randomness(0, 0, 0);
-    let store = world.front().engine.store.fork();
     let mut limits = world.front().engine.env.limits;
-    let configs = std::array::from_fn(|_| {
+    let [bootstrap, config] = std::array::from_fn(|_| {
         let mut config = walking::config(fixtures::SEED);
-        config.forges = Box::new([forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: FORGE,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
-            asked: true,
-        }]);
+        config.forges = Box::new([]);
         config.under_box = under_box;
         config.core.connectors = Box::new([temper_client_protocol_wire::FORGE]);
         temper_client_world::front::first_run_projects(&mut config, &mut limits);
         config
     });
-    let mut driver = Driver::with_repositories(store, configs, &limits, fixtures::REPOSITORIES);
+    let mut store = temper_engine_domain_world::fixtures::restored_over(Store::new(), bootstrap, &limits);
+    store.seed(
+        Box::new([
+            engine::Record::Forge {
+                row: Box::new(forge::Stored::Forge(forge::ForgeRecord {
+                    number: FORGE,
+                    kind: forge::Kind::Forgejo,
+                    mode: forge::Mode::Owned,
+                    state: forge::ForgeState::Kept,
+                    place: forge::Place {
+                        api: forge::Address { host: fixtures::FORGE_HOST.into(), port: 443, tls: None },
+                        git: Box::new([]),
+                        web: None,
+                    },
+                    read_only: false,
+                    bot: forge::Bot { login: Box::new([]), name: Box::new([]), email: Box::new([]) },
+                    asked: true,
+                    first: None,
+                })),
+            },
+            engine::Record::Forge { row: Box::new(forge::Stored::ForgeNumber { last: FORGE }) },
+        ]),
+        Box::new([]),
+    );
+    let mut driver = Driver::cold(store, config, &limits);
+    driver.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(fixtures::REPOSITORIES));
     driver.hello(Token::new(7));
     driver.settle();
     world.front().engine = driver;
