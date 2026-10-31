@@ -1,4 +1,4 @@
-//! The actual component bounds encoded additions before its byte peer sees them.
+//! The observed component bounds encoded additions before its byte peer sees them.
 //! Contract: protocol/llm.md, sections 6 and 10.
 
 use skein_llm::Provider;

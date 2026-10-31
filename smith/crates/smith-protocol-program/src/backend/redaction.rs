@@ -1,5 +1,5 @@
 //! Partial text keeps only a possible private-pattern prefix per open block.
-//! Carries flush at stream and lifecycle boundaries (programs.md 9; events.md 3.5).
+//! Carries flush at stream and lifecycle boundaries (smith/docs/design/protocol/programs.md 9; smith/docs/design/protocol/events.md 3.5).
 use super::Backend;
 use alloc::boxed::Box;
 use skein_lib::{List, Time, Token};

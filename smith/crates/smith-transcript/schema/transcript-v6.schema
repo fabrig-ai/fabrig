@@ -84,7 +84,7 @@ enum Returned { outcome: OwnedOutcome, said: Said, invalid: Invalid, not_run: No
 record ToolResult { id: text 256 returned: Returned }
 enum Block { text: Text, refusal: Text, call: Call, result: ToolResult, opaque: Opaque }
 enum Role { user, assistant }
-# The standard native completion holds 34 blocks; actual receiving limits
+# The standard native completion holds 34 blocks; observed receiving limits
 # derive the smaller completion/results/opening count under this ceiling.
 record Message { role: Role blocks: list 64 Block }
 

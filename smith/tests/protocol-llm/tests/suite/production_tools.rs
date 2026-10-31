@@ -290,11 +290,12 @@ fn list_depth_and_glob_decode_to_one_typed_call_and_invalid_depth_is_refused() {
         (br#"{"path":"src","depth":4294967295,"future":{"depth":0}}"#.as_slice(), tools::Depth::Levels(u32::MAX), None),
     ] {
         let decoded = adapter::decode(b"list", input, grants(), &[], llm::Asker::Main, &limits);
-        let llm::Decoded::Owned { call: tools::Call::List { depth: actual, glob: actual_glob, .. } } = decoded else {
+        let llm::Decoded::Owned { call: tools::Call::List { depth: observed, glob: observed_glob, .. } } = decoded
+        else {
             panic!("typed list: {decoded:?}");
         };
-        assert_eq!(actual, depth);
-        assert_eq!(actual_glob.as_deref(), glob);
+        assert_eq!(observed, depth);
+        assert_eq!(observed_glob.as_deref(), glob);
     }
     for input in [
         br#"{"path":"src","depth":0}"#.as_slice(),
@@ -361,12 +362,12 @@ fn shell_budgets_decode_by_unit_and_a_unitless_timeout_is_ignored() {
         (br#"{"command":"test","timeout_seconds":0}"#.as_slice(), b"timeout_seconds".as_slice()),
         (br#"{"command":"test","output_bytes":0}"#.as_slice(), b"output_bytes".as_slice()),
     ] {
-        let llm::Decoded::Invalid { problem: llm::Problem::BadValue { field: actual }, .. } =
+        let llm::Decoded::Invalid { problem: llm::Problem::BadValue { field: observed }, .. } =
             adapter::decode(b"shell", input, grants(), &[], llm::Asker::Main, &limits())
         else {
             panic!("zero budget refused")
         };
-        assert_eq!(actual.as_ref(), field);
+        assert_eq!(observed.as_ref(), field);
     }
 }
 

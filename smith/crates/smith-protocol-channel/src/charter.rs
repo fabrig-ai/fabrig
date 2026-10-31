@@ -8,11 +8,7 @@ use smith_charter as wire;
 use smith_domain::run;
 
 /// Encode every declared charter form using the configured endpoint names.
-#[expect(
-    clippy::manual_let_else,
-    clippy::too_many_lines,
-    reason = "total checked translation of the complete charter vocabulary"
-)]
+#[expect(clippy::too_many_lines, reason = "total checked translation of the complete charter vocabulary")]
 pub fn encode_charter(
     source: &run::Charter,
     limits: &wire::v4::Limits,
@@ -161,9 +157,8 @@ pub fn encode_charter(
             resume: source.resume,
         },
     )?;
-    let length = match usize::try_from(record.measure()) {
-        Ok(length) => length,
-        Err(_) => return Err(Error::ResultCapacity),
+    let Ok(length) = usize::try_from(record.measure()) else {
+        return Err(Error::ResultCapacity);
     };
     let mut writer = Writer::new(length);
     record.encode(&mut writer)?;

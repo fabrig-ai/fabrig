@@ -156,7 +156,7 @@ fn the_full_charter_keeps_contracts_tools_and_model_prices() {
 }
 
 #[test]
-fn an_accepted_report_keeps_its_fields_in_charter_v2() {
+fn an_accepted_report_keeps_its_fields_in_the_charter() {
     let result = smith_domain::run::outcome::Declared::Report(smith_domain::run::outcome::Report {
         text: Box::from(*b"done"),
         fields: Box::from([smith_domain::run::outcome::Field {
@@ -728,8 +728,8 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
         .observations()
         .iter()
         .find_map(|observation| match observation {
-            Observation::HostTurn { number: 1, spent: 11, read: actual, opens_window: true, body }
-                if *actual == read =>
+            Observation::HostTurn { number: 1, spent: 11, read: observed, opens_window: true, body }
+                if *observed == read =>
             {
                 Some(body.clone())
             }
@@ -1274,7 +1274,7 @@ mod charter_round_trip {
 }
 
 #[test]
-fn facts_outside_actual_admission_are_counted_without_failing_the_channel() {
+fn facts_outside_observed_admission_are_counted_without_failing_the_channel() {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
     let fact = smith_domain::Fact::Run {

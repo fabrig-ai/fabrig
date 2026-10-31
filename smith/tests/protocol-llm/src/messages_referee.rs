@@ -1,4 +1,4 @@
-//! Boundary-only FIFO/read-fence and concrete-turn oracle. Actual parent input,
+//! Boundary-only FIFO/read-fence and concrete-turn oracle. Observed parent input,
 //! fake provider terminals and root output populate this state; no run/session
 //! cells or source fixtures are inspected. Skein owns deadlines and judgments.
 //! Contract: domain/run.md, sections 6 and 13; testing-strategy.md, section 7.
@@ -10,67 +10,61 @@ use skein_lib::{Duration, Time, Token};
 use skein_world::domain::{Expectations, Judge};
 use smith_domain::{Turn, llm, session};
 
-/// A external observation copied by the world for replay and mutation.
-/// Contract: domain/run.md, sections 6 and 13; testing-strategy.md, section 7.
+/// An external observation copied by the world for replay and mutation.
 #[derive(Clone, Debug)]
 pub enum Seen {
-    /// Actual root admission, separately from physical Started. Contract: domain/host.md, section 3.
+    /// Observed root admission, separately from physical Started.
     Admitted,
 
-    /// Actual named parent input, before any bounce. Contract: domain/run.md, section 6.
+    /// Observed named parent input, before any bounce.
     Input { name: Token, text: Box<[u8]> },
 
-    /// The fake sees this exact completion request. Contract: domain/run.md, section 13.
+    /// The fake sees this exact completion request.
     Prompt { query: Query },
 
-    /// The actual provider terminal won its request. Contract: domain/session.md, section 3.
+    /// The observed provider terminal won its request.
     Completed { parts: Vec<Part> },
 
-    /// Provider failure/cancellation genuinely settled, with no invented turn.
-    /// Contract: domain/session.md, sections 3 and 6.
+    /// Provider failure/cancellation settled, with no invented turn.
     CompletionEnded,
 
     /// Exact root output, including concrete result body and read metadata.
-    /// Contract: domain/run.md, section 13.
     Turn {
-        /// Actual one-based main output. Contract: domain/run.md, section 13.
+        /// Observed one-based main output.
         number: u32,
 
-        /// Actual read fence. Contract: domain/run.md, section 6.
+        /// Observed read fence.
         read: Option<Token>,
 
-        /// Actual global units/raw prefixes and independent attestations, copied
+        /// Observed global units/raw prefixes and independent attestations, copied
         /// from root metadata. Bounded by its numeric types, independent of the
-        /// inclusive record body. Contract: domain/run.md, sections 9 and 13.
+        /// inclusive record body.
         spent: smith_domain::run::Spend,
 
-        /// Actual settled record body. Contract: domain/run.md, section 13.
+        /// Observed settled record body.
         turn: Box<Turn>,
     },
 
-    /// Actual settled waiting notice. Contract: domain/run.md, section 6.
+    /// Observed settled waiting notice.
     Waiting { read: Option<Token> },
 
     /// Observed final root count and parking classification, never an input answer.
-    /// Contract: domain/run.md, sections 6 and 13.
     Answer {
-        /// Last actual told message fence, retained in the run terminal.
+        /// Last observed told message fence, retained in the run terminal.
         read: Option<Token>,
-        /// Actual settled main record count. Contract: domain/run.md, section 13.
+        /// Observed settled main record count.
         turns: u32,
 
-        /// Actual idle terminal class. Contract: domain/run.md, section 6.
+        /// Observed idle terminal class.
         parked: bool,
 
-        /// Final actual global prefixes and independent overflow attestations;
+        /// Final observed global prefixes and independent overflow attestations;
         /// never reconstructed from historical records or subtree prices.
-        /// Contract: domain/run.md, sections 9, 10 and 13.
         spent: smith_domain::run::Spend,
     },
 }
 
 /// Retained observations for one fresh main chat. It owns no application right.
-/// Contract: domain/run.md, sections 6 and 13; testing-strategy.md, section 7.
 #[derive(Debug)]
 pub struct Meeting {
     queued: VecDeque<(Token, Box<[u8]>)>,
@@ -87,9 +81,8 @@ pub struct Meeting {
 }
 
 impl Meeting {
-    /// Start from the actual historical sequence; live numbering always starts
+    /// Start from the observed historical sequence; live numbering always starts
     /// at one. The scripted parent's positive idle threshold is independent.
-    /// Contract: domain/run.md, sections 6 and 13.
     #[must_use]
     pub fn new(sequence: u32, idle: Duration) -> Self {
         Self {
@@ -108,8 +101,10 @@ impl Meeting {
     }
 
     fn prompt(&mut self, query: &Query, judge: &mut Judge<&'static str, ()>) {
-        judge
-            .check(!self.calling && self.expected.is_none(), "a new provider request follows its previous actual turn");
+        judge.check(
+            !self.calling && self.expected.is_none(),
+            "a new provider request follows its previous observed turn",
+        );
         self.calling = true;
         let last = query.messages.last().and_then(|message| {
             if message.role != Role::User {
@@ -135,14 +130,14 @@ impl Meeting {
                 }
             }
             if count > 0 {
-                judge.check(self.offered.is_none(), "only one person offer precedes its actual turn");
+                judge.check(self.offered.is_none(), "only one person offer precedes its observed turn");
                 let names = self.queued.drain(..count).map(|(name, _)| name).collect::<Vec<_>>();
                 self.offered = Some((names, joined.into_boxed_slice()));
                 self.waiting = None;
                 judge.withdraw(&"idle park");
             } else {
                 let later = self.queued.iter().skip(1).any(|(_, text)| last == Some(text.as_ref()));
-                judge.check(!later, "person prompts preserve actual FIFO arrival order");
+                judge.check(!later, "person prompts preserve observed FIFO arrival order");
                 judge.check(self.waiting.is_none(), "waiting wakes with the oldest exact person bytes");
             }
         }
@@ -151,14 +146,14 @@ impl Meeting {
     fn turn(&mut self, number: u32, read: Option<Token>, turn: &Turn, judge: &mut Judge<&'static str, ()>) {
         judge.check(
             number == self.count + 1 && turn.sequence == self.sequence + 1,
-            "actual turns have consecutive live and historical numbering",
+            "observed turns have consecutive live and historical numbering",
         );
         self.count = number;
         self.sequence = turn.sequence;
         let expected_read = self.offered.as_ref().map_or(self.read, |(names, _)| names.last().copied());
         judge.check(read == expected_read, "read advances only for the exact offered person input");
         let expected = self.expected.take();
-        judge.check(expected.is_some() && !self.calling, "a concrete turn follows an actual provider terminal");
+        judge.check(expected.is_some() && !self.calling, "a concrete turn follows an observed provider terminal");
         let assistant = turn
             .messages
             .iter()
@@ -167,14 +162,14 @@ impl Meeting {
             .collect::<Vec<_>>();
         judge.check(
             assistant.len() == 1 && assistant.first() == expected.as_ref(),
-            "concrete turn preserves the actual assistant bytes and provider call identities",
+            "concrete turn preserves the observed assistant bytes and provider call identities",
         );
         if let Some((names, text)) = self.offered.take() {
             judge.check(
                 turn.messages.iter().any(|message| {
                     message.role == llm::Role::User
                         && matches!(
-                message.content.as_ref(), [session::llm::Block::Text { text: actual, .. } | session::llm::Block::ToolResult { result: session::llm::Returned::Text { text: actual, error: false, replay: None }, .. }] if actual == &text)
+                message.content.as_ref(), [session::llm::Block::Text { text: observed, .. } | session::llm::Block::ToolResult { result: session::llm::Returned::Text { text: observed, error: false, replay: None }, .. }] if observed == &text)
                 }),
                 "offered person text is recorded unchanged before its assistant",
             );
@@ -186,7 +181,9 @@ impl Meeting {
                     Part::ToolCall { id, name, .. } => {
                         let result =
                             turn.messages.iter().flat_map(|message| &message.content).find_map(|block| match block {
-                                session::llm::Block::ToolResult { id: actual, result } if actual == &id => Some(result),
+                                session::llm::Block::ToolResult { id: observed, result } if observed == &id => {
+                                    Some(result)
+                                }
                                 session::llm::Block::Text { .. }
                                 | session::llm::Block::Refusal { .. }
                                 | session::llm::Block::Opaque { .. }
@@ -196,8 +193,10 @@ impl Meeting {
                         if name.as_ref() == b"wait" {
                             judge.check(matches!(result, Some(session::llm::Returned::Text { text, error: false, replay: None }) if text.as_ref() == b"Messages arrived. Read them before continuing.") || (result.is_none() && self.waiting.is_some()), "wait settles with admitted work or stays withheld through parking");
                         } else {
-                            judge
-                                .check(result.is_some(), "other actual calls have their concrete terminal before Turn");
+                            judge.check(
+                                result.is_some(),
+                                "other observed calls have their concrete terminal before Turn",
+                            );
                         }
                     }
                     Part::Text { .. } | Part::Opaque { .. } | Part::ToolOutput { .. } => {}
@@ -225,12 +224,15 @@ impl Expectations for Meeting {
             Seen::Input { name, text } => self.queued.push_back((name, text)),
             Seen::Prompt { query } => self.prompt(&query, judge),
             Seen::Completed { parts } => {
-                judge.check(self.calling && self.expected.is_none(), "provider terminal belongs to its actual request");
+                judge.check(
+                    self.calling && self.expected.is_none(),
+                    "provider terminal belongs to its observed request",
+                );
                 self.calling = false;
                 self.expected = Some(parts);
             }
             Seen::CompletionEnded => {
-                judge.check(self.calling, "provider settlement consumes an actual request");
+                judge.check(self.calling, "provider settlement consumes an observed request");
                 self.calling = false;
             }
             Seen::Turn { number, read, turn, .. } => self.turn(number, read, &turn, judge),
@@ -244,7 +246,7 @@ impl Expectations for Meeting {
                         })
                         && self.queued.is_empty()
                         && read == self.read,
-                    "Waiting follows an actual held wait with an empty inbox",
+                    "Waiting follows an observed held wait with an empty inbox",
                 );
                 self.waiting = Some(judge.now());
                 judge.rearm("idle park", self.idle.saturating_add(Duration::from_secs(1)));
@@ -252,18 +254,18 @@ impl Expectations for Meeting {
             Seen::Answer { turns, parked, read, .. } => {
                 judge.check(
                     turns == self.count && read == self.read && !self.calling && self.expected.is_none(),
-                    "final answer follows every actual turn and provider terminal",
+                    "final answer follows every observed turn and provider terminal",
                 );
                 if parked {
                     judge.check(
                         self.queued.is_empty()
                             && self.offered.is_none()
                             && self.waiting.is_some_and(|at| judge.now() >= at.saturating_add(self.idle)),
-                        "Parked follows the actual empty-inbox waiting deadline",
+                        "Parked follows the observed empty-inbox waiting deadline",
                     );
                 }
                 let met = judge.meet(&"chat answer");
-                judge.check(met, "final answer meets the actual chat obligation");
+                judge.check(met, "final answer meets the observed chat obligation");
                 judge.withdraw(&"idle park");
                 self.answered = true;
             }
@@ -271,9 +273,8 @@ impl Expectations for Meeting {
     }
 }
 
-/// Project the actual root provider terminal into the fake's visible vocabulary.
+/// Project the observed root provider terminal into the fake's visible vocabulary.
 /// Decoded application classifications are not provider input evidence.
-/// Contract: domain/run.md, section 13; testing-strategy.md, section 7.
 #[must_use]
 pub fn completion_parts(content: &[llm::Said]) -> Vec<Part> {
     content

@@ -7,7 +7,7 @@ use skein_llm::{self as shared, Credential};
 use smith_domain::{GrantName, llm};
 use smith_protocol_llm::{ConfiguredEndpoint, EndpointError, Endpoints, GrantError, Grants};
 
-fn destination(name: u32, _account: u32, provider: shared::Provider) -> ConfiguredEndpoint {
+fn destination(name: u32, provider: shared::Provider) -> ConfiguredEndpoint {
     let mut roots = skein_tls::RootCertStore::empty();
     roots
         .add(skein_tls::CertificateDer::from(include_bytes!("../../fixtures/root.der").to_vec()))
@@ -39,7 +39,7 @@ fn destination(name: u32, _account: u32, provider: shared::Provider) -> Configur
 #[test]
 fn numeric_names_resolve_the_complete_destination_and_options() {
     let endpoints = Endpoints::new(
-        Box::new([destination(42, 1, shared::Provider::OpenAiCodex), destination(7, 0, shared::Provider::Anthropic)]),
+        Box::new([destination(42, shared::Provider::OpenAiCodex), destination(7, shared::Provider::Anthropic)]),
         2,
     )
     .expect("two named endpoints");
@@ -71,16 +71,13 @@ fn numeric_names_resolve_the_complete_destination_and_options() {
 fn duplicate_names_fail_at_startup() {
     assert!(matches!(
         Endpoints::new(
-            Box::new([
-                destination(9, 0, shared::Provider::Anthropic),
-                destination(9, 0, shared::Provider::OpenAiCodex),
-            ]),
+            Box::new([destination(9, shared::Provider::Anthropic), destination(9, shared::Provider::OpenAiCodex),]),
             2
         ),
         Err(EndpointError::Duplicate)
     ));
     assert!(matches!(
-        Endpoints::new(Box::new([destination(9, 0, shared::Provider::Anthropic)]), 0),
+        Endpoints::new(Box::new([destination(9, shared::Provider::Anthropic)]), 0),
         Err(EndpointError::TooMany)
     ));
 }
@@ -111,7 +108,7 @@ fn a_refresh_preserves_the_first_call_then_evicts_the_oldest_generation() {
 
 #[test]
 fn configured_claude_identity_precedes_domain_instructions_only_for_anthropic() {
-    let mut anthropic = destination(8, 0, shared::Provider::Anthropic);
+    let mut anthropic = destination(8, shared::Provider::Anthropic);
     anthropic.identity = smith_protocol_llm::IdentityProfile::ClaudeCode;
     let endpoints = Endpoints::new(Box::new([anthropic]), 1).expect("provider supports identity");
     let mut prompt = shared::Prompt {
@@ -127,7 +124,7 @@ fn configured_claude_identity_precedes_domain_instructions_only_for_anthropic() 
     assert_eq!(endpoints.apply(llm::Endpoint(8), &mut prompt), Ok(0));
     assert!(prompt.instructions.starts_with(shared::anthropic::identity::CLAUDE_CODE_SYSTEM_IDENTITY));
     assert!(prompt.instructions.ends_with(b"domain system"));
-    let mut codex = destination(9, 0, shared::Provider::OpenAiCodex);
+    let mut codex = destination(9, shared::Provider::OpenAiCodex);
     codex.identity = smith_protocol_llm::IdentityProfile::ClaudeCode;
     assert!(matches!(Endpoints::new(Box::new([codex]), 1), Err(EndpointError::Identity)));
 }
@@ -135,7 +132,7 @@ fn configured_claude_identity_precedes_domain_instructions_only_for_anthropic() 
 #[test]
 fn reasoning_drop_is_selected_per_declared_model() {
     use smith_protocol_llm::{ConfiguredModel, OversizedReasoning};
-    let mut endpoint = destination(1, 0, shared::Provider::OpenAiCodex);
+    let mut endpoint = destination(1, shared::Provider::OpenAiCodex);
     endpoint.models = Box::new([
         ConfiguredModel { name: b"strict".as_slice().into(), oversized_reasoning: OversizedReasoning::Fail },
         ConfiguredModel { name: b"optional".as_slice().into(), oversized_reasoning: OversizedReasoning::Drop },

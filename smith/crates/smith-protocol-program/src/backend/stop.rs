@@ -37,7 +37,7 @@ pub(super) enum WindDown {
 
 impl Backend {
     /// Whether the backend can act on a domain yield request without
-    /// repeating an interrupt already waiting on its result (programs.md 5.9).
+    /// repeating an interrupt already waiting on its result (smith/docs/design/protocol/programs.md 5.9).
     #[must_use]
     fn can_yield_for_wind_down(&self) -> bool {
         self.phase == Phase::Running
@@ -275,7 +275,7 @@ impl Backend {
         let yielding = self.stop == Stop::Yielding;
         if yielding {
             // A complete assistant message retains its text and usage. A partial
-            // message has no completion to charge (programs.md 5.5, 5.9).
+            // message has no completion to charge (smith/docs/design/protocol/programs.md 5.5, 5.9).
             self.turns.interrupted();
         }
         self.finish_stop();

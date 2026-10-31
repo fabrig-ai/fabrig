@@ -108,30 +108,30 @@ fn encode(json: &mut Encoder, record: &Record, capture: &Capture) {
     json.key(b"t_ms");
     json.unsigned(record.t_ms);
     match &record.event {
-        Event::Budget(value) => encode_budget_standing(json, value, capture),
-        Event::SessionStarted(value) => encode_session_started(json, value, capture),
-        Event::SessionEnded(value) => encode_session_ended(json, value, capture),
-        Event::RunStarted(value) => encode_run_started(json, value, capture),
+        Event::Budget(value) => encode_budget_standing(json, value),
+        Event::SessionStarted(value) => encode_session_started(json, value),
+        Event::SessionEnded(value) => encode_session_ended(json, value),
+        Event::RunStarted(value) => encode_run_started(json, value),
         Event::RunCompleted(value) => encode_run_completed(json, value, capture),
-        Event::ConversationOpened(value) => encode_conversation_opened(json, value, capture),
+        Event::ConversationOpened(value) => encode_conversation_opened(json, value),
         Event::ConversationClosed(value) => encode_conversation_closed(json, value, capture),
         Event::ResponseStarted(value) => encode_response_started(json, value, capture),
         Event::ResponseCompleted(value) => encode_response_completed(json, value, capture),
-        Event::TextDelta(value) => encode_text_delta(json, value, capture),
+        Event::TextDelta(value) => encode_text_delta(json, value),
         Event::ToolStarted(value) => encode_tool_started(json, value, capture),
-        Event::JobEnded(value) => encode_job_ended(json, value, capture),
-        Event::ToolCompleted(value) => encode_tool_completed(json, value, capture),
-        Event::CheckStarted(value) => encode_check_started(json, value, capture),
-        Event::CheckCompleted(value) => encode_check_completed(json, value, capture),
+        Event::JobEnded(value) => encode_job_ended(json, value),
+        Event::ToolCompleted(value) => encode_tool_completed(json, value),
+        Event::CheckStarted(value) => encode_check_started(json, value),
+        Event::CheckCompleted(value) => encode_check_completed(json, value),
         Event::MessageReceived(value) => encode_message_received(json, value, capture),
         Event::MessageRead(value) => encode_message_read(json, value),
         Event::MessageUnread(value) => encode_message_unread(json, value),
-        Event::Notice(value) => encode_notice(json, value, capture),
+        Event::Notice(value) => encode_notice(json, value),
     }
     json.object_end();
 }
 
-fn write_capture(json: &mut Encoder, value: &Capture, _capture: &Capture) {
+fn write_capture(json: &mut Encoder, value: &Capture) {
     match value {
         Capture::None => json.string(b"none"),
         Capture::Calls => json.string(b"calls"),
@@ -140,7 +140,7 @@ fn write_capture(json: &mut Encoder, value: &Capture, _capture: &Capture) {
     }
 }
 
-fn write_delivery(json: &mut Encoder, value: &Delivery, _capture: &Capture) {
+fn write_delivery(json: &mut Encoder, value: &Delivery) {
     match value {
         Delivery::Complete => json.string(b"complete"),
         Delivery::BestEffort => json.string(b"best_effort"),
@@ -148,7 +148,7 @@ fn write_delivery(json: &mut Encoder, value: &Delivery, _capture: &Capture) {
     }
 }
 
-fn write_mode(json: &mut Encoder, value: &Mode, _capture: &Capture) {
+fn write_mode(json: &mut Encoder, value: &Mode) {
     match value {
         Mode::Agent => json.string(b"agent"),
         Mode::Exec => json.string(b"exec"),
@@ -157,7 +157,7 @@ fn write_mode(json: &mut Encoder, value: &Mode, _capture: &Capture) {
     }
 }
 
-fn write_containment(json: &mut Encoder, value: &Containment, _capture: &Capture) {
+fn write_containment(json: &mut Encoder, value: &Containment) {
     match value {
         Containment::Groups => json.string(b"groups"),
         Containment::Trees => json.string(b"trees"),
@@ -165,7 +165,7 @@ fn write_containment(json: &mut Encoder, value: &Containment, _capture: &Capture
     }
 }
 
-fn write_family(json: &mut Encoder, value: &Family, _capture: &Capture) {
+fn write_family(json: &mut Encoder, value: &Family) {
     match value {
         Family::Inspect => json.string(b"inspect"),
         Family::Modify => json.string(b"modify"),
@@ -175,7 +175,7 @@ fn write_family(json: &mut Encoder, value: &Family, _capture: &Capture) {
     }
 }
 
-fn write_form(json: &mut Encoder, value: &Form, _capture: &Capture) {
+fn write_form(json: &mut Encoder, value: &Form) {
     match value {
         Form::Report => json.string(b"report"),
         Form::Verdict => json.string(b"verdict"),
@@ -185,7 +185,7 @@ fn write_form(json: &mut Encoder, value: &Form, _capture: &Capture) {
     }
 }
 
-fn write_status(json: &mut Encoder, value: &Status, _capture: &Capture) {
+fn write_status(json: &mut Encoder, value: &Status) {
     match value {
         Status::Accepted => json.string(b"accepted"),
         Status::Parked => json.string(b"parked"),
@@ -195,7 +195,7 @@ fn write_status(json: &mut Encoder, value: &Status, _capture: &Capture) {
     }
 }
 
-fn write_conversation_kind(json: &mut Encoder, value: &ConversationKind, _capture: &Capture) {
+fn write_conversation_kind(json: &mut Encoder, value: &ConversationKind) {
     match value {
         ConversationKind::Main => json.string(b"main"),
         ConversationKind::Child => json.string(b"child"),
@@ -204,7 +204,7 @@ fn write_conversation_kind(json: &mut Encoder, value: &ConversationKind, _captur
     }
 }
 
-fn write_conversation_end(json: &mut Encoder, value: &ConversationEnd, _capture: &Capture) {
+fn write_conversation_end(json: &mut Encoder, value: &ConversationEnd) {
     match value {
         ConversationEnd::Closed => json.string(b"closed"),
         ConversationEnd::Budget => json.string(b"budget"),
@@ -225,7 +225,7 @@ fn write_tool_choice(json: &mut Encoder, value: &ToolChoice) {
     }
 }
 
-fn write_outcome(json: &mut Encoder, value: &Outcome, _capture: &Capture) {
+fn write_outcome(json: &mut Encoder, value: &Outcome) {
     match value {
         Outcome::Completed => json.string(b"completed"),
         Outcome::Failed => json.string(b"failed"),
@@ -234,7 +234,7 @@ fn write_outcome(json: &mut Encoder, value: &Outcome, _capture: &Capture) {
     }
 }
 
-fn write_stop(json: &mut Encoder, value: &Stop, _capture: &Capture) {
+fn write_stop(json: &mut Encoder, value: &Stop) {
     match value {
         Stop::End => json.string(b"end"),
         Stop::Tools => json.string(b"tools"),
@@ -244,7 +244,7 @@ fn write_stop(json: &mut Encoder, value: &Stop, _capture: &Capture) {
     }
 }
 
-fn write_source(json: &mut Encoder, value: &Source, _capture: &Capture) {
+fn write_source(json: &mut Encoder, value: &Source) {
     match value {
         Source::Workspace => json.string(b"workspace"),
         Source::Run => json.string(b"run"),
@@ -253,7 +253,7 @@ fn write_source(json: &mut Encoder, value: &Source, _capture: &Capture) {
     }
 }
 
-fn write_effect(json: &mut Encoder, value: &Effect, _capture: &Capture) {
+fn write_effect(json: &mut Encoder, value: &Effect) {
     match value {
         Effect::Read => json.string(b"read"),
         Effect::Write => json.string(b"write"),
@@ -261,7 +261,7 @@ fn write_effect(json: &mut Encoder, value: &Effect, _capture: &Capture) {
     }
 }
 
-fn write_verdict(json: &mut Encoder, value: &Verdict, _capture: &Capture) {
+fn write_verdict(json: &mut Encoder, value: &Verdict) {
     match value {
         Verdict::Read => json.string(b"read"),
         Verdict::Listed => json.string(b"listed"),
@@ -304,7 +304,7 @@ fn write_verdict(json: &mut Encoder, value: &Verdict, _capture: &Capture) {
     }
 }
 
-fn write_delivered(json: &mut Encoder, value: &Delivered, _capture: &Capture) {
+fn write_delivered(json: &mut Encoder, value: &Delivered) {
     match value {
         Delivered::Delivered => json.string(b"delivered"),
         Delivered::Nothing => json.string(b"nothing"),
@@ -315,7 +315,7 @@ fn write_delivered(json: &mut Encoder, value: &Delivered, _capture: &Capture) {
     }
 }
 
-fn write_failure_class(json: &mut Encoder, value: &FailureClass, _capture: &Capture) {
+fn write_failure_class(json: &mut Encoder, value: &FailureClass) {
     match value {
         FailureClass::Overloaded => json.string(b"overloaded"),
         FailureClass::RateLimited => json.string(b"rate_limited"),
@@ -334,7 +334,7 @@ fn write_failure_class(json: &mut Encoder, value: &FailureClass, _capture: &Capt
     }
 }
 
-fn write_evidence(json: &mut Encoder, value: &Evidence, _capture: &Capture) {
+fn write_evidence(json: &mut Encoder, value: &Evidence) {
     match value {
         Evidence::Unsent => json.string(b"unsent"),
         Evidence::MaybeSent => json.string(b"maybe_sent"),
@@ -343,7 +343,7 @@ fn write_evidence(json: &mut Encoder, value: &Evidence, _capture: &Capture) {
     }
 }
 
-fn write_answer_class(json: &mut Encoder, value: &AnswerClass, _capture: &Capture) {
+fn write_answer_class(json: &mut Encoder, value: &AnswerClass) {
     match value {
         AnswerClass::Model => json.string(b"model"),
         AnswerClass::Budget => json.string(b"budget"),
@@ -359,7 +359,7 @@ fn write_answer_class(json: &mut Encoder, value: &AnswerClass, _capture: &Captur
     }
 }
 
-fn write_level(json: &mut Encoder, value: &Level, _capture: &Capture) {
+fn write_level(json: &mut Encoder, value: &Level) {
     match value {
         Level::Info => json.string(b"info"),
         Level::Warning => json.string(b"warning"),
@@ -367,7 +367,7 @@ fn write_level(json: &mut Encoder, value: &Level, _capture: &Capture) {
     }
 }
 
-fn write_notice_kind(json: &mut Encoder, value: &NoticeKind, _capture: &Capture) {
+fn write_notice_kind(json: &mut Encoder, value: &NoticeKind) {
     match value {
         NoticeKind::ReasoningDropped => json.string(b"reasoning_dropped"),
         NoticeKind::CredentialUnauthorized => json.string(b"credential_unauthorized"),
@@ -379,7 +379,7 @@ fn write_notice_kind(json: &mut Encoder, value: &NoticeKind, _capture: &Capture)
     }
 }
 
-fn write_role(json: &mut Encoder, value: &Role, _capture: &Capture) {
+fn write_role(json: &mut Encoder, value: &Role) {
     match value {
         Role::User => json.string(b"user"),
         Role::Assistant => json.string(b"assistant"),
@@ -387,7 +387,7 @@ fn write_role(json: &mut Encoder, value: &Role, _capture: &Capture) {
     }
 }
 
-fn write_agent(json: &mut Encoder, value: &Agent, _capture: &Capture) {
+fn write_agent(json: &mut Encoder, value: &Agent) {
     json.object_start();
     json.key(b"name");
     json.string(&value.name);
@@ -396,7 +396,7 @@ fn write_agent(json: &mut Encoder, value: &Agent, _capture: &Capture) {
     json.object_end();
 }
 
-fn write_versions(json: &mut Encoder, value: &Versions, _capture: &Capture) {
+fn write_versions(json: &mut Encoder, value: &Versions) {
     json.object_start();
     json.key(b"events");
     json.unsigned(value.events);
@@ -413,7 +413,7 @@ fn write_versions(json: &mut Encoder, value: &Versions, _capture: &Capture) {
     json.object_end();
 }
 
-fn write_loss(json: &mut Encoder, value: &Loss, _capture: &Capture) {
+fn write_loss(json: &mut Encoder, value: &Loss) {
     json.object_start();
     json.key(b"events");
     json.unsigned(value.events);
@@ -427,7 +427,7 @@ fn write_loss(json: &mut Encoder, value: &Loss, _capture: &Capture) {
     json.object_end();
 }
 
-fn write_cpu(json: &mut Encoder, value: &Cpu, _capture: &Capture) {
+fn write_cpu(json: &mut Encoder, value: &Cpu) {
     json.object_start();
     json.key(b"user");
     json.unsigned(value.user);
@@ -440,7 +440,7 @@ fn write_cpu(json: &mut Encoder, value: &Cpu, _capture: &Capture) {
     json.object_end();
 }
 
-fn write_peak_rss(json: &mut Encoder, value: &PeakRss, _capture: &Capture) {
+fn write_peak_rss(json: &mut Encoder, value: &PeakRss) {
     json.object_start();
     json.key(b"self");
     json.unsigned(value.self_bytes);
@@ -449,7 +449,7 @@ fn write_peak_rss(json: &mut Encoder, value: &PeakRss, _capture: &Capture) {
     json.object_end();
 }
 
-fn write_model(json: &mut Encoder, value: &Model, _capture: &Capture) {
+fn write_model(json: &mut Encoder, value: &Model) {
     json.object_start();
     json.key(b"endpoint");
     json.string(&value.endpoint);
@@ -480,7 +480,7 @@ fn write_model(json: &mut Encoder, value: &Model, _capture: &Capture) {
     json.object_end();
 }
 
-fn write_usage(json: &mut Encoder, value: &Usage, _capture: &Capture) {
+fn write_usage(json: &mut Encoder, value: &Usage) {
     json.object_start();
     json.key(b"input_tokens");
     match &value.input_tokens {
@@ -520,7 +520,7 @@ fn write_usage(json: &mut Encoder, value: &Usage, _capture: &Capture) {
     json.object_end();
 }
 
-fn write_budget(json: &mut Encoder, value: &Budget, _capture: &Capture) {
+fn write_budget(json: &mut Encoder, value: &Budget) {
     json.object_start();
     json.key(b"turns");
     json.unsigned(value.turns);
@@ -533,18 +533,18 @@ fn write_budget(json: &mut Encoder, value: &Budget, _capture: &Capture) {
     json.object_end();
 }
 
-fn write_tools(json: &mut Encoder, value: &Tools, capture: &Capture) {
+fn write_tools(json: &mut Encoder, value: &Tools) {
     json.object_start();
     json.key(b"families");
-    write_list_family(json, &value.families, capture);
+    write_list_family(json, &value.families);
     json.key(b"withheld");
-    write_list_family(json, &value.withheld, capture);
+    write_list_family(json, &value.withheld);
     json.key(b"wait");
     json.boolean(value.wait);
     json.key(b"deliver");
     json.boolean(value.deliver);
     json.key(b"host");
-    write_list_text(json, &value.host, capture);
+    write_list_text(json, &value.host);
     json.object_end();
 }
 
@@ -562,9 +562,9 @@ fn write_failure_phase(json: &mut Encoder, value: &FailurePhase) {
 fn write_completion_failure(json: &mut Encoder, value: &CompletionFailure, capture: &Capture) {
     json.object_start();
     json.key(b"class");
-    write_failure_class(json, &value.class, capture);
+    write_failure_class(json, &value.class);
     json.key(b"evidence");
-    write_evidence(json, &value.evidence, capture);
+    write_evidence(json, &value.evidence);
     if let Some(item) = &value.phase {
         json.key(b"phase");
         write_failure_phase(json, item);
@@ -655,7 +655,7 @@ fn write_answer_failure(json: &mut Encoder, value: &AnswerFailure, capture: &Cap
         json.unsigned(item);
     }
     json.key(b"class");
-    write_answer_class(json, &value.class, capture);
+    write_answer_class(json, &value.class);
     if let Some(item) = &value.endpoint {
         json.key(b"endpoint");
         json.string(item);
@@ -699,7 +699,7 @@ fn write_answer_failure(json: &mut Encoder, value: &AnswerFailure, capture: &Cap
     json.object_end();
 }
 
-fn write_field(json: &mut Encoder, value: &Field, _capture: &Capture) {
+fn write_field(json: &mut Encoder, value: &Field) {
     json.object_start();
     json.key(b"name");
     json.string(&value.name);
@@ -711,7 +711,7 @@ fn write_field(json: &mut Encoder, value: &Field, _capture: &Capture) {
 fn write_run_result(json: &mut Encoder, value: &RunResult, capture: &Capture) {
     json.object_start();
     json.key(b"form");
-    write_form(json, &value.form, capture);
+    write_form(json, &value.form);
     if let Some(item) = &value.label {
         json.key(b"label");
         json.string(item);
@@ -726,21 +726,21 @@ fn write_run_result(json: &mut Encoder, value: &RunResult, capture: &Capture) {
         && let Some(item) = &value.fields
     {
         json.key(b"fields");
-        write_list_field(json, item, capture);
+        write_list_field(json, item);
     }
     json.object_end();
 }
 
-fn write_message(json: &mut Encoder, value: &Message, capture: &Capture) {
+fn write_message(json: &mut Encoder, value: &Message) {
     json.object_start();
     json.key(b"role");
-    write_role(json, &value.role, capture);
+    write_role(json, &value.role);
     json.key(b"blocks");
-    write_list_block(json, &value.blocks, capture);
+    write_list_block(json, &value.blocks);
     json.object_end();
 }
 
-fn write_prompt(json: &mut Encoder, value: &Prompt, capture: &Capture) {
+fn write_prompt(json: &mut Encoder, value: &Prompt) {
     json.object_start();
     if let Some(item) = &value.system {
         json.key(b"system");
@@ -748,21 +748,21 @@ fn write_prompt(json: &mut Encoder, value: &Prompt, capture: &Capture) {
     }
     if let Some(item) = &value.tools {
         json.key(b"tools");
-        write_list_text(json, item, capture);
+        write_list_text(json, item);
     }
     json.key(b"messages");
-    write_list_message(json, &value.messages, capture);
+    write_list_message(json, &value.messages);
     json.object_end();
 }
 
-fn write_completion(json: &mut Encoder, value: &Completion, capture: &Capture) {
+fn write_completion(json: &mut Encoder, value: &Completion) {
     json.object_start();
     json.key(b"blocks");
-    write_list_block(json, &value.blocks, capture);
+    write_list_block(json, &value.blocks);
     json.object_end();
 }
 
-fn write_command_exit(json: &mut Encoder, value: &CommandExit, _capture: &Capture) {
+fn write_command_exit(json: &mut Encoder, value: &CommandExit) {
     json.object_start();
     match value {
         CommandExit::Code { code } => {
@@ -799,7 +799,7 @@ fn write_check_exit(json: &mut Encoder, value: &CheckExit) {
     json.object_end();
 }
 
-fn write_block(json: &mut Encoder, value: &Block, _capture: &Capture) {
+fn write_block(json: &mut Encoder, value: &Block) {
     json.object_start();
     json.key(b"type");
     match value {
@@ -859,15 +859,15 @@ fn write_block(json: &mut Encoder, value: &Block, _capture: &Capture) {
     json.object_end();
 }
 
-fn write_list_block(json: &mut Encoder, values: &List<Block>, capture: &Capture) {
+fn write_list_block(json: &mut Encoder, values: &List<Block>) {
     json.array_start();
     for value in values {
-        write_block(json, value, capture);
+        write_block(json, value);
     }
     json.array_end();
 }
 
-fn write_list_count(json: &mut Encoder, values: &List<Count>, _capture: &Capture) {
+fn write_list_count(json: &mut Encoder, values: &List<Count>) {
     json.object_start();
     for value in values {
         json.key(&value.record);
@@ -876,39 +876,39 @@ fn write_list_count(json: &mut Encoder, values: &List<Count>, _capture: &Capture
     json.object_end();
 }
 
-fn write_list_family(json: &mut Encoder, values: &List<Family>, capture: &Capture) {
+fn write_list_family(json: &mut Encoder, values: &List<Family>) {
     json.array_start();
     for value in values {
-        write_family(json, value, capture);
+        write_family(json, value);
     }
     json.array_end();
 }
 
-fn write_list_field(json: &mut Encoder, values: &List<Field>, capture: &Capture) {
+fn write_list_field(json: &mut Encoder, values: &List<Field>) {
     json.array_start();
     for value in values {
-        write_field(json, value, capture);
+        write_field(json, value);
     }
     json.array_end();
 }
 
-fn write_list_form(json: &mut Encoder, values: &List<Form>, capture: &Capture) {
+fn write_list_form(json: &mut Encoder, values: &List<Form>) {
     json.array_start();
     for value in values {
-        write_form(json, value, capture);
+        write_form(json, value);
     }
     json.array_end();
 }
 
-fn write_list_message(json: &mut Encoder, values: &List<Message>, capture: &Capture) {
+fn write_list_message(json: &mut Encoder, values: &List<Message>) {
     json.array_start();
     for value in values {
-        write_message(json, value, capture);
+        write_message(json, value);
     }
     json.array_end();
 }
 
-fn write_list_text(json: &mut Encoder, values: &List<Box<[u8]>>, _capture: &Capture) {
+fn write_list_text(json: &mut Encoder, values: &List<Box<[u8]>>) {
     json.array_start();
     for value in values {
         json.string(value);
@@ -1626,29 +1626,29 @@ fn validate_list_text(values: &List<Box<[u8]>>, limits: &Limits) -> Result<(), E
     Ok(())
 }
 
-fn encode_session_started(json: &mut Encoder, value: &SessionStarted, capture: &Capture) {
+fn encode_session_started(json: &mut Encoder, value: &SessionStarted) {
     json.key(b"wall_ms");
     json.unsigned(value.wall_ms);
     json.key(b"agent");
-    write_agent(json, &value.agent, capture);
+    write_agent(json, &value.agent);
     json.key(b"mode");
-    write_mode(json, &value.mode, capture);
+    write_mode(json, &value.mode);
     if let Some(chat) = &value.chat {
         json.key(b"chat");
         json.string(chat);
     }
     json.key(b"containment");
-    write_containment(json, &value.containment, capture);
+    write_containment(json, &value.containment);
     json.key(b"pid");
     json.unsigned(value.pid);
     json.key(b"profile");
     json.string(&value.profile);
     json.key(b"capture");
-    write_capture(json, &value.capture, capture);
+    write_capture(json, &value.capture);
     json.key(b"delivery");
-    write_delivery(json, &value.delivery, capture);
+    write_delivery(json, &value.delivery);
     json.key(b"versions");
-    write_versions(json, &value.versions, capture);
+    write_versions(json, &value.versions);
     json.key(b"limits");
     json.object_start();
     for limit in &value.limits {
@@ -1668,7 +1668,7 @@ fn encode_session_started(json: &mut Encoder, value: &SessionStarted, capture: &
     json.object_end();
 }
 
-fn encode_session_ended(json: &mut Encoder, value: &SessionEnded, capture: &Capture) {
+fn encode_session_ended(json: &mut Encoder, value: &SessionEnded) {
     json.key(b"exit");
     json.signed(value.exit);
     json.key(b"answered");
@@ -1683,22 +1683,22 @@ fn encode_session_ended(json: &mut Encoder, value: &SessionEnded, capture: &Capt
         None => json.null(),
     }
     json.key(b"emitted");
-    write_list_count(json, &value.emitted, capture);
+    write_list_count(json, &value.emitted);
     json.key(b"loss");
-    write_loss(json, &value.loss, capture);
+    write_loss(json, &value.loss);
     json.key(b"cpu_ms");
     match &value.cpu_ms {
-        Some(cpu) => write_cpu(json, cpu, capture),
+        Some(cpu) => write_cpu(json, cpu),
         None => json.null(),
     }
     json.key(b"peak_rss_bytes");
     match &value.peak_rss_bytes {
-        Some(peak_rss) => write_peak_rss(json, peak_rss, capture),
+        Some(peak_rss) => write_peak_rss(json, peak_rss),
         None => json.null(),
     }
 }
 
-fn encode_run_started(json: &mut Encoder, value: &RunStarted, capture: &Capture) {
+fn encode_run_started(json: &mut Encoder, value: &RunStarted) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"resumed");
@@ -1706,13 +1706,13 @@ fn encode_run_started(json: &mut Encoder, value: &RunStarted, capture: &Capture)
     json.key(b"messages");
     json.unsigned(value.messages);
     json.key(b"main");
-    write_model(json, &value.main, capture);
+    write_model(json, &value.main);
     json.key(b"budget");
-    write_budget(json, &value.budget, capture);
+    write_budget(json, &value.budget);
     json.key(b"tools");
-    write_tools(json, &value.tools, capture);
+    write_tools(json, &value.tools);
     json.key(b"contract");
-    write_list_form(json, &value.contract, capture);
+    write_list_form(json, &value.contract);
 }
 
 fn encode_run_completed(json: &mut Encoder, value: &RunCompleted, capture: &Capture) {
@@ -1721,7 +1721,7 @@ fn encode_run_completed(json: &mut Encoder, value: &RunCompleted, capture: &Capt
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"status");
-    write_status(json, &value.status, capture);
+    write_status(json, &value.status);
     if let Some(item) = &value.failure {
         json.key(b"failure");
         write_answer_failure(json, item, capture);
@@ -1735,7 +1735,7 @@ fn encode_run_completed(json: &mut Encoder, value: &RunCompleted, capture: &Capt
     json.key(b"spent");
     json.unsigned(value.spent);
     json.key(b"usage");
-    write_usage(json, &value.usage, capture);
+    write_usage(json, &value.usage);
     json.key(b"read");
     match value.read {
         Some(name) => json.unsigned(name),
@@ -1747,13 +1747,13 @@ fn encode_run_completed(json: &mut Encoder, value: &RunCompleted, capture: &Capt
     json.unsigned(value.duration_ms);
 }
 
-fn encode_conversation_opened(json: &mut Encoder, value: &ConversationOpened, capture: &Capture) {
+fn encode_conversation_opened(json: &mut Encoder, value: &ConversationOpened) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"conversation");
     json.unsigned(value.conversation);
     json.key(b"kind");
-    write_conversation_kind(json, &value.kind, capture);
+    write_conversation_kind(json, &value.kind);
     if let Some(item) = &value.parent {
         json.key(b"parent");
         json.unsigned(*item);
@@ -1765,7 +1765,7 @@ fn encode_conversation_opened(json: &mut Encoder, value: &ConversationOpened, ca
     json.key(b"thread");
     json.unsigned(value.thread);
     json.key(b"model");
-    write_model(json, &value.model, capture);
+    write_model(json, &value.model);
     if let Some(requested) = &value.requested {
         json.key(b"requested");
         write_requested(json, requested);
@@ -1795,7 +1795,7 @@ fn encode_conversation_closed(json: &mut Encoder, value: &ConversationClosed, ca
     json.key(b"conversation");
     json.unsigned(value.conversation);
     json.key(b"end");
-    write_conversation_end(json, &value.end, capture);
+    write_conversation_end(json, &value.end);
     if let Some(item) = &value.which {
         json.key(b"which");
         json.string(item);
@@ -1807,7 +1807,7 @@ fn encode_conversation_closed(json: &mut Encoder, value: &ConversationClosed, ca
     json.key(b"turns");
     json.unsigned(value.turns);
     json.key(b"usage");
-    write_usage(json, &value.usage, capture);
+    write_usage(json, &value.usage);
     json.key(b"spent");
     json.unsigned(value.spent);
     json.key(b"duration_ms");
@@ -1828,7 +1828,7 @@ fn encode_response_started(json: &mut Encoder, value: &ResponseStarted, capture:
     json.key(b"window");
     json.unsigned(value.window);
     json.key(b"model");
-    write_model(json, &value.model, capture);
+    write_model(json, &value.model);
     json.key(b"messages");
     json.unsigned(value.messages);
     json.key(b"output_tokens");
@@ -1839,7 +1839,7 @@ fn encode_response_started(json: &mut Encoder, value: &ResponseStarted, capture:
         && let Some(item) = &value.prompt
     {
         json.key(b"prompt");
-        write_prompt(json, item, capture);
+        write_prompt(json, item);
     }
 }
 
@@ -1851,10 +1851,10 @@ fn encode_response_completed(json: &mut Encoder, value: &ResponseCompleted, capt
     json.key(b"response");
     json.unsigned(value.response);
     json.key(b"outcome");
-    write_outcome(json, &value.outcome, capture);
+    write_outcome(json, &value.outcome);
     if let Some(item) = &value.stop {
         json.key(b"stop");
-        write_stop(json, item, capture);
+        write_stop(json, item);
     }
     json.key(b"blocks");
     json.unsigned(value.blocks);
@@ -1867,7 +1867,7 @@ fn encode_response_completed(json: &mut Encoder, value: &ResponseCompleted, capt
     json.key(b"cut");
     json.unsigned(value.cut);
     json.key(b"usage");
-    write_usage(json, &value.usage, capture);
+    write_usage(json, &value.usage);
     json.key(b"spent");
     json.unsigned(value.spent);
     json.key(b"request_bytes");
@@ -1905,11 +1905,11 @@ fn encode_response_completed(json: &mut Encoder, value: &ResponseCompleted, capt
         && let Some(item) = &value.completion
     {
         json.key(b"completion");
-        write_completion(json, item, capture);
+        write_completion(json, item);
     }
 }
 
-fn encode_text_delta(json: &mut Encoder, value: &TextDelta, _capture: &Capture) {
+fn encode_text_delta(json: &mut Encoder, value: &TextDelta) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"conversation");
@@ -1932,9 +1932,9 @@ fn encode_tool_started(json: &mut Encoder, value: &ToolStarted, capture: &Captur
     json.key(b"tool");
     json.string(&value.tool);
     json.key(b"source");
-    write_source(json, &value.source, capture);
+    write_source(json, &value.source);
     json.key(b"effect");
-    write_effect(json, &value.effect, capture);
+    write_effect(json, &value.effect);
     json.key(b"deadline_ms");
     match &value.deadline_ms {
         Some(item) => {
@@ -1952,7 +1952,7 @@ fn encode_tool_started(json: &mut Encoder, value: &ToolStarted, capture: &Captur
     }
 }
 
-fn write_child_completed(json: &mut Encoder, value: &ChildCompleted, capture: &Capture) {
+fn write_child_completed(json: &mut Encoder, value: &ChildCompleted) {
     json.object_start();
     json.key(b"conversation");
     json.unsigned(value.conversation);
@@ -1971,11 +1971,11 @@ fn write_child_completed(json: &mut Encoder, value: &ChildCompleted, capture: &C
     json.key(b"spent");
     json.unsigned(value.spent);
     json.key(b"usage");
-    write_usage(json, &value.usage, capture);
+    write_usage(json, &value.usage);
     json.object_end();
 }
 
-fn encode_tool_completed(json: &mut Encoder, value: &ToolCompleted, capture: &Capture) {
+fn encode_tool_completed(json: &mut Encoder, value: &ToolCompleted) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"conversation");
@@ -1985,10 +1985,10 @@ fn encode_tool_completed(json: &mut Encoder, value: &ToolCompleted, capture: &Ca
     json.key(b"tool");
     json.string(&value.tool);
     json.key(b"verdict");
-    write_verdict(json, &value.verdict, capture);
+    write_verdict(json, &value.verdict);
     if let Some(item) = &value.exit {
         json.key(b"exit");
-        write_command_exit(json, item, capture);
+        write_command_exit(json, item);
     }
     if let Some(job) = value.job {
         json.key(b"job");
@@ -2004,15 +2004,15 @@ fn encode_tool_completed(json: &mut Encoder, value: &ToolCompleted, capture: &Ca
     json.unsigned(value.duration_ms);
     if let Some(item) = &value.child {
         json.key(b"child");
-        write_child_completed(json, item, capture);
+        write_child_completed(json, item);
     }
     if let Some(item) = &value.delivery {
         json.key(b"delivery");
-        write_delivered(json, item, capture);
+        write_delivered(json, item);
     }
 }
 
-fn encode_job_ended(json: &mut Encoder, value: &JobEnded, capture: &Capture) {
+fn encode_job_ended(json: &mut Encoder, value: &JobEnded) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"conversation");
@@ -2022,10 +2022,10 @@ fn encode_job_ended(json: &mut Encoder, value: &JobEnded, capture: &Capture) {
     json.key(b"call");
     json.string(&value.call);
     json.key(b"verdict");
-    write_verdict(json, &value.verdict, capture);
+    write_verdict(json, &value.verdict);
     if let Some(exit) = &value.exit {
         json.key(b"exit");
-        write_command_exit(json, exit, capture);
+        write_command_exit(json, exit);
     }
     json.key(b"unread_bytes");
     json.unsigned(value.unread_bytes);
@@ -2033,7 +2033,7 @@ fn encode_job_ended(json: &mut Encoder, value: &JobEnded, capture: &Capture) {
     json.unsigned(value.duration_ms);
 }
 
-fn encode_check_started(json: &mut Encoder, value: &CheckStarted, _capture: &Capture) {
+fn encode_check_started(json: &mut Encoder, value: &CheckStarted) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"deadline_ms");
@@ -2045,7 +2045,7 @@ fn encode_check_started(json: &mut Encoder, value: &CheckStarted, _capture: &Cap
     }
 }
 
-fn encode_check_completed(json: &mut Encoder, value: &CheckCompleted, _capture: &Capture) {
+fn encode_check_completed(json: &mut Encoder, value: &CheckCompleted) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"exit");
@@ -2126,11 +2126,11 @@ fn write_forced(json: &mut Encoder, forced: &Forced) {
     }
 }
 
-fn encode_notice(json: &mut Encoder, value: &Notice, capture: &Capture) {
+fn encode_notice(json: &mut Encoder, value: &Notice) {
     json.key(b"level");
-    write_level(json, &value.level, capture);
+    write_level(json, &value.level);
     json.key(b"kind");
-    write_notice_kind(json, &value.kind, capture);
+    write_notice_kind(json, &value.kind);
     match value.exit {
         Some(exit) => {
             json.key(b"exit");
@@ -2264,7 +2264,7 @@ fn write_reserve(json: &mut Encoder, value: &Reserve) {
     json.object_end();
 }
 
-fn encode_budget_standing(json: &mut Encoder, value: &BudgetStanding, _capture: &Capture) {
+fn encode_budget_standing(json: &mut Encoder, value: &BudgetStanding) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"stage");

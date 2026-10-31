@@ -59,7 +59,7 @@ pub fn configuration_directory(programs: &Programs, source: &[u8]) -> Result<Box
     Ok(path.into_boxed())
 }
 
-/// Whether a caller's variable stays in a source's environment (programs.md, 4.2).
+/// Whether a caller's variable stays in a source's environment (smith/docs/design/protocol/programs.md, 4.2).
 #[must_use]
 pub fn keeps(name: &[u8]) -> bool {
     name != b"CLAUDE_CONFIG_DIR"
@@ -76,7 +76,7 @@ pub const ENVIRONMENT_BYTES: usize = 4096;
 pub const ENVIRONMENT_ENTRIES: u32 = 64;
 
 /// Replace competing login variables with the source's configuration directory.
-/// The result holds at most 64 entries and 4096 bytes (programs.md, 4.2).
+/// The result holds at most 64 entries and 4096 bytes (smith/docs/design/protocol/programs.md, 4.2).
 pub fn environment(base: &[Box<[u8]>], configuration: &[u8]) -> Result<Box<[Box<[u8]>]>, Error> {
     if configuration.contains(&0) {
         return Err(Error::Environment);

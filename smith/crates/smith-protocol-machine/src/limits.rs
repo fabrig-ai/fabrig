@@ -89,7 +89,6 @@ impl Field {
 }
 
 /// Derive this layer from declarations, refusing checked arithmetic overflow.
-/// Contract: protocol/limits.md, sections 2 and 3.
 pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
     Ok(Limits {
         operations: inputs.operations,

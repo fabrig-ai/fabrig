@@ -78,7 +78,6 @@ pub const V5: &[KindRule] = &[
 ];
 
 /// Build the version-five channel schema from receiving codec limits.
-#[expect(clippy::manual_let_else, reason = "the strict step subset uses exhaustive matches")]
 pub fn schema(limits: &v5::Limits) -> Result<Schema, Overflow> {
     let mut kinds = List::with_capacity(20);
     for rule in V5 {
@@ -105,9 +104,8 @@ pub fn schema(limits: &v5::Limits) -> Result<Schema, Overflow> {
             Body::Live => v5::Live::encoded_bound(limits),
         };
         let largest = largest.ok_or(Overflow::Body)?;
-        let largest = match u32::try_from(largest) {
-            Ok(largest) => largest,
-            Err(_) => return Err(Overflow::Frame),
+        let Ok(largest) = u32::try_from(largest) else {
+            return Err(Overflow::Frame);
         };
         kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("V5 has exactly 20 kinds");
     }
@@ -117,7 +115,6 @@ pub fn schema(limits: &v5::Limits) -> Result<Schema, Overflow> {
 }
 
 /// Find the first required kind that the peer cannot receive at our sending bound.
-/// Contract: `protocol/channel.md`, section 2.
 #[must_use]
 pub fn peer_terms_gap(schema: &Schema, role: Role, version: u16, terms: &List<Term>) -> Option<u16> {
     required_terms_gap(schema, role, version, terms, V5)

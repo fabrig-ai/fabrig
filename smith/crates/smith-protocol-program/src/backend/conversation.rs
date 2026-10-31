@@ -200,7 +200,7 @@ impl Backend {
                     }
                     Some(())
                 }
-                // programs.md 5.5: future system subtypes are notices too.
+                // smith/docs/design/protocol/programs.md 5.5: future system subtypes are notices too.
                 Some(_) => return,
                 None => None,
             },

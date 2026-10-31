@@ -34,7 +34,7 @@ impl Turn {
     pub const FORMAT_VERSION: u64 = 6;
 }
 
-/// The owner of smith's patches, as their headers spell it (transcript.md, 12).
+/// The owner of smith's patches, as their headers spell it (smith/docs/design/protocol/transcript.md, 12).
 pub const OWNER: &str = "smith";
 
 /// The turn's family, as its kept texts spell it.
@@ -44,7 +44,7 @@ pub const FAMILY: &str = "smith-transcript";
 pub const ROOT: &str = "Turn";
 
 /// The mark of a smith patch across which a host closes each live window
-/// and starts the next run afresh from its brief (transcript.md, 12).
+/// and starts the next run afresh from its brief (smith/docs/design/protocol/transcript.md, 12).
 pub const FRESH_WINDOWS: &str = "fresh-windows";
 
 pub mod patches;

@@ -1,4 +1,4 @@
-//! Content as translated for the actual provider request and received completion.
+//! Content as translated for the observed provider request and received completion.
 //! No replay envelope or credential enters an observation. The caller supplies
 //! the bounded conversation cursor; `prompt` copies only the new part, and
 //! `completion` preserves provider block order before policy decoding replaces
@@ -24,7 +24,7 @@ pub struct Observation {
 /// A bounded protocol observation, drained by the service before its terminal.
 #[derive(Debug)]
 pub enum Measure {
-    /// The actual translated request's new part, before the connection consumes it.
+    /// The observed translated request's new part, before the connection consumes it.
     Prompt { at: Time, owner: Token, prompt: Prompt },
     /// The provider's completion before application decoding replaces cut inputs.
     Completion { at: Time, owner: Token, completion: Completion },
@@ -106,16 +106,15 @@ fn blocks(input: &[shared::Block], limits: &shared::client::Limits) -> Result<Li
 
 #[cfg(test)]
 mod tests {
-    #![allow(
-        clippy::disallowed_macros,
-        clippy::disallowed_types,
-        clippy::disallowed_methods,
-        reason = "programming-model.md section 10.2: deterministic translation harnesses use ordinary Rust"
-    )]
+    #![allow(clippy::disallowed_types, reason = "test harnesses use ordinary Rust containers")]
 
     use super::*;
 
     #[test]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+    )]
     fn typed_prompt_capture_preserves_text_and_tool_input_without_a_credential() {
         let input = shared::Prompt {
             model: b"model".to_vec().into(),
@@ -142,9 +141,9 @@ mod tests {
             .expect("bounded translated prompt");
         assert_eq!(captured.system.as_deref(), Some(b"system instructions".as_slice()));
         assert_eq!(captured.tools.expect("first request carries its names").len(), 0);
-        assert_eq!(captured.messages.get(0).expect("actual task").role, Role::User);
+        assert_eq!(captured.messages.get(0).expect("observed task").role, Role::User);
         assert_eq!(
-            captured.messages.get(0).expect("actual task").blocks.as_slice(),
+            captured.messages.get(0).expect("observed task").blocks.as_slice(),
             &[
                 Block::Text { text: b"request".to_vec().into() },
                 Block::Call {
@@ -157,6 +156,11 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::disallowed_macros,
+        clippy::disallowed_methods,
+        reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+    )]
     fn completed_content_preserves_cut_arguments_and_provider_block_order() {
         let input = shared::Completion {
             content: vec![
@@ -174,7 +178,7 @@ mod tests {
             stop: shared::Stop::MaxTokens,
             usage: shared::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
         };
-        let observed = completion(&input, &skein_llm_world::limits()).unwrap();
+        let observed = completion(&input, &skein_llm_world::limits()).expect("valid deterministic fixture");
         assert_eq!(
             observed.blocks.as_slice(),
             &[
@@ -192,10 +196,15 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::disallowed_macros,
+        clippy::disallowed_methods,
+        reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+    )]
     fn request_new_parts_omit_previous_completions_and_retries_are_empty() {
         let mut input = shared::Prompt {
             model: b"model".to_vec().into(),
-            instructions: b"actual system".to_vec().into(),
+            instructions: b"observed system".to_vec().into(),
             tools: Box::new([]),
             choice: shared::ToolChoice::Auto,
             messages: vec![shared::Message {
@@ -208,9 +217,10 @@ mod tests {
             max_output_tokens: None,
         };
         let limits = skein_llm_world::limits();
-        let first = prompt(&input, Observation { first: true, messages: 0 }, &limits).unwrap();
-        assert_eq!(first.system.as_deref(), Some(b"actual system".as_slice()));
-        assert_eq!(first.tools.unwrap().len(), 0);
+        let first =
+            prompt(&input, Observation { first: true, messages: 0 }, &limits).expect("valid deterministic fixture");
+        assert_eq!(first.system.as_deref(), Some(b"observed system".as_slice()));
+        assert_eq!(first.tools.expect("valid deterministic fixture").len(), 0);
         assert_eq!(first.messages.len(), 1);
         let mut messages = input.messages.to_vec();
         messages.push(shared::Message {
@@ -222,13 +232,14 @@ mod tests {
             role: shared::Role::User,
             content: vec![shared::Block::ToolResult {
                 id: b"call".to_vec().into(),
-                text: b"actual rendered result [cut]".to_vec().into(),
+                text: b"observed rendered result [cut]".to_vec().into(),
                 is_error: true,
             }]
             .into(),
         });
         input.messages = messages.into();
-        let next = prompt(&input, Observation { first: false, messages: 2 }, &limits).unwrap();
+        let next =
+            prompt(&input, Observation { first: false, messages: 2 }, &limits).expect("valid deterministic fixture");
         assert_eq!(next.system, None);
         assert_eq!(next.tools, None);
         assert_eq!(
@@ -241,14 +252,15 @@ mod tests {
                         .push(Block::Result {
                             call: b"call".to_vec().into(),
                             error: true,
-                            text: b"actual rendered result [cut]".to_vec().into(),
+                            text: b"observed rendered result [cut]".to_vec().into(),
                         })
-                        .unwrap();
+                        .expect("valid deterministic fixture");
                     blocks
                 }
             }]
         );
-        let retry = prompt(&input, Observation { first: false, messages: 3 }, &limits).unwrap();
+        let retry =
+            prompt(&input, Observation { first: false, messages: 3 }, &limits).expect("valid deterministic fixture");
         assert!(retry.messages.is_empty());
         assert_eq!(retry.system, None);
         assert_eq!(retry.tools, None);

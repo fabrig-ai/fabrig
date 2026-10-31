@@ -1,4 +1,4 @@
-//! Application translation over one actual shared Client and scripted byte peer.
+//! Application translation over one observed shared Client and scripted byte peer.
 //! These are boundary controls; the root composition uses the same wire helper.
 //! Incoming streamed argument bytes are checked exactly at the root. Continued
 //! native embedded objects use handwritten outside wire expectations: whitespace
@@ -74,7 +74,7 @@ fn scripts() -> Box<[Script]> {
                 tokens: 8,
             },
             Turn {
-                lines: Box::new([Line::Text { text: b"actual continued result".as_slice().into() }]),
+                lines: Box::new([Line::Text { text: b"observed continued result".as_slice().into() }]),
                 finish: Finish::Stop,
                 tokens: 4,
             },
@@ -85,7 +85,7 @@ fn scripts() -> Box<[Script]> {
 fn run_wire(prompt: llm::Prompt, configuration: &Configuration, owner: u64) -> (Wire, Event) {
     let bounds = limits();
     let mut wire = Wire::prepare(Token::new(owner), prompt, receiving(&bounds), configuration, &bounds, scripts())
-        .expect("whole prompt and receiving configuration admitted before actual Client effects");
+        .expect("whole prompt and receiving configuration admitted before observed Client effects");
     let mut terminals = wire.start();
     for _ in 0..100_000 {
         let (progress, returned) = wire.tick();
@@ -95,10 +95,10 @@ fn run_wire(prompt: llm::Prompt, configuration: &Configuration, owner: u64) -> (
         }
     }
     let [terminal] = terminals.as_slice() else {
-        panic!("one actual translated terminal");
+        panic!("one observed translated terminal");
     };
     assert!(matches!(terminal, Event::Completed { .. } | Event::Failed { .. } | Event::Cancelled { .. }));
-    let terminal = terminals.pop().expect("one actual terminal");
+    let terminal = terminals.pop().expect("one observed terminal");
     assert_eq!(wire.peer.machine.waiting(), skein_llm::client::Waiting::Idle);
     assert!(wire.observed.contains(&Observed::Reusable));
     assert!(wire.close().is_empty(), "closing a won terminal never adds another root terminal");
@@ -135,10 +135,10 @@ fn feedback(
 fn conveys(configuration: &Configuration, error: bool) {
     let (first, terminal) = run_wire(prompt(), configuration, 17);
     let [query] = first.peer.queries.as_slice() else {
-        panic!("one actual observed wire query");
+        panic!("one observed observed wire query");
     };
     let [tool] = query.tools.as_ref() else {
-        panic!("one whole actual host descriptor");
+        panic!("one whole observed host descriptor");
     };
     assert_eq!(tool.name.as_ref(), b"opaque_host");
     assert_eq!(tool.description.as_ref(), b"Whole caller host contract.");
@@ -150,21 +150,21 @@ fn conveys(configuration: &Configuration, error: bool) {
     );
     assert_eq!(
         skein_llm::Json::from_bytes(&tool.parameters, &limits().client.native().request_document())
-            .expect("actual full schema"),
+            .expect("observed full schema"),
         skein_llm::Json::from_bytes(SCHEMA, &limits().client.native().request_document())
             .expect("independent complete expected schema")
     );
     let Event::Completed { owner, completion } = terminal else {
-        panic!("actual host call completion");
+        panic!("observed host call completion");
     };
     assert_eq!(owner, Token::new(17));
     assert_eq!(completion.stop, llm::Stop::ToolUse);
     let content = completion.content;
     let [llm::Said::ToolCall { id, name, input, call, replay }] = content.as_ref() else {
-        panic!("one actual host tool call");
+        panic!("one observed host tool call");
     };
     let llm::Decoded::Served { ask: run::Ask::Host { tool, effect, input: host_input } } = call else {
-        panic!("actual declared host operation");
+        panic!("observed declared host operation");
     };
     assert_eq!(tool.as_ref(), b"opaque_host");
     assert_eq!(*effect, run::HostEffect::Write);
@@ -198,26 +198,26 @@ fn conveys(configuration: &Configuration, error: bool) {
     ]);
     let (second, terminal) = run_wire(next, configuration, 18);
     let [query] = second.peer.queries.as_slice() else {
-        panic!("one actual continued wire query");
+        panic!("one observed continued wire query");
     };
     let expected_text =
         if error { [configuration.error_prefix.as_ref(), FEEDBACK].concat() } else { FEEDBACK.to_vec() };
     let expected_error = error && configuration.error_flag;
     assert!(
         feedback(query, id, &configuration.continuation_arguments, &expected_text, expected_error),
-        "positive actual whole input and exact paired feedback: provider={:?}, error={error}, expected_id={id:?}, expected_text={expected_text:?}, expected_error={expected_error}, actual_query={query:?}",
+        "positive observed whole input and exact paired feedback: provider={:?}, error={error}, expected_id={id:?}, expected_text={expected_text:?}, expected_error={expected_error}, observed_query={query:?}",
         configuration.endpoint.provider
     );
     let mut missing = query.clone();
-    missing.messages.last_mut().expect("actual user message").parts = Box::new([]);
+    missing.messages.last_mut().expect("observed user message").parts = Box::new([]);
     assert!(
         !feedback(&missing, id, &configuration.continuation_arguments, &expected_text, expected_error),
         "missing concrete host feedback cannot satisfy outside evidence"
     );
     let mut changed = query.clone();
-    let [Part::ToolOutput { output, .. }] = changed.messages.last_mut().expect("actual user message").parts.as_mut()
+    let [Part::ToolOutput { output, .. }] = changed.messages.last_mut().expect("observed user message").parts.as_mut()
     else {
-        panic!("actual result");
+        panic!("observed result");
     };
     *output = b"rewritten host receipt".as_slice().into();
     assert!(
@@ -226,13 +226,13 @@ fn conveys(configuration: &Configuration, error: bool) {
     );
     corrupted_arguments(query, id, &configuration.continuation_arguments, &expected_text, expected_error);
     let Event::Completed { owner, completion } = terminal else {
-        panic!("actual normal continuation");
+        panic!("observed normal continuation");
     };
     assert_eq!(owner, Token::new(18));
     let [llm::Said::Text { text, .. }] = completion.content.as_ref() else {
-        panic!("actual continued text");
+        panic!("observed continued text");
     };
-    assert_eq!(text.as_ref(), b"actual continued result");
+    assert_eq!(text.as_ref(), b"observed continued result");
 }
 
 fn corrupted_arguments(
@@ -245,17 +245,17 @@ fn corrupted_arguments(
     for drop_extra in [false, true] {
         let mut changed = query.clone();
         let [Part::ToolCall { arguments, .. }] = changed.messages[1].parts.as_mut() else {
-            panic!("positive control established the actual assistant call");
+            panic!("positive control established the observed assistant call");
         };
         let mut bytes = arguments.clone().into_vec();
         if drop_extra {
             let field = br#""extra":"unchanged""#;
-            let start = bytes.windows(field.len()).position(|window| window == field).expect("actual extra field");
+            let start = bytes.windows(field.len()).position(|window| window == field).expect("observed extra field");
             let comma = bytes[..start].iter().rposition(|byte| *byte == b',').expect("extra field separator");
             drop(bytes.drain(comma..start + field.len()));
         } else {
             let nested = b"[1,true,null]";
-            let start = bytes.windows(nested.len()).position(|window| window == nested).expect("actual nested value");
+            let start = bytes.windows(nested.len()).position(|window| window == nested).expect("observed nested value");
             bytes[start + 1] = b'2';
         }
         *arguments = bytes.into();
@@ -338,7 +338,7 @@ fn restored_result(replay: Option<llm::Replay>) -> llm::Prompt {
         llm::Message {
             role: llm::Role::Assistant,
             content: Box::new([llm::Block::ToolCall {
-                id: b"actual-call".as_slice().into(),
+                id: b"observed-call".as_slice().into(),
                 name: b"opaque_host".as_slice().into(),
                 input: BODY.into(),
                 replay: None,
@@ -347,7 +347,7 @@ fn restored_result(replay: Option<llm::Replay>) -> llm::Prompt {
         llm::Message {
             role: llm::Role::User,
             content: Box::new([llm::Block::ToolResult {
-                id: b"actual-call".as_slice().into(),
+                id: b"observed-call".as_slice().into(),
                 result: llm::Returned::Text { text: FEEDBACK.into(), error: false, replay },
             }]),
         },
@@ -364,9 +364,9 @@ fn restored_result_metadata_has_explicit_unsupported_refusal_before_start() {
                 .expect("ordinary concrete result is representable before any wire start");
         assert!(positive.peer.queries.is_empty());
         assert!(positive.close().is_empty());
-        let actual = positive.settle();
-        let [Event::Cancelled { owner }] = actual.as_slice() else {
-            panic!("actual accepted prepared Client closes once");
+        let observed = positive.settle();
+        let [Event::Cancelled { owner }] = observed.as_slice() else {
+            panic!("observed accepted prepared Client closes once");
         };
         assert_eq!(*owner, Token::new(19));
         assert!(positive.settle().is_empty());
@@ -376,7 +376,7 @@ fn restored_result_metadata_has_explicit_unsupported_refusal_before_start() {
                 br#"{"caller-result-extension":"retained"}"#,
                 &bounds.client.native().request_document(),
             )
-            .expect("bounded actual opaque object"),
+            .expect("bounded observed opaque object"),
         }
         .to_bytes(&bounds.client.native().request_document())
         .expect("complete caller-owned durable envelope");
@@ -446,12 +446,12 @@ fn two_calls(
 fn owned_completion(peer: &mut skein_llm_world::fake::Exchange) -> (Token, skein_llm::Completion) {
     peer.start();
     peer.run();
-    let mut actual: Vec<_> = core::mem::take(&mut peer.seen)
+    let mut observed: Vec<_> = core::mem::take(&mut peer.seen)
         .into_iter()
         .filter_map(|event| match event {
             skein_llm::client::Event::Completed { owner, completion } => Some((owner, completion)),
             skein_llm::client::Event::Failed { .. } | skein_llm::client::Event::Cancelled { .. } => {
-                panic!("actual two-call native completion")
+                panic!("observed two-call native completion")
             }
             skein_llm::client::Event::Block { .. }
             | skein_llm::client::Event::Delta { .. }
@@ -460,8 +460,8 @@ fn owned_completion(peer: &mut skein_llm_world::fake::Exchange) -> (Token, skein
             | skein_llm::client::Event::Closed => None,
         })
         .collect();
-    assert_eq!(actual.len(), 1, "one Client terminal");
-    let value = actual.pop().expect("one actual owned terminal");
+    assert_eq!(observed.len(), 1, "one Client terminal");
+    let value = observed.pop().expect("one observed owned terminal");
     assert_eq!(value.0, Token::new(31));
     value
 }
@@ -470,32 +470,32 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
     let mut bounds = limits();
     bounds.client.output_items = 2;
     let cells = u64::try_from(core::mem::size_of::<llm::Decoded>()).expect("bounded fixed cell") * 2;
-    let payload = u64::try_from(b"opaque_host".len() + BODY.len()).expect("bounded actual host payload");
+    let payload = u64::try_from(b"opaque_host".len() + BODY.len()).expect("bounded observed host payload");
     let decoded_call_bytes = cells + payload - u64::from(!exact);
     let receiving = Receiving {
         max_completion_bytes: adapter::completion_bound(&bounds.client, decoded_call_bytes)
-            .expect("wrapper floor admitted before actual call"),
+            .expect("wrapper floor admitted before observed call"),
         max_completion_blocks: 2,
         decoded_call_bytes,
         max_failure_bytes: bounds.client.detail_bytes,
     };
     let (context, mut peer) = two_calls(configuration, &bounds, receiving);
-    let (owner, actual_completion) = owned_completion(&mut peer);
+    let (owner, observed_completion) = owned_completion(&mut peer);
     let resolved = Box::new([adapter::ResolvedCall {
         position: 0,
         name: b"finish".as_slice().into(),
         input: b"{}".as_slice().into(),
         call: llm::Decoded::Invalid { problem: llm::Problem::Missing { field: vec![b'x'; 4096].into() } },
     }]);
-    let Event::Completed { completion, .. } = adapter::completion(context, owner, actual_completion, resolved)
+    let Event::Completed { completion, .. } = adapter::completion(context, owner, observed_completion, resolved)
         .expect("fallback wrappers stay in the secured aggregate before later host decoding")
     else {
-        panic!("translated actual completion");
+        panic!("translated observed completion");
     };
     let [llm::Said::ToolCall { call: first, .. }, llm::Said::ToolCall { call: second, input, .. }] =
         completion.content.as_ref()
     else {
-        panic!("both original actual call records retained");
+        panic!("both original observed call records retained");
     };
     assert!(matches!(first, llm::Decoded::Invalid { problem: llm::Problem::TooLarge }));
     assert_eq!(input.as_ref(), BODY);
@@ -563,7 +563,7 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
             }]),
         }]);
         let mut wire = Wire::prepare(Token::new(33), prompt(), secured, configuration, &bounds, script)
-            .expect("one actual unknown call has its fixed wrapper reserved before Client preparation");
+            .expect("one observed unknown call has its fixed wrapper reserved before Client preparation");
         let mut returned = wire.start();
         for _ in 0..100_000 {
             let (progress, terminals) = wire.tick();
@@ -573,10 +573,10 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
             }
         }
         let [Event::Completed { completion, .. }] = returned.as_slice() else {
-            panic!("one actual unknown call completion");
+            panic!("one observed unknown call completion");
         };
         let [llm::Said::ToolCall { name, input, call, .. }] = completion.content.as_ref() else {
-            panic!("full actual unknown call preserved");
+            panic!("full observed unknown call preserved");
         };
         assert_eq!(name.as_ref(), b"not-offered");
         assert_eq!(input.as_ref(), b"{}");
@@ -589,7 +589,7 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
 }
 
 #[test]
-fn actual_requests_render_the_run_key_and_thread_only_for_codex() {
+fn observed_requests_render_the_run_key_and_thread_only_for_codex() {
     for configuration in wire::configurations() {
         for (thread, expected_thread) in
             [(0, "42424242-4242-4242-4242-424242424242"), (0x0102_0304, "42424242-4242-4242-4242-424243404146")]
@@ -656,7 +656,7 @@ fn only_uses_automatic_wire_choice_and_keeps_all_definitions_and_not_run_feedbac
         let (only, _) = run_wire(final_prompt, configuration, 802);
         let ordinary = smith_protocol_llm_world::referee::NativeRequest::from_http(&auto.peer.requests);
         let narrowed = smith_protocol_llm_world::referee::NativeRequest::from_http(&only.peer.requests);
-        assert_eq!(ordinary.tools, narrowed.tools, "narrowing never changes actual native definitions");
+        assert_eq!(ordinary.tools, narrowed.tools, "narrowing never changes observed native definitions");
         let choice = |wire: &Wire| {
             let requests = skein_llm_world::identity(&wire.peer.requests);
             let body = requests.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP body");
@@ -671,13 +671,13 @@ fn only_uses_automatic_wire_choice_and_keeps_all_definitions_and_not_run_feedbac
                 || automatic == Some(serde_json::json!({"type":"auto"})),
             "the automatic provider mode may be its omitted default"
         );
-        let [query] = only.peer.queries.as_slice() else { panic!("one actual request") };
+        let [query] = only.peer.queries.as_slice() else { panic!("one observed request") };
         assert!(
             query.messages.iter().flat_map(|message| &message.parts).any(|part| {
                 matches!(part, Part::ToolOutput { id, output, .. }
                 if id.as_ref() == b"outside-call" && output.windows(b"not run: allowed calls now: opaque_host".len()).any(|part| part == b"not run: allowed calls now: opaque_host"))
             }),
-            "actual replay tells the disallowed call which unchanged descriptor is permitted"
+            "observed replay tells the disallowed call which unchanged descriptor is permitted"
         );
     }
 }

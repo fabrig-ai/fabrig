@@ -120,7 +120,7 @@ fn arrays_keep_both_boundary_tokens() {
     }
 }
 
-// The review's actual service ceiling: six escapes per 65,536 answer bytes,
+// The review's observed service ceiling: six escapes per 65,536 answer bytes,
 // plus the existing 65,536-byte line framing allowance. This is never enlarged
 // to accommodate a token-derived fixture.
 const REVIEW_LINE_BYTES: u32 = 458_752;

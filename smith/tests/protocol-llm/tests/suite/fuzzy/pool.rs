@@ -1,4 +1,4 @@
-//! Deterministic declared pool sizes through the actual adapter and native byte client.
+//! Deterministic declared pool sizes through the observed adapter and native byte client.
 //! Contract: protocol/limits.md, section 6; testing-strategy.md, section 7.
 
 use skein_lib::{Rng, Token};

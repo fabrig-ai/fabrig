@@ -330,7 +330,7 @@ impl Component {
         Ok(())
     }
 
-    /// End one announced operation after its actual terminal.
+    /// End one announced operation after its observed terminal.
     pub fn send_long_done(
         &mut self,
         token: Token,

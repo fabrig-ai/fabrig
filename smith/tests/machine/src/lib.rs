@@ -206,7 +206,7 @@ impl World {
         self.run(&Job::Request(request, true))
     }
 
-    /// Abort a hanging check at the actual pre-spawn or post-spawn component boundary.
+    /// Abort a hanging check at the observed pre-spawn or post-spawn component boundary.
     pub fn aborted_check(&mut self, owner: Token, after_spawn: bool) -> Token {
         let before = self.spawns().len();
         let terminal = self.run(&Job::AbortedCheck { owner, after_spawn });

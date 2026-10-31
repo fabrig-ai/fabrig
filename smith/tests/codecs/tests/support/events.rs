@@ -301,27 +301,27 @@ fn value_role(name: &str, spelling: &str) -> Role {
     }
 }
 
-fn value_agent(_name: &str, _spelling: &str) -> Agent {
+fn value_agent() -> Agent {
     Agent { name: Box::from("sample\n\"🌍".as_bytes()), version: Box::from("sample\n\"🌍".as_bytes()) }
 }
 
-fn value_versions(_name: &str, _spelling: &str) -> Versions {
+fn value_versions() -> Versions {
     Versions { events: u64::MAX, channel: u64::MAX, charter: u64::MAX, transcript: u64::MAX, chat_store: None }
 }
 
-fn value_loss(_name: &str, _spelling: &str) -> Loss {
+fn value_loss() -> Loss {
     Loss { events: u64::MAX, channel: Some(u64::MAX) }
 }
 
-fn value_cpu(_name: &str, _spelling: &str) -> Cpu {
+fn value_cpu() -> Cpu {
     Cpu { user: u64::MAX, system: u64::MAX, children_user: u64::MAX, children_system: u64::MAX }
 }
 
-fn value_peak_rss(_name: &str, _spelling: &str) -> PeakRss {
+fn value_peak_rss() -> PeakRss {
     PeakRss { self_bytes: u64::MAX, children: u64::MAX }
 }
 
-fn value_model(_name: &str, _spelling: &str) -> Model {
+fn value_model() -> Model {
     Model {
         account: None,
         backend: smith_events::Backend::Direct,
@@ -333,7 +333,7 @@ fn value_model(_name: &str, _spelling: &str) -> Model {
     }
 }
 
-fn value_usage(_name: &str, _spelling: &str) -> Usage {
+fn value_usage() -> Usage {
     Usage {
         input_tokens: Some(u64::MAX),
         cache_read_tokens: Some(u64::MAX),
@@ -343,7 +343,7 @@ fn value_usage(_name: &str, _spelling: &str) -> Usage {
     }
 }
 
-fn value_budget(_name: &str, _spelling: &str) -> Budget {
+fn value_budget() -> Budget {
     Budget {
         turns: u64::MAX,
         spend: u64::MAX,
@@ -358,7 +358,7 @@ fn value_tools(name: &str, spelling: &str) -> Tools {
         families: list_family(name, spelling),
         wait: true,
         deliver: true,
-        host: list_text(name, spelling),
+        host: list_text(),
     }
 }
 
@@ -401,7 +401,7 @@ fn value_answer_failure(name: &str, spelling: &str) -> AnswerFailure {
     }
 }
 
-fn value_field(_name: &str, _spelling: &str) -> Field {
+fn value_field() -> Field {
     Field { name: Box::from("sample\n\"🌍".as_bytes()), text: Box::from("sample\n\"🌍".as_bytes()) }
 }
 
@@ -410,27 +410,27 @@ fn value_run_result(name: &str, spelling: &str) -> RunResult {
         form: value_form(name, spelling),
         label: Some(Box::from("sample\n\"🌍".as_bytes())),
         text: Some(Box::from("sample\n\"🌍".as_bytes())),
-        fields: Some(list_field(name, spelling)),
+        fields: Some(list_field()),
     }
 }
 
 fn value_message(name: &str, spelling: &str) -> Message {
-    Message { role: value_role(name, spelling), blocks: list_block(name, spelling) }
+    Message { role: value_role(name, spelling), blocks: list_block() }
 }
 
 fn value_prompt(name: &str, spelling: &str) -> Prompt {
     Prompt {
         system: Some(Box::from("sample\n\"🌍".as_bytes())),
-        tools: Some(list_text(name, spelling)),
+        tools: Some(list_text()),
         messages: list_message(name, spelling),
     }
 }
 
-fn value_completion(name: &str, spelling: &str) -> Completion {
-    Completion { blocks: list_block(name, spelling) }
+fn value_completion() -> Completion {
+    Completion { blocks: list_block() }
 }
 
-fn value_command_exit(_name: &str, _spelling: &str) -> CommandExit {
+fn value_command_exit() -> CommandExit {
     CommandExit::Code { code: i64::MIN }
 }
 
@@ -439,7 +439,7 @@ fn value_session_started(name: &str, spelling: &str) -> SessionStarted {
         chat: if name == "Mode" && spelling == "chat" { Some(b"main".as_slice().into()) } else { None },
         limits: List::with_capacity(0),
         wall_ms: u64::MAX,
-        agent: value_agent(name, spelling),
+        agent: value_agent(),
         mode: value_mode(name, spelling),
         containment: match name {
             "Containment" => match spelling {
@@ -453,20 +453,20 @@ fn value_session_started(name: &str, spelling: &str) -> SessionStarted {
         profile: Box::from("sample\n\"🌍".as_bytes()),
         capture: value_capture(name, spelling),
         delivery: value_delivery(name, spelling),
-        versions: value_versions(name, spelling),
+        versions: value_versions(),
     }
 }
 
-fn value_session_ended(name: &str, spelling: &str) -> SessionEnded {
+fn value_session_ended() -> SessionEnded {
     SessionEnded {
         exit: i64::MIN,
         answered: true,
         aborted: Some(false),
         teardown_ms: Some(u64::MAX),
-        emitted: list_count(name, spelling),
-        loss: value_loss(name, spelling),
-        cpu_ms: Some(value_cpu(name, spelling)),
-        peak_rss_bytes: Some(value_peak_rss(name, spelling)),
+        emitted: list_count(),
+        loss: value_loss(),
+        cpu_ms: Some(value_cpu()),
+        peak_rss_bytes: Some(value_peak_rss()),
     }
 }
 
@@ -475,8 +475,8 @@ fn value_run_started(name: &str, spelling: &str) -> RunStarted {
         run: u64::MAX,
         resumed: true,
         messages: u64::MAX,
-        main: value_model(name, spelling),
-        budget: value_budget(name, spelling),
+        main: value_model(),
+        budget: value_budget(),
         tools: value_tools(name, spelling),
         contract: list_form(name, spelling),
     }
@@ -491,7 +491,7 @@ fn value_run_completed(name: &str, spelling: &str) -> RunCompleted {
         result: Some(value_run_result(name, spelling)),
         turns: u64::MAX,
         spent: u64::MAX,
-        usage: value_usage(name, spelling),
+        usage: value_usage(),
         read: Some(u64::MAX),
         unread: u64::MAX,
         duration_ms: u64::MAX,
@@ -506,7 +506,7 @@ fn value_conversation_opened(name: &str, spelling: &str) -> ConversationOpened {
         parent: Some(u64::MAX),
         call: Some(Box::from("sample\n\"🌍".as_bytes())),
         thread: u64::MAX,
-        model: value_model(name, spelling),
+        model: value_model(),
         requested: None,
         share: None,
         clamped: List::with_capacity(0),
@@ -521,7 +521,7 @@ fn value_conversation_closed(name: &str, spelling: &str) -> ConversationClosed {
         which: Some(Box::from("sample\n\"🌍".as_bytes())),
         failure: Some(value_completion_failure(name, spelling)),
         turns: u64::MAX,
-        usage: value_usage(name, spelling),
+        usage: value_usage(),
         spent: u64::MAX,
         duration_ms: u64::MAX,
     }
@@ -535,7 +535,7 @@ fn value_response_started(name: &str, spelling: &str) -> ResponseStarted {
         turn: u64::MAX,
         attempt: u64::MAX,
         window: u64::MAX,
-        model: value_model(name, spelling),
+        model: value_model(),
         messages: u64::MAX,
         output_tokens: u64::MAX,
         tool_choice: ToolChoice::Auto,
@@ -555,7 +555,7 @@ fn value_response_completed(name: &str, spelling: &str) -> ResponseCompleted {
         invalid: u64::MAX,
         oversized: u64::MAX,
         cut: u64::MAX,
-        usage: value_usage(name, spelling),
+        usage: value_usage(),
         spent: u64::MAX,
         request_bytes: Some(u64::MAX),
         first_byte_ms: Some(u64::MAX),
@@ -563,11 +563,11 @@ fn value_response_completed(name: &str, spelling: &str) -> ResponseCompleted {
         duration_ms: u64::MAX,
         failure: Some(value_completion_failure(name, spelling)),
         retry_ms: Some(u64::MAX),
-        completion: Some(value_completion(name, spelling)),
+        completion: Some(value_completion()),
     }
 }
 
-fn value_text_delta(_name: &str, _spelling: &str) -> TextDelta {
+fn value_text_delta() -> TextDelta {
     TextDelta {
         run: u64::MAX,
         conversation: u64::MAX,
@@ -598,7 +598,7 @@ fn value_tool_completed(name: &str, spelling: &str) -> ToolCompleted {
         call: Box::from("sample\n\"🌍".as_bytes()),
         tool: Box::from("sample\n\"🌍".as_bytes()),
         verdict: value_verdict(name, spelling),
-        exit: Some(value_command_exit(name, spelling)),
+        exit: Some(value_command_exit()),
         job: None,
         bytes: u64::MAX,
         omitted_bytes: u64::MAX,
@@ -609,11 +609,11 @@ fn value_tool_completed(name: &str, spelling: &str) -> ToolCompleted {
     }
 }
 
-fn value_check_started(_name: &str, _spelling: &str) -> CheckStarted {
+fn value_check_started() -> CheckStarted {
     CheckStarted { run: u64::MAX, deadline_ms: Some(u64::MAX) }
 }
 
-fn value_check_completed(_name: &str, _spelling: &str) -> CheckCompleted {
+fn value_check_completed() -> CheckCompleted {
     CheckCompleted { run: u64::MAX, exit: CheckExit::Code { code: i64::MIN }, passed: false, duration_ms: u64::MAX }
 }
 
@@ -631,7 +631,7 @@ fn value_notice(name: &str, spelling: &str) -> Notice {
     }
 }
 
-fn list_block(_name: &str, _spelling: &str) -> List<Block> {
+fn list_block() -> List<Block> {
     let mut values = List::with_capacity(7);
     values.push(Block::Text { text: Box::from("sample\n\"🌍".as_bytes()) }).expect("block room");
     values.push(Block::Refusal { text: Box::from("sample\n\"🌍".as_bytes()) }).expect("block room");
@@ -667,7 +667,7 @@ fn list_block(_name: &str, _spelling: &str) -> List<Block> {
     values
 }
 
-fn list_count(_name: &str, _spelling: &str) -> List<Count> {
+fn list_count() -> List<Count> {
     let mut values = List::with_capacity(1);
     values.push(Count { record: Box::from(b"notice".as_slice()), count: u64::MAX }).expect("one count");
     values
@@ -679,9 +679,9 @@ fn list_family(name: &str, spelling: &str) -> List<Family> {
     values
 }
 
-fn list_field(name: &str, spelling: &str) -> List<Field> {
+fn list_field() -> List<Field> {
     let mut values = List::with_capacity(1);
-    values.push(value_field(name, spelling)).expect("fixture room");
+    values.push(value_field()).expect("fixture room");
     values
 }
 
@@ -697,7 +697,7 @@ fn list_message(name: &str, spelling: &str) -> List<Message> {
     values
 }
 
-fn list_text(_name: &str, _spelling: &str) -> List<Box<[u8]>> {
+fn list_text() -> List<Box<[u8]>> {
     let mut values = List::with_capacity(1);
     values.push(Box::from("sample\n\"🌍".as_bytes())).expect("fixture room");
     values
@@ -722,17 +722,17 @@ fn samples_0() -> Vec<(&'static str, Record, Capture)> {
         ),
         (
             "session_ended_none",
-            Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended("Capture", "none")) },
+            Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended()) },
             Capture::None,
         ),
         (
             "session_ended_calls",
-            Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended("Capture", "calls")) },
+            Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended()) },
             Capture::Calls,
         ),
         (
             "session_ended_everything",
-            Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended("Capture", "everything")) },
+            Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended()) },
             Capture::Everything,
         ),
         (
@@ -846,7 +846,7 @@ fn samples_2() -> Vec<(&'static str, Record, Capture)> {
         ),
         (
             "text_delta_everything",
-            Record { t_ms: u64::MAX, event: Event::TextDelta(value_text_delta("Capture", "everything")) },
+            Record { t_ms: u64::MAX, event: Event::TextDelta(value_text_delta()) },
             Capture::Everything,
         ),
         (
@@ -886,32 +886,32 @@ fn samples_3() -> Vec<(&'static str, Record, Capture)> {
         ),
         (
             "check_started_none",
-            Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started("Capture", "none")) },
+            Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started()) },
             Capture::None,
         ),
         (
             "check_started_calls",
-            Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started("Capture", "calls")) },
+            Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started()) },
             Capture::Calls,
         ),
         (
             "check_started_everything",
-            Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started("Capture", "everything")) },
+            Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started()) },
             Capture::Everything,
         ),
         (
             "check_completed_none",
-            Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed("Capture", "none")) },
+            Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed()) },
             Capture::None,
         ),
         (
             "check_completed_calls",
-            Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed("Capture", "calls")) },
+            Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed()) },
             Capture::Calls,
         ),
         (
             "check_completed_everything",
-            Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed("Capture", "everything")) },
+            Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed()) },
             Capture::Everything,
         ),
         (
@@ -1550,7 +1550,7 @@ pub fn samples() -> Vec<(&'static str, Record, Capture)> {
         Record { t_ms: 0, event: Event::ToolCompleted(zero) },
         Capture::Everything,
     ));
-    let mut check = value_check_completed("", "");
+    let mut check = value_check_completed();
     check.exit = CheckExit::Signal { signal: u64::MAX };
     samples.push((
         "check_completed_signal",
@@ -1564,7 +1564,7 @@ pub fn samples() -> Vec<(&'static str, Record, Capture)> {
         ("check_completed_cancelled", CheckExit::Cancelled, false),
         ("check_completed_unknown", CheckExit::Unknown("future🌍".as_bytes().into()), false),
     ] {
-        let mut check = value_check_completed("", "");
+        let mut check = value_check_completed();
         check.exit = exit;
         check.passed = passed;
         samples.push((name, Record { t_ms: 0, event: Event::CheckCompleted(check) }, Capture::Everything));
@@ -1606,7 +1606,7 @@ pub fn samples() -> Vec<(&'static str, Record, Capture)> {
         ("session_ended_unread_calls", Capture::Calls),
         ("session_ended_unread_everything", Capture::Everything),
     ] {
-        let mut end = value_session_ended("", "");
+        let mut end = value_session_ended();
         end.cpu_ms = None;
         end.peak_rss_bytes = None;
         samples.push((name, Record { t_ms: u64::MAX, event: Event::SessionEnded(end) }, capture));
@@ -1980,7 +1980,7 @@ fn end_samples() -> Vec<(&'static str, Record, Capture)> {
             Capture::Everything,
         ));
     }
-    let mut aborted = value_session_ended("", "");
+    let mut aborted = value_session_ended();
     aborted.aborted = Some(true);
     samples.push((
         "session_ended_aborted",

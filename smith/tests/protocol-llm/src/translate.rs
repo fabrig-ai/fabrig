@@ -1,7 +1,7 @@
-//! Typed fixture wiring between the copied scripts and the agent conversation
-//! (domain/session.md, section 12; domain/run.md, section 14). This test-only
+//! Typed fixture wiring between the fixture scripts and the agent conversation
+//! (domain/session.md, section 10; domain/run.md, section 13). This test-only
 //! adapter recognizes the scripts' finite arguments. It owns no production
-//! provider schema adapter; migration 05s5 supplies those. Opaque host inputs
+//! provider schema adapter. Opaque host inputs
 //! use the skein JSON tokenizer to attest complete object syntax. Tool results keep
 //! call IDs and diagnostic bytes, allowing the provider to check transcript
 //! pairing and the tests to inspect feedback on subsequent requests.
@@ -245,10 +245,8 @@ fn finish(arguments: &[u8]) -> Option<run::outcome::Declared> {
     Some(Declared::Verdict(Verdict { name, text: body, items: children, fields: Box::new([]) }))
 }
 
-/// The copied scripts use unescaped string fields. This recognizes that finite
+/// The fixture scripts use unescaped string fields. This recognizes that finite
 /// fixture language, never arbitrary JSON or production provider documents.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
 fn field(arguments: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
     let prefix = [b"\"", name, b"\":\""].concat();
     let start = arguments.windows(prefix.len()).position(|part| part == prefix)? + prefix.len();

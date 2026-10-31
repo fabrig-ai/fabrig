@@ -1,4 +1,4 @@
-//! Independent attacks on transcript.md, section 12, through the kept set alone.
+//! Independent attacks on smith/docs/design/protocol/transcript.md, section 12, through the kept set alone.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -20,12 +20,12 @@ const FIXTURE_PATCH: &str = include_str!("../../transcript-patches/patches/0001.
 const SMALLEST: &[u8] =
     include_bytes!("../../transcript-patches/patches/golden/0001/fixture-turn/record_turn_smallest.bin");
 const FULL: &[u8] = include_bytes!("../../transcript-patches/patches/golden/0001/fixture-turn/record_turn_full.bin");
-// transcript.md, section 12: Found.hits alone has the pieces word.
+// smith/docs/design/protocol/transcript.md, section 12: Found.hits alone has the pieces word.
 const HIT_BYTES: u32 = 2_097_152;
 // Both fields of the fixture's kept version 1 have a ceiling of 64 bytes.
 const FIELD_BYTES: usize = 64;
 const PAST_FIELD_BYTES: usize = FIELD_BYTES + 1;
-// codec.md, 11.6: two kept versions and one conversion plan for this fixture.
+// skein/docs/design/codec.md, 11.6: two kept versions and one conversion plan for this fixture.
 const VERSIONS: u32 = 2;
 const PLANS: u32 = 1;
 const TEXT_BYTES: u32 = 256;
@@ -194,7 +194,7 @@ fn found_hits_names_hit_as_held_pieces_at_its_bound() {
     assert_eq!(
         schema.ty(schema.field(hits).ty),
         Type::Bytes { bound: HIT_BYTES, held: Held::Pieces(schema.find(b"Hit").expect("Hit declaration")) },
-        "transcript.md 12 owes the pieces word without moving version 6"
+        "smith/docs/design/protocol/transcript.md 12 owes the pieces word without moving version 6"
     );
     assert_eq!(schema.version(), CURRENT_VERSION);
 }

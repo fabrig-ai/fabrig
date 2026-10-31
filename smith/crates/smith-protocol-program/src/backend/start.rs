@@ -1,4 +1,4 @@
-//! Lazy child startup and private entropy-derived names (programs.md, 3, 5.1).
+//! Lazy child startup and private entropy-derived names (smith/docs/design/protocol/programs.md, 3, 5.1).
 //! Keeps no login; the existing status reader classifies subscription use.
 
 use super::{Backend, Below, Phase};
@@ -248,7 +248,7 @@ impl Backend {
         }
         if self.phase == Phase::Running && self.child.is_some() {
             // Relay EOF can precede waitpid. Let the child and stderr settle
-            // before choosing its program fault (programs.md, section 5.6).
+            // before choosing its program fault (smith/docs/design/protocol/programs.md, section 5.6).
             let until = env.now.saturating_add(self.settings.grace);
             self.eof_deadline = Some(self.eof_deadline.unwrap_or(until).min(until));
         } else if self.phase != Phase::Ending && self.phase != Phase::Ended {

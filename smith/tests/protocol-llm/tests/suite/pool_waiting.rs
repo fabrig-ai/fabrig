@@ -12,7 +12,7 @@ fn three_calls_to_one_endpoint_beyond_its_connections_each_complete() {
     for owner in 1..=3 {
         peer.start(owner, 60, 60, 300);
     }
-    assert_eq!(peer.connections(), 1, "two accepted calls wait behind one actual socket");
+    assert_eq!(peer.connections(), 1, "two accepted calls wait behind one observed socket");
     assert!(peer.terminals.is_empty());
     for owner in 1..=3 {
         peer.complete(100);

@@ -28,7 +28,7 @@ pub const RELAY_FLAG: &str = "--mcp-relay";
 /// Private configuration environment entry (protocol/programs.md, section 9).
 pub const SECRET_ENV: &str = "SMITH_MCP_SECRET";
 
-/// Lowercase hexadecimal bytes for 256 bits of entropy (programs.md, section 9).
+/// Lowercase hexadecimal bytes for 256 bits of entropy (smith/docs/design/protocol/programs.md, section 9).
 pub const SECRET_BYTES: usize = 64;
 
 /// Negotiated MCP versions, newest first (protocol/programs.md, section 5.3).
@@ -55,7 +55,7 @@ pub struct Limits {
     pub unauthenticated: Time,
 }
 
-/// One unanswered call, sent by the server to its owner (programs.md, 5.3).
+/// One unanswered call, sent by the server to its owner (smith/docs/design/protocol/programs.md, 5.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CallId(u32);
 
@@ -103,7 +103,7 @@ pub enum Verdict {
     Deny { message: Box<[u8]> },
 }
 
-/// Startup refusal returned to the backend before any listener (programs.md, 5.3).
+/// Startup refusal returned to the backend before any listener (smith/docs/design/protocol/programs.md, 5.3).
 #[derive(Debug)]
 pub enum Refused {
     /// The tool inventory exceeds a configured schema or answer bound.
@@ -178,7 +178,7 @@ pub fn secret_text(entropy: &[u8; 32]) -> [u8; SECRET_BYTES] {
 }
 
 impl Server {
-    /// Listen on IPv4 loopback; tool-list refusal has no I/O effects (programs.md, 9).
+    /// Listen on IPv4 loopback; tool-list refusal has no I/O effects (smith/docs/design/protocol/programs.md, 9).
     pub fn new(
         first: Token,
         port: u16,
@@ -234,13 +234,13 @@ impl Server {
             || self.pending.last().expect("pending slot").owner == owner
     }
 
-    /// Secret bytes for the private MCP configuration file alone (programs.md, 9).
+    /// Secret bytes for the private MCP configuration file alone (smith/docs/design/protocol/programs.md, 9).
     #[must_use]
     pub fn secret(&self) -> &[u8] {
         self.secret.expose()
     }
 
-    /// Drain the upward records after each entry point (programs.md, 5.3).
+    /// Drain the upward records after each entry point (smith/docs/design/protocol/programs.md, 5.3).
     pub fn up(&mut self) -> Option<Up> {
         self.above.pop()
     }

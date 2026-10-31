@@ -62,7 +62,7 @@ mod tests;
 #[cfg(test)]
 mod turns_tests;
 
-/// One normalized start directory, supplied by the service before Complete (programs.md 5.4).
+/// One normalized start directory, supplied by the service before Complete (smith/docs/design/protocol/programs.md 5.4).
 #[derive(Clone, Debug)]
 pub struct Mount {
     pub root: Token,
@@ -101,7 +101,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// Retained program JSON tokens: `N = line_bytes` (programs.md, section 5.5).
+    /// Retained program JSON tokens: `N = line_bytes` (smith/docs/design/protocol/programs.md, section 5.5).
     /// Each reader record consumes at least one distinct encoded byte; both
     /// opening and closing container brackets are retained records. With bytes
     /// alone as the input this is tight: nested arrays around an empty array
@@ -153,7 +153,7 @@ enum Phase {
     Ended,
 }
 
-/// The run's program adapter, driven by the service (programs.md, sections 3, 5).
+/// The run's program adapter, driven by the service (smith/docs/design/protocol/programs.md, sections 3, 5).
 #[expect(
     clippy::struct_excessive_bools,
     reason = "child, server, stdout and once-per-Complete observation facts are independent"
@@ -352,7 +352,7 @@ impl Backend {
         self.settings.max_turns = turns;
     }
 
-    /// Supply the admitted run time for the program's MCP timeout (programs.md 5.7).
+    /// Supply the admitted run time for the program's MCP timeout (smith/docs/design/protocol/programs.md 5.7).
     pub fn run_time(&mut self, time: Duration) {
         self.run_time = time;
     }

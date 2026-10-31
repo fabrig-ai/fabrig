@@ -1,4 +1,4 @@
-//! A host's loop over the fixture owner's set as data (transcript.md, 12).
+//! A host's loop over the fixture owner's set as data (smith/docs/design/protocol/transcript.md, 12).
 
 use skein_codec::patch::{Capacity, Halt, Patcher, Step};
 use smith_transcript_patches::patches;
@@ -33,7 +33,7 @@ pub fn fixture_patcher() -> Patcher {
 
 /// Patches a kept turn to the current version: each plan from its version on,
 /// the root found once by `ROOT` and carried to each next version by its
-/// counterpart (codec.md, 11.6).
+/// counterpart (skein/docs/design/codec.md, 11.6).
 pub fn patch_to_current(patcher: &mut Patcher, record: Box<[u8]>) -> Result<Box<[u8]>, Halt> {
     let version = skein_codec::version_of(&record).expect("a kept turn starts with its version");
     let Some(mut plan) = patcher.plan_from(version) else {

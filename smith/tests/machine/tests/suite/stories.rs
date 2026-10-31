@@ -359,7 +359,7 @@ fn a_deadline_stops_both_the_leader_and_its_pipe_holding_group_child() {
         deadline: Time::from_nanos(1_000_000),
     });
     assert!(matches!(done, ToDomain::Done { done: tools::Done::Exited { exit: tools::Exit::TimedOut, .. }, .. }));
-    assert!(world.trace().iter().any(|entry| entry.contains("to: Group")), "actual native group signal");
+    assert!(world.trace().iter().any(|entry| entry.contains("to: Group")), "observed native group signal");
     world.settle();
 }
 

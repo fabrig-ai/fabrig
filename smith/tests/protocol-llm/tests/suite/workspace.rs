@@ -1,4 +1,4 @@
-//! Actual optional-workspace starts, native parked transcripts and mixed mounts.
+//! Observed optional-workspace starts, native parked transcripts and mixed mounts.
 //! All bodies come from the root's Turns; all file effects use the shared checkout.
 //! Contract: domain/run.md, sections 3, 6, 8 and 13; domain/tools.md, sections 2–4.
 
@@ -135,7 +135,7 @@ fn accounting(
         );
     }
     assert!(
-        matches!(world.answer(), run::Answer::Parked { turns, spent: actual } if *turns == spent.turns && *actual == spent)
+        matches!(world.answer(), run::Answer::Parked { turns, spent: observed } if *turns == spent.turns && *observed == spent)
     );
 }
 
@@ -159,7 +159,7 @@ fn no_workspace(world: &World, settings: &Settings) {
             binding.observed.iter().map(|(_, _, seen)| *seen).collect::<Vec<_>>(),
             [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
         );
-        assert!(binding.retired.is_some(), "physical owners retire only after actual Closed");
+        assert!(binding.retired.is_some(), "physical owners retire only after observed Closed");
     }
 }
 
@@ -183,7 +183,7 @@ fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
-                .expect("actual Client completion reservation");
+                .expect("observed Client completion reservation");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
         let configuration = wire::configurations().into_iter().nth(index).expect("two native fixtures");
@@ -210,14 +210,14 @@ fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
         assert!(
             matches!(first.host_terminals(), [(_, _, run::HostReply::Answered(answer))] if answer.text() == ANSWER && !answer.error())
         );
-        let actual = &first.turns()[0];
+        let observed = &first.turns()[0];
         let saved = Transcript {
-            version: actual.version,
-            endpoint: actual.endpoint,
-            dialect: actual.dialect,
+            version: observed.version,
+            endpoint: observed.endpoint,
+            dialect: observed.dialect,
             turns: first.turns().into(),
         };
-        assert_eq!(saved.turns.last().expect("persisted actual tail").sequence, 2);
+        assert_eq!(saved.turns.last().expect("persisted observed tail").sequence, 2);
         settings.resume = true;
         let configuration = wire::configurations().into_iter().nth(index).expect("same native fixture");
         let mut resumed = World::with_workspace_wire(
@@ -288,7 +288,7 @@ fn mixed_scripts() -> Box<[Script]> {
                 calls(vec![call(b"write", br#"{"path":".git/HEAD","content":"forbidden"}"#)], 1),
                 calls(vec![call(b"sub_agent", br#"{"brief":"@mixed-read","tools":["inspect"]}"#)], 1),
                 calls(vec![call(b"sub_agent", br#"{"brief":"@mixed-write","tools":["inspect","modify"]}"#)], 1),
-                calls(vec![call(b"deliver", br#"{"ticket":"mixed-actual-tree"}"#)], 1),
+                calls(vec![call(b"deliver", br#"{"ticket":"mixed-observed-tree"}"#)], 1),
                 calls(vec![call(b"finish", br#"{"report":"Mixed directories handled.","source":"workspace"}"#)], 1),
             ]
             .into(),
@@ -356,7 +356,7 @@ fn mixed_git_plain_and_readonly_mounts_share_discovery_and_child_authority() {
             break;
         }
     }
-    assert_eq!(world.delivery_submissions().len(), 1, "actual parent delivery reached");
+    assert_eq!(world.delivery_submissions().len(), 1, "observed parent delivery reached");
     assert_eq!(world.checked(), [true, true]);
     assert_eq!(world.disk().content(b"work/data.txt"), Some(b"child-git".as_slice()));
     assert_eq!(world.disk().content(b"notes/data.txt"), Some(b"child".as_slice()));
@@ -370,7 +370,7 @@ fn mixed_git_plain_and_readonly_mounts_share_discovery_and_child_authority() {
         run::Receipt::new(2, b"notes: changed plain files kept".as_slice().into()).expect("plain receipt"),
     ]))
     .expect("exact changed writable ordinals");
-    world.return_delivery(owner, run::Delivery::Delivered(receipts)).expect("one actual terminal");
+    world.return_delivery(owner, run::Delivery::Delivered(receipts)).expect("one observed terminal");
     world.run(10_000);
     assert!(matches!(world.answer(), run::Answer::Accepted { outcome: run::outcome::Declared::Report(_), .. }));
     let discovery = world
@@ -404,7 +404,7 @@ fn mixed_git_plain_and_readonly_mounts_share_discovery_and_child_authority() {
     assert_eq!(checks, [roots[0], roots[2]], "readonly executable files never become checks");
     for query in world.prompts() {
         for name in [b"work".as_slice(), b"archive", b"notes", b"reference"] {
-            assert!(contains(&query.system, &[b"guide-", name].concat()), "same actual guides in main and children");
+            assert!(contains(&query.system, &[b"guide-", name].concat()), "same observed guides in main and children");
         }
         for metadata in [
             b"`work`, which you may change, a git working tree".as_slice(),
@@ -502,11 +502,11 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
                     .and_then(|line| line.strip_prefix("1: sections "))
                     .map(|tail| format!("sections {tail}"))
             })
-            .expect("actual native peer read result");
+            .expect("observed native peer read result");
         assert_eq!(copied, "sections 4–6");
         assert!(
             feedback.iter().any(|output| contains(output, b"bad\\xff\\x00\\x0d\\xc2\\x85\t")),
-            "invalid and control bytes are visible to the actual peer"
+            "invalid and control bytes are visible to the observed peer"
         );
         let edit = world.prompts()[2]
             .messages
@@ -516,7 +516,7 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
                 Part::ToolCall { name, arguments, .. } if name.as_ref() == b"edit" => Some(arguments),
                 Part::Opaque { .. } | Part::Text { .. } | Part::ToolCall { .. } | Part::ToolOutput { .. } => None,
             })
-            .expect("native peer's actual edit call");
+            .expect("native peer's observed edit call");
         let expected = format!(r#"{{"path":"utf8.txt","edits":[{{"old":"{copied}","new":"sections 4-6"}}]}}"#);
         assert_eq!(edit.as_ref(), expected.as_bytes(), "old text equals what the read rendered");
         assert!(world.prompts()[2].messages.iter().flat_map(|message| &message.parts).any(|part|
@@ -563,7 +563,7 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
             tool_bytes: 32768,
             history_bytes: u64::from(skein_llm_world::limits().request),
             rendered_result: client.strings,
-            stated: adapter::Stated::from_tools(caps, client.input).expect("actual numeric quantities"),
+            stated: adapter::Stated::from_tools(caps, client.input).expect("observed numeric quantities"),
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&client, settings.limits.decoded_call_bytes).expect("receiving");
@@ -581,7 +581,7 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
         world.run(10_000);
         assert!(
             matches!(world.answer(), run::Answer::Accepted { .. }),
-            "actual native descriptions terminal: {:?}",
+            "observed native descriptions terminal: {:?}",
             world.answer()
         );
         let offered = &world.prompts()[0].tools;
@@ -594,7 +594,7 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
             (b"shell", 4, b"43 seconds"),
             (b"job", 4, b"default 30 seconds; max 30 seconds"),
         ] {
-            let tool = offered.iter().find(|tool| tool.name.as_ref() == name).expect("actual offered tool");
+            let tool = offered.iter().find(|tool| tool.name.as_ref() == name).expect("observed offered tool");
             let schema = std::str::from_utf8(&tool.parameters).expect("native schema text");
             assert_eq!(schema.matches("\"description\"").count(), parameters);
             assert!(contains(schema.as_bytes(), detail));

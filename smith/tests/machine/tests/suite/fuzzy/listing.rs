@@ -76,9 +76,9 @@ fn seeded_selected_paths_keep_the_exact_tree_prefix_and_omitted_count_within_mem
         for byte in &output {
             listing.push(*byte);
         }
-        let actual = listing.finish(Some(skein_io::kernel::Exit::Code(0)), false);
+        let observed = listing.finish(Some(skein_io::kernel::Exit::Code(0)), false);
         let peak = meter.check(meter.end(), SELECTED_PATHS_CEILING, &seed);
         assert!(peak > 0);
-        assert_eq!(actual, tools::Done::Listed { entries: expected.into(), more }, "seed {seed}");
+        assert_eq!(observed, tools::Done::Listed { entries: expected.into(), more }, "seed {seed}");
     }
 }

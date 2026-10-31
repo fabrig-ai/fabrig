@@ -7,11 +7,11 @@ use skein_lib::List;
 /// `Capture` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Capture {
-    /// The `none` classification.
+    /// No prompt or completion content is recorded.
     None,
-    /// The `calls` classification.
+    /// Call inputs and results are recorded.
     Calls,
-    /// The `everything` classification.
+    /// Prompt, completion and live text content are recorded.
     Everything,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -20,9 +20,9 @@ pub enum Capture {
 /// `Delivery` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
-    /// The `complete` classification.
+    /// Every admitted event reaches the sink.
     Complete,
-    /// The `best_effort` classification.
+    /// Events may be dropped and counted when the sink has no room.
     BestEffort,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -31,11 +31,11 @@ pub enum Delivery {
 /// `Mode` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Mode {
-    /// The `agent` classification.
+    /// The process serves the host channel.
     Agent,
-    /// The `exec` classification.
+    /// The process runs without an interactive terminal.
     Exec,
-    /// The `chat` classification.
+    /// The process serves an interactive conversation.
     Chat,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -55,13 +55,13 @@ pub enum Containment {
 /// `Family` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Family {
-    /// The `inspect` classification.
+    /// Tools observe workspace state.
     Inspect,
-    /// The `modify` classification.
+    /// Tools change workspace state.
     Modify,
-    /// The `shell` classification.
+    /// Tools start and manage commands.
     Shell,
-    /// The `sub_agents` classification.
+    /// Tools delegate work to child conversations.
     SubAgents,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -70,13 +70,13 @@ pub enum Family {
 /// `Form` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Form {
-    /// The `report` classification.
+    /// The run returns a report.
     Report,
-    /// The `verdict` classification.
+    /// The run returns a review decision.
     Verdict,
-    /// The `change` classification.
+    /// The run returns a workspace change.
     Change,
-    /// The `failure` classification.
+    /// The run reports that it cannot complete.
     Failure,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -85,13 +85,13 @@ pub enum Form {
 /// `Status` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Status {
-    /// The `accepted` classification.
+    /// The run produced an accepted answer.
     Accepted,
-    /// The `parked` classification.
+    /// The run saved its conversation for resumption.
     Parked,
-    /// The `failed` classification.
+    /// The run ended with a failure.
     Failed,
-    /// The `refused` classification.
+    /// The entrance refused the run.
     Refused,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -100,11 +100,11 @@ pub enum Status {
 /// `ConversationKind` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ConversationKind {
-    /// The `main` classification.
+    /// The conversation carries the run.
     Main,
-    /// The `child` classification.
+    /// The conversation serves a delegated call.
     Child,
-    /// The `compaction` classification.
+    /// The conversation summarizes a full window.
     Compaction,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -113,17 +113,17 @@ pub enum ConversationKind {
 /// `ConversationEnd` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ConversationEnd {
-    /// The `closed` classification.
+    /// The conversation settled normally.
     Closed,
-    /// The `budget` classification.
+    /// The conversation reached its budget.
     Budget,
-    /// The `failed` classification.
+    /// The conversation ended with a failure.
     Failed,
-    /// The `refused` classification.
+    /// The entrance refused the conversation.
     Refused,
-    /// The `transcript` classification.
+    /// The saved history could not be used.
     Transcript,
-    /// The `overflow` classification.
+    /// The conversation exceeded an ownership bound.
     Overflow,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -145,11 +145,11 @@ pub enum ToolChoice {
 /// `Outcome` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
-    /// The `completed` classification.
+    /// The response supplied a completion.
     Completed,
-    /// The `failed` classification.
+    /// The response supplied a failure.
     Failed,
-    /// The `cancelled` classification.
+    /// The response settled cancellation.
     Cancelled,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -158,13 +158,13 @@ pub enum Outcome {
 /// `Stop` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stop {
-    /// The `end` classification.
+    /// The provider finished its turn.
     End,
-    /// The `tools` classification.
+    /// The provider requested tool results.
     Tools,
-    /// The `max_tokens` classification.
+    /// The provider reached its output-token ceiling.
     MaxTokens,
-    /// The `refusal` classification.
+    /// The provider declined the request.
     Refusal,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -173,11 +173,11 @@ pub enum Stop {
 /// `Source` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Source {
-    /// The `workspace` classification.
+    /// Instructions came from the workspace.
     Workspace,
-    /// The `run` classification.
+    /// Instructions came from the run.
     Run,
-    /// The `host` classification.
+    /// Instructions came from the host.
     Host,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -186,9 +186,9 @@ pub enum Source {
 /// `Effect` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Effect {
-    /// The `read` classification.
+    /// The tool observes external state.
     Read,
-    /// The `write` classification.
+    /// The tool may change external state.
     Write,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -197,79 +197,79 @@ pub enum Effect {
 /// `Verdict` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Verdict {
-    /// The `read` classification.
+    /// A file read returned content.
     Read,
-    /// The `listed` classification.
+    /// A directory listing returned entries.
     Listed,
-    /// The `found` classification.
+    /// A search returned hits.
     Found,
-    /// The `written` classification.
+    /// A store wrote the file.
     Written,
     /// One file or empty directory was removed.
     Removed,
     /// A directory removal found entries and changed nothing.
     NotEmpty,
-    /// The `edited` classification.
+    /// An edit changed the file.
     Edited,
-    /// The `exited` classification.
+    /// A command returned its exit status.
     Exited,
-    /// The `conflict` classification.
+    /// A concurrent change prevented the operation.
     Conflict,
-    /// The `missing` classification.
+    /// The requested object is absent.
     Missing,
-    /// The `too_large` classification.
+    /// The result exceeds its receiving bound.
     TooLarge,
-    /// The `timed_out` classification.
+    /// The operation reached its deadline.
     TimedOut,
     /// A command left running as a job, sent in its call answer.
     Running,
     /// A job stopped by its call, sent as its terminal.
     Stopped,
-    /// The `failed` classification.
+    /// The operation ended with a failure.
     Failed,
-    /// The `cancelled` classification.
+    /// The operation settled cancellation.
     Cancelled,
-    /// The `ambiguous` classification.
+    /// More than one edit location matched.
     Ambiguous,
-    /// The `result` classification.
+    /// A tool returned its result.
     Result,
-    /// The `error` classification.
+    /// A tool returned an error.
     Error,
-    /// The `invalid` classification.
+    /// The call failed input validation.
     Invalid,
-    /// The `not_run` classification.
+    /// The call was skipped.
     NotRun,
-    /// The `withdrawn` classification.
+    /// The caller withdrew the request.
     Withdrawn,
-    /// The `not_granted` classification.
+    /// The call lacked the required grant.
     NotGranted,
-    /// The `outside` classification.
+    /// The path escapes the admitted workspace.
     Outside,
-    /// The `read_only` classification.
+    /// The mount forbids writes.
     ReadOnly,
-    /// The `too_long` classification.
+    /// The path exceeds its byte bound.
     TooLong,
-    /// The `not_found` classification.
+    /// The requested path was not found.
     NotFound,
-    /// The `not_file` classification.
+    /// The path does not name a regular file.
     NotFile,
-    /// The `linked` classification.
+    /// The path traverses a forbidden link.
     Linked,
-    /// The `protected` classification.
+    /// The path names protected workspace state.
     Protected,
-    /// The `not_directory` classification.
+    /// The path does not name a directory.
     NotDirectory,
-    /// The `not_read` classification.
+    /// The file was not read before the change.
     NotRead,
-    /// The `stale` classification.
+    /// The saved file version differs.
     Stale,
-    /// The `no_match` classification.
+    /// The edit text matched nowhere.
     NoMatch,
-    /// The `unchanged` classification.
+    /// The operation changed no bytes.
     Unchanged,
-    /// The `busy` classification.
+    /// The target has work in flight.
     Busy,
-    /// The `nul_byte` classification.
+    /// The request contains a forbidden NUL byte.
     NulByte,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -278,15 +278,15 @@ pub enum Verdict {
 /// `Delivered` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Delivered {
-    /// The `delivered` classification.
+    /// The host accepted the changed directories.
     Delivered,
-    /// The `nothing` classification.
+    /// The host found no changed directories.
     Nothing,
-    /// The `refused` classification.
+    /// The host refused the delivery.
     Refused,
-    /// The `failed` classification.
+    /// The delivery ended with a failure.
     Failed,
-    /// The `stale` classification.
+    /// The host context changed before delivery.
     Stale,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -295,31 +295,31 @@ pub enum Delivered {
 /// `FailureClass` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FailureClass {
-    /// The `overloaded` classification.
+    /// The provider is overloaded.
     Overloaded,
-    /// The `rate_limited` classification.
+    /// The provider throttled the request.
     RateLimited,
-    /// The `exhausted` classification.
+    /// The account exhausted its usage allowance.
     Exhausted,
     /// The provider refused the account what the request asked.
     Refused,
     /// The provider does not support a request field.
     Unsupported,
-    /// The `unavailable` classification.
+    /// The provider cannot serve the request.
     Unavailable,
-    /// The `timed_out` classification.
+    /// A request deadline expired.
     TimedOut,
-    /// The `context_too_long` classification.
+    /// The prompt exceeds the model window.
     ContextTooLong,
-    /// The `invalid` classification.
+    /// The provider rejected the request.
     Invalid,
-    /// The `unauthorized` classification.
+    /// The provider rejected the credential.
     Unauthorized,
-    /// The `limit` classification.
+    /// A configured resource bound was reached.
     Limit,
-    /// The `protocol` classification.
+    /// The peer violated the wire contract.
     Protocol,
-    /// The `cancelled` classification.
+    /// The request settled cancellation.
     Cancelled,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -328,11 +328,11 @@ pub enum FailureClass {
 /// `Evidence` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Evidence {
-    /// The `unsent` classification.
+    /// The request was not sent.
     Unsent,
-    /// The `maybe_sent` classification.
+    /// The transport cannot establish whether the request was sent.
     MaybeSent,
-    /// The `response` classification.
+    /// An HTTP response was received.
     Response,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -341,25 +341,25 @@ pub enum Evidence {
 /// `AnswerClass` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum AnswerClass {
-    /// The `model` classification.
+    /// A model request failed.
     Model,
-    /// The `budget` classification.
+    /// The run reached its budget.
     Budget,
-    /// The `policy` classification.
+    /// The answer violated host policy.
     Policy,
-    /// The `cancelled` classification.
+    /// The run settled cancellation.
     Cancelled,
     /// A spawned agent ended without an answer.
     Agent,
     /// The host failed while the run went on.
     Host,
-    /// The `stale` classification.
+    /// The host context changed before the answer.
     Stale,
-    /// The `transcript` classification.
+    /// The saved history could not be used.
     Transcript,
-    /// The `busy` classification.
+    /// The entrance had no room for the run.
     Busy,
-    /// The `invalid` classification.
+    /// The run request failed validation.
     Invalid,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -368,9 +368,9 @@ pub enum AnswerClass {
 /// `Level` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Level {
-    /// The `info` classification.
+    /// The notice reports an observation.
     Info,
-    /// The `warning` classification.
+    /// The notice reports a condition requiring attention.
     Warning,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -398,9 +398,9 @@ pub enum NoticeKind {
 /// `Role` classification sent by a stream producer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Role {
-    /// The `user` classification.
+    /// The prompt supplies user content.
     User,
-    /// The `assistant` classification.
+    /// The provider supplies assistant content.
     Assistant,
     /// A value this reader does not know, retained as UTF-8.
     Unknown(Box<[u8]>),
@@ -654,7 +654,7 @@ pub struct AnswerFailure {
     pub reason: Option<Box<[u8]>>,
     /// Whether cancellation dropped an unanswering run, rather than receiving its answer.
     pub dropped: Option<bool>,
-    /// Actual spawned-process terminal when the kit supplies its evidence.
+    /// Observed spawned-process terminal when the kit supplies its evidence.
     pub ended: Option<AgentExit>,
     /// Durable turn sequence the store could not keep.
     pub turn: Option<u64>,
@@ -733,7 +733,6 @@ pub struct Completion {
 }
 
 /// A command's code or signal, sent by the service with its tool terminal.
-/// Contract: protocol/events.md, section 3.6.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CommandExit {
     /// The leader exited with this code, recorded by the service.
@@ -743,7 +742,6 @@ pub enum CommandExit {
 }
 
 /// A workspace check's terminal, sent by the service after its start.
-/// Contract: protocol/events.md, sections 3.6 and 6.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CheckExit {
     /// The checks exited with this code; only zero passes.
@@ -954,7 +952,6 @@ pub struct ToolCompleted {
 }
 
 /// A job whose end no call answer reported, told by its closing session.
-/// Contract: protocol/events.md, section 3.6.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct JobEnded {
     pub run: u64,
@@ -1066,7 +1063,7 @@ pub struct Notice {
     pub account: Option<u32>,
     pub reset_ms: Option<u64>,
     pub code: Option<Box<[u8]>>,
-    /// Actual size of the reasoning item omitted from history, in bytes.
+    /// Observed size of the reasoning item omitted from history, in bytes.
     pub bytes: Option<u64>,
     pub exit: Option<AgentExit>,
     pub forced: Option<Forced>,

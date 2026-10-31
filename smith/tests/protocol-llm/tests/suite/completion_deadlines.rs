@@ -1,4 +1,4 @@
-//! Model progress and session expiry through the actual Smith adapter and shared HTTP/SSE.
+//! Model progress and session expiry through the observed Smith adapter and shared HTTP/SSE.
 //! Contract: domain/session.md, sections 4, 6 and 10; protocol/llm.md, section 6.
 
 use skein_lib::Token;
@@ -26,7 +26,7 @@ fn head_for(bytes: usize) -> Vec<u8> {
 
 // A text delta carries the model's output, so it re-arms idle; its padding
 // crosses native read demand and dispatches an SSE message. Pings and status
-// events alone do not (skein's llm-connection.md, section 6).
+// events alone do not (skein/docs/design/llm-connection.md, section 6).
 fn output_event() -> Vec<u8> {
     let mut bytes = br#"data: {"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":"done","obfuscation":""#.to_vec();
     bytes.extend_from_slice(&[b' '; 513]);
@@ -79,7 +79,7 @@ fn model_head_and_idle_deadlines_fail_only_the_stalled_call() {
     peer.advance(6);
     assert_eq!(peer.terminals.len(), 2);
     for (owner, phase) in [(Token::new(1), llm::Phase::Head), (Token::new(2), llm::Phase::Idle)] {
-        assert!(peer.terminals.iter().any(|event| matches!(event, ToDomain::Failed { owner: actual, failure: llm::Failure::TimedOut { phase: actual_phase }, .. } if *actual == owner && *actual_phase == phase)));
+        assert!(peer.terminals.iter().any(|event| matches!(event, ToDomain::Failed { owner: observed, failure: llm::Failure::TimedOut { phase: observed_phase }, .. } if *observed == owner && *observed_phase == phase)));
     }
     peer.advance(101);
     assert_eq!(peer.terminals.len(), 2, "expired calls settle once");
@@ -146,7 +146,7 @@ fn deliver_failure(peer: &mut Peer, world: &mut World) {
             llm::Evidence::Response { .. } => Some(200),
             llm::Evidence::Unsent | llm::Evidence::Unknown => None,
         },
-        "status follows the actual independent response head, never inferred from its diagnostic"
+        "status follows the observed independent response head, never inferred from its diagnostic"
     );
     world.step(session::Event::Failed { owner, failure, evidence, detail, retry_ok: true });
 }
@@ -154,9 +154,9 @@ fn deliver_failure(peer: &mut Peer, world: &mut World) {
 #[test]
 fn a_stall_times_out_idle_and_is_retried() {
     let mut world = session_with_time(40);
-    let owner = world.completing.expect("actual session call");
+    let owner = world.completing.expect("observed session call");
     let mut peer = Peer::configured(1, 1);
-    // The fixture executes each emitted attempt through the actual adapter;
+    // The fixture executes each emitted attempt through the observed adapter;
     // its literal prompt is independent of the timeout and retry decisions.
     peer.start(owner.raw(), 20, 5, 40);
     peer.bytes(100, &head_for(body().len()));
@@ -168,7 +168,7 @@ fn a_stall_times_out_idle_and_is_retried() {
     world.env.now = Time::ZERO.saturating_add(Duration::from_secs(6));
     deliver_failure(&mut peer, &mut world);
     assert_eq!(world.prompts.len(), 1, "no request is sent during backoff");
-    world.env.now = world.domain.next_deadline().expect("actual retry alarm");
+    world.env.now = world.domain.next_deadline().expect("observed retry alarm");
     assert!(world.env.now < Time::ZERO.saturating_add(Duration::from_secs(40)));
     session::fire(&mut world.domain, &world.env, &mut world.out);
     world.resume();
@@ -178,11 +178,11 @@ fn a_stall_times_out_idle_and_is_retried() {
     peer.start(owner.raw(), 20, 5, 40);
     peer.bytes(100, &head_for(body().len()));
     peer.bytes(100, &body());
-    let ToDomain::Completed { owner: actual, completion } = peer.terminals.remove(0) else {
+    let ToDomain::Completed { owner: observed, completion } = peer.terminals.remove(0) else {
         panic!("native retry completes")
     };
-    assert_eq!(actual, owner);
-    let [llm::Said::Text { text, .. }] = completion.content.as_ref() else { panic!("actual answer") };
+    assert_eq!(observed, owner);
+    let [llm::Said::Text { text, .. }] = completion.content.as_ref() else { panic!("observed answer") };
     world.complete(
         Box::new([session::llm::Block::Text { text: text.clone(), replay: None }]),
         session::llm::Stop::EndTurn,
@@ -198,7 +198,7 @@ fn a_stall_times_out_idle_and_is_retried() {
 #[test]
 fn the_sessions_time_ending_fails_once_without_a_retry() {
     let mut world = session_with_time(3);
-    let owner = world.completing.expect("actual session call");
+    let owner = world.completing.expect("observed session call");
     let mut peer = Peer::configured(1, 1);
     peer.start(owner.raw(), 20, 5, 3);
     peer.bytes(100, &head_for(body().len()));

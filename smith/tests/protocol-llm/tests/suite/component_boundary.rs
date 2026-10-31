@@ -492,7 +492,7 @@ fn an_observed_request_is_native_validated_before_its_payload_is_copied() {
             client.request = 1;
         }
         let mut component = Component::new(&limits, endpoints_with_client(Duration::from_secs(1), client))
-            .expect("actual endpoint with its own request bound");
+            .expect("observed endpoint with its own request bound");
         component
             .grant(GrantName { account: 0, generation: 1 }, credential(b"private-grant"), Time::from_nanos(100))
             .expect("valid private grant");

@@ -23,7 +23,6 @@ pub struct Reader {
     limits: Limits,
     encoded_line: u32,
     line: List<u8>,
-    session_ended_aborted: bool,
 }
 
 /// One read's consumed bytes and optional record; unknown records still complete a line.
@@ -44,18 +43,8 @@ impl Reader {
     /// Reserve the writer's encoded-line ceiling, including its final newline.
     /// Field and list caps remain independent semantic checks; zero refuses.
     pub fn with_ceiling(limits: &Limits, encoded_line: u32) -> Result<Reader, Error> {
-        Self::with_session_ended_aborted(limits, encoded_line, true)
-    }
-
-    /// Select whether this writer's session terminal carries the `aborted` field.
-    /// Only historical benchmark faces select its absence; current readers require it.
-    pub fn with_session_ended_aborted(
-        limits: &Limits,
-        encoded_line: u32,
-        session_ended_aborted: bool,
-    ) -> Result<Reader, Error> {
         let capacity = encoded_line.checked_sub(1).ok_or(Error::Limits)?;
-        Ok(Reader { limits: *limits, encoded_line, line: List::with_capacity(capacity), session_ended_aborted })
+        Ok(Reader { limits: *limits, encoded_line, line: List::with_capacity(capacity) })
     }
 
     /// Consume through at most one newline, preserving a partial line between calls.
@@ -64,12 +53,7 @@ impl Reader {
         for byte in input {
             consumed = consumed.checked_add(1).ok_or(Error::Limits)?;
             if *byte == b'\n' {
-                let result = read_for_session_ended(
-                    self.line.as_slice(),
-                    &self.limits,
-                    self.encoded_line,
-                    self.session_ended_aborted,
-                );
+                let result = read_with_ceiling(self.line.as_slice(), &self.limits, self.encoded_line);
                 self.line.clear();
                 return Ok(Line { consumed, complete: true, record: result? });
             }
@@ -100,15 +84,6 @@ pub fn read(line: &[u8], limits: &Limits) -> Result<Option<Record>, Error> {
 /// Decode within a writer-derived encoded byte ceiling and the supplied semantic caps.
 /// The byte ceiling includes a newline when the supplied line has one; zero refuses.
 pub fn read_with_ceiling(line: &[u8], limits: &Limits, encoded_line: u32) -> Result<Option<Record>, Error> {
-    read_for_session_ended(line, limits, encoded_line, true)
-}
-
-fn read_for_session_ended(
-    line: &[u8],
-    limits: &Limits,
-    encoded_line: u32,
-    session_ended_aborted: bool,
-) -> Result<Option<Record>, Error> {
     let tokens = tokenize(line, limits, encoded_line)?;
     let tokens = tokens.as_slice();
     object(tokens)?;
@@ -121,7 +96,7 @@ fn read_for_session_ended(
     let event = match kind.as_ref() {
         b"budget" => Event::Budget(read_budget_standing(tokens, limits)?),
         b"session.started" => Event::SessionStarted(read_session_started(tokens, limits)?),
-        b"session.ended" => Event::SessionEnded(read_session_ended(tokens, limits, session_ended_aborted)?),
+        b"session.ended" => Event::SessionEnded(read_session_ended(tokens, limits)?),
         b"run.started" => Event::RunStarted(read_run_started(tokens, limits)?),
         b"run.completed" => Event::RunCompleted(read_run_completed(tokens, limits)?),
         b"conversation.opened" => Event::ConversationOpened(read_conversation_opened(tokens, limits)?),
@@ -132,7 +107,7 @@ fn read_for_session_ended(
         b"tool.started" => Event::ToolStarted(read_tool_started(tokens, limits)?),
         b"job.ended" => Event::JobEnded(read_job_ended(tokens, limits)?),
         b"tool.completed" => Event::ToolCompleted(read_tool_completed(tokens, limits)?),
-        b"check.started" => Event::CheckStarted(read_check_started(tokens, limits)?),
+        b"check.started" => Event::CheckStarted(read_check_started(tokens)?),
         b"check.completed" => Event::CheckCompleted(read_check_completed(tokens, limits)?),
         b"message.received" => Event::MessageReceived(read_message_received(tokens, limits)?),
         b"message.read" => Event::MessageRead(read_message_read(tokens)?),
@@ -735,7 +710,7 @@ fn read_agent(tokens: &[Token], limits: &Limits) -> Result<Agent, Error> {
     })
 }
 
-fn read_versions(tokens: &[Token], _limits: &Limits) -> Result<Versions, Error> {
+fn read_versions(tokens: &[Token]) -> Result<Versions, Error> {
     object(tokens)?;
     Ok(Versions {
         events: unsigned(required(tokens, b"events")?)?,
@@ -760,7 +735,7 @@ fn the_product_announces_its_chat_store_version() {
     assert_eq!(crate::write(&record, &Capture::None, &limits).unwrap().unwrap().as_ref(), wire);
 }
 
-fn read_loss(tokens: &[Token], _limits: &Limits) -> Result<Loss, Error> {
+fn read_loss(tokens: &[Token]) -> Result<Loss, Error> {
     object(tokens)?;
     Ok(Loss {
         events: unsigned(required(tokens, b"events")?)?,
@@ -771,7 +746,7 @@ fn read_loss(tokens: &[Token], _limits: &Limits) -> Result<Loss, Error> {
     })
 }
 
-fn read_cpu(tokens: &[Token], _limits: &Limits) -> Result<Cpu, Error> {
+fn read_cpu(tokens: &[Token]) -> Result<Cpu, Error> {
     object(tokens)?;
     Ok(Cpu {
         user: unsigned(required(tokens, b"user")?)?,
@@ -781,7 +756,7 @@ fn read_cpu(tokens: &[Token], _limits: &Limits) -> Result<Cpu, Error> {
     })
 }
 
-fn read_peak_rss(tokens: &[Token], _limits: &Limits) -> Result<PeakRss, Error> {
+fn read_peak_rss(tokens: &[Token]) -> Result<PeakRss, Error> {
     object(tokens)?;
     Ok(PeakRss {
         self_bytes: unsigned(required(tokens, b"self")?)?,
@@ -818,7 +793,7 @@ fn read_model(tokens: &[Token], limits: &Limits) -> Result<Model, Error> {
     })
 }
 
-fn read_usage(tokens: &[Token], _limits: &Limits) -> Result<Usage, Error> {
+fn read_usage(tokens: &[Token]) -> Result<Usage, Error> {
     object(tokens)?;
     Ok(Usage {
         input_tokens: match required(tokens, b"input_tokens")? {
@@ -844,7 +819,7 @@ fn read_usage(tokens: &[Token], _limits: &Limits) -> Result<Usage, Error> {
     })
 }
 
-fn read_budget(tokens: &[Token], _limits: &Limits) -> Result<Budget, Error> {
+fn read_budget(tokens: &[Token]) -> Result<Budget, Error> {
     object(tokens)?;
     Ok(Budget {
         turns: unsigned(required(tokens, b"turns")?)?,
@@ -1075,7 +1050,7 @@ fn read_completion(tokens: &[Token], limits: &Limits) -> Result<Completion, Erro
     Ok(Completion { blocks: read_list_block(required(tokens, b"blocks")?, limits)? })
 }
 
-fn read_command_exit(tokens: &[Token], _limits: &Limits) -> Result<CommandExit, Error> {
+fn read_command_exit(tokens: &[Token]) -> Result<CommandExit, Error> {
     object(tokens)?;
     match field(tokens, b"code")? {
         Some(code) => {
@@ -1126,7 +1101,7 @@ fn read_session_started(tokens: &[Token], limits: &Limits) -> Result<SessionStar
         profile: text(required(tokens, b"profile")?, limits.string)?,
         capture: read_capture(required(tokens, b"capture")?, limits)?,
         delivery: read_delivery(required(tokens, b"delivery")?, limits)?,
-        versions: read_versions(required(tokens, b"versions")?, limits)?,
+        versions: read_versions(required(tokens, b"versions")?)?,
         limits: read_effective_limits(required(tokens, b"limits")?, limits)?,
     })
 }
@@ -1193,25 +1168,25 @@ fn read_effective_limits(tokens: &[Token], limits: &Limits) -> Result<List<Effec
     Ok(values)
 }
 
-fn read_session_ended(tokens: &[Token], limits: &Limits, session_ended_aborted: bool) -> Result<SessionEnded, Error> {
+fn read_session_ended(tokens: &[Token], limits: &Limits) -> Result<SessionEnded, Error> {
     object(tokens)?;
     Ok(SessionEnded {
         exit: signed(required(tokens, b"exit")?)?,
         answered: boolean(required(tokens, b"answered")?)?,
-        aborted: if session_ended_aborted { Some(boolean(required(tokens, b"aborted")?)?) } else { None },
+        aborted: Some(boolean(required(tokens, b"aborted")?)?),
         teardown_ms: match required(tokens, b"teardown_ms")? {
             [Token::Null] => None,
             item => Some(unsigned(item)?),
         },
         emitted: read_list_count(required(tokens, b"emitted")?, limits)?,
-        loss: read_loss(required(tokens, b"loss")?, limits)?,
+        loss: read_loss(required(tokens, b"loss")?)?,
         cpu_ms: match required(tokens, b"cpu_ms")? {
             [Token::Null] => None,
-            item => Some(read_cpu(item, limits)?),
+            item => Some(read_cpu(item)?),
         },
         peak_rss_bytes: match required(tokens, b"peak_rss_bytes")? {
             [Token::Null] => None,
-            item => Some(read_peak_rss(item, limits)?),
+            item => Some(read_peak_rss(item)?),
         },
     })
 }
@@ -1223,7 +1198,7 @@ fn read_run_started(tokens: &[Token], limits: &Limits) -> Result<RunStarted, Err
         resumed: boolean(required(tokens, b"resumed")?)?,
         messages: unsigned(required(tokens, b"messages")?)?,
         main: read_model(required(tokens, b"main")?, limits)?,
-        budget: read_budget(required(tokens, b"budget")?, limits)?,
+        budget: read_budget(required(tokens, b"budget")?)?,
         tools: read_tools(required(tokens, b"tools")?, limits)?,
         contract: read_list_form(required(tokens, b"contract")?, limits)?,
     })
@@ -1245,7 +1220,7 @@ fn read_run_completed(tokens: &[Token], limits: &Limits) -> Result<RunCompleted,
         },
         turns: unsigned(required(tokens, b"turns")?)?,
         spent: unsigned(required(tokens, b"spent")?)?,
-        usage: read_usage(required(tokens, b"usage")?, limits)?,
+        usage: read_usage(required(tokens, b"usage")?)?,
         read: match required(tokens, b"read")? {
             [Token::Null] => None,
             item => Some(unsigned(item)?),
@@ -1301,7 +1276,7 @@ fn read_conversation_closed(tokens: &[Token], limits: &Limits) -> Result<Convers
             None => None,
         },
         turns: unsigned(required(tokens, b"turns")?)?,
-        usage: read_usage(required(tokens, b"usage")?, limits)?,
+        usage: read_usage(required(tokens, b"usage")?)?,
         spent: unsigned(required(tokens, b"spent")?)?,
         duration_ms: unsigned(required(tokens, b"duration_ms")?)?,
     })
@@ -1343,7 +1318,7 @@ fn read_response_completed(tokens: &[Token], limits: &Limits) -> Result<Response
         invalid: unsigned(required(tokens, b"invalid")?)?,
         oversized: unsigned(required(tokens, b"oversized")?)?,
         cut: unsigned(required(tokens, b"cut")?)?,
-        usage: read_usage(required(tokens, b"usage")?, limits)?,
+        usage: read_usage(required(tokens, b"usage")?)?,
         spent: unsigned(required(tokens, b"spent")?)?,
         request_bytes: match required(tokens, b"request_bytes")? {
             [Token::Null] => None,
@@ -1421,7 +1396,7 @@ fn read_child_completed(tokens: &[Token], limits: &Limits) -> Result<ChildComple
         turns: unsigned(required(tokens, b"turns")?)?,
         time_ms: unsigned(required(tokens, b"time_ms")?)?,
         spent: unsigned(required(tokens, b"spent")?)?,
-        usage: read_usage(required(tokens, b"usage")?, limits)?,
+        usage: read_usage(required(tokens, b"usage")?)?,
     })
 }
 
@@ -1434,7 +1409,7 @@ fn read_tool_completed(tokens: &[Token], limits: &Limits) -> Result<ToolComplete
         tool: text(required(tokens, b"tool")?, limits.string)?,
         verdict: read_verdict(required(tokens, b"verdict")?, limits)?,
         exit: match field(tokens, b"exit")? {
-            Some(item) => Some(read_command_exit(item, limits)?),
+            Some(item) => Some(read_command_exit(item)?),
             None => None,
         },
         job: match field(tokens, b"job")? {
@@ -1465,7 +1440,7 @@ fn read_job_ended(tokens: &[Token], limits: &Limits) -> Result<JobEnded, Error> 
         call: text(required(tokens, b"call")?, limits.string)?,
         verdict: read_verdict(required(tokens, b"verdict")?, limits)?,
         exit: match field(tokens, b"exit")? {
-            Some(item) => Some(read_command_exit(item, limits)?),
+            Some(item) => Some(read_command_exit(item)?),
             None => None,
         },
         unread_bytes: unsigned(required(tokens, b"unread_bytes")?)?,
@@ -1473,7 +1448,7 @@ fn read_job_ended(tokens: &[Token], limits: &Limits) -> Result<JobEnded, Error> 
     })
 }
 
-fn read_check_started(tokens: &[Token], _limits: &Limits) -> Result<CheckStarted, Error> {
+fn read_check_started(tokens: &[Token]) -> Result<CheckStarted, Error> {
     object(tokens)?;
     Ok(CheckStarted {
         run: unsigned(required(tokens, b"run")?)?,

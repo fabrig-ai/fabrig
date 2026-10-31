@@ -284,7 +284,6 @@ impl Endpoints {
 }
 
 /// Decode one charter and resolve all LLM endpoint names before admission.
-#[expect(clippy::manual_let_else, reason = "explicit exhaustive result handling")]
 pub fn decode_charter(
     bytes: &[u8],
     limits: &wire::v4::Limits,
@@ -296,9 +295,8 @@ pub fn decode_charter(
     if bytes.get(..2) != Some(&[0, 4][..]) {
         return Err(run::Invalid::CharterVersion);
     }
-    let charter = match wire::Charter::decode(limits, &mut Reader::new(bytes)) {
-        Ok(charter) => charter,
-        Err(_) => return Err(run::Invalid::MalformedCharter),
+    let Ok(charter) = wire::Charter::decode(limits, &mut Reader::new(bytes)) else {
+        return Err(run::Invalid::MalformedCharter);
     };
     translate_charter(&charter, endpoints)
 }
@@ -377,11 +375,9 @@ fn translate_charter(charter: &wire::Charter, endpoints: &Endpoints) -> Result<r
     })
 }
 
-#[expect(clippy::manual_let_else, reason = "explicit exhaustive option handling")]
 fn llm(value: &wire::Llm, endpoints: &Endpoints) -> Result<run::charter::Llm, run::Invalid> {
-    let endpoint = match endpoints.resolve(value.endpoint()) {
-        Some(endpoint) => endpoint,
-        None => return Err(run::Invalid::Endpoint),
+    let Some(endpoint) = endpoints.resolve(value.endpoint()) else {
+        return Err(run::Invalid::Endpoint);
     };
     let prices = value.prices();
     Ok(run::charter::Llm {

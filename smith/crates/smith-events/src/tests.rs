@@ -1,23 +1,24 @@
-#![allow(
-    clippy::disallowed_methods,
-    reason = "programming-model.md section 10.2: deterministic fixtures use ordinary Rust"
-)]
-
 use crate::{Capture, Error, Event, Limits, read, write};
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "an independent frozen wire fixture reproduces the reader defect")]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn provider_failure_metadata_and_capture_detail_survive_the_reader() {
     let limits = Limits { string: 256, content: 1024, items: 16 };
-    let original = core::str::from_utf8(include_bytes!("../golden/v4/outcome_failed.jsonl")).unwrap();
+    let original =
+        core::str::from_utf8(include_bytes!("../golden/v4/outcome_failed.jsonl")).expect("valid deterministic fixture");
     let source = original.replace(
         "\"class\":\"overloaded\"",
         "\"class\":\"invalid\",\"status\":404,\"phase\":\"head\",\"limit\":{\"which\":\"response_head\",\"bound\":1935},\"detail\":\"unknown model 🌍\"",
     );
-    let record = crate::read_with_ceiling(source.as_bytes(), &limits, 4096).unwrap().unwrap();
+    let record = crate::read_with_ceiling(source.as_bytes(), &limits, 4096)
+        .expect("valid deterministic fixture")
+        .expect("valid deterministic fixture");
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-        let encoded = crate::write_with_ceiling(&record, &capture, &limits, 4096).unwrap().unwrap();
-        let line = core::str::from_utf8(&encoded).unwrap();
+        let encoded = crate::write_with_ceiling(&record, &capture, &limits, 4096)
+            .expect("valid deterministic fixture")
+            .expect("valid deterministic fixture");
+        let line = core::str::from_utf8(&encoded).expect("valid deterministic fixture");
         assert!(line.contains("\"status\":404"), "observed HTTP status is typed metadata");
         assert!(line.contains("\"phase\":\"head\""));
         assert!(line.contains("\"limit\":{\"which\":\"response_head\",\"bound\":1935}"));
@@ -26,17 +27,18 @@ fn provider_failure_metadata_and_capture_detail_survive_the_reader() {
 }
 
 #[test]
-fn actual_producer_receiving_caps_construct_without_a_cartesian_product() {
+fn observed_producer_receiving_caps_construct_without_a_cartesian_product() {
     let limits = Limits { string: 524_288, content: 4096, items: 32 };
     let ceiling = u32::try_from(END_WITH_UNREAD_USAGE.len()).expect("terminal length");
     let mut reader = crate::Reader::with_ceiling(&limits, ceiling).expect("valid writer-derived receiving bounds");
-    let line = reader.feed(END_WITH_UNREAD_USAGE).expect("actual bounded terminal");
+    let line = reader.feed(END_WITH_UNREAD_USAGE).expect("observed bounded terminal");
     assert!(line.complete);
     assert!(line.record.is_some());
     reader.finish().expect("complete line");
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn joint_line_ceiling_is_inclusive_and_one_more_byte_refuses_in_both_paths() {
     let limits = Limits { string: 524_288, content: 4096, items: 32 };
     let ceiling = u32::try_from(END_WITH_UNREAD_USAGE.len()).expect("terminal length");
@@ -67,6 +69,7 @@ fn joint_line_ceiling_is_inclusive_and_one_more_byte_refuses_in_both_paths() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn joint_line_bound_never_relaxes_string_content_or_list_caps() {
     let limits = Limits { string: 32, content: 8, items: 1 };
     let base = "{\"v\":4,\"type\":\"message.received\",\"t_ms\":0,\"run\":1,\"name\":2,\"bytes\":8,\"label\":\"LABEL\",\"text\":\"12345678\"}\n";
@@ -101,16 +104,22 @@ const END_WITH_UNREAD_USAGE: &[u8] = b"{\"v\":4,\"type\":\"session.ended\",\"t_m
 fn joint_writer_ceiling_round_trips_and_never_weakens_semantic_caps() {
     let limits = Limits { string: 524_288, content: 13_056_000, items: 52_754 };
     let ceiling = u32::try_from(END_WITH_UNREAD_USAGE.len()).expect("terminal length");
-    let record = crate::read_with_ceiling(END_WITH_UNREAD_USAGE, &limits, ceiling).unwrap().unwrap();
+    let record = crate::read_with_ceiling(END_WITH_UNREAD_USAGE, &limits, ceiling)
+        .expect("valid deterministic fixture")
+        .expect("valid deterministic fixture");
     assert_eq!(write(&record, &Capture::Everything, &limits), Err(Error::Limits));
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-        let line = crate::write_with_ceiling(&record, &capture, &limits, ceiling).unwrap().unwrap();
+        let line = crate::write_with_ceiling(&record, &capture, &limits, ceiling)
+            .expect("valid deterministic fixture")
+            .expect("valid deterministic fixture");
         assert_eq!(line.as_ref(), END_WITH_UNREAD_USAGE);
         assert_eq!(crate::write_with_ceiling(&record, &capture, &limits, ceiling - 1), Err(Error::Limits));
         assert_eq!(crate::write_with_ceiling(&record, &capture, &limits, 0), Err(Error::Limits));
     }
     let input = b"{\"v\":4,\"type\":\"message.received\",\"t_ms\":0,\"run\":1,\"name\":2,\"bytes\":2,\"label\":\"abc\",\"text\":\"ab\"}\n";
-    let message = crate::read_with_ceiling(input, &limits, 1024).unwrap().unwrap();
+    let message = crate::read_with_ceiling(input, &limits, 1024)
+        .expect("valid deterministic fixture")
+        .expect("valid deterministic fixture");
     for restrictive in [Limits { string: 2, ..limits }, Limits { content: 1, ..limits }] {
         assert_eq!(crate::write_with_ceiling(&message, &Capture::Everything, &restrictive, 1024), Err(Error::Limits));
     }
@@ -136,6 +145,7 @@ fn unread_resource_usage_is_null_and_round_trips_without_changing_the_terminal()
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn measured_resource_objects_round_trip_with_exact_values() {
     let limits = Limits { string: 64, content: 1024, items: 4 };
     let known = core::str::from_utf8(END_WITH_UNREAD_USAGE)
@@ -236,12 +246,13 @@ fn every_provider_class_has_its_words() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn clip_stops_at_a_character_boundary() {
     let mut source = [b'x'; 515];
-    source.get_mut(511..).unwrap().copy_from_slice("🌍".as_bytes());
+    source.get_mut(511..).expect("valid deterministic fixture").copy_from_slice("🌍".as_bytes());
     assert_eq!(crate::clip(&source), [b'x'; 511]);
     let mut source = [b'x'; 512];
-    source.get_mut(508..).unwrap().copy_from_slice("🌍".as_bytes());
+    source.get_mut(508..).expect("valid deterministic fixture").copy_from_slice("🌍".as_bytes());
     assert_eq!(crate::clip(&source), source);
 }
 
@@ -274,6 +285,7 @@ fn a_stream_of_version_two_is_refused() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn an_account_failure_has_its_words() {
     struct Row {
         name: &'static str,
@@ -355,6 +367,7 @@ fn program_failures_name_their_terminal_form() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn program_detail_stops_before_a_partial_character() {
     // The 512-byte detail cap cuts through the following three-byte character.
     const KEPT_ASCII: usize = 511;

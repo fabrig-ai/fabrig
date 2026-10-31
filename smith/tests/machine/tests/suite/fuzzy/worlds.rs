@@ -1,4 +1,4 @@
-//! Seeded file changes, failed children and deadlines over actual simulated IO.
+//! Seeded file changes, failed children and deadlines over observed simulated IO.
 
 use skein_fake_machine::Item;
 use skein_lib::{Rng, Time, Token};

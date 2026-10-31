@@ -1,4 +1,4 @@
-//! Shared actual Smith adapter and HTTP/SSE pool peer, with caller-owned virtual time.
+//! Shared observed Smith adapter and HTTP/SSE pool peer, with caller-owned virtual time.
 //! It keeps physical bindings and independent terminal observations, never retry policy.
 //! Contract: domain/session.md, sections 4, 6 and 10; protocol/llm.md, section 6.
 
@@ -65,7 +65,7 @@ struct Binding {
     response: Intake,
 }
 
-/// The production LLM component, actual physical bindings and observed terminals.
+/// The production LLM component, observed physical bindings and observed terminals.
 pub struct Peer {
     component: Component,
     env: Env<ComponentLimits>,
@@ -74,7 +74,7 @@ pub struct Peer {
     bindings: BTreeMap<Token, Binding>,
     /// Accepted calls have one independently observed terminal, in arrival order.
     pub terminals: Vec<ToDomain>,
-    /// Content actually emitted before a terminal by the component.
+    /// Content emitted before a terminal by the component.
     pub measures: Vec<smith_protocol_llm::Measure>,
     /// Plaintext request bytes independently received on the peer's sockets.
     pub request_bytes: u64,
@@ -89,7 +89,7 @@ impl Peer {
         Self::for_provider(calls, per_endpoint, skein_llm::Provider::OpenAiCodex)
     }
 
-    /// Build the same actual component peer for either wire dialect.
+    /// Build the same observed component peer for either wire dialect.
     #[must_use]
     pub fn for_provider(calls: u32, per_endpoint: u32, provider: skein_llm::Provider) -> Self {
         let mut limits = limits();
@@ -159,12 +159,12 @@ impl Peer {
         self.input = wanted;
     }
 
-    /// Admit one actual call with caller-selected model and whole deadlines.
+    /// Admit one observed call with caller-selected model and whole deadlines.
     pub fn start(&mut self, owner: u64, head: u64, idle: u64, whole: u64) {
         self.start_selected(owner, head, idle, whole, None);
     }
 
-    /// Admit a call whose actual translated content and text deltas are requested.
+    /// Admit a call whose observed translated content and text deltas are requested.
     pub fn start_observed(&mut self, owner: u64, head: u64, idle: u64, whole: u64) {
         self.start_selected(
             owner,
@@ -245,7 +245,7 @@ impl Peer {
         self.pump();
     }
 
-    /// Count actual open socket bindings.
+    /// Count observed open socket bindings.
     #[must_use]
     pub fn connections(&self) -> usize {
         self.bindings.len()
@@ -360,7 +360,7 @@ impl Peer {
         self.pump();
     }
 
-    /// Deliver actual HTTP/SSE bytes to a named physical socket.
+    /// Deliver observed HTTP/SSE bytes to a named physical socket.
     pub fn bytes(&mut self, socket: u64, bytes: &[u8]) {
         assert!(
             self.bindings.contains_key(&Token::new(socket)),

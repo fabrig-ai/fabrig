@@ -11,8 +11,7 @@
 //!
 //! Until Skein's contained process trees exist, searches, commands and checks
 //! lead plain process groups. Their writes have only
-//! the permissions of the machine process (protocol/agent.md, section 3;
-//! protocol plan `later.md`).
+//! the permissions of the machine process (protocol/agent.md, section 3).
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

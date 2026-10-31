@@ -1,4 +1,4 @@
-//! Derived history ownership at its boundary, through an actual shared Client.
+//! Derived history ownership at its boundary, through an observed shared Client.
 //! Contract: protocol/limits.md, section 3.2; domain/session.md, section 4.
 
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
@@ -38,7 +38,7 @@ fn fixture(provider: skein_llm::Provider) -> Fixture {
         calls_per_response: 1,
         conversations: 1,
     };
-    let mut client = skein_llm::Limits::derive(&declared).expect("tiny actual model").dialect(provider);
+    let mut client = skein_llm::Limits::derive(&declared).expect("tiny observed model").dialect(provider);
     client.http.request = 4096;
     client.http.read = 256;
     client.http.send = 256;
@@ -148,7 +148,7 @@ fn history_edge(provider: skein_llm::Provider) {
             &adapter_limits,
             scripts(system),
         )
-        .expect("admitted history prepares the actual Client");
+        .expect("admitted history prepares the observed Client");
         let mut terminals = connection.start();
         for _ in 0..100_000 {
             let (progress, returned) = connection.tick();
@@ -159,9 +159,9 @@ fn history_edge(provider: skein_llm::Provider) {
         }
         assert_eq!(connection.peer.queries.len(), 1, "outside peer receives the exact admitted history");
         let [Event::Completed { completion, .. }] = terminals.as_slice() else {
-            panic!("actual completion expected: {terminals:?}");
+            panic!("observed completion expected: {terminals:?}");
         };
-        let [llm::Said::Text { text, .. }] = completion.content.as_ref() else { panic!("one actual text") };
+        let [llm::Said::Text { text, .. }] = completion.content.as_ref() else { panic!("one observed text") };
         world.complete(
             Box::new([session::llm::Block::Text { text: text.clone(), replay: None }]),
             session::llm::Stop::EndTurn,
