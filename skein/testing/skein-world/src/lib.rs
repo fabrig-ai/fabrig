@@ -59,7 +59,7 @@ mod world;
 pub use heap::Memory;
 pub use outcome::Outcome;
 pub use referee::{Controls, Expectation, Expectations, LastWord, Referee};
-pub use skein_shell::{Host, drive};
+pub use skein_shell::{Dispatch, Host, drive};
 pub use skein_sim_world::{Cut, Digests, Killed, StateDigests};
 pub use skein_sim_world::{
     HostedProgram, Inherited, Machine, NoMachine, StartupAppend, StartupAppends, StartupRoot, StartupRoots,

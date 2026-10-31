@@ -51,10 +51,6 @@ impl Referee<Binary> for Judge {
         self.next
     }
 
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
-
     fn passed(&self) -> bool {
         self.checked
     }

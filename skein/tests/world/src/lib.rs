@@ -373,8 +373,6 @@ impl Judge {
 }
 
 impl Referee<Script> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Script]) {}
-
     fn observe(&mut self, now: Time, procs: &[Script]) {
         self.expectations.observe(now, procs);
     }
@@ -423,17 +421,7 @@ pub mod roots;
 pub struct Later(pub skein_world::LastWord);
 
 impl<P> Referee<P> for Later {
-    fn act(&mut self, _now: Time, _procs: &mut [P]) {}
-
     fn observe(&mut self, _now: Time, _procs: &[P]) {}
-
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
 
     fn passed(&self) -> bool {
         true

@@ -1029,6 +1029,9 @@ every service's `main`.
   - `state_digest()`, a digest of what it holds, for replay (lib.md,
     5.1): `None` unless the service gives one. Only a world reads it
     (testing.md, 5); `drive` never calls it.
+  `next_mechanism_deadline()` defaults to none and `next_deadline()` takes
+  its minimum with the required policy deadline unless overridden, while
+  `Dispatch` forwards every `Host` method through its `host` and `host_mut`.
   `Host` is portable: it builds for `wasm32-unknown-unknown`, where a
   world hosts a service with everything handed to it (section 14).
 - **A host declares no heap ceiling or worst case.** The simulated

@@ -214,6 +214,9 @@ iteration, and the settled world's invariants; and the same loop over the
 shell's shared ring, on the real clock. The examples are its first user and its
 second, which is why it is skein's (testing-strategy.md, 7).
 
+A `Referee` injects nothing and reports no next or overdue deadline by
+default, so a scenario implements only the hooks it needs.
+
 - **It hosts the shell's `Host`.** `Host` and `drive` are `skein-shell`'s
   (shell.md, 12), and `skein-world` re-exports both, so a service's worlds
   host the same `Host` its `main` drives, and a shipped binary links no
