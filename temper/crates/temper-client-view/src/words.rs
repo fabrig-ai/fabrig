@@ -684,8 +684,8 @@ pub enum Word {
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
-const PHRASES: u32 = 1198;
-const SEGMENTS: u32 = 2097;
+const PHRASES: u32 = 1197;
+const SEGMENTS: u32 = 2096;
 const ALL: [Word; 616] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,

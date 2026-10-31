@@ -140,7 +140,7 @@ pub static PAGES: [Page; 53] = [
         name: "forge",
         kind: Kind::Concept,
         title: "Forges",
-        summary: "A forge is where repositories live, GitHub or Forgejo, numbered in the configuration; temper connects to one or runs its own, and works only in the repositories adopted from it.",
+        summary: "A forge is where repositories live, GitHub or Forgejo, numbered when it is set up or connected; temper connects to one or runs its own, and works only in the repositories adopted from it.",
         text: include_str!("../../../docs/help/forge.md"),
     },
     Page {
@@ -434,7 +434,7 @@ pub static PAGES: [Page; 53] = [
         name: "ctl-playground",
         kind: Kind::Reference,
         title: "temper ctl playground",
-        summary: "The playground: start the demo.",
+        summary: "The playground: start it, or end it and set up temper.",
         text: include_str!("../../../docs/help/reference/ctl-playground.md"),
     },
     Page {

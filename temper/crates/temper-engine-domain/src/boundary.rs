@@ -826,6 +826,7 @@ pub struct Released(pub(crate) Delivery);
 pub(crate) fn delivery_output(delivery: Delivery) -> Request {
     match delivery {
         delivery @ (Delivery::ProjectMade { .. }
+        | Delivery::ProjectReleased { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }

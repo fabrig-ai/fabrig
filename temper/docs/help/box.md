@@ -26,6 +26,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 - `BUNDLE`: the loopback bundle's directory, on fake backends.
 - `REQUEST`: the file asking for the change.
 - `CHANGE`: the change task's number from step 6.
+- `FORGE`: the box's Forgejo's number, from step 4.
 - `NAME`: a Claude Code login's name, 1 to 32 lower-case letters,
   digits or hyphens (step 5).
 
@@ -35,9 +36,8 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 temper init --config CONFIG --data DATA --cache CACHE
 ```
 
-Before starting, finish configuration changes, such as a shared
-GitHub App's read-only mode (temper help github). Fake backends
-require `CONFIG` unchanged from `temper init`.
+Before starting, finish configuration changes. Fake backends require
+`CONFIG` unchanged from `temper init`.
 
 Expect: `init: wrote DATA/worker.secret`, with `DATA` the path you
 gave; the last line names the step 2 command for real backends.
@@ -141,28 +141,28 @@ a new link: sign in with it.
 `PROJECT` is 1 on a new box, as `me` lists it.
 
 ```
-temper ctl DIR forge setup 3 --org work --repository hello --project PROJECT --key KEY
+temper ctl DIR forge setup --org work --repository hello --project PROJECT --key KEY
 ```
 
 Expect: `setting up`, then `project: PROJECT · NAME`, the project
-and its name, then `Adopted work/hello on forge 3 as owned.` and
+and its name, then `Adopted work/hello on forge FORGE as owned.` and
 `It is the project's home.`
 
-At each Forgejo start the box prints its API address and your
-headers:
+At each Forgejo start the box prints its API and your login:
 
 ```
-Forge 3 (Forgejo): api http://127.0.0.1:PORT/api/v1
-Forge 3 (Forgejo): person LOGIN, read header PATH, write header PATH
+Forgejo: api http://127.0.0.1:PORT/api/v1
+Forgejo: person LOGIN
 ```
 
-Use `curl -H @PATH` to keep the header's token private.
-`person_password` beside the headers holds your first password;
+Your headers are `person_read.header` and `person_write.header` in
+`DATA/forge-FORGE/`: use `curl -H @PATH` to keep the header's token
+private. `person_password` beside them holds your first password;
 Forgejo lets you change it but does not require it.
 
 If not: past 300 seconds it prints the forges and `not met: timeout`
 (exit 3) while the box still fetches Forgejo: run `temper ctl DIR
-forge list --until made:3`, then go on. A failed fetch or start
+forge list --until made:FORGE`, then go on. A failed fetch or start
 shows in `temper ctl DIR forge list`, with its reason.
 
 ## 5. Give the model an account
@@ -256,7 +256,7 @@ The pull request printed by `change show` has its diff, reviews,
 CI runs and logs.
 
 Expect: the change's panel, its first line `change CHANGE ·
-work/hello on forge 3 · `, its branch and `into main`, then `met`;
+work/hello on forge FORGE · `, its branch and `into main`, then `met`;
 `change show` then names its step, `landed`, and its merge commit.
 
 If not: `not met: timeout` (exit 3): read `temper ctl DIR change

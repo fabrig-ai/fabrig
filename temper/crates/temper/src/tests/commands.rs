@@ -203,6 +203,15 @@ fn rows_are_within_bounds() {
 #[test]
 fn the_page_commands_is_what_the_table_renders() {
     let rendered = commands::reference();
+    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
+        Some(value) => value == "1",
+        None => false,
+    };
+    if write {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference/commands.md");
+        std::fs::write(path, &rendered).expect("write commands reference");
+        return;
+    }
     assert_eq!(
         include_str!("../../../../docs/help/reference/commands.md"),
         rendered,

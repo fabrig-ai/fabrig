@@ -899,6 +899,7 @@ impl World {
             | Delivery::Read { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }

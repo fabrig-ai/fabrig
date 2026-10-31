@@ -264,18 +264,22 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
     }
 }
 
-/// Real authority policy and an authenticated owner, rather than allow flags.
-#[must_use]
-pub fn config(seed: u64) -> engine::Config {
-    let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1)]));
-    let rules = authority::Rules {
-        ceiling: ceiling.clone(),
+fn authority_rules(ceiling: authority::Authority) -> authority::Rules {
+    authority::Rules {
+        ceiling,
         period_spend: 1000,
         minimum_run_spend: 1,
         maximum_run_spend: 100,
         implies: authority::Implies::new(Box::new([]), 0).expect("empty implication configuration"),
         requirements: Box::new([]),
-    };
+    }
+}
+
+/// Real authority policy and an authenticated owner, rather than allow flags.
+#[must_use]
+pub fn config(seed: u64) -> engine::Config {
+    let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1)]));
+    let rules = authority_rules(ceiling.clone());
     // Check the same fixture bounds without allocating a discarded live policy table.
     assert!(authority::valid_rules(&rules, &authority_limits()), "valid authority configuration");
     let policy = authority::Policy {
@@ -935,6 +939,7 @@ impl World {
             Delivery::Restart(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }

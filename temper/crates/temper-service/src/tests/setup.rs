@@ -1898,6 +1898,11 @@ fn insert_runtime_forge(engine: &mut crate::engine::Engine, record: &domain::For
     source.transport = crate::settings::Transport::Plaintext;
     source.api_token = None;
     assert!(engine.workers.forges.insert(source));
+    root::step(
+        &mut engine.domain,
+        &engine.env,
+        root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record.clone()) })),
+    );
 }
 #[test]
 fn a_kept_owned_record_is_served_by_the_host_with_its_entry() {
