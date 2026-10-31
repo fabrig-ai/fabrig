@@ -869,6 +869,12 @@ pub enum Stored {
         key: ReceiptKey,
         receipt: Receipt,
     },
+    Forge(ForgeRecord),
+    ForgeNumbers {
+        next: u16,
+    },
+    Playground(Playground),
+    KeptAct(KeptAct),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -914,6 +920,10 @@ pub enum Key {
     },
     Landing(u64),
     Receipt(ReceiptKey),
+    Forge(u16),
+    ForgeNumbers,
+    Playground,
+    KeptAct([u8; 16]),
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1646,4 +1656,59 @@ pub enum DemoActKind {
 pub struct Unfinished {
     pub entry: u64,
     pub task: u64,
+}
+
+/// A forge kept in the store (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ForgeRecord {
+    pub number: u16,
+    pub kind: Kind,
+    pub mode: Mode,
+    pub removing: bool,
+    pub definition: Box<[u8]>,
+    pub first: Option<FirstIntent>,
+}
+/// The first repository's durable intent (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct FirstIntent {
+    pub playground: bool,
+    pub org: Box<[u8]>,
+    pub repository: Box<[u8]>,
+    pub project: SetUpProject,
+    pub label: Box<[u8]>,
+}
+/// The playground's row; none is no playground (temper/docs/design/draft/playground-reset.md, 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Playground {
+    pub state: PlaygroundState,
+    pub forge: Option<u16>,
+    pub project: Option<u32>,
+    pub account: Option<u32>,
+}
+/// Durable reset progress (temper/docs/design/draft/playground-reset.md, 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PlaygroundState {
+    Running,
+    Resetting(ResetStep),
+}
+/// The reset's acts, in order (temper/docs/design/draft/playground-reset.md, 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ResetStep {
+    Project,
+    Forge,
+    Account,
+}
+/// An act a forge's removal keeps until answered (temper/docs/design/draft/playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct KeptAct {
+    pub key: [u8; 16],
+    pub forge: u16,
+    pub act: KeptActKind,
+}
+/// Removal work retained across restarts (temper/docs/design/draft/playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum KeptActKind {
+    Cancel { project: u32, task: u64 },
+    RemoveGroup,
+    EraseSecrets,
 }

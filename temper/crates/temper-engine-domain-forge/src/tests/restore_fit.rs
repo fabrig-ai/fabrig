@@ -40,6 +40,26 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 ended: Wall::EPOCH,
             },
         },
+        RecordKind::Forge => Stored::Forge(ForgeRecord {
+            number: u16::try_from(number).unwrap(),
+            kind: Kind::Forgejo,
+            mode: Mode::Owned,
+            removing: false,
+            definition: Box::new([]),
+            first: None,
+        }),
+        RecordKind::ForgeNumbers => Stored::ForgeNumbers { next: 1 },
+        RecordKind::Playground => Stored::Playground(Playground {
+            state: PlaygroundState::Running,
+            forge: None,
+            project: None,
+            account: None,
+        }),
+        RecordKind::KeptAct => Stored::KeptAct(KeptAct {
+            key: [u8::try_from(number).unwrap(); 16],
+            forge: 1,
+            act: KeptActKind::RemoveGroup,
+        }),
         RecordKind::Application => application(n, Wall::from_nanos(101)),
         RecordKind::Call => Stored::Call {
             key: NamedCall { task: n, attempt: 1, completion: 1, position: 1 },

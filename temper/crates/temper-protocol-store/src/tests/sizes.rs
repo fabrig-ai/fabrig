@@ -194,3 +194,30 @@ fn full_issue_row(limits: &crate::v10::Limits) -> crate::v10::IssueRow {
     )
     .expect("full issue row")
 }
+
+#[test]
+fn kept_family_sizes_fit_and_definition_limits_price_the_row() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let sizes = application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (_, row) in fixtures::kept_rows() {
+        let key = keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        let bytes = records::encode(&row);
+        assert!(key.len() <= usize::try_from(sizes.key).unwrap());
+        assert!(bytes.len() <= usize::try_from(sizes.value).unwrap());
+        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+    }
+    let large = forge::Limits { definition_bytes: 100_000, ..fixtures::LIMITS };
+    let bounds = crate::bounds(&large, large.client.op_bytes).unwrap();
+    let mut row = fixtures::forge_record();
+    row.definition = skein_lib::bytes::zeroed(100_000);
+    let first = row.first.as_mut().unwrap();
+    first.org = Box::new([0; 1024]);
+    first.repository = Box::new([0; 1024]);
+    first.label = Box::new([0; 1024]);
+    first.project = forge::SetUpProject::New(Box::new([0; 1024]));
+    let row = forge::Stored::Forge(row);
+    let bytes = records::encode(&row);
+    assert_eq!(bytes.len(), usize::try_from(application(&large, large.client.op_bytes).unwrap().value).unwrap());
+    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    assert_eq!(application(&forge::Limits { definition_bytes: 1_048_577, ..large }, large.client.op_bytes), None);
+}

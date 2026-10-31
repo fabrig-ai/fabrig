@@ -392,7 +392,7 @@ fn every_family_encodes_and_decodes_to_itself() {
         ("issue", forge::Stored::Issue(fixtures::issue_row())),
     ];
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    for (name, row) in fixtures::names_holds_and_topics().into_iter().chain(remaining) {
+    for (name, row) in fixtures::names_holds_and_topics().into_iter().chain(remaining).chain(fixtures::kept_rows()) {
         let bytes = records::encode(&row);
         assert_eq!(records::decode(&bytes, &bounds), Ok(row), "{name}");
     }
@@ -1247,4 +1247,15 @@ fn admitted_binding_and_writer_saves_obey_writer_rules_before_codec_round_trip()
         }
     }
     assert_eq!(saves, 2, "both real writer APIs emitted durable saves");
+}
+
+#[test]
+fn forge_definition_obeys_its_decoder_bound() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (extra, admitted) in [(0, true), (1, false)] {
+        let mut row = fixtures::forge_record();
+        row.definition = skein_lib::bytes::zeroed(usize::try_from(fixtures::LIMITS.definition_bytes).unwrap() + extra);
+        let row = forge::Stored::Forge(row);
+        assert_eq!(records::decode(&records::encode(&row), &bounds).is_ok(), admitted);
+    }
 }

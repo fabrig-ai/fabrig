@@ -196,3 +196,22 @@ fn flight_keys_name_task_then_entry_under_family_twenty_one() {
     assert_eq!(keys::flight(&trailing[..16]), None);
     assert_eq!(keys::flight(&[20]), None);
 }
+
+#[test]
+fn kept_keys_use_bytes_thirty_one_through_thirty_four_and_refuse_truncation() {
+    for (tag, key) in
+        [(31, Key::Forge(u16::MAX)), (32, Key::ForgeNumbers), (33, Key::Playground), (34, Key::KeptAct([0; 16]))]
+    {
+        let bytes = keys::encode(&key, u32::MAX).unwrap();
+        assert_eq!(bytes[0], tag);
+        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
+        for cut in 0..bytes.len() {
+            assert_eq!(keys::decode(&bytes[..cut], &fixtures::LIMITS), None);
+        }
+        let mut trailing = skein_lib::Writer::new(bytes.len() + 1);
+        trailing.put(&bytes).unwrap();
+        trailing.put(&[0]).unwrap();
+        assert_eq!(keys::decode(&trailing.finish(), &fixtures::LIMITS), None);
+        assert_eq!(keys::encode(&key, 0), None);
+    }
+}
