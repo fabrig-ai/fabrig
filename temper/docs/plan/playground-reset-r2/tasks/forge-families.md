@@ -80,6 +80,9 @@ May change:
   the constructor near `domain.rs:534`, and the restore arms near
   `domain.rs:4861`. Nothing else of `domain.rs`: the forge-records part
   owns it next.
+- `temper/crates/temper-engine-domain-forge/src/tests/restore_fit.rs`:
+  only the arms of `row`'s exhaustive `RecordKind` match for the new
+  variants (see Answers).
 - Every literal of `temper_engine_domain_forge::Limits` in any crate or
   test world (rg `Limits {` naming that type): the two new fields only,
   each set to its default (below).
@@ -146,7 +149,7 @@ May change:
        pub fn kept_acts(&self) -> impl Iterator<Item = &KeptAct>;      // key order
    }
    // Request makers, pushing Request::Save / Request::Erase as Demo's rows do
-   pub(crate) fn save_forge(d: &mut Domain, row: ForgeRecord, out: &mut Queue<Request>) -> Result<(), Full>;
+   pub(crate) fn save_forge(d: &mut Domain, l: &Limits, row: ForgeRecord, out: &mut Queue<Request>) -> Result<(), Full>;
    pub(crate) fn erase_forge(d: &mut Domain, forge: u16, out: &mut Queue<Request>);
    pub(crate) fn give_number(d: &mut Domain, out: &mut Queue<Request>) -> Option<u16>; // saves next + 1; None when next == u16::MAX (exhausted)
    pub(crate) fn save_playground(d: &mut Domain, row: Playground, out: &mut Queue<Request>);
@@ -230,3 +233,19 @@ version moved; the container types behind the accessors.
   row. `notes/contracts.md`, section 2's "Numbers" says so; the
   `forges` limit (at most `u16::MAX`) is unchanged, since it counts
   forges kept, not numbers given.
+
+2026-10-31 (second).
+
+- **How does `save_forge` enforce `definition_bytes`, and may this task
+  extend `src/tests/restore_fit.rs`'s exhaustive `RecordKind` match?**
+  `save_forge` takes the limits, as `fit_restored`, `can_subscribe` and
+  the crate's other checks do: its signature in step 3 is now
+  `save_forge(d, l: &Limits, row, out)`. `Domain` keeps no copy of a
+  limit: no `definition_bytes` field. And yes: this task adds to
+  `src/tests/restore_fit.rs` the fixture arms of `row` for
+  `RecordKind::Forge`, `ForgeNumbers`, `Playground` and `KeptAct`, each
+  a minimal well-formed row, and nothing else there; the existing tests
+  keep their meaning, and the new families' tests stay in
+  `src/tests/kept.rs`. If another exhaustive `RecordKind` match outside
+  the owned files breaks the build, the same rule holds: an arm for each
+  new variant, named in the report.
