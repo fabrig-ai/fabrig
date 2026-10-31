@@ -56,7 +56,7 @@ fn records(items: Box<[Item]>) -> Box<[Record]> {
     records.into_boxed()
 }
 
-fn untyped(event: Event) -> (Box<[Record]>, Option<Cursor>) {
+fn restored(event: Event) -> (Box<[Record]>, Option<Cursor>) {
     let Event::Restored { owner, rows, next } = event else { panic!("untyped page: {event:?}") };
     assert_eq!(owner, OWNER);
     let mut records = List::with_capacity(u32::try_from(rows.len()).expect("page count"));
@@ -85,7 +85,7 @@ fn load_core_pages_equal_the_unselected_walk_with_the_same_cursors() {
     let mut after = None;
     for _ in 0..ROWS {
         let (items, next) = page(request(&mut selected, live(), after.clone(), 2));
-        let (rows, default_next) = untyped(request(&mut default, live(), after, 2));
+        let (rows, default_next) = restored(request(&mut default, live(), after, 2));
         assert_eq!(records(items), rows);
         assert_eq!(next, default_next);
         if next.is_none() {
@@ -115,7 +115,7 @@ fn census_pairs_and_result_joins_equal_the_unselected_walk() {
     let mut after = None;
     for _ in 0..ROWS {
         let (items, next) = page(request(&mut selected, census(), after.clone(), 2));
-        let (rows, default_next) = untyped(request(&mut default, census(), after, 2));
+        let (rows, default_next) = restored(request(&mut default, census(), after, 2));
         assert_eq!(records(items), rows);
         assert_eq!(next, default_next);
         if next.is_none() {
@@ -286,7 +286,7 @@ fn selected_pages_share_the_empty_nonterminal_progress_assertion() {
 }
 
 #[test]
-fn a_connector_page_keeps_its_untyped_bytes() {
+fn a_connector_page_keeps_its_bytes() {
     let mut store = open(true);
     fixtures::committed(
         &mut store,
