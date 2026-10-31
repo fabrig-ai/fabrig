@@ -55,7 +55,7 @@ fn a_project_document_becomes_its_record() {
     let answer = reads::Answer::Document(Box::new(d::Document::Project(Box::new(fixtures::project_document()))));
     assert_eq!(
         translate::document(&answer, &[], &fixtures::wire_limits()),
-        Ok(w::ReadValue::Project(records::project_record()))
+        Ok(w::ReadValue::Project(records::owner_project_record()))
     );
 }
 

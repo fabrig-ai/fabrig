@@ -667,7 +667,7 @@ fn original_nonzero_recipient_survives_wire_decoding_and_contract_translation() 
         let bytes = out.finish();
         let decoded = w::DocumentOutcome::decode(limits.wire(), &mut Reader::new(&bytes)).expect("real record decoder");
         assert_eq!(
-            outcome(&decoded, &limits).expect("contract translation"),
+            document_outcome(&decoded, &limits).expect("contract translation"),
             c::DocumentOutcome::Proposed { proposal: 31, to }
         );
     }

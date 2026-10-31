@@ -1,7 +1,7 @@
 use super::*;
 use skein_lib::List;
 pub fn deployment_record() -> w::Deployment {
-    jig_client_test_records::deployment_record()
+    jig_client_test_records::owner_deployment_record()
 }
 pub fn deployment() -> c::Deployment {
     c::Deployment {
@@ -35,7 +35,7 @@ pub fn deployment() -> c::Deployment {
     }
 }
 pub fn project_record() -> w::Project {
-    jig_client_test_records::project_record()
+    jig_client_test_records::owner_project_record()
 }
 pub fn project() -> c::Project {
     c::Project {

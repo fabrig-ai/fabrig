@@ -36,7 +36,7 @@ fn a_task_with_a_hold_becomes_its_record() {
 fn a_chip_in_each_phase_becomes_its_record() {
     let limits = fixtures::wire_limits();
     let phases = fixtures::phases();
-    let records = jig_client_test_records::chip_records();
+    let records = jig_client_test_records::owner_chip_records();
     let source = fixtures::chip();
     for ((phase, _compact), record) in phases.into_iter().zip(records) {
         let mut chip = source.clone();

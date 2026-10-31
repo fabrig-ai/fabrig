@@ -37,7 +37,7 @@ fn project_outcomes_round_trip_the_supplied_project_number() {
         let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
         wire.encode(&mut bytes).unwrap();
         let decoded = w::DocumentOutcome::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
-        assert_eq!(answers::outcome(&decoded, &limits), Ok(expected));
+        assert_eq!(answers::document_outcome(&decoded, &limits), Ok(expected));
     }
 }
 
@@ -111,6 +111,6 @@ fn remove_project_round_trips_through_the_link() {
     let mut bytes = Writer::new(usize::try_from(outcome.measure()).unwrap());
     outcome.encode(&mut bytes).unwrap();
     let decoded = w::DocumentOutcome::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
-    assert_eq!(answers::outcome(&decoded, &limits), Ok(c::DocumentOutcome::ProjectRemoved { project: u32::MAX }));
+    assert_eq!(answers::document_outcome(&decoded, &limits), Ok(c::DocumentOutcome::ProjectRemoved { project: u32::MAX }));
     assert_eq!(translate::documents::act_kind_fields(&w::ActKind::RemoveProject), c::ActKind::RemoveProject);
 }
