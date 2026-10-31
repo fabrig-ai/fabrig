@@ -4,7 +4,7 @@ part = "abort"
 kind = "feature"
 repo = "fabrig"
 needs = ["ratchets"]
-files = ["skein/crates/skein-forge-setup/src/host.rs", "skein/crates/skein-forge-setup/src/host/**", "skein/tests/forge/setup/src/host.rs", "skein/tests/forge/setup/tests/suite/host.rs", "skein/tests/forge/setup/tests/suite/main.rs", "skein/scripts/old-forms.txt"]
+files = ["skein/crates/skein-forge-setup/src/host.rs", "skein/crates/skein-forge-setup/src/host/**", "skein/tests/forge/setup/src/host.rs", "skein/tests/forge/setup/src/memory.rs", "skein/tests/forge/setup/tests/suite/host.rs", "skein/tests/forge/setup/tests/suite/main.rs", "skein/scripts/old-forms.txt"]
 effort = "high"
 minutes = 45
 +++
@@ -54,3 +54,11 @@ not this task's. The world test checks that no `Done`, `Stop` or
 `Need` follows the abort and that `Closed` is the last event. Put
 in your report the sentence 6.3 should gain for `Abort`; the design
 is the designer's.
+
+2026-10-31. May the task change `skein/tests/forge/setup/src/memory.rs`,
+whose `request_bytes` matches `Request` exhaustively? Yes: it is now in
+`files`. `Request::Abort` carries no bytes, so it joins the zero-byte
+arm beside `Request::Close`; nothing else in that file changes. The
+file belongs to the world package this task already changes and no
+other task owns it; the "exhaustive owner is a `Question:`" rule in
+Acceptance stays for owners outside `files` (temper's included).
