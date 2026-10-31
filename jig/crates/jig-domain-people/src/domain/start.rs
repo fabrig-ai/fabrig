@@ -219,7 +219,7 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         if domain.restore_failure.is_none() {
             domain.restore_failure = Some(RestoreFailure { key, cause });
         }
-        return super::restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
+        return restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
         Stored::Person { number, identity } => {
@@ -344,6 +344,11 @@ fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate
         }
         Stored::Policy { .. } | Stored::EndedRead { .. } => unreachable!("wrong people family: {key:?}"),
     }
+}
+
+fn restore_failed(domain: &mut Domain, key: Key, refusal: Refusal, out: &mut Queue<Request>) {
+    domain.start = Start::Failed;
+    out.push(Request::RestoreRefused { key, refusal });
 }
 
 #[cfg(test)]
