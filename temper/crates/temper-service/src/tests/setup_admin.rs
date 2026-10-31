@@ -13,7 +13,7 @@ use jig_protocol_store::{SecretOwner, Secrets};
 
 const ADMIN: &[u8] = b"admin-token-placeholder-0123";
 
-fn config() -> crate::settings::Engine {
+fn config() -> fixtures::ConfiguredEngine {
     let mut config = local_config(true, false);
     let entry = &mut config.setup[0];
     entry.entry.mode = temper_forge_setup::setup::Mode::Managed { admin_token: None };

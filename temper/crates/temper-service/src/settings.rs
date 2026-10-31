@@ -13,8 +13,8 @@ pub struct Demo {
     pub key_file: Box<[u8]>,
 }
 
-/// A forge temper works on (protocol/configuration.md, section 3, `forges`).
-#[derive(Debug)]
+/// A runtime forge row made from its kept record (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, Debug)]
 pub struct Forge {
     pub mode: temper_engine_domain_forge::Mode,
     pub number: u16,
@@ -46,7 +46,7 @@ pub enum Kind {
 }
 
 /// A forge component's connections.
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Transport {
     /// Only to a socket address on loopback.
     Plaintext,
@@ -54,8 +54,8 @@ pub enum Transport {
     Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
 }
 
-/// A git identity (protocol/configuration.md, section 3, `identities`).
-#[derive(Debug)]
+/// A runtime git identity made from its kept forge (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, Debug)]
 pub struct Identity {
     pub number: u32,
     pub forge: u16,
@@ -88,11 +88,12 @@ pub struct Seeds {
     pub installation: [u8; 16],
 }
 
-/// One checked setup entry and its start-time handover (protocol/setup.md, 8.4).
-#[derive(Debug)]
+/// One setup fixture entry and its handover (protocol/setup.md, 8.4).
+#[cfg(test)]
+#[derive(Clone, Debug)]
 pub struct Setup {
     pub entry: temper_forge_setup::setup::Entry,
-    /// The private handover for `TakeOver`; temper-15 removes the old fake-adoption use.
+    /// The private handover supplied to `TakeOver`.
     pub handover: Option<Secret>,
 }
 
@@ -100,19 +101,14 @@ pub struct Setup {
 /// temper's members (protocol/configuration.md, sections 2 and 3).
 #[derive(Debug)]
 pub struct Engine {
-    pub machine: Option<temper_forge_setup::machine::Machine>,
+    pub machine: temper_forge_setup::machine::Machine,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,
     pub clients: crate::startup::application::Clients,
     pub sign_in: Option<SignIn>,
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
-    pub forges: Box<[Forge]>,
     pub demo: Option<Demo>,
-    pub setup: Box<[Setup]>,
-    /// Checked local entries whose access comes from records.
-    pub records_only: Box<[u16]>,
-    pub identities: Box<[Identity]>,
     pub landing: temper_engine_domain::LandingPolicy,
     pub charter: u32,
     pub limits: super::limits::Limits,

@@ -244,6 +244,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), forge, Connection::NotSetUp);
     }
     turns(&mut stand);
+    while stand.service.notes().pop().is_some() {}
     let bearer = box_sign_in(&mut stand);
     assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
     turns(&mut stand);
@@ -439,7 +440,7 @@ fn a_new_webhook_after_idle_gets_its_whole_delivery_period() {
     let config = fixtures::engine();
     let mut found = jig_protocol_config::Problems::empty();
     let mut settings = crate::forge::settings(
-        &config.forges,
+        &fixtures::forges(),
         fixtures::forge_runtime(),
         Some(skein_forge_connection::hooks::Webhooks { listener: fixtures::http::address() }),
         &mut found,

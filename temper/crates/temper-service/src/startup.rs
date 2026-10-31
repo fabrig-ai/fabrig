@@ -16,116 +16,6 @@ use jig_protocol_config::{self as config, Path, Segment, read};
 pub use problems::{Problem, Problems, What, lines};
 use skein_lib::List;
 
-/// Private handovers the shell reads once before starting a fake forge's adoptions.
-#[must_use]
-pub fn setup_files(checked: &temper_forge_setup::check::Checked) -> Box<[config::File]> {
-    let mut files = List::with_capacity(u32::try_from(checked.setup.entries.len()).expect("checked setup entries"));
-    for (index, entry) in checked.setup.entries.iter().enumerate() {
-        // temper-15 removes the old-form Fake handover read.
-        if !checked.records_only.contains(&entry.forge)
-            && let temper_forge_setup::setup::Mode::Fake(_) = &entry.mode
-        {
-            files
-                .push(config::File {
-                    at: setup_path(index).member(b"admin_token"),
-                    path: handover_path(entry),
-                    max: 40,
-                    private: true,
-                })
-                .expect("one handover per fake");
-        }
-    }
-    files.into_boxed()
-}
-/// The same bounded read request is served before admission and by the running host.
-pub fn handover_reads_with(
-    document: &[u8],
-    directories: &config::Directories,
-    checked: &temper_forge_setup::check::Checked,
-    given: &crate::stock::Given,
-) -> Result<Box<[crate::HandoverRead]>, Problems> {
-    let parsed = load_with(document, directories, false, given)?.1.expect("checked engine");
-    let mut reads = List::with_capacity(u32::try_from(checked.records_only.len()).expect("checked forges"));
-    for entry in &checked.setup.entries {
-        // temper-15 removes old forms; their existing file reads stay above.
-        if checked.records_only.contains(&entry.forge) {
-            reads
-                .push(crate::HandoverRead {
-                    forge: entry.forge,
-                    run: skein_lib::Token::new(0),
-                    path: handover_path(entry),
-                    max: parsed.application.limits.records.value_bytes,
-                })
-                .expect("one read per local forge");
-        }
-    }
-    Ok(reads.into_boxed())
-}
-pub fn handover_reads(
-    document: &[u8],
-    directories: &config::Directories,
-    checked: &temper_forge_setup::check::Checked,
-) -> Result<Box<[crate::HandoverRead]>, Problems> {
-    handover_reads_with(document, directories, checked, &crate::stock::Given::Stock)
-}
-fn setup_path(index: usize) -> Path {
-    Path::root()
-        .member(b"application")
-        .member(b"setup")
-        .child(Segment::Index(u32::try_from(index).expect("checked setup index")))
-}
-fn handover_path(entry: &temper_forge_setup::setup::Entry) -> Box<[u8]> {
-    temper_forge_setup::place::Place { directory: entry.directory.clone(), user: Box::new([]) }
-        .path(temper_forge_setup::place::File::AdminToken)
-}
-fn setup_values(
-    checked: Option<&temper_forge_setup::check::Checked>,
-    files: &settings::Files,
-    problems: &mut Problems,
-    max: u32,
-) -> Box<[settings::Setup]> {
-    let Some(checked) = checked else { return Box::new([]) };
-    let mut values = List::with_capacity(u32::try_from(checked.setup.entries.len()).expect("checked setup entries"));
-    for (index, entry) in checked.setup.entries.iter().enumerate() {
-        let mut handover = None;
-        // temper-15 removes the old-form Fake handover read.
-        if !checked.records_only.contains(&entry.forge)
-            && let temper_forge_setup::setup::Mode::Fake(_) = &entry.mode
-        {
-            let at = setup_path(index).member(b"admin_token");
-            if let Some(bytes) = application::contents(files, &handover_path(entry), 40, at.clone(), problems) {
-                let mut valid = bytes.len() == 40;
-                for byte in &bytes {
-                    valid &= byte.is_ascii_digit() || (b'a'..=b'f').contains(byte);
-                }
-                if valid {
-                    handover = Some(skein_lib::Secret::new(bytes));
-                } else {
-                    problems.push_file(at, What::Handover, Some(handover_path(entry)));
-                }
-            }
-        }
-        if checked.records_only.contains(&entry.forge) {
-            let path = handover_path(entry);
-            for (name, value) in &files.entries {
-                if *name == path {
-                    if value.expose().len() > usize::try_from(max).expect("record bound") {
-                        problems.push_file(
-                            setup_path(index).member(b"admin_token"),
-                            What::Handover,
-                            Some(path.clone()),
-                        );
-                    } else {
-                        handover = Some(value.clone());
-                    }
-                }
-            }
-        }
-        values.push(settings::Setup { entry: entry.clone(), handover }).expect("checked setup entries");
-    }
-    values.into_boxed()
-}
-
 /// The services selected by the document's members (protocol/README.md, 15.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Shape {
@@ -220,6 +110,7 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
 /// The files and directories the binary reads and opens before startup.
 #[derive(Debug)]
 pub struct Named {
+    pub machine: temper_forge_setup::machine::Machine,
     pub files: Box<[config::File]>,
     pub asked_files: Box<[config::File]>,
     pub redirects: Box<[RedirectPort]>,
@@ -600,23 +491,18 @@ fn load_document(
     checks::credentials(
         engine.as_ref().expect("required engine checked"),
         &workers,
-        &application.identities,
+        application.limits.forge.forges,
         &mut problems,
     );
     checks::webhooks(&application, &mut problems);
     check_redirects(engine.as_ref().expect("required engine checked"), &application, &mut problems);
-    checks::records(
-        engine.as_ref().expect("required engine checked"),
+    checks::records(engine.as_ref().expect("required engine checked"), &application.limits, &mut problems);
+    checks::limits(&application.limits, &application.limits.git_component, &mut problems);
+    checks::names(
+        checks::machine_remote(&application.machine, application.limits.forge.name_bytes),
         &application.limits,
-        &application.forges,
         &mut problems,
     );
-    checks::limits(&application.limits, &application.limits.git_component, &mut problems);
-    let mut base = 0;
-    for forge in &application.forges {
-        base = base.max(u64::try_from(forge.git.len()).expect("bounded git base"));
-    }
-    checks::names(checks::remote(base, application.limits.forge.name_bytes), &application.limits, &mut problems);
     if let Some(worker) = workers.first() {
         checks::sockets(
             engine.as_ref().expect("required engine checked"),
@@ -654,11 +540,7 @@ fn all_files(parsed: &Parsed) -> Box<[config::File]> {
         Some(worker) => config::worker_files(worker),
         None => Box::new([]),
     };
-    let application = application::files(
-        &parsed.application,
-        API_TOKEN_BYTES,
-        jig_protocol_worker_wire::CEILINGS.application_value_secret,
-    );
+    let application = application::files(&parsed.application);
     let count = engine
         .len()
         .checked_add(worker.len())
@@ -689,20 +571,17 @@ pub fn named_with(
     check_memory_bytes(parsed.engine.memory)?;
     let files = all_files(&parsed);
     Ok(Named {
+        machine: parsed.application.machine,
         files,
-        asked_files: application::asked_files(
-            &parsed.application,
-            API_TOKEN_BYTES,
-            jig_protocol_worker_wire::CEILINGS.application_value_secret,
-        ),
+        asked_files: Box::new([]),
         redirects: redirects(&parsed.engine),
         clients: parsed.application.clients.listener,
         sign_in: parsed.application.sign_in,
         bundle: parsed.application.clients.bundle,
         bundle_limits: parsed.application.limits.clients,
         webhooks: parsed.application.webhooks,
-        forges: parsed.application.forges,
-        identities: parsed.application.identities,
+        forges: Box::new([]),
+        identities: Box::new([]),
         overrides: parsed.application.overrides,
         deployment: parsed.engine.deployment.directory,
         llm: parsed.engine.llm,
@@ -726,17 +605,6 @@ fn check_files(parsed: &Parsed, files: &settings::Files) -> Result<(), Problems>
             Some(contents) if contents.len() <= usize::try_from(file.max).expect("file bound") => {}
             Some(_) => problems.push(file.at, What::Jig(config::What::Bound)),
             None => problems.push(file.at, What::Jig(config::What::Unreadable)),
-        }
-    }
-    for file in application::asked_files(
-        &parsed.application,
-        API_TOKEN_BYTES,
-        jig_protocol_worker_wire::CEILINGS.application_value_secret,
-    ) {
-        if let Some(contents) = files.contents(&file.path)
-            && contents.len() > usize::try_from(file.max).expect("file bound")
-        {
-            problems.push(file.at, What::Jig(config::What::Bound));
         }
     }
     if problems.is_empty() { Ok(()) } else { Err(problems) }
@@ -782,7 +650,7 @@ fn checked_start_with(
     agent: Option<&settings::Agent>,
     seeds: &settings::Seeds,
     forges: List<crate::ForgeRuntime>,
-    setup: Option<&temper_forge_setup::check::Checked>,
+    _setup: Option<&temper_forge_setup::check::Checked>,
     given: &crate::stock::Given,
 ) -> Result<CheckedStart, Problems> {
     let mut parsed = parse_with(document, directories, given)?;
@@ -793,52 +661,22 @@ fn checked_start_with(
     if let Some(agent) = agent {
         parsed.compose(agent)?;
     }
-    // Only a checked local or client-managed entry enables a file-free Forgejo.
-    for (index, forge) in parsed.application.forges.iter().enumerate() {
-        let admitted = match setup {
-            Some(checked) => match checked.setup.entry(forge.number) {
-                Some(entry) => {
-                    checked.records_only.contains(&forge.number)
-                        || entry.mode == (temper_forge_setup::setup::Mode::Managed { admin_token: None })
-                }
-                None => false,
-            },
-            None => false,
-        };
-        if forge.kind == settings::Kind::Forgejo && forge.records_only && !admitted {
-            return Err(problem(
-                Path::root()
-                    .member(b"application")
-                    .member(b"forges")
-                    .child(Segment::Index(u32::try_from(index).expect("bounded forges"))),
-                What::Jig(config::What::Refers),
-            ));
-        }
-    }
     check_files(&parsed, files)?;
     let mut problems = Problems::empty();
     let resolved = application::resolve(&parsed.application, files, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }
-    let setup_values = setup_values(setup, files, &mut problems, parsed.application.limits.records.value_bytes);
-    if !problems.is_empty() {
-        return Err(problems);
-    }
-    let mut resolved = resolved.expect("resolved files checked");
-    if let Some(setup) = setup {
-        application::git_programs(&mut resolved.forges, &setup.setup, &mut problems);
-    }
-    if !problems.is_empty() {
-        return Err(problems);
-    }
+    let resolved = resolved.expect("resolved files checked");
     let own = &parsed.application.limits;
     checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
-    let remote = u32::try_from(checks::longest_remote(&resolved.forges, own.forge.name_bytes).unwrap_or(u64::MAX)).ok();
+    let remote =
+        u32::try_from(checks::longest_remote(&parsed.application.machine, own.forge.name_bytes).unwrap_or(u64::MAX))
+            .ok();
     let engine_bounds = temper_protocol_worker_wire::Bounds {
         repositories: own.forge.resources_per_task,
         name_bytes: own.forge.name_bytes,
-        remote_bytes: remote.unwrap_or(u32::MAX),
+        remote_bytes: remote.unwrap_or(u32::MAX).min(own.checkout.name_bytes),
         conflicts: own.checkout.conflicts,
         path_bytes: own.checkout.path_bytes,
         token_bytes: temper_protocol_worker_wire::v1::CEILINGS.token_token,
@@ -855,13 +693,10 @@ fn checked_start_with(
     checks::channel(
         Some(&engine_bounds),
         if agent.is_some() { Some(&worker_bounds) } else { None },
-        &resolved.forges,
+        Some(&parsed.application.machine),
         own,
         &mut problems,
     );
-    if let Some(wire) = crate::translate::limits(own) {
-        checks::identities(&resolved.identities, &wire, &mut problems);
-    }
     if let Some(agent) = agent {
         checks::agent(&parsed.engine, agent, &mut problems);
     }
@@ -876,13 +711,7 @@ fn checked_start_with(
     if !problems.is_empty() {
         return Err(problems);
     }
-    let mut not_set_up =
-        List::with_capacity(u32::try_from(parsed.application.asked_owned.len()).expect("asked forges"));
-    for number in &parsed.application.asked_owned {
-        if application::missing_asked_files(&parsed.application, files, *number) {
-            not_set_up.push(*number).expect("asked forges");
-        }
-    }
+    let not_set_up = List::with_capacity(0);
     let worker = if let Some(agent) = agent {
         let worker = parsed.workers.into_iter().next().expect("one worker checked");
         let own = parsed.application.workers.into_iter().next().expect("one application worker checked");
@@ -900,22 +729,14 @@ fn checked_start_with(
         None
     };
     let mut engine = settings::Engine {
-        machine: None,
+        machine: parsed.application.machine,
         directories: directories.clone(),
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
-        forges: resolved.forges,
         demo: parsed.application.demo,
-        setup: setup_values,
-        // Records-only local starts wait for the root to restore.
-        records_only: match setup {
-            Some(checked) => checked.records_only.clone(),
-            None => Box::new([]),
-        },
-        identities: resolved.identities,
         landing: parsed.application.landing,
         charter: parsed.application.charter,
         limits: parsed.application.limits,
