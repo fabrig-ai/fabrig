@@ -43,6 +43,12 @@ Acceptance (`jig-domain-core/src/tests/erasure.rs`):
   of those steps) is in the plan of its `Ended` record and of its rows;
   if the fixtures cannot drive that far within the budget, cover the same
   with saved rows built by the core's own `indexes::save` and say so.
+- `a_decided_proposal_plans_its_decision_and_update`: an accepted person
+  proposal (state `Accepted`, which keeps no time) and its decision
+  record: the plan holds the `DecidedProposal` key, the
+  `ProposalDecision` key and an `Update` equal to the one
+  `indexes::save` writes for that row at the decision's time; with
+  `decision` `None`, the first two only.
 
 ## Inputs
 
@@ -84,6 +90,15 @@ Not yours: emitting any write (`jp-delete`); `Write::DropTranscript`
    /// requester of the task being erased (its `Ended` record's), `None`
    /// for a row read outside a task's erasure.
    pub(crate) fn row_keys(row: &Record, requester: Option<tasks::Party>, out: &mut List<Key>) -> Option<()>;
+   /// A decided person proposal a `DecidedProposals` page gave, with the
+   /// decision record the page joined to it (`None` when none was saved):
+   /// its own key, the decision record's key, then the proposer's
+   /// `Update` the core derived from the decision when it was saved.
+   pub(crate) fn proposal_keys(
+       row: &tasks::PersonProposal,
+       decision: Option<&ProposalDecisionRecord>,
+       out: &mut List<Key>,
+   ) -> Option<()>;
    /// The most keys one record or row can plan, to size `out`.
    pub(crate) const MOST_KEYS: u32 = /* the count you find */;
    ```
@@ -102,6 +117,14 @@ Not yours: emitting any write (`jp-delete`); `Write::DropTranscript`
    `Party::Person` plans the `Update`; another party, or `None`, plans
    none. Share the derivation with `indexes::save` (one function taking
    the line and the requester) rather than repeat it.
+   `proposal_keys`: `Key::Tasks(tasks::Key::DecidedProposal(row.number))`;
+   `CoreKey::ProposalDecision { proposer: Proposer::Party(row.proposer),
+   proposal: row.number }` (whether or not `decision` is `Some`: erasing
+   an absent key is harmless); then, when `decision` is `Some`, the
+   `Update` `indexes::save`'s `DecidedProposal` arm writes, its `at` the
+   decision's `at`. Share that derivation with `indexes::save` too (one
+   function taking the row and the decision time). `row_keys` of a
+   `DecidedProposal` row gives its own key only.
 
 2. Tests: the acceptance's. Then, one at a time:
    - `heavy cargo nextest run -p jig-domain-core --lib -E 'test(/erasure/)'`;
@@ -138,3 +161,20 @@ with an unmoved task; add `a_reply_of_a_task_requested_by_a_task_plans_no_update
 (requester `Party::Task`: the row's key only). Name the adopted-task
 case in the report as a row naming the task with no derivation, for
 `jp-referee`.
+
+2026-10-31 (second). Q: `row_keys(row, requester, out)` cannot derive an
+accepted `DecidedProposal`'s `Update` key, whose time `indexes::save`
+takes from the decision (`PersonProposalState::Accepted` keeps none):
+should `jp-finish` load each proposal's `CoreRecord::ProposalDecision`,
+or should accepted rows persist their decision time?
+A: The first, without an extra read: `jp-proposals`' `DecidedProposals`
+page joins each row's `ProposalDecision` record as the row's `related`,
+as the point read of a party's proposal does
+(`jig-protocol-store/src/reads/point.rs`, `proposal`), and a new
+`proposal_keys(row, decision, out)` plans the row's key, the decision
+record's key (it names the project too, so it goes with the row) and
+the `Update` at `decision.at` (step 1 amended, one acceptance case
+added). No stored format changes. `jp-proposals` and `jp-finish` are
+amended to match. Keep the work done in the slot; add `proposal_keys`,
+its shared derivation with `indexes::save` and its test.
+

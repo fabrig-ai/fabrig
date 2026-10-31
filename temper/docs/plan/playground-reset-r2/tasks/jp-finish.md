@@ -32,8 +32,9 @@ project with no task, so `jp-close`'s path reaches `Notes` at once):
   the other's is; a notes index of the project's scope, asked before,
   is not served from the notes child's cache afterwards.
 - `its_decided_proposals_are_erased`: a decided person proposal of the
-  project and one of another: the first's row and its `Update` index row
-  gone, the second's there.
+  project and one of another, both accepted: the first's row, its
+  `ProposalDecision` record and its `Update` index row gone, the
+  second's there.
 - `its_own_rows_go_in_one_decision`: the `Rows` decision erases its
   `Roles` and `Policy` rows and its `Removal` row, closes its open
   ledgers to `ClosedLedger` rows, drops `Use::Project(project)` from an
@@ -85,8 +86,10 @@ Not yours: erasing tasks (`jp-erase`); resuming at a start (`jp-delete`).
    `Work::Proposals { after: None }`; load `Scope::DecidedProposals` with
    the page bounds `jp-erase` uses (`after` as `Position::Owner` of the
    last proposal's key).
-2. `rows::loaded`, for `Proposals`: erase `row_keys` (requester `None`) of each row of the
-   project (`PersonProposal.project`), deduplicated; next page from
+2. `rows::loaded`, for `Proposals`: erase `erasure::proposal_keys` of
+   each row of the project (`PersonProposal.project`), its `decision`
+   the row's `related` `ProposalDecision` record (`None` when absent),
+   deduplicated; next page from
    `next`, in memory; at the end, `Work::Notes` and load `Scope::Notes {
    project }` (the read that serves a project's notes today).
    For `Notes`: erase each `Line`'s key and its `Entry { name }` key
@@ -118,3 +121,12 @@ Not yours: erasing tasks (`jp-erase`); resuming at a start (`jp-delete`).
 
 The standard report, plus: every project-keyed core map you found and
 how it is let go; what a reference to an erased note reads as.
+
+## Answers
+
+2026-10-31. Q (asked by `jp-planner`): `row_keys` with requester `None`
+cannot plan an accepted proposal's `Update`, keyed by its decision time.
+A: Step 2 erases `erasure::proposal_keys(row, decision)`, the decision
+the page's `related` record (`jp-proposals` joins it); it plans the
+row, its `ProposalDecision` record and its `Update`. Acceptance amended.
+
