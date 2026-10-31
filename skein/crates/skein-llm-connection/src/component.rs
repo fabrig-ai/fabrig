@@ -10,7 +10,7 @@
 use alloc::boxed::Box;
 
 use skein_io::{Event as IoEvent, Request as IoRequest};
-use skein_lib::{Env, Id, List, Queue, Slab, Token};
+use skein_lib::{Env, Id, Lifecycle, List, Queue, Slab, Token, earliest};
 use skein_llm::{self as llm, Call, Credential, Prompt};
 use skein_tls::client as tls;
 
@@ -18,15 +18,6 @@ use crate::boundary::{Event, Refusal, Request};
 use crate::call::{Connection, Phase};
 use crate::endpoint::{Endpoint, EndpointError, Transport};
 use crate::limits::{Limits, valid};
-
-/// The owner's call pool, ending with Closed after physical socket settlement.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Lifecycle {
-    Live,
-    Closing,
-    Aborting,
-    Closed,
-}
 
 /// An admitted conversation waiting for an endpoint binding; terminal releases it.
 pub(crate) struct Waiting {
@@ -338,7 +329,9 @@ impl Component {
         match request {
             Request::Close => {
                 match self.lifecycle {
-                    Lifecycle::Live => self.lifecycle = Lifecycle::Closing,
+                    Lifecycle::Live => {
+                        self.lifecycle.close();
+                    }
                     Lifecycle::Closing | Lifecycle::Aborting => return,
                     Lifecycle::Closed => unreachable!("checked at the entrance"),
                 }
@@ -351,7 +344,7 @@ impl Component {
                     Lifecycle::Aborting => return,
                     Lifecycle::Closed => unreachable!("checked at the entrance"),
                 }
-                self.lifecycle = Lifecycle::Aborting;
+                self.lifecycle.abort();
                 self.request_close(true);
                 self.fire(env, up, io);
             }
@@ -582,18 +575,12 @@ impl Component {
     /// The first call or idle-connection deadline for the owning loop.
     #[must_use]
     pub fn next_deadline(&self) -> Option<skein_lib::Time> {
-        let mut earliest: Option<skein_lib::Time> = None;
+        let mut next_deadline = None;
         for waiting in &self.waiting {
             match waiting {
-                Some(waiting) => match waiting.deadlines.next() {
-                    Some(next) => {
-                        earliest = Some(match earliest {
-                            Some(prior) => prior.min(next),
-                            None => next,
-                        });
-                    }
-                    None => {}
-                },
+                Some(waiting) => {
+                    next_deadline = earliest(next_deadline, waiting.deadlines.next());
+                }
                 None => {}
             }
         }
@@ -601,21 +588,14 @@ impl Component {
             match slot {
                 Some(id) => match self.connections.get(*id) {
                     Some(connection) => {
-                        let next = connection.deadlines.next();
-                        earliest = match earliest {
-                            Some(prior) => match next {
-                                Some(next) => Some(prior.min(next)),
-                                None => Some(prior),
-                            },
-                            None => next,
-                        };
+                        next_deadline = earliest(next_deadline, connection.deadlines.next());
                     }
                     None => {}
                 },
                 None => {}
             }
         }
-        earliest
+        next_deadline
     }
 
     fn request_close(&mut self, abort: bool) {
