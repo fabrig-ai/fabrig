@@ -64,6 +64,8 @@ pub fn engine() -> settings::Engine {
     // This typed fixture reaches the core's start; policy 1 needs 3250 bytes.
 
     settings::Engine {
+        machine: None,
+        directories: jig_protocol_config::Directories::working(),
         records_only: Box::new([]),
         jig,
         webhooks: None,
@@ -430,6 +432,7 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
         forge_charter: settings.charter,
         forges: Box::new([]),
         under_box: false,
+        playground: None,
         demo: None,
     };
     (
@@ -728,8 +731,15 @@ pub fn workers() -> crate::workers::Workers {
     }
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
-    crate::workers::Workers::new(&settings.jig, &settings::Files { entries }, encoding, settings.forges, &limits)
-        .unwrap()
+    crate::workers::Workers::new(
+        &settings.jig,
+        &settings::Files { entries },
+        encoding,
+        settings.forges,
+        settings.limits.forge.forges,
+        &limits,
+    )
+    .unwrap()
 }
 
 pub fn settle_root(

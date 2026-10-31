@@ -11,6 +11,7 @@ pub enum Choice {
 pub fn playground(side: &super::Side) -> Option<u16> {
     Some(side.demo()?.forge)
 }
+use alloc::boxed::Box;
 use skein_lib::List;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shown {
@@ -85,7 +86,7 @@ pub fn at_once(row: &Row) -> bool {
 #[must_use]
 pub fn welcome_step(choice: Option<AddressChoice>, rows: &State, playground: Option<u16>) -> Shown {
     if choice.is_none()
-        && let Some(row) = unfinished(rows, playground)
+        && let Some(row) = unfinished(records(rows), playground)
     {
         return Shown::Unfinished(row.number);
     }
@@ -130,20 +131,26 @@ fn offered(row: &Row) -> bool {
         }
     }
 }
+/// Unknown and ended watches have no records to offer to the pure facts.
+#[must_use]
+pub fn records(state: &State) -> &[Row] {
+    match state {
+        State::Rows(rows) => rows,
+        State::Unknown | State::Ended => &[],
+    }
+}
 /// The deployment fact supplies availability before any owned record exists.
 #[must_use]
-pub fn choices(rows: &State, playground: Option<u16>, under_box: bool) -> List<Choice> {
+pub fn choices(rows: &[Row], playground: Option<u16>, under_box: bool) -> Box<[Choice]> {
     let mut choices = List::with_capacity(3);
     if playground.is_some() {
-        return choices;
+        return choices.into_boxed();
     }
     let mut owned = under_box;
-    if let State::Rows(rows) = rows {
-        for row in rows {
-            if row.mode == Mode::Owned {
-                owned = row.offer == Offer::Offered;
-                break;
-            }
+    for row in rows {
+        if row.mode == Mode::Owned {
+            owned = row.offer == Offer::Offered;
+            break;
         }
     }
     choices.push(Choice::GitHub).expect("three choices");
@@ -151,13 +158,12 @@ pub fn choices(rows: &State, playground: Option<u16>, under_box: bool) -> List<C
         choices.push(Choice::Owned).expect("three choices");
     }
     choices.push(Choice::Managed).expect("three choices");
-    choices
+    choices.into_boxed()
 }
 
 /// A real record is unfinished until connected with its first repository adopted.
 #[must_use]
-pub fn unfinished(rows: &State, playground: Option<u16>) -> Option<&Row> {
-    let State::Rows(rows) = rows else { return None };
+pub fn unfinished(rows: &[Row], playground: Option<u16>) -> Option<&Row> {
     for row in rows {
         if row.mode == Mode::Fake || playground == Some(row.number) {
             continue;

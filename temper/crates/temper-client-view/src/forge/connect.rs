@@ -83,7 +83,7 @@ pub(crate) fn main(
     b.style(look::CONNECT_FORGE);
     text(b, w, Role::Heading { level: 1 }, Word::WelcomeForgeTitle);
     let shown = if choice.is_none() {
-        match connect::unfinished(root.forges(), connect::playground(root.forge())) {
+        match connect::unfinished(connect::records(root.forges()), connect::playground(root.forge())) {
             Some(row) => Shown::Unfinished(row.number),
             None => Shown::Choose,
         }
@@ -214,7 +214,7 @@ pub(crate) fn welcome(
     sign_in: &crate::forge_sign_in::Forges,
 ) {
     if choice.is_none()
-        && let Some(row) = connect::unfinished(root.forges(), connect::playground(root.forge()))
+        && let Some(row) = connect::unfinished(connect::records(root.forges()), connect::playground(root.forge()))
     {
         unfinished(b, root, w, forge, row);
         return;
@@ -250,7 +250,7 @@ pub(crate) fn welcome(
 fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, place: Place) {
     b.open(Role::Slot);
     b.style(look::FLOW_CHOICES);
-    for kind in &connect::choices(root.forges(), connect::playground(root.forge()), true) {
+    for kind in &connect::choices(connect::records(root.forges()), connect::playground(root.forge()), true) {
         let (choice, heading, description, note) = match kind {
             connect::Choice::GitHub => {
                 (Choice::GitHub, Word::ConnectGitHub, Word::ForgeGitHubDescription, Word::ForgeGitHubTime)
