@@ -34,7 +34,7 @@ enum Held {
 }
 
 impl Held {
-    fn read(&self, bytes: &[u8], limits: &codec::core::Limits) -> Self {
+    fn read(&self, bytes: &[u8], limits: &codec::View) -> Self {
         let mut reader = Reader::new(bytes);
         let value = match self {
             Self::Problem(_) => {
@@ -63,7 +63,7 @@ impl Held {
     }
 }
 
-fn core_row(row: &c::CoreRecord, limits: &codec::core::Limits) -> core::Value {
+fn core_row(row: &c::CoreRecord, limits: &codec::View) -> core::Value {
     let bytes = codec::core::encode(row, limits).unwrap();
     core::Row::decode(&limits.core, &mut Reader::new(&bytes)).unwrap().into_parts().value
 }
@@ -76,7 +76,7 @@ struct HeldRow {
 
 #[test]
 fn cores_held_words_read_their_fixtures_whole() {
-    let limits = codec::core::limits(&fixtures::CORE_LIMITS).unwrap();
+    let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
     let problem = fixtures::calls::problem();
     let core::Value::Call(call) =
         core_row(&fixtures::calls::call(c::CallPart::DelegationRefused(problem.clone())), &limits)

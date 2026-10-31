@@ -29,7 +29,7 @@ pub(crate) struct ServiceHost {
     pub(crate) submitted: u32,
     worker: bool,
     pub(crate) files: Capture,
-    pub(crate) codec: jig_protocol_store::codec::Limits,
+    pub(crate) codec: jig_protocol_store::codec::View,
     pub(crate) store_limits: jig_test_service::limits::Limits,
     pub(crate) holding: bool,
     pub(crate) corrupt_transcript: bool,

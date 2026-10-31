@@ -159,7 +159,7 @@ fn mutated_core_goldens_never_panic() {
 
 fn frames(bytes: &[u8]) {
     use jig_protocol_store::{codec, core_v6, notes_v1, tasks_v9, transcripts::frame};
-    let limits = codec::Limits {
+    let limits = codec::View {
         settings: jig_protocol_store::settings_v1::CEILINGS,
         core: core_v6::CEILINGS,
         tasks: tasks_v9::CEILINGS,
@@ -177,7 +177,7 @@ fn arbitrary_frames_never_panic_and_round_trip_when_they_decode() {
 #[test]
 fn mutated_and_short_frames_never_panic() {
     use jig_protocol_store::{codec, core_v6, notes_v1, tasks_v9, transcripts::frame};
-    let limits = codec::Limits {
+    let limits = codec::View {
         settings: jig_protocol_store::settings_v1::CEILINGS,
         core: core_v6::CEILINGS,
         tasks: tasks_v9::CEILINGS,
@@ -200,8 +200,7 @@ fn mutated_and_short_frames_never_panic() {
     .expect("bounded turn");
     let mut writer = Writer::new(usize::try_from(turn.measure()).expect("body size"));
     turn.encode(&mut writer).expect("measured body");
-    let codec = codec::core::Limits { core: limits.core, tasks: limits.tasks, notes: limits.notes };
-    let turn = codec::core::read_turn(&writer.finish(), &codec).expect("valid body");
+    let turn = codec::core::read_turn(&writer.finish(), &limits).expect("valid body");
     let bytes = frame::encode(&turn, &limits).expect("valid frame");
     frames(&bytes);
     for index in 0..bytes.len() {

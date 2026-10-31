@@ -297,7 +297,7 @@ pub fn sign_in_secret(number: u64, byte: u8) -> Secrets {
         value: crate::SecretValue::Digest { expiry: 0, digest: [byte; 32] },
     }
 }
-pub fn codec_limits() -> codec::Limits {
+pub fn codec_limits() -> codec::View {
     codec::limits(&CORE_LIMITS).expect("fixture codec limits")
 }
 pub fn turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core::TurnRecord {

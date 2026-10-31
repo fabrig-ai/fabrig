@@ -1,10 +1,10 @@
 //! Core durable rows translated exhaustively (protocol/store.md, 5.1).
-use super::{Limits, domain, task_problem, too_large, wire};
+use super::{View, domain, task_problem, too_large, wire};
 use alloc::boxed::Box;
 use skein_lib::List;
 pub(super) fn encode_projection_goal(
     source: &domain::ProjectionGoal,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::ProjectionGoal, wire::Problem> {
     let domain::ProjectionGoal { number, project, priority, words, phase } = source;
     wire::ProjectionGoal::new(
@@ -20,14 +20,14 @@ pub(super) fn encode_projection_goal(
 }
 pub(super) fn decode_projection_goal(
     source: wire::ProjectionGoal,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<domain::ProjectionGoal, wire::Problem> {
     let wire::ProjectionGoalParts { number, project, priority, words, phase } = source.into_parts();
     Ok(domain::ProjectionGoal { number, project, priority, words, phase: decode_phase(phase, limits)? })
 }
 pub(super) fn encode_projection_task(
     source: &domain::ProjectionTask,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::ProjectionTask, wire::Problem> {
     let domain::ProjectionTask { number, requester, words, phase } = source;
     wire::ProjectionTask::new(
@@ -42,7 +42,7 @@ pub(super) fn encode_projection_task(
 }
 pub(super) fn decode_projection_task(
     source: wire::ProjectionTask,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<domain::ProjectionTask, wire::Problem> {
     let wire::ProjectionTaskParts { number, requester, words, phase } = source.into_parts();
     Ok(domain::ProjectionTask {
@@ -54,7 +54,7 @@ pub(super) fn decode_projection_task(
 }
 pub(super) fn encode_projection_milestone(
     source: &domain::ProjectionMilestone,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::ProjectionMilestone, wire::Problem> {
     let domain::ProjectionMilestone { identity, phase, change, words } = source;
     wire::ProjectionMilestone::new(
@@ -83,7 +83,7 @@ pub(super) fn encode_projection_milestone(
 }
 pub(super) fn decode_projection_milestone(
     source: wire::ProjectionMilestone,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<domain::ProjectionMilestone, wire::Problem> {
     let wire::ProjectionMilestoneParts { identity, phase, change, words } = source.into_parts();
     Ok(domain::ProjectionMilestone {
@@ -106,7 +106,7 @@ pub(super) fn decode_projection_milestone(
 }
 pub(super) fn encode_projection_record(
     source: &domain::ProjectionRecord,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::ProjectionRecord, wire::Problem> {
     Ok(match source {
         domain::ProjectionRecord::Goal { goal, pending, changed, fed_at } => {
@@ -137,7 +137,7 @@ pub(super) fn encode_projection_record(
 }
 pub(super) fn decode_projection_record(
     source: wire::ProjectionRecord,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<domain::ProjectionRecord, wire::Problem> {
     Ok(match source {
         wire::ProjectionRecord::Goal(value) => {
@@ -159,7 +159,7 @@ pub(super) fn decode_projection_record(
         }
     })
 }
-fn encode_phase(source: &jig_domain_tasks::Phase, limits: &Limits) -> Result<wire::PhaseBytes, wire::Problem> {
+fn encode_phase(source: &jig_domain_tasks::Phase, limits: &View) -> Result<wire::PhaseBytes, wire::Problem> {
     wire::PhaseBytes::new(
         &limits.core,
         wire::PhaseBytesParts {
@@ -170,13 +170,13 @@ fn encode_phase(source: &jig_domain_tasks::Phase, limits: &Limits) -> Result<wir
         },
     )
 }
-fn decode_phase(source: wire::PhaseBytes, limits: &Limits) -> Result<jig_domain_tasks::Phase, wire::Problem> {
+fn decode_phase(source: wire::PhaseBytes, limits: &View) -> Result<jig_domain_tasks::Phase, wire::Problem> {
     match crate::codec::tasks::carried::read_phase(&source.into_parts().value, &limits.tasks) {
         Ok(value) => Ok(value),
         Err(error) => Err(task_problem(error)),
     }
 }
-fn encode_pending(values: &[u16], limits: &Limits) -> Result<List<wire::Connector>, wire::Problem> {
+fn encode_pending(values: &[u16], limits: &View) -> Result<List<wire::Connector>, wire::Problem> {
     let count = match u32::try_from(values.len()) {
         Ok(value) => value,
         Err(error) => return Err(too_large(error)),
@@ -199,7 +199,7 @@ fn decode_pending(values: List<wire::Connector>) -> Box<[u16]> {
     }
     result.into_boxed()
 }
-fn encode_milestone_id(value: domain::MilestoneId, limits: &Limits) -> Result<wire::MilestoneId, wire::Problem> {
+fn encode_milestone_id(value: domain::MilestoneId, limits: &View) -> Result<wire::MilestoneId, wire::Problem> {
     Ok(match value {
         domain::MilestoneId::Lifecycle { task, position } => wire::MilestoneId::Lifecycle(
             wire::MilestoneLifecycle::new(&limits.core, wire::MilestoneLifecycleParts { task, position })?,
@@ -222,7 +222,7 @@ fn decode_milestone_id(value: wire::MilestoneId) -> domain::MilestoneId {
         }
     }
 }
-fn encode_party(value: &jig_domain_tasks::Party, limits: &Limits) -> Result<wire::Party, wire::Problem> {
+fn encode_party(value: &jig_domain_tasks::Party, limits: &View) -> Result<wire::Party, wire::Problem> {
     Ok(match value {
         jig_domain_tasks::Party::Task(value) => {
             wire::Party::Task(wire::PartyTask::new(&limits.core, wire::PartyTaskParts { value: *value })?)

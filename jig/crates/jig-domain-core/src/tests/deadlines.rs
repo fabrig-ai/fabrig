@@ -89,7 +89,7 @@ fn cold_header_is_taken_once_and_never_before_the_load() {
     };
     assert_eq!(header.commits, 1);
     assert!(core.cold_header().is_none());
-    core.counters.begin_restore();
+    core.counters.begin_start();
     assert!(core.cold_header().is_none());
     core.counters.finish_restore();
     assert!(core.cold_header().is_some());

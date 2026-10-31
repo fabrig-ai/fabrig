@@ -42,7 +42,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     };
     let binary = plan::binary(&store.patch_sets);
     let Some(found) = decode(store, owner, &found, binary.jig, above) else { return };
-    let found_levels = format::levels(found.levels);
+    let found_levels = found.levels;
     let compared = match format::compare(found_levels, binary) {
         Ok(compared) => compared,
         Err(why) => return refuse(store, owner, why, above),
@@ -61,7 +61,8 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         refuse(store, owner, OpenRefusal::Numbers { store: last, header: 0 }, above);
         return;
     };
-    let Some(header) = codec::decode(&Key::Core(CoreKey::Deployment), &header, &store.codec, &store.names) else {
+    let Some(header) = codec::decode(&Key::Core(CoreKey::Deployment), &header, &store.codec_limits, &store.names)
+    else {
         corrupt_header(store, owner, restore::DecodeFailure::Value, above);
         return;
     };

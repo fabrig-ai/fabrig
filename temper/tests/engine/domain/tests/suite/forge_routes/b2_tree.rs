@@ -106,14 +106,16 @@ fn stock_world() -> (World, engine::Assignment) {
 }
 
 #[test]
-fn a_stock_goal_cannot_modify_but_its_change_producer_can() {
-    let (mut world, chat) = stock_world();
+fn a_goal_without_modify_cannot_modify_but_its_change_producer_can() {
+    let mut configured = defaults();
+    configured.charters[0].policy.modify = false;
+    let (mut world, chat) = world_with(&configured);
     let task = goal(&mut world, &chat, false);
     super::park_chat(&mut world, &chat);
     advance(&mut world);
     let work = admitted(&world, task);
     assert_eq!(work.charter, 1);
-    assert!(work.run.policy.modify, "the stock charter keeps its modification ceiling");
+    assert!(!work.run.policy.modify, "the configured charter withholds modification");
     assert!(matches!(work.run.contract, tasks::Contract::Report { .. }));
     let charter = temper_engine_smith::charter(&work);
     assert_eq!(charter.mode, smith_domain_run::Mode::Finite);

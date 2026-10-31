@@ -1,11 +1,8 @@
 //! Core durable rows translated exhaustively (protocol/store.md, 5.1).
-use super::{Limits, domain, task_problem, too_large, wire};
+use super::{View, domain, task_problem, too_large, wire};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
-pub(super) fn encode_deployment(
-    source: &domain::Deployment,
-    limits: &Limits,
-) -> Result<wire::Deployment, wire::Problem> {
+pub(super) fn encode_deployment(source: &domain::Deployment, limits: &View) -> Result<wire::Deployment, wire::Problem> {
     let domain::Deployment {
         id,
         tasks,
@@ -66,7 +63,7 @@ pub(super) fn decode_deployment(source: wire::Deployment) -> domain::Deployment 
 }
 pub(super) fn encode_terminal_record(
     source: &domain::TerminalRecord,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::TerminalRecord, wire::Problem> {
     let domain::TerminalRecord { task, attempt, cumulative, end } = source;
     wire::TerminalRecord::new(
@@ -89,7 +86,7 @@ pub(super) fn encode_terminal_record(
 }
 pub(super) fn decode_terminal_record(
     source: wire::TerminalRecord,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<domain::TerminalRecord, wire::Problem> {
     let wire::TerminalRecordParts { task, attempt, cumulative, end } = source.into_parts();
     Ok(domain::TerminalRecord {
@@ -102,7 +99,7 @@ pub(super) fn decode_terminal_record(
         },
     })
 }
-pub(super) fn encode_turn_proof(source: &domain::TurnProof, limits: &Limits) -> Result<wire::TurnProof, wire::Problem> {
+pub(super) fn encode_turn_proof(source: &domain::TurnProof, limits: &View) -> Result<wire::TurnProof, wire::Problem> {
     let domain::TurnProof { turn, cumulative, read } = source;
     wire::TurnProof::new(&limits.core, wire::TurnProofParts { turn: *turn, cumulative: *cumulative, read: *read })
 }
@@ -111,7 +108,7 @@ pub(super) fn decode_turn_proof(source: wire::TurnProof) -> domain::TurnProof {
     domain::TurnProof { turn, cumulative, read }
 }
 #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches without closures")]
-pub(super) fn encode_run_proof(source: &domain::RunProof, limits: &Limits) -> Result<wire::RunProof, wire::Problem> {
+pub(super) fn encode_run_proof(source: &domain::RunProof, limits: &View) -> Result<wire::RunProof, wire::Problem> {
     let domain::RunProof {
         task,
         attempt,
@@ -160,7 +157,7 @@ pub(super) fn encode_run_proof(source: &domain::RunProof, limits: &Limits) -> Re
     )
 }
 #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches without closures")]
-pub(super) fn decode_run_proof(source: wire::RunProof, limits: &Limits) -> Result<domain::RunProof, wire::Problem> {
+pub(super) fn decode_run_proof(source: wire::RunProof, limits: &View) -> Result<domain::RunProof, wire::Problem> {
     let wire::RunProofParts {
         task,
         attempt,
@@ -216,7 +213,7 @@ pub(super) fn decode_run_proof(source: wire::RunProof, limits: &Limits) -> Resul
 }
 pub(super) fn encode_turn_record(
     source: &domain::TurnRecord,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::TurnRecord, wire::Problem> {
     let domain::TurnRecord { opens_window, task, attempt, turn, spent, read, at, transcript } = source;
     wire::TurnRecord::new(
@@ -239,7 +236,7 @@ pub(super) fn decode_turn_record(source: wire::TurnRecord) -> domain::TurnRecord
 }
 pub(super) fn encode_proposal_decision_record(
     source: &domain::ProposalDecisionRecord,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::ProposalDecisionRecord, wire::Problem> {
     let domain::ProposalDecisionRecord { project, proposer, proposal, kind, by, at, choice, created } = source;
     wire::ProposalDecisionRecord::new(
@@ -278,7 +275,7 @@ pub(super) fn decode_proposal_decision_record(source: wire::ProposalDecisionReco
 }
 pub(super) fn encode_escalation_decision_record(
     source: &domain::EscalationDecisionRecord,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::EscalationDecisionRecord, wire::Problem> {
     let domain::EscalationDecisionRecord { project, requester, task, revision, by, at, decision } = source;
     wire::EscalationDecisionRecord::new(
@@ -309,7 +306,7 @@ pub(super) fn decode_escalation_decision_record(
         decision: super::decode_escalation_decision(decision),
     }
 }
-fn encode_window(value: Option<domain::CurrentWindow>, limits: &Limits) -> Result<Option<wire::Window>, wire::Problem> {
+fn encode_window(value: Option<domain::CurrentWindow>, limits: &View) -> Result<Option<wire::Window>, wire::Problem> {
     Ok(match value {
         Some(domain::CurrentWindow { attempt, turn, closed }) => {
             Some(wire::Window::new(&limits.core, wire::WindowParts { attempt, turn, closed })?)
@@ -321,7 +318,7 @@ fn read_window(value: wire::Window) -> domain::CurrentWindow {
     let wire::WindowParts { attempt, turn, closed } = value.into_parts();
     domain::CurrentWindow { attempt, turn, closed }
 }
-fn encode_created(value: Option<(u64, u64)>, limits: &Limits) -> Result<Option<wire::Created>, wire::Problem> {
+fn encode_created(value: Option<(u64, u64)>, limits: &View) -> Result<Option<wire::Created>, wire::Problem> {
     Ok(match value {
         Some((first, last)) => Some(wire::Created::new(&limits.core, wire::CreatedParts { first, last })?),
         None => None,
@@ -331,7 +328,7 @@ fn read_created(value: wire::Created) -> (u64, u64) {
     let wire::CreatedParts { first, last } = value.into_parts();
     (first, last)
 }
-fn encode_credentials(values: &[u32], limits: &Limits) -> Result<List<wire::Credential>, wire::Problem> {
+fn encode_credentials(values: &[u32], limits: &View) -> Result<List<wire::Credential>, wire::Problem> {
     let count = match u32::try_from(values.len()) {
         Ok(value) => value,
         Err(error) => return Err(too_large(error)),
@@ -357,7 +354,7 @@ fn decode_credentials(values: List<wire::Credential>) -> Box<[u32]> {
 
 fn encode_accounts(
     values: &[jig_domain_authority::AccountBinding],
-    limits: &Limits,
+    limits: &View,
 ) -> Result<List<wire::AccountBinding>, wire::Problem> {
     let count = match u32::try_from(values.len()) {
         Ok(count) => count,
@@ -386,7 +383,7 @@ fn decode_accounts(values: List<wire::AccountBinding>) -> Box<[jig_domain_author
     result.into_boxed()
 }
 
-fn encode_outstanding(values: &[u64], limits: &Limits) -> Result<List<wire::Number>, wire::Problem> {
+fn encode_outstanding(values: &[u64], limits: &View) -> Result<List<wire::Number>, wire::Problem> {
     let count = match u32::try_from(values.len()) {
         Ok(count) => count,
         Err(error) => return Err(too_large(error)),
