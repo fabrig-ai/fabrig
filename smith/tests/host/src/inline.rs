@@ -450,6 +450,7 @@ impl World {
                         );
                         self.provider_replies();
                     }
+                    Lower::Yield { .. } => {}
                     Lower::Cancel { owner } => {
                         let binding = self
                             .bindings

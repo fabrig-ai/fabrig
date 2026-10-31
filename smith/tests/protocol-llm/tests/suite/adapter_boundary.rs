@@ -175,7 +175,7 @@ fn completed_owner_is_preserved_and_a_different_owner_is_refused() {
             if wrong_owner {
                 assert!(matches!(returned, Err(adapter::Error::Invalid)));
             } else {
-                let Ok(Event::Completed { owner, completion }) = returned else {
+                let Ok(Event::Below(smith_domain::Below::Completed { owner, completion })) = returned else {
                     panic!("the successful terminal translates once");
                 };
                 assert_eq!(owner, OWNER);
@@ -250,7 +250,8 @@ fn failed_owner_class_evidence_and_detail_survive_only_the_matching_context() {
             if wrong_owner {
                 assert!(matches!(returned, Err(adapter::Error::Invalid)));
             } else {
-                let Ok(Event::Failed { owner, failure, evidence, detail, .. }) = returned else {
+                let Ok(Event::Below(smith_domain::Below::Failed { owner, failure, evidence, detail, .. })) = returned
+                else {
                     panic!("failure translates once");
                 };
                 assert_eq!(owner, OWNER);
@@ -281,7 +282,9 @@ fn cancelled_owner_is_checked_only_after_observed_lower_settlement() {
             if wrong_owner {
                 assert!(matches!(returned, Err(adapter::Error::Invalid)));
             } else {
-                assert!(matches!(returned, Ok(Event::Cancelled { owner }) if owner == OWNER));
+                assert!(
+                    matches!(returned, Ok(Event::Below(smith_domain::Below::Cancelled { owner })) if owner == OWNER)
+                );
             }
             assert_eq!(peer.seen.iter().filter(|event| matches!(event, client::Event::Closed)).count(), 1);
             let events = peer.seen.len();
@@ -301,7 +304,10 @@ fn schema_inventory_admits_first_then_refuses_missing_duplicate_and_unoffered_en
         assert_eq!(declaration.name.as_ref(), b"wait");
         assert_eq!(declaration.description.as_ref(), b"Boundary caller declaration.");
         assert_eq!(declaration.parameters.as_ref(), WAIT_SCHEMA);
-        assert!(matches!(adapter::completion(context, owner, completion, Box::new([])), Ok(Event::Completed { .. })));
+        assert!(matches!(
+            adapter::completion(context, owner, completion, Box::new([])),
+            Ok(Event::Below(smith_domain::Below::Completed { .. }))
+        ));
         close_won(&mut peer);
 
         let mut missing = input(configuration);
@@ -368,7 +374,10 @@ fn owned_results_use_the_production_renderer_before_the_request_goes() {
         assert!(output.starts_with(b"exit code 0\nprior"));
         assert!(!*is_error);
         let client::Event::Completed { owner, completion } = take_terminal(&mut peer) else { panic!("completion") };
-        assert!(matches!(adapter::completion(context, owner, completion, Box::new([])), Ok(Event::Completed { .. })));
+        assert!(matches!(
+            adapter::completion(context, owner, completion, Box::new([])),
+            Ok(Event::Below(smith_domain::Below::Completed { .. }))
+        ));
         close_won(&mut peer);
     }
 }
@@ -452,7 +461,7 @@ fn call_attestation_checks_position_name_literal_input_kind_uniqueness_and_consu
             let returned = adapter::completion(context, owner, completion, resolutions(case));
             match case {
                 Attestation::Exact => {
-                    let Ok(Event::Completed { owner, completion }) = returned else {
+                    let Ok(Event::Below(smith_domain::Below::Completed { owner, completion })) = returned else {
                         panic!("the exact Wait attestation is admitted first");
                     };
                     assert_eq!(owner, OWNER);
@@ -526,7 +535,10 @@ fn a_result_past_its_bound_is_cut_with_its_marker_and_the_request_goes() {
             .expect("decimal omitted count");
         assert_eq!(omitted + marker, byte_count + b"exit code 0\n".len());
         let client::Event::Completed { owner, completion } = take_terminal(&mut peer) else { panic!("completion") };
-        assert!(matches!(adapter::completion(context, owner, completion, Box::new([])), Ok(Event::Completed { .. })));
+        assert!(matches!(
+            adapter::completion(context, owner, completion, Box::new([])),
+            Ok(Event::Below(smith_domain::Below::Completed { .. }))
+        ));
         close_won(&mut peer);
     }
 }
@@ -614,7 +626,7 @@ fn optional_child_shares_cross_both_provider_schemas_and_observed_completions() 
                     &context.limits(),
                 ),
             }]);
-            let Event::Completed { completion, .. } =
+            let Event::Below(smith_domain::Below::Completed { completion, .. }) =
                 adapter::completion(context, owner, completion, resolved).expect("observed checked adapter callback")
             else {
                 panic!("the observed call has one root completion");

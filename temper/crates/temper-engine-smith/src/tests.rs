@@ -1113,7 +1113,11 @@ fn each_of_jigs_new_call_answers_renders_its_task_and_value() {
 #[test]
 fn a_job_request_is_not_a_turn() {
     assert_eq!(
-        turn(smith::Request::Job { owner: Token::new(1), act: smith::tools::JobAct::Hasten }, Box::default()).err(),
+        turn(
+            smith::Request::Lower(smith::Lower::Job { owner: Token::new(1), act: smith::tools::JobAct::Hasten }),
+            Box::default()
+        )
+        .err(),
         Some(Problem::Type(b"request"))
     );
 }

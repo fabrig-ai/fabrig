@@ -83,6 +83,7 @@ pub(super) fn backlog(service: &Stages) -> u64 {
         service.machine_events.len(),
         service.machine_below.len(),
         service.domain_events.len(),
+        service.lower_events.len(),
         service.domain_requests.len(),
         service.io_events.len(),
         service.io_requests.len(),
@@ -124,6 +125,7 @@ pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>, now: Time) -
         || (!service.pending_messages.is_empty() && pending_message_ready(service))
         || (llm_events_ready(service, frame) && !service.llm_events.is_empty())
         || !service.machine_events.is_empty()
+        || !service.lower_events.is_empty()
         || (takes && domain_entrance_ready(service, frame) && !service.domain_events.is_empty())
         || (domain_request_credit(service, frame)
             && !service.domain_requests.is_empty()
@@ -187,6 +189,7 @@ impl Stages {
                 machine_events: Queue::uncapped(),
                 machine_below: Queue::uncapped(),
                 domain_events: Queue::uncapped(),
+                lower_events: Queue::uncapped(),
                 domain_requests: Queue::uncapped(),
                 io_events: Queue::uncapped(),
                 io_requests: Queue::uncapped(),

@@ -43,8 +43,6 @@ pub fn turn(request: smith::Request, transcript: Box<[u8]>) -> Result<host::Turn
             body: transcript,
         }),
         smith::Request::Waiting { .. }
-        | smith::Request::Yield { .. }
-        | smith::Request::Job { .. }
         | smith::Request::HostCall { .. }
         | smith::Request::WithdrawHost { .. }
         | smith::Request::Admitted { .. }
@@ -53,17 +51,10 @@ pub fn turn(request: smith::Request, transcript: Box<[u8]>) -> Result<host::Turn
         | smith::Request::Long { .. }
         | smith::Request::LongDone { .. }
         | smith::Request::Deliver { .. }
-        | smith::Request::Complete { .. }
         | smith::Request::Unauthorized { .. }
         | smith::Request::Limited { .. }
         | smith::Request::Refused { .. }
-        | smith::Request::Cancel { .. }
-        | smith::Request::Io { .. }
-        | smith::Request::CancelIo { .. }
-        | smith::Request::Read { .. }
-        | smith::Request::Probe { .. }
-        | smith::Request::Check { .. }
-        | smith::Request::Abort { .. } => Err(Problem::Type(b"request")),
+        | smith::Request::Lower(..) => Err(Problem::Type(b"request")),
     }
 }
 

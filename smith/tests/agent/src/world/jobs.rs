@@ -62,7 +62,7 @@ impl<B: super::Backend> World<B> {
                 };
                 self.keep_job(owner, job);
             }
-            Err(done) => self.terminal(Family::Io, owner, Event::Done { owner, done }),
+            Err(done) => self.terminal(Family::Io, owner, Event::Below(smith_domain::Below::Done { owner, done })),
         }
         true
     }
@@ -110,7 +110,11 @@ impl<B: super::Backend> World<B> {
             job.end = Some(JobEnd::Cancelled);
         }
         match job.response {
-            Response::Yield { .. } => self.terminal(Family::Io, owner, Event::Done { owner, done: Done::Cancelled }),
+            Response::Yield { .. } => self.terminal(
+                Family::Io,
+                owner,
+                Event::Below(smith_domain::Below::Done { owner, done: Done::Cancelled }),
+            ),
             Response::Held | Response::Read { .. } => {
                 job.response = Response::Read { at: self.now };
                 self.keep_job(owner, job);
@@ -165,13 +169,13 @@ impl<B: super::Backend> World<B> {
                 if job.announced {
                     self.observe(super::Seen::JobSettled { owner });
                 }
-                self.terminal(Family::Io, owner, Event::Done { owner, done });
+                self.terminal(Family::Io, owner, Event::Below(smith_domain::Below::Done { owner, done }));
             } else {
                 if !job.announced {
                     self.observe(super::Seen::JobLive { owner });
                     job.announced = true;
                 }
-                self.stage.push(Event::Done { owner, done });
+                self.stage.push(Event::Below(smith_domain::Below::Done { owner, done }));
             }
             if job.end.is_some() {
                 return;

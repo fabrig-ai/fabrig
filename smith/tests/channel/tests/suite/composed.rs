@@ -37,7 +37,7 @@ fn the_host_start_enters_the_agent_domain_and_its_answer_returns_to_the_host_dom
                 completion_span = Some(until.saturating_since(env.now));
                 wire.agent_starts_long(agent::Operation::Completion, until.saturating_since(env.now));
             }
-            AgentRequest::Complete { owner, .. } => completion = Some(owner),
+            AgentRequest::Lower(smith_domain::Lower::Complete { owner, .. }) => completion = Some(owner),
             other => panic!("unexpected initial agent request: {other:?}"),
         }
     }
@@ -119,10 +119,10 @@ fn the_host_start_enters_the_agent_domain_and_its_answer_returns_to_the_host_dom
     assert!(domain.is_ready());
     while domain.pop_fact().is_some() {}
     agent::resume(&mut domain, &env, &mut out);
-    assert_eq!(out.pop(), Some(AgentRequest::Cancel { owner: completion }));
+    assert_eq!(out.pop(), Some(AgentRequest::Lower(smith_domain::Lower::Cancel { owner: completion })));
     assert!(out.pop().is_none());
     while domain.pop_fact().is_some() {}
-    agent::step(&mut domain, &env, AgentEvent::Cancelled { owner: completion }, &mut out);
+    agent::step(&mut domain, &env, AgentEvent::Below(smith_domain::Below::Cancelled { owner: completion }), &mut out);
     assert_eq!(out.pop(), Some(AgentRequest::LongDone { host_run: Token::new(7) }));
     wire.agent_ends_long();
     wire.settle();
@@ -275,7 +275,7 @@ fn carried_start_messages_cross_the_wire_in_order_and_an_overfull_start_is_refus
             let prompt = requests
                 .iter()
                 .find_map(|request| match request {
-                    AgentRequest::Complete { prompt, .. } => Some(prompt),
+                    AgentRequest::Lower(smith_domain::Lower::Complete { prompt, .. }) => Some(prompt),
                     _ => None,
                 })
                 .expect("one real provider request");
@@ -404,7 +404,10 @@ fn an_empty_start_waits_without_a_fence_and_the_first_wire_message_opens_main() 
     let Some(AgentRequest::Long { operation: agent::Operation::Completion, .. }) = out.pop() else {
         panic!("first wire work announces observed provider issuance");
     };
-    assert!(matches!(out.pop(), Some(AgentRequest::Complete { .. })), "first wire work opens the provider");
+    assert!(
+        matches!(out.pop(), Some(AgentRequest::Lower(smith_domain::Lower::Complete { .. }))),
+        "first wire work opens the provider"
+    );
     assert!(out.pop().is_none());
 }
 
@@ -494,7 +497,13 @@ fn account_notices_reach_the_host_domain_without_values() {
         agent::step(
             &mut domain,
             &env,
-            AgentEvent::Failed { owner, failure, evidence: agent::llm::Evidence::Unknown, detail, report },
+            AgentEvent::Below(smith_domain::Below::Failed {
+                owner,
+                failure,
+                evidence: agent::llm::Evidence::Unknown,
+                detail,
+                report,
+            }),
             &mut out,
         );
         while let Some(request) = out.pop() {
@@ -512,7 +521,7 @@ fn admit_composed(wire: &mut World, host_world: &mut smith_host_world::World, ou
     while let Some(request) = out.pop() {
         if matches!(request, AgentRequest::Admitted { .. }) {
             wire.agent_admits();
-        } else if let AgentRequest::Complete { owner: issued, .. } = request {
+        } else if let AgentRequest::Lower(smith_domain::Lower::Complete { owner: issued, .. }) = request {
             owner = Some(issued);
         } else if !matches!(request, AgentRequest::Long { .. }) {
             panic!("unexpected initial request: {request:?}");

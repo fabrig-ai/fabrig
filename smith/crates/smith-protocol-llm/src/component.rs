@@ -695,11 +695,15 @@ impl Component {
 
     fn domain_event(event: DomainEvent, to_domain: &mut Queue<ToDomain>) {
         match event {
-            DomainEvent::Completed { owner, completion } => to_domain.push(ToDomain::Completed { owner, completion }),
-            DomainEvent::Failed { owner, failure, evidence, detail, report } => {
+            DomainEvent::Below(smith_domain::Below::Completed { owner, completion }) => {
+                to_domain.push(ToDomain::Completed { owner, completion })
+            }
+            DomainEvent::Below(smith_domain::Below::Failed { owner, failure, evidence, detail, report }) => {
                 to_domain.push(ToDomain::Failed { owner, failure, evidence, detail, report });
             }
-            DomainEvent::Cancelled { owner } => to_domain.push(ToDomain::Cancelled { owner }),
+            DomainEvent::Below(smith_domain::Below::Cancelled { owner }) => {
+                to_domain.push(ToDomain::Cancelled { owner })
+            }
             DomainEvent::HostReturned { .. }
             | DomainEvent::Start { .. }
             | DomainEvent::Message { .. }
@@ -707,13 +711,15 @@ impl Component {
             | DomainEvent::Grant { .. }
             | DomainEvent::Cancel { .. }
             | DomainEvent::Delivered { .. }
-            | DomainEvent::Done { .. }
-            | DomainEvent::Read { .. }
-            | DomainEvent::Probed { .. }
-            | DomainEvent::Checked { .. }
-            | DomainEvent::BuiltinResult { .. }
-            | DomainEvent::ReadVersion { .. }
-            | DomainEvent::Aborted { .. } => unreachable!("translation returns only LLM terminals"),
+            | DomainEvent::Below(smith_domain::Below::Done { .. })
+            | DomainEvent::Below(smith_domain::Below::Read { .. })
+            | DomainEvent::Below(smith_domain::Below::Probed { .. })
+            | DomainEvent::Below(smith_domain::Below::Checked { .. })
+            | DomainEvent::Below(smith_domain::Below::BuiltinResult { .. })
+            | DomainEvent::Below(smith_domain::Below::ReadVersion { .. })
+            | DomainEvent::Below(smith_domain::Below::Aborted { .. }) => {
+                unreachable!("translation returns only LLM terminals")
+            }
         }
     }
 

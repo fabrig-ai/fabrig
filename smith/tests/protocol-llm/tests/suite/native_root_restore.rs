@@ -453,11 +453,12 @@ fn settled(world: &World, settings: &Settings) {
         );
         assert!(binding.retired.is_some(), "observed lower Closed permits physical retirement");
     }
-    let read = world.trace().iter().position(|line| line.contains("agent -> Read {")).expect("original discovery");
+    let read =
+        world.trace().iter().position(|line| line.contains("agent -> Lower(Read {")).expect("original discovery");
     let returned =
-        world.trace().iter().position(|line| line.contains("agent <- Read {")).expect("observed guide terminal");
+        world.trace().iter().position(|line| line.contains("agent <- Below(Read {")).expect("observed guide terminal");
     let complete =
-        world.trace().iter().position(|line| line.contains("agent -> Complete {")).expect("observed Complete");
+        world.trace().iter().position(|line| line.contains("agent -> Lower(Complete {")).expect("observed Complete");
     assert!(read < returned && returned < complete);
     assert!(
         world.prompts()[0]

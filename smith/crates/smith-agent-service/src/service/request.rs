@@ -13,7 +13,7 @@ use smith_protocol_machine as machine;
 #[expect(clippy::too_many_lines, reason = "one exhaustive root-domain request translation")]
 pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>, request: domain::Request) {
     match request {
-        domain::Request::Complete {
+        domain::Request::Lower(smith_domain::Lower::Complete {
             owner,
             name,
             grant,
@@ -23,7 +23,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
             max_completion_blocks,
             max_failure_bytes,
             decoded_call_bytes,
-        } => {
+        }) => {
             let observation = match &mut service.events {
                 Some(events) => events.request(service.domain_env.now, owner, &prompt),
                 None => None,
@@ -52,13 +52,13 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
             };
             program::complete(service, request);
         }
-        domain::Request::Yield { owner } => {
+        domain::Request::Lower(smith_domain::Lower::Yield { owner }) => {
             program::complete(service, llm::FromDomain::Yield { owner });
         }
-        domain::Request::Cancel { owner } => {
+        domain::Request::Lower(smith_domain::Lower::Cancel { owner }) => {
             program::complete(service, llm::FromDomain::Cancel { owner });
         }
-        domain::Request::Io { owner, op, deadline } => {
+        domain::Request::Lower(smith_domain::Lower::Io { owner, op, deadline }) => {
             service.machine.from_domain(
                 &service.machine_env,
                 machine::FromDomain::Op { owner, op, deadline },
@@ -66,7 +66,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 &mut service.machine_below,
             );
         }
-        domain::Request::Job { owner, act } => {
+        domain::Request::Lower(smith_domain::Lower::Job { owner, act }) => {
             service.machine.from_domain(
                 &service.machine_env,
                 machine::FromDomain::Job { owner, act },
@@ -74,7 +74,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 &mut service.machine_below,
             );
         }
-        domain::Request::CancelIo { owner } => {
+        domain::Request::Lower(smith_domain::Lower::CancelIo { owner }) => {
             service.machine.from_domain(
                 &service.machine_env,
                 machine::FromDomain::Cancel { owner },
@@ -82,7 +82,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 &mut service.machine_below,
             );
         }
-        domain::Request::Read { owner, at, max, deadline } => {
+        domain::Request::Lower(smith_domain::Lower::Read { owner, at, max, deadline }) => {
             service.machine.from_domain(
                 &service.machine_env,
                 machine::FromDomain::Read { owner, at, max, deadline },
@@ -90,7 +90,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 &mut service.machine_below,
             );
         }
-        domain::Request::Probe { owner, at, deadline } => {
+        domain::Request::Lower(smith_domain::Lower::Probe { owner, at, deadline }) => {
             service.machine.from_domain(
                 &service.machine_env,
                 machine::FromDomain::Probe { owner, at, deadline },
@@ -98,7 +98,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 &mut service.machine_below,
             );
         }
-        domain::Request::Check { owner, program, deadline, tail } => {
+        domain::Request::Lower(smith_domain::Lower::Check { owner, program, deadline, tail }) => {
             service.machine.from_domain(
                 &service.machine_env,
                 machine::FromDomain::Check { owner, program, deadline, tail },
@@ -106,7 +106,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 &mut service.machine_below,
             );
         }
-        domain::Request::Abort { owner } => {
+        domain::Request::Lower(smith_domain::Lower::Abort { owner }) => {
             service.machine.from_domain(
                 &service.machine_env,
                 machine::FromDomain::Abort { owner },
@@ -354,15 +354,17 @@ fn framed_request(service: &mut Stages, frame: &mut Frame, request: domain::Requ
                 service.mark_failed(Failure::Send);
             }
         }
-        domain::Request::Complete { .. }
-        | domain::Request::Yield { .. }
-        | domain::Request::Cancel { .. }
-        | domain::Request::Io { .. }
-        | domain::Request::Job { .. }
-        | domain::Request::CancelIo { .. }
-        | domain::Request::Read { .. }
-        | domain::Request::Probe { .. }
-        | domain::Request::Check { .. }
-        | domain::Request::Abort { .. } => unreachable!("lower requests are dispatched before the framed face"),
+        domain::Request::Lower(smith_domain::Lower::Complete { .. })
+        | domain::Request::Lower(smith_domain::Lower::Yield { .. })
+        | domain::Request::Lower(smith_domain::Lower::Cancel { .. })
+        | domain::Request::Lower(smith_domain::Lower::Io { .. })
+        | domain::Request::Lower(smith_domain::Lower::Job { .. })
+        | domain::Request::Lower(smith_domain::Lower::CancelIo { .. })
+        | domain::Request::Lower(smith_domain::Lower::Read { .. })
+        | domain::Request::Lower(smith_domain::Lower::Probe { .. })
+        | domain::Request::Lower(smith_domain::Lower::Check { .. })
+        | domain::Request::Lower(smith_domain::Lower::Abort { .. }) => {
+            unreachable!("lower requests are dispatched before the framed face")
+        }
     }
 }

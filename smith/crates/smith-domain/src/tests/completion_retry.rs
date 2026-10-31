@@ -5,7 +5,7 @@ use super::*;
 use crate::llm::{CompletionName, Evidence, Failure};
 
 pub(super) fn named(emitted: Box<[Request]>) -> (Token, Prompt, CompletionName) {
-    let [Request::Complete { owner, name, .. }] = &*emitted else {
+    let [Request::Lower(crate::Lower::Complete { owner, name, .. })] = &*emitted else {
         panic!("expected one completion, got {emitted:?}");
     };
     let name = *name;
@@ -18,13 +18,13 @@ pub(super) fn named(emitted: Box<[Request]>) -> (Token, Prompt, CompletionName) 
 fn retry(harness: &mut Harness, owner: Token) -> CompletionName {
     assert!(
         harness
-            .step(Event::Failed {
+            .step(Event::Below(crate::Below::Failed {
                 owner,
                 failure: Failure::Unavailable,
                 evidence: Evidence::Unknown,
                 detail: bytes(b"failed provider"),
                 report: crate::llm::Report::none(),
-            })
+            }))
             .is_empty()
     );
     harness.env.now = harness.domain.next_deadline().expect("transient backoff");
@@ -109,10 +109,10 @@ fn empty_text_and_a_completion_without_text_retain_their_retry_identity() {
         let mut harness = Harness::new();
         let (_, owner, _, _) = harness.admit_named(7, charter());
         let name = retry(&mut harness, owner);
-        drop(harness.step(Event::Completed {
+        drop(harness.step(Event::Below(crate::Below::Completed {
             owner,
             completion: Completion { content, stop: Stop::EndTurn, usage: USAGE, reasoning_dropped: Box::default() },
-        }));
+        })));
         if has_text {
             assert_eq!(
                 harness.domain.pop_content(),
@@ -161,13 +161,13 @@ fn retry_exhaustion_ends_the_run_without_another_start_or_content() {
     let mut harness = Harness::new();
     let (_, owner, _, _) = harness.admit_named(7, charter());
     assert_eq!(retry(&mut harness, owner).retry, LIMITS.session.retries);
-    let emitted = harness.step(Event::Failed {
+    let emitted = harness.step(Event::Below(crate::Below::Failed {
         owner,
         failure: Failure::Unavailable,
         evidence: Evidence::Unknown,
         detail: bytes(b"failed again"),
         report: crate::llm::Report::none(),
-    });
+    }));
     let [Request::Answer { answer: run::Answer::Failed { .. }, .. }] = &*emitted else {
         panic!("retry exhaustion ends the run, got {emitted:?}");
     };
@@ -197,7 +197,7 @@ fn a_completion_winning_its_cancel_keeps_the_issued_retry_name() {
     let (run, owner, _, _) = harness.admit_named(7, charter());
     let name = retry(&mut harness, owner);
     assert!(harness.step(Event::Cancel { run }).is_empty());
-    assert_eq!(&*harness.next(), &[Request::Cancel { owner }]);
+    assert_eq!(&*harness.next(), &[Request::Lower(crate::Lower::Cancel { owner })]);
     let ended = harness.says(owner, b"received after cancel");
     let [Request::Answer { .. }] = &*ended else {
         panic!("the cancelled run ends after the provider terminal, got {ended:?}");
@@ -240,7 +240,7 @@ fn a_restored_prefix_names_the_next_source_sequence_without_changing_the_retry()
         charter: Charter { resume: true, ..charter() },
         transcript: Some(transcript),
     });
-    let [Request::Admitted { .. }, Request::Complete { owner, name, .. }] = &*emitted else {
+    let [Request::Admitted { .. }, Request::Lower(crate::Lower::Complete { owner, name, .. })] = &*emitted else {
         panic!("restored main completion, got {emitted:?}");
     };
     assert_eq!(*name, CompletionName { sequence, retry: 0 });
@@ -260,13 +260,13 @@ fn account_failure(
     charter.llm.account = account;
     let (_, owner, _) = harness.admit(7, charter);
     harness.env.now = now;
-    let emitted = harness.step(Event::Failed {
+    let emitted = harness.step(Event::Below(crate::Below::Failed {
         owner,
         failure,
         report,
         evidence: Evidence::Response { status: Some(403) },
         detail: bytes(b"provider reason"),
-    });
+    }));
     harness.env.now = later;
     let notices = account_notices(&emitted).len();
     for request in &*emitted {

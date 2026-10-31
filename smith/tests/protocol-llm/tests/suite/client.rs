@@ -82,7 +82,12 @@ fn run_wire(prompt: llm::Prompt, configuration: &Configuration, owner: u64) -> (
     let [terminal] = terminals.as_slice() else {
         panic!("one observed translated terminal");
     };
-    assert!(matches!(terminal, Event::Completed { .. } | Event::Failed { .. } | Event::Cancelled { .. }));
+    assert!(matches!(
+        terminal,
+        Event::Below(smith_domain::Below::Completed { .. })
+            | Event::Below(smith_domain::Below::Failed { .. })
+            | Event::Below(smith_domain::Below::Cancelled { .. })
+    ));
     let terminal = terminals.pop().expect("one observed terminal");
     assert_eq!(wire.peer.machine.waiting(), skein_llm::client::Waiting::Idle);
     assert!(wire.observed.contains(&Observed::Reusable));
@@ -139,7 +144,7 @@ fn conveys(configuration: &Configuration, error: bool) {
         skein_llm::Json::from_bytes(SCHEMA, &limits().client.native().request_document())
             .expect("independent complete expected schema")
     );
-    let Event::Completed { owner, completion } = terminal else {
+    let Event::Below(smith_domain::Below::Completed { owner, completion }) = terminal else {
         panic!("observed host call completion");
     };
     assert_eq!(owner, Token::new(17));
@@ -210,7 +215,7 @@ fn conveys(configuration: &Configuration, error: bool) {
         "rewritten feedback cannot satisfy outside evidence"
     );
     corrupted_arguments(query, id, &configuration.continuation_arguments, &expected_text, expected_error);
-    let Event::Completed { owner, completion } = terminal else {
+    let Event::Below(smith_domain::Below::Completed { owner, completion }) = terminal else {
         panic!("observed normal continuation");
     };
     assert_eq!(owner, Token::new(18));
@@ -350,7 +355,7 @@ fn restored_result_metadata_has_explicit_unsupported_refusal_before_start() {
         assert!(positive.peer.queries.is_empty());
         assert!(positive.close().is_empty());
         let observed = positive.settle();
-        let [Event::Cancelled { owner }] = observed.as_slice() else {
+        let [Event::Below(smith_domain::Below::Cancelled { owner })] = observed.as_slice() else {
             panic!("observed accepted prepared Client closes once");
         };
         assert_eq!(*owner, Token::new(19));
@@ -469,8 +474,9 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
         input: b"{}".as_slice().into(),
         call: llm::Decoded::Invalid { problem: llm::Problem::Missing { field: vec![b'x'; 4096].into() } },
     }]);
-    let Event::Completed { completion, .. } = adapter::completion(context, owner, observed_completion, resolved)
-        .expect("fallback wrappers stay in the secured aggregate before later host decoding")
+    let Event::Below(smith_domain::Below::Completed { completion, .. }) =
+        adapter::completion(context, owner, observed_completion, resolved)
+            .expect("fallback wrappers stay in the secured aggregate before later host decoding")
     else {
         panic!("translated observed completion");
     };
@@ -552,7 +558,7 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
                 break;
             }
         }
-        let [Event::Completed { completion, .. }] = returned.as_slice() else {
+        let [Event::Below(smith_domain::Below::Completed { completion, .. })] = returned.as_slice() else {
             panic!("one observed unknown call completion");
         };
         let [llm::Said::ToolCall { name, input, call, .. }] = completion.content.as_ref() else {
@@ -577,7 +583,7 @@ fn observed_requests_render_the_run_key_and_thread_only_for_codex() {
             let mut prompt = prompt();
             prompt.affinity = llm::Affinity { key: [0x42; 16], thread };
             let (wire, terminal) = run_wire(prompt, &configuration, 200 + u64::from(thread));
-            assert!(matches!(terminal, Event::Completed { .. }));
+            assert!(matches!(terminal, Event::Below(smith_domain::Below::Completed { .. })));
             let request = smith_protocol_llm_world::referee::NativeRequest::from_http(&wire.peer.requests);
             match configuration.endpoint.provider {
                 skein_llm::Provider::OpenAi => panic!("fixture exercises the withdrawn routes"),

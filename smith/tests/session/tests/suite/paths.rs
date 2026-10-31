@@ -6,7 +6,7 @@ use smith_session_world::bytes;
 use skein_fake_llm_domain::api::Part as ProviderPart;
 use skein_lib::Token;
 use smith_domain_session::{Event, llm};
-use smith_domain_tools::{Authority, Call, Done, Grants, Name, Part, Path, Directory};
+use smith_domain_tools::{Authority, Call, Directory, Done, Grants, Name, Part, Path};
 use smith_session_world::{recorded, tickets::Tickets, translate};
 
 #[test]

@@ -19,13 +19,15 @@ fn running(harness: &mut Harness) -> (Token, Token, Token) {
             },
         )]),
     );
-    let [Request::Io { owner, .. }] = emitted.as_ref() else { panic!("shell starts: {emitted:?}") };
+    let [Request::Lower(crate::Lower::Io { owner, .. })] = emitted.as_ref() else {
+        panic!("shell starts: {emitted:?}")
+    };
     let command = *owner;
-    let emitted = harness.step(Event::Done {
+    let emitted = harness.step(Event::Below(crate::Below::Done {
         owner: command,
         done: tools::Done::Held { head: Box::default(), tail: Box::default(), dropped: 0 },
-    });
-    let [Request::Complete { owner, .. }] = emitted.as_ref() else {
+    }));
+    let [Request::Lower(crate::Lower::Complete { owner, .. })] = emitted.as_ref() else {
         panic!("session completes beside job: {emitted:?}")
     };
     (run, command, *owner)
@@ -46,13 +48,13 @@ fn read_to_end(harness: &mut Harness, command: Token, completing: Token) {
     );
     assert_eq!(
         emitted.as_ref(),
-        &[Request::Job {
+        &[Request::Lower(crate::Lower::Job {
             owner: command,
             act: tools::JobAct::Read { head: 64, tail: 64, wait: Duration::from_secs(7) }
-        }]
+        })]
     );
     assert_eq!(harness.domain.commands.len(), 1, "the reading call owns its span");
-    harness.step(Event::Done {
+    harness.step(Event::Below(crate::Below::Done {
         owner: command,
         done: tools::Done::Job {
             head: Box::default(),
@@ -60,14 +62,16 @@ fn read_to_end(harness: &mut Harness, command: Token, completing: Token) {
             dropped: 0,
             end: tools::JobEnd::Ended(tools::Exit::Code { code: 0 }),
         },
-    });
+    }));
 }
 
 fn close(harness: &mut Harness, run: Token) {
     harness.step(Event::Cancel { run });
     let emitted = harness.next();
-    let [Request::Cancel { owner }] = emitted.as_ref() else { panic!("provider cancellation: {emitted:?}") };
-    harness.step(Event::Cancelled { owner: *owner });
+    let [Request::Lower(crate::Lower::Cancel { owner })] = emitted.as_ref() else {
+        panic!("provider cancellation: {emitted:?}")
+    };
+    harness.step(Event::Below(crate::Below::Cancelled { owner: *owner }));
 }
 
 #[test]

@@ -89,37 +89,13 @@ impl Effects {
     }
 
     /// Queue one effect emitted by the host's in-process agent domain.
-    pub fn request(&mut self, request: domain::Request) {
-        match request {
-            request @ (domain::Request::Complete { .. }
-            | domain::Request::Cancel { .. }
-            | domain::Request::Yield { .. }
-            | domain::Request::Io { .. }
-            | domain::Request::Job { .. }
-            | domain::Request::CancelIo { .. }
-            | domain::Request::Read { .. }
-            | domain::Request::Probe { .. }
-            | domain::Request::Check { .. }
-            | domain::Request::Abort { .. }) => self.stages.domain_requests.push(request),
-            domain::Request::MessageRefused { .. }
-            | domain::Request::Waiting { .. }
-            | domain::Request::Turn { .. }
-            | domain::Request::HostCall { .. }
-            | domain::Request::WithdrawHost { .. }
-            | domain::Request::Admitted { .. }
-            | domain::Request::Answer { .. }
-            | domain::Request::Long { .. }
-            | domain::Request::LongDone { .. }
-            | domain::Request::Deliver { .. }
-            | domain::Request::Unauthorized { .. }
-            | domain::Request::Refused { .. }
-            | domain::Request::Limited { .. } => unreachable!("local domain owns host requests"),
-        }
+    pub fn request(&mut self, request: domain::Lower) {
+        self.stages.domain_requests.push(domain::Request::Lower(request));
     }
 
     /// Take one typed LLM or machine terminal for the host's domain.
-    pub fn event(&mut self) -> Option<domain::Event> {
-        self.stages.domain_events.pop()
+    pub fn event(&mut self) -> Option<domain::Below> {
+        self.stages.lower_events.pop()
     }
 
     /// Advance the same lower stages used by a framed agent at injected clocks.

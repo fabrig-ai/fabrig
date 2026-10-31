@@ -1411,6 +1411,7 @@ impl World {
     )]
     fn agent_request(&mut self, request: Lower) {
         match request {
+            Lower::Yield { .. } => {}
             Lower::Complete { owner, prompt, .. } => {
                 self.observe(Seen::Complete { owner });
                 self.completions += 1;

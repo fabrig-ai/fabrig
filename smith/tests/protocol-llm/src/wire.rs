@@ -539,7 +539,7 @@ fn resolutions(context: &Context, completion: &shared::Completion) -> Box<[Resol
 
 impl smith_agent_world::backend::Backend for Composition {
     fn start(&mut self, request: smith_domain::Request, now: Time, wall: Wall) -> Vec<provider::api::Query> {
-        let smith_domain::Request::Complete {
+        let smith_domain::Request::Lower(smith_domain::Lower::Complete {
             owner,
             prompt,
             max_completion_bytes,
@@ -547,7 +547,7 @@ impl smith_agent_world::backend::Backend for Composition {
             max_failure_bytes,
             decoded_call_bytes,
             ..
-        } = request
+        }) = request
         else {
             panic!("wire accepts Complete")
         };

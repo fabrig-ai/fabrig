@@ -91,7 +91,7 @@ pub fn completion(
         cache_write_tokens: cache_write,
         reasoning_tokens: reasoning,
     };
-    Ok(Event::Completed {
+    Ok(Event::Below(smith_domain::Below::Completed {
         owner: context.owner,
         completion: llm::Completion {
             reasoning_dropped: reasoning_dropped.into_boxed(),
@@ -99,7 +99,7 @@ pub fn completion(
             stop,
             usage,
         },
-    })
+    }))
 }
 
 fn validate_resolved(resolved: &[ResolvedCall]) -> Result<(), Error> {
