@@ -33,6 +33,7 @@ mod start;
 mod stop;
 mod stream;
 mod tail;
+mod transport;
 mod turns;
 
 #[cfg(test)]

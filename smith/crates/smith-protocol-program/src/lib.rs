@@ -1,7 +1,7 @@
-//! Program source commands (protocol/programs.md, sections 3, 4.1 and 4.2).
-//! Keeps a command's bounded output, deadline and child/pipe ownership; knows
-//! no login contents or host policy. `configuration_directory`, `environment`
-//! and `status` build and read source records; `Command` drives their children.
+//! Lazy program conversations and source commands (protocol/programs.md, 3–5, 9).
+//! `backend::Backend` owns startup files, MCP calls, program pipes and turns;
+//! `Command` settles source commands, and `relay` bridges authenticated MCP IO.
+//! Login contents and host policy stay outside this crate.
 #![no_std]
 #![forbid(unsafe_code)]
 

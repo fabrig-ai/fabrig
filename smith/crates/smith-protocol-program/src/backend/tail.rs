@@ -19,17 +19,6 @@ pub(super) struct Rendered {
     pub text: Option<Box<[u8]>>,
 }
 
-#[cfg(test)]
-pub(super) fn render(
-    prompt: &mut llm::Prompt,
-    ledger: &List<calls::Call>,
-    limits: &protocol::Limits,
-    maximum: u32,
-) -> Option<Box<[u8]>> {
-    let Rendered { line, .. } = render_observed(prompt, ledger, limits, maximum, b"", false)?;
-    Some(line)
-}
-
 #[expect(clippy::manual_map, reason = "the protocol subset matches Option without callbacks")]
 pub(super) fn render_observed(
     prompt: &mut llm::Prompt,
@@ -209,4 +198,15 @@ impl Output {
         }
         Some(())
     }
+}
+
+#[cfg(test)]
+pub(super) fn render(
+    prompt: &mut llm::Prompt,
+    ledger: &List<calls::Call>,
+    limits: &protocol::Limits,
+    maximum: u32,
+) -> Option<Box<[u8]>> {
+    let Rendered { line, .. } = render_observed(prompt, ledger, limits, maximum, b"", false)?;
+    Some(line)
 }
