@@ -177,6 +177,7 @@ pub struct Neighbours {
     pub children: Vec<u64>,
     pub initial_assignments: usize,
     pub pending_proposal: Option<u64>,
+    narrow_reply: Option<people::Reply>,
     pub saved_deadline: Option<Wall>,
     fault: negative::Fault,
     routes: Vec<jig_conformance::referee::Observed>,
@@ -361,6 +362,7 @@ impl Application for Testing {
             children: Vec::new(),
             initial_assignments: 0,
             pending_proposal: None,
+            narrow_reply: None,
             saved_deadline: None,
             fault: config.fault,
             routes: Vec::new(),
@@ -590,6 +592,9 @@ impl Application for Testing {
                 Vec::new()
             }
             root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
+                if to == skein_lib::ReplyTo::new(skein_lib::Token::new(scenarios::NARROW_REPLY)) {
+                    peers.narrow_reply = Some(reply.clone());
+                }
                 peers.answers += 1;
                 peers.peers.reply(to, &reply);
                 Vec::new()

@@ -29,6 +29,7 @@ fn authority(world: &World) -> tasks::Authority {
 }
 
 const PARTY_REPLY_BASE: u64 = 6000;
+pub(crate) const NARROW_REPLY: u64 = PARTY_REPLY_BASE + 43;
 
 fn ask(world: &mut World, key: u8, ask: people::Ask) {
     world.send(root::Event::Core(core::Event::People(people::Event::Ask {
@@ -571,6 +572,22 @@ impl Continuation {
                     }
                     return Ok(false);
                 }
+                Action::AcceptProposal => {
+                    if self.phase == 0
+                        && matches!(world.peers.narrow_reply, None | Some(people::Reply::Again(people::Again::NotReady)))
+                    {
+                        atomic(world, Action::NarrowPolicy)?;
+                        self.phase = 1;
+                        return Ok(true);
+                    }
+                    check(
+                        world.peers.narrow_reply
+                            == Some(people::Reply::Outcome(people::Outcome::PolicyChanged { project: 1 })),
+                        "the policy edit must finish before its proposal is decided",
+                    )?;
+                    atomic(world, self.action)?;
+                    return Ok(false);
+                }
                 Action::Late
                 | Action::Effect(_)
                 | Action::DeliverLate
@@ -580,8 +597,7 @@ impl Continuation {
                 | Action::CheckDeadline
                 | Action::ChangeJudge
                 | Action::ShrinkPool
-                | Action::NarrowPolicy
-                | Action::AcceptProposal => {
+                | Action::NarrowPolicy => {
                     atomic(world, self.action)?;
                     return Ok(false);
                 }

@@ -273,9 +273,9 @@ pub struct Observer {
     proposals: BTreeMap<u64, (u16, connector::Effect)>,
     accepted: BTreeMap<(u16, connector::Key), r::Source>,
     settled_calls: BTreeSet<(u64, u64, u64)>,
-    // Durable fresh marks fence these attempts: their traffic is acknowledged
-    // and discarded without a turn or terminal row (engine.md, 7.2 and 8).
-    crossed: BTreeSet<(u64, u64)>,
+    // Fresh marks and delivered cancels fence attempts: subsequent traffic is
+    // discarded without a turn or terminal row (engine.md, 7.2; hosts.md, 6.1).
+    fenced: BTreeSet<(u64, u64)>,
     words: BTreeSet<(u64, u64)>,
     policy_changes: BTreeMap<(u64, [u8; 16]), (u32, people::PolicyChange)>,
     applied_changes: BTreeSet<(u64, [u8; 16])>,
@@ -382,7 +382,7 @@ impl Observer {
             proposals: BTreeMap::new(),
             accepted: BTreeMap::new(),
             settled_calls: BTreeSet::new(),
-            crossed: BTreeSet::new(),
+            fenced: BTreeSet::new(),
             words: BTreeSet::new(),
             policy_changes: BTreeMap::new(),
             applied_changes: BTreeSet::new(),
@@ -616,7 +616,7 @@ impl Observer {
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
                     if value.crossed {
-                        self.crossed.insert((value.task, value.attempt));
+                        self.fenced.insert((value.task, value.attempt));
                     }
                     Some(r::Receipt::Claim(value.task, value.attempt))
                 }
@@ -913,7 +913,7 @@ impl Observer {
                 root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
                     snapshot.receipts.insert(r::Receipt::Claim(value.task, value.attempt));
                     if value.crossed {
-                        self.crossed.insert((value.task, value.attempt));
+                        self.fenced.insert((value.task, value.attempt));
                     }
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::Turn(value))) => {
@@ -1099,8 +1099,11 @@ impl Observer {
                     self.observe(now, r::Observed::Reached(r::Receipt::Word(assignment.task, word.number)));
                 }
             }
+            root::Delivery::Core(core::Held::Cancel { run, attempt, .. }) => {
+                self.fenced.insert((run.raw(), attempt.raw()));
+            }
             root::Delivery::Core(core::Held::AcknowledgeTurn { run, attempt, turn, .. }) => {
-                let receipt = if self.crossed.contains(&(run.raw(), attempt.raw())) {
+                let receipt = if self.fenced.contains(&(run.raw(), attempt.raw())) {
                     r::Receipt::Claim(run.raw(), attempt.raw())
                 } else {
                     r::Receipt::Turn(run.raw(), attempt.raw(), *turn)
@@ -1108,7 +1111,7 @@ impl Observer {
                 requires.push(receipt);
             }
             root::Delivery::Core(core::Held::Acknowledge { run, attempt, .. }) => {
-                let receipt = if self.crossed.contains(&(run.raw(), attempt.raw())) {
+                let receipt = if self.fenced.contains(&(run.raw(), attempt.raw())) {
                     r::Receipt::Claim(run.raw(), attempt.raw())
                 } else {
                     r::Receipt::Terminal(run.raw(), attempt.raw())
