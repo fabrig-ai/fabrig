@@ -236,12 +236,6 @@ impl skein_world::Referee<Script> for AllocatingJudge {
     fn observe(&mut self, _now: skein_lib::Time, _procs: &[Script]) {
         self.storage.resize(self.bytes * 2, 1);
     }
-    fn next_deadline(&self) -> Option<skein_lib::Time> {
-        None
-    }
-    fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }

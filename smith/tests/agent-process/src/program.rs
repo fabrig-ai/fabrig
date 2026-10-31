@@ -441,14 +441,8 @@ impl Referee<Proc> for Judge {
     fn next_deadline(&self) -> Option<Time> {
         self.cancel.or(self.waiting.deadline())
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         self.cancel.is_none() && self.waiting.passed() && (!self.wait_for_exit || self.ended)
-    }
-    fn last_word(&self) -> skein_world::LastWord {
-        skein_world::LastWord::LastExpectation
     }
 }
 

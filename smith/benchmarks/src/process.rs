@@ -546,9 +546,6 @@ impl Referee<Process> for Policy {
     fn next_deadline(&self) -> Option<Time> {
         self.deadline
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         self.settled
     }

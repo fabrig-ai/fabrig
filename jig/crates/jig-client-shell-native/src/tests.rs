@@ -325,7 +325,6 @@ impl skein_world::Machine for DiskMachine {
 }
 struct DiskJudge;
 impl skein_world::Referee<Disk> for DiskJudge {
-    fn act(&mut self, _now: Time, _procs: &mut [Disk]) {}
     fn observe(&mut self, _now: Time, _procs: &[Disk]) {}
     fn next_deadline(&self) -> Option<Time> {
         Some(Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1)))

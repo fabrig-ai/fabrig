@@ -150,18 +150,12 @@ impl skein_world::Referee<Proc> for Judge {
         }
         self.done = outcome.acknowledgements == 1;
     }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
     fn overdue(&self, now: Time) -> Option<String> {
         (now > Time::ZERO.saturating_add(Duration::from_secs(45)))
             .then(|| format!("worker order settles: {:?}; {}", self.outcome.borrow(), world::diagnostics(&[])))
     }
     fn passed(&self) -> bool {
         self.done
-    }
-    fn last_word(&self) -> skein_world::LastWord {
-        skein_world::LastWord::LastExpectation
     }
 }
 

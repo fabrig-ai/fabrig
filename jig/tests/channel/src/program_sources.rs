@@ -148,17 +148,11 @@ impl skein_world::Referee<Proc> for Judge {
     }
 
     fn observe(&mut self, _now: Time, _procs: &[Proc]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
     fn overdue(&self, now: Time) -> Option<String> {
         (now > Time::ZERO.saturating_add(Duration::from_secs(30))).then(|| "source exchange settles".into())
     }
     fn passed(&self) -> bool {
         self.phase == Phase::Done
-    }
-    fn last_word(&self) -> skein_world::LastWord {
-        skein_world::LastWord::LastExpectation
     }
 }
 impl Judge {

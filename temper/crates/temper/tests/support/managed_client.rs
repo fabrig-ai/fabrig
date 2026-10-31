@@ -72,9 +72,6 @@ impl Referee<NativeClient> for Person {
     fn next_deadline(&self) -> Option<Time> {
         if self.finished { None } else { [self.until.until(), self.wake, self.retry].into_iter().flatten().min() }
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         self.finished
     }

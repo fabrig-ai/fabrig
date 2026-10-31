@@ -1403,12 +1403,6 @@ mod read_condition_tests {
         fn observe(&mut self, _now: Time, procs: &[Process]) {
             self.settled = procs.iter().all(Host::is_empty);
         }
-        fn next_deadline(&self) -> Option<Time> {
-            None
-        }
-        fn overdue(&self, _now: Time) -> Option<String> {
-            None
-        }
         fn passed(&self) -> bool {
             self.settled
         }

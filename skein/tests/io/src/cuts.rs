@@ -319,12 +319,6 @@ impl Referee<Owner> for Judge {
             }
         }
     }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }

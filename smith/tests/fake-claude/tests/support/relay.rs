@@ -392,7 +392,6 @@ struct Judge {
 }
 
 impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
     fn observe(&mut self, _now: Time, procs: &[Process]) {
         if procs.get(1).is_some_and(|process| process.exit().is_some()) {
             assert_eq!(
@@ -407,17 +406,8 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
-    }
-    fn last_word(&self) -> skein_world::LastWord {
-        skein_world::LastWord::LastExpectation
     }
 }
 

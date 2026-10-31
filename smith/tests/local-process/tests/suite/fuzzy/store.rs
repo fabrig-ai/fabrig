@@ -192,7 +192,6 @@ struct Judge {
     refused: bool,
 }
 impl Referee<Owner> for Judge {
-    fn act(&mut self, _: Time, _: &mut [Owner]) {}
     fn observe(&mut self, _: Time, owners: &[Owner]) {
         self.refused |= owners[0].refusal.is_some();
         if let Some(activation) = owners[0].reserved {
@@ -204,12 +203,6 @@ impl Referee<Owner> for Judge {
         } else {
             self.reserved = false;
         }
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         !self.activations.is_empty() || self.refused

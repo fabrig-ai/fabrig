@@ -19,14 +19,7 @@ const DESCRIPTORS: &str = "/dev/fd";
 struct Quiet;
 
 impl<P> Referee<P> for Quiet {
-    fn act(&mut self, _now: Time, _procs: &mut [P]) {}
     fn observe(&mut self, _now: Time, _procs: &[P]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }

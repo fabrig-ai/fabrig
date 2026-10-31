@@ -306,9 +306,6 @@ impl Referee<Process> for Judge {
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.deadline.until() }
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         self.settled
     }

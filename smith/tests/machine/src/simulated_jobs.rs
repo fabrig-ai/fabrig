@@ -130,8 +130,6 @@ impl Expectation<Process> for Terminal {
 }
 
 impl Referee<Process> for Expectations<Process, Terminal> {
-    fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
-
     fn observe(&mut self, now: Time, procs: &[Process]) {
         let application = machine(procs);
         assert!(application.terminals.len() <= application.expected, "one terminal per answering act");

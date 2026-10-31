@@ -2260,9 +2260,6 @@ impl Referee<Process> for LiveJudge<'_> {
             Some(self.deadline.until().map_or(self.poll, |until| self.poll.min(until)))
         }
     }
-    fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         matches!(self.phase, LivePhase::Settled)
     }
@@ -2428,9 +2425,6 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
         fn observe(&mut self, _now: skein_lib::Time, _clients: &[NativeClient]) {}
         fn next_deadline(&self) -> Option<skein_lib::Time> {
             if self.closing { None } else { self.until.until() }
-        }
-        fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
-            None
         }
         fn passed(&self) -> bool {
             self.closing

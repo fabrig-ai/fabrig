@@ -504,13 +504,9 @@ mod no_stdin {
     }
 
     impl Referee<Process> for Judge {
-        fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
         fn observe(&mut self, _now: Time, procs: &[Process]) {
             let Process::Parent(parent) = &procs[0] else { panic!("parent first") };
             self.met = parent.exit.is_some();
-        }
-        fn next_deadline(&self) -> Option<Time> {
-            None
         }
         fn overdue(&self, now: Time) -> Option<String> {
             if now > Time::ZERO.saturating_add(Duration::from_secs(1)) {
