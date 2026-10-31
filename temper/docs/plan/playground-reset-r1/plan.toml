@@ -1,0 +1,17 @@
+ready = false
+draft = "playground-reset-r1"
+repo = "fabrig"
+sources = ["temper/docs/design/draft/playground-reset.md", "temper/docs/plan/playground-reset-r1/inputs/brief.md", "temper/docs/plan/playground-reset-r1/inputs/README.md", "AGENTS.md"]
+
+[[part]]
+id = "runtime-forges"
+title = "skein's forge component and setup host add and remove a forge at runtime"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 3"
+
+[[slice]]
+id = 1
+story = "a forge made after start is served by skein's components, and removed whole"
+parts = ["runtime-forges"]
+walk = false
