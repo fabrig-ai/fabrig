@@ -431,27 +431,27 @@ impl Checks {
         self.check.delivered(Delivered::Read(value));
         let key = match value {
             ReadValue::Task(value) => ObjectKey::Task(value.chip.task),
-            ReadValue::OwnerEscalation(value) => ObjectKey::Escalation(value.task.chip.task),
-            ReadValue::OwnerPersonTask(value) => ObjectKey::PersonTask(value.task.task),
-            ReadValue::OwnerProposal(value) => ObjectKey::Proposal(value.key),
+            ReadValue::Escalation(value) => ObjectKey::Escalation(value.task.chip.task),
+            ReadValue::PersonTask(value) => ObjectKey::PersonTask(value.task.task),
+            ReadValue::Proposal(value) => ObjectKey::Proposal(value.key),
             ReadValue::Me(_)
             | ReadValue::Tasks(_)
-            | ReadValue::Historical(_)
+            | ReadValue::Ended(_)
             | ReadValue::Question(_)
             | ReadValue::Result(_)
             | ReadValue::History(_)
             | ReadValue::Activity(_)
             | ReadValue::Turn(_)
-            | ReadValue::OwnerInbox(_)
+            | ReadValue::Inbox(_)
             | ReadValue::Notes(_)
-            | ReadValue::OwnerEnded(_)
-            | ReadValue::OwnerSpend(_)
-            | ReadValue::OwnerProject(_)
+            | ReadValue::Ended(_)
+            | ReadValue::Spend(_)
+            | ReadValue::Project(_)
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
-            | ReadValue::OwnerDeployment(_) => return,
+            | ReadValue::Deployment(_) => return,
         };
         assert!(self.documents.contains_key(&key) || self.documents.len() < 256, "world's delivered object bound");
         self.documents.insert(key, value.clone());

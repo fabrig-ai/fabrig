@@ -39,7 +39,7 @@ fn world() -> World<Test, Joint> {
 }
 
 #[test]
-fn a_person_reads_the_whole_historical_task_and_result_after_the_engine_finishes_their_chat() {
+fn a_person_reads_the_whole_ended_task_and_result_after_the_engine_finishes_their_chat() {
     let mut world = world();
     let client = world.client(1, crate::stories::conversation());
     let within = Duration::from_secs(1);
@@ -70,7 +70,7 @@ fn a_person_reads_the_whole_historical_task_and_result_after_the_engine_finishes
     world.person(
         client,
         vec![
-            Step::See { find: Find::named(Role::Region, b"Historical object"), within },
+            Step::See { find: Find::named(Role::Region, b"Ended object"), within },
             Step::See { find: Find::text(b"finished"), within },
         ],
     );
@@ -97,7 +97,7 @@ fn a_person_reads_the_whole_historical_task_and_result_after_the_engine_finishes
 }
 
 #[test]
-fn a_person_revisits_the_whole_historical_task_and_result_by_its_fresh_public_address() {
+fn a_person_revisits_the_whole_ended_task_and_result_by_its_fresh_public_address() {
     let mut world = world();
     let client = world.client(1, crate::stories::conversation());
     let within = Duration::from_secs(1);
@@ -129,7 +129,7 @@ fn a_person_revisits_the_whole_historical_task_and_result_by_its_fresh_public_ad
         client,
         vec![
             Step::Go { address: jig_client_test_domain::Address::Jig(jig_client_view::address::Address::task(task)) },
-            Step::See { find: Find::named(Role::Region, b"Historical object"), within },
+            Step::See { find: Find::named(Role::Region, b"Ended object"), within },
             Step::See { find: Find::text(b"finished"), within },
         ],
     );

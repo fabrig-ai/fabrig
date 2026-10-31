@@ -10,26 +10,25 @@ fn full_contract() -> jig_client_domain::contract::TaskContractDocument {
     let choice = VerdictChoice { code: u32::MAX, words: u32::MAX, followups: u32::MAX, fields };
     TaskContractDocument::Verdict { choices: jig_client_world::test::list([choice.clone(), choice]), cut: true }
 }
-fn full_authority() -> jig_client_domain::contract::OwnerAuthorityDocument {
+fn full_authority() -> jig_client_domain::contract::AuthorityDocument {
     use jig_client_domain::contract::{
-        OwnerAuthority, OwnerAuthorityDocument, OwnerAuthorityExecutor, OwnerDelegation, OwnerGrant, OwnerPattern,
-        OwnerPatternEnd, OwnerResourceScope,
+        Authority, AuthorityDocument, AuthorityExecutor, Delegation, Grant, Pattern, PatternEnd, ResourceScope,
     };
-    let pattern = OwnerPattern {
+    let pattern = Pattern {
         segments: jig_client_world::test::list([vec![0xff; 32].into_boxed_slice(), vec![0xfe; 32].into_boxed_slice()]),
-        last: OwnerPatternEnd::Open(vec![0xfd; 32].into_boxed_slice()),
+        last: PatternEnd::Open(vec![0xfd; 32].into_boxed_slice()),
     };
-    let grant = OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() };
-    let resource = OwnerResourceScope { connector: u16::MAX, pattern };
-    OwnerAuthorityDocument {
-        authority: OwnerAuthority {
+    let grant = Grant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() };
+    let resource = ResourceScope { connector: u16::MAX, pattern };
+    AuthorityDocument {
+        authority: Authority {
             models: None,
             tools: u64::MAX,
             grants: jig_client_world::test::list([grant.clone(), grant]),
-            delegation: OwnerDelegation {
+            delegation: Delegation {
                 kinds: jig_client_world::test::list([
-                    OwnerAuthorityExecutor::Charter(u32::MAX),
-                    OwnerAuthorityExecutor::Role(u32::MAX),
+                    AuthorityExecutor::Charter(u32::MAX),
+                    AuthorityExecutor::Role(u32::MAX),
                 ]),
                 tasks: u32::MAX,
                 depth: u32::MAX,
@@ -45,8 +44,8 @@ fn full_authority() -> jig_client_domain::contract::OwnerAuthorityDocument {
 fn full_task() -> jig_client_domain::contract::Task {
     let mut task = stories::task();
     task.goal = Some(u64::MAX);
-    task.budget = jig_client_domain::contract::OwnerBudget {
-        numbers: jig_client_domain::contract::OwnerNumbers {
+    task.budget = jig_client_domain::contract::Budget {
+        numbers: jig_client_domain::contract::Numbers {
             budget: u64::MAX,
             spent: u64::MAX,
             spent_below: u64::MAX,
@@ -76,11 +75,11 @@ fn full_task() -> jig_client_domain::contract::Task {
             },
         },
     ]);
-    task.resources = jig_client_world::test::list((1..=8).map(|n| jig_client_domain::contract::OwnerResourceLine {
-        part: jig_client_domain::contract::OwnerPart {
+    task.resources = jig_client_world::test::list((1..=8).map(|n| jig_client_domain::contract::ResourceLine {
+        part: jig_client_domain::contract::Part {
             connector: jig_client_test_domain::SECOND,
-            kind: jig_client_domain::contract::OwnerPartKind::Resource,
-            key: jig_client_domain::contract::OwnerPartKey::Number(n),
+            kind: jig_client_domain::contract::PartKind::Resource,
+            key: jig_client_domain::contract::PartKey::Number(n),
         },
         kind: 1,
         taken: false,
@@ -91,8 +90,8 @@ fn full_task() -> jig_client_domain::contract::Task {
     task.spec.specification.words.bytes = stories::text(&[b's'; 32]);
     task.instructions = Some(jig_client_domain::contract::DocumentText::complete(stories::text(&[b'i'; 32])));
     task.dependencies = jig_client_world::test::list([
-        jig_client_domain::contract::OwnerTaskLink::Live(task.chip.clone()),
-        jig_client_domain::contract::OwnerTaskLink::Live(task.chip.clone()),
+        jig_client_domain::contract::TaskLink::Live(task.chip.clone()),
+        jig_client_domain::contract::TaskLink::Live(task.chip.clone()),
     ]);
     task.references = task.dependencies.clone();
     task.inputs = task.dependencies.clone();
@@ -191,8 +190,8 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
         .act_application(Time::ZERO, Wall::EPOCH, jig_client_test_domain::FIRST, 1, family, vec![])
         .expect("full family fits");
     for change in [
-        jig_client_scripted_engine::Change::OwnerProject(Box::new(stories::project())),
-        jig_client_scripted_engine::Change::OwnerDeployment(stories::deployment()),
+        jig_client_scripted_engine::Change::Project(Box::new(stories::project())),
+        jig_client_scripted_engine::Change::Deployment(stories::deployment()),
     ] {
         w.front().engine.act(Time::ZERO, Wall::EPOCH, change).expect("full page fixture fits");
     }

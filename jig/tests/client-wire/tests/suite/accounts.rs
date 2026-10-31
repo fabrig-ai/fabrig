@@ -11,6 +11,6 @@ fn whole_accounts_round_trip_with_every_terminal_outcome() {
         let mut out = Writer::new(usize::try_from(record.measure()).expect("measured record fits"));
         record.encode(&mut out).expect("measured accounts record");
         let bytes = out.finish();
-        assert_eq!(w::OwnerAccounts::decode(&limits, &mut Reader::new(&bytes)), Ok(record));
+        assert_eq!(w::Accounts::decode(&limits, &mut Reader::new(&bytes)), Ok(record));
     }
 }

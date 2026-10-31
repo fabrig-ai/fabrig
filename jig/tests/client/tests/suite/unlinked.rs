@@ -95,7 +95,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
             jig_client::accounts::add_key(
                 key,
                 [31; 16],
-                c::AccountHolder::Own,
+                c::AskAccountHolder::Own,
                 3,
                 None,
                 Secret::new(Box::from(bytes.as_slice())),
@@ -106,7 +106,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
             jig_client::accounts::replace_key(
                 key,
                 [32; 16],
-                c::AccountHolder::Own,
+                c::AskAccountHolder::Own,
                 9,
                 Secret::new(Box::from(bytes.as_slice())),
             ),

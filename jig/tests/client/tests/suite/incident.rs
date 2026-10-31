@@ -34,9 +34,9 @@ fn finish(w: &mut World<Test, Scripted>, withdrawn: bool) {
     let proposal = stories::decided_proposal(
         &p,
         if withdrawn {
-            OwnerProposalHistoryState::Withdrawn
+            ProposalHistoryState::Withdrawn
         } else {
-            OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(7) }
+            ProposalHistoryState::Accepted { by: Requester::Person(7) }
         },
     );
     w.front()
@@ -50,7 +50,7 @@ fn finish(w: &mut World<Test, Scripted>, withdrawn: bool) {
             vec![
                 Change::Object { project: 1, key: ObjectKey::Task(9), value: ReadValue::Task(Box::new(lead)) },
                 Change::Object { project: 1, key: ObjectKey::Task(10), value: ReadValue::Task(Box::new(delegate)) },
-                Change::Object { project: 1, key: proposal.key, value: ReadValue::Historical(Box::new(proposal)) },
+                Change::Object { project: 1, key: proposal.key, value: ReadValue::Ended(Box::new(proposal)) },
                 Change::Source(Source {
                     party: 7,
                     read: Read::Inbox {

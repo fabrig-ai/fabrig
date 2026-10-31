@@ -1,4 +1,4 @@
-use jig_client_domain::contract::{Funder, OwnerBudget, OwnerNumbers, PoolLedger};
+use jig_client_domain::contract::{Budget, Funder, Numbers, PoolLedger};
 use skein_lib::Wall;
 
 fn sources() -> [Funder; 4] {
@@ -9,13 +9,13 @@ fn sources() -> [Funder; 4] {
         Funder::Period { project: u32::MAX - 2, period: u64::MAX - 5 },
     ]
 }
-fn numbers() -> OwnerNumbers {
-    OwnerNumbers { budget: u64::MAX, spent: u64::MAX - 1, spent_below: u64::MAX - 2, reserved: u64::MAX - 3 }
+fn numbers() -> Numbers {
+    Numbers { budget: u64::MAX, spent: u64::MAX - 1, spent_below: u64::MAX - 2, reserved: u64::MAX - 3 }
 }
 
 #[test]
 fn maximal_budget_and_ledger_render_all_accounting_values() {
-    use jig_client_view::owner_budget as view;
+    use jig_client_view::budget as view;
     use jig_client_view::words::Words;
     use skein_ui::Builder;
     use skein_ui::Limits;
@@ -23,7 +23,7 @@ fn maximal_budget_and_ledger_render_all_accounting_values() {
 
     let language_limits = PhraseLimits {
         languages: 1,
-        phrases: jig_client_view::owner_words::phrase_count(),
+        phrases: jig_client_view::document_words::phrase_count(),
         holes: 4,
         segments: 20_000,
         text_bytes: 200_000,
@@ -57,7 +57,7 @@ fn maximal_budget_and_ledger_render_all_accounting_values() {
         .expect("checked rendering fixture")
     };
 
-    let budget = OwnerBudget {
+    let budget = Budget {
         numbers: numbers(),
         left: u64::MAX - 4,
         funder: sources()[1],

@@ -801,7 +801,7 @@ fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
             }
         })
         .expect("the person's inbox from the core");
-    let expected = w::DeliveryValue::OwnerInbox(
+    let expected = w::DeliveryValue::Inbox(
         jig_protocol_engine_clients::translate::inbox::document(&inbox, &w::CEILINGS).expect("component inbox encoder"),
     );
     let mut writer = Writer::new(usize::try_from(expected.measure()).expect("inbox length"));

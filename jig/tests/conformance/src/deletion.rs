@@ -312,7 +312,7 @@ pub fn prepared(family: Family, seed: u64) -> World {
                 &mut world,
                 32,
                 people::Ask::AccountChange {
-                    holder: people::AccountHolder::Deployment,
+                    holder: people::AskAccountHolder::Deployment,
                     change: people::AccountChange::SetUses { account: 0, uses: Some(uses) },
                 },
             );

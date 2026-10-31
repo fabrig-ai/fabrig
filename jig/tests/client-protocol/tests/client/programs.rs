@@ -7,7 +7,7 @@ const SECOND: Key = Key { asker: Asker(7), number: 82 };
 const WAIT: Duration = Duration::from_secs(1);
 fn declaration() -> Ask {
     Ask::Jig(Box::new(c::Ask::AccountChange {
-        holder: c::AccountHolder::Own,
+        holder: c::AskAccountHolder::Own,
         change: c::AccountChange::DeclareProgram { provider: 3, join: None, name: b"personal".as_slice().into() },
     }))
 }
@@ -20,7 +20,8 @@ fn answer(story: &mut Story, key: Key) -> c::Answer {
 fn declared(story: &mut Story) -> u32 {
     story.send_named(FIRST, [81; 16], declaration());
     let answer = answer(story, FIRST);
-    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountProgramDeclared { source, name })) = answer.clone()
+    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared { source, name })) =
+        answer.clone()
     else {
         panic!("declared: {answer:?}")
     };
@@ -39,20 +40,20 @@ fn a_public_check_answers_after_requesting_inventory() {
     story.send(
         SECOND,
         Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::CheckProgram { source },
         })),
     );
-    assert_eq!(answer(&mut story, SECOND), c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountChanged)));
+    assert_eq!(answer(&mut story, SECOND), c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountChanged)));
 }
 #[test]
 fn a_public_sign_out_names_the_offline_worker() {
     let mut story = Story::program_sources(fixtures::SEED);
     let source = declared(&mut story);
-    story.send(SECOND, Ask::Jig(Box::new(c::Ask::SignOut { holder: c::AccountHolder::Own, source })));
+    story.send(SECOND, Ask::Jig(Box::new(c::Ask::SignOut { holder: c::AskAccountHolder::Own, source })));
     assert_eq!(
         answer(&mut story, SECOND),
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignedOut {
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignedOut {
             confirmed: false,
             failed_hosts: Box::new([c::AccountHostFailure {
                 name: b"unavailable".as_slice().into(),
@@ -68,7 +69,7 @@ fn a_public_declaration_replays_under_its_retained_name() {
     story.send_named(SECOND, [81; 16], declaration());
     assert_eq!(
         answer(&mut story, SECOND),
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountProgramDeclared {
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared {
             source,
             name: b"personal".as_slice().into()
         }))

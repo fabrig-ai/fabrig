@@ -144,7 +144,7 @@ impl Referee {
                     client.account_request(jig_client::accounts::add_key(
                         jig_client::Key { asker: jig_client::Asker(77), number: 1 },
                         [61; 16],
-                        jig_client::contract::AccountHolder::Deployment,
+                        jig_client::contract::AskAccountHolder::Deployment,
                         1,
                         None,
                         skein_lib::Secret::new(jig_channel_world::fixtures::TOKEN.into()),
@@ -155,8 +155,8 @@ impl Referee {
                         matches!(
                             r,
                             Received::Answer {
-                                answer: jig_client::contract::Answer::Done(jig_client::contract::Outcome::Owner(
-                                    jig_client::contract::OwnerOutcome::AccountKeyKept { .. }
+                                answer: jig_client::contract::Answer::Done(jig_client::contract::Outcome::Document(
+                                    jig_client::contract::DocumentOutcome::AccountKeyKept { .. }
                                 )),
                                 ..
                             }
@@ -354,7 +354,7 @@ fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
 }
 fn received(seen: &Received, store: &Store) -> Vec<rules::Receipt> {
     if let Received::Answer {
-        answer: client::Answer::Done(client::Outcome::Owner(client::OwnerOutcome::Created { first, last, .. })),
+        answer: client::Answer::Done(client::Outcome::Document(client::DocumentOutcome::Created { first, last, .. })),
         ..
     } = seen
     {

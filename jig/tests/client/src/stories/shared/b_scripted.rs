@@ -21,7 +21,7 @@ pub fn propose(front: &mut Scripted, party: u64, ask: &c::Ask) {
             },
             executor: task.executor,
             contract: c::TaskContractDocument::Report { words },
-            authority: c::OwnerAuthorityDocument { authority: task.authority.clone(), cut: false },
+            authority: c::AuthorityDocument { authority: task.authority.clone(), cut: false },
             budget: task.authority.spend,
             funder: c::Funder::Pool { project: *project, person: party, period: 1 },
             dependencies: crate::test::list([]),
@@ -35,9 +35,8 @@ pub fn propose(front: &mut Scripted, party: u64, ask: &c::Ask) {
     proposal.project = *project;
     proposal.key = c::ProposalKey { proposer: c::Proposer::Party(party), number: 1 };
     proposal.reason = c::DocumentText::complete(reason.clone());
-    proposal.action = c::OwnerProposalAction::Batch(crate::test::list(proposed));
-    proposal.waiting.holder =
-        c::OwnerHistoryHolder::Policy { project: *project, kind: c::OwnerMessageProposalKind::Batch };
+    proposal.action = c::ProposalAction::Batch(crate::test::list(proposed));
+    proposal.waiting.holder = c::HistoryHolder::Policy { project: *project, kind: c::MessageProposalKind::Batch };
     proposal.funding.clear();
     proposal.acts.clear();
     front
@@ -45,11 +44,11 @@ pub fn propose(front: &mut Scripted, party: u64, ask: &c::Ask) {
         .script(Rule {
             party: Some(party),
             ask: ask.clone(),
-            answer: c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: 1, to: 1 })),
+            answer: c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 1, to: 1 })),
             changes: vec![Change::Object {
                 project: *project,
                 key: c::ObjectKey::Proposal(proposal.key),
-                value: c::ReadValue::OwnerProposal(Box::new(proposal)),
+                value: c::ReadValue::Proposal(Box::new(proposal)),
             }],
         })
         .expect("seeded project proposal fits");
@@ -88,22 +87,22 @@ pub fn cancel(front: &mut Scripted, party: u64, wall: skein_lib::Wall, ask: &c::
         let mut value = *value.clone();
         match operation {
             c::Operation::Cancel { reason, .. } => {
-                let ending = c::OwnerChipEnding::Cancelled {
+                let ending = c::ChipEnding::Cancelled {
                     reason: c::DocumentText::complete(reason.clone()),
                     result: None,
-                    by: c::OwnerRequester::Person(party),
+                    by: c::Requester::Person(party),
                     at: wall,
                 };
                 value.result = Some(c::TaskResult::Ending(Box::new(ending.clone())));
                 value.chip.phase = c::Phase::Ended;
-                value.chip.details.phase = c::OwnerChipPhase::Ended;
+                value.chip.details.phase = c::ChipPhase::Ended;
                 value.chip.details.details.ending = Some(ending);
                 value.chip.details.details.ended_at = Some(wall);
                 value.delegates.clear();
                 value.chip.details.details.live_delegates = 0;
                 value.acts.clear();
             }
-            c::Operation::Move { .. } => value.requester = c::OwnerRequester::Person(party),
+            c::Operation::Move { .. } => value.requester = c::Requester::Person(party),
             c::Operation::Message { .. }
             | c::Operation::Amend { .. }
             | c::Operation::Release { .. }
@@ -118,9 +117,9 @@ pub fn cancel(front: &mut Scripted, party: u64, wall: skein_lib::Wall, ask: &c::
         });
     }
     let outcome = if let c::Ask::Cancel { task, .. } = ask {
-        c::OwnerOutcome::Cancelled { task: *task }
+        c::DocumentOutcome::Cancelled { task: *task }
     } else if let c::Ask::Compound { project, .. } = ask {
-        c::OwnerOutcome::Compound { project: *project, operations: operations.len(), first_message: 0 }
+        c::DocumentOutcome::Compound { project: *project, operations: operations.len(), first_message: 0 }
     } else {
         unreachable!("cancellation requests")
     };
@@ -129,7 +128,7 @@ pub fn cancel(front: &mut Scripted, party: u64, wall: skein_lib::Wall, ask: &c::
         .script(Rule {
             party: Some(party),
             ask: ask.clone(),
-            answer: c::Answer::Done(c::Outcome::Owner(outcome)),
+            answer: c::Answer::Done(c::Outcome::Document(outcome)),
             changes,
         })
         .expect("seeded conversation cancellation fits");

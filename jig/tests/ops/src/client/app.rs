@@ -339,8 +339,8 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
                 return vec![Receipt::Parked];
             }
             let words = match answer {
-                Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
-                    jig_client::contract::OwnerOutcome::Said { task, message },
+                Some(jig_client::Answered::Jig(Answer::Done(Outcome::Document(
+                    jig_client::contract::DocumentOutcome::Said { task, message },
                 )))) => Some((*task, *message)),
                 _ => None,
             };

@@ -44,13 +44,13 @@ fn committed_turn(story: Story) -> (Story, c::ArchivedTurn) {
     let [Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page)))] = pages.as_slice() else {
         panic!("activity page: {pages:?}")
     };
-    let archive =
-        page.rows
-            .iter()
-            .find_map(|line| {
-                if let c::ActivityLine { decoded: Some(archive), .. } = line { Some(archive.clone()) } else { None }
-            })
-            .expect("the committed turn's archive");
+    let archive = page
+        .rows
+        .iter()
+        .find_map(|line| {
+            if let c::DecodedActivityLine { decoded: Some(archive), .. } = line { Some(archive.clone()) } else { None }
+        })
+        .expect("the committed turn's archive");
     (story, archive)
 }
 

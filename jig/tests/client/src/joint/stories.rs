@@ -155,8 +155,8 @@ fn a_person_reads_actual_project_settings_and_returns_to_its_overview() {
 #[path = "deployment_story.rs"]
 mod deployment;
 
-#[path = "historical_story.rs"]
-mod historical;
+#[path = "ended_story.rs"]
+mod ended;
 
 #[path = "people_stories.rs"]
 mod person_stories;

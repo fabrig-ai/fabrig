@@ -37,9 +37,9 @@ pub(super) fn poll(peers: &mut Peers, store: &Store) -> Vec<Input<root::Event, r
         .kinds
         .iter()
         .map(|kind| match kind {
-            jig_domain_authority::Executor::Charter(number) => people::Executor::Charter(*number),
-            jig_domain_authority::Executor::Procedure(number) => people::Executor::Procedure(*number),
-            jig_domain_authority::Executor::Role(number) => people::Executor::Role(*number),
+            jig_domain_authority::Executor::Charter(number) => people::ChipExecutor::Charter(*number),
+            jig_domain_authority::Executor::Procedure(number) => people::ChipExecutor::Procedure(*number),
+            jig_domain_authority::Executor::Role(number) => people::ChipExecutor::Role(*number),
         })
         .collect();
     let grants = value

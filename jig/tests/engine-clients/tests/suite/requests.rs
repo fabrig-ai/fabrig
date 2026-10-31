@@ -69,12 +69,12 @@ fn a_native_request_waits_for_the_released_reply_and_takes_its_task() {
     };
     assert_eq!(answer.owner(), &w::Owner::Jig);
     assert_eq!(answer.version(), 19);
-    let outcome = w::Outcome::Owner(
-        w::OutcomeOwner::new(
+    let outcome = w::Outcome::Document(
+        w::OutcomeDocument::new(
             &limits,
-            w::OutcomeOwnerParts {
-                value: w::OwnerOutcome::Said(
-                    w::OwnerOutcomeSaid::new(&limits, w::OwnerOutcomeSaidParts { task: 8, message: 9 }).expect("said"),
+            w::OutcomeDocumentParts {
+                value: w::DocumentOutcome::Said(
+                    w::OutcomeSaid::new(&limits, w::OutcomeSaidParts { task: 8, message: 9 }).expect("said"),
                 ),
             },
         )
@@ -86,11 +86,11 @@ fn a_native_request_waits_for_the_released_reply_and_takes_its_task() {
     );
 }
 
-fn owner_authority(spend: u64) -> w::OwnerAuthority {
+fn owner_authority(spend: u64) -> w::Authority {
     let limits = fixtures::limits().wire;
-    w::OwnerAuthority::new(
+    w::Authority::new(
         &limits,
-        w::OwnerAuthorityParts {
+        w::AuthorityParts {
             models: None,
             tools: 0,
             grants: Box::new([]),
@@ -98,9 +98,9 @@ fn owner_authority(spend: u64) -> w::OwnerAuthority {
             deadline: None,
             notes: 0,
             note_resources: Box::new([]),
-            delegation: w::OwnerDelegation::new(
+            delegation: w::Delegation::new(
                 &limits,
-                w::OwnerDelegationParts { kinds: skein_lib::List::with_capacity(0), tasks: 0, depth: 0 },
+                w::DelegationParts { kinds: skein_lib::List::with_capacity(0), tasks: 0, depth: 0 },
             )
             .expect("delegation"),
         },
@@ -238,8 +238,8 @@ fn a_v9_propose_beyond_the_role_is_answered_proposed() {
         world.people_answers.last()
     );
     let w::Final::Done(done) = final_answer(&peer, socket) else { panic!("done") };
-    let w::Outcome::Owner(owner) = done.outcome() else { panic!("owner outcome") };
-    let w::OwnerOutcome::Proposed(row) = owner.value() else { panic!("proposed") };
+    let w::Outcome::Document(owner) = done.outcome() else { panic!("owner outcome") };
+    let w::DocumentOutcome::Proposed(row) = owner.value() else { panic!("proposed") };
     assert_eq!(row.proposal(), 1);
     assert_eq!(row.to(), 0);
     assert_eq!(jig_core_world::fixtures::live_row(&world, 2).numbers.budget, 20);

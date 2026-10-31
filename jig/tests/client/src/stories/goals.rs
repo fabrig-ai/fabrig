@@ -26,7 +26,7 @@ pub fn board(seed: u64) -> World<Test, Scripted> {
     world
         .front()
         .engine
-        .act(skein_lib::Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::OwnerProject(Box::new(project)))
+        .act(skein_lib::Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::Project(Box::new(project)))
         .expect("fixture admitted");
     world
 }
@@ -89,11 +89,11 @@ pub fn refused(seed: u64, proposable: Option<bool>) -> World<Test, Scripted> {
                 },
                 reason: text(b"because"),
             },
-            answer: Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal: proposal.key.number, to: 1 })),
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::Proposed { proposal: proposal.key.number, to: 1 })),
             changes: vec![jig_client_scripted_engine::Change::Object {
                 project: PROJECT,
                 key: ObjectKey::Proposal(proposal.key),
-                value: ReadValue::OwnerProposal(Box::new(proposal)),
+                value: ReadValue::Proposal(Box::new(proposal)),
             }],
         })
         .expect("fixture admitted");
@@ -148,7 +148,7 @@ pub(super) fn creating() -> Creating {
         beyond: Beyond::Proposed { to: Recipient::Role { project: 1, role: 1 } },
     }
 }
-pub(super) fn ask(me: &Me, executor: OwnerExecutor) -> Ask {
+pub(super) fn ask(me: &Me, executor: Executor) -> Ask {
     match jig_client::shapes::set_goal(
         me,
         1,
