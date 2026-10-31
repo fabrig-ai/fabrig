@@ -572,7 +572,12 @@ fn verdict(code: &str, text: &str, fields: &[(&str, &str)]) -> Box<[u8]> {
     result(smith_charter::Form::Verdict, Some(code.as_bytes()), text.as_bytes(), fields)
 }
 /// The run's accepted result, in the record its outcome carries.
-fn result(form: smith_charter::Form, label: Option<&[u8]>, text: &[u8], fields: &[(&str, &str)]) -> Box<[u8]> {
+pub(super) fn result(
+    form: smith_charter::Form,
+    label: Option<&[u8]>,
+    text: &[u8],
+    fields: &[(&str, &str)],
+) -> Box<[u8]> {
     let limits = smith_charter::v4::CEILINGS;
     let mut list = List::with_capacity(u32::try_from(fields.len()).expect("few fields"));
     for (name, value) in fields {
