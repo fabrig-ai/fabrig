@@ -21,7 +21,7 @@ fn configured() -> Domain {
         true,
     )
     .expect("empty connector");
-    d.set_machine(Machine { owned: None, fake: Some(place()), github: place() });
+    d.set_machine(Machine { owned: None, fake: Some(place()), github: place(), github_git_program: None });
     d.configure_playground(Some(PlaygroundConfig { provider: 1, deadline: Duration::from_secs(10) }));
     d
 }
@@ -94,6 +94,7 @@ fn a_real_forge_kept_refuses_the_start_not_offered() {
         &mut d,
         Event::Restore {
             record: Stored::Forge(ForgeRecord {
+                git_program: None,
                 number: 2,
                 kind: Kind::Forgejo,
                 mode: Mode::Connected,

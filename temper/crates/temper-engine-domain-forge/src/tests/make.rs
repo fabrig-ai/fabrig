@@ -12,7 +12,12 @@ fn place(host: &[u8]) -> Place {
 }
 fn fresh(under_box: bool) -> Domain {
     let mut d = setup_domain(&[], under_box);
-    d.set_machine(Machine { owned: Some(place(b"owned.example")), fake: None, github: place(b"github.example") });
+    d.set_machine(Machine {
+        owned: Some(place(b"owned.example")),
+        fake: None,
+        github: place(b"github.example"),
+        github_git_program: Some(b"/data/bin/github-git".as_slice().into()),
+    });
     d
 }
 fn setup(forge: Making) -> Ask {
@@ -114,6 +119,7 @@ fn connect_new_github_makes_a_record_at_the_machines_place() {
         let out = application(&mut d, 1, Ask::Connect { forge: Making::New(ForgeAsk::GitHub), how: how.clone() });
         let record = saved(&out);
         assert_eq!(record.place, place(b"github.example"));
+        assert_eq!(record.git_program.as_deref(), Some(b"/data/bin/github-git".as_slice()));
         assert_eq!(record.kind, Kind::GitHub);
         assert_eq!(record.mode, Mode::Connected);
         assert_eq!(record.first, None);
@@ -136,12 +142,19 @@ fn connect_new_managed_makes_a_record_with_its_intent() {
     let out = application(
         &mut d,
         1,
-        Ask::Connect { forge: Making::New(ForgeAsk::Managed { place: place(b"managed.example") }), how: how.clone() },
+        Ask::Connect {
+            forge: Making::New(ForgeAsk::Managed {
+                place: place(b"managed.example"),
+                git_program: Some(b"/data/bin/managed-git".as_slice().into()),
+            }),
+            how: how.clone(),
+        },
     );
     let record = saved(&out);
     assert_eq!(record.mode, Mode::Managed);
     assert_eq!(record.kind, Kind::Forgejo);
     assert_eq!(record.place, place(b"managed.example"));
+    assert_eq!(record.git_program.as_deref(), Some(b"/data/bin/managed-git".as_slice()));
     assert_eq!(record.first.as_ref().unwrap().label.as_ref(), b"docker");
     assert_eq!(record.first.as_ref().unwrap().project, SetUpProject::New(b"hello".as_slice().into()));
     assert!(out.contains(&Request::Connect { forge: 1, request: Token::new(1), how, carried: VALUE }));
@@ -153,7 +166,10 @@ fn a_restart_before_the_first_repository_rebuilds_the_intent_from_the_record() {
         let ask = if owned {
             setup(Making::New(ForgeAsk::Owned))
         } else {
-            Ask::Connect { forge: Making::New(ForgeAsk::Managed { place: place(b"managed.example") }), how: admin() }
+            Ask::Connect {
+                forge: Making::New(ForgeAsk::Managed { place: place(b"managed.example"), git_program: None }),
+                how: admin(),
+            }
         };
         let out = application(&mut d, 1, ask);
         let record = saved(&out);
@@ -200,7 +216,9 @@ fn an_unoffered_machine_or_box_makes_nothing() {
     application(&mut no_box, 1, setup(Making::New(ForgeAsk::Owned)));
     assert_setup_refusal(&no_box, 1, SetUpRefusal::NotUnderTheBox);
     assert!(no_box.records.is_empty());
-    for machine in [None, Some(Machine { owned: None, fake: None, github: place(b"github.example") })] {
+    for machine in
+        [None, Some(Machine { owned: None, fake: None, github: place(b"github.example"), github_git_program: None })]
+    {
         let mut d = setup_domain(&[], true);
         d.machine = machine;
         let out = application(&mut d, 1, setup(Making::New(ForgeAsk::Owned)));
@@ -246,7 +264,10 @@ fn a_refused_connect_saves_no_record_and_a_failed_connect_keeps_it() {
                 request: Token::new(1),
                 token: Token::new(1),
                 retention: Duration::from_secs(60),
-                ask: Ask::Connect { forge: Making::New(ForgeAsk::Managed { place: place(b"managed.example") }), how },
+                ask: Ask::Connect {
+                    forge: Making::New(ForgeAsk::Managed { place: place(b"managed.example"), git_program: None }),
+                    how,
+                },
                 role,
                 carried,
             },
@@ -259,7 +280,10 @@ fn a_refused_connect_saves_no_record_and_a_failed_connect_keeps_it() {
     application(
         &mut d,
         1,
-        Ask::Connect { forge: Making::New(ForgeAsk::Managed { place: place(b"managed.example") }), how: admin() },
+        Ask::Connect {
+            forge: Making::New(ForgeAsk::Managed { place: place(b"managed.example"), git_program: None }),
+            how: admin(),
+        },
     );
     outputs(
         &mut d,

@@ -136,6 +136,7 @@ pub struct Limits {
     pub first_intent_org: u32,
     pub first_intent_repository: u32,
     pub first_intent_label: u32,
+    pub forge_git_program_some: u32,
 }
 
 /// The schema's maximum limits.
@@ -270,6 +271,7 @@ pub const CEILINGS: Limits = Limits {
     first_intent_org: 4_096,
     first_intent_repository: 4_096,
     first_intent_label: 64,
+    forge_git_program_some: 4_096,
 };
 
 /// A field or tag that caused a codec problem.
@@ -1749,6 +1751,8 @@ pub enum Path {
     ForgeState,
     /// The `place` field of `Forge`.
     ForgePlace,
+    /// The `git_program` field of `Forge`.
+    ForgeGitProgram,
     /// The `read_only` field of `Forge`.
     ForgeReadOnly,
     /// The `bot` field of `Forge`.
@@ -1940,6 +1944,7 @@ fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.first_intent_org > CEILINGS.first_intent_org { return Err(Problem { path: Path::FirstIntentOrg, reason: skein_codec::Reason::Bound }); }
     if limits.first_intent_repository > CEILINGS.first_intent_repository { return Err(Problem { path: Path::FirstIntentRepository, reason: skein_codec::Reason::Bound }); }
     if limits.first_intent_label > CEILINGS.first_intent_label { return Err(Problem { path: Path::FirstIntentLabel, reason: skein_codec::Reason::Bound }); }
+    if limits.forge_git_program_some > CEILINGS.forge_git_program_some { return Err(Problem { path: Path::ForgeGitProgram, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
@@ -11340,6 +11345,8 @@ pub struct ForgeParts {
     pub state: ForgeState,
     /// The `place` field.
     pub place: Place,
+    /// The `git_program` field.
+    pub git_program: Option<Box<[u8]>>,
     /// The `read_only` field.
     pub read_only: bool,
     /// The `bot` field.
@@ -11358,6 +11365,7 @@ pub struct Forge {
     mode: ForgeMode,
     state: ForgeState,
     place: Place,
+    git_program: Option<Box<[u8]>>,
     read_only: bool,
     bot: Bot,
     asked: bool,
@@ -11367,8 +11375,8 @@ pub struct Forge {
 impl Forge {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ForgeParts) -> Result<Self, Problem> {
-        let ForgeParts { number, kind, mode, state, place, read_only, bot, asked, first } = parts;
-        let value = Self { number, kind, mode, state, place, read_only, bot, asked, first };
+        let ForgeParts { number, kind, mode, state, place, git_program, read_only, bot, asked, first } = parts;
+        let value = Self { number, kind, mode, state, place, git_program, read_only, bot, asked, first };
         value.check(limits)?;
         Ok(value)
     }
@@ -11393,6 +11401,10 @@ impl Forge {
     #[must_use]
     pub fn place(&self) -> &Place { &self.place }
 
+    /// Reads the `git_program` field.
+    #[must_use]
+    pub fn git_program(&self) -> &Option<Box<[u8]>> { &self.git_program }
+
     /// Reads the `read_only` field.
     #[must_use]
     pub fn read_only(&self) -> bool { self.read_only }
@@ -11411,10 +11423,11 @@ impl Forge {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ForgeParts { ForgeParts { number: self.number, kind: self.kind, mode: self.mode, state: self.state, place: self.place, read_only: self.read_only, bot: self.bot, asked: self.asked, first: self.first } }
+    pub fn into_parts(self) -> ForgeParts { ForgeParts { number: self.number, kind: self.kind, mode: self.mode, state: self.state, place: self.place, git_program: self.git_program, read_only: self.read_only, bot: self.bot, asked: self.asked, first: self.first } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.place.check(limits)?;
+        if let Some(some_0) = self.git_program.as_ref() && some_0.len() > usize::try_from(limits.forge_git_program_some.min(CEILINGS.forge_git_program_some)).expect("u32 fits usize") { return Err(Problem { path: Path::ForgeGitProgram, reason: skein_codec::Reason::Bound }); }
         self.bot.check(limits)?;
         if let Some(some_0) = self.first.as_ref() {
         some_0.check(limits)?;
@@ -21254,6 +21267,12 @@ impl Forge {
         size = size.checked_add(field_state.measure()).expect("schema ceilings fit u32");
         let field_place = &self.place;
         size = size.checked_add(field_place.measure()).expect("schema ceilings fit u32");
+        let field_git_program = &self.git_program;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_git_program {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
         size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_bot = &self.bot;
         size = size.checked_add(field_bot.measure()).expect("schema ceilings fit u32");
@@ -21278,6 +21297,15 @@ impl Forge {
         field_state.encode(writer)?;
         let field_place = &self.place;
         field_place.encode(writer)?;
+        let field_git_program = &self.git_program;
+        match field_git_program {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.as_ref())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_read_only = &self.read_only;
         writer.put(&[u8::from(*field_read_only)])?;
         let field_bot = &self.bot;
@@ -21308,11 +21336,12 @@ impl Forge {
         let decoded_mode = ForgeMode::decode_from(limits, reader)?;
         let decoded_state = ForgeState::decode_from(limits, reader)?;
         let decoded_place = Place::decode_from(limits, reader)?;
+        let decoded_git_program = match reader.u8().ok_or(Problem { path: Path::ForgeGitProgram, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.forge_git_program_some.min(CEILINGS.forge_git_program_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ForgeGitProgram, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ForgeGitProgram, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::ForgeGitProgram, reason: skein_codec::Reason::Tag }) };
         let decoded_read_only = match reader.u8().ok_or(Problem { path: Path::ForgeReadOnly, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ForgeReadOnly, reason: skein_codec::Reason::Bool }) };
         let decoded_bot = Bot::decode_from(limits, reader)?;
         let decoded_asked = match reader.u8().ok_or(Problem { path: Path::ForgeAsked, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ForgeAsked, reason: skein_codec::Reason::Bool }) };
         let decoded_first = match reader.u8().ok_or(Problem { path: Path::ForgeFirst, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FirstIntent::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ForgeFirst, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { number: decoded_number, kind: decoded_kind, mode: decoded_mode, state: decoded_state, place: decoded_place, read_only: decoded_read_only, bot: decoded_bot, asked: decoded_asked, first: decoded_first })
+        Ok(Self { number: decoded_number, kind: decoded_kind, mode: decoded_mode, state: decoded_state, place: decoded_place, git_program: decoded_git_program, read_only: decoded_read_only, bot: decoded_bot, asked: decoded_asked, first: decoded_first })
     }
 }
 
@@ -27909,9 +27938,9 @@ impl Forge {
         let mut size = 0_u64;
         size = size.checked_add(2_u64)?.checked_add(ForgeKind::encoded_bound_within(limits)?)?;
         size = size.checked_add(ForgeMode::encoded_bound_within(limits)?)?.checked_add(ForgeState::encoded_bound_within(limits)?)?;
-        size = size.checked_add(Place::encoded_bound_within(limits)?)?.checked_add(1_u64)?;
-        size = size.checked_add(Bot::encoded_bound_within(limits)?)?.checked_add(1_u64)?;
-        size = size.checked_add(1_u64.checked_add(FirstIntent::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(Place::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.forge_git_program_some))?)?)?;
+        size = size.checked_add(1_u64)?.checked_add(Bot::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(FirstIntent::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -27926,9 +27955,9 @@ impl Forge {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(ForgeKind::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(ForgeMode::decoded_bound_within(limits)?)?.checked_add(ForgeState::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(Place::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(Bot::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(FirstIntent::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Place::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.forge_git_program_some))?;
+        heap = heap.checked_add(0_u64)?.checked_add(Bot::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(FirstIntent::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -29543,8 +29572,8 @@ mod golden_tests {
         ("enum_forge_state_kept_full", || { let value = ForgeState::Kept; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_state_ended_smallest", || { let value = ForgeState::Ended(EndedForge::new(&CEILINGS, EndedForgeParts { secrets_erased: false, box_removed: false }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_state_ended_full", || { let value = ForgeState::Ended(EndedForge::new(&CEILINGS, EndedForgeParts { secrets_erased: true, box_removed: true }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 1, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_forge_smallest", || { let value = Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_forge_full", || { let value = Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::new(&CEILINGS, FirstIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), project: FirstProject::Existing(ExistingFirst::new(&CEILINGS, ExistingFirstParts { project: u32::MAX }).expect("golden within ceilings")), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_forge_smallest", || { let value = Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), git_program: None, read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_forge_full", || { let value = Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::new(&CEILINGS, FirstIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), project: FirstProject::Existing(ExistingFirst::new(&CEILINGS, ExistingFirstParts { project: u32::MAX }).expect("golden within ceilings")), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_number_smallest", || { let value = ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: 0_u16 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeNumber::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_number_full", || { let value = ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: u16::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeNumber::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_reset_step_project_smallest", || { let value = ResetStep::Project; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ResetStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -29605,8 +29634,8 @@ mod golden_tests {
         ("enum_value_landing_full", || { let value = Value::Landing(LandingRow::new(&CEILINGS, LandingRowParts { landing: LandingState::new(&CEILINGS, LandingStateParts { task: u64::MAX, project: u32::MAX, phase: LandingPhase::new(&CEILINGS, LandingPhaseParts { place: LandingPlace::Waiting, held: Some(LandingFaults::new(&CEILINGS, LandingFaultsParts { member: u16::MAX, gate: u16::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings"), members: { let mut items = skein_lib::List::with_capacity(1); items.push(LandingMember::new(&CEILINGS, LandingMemberParts { change: u64::MAX, repository: Repository::new(&CEILINGS, RepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), pull: u64::MAX, head: Some([165_u8; 32]), base: Some([165_u8; 32]), candidate: Some([165_u8; 32]), gates: { let mut items = skein_lib::List::with_capacity(1); items.push(GateProof::new(&CEILINGS, GateProofParts { proof: GateProofState::Unkeyed, posted: GatePosted::Nothing, faults: u32::MAX }).expect("golden within ceilings")).expect("one slot"); items }, asked: Some(u16::MAX), landed: Some([165_u8; 32]) }).expect("golden within ceilings")).expect("one slot"); items }, preparation: u16::MAX, stale_proofs: u32::MAX }).expect("golden within ceilings"), asks: { let mut items = skein_lib::List::with_capacity(1); items.push(LandingAskSlot::new(&CEILINGS, LandingAskSlotParts { ask: Some(LandingAsk::Prepare(LandingPrepare::new(&CEILINGS, LandingPrepareParts { head: [165_u8; 32], main: [165_u8; 32] }).expect("golden within ceilings"))) }).expect("golden within ceilings")).expect("one slot"); items }, entries: { let mut items = skein_lib::List::with_capacity(1); items.push(LandingEntry::new(&CEILINGS, LandingEntryParts { entry: u64::MAX, member: u16::MAX, gate: u16::MAX, operation: LandingOperation::Dispatch }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")); let bytes: &[u8] = &[19, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 1, 255, 255, 255, 255, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 1, 0, 0, 255, 255, 255, 255, 1, 255, 255, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 255, 255, 255, 255, 255, 255, 0, 0, 0, 1, 1, 0, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_receipt_smallest", || { let value = Value::Receipt(ReceiptRow::new(&CEILINGS, ReceiptRowParts { key: ReceiptKey::new(&CEILINGS, ReceiptKeyParts { project: 0_u32, repository: Repository::new(&CEILINGS, RepositoryParts { forge: 0_u16, repository: 0_u32 }).expect("golden within ceilings"), check_name: ReceiptCheck::Gate(ReceiptName::new(&CEILINGS, ReceiptNameParts { name: Box::from([].as_slice()) }).expect("golden within ceilings")), key: [0_u8; 32] }).expect("golden within ceilings"), receipt: Receipt::new(&CEILINGS, ReceiptParts { passed: false, run: ReceiptRun::new(&CEILINGS, ReceiptRunParts { id: 0_u64, number: 0_u64, url: Box::from([].as_slice()) }).expect("golden within ceilings"), candidate: [0_u8; 32], ended: 0_u64 }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_receipt_full", || { let value = Value::Receipt(ReceiptRow::new(&CEILINGS, ReceiptRowParts { key: ReceiptKey::new(&CEILINGS, ReceiptKeyParts { project: u32::MAX, repository: Repository::new(&CEILINGS, RepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), check_name: ReceiptCheck::Gate(ReceiptName::new(&CEILINGS, ReceiptNameParts { name: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")), key: [165_u8; 32] }).expect("golden within ceilings"), receipt: Receipt::new(&CEILINGS, ReceiptParts { passed: true, run: ReceiptRun::new(&CEILINGS, ReceiptRunParts { id: u64::MAX, number: u64::MAX, url: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), candidate: [165_u8; 32], ended: u64::MAX }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[20, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 3, 0, 127, 255, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_value_forge_smallest", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_value_forge_full", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::new(&CEILINGS, FirstIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), project: FirstProject::Existing(ExistingFirst::new(&CEILINGS, ExistingFirstParts { project: u32::MAX }).expect("golden within ceilings")), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_value_forge_smallest", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), git_program: None, read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_value_forge_full", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::new(&CEILINGS, FirstIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), project: FirstProject::Existing(ExistingFirst::new(&CEILINGS, ExistingFirstParts { project: u32::MAX }).expect("golden within ceilings")), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_forge_number_smallest", || { let value = Value::ForgeNumber(ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: 0_u16 }).expect("golden within ceilings")); let bytes: &[u8] = &[22, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_forge_number_full", || { let value = Value::ForgeNumber(ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: u16::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[22, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_playground_smallest", || { let value = Value::Playground(Playground::new(&CEILINGS, PlaygroundParts { state: PlaygroundState::Starting, forge: 0_u16, project: None, account: None }).expect("golden within ceilings")); let bytes: &[u8] = &[23, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -29764,9 +29793,10 @@ mod golden_tests {
         table(&BOUNDS_1);
     }
 
-    static BOUNDS_2: [Case; 2] = [
+    static BOUNDS_2: [Case; 3] = [
         ("bound_first_intent_repository", || bound((Path::FirstIntentRepository, skein_codec::Reason::Bound), &Limits { first_intent_repository: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FirstIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_first_intent_label", || bound((Path::FirstIntentLabel, skein_codec::Reason::Bound), &Limits { first_intent_label: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FirstIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_forge_git_program_some", || bound((Path::ForgeGitProgram, skein_codec::Reason::Bound), &Limits { forge_git_program_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Forge::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
     ];
 
     #[test]

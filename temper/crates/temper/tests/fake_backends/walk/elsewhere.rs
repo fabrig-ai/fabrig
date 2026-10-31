@@ -56,6 +56,8 @@ pub(super) fn run() {
                 socket,
                 "--git",
                 &remote,
+                "--git-program",
+                peer["git_program"].as_str().expect("fake git program"),
                 "--web",
                 &remote,
                 "--first",

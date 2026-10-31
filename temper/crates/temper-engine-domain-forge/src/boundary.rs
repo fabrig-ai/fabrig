@@ -340,6 +340,7 @@ pub struct Machine {
     pub owned: Option<Place>,
     pub fake: Option<Place>,
     pub github: Place,
+    pub github_git_program: Option<Box<[u8]>>,
 }
 /// The bot's login and commit author (temper/docs/design/draft/playground-reset.md, 3).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -365,6 +366,7 @@ pub struct ForgeRecord {
     pub mode: Mode,
     pub state: ForgeState,
     pub place: Place,
+    pub git_program: Option<Box<[u8]>>,
     pub read_only: bool,
     pub bot: Bot,
     /// The setup entry's `start: asked` (protocol/setup.md, 8).
@@ -388,7 +390,7 @@ pub enum Making {
 pub enum ForgeAsk {
     GitHub,
     Owned,
-    Managed { place: Place },
+    Managed { place: Place, git_program: Option<Box<[u8]>> },
 }
 /// The box group's kind (temper/docs/design/draft/playground-reset.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

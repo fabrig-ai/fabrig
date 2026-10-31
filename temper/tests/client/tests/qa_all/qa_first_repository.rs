@@ -32,6 +32,7 @@ fn configured(under_box: bool) -> ClientWorld {
         Box::new([
             engine::Record::Forge {
                 row: Box::new(forge::Stored::Forge(forge::ForgeRecord {
+                    git_program: None,
                     number: FORGE,
                     kind: forge::Kind::Forgejo,
                     mode: forge::Mode::Owned,

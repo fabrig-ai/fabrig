@@ -84,6 +84,10 @@ impl Document {
         let p = Path::root();
         let mut o = read::object(&d, 0, &p)?;
         let listen_at = read::required(&mut o, &d, b"listen", &p)?;
+        if let Some(at) = o.member(&d, b"git_program") {
+            let path = read::text(&d, at, crate::limits::PATH_BYTES, &p.member(b"git_program"))?;
+            read::absolute(&path, &p.member(b"git_program"))?;
+        }
         let admin_token = read::field(&mut o, &d, b"admin_token", crate::limits::PATH_BYTES, &p)?;
         let owner = read::field(&mut o, &d, b"owner", 40, &p)?;
         let repositories_at = read::required(&mut o, &d, b"repositories", &p)?;

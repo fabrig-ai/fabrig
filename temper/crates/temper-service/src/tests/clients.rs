@@ -217,6 +217,7 @@ fn a_sign_in_ending_waits_for_its_erase_to_commit() {
     let mut journal = super::fixtures::engine().limits.root.journal;
     journal.commits = 1;
     let mut clients = crate::clients::Clients::new(
+        &jig_protocol_config::Directories::working(),
         &config,
         &super::fixtures::engine().clients,
         &super::fixtures::seeds(),
@@ -448,6 +449,7 @@ fn clients_public_admits_the_public_and_listener_hosts_and_refuses_an_unknown_ho
         let mut service = super::fixtures::started();
         let engine = service.engine.as_mut().unwrap();
         engine.clients = crate::clients::Clients::new(
+            &jig_protocol_config::Directories::working(),
             &config.jig,
             &config.clients,
             &super::fixtures::seeds(),

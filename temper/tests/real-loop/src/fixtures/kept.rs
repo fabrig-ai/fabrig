@@ -6,6 +6,7 @@ use temper_protocol_records::{self as records, Item};
 pub(crate) fn seed(path: &Path, address: SocketAddr, github: Option<crate::github::Fixture>) {
     let is_github = github.is_some();
     let record = forge::ForgeRecord {
+        git_program: None,
         number: 1,
         kind: if is_github { forge::Kind::GitHub } else { forge::Kind::Forgejo },
         mode: forge::Mode::Connected,

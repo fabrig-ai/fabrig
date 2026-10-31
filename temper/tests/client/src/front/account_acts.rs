@@ -206,6 +206,7 @@ fn fixture_root(
             web: None,
         };
         config.machine = Some(temper_engine_domain_forge::Machine {
+            github_git_program: None,
             owned: Some(place.clone()),
             fake: Some(place.clone()),
             github: place,

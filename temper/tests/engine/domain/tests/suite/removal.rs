@@ -147,6 +147,7 @@ fn fixture() -> (Driver, u64, u64) {
     d.period_sent = true;
     d.forge = Some(ForgeStand::new());
     let record = forge::ForgeRecord {
+        git_program: None,
         number: FORGE,
         kind: forge::Kind::Forgejo,
         mode: forge::Mode::Owned,
@@ -338,6 +339,7 @@ fn make_forge(d: &mut Driver, number: u8) {
         number,
         forge::Ask::Connect {
             forge: forge::Making::New(forge::ForgeAsk::Managed {
+                git_program: None,
                 place: forge::Place {
                     api: forge::Address { host: b"other.example".as_slice().into(), port: 3000, tls: None },
                     git: b"http://other.example:3000".as_slice().into(),

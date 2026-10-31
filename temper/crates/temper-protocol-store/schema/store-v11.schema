@@ -245,7 +245,7 @@ enum FirstProject { existing: ExistingFirst, new: NewFirst }
 record FirstIntent { playground: bool org: bytes 4096 repository: bytes 4096 project: FirstProject label: bytes 64 }
 record EndedForge { secrets_erased: bool box_removed: bool }
 enum ForgeState { kept, ended: EndedForge }
-record Forge { number: u16 kind: ForgeKind mode: ForgeMode state: ForgeState place: Place read_only: bool bot: Bot asked: bool first: option FirstIntent }
+record Forge { number: u16 kind: ForgeKind mode: ForgeMode state: ForgeState place: Place git_program: option bytes 4096 read_only: bool bot: Bot asked: bool first: option FirstIntent }
 record ForgeNumber { last: u16 }
 enum ResetStep { project, forge, account }
 record Resetting { step: ResetStep }

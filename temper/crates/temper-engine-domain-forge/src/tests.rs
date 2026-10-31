@@ -2288,6 +2288,7 @@ fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
         &mut d,
         Event::Restore {
             record: Stored::Forge(ForgeRecord {
+                git_program: None,
                 number: 1,
                 kind: Kind::Forgejo,
                 mode: Mode::Managed,

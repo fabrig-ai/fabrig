@@ -153,6 +153,7 @@ pub const CONNECT: Tool = Tool {
             flag(b"tls", b"NAME", Kind::Literal, Optional, b"The TLS server name; plaintext when absent"),
             flag(b"git", b"URL", Kind::Literal, Required, b"The git address"),
             flag(b"web", b"URL", Kind::Literal, Optional, b"The web address"),
+            flag(b"git-program", b"FILE", Kind::Literal, Optional, b"The git executable; the worker's git when absent"),
         ],
     ],
     keyed: Keyed::Required,

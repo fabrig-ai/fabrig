@@ -17,7 +17,8 @@ fn place() -> forge::Place {
 fn config(granted: bool) -> engine::Config {
     let mut config = walking::config(71);
     config.forges = Box::new([]);
-    config.machine = Some(forge::Machine { owned: None, fake: Some(place()), github: place() });
+    config.machine =
+        Some(forge::Machine { owned: None, fake: Some(place()), github: place(), github_git_program: None });
     config.playground = Some(forge::PlaygroundConfig { provider: 1, deadline: Duration::from_secs(10) });
     config.core.seed_projects[0].policy.permissions = Box::new([]);
     let seed = &config.core.seed_projects[0].policy;
