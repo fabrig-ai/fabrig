@@ -1,6 +1,15 @@
 //! Core deletion decisions and kept-step recovery (jig/docs/design/domain/people.md, 5.2).
 use super::*;
 
+fn core() -> (Core, Limits) {
+    let (mut core, limits) = super::core();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks };
+    let mut out = Queue::uncapped();
+    tasks::step(&mut core.tasks, &env, tasks::Event::Check, &mut out);
+    tasks::step(&mut core.tasks, &env, tasks::Event::Restored, &mut out);
+    (core, limits)
+}
+
 fn environment(limits: &Limits) -> Env<Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }
 }

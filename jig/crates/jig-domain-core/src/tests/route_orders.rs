@@ -22,6 +22,11 @@ fn an_unused_carried_value_leaves_before_the_rest_of_a_wide_route() {
     // Keep the sign-in alive beyond the retained answer's expiry.
     limits.people.sign_in_lifetime = Duration::from_secs(600);
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let _project = step(
+        &mut core,
+        &env,
+        Event::People(people::Event::Roles { project: UNASSIGNED_PROJECT, holdings: Box::new([]) }),
+    );
     let identity = core.people.identity(1).expect("fixture owner").clone();
     let Requests::Out(mut signed) =
         step(&mut core, &env, Event::SignIn { reply_to: ReplyTo::new(REPLY), identity, held: None });
