@@ -53,7 +53,8 @@ fn a_wide_route_finishes_within_its_decision_before_a_later_entrance() {
                 consequences.push("answer");
             }
             root::Write::CopySettingsRevision(_)
-            | root::Write::DropTranscript { .. } | root::Write::Wires
+            | root::Write::DropTranscript { .. }
+            | root::Write::Wires
             | root::Write::Save(_)
             | root::Write::Erase(_) => {}
         }
@@ -230,7 +231,8 @@ fn a_people_route_finishes_its_continuation_within_its_decision() {
                 consequences.push("answer");
             }
             root::Write::CopySettingsRevision(_)
-            | root::Write::DropTranscript { .. } | root::Write::Wires
+            | root::Write::DropTranscript { .. }
+            | root::Write::Wires
             | root::Write::Save(_)
             | root::Write::Erase(_) => {}
         }
