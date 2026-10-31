@@ -236,3 +236,24 @@ change, stop and ask.
 - Each test deleted or rebuilt in Steps 5, by package and name.
 - Whether the journeys went stale and were recorded again.
 - The generator's limit names for the new fields.
+
+## Answers
+
+2026-10-31.
+
+- **How does `temper-client-tools` restore a kept `SetUp` once the wire
+  request names no forge?** Option A, no stored-format change. The live
+  call keeps its own `Intent.forge` from `forge-setup N`'s argument, as
+  today. `restore` (`forges.rs`, the `Told::Kept` arm) builds its
+  `Intent` with `forge: 0`, commented as the other bridges' zeros are:
+  "0 is not known: a kept request names no forge (contracts.md, 5; numbers
+  start at 1, 2)". A restored intent is only printed (`pending.called`
+  is `None`, so `watch_first` never reads it). `setup_text` and
+  `setup_json` print a `NotUnderTheBox` refusal's commands (the text's
+  `set_up_commands` line, the JSON's `next` key) only when the forge is
+  not 0; with 0 they print the refusal alone. Add
+  `a_kept_set_up_refused_not_under_the_box_prints_no_commands` to
+  `temper-client-tools`' `tests/forges.rs` beside the kept
+  `setting up` case, text and JSON. Name the bridge, file and line, in
+  the report, for the client task that carries the forge's number on
+  the answer. The rest of the task stands.
