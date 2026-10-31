@@ -143,6 +143,7 @@ fn request(
     let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
     let engine = service.engine.as_mut().unwrap();
     let event = crate::family::to_root(
+        &jig_protocol_config::Directories::working(),
         clients::ToApplication::Request {
             reply_to: REPLY,
             sign_in: 1,

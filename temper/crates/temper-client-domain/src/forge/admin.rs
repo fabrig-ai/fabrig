@@ -259,10 +259,9 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
     }
     let bounds = super::wire_limits(&limits).expect("checked limits");
     let target = if let Some(place) = place {
-        let value = w::ManagedForge::new(
-            &bounds,
-            w::ManagedForgeParts { host: place.host, port: place.port, tls: place.tls, git: place.git, web: place.web },
-        );
+        let forges::Managed { host, port, tls, git, web } = place;
+        let provided = w::ManagedForgeParts { host, port, tls, git, web, git_program: None };
+        let value = w::ManagedForge::new(&bounds, provided);
         let Ok(value) = value else { return };
         let Ok(new) = w::NewForge::new(&bounds, w::NewForgeParts { forge: w::ForgeAsk::Managed(value) }) else {
             return;

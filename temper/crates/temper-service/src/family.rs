@@ -25,6 +25,7 @@ const _: () = {
 /// Decode the keyed request, preserving its admission envelope and supplied digest.
 #[expect(clippy::too_many_lines, reason = "one exhaustive match translates the family's typed requests")]
 pub fn to_root(
+    directories: &jig_protocol_config::Directories,
     exchange: kit::ToApplication,
     forges: &crate::forges::Forges,
     demo: Option<&crate::settings::Demo>,
@@ -46,6 +47,11 @@ pub fn to_root(
             let request = match request {
                 w::Request::SetUp(value) => {
                     let value = value.into_parts();
+                    let Some(forge) = making(value.forge, directories) else {
+                        return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
+                            to: reply_to,
+                        })));
+                    };
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -55,7 +61,7 @@ pub fn to_root(
                         carried,
                         request: temper_engine_domain::Application::Forge(forge::Ask::SetUp {
                             playground: value.playground,
-                            forge: making(value.forge),
+                            forge,
                             org: value.org,
                             repository: value.repository,
                             project: match value.project {
@@ -124,7 +130,17 @@ pub fn to_root(
                                     forge::How::GitHubManifest { back }
                                 }
                             };
-                            forge::Ask::Connect { forge: making(value.forge), how }
+                            forge::Ask::Connect {
+                                forge: match making(value.forge, directories) {
+                                    Some(forge) => forge,
+                                    None => {
+                                        return Err(Box::new(kit::Event::Application(
+                                            kit::FromApplication::Undecodable { to: reply_to },
+                                        )));
+                                    }
+                                },
+                                how,
+                            }
                         }
                         w::Request::Accept(value) => {
                             let value = value.into_parts();
@@ -1096,8 +1112,8 @@ fn landing_phase(phase: &forge::LandingPhase) -> w::LandingPhase {
 }
 
 // temper/docs/design/draft/playground-reset.md, 3: a new forge carries its whole place.
-fn making(value: w::Making) -> forge::Making {
-    match value {
+fn making(value: w::Making, directories: &jig_protocol_config::Directories) -> Option<forge::Making> {
+    Some(match value {
         w::Making::Kept(value) => forge::Making::Kept(value.forge()),
         w::Making::New(value) => forge::Making::New(match value.into_parts().forge {
             w::ForgeAsk::Github => forge::ForgeAsk::GitHub,
@@ -1105,6 +1121,10 @@ fn making(value: w::Making) -> forge::Making {
             w::ForgeAsk::Managed(value) => {
                 let value = value.into_parts();
                 forge::ForgeAsk::Managed {
+                    git_program: match value.git_program {
+                        Some(program) => Some(directories.join(jig_protocol_config::Directory::Data, &program).ok()?),
+                        None => None,
+                    },
                     place: forge::Place {
                         api: forge::Address { host: value.host, port: value.port, tls: value.tls },
                         git: value.git,
@@ -1113,7 +1133,7 @@ fn making(value: w::Making) -> forge::Making {
                 }
             }
         }),
-    }
+    })
 }
 fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
     match value {

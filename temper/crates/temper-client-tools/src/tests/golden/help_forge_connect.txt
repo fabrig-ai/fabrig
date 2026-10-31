@@ -23,7 +23,7 @@ forge connect github-app APP FILE --key KEY
   FILE (file): a file; required. The private file of the App's PEM key
 forge connect github --key KEY
   github (way): one of github; required. temper's App, made in a browser from its manifest
-forge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] --key KEY
+forge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY
   forgejo-admin (way): one of forgejo-admin; required. As the Forgejo's site admin
   FILE (file): a file; required. The private file of the admin's token
   --first ORG/REPOSITORY: text, at most 1048576 bytes; optional. Make this first repository, ORG/NAME
@@ -33,6 +33,7 @@ forge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [-
   --tls NAME: text, at most 1048576 bytes; optional. The TLS server name; plaintext when absent
   --git URL: text, at most 1048576 bytes; required. The git address
   --web URL: text, at most 1048576 bytes; optional. The web address
+  --git-program FILE: text, at most 1048576 bytes; optional. The git executable; the worker's git when absent
 Connect GitHub through an App, or a Forgejo as its site admin
 Prints: `connecting`, then the wait to make; for github, the address to open in a browser
 --json: the record forge-connect.

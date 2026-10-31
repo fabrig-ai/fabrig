@@ -89,7 +89,7 @@ const USAGES: &[&[u8]] = &[
     b"forge list [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
     b"forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]\n",
     b"playground start [--key KEY]\n",
-    b"forge connect FORGE github-app APP FILE --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\nforge connect github-app APP FILE --key KEY\nforge connect github --key KEY\nforge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] --key KEY\n",
+    b"forge connect FORGE github-app APP FILE --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\nforge connect github-app APP FILE --key KEY\nforge connect github --key KEY\nforge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY\n",
     b"forge install FORGE [--key KEY]\n",
     b"forge repositories FORGE [--installation INSTALLATION] [--page PAGE]\n",
     b"account export ACCOUNT FILE\n",

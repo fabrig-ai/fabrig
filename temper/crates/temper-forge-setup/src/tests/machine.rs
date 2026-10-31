@@ -356,3 +356,25 @@ fn kind_slots_fetch_before_preparation_only_when_a_binary_is_fetched() {
         }
     }
 }
+
+#[test]
+fn github_git_is_optional_bounded_and_resolved_under_data() {
+    let base = br#"{"github":{"api":{"socket":"127.0.0.1:9999"},"transport":"plaintext","remote":"http://127.0.0.1:9999","web":"http://127.0.0.1:9999"}}"#;
+    assert!(read(base, &directories()).github.unwrap().git.is_none());
+    for (input, expected) in [(b"bin/git".as_slice(), b"/data/bin/git".as_slice()), (b"/opt/git", b"/opt/git")] {
+        let member = crate::check::joined(&[b"\"git\":\"", input, b"\",\"web\":"]);
+        let input = replace(base, b"\"web\":", &member);
+        assert_eq!(read(&input, &directories()).github.unwrap().git.as_deref(), Some(expected));
+    }
+    let maximum = crate::check::joined(&[b"\"git\":\"", &[b'x'; 4096], b"\",\"web\":"]);
+    let input = replace(base, b"\"web\":", &maximum);
+    assert_eq!(read(&input, &Directories::working()).github.unwrap().git.unwrap().len(), 4096);
+    for value in [b"\"\"".as_slice(), b"\"../git\"", b"false", &crate::check::joined(&[b"\"", &[b'x'; 4097], b"\""])] {
+        let input = replace(base, b"\"web\":", &crate::check::joined(&[b"\"git\":", value, b",\"web\":"]));
+        let mut problems = Problems::empty();
+        assert!(
+            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+        );
+        assert!(bytes::find(&problem::lines(&problems), b"application.machine.github.git:").is_some());
+    }
+}

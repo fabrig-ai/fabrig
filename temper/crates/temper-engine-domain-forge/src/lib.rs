@@ -325,6 +325,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 .checked_add(bytes(&row.bot.login)?)?
                 .checked_add(bytes(&row.bot.name)?)?
                 .checked_add(bytes(&row.bot.email)?)?;
+            if let Some(program) = &row.git_program {
+                held = held.checked_add(bytes(program)?)?;
+            }
             if let Some(tls) = &row.place.api.tls {
                 held = held.checked_add(bytes(tls)?)?;
             }

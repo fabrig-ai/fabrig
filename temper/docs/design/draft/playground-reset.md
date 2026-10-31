@@ -76,8 +76,11 @@ From the code at `main` 3714194a9, with 41b98d50d's welcome:
 
 - **A forge is a record of the forge connector,** as its repositories
   are: its kind (GitHub; Forgejo connected, managed or owned; fake), its
-  addresses, its bot's git identity, its setup entry (`setup.md`,
-  section 8, as the document has it today) and, for a first set up,
+  addresses and its git program (the document's `git_program`,
+  `../protocol/configuration.md`, 3; GitHub's from
+  `application.machine.github.git`), its bot's git identity, its
+  setup entry (`setup.md`, section 8, as the document has it today)
+  and, for a first set up,
   the first repository's intent. The acts that set a forge up or
   connect it make it: `SetUp` and `Connect` carry what the document
   carried, and the forge is numbered next, never reused, since its

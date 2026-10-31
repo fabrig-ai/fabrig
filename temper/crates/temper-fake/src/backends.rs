@@ -373,7 +373,20 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     let mut edits = Edits::new();
     let application = member(&d, 0, b"application", &root)?;
     let ap = root.member(b"application");
-    forge(&d, application, &github, &mut edits, &ap)?;
+    let machine_at = member(&d, application, b"machine", &ap)?;
+    let mut problems = temper_forge_setup::problem::Problems::empty();
+    let directories = jig_protocol_config::Directories::given(&paths.config, &paths.data, &paths.cache)
+        .expect("checked effective directories");
+    let machine = temper_forge_setup::machine::read(
+        &d,
+        machine_at,
+        &temper_forge_setup::limits::small(),
+        &directories,
+        &mut problems,
+    )
+    .ok_or(read::why(&ap.member(b"machine"), b"invalid machine"))?;
+    let git = machine.fake.ok_or(read::why(&ap.member(b"machine"), b"fake machine required"))?.git;
+    forge(&d, application, &github, &git, &mut edits, &ap)?;
     let engine = member(&d, 0, b"engine", &root)?;
     let ep = root.member(b"engine").member(b"llm");
     let llm_at = member(&d, engine, b"llm", &root.member(b"engine"))?;
@@ -415,6 +428,8 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
         forgejo: read::joined(&[
             b"{\"listen\":",
             &address(&forgejo)?,
+            b",\"git_program\":",
+            &text(&git)?,
             b",\"admin_token\":",
             &text(&path(&paths.data, b"forgejo-admin.token"))?,
             br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}]}"#,
@@ -459,12 +474,21 @@ fn capacity(d: &Document, edits: &mut Edits) -> Result<(), Refusal> {
     }
     Ok(())
 }
-fn forge(d: &Document, application: u32, github: &[u8], edits: &mut Edits, ap: &Path) -> Result<(), Refusal> {
+fn forge(
+    d: &Document,
+    application: u32,
+    github: &[u8],
+    git: &[u8],
+    edits: &mut Edits,
+    ap: &Path,
+) -> Result<(), Refusal> {
     let machine = member(d, application, b"machine", ap)?;
     let origin = text(&read::joined(&[b"http://", github]))?;
     let value = read::joined(&[
         b"{\"api\":",
         &address(github)?,
+        b",\"git\":",
+        &text(git)?,
         b",\"transport\":\"plaintext\",\"remote\":",
         &origin,
         b",\"web\":",
@@ -547,7 +571,9 @@ fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Res
     let listener = member(d, clients, b"listener", &p)?;
     let at = member(d, listener, b"socket", &p)?;
     let clients = read::text(d, at, 128, &p.member(b"socket"))?;
-    let setup = text(&read::joined(&[b"http://", &clients, b"/forges/2/github/setup"]))?;
+    // The sandbox starts without forge records; Connect makes the first one
+    // (temper/docs/design/draft/playground-reset.md, 3).
+    let setup = text(&read::joined(&[b"http://", &clients, b"/forges/1/github/setup"]))?;
     Ok(read::joined(&[b"{\"listen\":", &address(socket)?, b",\"admin_token\":", &text(&path(data, b"github-admin.token"))?,
         br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0,"setup_url":"#,&setup,br#"},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))
 }

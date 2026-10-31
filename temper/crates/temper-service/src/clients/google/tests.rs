@@ -190,6 +190,7 @@ fn the_recovery_link_uses_the_first_google_owner_without_a_link_owner() {
     let sign_in = world::configured();
     config.jig.owners[0].identity = people::IdentityKey { provider: 3, subject: b"sam@example.com".as_slice().into() };
     let clients = Clients::new(
+        &jig_protocol_config::Directories::working(),
         &config.jig,
         &config.clients,
         &fixtures::seeds(),

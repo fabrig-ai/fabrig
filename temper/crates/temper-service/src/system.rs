@@ -201,6 +201,7 @@ impl Service {
                 .or(Err(start_problem(b"projects", What::Bound)))?;
         }
         let mut clients = clients::Clients::new(
+            &settings.directories,
             &settings.jig,
             &settings.clients,
             seeds,
@@ -1129,6 +1130,10 @@ pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> 
             None => None,
         },
         github,
+        github_git_program: match &machine.github {
+            Some(github) => github.git.clone(),
+            None => None,
+        },
     }
 }
 #[expect(clippy::disallowed_macros, reason = "startup renders a checked IP address for the domain place")]

@@ -140,7 +140,11 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     )
     .expect("ordinary machine format");
     assert!(problems.is_empty());
-    assert!(!machine.github.expect("fake GitHub").tls);
+    let github = machine.github.expect("fake GitHub");
+    assert!(!github.tls);
+    assert_eq!(github.git.as_deref(), Some(b"/effective/data/demo/bin/git".as_slice()));
+    let peer: Value = serde_json::from_slice(&docs.forgejo).expect("peer document");
+    assert_eq!(peer["git_program"], "/effective/data/demo/bin/git");
 
     let sign_in = &effective["engine"]["llm"]["providers"][0]["sources"]["sign_in"];
     for (name, expected) in [
@@ -180,7 +184,7 @@ fn generated_peers_use_existing_formats_and_the_first_added_key() {
     let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
     let forge = crate::forge::Document::decode(&docs.github).expect("existing forge format");
     let llm = crate::llm::Document::decode(&docs.llm).expect("existing model format");
-    assert_eq!(json(&docs.github)["github"]["app"]["setup_url"], "http://127.0.0.1:8367/forges/2/github/setup");
+    assert_eq!(json(&docs.github)["github"]["app"]["setup_url"], "http://127.0.0.1:8367/forges/1/github/setup");
     assert_eq!(forge.listen(), peers.github);
     assert_eq!(llm.listen(), peers.llm);
     assert_eq!(llm.key(), b"/effective/data/llm.key");

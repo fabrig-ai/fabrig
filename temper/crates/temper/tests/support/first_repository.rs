@@ -61,7 +61,7 @@ fn playground_scripts() -> Box<[Script]> {
     scripts[1].turns = turns.into_boxed_slice();
     scripts.into_boxed_slice()
 }
-/// Project one's first chat uses the stock's forge reads, without a settings change.
+/// The playground project's first chat uses the stock's forge reads, without a settings change.
 #[must_use]
 pub fn forge_read_llm(config: &Path) -> CtlLlm {
     model(
@@ -143,8 +143,8 @@ pub(super) fn run_spend(runs: u64) -> u64 {
 }
 
 fn scripts() -> Box<[Script]> {
-    // work/hello is forge 3's first repository; playground/widget is on forge 1.
-    let repository = temper_engine_domain_forge::tag(3, 1);
+    // A fresh store numbers its first owned forge and repository one.
+    let repository = temper_engine_domain_forge::tag(1, 1);
     let spend = run_spend(5);
     let grant = |kind| json!({"connector":1,"kind":kind,"segments":["forge"],"terminal":"open","last":""});
     Box::new([
@@ -466,42 +466,58 @@ pub fn playground_read_evidence(config: &Path, client: &Path) -> PlaygroundReads
     }
 }
 
-/// The process story uses only the API and header paths printed for the person,
-/// after their forge's started line, before consulting the normal ctl evidence.
+/// The owned forge made by this story, read through the public client.
+#[must_use]
+pub fn owned_forge(client: &Path) -> Value {
+    let read = super::ctl::alone(client, Call::new(&["forge", "list", "--json"]));
+    owned_row(&super::ctl::json(&read)).clone()
+}
+#[must_use]
+pub fn owned_row(read: &Value) -> &Value {
+    let mut rows = read["forges"].as_array().expect("forge rows").iter().filter(|row| row["mode"] == "owned");
+    let row = rows.next().expect("owned forge");
+    assert!(rows.next().is_none(), "one owned forge in this story: {read}");
+    row
+}
+
+/// The process story checks the printed API and person, and the public header
+/// files under the assigned forge directory, before the normal ctl evidence.
 #[must_use]
 pub fn live_from_hands(config: &Path, data: &Path, client: &Path, stderr: &[u8]) -> Evidence {
     let words = std::str::from_utf8(stderr).expect("box terminal UTF-8");
-    let mut lines = words.lines().skip_while(|line| !line.ends_with("Forge 3 (Forgejo): started"));
+    let number = owned_forge(client)["number"].as_u64().expect("forge number");
+    let label = "Forgejo: ";
+    let mut lines = words.lines().skip_while(|line| !line.ends_with(&format!("{label}started")));
     lines.next().expect("owned forge started");
-    let api = lines.next().expect("API line after started").split_once("Forge 3 (Forgejo): api ").expect("API label").1;
-    let person =
-        lines.next().expect("person line after API").split_once("Forge 3 (Forgejo): person ").expect("person label").1;
-    let (login, headers) = person.split_once(", read header ").expect("read header path");
-    let (read, write) = headers.split_once(", write header ").expect("write header path");
+    let api = lines.next().expect("API line after started").split_once(&format!("{label}api ")).expect("API label").1;
+    let login = lines.next().expect("person line after API").split_once("Forgejo: person ").expect("person label").1;
+    let read = data.join(format!("forge-{number}/person_read.header"));
+    let write = data.join(format!("forge-{number}/person_write.header"));
     let document: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
-    let setup = document["application"]["setup"]
-        .as_array()
-        .expect("setup")
-        .iter()
-        .find(|entry| entry["forge"] == 3)
-        .expect("forge 3 setup");
-    assert_eq!(Some(login), setup["mode"]["owned"]["person"]["login"].as_str(), "init chose the person");
+    assert_eq!(
+        Some(login),
+        document["application"]["machine"]["owned"]["person"]["login"].as_str(),
+        "init chose the person"
+    );
     let address: std::net::SocketAddr = api
         .strip_prefix("http://")
         .and_then(|url| url.strip_suffix("/api/v1"))
         .expect("local API URL")
         .parse()
         .expect("listener address");
-    for (header, name) in [(read, "person_read.header"), (write, "person_write.header")] {
-        assert!(Path::new(header).is_absolute(), "printed header path must be absolute");
-        assert_eq!(Path::new(header), data.join("forge-3").join(name));
-        let (status, body) = header_request(api, header, "GET", "/user", None);
+    for header in [&read, &write] {
+        let (status, body) = header_request(api, header.to_str().expect("header path"), "GET", "/user", None);
         assert_eq!(status, 200, "person header must authenticate: {body}");
         assert_eq!(body["login"].as_str(), Some(login));
     }
-    let (status, body) =
-        header_request(api, read, "POST", "/repos/work/hello/issues", Some(r#"{"title":"read-header-must-refuse"}"#));
+    let (status, body) = header_request(
+        api,
+        read.to_str().expect("header path"),
+        "POST",
+        "/repos/work/hello/issues",
+        Some(r#"{"title":"read-header-must-refuse"}"#),
+    );
     assert_eq!(status, 403, "read header must refuse a write: {body}");
     let evidence = live(config, data, client);
     assert_eq!(evidence.address, address, "the printed API is this forge's listener");
@@ -542,16 +558,14 @@ pub fn live_for(config: &Path, data: &Path, client: &Path, task: Task) -> Eviden
     use std::os::unix::fs::PermissionsExt;
     let document: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
-    let forge = document["application"]["forges"]
-        .as_array()
-        .expect("forges")
-        .iter()
-        .find(|forge| forge["number"] == 3)
-        .expect("forge 3");
-    let address: std::net::SocketAddr =
-        forge["api"]["socket"].as_str().expect("forge address").parse().expect("socket");
-    let record = fs::metadata(data.join("box/started/3")).expect("started record");
-    assert!(record.is_file(), "the box kept forge 3's started record");
+    let number = owned_forge(client)["number"].as_u64().expect("forge number");
+    let address: std::net::SocketAddr = document["application"]["machine"]["owned"]["listen"]["socket"]
+        .as_str()
+        .expect("forge address")
+        .parse()
+        .expect("socket");
+    let record = fs::metadata(data.join(format!("box/started/{number}"))).expect("started record");
+    assert!(record.is_file(), "the box kept the owned forge's started record");
     assert_eq!(record.permissions().mode() & 0o777, 0o600, "private started record");
     Evidence {
         change: task.change,
@@ -685,7 +699,7 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
     eprintln!("{run} landed task: {task}");
     let (landed, _) = super::ctl::landed_result(&task);
     assert!(landed.starts_with("result: Landed · pull request #1 · merge commit "), "{run}: {task}");
-    assert!(task.contains("on forge 3"), "{run}: {task}");
+    assert!(task.contains("on forge 1"), "{run}: {task}");
     assert!(!task.contains("pull request:"), "{run}: a cut address is left to the panel: {task}");
     assert!(producer.contains("\"path\":\"README.md\"}\nRead "), "the worker read hello's cloned README: {producer}");
     assert!(producer.contains("Edited 1 matches"), "the worker applied its README edit: {producer}");
@@ -725,17 +739,6 @@ pub fn generated(root: &Path) {
             super::write_private(&path, &bytes);
         }
     }
-    let path = root.join("temper.json");
-    let mut document: Value = serde_json::from_slice(&fs::read(&path).expect("template")).expect("JSON");
-    // Keep the owned forge only: this story never connects an external service.
-    for member in ["forges", "identities", "setup"] {
-        document["application"][member]
-            .as_array_mut()
-            .expect("template list")
-            .retain(|row| row[if member == "forges" { "number" } else { "forge" }] == 3);
-    }
-    document["application"]["demo"] = Value::Null;
-    super::write_private(&path, &serde_json::to_vec(&document).expect("JSON"));
 }
 pub fn stage_binaries(root: &Path) {
     use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};

@@ -147,19 +147,14 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     value["engine"]["hosts"]["workers"][0]["digest"] = "worker.digest".into();
     fs::rename(config.join("worker.secret"), root.join("data/worker.secret")).expect("data worker secret");
     fs::remove_dir_all(config.join("secrets")).expect("remove obsolete file credentials");
-    let entry = value["application"]["forges"][0].as_object_mut().expect("forge");
-    for member in ["api_token", "user", "webhook_secret", "identity"] {
-        entry.remove(member);
-    }
-    entry.insert("api".into(), json!({"socket":api.to_string()}));
-    entry.insert("git".into(), git.clone().into());
-    let identity = value["application"]["identities"][0].as_object_mut().expect("identity");
-    identity.remove("token");
-    identity.insert("forge".into(), 1.into());
-    identity.insert("login".into(), "elsewhere-bot".into());
-    value["application"]["setup"] =
-        json!([{"forge":1,"bot":{"login":"elsewhere-bot","email":"elsewhere-bot@example.invalid"},"mode":"managed"}]);
     write_private(&path, &serde_json::to_vec(&value).expect("managed configuration"));
+    super::forgejo::bootstrap(&config, &root.join("data"), &root.join("cache"));
+    let mut record = temper_real_loop_world::fixtures::forgejo_record(*api);
+    record.place.git = git.as_bytes().into();
+    record.mode = temper_engine_domain_forge::Mode::Managed;
+    record.bot.login = b"elsewhere-bot".as_slice().into();
+    record.bot.email = b"elsewhere-bot@example.invalid".as_slice().into();
+    temper_real_loop_world::fixtures::seed_record(&root.join("data"), record, &[]);
 }
 
 fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {
@@ -344,7 +339,10 @@ impl Referee<Process> for Judge {
             assert_eq!(row["state"], "connected");
             assert_eq!(row["mode"], "managed");
             if self.restarted {
-                assert!(row["first"].is_null(), "restart does not repeat Create");
+                // temper/docs/design/draft/playground-reset.md, 3: keep the first intent across restarts.
+                assert_eq!(row["first"]["state"], "made");
+                assert_eq!(row["first"]["org"], "elsewhere");
+                assert_eq!(row["first"]["repository"], "first");
                 calls.push(ctl::Step::Run(ctl::Call::new(&["task", "show", "2"])));
             } else {
                 assert_eq!(row["first"]["state"], "made");

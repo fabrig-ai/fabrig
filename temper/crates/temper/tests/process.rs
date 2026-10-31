@@ -955,8 +955,8 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let clock = skein_shell::Clock::new();
     let began = clock.now().now;
     let scratch = support::Scratch::new(case);
-    let forge = support::forgejo::Throwaway::start_with_job_sleep(&scratch, 20);
     let barrier = support::forgejo::JobBarrier::new(scratch.path());
+    let forge = turn_restart::start(&scratch, &barrier);
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
     support::configuration(scratch.path(), &forge.forge());
@@ -1186,46 +1186,12 @@ fn an_older_recorded_runner_has_its_files_prepared_again_without_a_dump() {
 }
 
 #[test]
-fn reconcile_converges_an_owned_forgejo_and_a_second_run_writes_nothing() {
-    use std::{
-        fs,
-        os::unix::fs::{MetadataExt, PermissionsExt},
-    };
-    use support::owned;
-    let scratch = support::Scratch::new("owned_reconcile");
-    let port = owned::reconcile_configuration(scratch.path());
-    let running = owned::start(scratch.path());
-    let first = owned::reconcile(scratch.path(), 1);
-    assert_eq!(first.status.code(), Some(0), "{}", String::from_utf8_lossy(&first.stderr));
-    assert_eq!(first.stdout, b"");
-    let instance = owned::attach(scratch.path(), port, running);
-    owned::assert_converged(scratch.path(), &instance);
-    let files: Vec<_> =
-        ["api_token", "git_token", "user"].iter().map(|name| scratch.path().join("forge-1").join(name)).collect();
-    let before: Vec<_> = files.iter().map(|path| fs::metadata(path).expect("written file")).collect();
-    for meta in &before {
-        assert_eq!(meta.permissions().mode() & 0o777, 0o600);
-    }
-    let second = owned::reconcile(scratch.path(), 1);
-    assert_eq!(second.status.code(), Some(0), "{}", String::from_utf8_lossy(&second.stderr));
-    for (path, before) in files.iter().zip(before) {
-        let after = fs::metadata(path).expect("kept file");
-        assert_eq!(
-            (after.ino(), after.mtime(), after.mtime_nsec()),
-            (before.ino(), before.mtime(), before.mtime_nsec())
-        );
-    }
-    instance.stop().expect("forge stops");
-    scratch.remove();
-}
-
-#[test]
 fn temper_box_prints_its_link_and_stops_its_processes() {
     let scratch = support::Scratch::new("box_stop");
     let owned = boxed_example(&scratch);
     let forgejo = owned.forgejo;
     let ended = support::boxed::run_echo_steps(scratch.path(), Some(forgejo), support::boxed::Plan::Stop, BOX_DEADLINE);
-    assert_box_streams(&ended);
+    assert_box_streams(&ended, forgejo);
     assert_eq!(ended.forgejo_at_link, Some(200), "Forgejo answered its version when the link came");
     assert_eq!(ended.exit, Some(Exit::Code(0)), "stopped as asked: {}", String::from_utf8_lossy(&ended.stderr));
     assert_eq!(ended.left, Some(Vec::new()), "no process the box started outlived it");
@@ -1237,25 +1203,33 @@ fn boxed_example(scratch: &support::Scratch) -> support::owned::Owned {
     support::owned::lay(scratch.path(), &owned);
     std::fs::write(scratch.path().join("temper.json"), support::owned::example_document(scratch.path(), &owned))
         .expect("box example");
+    // A retained group starts only with its started record (temper/docs/design/draft/playground-reset.md, 3).
+    for directory in ["box/groups", "box/started"] {
+        std::fs::create_dir_all(scratch.path().join(directory)).expect("box group directory");
+    }
+    support::write_private(&scratch.path().join("box/groups/1"), b"owned\n");
+    support::write_private(&scratch.path().join("box/started/1"), b"");
     owned
 }
-fn assert_box_streams(ended: &support::boxed::Outcome) {
+fn assert_box_streams(ended: &support::boxed::Outcome, forgejo: std::net::SocketAddr) {
     let link = support::printed_link(&ended.stdout).unwrap_or_else(|| {
         panic!("the box's stdout carries the link: {}", String::from_utf8_lossy(&ended.stderr));
     });
     assert!(skein_lib::bytes::find(link, b"/jig/v1/sign-in/link?secret=").is_some(), "the sign-in link");
     let alone = |line: &[u8]| line.is_empty() || line.starts_with(b"http://127.0.0.1:");
     assert!(ended.stdout.split(|byte| *byte == b'\n').all(alone), "stdout holds links alone");
-    let steps = ["prepare 1: ", "forgejo 1: ", "runner 1: ", "serve: "];
+    let steps = ["prepare-1: ", "forgejo-1: ", "runner-1: ", "serve: "];
+    let api = format!("Forgejo: api http://{forgejo}/api/v1");
+    let notices = ["Forgejo: started", api.as_str(), "Forgejo: person ada"];
     let stderr = std::str::from_utf8(&ended.stderr).expect("box diagnostics");
     assert!(
         stderr.lines().all(|line| {
             steps.iter().any(|step| line.starts_with(step))
-                || box_terminal_line(line, &["prepare 1", "forgejo 1", "runner 1", "serve"], &[])
+                || box_terminal_line(line, &["prepare-1", "forgejo-1", "runner-1", "serve"], &notices)
         }),
         "each stderr line names its step or carries prescribed box words: {stderr}"
     );
-    assert!(stderr.lines().any(|line| line.starts_with("runner 1: ")), "the runner's lines arrive prefixed");
+    assert!(stderr.lines().any(|line| line.starts_with("runner-1: ")), "the runner's lines arrive prefixed");
 }
 
 // Only a valid UTC time-of-day prefix can precede the existing box notices.
@@ -1572,7 +1546,7 @@ fn a_fresh_init_s_first_chat_reads_its_forge() {
                 "chat",
                 "start",
                 "--project",
-                "1",
+                "Playground",
                 "--key",
                 "first-read",
                 "@first-forge-read Read widget's main branch",
@@ -2121,15 +2095,14 @@ fn playground_reset(kill: bool) {
             scratch.path(),
             flags,
             &client,
-            vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["playground", "end", "--key", "playground-reset"]))],
+            vec![Step::Run(Call::new(&["me", "--json"]).in_directory("private"))],
             BOX_DEADLINE,
             |_| support::playground::check_empty(&paths[0], &paths[1], &client),
         );
         assert_eq!(resumed.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&resumed.stderr));
         assert_eq!(resumed.left, Some(Vec::new()), "restarted tree drained");
         ctl_assert_success(&resumed.calls);
-        assert_eq!(resumed.calls.len(), 2, "sign-in and resumed reset");
-        assert_eq!(resumed.calls[1].stdout, b"reset\n");
+        assert_eq!(resumed.calls.len(), 1, "the original signed-in client reads the recovered deployment");
         assert_eq!(resumed.checked, Some(()), "empty store and Forge welcome checked");
     } else {
         assert_eq!(ended.exit, Some(Exit::Code(0)), "{stderr}");
@@ -4440,7 +4413,7 @@ fn held_review_restart_scripts() -> skein_fake_llm_domain::api::Scripts {
     .flat_map(|(line, cue, words)| {
         temper_real_loop_world::landing::change_scripts(
             temper_real_loop_world::landing::ChangeAuthority { coding_kind: 2, scope: None },
-            temper_engine_domain_forge::tag(3, 1),
+            temper_engine_domain_forge::tag(1, 1),
             b"# hello\n\n",
             line,
             cue,
@@ -4558,8 +4531,7 @@ fn held_review_restart(case: &str) {
     let flags = support::boxed::echo_steps(deployment_flags(&paths));
     let scripts = held_review_restart_scripts();
     let mut steps = forgejo_setup_steps("first");
-    steps[4] =
-        Step::Run(Call::new(&["forge", "setup", "3", "--org", "work", "--repository", "hello", "--project", "1"]));
+    steps[4] = Step::Run(Call::new(&["forge", "setup", "--org", "work", "--repository", "hello", "--project", "1"]));
     let connect = Call::new(&[
         "account",
         "import",

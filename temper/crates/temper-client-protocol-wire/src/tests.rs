@@ -105,6 +105,7 @@ fn limits_take_each_bound_from_its_source_field() {
             managed_forge_tls_some: 255,
             managed_forge_git: crate::ADDRESS_BYTES,
             managed_forge_web_some: crate::ADDRESS_BYTES,
+            managed_forge_git_program_some: 4096,
             playground_answer_owner: 16,
             playground_answer_name: 16,
             playground_answer_cues: crate::CUES,
@@ -907,6 +908,7 @@ fn managed(host: &[u8], port: u16) -> v1::ForgeAsk {
         v1::ManagedForge::new(
             &v1::CEILINGS,
             v1::ManagedForgeParts {
+                git_program: None,
                 host: host.into(),
                 port,
                 tls: Some(filled(255)),
@@ -1079,6 +1081,25 @@ fn playground_answer_round_trips_at_its_bounds() {
             assert_eq!(crate::decode_playground_answer(&crate::playground_answer(&answer), &limits), None);
         } else {
             assert_eq!(cue, &[255]);
+        }
+    }
+}
+
+#[test]
+fn managed_git_program_is_optional_bounded_and_nonempty() {
+    let limits = fixtures::limits();
+    for length in [0_usize, 4096, 4097] {
+        let v1::ForgeAsk::Managed(value) = managed(b"host", 80) else { unreachable!() };
+        let mut parts = value.into_parts();
+        parts.git_program = Some(filled(length));
+        let value = v1::ManagedForge::new(&limits, parts);
+        if length > 4096 {
+            assert!(value.is_err());
+            continue;
+        }
+        for request in making_requests(making_new(v1::ForgeAsk::Managed(value.unwrap()))) {
+            let record = v1::Requesting::new(&limits, v1::RequestingParts { request }).unwrap();
+            assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits).is_some(), length != 0);
         }
     }
 }

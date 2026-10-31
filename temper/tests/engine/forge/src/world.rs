@@ -1025,6 +1025,7 @@ mod records {
         let mut expected = Vec::new();
         for number in [3, 2] {
             let record = top::ForgeRecord {
+                git_program: None,
                 number,
                 kind: top::Kind::Forgejo,
                 mode: top::Mode::Managed,

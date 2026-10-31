@@ -9,6 +9,7 @@ use jig_domain_people::Role as PartyRole;
 
 pub(super) fn record(number: u16, mode: Mode) -> ForgeRecord {
     ForgeRecord {
+        git_program: None,
         number,
         kind: Kind::Forgejo,
         mode,
@@ -387,7 +388,10 @@ fn the_record_is_erased_once_whole_and_its_number_stays_spent() {
     assert!(outputs(&mut d, Event::BoxRemoved { forge: 1 }).is_empty());
     let row = record(1, Mode::Fake);
     let mut out = Queue::uncapped();
-    assert_eq!(forges::make(&mut d, row.kind, row.mode, row.place, row.bot, false, None, &mut out), Some(2));
+    assert_eq!(
+        forges::make(&mut d, row.kind, row.mode, row.place, row.git_program, row.bot, false, None, &mut out),
+        Some(2)
+    );
 }
 
 #[test]

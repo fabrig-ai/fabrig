@@ -21,7 +21,7 @@ fn configured() -> Domain {
         true,
     )
     .expect("empty connector");
-    d.set_machine(Machine { owned: None, fake: Some(place()), github: place() });
+    d.set_machine(Machine { owned: None, fake: Some(place()), github: place(), github_git_program: None });
     d.configure_playground(Some(PlaygroundConfig { provider: 1, deadline: Duration::from_secs(10) }));
     d
 }
@@ -94,6 +94,7 @@ fn a_real_forge_kept_refuses_the_start_not_offered() {
         &mut d,
         Event::Restore {
             record: Stored::Forge(ForgeRecord {
+                git_program: None,
                 number: 2,
                 kind: Kind::Forgejo,
                 mode: Mode::Connected,
@@ -231,6 +232,44 @@ fn a_restart_resends_the_step_it_cut() {
                 (crate::playground::reset_key(row.forge, step), ResetAct::RemoveAccount { account: 3 })
             ),
         }
+    }
+}
+
+#[test]
+fn a_restart_keeps_resetting_until_both_forge_removal_steps_answer() {
+    for (secrets_erased, box_removed) in [(false, false), (false, true), (true, false)] {
+        let d = running();
+        let mut row = *d.playground().unwrap();
+        row.state = PlaygroundState::Resetting(ResetStep::Forge);
+        let mut forge = d.record(row.forge).unwrap().clone();
+        forge.state = ForgeState::Ended { secrets_erased, box_removed };
+        let mut restored = configured();
+        outputs(&mut restored, Event::Restore { record: Stored::Forge(forge) });
+        outputs(&mut restored, Event::Restore { record: Stored::Playground(row) });
+        let sent = outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        assert_eq!(sent.contains(&Request::ForgeGone { forge: row.forge }), !secrets_erased);
+        assert_eq!(sent.contains(&Request::BoxRemove { forge: row.forge }), !box_removed);
+        outputs(&mut restored, Event::ReadAfresh);
+        assert_eq!(restored.playground(), Some(&row), "the reload still reads resetting");
+        assert!(ask(&mut restored, 2, Ask::EndPlayground).is_empty(), "another end waits on the same removal");
+        let mut sent: Box<[Request]> = Box::new([]);
+        if !secrets_erased {
+            sent = outputs(&mut restored, Event::SecretsErased { forge: row.forge });
+            if !box_removed {
+                assert_eq!(restored.playground(), Some(&row));
+                assert!(!sent.iter().any(|request| if let Request::ResetAct { .. } = request { true } else { false }));
+            }
+        }
+        if !box_removed {
+            sent = outputs(&mut restored, Event::BoxRemoved { forge: row.forge });
+        }
+        let (key, act) = reset_act(&sent);
+        assert_eq!(act, ResetAct::RemoveAccount { account: row.account.unwrap() });
+        assert_eq!(restored.playground().unwrap().state, PlaygroundState::Resetting(ResetStep::Account));
+        let sent = outputs(&mut restored, Event::ResetActAnswered { key, keep: false });
+        assert_eq!(restored.playground(), None);
+        assert_eq!(sent.first(), Some(&Request::Erase { key: Key::Playground }));
+        assert_eq!(restored.application_answer(Token::new(102)), Some(Answered::EndPlayground(EndAnswer::Reset)));
     }
 }
 

@@ -1,6 +1,7 @@
 //! Real-loop fixtures on kernel-assigned ports (temper/docs/design/draft/playground-reset.md, 3).
 mod kept;
 pub(crate) use kept::seed;
+pub use kept::{forgejo_record, seed_forgejo, seed_record};
 use std::{
     io::Write,
     net::SocketAddr,

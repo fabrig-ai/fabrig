@@ -199,6 +199,7 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
             &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
             forge::Event::Restore {
                 record: forge::Stored::Forge(forge::ForgeRecord {
+                    git_program: None,
                     number,
                     kind: forge::Kind::Forgejo,
                     mode: forge::Mode::Connected,

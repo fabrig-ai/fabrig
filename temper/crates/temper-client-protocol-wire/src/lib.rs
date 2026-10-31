@@ -125,6 +125,7 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         managed_forge_tls_some: 255,
         managed_forge_git: ADDRESS_BYTES,
         managed_forge_web_some: ADDRESS_BYTES,
+        managed_forge_git_program_some: 4096,
         playground_answer_owner: bounds.field_bytes,
         playground_answer_name: bounds.field_bytes,
         playground_answer_cues: CUES,
@@ -304,6 +305,10 @@ fn valid_making(making: &v1::Making) -> bool {
                     && !value.host().contains(&0)
                     && !value.host().contains(&b'/')
                     && value.port() != 0
+                    && match value.git_program() {
+                        Some(program) => !program.is_empty() && !program.contains(&0),
+                        None => true,
+                    }
             }
         },
     }

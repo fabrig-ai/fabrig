@@ -103,7 +103,7 @@ pub(crate) fn start(d: &mut Domain, now: Time, request: Token, token: Token, out
             name: Box::from(b"temper".as_slice()),
             email: Box::from(b"temper@localhost".as_slice()),
         };
-        let Some(forge) = crate::forges::make(d, Kind::Forgejo, Mode::Fake, place, bot, false, None, out) else {
+        let Some(forge) = crate::forges::make(d, Kind::Forgejo, Mode::Fake, place, None, bot, false, None, out) else {
             answer_starts(d, StartAnswer::Failed(StartFailure::NotConnected), out);
             return;
         };
@@ -242,8 +242,9 @@ fn reset(d: &mut Domain, out: &mut Queue<Request>) {
                 if crate::removal::begin(d, row.forge, out) {
                     return;
                 }
-                row.state = PlaygroundState::Resetting(ResetStep::Account);
-                save(d, row, out);
+                // An ended forge can still be waiting for its secrets or box (6.2).
+                removed(d, out);
+                return;
             }
             PlaygroundState::Resetting(ResetStep::Account) => {
                 if let Some(account) = row.account {

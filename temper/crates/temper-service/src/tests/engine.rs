@@ -765,6 +765,7 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
     // The client staging queues leave the scheduling quantum as the yield point.
     let settings = fixtures::engine();
     engine.clients = crate::clients::Clients::new(
+        &jig_protocol_config::Directories::working(),
         &settings.jig,
         &settings.clients,
         &fixtures::seeds(),

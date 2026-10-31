@@ -176,6 +176,7 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
         })
     };
     let row = forge::Stored::Forge(forge::ForgeRecord {
+        git_program: if rng.below(2) == 0 { None } else { Some(drawn_field(rng)) },
         number,
         kind,
         mode,

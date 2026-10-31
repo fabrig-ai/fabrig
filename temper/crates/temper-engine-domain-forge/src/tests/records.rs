@@ -3,6 +3,7 @@ use super::*;
 
 pub(super) fn record(number: u16) -> ForgeRecord {
     ForgeRecord {
+        git_program: None,
         number,
         kind: Kind::Forgejo,
         mode: Mode::Managed,
@@ -49,7 +50,7 @@ fn a_restored_record_is_listed_and_told_to_the_routing() {
 
 fn make(d: &mut Domain, out: &mut Queue<Request>) -> Option<u16> {
     let row = record(0);
-    forges::make(d, row.kind, row.mode, row.place, row.bot, row.asked, row.first, out)
+    forges::make(d, row.kind, row.mode, row.place, row.git_program, row.bot, row.asked, row.first, out)
 }
 
 #[test]

@@ -4,7 +4,7 @@ use temper_engine_domain_forge as d;
 
 #[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode(row: &d::ForgeRecord) -> w::Forge {
-    let d::ForgeRecord { number, kind, mode, state, place, read_only, bot, asked, first } = row;
+    let d::ForgeRecord { number, kind, mode, state, place, git_program, read_only, bot, asked, first } = row;
     w::Forge::new(
         &w::CEILINGS,
         w::ForgeParts {
@@ -30,6 +30,7 @@ pub(super) fn encode(row: &d::ForgeRecord) -> w::Forge {
                 ),
             },
             place: encode_place(place),
+            git_program: git_program.clone(),
             read_only: *read_only,
             bot: encode_bot(bot),
             asked: *asked,
@@ -81,7 +82,8 @@ fn encode_first(row: &d::FirstIntent) -> w::FirstIntent {
 
 #[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode(row: w::Forge) -> d::ForgeRecord {
-    let w::ForgeParts { number, kind, mode, state, place, read_only, bot, asked, first } = row.into_parts();
+    let w::ForgeParts { number, kind, mode, state, place, git_program, read_only, bot, asked, first } =
+        row.into_parts();
     d::ForgeRecord {
         number,
         kind: match kind {
@@ -102,6 +104,7 @@ pub(super) fn decode(row: w::Forge) -> d::ForgeRecord {
             }
         },
         place: decode_place(place),
+        git_program,
         read_only,
         bot: decode_bot(bot),
         asked,

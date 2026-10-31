@@ -161,16 +161,20 @@ pub fn choices(rows: &[Row], playground: Option<u16>, under_box: bool) -> Box<[C
     choices.into_boxed()
 }
 
-/// A real record is unfinished until connected with its first repository adopted.
+/// A real record offers recovery until connected and, for GitHub, installed.
+/// Its first repository is then the step to continue.
 #[must_use]
 pub fn unfinished(rows: &[Row], playground: Option<u16>) -> Option<&Row> {
     for row in rows {
-        if row.mode == Mode::Fake || playground == Some(row.number) {
+        if row.mode == Mode::Fake || playground == Some(row.number) || complete(row) {
             continue;
         }
-        if !complete(row) {
-            return Some(row);
+        if let Connection::Connected { .. } = row.connection
+            && (row.kind != Kind::GitHub || super::forges::accepted(row))
+        {
+            continue;
         }
+        return Some(row);
     }
     None
 }

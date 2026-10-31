@@ -135,7 +135,10 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         },
         git: record.place.git,
         web: record.place.web,
-        git_program: engine.setup.git_program(record.mode),
+        git_program: match record.git_program {
+            Some(program) => Some(program),
+            None => engine.setup.git_program(record.mode),
+        },
         app_read_only: record.read_only,
         identity: identity.number,
         user: 0,

@@ -1263,6 +1263,7 @@ fn forge_record_round_trips_every_mode_and_state() {
                             }),
                         };
                         if !optional {
+                            record.git_program = None;
                             record.place.api.tls = None;
                             record.place.web = None;
                         }

@@ -53,6 +53,7 @@ fn exchange(family: u16, version: u32, record: Box<[u8]>) -> kit::ToApplication 
 fn an_adopt_reaches_the_root_with_its_forges_host() {
     let forges = configured(b"https://forge.example:3000/git");
     let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting())),
         &fixtures::forge_table(&forges),
         None,
@@ -85,6 +86,7 @@ fn an_adopt_reaches_the_root_with_its_forges_host() {
 #[test]
 fn an_adopt_naming_no_configured_forge_reaches_the_root_with_no_host() {
     let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting())),
         &fixtures::forge_table(&[]),
         None,
@@ -105,9 +107,14 @@ fn an_adopt_of_another_version_is_answered_undecodable() {
         ("malformed", 1, wire::CLIENT_VERSION, Box::new([]), REPLY),
         ("trailing", 1, wire::CLIENT_VERSION, trailing_adopt(), REPLY),
     ] {
-        let Err(answer) =
-            family::to_root(exchange(family, version, record), &fixtures::forge_table(&[]), None, None, &w::CEILINGS)
-        else {
+        let Err(answer) = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            exchange(family, version, record),
+            &fixtures::forge_table(&[]),
+            None,
+            None,
+            &w::CEILINGS,
+        ) else {
             panic!("{row}: undecodable")
         };
         let kit::Event::Application(kit::FromApplication::Undecodable { to }) = *answer else {
@@ -153,7 +160,14 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
             scope,
             window: jig_domain_core::documents::Window { rows: 2, after: None },
         };
-        let Err(answer) = family::to_root(input, &fixtures::forge_table(&[]), None, None, &w::CEILINGS) else {
+        let Err(answer) = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            input,
+            &fixtures::forge_table(&[]),
+            None,
+            None,
+            &w::CEILINGS,
+        ) else {
             panic!("{row}: unknown read")
         };
         let kit::Event::Application(kit::FromApplication::Read { reply, family, record }) = *answer else {
@@ -188,7 +202,14 @@ fn a_forge_family_watch_is_refused_unknown() {
             scope: people::ApplicationScope::Project(7),
             window: jig_domain_core::documents::Window { rows: 2, after: None },
         };
-        let Err(answer) = family::to_root(input, &fixtures::forge_table(&[]), None, None, &w::CEILINGS) else {
+        let Err(answer) = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            input,
+            &fixtures::forge_table(&[]),
+            None,
+            None,
+            &w::CEILINGS,
+        ) else {
             panic!("{row}: refused watch")
         };
         let kit::Event::WatchRefused { watcher, why } = *answer else { panic!("{row}: refusal") };
@@ -339,6 +360,7 @@ fn a_request_under_an_owner_without_records_is_answered_undecodable() {
     for owner in [wire::Owner::Pages, wire::Owner::Runner] {
         let number = wire::number(owner);
         let Err(answer) = family::to_root(
+            &jig_protocol_config::Directories::working(),
             exchange(number, wire::CLIENT_VERSION, wire::requesting(&requesting())),
             &fixtures::forge_table(&[]),
             None,
@@ -389,7 +411,15 @@ fn a_family_request_keeps_its_supplied_admission_scope() {
     let mut input = exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting()));
     let kit::ToApplication::Request { scope, .. } = &mut input else { panic!("request") };
     *scope = people::ApplicationScope::Deployment;
-    let event = family::to_root(input, &fixtures::forge_table(&[]), None, None, &w::CEILINGS).unwrap();
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        input,
+        &fixtures::forge_table(&[]),
+        None,
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
     let root::Event::Party(root::PartyInput::Application { scope, .. }) = event else { panic!("application") };
     assert_eq!(scope, people::ApplicationScope::Deployment);
 }
@@ -430,6 +460,7 @@ fn watch_exchange(family: u16, version: u32, record: Box<[u8]>) -> kit::ToApplic
 #[test]
 fn a_change_watch_reaches_the_root_with_its_scope_subject_and_window() {
     let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, watching(CHANGE_TASK)),
         &fixtures::forge_table(&[]),
         None,
@@ -465,6 +496,7 @@ fn invalid_change_watches_are_refused_unknown_without_the_root() {
         ("zero task", wire::FORGE, wire::CLIENT_VERSION, watching(0)),
     ] {
         let Err(answer) = family::to_root(
+            &jig_protocol_config::Directories::working(),
             watch_exchange(family, version, record),
             &fixtures::forge_table(&[]),
             None,
@@ -794,6 +826,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
     )
     .unwrap();
     let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
         &fixtures::forge_table(&[]),
         None,
@@ -827,6 +860,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
 fn forges_watches_name_the_deployment_subject() {
     let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Forges }).unwrap();
     let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
         &fixtures::forge_table(&[]),
         None,
@@ -1108,6 +1142,7 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
         )
         .unwrap();
         let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
             &fixtures::forge_table(&[]),
             None,
@@ -1308,6 +1343,7 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
             ] {
                 let request = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
                 let result = family::to_root(
+                    &jig_protocol_config::Directories::working(),
                     exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
                     &fixtures::forge_table(&[]),
                     None,
@@ -1360,6 +1396,7 @@ fn install_without_a_back_is_admitted() {
     )
     .unwrap();
     let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
         &fixtures::forge_table(&[]),
         None,
@@ -1513,6 +1550,7 @@ fn accept_decodes_only_a_nonzero_installation_and_keeps_its_id() {
         )
         .unwrap();
         let result = family::to_root(
+            &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
             &fixtures::forge_table(&[]),
             None,
@@ -1681,6 +1719,7 @@ fn the_landings_subject_names_no_task() {
                 .unwrap(),
             );
             let got = family::to_root(
+                &jig_protocol_config::Directories::working(),
                 watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
                 &fixtures::forge_table(&[]),
                 None,
@@ -1711,6 +1750,7 @@ fn the_landings_subject_names_no_task() {
         .unwrap(),
     );
     let got = family::to_root(
+        &jig_protocol_config::Directories::working(),
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
         &fixtures::forge_table(&[]),
         None,
@@ -1739,6 +1779,7 @@ fn the_landings_subject_names_no_task() {
         .unwrap(),
     );
     let Err(refused) = family::to_root(
+        &jig_protocol_config::Directories::working(),
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
         &fixtures::forge_table(&[]),
         None,
@@ -1763,6 +1804,7 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
     ] {
         let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
         let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
             &fixtures::forge_table(&[]),
             None,
@@ -1789,6 +1831,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
         w::ManagedForge::new(
             &w::CEILINGS,
             w::ManagedForgeParts {
+                git_program: Some(b"bin/git".as_slice().into()),
                 host: b"forge.example".as_slice().into(),
                 port: 8443,
                 tls: Some(b"forge.example".as_slice().into()),
@@ -1810,7 +1853,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
     for (asked, expected) in [
         (w::ForgeAsk::Github, forge::ForgeAsk::GitHub),
         (w::ForgeAsk::Owned, forge::ForgeAsk::Owned),
-        (managed, forge::ForgeAsk::Managed { place }),
+        (managed, forge::ForgeAsk::Managed { place, git_program: Some(b"/data/bin/git".as_slice().into()) }),
     ] {
         let making = w::Making::New(w::NewForge::new(&w::CEILINGS, w::NewForgeParts { forge: asked }).unwrap());
         let project = w::SetUpProject::Existing(
@@ -1860,6 +1903,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
         ] {
             let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
             let event = family::to_root(
+                &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
                 exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
                 &fixtures::forge_table(&[]),
                 None,
@@ -1904,7 +1948,14 @@ fn playground_read(row: Option<&forge::Playground>, demo: Option<&crate::setting
     if let kit::ToApplication::Read { record, .. } = &mut input {
         *record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap());
     }
-    let Err(answer) = family::to_root(input, &fixtures::forge_table(&[]), demo, row, &w::CEILINGS) else {
+    let Err(answer) = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        input,
+        &fixtures::forge_table(&[]),
+        demo,
+        row,
+        &w::CEILINGS,
+    ) else {
         panic!("playground read")
     };
     let kit::Event::Application(kit::FromApplication::Read { reply, family, record }) = *answer else {

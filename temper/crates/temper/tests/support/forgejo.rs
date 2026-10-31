@@ -60,14 +60,17 @@ impl JobBarrier {
     pub(super) fn waiting(&self, previous: Option<u64>) -> Option<u64> {
         fs::read_dir(self.directory.join("started")).expect("started jobs").find_map(|entry| {
             let run = entry.expect("job marker").file_name().to_str().expect("run id").parse().expect("numeric run");
-            (Some(run) != previous && self.started(run)).then_some(run)
+            (Some(run) != previous
+                && self.started(run)
+                && !self.directory.join("release").join(run.to_string()).is_file())
+            .then_some(run)
         })
     }
 }
 
-/// The owned Forgejo of domain/testing.md 2.6, prepared, run and reconciled
-/// by temper's commands with its runner, attached through skein's `Instance`,
-/// with the person's token and repository.
+/// The owned Forgejo of domain/testing.md 2.6, prepared and run by temper's
+/// commands with its runner, attached through skein's `Instance`, with a kept
+/// bot, the person's token and repository.
 pub struct Throwaway {
     instance: Instance,
     pid: u32,
@@ -86,7 +89,7 @@ impl Throwaway {
 
     #[must_use]
     pub fn start_with_job_sleep(scratch: &Scratch, sleep_seconds: u64) -> Self {
-        Self::start_bare(scratch).with_repository(scratch, sleep_seconds)
+        Self::start_bare(scratch).with_repository(scratch, sleep_seconds, WORKFLOW)
     }
 
     /// Keep the test's delivery receiver bound before configuring Forgejo's hook.
@@ -94,58 +97,24 @@ impl Throwaway {
     pub fn start_receiving(scratch: &Scratch) -> (Self, TcpListener) {
         let [listener] = super::reserve_listeners(&[]);
         let address = listener.local_addr().expect("delivery receiver address");
-        let fixture = Self::start_bare_with_webhooks(scratch, Some(address)).with_repository(scratch, 60);
+        let fixture = Self::start_bare_with_webhooks(scratch, Some(address)).with_repository(scratch, 60, WORKFLOW);
         (fixture, listener)
     }
 
-    fn with_repository(mut self, scratch: &Scratch, sleep_seconds: u64) -> Self {
+    #[must_use]
+    pub(super) fn with_repository(mut self, scratch: &Scratch, sleep_seconds: u64, workflow: &str) -> Self {
         let began = skein_shell::Clock::new().now().now;
-        let output_path = scratch.path().join("reconcile.out");
-        let error_path = scratch.path().join("reconcile.err");
-        let mut deadline = skein_world::Deadline::arm("the owned Forgejo's reconcile", super::WITHIN);
-        let mut child = std::process::Command::new(skein_scratch::paths::binary("temper"))
-            .args(["forge", "reconcile"])
-            .args(super::configuration::flags(scratch.path()))
-            .arg("1")
-            .current_dir(scratch.path())
-            .stdin(std::process::Stdio::null())
-            .stdout(fs::File::create(&output_path).expect("reconcile output"))
-            .stderr(fs::File::create(&error_path).expect("reconcile errors"))
-            .spawn()
-            .expect("reconcile starts");
-        deadline.watch_process(child.id());
-        loop {
-            if let Some(status) = child.try_wait().expect("reconcile status") {
-                assert!(
-                    status.success(),
-                    "{}",
-                    String::from_utf8_lossy(&fs::read(&error_path).expect("reconcile errors"))
-                );
-                break;
-            }
-            if deadline.passed() {
-                let expired = deadline.expired();
-                super::parent::end_child(&mut child);
-                match expired {
-                    skein_world::Expired::Starved(starved) => {
-                        self.stop();
-                        starved.pass();
-                    }
-                    skein_world::Expired::Failed(figures) => panic!("reconcile within its bound: {figures}"),
-                }
-            }
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-        stage("reconcile", began);
+        seed(scratch.path(), &mut self.instance);
+        stage("seed forge", began);
         let person = person_token(&self.instance);
-        let repository = repository(&self.instance, &person, sleep_seconds);
+        let repository = repository(&self.instance, &person, sleep_seconds, workflow);
         owned::adopt(scratch.path(), &self.instance, &person, self.webhooks);
         self.person = Some(person);
         self.repository = Some(repository);
         self
     }
 
-    /// The pinned server and runner with their original administrator, before Reconcile or adoption.
+    /// The pinned server and runner with their administrator, before the fixture bot or adoption.
     #[must_use]
     pub fn start_bare(scratch: &Scratch) -> Self {
         Self::start_bare_with_webhooks(scratch, None)
@@ -291,7 +260,7 @@ impl Throwaway {
     pub fn repository(&self) -> u64 {
         self.repository.expect("fixture repository")
     }
-    /// The reconciled secret, without its optional final line feed.
+    /// The seeded webhook secret, without its optional final line feed.
     #[must_use]
     pub fn secret(&self) -> Vec<u8> {
         let secret = fs::read(self.directory.join("forge-1/webhook_secret")).expect("webhook secret");
@@ -336,6 +305,73 @@ impl Throwaway {
             .expect("cancel answer");
         assert_eq!(response.status, 204, "cancel running gate");
     }
+}
+
+/// Seed the process fixture's bot and its kept access before serving it.
+pub fn seed(directory: &Path, instance: &mut Instance) {
+    bootstrap(directory, directory, directory);
+    let bot = instance.create_user("temper").expect("fixture bot");
+    let address = ([127, 0, 0, 1], instance.port()).into();
+    let mut record = temper_real_loop_world::fixtures::forgejo_record(address);
+    record.bot.login = b"temper".as_slice().into();
+    record.mode = temper_engine_domain_forge::Mode::Owned;
+    request(
+        instance,
+        &instance.admin().token,
+        "PATCH",
+        "/api/v1/admin/users/temper",
+        &json!({"login_name":"temper","source_id":0,"full_name":"temper:bot","must_change_password":false}),
+        200,
+    );
+    let hook = skein_throwaway_forgejo::fresh_secret().expect("fixture hook secret");
+    write_private(&directory.join("forge-1/webhook_secret"), hook.as_bytes());
+    temper_real_loop_world::fixtures::seed_forgejo(
+        &directory.join("state"),
+        record,
+        bot.id,
+        bot.token.value().as_bytes(),
+        hook.as_bytes(),
+        Some(instance.admin().token.value().as_bytes()),
+    );
+}
+
+/// Let the first service start commit stock settings and owners before adding fixture records.
+/// temper/docs/design/draft/playground-reset.md, 3; jig's start owns the initial store mark.
+pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
+    use skein_world::end_to_end::{Binary, Command, Mode};
+    let path = config.join("temper.json");
+    let original = fs::read(&path).expect("bootstrap configuration");
+    let mut document: Value = serde_json::from_slice(&original).expect("bootstrap JSON");
+    // A delivery story keeps this listener bound in the enclosing test.
+    document["application"]["webhooks"] = Value::Null;
+    write_private(&path, &serde_json::to_vec(&document).expect("bootstrap JSON"));
+    let binary = Binary::start(
+        Command {
+            program: skein_scratch::paths::binary("temper"),
+            arguments: vec![
+                "serve".into(),
+                "--config".into(),
+                config.into(),
+                "--data".into(),
+                data.into(),
+                "--cache".into(),
+                cache.into(),
+            ],
+            directory: config.into(),
+            environment: Vec::new(),
+        },
+        Mode::Pipes,
+        65_536,
+    )
+    .expect("fixture bootstrap service");
+    let ended = super::webhooks::served_binary(binary, "127.0.0.1:0".parse().expect("unused listener"), &[]);
+    write_private(&path, &original);
+    assert_eq!(
+        ended.exit,
+        Some(skein_io::kernel::Exit::Code(0)),
+        "fixture bootstrap: {}",
+        String::from_utf8_lossy(&ended.stderr)
+    );
 }
 
 pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
@@ -417,7 +453,7 @@ fn person_token(instance: &Instance) -> Token {
     stage("person", began);
     Token::new(value["sha1"].as_str().expect("person token").into())
 }
-fn repository(instance: &Instance, person: &Token, sleep_seconds: u64) -> u64 {
+fn repository(instance: &Instance, person: &Token, sleep_seconds: u64, workflow: &str) -> u64 {
     let began = skein_shell::Clock::new().now().now;
     request(instance, person, "POST", "/api/v1/orgs", &json!({"username":"acme","visibility":"private"}), 201);
     let value = request(
@@ -432,7 +468,7 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64) -> u64 {
     // The hinted job sleeps 5 s, outlasting its overridden 3 s settle window
     // (protocol/setup.md 13.4).
     let check = format!("test ! -e slow || sleep {sleep_seconds}\ntest -s README.md\n");
-    for (path, content) in [("check.sh", check.as_str()), (".forgejo/workflows/check.yaml", WORKFLOW)] {
+    for (path, content) in [("check.sh", check.as_str()), (".forgejo/workflows/check.yaml", workflow)] {
         let length = skein_lib::base64::encoded_len(
             skein_lib::base64::Alphabet::Standard,
             u32::try_from(content.len()).expect("workflow length"),
@@ -455,7 +491,7 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64) -> u64 {
     stage("repository", began);
     value["id"].as_u64().expect("repository id")
 }
-const WORKFLOW: &str = r#"on: { push: { branches: ['temper/**'] } }
+pub(super) const WORKFLOW: &str = r#"on: { push: { branches: ['temper/**'] } }
 jobs:
   check:
     runs-on: temper-host

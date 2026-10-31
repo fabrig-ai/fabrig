@@ -124,6 +124,7 @@ fn restored_forges(store: Store, bootstrap: engine::Config, config: &engine::Con
     for forge in &config.forges {
         last = last.max(forge.number);
         let row = temper_engine_domain_forge::ForgeRecord {
+            git_program: None,
             number: forge.number,
             kind: forge.kind,
             mode: forge.mode,

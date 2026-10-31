@@ -123,6 +123,8 @@ pub fn end_and_check(config: &Path, data: &Path, client: &Path) {
     check_empty(config, data, client);
 }
 pub fn check_empty(config: &Path, data: &Path, client: &Path) {
+    // Recovery can finish without another end call; the page leaves resetting only once the row is gone (6.2).
+    retired_reload(config, client);
     let forges = read(client, &["forge", "list", "--json"]);
     assert_eq!(forges["forges"], serde_json::json!([]), "{forges}");
     let accounts = read(client, &["account", "list", "--json"]);
@@ -133,7 +135,6 @@ pub fn check_empty(config: &Path, data: &Path, client: &Path) {
     for name in ["playground-1", "box/groups/1", "box/started/1"] {
         assert!(!data.join(name).exists(), "reset removes {name}");
     }
-    retired_reload(config, client);
 }
 struct ResetJudge {
     until: Time,

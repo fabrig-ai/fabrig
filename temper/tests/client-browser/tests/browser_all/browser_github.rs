@@ -108,7 +108,7 @@ fn connect_github_creates_installs_and_returns_to_the_welcome() {
         press(Role::Link, b"Create GitHub App"),
         // Conversion, installation and the setup's 303 return the tab without further navigation.
         see(Role::Heading { level: 2 }, b"Choose a repository to start in"),
-        Step::Address(b"/welcome?at=forge&forge=1".as_slice().into()),
+        Step::Address(b"/welcome?at=forge".as_slice().into()),
         see(Role::Choice, b"acme/app"),
         press(Role::Choice, b"acme/app"),
         see(Role::Button, b"Adopt acme/app"),

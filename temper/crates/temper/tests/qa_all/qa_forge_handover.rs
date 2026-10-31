@@ -1,4 +1,6 @@
-//! Design-only QA of protocol/setup.md 6.5: the engine owns the handover.
+//! The engine owns the handover (temper/docs/design/protocol/forge.md, 2.1–2.2;
+//! temper/docs/design/protocol/credentials.md, 2.1).
+//! Forges are records (temper/docs/design/draft/playground-reset.md, 3).
 //! These tests inspect processes, files, the forge API and the client's rows.
 use crate::support;
 
@@ -28,23 +30,67 @@ fn document(scratch: &Path) -> serde_json::Value {
 }
 
 fn forge_directory(scratch: &Path) -> PathBuf {
-    let value = document(scratch);
-    directory(scratch, "--data").join(value["application"]["setup"][0]["directory"].as_str().expect("setup directory"))
+    directory(scratch, "--data").join("forge-1")
+}
+
+fn machine_configured(case: &str, person: &str) -> Scratch {
+    let scratch = Scratch::new(case);
+    let (forgejo, _) = owned::binaries();
+    let [address] = support::free_addresses(&[]);
+    owned::configuration(
+        scratch.path(),
+        &owned::Names { forgejo: &forgejo, runner: None, port: address.port(), bot: "temper", person },
+    );
+    owned::configuration_value(scratch.path(), |value| {
+        value["application"]["machine"].as_object_mut().expect("machine").remove("fake");
+        // The first repository's temper/ branch prefix needs eight authority segments.
+        value["engine"]["limits"]["overrides"]["authority.segments"] = 8.into();
+    });
+    scratch
 }
 
 fn configured(case: &str) -> Scratch {
-    let scratch = Scratch::new(case);
-    let _ = owned::tier_configuration(scratch.path());
-    // The process fixture also supports legacy CLI reconcile. This story uses
-    // setup.md 8's file-free owned form.
+    configured_person(case, "ada")
+}
+
+fn configured_person(case: &str, person: &str) -> Scratch {
+    let scratch = machine_configured(case, person);
+    // A failed preparation keeps the new forge's record without minting a
+    // handover. The test then prepares it separately to control its file.
+    let binary = document(scratch.path())["application"]["machine"]["owned"]["forgejo"].clone();
     owned::configuration_value(scratch.path(), |value| {
-        let application = &mut value["application"];
-        let forge = application["forges"][0].as_object_mut().expect("forge object");
-        for key in ["api_token", "user", "webhook_secret"] {
-            forge.remove(key);
-        }
-        application["identities"][0].as_object_mut().expect("identity object").remove("token");
+        value["application"]["machine"]["owned"]["forgejo"] = "missing-forgejo".into();
     });
+    let client = directory(scratch.path(), "--data").join("record-client");
+    fs::create_dir_all(&client).expect("record client");
+    let outcome = support::boxed::run_ctl_with_exits(
+        scratch.path(),
+        box_flags(scratch.path()),
+        &client,
+        vec![
+            ctl::Step::Run(ctl::Call::sign_in()),
+            ctl::Step::Run(ctl::Call::new(&["forge", "setup"])),
+            ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
+        ],
+        support::boxed::BOX_DEADLINE,
+        || (),
+        &[(1, 1)],
+    );
+    assert_eq!(
+        outcome.exit,
+        Some(Exit::Code(0)),
+        "record-making box drained: {}",
+        String::from_utf8_lossy(&outcome.stderr)
+    );
+    assert!(outcome.left.as_ref().is_some_and(Vec::is_empty), "record-making box left processes");
+    assert_eq!(outcome.calls.len(), 3, "forge record made");
+    assert_eq!(forge_row(&ctl::json(&outcome.calls[2]))["state"], "set_up_failed");
+    let mut value = document(scratch.path());
+    value["application"]["machine"]["owned"]["forgejo"] = binary;
+    private_write(
+        &directory(scratch.path(), "--config").join("temper.json"),
+        &serde_json::to_vec(&value).expect("restored machine JSON"),
+    );
     scratch
 }
 
@@ -125,8 +171,12 @@ fn owned_handover_is_removed_and_restart_uses_records() {
     // protocol/setup.md 6.5: TakeOver, persist, remove, reconcile, Connect.
     let (scratch, credentials, running) = prepared("qa-handover-records");
     let handover = forge_directory(scratch.path()).join("admin_token");
-    let (_, first) = inspect(scratch.path(), &credentials);
-    assert!(!handover.exists(), "successful TakeOver left its handover behind");
+    let (seen, first) = inspect(scratch.path(), &credentials);
+    assert!(
+        !handover.exists(),
+        "successful TakeOver left its handover behind: {}",
+        String::from_utf8_lossy(&seen.serve.stderr)
+    );
     connected(&first);
     let (_, second) = inspect(scratch.path(), &credentials);
     connected(&second);
@@ -204,7 +254,7 @@ fn refused_takeover_keeps_handover_and_redacts_its_bytes() {
 fn start_prepared(scratch: &Path) -> owned::Running {
     let running = owned::run(scratch, "forgejo");
     let value = document(scratch);
-    let address: std::net::SocketAddr = value["application"]["setup"][0]["mode"]["owned"]["listen"]["socket"]
+    let address: std::net::SocketAddr = value["application"]["machine"]["owned"]["listen"]["socket"]
         .as_str()
         .expect("owned listener")
         .parse()
@@ -250,7 +300,7 @@ fn fresh_handover_replaces_kept_record_and_revokes_old_admin() {
     connected(&rows);
     assert!(!handover.exists(), "fresh handover remained beside a kept record");
     let value = document(scratch.path());
-    let address: std::net::SocketAddr = value["application"]["setup"][0]["mode"]["owned"]["listen"]["socket"]
+    let address: std::net::SocketAddr = value["application"]["machine"]["owned"]["listen"]["socket"]
         .as_str()
         .expect("listener")
         .parse()
@@ -337,24 +387,6 @@ fn handover_past_read_bound_blocks_only_its_forge() {
     bounded_handover("qa-handover-past-bound", RECORD_BYTES + 1, b"admin_token");
 }
 
-fn fake_configured(case: &str) -> Scratch {
-    let scratch = configured(case);
-    owned::configuration_value(scratch.path(), |value| {
-        let application = &mut value["application"];
-        let listen =
-            application["setup"][0]["mode"]["owned"]["listen"]["socket"].as_str().expect("fixture listener").to_owned();
-        support::configuration::fake_entry(&mut application["setup"][0], &listen);
-        application["setup"][0]["mode"]["fake"]["owner"] = serde_json::json!("qa-owner");
-        application["setup"][0]["mode"]["fake"]["repositories"] =
-            serde_json::json!([{ "name": "widget", "landing": "main" }]);
-        application["setup"][0]["mode"]["fake"]["git"] = serde_json::json!("qa-bin/git");
-    });
-    let bin = directory(scratch.path(), "--data").join("qa-bin");
-    fs::create_dir_all(&bin).expect("fake git directory");
-    symlink(skein_scratch::paths::binary("temper"), bin.join("git")).expect("shipped fake git");
-    scratch
-}
-
 fn box_flags(scratch: &Path) -> Vec<String> {
     support::configuration::flags(scratch)
         .iter()
@@ -362,102 +394,23 @@ fn box_flags(scratch: &Path) -> Vec<String> {
         .collect()
 }
 
-fn fake_box(scratch: &Path, client: &str, credentials: &[Vec<u8>]) {
-    fs::create_dir_all(directory(scratch, "--data").join(client)).expect("private client root");
-    let value = document(scratch);
-    let address: std::net::SocketAddr = value["application"]["setup"][0]["mode"]["fake"]["listen"]["socket"]
-        .as_str()
-        .expect("fake listener")
-        .parse()
-        .expect("loopback socket");
-    let admin = std::str::from_utf8(credentials.last().expect("fake admin")).expect("token text");
-    let hooks_address = value["application"]["webhooks"]["listener"]["socket"].as_str().expect("webhooks listener");
-    let expected_url = format!("http://{hooks_address}/hooks/{FORGE}");
-    let outcome = support::boxed::run_ctl(
-        scratch,
-        box_flags(scratch),
-        &directory(scratch, "--data").join(client),
-        vec![
-            ctl::Step::Run(ctl::Call::sign_in()),
-            ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "settled", "--timeout", "15s"])),
-            ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
-        ],
-        support::boxed::BOX_DEADLINE,
-        |_binary| {
-            let permission = owned::answer(
-                address.port(),
-                "/api/v1/repos/qa-owner/widget/collaborators/temper/permission",
-                Some(admin),
-            )
-            .expect("fake collaborator API");
-            let hooks = owned::answer(address.port(), "/api/v1/repos/qa-owner/widget/hooks", Some(admin))
-                .expect("fake hooks API");
-            (
-                forge_directory(scratch).join("admin_token").exists(),
-                permission["permission"] == "write",
-                hooks.as_array().is_some_and(|hooks| hooks.len() == 1),
-                hooks[0]["config"]["url"] == expected_url,
-            )
-        },
-    );
-    no_secrets(&outcome.stdout, credentials);
-    no_secrets(&outcome.stderr, credentials);
-    for call in &outcome.calls {
-        no_secrets(&call.stdout, credentials);
-        no_secrets(&call.stderr, credentials);
-        assert!(call.exit == Some(Exit::Code(0)), "fake box client call failed (output redacted)");
-    }
-    assert!(outcome.exit == Some(Exit::Code(0)), "fake box did not drain");
-    assert!(outcome.left.as_ref().is_some_and(Vec::is_empty), "fake box left processes running");
-    assert!(
-        outcome.checked == Some((false, true, true, true)),
-        "fake handover/adopted collaborator/hook contract failed"
-    );
-    connected(&ctl::json(outcome.calls.last().expect("fake forges call")));
-}
-
-#[test]
-fn fake_box_restart_replaces_admin_and_restores_adopted_access() {
-    // setup.md 6.5, 8.4: new fake, new admin, kept records, restored adoption.
-    let scratch = fake_configured("qa-handover-fake-restart");
-    let first = owned::prepare(scratch.path(), FORGE);
-    let mut credentials = secrets(scratch.path());
-    no_secrets(&first.stdout, &credentials);
-    no_secrets(&first.stderr, &credentials);
-    assert!(first.status.success(), "fake preparation failed");
-    fake_box(scratch.path(), "qa-client-first", &credentials);
-    let second = owned::prepare(scratch.path(), FORGE);
-    credentials.extend(secrets(scratch.path()));
-    no_secrets(&second.stdout, &credentials);
-    no_secrets(&second.stderr, &credentials);
-    assert!(second.status.success(), "fake restart preparation failed");
-    fake_box(scratch.path(), "qa-client-second", &credentials);
-    for old in ["admin_token", "api_token", "git_token", "user", "webhook_secret"] {
-        assert!(!forge_directory(scratch.path()).join(old).exists(), "fake setup left a credential file");
-    }
-    scratch.remove();
-}
-
 #[test]
 fn unprepared_owned_forge_is_not_setup_without_box() {
     // setup.md 6.5; domain/forge.md 4.1: no access, and an actionable refusal.
-    let scratch = configured("qa-handover-unprepared");
-    owned::configuration_value(scratch.path(), |value| {
-        value["application"]["setup"][0]["start"] = serde_json::json!("asked");
-    });
+    let scratch = machine_configured("qa-handover-unprepared", "ada");
     let seen = ctl::run(ctl::Story::new(
         scratch.path(),
         vec![
             ctl::Step::Run(ctl::Call::sign_in()),
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
-            ctl::Step::Run(ctl::Call::new(&["forge", "setup", "1"])),
+            ctl::Step::Run(ctl::Call::new(&["forge", "setup"])),
         ],
     ));
     assert!(seen.serve.exit == Some(Exit::Code(0)), "unprepared forge prevented a healthy engine stop");
     assert_eq!(seen.calls.len(), 3, "missing client calls");
     assert!(seen.calls[1].exit == Some(Exit::Code(0)), "forges read failed");
     let row = ctl::json(&seen.calls[1]);
-    assert!(forge_row(&row)["state"] == "not_set_up", "unprepared owned forge did not say not set up");
+    assert!(row["forges"].as_array().expect("forge list").is_empty(), "fresh deployment has no forge record");
     assert!(seen.calls[2].exit == Some(Exit::Code(2)), "setup without a box was not refused");
     let refusal = &seen.calls[2].stderr;
     assert!(
@@ -471,15 +424,13 @@ fn unprepared_owned_forge_is_not_setup_without_box() {
 #[test]
 fn reconcile_stop_keeps_admin_record_but_never_connects() {
     // setup.md 6.5, skein forge-setup.md 4.3: never take over a person's
-    // unmarked account. Preparation made ada; the later configuration names
-    // ada as the bot and a different person, so the existing user is unmarked.
-    let (scratch, credentials, running) = prepared("qa-handover-reconcile-stop");
-    owned::configuration_value(scratch.path(), |value| {
-        let application = &mut value["application"];
-        application["setup"][0]["bot"]["login"] = serde_json::json!("ada");
-        application["setup"][0]["mode"]["owned"]["person"]["login"] = serde_json::json!("qa-other");
-        application["identities"][0]["login"] = serde_json::json!("ada");
-    });
+    // unmarked account. Preparation made temper as a person, so the fixed
+    // bot login names an existing unmarked user.
+    let scratch = configured_person("qa-handover-reconcile-stop", "temper");
+    let output = owned::prepare(scratch.path(), FORGE);
+    assert!(output.status.success(), "preparation with an unmarked person failed");
+    let credentials = secrets(scratch.path());
+    let running = start_prepared(scratch.path());
     let handover = forge_directory(scratch.path()).join("admin_token");
     let (first, rows) = inspect(scratch.path(), &credentials);
     assert!(!handover.exists(), "TakeOver's completed file was kept after reconcile stopped");
@@ -495,12 +446,15 @@ fn reconcile_stop_keeps_admin_record_but_never_connects() {
 }
 
 #[test]
-fn takeover_stop_at_start_leaves_the_row_not_connected() {
-    // setup.md 6.5: after a start the person's row says not connected;
-    // only a set-up failure at `started` carries a reason. No bytes either way.
+fn takeover_stop_at_start_leaves_the_asked_record_failed_with_its_reason() {
+    // playground-reset.md 3, 6.4: the record keeps its asked setup across
+    // restart; a failed handover names the unfinished step on its row.
     let (scratch, credentials, running) = refused_handover("qa-handover-diagnostic");
     let (_, rows) = inspect(scratch.path(), &credentials);
-    assert_eq!(forge_row(&rows)["state"], "not_connected", "a refused TakeOver at start is not connected");
+    let row = forge_row(&rows);
+    assert_eq!(row["state"], "set_up_failed", "a refused TakeOver leaves the asked setup failed");
+    let why = row["why"].as_str().expect("failed setup's reason");
+    assert!(why.contains("taking the handover") && why.contains("401"), "the row names TakeOver's refusal");
     running.stop();
     scratch.remove();
 }
@@ -509,10 +463,7 @@ fn takeover_stop_at_start_leaves_the_row_not_connected() {
 fn asked_owned_setup_connects_and_box_record_restarts_it() {
     // setup.md 6.5, 7.1, 13.4: the client starts the real owned group;
     // the next box uses its durable record, and takes a fresh handover.
-    let scratch = configured("qa-handover-asked");
-    owned::configuration_value(scratch.path(), |value| {
-        value["application"]["setup"][0]["start"] = serde_json::json!("asked");
-    });
+    let scratch = machine_configured("qa-handover-asked", "ada");
     let first_client = directory(scratch.path(), "--data").join("qa-first-client");
     fs::create_dir_all(&first_client).expect("private client root");
     let first = support::boxed::run_ctl(
@@ -522,7 +473,7 @@ fn asked_owned_setup_connects_and_box_record_restarts_it() {
         vec![
             ctl::Step::Run(ctl::Call::sign_in()),
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
-            ctl::Step::Run(ctl::Call::new(&["forge", "setup", "1"])),
+            ctl::Step::Run(ctl::Call::new(&["forge", "setup"])),
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "settled", "--timeout", "30s"])),
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
         ],
@@ -540,9 +491,10 @@ fn asked_owned_setup_connects_and_box_record_restarts_it() {
     assert!(first.exit == Some(Exit::Code(0)), "first asked box did not drain");
     assert!(first.left.as_ref().is_some_and(Vec::is_empty), "first box left processes");
     assert!(!left_handover, "asked setup left the handover");
-    let first_row =
-        first.calls.iter().find(|call| call.stdout.windows(b"not_set_up".len()).any(|part| part == b"not_set_up"));
-    assert!(first_row.is_some(), "asked forge started before the client's request");
+    assert!(
+        ctl::json(&first.calls[1])["forges"].as_array().expect("fresh forges").is_empty(),
+        "no forge exists before the client's request"
+    );
     connected(&ctl::json(first.calls.last().expect("connected forges row")));
     let record = directory(scratch.path(), "--data").join("box/started/1");
     assert!(support::private(&record), "box's durable started record is absent or not private");
@@ -590,7 +542,7 @@ fn removal_failure_blocks_reconcile_then_next_start_recovers() {
     assert!(handover.exists(), "failed removal discarded the handover");
     assert!(forge_row(&rows)["state"] != "connected", "forge connected despite failed handover removal");
     let value = document(scratch.path());
-    let address: std::net::SocketAddr = value["application"]["setup"][0]["mode"]["owned"]["listen"]["socket"]
+    let address: std::net::SocketAddr = value["application"]["machine"]["owned"]["listen"]["socket"]
         .as_str()
         .expect("listener")
         .parse()
@@ -605,13 +557,12 @@ fn removal_failure_blocks_reconcile_then_next_start_recovers() {
 }
 
 #[test]
-fn asked_prepare_failure_is_visible_and_can_be_asked_again() {
-    // setup.md 7.1 and client/forge.md 5.4: a failed group returns to
-    // dormant, names prepare on its row, and accepts Set up again.
-    let scratch = configured("qa-handover-asked-failure");
+fn asked_prepare_failure_is_visible_and_can_be_started_over() {
+    // playground-reset.md 6.4: a failed setup names its step; Start over
+    // removes it and makes a new forge, with a fresh number (section 3).
+    let scratch = machine_configured("qa-handover-asked-failure", "ada");
     owned::configuration_value(scratch.path(), |value| {
-        value["application"]["setup"][0]["start"] = serde_json::json!("asked");
-        value["application"]["setup"][0]["mode"]["owned"]["forgejo"] = serde_json::json!("qa-missing-forgejo");
+        value["application"]["machine"]["owned"]["forgejo"] = serde_json::json!("qa-missing-forgejo");
     });
     let client = directory(scratch.path(), "--data").join("qa-failure-client");
     fs::create_dir_all(&client).expect("private client root");
@@ -621,30 +572,31 @@ fn asked_prepare_failure_is_visible_and_can_be_asked_again() {
         &client,
         vec![
             ctl::Step::Run(ctl::Call::sign_in()),
-            ctl::Step::Run(ctl::Call::new(&["forge", "setup", "1"])),
+            ctl::Step::Run(ctl::Call::new(&["forge", "setup"])),
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "settled", "--timeout", "15s"])),
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
-            ctl::Step::Run(ctl::Call::new(&["forge", "setup", "1"])),
+            ctl::Step::Run(ctl::Call::new(&["forge", "remove", "1"])),
+            ctl::Step::Run(ctl::Call::new(&["forge", "setup"])),
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "settled", "--timeout", "15s"])),
             ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])),
         ],
         support::boxed::BOX_DEADLINE,
         || directory(scratch.path(), "--data").join("box/started/1").exists(),
-        &[(1, 1), (4, 1)],
+        &[(1, 1), (5, 1)],
     );
     for (index, call) in outcome.calls.iter().enumerate() {
-        if [1, 4].contains(&index) {
+        if [1, 5].contains(&index) {
             assert_eq!(call.exit, Some(Exit::Code(1)), "forge-setup waits for the prepare failure");
             assert!(String::from_utf8_lossy(&call.stderr).contains("prepare"), "the failed step is named");
         } else {
             assert_eq!(call.exit, Some(Exit::Code(0)), "retry after failed prepare was refused");
         }
     }
-    assert_eq!(outcome.calls.len(), 7, "retry did not finish");
+    assert_eq!(outcome.calls.len(), 8, "retry did not finish");
     assert!(outcome.exit == Some(Exit::Code(0)), "box failed beside its dormant forge");
     assert!(outcome.left.as_ref().is_some_and(Vec::is_empty), "failed group left processes");
     assert!(outcome.checked == Some(false), "failed preparation wrote a started record");
-    for index in [3, 6] {
+    for index in [3, 7] {
         let rows = ctl::json(&outcome.calls[index]);
         let text = rows.to_string();
         assert!(text.contains("set_up_failed"), "prepare failure was absent from its forge's row");
@@ -700,7 +652,7 @@ fn embedded_newlines_cannot_turn_handover_into_http_headers() {
     assert!(handover.exists(), "malformed handover authenticated using only its prefix");
     assert!(forge_row(&rows)["state"] != "connected", "malformed handover connected");
     let value = document(scratch.path());
-    let address: std::net::SocketAddr = value["application"]["setup"][0]["mode"]["owned"]["listen"]["socket"]
+    let address: std::net::SocketAddr = value["application"]["machine"]["owned"]["listen"]["socket"]
         .as_str()
         .expect("listener")
         .parse()

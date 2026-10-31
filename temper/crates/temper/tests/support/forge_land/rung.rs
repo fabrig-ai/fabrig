@@ -194,6 +194,7 @@ struct Driver {
     api: String,
     header: PathBuf,
     project: String,
+    forge: u64,
 }
 
 impl Driver {
@@ -214,6 +215,7 @@ impl Driver {
             api: String::new(),
             header: PathBuf::new(),
             project: String::new(),
+            forge: 0,
         }
     }
 
@@ -820,11 +822,11 @@ fn setup(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<Va
 /// live walk and the process proof with the existing fake model.
 fn setup_tools(driver: &mut Driver) -> Result<(), String> {
     driver.funds()?;
-    driver.ctl(&["forge", "setup", "3", "--playground", "--key", "rung-forge"], None)?;
+    driver.ctl(&["forge", "setup", "--playground", "--key", "rung-forge"], None)?;
     driver.wait(&["forge", "list"], "settled")?;
     let forges = driver.ctl(&["forge", "list"], None)?;
-    let first =
-        forges["forges"].as_array().ok_or("forges missing")?.iter().find(|f| f["number"] == 3).ok_or("owned forge")?;
+    let first = super::super::first_repository::owned_row(&forges);
+    driver.forge = first["number"].as_u64().ok_or("forge number")?;
     require(
         first["first"]["org"] == "playground" && first["first"]["repository"] == "widget",
         "playground/widget adopted",
@@ -850,24 +852,10 @@ fn setup_tools(driver: &mut Driver) -> Result<(), String> {
 fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3], output: &str) -> Result<Value, String> {
     driver.api = output
         .lines()
-        .find_map(|line| line.split_once("Forge 3 (Forgejo): api ").map(|(_, api)| api.trim().to_owned()))
+        .find_map(|line| line.split_once("Forgejo: api ").map(|(_, api)| api.trim().to_owned()))
         .ok_or("box did not print person's forge API")?;
-    let printed_header = output
-        .lines()
-        .find_map(|line| {
-            line.split_once("Forge 3 (Forgejo): person ")?
-                .1
-                .split_once(", read header ")?
-                .1
-                .split_once(", write header ")
-                .map(|(read, _)| read)
-        })
-        .ok_or("box did not print person's read header")?;
-    require(
-        Path::new(printed_header) == paths[1].join("forge-3/person_read.header"),
-        "person's read header from the box",
-    )?;
-    driver.header = printed_header.into();
+    require(output.lines().any(|line| line.contains("Forgejo: person ")), "box printed the person's login")?;
+    driver.header = paths[1].join(format!("forge-{}/person_read.header", driver.forge));
     super::super::live::notice(
         "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=207552 period=449696 role period=415104",
     );
