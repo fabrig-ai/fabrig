@@ -96,6 +96,10 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 | root::Request::Bound { .. }
                 | root::Request::StopGroup { .. }
                 | root::Request::SetUpGroup { .. }
+                | root::Request::ForgeKept(_)
+                | root::Request::ForgeGone { .. }
+                | root::Request::BoxGroup { .. }
+                | root::Request::BoxRemove { .. }
                 | root::Request::Return { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Connect { .. }

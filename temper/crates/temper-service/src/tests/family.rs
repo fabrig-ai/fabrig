@@ -882,7 +882,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
             [7; 32],
             root::Application::Forge(forge::Ask::SetUp {
                 playground: false,
-                forge: 3,
+                forge: forge::Making::Kept(3),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
                 project: forge::SetUpProject::Existing(1)
@@ -1186,7 +1186,7 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
             request,
             root::Application::Forge(forge::Ask::SetUp {
                 playground: false,
-                forge: 3,
+                forge: forge::Making::Kept(3),
                 org: b"team".as_slice().into(),
                 repository: b"widget".as_slice().into(),
                 project: project.clone()
@@ -1438,8 +1438,10 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                         }
                         root::Application::Forge(ask) => {
                             let (forge::Ask::Install { forge, back: Some(back) }
-                            | forge::Ask::Connect { forge, how: forge::How::GitHubManifest { back: Some(back) } }) =
-                                ask
+                            | forge::Ask::Connect {
+                                forge: forge::Making::Kept(forge),
+                                how: forge::How::GitHubManifest { back: Some(back) },
+                            }) = ask
                             else {
                                 panic!("{name}: install")
                             };

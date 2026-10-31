@@ -266,7 +266,7 @@ fn admin_request(
         digest: skein_lib::sha256::digest(&ask.bytes),
         carried,
         request: engine::Application::Forge(owner::Ask::Connect {
-            forge: connect.forge,
+            forge: owner::Making::Kept(connect.forge),
             how: owner::How::ForgejoAdmin { first },
         }),
     })
@@ -416,6 +416,10 @@ pub fn incoming(
         | engine::Request::Forge { .. }
         | engine::Request::Account(_)
         | engine::Request::SetUpGroup { .. }
+        | engine::Request::ForgeKept(_)
+        | engine::Request::ForgeGone { .. }
+        | engine::Request::BoxGroup { .. }
+        | engine::Request::BoxRemove { .. }
         | engine::Request::Connect { .. }
         | engine::Request::Manifest { .. }
         | engine::Request::Reachable { .. }
@@ -578,7 +582,7 @@ fn set_up_request(
         carried: None,
         request: temper_engine_domain::Application::Forge(owner::Ask::SetUp {
             playground: setup.playground,
-            forge: setup.forge,
+            forge: owner::Making::Kept(setup.forge),
             org: setup.org,
             repository: setup.repository,
             project: match setup.project {
