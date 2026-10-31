@@ -189,7 +189,7 @@ fn a_start_keeps_a_dropped_charters_version_and_its_task_runs_on_it() {
     let run = world.assigned.as_ref().expect("the restored task runs on the dropped charter");
     assert_eq!(run.run.policy.instructions.as_ref(), b"Answer within the granted authority.");
     assert_eq!(fixtures::live_row(&world, run.task).settings.run, Some(1));
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -396,7 +396,7 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
     let assigned = world.assigned.as_ref().expect("next run");
     assert_eq!(assigned.run.policy.instructions.as_ref(), b"Changed instructions.");
     assert_eq!(assigned.run.policy.model.effort.as_deref(), Some(b"high".as_slice()));
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -638,7 +638,7 @@ fn a_changed_run_cap_applies_to_the_next_run_without_capping_its_tasks_total_all
     batch[0].authority.spend = 40;
     assert!(matches!(ask(&mut world, signed, 42, chat), people::Reply::Outcome(people::Outcome::Created { .. })));
     assert_eq!(world.assigned.as_ref().expect("new run").run.budget, 20);
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1003,7 +1003,7 @@ fn a_charter_changed_while_its_goal_runs_keeps_the_run_and_the_goal_on_their_ver
         b"Instructions from revision two."
     );
     assert_eq!(fixtures::live_row(&world, new_task).settings.task, 2);
-    // Finding: restart changes Task 2 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 #[test]
@@ -1020,7 +1020,7 @@ fn a_delegate_is_made_on_the_newest_whatever_its_parents_revision() {
     assert_eq!(assigned.task, delegate);
     assert_eq!(assigned.run.policy.instructions.as_ref(), b"Instructions from revision two.");
     assert_eq!(fixtures::live_row(&world, delegate).settings.run, Some(2));
-    // Finding: restart changes Task 1 field acts.
+    // Engine 6 step 3 ends the engine claim; engine 11.5 recomputes Cancel impact from the changed live runs.
     world.broken();
 }
 #[test]
@@ -1055,7 +1055,7 @@ fn a_held_revisions_charter_reads_whole_and_the_inventory_counts_its_holders() {
         panic!("held history page")
     };
     assert_eq!(page.rows.iter().map(|row| row.head.number).collect::<Vec<_>>(), [2, 1]);
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 #[test]
@@ -1132,7 +1132,7 @@ fn held_revisions_past_their_limit_refuse_the_change_naming_the_oldest_and_its_t
     );
     assert_eq!(settings_rows(&world), before);
     assert_eq!(world.domain.settings().newest(), 2);
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1186,7 +1186,7 @@ fn held_versions_past_their_limit_refuse_the_change_without_writing_settings() {
         }))
     );
     assert_eq!(settings_rows(&world), before);
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1273,7 +1273,7 @@ fn a_change_moving_running_work_moves_the_waiting_goal_and_keeps_the_live_run() 
     assert_eq!(next.task, parked);
     assert_eq!(next.run.policy.instructions.as_ref(), b"The next run's instructions.");
     assert_eq!(fixtures::live_row(&world, parked).settings.run, Some(2));
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1306,7 +1306,7 @@ fn move_to_newest_moves_a_held_revisions_tasks_and_releases_it() {
     let next = world.assigned.as_ref().expect("goal's next run");
     assert_eq!(next.task, goal);
     assert_eq!(next.run.policy.instructions.as_ref(), b"Instructions from revision two.");
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1340,7 +1340,7 @@ fn a_move_uses_the_room_freed_by_its_tasks_for_heads_and_versions() {
         inventory(&mut world, signed).held.iter().map(|row| (row.head.number, row.holders)).collect::<Vec<_>>(),
         [(2, 1), (3, 2)]
     );
-    // Finding: restart changes Task 2 field settings.
+    // Engine 6 step 3 ends the engine claim, releasing its run revision (engine 17.4); task revision stays held.
     world.broken();
 }
 
@@ -1379,7 +1379,7 @@ fn a_restart_keeps_an_old_revision_held_and_its_goal_runs_on_its_version() {
     change_instructions(&mut world, signed);
     restart(&mut world, held_restart_configuration());
     runs_after_held_restart(&mut world, goal, b"Instructions from revision two.");
-    // Finding: restart changes Task 2 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1407,7 +1407,7 @@ fn a_release_at_a_restart_keeps_the_old_default_for_the_revision_held() {
     restart(&mut world, config);
     assert_eq!(world.domain.settings().newest(), 2);
     runs_after_held_restart(&mut world, goal, b"Released default instructions");
-    // Finding: restart changes Task 2 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1598,7 +1598,7 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
     let placed = world.assigned.as_ref().expect("new task runs on the arriving worker");
     assert_eq!(placed.task, newest);
     assert_eq!(placed.run.placement.kind, fleet::HostKind::Worker);
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1615,7 +1615,7 @@ fn a_template_only_change_places_a_run_by_the_original_charter_version() {
     let run = world.assigned.as_ref().expect("unchanged charter version (1, 1) is placed");
     assert_eq!(run.task, goal);
     assert_eq!(run.run.placement.kind, fleet::HostKind::Worker);
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1655,7 +1655,7 @@ fn the_bound_reached_its_named_tasks_moved_and_the_change_then_made() {
     changed(&change(&mut world, signed, 106, 2, Box::new([item])), 3);
     assert_eq!(world.domain.settings().newest(), 3);
     assert_eq!(fixtures::live_row(&world, newest).settings.run, Some(2));
-    // Finding: restart changes Task 2 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -1773,7 +1773,7 @@ fn a_delegation_to_a_removed_charter_is_refused_while_its_version_serves_its_tas
         ),
         "a removed charter is not offered by the newest revision: {answer:?}"
     );
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 

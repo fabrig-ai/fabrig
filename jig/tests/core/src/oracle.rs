@@ -276,7 +276,11 @@ fn durable(mut document: Document) -> Document {
         // Engine 6 step 1 restores the accounts, not the last sign-in's runtime end.
         Document::Accounts(row) => row.last_end = None,
         // Engine 6 step 3 adopts runs afresh; the dead host's receipt is not retained.
-        Document::Task(row) => row.chip.details.observation = None,
+        Document::Task(row) => {
+            row.chip.details.observation = None;
+            // client/domain/contract.md 5.1: run_wait derives from current source and host availability, never stored.
+            row.run_wait = None;
+        }
         Document::Frame(_)
         | Document::Chips(_)
         | Document::Run(_)

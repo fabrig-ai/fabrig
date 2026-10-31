@@ -635,8 +635,6 @@ fn a_run_waits_while_its_account_must_sign_in_again() {
     assert!(world.store.rows.values().any(|row| matches!(row,
         root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task)))
         if matches!(task.phase, tasks::Phase::Active(tasks::Active::Due)))));
-    // Finding: restart changes Task 1 field run_wait.
-    world.broken();
 }
 #[test]
 fn a_run_waiting_for_its_account_starts_once_granted() {
