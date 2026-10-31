@@ -31,7 +31,6 @@ fn next(world: &mut World, index: usize) -> engine::Assignment {
     panic!("delegate {index} was not assigned");
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review_whole() {
     let mut world = World::configured_limits(
         true,

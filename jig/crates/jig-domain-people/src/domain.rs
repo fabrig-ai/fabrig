@@ -345,6 +345,19 @@ impl Domain {
         self.lost
     }
 
+    /// The next retained Answer outcome in key order for Link (jig/docs/design/domain/engine.md, 6).
+    #[must_use]
+    pub fn next_answer(&self, after: Option<RequestKey>) -> Option<(RequestKey, &Outcome)> {
+        let next = match after {
+            Some(key) => self.answers.range((core::ops::Bound::Excluded(key), core::ops::Bound::Unbounded)).next(),
+            None => self.answers.first(),
+        };
+        match next {
+            Some((key, answer)) => Some((*key, &answer.outcome)),
+            None => None,
+        }
+    }
+
     /// Recent permanent room refusals from retained keyed answers, together with
     /// bounded unsaved entrance pressure, newest wall time first. Reads copy no ask
     /// payloads and change no diagnostic, replay or expiry state.

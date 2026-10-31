@@ -513,8 +513,10 @@ impl World {
         }
         if self.events.front().is_some_and(|(due, _)| *due <= self.iteration) {
             let (_, event) = self.events.pop_front().expect("one due scripted event");
-            self.trace.push(format!("input {event:?}"));
-            if crate::waits_for_open(&self.domain, &event) {
+            if !crate::waits_for_start(&self.domain, &event) {
+                self.trace.push(format!("input {event:?}"));
+            }
+            if crate::waits_for_start(&self.domain, &event) {
                 self.queue(event, 0);
             } else if let Err(event) = engine::try_step(&mut self.domain, &self.environment, event) {
                 self.queue(event, 1);
@@ -797,6 +799,12 @@ impl World {
                 .referee
                 .result(&self.store.rows, person, task, &words)
                 .expect("independent exact final report and funding"),
+            Delivery::Link { channel, down: host::LinkDown::Cancel { run, attempt } } => {
+                let assignment = self.assignment.as_ref().expect("retained worker answer");
+                assert_eq!(channel, Token::new(7));
+                assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
+                assert_eq!(self.worker_answer, WorkerAnswer::Retained, "the worker keeps its terminal until ACK");
+            }
             Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::DemoActed { .. }
             | Delivery::DemoNote { .. }

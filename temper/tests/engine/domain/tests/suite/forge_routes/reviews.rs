@@ -75,7 +75,6 @@ pub(super) fn review_world() -> (World, engine::Assignment, [u8; 32]) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_change_keeps_its_producing_and_review_charters_after_configuration_changes() {
     let world = World::configured_limits(
         true,
@@ -120,7 +119,6 @@ fn a_change_keeps_its_producing_and_review_charters_after_configuration_changes(
 
 /// domain/forge.md, 8.3: the review names its subject before the pull section.
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_gate_reviews_a_named_pull_with_its_whole_section_at_a_sha1_head() {
     let (world, reviewer, head) = review_world();
     assert_eq!(&head[20..], &[0; 12]);
@@ -158,7 +156,6 @@ fn a_gate_reviews_a_named_pull_with_its_whole_section_at_a_sha1_head() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_changes_reviewer_reads_its_own_pull() {
     let (mut world, reviewer, head) = review_world();
     let Answer::Pull(pull) =
@@ -189,7 +186,6 @@ fn a_changes_reviewer_reads_its_own_pull() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_changes_producer_reads_the_forge() {
     let (mut world, _, producer, _) = change_world_with_gate(false, 1000, None, true);
     let Answer::Commit(head) =
@@ -202,7 +198,6 @@ fn a_changes_producer_reads_the_forge() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_changes_grants_name_its_repository_alone() {
     let mut world = World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None);
     world.adopt();
@@ -371,7 +366,6 @@ fn assert_review_head(world: &World, reviewer: &engine::Assignment, head: [u8; 3
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_failed_review_is_asked_again_at_the_same_head() {
     let (mut world, first, head) = review_world();
     let change = requester(&world, first.task);
@@ -390,7 +384,6 @@ fn a_failed_review_is_asked_again_at_the_same_head() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_reviews_retry_says_it_is_asked_again_naming_the_failure() {
     const FAILURE: &[u8] = b"cannot read the pull";
     const OPENING: &[u8] =
@@ -413,7 +406,6 @@ fn a_reviews_retry_says_it_is_asked_again_naming_the_failure() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_second_failed_review_holds_the_change_naming_it() {
     use temper_engine_domain_forge_change::{GateFailure, Hold, State};
     const SECOND_FAILURE: &[u8] = b"cannot judge the second review";
@@ -446,7 +438,6 @@ fn a_second_failed_review_holds_the_change_naming_it() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_request_for_changes_is_still_a_repair() {
     let (mut world, first, _) = review_world();
     let change = requester(&world, first.task);
@@ -465,7 +456,6 @@ fn a_request_for_changes_is_still_a_repair() {
 
 // domain/forge.md, 8.5: the procedure retains the precise hold while its review waits.
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_external_close_holds_the_change_during_review() {
     use temper_engine_domain_forge_change::{Hold, State};
     const OUTSIDE_AUTHOR: u64 = 2; // The forge world's other collaborator.
@@ -586,7 +576,6 @@ fn held_producer() -> (World, u64, engine::Assignment, Box<[u8]>) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_released_change_makes_a_fresh_producer_and_its_requester_hears_it_land() {
     let (mut world, task, first, branch) = held_producer();
     let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(ended)))) =
@@ -619,7 +608,6 @@ fn a_released_change_makes_a_fresh_producer_and_its_requester_hears_it_land() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_released_failed_producer_needs_another_task_and_a_second_release_holds_again() {
     let (mut world, task, _, _) = held_producer();
     change_authority(&mut world, task, Some(1), None, None);
@@ -667,7 +655,6 @@ fn assert_lands(world: &mut World, task: u64) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_released_change_asks_its_review_afresh() {
     let (mut world, change, head) = held_review();
     release(&mut world, change);
@@ -679,7 +666,6 @@ fn a_released_change_asks_its_review_afresh() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_released_change_counts_its_review_tries_anew() {
     let (mut world, change, head) = held_review();
     release(&mut world, change);
@@ -735,7 +721,6 @@ fn cancel_and_assert_panel_ended(world: &mut World, task: u64) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_cancelled_held_change_ends_its_panel() {
     let (mut world, change, _) = held_review();
     cancel_and_assert_panel_ended(&mut world, change);
@@ -765,7 +750,6 @@ fn held_for(why: temper_engine_domain_forge_change::Hold) -> (World, u64, [u8; 3
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_released_change_counts_its_repairs_anew() {
     let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::Repairs);
     release(&mut world, task);
@@ -776,7 +760,6 @@ fn a_released_change_counts_its_repairs_anew() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_released_change_with_a_declined_approval_is_held_again() {
     use temper_engine_domain_forge_change::{Hold, State};
     let (mut world, task, _) = held_for(Hold::Rejected);
@@ -792,7 +775,6 @@ fn a_released_change_with_a_declined_approval_is_held_again() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_released_change_checks_its_moved_branch_afresh() {
     let (mut world, task, old) = held_for(temper_engine_domain_forge_change::Hold::BranchMoved);
     let branch = change_row(&world, task).branch.clone();
@@ -810,21 +792,18 @@ fn a_released_change_checks_its_moved_branch_afresh() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_cancelled_change_held_for_repairs_ends_its_panel() {
     let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::Repairs);
     cancel_and_assert_panel_ended(&mut world, task);
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_cancelled_change_with_a_declined_approval_ends_its_panel() {
     let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::Rejected);
     cancel_and_assert_panel_ended(&mut world, task);
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_cancelled_change_with_a_moved_branch_ends_its_panel() {
     let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::BranchMoved);
     cancel_and_assert_panel_ended(&mut world, task);
@@ -841,7 +820,6 @@ fn observed_move(world: &World, task: u64, head: [u8; 32]) -> bool {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_released_moved_change_is_not_held_again_while_its_fresh_read_is_slow() {
     const SLOW_READ_TICKS: u32 = 600;
     let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::BranchMoved);
@@ -936,7 +914,6 @@ fn assert_authority_hold(
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_change_past_its_tasks_holds_naming_them() {
     let (world, task, _) = past_tasks();
     assert_authority_hold(
@@ -950,7 +927,6 @@ fn a_change_past_its_tasks_holds_naming_them() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_bare_release_of_a_change_past_its_tasks_holds_it_again() {
     let (mut world, task, _) = past_tasks();
     release(&mut world, task);
@@ -1033,7 +1009,6 @@ fn rejected_review_with_tasks(tasks: u32) -> (World, u64) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn one_task_left_admits_the_reviews_repair() {
     use temper_engine_domain_forge_change::{Repair, State};
     const WITH_REPAIR: u32 = PRODUCER_AND_REVIEW + 1;
@@ -1049,7 +1024,6 @@ fn one_task_left_admits_the_reviews_repair() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn no_tasks_left_holds_before_the_reviews_repair() {
     let (mut world, change) = rejected_review_with_tasks(PRODUCER_AND_REVIEW);
     wait_held(&mut world, change);
@@ -1066,7 +1040,6 @@ fn no_tasks_left_holds_before_the_reviews_repair() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_release_with_more_tasks_lets_it_go_on() {
     let (mut world, task, head) = past_tasks();
     change_authority(&mut world, task, Some(8), None, None);
@@ -1078,7 +1051,6 @@ fn a_release_with_more_tasks_lets_it_go_on() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_change_past_its_depth_holds_naming_it() {
     let (mut world, task, _) = held_review();
     change_authority(&mut world, task, None, Some(0), None);
@@ -1096,7 +1068,6 @@ fn a_change_past_its_depth_holds_naming_it() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_change_below_a_runs_reserve_holds_naming_it() {
     let (mut world, task, _) = held_review();
     let spent = live_task(&world, task).numbers.spent + live_task(&world, task).numbers.spent_below;
@@ -1115,7 +1086,6 @@ fn a_change_below_a_runs_reserve_holds_naming_it() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_producers_result_is_a_push_while_gating_and_only_the_change_reports_a_landing() {
     let (mut world, _, producer, branch) = change_world_with_gate(false, 1000, None, true);
     let change = requester(&world, producer.task);
@@ -1149,7 +1119,6 @@ fn ended_result(world: &World, task: u64) -> &tasks::TaskResult {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the funding story spans cancellation, repair, fresh review and landing")]
-#[ignore = "needs core-inbox"]
 fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
     use temper_engine_domain_forge_change::{State, Status};
     const H1: u64 = 2;
@@ -1314,7 +1283,6 @@ fn read_change_task(world: &mut World, change: u64) -> Box<jig_domain_core::docu
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_review_without_spend_holds_for_budget_before_delegating() {
     let (mut world, change) = before_review();
     let numbers = live_task(&world, change).numbers;
@@ -1339,7 +1307,6 @@ fn a_review_without_spend_holds_for_budget_before_delegating() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_review_without_charter_authority_holds_naming_the_missing_executor() {
     let (mut world, change) = before_review();
     let mut authority = live_task(&world, change).authority.clone();
@@ -1456,7 +1423,6 @@ fn pending_large_with_alpha_and_beta(tasks: u32) -> (World, u64, u64, u64) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn independent_alpha_and_beta_start_while_a_large_change_is_pending() {
     let (mut world, _, alpha, beta) = pending_large_with_alpha_and_beta(12);
     let alpha_producer = producer_for(&mut world, alpha);
@@ -1488,7 +1454,6 @@ fn independent_alpha_and_beta_start_while_a_large_change_is_pending() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn beta_at_the_stock_task_limit_is_due_after_a_live_capacity_refusal() {
     let cap = temper_engine_domain_world::forge_routes::box_limits().tasks.tasks;
     assert_eq!(cap, 8, "the reproduction uses the shipped box's task limit");
@@ -1532,7 +1497,6 @@ fn beta_at_the_stock_task_limit_is_due_after_a_live_capacity_refusal() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_vetoed_open_holds_as_its_procedure_naming_the_effect_and_decision() {
     let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
     documents.grants = 16;
@@ -1557,7 +1521,6 @@ fn a_vetoed_open_holds_as_its_procedure_naming_the_effect_and_decision() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
     let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
     documents.grants = 16;
@@ -1582,7 +1545,6 @@ fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
     let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
     let world = World::configured_limits(

@@ -841,7 +841,7 @@ impl World {
     }
 
     pub fn send(&mut self, event: engine::Event) {
-        if crate::waits_for_open(&self.root, &event) {
+        if crate::waits_for_start(&self.root, &event) {
             self.events.push_back(event);
             return;
         }

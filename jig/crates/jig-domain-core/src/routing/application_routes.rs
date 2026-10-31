@@ -215,6 +215,9 @@ impl Core {
     /// Validate retained application tokens against the restored deployment and its connectors.
     #[must_use]
     pub fn restore_people_row(&self, row: &people::Stored) -> bool {
+        if self.start.mode == crate::start::StartMode::LoadAndLink {
+            return true;
+        }
         match row {
             people::Stored::Answer { outcome, .. } => match outcome {
                 people::Outcome::Applied { connector, token } => {

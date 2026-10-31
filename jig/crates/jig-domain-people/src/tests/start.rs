@@ -1255,3 +1255,26 @@ fn selected_account_use_owned_bytes_fit_exactly_or_name_the_outer_answer() {
         assert!(out.is_empty());
     }
 }
+
+#[test]
+fn retained_answer_view_borrows_outcomes_in_key_order() {
+    let env = env();
+    let (mut domain, mut out) = new_start(&env);
+    assert_eq!(domain.next_answer(None), None);
+    for person in [2, 1] {
+        load(
+            &mut domain,
+            &env,
+            answer(person, Ask::Stop { project: 1, task: 7 }, Outcome::Stopped { task: 7 }),
+            &mut out,
+        );
+    }
+    let (first, outcome) = domain.next_answer(None).expect("first answer");
+    assert_eq!(first.key, [1; 16]);
+    assert_eq!(*outcome, Outcome::Stopped { task: 7 });
+    let (second, outcome) = domain.next_answer(Some(first)).expect("next answer");
+    assert_eq!(second.key, [2; 16]);
+    assert_eq!(*outcome, Outcome::Stopped { task: 7 });
+    assert_eq!(domain.next_answer(Some(second)), None);
+    assert!(out.is_empty());
+}

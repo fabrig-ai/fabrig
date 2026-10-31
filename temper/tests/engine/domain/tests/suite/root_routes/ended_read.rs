@@ -31,7 +31,6 @@ fn ended_conversation() -> Store {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_ended_conversations_read_position_survives_a_restart() {
     let mut restarted = Driver::new(ended_conversation());
     restarted.settle();

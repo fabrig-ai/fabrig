@@ -13,7 +13,6 @@ const BASE_DIGITS: &[u8] = b"1d0b14e4db018fed000000000000000300000000";
 const HEAD_DIGITS: &[u8] = b"975835de1c9756ce000000000000000200000000";
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_resolution_delegate_carries_its_base_as_hexadecimal_text() {
     let (mut world, _chat, producer, branch) = change_world(false, REVIEW_PASSES, None);
     assert_eq!(
@@ -32,7 +31,6 @@ fn a_resolution_delegate_carries_its_base_as_hexadecimal_text() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_gate_delegate_carries_its_head_as_hexadecimal_text() {
     let (mut world, _chat, producer, branch) = change_world_with_gate(false, REVIEW_PASSES, None, true);
     assert_eq!(

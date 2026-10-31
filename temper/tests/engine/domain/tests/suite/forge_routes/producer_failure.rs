@@ -59,7 +59,6 @@ fn account(world: &World, change: u64) -> &[u8] {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_inapplicable_producers_words_reach_its_hold_and_its_chats_reply() {
     let (mut world, chat, change) = failed_production(REASON);
     assert_eq!(account(&world, change), REASON);
@@ -97,7 +96,6 @@ fn an_inapplicable_producers_words_reach_its_hold_and_its_chats_reply() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_producer_failure_uses_the_hold_account_bound_even_with_a_smaller_message_bound() {
     let bound = usize::try_from(tasks::HOLD_ACCOUNT_BYTES).expect("hold bound");
     let mut reason = vec![b'x'; bound];

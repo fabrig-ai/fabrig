@@ -45,7 +45,6 @@ fn economic_rows(world: &World) -> Vec<(Key, Record)> {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn owner_policy_roster_and_requester_loss_commit_together_then_old_holder_has_no_standing() {
     let mut world = World::new(Settings::calm(9300, Base::Requester));
     let before = world.task_record().clone();
@@ -96,7 +95,6 @@ fn owner_policy_roster_and_requester_loss_commit_together_then_old_holder_has_no
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn unchanged_requester_final_role_and_rejected_state_emit_no_task_write() {
     for base in [Base::Requester, Base::FinalRole, Base::Rejected] {
         let mut world = World::new(Settings::calm(9301, base));
@@ -113,7 +111,6 @@ fn unchanged_requester_final_role_and_rejected_state_emit_no_task_write() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn both_current_owner_race_orders_authorize_only_the_first_committed_roster() {
     for winner in [0, 1] {
         let mut world = World::new(Settings { commit_delay: 1, ..Settings::calm(9302, Base::Requester) });
@@ -133,7 +130,6 @@ fn both_current_owner_race_orders_authorize_only_the_first_committed_roster() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn role_admission_checks_current_authority_payload_bounds_and_revision_room() {
     let mut world = World::new(Settings::calm(9303, Base::Requester));
     let before = world.task_record().clone();
@@ -209,7 +205,6 @@ fn current_owner_policy_and_session_expiry_are_separate_real_checks() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn role_commit_cut_recovers_exact_keyed_answer_and_same_holder_without_second_write() {
     let mut world = reroute_replayed(
         Settings { cut: true, commit_delay: 1, page_delay: 1, ..Settings::calm(9306, Base::Requester) },
@@ -223,7 +218,6 @@ fn role_commit_cut_recovers_exact_keyed_answer_and_same_holder_without_second_wr
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn each_role_cohort_corruption_fails_its_specific_contract_after_positive_control() {
     let mut world = reroute_replayed(Settings::calm(9307, Base::Requester), 1);
     let (before, writes) = world
@@ -303,7 +297,6 @@ fn each_role_cohort_corruption_fails_its_specific_contract_after_positive_contro
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn saturated_facts_change_no_role_request_trace_or_durable_rows() {
     let mut observed = reroute_replayed(Settings::calm(9308, Base::Requester), 1);
     let mut saturated = reroute_replayed(Settings { facts: false, ..Settings::calm(9308, Base::Requester) }, 1);

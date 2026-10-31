@@ -296,7 +296,6 @@ fn full_decisions_and_maximum_held_results_fit_the_declared_root_journal_bound()
 const WALKING_HEAP_CEILING: u64 = 330_000;
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn real_root_state_and_complete_walking_handoffs_fit_the_declared_counted_bound() {
     use temper_engine_domain_world::walking::{Settings, World, limits};
     let limits = limits();
@@ -318,7 +317,6 @@ fn real_root_state_and_complete_walking_handoffs_fit_the_declared_counted_bound(
 const ESCALATION_HEAP_CEILING: u64 = 460_000;
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn held_reasons_history_queries_and_real_escalation_handoffs_fit_counted_root_memory() {
     use temper_engine_domain_world::{escalation, escalation_referee::Story};
     let limits = escalation::limits();
@@ -344,7 +342,6 @@ fn held_reasons_history_queries_and_real_escalation_handoffs_fit_counted_root_me
 const ROLE_RECOVERY_HEAP_CEILING: u64 = 1_300_000;
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn candidate_rosters_waiting_snapshots_keyed_history_and_recovery_fit_counted_memory() {
     use temper_engine_domain_world::roles::{Base, Settings, limits, reroute_replayed};
     let limits = limits();

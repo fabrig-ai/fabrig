@@ -603,6 +603,8 @@ pub fn reroute_replayed(settings: Settings, winner: usize) -> World {
     for _ in 0..500 {
         if first.settled() {
             assert!(replay.settled(), "replay settles at identical cut");
+            drop(first_state);
+            drop(replay_state);
             first.close();
             replay.close();
             return first;
@@ -617,7 +619,9 @@ pub fn reroute_replayed(settings: Settings, winner: usize) -> World {
         first_state.clear();
         replay_state.clear();
         write!(first_state, "{first:?}").expect("write to string");
+        first_state.shrink_to_fit();
         write!(replay_state, "{replay:?}").expect("write to string");
+        replay_state.shrink_to_fit();
         assert_eq!(first_state, replay_state, "complete frozen role world: {settings:?}");
         first.trace = first_trace;
         replay.trace = replay_trace;

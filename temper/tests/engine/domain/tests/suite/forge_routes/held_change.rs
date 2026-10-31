@@ -9,7 +9,6 @@ const STEPS: u32 = 200; // The world's durable-round-trip allowance.
 const REASON: &[u8] = b"the repository has no search UI; no files changed";
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chat_tells_its_person_why_its_change_holds_before_waiting() {
     let (mut world, chat, change) = super::producer_failure::failed_production(REASON);
     let resumed = super::reviews::next_assignment(&mut world, CHAT_AND_PRODUCER);

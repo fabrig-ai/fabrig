@@ -102,7 +102,6 @@ impl Model {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_advisor_lists_the_root_and_finds_src_main_rs() {
     let (mut world, chat) = world_with(&defaults());
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"README", b"Repository guide", 1)

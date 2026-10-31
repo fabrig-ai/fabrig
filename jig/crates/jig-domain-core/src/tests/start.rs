@@ -1,6 +1,7 @@
 //! Start selection and phase discipline (jig/docs/design/domain/engine.md, 6).
 mod connectors;
 mod inbox;
+mod links;
 mod projections;
 mod rows;
 mod runs;

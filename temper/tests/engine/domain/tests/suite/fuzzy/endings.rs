@@ -109,7 +109,6 @@ fn delegate_child(driver: &mut Driver, assignment: &engine::Assignment) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chat_in_the_ending_sweep_can_delegate_a_child() {
     let mut rng = Rng::new(8332);
     let (mut driver, assignment) = chat(8332, true);
@@ -129,7 +128,6 @@ fn a_chat_in_the_ending_sweep_can_delegate_a_child() {
     clippy::wildcard_enum_match_arm,
     reason = "one seeded root story selects its concrete route and durable outcome"
 )]
-#[ignore = "needs core-inbox"]
 fn drawn_root_stories_reach_every_durable_ending_and_held_route() {
     let mut seen = BTreeSet::new();
     for seed in 0..16_u64 {
