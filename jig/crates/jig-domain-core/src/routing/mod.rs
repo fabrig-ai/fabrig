@@ -245,7 +245,7 @@ impl Core {
             &self.authority,
             &authority::CallAsk {
                 project: task.project,
-                authority: crate::translate::authority_value(&task.authority),
+                authority: crate::translate::tasks_authority(&task.authority),
                 family,
                 call,
             },

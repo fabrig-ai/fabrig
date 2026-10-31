@@ -34,7 +34,7 @@ impl Core {
             }
         }
         let Some(policy) = self.authority.policy(project) else { return false };
-        authority::at_most(&translate::authority_value(given), &policy.ceiling, &self.authority.rules().implies)
+        authority::at_most(&translate::tasks_authority(given), &policy.ceiling, &self.authority.rules().implies)
             && self.period_budget(project) <= policy.period_spend
     }
 
@@ -148,7 +148,7 @@ impl Core {
             }
             tasks::PersonAction::Amend { task, amendment, .. } => {
                 let row = self.tasks.task(*task).ok_or(people::Refusal::Unknown)?;
-                authority::Action::Amend(translate::authority_value(
+                authority::Action::Amend(translate::tasks_authority(
                     amendment.authority.as_ref().unwrap_or(&row.authority),
                 ))
             }

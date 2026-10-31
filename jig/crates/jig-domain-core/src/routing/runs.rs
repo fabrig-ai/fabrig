@@ -164,8 +164,8 @@ pub(super) fn named_proposal_accept(
             let Some(current) = core.tasks.delegation(task) else {
                 return proposal_refused(core, ReplyTo::new(token), key, tasks::Refusal::Unknown);
             };
-            let after = crate::translate::authority_value(amendment.authority.as_ref().unwrap_or(&current.authority));
-            let before = crate::translate::authority_value(&current.authority);
+            let after = crate::translate::tasks_authority(amendment.authority.as_ref().unwrap_or(&current.authority));
+            let before = crate::translate::tasks_authority(&current.authority);
             let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
             tasks::Event::Amend {
                 places: Box::new([]),

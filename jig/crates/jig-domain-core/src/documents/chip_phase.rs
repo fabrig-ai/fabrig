@@ -54,7 +54,7 @@ pub struct ChipDetails {
     pub resources_observed: bool,
     pub procedure: Option<Part>,
     pub live_delegates: u32,
-    /// Exact connectors waited on (QUESTIONS 29), unknown in an unjoined stored closing row.
+    /// Connectors the task waits on (domain/engine.md, 11.3), unknown in an unjoined stored closing row.
     pub closing_connectors: Option<List<u16>>,
     pub ending: Option<super::Ending>,
     pub ended_at: Option<Wall>,

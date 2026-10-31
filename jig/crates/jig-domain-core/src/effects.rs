@@ -1116,7 +1116,7 @@ fn check(
             let actual = authority::needs(&authority::Action::Effect(description.effect.clone()));
             if description.connector != number
                 || description.purpose != purpose
-                || actual != Some(crate::translate::authority_value(needed))
+                || actual != Some(crate::translate::tasks_authority(needed))
             {
                 return authority::Answer::Refuse;
             }
