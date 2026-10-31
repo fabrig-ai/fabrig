@@ -73,7 +73,7 @@ impl Component {
                         w::SignedInParts { token: None, party: person, expires: expires.as_nanos() },
                     )
                     .expect("token-less sign-in admitted");
-                    self.respond(env, exchange, routes::signed_in(&env.limits.wire, value));
+                    self.respond(exchange, routes::signed_in(value));
                     return;
                 }
                 let token = sign_in::token(&mut self.rng, sign_in);
@@ -110,7 +110,7 @@ impl Component {
                     } else {
                         routes::sign_in_busy()
                     };
-                    self.respond(env, exchange, answer);
+                    self.respond(exchange, answer);
                 }
             }
             people::Reply::Full { sign_ins, earliest } => {
@@ -124,7 +124,7 @@ impl Component {
                         None => routes::sign_in_busy(),
                     };
                     self.return_link(spent);
-                    self.respond(env, exchange, answer);
+                    self.respond(exchange, answer);
                 }
             }
             people::Reply::Signer(_)
@@ -132,7 +132,7 @@ impl Component {
             | people::Reply::Outcome(_)
             | people::Reply::Refused(_) => {
                 if !self.mint_refused(exchange, MintRefusal::Bound, out) {
-                    self.respond(env, exchange, routes::refused(&env.limits.wire));
+                    self.respond(exchange, routes::refused());
                 }
             }
         }

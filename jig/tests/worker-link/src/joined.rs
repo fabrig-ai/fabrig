@@ -208,7 +208,6 @@ impl Joined {
                 self.engine.fire(self.now, &mut self.engine_out);
                 continue;
             }
-            self.engine.reclaim();
             return;
         }
         panic!("joined world settles");

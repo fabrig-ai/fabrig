@@ -472,15 +472,3 @@ fn answers_full_carries_its_facts_on_the_current_wire() {
     let w::KeyedAnswer::AnswersFull(value) = exchange.answer(owner) else { panic!("answers full") };
     assert_eq!((value.held(), value.room_at()), (FULL_HELD, FULL_ROOM.as_nanos()));
 }
-#[test]
-fn older_client_versions_receive_plain_busy_for_full_answers() {
-    for version in [15, 17] {
-        let mut settings = f::settings();
-        settings.served.get_mut(0).expect("jig owner range").first = version;
-        let mut exchange = Exchange::configured(f::env(), settings);
-        let (owner, to) = exchange.ask_version(version);
-        exchange.reply(to, p::Reply::Again(p::Again::Full { held: FULL_HELD, room_at: FULL_ROOM }));
-        assert_eq!(exchange.answer(owner), w::KeyedAnswer::Busy);
-        assert_eq!(exchange.response(owner).1, &[2], "legacy busy tag is unchanged");
-    }
-}

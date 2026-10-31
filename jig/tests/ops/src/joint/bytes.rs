@@ -209,7 +209,7 @@ impl Bytes {
         Env { now: self.env.now, wall: self.env.wall, limits: fixtures::http_limits() }
     }
     fn mount_event(&mut self, event: http::Event) {
-        self.mount.down(&self.mount_env(), event, &mut self.mount_out);
+        self.mount.down(&self.mount_env(), event);
     }
     fn mount_step(&mut self) -> bool {
         let mut active = self.mount.up(&self.mount_env(), &mut self.mount_out);
@@ -357,7 +357,7 @@ impl Bytes {
                 active = true;
                 self.routed(routed);
             }
-            self.component.fire(&self.env, &mut self.out);
+            self.component.fire(&self.env);
             while self.component.up(&self.env, &mut self.out) {
                 active = true;
             }

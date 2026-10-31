@@ -386,7 +386,7 @@ impl Clients {
                 hosts.push(origin.name.clone()).expect("public host");
             }
             hosts.push(printed::address_text(address).expect("bound listener address")).expect("one listener host");
-            self.mount.down(&self.mount_env, http::Event::Listening { hosts }, &mut self.mount_out);
+            self.mount.down(&self.mount_env, http::Event::Listening { hosts });
         }
         let previous = self.server.listening();
         // The server must observe the terminal bind event before the engine
@@ -407,7 +407,7 @@ impl Clients {
                     // Claims depend on the prefix alone; the mounted mapping checks the Host.
                     let claimed = http::claims(&http_settings(None), &head);
                     if claimed && self.mount.room() > 0 {
-                        self.mount.down(&self.mount_env, http::Event::Call { call, head }, &mut self.mount_out);
+                        self.mount.down(&self.mount_env, http::Event::Call { call, head });
                     } else if !claimed && provider::claims(&head.target) {
                         self.provider_call(call, head);
                     } else if !claimed && google::claims(&head.target) {
@@ -428,7 +428,7 @@ impl Clients {
                     } else if self.replies.get(&call).is_some() {
                         self.serve_event(call, event);
                     } else {
-                        self.mount.down(&self.mount_env, http::Event::Http { call, event }, &mut self.mount_out);
+                        self.mount.down(&self.mount_env, http::Event::Http { call, event });
                     }
                 }
             }
@@ -469,7 +469,7 @@ impl Clients {
             }
             match self.out.pop().expect("client requests") {
                 kit::Request::Transport(message) => {
-                    self.mount.down(&self.mount_env, http::Event::Component(message), &mut self.mount_out);
+                    self.mount.down(&self.mount_env, http::Event::Component(message));
                 }
                 kit::Request::Link { secret } => {
                     self.secret = Some(secret);
@@ -566,7 +566,7 @@ impl Clients {
             return;
         }
         if !self.component_closed {
-            self.component.fire(&self.env, &mut self.out);
+            self.component.fire(&self.env);
         }
         self.advance(events, forges, demo, accounts);
         self.pending = server_pending || !self.server_out.is_empty();

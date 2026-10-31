@@ -255,7 +255,7 @@ impl Clients {
         {
             let mut hosts = List::with_capacity(1);
             hosts.push(address_text(address).expect("bound listener address")).expect("one listener host");
-            self.mount.down(&self.mount_env, http::Event::Listening { hosts }, &mut self.mount_out);
+            self.mount.down(&self.mount_env, http::Event::Listening { hosts });
         }
         self.server.up(event, &mut self.server_out);
         self.print_link();
@@ -268,7 +268,7 @@ impl Clients {
                 crate::server::Routed::Io(request) => self.io.push(tag(request)),
                 crate::server::Routed::Call { call, head } => {
                     if self.mount.room() > 0 {
-                        self.mount.down(&self.mount_env, http::Event::Call { call, head }, &mut self.mount_out);
+                        self.mount.down(&self.mount_env, http::Event::Call { call, head });
                     } else {
                         self.refused.insert(call, ()).expect("bounded refused server calls");
                         self.server.answer(call, skein_http::server::Request::Discard, &mut self.server_out);
@@ -300,7 +300,7 @@ impl Clients {
                             | skein_http::server::Event::Refused(_) => {}
                         }
                     } else {
-                        self.mount.down(&self.mount_env, http::Event::Http { call, event }, &mut self.mount_out);
+                        self.mount.down(&self.mount_env, http::Event::Http { call, event });
                     }
                 }
             }
@@ -324,7 +324,7 @@ impl Clients {
         for _ in 0..self.out.len() {
             match to_root(self.out.pop().expect("client requests")) {
                 Routed::Transport(message) => {
-                    self.mount.down(&self.mount_env, http::Event::Component(message), &mut self.mount_out);
+                    self.mount.down(&self.mount_env, http::Event::Component(message));
                 }
                 Routed::Link(value) => {
                     self.secret = Some(value);
@@ -373,7 +373,7 @@ impl Clients {
             return;
         }
         if !self.component_closed {
-            self.component.as_mut().expect("clients started at first service clock").fire(&self.env, &mut self.out);
+            self.component.as_mut().expect("clients started at first service clock").fire(&self.env);
         }
         self.advance(events, bound, rows, accounts);
         self.pending = server_pending || !self.server_out.is_empty();

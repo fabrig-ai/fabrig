@@ -137,7 +137,7 @@ impl Component {
                 }
                 let why = if self.stopping() { crate::MintRefusal::NotReady } else { crate::MintRefusal::Bound };
                 if !self.mint_refused(exchange, why, out) {
-                    self.refused(env, exchange);
+                    self.refused(exchange);
                 }
             }
             Event::Secrets(answer) => self.secrets(env, answer, out),
@@ -146,23 +146,20 @@ impl Component {
                 self.pending.exchanges.remove(&exchange);
                 self.unused(exchange, out);
                 if let Some(owner) = self.owner(exchange) {
-                    self.connections
-                        .get_mut(&owner)
-                        .expect("exchange owner")
-                        .respond(crate::Reply::NotARecord, &env.limits);
+                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
                 }
             }
             Event::SignInEnded { sign_in } => self.ended(env, sign_in, out),
             Event::Application(crate::FromApplication::Answered { to, family, record }) => {
-                self.application(env, to.into_token(), family, record, out);
+                self.application(env, to.into_token(), family, record);
             }
-            Event::MovedTaken { exchange, record } => self.moved_taken(env, exchange, record, out),
-            Event::Stop => self.stop(out),
-            Event::Close => self.close(out),
-            Event::Abort => self.abort(out),
-            Event::Read { reply, answer } => self.read_answer(env, reply.into_token(), &answer, out),
+            Event::MovedTaken { exchange, record } => self.moved_taken(env, exchange, record),
+            Event::Stop => self.stop(),
+            Event::Close => self.close(),
+            Event::Abort => self.abort(),
+            Event::Read { reply, answer } => self.read_answer(env, reply.into_token(), &answer),
             Event::Application(crate::FromApplication::Read { reply, family, record }) => {
-                self.application_read(env, reply.into_token(), family, record, out);
+                self.application_read(env, reply.into_token(), family, record);
             }
             Event::Admitted { watcher } => self.watch_answer(env, watcher, None),
             Event::WatchRefused { watcher, why } => self.watch_answer(env, watcher, Some(why)),
@@ -211,7 +208,7 @@ impl Component {
             if let Some((owner, _)) = self.connections.first() {
                 let owner = *owner;
                 let mut connection = self.connections.remove(&owner).expect("closing call");
-                connection.close(out);
+                connection.close();
                 return true;
             }
             if self.settled() {
@@ -282,7 +279,7 @@ impl Component {
             if self.stream_up(env, out) {
                 return true;
             }
-            return self.close_up(env, out);
+            return self.close_up(out);
         };
         let mut connection = self.connections.remove(&owner).expect("selected exchange");
         if let Some(reply) = connection.response.take() {
@@ -290,9 +287,7 @@ impl Component {
         } else if let Some(why) = connection.ended {
             out.push(Request::Transport(crate::ToTransport::StreamEnded { stream: owner, why }));
         }
-        if let Some(exchange) = connection.name {
-            self.pending.exchanges.remove(&exchange);
-        }
+        self.pending.exchanges.remove(&connection.name);
         if let Some(stream) = self.streams.get_mut(&owner) {
             stream.phase = crate::stream::Phase::Closing;
             stream.closed_connection = true;
@@ -350,15 +345,15 @@ impl Component {
         credential: Option<skein_lib::Secret>,
         out: &mut Queue<Request>,
     ) {
-        let exchange = connection.name.expect("call owns exchange");
+        let exchange = connection.name;
         if body.len() > usize::try_from(env.limits.message_bytes).expect("message bound fits") {
-            connection.respond(crate::Reply::NotARecord, &env.limits);
+            connection.respond(crate::Reply::NotARecord);
             return;
         }
         if self.stopping()
             && let Some(answer) = routes::stopped(route)
         {
-            connection.respond(crate::Reply::Record(answer), &env.limits);
+            connection.respond(crate::Reply::Record(answer));
             return;
         }
         if route == Route::Authorize && !self.authorize_query(env, connection, &body) {
@@ -367,16 +362,16 @@ impl Component {
         match route {
             Route::Link => {
                 let Ok(record) = w::LinkSignIn::decode(&env.limits.wire, &mut skein_lib::Reader::new(&body)) else {
-                    connection.respond(crate::Reply::NotARecord, &env.limits);
+                    connection.respond(crate::Reply::NotARecord);
                     return;
                 };
                 if let Some((_, link)) = &self.spending {
                     let answer = if sign_in::constant_time_eq(link.secret.expose(), record.secret()) {
                         routes::sign_in_busy()
                     } else {
-                        routes::refused(&env.limits.wire)
+                        routes::refused()
                     };
-                    connection.respond(crate::Reply::Record(answer), &env.limits);
+                    connection.respond(crate::Reply::Record(answer));
                     return;
                 }
                 let live = match &self.link {
@@ -390,11 +385,11 @@ impl Component {
                         self.link = None;
                     }
                     self.fresh_link(env, out);
-                    connection.respond(crate::Reply::Record(routes::refused(&env.limits.wire)), &env.limits);
+                    connection.respond(crate::Reply::Record(routes::refused()));
                     return;
                 }
                 if self.admitted() >= env.limits.exchanges {
-                    connection.respond(crate::Reply::Record(routes::sign_in_busy()), &env.limits);
+                    connection.respond(crate::Reply::Record(routes::sign_in_busy()));
                     return;
                 }
                 if let Some(link) = self.link.take() {
@@ -424,7 +419,7 @@ impl Component {
                     if route == Route::Stream {
                         connection.ended = Some(crate::Ended::SignedOut);
                     } else {
-                        connection.respond(crate::Reply::Record(answer), &env.limits);
+                        connection.respond(crate::Reply::Record(answer));
                     }
                     return;
                 };
@@ -465,7 +460,7 @@ impl Component {
                     }
                 }
                 people::Reply::Again(people::Again::NotReady) => {
-                    self.respond(env, exchange, routes::sign_out_not_ready());
+                    self.respond(exchange, routes::sign_out_not_ready());
                 }
                 people::Reply::Signer(_)
                 | people::Reply::Full { .. }
@@ -474,7 +469,7 @@ impl Component {
                 | people::Reply::Again(_)
                 | people::Reply::Refused(_) => {
                     if let Some(owner) = self.owner(exchange) {
-                        self.connections.get_mut(&owner).expect("exchange owner").close(out);
+                        self.connections.get_mut(&owner).expect("exchange owner").close();
                     }
                 }
             },
@@ -512,16 +507,7 @@ impl Component {
         out: &mut Queue<Request>,
         waiting: Waiting,
     ) {
-        let Waiting::Ask { sign_in, family, version } = waiting else { unreachable!("ask reply route") };
-        let reply = if family.is_none()
-            && version < jig_client_protocol_wire::VERSION
-            && let people::Reply::Again(people::Again::Full { .. })
-            | people::Reply::Outcome(people::Outcome::Again(people::Again::Full { .. })) = reply
-        {
-            people::Reply::Again(people::Again::Busy)
-        } else {
-            reply
-        };
+        let Waiting::Ask { sign_in, .. } = waiting else { unreachable!("ask reply route") };
         match reply {
             people::Reply::Outcome(people::Outcome::AccountMovingOut { account, number, source }) => {
                 self.pending
@@ -545,17 +531,11 @@ impl Component {
             | people::Reply::Again(_)
             | people::Reply::Refused(_) => {
                 let answer = crate::translate::answers::answer(&reply, &self.settings.models, &env.limits.wire);
-                self.answer(env, exchange, answer, out);
+                self.answer(exchange, answer);
             }
         }
     }
-    fn moved_taken(
-        &mut self,
-        env: &Env<Limits>,
-        exchange: Token,
-        record: Option<skein_lib::Secret>,
-        out: &mut Queue<Request>,
-    ) {
+    fn moved_taken(&mut self, env: &Env<Limits>, exchange: Token, record: Option<skein_lib::Secret>) {
         let Some(waiting) = self.pending.exchanges.remove(&exchange) else { return };
         match waiting {
             Waiting::Moving { account, number, .. } => {
@@ -564,7 +544,7 @@ impl Component {
                     None => skein_lib::Secret::new(Box::new([])),
                 };
                 let answer = crate::translate::answers::moving_out(account, number, record, &env.limits.wire);
-                self.answer(env, exchange, answer, out);
+                self.answer(exchange, answer);
             }
             Waiting::Core { .. }
             | Waiting::LinkGet { .. }
@@ -583,13 +563,7 @@ impl Component {
             }
         }
     }
-    fn answer(
-        &mut self,
-        env: &Env<Limits>,
-        exchange: Token,
-        answer: Result<w::KeyedAnswer, w::Problem>,
-        out: &mut Queue<Request>,
-    ) {
+    fn answer(&mut self, exchange: Token, answer: Result<w::KeyedAnswer, w::Problem>) {
         let Some(owner) = self.owner(exchange) else {
             return;
         };
@@ -598,19 +572,12 @@ impl Component {
             Ok(answer) => {
                 let mut body = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
                 answer.encode(&mut body).expect("measured answer");
-                connection.respond(crate::Reply::Record(body.finish()), &env.limits);
+                connection.respond(crate::Reply::Record(body.finish()));
             }
-            Err(_) => connection.close(out),
+            Err(_) => connection.close(),
         }
     }
-    fn application(
-        &mut self,
-        env: &Env<Limits>,
-        exchange: Token,
-        family: u16,
-        record: Box<[u8]>,
-        out: &mut Queue<Request>,
-    ) {
+    fn application(&mut self, env: &Env<Limits>, exchange: Token, family: u16, record: Box<[u8]>) {
         // The application's answer: its request used its carried value.
         self.pending.carried.remove(&exchange);
         let Some(waiting) = self.pending.exchanges.remove(&exchange) else {
@@ -624,7 +591,7 @@ impl Component {
                     }
                     Err(problem) => Err(problem),
                 };
-                self.answer(env, exchange, answer, out);
+                self.answer(exchange, answer);
             }
             Waiting::Core { .. }
             | Waiting::LinkGet { .. }
@@ -644,22 +611,22 @@ impl Component {
             }
         }
     }
-    fn refused(&mut self, env: &Env<Limits>, exchange: Token) {
+    fn refused(&mut self, exchange: Token) {
         if self.pending.exchanges.remove(&exchange).is_some() {
-            self.respond(env, exchange, routes::refused(&env.limits.wire));
+            self.respond(exchange, routes::refused());
         }
     }
     fn owner(&self, exchange: Token) -> Option<Token> {
         for (owner, connection) in &self.connections {
-            if connection.name == Some(exchange) && !connection.closing {
+            if connection.name == exchange && !connection.closing {
                 return Some(*owner);
             }
         }
         None
     }
-    fn respond(&mut self, env: &Env<Limits>, exchange: Token, body: Box<[u8]>) {
+    fn respond(&mut self, exchange: Token, body: Box<[u8]>) {
         if let Some(owner) = self.owner(exchange) {
-            self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::Record(body), &env.limits);
+            self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::Record(body));
         }
     }
     fn denied(&mut self, env: &Env<Limits>, exchange: Token, route: Route) {
@@ -668,7 +635,7 @@ impl Component {
             if route == Route::Stream {
                 connection.ended = Some(crate::Ended::SignedOut);
             } else {
-                connection.respond(crate::Reply::Record(routes::unauthenticated(route, &env.limits.wire)), &env.limits);
+                connection.respond(crate::Reply::Record(routes::unauthenticated(route, &env.limits.wire)));
             }
         }
     }
@@ -712,7 +679,7 @@ impl Component {
         }
         next
     }
-    pub fn fire(&mut self, env: &Env<Limits>, _out: &mut Queue<Request>) {
+    pub fn fire(&mut self, env: &Env<Limits>) {
         if expired(self.link.as_ref(), env.now) {
             self.link = None;
             return;
@@ -729,12 +696,10 @@ impl Component {
             if stream.waiting {
                 stream.phase = crate::stream::Phase::Closing;
             } else {
-                stream.heartbeat(env);
+                stream.heartbeat();
             }
         }
     }
-
-    pub fn reclaim(&mut self) {}
 }
 fn expired(link: Option<&Link>, now: Time) -> bool {
     match link {

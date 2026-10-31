@@ -246,11 +246,7 @@ pub fn mount() -> jig_protocol_engine_clients_http::Mount {
     let mut hosts = skein_lib::List::with_capacity(1);
     hosts.push(Box::from(HOST.as_bytes())).expect("one host");
     let env = skein_lib::Env { now: Time::ZERO, wall: Wall::EPOCH, limits: http_limits() };
-    mount.down(
-        &env,
-        jig_protocol_engine_clients_http::Event::Listening { hosts },
-        &mut skein_lib::Queue::with_capacity(1),
-    );
+    mount.down(&env, jig_protocol_engine_clients_http::Event::Listening { hosts });
     mount
 }
 #[must_use]

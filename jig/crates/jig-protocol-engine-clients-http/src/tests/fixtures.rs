@@ -35,7 +35,7 @@ fn listening(settings: Settings) -> Mount {
     let mut mount = Mount::new(settings, &env().limits);
     let mut hosts = List::with_capacity(1);
     hosts.push(Box::from(HOST)).expect("one host");
-    mount.down(&env(), Event::Listening { hosts }, &mut Queue::with_capacity(1));
+    mount.down(&env(), Event::Listening { hosts });
     mount
 }
 pub fn credential() -> Secret {
@@ -80,7 +80,7 @@ pub fn pump(mount: &mut Mount, out: &mut Queue<Request>) {
     while mount.up(&env(), out) {}
 }
 pub fn event(mount: &mut Mount, out: &mut Queue<Request>, name: Token, event: http::Event) {
-    mount.down(&env(), Event::Http { call: name, event }, out);
+    mount.down(&env(), Event::Http { call: name, event });
     pump(mount, out);
 }
 pub fn call(
@@ -108,7 +108,6 @@ pub fn call_named(
             call: name,
             head: head(method, target, headers, http::Body::Length(u64::try_from(body.len()).expect("test body"))),
         },
-        out,
     );
     pump(mount, out);
     if !body.is_empty() {
@@ -127,11 +126,11 @@ pub fn component(out: &mut Queue<Request>) -> Box<[kit::FromTransport]> {
     messages.into_boxed()
 }
 pub fn reply(mount: &mut Mount, out: &mut Queue<Request>, name: Token, reply: kit::Reply) {
-    mount.down(&env(), Event::Component(kit::ToTransport::Reply { exchange: name, reply }), out);
+    mount.down(&env(), Event::Component(kit::ToTransport::Reply { exchange: name, reply }));
     pump(mount, out);
 }
 pub fn streamed(mount: &mut Mount, out: &mut Queue<Request>, message: kit::Streamed) {
-    mount.down(&env(), Event::Component(kit::ToTransport::Streamed { stream: EXCHANGE, message }), out);
+    mount.down(&env(), Event::Component(kit::ToTransport::Streamed { stream: EXCHANGE, message }));
     pump(mount, out);
 }
 pub fn answered(

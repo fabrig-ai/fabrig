@@ -96,7 +96,6 @@ impl World {
                 self.component.fire(self.now, &mut self.out);
                 self.route();
             } else {
-                self.component.reclaim();
                 return;
             }
         }
