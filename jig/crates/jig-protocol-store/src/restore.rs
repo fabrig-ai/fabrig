@@ -30,38 +30,62 @@ pub(crate) fn restore(
 ) {
     let Page { range, after, rows, bytes } = page;
     let people = people_interval(&range);
+    if store.start_restore {
+        match self::page(store, range, after.as_ref(), rows, bytes) {
+            Ok(walked) => {
+                if finish(store, env, people, walked.next.as_ref(), above, below) {
+                    above.push(Event::Page { owner, items: walked.items, next: walked.next });
+                }
+            }
+            Err(failure) => {
+                store.phase = Phase::Stopped;
+                above.push(Event::PageRefused { owner, failure });
+            }
+        }
+        return;
+    }
     let Some(walked) = restore_page(store, range, after.as_ref(), rows, bytes) else {
         store.phase = Phase::Stopped;
         above.push(Event::Corrupt { owner });
         return;
     };
-    assert_progress(after, &walked);
+    assert_progress(after.as_ref(), walked.rows.is_empty(), walked.next.as_ref());
+    if finish(store, env, people, walked.next.as_ref(), above, below) {
+        above.push(Event::Restored { owner, rows: walked.rows, next: walked.next });
+    }
+}
+
+/// Both restore entries complete people's inventory before arming its sweep (store.md, 9).
+fn finish(
+    store: &mut Store,
+    env: &Env<Limits>,
+    people: Option<u32>,
+    next: Option<&Cursor>,
+    above: &mut Queue<Event>,
+    below: &mut Below,
+) -> bool {
     if let Some(interval) = people {
-        let done = match &walked.next {
+        let done = match next {
             Some(next) => next.interval > interval,
             None => true,
         };
-        if done {
-            secrets::start_sweep(store);
+        if done && secrets::start_sweep(store) {
             secrets::sweep(store, env, above, below);
-            if store.phase == Phase::Stopped {
-                return;
-            }
         }
     }
-    above.push(Event::Restored { owner, rows: walked.rows, next: walked.next });
+    store.phase != Phase::Stopped
 }
 
 /// An empty page either ends the walk or advances its exclusive place.
-pub(crate) fn assert_progress(after: Option<Cursor>, walked: &Restored) {
-    if walked.rows.is_empty()
-        && let Some(next) = &walked.next
-    {
-        let initial = after.unwrap_or(Cursor { interval: 0, after: Box::new([]) });
-        assert!(
-            next.interval > initial.interval || (next.interval == initial.interval && next.after > initial.after),
-            "empty nonterminal restore page must advance its cursor"
-        );
+pub(crate) fn assert_progress(after: Option<&Cursor>, empty: bool, next: Option<&Cursor>) {
+    if empty && let Some(next) = next {
+        let advanced = match after {
+            Some(after) => {
+                next.interval > after.interval || (next.interval == after.interval && next.after > after.after)
+            }
+            None => next.interval > 0 || !next.after.is_empty(),
+        };
+        assert!(advanced, "empty nonterminal restore page must advance its cursor");
     }
 }
 
