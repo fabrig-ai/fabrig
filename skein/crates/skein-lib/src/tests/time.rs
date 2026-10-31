@@ -1,6 +1,6 @@
 //! Time, deadlines and randomness (lib.md, 8).
 
-use crate::{Deadlines, Duration, Rng, Time, Wall};
+use crate::{Deadlines, Duration, Rng, Time, Wall, earliest};
 
 #[test]
 fn arithmetic_is_checked_or_saturating() {
@@ -23,6 +23,23 @@ fn wall_time_counts_from_the_epoch() {
 
 fn at(nanos: u64) -> Time {
     Time::from_nanos(nanos)
+}
+
+#[test]
+fn the_earliest_of_two_deadlines_is_absent_only_when_both_are() {
+    assert_eq!(earliest(None, None), None);
+    assert_eq!(earliest(Some(at(5)), None), Some(at(5)));
+    assert_eq!(earliest(None, Some(at(5))), Some(at(5)));
+    assert_eq!(earliest(Some(at(5)), Some(at(9))), Some(at(5)));
+    assert_eq!(earliest(Some(at(9)), Some(at(5))), Some(at(5)));
+    assert_eq!(earliest(Some(at(7)), Some(at(7))), Some(at(7)), "equal times");
+    assert_eq!(earliest(Some(at(u64::MAX)), Some(Time::ZERO)), Some(Time::ZERO));
+}
+
+#[test]
+fn deadlines_fold_into_the_earliest_in_a_constant() {
+    const NEXT: Option<Time> = earliest(earliest(None, Some(Time::from_nanos(30))), Some(Time::from_nanos(20)));
+    assert_eq!(NEXT, Some(at(20)));
 }
 
 #[test]

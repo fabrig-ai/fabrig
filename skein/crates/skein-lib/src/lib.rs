@@ -68,6 +68,6 @@ pub use secret::Secret;
 pub use set::Set;
 pub use slab::Slab;
 pub use stack::Stack;
-pub use time::{Duration, Time, Wall};
+pub use time::{Duration, Time, Wall, earliest};
 pub use token::{ReplyTo, Token};
 pub use writer::{Overflow, Writer};
