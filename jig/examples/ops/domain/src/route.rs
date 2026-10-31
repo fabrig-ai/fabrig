@@ -321,6 +321,7 @@ fn core_held(
                 | jig_domain_people::Outcome::PoolSet { .. }
                 | jig_domain_people::Outcome::Renamed { .. }
                 | jig_domain_people::Outcome::ProjectMade { .. }
+                | jig_domain_people::Outcome::ProjectRemoved { .. }
                 | jig_domain_people::Outcome::SettingsChanged { .. }
                 | jig_domain_people::Outcome::MovedToNewest { .. }
                 | jig_domain_people::Outcome::EscalationDecided { .. }
@@ -465,6 +466,9 @@ fn core_ask(
     work: &mut Queue<Work>,
 ) {
     match ask {
+        core::Ask::ReleaseProject { project } => {
+            work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
+        }
         core::Ask::StepMade { task, step, first: Some(first), .. } => {
             crate::steps::made(number, task, step, Some(first), work);
         }

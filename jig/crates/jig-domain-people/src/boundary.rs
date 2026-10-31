@@ -394,6 +394,11 @@ pub enum EscalationChoice {
 /// final outcomes with the parent's task decision. (domain/people.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
+    /// The project is closed and its deletion kept; the rest completes on its own
+    /// (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectRemoved {
+        project: u32,
+    },
     /// The sign-in took the address; its end shows on the accounts watch.
     AccountFinishing {
         source: u32,
@@ -666,6 +671,11 @@ pub enum Act {
         project: u32,
         adoption: Adoption,
     },
+    /// Delete a project: closed at once, its tasks ended and erased, then its rows
+    /// (temper/docs/design/draft/playground-reset.md, 5). Answered once the project is closed.
+    RemoveProject {
+        project: u32,
+    },
 }
 
 /// Which acts the configuration grants a connector (people.md, 5.3).
@@ -676,11 +686,14 @@ pub enum ActKind {
     RemoveAccount,
     Adopt,
     MakeProject,
+    /// Delete a project (temper/docs/design/draft/playground-reset.md, 5).
+    RemoveProject,
 }
 
 impl ActKind {
     /// Every deployment act kind; also bounds a configured grant's owned entries.
-    pub const ALL: &[Self] = &[Self::Close, Self::AddKey, Self::RemoveAccount, Self::Adopt, Self::MakeProject];
+    pub const ALL: &[Self] =
+        &[Self::Close, Self::AddKey, Self::RemoveAccount, Self::Adopt, Self::MakeProject, Self::RemoveProject];
 }
 
 /// A connector's configured deployment authority (people.md, 5.3).

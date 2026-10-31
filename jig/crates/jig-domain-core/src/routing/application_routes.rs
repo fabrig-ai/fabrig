@@ -249,6 +249,7 @@ impl Core {
                 | people::Outcome::PolicyChanged { .. }
                 | people::Outcome::Renamed { .. }
                 | people::Outcome::ProjectMade { .. }
+                | people::Outcome::ProjectRemoved { .. }
                 | people::Outcome::SettingsChanged { .. }
                 | people::Outcome::MovedToNewest { .. }
                 | people::Outcome::PoolSet { .. }
