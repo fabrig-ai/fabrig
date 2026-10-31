@@ -1,6 +1,5 @@
 //! Feed the domain events, inspect the requests that come out.
 
-#[path = "tests/builtin.rs"]
 mod builtin;
 
 mod program;
@@ -3097,7 +3096,6 @@ fn a_resumed_ordinary_window_carries_the_guard() {
     );
 }
 
-#[path = "tests/batched_change.rs"]
 mod batched_change;
 
 #[test]
@@ -3152,5 +3150,4 @@ fn opens_window_is_true_of_first_and_window_turns_only() {
     }
 }
 
-#[path = "tests/line.rs"]
 mod line;
