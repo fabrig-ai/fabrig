@@ -662,6 +662,11 @@ impl Application for Temper {
                 )) = record
                 {
                     for word in &task.inbox {
+                        if matches!(word.kind, tasks::MessageKind::Result(_))
+                            && let tasks::Party::Task(child) = word.from
+                        {
+                            peers.observed.push(r::Observed::Result { task: child, to: r::Source::Task(task.number) });
+                        }
                         if matches!(word.from, tasks::Party::Person(_))
                             && peers.words.insert((task.number, word.number))
                         {
