@@ -27,6 +27,7 @@ pub mod messages_referee;
 mod noisy;
 pub mod order_log;
 pub mod partner;
+mod referee;
 pub mod share_referee;
 pub mod wind_down_referee;
 mod world;

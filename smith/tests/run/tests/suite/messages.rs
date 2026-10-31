@@ -7,13 +7,17 @@ use smith_run_world::{
     messages_referee::{Seen, judge},
 };
 
-fn observed() -> Vec<(Time, Token, Seen)> {
-    let mut settings = Settings::calm(917);
-
+fn message_settings(seed: u64) -> Settings {
+    let mut settings = Settings::calm(seed);
     settings.host.jobs = 1;
     settings.host.turns_min = 8;
     settings.host.turns_max = 8;
     settings.partner.yields = 1000;
+    settings
+}
+
+fn observed() -> Vec<(Time, Token, Seen)> {
+    let settings = message_settings(917);
     let mut world = World::new(settings);
     world.inject_messages(1000);
     world.run(100_000);
@@ -57,11 +61,7 @@ fn every_accepted_message_has_one_terminal_and_the_answer_retains_its_told_fence
 
 #[test]
 fn a_start_carrying_messages_opens_on_the_briefs_instruction_then_the_messages_in_order() {
-    let mut settings = Settings::calm(918);
-    settings.host.jobs = 1;
-    settings.host.turns_min = 8;
-    settings.host.turns_max = 8;
-    settings.partner.yields = 1000;
+    let settings = message_settings(918);
     let mut world = World::new(settings);
     world.carry_messages(Box::new([
         smith_domain_run::Message {
@@ -93,11 +93,7 @@ fn a_start_carrying_messages_opens_on_the_briefs_instruction_then_the_messages_i
 
 #[test]
 fn an_empty_brief_without_wait_opens_on_its_instructions() {
-    let mut settings = Settings::calm(919);
-    settings.host.jobs = 1;
-    settings.host.turns_min = 8;
-    settings.host.turns_max = 8;
-    settings.partner.yields = 1000;
+    let settings = message_settings(919);
     let mut world = World::new(settings);
     world.empty_brief(false);
     world.run(100_000);
@@ -132,11 +128,7 @@ fn an_empty_brief_parks_at_idle_wall_or_zero_waiting_without_opening() {
 
 #[test]
 fn an_empty_brief_opens_on_the_first_message_after_its_seen_awaiting_notice() {
-    let mut settings = Settings::calm(921);
-    settings.host.jobs = 1;
-    settings.host.turns_min = 8;
-    settings.host.turns_max = 8;
-    settings.partner.yields = 1000;
+    let settings = message_settings(921);
     let mut world = World::new(settings);
     world.empty_brief(true);
     world.message_when_awaiting(smith_domain_run::Message {

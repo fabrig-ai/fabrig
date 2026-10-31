@@ -11,6 +11,7 @@ mod messages;
 mod orders;
 mod reserve;
 mod simulation;
+mod support;
 mod wind_down;
 
 mod fuzzy {

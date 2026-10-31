@@ -5,6 +5,22 @@ use skein_lib::Duration;
 use skein_world::domain::Verdict;
 use smith_run_world::{Settings, World, share_referee::judge};
 
+fn clamped_children() -> Settings {
+    let mut settings = Settings::calm(34);
+    settings.host.agents = 1000;
+    settings.host.writable = 0;
+    settings.host.reports = 1000;
+    settings.host.turns_min = 5;
+    settings.host.turns_max = 5;
+    settings.host.time = skein_world::domain::Span::millis(10_000, 10_000);
+    settings.host.reserve = smith_domain_run::charter::Reserve { turns: 3, time: Duration::from_secs(5) };
+    settings.partner.asks = 500;
+    settings.partner.finishes = 50;
+    settings.partner.shares = 1000;
+    settings.partner.parallel = 3;
+    settings
+}
+
 #[test]
 fn a_child_share_crossing_any_ordinary_part_is_rejected() {
     let mut settings = Settings::calm(34);
@@ -33,18 +49,7 @@ fn a_child_share_crossing_any_ordinary_part_is_rejected() {
 
 #[test]
 fn a_sub_agent_asking_more_than_is_left_above_the_reserve_is_clamped() {
-    let mut settings = Settings::calm(34);
-    settings.host.agents = 1000;
-    settings.host.writable = 0;
-    settings.host.reports = 1000;
-    settings.host.turns_min = 5;
-    settings.host.turns_max = 5;
-    settings.host.time = skein_world::domain::Span::millis(10_000, 10_000);
-    settings.host.reserve = smith_domain_run::charter::Reserve { turns: 3, time: Duration::from_secs(5) };
-    settings.partner.asks = 500;
-    settings.partner.finishes = 50;
-    settings.partner.shares = 1000;
-    settings.partner.parallel = 3;
+    let settings = clamped_children();
     let mut world = World::new(settings);
     world.run(1_000_000);
     let openings = world.share_seen();
@@ -63,18 +68,7 @@ fn seen_facts_tell_child_shares_and_budget_without_deciding_work() {
     use smith_domain_run::facts::{FactKind, Kind};
     use smith_run_world::facts_referee::{Seen, judge};
 
-    let mut settings = Settings::calm(34);
-    settings.host.agents = 1000;
-    settings.host.writable = 0;
-    settings.host.reports = 1000;
-    settings.host.turns_min = 5;
-    settings.host.turns_max = 5;
-    settings.host.time = skein_world::domain::Span::millis(10_000, 10_000);
-    settings.host.reserve = smith_domain_run::charter::Reserve { turns: 3, time: Duration::from_secs(5) };
-    settings.partner.asks = 500;
-    settings.partner.finishes = 50;
-    settings.partner.shares = 1000;
-    settings.partner.parallel = 3;
+    let settings = clamped_children();
     let mut world = World::new(settings);
     world.run(1_000_000);
     let children: Vec<_> = world

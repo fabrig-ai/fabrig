@@ -3,8 +3,7 @@
 //! Contract: smith/docs/design/domain/run.md, sections 9.1 and 13.
 
 use skein_lib::{Time, Token};
-use skein_world::domain::{Expectations, Judge, Referee, Verdict};
-use std::collections::BTreeMap;
+use skein_world::domain::{Expectations, Judge, Verdict};
 
 /// An external admission, provider reservation or authoritative answer.
 #[derive(Clone, Copy, Debug)]
@@ -51,10 +50,5 @@ impl Expectations for Meeting {
 /// Skein judges each admitted run's ordered external evidence.
 #[must_use]
 pub fn judge(seen: &[(Time, Token, Seen)]) -> Vec<Verdict> {
-    let mut meetings = BTreeMap::new();
-    for (at, run, seen) in seen {
-        let meeting = meetings.entry(*run).or_insert_with(|| Referee::new(Meeting::default()));
-        meeting.observe(*at, *seen, &mut Vec::new());
-    }
-    meetings.values().map(Referee::verdict).collect()
+    crate::referee::judge::<Meeting>(seen)
 }

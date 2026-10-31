@@ -11,17 +11,7 @@ use smith_run_world::host;
 use smith_run_world::partner::Script;
 use smith_run_world::{Checkouts, Settings, Span, World, noisy};
 
-const ITERATIONS: u32 = 1_000_000;
-
-fn settled(settings: &Settings) -> World {
-    let mut world = World::new(*settings);
-    world.run(ITERATIONS);
-    world
-}
-
-fn answers(world: &World) -> Vec<&Answer> {
-    world.answers().map(|answer| answer.expect("every start is answered")).collect()
-}
+use crate::support::{answers, settled};
 
 /// A retained host decision outlives the crashed domain. The host writes its
 /// own wake message from the answer it recorded.
