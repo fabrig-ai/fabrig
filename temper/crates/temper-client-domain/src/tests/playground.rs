@@ -600,3 +600,26 @@ fn a_starting_playground_can_have_no_project() {
     assert_eq!(side.playground_provider(), Some(PROVIDER));
     assert!(choose(&mut side, forge::Act::StartPlayground).is_empty());
 }
+
+#[test]
+fn a_failed_start_can_retry_with_a_new_key_before_resetting() {
+    let mut side = confirmed();
+    refresh(&mut side, Readout::Family { family: wire::FORGE, record: None });
+    let first = sent(&mut choose(&mut side, forge::Act::StartPlayground), w::Request::StartPlayground);
+    result(
+        &mut side,
+        first,
+        w::Outcome::StartFailed(
+            w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Account }).unwrap(),
+        ),
+    );
+    assert_eq!(side.playground_failure(), Some(&demo::StartFailure::Account));
+    assert!(!side.playground_starting());
+    refresh(&mut side, page_with_state(w::PlaygroundState::Starting));
+    let retry = sent(&mut choose(&mut side, forge::Act::StartPlayground), w::Request::StartPlayground);
+    assert_ne!(first, retry);
+    assert!(side.playground_failure().is_none());
+    assert!(choose(&mut side, forge::Act::StartPlayground).is_empty());
+    refresh(&mut side, page_with_state(w::PlaygroundState::Resetting));
+    assert!(choose(&mut side, forge::Act::StartPlayground).is_empty());
+}

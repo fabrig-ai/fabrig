@@ -202,7 +202,7 @@ pub(crate) fn start(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
     if side.party.is_none()
         || side.served == super::Served::OutOfDate
         || side.playground.start.is_some()
-        || side.playground.answer.is_some()
+        || (side.playground.answer.is_some() && side.playground.failure.is_none())
         || side.playground.leaving
     {
         return;

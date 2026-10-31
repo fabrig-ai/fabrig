@@ -1,4 +1,4 @@
-//! The forge's adoption form, demo read, panel watch and receiving state.
+//! The forge's adoption form, playground read, panel watch and receiving state.
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time};
 pub mod admin;
