@@ -530,16 +530,15 @@ fn measure(hole: &Hole, kind: HoleKind, language: &Language) -> u32 {
         Hole::Name(bytes) | Hole::Reference { name: bytes, .. } => crate::tree::length(bytes),
     }
 }
-fn decimal(value: u64, writer: &mut Writer) {
-    writer.put(Decimal::of(value).as_bytes()).expect("decimal fits the measured saying");
-}
 fn write(hole: &Hole, kind: HoleKind, language: &Language, writer: &mut Writer) {
     match hole {
-        Hole::Number(value) | Hole::Amount(value) => decimal(*value, writer),
-        Hole::Span(value) => decimal(
-            value.as_nanos().checked_div(language.span_unit.divisor()).expect("duration unit is nonzero"),
-            writer,
-        ),
+        Hole::Number(value) | Hole::Amount(value) => {
+            writer.put(Decimal::of(*value).as_bytes()).expect("decimal fits the measured saying");
+        }
+        Hole::Span(value) => {
+            let value = value.as_nanos().checked_div(language.span_unit.divisor()).expect("duration unit is nonzero");
+            writer.put(Decimal::of(value).as_bytes()).expect("decimal fits the measured saying");
+        }
         Hole::Wall(value) => match kind {
             HoleKind::Date => date(*value, writer),
             HoleKind::Moment => {
@@ -548,8 +547,12 @@ fn write(hole: &Hole, kind: HoleKind, language: &Language, writer: &mut Writer) 
                 clock(*value, writer);
             }
             HoleKind::Wall => match language.wall {
-                WallFormat::Nanos => decimal(value.as_nanos(), writer),
-                WallFormat::Seconds => decimal(value.as_secs(), writer),
+                WallFormat::Nanos => {
+                    writer.put(Decimal::of(value.as_nanos()).as_bytes()).expect("decimal fits the measured saying");
+                }
+                WallFormat::Seconds => {
+                    writer.put(Decimal::of(value.as_secs()).as_bytes()).expect("decimal fits the measured saying");
+                }
                 WallFormat::Clock => clock(*value, writer),
             },
             HoleKind::Number | HoleKind::Amount | HoleKind::Span | HoleKind::Name | HoleKind::Reference => {
@@ -578,12 +581,12 @@ fn clock(value: Wall, writer: &mut Writer) {
     if hours < 10 {
         writer.put(b"0").expect("hour fits");
     }
-    decimal(hours, writer);
+    writer.put(Decimal::of(hours).as_bytes()).expect("decimal fits the measured saying");
     writer.put(b":").expect("separator fits");
     if minutes < 10 {
         writer.put(b"0").expect("minute fits");
     }
-    decimal(minutes, writer);
+    writer.put(Decimal::of(minutes).as_bytes()).expect("decimal fits the measured saying");
 }
 
 const MONTHS: [&[u8]; 12] =
@@ -619,7 +622,7 @@ fn date(value: Wall, writer: &mut Writer) {
     let (month, day) = civil_date(value).expect("Wall's civil date fits");
     writer.put(month).expect("month fits the measured saying");
     writer.put(b" ").expect("date separator fits");
-    decimal(day, writer);
+    writer.put(Decimal::of(day).as_bytes()).expect("decimal fits the measured saying");
 }
 
 /// Whether these limits are representable: every edge bound they size is finite
