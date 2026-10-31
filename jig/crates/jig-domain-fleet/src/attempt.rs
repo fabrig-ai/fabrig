@@ -109,12 +109,12 @@
 
 use core::mem;
 
-use skein_lib::{Env, Id, List, Queue, ReplyTo, Slab, Time, Token};
+use skein_lib::{Env, Id, List, Lossy, Queue, ReplyTo, Slab, Time, Token};
 
 use crate::boundary::{Answer, Assignment, HostKind, Kinds, Refusal, Request, Withdrawal};
 use crate::channel::{self, Channel};
 use crate::domain::Domain;
-use crate::facts::{Fact, Facts};
+use crate::facts::Fact;
 use crate::limits::Limits;
 
 /// An attempt the fleet tracks.
@@ -1004,7 +1004,13 @@ fn cancelled(to: ReplyTo, at: Where, names: Names, channels: &Slab<Channel>, out
 
 /// A stray cancelled, or not adopted in time: fenced off, and cancelled on
 /// its worker.
-fn fenced(at: Where, names: Names, channels: &Slab<Channel>, facts: &mut Facts, out: &mut Queue<Request>) -> State {
+fn fenced(
+    at: Where,
+    names: Names,
+    channels: &Slab<Channel>,
+    facts: &mut Lossy<Fact>,
+    out: &mut Queue<Request>,
+) -> State {
     facts.push(Fact::Fenced);
     again(at, false, names, channels, out);
     State::Fenced { at }
@@ -1037,7 +1043,7 @@ fn forgotten(
     at: Where,
     names: Names,
     channels: &Slab<Channel>,
-    facts: &mut Facts,
+    facts: &mut Lossy<Fact>,
     out: &mut Queue<Request>,
 ) -> State {
     facts.push(Fact::Forgotten);
@@ -1050,13 +1056,13 @@ fn forgotten(
 
 /// An answer sent again while the fleet keeps or has handed on the first, or
 /// for an attempt waiting to be placed: dropped, not acknowledged.
-fn resent(payload: Token, facts: &mut Facts, out: &mut Queue<Request>) {
+fn resent(payload: Token, facts: &mut Lossy<Fact>, out: &mut Queue<Request>) {
     facts.push(Fact::Duplicate);
     out.push(Request::Drop { payload });
 }
 
 /// A busy refusal: the parent forgets its payload, and the attempt goes on.
-fn refused(payload: Token, facts: &mut Facts, out: &mut Queue<Request>) {
+fn refused(payload: Token, facts: &mut Lossy<Fact>, out: &mut Queue<Request>) {
     facts.push(Fact::Busy);
     out.push(Request::Drop { payload });
 }
@@ -1069,7 +1075,7 @@ fn handed(
     payload: Token,
     at: Where,
     names: Names,
-    facts: &mut Facts,
+    facts: &mut Lossy<Fact>,
     out: &mut Queue<Request>,
 ) -> State {
     facts.push(Fact::Answered { answer });
@@ -1082,7 +1088,7 @@ fn handed(
 }
 
 /// Past the grace, no worker hosting it in contact: presumed lost.
-fn presumed(to: ReplyTo, names: Names, facts: &mut Facts, out: &mut Queue<Request>) -> State {
+fn presumed(to: ReplyTo, names: Names, facts: &mut Lossy<Fact>, out: &mut Queue<Request>) -> State {
     facts.push(Fact::PresumedLost);
     out.push(Request::Lost { to, run: names.run, attempt: names.attempt });
     State::Closed
@@ -1098,7 +1104,7 @@ fn located(
     kinds: Kinds,
     version: crate::Version,
     names: Names,
-    facts: &mut Facts,
+    facts: &mut Lossy<Fact>,
     out: &mut Queue<Request>,
 ) -> State {
     facts.push(Fact::Found);
@@ -1114,7 +1120,7 @@ fn moved(
     kinds: Kinds,
     version: crate::Version,
     channel: Id<Channel>,
-    facts: &mut Facts,
+    facts: &mut Lossy<Fact>,
 ) -> State {
     match at {
         Where::On(_) => {}
@@ -1136,7 +1142,7 @@ fn assigned(
     names: Names,
     env: &Env<Limits>,
     channels: &mut Slab<Channel>,
-    facts: &mut Facts,
+    facts: &mut Lossy<Fact>,
     out: &mut Queue<Request>,
 ) -> State {
     let entry = channels.get_mut(channel).expect("a worker chosen is in contact");
@@ -1167,7 +1173,7 @@ fn hosted(
     names: Names,
     env: &Env<Limits>,
     channels: &mut Slab<Channel>,
-    facts: &mut Facts,
+    facts: &mut Lossy<Fact>,
     out: &mut Queue<Request>,
 ) -> State {
     let entry = channels.get_mut(channel).expect("a worker saying hello is in contact");
