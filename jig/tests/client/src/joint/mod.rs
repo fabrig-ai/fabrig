@@ -31,3 +31,5 @@ fn take_signed_in(
     assert!(!callbacks.iter().any(signed_in), "one authentication notification");
     callbacks
 }
+
+mod role_fixture;

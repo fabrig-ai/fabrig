@@ -21,31 +21,7 @@ fn start() -> Vec<Step<jig_client_test_domain::Address>> {
 #[test]
 fn a_draft_kept_across_a_reload_stays_unsent_on_the_actual_engine() {
     let mut world = super::world(super::turn());
-    let client = world.client(1, crate::stories::conversation());
-    let within = Duration::from_secs(1);
-    let mut script = start();
-    script.extend([
-        Step::Press { find: Find::exactly_named(Role::Button, b"Write") },
-        Step::Type { find: Find::named(Role::TextArea, b"Your answer"), words: Box::from(*b"Unsent draft") },
-        Step::Pause { span: Duration::from_millis(30) },
-        Step::Reload,
-        Step::See { find: Find::exactly_named(Role::Button, b"Write"), within },
-        Step::Press { find: Find::exactly_named(Role::Button, b"Write") },
-    ]);
-    world.person(client, script);
-    let outcome = world.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
-    assert!(outcome.judged.0 > 0);
-    assert!(world.kept(client).iter().any(|record| matches!(record,
-        jig_client_test_domain::store::Record::Jig(jig_client_view::store::Record::Draft { words, .. })
-        if words.bytes() == b"Unsent draft")));
-    assert!(
-        world
-            .tree(client)
-            .nodes()
-            .iter()
-            .any(|node| node.value.as_ref().is_some_and(|value| value.text.as_ref() == b"Unsent draft"))
-    );
+    crate::stories::shared::a_person::a_draft_survives_reload(&mut world);
     let owner = &world.front().session.driver.world;
     assert_eq!(
         owner

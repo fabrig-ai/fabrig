@@ -197,6 +197,10 @@ impl Joint {
 
 impl Front<Test> for Joint {
     fn seed(&mut self, seed: crate::harness::Seed) {
+        if let crate::harness::Seed::Roles { story } = seed {
+            *self = super::role_fixture::seeded(story);
+            return;
+        }
         if matches!(&seed, crate::harness::Seed::ChatProject { .. }) {
             self.unsigned_on_bind();
         }

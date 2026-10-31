@@ -1,4 +1,4 @@
-//! Starting truth and person's scripts shared by focused and random worlds.
+//! Fixture facts and scripts (jig/docs/design/client/domain/testing.md, 4–6).
 #![cfg_attr(
     not(test),
     expect(clippy::wildcard_imports, reason = "story fixtures share the complete client vocabulary")
@@ -71,6 +71,14 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
 /// Starts the standard fixture with explicit loop settings.
 #[must_use]
 pub fn configured(settings: Settings) -> World<Test, Scripted> {
+    configured_rows(settings, 8)
+}
+/// Starts a scripted fixture with the test client's declared page window.
+#[must_use]
+pub fn seeded_world(seed: u64) -> World<Test, Scripted> {
+    configured_rows(Settings { seed, ..Settings::default() }, crate::test::limits().jig.rows)
+}
+fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
     let seed = settings.seed;
     let mut truth = Truth::default();
     truth.frames.insert(7, frame(7));
@@ -84,7 +92,7 @@ pub fn configured(settings: Settings) -> World<Test, Scripted> {
                 truth,
                 bounds: Bounds {
                     text: 32,
-                    rows: 8,
+                    rows,
                     authority: 8,
                     segments: 4,
                     document_bytes: 65536,

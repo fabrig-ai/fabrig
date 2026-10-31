@@ -7,7 +7,15 @@ use skein_lib::{Time, Wall};
 pub enum Seed {
     /// A signed-out owner with a project that permits starting conversations.
     ChatProject { party: u64, project: u32 },
-    /// An existing conversation belonging to the project's owner.
+    /// Project and deployment facts for the configured first owner.
+    OwnerProfile,
+    /// The next conversation completes with this retained report.
+    ChatResult { report: Box<[u8]> },
+    /// A pending worker proposal for a tracked goal, visible to its owner.
+    PendingGoal { words: Box<[u8]>, budget: u64 },
+    /// Authenticated project roles and their independently seeded work.
+    Roles { story: RoleStory },
+    /// An existing conversation belonging to a configured project member.
     Conversation { party: u64, project: u32, words: Box<[u8]> },
 }
 
@@ -15,11 +23,36 @@ pub enum Seed {
 /// The core fixture supplies project 1 and its first owner, party 1.
 pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
     use jig_fake_parties::{Act, Ask, Party, Role};
-    let (Seed::ChatProject { party, project } | Seed::Conversation { party, project, .. }) = &seed;
-    assert_eq!((*party, *project), (1, 1), "the configured core fixture's project and owner");
+    if let Seed::ChatResult { report } = seed {
+        driver.world.peers.as_mut().expect("ordinary core peers").workers =
+            vec![jig_fake_workers::Worker::new(1, 1, vec![Box::new([jig_fake_workers::Script::Finish { report }])])];
+        return;
+    }
+    if let Seed::PendingGoal { words, budget } = seed {
+        driver.world.peers.as_mut().expect("ordinary core peers").workers = vec![jig_fake_workers::Worker::new(
+            1,
+            1,
+            vec![
+                Box::new([
+                    jig_fake_workers::Script::Call(jig_fake_workers::Call::ProposeGoal { words, budget, priority: 7 }),
+                    jig_fake_workers::Script::Park,
+                ]),
+                Box::new([jig_fake_workers::Script::Finish { report: b"one accepted goal".as_slice().into() }]),
+            ],
+        )];
+        seed_core(driver, now, wall, Seed::Conversation { party: 1, project: 1, words: b"Hello".as_slice().into() });
+        return;
+    }
+    let (Seed::ChatProject { party, project } | Seed::Conversation { party, project, .. }) = &seed else { return };
+    assert_eq!(*project, 1, "the configured core project");
+    assert!([1, 3].contains(party), "the configured owner or member");
     match seed {
-        Seed::ChatProject { .. } => {}
-        Seed::Conversation { project, words, .. } => {
+        Seed::ChatProject { .. }
+        | Seed::OwnerProfile
+        | Seed::ChatResult { .. }
+        | Seed::PendingGoal { .. }
+        | Seed::Roles { .. } => {}
+        Seed::Conversation { party, project, words } => {
             let peers = driver.world.peers.as_ref().expect("ordinary core peers");
             let number = u64::try_from(peers.parties.len()).expect("seed party count fits");
             let mut key = [0; 16];
@@ -28,10 +61,10 @@ pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
             driver.scripted_party(
                 Party::new(
                     project,
-                    Role::Owner,
+                    if party == 3 { Role::Member } else { Role::Owner },
                     1_000_000 + number * 100,
                     Box::new([
-                        Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                        Act::SignIn { provider: 0, subject: (party + 6).to_be_bytes().into() },
                         Act::Request { key, ask: Ask::Chat { words } },
                     ]),
                 ),
@@ -40,4 +73,17 @@ pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
             );
         }
     }
+}
+
+/// Starting work shared by people with project roles.
+#[derive(Clone, Copy, Debug)]
+pub enum RoleStory {
+    /// A member's goal awaiting a holder's decision.
+    Proposal,
+    /// A role-addressed person task choosing between reports.
+    Choice,
+    /// A member whose goal exceeds their allotment.
+    Goal,
+    /// An observer without a creation offer.
+    Observer,
 }
