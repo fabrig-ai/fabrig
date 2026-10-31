@@ -4414,7 +4414,7 @@ fn held_review_restart_scripts() -> skein_fake_llm_domain::api::Scripts {
     .flat_map(|(line, cue, words)| {
         temper_real_loop_world::landing::change_scripts(
             temper_real_loop_world::landing::ChangeAuthority { coding_kind: 2, scope: None },
-            temper_engine_domain_forge::tag(3, 1),
+            temper_engine_domain_forge::tag(1, 1),
             b"# hello\n\n",
             line,
             cue,
@@ -4532,8 +4532,7 @@ fn held_review_restart(case: &str) {
     let flags = support::boxed::echo_steps(deployment_flags(&paths));
     let scripts = held_review_restart_scripts();
     let mut steps = forgejo_setup_steps("first");
-    steps[4] =
-        Step::Run(Call::new(&["forge", "setup", "3", "--org", "work", "--repository", "hello", "--project", "1"]));
+    steps[4] = Step::Run(Call::new(&["forge", "setup", "--org", "work", "--repository", "hello", "--project", "1"]));
     let connect = Call::new(&[
         "account",
         "import",
