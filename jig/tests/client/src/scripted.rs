@@ -724,7 +724,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Ended(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::Proposal(_)
                 | ReadValue::Escalation(_)
                 | ReadValue::Question(_)
