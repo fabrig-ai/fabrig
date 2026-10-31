@@ -102,12 +102,20 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         ))),
         None => jig_protocol_config::Address::Host { name: record.place.api.host, port: record.place.api.port },
     };
+    let (login, author) = match record.kind {
+        temper_engine_domain_forge::Kind::Forgejo => {
+            (record.bot.login, crate::settings::Author { name: record.bot.name, email: record.bot.email })
+        }
+        temper_engine_domain_forge::Kind::GitHub => {
+            (Box::default(), crate::settings::Author { name: Box::new([]), email: Box::new([]) })
+        }
+    };
     let identity = crate::settings::Identity {
         number: u32::from(record.number),
         forge: record.number,
         token: skein_lib::Secret::new(Box::new([])),
-        login: record.bot.login,
-        author: crate::settings::Author { name: record.bot.name, email: record.bot.email },
+        login,
+        author,
     };
     let forge = Forge {
         number: record.number,

@@ -309,6 +309,16 @@ fn a_kept_github_uses_the_machine_endpoint_and_the_records_tls_name() {
     github.place.api.tls = Some(Box::from(b"certificate.github.test".as_slice()));
     crate::route::request(service.engine.as_mut().unwrap(), root::Request::ForgeKept(github));
     let engine = service.engine.as_ref().unwrap();
+    assert!(
+        engine.values.tokens.same_identity(&crate::settings::Identity {
+            number: u32::from(NUMBER + 1),
+            forge: NUMBER + 1,
+            token: Secret::new(Box::new([])),
+            login: Box::new([]),
+            author: crate::settings::Author { name: Box::new([]), email: Box::new([]) },
+        }),
+        "GitHub uses installation login and App author defaults"
+    );
     let configured = engine.workers.forges.get(NUMBER + 1).unwrap();
     let endpoint = crate::forges::endpoint(engine, configured).unwrap();
     assert_eq!(endpoint.address, skein_io::Addr::Ip(([192, 0, 2, 9], 8443).into()));

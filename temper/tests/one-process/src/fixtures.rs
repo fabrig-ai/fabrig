@@ -12,8 +12,8 @@ pub const HOOK_SECRET: &[u8] = b"world-webhook-secret";
 pub const SEED: u64 = 7;
 pub const ANSWER: &[u8] = b"World answer";
 pub const LLM_TOKEN: &[u8] = channel::KEY;
-pub const GIT_TOKEN: &[u8] = temper_fake_git_hosted::fixtures::TOKEN;
-pub const API_TOKEN: &[u8] = temper_fake_git_hosted::fixtures::TOKEN;
+pub const GIT_TOKEN: &[u8] = crate::restart_control::GIT_TOKEN;
+pub const API_TOKEN: &[u8] = crate::restart_control::API_TOKEN;
 #[must_use]
 pub fn two_forge_records() -> Vec<temper_engine_domain_forge::Stored> {
     [1, 2]
@@ -132,10 +132,7 @@ pub(crate) fn world_document() -> serde_json::Value {
     value["application"] = serde_json::json!({
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
-        "forges":[{"number":1,"kind":"forgejo","api":{"socket":FORGE.to_string()},"transport":"plaintext",
-            "git":format!("http://{FORGE}"),"webhook_secret":"secrets/forge-1.webhook-secret","api_token":"secrets/forge.api-token","user":{"file":"secrets/forge-1.user"},"identity":1}],
-        "identities":[{"number":1,"token":"secrets/forge.git-token","login":"worker","author":{"name":"Worker","email":"worker@example.invalid"}}],
-        "setup":[],"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{},"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker","git":"/usr/bin/git"}]});
     crate::settings::stage_policies(&mut value);
