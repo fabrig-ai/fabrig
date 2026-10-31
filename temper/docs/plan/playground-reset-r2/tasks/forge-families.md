@@ -328,3 +328,16 @@ The checked task spec’s Answers, “2026-10-31 (fourth),” explicitly authori
 The next run adds that expectation, names it in the report, and completes the remaining checks, commits and branch push.
 
 Could not write the requested report file because filesystem permissions are read-only.
+
+### 2026-10-31: 4 runs without landing; needs judgement (playground-reset-r2/forge-families-4, foreman playground-reset-r2/forge-families/foreman-9)
+
+Add the scoped `too_many_lines` expectation directly on `temper-fake::check::evidence`, beside its `type_complexity` expectation; no refactor.
+
+The checked spec’s Answers, “2026-10-31 (fourth),” explicitly authorizes:
+> “Add, directly on `evidence` beside its `type_complexity` expectation,”
+> `#[expect(clippy::too_many_lines, reason = "one exhaustive evidence map for every durable forge family")]`
+> “and nothing else of `temper-fake`: no refactor.”
+
+The next run adds that expectation, names it in the report, and completes the remaining checks, commits and branch push.
+
+Could not write the requested report file because this run’s filesystem permissions are read-only.
