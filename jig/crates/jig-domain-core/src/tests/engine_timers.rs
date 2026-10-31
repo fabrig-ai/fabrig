@@ -52,8 +52,8 @@ pub(super) fn timer_core(answers: bool) -> (Core, Env<Limits>) {
     (core, env)
 }
 
-fn accept(journal: &mut Journal<Write, Box<Held>>, requests: Requests) -> u32 {
-    let Requests::Out(mut out) = requests;
+fn accept(journal: &mut Journal<Write, Box<Held>>, requests: Queue<Request>) -> u32 {
+    let mut out = requests;
     let mut decision = journal.decide();
     let mut writes = 0_u32;
     while let Some(request) = out.pop() {
@@ -63,7 +63,7 @@ fn accept(journal: &mut Journal<Write, Box<Held>>, requests: Requests) -> u32 {
                 writes = writes.checked_add(1).unwrap();
             }
             Request::Held(held) => decision.push_held(held),
-            Request::ProjectMade { .. } | Request::Decided => {}
+            Request::ProjectMade { .. } => {}
             Request::Ask { .. } | Request::Now(_) => panic!("timer/reply must not escape the journal"),
         }
     }
@@ -80,9 +80,9 @@ fn people_timer_expires_signins_durably_and_later_replies_wait_for_that_commit()
     let (mut core, mut env) = timer_core(false);
     let due = Time::ZERO.saturating_add(env.limits.people.sign_in_lifetime);
     assert_eq!(core.people.next_deadline(), Some(due));
-    let Requests::Out(mut future) = fire(&mut core, &env, Timer::People);
-    let Some(Request::Decided) = future.pop() else { panic!("future timer decides without writes") };
+    let future = fire(&mut core, &env, Timer::People);
     assert!(future.is_empty());
+
     assert_eq!(core.people.next_deadline(), Some(due));
     env.now = due;
     env.wall = Wall::from_nanos(due.as_nanos());
@@ -132,9 +132,9 @@ fn people_timer_erases_retained_answers_then_signins_one_decision_at_a_time() {
     let mut journal = journal();
     for key in expected {
         assert!(core.people.is_due(env.now));
-        let Requests::Out(out) = fire(&mut core, &env, Timer::People);
-        assert_eq!(out.len(), 2, "one bounded erase and its decided mark");
-        assert_eq!(accept(&mut journal, Requests::Out(out)), 1);
+        let out = fire(&mut core, &env, Timer::People);
+        assert_eq!(out.len(), 1, "one bounded erase");
+        assert_eq!(accept(&mut journal, out), 1);
         let mut commit = journal.commit().unwrap();
         assert_eq!(commit.writes.len(), 1);
         let Some(Write::Erase(Key::People(erased))) = commit.writes.pop() else { panic!("typed timer erase") };
@@ -147,8 +147,7 @@ fn people_timer_erases_retained_answers_then_signins_one_decision_at_a_time() {
     }
     assert_eq!(core.people.next_deadline(), None);
     for timer in [Timer::People, Timer::Tasks, Timer::Fleet, Timer::Brief, Timer::Account, Timer::View] {
-        let Requests::Out(mut out) = fire(&mut core, &env, timer);
-        let Some(Request::Decided) = out.pop() else { panic!("empty timer decides without writes") };
+        let out = fire(&mut core, &env, timer);
         assert!(out.is_empty(), "empty owners remain separately dispatchable: {timer:?}");
     }
 }

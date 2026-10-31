@@ -112,7 +112,7 @@ pub(crate) fn done(
     {
         work.push(Work::Core(core::Event::Fill { bytes }));
     }
-    crate::route::core_out(domain, env, decision, core::Requests::Out(out), work);
+    crate::route::core_out(domain, env, decision, out, work);
     work.push(Work::Start(action));
 }
 
@@ -126,7 +126,7 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision<Write, 
         let mut out = Queue::uncapped();
         let action =
             domain.core.start_sweep(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, input, &mut out);
-        crate::route::core_out(domain, env, decision, core::Requests::Out(out), work);
+        crate::route::core_out(domain, env, decision, out, work);
         match action {
             core::start::Action::Idle => {}
             action @ (core::start::Action::Step(_)

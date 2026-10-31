@@ -1,5 +1,5 @@
 //! Owner settings decisions, atomic with their keyed answer (engine.md, 17.2).
-use crate::{Core, Event, Limits, Request, Requests, settings as s};
+use crate::{Core, Event, Limits, Request, settings as s};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use skein_lib::{Env, Map, Queue, ReplyTo, Token};
@@ -14,7 +14,7 @@ pub(super) fn start(
     key: [u8; 16],
     digest: [u8; 32],
     change: Box<s::Change>,
-) -> Requests {
+) -> Queue<Request> {
     assert!(core.settings_input.is_none(), "one settings admission at a time");
     let against = change.against;
     let room = route_writes(&env.limits)
@@ -200,7 +200,7 @@ pub(super) fn propose_start(
     key: [u8; 16],
     digest: [u8; 32],
     change: s::Proposed,
-) -> Requests {
+) -> Queue<Request> {
     assert!(core.proposed_input.is_none(), "one settings proposal admission");
     let s::Proposed { against, items, reason } = change;
     prepare_proposal(core, env, against, items);
@@ -462,13 +462,10 @@ fn move_tasks(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, from
             child.push(request);
         }
     }
-    let Requests::Out(mut routed) = super::tag_tasks(core, env, child, false, false, false);
+    let mut routed = super::tag_tasks(core, env, child, false, false, false);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("routed move output count");
-        if let Request::Decided = request {
-        } else {
-            out.push(request);
-        }
+        out.push(request);
     }
     core.touch_settings();
     counts.expect("move answers counts")
@@ -497,7 +494,7 @@ pub(super) fn propose_run(
     to: ReplyTo,
     key: crate::CallKey,
     change: s::Proposed,
-) -> Requests {
+) -> Queue<Request> {
     use jig_domain_tasks as tasks;
     let s::Proposed { against, items, reason } = change;
     prepare_proposal(core, env, against, items);
@@ -547,9 +544,7 @@ pub(super) fn propose_run(
     core.pending_calls.insert(key, true).expect("call room reserved");
     core.routing_calls.insert(token, crate::RoutedCall::Propose { key, proposal: next }).expect("one proposal route");
     work.push(Event::Tasks(tasks::Event::Propose { reply_to: ReplyTo::new(token), proposal }));
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 /// The same change commits a party's or a task's owner-approved set (engine.md, 17.6).

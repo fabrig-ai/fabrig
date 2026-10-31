@@ -2,7 +2,7 @@
 use super::{
     CharterVersion, Decider, Default, Edit, Failure, Fault, Head, Item, Key, Record, Revision, Setting, VersionKey,
 };
-use crate::{Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Requests, Write};
+use crate::{Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_fleet as fleet;
@@ -354,21 +354,21 @@ impl Core {
         }
     }
 
-    pub(crate) fn commit_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Requests {
+    pub(crate) fn commit_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Queue<Request> {
         self.write_restored_settings(env, room)
     }
 
-    pub(crate) fn write_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Requests {
+    pub(crate) fn write_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Queue<Request> {
         let mut out = Queue::uncapped();
         if !self.settings_restore.held || self.settings_restore.defaults.is_empty() || self.restore_failure.is_some() {
-            return Requests::Out(out);
+            return out;
         }
         let oldest_before = self.current.oldest;
         let previous = self.current.newest();
         let release = self.settings_restore.release.is_some();
         if release && !crate::routing::settings::withdrawal_room(self, None) {
             let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count });
-            return Requests::Out(out);
+            return out;
         }
         let newest = if release { previous.checked_add(1).expect("release number preflighted") } else { previous };
         let reserve = if release { super::withdrawal_writes(&env.limits).expect("withdrawal room") } else { 0 };
@@ -387,11 +387,11 @@ impl Core {
         let plan = self.held.plan_release(&self.current, items.as_slice(), newest, &after, &env.limits);
         if after.len() > env.limits.settings.revisions {
             self.refuse_held(HeldLimit::Revisions, after.len(), env.limits.settings.revisions);
-            return Requests::Out(out);
+            return out;
         }
         if plan.versions() > env.limits.settings.versions {
             self.refuse_held(HeldLimit::Versions, plan.versions(), env.limits.settings.versions);
-            return Requests::Out(out);
+            return out;
         }
         // No writes leave a refused start. Archive orphan heads and apply the
         // single preflighted version plan before bounded history pruning.
@@ -446,7 +446,7 @@ impl Core {
         }
         self.settings_restore = Restore::new(&env.limits);
         self.settings_restore.ready = true;
-        Requests::Out(out)
+        out
     }
 }
 fn save(record: Record) -> Write {

@@ -60,37 +60,19 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::HistoricalEscalation { .. }
                 | Now::RestoreRefused => {}
             },
-            Request::Write(..)
-            | Request::Ask { .. }
-            | Request::Held(..)
-            | Request::ProjectMade { .. }
-            | Request::Decided => {}
+            Request::Write(..) | Request::Ask { .. } | Request::Held(..) | Request::ProjectMade { .. } => {}
         }
     }
     panic!("current supplied retry reaches the public stream boundary")
 }
-fn only_decided(out: &[Request]) -> bool {
-    for request in out {
-        match request {
-            Request::Decided => {}
-            Request::ProjectMade { .. }
-            | Request::Write(..)
-            | Request::Ask { .. }
-            | Request::Held(..)
-            | Request::Now(..) => return false,
-        }
-    }
-    true
+fn is_empty(out: &[Request]) -> bool {
+    out.is_empty()
 }
 fn has_write(out: &[Request]) -> bool {
     for request in out {
         match request {
             Request::Write(..) => return true,
-            Request::ProjectMade { .. }
-            | Request::Decided
-            | Request::Ask { .. }
-            | Request::Held(..)
-            | Request::Now(..) => {}
+            Request::ProjectMade { .. } | Request::Ask { .. } | Request::Held(..) | Request::Now(..) => {}
         }
     }
     false
@@ -136,11 +118,7 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::NotesWritten { .. }
                 | Held::NotesDeleted { .. } => {}
             },
-            Request::Write(..)
-            | Request::Ask { .. }
-            | Request::Now(..)
-            | Request::ProjectMade { .. }
-            | Request::Decided => {}
+            Request::Write(..) | Request::Ask { .. } | Request::Now(..) | Request::ProjectMade { .. } => {}
         }
     }
     false
@@ -149,8 +127,8 @@ fn has_watch_end(out: &[Request]) -> bool {
 #[test]
 fn an_unwatched_empty_retry_opens_as_its_current_supplied_identity() {
     let (mut core, limits) = watch_core();
-    assert!(only_decided(&report(&mut core, &limits, 7, 0, 0, b"older")));
-    assert!(only_decided(&report(&mut core, &limits, 7, 1, 0, b"")));
+    assert!(is_empty(&report(&mut core, &limits, 7, 0, 0, b"older")));
+    assert!(is_empty(&report(&mut core, &limits, 7, 1, 0, b"")));
     let opened = watch_outputs(
         &mut core,
         &limits,
@@ -207,13 +185,13 @@ fn opaque_content_calls_are_attempt_fenced_without_deriving_a_text_turn() {
         &limits,
         Event::RunCall { run: Token::new(1), attempt: Token::new(6), call: call.clone() },
     );
-    assert!(only_decided(&stale));
+    assert!(is_empty(&stale));
     let supplied = watch_outputs(
         &mut core,
         &limits,
         Event::RunCall { run: Token::new(1), attempt: Token::new(7), call: call.clone() },
     );
-    assert!(only_decided(&supplied), "unwatched content decides nothing");
+    assert!(is_empty(&supplied), "unwatched content decides nothing");
     report(&mut core, &limits, 6, 99, 0, b"stale activation");
     let opened = watch_outputs(
         &mut core,
@@ -247,11 +225,7 @@ fn delivered_run(out: &[Request]) -> Option<&Run> {
                     return Some(run);
                 }
             }
-            Request::Write(..)
-            | Request::Ask { .. }
-            | Request::Now(..)
-            | Request::ProjectMade { .. }
-            | Request::Decided => {}
+            Request::Write(..) | Request::Ask { .. } | Request::Now(..) | Request::ProjectMade { .. } => {}
         }
     }
     None
@@ -281,13 +255,13 @@ fn a_call_only_report_makes_a_paced_run_document_without_inventing_a_text_turn()
         &limits,
         Event::RunCall { run: Token::new(1), attempt: Token::new(7), call: later.clone() },
     );
-    assert!(only_decided(&held), "one whole run document remains in flight");
+    assert!(is_empty(&held), "one whole run document remains in flight");
     let taken = watch_outputs(&mut core, &limits, Event::Delivered { watcher: Token::new(30) });
     let latest = delivered_run(&taken).expect("taking the old document releases current state");
     assert!(latest.writing.is_none());
     assert_eq!(latest.call.as_ref().unwrap().identity, later.identity);
     let stale = watch_outputs(&mut core, &limits, Event::RunCall { run: Token::new(1), attempt: Token::new(6), call });
-    assert!(only_decided(&stale));
+    assert!(is_empty(&stale));
 }
 
 #[test]
@@ -331,7 +305,7 @@ fn committed_main_text_keeps_its_independent_call_on_reopen_and_end_releases_it(
     assert_eq!(ended.attempt, None);
     assert!(ended.writing.is_none());
     assert!(ended.call.is_none());
-    assert!(only_decided(&watch_outputs(
+    assert!(is_empty(&watch_outputs(
         &mut core,
         &limits,
         Event::RunCall { run: Token::new(1), attempt: Token::new(7), call }
@@ -351,7 +325,7 @@ fn assert_current_call_clear_is_delivered(turn: u32, retry: u32) {
     let old = delivered_run(&shown).expect("whole current call is in flight");
     assert_eq!(old.call.as_ref().unwrap().identity, call.identity);
     let stale = report(&mut core, &limits, 6, 99, 0, b"");
-    assert!(only_decided(&stale));
+    assert!(is_empty(&stale));
     let replaced = watch_outputs(
         &mut core,
         &limits,

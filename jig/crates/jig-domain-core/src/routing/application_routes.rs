@@ -1,7 +1,7 @@
 //! Connector-owned keyed requests and their synchronous party parts
 //! (`domain/connectors.md`, section 5.5; `domain/core.md`, section 5).
 
-use crate::{Ask, Core, Event, Family, Held, Limits, Request, Requests, fresh};
+use crate::{Ask, Core, Event, Family, Held, Limits, Request, fresh};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use skein_lib::{Env, Queue, ReplyTo, Token};
@@ -36,7 +36,7 @@ pub(super) fn start(
     scope: people::ApplicationScope,
     digest: [u8; 32],
     input: Input,
-) -> Requests {
+) -> Queue<Request> {
     assert!(core.application_input.is_none(), "one admission at a time");
     core.application_input = Some(input);
     let connector = input.connector;
@@ -58,11 +58,11 @@ pub(super) fn start(
         Some(input) => input.carried,
         None => None,
     };
-    let Requests::Out(mut out) = first(unused, routed);
+    let mut out = first(unused, routed);
     if core.connectors.contains(&connector) {
         out.push(Request::Ask { connector, ask: Ask::DropApplication { owner: input.owner } });
     }
-    Requests::Out(out)
+    out
 }
 
 /// The number of a carried value, which is all the core keeps of it.
@@ -82,15 +82,15 @@ pub(crate) fn unused(number: u64) -> Request {
 /// Puts the carried value's unused output before every other output, so
 /// the clients' component hears of it before the request's answer. The
 /// remaining outputs retain their order.
-pub(crate) fn first(unused: Option<u64>, requests: Requests) -> Requests {
+pub(crate) fn first(unused: Option<u64>, requests: Queue<Request>) -> Queue<Request> {
     let Some(number) = unused else { return requests };
-    let Requests::Out(mut rest) = requests;
+    let mut rest = requests;
     let mut out = Queue::uncapped();
     out.push(self::unused(number));
     for _ in 0..rest.len() {
         out.push(rest.pop().expect("route output count"));
     }
-    Requests::Out(out)
+    out
 }
 
 #[expect(clippy::too_many_arguments, reason = "the admitted party envelope is passed unchanged")]
@@ -158,7 +158,7 @@ pub(super) fn part(
     work: &mut Queue<Event>,
     request: Token,
     ask: people::Ask,
-) -> Requests {
+) -> Queue<Request> {
     let Some(flight) = core.applications.get_mut(&request) else { return empty() };
     assert!(!flight.part, "one synchronous core part at a time");
     let connector = flight.connector;
@@ -179,11 +179,10 @@ pub(super) fn part(
     }
 }
 
-pub(super) fn answer(connector: u16, request: Token, outcome: people::Outcome) -> Requests {
+pub(super) fn answer(connector: u16, request: Token, outcome: people::Outcome) -> Queue<Request> {
     let mut out = Queue::uncapped();
     out.push(Request::Ask { connector, ask: Ask::ApplicationPartAnswered { request, outcome } });
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn finished(
@@ -192,7 +191,7 @@ pub(super) fn finished(
     work: &mut Queue<Event>,
     request: Token,
     outcome: Result<Token, people::Again>,
-) -> Requests {
+) -> Queue<Request> {
     let Some(flight) = core.applications.remove(&request) else { return empty() };
     assert!(!flight.part, "core part settled before whole outcome");
     let (outcome, unused) = match outcome {
@@ -205,8 +204,6 @@ pub(super) fn finished(
     first(unused, super::people_routes::route_people(core, env, work, people::Event::Decided { request, outcome }))
 }
 
-fn empty() -> Requests {
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+fn empty() -> Queue<Request> {
+    Queue::uncapped()
 }

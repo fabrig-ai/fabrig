@@ -1,7 +1,7 @@
 //! Host handoffs and opaque settled answers (domain/engine.md, 7.2–7.3;
 //! domain/hosts.md, 2). Protocol decoding and rendering remain with the root.
 
-use crate::{CallKey, CallRecord, Core, CoreRecord, Held, Limits, Now, Record, Request, Requests, Write};
+use crate::{CallKey, CallRecord, Core, CoreRecord, Held, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use skein_lib::{Queue, ReplyTo};
 
@@ -104,7 +104,7 @@ pub(crate) fn settle(
     key: CallKey,
     name: Box<[u8]>,
     mut call: SettledCall,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if !call.valid(limits) || !core.call_parts.contains_key(&key) {
         out.push(Request::Now(Box::new(Now::SettledCallRefused { to, key, name, tool: call.tool })));
@@ -114,8 +114,7 @@ pub(crate) fn settle(
             None => {
                 let Some(serial) = crate::fresh(&mut core.counters, crate::Family::Call) else {
                     out.push(Request::Now(Box::new(Now::SettledCallRefused { to, key, name, tool: call.tool })));
-                    out.push(Request::Decided);
-                    return Requests::Out(out);
+                    return out;
                 };
                 call.serial = serial;
                 assert!(core.call_settled.insert(key, call.clone()).is_ok(), "settled calls fit their retained names");
@@ -127,6 +126,5 @@ pub(crate) fn settle(
         };
         out.push(Request::Held(Box::new(Held::SettledCall { to, key, call: settled })));
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }

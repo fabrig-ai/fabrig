@@ -57,7 +57,7 @@ fn period_core(configured: u64) -> (Core, Limits) {
     if configured > 0 {
         watch_outputs(&mut core, &limits, Event::Period { project: 2, period: configured, budget: 1000, next: None });
     }
-    assert_eq!(finish_watch_outputs(&mut core, &limits).len(), 1);
+    assert!(finish_watch_outputs(&mut core, &limits).is_empty());
     (core, limits)
 }
 
@@ -65,11 +65,7 @@ fn has_write(out: &[Request]) -> bool {
     for request in out {
         match request {
             Request::Write(_) => return true,
-            Request::ProjectMade { .. }
-            | Request::Held(_)
-            | Request::Now(_)
-            | Request::Decided
-            | Request::Ask { .. } => {}
+            Request::ProjectMade { .. } | Request::Held(_) | Request::Now(_) | Request::Ask { .. } => {}
         }
     }
     false
@@ -124,7 +120,7 @@ fn held_project_read(core: &mut Core, limits: &Limits) -> (Project, Box<Held>) {
                 assert!(answer.is_none(), "one held answer per read");
                 answer = Some((project.as_ref().clone(), held));
             }
-            Request::ProjectMade { .. } | Request::Decided => {}
+            Request::ProjectMade { .. } => {}
             Request::Write(_) | Request::Now(_) | Request::Ask { .. } => panic!("read decides nothing"),
         }
     }
@@ -200,7 +196,7 @@ fn a_cross_project_period_holds_the_frame_signal_and_project_reread_until_durabi
                 writes = writes.checked_add(1).expect("bounded period outputs");
             }
             Request::Held(held) => decision.push_held(held),
-            Request::Now(_) | Request::ProjectMade { .. } | Request::Decided => {}
+            Request::Now(_) | Request::ProjectMade { .. } => {}
             Request::Ask { .. } => panic!("no connector or recurring work in this fixture"),
         }
     }

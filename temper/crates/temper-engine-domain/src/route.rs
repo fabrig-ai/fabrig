@@ -266,9 +266,9 @@ pub(crate) fn route_core_requests(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision,
-    requests: core::Requests,
+    requests: Queue<core::Request>,
 ) {
-    let core::Requests::Out(mut output) = requests;
+    let mut output = requests;
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
@@ -298,7 +298,6 @@ pub(crate) fn route_core_requests(
             core::Request::Held(output) => held::held(domain, env, decision, *output),
             core::Request::Now(output) => now::now(domain, env, decision, *output),
             core::Request::ProjectMade { project } => emit(decision, &env.limits, Delivery::ProjectMade { project }),
-            core::Request::Decided => {}
         }
     }
 }
@@ -320,7 +319,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::StartDone(phase) => {
                 let mut output = Queue::uncapped();
                 let action = domain.core.start_done(&environment_core(env), phase, &mut output);
-                route_core_requests(domain, env, decision, core::Requests::Out(output));
+                route_core_requests(domain, env, decision, output);
                 if phase == core::start::Phase::Open && domain.start_phase().is_none() {
                     domain.opened = true;
                 }

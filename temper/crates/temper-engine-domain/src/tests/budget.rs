@@ -9,7 +9,7 @@ use skein_lib::{Env, Queue, ReplyTo, Token};
 fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, output: core::Now) {
     let mut requests = Queue::with_capacity(1);
     requests.push(core::Request::Now(Box::new(output)));
-    crate::route::route_core_requests(domain, env, decision, core::Requests::Out(requests));
+    crate::route::route_core_requests(domain, env, decision, requests);
 }
 
 fn payload(domain: &mut Domain) -> Token {
@@ -126,7 +126,7 @@ fn replacing_a_turn_write_releases_only_the_old_body_and_issue_releases_the_new_
         let Write::Save(crate::Record::Core(row)) = write else { unreachable!() };
         requests.push(core::Request::Write(core::Write::Save(row)));
     }
-    crate::route::route_core_requests(&mut domain, &env, &mut decision, core::Requests::Out(requests));
+    crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
     assert_eq!(domain.held_bytes(), 7);
     crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
         .unwrap();

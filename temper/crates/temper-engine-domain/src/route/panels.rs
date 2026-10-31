@@ -31,7 +31,7 @@ pub(crate) fn document(
     } else {
         views::Made::Gone { why: views::End::Gone }
     };
-    let core::Requests::Out(mut requests) = core::step(
+    let mut requests = core::step(
         &mut domain.core,
         &environment_core(env),
         core::Event::View(views::Event::Made { watcher, outcome }),
@@ -61,7 +61,7 @@ pub(crate) fn document(
         } else {
             let mut forward = Queue::with_capacity(1);
             forward.push(request);
-            super::route_core_requests(domain, env, decision, core::Requests::Out(forward));
+            super::route_core_requests(domain, env, decision, forward);
         }
     }
     assert!(panel.is_none() && forges.is_none(), "every ready document was taken where it was made");

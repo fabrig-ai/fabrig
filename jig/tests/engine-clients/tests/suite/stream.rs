@@ -36,7 +36,7 @@ fn a_me_watch_opens_on_the_small_profile() {
     let core::Event::Watch { watcher, window, .. } = &event else { panic!("frame watch") };
     assert_eq!(window.rows, 4, "Small");
     let watcher = *watcher;
-    let core::Requests::Out(mut out) = core::step(&mut core, &env, event);
+    let mut out = core::step(&mut core, &env, event);
     let mut delivered = false;
     while let Some(request) = out.pop() {
         if let core::Request::Held(value) = request

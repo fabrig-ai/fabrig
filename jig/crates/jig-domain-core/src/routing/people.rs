@@ -11,7 +11,7 @@ use super::party_controls::{
     say_request, stop_request,
 };
 use super::party_decisions::{escalation_request, proposal_request};
-use crate::{Core, Event, Held, Key, Limits, Now, Record, Request, Requests, Write};
+use crate::{Core, Event, Held, Key, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
@@ -22,7 +22,7 @@ pub(super) fn route_people(
     env: &Env<Limits>,
     work: &mut Queue<Event>,
     event: people::Event,
-) -> Requests {
+) -> Queue<Request> {
     if let people::Event::Forget { task, .. } = &event {
         drop(core.archived_chats.remove(task));
     }
@@ -81,7 +81,7 @@ pub(super) fn sign_in(
     reply_to: ReplyTo,
     identity: people::Identity,
     held: Option<u64>,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if !core.people.ready() {
         out.push(Request::Held(Box::new(Held::PeopleReply {
@@ -103,8 +103,7 @@ pub(super) fn sign_in(
         };
         work.push(Event::People(people::Event::SignedIn { reply_to, person, sign_in, identity, kind, held }));
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive party vocabulary routes its bounded child decision")]
 pub(super) fn tag_people(
@@ -112,7 +111,7 @@ pub(super) fn tag_people(
     env: &Env<Limits>,
     mut child: Queue<people::Request>,
     work: &mut Queue<Event>,
-) -> Requests {
+) -> Queue<Request> {
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
         pending.push(child.pop().expect("party output count"));
@@ -488,6 +487,5 @@ pub(super) fn tag_people(
         out.push(request);
     }
     assert!(pending.is_empty(), "party_routes_drained");
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }

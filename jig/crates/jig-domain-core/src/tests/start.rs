@@ -689,11 +689,9 @@ fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<R
             while let Some(request) = out.pop() {
                 match request {
                     Request::Write(_) => {}
-                    Request::Now(_)
-                    | Request::Ask { .. }
-                    | Request::Held(_)
-                    | Request::ProjectMade { .. }
-                    | Request::Decided => panic!("seed commit contains only writes"),
+                    Request::Now(_) | Request::Ask { .. } | Request::Held(_) | Request::ProjectMade { .. } => {
+                        panic!("seed commit contains only writes")
+                    }
                 }
             }
             step_phase(core.start_resume(env, token, out), Phase::LoadInbox);

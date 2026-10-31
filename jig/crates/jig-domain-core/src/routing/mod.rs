@@ -49,7 +49,7 @@ use task_routes::{
 use view_routes::{made_outputs, open, route_view};
 pub use vocabulary::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsNeed, Limits, NamedAction, Now,
-    PayloadRefusal, ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write,
+    PayloadRefusal, ProposalChoice, Request, StepRefusal, Timer, ToolKind, WatchRefusal, Write,
 };
 pub(crate) use watch_marks::finish_watches;
 
@@ -316,10 +316,10 @@ impl Core {
 }
 
 /// Route one child event and each sibling continuation within one core decision.
-pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
+pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> {
     core.start_input();
     if core.start_failure().is_some() {
-        return Requests::Out(Queue::uncapped());
+        return Queue::uncapped();
     }
     if let Some(phase) = core.start_phase() {
         #[expect(clippy::wildcard_enum_match_arm, reason = "only restore entrances need phase validation")]
@@ -345,32 +345,23 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
     work.push(event);
     for _ in 0..env.limits.routes {
         let Some(next) = work.pop() else { break };
-        let Requests::Out(mut batch) = step_one(core, env, next, &mut work);
+        let mut batch = step_one(core, env, next, &mut work);
         for _ in 0..batch.len() {
-            match batch.pop().expect("core route output count") {
-                Request::Decided => {}
-                request @ (Request::ProjectMade { .. }
-                | Request::Write(_)
-                | Request::Ask { .. }
-                | Request::Held(_)
-                | Request::Now(_)) => {
-                    out.push(request);
-                }
-            }
+            let request = batch.pop().expect("core route output count");
+            out.push(request);
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");
     core.finish_extent(oldest, &mut out);
     core.start_collect_failure();
     if core.start_failure().is_some() {
-        return Requests::Out(Queue::uncapped());
+        return Queue::uncapped();
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 /// Want every configured account once, after the restart has restored the core's own ranges.
-pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
+pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     core.start_input();
     if let Some(phase) = core.start_phase() {
         assert!(phase == crate::start::Phase::Link, "account wants attach after all loading");
@@ -380,7 +371,7 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
     core.run_now = env.now;
     core.run_wall = env.wall;
     let mut work = Queue::uncapped();
-    let Requests::Out(mut out) = route_account(core, env, &mut work, accounts::Event::Want);
+    let mut out = route_account(core, env, &mut work, accounts::Event::Want);
     assert!(work.is_empty(), "wanting the accounts answers no party");
     core.finish_extent(oldest, &mut out);
     if core.start_phase().is_some() {
@@ -389,16 +380,16 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
             let request = out.pop().expect("bounded restored accounts output");
             match request {
                 Request::Write(_) => writes.push(request),
-                Request::Decided => {}
+
                 Request::ProjectMade { .. } | Request::Ask { .. } | Request::Held(_) | Request::Now(_) => {
                     core.start.held.push(request);
                 }
             }
         }
         core.start_collect_failure();
-        return Requests::Out(writes);
+        return writes;
     }
-    Requests::Out(out)
+    out
 }
 
 fn takes_connector_resource(phase: crate::start::Phase, connector: u16) -> bool {
@@ -423,7 +414,7 @@ pub(crate) fn start_task_outputs(
     child: Queue<tasks::Request>,
     out: &mut Queue<Request>,
 ) {
-    let Requests::Out(mut routed) = tag_tasks(core, env, child, false, false, false);
+    let mut routed = tag_tasks(core, env, child, false, false, false);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("bounded restored task outputs");
         out.push(request);
@@ -431,7 +422,7 @@ pub(crate) fn start_task_outputs(
 }
 
 /// Resume the fleet's next held placement or relay through the core's sibling routes.
-pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Requests {
+pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     core.start_runtime_input();
     let oldest = core.current.oldest;
     core.run_now = env.now;
@@ -446,14 +437,14 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Requests {
         core.touch_run_waits();
     }
     let mut work = Queue::uncapped();
-    let Requests::Out(mut out) = tag_fleet(core, env, &mut work, child);
+    let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
     core.finish_extent(oldest, &mut out);
-    Requests::Out(out)
+    out
 }
 
 #[expect(clippy::too_many_lines, reason = "exhaustive event dispatch delegates each concern")]
-fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<Event>) -> Requests {
+fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<Event>) -> Queue<Request> {
     let event = match crate::stopping::gate(core, event) {
         Ok(event) => event,
         Err(answer) => return answer,
@@ -503,7 +494,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
                 to: reply_to,
                 reply: people::Reply::Again(people::Again::NotReady),
             })));
-            Requests::Out(out)
+            out
         }
         Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
         Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, load, result),
@@ -598,14 +589,12 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::PartyInputsLoaded { request, row, busy } => {
             let mut out = Queue::uncapped();
             party_inputs::loaded(core, env, &mut out, work, party_inputs::Loaded { request, row, busy });
-            Requests::Out(out)
+            out
         }
         Event::HistoricalPersonTask { request, person, project, task, row, busy } => {
             let outcome = core.person_task_ended(person, project, task, row, busy);
             work.push(Event::People(people::Event::Decided { request, outcome }));
-            let mut out = Queue::uncapped();
-            out.push(Request::Decided);
-            Requests::Out(out)
+            Queue::uncapped()
         }
         Event::HistoricalEscalation { request, person, project, task, revision, row, busy } => {
             route_historical_escalation(core, env, work, request, person, project, task, revision, row, busy)
@@ -631,7 +620,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
 }
 
 /// Fire one due child timer, returning its whole bounded request batch.
-pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
+pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> {
     core.start_input();
     if !core.ready() {
         return crate::stopping::empty();
@@ -642,7 +631,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
         return crate::stopping::empty();
     }
     let oldest = core.current.oldest;
-    let Requests::Out(mut out) = match timer {
+    let mut out = match timer {
         Timer::People => {
             let mut out = Queue::uncapped();
             people::fire(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, &mut out);
@@ -700,7 +689,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
         }
     };
     core.finish_extent(oldest, &mut out);
-    Requests::Out(out)
+    out
 }
 
 pub(crate) fn tag_ended_mark(
@@ -708,6 +697,6 @@ pub(crate) fn tag_ended_mark(
     env: &Env<Limits>,
     child: Queue<people::Request>,
     work: &mut Queue<Event>,
-) -> Requests {
+) -> Queue<Request> {
     people_routes::tag_people(core, env, child, work)
 }

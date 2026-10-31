@@ -181,8 +181,7 @@ impl Core {
                 }
                 let pending = core::mem::replace(&mut self.start.waiting_tasks, Queue::uncapped());
                 crate::routing::start_task_outputs(self, env, pending, out);
-                let crate::Requests::Out(mut activated) =
-                    crate::step(self, env, crate::Event::Tasks(tasks::Event::Restored));
+                let mut activated = crate::step(self, env, crate::Event::Tasks(tasks::Event::Restored));
                 for _ in 0..activated.len() {
                     let request = activated.pop().expect("bounded restored activation outputs");
                     out.push(request);
@@ -275,7 +274,7 @@ impl Core {
             return;
         }
         self.start_cross_links();
-        let crate::Requests::Out(mut accounts) = crate::want_accounts(self, env);
+        let mut accounts = crate::want_accounts(self, env);
         self.start_collect_failure();
         if self.start.failure.is_some() {
             return;

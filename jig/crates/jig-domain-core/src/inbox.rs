@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::List;
+use skein_lib::{List, Queue};
 
 use crate::{Core, Limits};
 
@@ -398,13 +398,13 @@ pub(crate) fn valid_header(core: &Core, limits: &Limits, row: &tasks::TaskRecord
 pub(crate) fn seen_conversation_loaded(
     core: &mut Core,
     env: &skein_lib::Env<Limits>,
-    work: &mut skein_lib::Queue<crate::Event>,
+    work: &mut Queue<crate::Event>,
     request: skein_lib::Token,
     row: Option<Box<tasks::TaskRecord>>,
     busy: bool,
-) -> crate::Requests {
+) -> Queue<crate::Request> {
     let Some((party, people::Seen::Conversation { task, .. })) = core.people.seen_context(request) else {
-        return crate::Requests::Out(skein_lib::Queue::uncapped());
+        return Queue::uncapped();
     };
     let event = if busy {
         people::Event::Decided { request, outcome: people::Outcome::Again(people::Again::Busy) }
@@ -432,22 +432,19 @@ pub(crate) fn seen_conversation_loaded(
                     .is_ok(),
                 "one header per pending mark"
             );
-            let mut out = skein_lib::Queue::uncapped();
+            let mut out = Queue::uncapped();
             out.push(crate::Request::Held(Box::new(crate::Held::Load(Box::new(crate::Now::LoadEndedRead {
                 request,
                 task,
                 party,
             })))));
-            out.push(crate::Request::Decided);
-            return crate::Requests::Out(out);
+            return out;
         }
     } else {
         people::Event::Decided { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) }
     };
     work.push(crate::Event::People(event));
-    let mut out = skein_lib::Queue::uncapped();
-    out.push(crate::Request::Decided);
-    crate::Requests::Out(out)
+    Queue::uncapped()
 }
 fn matches_ended(phase: &tasks::Phase) -> bool {
     match phase {

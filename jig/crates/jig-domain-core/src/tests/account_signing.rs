@@ -58,7 +58,7 @@ fn ask(key: u8, ask: people::Ask) -> Event {
 /// The one ask, if any, the core makes of the accounts' component for one event, and the party's
 /// outcome, if one is answered.
 fn stepped(core: &mut Core, env: &Env<Limits>, event: Event) -> (Option<accounts::Request>, Option<people::Outcome>) {
-    let Requests::Out(mut out) = step(core, env, event);
+    let mut out = step(core, env, event);
     let (mut asked, mut answered) = (None, None);
     while let Some(request) = out.pop() {
         match request {
@@ -72,7 +72,7 @@ fn stepped(core: &mut Core, env: &Env<Limits>, event: Event) -> (Option<accounts
                 };
                 assert!(answered.replace(outcome).is_none(), "one outcome: {answered:?}");
             }
-            Request::Write(_) | Request::ProjectMade { .. } | Request::Decided => {}
+            Request::Write(_) | Request::ProjectMade { .. } => {}
             Request::Ask { .. } => panic!("only the accounts' component is asked: {request:?}"),
         }
     }
@@ -133,7 +133,7 @@ fn a_value_is_in_no_committed_row() {
         holder: people::AccountHolder::Own,
         change: people::AccountChange::AddKey { provider: 3, join: None, digest: [7; 32] },
     };
-    let Requests::Out(mut out) = step(
+    let mut out = step(
         &mut core,
         &env,
         Event::Key {
@@ -158,7 +158,7 @@ fn a_value_is_in_no_committed_row() {
     let source = source.expect("the component keeps the LLM key");
     // A duplicate in flight releases only its own carried value and joins the
     // first request's answer; the original value remains owned by the keep.
-    let Requests::Out(mut duplicate) = step(
+    let mut duplicate = step(
         &mut core,
         &env,
         Event::Key {
@@ -179,7 +179,7 @@ fn a_value_is_in_no_committed_row() {
     }
     assert_eq!(unused, 1);
     assert_eq!(core.keys.len(), 1);
-    let Requests::Out(mut out) = step(
+    let mut out = step(
         &mut core,
         &env,
         Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {

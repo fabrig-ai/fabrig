@@ -104,7 +104,7 @@ fn early_pieces_and_pending_closing_header_become_a_serving_feed() {
         panic!("Wires waits for release")
     };
     assert_step(&h.core.start_resume(&h.env, token, &mut h.out), Phase::AdoptRuns);
-    let core::Requests::Out(mut output) = core::finish_decision(&mut h.core, &h.env);
+    let mut output = core::finish_decision(&mut h.core, &h.env);
     let mut feeds = 0;
     while let Some(request) = output.pop() {
         if let core::Request::Ask { connector, ask: core::Ask::ProjectGoal { feed } } = request {
