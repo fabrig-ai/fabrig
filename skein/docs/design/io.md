@@ -114,6 +114,12 @@ layer use `Queue::uncapped`: a push cannot fail and the loop reserves no
 room there. New external work waits at the root's watermark
 (programming-model.md, 7.1).
 
+`skein_io::stage::{up, down}` runs the loop's io stage: `up` takes ready
+entities and refusals, then completions, then due deadlines; `down` takes
+requests in order while `Io::takes`. Each step runs only when the kernel
+submission queue has room for its `MAX_OUT_*`; work that cannot fit stays
+queued for the next iteration.
+
 **Decisions.**
 
 - **Every event names its owner first:** the token the layer above gave
