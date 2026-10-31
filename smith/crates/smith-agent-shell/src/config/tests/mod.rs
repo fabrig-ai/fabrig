@@ -120,9 +120,8 @@ fn named_endpoint_resolves_and_its_tls_trust_builds_before_start() {
     let endpoint = &mut document.endpoints[0];
     endpoint.transport = "tls".into();
     endpoint.server_name = Some("example.test".into());
-    endpoint.trust_der = Some(
-        skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string(),
-    );
+    endpoint.trust_der =
+        Some(skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string());
     let configuration = build(document).expect("resolved endpoint");
     service::Service::new(configuration.service, 1).expect("LLM and channel endpoints");
 }
@@ -197,13 +196,22 @@ fn plaintext_endpoints_refuse_addresses_outside_loopback() {
 #[test]
 fn ambiguous_or_unknown_transports_name_the_refused_setting() {
     for (extra, expected) in [
-        (serde_json::json!({"transport":"plaintext", "server_name":"example.test"}), "plaintext endpoint cannot name TLS server_name or trust_der"),
-        (serde_json::json!({"transport":"plaintext", "trust_der":"missing.der"}), "plaintext endpoint cannot name TLS server_name or trust_der"),
+        (
+            serde_json::json!({"transport":"plaintext", "server_name":"example.test"}),
+            "plaintext endpoint cannot name TLS server_name or trust_der",
+        ),
+        (
+            serde_json::json!({"transport":"plaintext", "trust_der":"missing.der"}),
+            "plaintext endpoint cannot name TLS server_name or trust_der",
+        ),
         (serde_json::json!({"transport":"unknown"}), "endpoint transport must be tls or plaintext"),
         (serde_json::json!({"transport":"tls"}), "TLS endpoint requires server_name"),
     ] {
         let mut document = shaped_document();
-        document["endpoints"][0].as_object_mut().expect("endpoint").extend(extra.as_object().expect("settings").clone());
+        document["endpoints"][0]
+            .as_object_mut()
+            .expect("endpoint")
+            .extend(extra.as_object().expect("settings").clone());
         assert_eq!(parse_value(&document).err().as_deref(), Some(expected));
     }
 }
@@ -279,12 +287,8 @@ fn a_declared_memory_of_one_byte_starts() {
     let configuration = from_value(document).expect("one declared byte is accepted");
     assert_eq!(configuration.memory, 1);
     assert_eq!(configuration.service.limits.memory, 1);
-    crate::Agent::new(
-        configuration,
-        resources(),
-        Box::new(std::io::sink()),
-    )
-    .expect("one declared byte starts through prepare");
+    crate::Agent::new(configuration, resources(), Box::new(std::io::sink()))
+        .expect("one declared byte starts through prepare");
 }
 
 #[test]

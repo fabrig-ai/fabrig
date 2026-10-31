@@ -124,11 +124,7 @@ fn an_agent_whose_host_hangs_up_before_its_answer_says_so_and_exits_1() {
 fn a_refused_configuration_writes_one_line_and_exits_1_without_a_channel() {
     use smith_agent_shell::Agent;
     let errors = smith_agent_process_world::AgentErrors::default();
-    let startup = Agent::read(
-        std::path::Path::new(""),
-        unopened_resources(),
-        Box::new(errors.clone()),
-    );
+    let startup = Agent::read(std::path::Path::new(""), unopened_resources(), Box::new(errors.clone()));
     let exit = match startup {
         Ok(agent) => {
             assert!(skein_world::Host::is_empty(&agent), "a refused startup never adopts these nonexistent streams");
@@ -161,11 +157,7 @@ fn a_broken_declared_relationship_is_named_before_channel_adoption() {
     use smith_agent_shell::Agent;
     let errors = smith_agent_process_world::AgentErrors::default();
     let path = skein_scratch::paths::package().join("fixtures/read-past-payload.json");
-    let startup = Agent::read(
-        &path,
-        unopened_resources(),
-        Box::new(errors.clone()),
-    );
+    let startup = Agent::read(&path, unopened_resources(), Box::new(errors.clone()));
     match startup {
         Ok(_) => panic!("broken read/payload relationship must refuse before adopting nonexistent channel handles"),
         Err(refusal) => {
@@ -187,11 +179,7 @@ fn an_invalid_io_composition_refuses_before_channel_adoption() {
     // Both configuration's validity guard and Service::new reject this
     // mismatch between the native IO driver and the child connection IO.
     configuration.service.limits.io.output -= 1;
-    let startup = Agent::new(
-        configuration,
-        unopened_resources(),
-        Box::new(errors.clone()),
-    );
+    let startup = Agent::new(configuration, unopened_resources(), Box::new(errors.clone()));
     let Err(refusal) = startup else {
         panic!("invalid IO composition must refuse before adopting nonexistent channel handles");
     };

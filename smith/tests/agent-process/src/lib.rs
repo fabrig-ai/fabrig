@@ -89,10 +89,6 @@ pub fn declarations(environment_bytes: u32) -> agent::profile::Configuration {
 
 /// Adopt scenario-specific service settings and mounts in Start order.
 #[must_use]
-#[expect(
-    clippy::zero_sized_map_values,
-    reason = "The fixture retains adapter names even while Claude Code is the sole adapter."
-)]
 pub fn configured(
     configuration: agent::Config,
     seed: u64,

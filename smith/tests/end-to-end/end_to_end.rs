@@ -18,7 +18,12 @@ fn assert_delivered(scratch: &Scratch) {
         (b"command.txt", b"ran\n"),
         (b"checks-ran.txt", b"checked\n"),
     ] {
-        assert_eq!(files[path], expected, "delivered {}", String::from_utf8_lossy(path));
+        assert_eq!(
+            files.get(path).expect("delivered file").as_slice(),
+            expected,
+            "delivered {}",
+            String::from_utf8_lossy(path)
+        );
     }
 }
 
@@ -192,7 +197,7 @@ fn a_product_settings_metadata_refusal_reaches_stderr() {
 
 fn agent_document(address: &str) -> serde_json::Value {
     serde_json::json!({
-        "profile":{"name":"standard","declared":{"memory":1099511627776_u64,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},
+        "profile":{"name":"standard","declared":{"memory":1_099_511_627_776_u64,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},
         "endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":address,"transport":"plaintext","connect":1000,"handshake":1000,
             "models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],
         "environment":[]

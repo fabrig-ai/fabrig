@@ -109,19 +109,7 @@ pub(super) fn build_endpoints(
             .map_err(|_| "too many channel endpoints")?;
         let protocol_allowance = service::profile::endpoint_allowance(profile, declared, &limits.domain.session.tools)
             .map_err(ConfigurationRefusal::Profile)?;
-        for (model, input) in declared.models.iter().zip(&endpoint.models) {
-            models.push(domain::ConfiguredModel {
-                prices: input.prices.rates(),
-                endpoint: run::charter::Endpoint(declared.number),
-                model: model.name.clone(),
-                efforts: model.efforts.clone(),
-                window: model.window,
-                output: model.output,
-                protocol_allowance,
-                head: model.head,
-                idle: model.idle,
-            });
-        }
+        configure_models(declared, &endpoint.models, protocol_allowance, &mut models);
         let credential = credential_limits(&limits.llm);
         let head = shared::client::request_head(&llm_endpoint, &credential, &client).map_err(|error| {
             ConfigurationRefusal::Profile(Refusal::Connection(connection::EndpointError::Client(error)))
@@ -148,6 +136,27 @@ pub(super) fn build_endpoints(
         llm: llm_endpoints.into_boxed_slice(),
         models: models.into_boxed_slice(),
     })
+}
+
+fn configure_models(
+    declared: &service::profile::Endpoint,
+    inputs: &[ModelDocument],
+    protocol_allowance: u64,
+    models: &mut Vec<domain::ConfiguredModel>,
+) {
+    for (model, input) in declared.models.iter().zip(inputs) {
+        models.push(domain::ConfiguredModel {
+            prices: input.prices.rates(),
+            endpoint: run::charter::Endpoint(declared.number),
+            model: model.name.clone(),
+            efforts: model.efforts.clone(),
+            window: model.window,
+            output: model.output,
+            protocol_allowance,
+            head: model.head,
+            idle: model.idle,
+        });
+    }
 }
 
 fn endpoint_transport(endpoint: &mut Endpoint) -> Result<EndpointTransport, ConfigurationRefusal> {
