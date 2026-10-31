@@ -787,9 +787,9 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
             jig_domain_people::Stored::Acted { act, outcome, .. } => {
                 let payload = match act {
                     jig_domain_people::Act::Close { reason, .. } => u64::try_from(reason.len()).ok()?,
-                    jig_domain_people::Act::RemoveProject { .. }
-                    | jig_domain_people::Act::AddKey { .. }
-                    | jig_domain_people::Act::RemoveAccount { .. } => 0,
+                    jig_domain_people::Act::AddKey { .. }
+                    | jig_domain_people::Act::RemoveAccount { .. }
+                    | jig_domain_people::Act::RemoveProject { .. } => 0,
                     jig_domain_people::Act::Adopt { adoption, .. } => adoption_bytes(adoption)?,
                     jig_domain_people::Act::MakeProject { .. } => unreachable!("demo never makes a project"),
                 };

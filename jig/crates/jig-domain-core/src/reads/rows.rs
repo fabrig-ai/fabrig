@@ -318,7 +318,9 @@ pub fn row_key(row: &Row) -> Option<Position> {
 
 fn is_page(scope: &Scope) -> bool {
     match scope {
-        Scope::EndedDelegates { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Activity { .. }
         | Scope::Inbox { .. }
@@ -326,9 +328,7 @@ fn is_page(scope: &Scope) -> bool {
         | Scope::Notes { .. }
         | Scope::ScopedNotes { .. }
         | Scope::SettingsHistory { .. }
-        | Scope::Spend { .. }
-        | Scope::EndedTasks
-        | Scope::TaskRows { .. } => true,
+        | Scope::Spend { .. } => true,
         Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
@@ -574,7 +574,9 @@ fn object(
                     result_actor(owner),
                 ),
                 Scope::Result { .. } => Answer::Document(Box::new(Document::Result(Box::new(result)))),
-                Scope::Proposal { .. }
+                Scope::EndedTasks
+                | Scope::TaskRows { .. }
+                | Scope::Proposal { .. }
                 | Scope::Escalation { .. }
                 | Scope::Question { .. }
                 | Scope::Reply { .. }
@@ -587,9 +589,7 @@ fn object(
                 | Scope::Notes { .. }
                 | Scope::ScopedNotes { .. }
                 | Scope::SettingsHistory { .. }
-                | Scope::Spend { .. }
-                | Scope::EndedTasks
-                | Scope::TaskRows { .. } => unreachable!("task object scope"),
+                | Scope::Spend { .. } => unreachable!("task object scope"),
             };
             Ok(Some(answer))
         }
@@ -834,7 +834,9 @@ fn object(
             }
             Ok(Some(historical(Past::Turn(value.clone()), Some(value.at), None)))
         }
-        Scope::EndedDelegates { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Activity { .. }
         | Scope::Inbox { .. }
@@ -842,9 +844,7 @@ fn object(
         | Scope::Notes { .. }
         | Scope::ScopedNotes { .. }
         | Scope::SettingsHistory { .. }
-        | Scope::Spend { .. }
-        | Scope::EndedTasks
-        | Scope::TaskRows { .. } => Ok(None),
+        | Scope::Spend { .. } => Ok(None),
     }
 }
 
@@ -948,7 +948,9 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
         }
         Scope::Tasks { query } => super::ended::line(core, limits, range.party, query, &row),
         Scope::Inbox { group, filter } => inbox_row(core, limits, range.party, *group, *filter, row),
-        Scope::Task { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -956,16 +958,16 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
         | Scope::Result { .. }
         | Scope::Reply { .. }
         | Scope::SettingsHistory { .. }
-        | Scope::Turn { .. }
-        | Scope::EndedTasks
-        | Scope::TaskRows { .. } => Ok(None),
+        | Scope::Turn { .. } => Ok(None),
     }
 }
 
 fn inbox_contexts(scope: &Scope, rows: u32) -> Option<List<documents::InboxSelection>> {
     match &scope {
         Scope::Inbox { .. } => Some(List::with_capacity(rows)),
-        Scope::Task { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -980,9 +982,7 @@ fn inbox_contexts(scope: &Scope, rows: u32) -> Option<List<documents::InboxSelec
         | Scope::Notes { .. }
         | Scope::ScopedNotes { .. }
         | Scope::SettingsHistory { .. }
-        | Scope::Spend { .. }
-        | Scope::EndedTasks
-        | Scope::TaskRows { .. } => None,
+        | Scope::Spend { .. } => None,
     }
 }
 
@@ -1468,7 +1468,9 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
     match position {
         Position::Inbox { task, object, key, .. } => match scope {
             Scope::Inbox { group, .. } => inbox_key_allowed(*group, *task, *object, key),
-            Scope::Task { .. }
+            Scope::EndedTasks
+            | Scope::TaskRows { .. }
+            | Scope::Task { .. }
             | Scope::Proposal { .. }
             | Scope::Escalation { .. }
             | Scope::Question { .. }
@@ -1483,9 +1485,7 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
             | Scope::Notes { .. }
             | Scope::ScopedNotes { .. }
             | Scope::SettingsHistory { .. }
-            | Scope::Spend { .. }
-            | Scope::EndedTasks
-            | Scope::TaskRows { .. } => false,
+            | Scope::Spend { .. } => false,
         },
         Position::Owner(key) => {
             let kind = key_kind(key);

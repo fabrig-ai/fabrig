@@ -278,6 +278,8 @@ impl Store {
                 skein_kv::Op::Erase { key } => {
                     if let Some(key) = keys::decode(&key) {
                         writes.push(root::Write::Erase(root::Key::Core(key)));
+                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(&key) {
+                        writes.push(root::Write::DropTranscript { task });
                     } else if key.first() == Some(&keys::APPLICATION) {
                         let key = temper_protocol_store::keys::decode(&key[1..], connector.forge())
                             .expect("real application key");
