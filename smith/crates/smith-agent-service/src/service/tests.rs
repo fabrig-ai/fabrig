@@ -1,3 +1,11 @@
+mod setup;
+
+pub(crate) use setup::{account_request, account_service, charter, configuration, domain_configuration};
+use setup::{
+    admit_pending, admitted, at_watermark, event_service, host_message, interrupted_before_admission, limits,
+    preparing_message_run, service, watermark, with_channel_streams, with_input, without_channel,
+};
+
 use super::request::domain_request;
 use super::routing::{record_usage, route_io_event, route_owned_io, route_submission};
 use super::teardown::Step;
@@ -5,36 +13,6 @@ use super::up::channel_event;
 use super::*;
 use skein_lib::Duration;
 use teardown::{Answer, Close};
-
-fn limits() -> Limits {
-    crate::fixture::small()
-}
-
-pub(crate) fn configuration() -> Config {
-    let limits = limits();
-    let channel_endpoints = channel::Endpoints::new(List::with_capacity(1));
-    let llm_endpoints = llm::Endpoints::new(Box::new([]), 1).expect("empty endpoint table");
-    Config {
-        program: None,
-        limits,
-        domain: domain::Config { programs: Box::new([]), endpoints: Box::new([]), models: Box::new([]) },
-        channel_endpoints,
-        llm_endpoints,
-        environment: machine::Environment::encode(&[], &limits.machine).expect("empty environment fits"),
-        stream_mode: StreamMode::Two,
-    }
-}
-
-pub(crate) fn charter(settings: &smith_agent_world::Settings) -> run::Charter {
-    let mut charter = smith_agent_world::scripted_charter(settings);
-    charter.llm.window = 2_097_152;
-    charter.llm.output = 65_536;
-    charter
-}
-
-fn service() -> Service {
-    Service::new(configuration(), 1).expect("bounded service")
-}
 
 #[test]
 fn a_colocated_host_gets_typed_machine_terminals_without_an_agent_channel() {
@@ -125,7 +103,7 @@ fn machine_terminal_and_channel_message_keep_their_domain_names() {
     );
     assert_eq!(service.pending_messages.len(), 1);
     assert!(service.domain_events.is_empty());
-    service.admitted = Some(Token::new(9));
+    let mut service = admit_pending(service, 9);
     domain_down(&mut service);
     match service.domain_events.pop().expect("message") {
         domain::Event::Message { finish_requested: true, run, name, label, text } => {
@@ -189,8 +167,7 @@ fn kernel_cancel_targets_the_right_layer_operation() {
 
 #[test]
 fn termination_signal_cancels_the_admitted_run() {
-    let mut service = service();
-    service.admitted = Some(Token::new(91));
+    let mut service = admitted(91);
     route_io_event(&mut service, io::Event::Shutdown { signal: kernel::ServiceSignal::Terminate, from: None });
     match service.domain_events.pop().expect("cancel event") {
         domain::Event::Cancel { run } => assert_eq!(run, Token::new(91)),
@@ -200,10 +177,7 @@ fn termination_signal_cancels_the_admitted_run() {
 
 #[test]
 fn signal_during_opening_waits_for_the_admitted_run_handle() {
-    let mut service = service();
-    route_io_event(&mut service, io::Event::Shutdown { signal: kernel::ServiceSignal::Interrupt, from: None });
-    assert!(service.cancel_pending);
-    service.admitted = Some(Token::new(19));
+    let mut service = interrupted_before_admission(19);
     domain_down(&mut service);
     match service.domain_events.pop().expect("deferred cancel") {
         domain::Event::Cancel { run } => assert_eq!(run, Token::new(19)),
@@ -224,10 +198,7 @@ fn channel_loss_before_answer_keeps_a_concrete_failure_reason() {
 
 #[test]
 fn the_answer_requests_every_close_in_one_pass() {
-    let mut service = service();
-    service.input = Some(Token::new(11));
-    service.output = Some(Token::new(12));
-    service.signals = Some(Token::new(13));
+    let mut service = with_channel_streams(Some(Token::new(13)));
     service.mark_failed(Failure::Send);
     teardown::answered(&mut service);
     assert!(!service.llm.closed());
@@ -252,9 +223,7 @@ fn the_answer_requests_every_close_in_one_pass() {
 
 #[test]
 fn a_sent_answer_keeps_its_channel_output_right_until_finish() {
-    let mut service = service();
-    service.input = Some(Token::new(11));
-    service.output = Some(Token::new(12));
+    let mut service = with_channel_streams(None);
     teardown::answered(&mut service);
     teardown::advance(&mut service);
     match service.io_requests.pop() {
@@ -266,8 +235,7 @@ fn a_sent_answer_keeps_its_channel_output_right_until_finish() {
 
 #[test]
 fn an_answer_requests_its_close_at_once() {
-    let mut service = service();
-    service.input = Some(Token::new(11));
+    let mut service = with_input();
     for _ in 0..service.limits.queue {
         service.io_requests.push(io::Request::Usage { owner: Token::new(1) });
     }
@@ -292,8 +260,7 @@ fn an_answer_requests_its_close_at_once() {
 
 #[test]
 fn done_is_some_only_when_closed() {
-    let mut service = service();
-    service.channel = None;
+    let mut service = without_channel();
     assert_eq!(done(&service), None);
     teardown::answered(&mut service);
     assert_eq!(done(&service), None);
@@ -311,65 +278,6 @@ fn done_is_some_only_when_closed() {
     assert!(work_pending(&service, Time::ZERO), "the last close wakes the phase after reclaim");
     teardown::advance(&mut service);
     assert_eq!(done(&service), Some(true));
-}
-
-pub(crate) fn account_service() -> Service {
-    let mut agent = event_service();
-    agent.channel = service().channel;
-    agent
-        .events
-        .as_mut()
-        .unwrap()
-        .sinks()
-        .add(
-            smith_protocol_events::sinks::Destination::Trace,
-            Token::new(400),
-            smith_protocol_events::sinks::Delivery::Complete,
-        )
-        .unwrap();
-    agent
-}
-
-pub(crate) fn account_request(agent: &mut Service, request: domain::Request) -> smith_events::Record {
-    domain_request(agent, request);
-    let records =
-        smith_protocol_events::sinks::fixture::drain_ready(agent.events.as_mut().unwrap().sinks(), Token::new(400));
-    assert_eq!(records.len(), 1);
-    records.into_iter().next().unwrap()
-}
-
-fn event_service() -> Service {
-    let mut config = configuration();
-    config.limits.events = Some(
-        crate::event_limits(
-            &config.limits,
-            smith_protocol_events::sinks::Capture::Calls,
-            1,
-            0,
-            &[],
-            Duration::from_secs(1),
-        )
-        .expect("bounded event configuration"),
-    );
-    let mut service = Service::new(config, 1).expect("bounded producer service");
-    service.channel = None;
-    service.start_session(
-        Time::ZERO,
-        smith_events::SessionStarted {
-            chat: None,
-            wall_ms: 0,
-            agent: smith_events::Agent { name: b"test".as_slice().into(), version: Box::default() },
-            mode: smith_events::Mode::Agent,
-            containment: smith_events::Containment::Groups,
-            pid: 1,
-            profile: b"test".as_slice().into(),
-            capture: smith_events::Capture::Calls,
-            delivery: smith_events::Delivery::Complete,
-            versions: smith_events::Versions { events: 4, channel: 5, charter: 4, transcript: 6, chat_store: None },
-            limits: List::with_capacity(0),
-        },
-    );
-    service
 }
 
 #[test]
@@ -405,41 +313,6 @@ fn usage_writes_the_session_end_before_the_stream_closes() {
     assert_eq!(done(&service), None);
     teardown::advance(&mut service);
     assert_eq!(done(&service), Some(true));
-}
-
-// A full kernel edge holds internal IO submissions at the watermark across
-// an iteration. Only the pending internal submissions contribute to backlog.
-fn at_watermark() -> Service {
-    let mut config = configuration();
-    config.limits.queue = 8;
-    let mut service = Service::new(config, 1).expect("small watermark service");
-    service.admitted = Some(Token::new(9));
-    for number in 0..service.limits.queue {
-        service.submissions.push(kernel::Submit {
-            op: Token::new(u64::from(number)),
-            kind: kernel::Op::Close { fd: kernel::Fd::new(90) },
-        });
-    }
-    assert_eq!(backlog(&service), 0, "kernel-edge submissions are outside admission");
-    assert_eq!(service.submissions.capacity(), service.limits.queue);
-    assert_eq!(service.completions.capacity(), service.limits.queue);
-    for number in 0..service.limits.queue {
-        service.io_submissions.push(kernel::Submit {
-            op: Token::new(u64::from(number)),
-            kind: kernel::Op::Close { fd: kernel::Fd::new(91) },
-        });
-    }
-    assert_eq!(backlog(&service), u64::from(service.limits.queue));
-    service
-}
-
-fn host_message(name: u64) -> channel::OpenEvent {
-    channel::OpenEvent::Message {
-        finish_requested: false,
-        name: Token::new(name),
-        label: Box::from(b"host".as_slice()),
-        text: Box::from(b"hello".as_slice()),
-    }
 }
 
 #[test]
@@ -483,69 +356,6 @@ fn a_message_waits_at_the_watermark_and_is_taken_once_the_backlog_falls() {
     }
 }
 
-fn preparing_message_run(service: &mut Service) -> Token {
-    let mut charter = charter(&smith_agent_world::Settings::calm(1));
-    charter.models = Box::default();
-    charter.llm.account = None;
-    let model = &charter.llm;
-    service.domain = Some(domain::Domain::new(
-        &service.limits.domain,
-        domain::Config {
-            programs: Box::default(),
-            endpoints: Box::new([model.endpoint]),
-            models: Box::new([domain::ConfiguredModel {
-                endpoint: model.endpoint,
-                model: model.model.clone(),
-                efforts: Box::default(),
-                prices: model.prices,
-                window: model.window,
-                output: model.output,
-                protocol_allowance: 0,
-                head: Duration::from_secs(60),
-                idle: Duration::from_secs(30),
-            }]),
-        },
-        1,
-    ));
-    service.events.as_mut().unwrap().starting(1, 0, &charter);
-    let domain = service.domain.as_mut().unwrap();
-    domain::step(
-        domain,
-        &service.domain_env,
-        domain::Event::Start {
-            reply_to: ReplyTo::new(Token::new(9)),
-            host_run: Token::new(9),
-            activation: 1,
-            identity: None,
-            window: domain::Window { turns: u32::MAX, bytes: u64::MAX },
-            messages: Box::default(),
-            charter,
-            workspace: Some(run::Workspace {
-                directories: Box::new([run::Directory {
-                    name: Box::from(b"work".as_slice()),
-                    host: Box::from(b"/work".as_slice()),
-                    root: Token::new(900),
-                    writable: true,
-                    git: true,
-                    conflicts: Box::default(),
-                }]),
-            }),
-            grants: Box::default(),
-            transcript: None,
-            answered: Box::default(),
-        },
-        &mut service.domain_requests,
-    );
-    let run = match service.domain_requests.pop() {
-        Some(domain::Request::Admitted { run, .. }) => run,
-        unexpected => panic!("the run waits in preparation: {unexpected:?}"),
-    };
-    // Preparation's effects and facts precede the two entrances under test.
-    while service.domain_requests.pop().is_some() {}
-    while domain.pop_fact().is_some() {}
-    run
-}
-
 #[test]
 fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() {
     const FIRST: u64 = 31;
@@ -553,8 +363,7 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
     const TRACE: Token = Token::new(400);
     // One message fact from each of the two queued entrances.
     const FACTS: u32 = 2;
-    let mut service = event_service();
-    let run = preparing_message_run(&mut service);
+    let (mut service, run) = preparing_message_run();
     let sinks = service.events.as_mut().unwrap().sinks();
     sinks
         .add(smith_protocol_events::sinks::Destination::Trace, TRACE, smith_protocol_events::sinks::Delivery::Complete)
@@ -690,8 +499,7 @@ fn a_one_entry_watermark_keeps_the_host_edge_capped_and_effects_progressing() {
 
 #[test]
 fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
-    let mut service = at_watermark();
-    service.admitted = None;
+    let mut service = watermark(None);
     service.channel_events.push(channel::OpenEvent::Start {
         start: Box::new(channel::DecodedStart {
             live: None,

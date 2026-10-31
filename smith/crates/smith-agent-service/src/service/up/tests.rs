@@ -5,7 +5,6 @@ fn one_content_drain_empties_the_root_beyond_the_service_fact_allowance() {
     use alloc::boxed::Box;
     use skein_lib::ReplyTo;
 
-    let mut service = Service::new(super::super::tests::configuration(), 1).expect("bounded service");
     let settings =
         smith_agent_world::Settings { job: smith_agent_world::Job::HostTools, ..smith_agent_world::Settings::calm(1) };
     let mut charter = super::super::tests::charter(&settings);
@@ -14,26 +13,9 @@ fn one_content_drain_empties_the_root_beyond_the_service_fact_allowance() {
     charter.llm.account = None;
     charter.grants.agents = false;
     charter.grants.tools = run::charter::Tools { inspect: false, modify: false, shell: false };
-    let model = &charter.llm;
-    service.domain = Some(domain::Domain::new(
-        &service.limits.domain,
-        domain::Config {
-            programs: Box::default(),
-            endpoints: Box::new([model.endpoint]),
-            models: Box::new([domain::ConfiguredModel {
-                endpoint: model.endpoint,
-                model: model.model.clone(),
-                efforts: Box::default(),
-                prices: model.prices,
-                window: model.window,
-                output: model.output,
-                protocol_allowance: 0,
-                head: skein_lib::Duration::from_secs(60),
-                idle: skein_lib::Duration::from_secs(30),
-            }]),
-        },
-        1,
-    ));
+    let mut configuration = super::super::tests::configuration();
+    configuration.domain = super::super::tests::domain_configuration(&charter);
+    let mut service = Service::new(configuration, 1).expect("configured service");
     let root = service.domain.as_mut().expect("framed root");
     domain::step(
         root,
