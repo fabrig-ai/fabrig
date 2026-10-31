@@ -759,6 +759,7 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
                     engine.notes.push(crate::Note::ForgeStopped { number: forge, why });
                 }
             }
+            skein_forge_connection::Event::Cancelled { .. } => unreachable!("temper closes the forge component"),
             skein_forge_connection::Event::Closed => engine.forge.closed = true,
         }
     }

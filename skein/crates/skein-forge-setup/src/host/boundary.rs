@@ -109,9 +109,18 @@ pub(super) enum Dialect {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Request {
-    Run { run: Token, plan: Plan },
-    Answer { run: Token, answer: Answer },
+    Run {
+        run: Token,
+        plan: Plan,
+    },
+    Answer {
+        run: Token,
+        answer: Answer,
+    },
+    /// Ends held runs unheard and settles every socket before `Event::Closed`.
     Close,
+    /// Cancels held runs and aborts every socket before `Event::Closed`.
+    Abort,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Answer {
@@ -125,8 +134,21 @@ pub enum Need {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Event {
-    Need { run: Token, need: Need },
-    Done { run: Token, outcome: Outcome },
-    Stop { run: Token, failure: Failure },
+    Need {
+        run: Token,
+        need: Need,
+    },
+    Done {
+        run: Token,
+        outcome: Outcome,
+    },
+    Stop {
+        run: Token,
+        failure: Failure,
+    },
+    /// A run ended by the owner's abort.
+    Cancelled {
+        run: Token,
+    },
     Closed,
 }

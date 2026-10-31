@@ -78,6 +78,7 @@ fn expiry(h: &Harness, index: usize) -> Wall {
         Event::GitToken { expires, .. } => *expires,
         Event::Installation { .. }
         | Event::Fact { .. }
+        | Event::Cancelled { .. }
         | Event::Answered(_)
         | Event::Hint(_)
         | Event::Listening { .. }
@@ -587,6 +588,7 @@ fn renewed_contents_follows_changes_once() {
         }
         Event::Installation { .. }
         | Event::Fact { .. }
+        | Event::Cancelled { .. }
         | Event::Answered(_)
         | Event::Hint(_)
         | Event::Listening { .. }

@@ -44,6 +44,7 @@ fn changes(gh: &mut GitHub) -> List<(u64, Option<Account>, Change)> {
             Some(
                 Event::Fact { .. }
                 | Event::GitToken { .. }
+                | Event::Cancelled { .. }
                 | Event::Answered(_)
                 | Event::Hint(_)
                 | Event::Listening { .. }
@@ -75,6 +76,7 @@ fn fact(gh: &mut GitHub) -> Option<Fact> {
         Some(
             Event::Installation { .. }
             | Event::GitToken { .. }
+            | Event::Cancelled { .. }
             | Event::Answered(_)
             | Event::Hint(_)
             | Event::Listening { .. }

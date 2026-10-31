@@ -488,6 +488,7 @@ fn discovery_waits_for_installation_changes_and_git_tokens() {
         Event::Installation { change, .. } => assert_eq!(change, crate::Change::Renamed),
         Event::GitToken { .. }
         | Event::Fact { .. }
+        | Event::Cancelled { .. }
         | Event::Answered(_)
         | Event::Hint(_)
         | Event::Listening { .. }
@@ -503,6 +504,7 @@ fn discovery_waits_for_installation_changes_and_git_tokens() {
         Event::GitToken { .. } => {}
         Event::Installation { .. }
         | Event::Fact { .. }
+        | Event::Cancelled { .. }
         | Event::Answered(_)
         | Event::Hint(_)
         | Event::Listening { .. }

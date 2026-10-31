@@ -109,11 +109,11 @@ impl Component {
         }
         for (_, id) in &self.connections {
             let c = self.connection_slab.get_mut(*id).expect("indexed connection");
-            if c.drain_redirect(env, io) {
+            if !self.aborting && c.drain_redirect(env, io) {
                 self.wake = Some(env.now);
             }
             if self.closed || (c.phase == Phase::Idle && c.deadline <= Some(env.now)) || c.phase == Phase::Closed {
-                c.close(c.in_flight(), io);
+                c.close(self.aborting || c.in_flight(), io);
             }
         }
     }
@@ -161,7 +161,7 @@ impl Component {
             if reserved {
                 continue;
             }
-            if c.phase == Phase::Idle && !c.closing && !self.holders.contains_key(owner) {
+            if c.phase == Phase::Idle && !c.closing() && !self.holders.contains_key(owner) {
                 if c.forge == forge && c.origin == waiting.origin() {
                     token = Some(*owner);
                     break;

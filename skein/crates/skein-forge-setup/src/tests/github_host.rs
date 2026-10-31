@@ -228,7 +228,9 @@ fn a_wrong_binding_or_busy_convert_does_not_take_a_valid_state() {
         world.down(Request::Run { run: Token::new(1), plan });
         match world.up.pop() {
             Some(Event::Need { .. }) => (),
-            Some(Event::Done { .. } | Event::Stop { .. } | Event::Closed) | None => panic!("held owner need"),
+            Some(Event::Done { .. } | Event::Stop { .. } | Event::Cancelled { .. } | Event::Closed) | None => {
+                panic!("held owner need")
+            }
         }
         world.convert(2, CONVERT_FORGE, &state);
         assert_eq!(

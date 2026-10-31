@@ -49,6 +49,7 @@ fn a_github_forge_connects_through_listing_minting_and_identity() {
         }
         Event::Installation { .. }
         | Event::Fact { .. }
+        | Event::Cancelled { .. }
         | Event::Answered(_)
         | Event::Hint(_)
         | Event::Connected { .. }

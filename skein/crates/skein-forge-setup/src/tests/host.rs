@@ -1362,3 +1362,74 @@ fn an_ended_runs_settling_connection_keeps_its_slot_until_closed() {
     w.run(2, 2);
     assert_eq!(w.up.pop(), Some(owner_read(2)));
 }
+
+#[test]
+fn abort_cancels_both_runs_once_and_waits_for_aborted_sockets() {
+    let mut w = paired();
+    let mut connections = List::with_capacity(2);
+    for run in [1, 2] {
+        w.answer(run, Answer::Read(Some(fixtures::secret(fixtures::ADMIN))));
+        let owner = w.connect();
+        w.event(skein_io::Event::Connecting { owner, socket: owner });
+        connections.push(owner).unwrap();
+    }
+    w.down(Request::Abort);
+    for run in [1, 2] {
+        assert_eq!(w.up.pop(), Some(Event::Cancelled { run: Token::new(run) }));
+    }
+    assert!(w.up.is_empty());
+    for owner in &connections {
+        assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: *owner }));
+    }
+    for request in [Request::Abort, Request::Close] {
+        w.down(request);
+        assert!(w.up.is_empty());
+        assert!(w.io.is_empty());
+    }
+    w.run(3, 1);
+    assert_eq!(w.up.pop(), Some(Event::Cancelled { run: Token::new(3) }));
+    w.event(skein_io::Event::Closed { owner: connections.as_slice()[0] });
+    assert!(w.up.is_empty());
+    w.event(skein_io::Event::Closed { owner: connections.as_slice()[1] });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.fire(120_000);
+    w.event(skein_io::Event::Closed { owner: connections.as_slice()[0] });
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+
+#[test]
+fn abort_after_close_keeps_the_late_socket_aborted() {
+    let mut w = World::new();
+    w.send();
+    let owner = w.connect();
+    w.down(Request::Close);
+    w.down(Request::Abort);
+    w.down(Request::Close);
+    let socket = Token::new(100);
+    w.event(skein_io::Event::Connecting { owner, socket });
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    assert!(w.up.is_empty());
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.fire(120_000);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+
+#[test]
+fn abort_cancels_a_run_waiting_on_its_owner_without_waiting() {
+    let mut w = World::new();
+    w.read_admin();
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(Event::Cancelled { run: Token::new(1) }));
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.down(Request::Close);
+    w.down(Request::Abort);
+    w.answer(1, Answer::Read(Some(fixtures::secret(fixtures::ADMIN))));
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}

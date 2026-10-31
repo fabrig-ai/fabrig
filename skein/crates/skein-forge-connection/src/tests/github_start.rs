@@ -180,6 +180,7 @@ fn github_starts_list_mint_both_scopes_then_check_identity() {
         }
         Event::Installation { .. }
         | Event::Fact { .. }
+        | Event::Cancelled { .. }
         | Event::Answered(_)
         | Event::Hint(_)
         | Event::Listening { .. }

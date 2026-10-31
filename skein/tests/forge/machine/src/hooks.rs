@@ -311,6 +311,7 @@ impl Listener {
                     | Event::Fact { .. }
                     | Event::GitToken { .. }
                     | Event::Connected { .. }
+                    | Event::Cancelled { .. }
                     | Event::Answered(_)
                     | Event::Stopped { .. } => {
                         panic!("no outbound replies")

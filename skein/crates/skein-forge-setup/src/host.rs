@@ -32,6 +32,7 @@ pub struct Host {
     next_token: u64,
     wake: Option<Time>,
     closing: bool,
+    aborting: bool,
     ended: bool,
 }
 impl Host {
@@ -48,6 +49,7 @@ impl Host {
             next_token: 1,
             wake: None,
             closing: false,
+            aborting: false,
             ended: false,
         })
     }
@@ -59,6 +61,12 @@ impl Host {
         io: &mut Queue<skein_io::Request>,
     ) {
         if self.closing {
+            match request {
+                Request::Abort => self.end(true, up),
+                Request::Run { run, .. } if self.aborting && !self.ended => up.push(Event::Cancelled { run }),
+                Request::Run { .. } | Request::Answer { .. } | Request::Close => {}
+            }
+            self.drive(env, up, io);
             return;
         }
         match request {
@@ -115,20 +123,31 @@ impl Host {
                     live.answer(answer, &mut self.plan_out);
                 }
             }
-            Request::Close => {
-                self.closing = true;
-                self.states.clear();
-                self.runs = Map::with_capacity(self.runs.capacity());
-                self.closing_tokens.clear();
-                for (token, _) in &self.connections {
-                    self.closing_tokens.push(*token).expect("bounded connections");
-                }
-                for token in &self.closing_tokens {
-                    self.connections.get_mut(token).expect("owned connection").abort();
-                }
-            }
+            Request::Close => self.end(false, up),
+            Request::Abort => self.end(true, up),
         }
         self.drive(env, up, io);
+    }
+    fn end(&mut self, abort: bool, up: &mut Queue<Event>) {
+        if self.ended || self.aborting {
+            return;
+        }
+        self.aborting = abort;
+        self.closing = true;
+        self.states.clear();
+        if abort {
+            for (run, _) in &self.runs {
+                up.push(Event::Cancelled { run: *run });
+            }
+        }
+        self.runs = Map::with_capacity(self.runs.capacity());
+        self.closing_tokens.clear();
+        for (token, _) in &self.connections {
+            self.closing_tokens.push(*token).expect("bounded connections");
+        }
+        for token in &self.closing_tokens {
+            self.connections.get_mut(token).expect("owned connection").abort();
+        }
     }
     pub fn up(
         &mut self,

@@ -17,6 +17,12 @@ pub struct Hinted {
     pub hint: api::Hint,
 }
 const OWNER: Token = Token::new(1_u64 << 59_u32);
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Lifecycle {
+    Live,
+    Closing,
+    Aborting,
+}
 #[derive(Debug)]
 pub(crate) struct Hooks {
     listener: Option<Token>,
@@ -25,7 +31,7 @@ pub(crate) struct Hooks {
     slab: Slab<Hooked>,
     next: u64,
     live: bool,
-    closing: bool,
+    lifecycle: Lifecycle,
     close_sent: bool,
     wake: Option<Time>,
 }
@@ -38,7 +44,7 @@ impl Hooks {
             slab: Slab::with_capacity(l.hooks),
             next: OWNER.raw().saturating_add(1),
             live: false,
-            closing: false,
+            lifecycle: Lifecycle::Live,
             close_sent: false,
             wake: None,
         }
@@ -54,7 +60,7 @@ impl Hooks {
         match event {
             skein_io::Event::Listening { listener, addr, .. } => {
                 self.listener = Some(listener);
-                if !self.closing {
+                if !self.closing() {
                     up.push(Event::Listening { addr });
                 }
             }
@@ -66,11 +72,13 @@ impl Hooks {
             }
             skein_io::Event::Failed { owner, .. } => {
                 if owner == OWNER {
-                    if !self.closing {
+                    if !self.closing() {
                         up.push(Event::ListenerLost);
                     }
-                    self.closing = true;
-                } else if let Some(id) = self.connections.get(&owner) {
+                    self.close();
+                } else if !self.aborting()
+                    && let Some(id) = self.connections.get(&owner)
+                {
                     self.slab.get_mut(*id).expect("indexed hook").closing = Closing::Pending;
                 }
             }
@@ -103,8 +111,22 @@ impl Hooks {
             self.slab.get_mut(*id).expect("indexed hook").offer();
         }
     }
+    fn closing(&self) -> bool {
+        self.lifecycle != Lifecycle::Live
+    }
+    fn aborting(&self) -> bool {
+        self.lifecycle == Lifecycle::Aborting
+    }
     pub fn close(&mut self) {
-        self.closing = true;
+        if !self.closing() {
+            self.lifecycle = Lifecycle::Closing;
+        }
+    }
+    pub fn abort(&mut self) {
+        if !self.aborting() {
+            self.lifecycle = Lifecycle::Aborting;
+            self.close_sent = false;
+        }
     }
     pub fn closed(&self) -> bool {
         !self.live && self.connections.is_empty() && self.waiting.is_none()
@@ -113,7 +135,10 @@ impl Hooks {
         let mut earliest = self.wake;
         for (_, id) in &self.connections {
             let c = self.slab.get(*id).expect("indexed hook");
-            if c.closing != Closing::Sent && (earliest.is_none() || Some(c.deadline) < earliest) {
+            if c.closing != Closing::Sent
+                && c.closing != Closing::Aborted
+                && (earliest.is_none() || Some(c.deadline) < earliest)
+            {
                 earliest = Some(c.deadline);
             }
         }
@@ -127,11 +152,15 @@ impl Hooks {
         io: &mut Queue<skein_io::Request>,
     ) {
         self.wake = None;
-        if self.closing {
+        if self.closing() {
             if let Some(listener) = self.listener
                 && !self.close_sent
             {
-                io.push(skein_io::Request::Close { entity: listener });
+                io.push(if self.aborting() {
+                    skein_io::Request::Abort { entity: listener }
+                } else {
+                    skein_io::Request::Close { entity: listener }
+                });
                 self.close_sent = true;
             }
             if let Some((socket, _)) = self.waiting.take() {
@@ -152,16 +181,79 @@ impl Hooks {
         }
         for (owner, id) in &self.connections {
             let c = self.slab.get_mut(*id).expect("indexed hook");
-            if c.closing != Closing::Sent && (self.closing || c.deadline <= env.now) {
-                c.closing = Closing::Sent;
+            if c.closing != Closing::Aborted
+                && (self.lifecycle == Lifecycle::Aborting
+                    || (c.closing != Closing::Sent && (self.lifecycle != Lifecycle::Live || c.deadline <= env.now)))
+            {
+                c.closing = Closing::Aborted;
                 io.push(skein_io::Request::Abort { entity: c.socket });
             }
-            if c.closing != Closing::Sent {
+            if c.closing != Closing::Sent && c.closing != Closing::Aborted {
                 c.pump(*owner, env, settings, up, io);
                 if c.pending() {
                     self.wake = Some(env.now);
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::fixtures;
+    use skein_lib::Wall;
+
+    #[test]
+    fn abort_upgrades_the_listener_and_a_gracefully_closing_webhook() {
+        let settings = fixtures::hook_settings();
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fixtures::limits() };
+        let mut hooks = Hooks::new(&env.limits);
+        let mut up = Queue::uncapped();
+        let mut io = Queue::uncapped();
+        let listener = Token::new(100);
+        let socket = Token::new(101);
+        hooks.begin(settings.webhooks.as_ref().expect("listener"), &mut io);
+        let _listen = io.pop();
+        hooks.up(
+            &env,
+            skein_io::Event::Listening {
+                owner: OWNER,
+                listener,
+                addr: settings.webhooks.as_ref().expect("listener").listener,
+            },
+            &mut up,
+        );
+        let _listening = up.pop();
+        hooks.up(
+            &env,
+            skein_io::Event::Accepted { owner: OWNER, socket, peer: Addr::Ip(([127, 0, 0, 1], 1234).into()) },
+            &mut up,
+        );
+        hooks.drive(&env, &settings, &mut up, &mut io);
+        let Some(skein_io::Request::Bind { owner, .. }) = io.pop() else { panic!("bind") };
+        while io.pop().is_some() {}
+        let id = *hooks.connections.get(&owner).expect("hook");
+        let c = hooks.slab.get_mut(id).expect("hook");
+        c.closing = Closing::Pending;
+        c.pump(owner, &env, &settings, &mut up, &mut io);
+        assert_eq!(io.pop(), Some(skein_io::Request::Close { entity: socket }));
+        hooks.close();
+        hooks.drive(&env, &settings, &mut up, &mut io);
+        assert_eq!(io.pop(), Some(skein_io::Request::Close { entity: listener }));
+        hooks.abort();
+        hooks.drive(&env, &settings, &mut up, &mut io);
+        assert_eq!(io.pop(), Some(skein_io::Request::Abort { entity: listener }));
+        assert_eq!(io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+        hooks.abort();
+        hooks.close();
+        hooks.drive(&env, &settings, &mut up, &mut io);
+        assert!(io.is_empty());
+        assert!(up.is_empty());
+        assert_eq!(hooks.deadline(), None);
+        assert!(!hooks.closed());
+        hooks.up(&env, skein_io::Event::Closed { owner }, &mut up);
+        hooks.up(&env, skein_io::Event::Closed { owner: OWNER }, &mut up);
+        assert!(hooks.closed());
     }
 }

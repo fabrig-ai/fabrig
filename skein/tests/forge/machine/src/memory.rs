@@ -345,6 +345,7 @@ impl World {
         while let Some(event) = self.above.pop() {
             let span = Span::start();
             match &event {
+                Event::Cancelled { .. } => unreachable!("fixture closes without abort"),
                 Event::Answered(answer) => {
                     assert!(answer.result.is_ok(), "full answer: {answer:?}");
                     self.live_calls -= 1;

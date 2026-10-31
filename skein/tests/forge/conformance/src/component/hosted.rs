@@ -270,6 +270,7 @@ impl Host for Hosted {
             match e {
                 Event::Installation { .. } | Event::Fact { .. } | Event::GitToken { .. } => panic!("Forgejo fixture"),
                 Event::Connected { .. } => {}
+                Event::Cancelled { .. } => unreachable!("fixture closes without abort"),
                 Event::Answered(a) => assert!(self.answer.replace(a).is_none(), "once per call"),
                 Event::Stopped { why, .. } => {
                     assert!(self.stopped.replace(why).is_none(), "one stop");

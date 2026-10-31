@@ -38,6 +38,7 @@ fn changes(world: &Machine) -> Vec<InstallationChange<'_>> {
             }
             Event::Fact { .. }
             | Event::GitToken { .. }
+            | Event::Cancelled { .. }
             | Event::Answered(_)
             | Event::Hint(_)
             | Event::Connected { .. }
@@ -116,6 +117,7 @@ fn overflow_keeps_a_later_accepted_installation() {
         Event::Fact { forge, fact } => assert_eq!((*forge, fact.clone()), (FORGE, Fact::Unkept { installation: 2 })),
         Event::Installation { .. }
         | Event::GitToken { .. }
+        | Event::Cancelled { .. }
         | Event::Answered(_)
         | Event::Hint(_)
         | Event::Connected { .. }
