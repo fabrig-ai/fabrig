@@ -314,7 +314,7 @@ fn superseded_return_source_offers_the_way_again() {
 // client/README.md 3.5 The tab's departure: Leave waits for Return's answer.
 #[test]
 fn browser_waits_for_the_return_answer_before_leaving() {
-    // Longer than the root helper's 3 ms callbacks; only fake time advances.
+    // Only fake time advances while the Return answer is held.
     const HOLD: Duration = Duration::from_secs(1);
     let (mut front, mut root, source) = begin(true);
     visited(&mut front, source);

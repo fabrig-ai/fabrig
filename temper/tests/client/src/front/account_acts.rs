@@ -317,8 +317,9 @@ fn flush(
         }
     }
 }
+/// Drain immediate callbacks at the current fake time; stories advance time explicitly.
 pub fn settle(front: &mut Joint, root: &mut Root) {
-    let mut env = Env { now: front.now, wall: Wall::EPOCH, limits: front.limits };
+    let env = Env { now: front.now, wall: Wall::EPOCH, limits: front.limits };
     let mut out = Queue::uncapped();
     for _ in 0..32 {
         let callbacks = front.poll(env.now, env.wall);
@@ -327,7 +328,6 @@ pub fn settle(front: &mut Joint, root: &mut Root) {
         }
         for (who, event) in callbacks {
             assert_eq!(who, CLIENT);
-            env.now = env.now.saturating_add(Duration::from_millis(3));
             front.received(CLIENT, &event);
             Temper::step(root, &env, event, &mut out);
             flush(front, root, &env, &mut out);
