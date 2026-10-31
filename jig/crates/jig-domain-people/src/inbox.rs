@@ -5,7 +5,7 @@
 mod moving;
 pub(super) use moving::move_chat;
 
-use super::{ChatTotal, Domain, Need, Pending, Phase, Recent, decided, role};
+use super::{ChatTotal, Domain, Need, Pending, Recent, Start, decided, role};
 use crate::{
     Again, Ask, Counts, Entry, EntryKind, Key, Limits, Needs, Outcome, ReplyRef, Request, ResultRef, Role, Seen,
     Stored, Update, Whom,
@@ -205,7 +205,7 @@ impl Domain {
     /// An ended owner witnessed by the core's census resolves any leftover live
     /// positions. Ended positions are loaded separately, never kept as live ones.
     pub fn restore_ended_conversation(&mut self, task: u64) {
-        self.touched = true;
+        self.input();
         self.assert_projection_event();
         loop {
             let mut resolved = None;
@@ -283,7 +283,7 @@ impl Domain {
 
     /// Keep the newest `inbox_entries` plus one unread result witness; the store pages the rest.
     pub fn remember_result(&mut self, limits: &Limits, person: u64, entry: ResultRef) {
-        self.touched = true;
+        self.input();
         if !self.ready()
             || !self.people.contains_key(&person)
             || !self.has_project(entry.project)
@@ -678,7 +678,7 @@ fn replace_needs(domain: &mut Domain, limits: &Limits, task: u64, entries: &[Ent
 }
 
 pub(super) fn replace_waiting(domain: &mut Domain, limits: &Limits, task: u64, entries: &[Entry]) {
-    if task == 0 || domain.phase == Phase::Failed {
+    if task == 0 || domain.start == Start::Failed {
         return;
     }
     replace_needs(domain, limits, task, entries);

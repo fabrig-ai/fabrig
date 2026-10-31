@@ -1,6 +1,6 @@
 //! Dense holder and source order (accounts.md, 3.4 and section 5).
-use crate::{Domain, Holder, Limits, Request, Stored};
-use skein_lib::{Env, List, Map, Queue};
+use crate::{Domain, Holder, Request, Stored};
+use skein_lib::{List, Map, Queue};
 
 pub(crate) fn account_record(domain: &Domain, number: u32) -> Stored {
     let account = domain.accounts.get(&number).expect("a kept account");
@@ -64,13 +64,7 @@ pub(crate) fn sources(domain: &Domain, account: u32) -> List<u32> {
     order
 }
 
-pub(crate) fn save_sources(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    account: u32,
-    order: &List<u32>,
-    out: &mut Queue<Request>,
-) {
+pub(crate) fn save_sources(domain: &mut Domain, account: u32, order: &List<u32>, out: &mut Queue<Request>) {
     let entry = domain.accounts.get_mut(&account).expect("a kept account");
     let capacity = entry.sources.capacity();
     let old = core::mem::replace(&mut entry.sources, Map::with_capacity(capacity));
@@ -82,14 +76,14 @@ pub(crate) fn save_sources(
     for (place, number) in order.iter().enumerate() {
         let place = u32::try_from(place).expect("bounded sources");
         if old.get(&place) != Some(number) {
-            out.push(Request::Save { record: crate::domain::stored(domain, env, *number) });
+            out.push(Request::Save { record: crate::domain::stored(domain, *number) });
         }
     }
 }
 
 /// Appending is a live change: retain sparse stored places while there is room after them.
 /// At the last representable place, the explicit change saves a dense order first.
-pub(crate) fn append_place(domain: &mut Domain, env: &Env<Limits>, account: u32, out: &mut Queue<Request>) -> u32 {
+pub(crate) fn append_place(domain: &mut Domain, account: u32, out: &mut Queue<Request>) -> u32 {
     let entry = domain.accounts.get(&account).expect("an admitted source's account");
     match entry.sources.last() {
         Some((place, _)) => {
@@ -100,6 +94,6 @@ pub(crate) fn append_place(domain: &mut Domain, env: &Env<Limits>, account: u32,
         None => return 0,
     }
     let order = sources(domain, account);
-    save_sources(domain, env, account, &order, out);
+    save_sources(domain, account, &order, out);
     order.len()
 }

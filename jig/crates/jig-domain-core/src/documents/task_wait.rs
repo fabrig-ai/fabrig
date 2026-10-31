@@ -66,7 +66,7 @@ pub(super) fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWai
         | tasks::Phase::Ended(_) => return None,
     }
     match core.run_choice(row.number) {
-        Ok(_) if !core.credentials_ready(row.number) => Some(TaskRunWait::Credential),
+        Ok(_) if !core.credentials_ready(row.number, core.run_now) => Some(TaskRunWait::Credential),
         Ok(_) => None,
         Err(RunWait::InvalidAccount { account, why }) => {
             Some(TaskRunWait::Account { account: Some(account), source: None, why: TaskWaitWhy::Invalid(why) })

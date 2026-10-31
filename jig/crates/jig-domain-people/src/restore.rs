@@ -1,4 +1,4 @@
-//! Selected start's volatile projections and keyed fit evidence (jig/docs/design/domain/engine.md, 6).
+//! The start's volatile projections and keyed fit evidence (jig/docs/design/domain/engine.md, 6).
 use crate::{Entry, Key, ReplyRef, ResultRef};
 use alloc::boxed::Box;
 
