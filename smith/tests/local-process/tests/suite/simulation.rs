@@ -573,12 +573,7 @@ fn slash_model_on_another_endpoint_is_refused_and_the_chat_kept() {
     ];
     world.settle();
     world.assert_ended(Ending::Report(b"Second answer".to_vec()));
-    assert!(
-        world
-            .shown()
-            .windows(b"smith --chat main -m elsewhere/model".len())
-            .any(|text| text == b"smith --chat main -m elsewhere/model")
-    );
+    assert!(contains(world.shown(), b"smith --chat main -m elsewhere/model"));
     assert_eq!(world.queries().len(), 2);
     assert!(!world.chat_files(b"main").is_empty());
 }

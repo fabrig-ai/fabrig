@@ -2,6 +2,7 @@
 //! 2.1, 2.2 and 5). Each process owns its IO and outside observations. Launch
 //! arguments carry immutable scenario settings; no process knows a simulator,
 //! fake checkout, another process's heap or the driving loop.
+use crate::fixture::contains;
 use crate::{
     llm::Peer,
     oauth::{Browser, Peer as Issuer},
@@ -36,8 +37,7 @@ fn wait_in_trace(submissions: &mut Queue<kernel::Submit>) -> bool {
     for _ in 0..submissions.len() {
         let submit = submissions.pop().expect("bounded output snapshot");
         if let kernel::Op::Append { bytes, .. } = &submit.kind {
-            wait |= bytes.windows(b"\"type\":\"tool.started\"".len()).any(|part| part == b"\"type\":\"tool.started\"")
-                && bytes.windows(b"\"tool\":\"wait\"".len()).any(|part| part == b"\"tool\":\"wait\"");
+            wait |= contains(bytes, b"\"type\":\"tool.started\"") && contains(bytes, b"\"tool\":\"wait\"");
         }
         submissions.push(submit);
     }
