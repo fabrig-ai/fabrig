@@ -567,8 +567,17 @@ fn projections_link_live_plan_tasks_and_keep_ended_tasks_as_history() {
 
 #[test]
 fn connector_resource_roles_link_their_projects() {
-    for project in [1, 99] {
+    for (project, deletion, present) in [
+        (1, None, true),
+        (99, None, false),
+        (99, Some(people::DeletionStep::Rows), true),
+        (99, Some(people::DeletionStep::Release), true),
+    ] {
         let (mut core, env) = loaded();
+        if let Some(step) = deletion {
+            restore_person(&mut core, &env, people::Stored::Deletion { project, step });
+            assert!(core.authority.policy(project).is_none());
+        }
         let mut out = Queue::uncapped();
         step_phase(core.start_done(&env, Phase::LoadCore, &mut out), Phase::LoadInbox);
         let connector = core.connectors[0];
@@ -583,8 +592,11 @@ fn connector_resource_roles_link_their_projects() {
         }
         step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
         let result = catch_unwind(AssertUnwindSafe(|| core.start_done(&env, Phase::Link, &mut out)));
-        if project == 1 {
+        if present {
             linked(result.expect("project links"));
+            if deletion.is_some() {
+                assert!(!core.open_project(project), "kept deletion remains closed");
+            }
         } else {
             let _panic = result.expect_err("missing link asserts");
             assert_eq!(core.start_phase(), Some(Phase::Link));
