@@ -2,12 +2,17 @@
 //! Notices never decide whether a request was made. The root table's answer
 //! remains its one durable answer. See client/domain/client.md, 13.
 use crate::{Ui, ui::Timer};
+use alloc::boxed::Box;
 use jig_client::Link;
 use jig_client::contract::{Answer, Limit, ObjectKey};
 use skein_lib::{Duration, Id, Map, Slab, Time, Token};
 /// Facts the view phrases as a short-lived notice.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Kind {
+    /// A deleted project named by the exact confirmation that was sent.
+    ProjectDeleted {
+        name: Box<str>,
+    },
     Full {
         held: u32,
         room_at: skein_lib::Wall,

@@ -38,8 +38,12 @@ pub enum ProjectPhrase {
     Remove,
     ConfiguredPeriod,
     PoolAbsent,
+    DeleteProject,
+    DeleteNameField,
+    DeleteWhat,
+    Deleted,
 }
-pub const ALL: [ProjectPhrase; 30] = [
+pub const ALL: [ProjectPhrase; 34] = [
     ProjectPhrase::Project,
     ProjectPhrase::Resource,
     ProjectPhrase::Owned,
@@ -70,6 +74,10 @@ pub const ALL: [ProjectPhrase; 30] = [
     ProjectPhrase::Remove,
     ProjectPhrase::ConfiguredPeriod,
     ProjectPhrase::PoolAbsent,
+    ProjectPhrase::DeleteProject,
+    ProjectPhrase::DeleteNameField,
+    ProjectPhrase::DeleteWhat,
+    ProjectPhrase::Deleted,
 ];
 impl ProjectPhrase {
     #[must_use]
@@ -107,6 +115,10 @@ impl ProjectPhrase {
                 Self::Remove => 9027,
                 Self::ConfiguredPeriod => 9028,
                 Self::PoolAbsent => 9029,
+                Self::DeleteProject => 9030,
+                Self::DeleteNameField => 9031,
+                Self::DeleteWhat => 9032,
+                Self::Deleted => 9033,
             },
         }
     }
@@ -115,6 +127,7 @@ impl ProjectPhrase {
             Self::Project | Self::EscalationRole | Self::Member | Self::Remove | Self::ConfiguredPeriod => {
                 Some(HoleKind::Number)
             }
+            Self::Deleted => Some(HoleKind::Name),
             Self::Resource
             | Self::Owned
             | Self::Participant
@@ -135,7 +148,10 @@ impl ProjectPhrase {
             | Self::Confirm
             | Self::Review
             | Self::Dismiss
-            | Self::PoolAbsent => None,
+            | Self::PoolAbsent
+            | Self::DeleteProject
+            | Self::DeleteNameField
+            | Self::DeleteWhat => None,
             Self::Spent | Self::Below | Self::Reserved | Self::Budget => Some(HoleKind::Amount),
         }
     }
@@ -172,15 +188,19 @@ impl ProjectPhrase {
             Self::Remove => b"Remove row: ",
             Self::ConfiguredPeriod => b"Configured pool period: ",
             Self::PoolAbsent => b"No pool exists for this configured target",
+            Self::DeleteProject => b"Delete project",
+            Self::DeleteNameField => b"Type the project's name to delete it",
+            Self::DeleteWhat => b"Its conversations and tasks are ended and erased, with its notes and settings. Its spend stays in the totals.",
+            Self::Deleted => b"Project ",
         }
     }
 }
 #[must_use]
-pub fn shapes() -> Box<[PhraseShape]> {
+pub fn shapes(text: u32) -> Box<[PhraseShape]> {
     let mut values = List::with_capacity(COUNT);
     for phrase in ALL {
         let holes: Box<[HoleShape]> = match phrase.hole() {
-            Some(kind) => Box::new([HoleShape { kind, bytes: 0 }]),
+            Some(kind) => Box::new([HoleShape { kind, bytes: text }]),
             None => Box::new([]),
         };
         values.push(PhraseShape { id: phrase.id(), holes, plural: None }).expect("project shapes fit");
@@ -192,6 +212,11 @@ pub fn language() -> Language {
     let mut values = List::with_capacity(COUNT);
     for phrase in ALL {
         let segments: Box<[Segment]> = match phrase.hole() {
+            Some(kind) if phrase == ProjectPhrase::Deleted => Box::new([
+                Segment::Text(copy_of(phrase.label())),
+                Segment::Hole { index: 0, kind },
+                Segment::Text(copy_of(b" deleted")),
+            ]),
             Some(kind) => Box::new([Segment::Text(copy_of(phrase.label())), Segment::Hole { index: 0, kind }]),
             None => Box::new([Segment::Text(copy_of(phrase.label()))]),
         };
@@ -206,4 +231,4 @@ pub fn language() -> Language {
         phrases: values.into_boxed(),
     }
 }
-const COUNT: u32 = 30;
+const COUNT: u32 = 34;

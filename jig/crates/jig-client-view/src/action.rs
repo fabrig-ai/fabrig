@@ -8,6 +8,10 @@ use skein_lib::Token;
 /// A person action already decoded from the semantic tree.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Act {
+    /// Confirm deletion by the exact supplied project name.
+    ProjectDeleteName { project: u32, text: Text },
+    /// Send the name-confirmed project deletion.
+    DeleteProject { project: u32 },
     /// Review one whole settings replacement against the supplied Project owner.
     ProjectSettings { ask: Box<jig_client::contract::Ask> },
     /// Choose a service role before supplying its explicit name.

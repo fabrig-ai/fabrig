@@ -113,7 +113,7 @@ pub fn shapes(normal: Box<[PhraseShape]>, text: u32) -> Box<[PhraseShape]> {
     for shape in crate::historical_pages_words::shapes() {
         result.push(shape).expect("historical shapes fit");
     }
-    for shape in crate::owner_project_words::shapes() {
+    for shape in crate::owner_project_words::shapes(text) {
         result.push(shape).expect("project shapes fit");
     }
     for shape in crate::owner_deployment_words::shapes() {

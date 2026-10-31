@@ -8,12 +8,24 @@ use skein_ui::{Act, Binding, number};
 /// A typed meaning belonging to jig's last built tree.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum JigMeaning {
+    ProjectDeleteName {
+        project: u32,
+    },
     /// One typed Project settings field, preserving other whole channels.
-    ProjectSetting { ask: Box<jig_client::contract::Ask>, field: crate::owner_project::Field },
+    ProjectSetting {
+        ask: Box<jig_client::contract::Ask>,
+        field: crate::owner_project::Field,
+    },
     /// A new service name, after an explicit supplied role choice.
-    ProjectServiceName { project: u32, role: jig_client::contract::HeldRole },
+    ProjectServiceName {
+        project: u32,
+        role: jig_client::contract::HeldRole,
+    },
     /// An explicit budget for one supplied party in the configured target.
-    ProjectPoolBudget { project: u32, party: u64 },
+    ProjectPoolBudget {
+        project: u32,
+        party: u64,
+    },
     /// Pressing, submitting or toggling asks this already typed action.
     Action(crate::action::Act),
     /// Whole text edits a domain field; submit names that same field.
@@ -29,9 +41,14 @@ pub enum JigMeaning {
         field: crate::confirmation::amendment::Field,
     },
     /// A typed project goal form field.
-    GoalField { form: crate::page::project::goals::GoalForm, field: crate::sections::project::goals::Field },
+    GoalField {
+        form: crate::page::project::goals::GoalForm,
+        field: crate::sections::project::goals::Field,
+    },
     /// Description search changes the current note scope only.
-    NoteSearch { filter: crate::page::project::NoteFilter },
+    NoteSearch {
+        filter: crate::page::project::NoteFilter,
+    },
     /// A connector-owned part referred to by a slot, never an actionable node.
     Part(jig_client::contract::Part),
     /// A whole exact owner reference, with literal path segment boundaries.
@@ -88,6 +105,7 @@ impl JigBindings {
                     | JigMeaning::Priority
                     | JigMeaning::Amendment { .. }
                     | JigMeaning::ProjectSetting { .. }
+                    | JigMeaning::ProjectDeleteName { .. }
                     | JigMeaning::ProjectServiceName { .. }
                     | JigMeaning::ProjectPoolBudget { .. }
                     | JigMeaning::GoalField { .. }
@@ -111,6 +129,7 @@ impl JigBindings {
                     | JigMeaning::Priority
                     | JigMeaning::Amendment { .. }
                     | JigMeaning::ProjectSetting { .. }
+                    | JigMeaning::ProjectDeleteName { .. }
                     | JigMeaning::ProjectServiceName { .. }
                     | JigMeaning::ProjectPoolBudget { .. }
                     | JigMeaning::GoalField { .. }
@@ -161,6 +180,8 @@ impl JigBindings {
                         | crate::action::Act::OpenUpdates
                         | crate::action::Act::BeginConversation { .. }
                         | crate::action::Act::ProjectSettings { .. }
+                        | crate::action::Act::ProjectDeleteName { .. }
+                        | crate::action::Act::DeleteProject { .. }
                         | crate::action::Act::ProjectServiceRole { .. }
                         | crate::action::Act::GoalForm { .. }
                         | crate::action::Act::FilterTasks { .. }
@@ -177,6 +198,7 @@ impl JigBindings {
                     | JigMeaning::Priority
                     | JigMeaning::Amendment { .. }
                     | JigMeaning::ProjectSetting { .. }
+                    | JigMeaning::ProjectDeleteName { .. }
                     | JigMeaning::ProjectServiceName { .. }
                     | JigMeaning::ProjectPoolBudget { .. }
                     | JigMeaning::GoalField { .. }
@@ -203,6 +225,13 @@ pub fn decode(view: &mut JigBindings, token: Token, act: Act) -> Option<crate::a
                             budget: number(&value)?,
                         }))
                     }
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                },
+                JigMeaning::ProjectDeleteName { project } => match act {
+                    Act::Input { value } => Some(crate::action::Act::ProjectDeleteName {
+                        project: *project,
+                        text: jig_client::contract::Text::new(value, view.text_limit).ok()?,
+                    }),
                     Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
                 },
                 JigMeaning::ProjectServiceName { project, role } => match act {

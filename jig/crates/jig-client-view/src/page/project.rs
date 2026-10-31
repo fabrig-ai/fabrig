@@ -19,6 +19,7 @@ use alloc::boxed::Box;
 use jig_client::contract::{self, Cursor, NoteScope, Part, Project, Read, TaskLine, TaskQuery, Text};
 use jig_client::thread::window::End;
 use skein_lib::{Env, Id, List, Queue, Token};
+pub mod delete;
 pub mod goals;
 pub(crate) mod moving;
 pub mod notes;
@@ -57,6 +58,7 @@ pub struct ProjectPage {
     pub spend_after: Option<Cursor>,
     pub form: goals::FormState,
     pub settings: owner_form::Form,
+    pub delete: delete::Delete,
 }
 impl ProjectPage {
     pub(crate) fn new(rows: u32) -> Self {
@@ -91,9 +93,13 @@ impl ProjectPage {
             spend_after: None,
             form: goals::FormState::new(),
             settings: owner_form::Form::new(),
+            delete: delete::Delete::new(),
         }
     }
     pub(crate) fn clear(&mut self) {
+        if self.delete.pending.is_none() {
+            self.delete = delete::Delete::new();
+        }
         self.document = None;
         self.owner_spend = None;
         self.owner = None;

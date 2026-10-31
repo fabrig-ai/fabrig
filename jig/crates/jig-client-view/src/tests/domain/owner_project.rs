@@ -395,3 +395,170 @@ fn install_late(domain: &mut Fixture, read: jig_client::Handle, value: OwnerProj
         ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value))) }.late(),
     );
 }
+
+fn deleting() -> Fixture {
+    let (mut domain, token) = live(4);
+    let mut value = source(4);
+    value.acts = list(2, [Offered { effect: None, act: ActKind::RemoveProject, admission: Admission::Allowed }]);
+    install(&mut domain, token, value);
+    domain
+}
+fn type_delete(domain: &mut Fixture, bytes: &[u8]) {
+    drive(
+        domain,
+        Time::ZERO,
+        Event::Act {
+            action: Act::ProjectDeleteName { project: 4, text: Text::new(copy_of(bytes), LIMITS.text).unwrap() },
+        },
+    );
+}
+fn press_delete(domain: &mut Fixture) -> Box<[Request]> {
+    drive(domain, Time::ZERO, Event::Act { action: Act::DeleteProject { project: 4 } })
+}
+fn delete_key(out: &[Request]) -> jig_client::Key {
+    assert_eq!(out.len(), 1);
+    let Request::Client { asked: jig_client::Event::Send { key, request: jig_client::Ask::Jig(ask), .. } } = &out[0]
+    else {
+        panic!("one keyed delete")
+    };
+    assert_eq!(ask.as_ref(), &Ask::RemoveProject { project: 4 });
+    *key
+}
+#[test]
+fn delete_stays_disabled_until_the_name_matches() {
+    let mut domain = deleting();
+    for name in [b"".as_slice(), b"Tal", b"tally", b"Tally "] {
+        type_delete(&mut domain, name);
+        assert!(!crate::page::project::delete::ready(
+            domain.project_page().owner.as_ref().unwrap(),
+            &domain.project_page().delete
+        ));
+        assert!(press_delete(&mut domain).is_empty());
+        let tree = crate::tests::cards::tree(&domain, None, None);
+        crate::tests::cards_access::check(&tree);
+        let button = tree
+            .nodes()
+            .iter()
+            .find(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Delete project"))
+            .unwrap();
+        assert!(button.states.as_slice().contains(&skein_ui::State::Disabled));
+    }
+    type_delete(&mut domain, b"Tally");
+    assert!(crate::page::project::delete::ready(
+        domain.project_page().owner.as_ref().unwrap(),
+        &domain.project_page().delete
+    ));
+    let tree = crate::tests::cards::tree(&domain, None, None);
+    crate::tests::cards_access::check(&tree);
+    let button = tree
+        .nodes()
+        .iter()
+        .find(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Delete project"))
+        .unwrap();
+    assert!(!button.states.as_slice().contains(&skein_ui::State::Disabled));
+    assert!(button.binding.is_some());
+    delete_key(&press_delete(&mut domain));
+}
+#[test]
+fn delete_sends_remove_project_once() {
+    let mut domain = deleting();
+    type_delete(&mut domain, b"Tally");
+    let key = delete_key(&press_delete(&mut domain));
+    assert_eq!(domain.project_page().delete.pending, Some(domain.intent(key)));
+    assert!(press_delete(&mut domain).is_empty());
+    type_delete(&mut domain, b"Changed");
+    assert_eq!(domain.project_page().delete.typed.as_ref(), "Tally");
+}
+#[test]
+fn project_removed_goes_home_with_a_notice() {
+    for remove_from_frame in [false, true] {
+        let mut domain = deleting();
+        type_delete(&mut domain, b"Tally");
+        let request = delete_key(&press_delete(&mut domain));
+        if remove_from_frame {
+            let watch = domain.frame_watch.unwrap();
+            delivered(&mut domain, Time::ZERO, watch, frame(7));
+        }
+        let out = drive(
+            &mut domain,
+            Time::ZERO,
+            AnsweredByEngine {
+                request,
+                answer: Answer::Done(Outcome::Owner(OwnerOutcome::ProjectRemoved { project: 4 })),
+            },
+        );
+        assert!(out.iter().any(|request| match request {
+            Request::Show { place: Place::Jig(Address::Inbox { project: None }), .. } => true,
+            _ => false,
+        }));
+        assert!(match domain.page() {
+            crate::page::Page::Work { address: Address::Inbox { project: None }, .. } => true,
+            _ => false,
+        });
+        let kinds: Vec<_> =
+            domain.notices().ids().into_iter().map(|(id, ())| &domain.notices().get(*id).unwrap().kind).collect();
+        assert!(kinds.contains(&&crate::notices::kept::Kind::ProjectDeleted { name: Box::from("Tally") }));
+        let tree = crate::tests::cards::tree(&domain, None, None);
+        crate::tests::cards_access::check(&tree);
+        assert!(crate::tests::cards::contains(&tree, b"Project Tally deleted"));
+    }
+}
+#[test]
+fn a_refused_delete_shows_on_the_page() {
+    for refusal in [Refusal::Unknown, Refusal::NotOffered] {
+        let mut domain = deleting();
+        type_delete(&mut domain, b"Tally");
+        let request = delete_key(&press_delete(&mut domain));
+        drive(
+            &mut domain,
+            Time::ZERO,
+            AnsweredByEngine { request, answer: Answer::Refused { refusal: refusal.clone(), at: None } },
+        );
+        assert_eq!(domain.project_page().delete.refused.as_ref(), Some(&refusal));
+        assert_eq!(domain.project_page().delete.typed.as_ref(), "Tally");
+        assert!(domain.project_page().delete.pending.is_none());
+        let tree = crate::tests::cards::tree(&domain, None, None);
+        crate::tests::cards_access::check(&tree);
+        let expected = crate::tests::cards::shared_words()
+            .say(crate::phrases::jig::JigPhrase::Word(jig_client::words::Word::refusal(&refusal)), &[]);
+        assert!(crate::tests::cards::contains(&tree, &expected));
+        let field = tree
+            .nodes()
+            .iter()
+            .find(|node| {
+                node.role == skein_ui::Role::TextField
+                    && node.name.as_deref() == Some(b"Type the project's name to delete it")
+            })
+            .unwrap();
+        assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"Tally");
+        assert!(match domain.page() {
+            crate::page::Page::Work { address: Address::Project { project: 4, .. }, .. } => true,
+            _ => false,
+        });
+    }
+}
+
+#[test]
+fn a_delete_answer_after_leaving_keeps_a_notice_without_navigation() {
+    for answer in [
+        Answer::Done(Outcome::Owner(OwnerOutcome::ProjectRemoved { project: 4 })),
+        Answer::Refused { refusal: Refusal::Unknown, at: None },
+    ] {
+        let mut domain = deleting();
+        type_delete(&mut domain, b"Tally");
+        let request = delete_key(&press_delete(&mut domain));
+        drive(&mut domain, Time::ZERO, Event::Act { action: Act::Go { address: Address::Inbox { project: None } } });
+        assert!(domain.project_page().owner.is_none());
+        let out = drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: answer.clone() });
+        assert!(!out.iter().any(|request| match request {
+            Request::Show { .. } => true,
+            _ => false,
+        }));
+        assert!(domain.project_page().delete.pending.is_none());
+        let expected = match answer {
+            Answer::Done(_) => crate::notices::kept::Kind::ProjectDeleted { name: Box::from("Tally") },
+            Answer::Refused { .. } => crate::notices::kept::Kind::PageAnswer { answer },
+        };
+        assert!(domain.notices().ids().into_iter().any(|(id, ())| domain.notices().get(*id).unwrap().kind == expected));
+    }
+}

@@ -149,3 +149,119 @@ fn a_make_retried_under_its_key_after_a_reload_is_answered_once() {
     assert_eq!(frame(&world, client).projects.iter().filter(|p| p.project == project).count(), 1);
     assert!(world.root(client).client().pending(key).is_none());
 }
+
+#[test]
+fn an_owner_deletes_a_project_by_its_name() {
+    use jig_client_view::address::{Address, ProjectSection};
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    let (mut world, client) = ready(true);
+    let mut me = frame(&world, client).clone();
+    me.projects.get_mut(0).expect("project deletion fixture or served fact").name =
+        c::DocumentText::complete(text(b"Tally"));
+    world.front().engine.act(Time::ZERO, Wall::EPOCH, Change::Me(me)).expect("project deletion fixture or served fact");
+    let doc = c::OwnerProject {
+        number: PROJECT,
+        name: c::DocumentText::complete(text(b"Tally")),
+        acts: list([c::Offered { effect: None, act: c::ActKind::RemoveProject, admission: c::Admission::Allowed }]),
+        resources: list([]),
+        policy: c::OwnerProjectPolicy {
+            templates: list([]),
+            ceiling: c::OwnerAuthorityDocument::complete(c::OwnerAuthority {
+                models: None,
+                tools: 0,
+                grants: list([]),
+                delegation: c::OwnerDelegation { kinds: list([]), tasks: 1, depth: 1 },
+                spend: 100,
+                deadline: None,
+                notes: 0,
+                note_resources: list([]),
+            }),
+            period_spend: 100,
+            escalation_role: None,
+            projections: list([]),
+            roles: list([]),
+            requirements: list([]),
+            permissions: None,
+            permissions_cut: false,
+            cut: false,
+        },
+        members: list([]),
+        current_period: None,
+        pools: list([]),
+        configured_period: 0,
+        configured_pools: list([]),
+        configured_pools_cut: false,
+        spend: list([]),
+        recurring: list([]),
+        cut: false,
+    };
+    world
+        .front()
+        .engine
+        .act(Time::ZERO, Wall::EPOCH, Change::OwnerProject(Box::new(doc)))
+        .expect("project deletion fixture or served fact");
+    world.event(
+        client,
+        jig_client_test_domain::Event::Act {
+            action: jig_client_test_domain::Action::Jig(jig_client_view::action::Act::Go {
+                address: Address::Project { project: PROJECT, section: ProjectSection::Settings },
+            }),
+        },
+    );
+    let within = Duration::from_secs(1);
+    world.person(client, vec![Step::See { find: Find::named(Role::Region, b"Delete project"), within }]);
+    assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
+    print_delete_page(&world, client);
+    world.person(
+        client,
+        vec![
+            Step::Type {
+                find: Find::exactly_named(Role::TextField, b"Type the project's name to delete it"),
+                words: Box::from(*b"Tally"),
+            },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Delete project") },
+            Step::See { find: Find::text(b"Project Tally deleted"), within },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
+    assert!(matches!(
+        world.root(client).jig().page(),
+        jig_client_view::page::Page::Work { address: Address::Inbox { project: None }, .. }
+    ));
+    assert!(!frame(&world, client).projects.iter().any(|p| p.project == PROJECT));
+    assert!(!world.front().engine.truth().owner_projects.contains_key(&PROJECT));
+    assert!(world.front().engine.truth().frames.values().all(|me| !me.projects.iter().any(|p| p.project == PROJECT)));
+    assert_eq!(
+        answer(&mut world),
+        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: PROJECT }))
+    );
+}
+fn list<T>(rows: impl IntoIterator<Item = T>) -> skein_lib::List<T> {
+    let rows: Vec<_> = rows.into_iter().collect();
+    let mut list =
+        skein_lib::List::with_capacity(u32::try_from(rows.len()).expect("project deletion fixture or served fact"));
+    for row in rows {
+        assert!(list.push(row).is_ok());
+    }
+    list
+}
+
+fn print_delete_page(world: &ProjectWorld, client: ClientId) {
+    let (_, view) = jig_client_world::test::new(&jig_client_world::test::limits(), 0);
+    let mut printed = skein_ui_text::Print::new(&view.limits().tree).expect("owner page print fits");
+    skein_ui_text::render(
+        world.tree(client),
+        b"jig",
+        Some(jig_client_view::regions::JigRegion::Link.region()),
+        &mut printed,
+    );
+    let path = skein_scratch::paths::package().join("tests/golden/project_delete.txt");
+    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        std::fs::write(&path, printed.text.as_slice()).expect("refresh owner project page golden");
+    }
+    assert_eq!(printed.text.as_slice(), std::fs::read(path).expect("owner project page golden"));
+    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_none() {
+        assert_eq!(printed.text.as_slice(), include_bytes!("../golden/project_delete.txt"));
+    }
+}

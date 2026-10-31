@@ -275,7 +275,7 @@ pub(crate) fn answered(
     crate::activity::sending::answered(domain, request, &receipt.answer);
     match receipt.origin {
         Origin::Page { handle, purpose } => {
-            crate::page::conversations::answered(domain, env, (request, handle), purpose, receipt.answer, out, lent);
+            crate::page::conversations::answered(domain, env, (request, handle), purpose, receipt, out, lent);
         }
         Origin::Card { object, act } => {
             if act == ActKind::Message {
@@ -319,6 +319,7 @@ fn unknown(domain: &mut crate::Ui, request: Token, lent: &jig_client::Client) {
             }
             crate::page::project::goals::unknown(domain, request);
             crate::page::project::owner_form::unknown(domain, request);
+            crate::page::project::delete::unknown(domain, request);
             crate::notices::kept::show(domain, crate::notices::kept::Kind::PageUnknown { purpose });
         }
     }

@@ -35,6 +35,18 @@ pub fn facts(b: &mut Builder, kind: &Kind, words: &Words, text_limit: u32) {
     b.open(Role::Status);
     b.name(&words.say(JigPhrase::Notice, &[]));
     match kind {
+        Kind::ProjectDeleted { name } => {
+            let text = words
+                .book()
+                .say(
+                    words.language(),
+                    crate::owner_project_words::ProjectPhrase::Deleted.id(),
+                    &[Hole::Name(skein_lib::bytes::copy_of(name.as_bytes()))],
+                )
+                .expect("checked project deletion")
+                .text;
+            b.text(skein_ui::Run::Plain, &text);
+        }
         Kind::Dropped { count } => words.text(b, JigPhrase::RequestsDropped, &[Hole::Number(u64::from(*count))]),
         Kind::Full { held, room_at } => words.answers_full(b, *held, *room_at),
         Kind::NotSent(why) => words.text(b, why.phrase(), &[]),
@@ -53,6 +65,14 @@ pub fn facts(b: &mut Builder, kind: &Kind, words: &Words, text_limit: u32) {
         }
         Kind::PageUnknown { purpose } => {
             match purpose {
+                IntentPurpose::RemoveProject => {
+                    let text = words
+                        .book()
+                        .say(words.language(), crate::owner_project_words::ProjectPhrase::DeleteProject.id(), &[])
+                        .expect("checked project deletion")
+                        .text;
+                    b.text(skein_ui::Run::Plain, &text);
+                }
                 IntentPurpose::ProjectSettings => words.text(b, JigPhrase::Settings, &[]),
                 IntentPurpose::BeginConversation => words.text(b, JigPhrase::Conversations, &[]),
                 IntentPurpose::CreateGoal => words.text(b, JigPhrase::ActSetGoal, &[]),
