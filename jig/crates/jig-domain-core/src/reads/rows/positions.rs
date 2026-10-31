@@ -3,6 +3,7 @@ use super::{Key, Position, Range, Row, Scope, notes, tasks};
 
 fn subtree(scope: &Scope) -> bool {
     match scope {
+        Scope::EndedTasks | Scope::TaskRows { .. } => false,
         Scope::History { subtree: true, .. } => true,
         Scope::Task { .. }
         | Scope::Proposal { .. }

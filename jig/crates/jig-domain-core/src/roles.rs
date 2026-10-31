@@ -135,6 +135,7 @@ impl Core {
             | people::Ask::MakeService { .. }
             | people::Ask::SetRoles { .. }
             | people::Ask::Adopt { .. }
+            | people::Ask::RemoveProject { .. }
             | people::Ask::Rename { .. }
             | people::Ask::MakeProject { .. }
             | people::Ask::ChangeSettings { .. }

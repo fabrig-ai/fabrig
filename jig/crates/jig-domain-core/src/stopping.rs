@@ -153,6 +153,9 @@ fn people_gate(event: people::Event) -> Result<Event, Requests> {
         people::Event::ConversationSeen { .. } => Err(empty()),
         event @ (people::Event::ChatState { .. }
         | people::Event::MoveChat { .. }
+        | people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
         | people::Event::Seed { .. }

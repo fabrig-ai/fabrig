@@ -423,6 +423,7 @@ fn effect(core: &Core, limits: &Limits, act: Act, subject: &Subject) -> Option<a
         | Act::EditNote
         | Act::DeleteNote
         | Act::Adopt
+        | Act::RemoveProject
         | Act::Rename
         | Act::ChangePolicy
         | Act::SetRoles

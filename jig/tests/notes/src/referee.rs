@@ -33,6 +33,7 @@ impl Intent {
     #[must_use]
     pub fn from_event(event: &Event) -> Intent {
         match event {
+            Event::DropProject { owner, .. } => Intent::Read { owner: *owner },
             Event::Index { owner, scopes: _, most: _ } | Event::Recall { owner, by: _, page: _ } => {
                 Intent::Read { owner: *owner }
             }

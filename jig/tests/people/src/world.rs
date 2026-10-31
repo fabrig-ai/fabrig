@@ -503,6 +503,7 @@ impl World {
                 | Stored::Roles { .. }
                 | Stored::Acted { .. }
                 | Stored::Answer { .. }
+                | Stored::Deletion { .. }
                 | Stored::Policy { .. } => None,
             })
             .unwrap_or(0);
@@ -636,6 +637,7 @@ impl World {
                         | Ask::Move { .. }
                         | Ask::AnswerQuestion { .. }
                         | Ask::SetRoles { .. }
+                        | Ask::RemoveProject { .. }
                         | Ask::Rename { .. }
                         | Ask::MakeProject { .. }
                         | Ask::ChangeSettings { .. }
@@ -1037,6 +1039,7 @@ impl World {
                                         | Ask::AnswerQuestion { .. }
                                         | Ask::Amend { .. }
                                         | Ask::SetRoles { .. }
+                                        | Ask::RemoveProject { .. }
                                         | Ask::Rename { .. }
                                         | Ask::MakeProject { .. }
                                         | Ask::ChangeSettings { .. }
@@ -1064,6 +1067,7 @@ impl World {
                             | Ask::Move { .. }
                             | Ask::AnswerQuestion { .. }
                             | Ask::SetRoles { .. }
+                            | Ask::RemoveProject { .. }
                             | Ask::Rename { .. }
                             | Ask::MakeProject { .. }
                             | Ask::ChangeSettings { .. }

@@ -133,6 +133,9 @@ pub enum Ask {
 /// Store mutation issued by a child of the core.
 #[derive(Debug)]
 pub enum Write {
+    /// Drop a task transcript whole with its places (jig/docs/design/protocol/store.md, 8.5, 11.1;
+    /// temper/docs/design/draft/playground-reset.md, 5).
+    DropTranscript { task: u64 },
     /// Copy the old held revision to history without materialising it in the core.
     CopySettingsRevision(u32),
     /// Save one authentic core or child record.
@@ -944,7 +947,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Make { .. }
         | tasks::Event::Hold { .. }
         | tasks::Event::HoldFrom { .. } => true,
-        tasks::Event::Charters { .. }
+        tasks::Event::CloseProject { .. }
+        | tasks::Event::Charters { .. }
         | tasks::Event::WakeProcedure { .. }
         | tasks::Event::RecurringBatch { .. }
         | tasks::Event::Procedure { .. }
@@ -1027,7 +1031,10 @@ fn people_new_work(event: &people::Event) -> bool {
         | people::Event::SignOut { .. }
         | people::Event::Roles { .. }
         | people::Event::Ask { .. } => true,
-        people::Event::MoveChat { .. }
+        people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
+        | people::Event::MoveChat { .. }
         | people::Event::ChatState { .. }
         | people::Event::ConversationSeen { .. }
         | people::Event::Forget { .. }
@@ -1047,7 +1054,8 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::Credential { .. }
         | accounts::Event::SignIn { .. }
         | accounts::Event::SignOut { .. } => true,
-        accounts::Event::Restore { .. }
+        accounts::Event::ForgetProject { .. }
+        | accounts::Event::Restore { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }
         | accounts::Event::Component(..)
@@ -1093,7 +1101,8 @@ fn notes_new_work(event: &notes::Event) -> bool {
         | notes::Event::Recall { .. }
         | notes::Event::Write { .. }
         | notes::Event::Edit { .. } => true,
-        notes::Event::LoadFailed { .. }
+        notes::Event::DropProject { .. }
+        | notes::Event::LoadFailed { .. }
         | notes::Event::Loaded { .. }
         | notes::Event::Restore { .. }
         | notes::Event::Restored => false,

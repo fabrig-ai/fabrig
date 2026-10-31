@@ -152,6 +152,9 @@ fn derive_verdicts(amendment_bytes: u32, limits: &mut wire::Limits) -> Option<()
 /// a policy row keeps beside its roles' models (protocol/store.md, 5.1).
 pub fn encode(row: &domain::Stored, limits: &wire::Limits, names: &[Box<[u8]>]) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
+        domain::Stored::Deletion { .. } => {
+            return Err(wire::Problem { path: wire::Path::ValueTag, reason: skein_codec::Reason::Bound });
+        }
         domain::Stored::Person { number, identity } => wire::Value::Person(wire::StoredPerson::new(
             limits,
             wire::StoredPersonParts { number: *number, identity: encode_identity(identity, limits)? },

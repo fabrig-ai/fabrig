@@ -296,14 +296,9 @@ impl Decision {
         let within = match &write {
             Write::CopySettingsRevision(number) => *number != 0,
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(_))))
-            | Write::Erase(
-                Key::Wires
-                | Key::Core(jig_domain_core::Key::Core(
-                    jig_domain_core::CoreKey::Deployment
-                    | jig_domain_core::CoreKey::EscalationDecision { .. }
-                    | jig_domain_core::CoreKey::ProposalDecision { .. },
-                )),
-            ) => false,
+            | Write::Erase(Key::Wires | Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment))) => {
+                false
+            }
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(row)))) => {
                 row.task != 0
                     && row.attempt != 0
@@ -313,11 +308,14 @@ impl Decision {
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row)))) => {
                 row.key.task != 0 && row.key.attempt != 0 && row.key.completion != 0
             }
-            Write::Wires
+            Write::DropTranscript { .. }
+            | Write::Wires
             | Write::Erase(
                 Key::Core(
                     jig_domain_core::Key::Core(
-                        jig_domain_core::CoreKey::Settings(_)
+                        jig_domain_core::CoreKey::EscalationDecision { .. }
+                        | jig_domain_core::CoreKey::ProposalDecision { .. }
+                        | jig_domain_core::CoreKey::Settings(_)
                         | jig_domain_core::CoreKey::Call(_)
                         | jig_domain_core::CoreKey::Turn { .. }
                         | jig_domain_core::CoreKey::RunProof(..)
