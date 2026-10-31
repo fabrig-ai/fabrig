@@ -1,8 +1,8 @@
-use super::fixtures;
-use crate::{StoreOut, Up, route};
+mod fixtures;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_domain as root;
+use jig_test_store::{StoreOut, Up, route};
 use skein_lib::Token;
 
 /// Two batches of eight flights delay all pages before answering in reverse
@@ -38,7 +38,7 @@ fn delayed_routes(mut routes: route::Routes) {
     fixtures::routed(&mut component, &mut routes, StoreOut::Commit { number: 1, writes: writes.into_boxed() });
     for _ in 0..BATCHES {
         let mut requests = skein_lib::Queue::uncapped();
-        let mut flights = alloc::collections::BTreeMap::new();
+        let mut flights = std::collections::BTreeMap::new();
         for connector in 1..=FLIGHTS {
             let step = core::start::Phase::RestoreConnector { connector };
             let request =
@@ -323,7 +323,7 @@ fn start_phases_select_their_exact_ranges() {
                 assert_eq!(ranges.as_ref(), &[core::RestoreRange::Census(census.clone())]);
             }
             (Phase::RestoreConnector { connector }, Restore::Application(ranges)) => {
-                assert_eq!(ranges.as_ref(), &[crate::live(connector)]);
+                assert_eq!(ranges.as_ref(), &[jig_test_store::live(connector)]);
             }
             (Phase::Sweep, Restore::Jig(ranges)) => assert_eq!(ranges.as_ref(), &[core::RestoreRange::People]),
             _ => panic!("phase's exact restore range"),
@@ -477,7 +477,7 @@ fn start_application_decode_failure_names_its_cause_and_has_the_record_key() {
     else {
         panic!("connector page")
     };
-    let key = crate::keys::encode(1, &jig_test_connector::RecordKey::Result(7));
+    let key = jig_test_store::keys::encode(1, &jig_test_connector::RecordKey::Result(7));
     let mut out = skein_lib::Queue::uncapped();
     route::up(
         &mut routes,
