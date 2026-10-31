@@ -73,7 +73,7 @@ fn a_park_while_waiting_interrupts() {
     backend.state = State::Running;
     fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
     fixtures::attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
-    backend.owner = None; // The wait completion was delivered; its held RPC remains unanswered.
+    fixtures::answered_completion(&mut backend); // The wait completion was delivered; its held RPC remains unanswered.
     backend.turns.result = false;
     let mut held = reply_tests::call(b"wait-id");
     held.name = b"foo".as_slice().into();
@@ -97,7 +97,7 @@ fn a_park_while_waiting_interrupts() {
     backend.calls.push(call).expect("call room");
     backend.match_calls();
     assert!(backend.ledger.get(0).expect("held call").rpc.is_some());
-    backend.request = None;
+    fixtures::clear_completion(&mut backend);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.close(&env(0), &mut up, &mut below);
@@ -159,7 +159,7 @@ fn launch_from_listener(
 fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backend, [u8; 16]) {
     let mut backend = launchable();
     backend.state = State::Starting;
-    backend.owner = Some(COMPLETION);
+    fixtures::claim_completion(COMPLETION, &mut backend);
     backend.open_runs(env(0).now, below);
     for (file, descriptor) in [(Token::new(42), kernel::Fd::new(43)), (Token::new(44), kernel::Fd::new(45))] {
         backend.from_io(
@@ -310,11 +310,11 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         let request = first_request(&backend);
         let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
         let session::Opening::New { id } = session::opening(prompt, None, None) else { panic!("new") };
-        backend.request = Some(request);
+        fixtures::retain_request(request, &mut backend);
         backend.running_session = Some(id);
         backend.names.session = session::uuid(id);
         backend.resuming = false;
-        backend.owner = Some(COMPLETION);
+        fixtures::claim_completion(COMPLETION, &mut backend);
         backend.state = State::Starting;
         fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
         fixtures::attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);

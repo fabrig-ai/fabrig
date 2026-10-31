@@ -26,7 +26,7 @@ impl Backend {
             if !self.measures.is_empty() || self.native.is_some() {
                 break;
             }
-            if self.state == State::Running && self.owner.is_none() && self.stop == stop::Stop::None {
+            if self.state == State::Running && self.current.owner().is_none() && self.stop == stop::Stop::None {
                 break;
             }
             let Some(byte) = self.intake.get(self.intake_at).copied() else { break };
@@ -51,17 +51,17 @@ impl Backend {
             }
         }
         if self.intake_at > before && !self.line.is_empty() {
-            self.completion_deadline(env, false);
+            self.completion_deadline(env, false, up);
         }
         if self.intake_at == self.intake.len() {
             self.intake = List::with_capacity(PIPE_BYTES);
             self.intake_at = 0;
         } else if self.native.is_none()
-            && (self.owner.is_some() || self.stop != stop::Stop::None || self.state == State::Ending)
+            && (self.current.owner().is_some() || self.stop != stop::Stop::None || self.state == State::Ending)
         {
             self.intake_due = Some(env.now);
         }
-        if self.owner.is_some() && !self.turns.ready.is_empty() {
+        if self.current.owner().is_some() && !self.turns.ready.is_empty() {
             self.intake_due = Some(env.now);
         }
         self.read_stdout();

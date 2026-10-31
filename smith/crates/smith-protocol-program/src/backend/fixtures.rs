@@ -253,8 +253,8 @@ pub(super) fn running(mut backend: Backend) -> Backend {
     backend.state = State::Running;
     attach_process(Some(Token::new(30)), &mut backend);
     attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
-    backend.owner = Some(COMPLETION);
-    backend.request = Some(request(&backend));
+    claim_completion(COMPLETION, &mut backend);
+    retain_request(request(&backend), &mut backend);
     backend
 }
 
@@ -272,9 +272,7 @@ pub(super) fn records_with(backend: Backend) -> Backend {
 /// A running completion with the deterministic window identity installed.
 pub(super) fn window() -> Backend {
     let mut backend = active();
-    let FromDomain::Complete { prompt, .. } = backend.request.as_ref().expect("completion") else {
-        panic!("completion");
-    };
+    let Complete { prompt, .. } = backend.current.request().expect("completion");
     let session::Opening::New { id } = session::opening(prompt, None, None) else {
         panic!("new window");
     };
@@ -373,9 +371,9 @@ pub(super) fn observed(observe: bool) -> Backend {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: b"start text".as_slice().into(), replay: None }]),
     }]);
-    backend.begin_prompt(&request);
-    backend.request = Some(request);
-    backend.owner = Some(COMPLETION);
+    begin_prompt(&request, &mut backend);
+    retain_request(request, &mut backend);
+    claim_completion(COMPLETION, &mut backend);
     backend
 }
 
@@ -424,7 +422,7 @@ pub(super) fn resumable() -> Backend {
     let session::Opening::Resume { id } = session::opening(prompt, None, None) else { panic!("resume") };
     backend.names.session = session::uuid(id);
     backend.resuming = true;
-    backend.request = Some(request);
+    retain_request(request, &mut backend);
     backend
 }
 
@@ -441,4 +439,30 @@ pub(super) fn attach_pipes(pipes: Pipes, backend: &mut Backend) {
 /// A recorded exit whose drain grace has already settled in the scenario.
 pub(super) fn exited_process(exit: Option<u32>, backend: &mut Backend) {
     backend.process = process::Process::attached(backend.process.child(), backend.process.pipes(), exit);
+}
+
+/// Admit the scenario's callback through the current-completion lifecycle.
+pub(super) fn claim_completion(owner: Token, backend: &mut Backend) {
+    backend.current.claim(owner, &mut Queue::uncapped());
+}
+
+/// Retain the scenario's admitted Complete context.
+pub(super) fn retain_request(request: FromDomain, backend: &mut Backend) {
+    backend.current.retain(Complete::from_request(request), &mut Queue::uncapped());
+}
+
+/// An answered callback retains its program context without owing another terminal.
+pub(super) fn answered_completion(backend: &mut Backend) {
+    if backend.current.owner().is_some() {
+        backend.current.settle(current::Terminal::Cancelled, &mut Queue::uncapped());
+    }
+}
+
+pub(super) fn clear_completion(backend: &mut Backend) {
+    backend.current.clear(&mut Queue::uncapped());
+}
+
+pub(super) fn begin_prompt(request: &FromDomain, backend: &mut Backend) {
+    let FromDomain::Complete { observation, .. } = request else { panic!("completion fixture") };
+    backend.begin_prompt(observation.is_some());
 }

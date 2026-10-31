@@ -44,13 +44,13 @@ fn a_built_in_tool_use_is_a_builtin_call() {
 #[test]
 fn a_built_in_result_follows_its_completion() {
     let mut backend = active();
-    backend.owner = None;
+    fixtures::answered_completion(&mut backend);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.line(&env(0), READ, &mut up, &mut below);
     backend.line(&env(0), RESULT, &mut up, &mut below);
     assert!(up.is_empty(), "result waits behind queued completion");
-    backend.resume(&env(0), request(&backend), &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(request(&backend)), &mut up, &mut below);
     completed(up.pop(), COMPLETION);
     let Some(ToDomain::BuiltinResult { owner, id, text, error }) = up.pop() else { panic!("builtin result") };
     assert_eq!(owner, COMPLETION);
@@ -76,7 +76,7 @@ fn a_complete_s_result_for_a_built_in_is_skipped() {
             result: llm::Returned::Text { text: Box::from([b'x'; 8192]), error: false, replay: None },
         }]),
     }]);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     assert!(up.is_empty());
     assert!(backend.outgoing.is_none());
     assert!(backend.ledger.get(0).expect("call").answer.is_none());
@@ -94,7 +94,7 @@ fn a_complete_s_result_for_a_built_in_is_skipped() {
             result: llm::Returned::Text { text: Box::from([b'x'; 8192]), error: false, replay: None },
         }]),
     }]);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     assert!(up.is_empty(), "historical built-in results also bypass MCP rendering");
 }
 
@@ -116,14 +116,14 @@ fn init(tools: &[&str], granted: bool) -> (Backend, Queue<ToDomain>) {
 
 fn init_contract(tools: &[&str], granted: bool, contract: bool) -> (Backend, Queue<ToDomain>) {
     let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
-    if let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request {
+    if let Some(Complete { prompt, .. }) = backend.current.request_mut() {
         prompt.tools.inspect = granted;
         if contract {
             prompt.served = Box::new([llm::Served::Finish]);
         }
     }
     if contract {
-        backend.request = Some(report_request(&backend));
+        fixtures::retain_request(report_request(&backend), &mut backend);
     }
     let bytes = serde_json::to_vec(&serde_json::json!({"type":"system","subtype":"init","mcp_servers":[{"name":"smith","status":"connected"}],"tools":tools})).expect("init");
     backend.admit_init(&env(0), &bytes, &mut up, &mut below);
@@ -160,7 +160,7 @@ const STRUCTURED_CALL: &[u8] = br#"{"type":"assistant","message":{"id":"structur
 
 fn held_structured_output() -> (Backend, Queue<ToDomain>, Queue<Below>) {
     let mut backend = active();
-    backend.request = Some(report_request(&backend));
+    fixtures::retain_request(report_request(&backend), &mut backend);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.line(&env(0), STRUCTURED_CALL, &mut up, &mut below);
@@ -242,7 +242,7 @@ fn an_init_without_a_granted_built_in_fails() {
 fn the_server_keeps_only_remove_when_modify_is_granted() {
     for modify in [false, true] {
         let mut backend = active();
-        let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else { panic!("request") };
+        let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("request") };
         prompt.tools = Grants { inspect: true, modify, shell: true };
         prompt.served = Box::new([llm::Served::Finish, llm::Served::Wait]);
         let expected = protocol::schemas_for_contract(
@@ -328,7 +328,7 @@ fn every_charter_inventory_serves_only_object_input_schemas() {
         ),
     ] {
         let mut backend = active();
-        let Some(FromDomain::Complete { prompt, outcome: result, deliver: grant, .. }) = &mut backend.request else {
+        let Some(Complete { prompt, outcome: result, deliver: grant, .. }) = backend.current.request_mut() else {
             panic!("request")
         };
         prompt.served = served.into_boxed_slice();
@@ -367,7 +367,7 @@ fn every_charter_inventory_serves_only_object_input_schemas() {
 #[test]
 fn a_host_schema_refusal_names_the_tool_at_startup() {
     let mut backend = active();
-    let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else { panic!("request") };
+    let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("request") };
     prompt.served = Box::new([host_tool(br#"{"type":"string"}"#)]);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
@@ -384,7 +384,7 @@ fn a_host_schema_refusal_names_the_tool_at_startup() {
 #[test]
 fn queued_built_in_results_keep_their_message_owners() {
     let mut backend = active();
-    backend.owner = None;
+    fixtures::answered_completion(&mut backend);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.line(&env(0), READ, &mut up, &mut below);
@@ -395,7 +395,7 @@ fn queued_built_in_results_keep_their_message_owners() {
     let next_result = serde_json::to_vec(&record).expect("JSON");
     backend.line(&env(0), &next_call, &mut up, &mut below);
     backend.line(&env(0), &next_result, &mut up, &mut below);
-    backend.resume(&env(0), request(&backend), &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(request(&backend)), &mut up, &mut below);
     completed(up.pop(), COMPLETION);
     result_id(up.pop(), COMPLETION, b"r");
     assert!(up.is_empty());
@@ -403,7 +403,7 @@ fn queued_built_in_results_keep_their_message_owners() {
     let mut next = request(&backend);
     let FromDomain::Complete { owner, .. } = &mut next else { panic!("Complete") };
     *owner = Token::new(81);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     completed(up.pop(), Token::new(81));
     result_id(up.pop(), Token::new(81), b"r2");
     assert!(up.is_empty());
@@ -429,7 +429,7 @@ fn failed(event: Option<ToDomain>, words: &[u8]) {
 #[test]
 fn an_open_catalog_has_wait_and_refuses_unoffered_finish() {
     let mut backend = active();
-    let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else { panic!("request") };
+    let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("request") };
     prompt.served = Box::new([llm::Served::Wait]);
     let tools = backend.tools();
     let [waiting] = tools.as_ref() else { panic!("one offered tool") };
@@ -444,7 +444,7 @@ fn an_open_catalog_has_wait_and_refuses_unoffered_finish() {
 
 fn structured_finish(output: serde_json::Value) -> llm::Decoded {
     let mut backend = active();
-    backend.request = Some(report_request(&backend));
+    fixtures::retain_request(report_request(&backend), &mut backend);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     let line = serde_json::to_vec(
@@ -501,7 +501,7 @@ fn a_structured_result_requires_exactly_its_outcome_member() {
         serde_json::json!({"extra":true,"outcome":{}}),
     ] {
         let mut backend = active();
-        backend.request = Some(report_request(&backend));
+        fixtures::retain_request(report_request(&backend), &mut backend);
         let mut up = Queue::with_capacity(32);
         let mut below = Queue::with_capacity(64);
         let line =
@@ -520,7 +520,7 @@ fn a_no_contract_mcp_finish_unwraps_its_outcome() {
         outcome::{Declared, Report},
     };
     let mut backend = active();
-    let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else { panic!("request") };
+    let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("request") };
     prompt.served = Box::new([llm::Served::Finish]);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
@@ -541,7 +541,7 @@ fn a_no_contract_mcp_finish_unwraps_its_outcome() {
 fn a_host_combinator_is_named_before_listening() {
     for key in ["oneOf", "allOf", "anyOf"] {
         let mut backend = active();
-        let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else { panic!("request") };
+        let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("request") };
         let schema = serde_json::to_vec(&serde_json::json!({"type":"object",key:[]})).expect("schema");
         prompt.served = Box::new([host_tool(&schema)]);
         let mut up = Queue::with_capacity(32);
@@ -556,11 +556,11 @@ fn a_host_combinator_is_named_before_listening() {
 fn launch_wraps_the_unchanged_contract_within_its_bound() {
     let mut backend = fixtures::resumable();
     backend.resuming = false;
-    backend.request = Some(report_request(&backend));
+    fixtures::retain_request(report_request(&backend), &mut backend);
     let spawn = backend.launch_spec().expect("launch");
     let flag = spawn.args.iter().position(|argument| argument.as_ref() == b"--json-schema").expect("schema flag");
     let schema: serde_json::Value = serde_json::from_slice(&spawn.args[flag + 1]).expect("schema");
-    let Some(FromDomain::Complete { outcome, .. }) = &backend.request else { panic!("request") };
+    let Some(Complete { outcome, .. }) = backend.current.request() else { panic!("request") };
     let contract: serde_json::Value =
         serde_json::from_slice(&protocol::finish_schema(outcome, backend.settings.contract_bytes).expect("contract"))
             .expect("schema");
@@ -580,7 +580,7 @@ fn launch_wraps_the_unchanged_contract_within_its_bound() {
 fn native_call(name: &str, input: serde_json::Value) -> Backend {
     let mut backend = active();
     backend.mounts = Box::new([Mount { root: Token::new(40), host: b"/work/repo".as_slice().into(), writable: true }]);
-    if let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request {
+    if let Some(Complete { prompt, .. }) = backend.current.request_mut() {
         prompt.tools = Grants { inspect: true, modify: true, shell: false };
     }
     let mut up = Queue::with_capacity(32);
@@ -591,9 +591,9 @@ fn native_call(name: &str, input: serde_json::Value) -> Backend {
     backend.line(&env(0), &serde_json::to_vec(&message).expect("native call"), &mut up, &mut below);
     completed(up.pop(), COMPLETION);
     while backend.pop_measure().is_some() {}
-    backend.resume(&env(0), request(&backend), &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(request(&backend)), &mut up, &mut below);
     assert!(up.is_empty());
-    if let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request {
+    if let Some(Complete { prompt, .. }) = backend.current.request_mut() {
         prompt.tools = Grants { inspect: true, modify: true, shell: false };
     }
     fixtures::connect_server(&mut backend);
@@ -892,7 +892,12 @@ fn an_owned_remove_result_reaches_its_mcp_caller() {
                 result: llm::Returned::Owned { outcome },
             }]),
         }]);
-        backend.resume(&env(0), next, &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
+        backend.resume(
+            &env(0),
+            Complete::from_request(next),
+            &mut Queue::with_capacity(32),
+            &mut Queue::with_capacity(64),
+        );
         let reply = fixtures::server_reply(&mut backend);
         assert!(reply["result"]["content"][0]["text"].as_str().expect("result text").contains(expected));
         assert_eq!(reply["result"]["isError"], error);
@@ -917,7 +922,7 @@ fn an_mcp_successor_may_arrive_before_its_next_assistant_record() {
             result: llm::Returned::Text { text: b"found".as_slice().into(), error: false, replay: None },
         }]),
     }]);
-    backend.resume(&env(0), next, &mut up, &mut Queue::with_capacity(64));
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut Queue::with_capacity(64));
     let reply = fixtures::server_reply(&mut backend);
     assert_eq!(reply["id"], 2_u32);
     assert_eq!(reply["result"]["content"][0]["text"], "found");

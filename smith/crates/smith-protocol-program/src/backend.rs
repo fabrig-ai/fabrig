@@ -16,6 +16,8 @@ mod builtins;
 mod calls;
 mod compact;
 mod conversation;
+mod current;
+use current::Complete;
 mod diagnostics;
 mod files;
 mod intake;
@@ -213,9 +215,8 @@ pub struct Backend {
     names: start::Names,
     grant: Option<Grant>,
     state: State,
-    owner: Option<Token>,
+    current: current::Current,
     pending_failure: Option<(llm::Failure, Box<[u8]>)>,
-    request: Option<FromDomain>,
     check: Option<Command>,
     server: Option<mcp::Server>,
     server_ended: bool,
@@ -240,7 +241,6 @@ pub struct Backend {
     recorded_session: Option<[u8; 16]>,
     /// One-based index of the next message whose calls may be permitted.
     permitted_message: u64,
-    response_phase: llm::CompletionPhase,
     run_time: Duration,
     line: List<u8>,
     stdout_demanding: bool,
@@ -264,7 +264,7 @@ impl core::fmt::Debug for Backend {
         formatter
             .debug_struct("Backend")
             .field("state", &self.state)
-            .field("owner", &self.owner)
+            .field("owner", &self.current.owner())
             .finish_non_exhaustive()
     }
 }
@@ -287,9 +287,8 @@ impl Backend {
             names: start::Names::new(entropy),
             grant: None,
             state: State::Idle,
-            owner: None,
+            current: current::Current::new(),
             pending_failure: None,
-            request: None,
             check: None,
             server: None,
             server_ended: false,
@@ -313,7 +312,6 @@ impl Backend {
             running_session: None,
             recorded_session: None,
             permitted_message: 1,
-            response_phase: llm::CompletionPhase::Head,
             run_time: Duration::ZERO,
             line,
             stdout_demanding: false,
@@ -399,7 +397,7 @@ impl Backend {
     /// Whether a cancellation belongs to the outstanding program completion.
     #[must_use]
     pub fn pending(&self, owner: Token) -> bool {
-        self.owner == Some(owner)
+        self.current.owner() == Some(owner)
     }
 
     /// Whether a completion grant belongs to the installed program account.
@@ -421,10 +419,11 @@ impl Backend {
     ) {
         match request {
             request @ FromDomain::Complete { owner, .. } => {
+                let request = Complete::from_request(request);
                 if self.winding == stop::WindDown::YieldRequested {
                     self.winding = stop::WindDown::Ordinary;
                 }
-                self.begin_prompt(&request);
+                self.begin_prompt(request.observation.is_some());
                 if let Some((failure, detail)) = self.pending_failure.take() {
                     self.terminal_measure(env.now, owner);
                     up.push(ToDomain::Failed {
@@ -453,7 +452,7 @@ impl Backend {
                 return;
             }
             FromDomain::Cancel { owner } => {
-                if self.owner == Some(owner) {
+                if self.current.owner() == Some(owner) {
                     self.close(env, up, below);
                 }
             }
@@ -520,17 +519,19 @@ impl Backend {
                 State::Starting => self.fail_program(env, b"smith: the program did not initialize", up, below),
                 State::Ending => self.terminate(env.now),
                 State::Running => {
-                    let phase = match &self.request {
-                        Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => {
-                            llm::CompletionPhase::Whole
-                        }
-                        Some(FromDomain::Complete { .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. })
-                        | None => self.response_phase,
-                    };
+                    let phase = self.current.phase(env.now);
                     self.fail(env, llm::Failure::TimedOut { phase }, b"smith: program completion deadline", up, below);
                 }
                 State::Idle | State::Checking | State::Ended => {}
             }
+        }
+        let completion_due = match self.current.next_deadline() {
+            Some(until) => env.now >= until,
+            None => false,
+        };
+        if self.completion_active() && completion_due {
+            let phase = self.current.phase(env.now);
+            self.fail(env, llm::Failure::TimedOut { phase }, b"smith: program completion deadline", up, below);
         }
         self.progress(env, up, below);
         self.flush(below);
@@ -568,6 +569,14 @@ impl Backend {
             return None;
         }
         let mut earliest = self.deadline;
+        if self.completion_active()
+            && let Some(at) = self.current.next_deadline()
+        {
+            earliest = Some(match earliest {
+                Some(held) => held.min(at),
+                None => at,
+            });
+        }
         if let Some(at) = self.intake_due {
             earliest = Some(match earliest {
                 Some(held) => held.min(at),
@@ -662,11 +671,11 @@ impl Backend {
         }
         let active = self.active_turn();
         self.state = State::Ending;
-        if let Some(owner) = self.owner.take() {
+        if let Some(owner) = self.current.owner() {
             self.terminal_measure(env.now, owner);
-            up.push(ToDomain::Cancelled { owner });
+            self.current.settle(current::Terminal::Cancelled, up);
         }
-        self.request = None;
+        self.current.clear(up);
         self.outgoing = None;
         self.eof_deadline = None;
         self.stop(env, active, parking, up, below);
@@ -732,16 +741,18 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         let detail = self.private_diagnostic(detail);
-        let restart = self.owner.is_some() && recovery::restartable(failure);
-        if let Some(owner) = self.owner.take() {
+        let restart = self.current.owner().is_some() && recovery::restartable(failure);
+        if let Some(owner) = self.current.owner() {
             self.terminal_measure(env.now, owner);
-            up.push(ToDomain::Failed {
-                owner,
-                failure,
-                evidence: llm::Evidence::Unsent,
-                detail,
-                report: llm::Report::none(),
-            });
+            self.current.settle(
+                current::Terminal::Failed {
+                    failure,
+                    evidence: llm::Evidence::Unsent,
+                    detail,
+                    report: llm::Report::none(),
+                },
+                up,
+            );
         } else if self.pending_failure.is_none() {
             self.pending_failure = Some((failure, detail));
         }
@@ -751,7 +762,7 @@ impl Backend {
             self.state = State::Running;
             self.outgoing = None;
             self.stop(env, active, false, up, below);
-            self.request = None;
+            self.current.clear(up);
         } else {
             self.close_turn(env, false, up, below);
         }

@@ -30,7 +30,7 @@ fn an_open_next_message_does_not_receive_a_duplicate_nudge() {
         &mut up,
         &mut below,
     );
-    assert!(backend.owner.is_none(), "the first message was delivered");
+    assert!(backend.current.owner().is_none(), "the first message was delivered");
     let mut next = request(&backend);
     let FromDomain::Complete { prompt, owner, .. } = &mut next else {
         panic!("next completion");
@@ -40,9 +40,9 @@ fn an_open_next_message_does_not_receive_a_duplicate_nudge() {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: b"finish now".as_slice().into(), replay: None }]),
     }]);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     assert!(backend.outgoing.is_none());
-    assert_eq!(backend.owner, Some(Token::new(81)));
+    assert_eq!(backend.current.owner(), Some(Token::new(81)));
     assert!(below.is_empty());
 }
 
@@ -69,7 +69,7 @@ fn a_result_without_an_assistant_hands_the_nudge_to_the_domain() {
 #[test]
 fn the_unoffered_sub_agent_tool_is_not_executed() {
     let mut backend = active();
-    let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else {
+    let Some(Complete { prompt, .. }) = backend.current.request_mut() else {
         panic!("completion");
     };
     prompt.served = Box::new([llm::Served::SubAgent]);
@@ -232,7 +232,7 @@ fn status_after_a_tool_result_preserves_the_next_completion() {
         &mut below,
     );
     while backend.pop_measure().is_some() {}
-    backend.resume(&env(0), request(&backend), &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(request(&backend)), &mut up, &mut below);
     up = Queue::with_capacity(UP_EVENTS);
     backend.line(&env(0), STATUS, &mut up, &mut below);
     backend.line(&env(0), REPLY, &mut up, &mut below);
@@ -243,7 +243,7 @@ fn status_after_a_tool_result_preserves_the_next_completion() {
 
 fn second_turn() -> (Backend, Queue<ToDomain>, Queue<Below>) {
     let (mut backend, mut up, mut below) = active_with_queues();
-    let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request else { panic!("complete") };
+    let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("complete") };
     prompt.served = Box::new([llm::Served::Finish]);
     backend.line(&env(0), REPLY, &mut up, &mut below);
     backend.line(&env(0), RESULT, &mut up, &mut below);
@@ -255,7 +255,7 @@ fn second_turn() -> (Backend, Queue<ToDomain>, Queue<Below>) {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: b"second message".as_slice().into(), replay: None }]),
     }]);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     up = Queue::with_capacity(UP_EVENTS);
     (backend, up, below)
 }

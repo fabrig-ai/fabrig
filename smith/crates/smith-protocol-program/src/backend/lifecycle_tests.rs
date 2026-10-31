@@ -107,7 +107,7 @@ fn an_accepted_init_uses_the_completion_head_deadline() {
     assert_eq!(backend.state, State::Running);
     assert!(backend.switching, "stops the expired invocation while retaining retry storage");
     assert!(backend.stop == stop::Stop::Closing);
-    assert!(backend.owner.is_none());
+    assert!(backend.current.owner().is_none());
 }
 #[test]
 fn private_diagnostics_redact_known_private_values() {

@@ -1,6 +1,7 @@
 //! Private startup files and ordered cleanup (smith/docs/design/protocol/programs.md, sections 4.2, 5.1).
 //! Keeps only created-file flags and directory handles; never scans old runs.
 
+use super::Complete;
 use super::Owner;
 use super::{Backend, Below, State};
 use crate::mcp::{self, json};
@@ -8,7 +9,7 @@ use alloc::boxed::Box;
 use skein_io::{file, kernel};
 use skein_lib::{Decimal, Env, List, Queue, Time, Token};
 use smith_domain::{llm, tools::Tool};
-use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
+use smith_protocol_llm::{self as protocol, ToDomain};
 
 pub(super) const SETTINGS: &[u8] =
     br#"{"permissions":{"allow":["mcp__smith"],"ask":["Read","Glob","Grep","Write","Edit","Bash"]}}"#;
@@ -207,10 +208,7 @@ impl Backend {
     }
 
     pub(super) fn tools(&self) -> Box<[mcp::Tool]> {
-        let (prompt, outcome, deliver) = match &self.request {
-            Some(FromDomain::Complete { prompt, outcome, deliver, .. }) => (prompt, outcome, deliver),
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => return Box::default(),
-        };
+        let Some(Complete { prompt, outcome, deliver, .. }) = self.current.request() else { return Box::default() };
         let Ok(schemas) = protocol::schemas_for_contract(
             prompt,
             &self.settings.adapter.stated,
@@ -271,9 +269,9 @@ impl Backend {
 
     pub(super) fn store_instructions(&mut self, now: Time, port: u16, below: &mut Queue<Below>) {
         self.files.port = port;
-        let bytes = match &self.request {
-            Some(FromDomain::Complete { prompt, .. }) => prompt.system.clone(),
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {
+        let bytes = match self.current.request() {
+            Some(Complete { prompt, .. }) => prompt.system.clone(),
+            None => {
                 unreachable!("startup retains its prompt")
             }
         };

@@ -1,6 +1,7 @@
 //! Tool-free summaries of portable windows (protocol/programs.md 5.8).
 //! Rendering and argv reuse main's settled storage; no second child is live.
 
+use super::Complete;
 use super::{Backend, calls, start, stream};
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -76,17 +77,15 @@ pub(super) fn render(prompt: &mut llm::Prompt, limits: &protocol::Limits, maximu
 
 impl Backend {
     pub(super) fn compaction(&self) -> bool {
-        match &self.request {
-            Some(protocol::FromDomain::Complete { prompt, .. }) => is_compaction(prompt),
-            Some(protocol::FromDomain::Cancel { .. } | protocol::FromDomain::Yield { .. }) | None => false,
+        match self.current.request() {
+            Some(Complete { prompt, .. }) => is_compaction(prompt),
+            None => false,
         }
     }
 
     pub(super) fn compaction_input(&mut self) -> Option<()> {
-        let (prompt, observed) = match self.request.as_mut()? {
-            protocol::FromDomain::Complete { prompt, observation, .. } => (prompt, observation.is_some()),
-            protocol::FromDomain::Cancel { .. } | protocol::FromDomain::Yield { .. } => return None,
-        };
+        let Complete { prompt, observation, .. } = self.current.request_mut()?;
+        let observed = observation.is_some();
         let text = render(prompt, &self.settings.adapter, self.settings.input_bytes)?;
         self.outgoing = Some(stream::text_message(&text, self.settings.input_bytes)?);
         if observed {

@@ -3,13 +3,14 @@
 //! whether a result is owed; knows no run budget. Keeping stops write control
 //! requests, cancel/close signal, and the existing grace escalates both.
 
+use super::Complete;
 use super::{Backend, Below, State, stream, tail, turns};
 use crate::mcp;
 use skein_io::{self as io, kernel};
 use skein_lib::{Env, List, Queue};
 use smith_domain::llm;
 use smith_protocol_llm as protocol;
-use smith_protocol_llm::{FromDomain, ToDomain};
+use smith_protocol_llm::ToDomain;
 
 pub(super) const INTERRUPTED: &[u8] = b"not run: the program turn was interrupted";
 
@@ -41,7 +42,7 @@ impl Backend {
     #[must_use]
     fn can_yield_for_wind_down(&self) -> bool {
         self.state == State::Running
-            && self.owner.is_some()
+            && self.current.owner().is_some()
             && self.stop == Stop::None
             && self.winding != WindDown::Finishing
             && !self.turns.result
@@ -75,7 +76,11 @@ impl Backend {
         if self.turns.result {
             return false;
         }
-        if self.request.is_some() || self.owner.is_some() || self.turns.message.is_some() || !self.calls.is_empty() {
+        if self.current.request().is_some()
+            || self.current.owner().is_some()
+            || self.turns.message.is_some()
+            || !self.calls.is_empty()
+        {
             return true;
         }
         for call in &self.ledger {
@@ -89,21 +94,18 @@ impl Backend {
     pub(super) fn wind_down(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
-        request: FromDomain,
+        request: Complete,
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
-    ) -> Option<FromDomain> {
-        let choice = match &request {
-            FromDomain::Complete { prompt, .. } => &prompt.choice,
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("completion route"),
-        };
+    ) -> Option<Complete> {
+        let choice = &request.prompt.choice;
         match choice {
             llm::ToolChoice::Only(_) | llm::ToolChoice::None if self.winding == WindDown::Ordinary => {}
             llm::ToolChoice::Only(_) | llm::ToolChoice::Auto | llm::ToolChoice::None => return Some(request),
         }
         self.winding = WindDown::Finishing;
         let active = self.active_turn();
-        self.request = Some(request);
+        self.current.retain(request, up);
         // Keep the neutral prompt in its existing ownership term until the
         // interrupted result. Encoding now would retain two input ceilings.
         if !active && !self.render_finishing_input(env, up, below) {
@@ -111,7 +113,7 @@ impl Backend {
         }
         self.stop(env, active, true, up, below);
         if self.stop == Stop::None {
-            self.completion_deadline(env, true);
+            self.completion_deadline(env, true, up);
         }
         self.flush(below);
         None
@@ -130,8 +132,8 @@ impl Backend {
         } else {
             b"(The agent paused your last turn to send the finishing note.)\n".as_slice()
         };
-        let rendered = match &mut self.request {
-            Some(FromDomain::Complete { prompt, observation, .. }) => tail::render_observed(
+        let rendered = match self.current.request_mut() {
+            Some(Complete { prompt, observation, .. }) => tail::render_observed(
                 prompt,
                 &self.ledger,
                 &self.settings.adapter,
@@ -139,7 +141,7 @@ impl Backend {
                 prefix,
                 observation.is_some(),
             ),
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => unreachable!("finishing Complete"),
+            None => unreachable!("finishing Complete"),
         };
         match rendered {
             Some(rendered) => {
@@ -157,7 +159,7 @@ impl Backend {
     }
 
     pub(super) fn parking_wait(&self) -> bool {
-        if self.owner.is_some() || self.turns.result {
+        if self.current.owner().is_some() || self.turns.result {
             return false;
         }
         for call in &self.ledger {
@@ -280,7 +282,7 @@ impl Backend {
         }
         self.finish_stop();
         if self.state == State::Running && !self.switching {
-            self.completion_deadline(env, true);
+            self.completion_deadline(env, true, up);
         }
     }
 

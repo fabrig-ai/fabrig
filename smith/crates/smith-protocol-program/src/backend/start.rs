@@ -1,6 +1,7 @@
 //! Lazy child startup and private entropy-derived names (smith/docs/design/protocol/programs.md, 3, 5.1).
 //! Keeps no login; the existing status reader classifies subscription use.
 
+use super::Complete;
 use super::Owner;
 use super::{Backend, Below, State};
 use crate::{Command, Ended, Launch, STATUS, Status, configuration_directory, environment, mcp};
@@ -8,7 +9,7 @@ use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
 use skein_lib::{Decimal, Env, List, Queue, Secret, sha256};
 use smith_domain::llm;
-use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
+use smith_protocol_llm::{self as protocol, ToDomain};
 
 pub(super) struct Names {
     pub mcp: Secret,
@@ -38,21 +39,18 @@ impl Backend {
     pub(super) fn start(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
-        request: FromDomain,
+        request: Complete,
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let (owner, name) = match &request {
-            FromDomain::Complete { owner, grant, .. } => (*owner, *grant),
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("start receives Complete"),
-        };
+        let (owner, name) = (request.owner, request.grant);
         if self.state != State::Idle {
-            self.owner = Some(owner);
+            self.current.claim(owner, up);
             self.fail(env, llm::Failure::Invalid, b"smith: a program conversation is already started", up, below);
             return;
         }
-        self.begin_prompt(&request);
-        self.owner = Some(owner);
+        self.begin_prompt(request.observation.is_some());
+        self.current.claim(owner, up);
         let valid = match &self.grant {
             Some(grant) => match name {
                 Some(name) => {
@@ -69,7 +67,7 @@ impl Backend {
             return;
         }
         if self.files.prepared() {
-            self.request = Some(request);
+            self.current.retain(request, up);
             self.state = State::Starting;
             self.prepare_invocation(env, up, below);
             return;
@@ -91,7 +89,7 @@ impl Backend {
             self.fail(env, llm::Failure::Program { exit: None }, b"smith: invalid program environment", up, below);
             return;
         };
-        self.request = Some(request);
+        self.current.retain(request, up);
         let mut arguments = List::with_capacity(2);
         for argument in STATUS {
             arguments.push(Box::from(argument)).expect("status arguments");
@@ -256,14 +254,8 @@ impl Backend {
     }
 
     pub(super) fn launch_spec(&mut self) -> Option<kernel::Spawn> {
-        let prompt = match self.request.as_ref()? {
-            FromDomain::Complete { prompt, .. } => prompt,
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => return None,
-        };
-        let outcome = match self.request.as_ref()? {
-            FromDomain::Complete { outcome, .. } => outcome,
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => return None,
-        };
+        let prompt = &self.current.request()?.prompt;
+        let outcome = &self.current.request()?.outcome;
         if !super::compact::is_compaction(prompt) {
             match &prompt.choice {
                 llm::ToolChoice::Only(_) | llm::ToolChoice::None => self.winding = super::stop::WindDown::Finishing,

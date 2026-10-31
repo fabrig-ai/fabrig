@@ -79,7 +79,7 @@ impl Backend {
                     Self::demand(owner, PIPE_BYTES, &mut self.io);
                 } else {
                     self.stdout_demanding = false;
-                    self.completion_deadline(env, false);
+                    self.completion_deadline(env, false, up);
                     assert!(self.intake.is_empty(), "one outstanding stdout read");
                     for byte in bytes {
                         self.intake.push(byte).expect("stdout demand is 4096 bytes");
