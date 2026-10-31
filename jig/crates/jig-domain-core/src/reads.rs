@@ -107,7 +107,9 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
         | Scope::Inbox {
             group: Group::Needs | Group::Proposals | Group::Escalations | Group::Questions | Group::PersonTasks,
             ..
-        } => false,
+        }
+        | Scope::EndedTasks
+        | Scope::TaskRows { .. } => false,
     }
 }
 
@@ -124,6 +126,7 @@ pub(crate) struct Pending {
 enum Destination {
     Read(ReplyTo),
     Watch(Token),
+    Erase,
     Settings { to: ReplyTo, key: crate::CallKey },
     Done,
 }
@@ -132,7 +135,7 @@ impl Pending {
     fn take_reply(&mut self) -> ReplyTo {
         match core::mem::replace(&mut self.destination, Destination::Done) {
             Destination::Read(reply) => reply,
-            Destination::Watch(_) | Destination::Settings { .. } | Destination::Done => {
+            Destination::Erase | Destination::Watch(_) | Destination::Settings { .. } | Destination::Done => {
                 unreachable!("a pending read owns its reply")
             }
         }
@@ -253,6 +256,8 @@ fn backwards(scope: &Scope) -> bool {
             group: Group::Needs | Group::Proposals | Group::Escalations | Group::Questions | Group::PersonTasks,
             ..
         }
+        | Scope::EndedTasks
+        | Scope::TaskRows { .. }
         | Scope::Inbox { group: Group::Updates | Group::Results | Group::Replies, .. }
         | Scope::Tasks { .. }
         | Scope::Notes { .. }
@@ -541,6 +546,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
+        Destination::Erase => return crate::erase::loaded(core, env, load, result),
         Destination::Read(_) => {}
         Destination::Done => return Requests::Out(Queue::uncapped()),
     }
@@ -653,4 +659,21 @@ pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending
     out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(emitted) })));
     out.push(Request::Decided);
     Requests::Out(out)
+}
+
+/// Internal erasure loads are independent of client authentication and admission.
+pub(crate) fn erase_load(core: &mut Core, range: Range, out: &mut Queue<Request>) {
+    let pending =
+        Pending { destination: Destination::Erase, sign_in: 0, party: range.party, range: range.clone(), tasks: None };
+    let load = core.reads.insert(pending).expect("reserved erasure read slots").token();
+    out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(range) })));
+}
+
+pub(crate) fn erase_range(core: &mut Core, load: Token) -> Range {
+    let id = Id::<Pending>::from_token(load);
+    let pending = core.reads.get_mut(id).expect("pending erasure load");
+    pending.destination = Destination::Done;
+    let range = pending.range.clone();
+    core.reads.retire(id);
+    range
 }
