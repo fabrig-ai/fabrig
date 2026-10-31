@@ -84,10 +84,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::PlaygroundMade { .. }
             | forge::Event::PlaygroundFailed { .. }
             | forge::Event::ResetActAnswered { .. }
-            | forge::Event::DemoActs { .. }
-            | forge::Event::DemoActAnswered { .. }
-            | forge::Event::SendDemoActs
-            | forge::Event::DemoAnswered { .. }
             | forge::Event::SecretsErased { .. }
             | forge::Event::BoxRemoved { .. }
             | forge::Event::BoxClosed

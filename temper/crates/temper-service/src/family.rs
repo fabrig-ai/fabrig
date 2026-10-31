@@ -28,6 +28,7 @@ pub fn to_root(
     exchange: kit::ToApplication,
     forges: &crate::forges::Forges,
     demo: Option<&crate::settings::Demo>,
+    playground: Option<&forge::Playground>,
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
     match exchange {
@@ -200,15 +201,17 @@ pub fn to_root(
                     }));
                 }
                 w::Request::StartDemo => {
-                    return Ok(root::Event::Party(root::PartyInput::Application {
-                        scope,
-                        reply_to,
-                        sign_in,
-                        key,
-                        digest,
-                        carried,
-                        request: root::Application::Forge(forge::Ask::StartDemo),
-                    }));
+                    let record = answer(
+                        Some(root::ApplicationAnswer::StartPlayground(forge::StartAnswer::NotOffered)),
+                        limits,
+                        &jig_client_protocol_wire::v19::CEILINGS,
+                    )
+                    .expect("fixed start refusal fits");
+                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Answered {
+                        to: reply_to,
+                        family,
+                        record,
+                    })));
                 }
                 w::Request::Reachable(value) => {
                     let value = value.into_parts();
@@ -260,31 +263,10 @@ pub fn to_root(
             if family == wire::FORGE
                 && version == wire::CLIENT_VERSION
                 && let Some(reading) = wire::decode_reading(&record, limits)
-                && *reading.read() == w::Read::Demo
-                && let Some(demo) = demo
+                && *reading.read() == w::Read::Playground
+                && let (Some(row), Some(demo)) = (playground, demo)
             {
-                let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded demo cues"));
-                for cue in &demo.cues {
-                    cues.push(cue.clone()).expect("bounded demo cues");
-                }
-                let record = w::DemoAnswer::new(
-                    limits,
-                    w::DemoAnswerParts {
-                        state: match demo.state {
-                            Some(forge::DemoState::Running) => w::DemoState::Running,
-                            Some(forge::DemoState::Ended) => w::DemoState::Ended,
-                            None => w::DemoState::NotStarted,
-                        },
-                        project: demo.project,
-                        forge: demo.forge,
-                        provider: demo.provider,
-                        owner: demo.owner.clone(),
-                        name: demo.name.clone(),
-                        cues,
-                    },
-                )
-                .expect("demo checked at startup");
-                answer = Some(wire::demo_answer(&record));
+                answer = Some(playground_answer(row, demo, limits));
             }
             Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: answer })))
         }
@@ -646,9 +628,7 @@ pub fn answer(
         ) => w::Outcome::ConnectRefused(
             w::ConnectRefused::new(limits, w::ConnectRefusedParts { why: forge_refusal(why) }).ok()?,
         ),
-        Some(root::ApplicationAnswer::StartDemo(answer) | root::ApplicationAnswer::StartPlayground(answer)) => {
-            start_answer(answer, limits)?
-        }
+        Some(root::ApplicationAnswer::StartPlayground(answer)) => start_answer(answer, limits)?,
         Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed)) => w::Outcome::Removed,
         Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(why))) => w::Outcome::RemoveRefused(
             w::RemoveRefused::new(limits, w::RemoveRefusedParts { why: forge_refusal(why) }).ok()?,
@@ -1160,4 +1140,31 @@ fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
         forge::ForgeRefusal::NoKey => w::ForgeRefusal::NoKey,
         forge::ForgeRefusal::FirstIsBot => w::ForgeRefusal::FirstIsBot,
     }
+}
+
+/// The kept row supplies progress and ids; settings supply the scripted model's public view.
+/// temper/docs/design/draft/playground-reset.md, 6.1–6.2.
+fn playground_answer(row: &forge::Playground, demo: &crate::settings::Demo, limits: &w::Limits) -> Box<[u8]> {
+    let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded playground cues"));
+    for cue in &demo.cues {
+        cues.push(cue.clone()).expect("bounded playground cues");
+    }
+    let answer = w::PlaygroundAnswer::new(
+        limits,
+        w::PlaygroundAnswerParts {
+            state: match row.state {
+                forge::PlaygroundState::Starting => w::PlaygroundState::Starting,
+                forge::PlaygroundState::Running => w::PlaygroundState::Running,
+                forge::PlaygroundState::Resetting(_) => w::PlaygroundState::Resetting,
+            },
+            forge: row.forge,
+            project: row.project,
+            provider: demo.provider,
+            owner: demo.owner.clone(),
+            name: demo.name.clone(),
+            cues,
+        },
+    )
+    .expect("playground checked at startup");
+    wire::playground_answer(&answer)
 }

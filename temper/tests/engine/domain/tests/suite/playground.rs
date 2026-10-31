@@ -195,7 +195,7 @@ fn an_ungranted_remove_project_is_kept_with_its_diagnostic() {
         row(&d).expect("playground fixture").state,
         forge::PlaygroundState::Resetting(forge::ResetStep::Project)
     );
-    assert!(d.delivered.iter().any(|delivery| matches!(delivery, Delivery::DemoNote { line }
+    assert!(d.delivered.iter().any(|delivery| matches!(delivery, Delivery::PlaygroundNote { line }
         if line.windows(b"remove_project".len()).any(|part| part == b"remove_project"))));
 }
 #[test]

@@ -45,18 +45,16 @@ enum Ask {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum End {
-    Stop(u16),
     Remove(u16),
 }
 impl End {
     fn forge(self) -> u16 {
         match self {
-            Self::Stop(forge) | Self::Remove(forge) => forge,
+            Self::Remove(forge) => forge,
         }
     }
     fn word(self) -> &'static [u8] {
         match self {
-            Self::Stop(_) => b"stop",
             Self::Remove(_) => b"remove",
         }
     }
@@ -120,10 +118,6 @@ impl Link {
         }
         out.push(Out::SettingUp { forge, step: None });
         out.push(Out::Answered { forge, request, answer: Ok(()) });
-    }
-    /// No request waits on the demo's stop. Keep it even when a start is held.
-    pub(crate) fn stop(&mut self, forge: u16, out: &mut Queue<Out>) {
-        self.end(End::Stop(forge), out);
     }
     /// Removal has a terminal only after the box reports the group gone.
     pub(crate) fn remove(&mut self, forge: u16, out: &mut Queue<Out>) {
@@ -248,7 +242,6 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     let forge = reply.forge();
     let matches = match (*asked, &reply) {
         (Some(Ask::Start(active)), Reply::Step(..) | Reply::Started(_) | Reply::Failed(..))
-        | (Some(Ask::End(End::Stop(active))), Reply::Stopped(_) | Reply::Failed(..))
         | (Some(Ask::End(End::Remove(active))), Reply::Removed(_) | Reply::Failed(..)) => active == forge,
         _ => false,
     };

@@ -295,27 +295,8 @@ fn the_template_shaped_demo_reads_into_its_public_fields() {
     let (members, problems) = application(&fixtures::demo_application(), &fixtures::engine().jig);
     assert_eq!(&*lines(&problems), b"");
     let demo = members.unwrap().demo.unwrap();
-    assert_eq!((demo.project, demo.forge, demo.provider), (1, 1, 3));
-    assert_eq!((demo.owner.as_ref(), demo.name.as_ref()), (b"demo".as_slice(), b"widget".as_slice()));
-    assert_eq!(
-        demo.cues.as_ref(),
-        &[
-            Box::from(b"Add CSV export to widget".as_slice()),
-            Box::from(b"Add a dark theme to widget".as_slice()),
-            Box::from(b"Fix widget's empty search state".as_slice()),
-        ]
-    );
-}
-#[test]
-fn a_demo_without_cued_publishes_all_asked() {
-    // Restore the legacy document: its coding script was also suggested.
-    let input = fixtures::demo_application();
-    let input = core::str::from_utf8(&input).unwrap().replace("\"Search\"]}],\n\"cued\":[", "\"Search\"]},");
-    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-    assert_eq!(&*lines(&problems), b"");
-    let cues = members.unwrap().demo.unwrap().cues;
-    assert_eq!(cues.len(), 4);
-    assert_eq!(cues[3].as_ref(), b"Export widget's table as CSV");
+    assert_eq!(demo.provider, 3);
+    assert!(demo.key_file.ends_with(b"llm.key"));
 }
 #[test]
 fn a_null_demo_reads_as_none() {
@@ -329,25 +310,6 @@ fn an_unanswerable_demo_is_refused_at_its_field() {
     let input = fixtures::demo_application();
     let input = core::str::from_utf8(&input).unwrap();
     for (row, from, to, expected) in [
-        (
-            "missing forge",
-            "\"forge\":1,\"project\":1",
-            "\"forge\":2,\"project\":1".into(),
-            "application.demo.forge: unknown reference\n",
-        ),
-        (
-            "missing setup forge",
-            "\"setup\":[{\"forge\":1",
-            "\"setup\":[{\"forge\":2".into(),
-            "application.demo.forge: unknown reference\n",
-        ),
-        ("not fake", "\"fake\":{", "\"managed\":{".into(), "application.demo.forge: invalid form\n"),
-        (
-            "no repository",
-            "[{\"name\":\"widget\",\"landing\":\"main\"},{\"name\":\"other\",\"landing\":\"main\"}]",
-            "[]".into(),
-            "application.setup[0].mode.fake.repositories: invalid form\n",
-        ),
         (
             "cue count at bound",
             "\"asked\":[",
@@ -371,30 +333,6 @@ fn an_unanswerable_demo_is_refused_at_its_field() {
             "Add CSV export to widget",
             "x".repeat(usize::try_from(CEILINGS.demo_answer_cues_item + 1).unwrap()),
             "application.demo.llm.asked[0].cue: past its bound\n",
-        ),
-        (
-            "owner at bound",
-            "\"owner\":\"demo\"",
-            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_owner).unwrap()), "\""].concat(),
-            "",
-        ),
-        (
-            "owner past bound",
-            "\"owner\":\"demo\"",
-            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_owner + 1).unwrap()), "\""].concat(),
-            "application.setup[0].mode.fake.owner: past its bound\n",
-        ),
-        (
-            "name at bound",
-            "\"name\":\"widget\"",
-            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_name).unwrap()), "\""].concat(),
-            "",
-        ),
-        (
-            "name past bound",
-            "\"name\":\"widget\"",
-            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_name + 1).unwrap()), "\""].concat(),
-            "application.setup[0].mode.fake.repositories[0].name: past its bound\n",
         ),
     ] {
         let input = input.replace(from, &to);
@@ -2230,4 +2168,19 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     let landing = members.landing.landings.get(&1).unwrap();
     assert_eq!(landing.by, temper_engine_domain::Way::Queue);
     assert!(landing.repositories.is_empty());
+}
+
+#[test]
+fn a_document_without_demo_forge_and_project_is_read() {
+    let input = fixtures::demo_application();
+    let input = core::str::from_utf8(&input).unwrap().replace(",\n\"forge\":1,\"project\":1", "");
+    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+    assert_eq!(&*lines(&problems), b"");
+    let demo = members.unwrap().demo.unwrap();
+    assert_eq!(demo.provider, 3);
+    assert_eq!(demo.owner.as_ref(), b"playground");
+    assert_eq!(demo.name.as_ref(), b"widget");
+    assert_eq!(demo.landing.as_ref(), b"main");
+    assert!(demo.key_file.ends_with(b"demo/llm.key"));
+    assert_eq!(demo.cues.len(), 3);
 }

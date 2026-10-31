@@ -217,13 +217,8 @@ impl Service {
             crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &settings.forges)
                 .expect("checked forge limits");
         forget_handover(&mut settings);
-        let notes = Queue::with_capacity(note_bound(&settings, &limits).expect("validated diagnostic room"));
+        let notes = Queue::with_capacity(settings.limits.forge.forges);
         let configured = crate::startup::application::configured(&settings);
-        // Workers take the forge settings; derive the demo's adoption host first.
-        let demo_config = match &settings.demo {
-            Some(demo) => Some(demo.domain(&settings.forges, settings.limits.setup.deadline)),
-            None => None,
-        };
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let config = temper_engine_domain::Config {
             period_span: crate::stock::PERIOD_SPAN,
@@ -235,8 +230,7 @@ impl Service {
             machine: None,
             forges: configured,
             under_box: box_line_bytes.is_some(),
-            playground: playground_config(demo_config.as_ref()),
-            demo: demo_config,
+            playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
         let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
         let demo = settings.demo;
@@ -316,7 +310,7 @@ impl Service {
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = self.engine.as_mut()?;
-        match engine.clients.demo_read() {
+        match engine.clients.playground_read() {
             Some(read) => Some(read),
             None => crate::setup::lifecycle::take_read(engine),
         }
@@ -328,8 +322,8 @@ impl Service {
         answer: Result<Option<skein_lib::Secret>, crate::HandoverUnread>,
     ) {
         if let Some(engine) = &mut self.engine {
-            if engine.clients.owns_demo_read(run) {
-                engine.clients.demo_read_answer(run, answer);
+            if engine.clients.owns_playground_read(run) {
+                engine.clients.playground_read_answer(run, answer);
             } else {
                 crate::setup::lifecycle::read(engine, forge, run, answer);
             }
@@ -1095,19 +1089,13 @@ impl Service {
     }
 }
 
-// One forge cohort and the end's bounded act answers can be named together.
-fn note_bound(settings: &settings::Engine, root: &temper_engine_domain::Limits) -> Option<u32> {
-    settings.limits.forge.forges.checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
-}
-
 #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 pub(crate) fn playground_config(
-    demo: Option<&temper_engine_domain_forge::DemoConfig>,
+    demo: Option<&settings::Demo>,
+    deadline: skein_lib::Duration,
 ) -> Option<temper_engine_domain_forge::PlaygroundConfig> {
     match demo {
-        Some(demo) => {
-            Some(temper_engine_domain_forge::PlaygroundConfig { provider: demo.provider, deadline: demo.deadline })
-        }
+        Some(demo) => Some(temper_engine_domain_forge::PlaygroundConfig { provider: demo.provider, deadline }),
         None => None,
     }
 }

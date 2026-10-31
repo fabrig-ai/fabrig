@@ -347,10 +347,8 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     if open {
         engine.forge.serving = Some(());
     }
+    engine.clients.playground = engine.domain.playground().copied();
     engine.clients.starting = if open { None } else { Some(()) };
-    if let Some(demo) = &mut engine.demo {
-        demo.state = engine.domain.demo_state();
-    }
     engine.clients.iterate(
         now,
         wall,
@@ -721,7 +719,7 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
             skein_forge_connection::Event::Hint(hinted) => {
                 if engine.drain.is_some()
                     || engine.end.is_some()
-                    || crate::forge::ended(engine, hinted.hint.repository.forge)
+                    || engine.domain.forge_ended(hinted.hint.repository.forge)
                 {
                     continue;
                 }
