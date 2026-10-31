@@ -65,7 +65,8 @@ fn trust_arrays_accept_der_and_pem_with_system_roots_disabled() {
         "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
         String::from_utf8(writer.finish().into_vec()).expect("base64 text")
     );
-    let path = std::env::temp_dir().join(format!("smith-native-trust-{}.pem", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("smith-native-trust");
+    let path = scratch.path().join("roots.pem");
     std::fs::write(&path, pem).expect("PEM fixture");
     let mut document = shaped_document();
     document["endpoints"][0]["transport"] = serde_json::json!("tls");
@@ -74,7 +75,6 @@ fn trust_arrays_accept_der_and_pem_with_system_roots_disabled() {
         "der":[skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der")],
         "pem":[path]});
     let built = from_value(document);
-    std::fs::remove_file(path).expect("remove PEM fixture");
     assert!(built.is_ok(), "mixed explicit trust roots accepted");
 }
 
@@ -90,7 +90,8 @@ fn trust_arrays_with_system_off_and_no_roots_are_refused() {
 
 #[test]
 fn trust_arrays_keep_one_combined_certificate_bound() {
-    let path = std::env::temp_dir().join(format!("smith-combined-trust-{}.pem", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("smith-combined-trust");
+    let path = scratch.path().join("roots.pem");
     std::fs::write(&path, b"-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n".repeat(256))
         .expect("bounded PEM fixture");
     let mut document = shaped_document();
@@ -100,6 +101,5 @@ fn trust_arrays_keep_one_combined_certificate_bound() {
         "der":[skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der")],
         "pem":[path,path]});
     let built = from_value(document);
-    std::fs::remove_file(path).expect("remove PEM fixture");
     assert_eq!(built.err().expect("combined root bound").detail(), "trust roots exceed their combined bound");
 }

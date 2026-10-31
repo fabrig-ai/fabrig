@@ -354,7 +354,7 @@ pub fn run_with_provider(
     );
     let trace = std::fs::read(path).expect("agent trace");
     for credential in [b"access-new".as_slice(), b"refresh-new".as_slice()] {
-        assert!(!trace.windows(credential.len()).any(|bytes| bytes == credential), "trace excludes credentials");
+        assert!(!skein_lib::bytes::find(&trace, credential).is_some(), "trace excludes credentials");
     }
     assert_no_children();
     seen

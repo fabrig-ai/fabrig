@@ -284,7 +284,7 @@ fn a_reasoning_turn_that_stops_after_a_read_is_told_and_nudged() {
     let queries = world.peer_queries();
     assert_eq!(queries.len(), 3);
     assert!(queries[2].messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if text.windows(b"You stopped without calling `finish`".len()).any(|part| part == b"You stopped without calling `finish`"))
+        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if skein_lib::bytes::find(text, b"You stopped without calling `finish`").is_some())
     }));
     let answer = world.answer().expect("the finish answered");
     assert!(matches!(answer.result(), RunResult::Accepted(_)));
@@ -320,7 +320,7 @@ fn a_hosted_agent_adopts_a_root_by_its_path_as_given() {
     let queries = world.peer_queries();
     assert!(queries.len() >= 2, "the root-backed read reaches its next provider turn");
     assert!(queries[1].messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, api::Part::ToolOutput { output, is_error: false, .. } if output.windows(b"problem".len()).any(|bytes| bytes == b"problem"))
+        matches!(part, api::Part::ToolOutput { output, is_error: false, .. } if skein_lib::bytes::find(output, b"problem").is_some())
     }), "the run retained the host path as an alias for the supplied descriptor");
     world.assert_agent_clean();
 }

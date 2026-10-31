@@ -1,6 +1,5 @@
 //! Carried windows cross the shipped channel, service and program boundary (smith/docs/design/protocol/programs.md 5.8).
 use skein_fake_llm_domain::api;
-use skein_lib::Reader;
 use smith_agent_process_world::{
     World, program,
     program_world::{self, Case},

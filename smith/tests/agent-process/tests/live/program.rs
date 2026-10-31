@@ -70,7 +70,7 @@ impl Live {
             arguments.extend(["--json-schema", schema, "--settings", r#"{"permissions":{"allow":["mcp__smith"]}}"#]);
         }
         let (child, messages) = Self::spawn_model(
-            &probe.home,
+            probe.home.path(),
             &configuration,
             &arguments,
             text,
@@ -312,7 +312,7 @@ fn a_live_resume_continues() {
     drop(live.child.stdin.take());
     assert!(live.child.wait().expect("first exit").success());
     (live.child, live.messages) = Live::spawn(
-        &live.probe.home,
+        live.probe.home.path(),
         &live.configuration,
         &["--resume", &id, "--mcp-config", r#"{"mcpServers":{}}"#, "--tools", "", "--max-turns", "1"],
         "Which word did I ask you to remember? Reply with that word only.",
@@ -343,7 +343,7 @@ fn prompt_server(probe: &Probe, thinking: bool, non_object: bool) -> String {
         std::fs::symlink_metadata("/usr/bin/python3").is_ok(),
         "`/usr/bin/python3` is missing: the prompt-shape probe's MCP fixture needs it"
     );
-    let script = probe.home.join("prompt.py");
+    let script = probe.home.path().join("prompt.py");
     std::fs::write(&script, r"import json, sys
 from pathlib import Path
 for line in sys.stdin:
@@ -373,8 +373,8 @@ for line in sys.stdin:
         continue
     print(json.dumps({'jsonrpc':'2.0','id':request['id'],'result':result}), flush=True)
 ").expect("private prompt fixture");
-    std::fs::write(probe.home.join("read-me.txt"), b"probe input\n").expect("private Read input");
-    serde_json::json!({"mcpServers":{"smith":{"command":"/usr/bin/python3","args":[script,probe.home.join("prompt-shape"),if non_object {"non-object"} else if thinking {"thinking"} else {"prompt"}]}}}).to_string()
+    std::fs::write(probe.home.path().join("read-me.txt"), b"probe input\n").expect("private Read input");
+    serde_json::json!({"mcpServers":{"smith":{"command":"/usr/bin/python3","args":[script,probe.home.path().join("prompt-shape"),if non_object {"non-object"} else if thinking {"thinking"} else {"prompt"}]}}}).to_string()
 }
 
 #[test]
@@ -427,7 +427,7 @@ fn the_real_program_uses_the_prompt_tool_shape() {
         if message["type"] == "result" {
             assert!(initialized && message["is_error"] == false, "signed in -p completed after init");
             assert!(
-                std::fs::read(live.probe.home.join("prompt-shape")).is_ok_and(|bytes| bytes == b"shape-ok"),
+                std::fs::read(live.probe.home.path().join("prompt-shape")).is_ok_and(|bytes| bytes == b"shape-ok"),
                 "the real program sent the prompt input the fake assumes"
             );
             drop(live.child.stdin.take());

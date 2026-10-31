@@ -3,7 +3,6 @@
     reason = "ordinary fixture selects event kinds; the shared referee checks every variant"
 )]
 use serde_json::json;
-use skein_lib::Reader;
 use smith_agent_process_world::{
     charter, events, program,
     program_world::{self, Case, Run},

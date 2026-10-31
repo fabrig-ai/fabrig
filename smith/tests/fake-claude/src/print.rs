@@ -1080,8 +1080,7 @@ fn select(scripts: &[Script], parts: &[&[u8]]) -> Option<usize> {
             .enumerate()
             .filter_map(|(index, script)| {
                 let cue = script.cue.as_bytes();
-                let offset =
-                    if cue.is_empty() { Some(0) } else { part.windows(cue.len()).position(|window| window == cue) };
+                let offset = skein_lib::bytes::find(part, cue);
                 offset.map(|offset| (offset, index))
             })
             .min()
