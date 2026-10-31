@@ -150,6 +150,8 @@ impl Driver {
         self.end("native pipe completion");
     }
 
+    // Each resume has its own peak, with event and submission ownership
+    // handed back before the next pipe is measured.
     fn arm_pipes(&mut self) {
         self.meter.start();
         self.io.reclaim();
@@ -384,6 +386,7 @@ fn children_pipes_and_signals_fill_the_slab_under_the_ceiling() {
     meter.start();
     io.reclaim();
     most = most.max(meter.check(meter.end(), CEILING, &"reclaim"));
+    // Meter each pipe resume before moving its submissions to the kernel.
     while io.is_ready() {
         meter.start();
         skein_io::resume(&mut io, &env, &mut events, &mut submissions);
