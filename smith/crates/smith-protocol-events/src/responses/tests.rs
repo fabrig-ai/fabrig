@@ -698,7 +698,13 @@ fn seen_failure_joins_keep_retry_identity_and_child_diagnostics_out_of_the_run()
             }
         }
     }
-    for phase in [llm::CompletionPhase::Connect, llm::CompletionPhase::Handshake, llm::CompletionPhase::Head, llm::CompletionPhase::Idle, llm::CompletionPhase::Whole] {
+    for phase in [
+        llm::CompletionPhase::Connect,
+        llm::CompletionPhase::Handshake,
+        llm::CompletionPhase::Head,
+        llm::CompletionPhase::Idle,
+        llm::CompletionPhase::Whole,
+    ] {
         let failure = completion_failure(llm::Failure::TimedOut { phase }, llm::Evidence::Unknown);
         assert!(failure.phase.is_some());
         assert_eq!(failure.status, None);
