@@ -210,12 +210,12 @@ impl RateLimit {
     pub fn observe(&mut self, name: &[u8], value: &[u8]) {
         if name.eq_ignore_ascii_case(b"retry-after") {
             self.retry_after = None;
-            if let Some(n) = decimal(value) {
+            if let Some(n) = bytes::decimal(value) {
                 self.retry_after = Some(Duration::from_secs(n));
             }
         }
         if name.eq_ignore_ascii_case(b"anthropic-ratelimit-unified-reset") {
-            self.reset = decimal(value);
+            self.reset = bytes::decimal(value);
         }
         if name.eq_ignore_ascii_case(b"anthropic-ratelimit-unified-status") && value == b"rejected" {
             self.exhausted = true;
@@ -370,19 +370,6 @@ fn context(kind: &[u8], error: Option<&ProviderError>) -> bool {
         }
 }
 
-pub(crate) fn decimal(bytes: &[u8]) -> Option<u64> {
-    let mut n: u64 = 0;
-    if bytes.is_empty() {
-        return None;
-    }
-    for &b in bytes {
-        if !b.is_ascii_digit() {
-            return None;
-        }
-        n = n.checked_mul(10)?.checked_add(u64::from(b.wrapping_sub(b'0')))?;
-    }
-    Some(n)
-}
 pub(crate) fn append(out: &mut List<u8>, bytes: &[u8], cap: crate::Cap) -> Result<(), DecodeError> {
     if bytes.len() > usize::try_from(out.room()).expect("u32 fits usize") {
         return Err(DecodeError::limit(cap, out.capacity()));
