@@ -41,3 +41,12 @@ this tree does not have? Yes: skip it and continue. This task gives no trim
 command; fab prepares the slot before the run, and heavy waits for disk by
 itself (exit 75 is `Infra: disk`, reported, never worked around). Free disk
 only in your own `target/`.
+
+2026-10-31. May fab give this task a clean slot, keeping the unrelated
+edits found in slot 5 (`skein-forge-connection`, `skein-throwaway-forgejo`,
+another task's files)? Yes, option 1: the run starts on a clean checkout of
+`origin/component-kit/integration` that fab prepares, and the other work
+stays where it is, for its own task. The run never edits, stashes, removes
+or commits files outside its list. If its checkout is not clean at start,
+it stops at once with `Failed: dirty slot`, naming the files, and does not
+ask again: preparing the slot is fab's.
