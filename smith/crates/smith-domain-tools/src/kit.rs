@@ -389,7 +389,7 @@ fn admit(kit: &Kit, call: Call, deadline: Time, env: &Env<Limits>) -> Result<Adm
         Call::Shell { command, timeout, output, after } => {
             passable(&command)?;
             // Commands run in the working directory, which must be in the
-            // working.
+            // workspace.
             let here = Path { absolute: false, parts: Box::new([]) };
             let located = place(&kit.working, &here, limits.path_bytes)?;
             match timeout {
