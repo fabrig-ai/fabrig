@@ -943,9 +943,9 @@ impl Referee<Proc> for Judge {
 
 fn story_ready(service: &ServiceHost, workers: &[Proc]) -> bool {
     service.fixture_ready()
-        && workers.iter().all(
-            |proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0),
-        )
+        && workers
+            .iter()
+            .all(|proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0))
 }
 
 fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], children: &[Proc]) {
