@@ -27,6 +27,8 @@ mod playground;
 mod preparation;
 mod reconcile;
 mod referee;
+mod removal;
+mod reset;
 mod restore_fit;
 mod roles;
 mod root_routes;
@@ -38,6 +40,12 @@ mod fuzzy {
     mod endings;
     mod escalation;
     mod loads;
+    #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
+    #[path = "../removal.rs"]
+    mod removal;
+    #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
+    #[path = "../reset.rs"]
+    mod reset;
     mod roles;
     mod walking;
 }
