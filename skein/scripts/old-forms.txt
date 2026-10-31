@@ -10,4 +10,4 @@ lifecycle 1
 growth_floor 1
 pop_loop 0
 hex_decimal 4
-host_dispatch 4
+host_dispatch 3
