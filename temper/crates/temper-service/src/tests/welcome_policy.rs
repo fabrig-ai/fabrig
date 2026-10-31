@@ -199,7 +199,6 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     let mut strict = limits;
     strict.policy_bytes = 4096;
     assert!(engine::refused(generated().0, &strict).is_empty(), "the actual landing join also admits at 4096");
-    let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
     // Chosen GitHub-shaped owner: 39 ASCII bytes; repositories reach the
     // unchanged adoption field bound (64), not GitHub's external name limit.
     // Admission below proves acceptance by the current code, without live API claims.
@@ -207,14 +206,17 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     assert_eq!(limits.forge.name_bytes, 64);
     let first = vec![b'a'; 64];
     let second = vec![b'b'; 64];
-    driver.forge = Some(ForgeStand::with(&[(&owner, &first, 7), (&owner, &second, 8)]).at_forge(2));
     let mut kept = fixtures::forge_record(2);
     kept.kind = forge::Kind::GitHub;
     kept.place.api.host = b"api.github.com".as_slice().into();
     kept.place.api.port = 443;
     kept.place.api.tls = Some(b"api.github.com".as_slice().into());
     kept.place.git = b"https://github.com".as_slice().into();
-    driver.send(Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Forge(kept) })));
+    let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
+    driver.settle();
+    driver.store.seed(Box::new([Record::Forge { row: Box::new(forge::Stored::Forge(kept)) }]), Box::new([]));
+    driver.reopen(generated().0);
+    driver.forge = Some(ForgeStand::with(&[(&owner, &first, 7), (&owner, &second, 8)]).at_forge(2));
     driver.settle();
     let before = policies(&driver);
     assert_eq!(before, vec![(1, snapshot.clone())]);
