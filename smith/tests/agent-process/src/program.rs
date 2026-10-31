@@ -52,6 +52,31 @@ pub enum Case {
     Transcript,
 }
 
+impl Case {
+    fn completes(self) -> bool {
+        matches!(
+            self,
+            Self::Turns
+                | Self::Credentials
+                | Self::Tools
+                | Self::Waiting
+                | Self::ParkWaiting
+                | Self::Events
+                | Self::Transcript
+                | Self::Open
+        )
+    }
+}
+
+#[derive(Default)]
+struct RunOptions<'a> {
+    login: Option<&'a [u8]>,
+    refresh: Option<&'a smith_channel::GrantValue>,
+    history: Option<&'a [Box<[u8]>]>,
+    releases: Option<&'a [HostMessage]>,
+    change_after_snapshot: bool,
+}
+
 enum Proc {
     Parent(Box<Parent>),
     Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>),
@@ -488,28 +513,30 @@ pub fn run(
     value: &smith_channel::GrantValue,
     refresh: Option<&smith_channel::GrantValue>,
 ) -> Run {
-    run_inner(case, story, login, charter, value, refresh, None, None, false)
+    run_scenario(case, story, charter, value, RunOptions { login, refresh, ..RunOptions::default() })
 }
 
 /// Change the workspace file after smith's snapshot and before the native Read.
 #[must_use]
 pub fn run_after_snapshot(story: &Story, charter: &[u8]) -> Run {
-    run_inner(Case::Tools, story, Some(b"claude.ai"), charter, &crate::program(b"source"), None, None, None, true)
+    run_scenario(
+        Case::Tools,
+        story,
+        charter,
+        &crate::program(b"source"),
+        RunOptions { login: Some(b"claude.ai"), change_after_snapshot: true, ..RunOptions::default() },
+    )
 }
 
 /// Restore the host's recorded window through the shipped program composition.
 #[must_use]
 pub fn run_with_window(story: &Story, charter: &[u8], turns: &[Box<[u8]>]) -> Run {
-    run_inner(
+    run_scenario(
         Case::Transcript,
         story,
-        Some(b"claude.ai"),
         charter,
         &crate::program(b"source"),
-        None,
-        Some(turns),
-        None,
-        false,
+        RunOptions { login: Some(b"claude.ai"), history: Some(turns), ..RunOptions::default() },
     )
 }
 
@@ -522,16 +549,12 @@ pub fn open(story: &Story, charter: &[u8], releases: &[HostMessage]) -> Run {
 /// Restore an Open window, or begin fresh, with the same parent release driver.
 #[must_use]
 pub fn open_with_window(story: &Story, charter: &[u8], releases: &[HostMessage], turns: Option<&[Box<[u8]>]>) -> Run {
-    run_inner(
+    run_scenario(
         Case::Open,
         story,
-        Some(b"claude.ai"),
         charter,
         &crate::program(b"source"),
-        None,
-        turns,
-        Some(releases),
-        false,
+        RunOptions { login: Some(b"claude.ai"), history: turns, releases: Some(releases), ..RunOptions::default() },
     )
 }
 
@@ -539,33 +562,18 @@ pub fn open_with_window(story: &Story, charter: &[u8], releases: &[HostMessage],
 #[must_use]
 #[expect(
     clippy::too_many_lines,
-    clippy::too_many_arguments,
     reason = "one hosted fixture connects the program, relay, roots and independent observations"
 )]
-fn run_inner(
+fn run_scenario(
     case: Case,
     story: &Story,
-    login: Option<&[u8]>,
     charter: &[u8],
     value: &smith_channel::GrantValue,
-    refresh: Option<&smith_channel::GrantValue>,
-    history: Option<&[Box<[u8]>]>,
-    releases: Option<&[HostMessage]>,
-    change_after_snapshot: bool,
+    options: RunOptions<'_>,
 ) -> Run {
+    let RunOptions { login, refresh, history, releases, change_after_snapshot } = options;
     let mut story = story.clone();
-    if !matches!(
-        case,
-        Case::Turns
-            | Case::Credentials
-            | Case::Tools
-            | Case::Waiting
-            | Case::ParkWaiting
-            | Case::Events
-            | Case::Transcript
-            | Case::Open
-    ) && story.turns.is_empty()
-    {
+    if !case.completes() && story.turns.is_empty() {
         story.turns.push(smith_fake_claude::Turn {
             steps: vec![smith_fake_claude::Step::Hang],
             end: smith_fake_claude::End::default(),
@@ -577,34 +585,10 @@ fn run_inner(
         Machine { files, base, change_after_snapshot, snapshot: None, snapshot_closed: false, changed: false };
     let mut world =
         skein_world::World::new_controlled(7, skein_sim::Config::calm(), skein_world::Memory::Checked, |_| Judge {
-            wait_for_exit: matches!(
-                case,
-                Case::Turns
-                    | Case::Credentials
-                    | Case::Tools
-                    | Case::Waiting
-                    | Case::ParkWaiting
-                    | Case::Events
-                    | Case::Transcript
-                    | Case::Open
-            ),
+            wait_for_exit: case.completes(),
             ended: false,
             waiting: releases.map_or_else(|| waiting::Release::new(case == Case::Waiting), waiting::Release::open),
-            cancel: if matches!(
-                case,
-                Case::Turns
-                    | Case::Credentials
-                    | Case::Tools
-                    | Case::Waiting
-                    | Case::ParkWaiting
-                    | Case::Events
-                    | Case::Transcript
-                    | Case::Open
-            ) {
-                None
-            } else {
-                Some(Time::ZERO.saturating_add(Duration::from_millis(50)))
-            },
+            cancel: if case.completes() { None } else { Some(Time::ZERO.saturating_add(Duration::from_millis(50))) },
         })
         .with_machine(machine);
     let operations = smith_agent_service::program_operations(&configuration(case))

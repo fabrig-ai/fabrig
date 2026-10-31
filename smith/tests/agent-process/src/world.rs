@@ -928,11 +928,7 @@ impl TraceCase {
         };
         fake::configured(
             Box::new([api::Script { cue: Box::new([]), turns: turns.into() }]),
-            skein_llm::Credential {
-                value: b"token".as_slice().into(),
-                account_id: b"acc".as_slice().into(),
-                scheme: skein_llm::Scheme::Bearer,
-            },
+            fake::credential(false),
             Duration::ZERO,
         )
     }
@@ -1026,11 +1022,7 @@ fn environment_peer() -> skein_fake_peers::llm::Peer {
                 },
             ]),
         }]),
-        skein_llm::Credential {
-            value: b"token".as_slice().into(),
-            account_id: b"acc".as_slice().into(),
-            scheme: skein_llm::Scheme::Bearer,
-        },
+        fake::credential(false),
         Duration::ZERO,
     )
 }
@@ -1574,11 +1566,7 @@ impl World {
                         tokens: 1,
                     }]),
                 }]),
-                skein_llm::Credential {
-                    value: b"token".as_slice().into(),
-                    account_id: b"acc".as_slice().into(),
-                    scheme: skein_llm::Scheme::Bearer,
-                },
+                fake::credential(false),
                 Duration::ZERO,
             )
         } else if let Some((case, _)) = self.tracing {
