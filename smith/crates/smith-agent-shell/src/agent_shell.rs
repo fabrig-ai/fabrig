@@ -63,7 +63,7 @@ pub struct Agent {
     operations: u32,
 }
 
-struct Prepared {
+struct PreparedAgent {
     service: service::Service,
     header: Option<smith_events::SessionStarted>,
     trace_root: Option<Fd>,
@@ -270,7 +270,7 @@ fn extra_operations(configuration: &config::Configuration, resources: &Resources
         })
 }
 
-fn prepare(mut configuration: config::Configuration, resources: &Resources) -> Result<Prepared, String> {
+fn prepare(mut configuration: config::Configuration, resources: &Resources) -> Result<PreparedAgent, String> {
     #[cfg(not(unix))]
     validate_hosted(&configuration, resources)?;
     prepare_program(&mut configuration.service, resources.programs.as_ref())?;
@@ -336,7 +336,7 @@ fn prepare(mut configuration: config::Configuration, resources: &Resources) -> R
     } else if resources.trace.is_some() {
         return Err("an inherited trace requires a configured destination".into());
     }
-    Ok(Prepared { service, header, trace_root, unused_program_root, operations, queue })
+    Ok(PreparedAgent { service, header, trace_root, unused_program_root, operations, queue })
 }
 
 impl Host for Agent {

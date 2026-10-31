@@ -1,6 +1,6 @@
 //! One print conversation (smith/docs/design/protocol/programs.md, sections 5 and 8). Keeps
 //! parsed flags, session and request cursors, a system-cue selection and file
-//! phase; matches cues without otherwise interpreting or retaining prompt text.
+//! state; matches cues without otherwise interpreting or retaining prompt text.
 //! Session state survives a process resume.
 //! The shared driver supplies file/input completions and service signals.
 
@@ -113,7 +113,7 @@ impl Flags {
 }
 
 #[derive(Debug)]
-enum Phase {
+enum State {
     Session,
     Prompt,
     Saving,
@@ -135,7 +135,7 @@ pub(crate) struct Print {
     flags: Flags,
     story: Story,
     config: Config,
-    phase: Phase,
+    state: State,
     server: String,
     init: Option<Value>,
     input: Vec<u8>,
@@ -161,7 +161,7 @@ pub(crate) struct Print {
 
 impl Print {
     pub(crate) fn active_turn(&self) -> Option<u32> {
-        matches!(self.phase, Phase::Calling | Phase::Hanging | Phase::Deaf)
+        matches!(self.state, State::Calling | State::Hanging | State::Deaf)
             .then(|| u32::try_from(self.next_turn).expect("scripted turn count fits"))
     }
 
@@ -186,7 +186,7 @@ impl Print {
             flags,
             story,
             config,
-            phase: Phase::Session,
+            state: State::Session,
             server: String::new(),
             init: None,
             input: Vec::new(),
@@ -225,26 +225,26 @@ impl Print {
             return self.begin();
         }
         let Some(root) = self.config.mcp else { return error("cannot read system prompt", 1) };
-        self.phase = Phase::Prompt;
+        self.state = State::Prompt;
         vec![load(root, &self.flags.values["--append-system-prompt-file"])]
     }
 
     fn begin(&mut self) -> Vec<Effect> {
         if !self.flags.values.contains_key("--mcp-config") {
-            self.phase = Phase::Idle;
+            self.state = State::Idle;
             let mut init = stream::init(&self.story.init, &[], "", &self.flags.values["--model"]);
             init["mcp_servers"] = json!([]);
             self.init = Some(init.clone());
             vec![self.emit(init), self.emit(stream::status()), Effect::ReadCode]
         } else {
             let Some(root) = self.config.mcp else { return error("cannot read MCP configuration", 1) };
-            self.phase = Phase::Configuration;
+            self.state = State::Configuration;
             vec![load(root, &self.flags.values["--mcp-config"])]
         }
     }
 
     fn login(&mut self) -> Vec<Effect> {
-        self.phase = Phase::Login;
+        self.state = State::Login;
         match self.config.root {
             Some(root) => vec![load(root, LOGIN_FILE)],
             None => self.finish(stream::failure(Some(401), None, vec!["not signed in".into()])),
@@ -256,8 +256,8 @@ impl Print {
     }
 
     pub fn file(&mut self, event: file::Event) -> Vec<Effect> {
-        match self.phase {
-            Phase::Session => {
+        match self.state {
+            State::Session => {
                 match event {
                     file::Event::Loaded { .. } if self.flags.values.contains_key("--session-id") => {
                         return vec![
@@ -278,14 +278,14 @@ impl Print {
                 }
                 self.prompt()
             }
-            Phase::Prompt => match event {
+            State::Prompt => match event {
                 file::Event::Loaded { bytes, .. } => {
                     self.cued = select(&self.story.cued, &[&bytes]);
                     self.begin()
                 }
                 _ => error("cannot read system prompt", 1),
             },
-            Phase::Saving => match event {
+            State::Saving => match event {
                 file::Event::Stored { .. } => {
                     if self.interrupted {
                         self.interrupt_result()
@@ -295,7 +295,7 @@ impl Print {
                 }
                 _ => error("cannot record session", 1),
             },
-            Phase::Configuration => {
+            State::Configuration => {
                 let bytes = match event {
                     file::Event::Loaded { bytes, .. } => bytes,
                     _ => return error("cannot read MCP configuration", 1),
@@ -307,20 +307,20 @@ impl Print {
                 };
                 self.server = server;
                 self.server_config = configuration;
-                self.phase = Phase::Settings;
+                self.state = State::Settings;
                 match self.config.root {
                     Some(root) => vec![load(root, SETTINGS_FILE)],
                     None => self.initialized(Seen::UnreadableSettings),
                 }
             }
-            Phase::Settings => {
+            State::Settings => {
                 let seen = match event {
                     file::Event::Loaded { bytes, .. } => settings(&bytes),
                     _ => Seen::UnreadableSettings,
                 };
                 self.initialized(seen)
             }
-            Phase::Login => {
+            State::Login => {
                 if self.interrupted {
                     return self.interrupt_result();
                 }
@@ -329,7 +329,7 @@ impl Print {
                     _ => self.finish(stream::failure(Some(401), None, vec!["not signed in".into()])),
                 }
             }
-            Phase::Acting => {
+            State::Acting => {
                 let progress = self.acting.as_mut().expect("active built-in operation").file(event);
                 match progress {
                     crate::act::Progress::Request(request) => vec![Effect::File(request)],
@@ -339,19 +339,19 @@ impl Print {
                     }
                 }
             }
-            Phase::Removing => {
+            State::Removing => {
                 if self.interrupted {
                     self.interrupt_result()
                 } else {
                     self.steps()
                 }
             }
-            Phase::Idle | Phase::Hanging | Phase::Deaf | Phase::Connecting | Phase::Calling | Phase::Done => Vec::new(),
+            State::Idle | State::Hanging | State::Deaf | State::Connecting | State::Calling | State::Done => Vec::new(),
         }
     }
 
     fn initialized(&mut self, seen: Seen) -> Vec<Effect> {
-        self.phase = Phase::Connecting;
+        self.state = State::Connecting;
         let directory = std::path::Path::new(&self.flags.values["--mcp-config"])
             .parent()
             .filter(|path| !path.as_os_str().is_empty())
@@ -364,21 +364,21 @@ impl Print {
     pub fn input(&mut self, bytes: Option<&[u8]>) -> Vec<Effect> {
         match bytes {
             None if matches!(
-                self.phase,
-                Phase::Saving
-                    | Phase::Login
-                    | Phase::Removing
-                    | Phase::Hanging
-                    | Phase::Deaf
-                    | Phase::Calling
-                    | Phase::Acting
-                    | Phase::Connecting
+                self.state,
+                State::Saving
+                    | State::Login
+                    | State::Removing
+                    | State::Hanging
+                    | State::Deaf
+                    | State::Calling
+                    | State::Acting
+                    | State::Connecting
             ) =>
             {
                 Vec::new()
             }
             None if self.input.is_empty() => {
-                self.phase = Phase::Done;
+                self.state = State::Done;
                 vec![Effect::End(0)]
             }
             None => error("incomplete input line", 1),
@@ -431,7 +431,7 @@ impl Print {
                     effects.push(Effect::Seen(selection));
                 }
                 if let Some(root) = self.config.root {
-                    self.phase = Phase::Saving;
+                    self.state = State::Saving;
                     effects.push(Effect::File(file::Request::Store {
                         owner: FILE_OWNER,
                         root,
@@ -566,7 +566,7 @@ impl Print {
                 }
                 Step::LoseLogin => {
                     if let Some(root) = self.config.directory {
-                        self.phase = Phase::Removing;
+                        self.state = State::Removing;
                         effects.push(Effect::File(file::Request::Remove {
                             owner: FILE_OWNER,
                             root,
@@ -598,12 +598,12 @@ impl Print {
                     return effects;
                 }
                 Step::Deaf => {
-                    self.phase = Phase::Deaf;
+                    self.state = State::Deaf;
                     effects.push(Effect::ReadCode);
                     return effects;
                 }
                 Step::Hang => {
-                    self.phase = Phase::Hanging;
+                    self.state = State::Hanging;
                     effects.push(Effect::ReadCode);
                     return effects;
                 }
@@ -693,7 +693,7 @@ impl Print {
             (bare.clone(), input.clone())
         };
         self.pending = Some(ToolCall { id, tool: if builtin { tool } else { bare }, input, action });
-        self.phase = Phase::Calling;
+        self.state = State::Calling;
         let mut effects = Vec::new();
         if self.texts > 1 {
             effects.push(self.emit(stream::status()));
@@ -707,10 +707,10 @@ impl Print {
         match notice {
             crate::mcp::Notice::Settled { connected, tools, schema_error } => {
                 self.schema_error = schema_error;
-                if !matches!(self.phase, Phase::Connecting) {
+                if !matches!(self.state, State::Connecting) {
                     return Vec::new();
                 }
-                self.phase = Phase::Idle;
+                self.state = State::Idle;
                 let mut init =
                     stream::init(&self.story.init, &self.flags.tools, &self.server, &self.flags.values["--model"]);
                 init["mcp_servers"][0]["status"] = json!(if connected { "connected" } else { "failed" });
@@ -780,7 +780,7 @@ impl Print {
                                         &self.directory,
                                     );
                                     self.pending = Some(pending);
-                                    self.phase = Phase::Acting;
+                                    self.state = State::Acting;
                                     match started {
                                         Ok((act, request)) => {
                                             self.acting = Some(act);
@@ -824,7 +824,7 @@ impl Print {
         let mut effects = vec![self.emit(json!({"type":"user", "message":{"role":"user", "content":[{"type":"tool_result", "tool_use_id":id, "content":text, "is_error":failed}]}}))];
         if let Some((pending, call)) = self.together.pop_front() {
             self.pending = Some(pending);
-            self.phase = Phase::Calling;
+            self.state = State::Calling;
             effects.push(call);
         } else {
             effects.extend(self.steps());
@@ -876,7 +876,7 @@ impl Print {
         assistant["message"]["content"] = json!(blocks);
         let (pending, call) = self.together.pop_front().expect("nonempty group");
         self.pending = Some(pending);
-        self.phase = Phase::Calling;
+        self.state = State::Calling;
         let mut effects = Vec::new();
         if self.texts > 1 {
             effects.push(self.emit(stream::status()));
@@ -894,7 +894,7 @@ impl Print {
     }
 
     fn finish(&mut self, value: Value) -> Vec<Effect> {
-        self.phase = Phase::Idle;
+        self.state = State::Idle;
         vec![self.emit(value), Effect::ReadCode]
     }
 
@@ -905,7 +905,7 @@ impl Print {
         let mut result = stream::failure(None, Some("aborted_streaming".into()), Vec::new());
         result["stop_reason"] = Value::Null;
         if self.cancelling {
-            self.phase = Phase::Done;
+            self.state = State::Done;
             vec![self.emit(result), Effect::End(0)]
         } else {
             self.finish(result)
@@ -931,34 +931,34 @@ impl Print {
 
     pub fn interrupt(&mut self) -> Vec<Effect> {
         self.cancelling = true;
-        if matches!(self.phase, Phase::Idle | Phase::Done) {
-            self.phase = Phase::Done;
+        if matches!(self.state, State::Idle | State::Done) {
+            self.state = State::Done;
             return vec![Effect::End(0)];
         }
         self.interrupt_turn()
     }
 
     fn interrupt_turn(&mut self) -> Vec<Effect> {
-        match self.phase {
-            Phase::Hanging => self.interrupt_result(),
-            Phase::Calling => {
+        match self.state {
+            State::Hanging => self.interrupt_result(),
+            State::Calling => {
                 let mut effects = self.stop();
                 effects.push(Effect::McpCancel);
                 effects.extend(self.interrupt_result());
                 effects
             }
-            Phase::Saving | Phase::Login | Phase::Removing | Phase::Acting => {
+            State::Saving | State::Login | State::Removing | State::Acting => {
                 self.interrupted = true;
                 Vec::new()
             }
-            Phase::Session
-            | Phase::Prompt
-            | Phase::Configuration
-            | Phase::Settings
-            | Phase::Connecting
-            | Phase::Idle
-            | Phase::Deaf
-            | Phase::Done => Vec::new(),
+            State::Session
+            | State::Prompt
+            | State::Configuration
+            | State::Settings
+            | State::Connecting
+            | State::Idle
+            | State::Deaf
+            | State::Done => Vec::new(),
         }
     }
 }
