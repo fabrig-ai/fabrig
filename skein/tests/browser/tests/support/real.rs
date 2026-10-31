@@ -305,31 +305,21 @@ impl Rig {
     pub fn run(&mut self) {
         let mut deadline = Deadline::arm("the Chromium browser conversation", Duration::from_secs(60));
         for _ in 0..50_000_u32 {
-            self.kernel.reap(&mut self.complete);
+            self.reap(Some(&mut deadline));
             let now = self.clock.now();
             self.browser_env.now = now.now;
             self.browser_env.wall = now.wall;
             self.io_env.now = now.now;
             self.io_env.wall = now.wall;
             self.pages.update_time(now.now, now.wall);
-            while self.io.is_ready() {
-                io::resume(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
-            while let Some(complete) = self.complete.pop() {
-                if complete.op == ROOT_CLOSE {
-                    assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
-                } else {
-                    if let Ok(Done::Spawned { pidfd, .. }) = &complete.result
-                        && let Some(pid) = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0)
-                    {
-                        deadline.watch_process(pid);
-                    }
-                    io::up(&mut self.io, &self.io_env, complete, &mut self.io_events, &mut self.submits);
-                }
-            }
-            while self.io.is_due(now.now) {
-                io::fire(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
+            io::stage::up(
+                &mut self.io,
+                &self.io_env,
+                &mut self.complete,
+                &mut self.io_events,
+                &mut self.submits,
+                now.now,
+            );
             while let Some(event) = self.io_events.pop() {
                 self.io_event(event);
             }
@@ -399,24 +389,19 @@ impl Rig {
             self.io_requests.push_back(io::Request::Abort { entity });
         }
         loop {
-            self.kernel.reap(&mut self.complete);
+            self.reap(None);
             let now = self.clock.now();
             self.io_env.now = now.now;
             self.io_env.wall = now.wall;
             self.pages.update_time(now.now, now.wall);
-            while self.io.is_ready() {
-                io::resume(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
-            while let Some(complete) = self.complete.pop() {
-                if complete.op == ROOT_CLOSE {
-                    assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
-                } else {
-                    io::up(&mut self.io, &self.io_env, complete, &mut self.io_events, &mut self.submits);
-                }
-            }
-            while self.io.is_due(now.now) {
-                io::fire(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
+            io::stage::up(
+                &mut self.io,
+                &self.io_env,
+                &mut self.complete,
+                &mut self.io_events,
+                &mut self.submits,
+                now.now,
+            );
             while let Some(event) = self.io_events.pop() {
                 if let io::Event::Failed { error, .. } = &event {
                     panic!("browser cleanup: {error:?}");
@@ -449,6 +434,30 @@ impl Rig {
                 return;
             }
             self.kernel.submit(&mut self.submits, Wait::Until(now.now.saturating_add(Duration::from_millis(10))));
+        }
+    }
+
+    /// Reaps the kernel's answers into io's completions. The root's close is this loop's own, and
+    /// `deadline` watches each child io spawned. Only what this reap brought is looked at: io's
+    /// stage may leave earlier completions queued.
+    fn reap(&mut self, mut deadline: Option<&mut Deadline>) {
+        let held = self.complete.len();
+        self.kernel.reap(&mut self.complete);
+        for index in 0..self.complete.len() {
+            let Some(complete) = self.complete.pop() else { break };
+            if index >= held {
+                if complete.op == ROOT_CLOSE {
+                    assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
+                    continue;
+                }
+                if let Some(deadline) = deadline.as_deref_mut()
+                    && let Ok(Done::Spawned { pidfd, .. }) = &complete.result
+                    && let Some(pid) = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0)
+                {
+                    deadline.watch_process(pid);
+                }
+            }
+            self.complete.push(complete);
         }
     }
 
