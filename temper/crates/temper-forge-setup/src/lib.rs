@@ -23,7 +23,7 @@ pub mod state;
 pub mod step;
 pub mod upgrade;
 pub use setup::Setup;
-pub use step::{FORGE_ARGUMENT, Group, Kind, Stage, Step, Steps, kinds, steps};
+pub use step::{FORGE_ARGUMENT, Group, Kind, Stage, Step, Steps, kinds};
 #[cfg(test)]
 mod tests;
 

@@ -45,7 +45,10 @@ pub(crate) fn check_with(
         records_only: Box::new([]),
     };
     let mut problems = temper_service::startup::Problems::empty();
-    let machine_at = super::member(&document, application, b"machine");
+    let machine_at = config::read::Object::new(&document, application)
+        .expect("checked application")
+        .member(&document, b"machine")
+        .ok_or("application.machine: missing member\n")?;
     let mut machine_problems = problem::Problems::empty();
     let machine =
         temper_forge_setup::machine::read(&document, machine_at, &checked.limits, directories, &mut machine_problems);
