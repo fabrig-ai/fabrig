@@ -116,7 +116,10 @@ pub enum KeptActKind {
 
 - **Numbers:** the forge connector gives the next forge `ForgeNumbers.next`
   (1 when the row is none) and saves `next + 1` in the same decision; a
-  number is never given twice, removed forges' included.
+  number is never given twice, removed forges' included. Forge numbers
+  are 1 to `u16::MAX - 1`; `next == u16::MAX` is exhausted: no number is
+  given, and a restored forge numbered `u16::MAX` is refused by the
+  restore fit.
 - **The definition** is JSON, one object, the members the document gave
   the forge: `{"forge": F, "identity": I, "setup": S}`, where `F` is the
   forge's `application.forges` entry, `I` its `identities` entry and `S`
