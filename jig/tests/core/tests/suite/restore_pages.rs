@@ -88,7 +88,6 @@ fn pause(world: &mut World) {
 }
 
 #[test]
-#[ignore = "start: root routes an ask to the core before durable Wires"]
 fn a_paused_restore_answers_an_ask_not_ready_without_a_commit_or_retained_answer() {
     let (mut world, sign_in) = world();
     let rows = world.store.rows.clone();
@@ -109,7 +108,6 @@ fn a_paused_restore_answers_an_ask_not_ready_without_a_commit_or_retained_answer
 }
 
 #[test]
-#[ignore = "start: root routes sign-in to the core before durable Wires"]
 fn a_paused_restore_answers_sign_in_not_ready_without_changing_durable_rows() {
     let (mut world, _) = world();
     let rows = world.store.rows.clone();
