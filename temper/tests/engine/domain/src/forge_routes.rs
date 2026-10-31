@@ -841,6 +841,10 @@ impl World {
     }
 
     pub fn send(&mut self, event: engine::Event) {
+        if crate::waits_for_start(&self.root, &event) {
+            self.events.push_back(event);
+            return;
+        }
         if let engine::Event::Worker(engine::WorkerInput::Link {
             channel,
             link: engine::Link::Hello { worker, hello },

@@ -6,7 +6,6 @@ use temper_engine_domain as engine;
 use temper_engine_domain_world::{direct::Driver, protocol};
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn completions_are_taken_at_the_watermark_and_new_work_waits() {
     let (mut driver, run) = Driver::chat();
     // On this base the watermark is the journal's commit count, not a

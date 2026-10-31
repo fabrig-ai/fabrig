@@ -107,7 +107,6 @@ fn assigned(driver: &Driver) -> usize {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn due_tasks_activate_within_the_byte_budget_as_earlier_runs_drain() {
     let (store, runs) = parked();
     let mut driver = Driver::with_budget(store, config(91), &bounds(), 2 * ALLOWANCE);
@@ -148,7 +147,6 @@ fn due_tasks_activate_within_the_byte_budget_as_earlier_runs_drain() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_restart_with_three_due_tasks_activates_them_within_the_budget() {
     let (mut store, runs) = parked();
     let mut saves = Vec::new();
@@ -219,7 +217,6 @@ fn read_history(driver: &mut Driver, run: &engine::Assignment) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_persons_read_is_answered_while_the_budget_binds() {
     let (store, runs) = parked();
     let mut driver = Driver::with_budget(store, config(91), &bounds(), ALLOWANCE);
@@ -238,7 +235,6 @@ fn a_persons_read_is_answered_while_the_budget_binds() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn with_no_worker_the_budget_stops_preparations_and_nothing_else() {
     let (store, runs) = parked();
     let mut driver = Driver::with_budget(store, config(91), &bounds(), 2 * ALLOWANCE);

@@ -18,7 +18,6 @@ fn task_row(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
     clippy::too_many_lines,
     reason = "one producer lifecycle follows saved work through parking, resumption and its committed finish"
 )]
-#[ignore = "needs core-inbox"]
 fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit() {
     let (mut world, chat, producer, branch) = change_world(false, 1000, None);
     let tasks::Party::Task(change) = live_task(&world, producer.task).requester else {
@@ -173,7 +172,6 @@ fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chats_change_lands_by_turn() {
     let (mut world, change) = produced_turn_change(None);
     let mut landing = None;
@@ -250,7 +248,6 @@ fn a_chats_change_lands_by_turn() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
     let world = World::configured_limits(
         true,
@@ -328,7 +325,6 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_ready_change_waits_when_landing_room_is_full() {
     let (mut world, change) = produced_turn_change(Some(0));
     for _ in 0..300 {
@@ -662,7 +658,6 @@ fn assert_pair_result(world: &mut World, a: u64, b: u64, downstream_rebases: usi
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn dependent_changes_in_two_repositories_land_in_one_turn() {
     let (mut world, a, b) = dependent_pair(false);
     land_pair(&mut world, a, b, false);
@@ -670,7 +665,6 @@ fn dependent_changes_in_two_repositories_land_in_one_turn() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_turn_that_lands_the_upstream_alone_lands_the_downstream_after() {
     let (mut world, a, b) = dependent_pair(false);
     land_pair(&mut world, a, b, true);
@@ -678,7 +672,6 @@ fn a_turn_that_lands_the_upstream_alone_lands_the_downstream_after() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn dependent_changes_in_one_repository_land_in_two_landings() {
     let (mut world, a, b) = dependent_pair(true);
     land_pair(&mut world, a, b, false);
@@ -693,7 +686,6 @@ fn dependent_changes_in_one_repository_land_in_two_landings() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_dependency_amendment_joins_a_landing_already_proving() {
     let Pair { mut world, chat, a, b, producer_a, producer_b } = pushed_pair(false);
     finish_producer(&mut world, &producer_a, LIB);
@@ -724,7 +716,6 @@ fn a_dependency_amendment_joins_a_landing_already_proving() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_dependency_between_two_live_landings_keeps_the_later_waiting_until_the_first_lands() {
     let Pair { mut world, chat, a, b, producer_a, producer_b } =
         pushed_pair_with_library_gate(false, Some(Duration::from_secs(120)));
