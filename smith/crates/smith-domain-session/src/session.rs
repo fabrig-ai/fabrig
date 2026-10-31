@@ -178,7 +178,6 @@ struct Conversation {
     progress: Progress,
     model: Box<[u8]>,
     effort: Option<Box<[u8]>>,
-    next_llm: Option<crate::record::Llm>,
     system: Box<[u8]>,
     /// The families of its own tools it offers the LLM, as its kit has them.
     tools: Grants,
@@ -222,7 +221,6 @@ struct Conversation {
     recording: Recording,
     jobs: jobs::Jobs,
     builtin: builtin::Owed,
-    closing_tools: Option<Tools>,
     /// Last failure text, bounded by `Limits::failure_bytes` and kept outside history.
     detail: Box<[u8]>,
 }
@@ -257,10 +255,10 @@ enum State {
     Resting { tools: Tools },
     /// The LLM stopped calling tools: waiting for the opener to continue or
     /// close the session.
-    Yielded,
+    Yielded { tools: Option<Tools> },
     /// Ending with `end`, once what it waits for has settled, its kit's close
     /// among it.
-    Closing { end: End, waiting: Waiting },
+    Closing { end: End, waiting: Waiting, tools: Option<Tools> },
     /// Terminal: holds nothing.
     Closed,
 }
@@ -467,7 +465,7 @@ pub(crate) fn continued(
     let state = mem::replace(&mut session.state, State::Closed);
     let conversation = &mut session.conversation;
     session.state = match state {
-        State::Yielded => resumed(conversation, id, content, env, out),
+        State::Yielded { .. } => resumed(conversation, id, content, env, out),
         State::Calling { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
@@ -490,7 +488,7 @@ pub(crate) fn yield_completion(domain: &Domain, session: Token, out: &mut Queue<
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { .. }
         | State::Closed => {}
     }
@@ -505,16 +503,12 @@ pub(crate) fn close(domain: &mut Domain, env: &Env<Limits>, session: Token, out:
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
         State::Calling { attempt: _ } => cancel_call(id, End::Closed, out),
-        State::Resting { tools } => {
-            session.conversation.closing_tools = Some(tools);
-            finish(End::Closed)
-        }
-        State::Backoff { .. } | State::Yielded => finish(End::Closed),
-        State::Tooling { tools } => {
-            cancel_tools(&mut session.conversation, &domain.calls.runs, tools, End::Closed, out)
-        }
+        State::Resting { tools } => finish_batch(End::Closed, tools),
+        State::Yielded { tools } => State::Closing { end: End::Closed, waiting: KIT, tools },
+        State::Backoff { .. } => finish(End::Closed),
+        State::Tooling { tools } => cancel_tools(&domain.calls.runs, tools, End::Closed, out),
         // It is already ending, with the end it had first.
-        State::Closing { end, waiting } => State::Closing { end, waiting },
+        State::Closing { end, waiting, tools } => State::Closing { end, waiting, tools },
         State::Closed => unreachable!("an addressed session has not ended"),
     };
     conclude(domain, env, id, out, mark);
@@ -559,13 +553,14 @@ pub(crate) fn completed(
     let conversation = &mut session.conversation;
     session.state = match state {
         State::Calling { attempt: _ } => answered(conversation, id, &mut domain.calls, completion, env, out),
-        State::Closing { end, waiting: waiting @ Waiting { call: true, .. } } => {
+        State::Closing { end, waiting: waiting @ Waiting { call: true, .. }, tools } => {
+            assert!(tools.is_none(), "a completion and a tool batch never run together");
             answered_late(conversation, id, &mut domain.calls, end, waiting, completion, &env.limits, out)
         }
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { waiting: Waiting { call: false, .. }, .. }
         | State::Closed => unreachable!("a completion ends a call in flight"),
     };
@@ -657,13 +652,13 @@ pub(crate) fn overflowed(domain: &mut Domain, env: &Env<Limits>, owner: Token, e
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
         State::Calling { .. } => finish(end),
-        State::Closing { waiting: Waiting { call: true, runs, kit }, .. } => {
-            State::Closing { end, waiting: Waiting { call: false, runs, kit } }
+        State::Closing { waiting: Waiting { call: true, runs, kit }, tools, .. } => {
+            State::Closing { end, waiting: Waiting { call: false, runs, kit }, tools }
         }
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { waiting: Waiting { call: false, .. }, .. }
         | State::Closed => {
             unreachable!("only an in-flight provider completion can overflow")
@@ -717,7 +712,7 @@ pub(crate) fn narrowed(
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { .. }
         | State::Closed => return,
     }
@@ -817,7 +812,7 @@ fn unsent_finished(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: En
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { .. }
         | State::Closed => return,
     }
@@ -880,13 +875,13 @@ pub(crate) fn failed(
                 call_failed(attempt, failure, evidence, retry_ok, &session.conversation, &mut domain.rng, env)
             }
         }
-        State::Closing { end, waiting: waiting @ Waiting { call: true, .. } } => {
-            State::Closing { end, waiting: Waiting { call: false, ..waiting } }
+        State::Closing { end, waiting: waiting @ Waiting { call: true, .. }, tools } => {
+            State::Closing { end, waiting: Waiting { call: false, ..waiting }, tools }
         }
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { waiting: Waiting { call: false, .. }, .. }
         | State::Closed => unreachable!("a failure ends a call in flight"),
     };
@@ -903,7 +898,7 @@ pub(crate) fn failed(
         State::Calling { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { .. }
         | State::Closed => {}
     }
@@ -922,14 +917,14 @@ pub(crate) fn cancelled(domain: &mut Domain, env: &Env<Limits>, owner: Token, ou
     );
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Closing { end, waiting: waiting @ Waiting { call: true, .. } } => {
-            State::Closing { end, waiting: Waiting { call: false, ..waiting } }
+        State::Closing { end, waiting: waiting @ Waiting { call: true, .. }, tools } => {
+            State::Closing { end, waiting: Waiting { call: false, ..waiting }, tools }
         }
         State::Calling { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { waiting: Waiting { call: false, .. }, .. }
         | State::Closed => unreachable!("a cancellation answers the cancel of a call, sent on the way to Closing"),
     };
@@ -991,11 +986,16 @@ fn owned_answered(
         State::Tooling { tools } => {
             tool_ran(conversation, id, &mut domain.calls, tools, slot, block, credit, result, env, out)
         }
-        State::Closing { end, waiting } => {
-            let end = keep_closing(conversation, slot, block, credit, result, &env.limits).unwrap_or(end);
-            settled(end, waiting)
+        State::Closing { end, waiting, mut tools } => {
+            let end =
+                keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits).unwrap_or(end);
+            settled(end, waiting, tools)
         }
-        State::Calling { .. } | State::Backoff { .. } | State::Resting { .. } | State::Yielded | State::Closed => {
+        State::Calling { .. }
+        | State::Backoff { .. }
+        | State::Resting { .. }
+        | State::Yielded { .. }
+        | State::Closed => {
             unreachable!("an answer ends a tool run in flight")
         }
     };
@@ -1007,14 +1007,14 @@ fn kit_closed(sessions: &mut Slab<Session>, id: Id<Session>) {
     let session = sessions.get_mut(id).expect("a session lives until its kit has closed");
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Closing { end, waiting: waiting @ Waiting { kit: Kit::Closing, .. } } => {
-            State::Closing { end, waiting: Waiting { kit: Kit::Closed, ..waiting } }
+        State::Closing { end, waiting: waiting @ Waiting { kit: Kit::Closing, .. }, tools } => {
+            State::Closing { end, waiting: Waiting { kit: Kit::Closed, ..waiting }, tools }
         }
         State::Calling { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { waiting: Waiting { kit: Kit::Open | Kit::Closed, .. }, .. }
         | State::Closed => unreachable!("a kit closes when its session closes it"),
     };
@@ -1026,14 +1026,10 @@ pub(crate) fn expire(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, ou
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
         State::Calling { attempt: _ } => cancel_call(id, OUT_OF_TIME, out),
-        State::Resting { tools } => {
-            session.conversation.closing_tools = Some(tools);
-            finish(OUT_OF_TIME)
-        }
-        State::Backoff { .. } | State::Yielded => finish(OUT_OF_TIME),
-        State::Tooling { tools } => {
-            cancel_tools(&mut session.conversation, &domain.calls.runs, tools, OUT_OF_TIME, out)
-        }
+        State::Resting { tools } => finish_batch(OUT_OF_TIME, tools),
+        State::Yielded { tools } => State::Closing { end: OUT_OF_TIME, waiting: KIT, tools },
+        State::Backoff { .. } => finish(OUT_OF_TIME),
+        State::Tooling { tools } => cancel_tools(&domain.calls.runs, tools, OUT_OF_TIME, out),
         State::Closing { .. } | State::Closed => {
             unreachable!("the expiry alarm runs only in Calling, Backoff, Tooling, Resting and Yielded")
         }
@@ -1050,7 +1046,7 @@ pub(crate) fn retry(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out
         State::Calling { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { .. }
         | State::Closed => unreachable!("the retry alarm runs only in Backoff"),
     };
@@ -1069,7 +1065,7 @@ pub(crate) fn rested(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, ou
         State::Calling { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { .. }
         | State::Closed => unreachable!("a session is ready only while it rests"),
     };
@@ -1218,7 +1214,7 @@ fn addressed(sessions: &Slab<Session>, session: Token) -> Option<Id<Session>> {
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closing { .. } => Some(id),
         State::Closed => None,
     }
@@ -1236,20 +1232,28 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closed => {}
     }
     builtin::flush(&mut session.conversation, &mut domain.facts);
     match session.state {
-        State::Closing { waiting: Waiting { call: false, runs: 0, .. }, .. } | State::Yielded => {
-            finish_closing(&mut session.conversation);
+        State::Closing { waiting: Waiting { call: false, runs: 0, .. }, .. } | State::Yielded { .. } => {
+            let tools = match &mut session.state {
+                State::Closing { tools, .. } | State::Yielded { tools } => tools.take(),
+                State::Calling { .. }
+                | State::Backoff { .. }
+                | State::Tooling { .. }
+                | State::Resting { .. }
+                | State::Closed => unreachable!("matched states above"),
+            };
+            builtin::finish_closing(&mut session.conversation, tools);
             if session.conversation.compaction.asking() {
                 clear_pending(&mut session.conversation);
             }
             if let Some(end) = tell_turn(&mut session.conversation, out) {
                 match &mut session.state {
                     State::Closing { end: current, .. } => *current = end,
-                    State::Yielded => session.state = finish(end),
+                    State::Yielded { .. } => session.state = finish(end),
                     State::Calling { .. }
                     | State::Backoff { .. }
                     | State::Tooling { .. }
@@ -1277,12 +1281,12 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
 fn settle(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Queue<Request>) {
     let session = domain.sessions.get_mut(id).expect("a session lives until it is retired");
     let (end, waiting) = match &session.state {
-        State::Closing { end, waiting } => (end.clone(), *waiting),
+        State::Closing { end, waiting, .. } => (end.clone(), *waiting),
         State::Calling { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
-        | State::Yielded
+        | State::Yielded { .. }
         | State::Closed => return,
     };
     let kit = match waiting.kit {
@@ -1323,7 +1327,15 @@ fn settle(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Que
         out.push(Request::Ended { opener, end, turns, usage, reported, detail });
         session.state = State::Closed;
     } else {
-        session.state = State::Closing { end, waiting };
+        session.state = match mem::replace(&mut session.state, State::Closed) {
+            State::Closing { tools, .. } => State::Closing { end, waiting, tools },
+            State::Calling { .. }
+            | State::Backoff { .. }
+            | State::Tooling { .. }
+            | State::Resting { .. }
+            | State::Yielded { .. }
+            | State::Closed => unreachable!("settling a close"),
+        };
     }
 }
 
@@ -1415,7 +1427,7 @@ fn follow(sessions: &mut Slab<Session>, alarms: &mut Deadlines<Alarm>, ready: &m
     let session = sessions.get(id).expect("a session lives until it is retired");
     let expires = session.conversation.expires;
     let (expiry, retry, resting, closed) = match &session.state {
-        State::Calling { .. } | State::Tooling { .. } | State::Yielded => (Some(expires), None, false, false),
+        State::Calling { .. } | State::Tooling { .. } | State::Yielded { .. } => (Some(expires), None, false, false),
         State::Backoff { until, .. } => (Some(expires), Some(*until), false, false),
         State::Resting { .. } => (Some(expires), None, true, false),
         State::Closing { .. } => (None, None, false, false),
@@ -1510,11 +1522,11 @@ fn answered_late(
 ) -> State {
     if let Err(overflow) = used(conversation, completion.usage, out) {
         release_provider(conversation);
-        return State::Closing { end: overflow, waiting: Waiting { call: false, ..waiting } };
+        return State::Closing { end: overflow, waiting: Waiting { call: false, ..waiting }, tools: None };
     }
     if conversation.compaction.asking() {
         let end = compaction::accept(conversation, completion, limits, out).unwrap_or(end);
-        return State::Closing { end, waiting: Waiting { call: false, ..waiting } };
+        return State::Closing { end, waiting: Waiting { call: false, ..waiting }, tools: None };
     }
     assert!(conversation.transcript.room() > 0, "reserved assistant message");
     if !receive_completion(conversation, &completion.content, tally(&completion.content).0, limits) {
@@ -1522,6 +1534,7 @@ fn answered_late(
         return State::Closing {
             end: history::completion_limit(conversation, &completion.content, limits),
             waiting: Waiting { call: false, ..waiting },
+            tools: None,
         };
     }
     let calls = tally(&completion.content).0;
@@ -1529,11 +1542,8 @@ fn answered_late(
         .transcript
         .push(Message { role: Role::Assistant, content: completion.content })
         .expect("reserved assistant slot");
-    if calls > 0 {
-        builtin::late(conversation, id, issuer, calls, limits);
-    }
-
-    State::Closing { end, waiting: Waiting { call: false, ..waiting } }
+    let tools = if calls > 0 { Some(builtin::late(conversation, id, issuer, calls, limits)) } else { None };
+    State::Closing { end, waiting: Waiting { call: false, ..waiting }, tools }
 }
 
 /// Calling, completed with tool use: record the message and go through its
@@ -1590,8 +1600,7 @@ fn advance(
 ) -> State {
     // Time does not wait: no batch starts once it is up.
     if env.now >= conversation.expires {
-        conversation.closing_tools = Some(tools);
-        return finish(OUT_OF_TIME);
+        return finish_batch(OUT_OF_TIME, tools);
     }
     let share = history::reserve_batch(conversation, tools.next, tools.failed.is_some(), &env.limits);
     let message = conversation.transcript.last().expect("the assistant message is last while tooling");
@@ -1730,7 +1739,7 @@ fn finish_tools(
                 return finish(end);
             }
             out.push(Request::Yielded { opener: conversation.opener, stop: Yield::Done, text: Box::default() });
-            State::Yielded
+            State::Yielded { tools: None }
         }
     }
 }
@@ -1771,7 +1780,7 @@ fn pause(
     }
     let stop = if conversation.final_turn.answering() { Yield::Budget } else { stop };
     out.push(Request::Yielded { opener: conversation.opener, stop, text });
-    State::Yielded
+    State::Yielded { tools: None }
 }
 
 /// Yielded, continue: the opener's message goes to the LLM, after a result for
@@ -1876,9 +1885,9 @@ fn tool_ran(
 }
 
 /// Closing, a tool run ended: one fewer to wait for.
-fn settled(end: End, waiting: Waiting) -> State {
+fn settled(end: End, waiting: Waiting, tools: Option<Tools>) -> State {
     let runs = waiting.runs.checked_sub(1).expect("the run that ended was waited for");
-    State::Closing { end, waiting: Waiting { runs, ..waiting } }
+    State::Closing { end, waiting: Waiting { runs, ..waiting }, tools }
 }
 
 /// Calling, failed: wait and call again if the failure is transient and
@@ -2005,23 +2014,17 @@ fn final_answer(conversation: &mut Conversation, text: Box<[u8]>, out: &mut Queu
         return finish(end);
     }
     out.push(Request::Yielded { opener: conversation.opener, stop: Yield::Budget, text });
-    State::Yielded
+    State::Yielded { tools: None }
 }
 
 fn cancel_call(id: Id<Session>, end: End, out: &mut Queue<Request>) -> State {
     out.push(Request::Cancel { owner: id.token() });
-    State::Closing { end, waiting: Waiting { call: true, ..KIT } }
+    State::Closing { end, waiting: Waiting { call: true, ..KIT }, tools: None }
 }
 
 /// Withdraws the delegated runs in flight, to end with `end` once every run
 /// has settled. The tools' runs end as the kit's close cancels them.
-fn cancel_tools(
-    conversation: &mut Conversation,
-    runs: &Slab<Run>,
-    tools: Tools,
-    end: End,
-    out: &mut Queue<Request>,
-) -> State {
+fn cancel_tools(runs: &Slab<Run>, tools: Tools, end: End, out: &mut Queue<Request>) -> State {
     for slot in &tools.slots {
         match slot {
             Slot::Running { run } => match runs.get(*run).expect("a run in flight is in the slab").by {
@@ -2033,23 +2036,15 @@ fn cancel_tools(
         }
     }
     let running = tools.running;
-    conversation.closing_tools = Some(tools);
-
-    State::Closing { end, waiting: Waiting { runs: running, ..KIT } }
+    State::Closing { end, waiting: Waiting { runs: running, ..KIT }, tools: Some(tools) }
 }
 
 /// Ends with `end` at once, or once the runs in flight have settled.
-fn abandon(
-    conversation: &mut Conversation,
-    runs: &Slab<Run>,
-    tools: Tools,
-    end: End,
-    out: &mut Queue<Request>,
-) -> State {
+fn abandon(runs: &Slab<Run>, tools: Tools, end: End, out: &mut Queue<Request>) -> State {
     if tools.running == 0 {
         return finish(end);
     }
-    cancel_tools(conversation, runs, tools, end, out)
+    cancel_tools(runs, tools, end, out)
 }
 
 /// Counts a completion that came back, and tells the opener.
@@ -2118,7 +2113,11 @@ fn add_reported_count(previous: Option<u64>, received: Option<u64>) -> Result<Op
 /// Ends the session with `end`, which has nothing in flight but its kit: the
 /// kit closes, and the opener is told once it has ([`settle`]).
 const fn finish(end: End) -> State {
-    State::Closing { end, waiting: KIT }
+    State::Closing { end, waiting: KIT, tools: None }
+}
+
+fn finish_batch(end: End, tools: Tools) -> State {
+    State::Closing { end, waiting: KIT, tools: Some(tools) }
 }
 
 // Helpers.
@@ -2194,7 +2193,6 @@ fn admit(
         progress: spec.progress,
         model: spec.model,
         effort: spec.effort,
-        next_llm: None,
         system: spec.system,
         tools: spec.authority.grants,
         namespace: spec.authority.namespace(),
@@ -2227,7 +2225,6 @@ fn admit(
         recording,
         jobs: jobs::Jobs::new(limits.tools.jobs),
         builtin: builtin::Owed::with_capacity(limits.completion_blocks),
-        closing_tools: None,
         detail: Box::default(),
     };
     Some((conversation, spec.authority))
@@ -3465,22 +3462,29 @@ pub(crate) fn delegate_ended(
                     let result = Block::ToolResult { id: call_id(conversation, block), result };
                     *tools.slots.get_mut(slot).expect("settled slot") = Slot::Done { result };
                     clear_pending(conversation);
-                    abandon(conversation, &domain.calls.runs, tools, End::PriceOverflow, out)
+                    abandon(&domain.calls.runs, tools, End::PriceOverflow, out)
                 }
             }
         }
-        State::Closing { end, waiting } => {
+        State::Closing { end, waiting, mut tools } => {
             let end = match added {
-                Some(_) => keep_closing(conversation, slot, block, credit, result, &env.limits).unwrap_or(end),
+                Some(_) => {
+                    keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits).unwrap_or(end)
+                }
                 None => {
-                    let _discarded: Option<End> = keep_closing(conversation, slot, block, credit, result, &env.limits);
+                    let _discarded: Option<End> =
+                        keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits);
                     clear_pending(conversation);
                     End::PriceOverflow
                 }
             };
-            settled(end, waiting)
+            settled(end, waiting, tools)
         }
-        State::Calling { .. } | State::Backoff { .. } | State::Resting { .. } | State::Yielded | State::Closed => {
+        State::Calling { .. }
+        | State::Backoff { .. }
+        | State::Resting { .. }
+        | State::Yielded { .. }
+        | State::Closed => {
             unreachable!("an answer ends an in-flight delegated call")
         }
     };
@@ -3508,16 +3512,19 @@ pub(crate) fn delegate_withheld(domain: &mut Domain, env: &Env<Limits>, owner: T
             tools.running = tools.running.checked_sub(1).expect("withheld call was running");
             assert!(tools.running == 0, "the run's wait is a serialized writer");
             *tools.slots.get_mut(slot).expect("withheld call's slot") = Slot::Withheld;
-            conversation.closing_tools = Some(tools);
-            State::Yielded
+            State::Yielded { tools: Some(tools) }
         }
-        State::Closing { end, waiting } => {
-            if let Some(tools) = conversation.closing_tools.as_mut() {
+        State::Closing { end, waiting, mut tools } => {
+            if let Some(tools) = tools.as_mut() {
                 *tools.slots.get_mut(slot).expect("withheld call's closing slot") = Slot::Withheld;
             }
-            settled(end, waiting)
+            settled(end, waiting, tools)
         }
-        State::Calling { .. } | State::Backoff { .. } | State::Resting { .. } | State::Yielded | State::Closed => {
+        State::Calling { .. }
+        | State::Backoff { .. }
+        | State::Resting { .. }
+        | State::Yielded { .. }
+        | State::Closed => {
             unreachable!("withheld terminal settles an in-flight opener call")
         }
     };
@@ -3530,22 +3537,18 @@ fn clear_pending(conversation: &mut Conversation) {
 
 fn keep_closing(
     conversation: &mut Conversation,
+    tools: Option<&mut Tools>,
     slot: u32,
     block: u32,
     credit: u64,
     result: Returned,
     limits: &Limits,
 ) -> Option<End> {
-    conversation.closing_tools.as_ref()?;
+    let tools = tools?;
     receive_result(conversation, credit, &result, limits);
     let result = Block::ToolResult { id: call_id(conversation, block), result };
-    let tools = conversation.closing_tools.as_mut().expect("present above");
     *tools.slots.get_mut(slot).expect("the terminal fills its call's slot") = Slot::Done { result };
     None
-}
-
-fn finish_closing(conversation: &mut Conversation) {
-    builtin::finish_closing(conversation);
 }
 
 pub(crate) use builtin::result as builtin_result;

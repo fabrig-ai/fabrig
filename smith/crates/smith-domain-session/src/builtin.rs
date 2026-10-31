@@ -158,7 +158,7 @@ pub(super) fn late(
     calls: &mut Calls,
     count: u32,
     limits: &Limits,
-) {
+) -> Tools {
     let mut tools = Tools {
         after: super::After::Complete,
         slots: List::with_capacity(count),
@@ -168,7 +168,7 @@ pub(super) fn late(
         reached: 0,
     };
     prepare(conversation, session, calls, &mut tools, limits);
-    conversation.closing_tools = Some(tools);
+    tools
 }
 
 /// Mark stand-ins settled before a completion, close, failure or window replacement.
@@ -267,8 +267,8 @@ pub(crate) fn result(
         Place::Slot { index } => {
             let tools = match &mut current.state {
                 State::Tooling { tools } | State::Resting { tools } => tools,
-                State::Closing { .. } => conversation.closing_tools.as_mut().expect("closing slots retained"),
-                State::Calling { .. } | State::Backoff { .. } | State::Yielded | State::Closed => {
+                State::Closing { tools, .. } => tools.as_mut().expect("closing slots retained"),
+                State::Calling { .. } | State::Backoff { .. } | State::Yielded { .. } | State::Closed => {
                     unreachable!("owed slot lives with tools")
                 }
             };
@@ -307,8 +307,8 @@ pub(crate) fn result(
     }
 }
 
-pub(super) fn finish_closing(conversation: &mut Conversation) {
-    let Some(tools) = conversation.closing_tools.take() else {
+pub(super) fn finish_closing(conversation: &mut Conversation, tools: Option<Tools>) {
+    let Some(tools) = tools else {
         return;
     };
     conversation.builtin.moved(conversation.transcript.len());
