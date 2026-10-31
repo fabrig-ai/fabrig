@@ -126,7 +126,6 @@ pub struct Component {
     sources: List<Source>,
     bindings: List<Option<Id<Exchange>>>,
     exchanges: Slab<Exchange>,
-    first_exchange: Option<Id<Exchange>>,
     lifecycle: Lifecycle,
     crypto: CryptoRng,
     keepers: List<Store>,
@@ -174,7 +173,6 @@ impl Component {
             sources,
             bindings,
             exchanges: Slab::with_capacity(limits.exchanges),
-            first_exchange: None,
             lifecycle: Lifecycle::Live,
             crypto,
             keepers,
@@ -532,12 +530,12 @@ impl Component {
         if self.removal_progress(env, up, io) {
             return;
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get_mut(id).expect("live exchange");
-            next = exchange.next;
-            if self.lifecycle == Lifecycle::Aborting && !exchange.aborted {
-                exchange.aborted = true;
+        for (id, exchange) in &self.exchanges {
+            if exchange.lifecycle == Lifecycle::Closed {
+                continue;
+            }
+            if self.lifecycle == Lifecycle::Aborting && exchange.lifecycle != Lifecycle::Aborting {
+                self.exchanges.get_mut(id).expect("live exchange").lifecycle = Lifecycle::Aborting;
                 self.fail_exchange(env, id, Failure::Exchange(oauth::Failure::Cancelled), up, io);
                 self.collect(env, id, up, io);
                 return;
@@ -545,7 +543,7 @@ impl Component {
             if let OwnerLock::Waiting { until } = exchange.lock
                 && env.now >= until
             {
-                exchange.lock = OwnerLock::Released;
+                self.exchanges.get_mut(id).expect("live exchange").lock = OwnerLock::Released;
                 self.fail_exchange(env, id, Failure::Busy, up, io);
                 self.collect(env, id, up, io);
                 return;
@@ -874,7 +872,7 @@ impl Component {
                 if exchange.signing_in() || exchange.signing_out() {
                     return;
                 }
-                exchange.aborted = true;
+                exchange.lifecycle = Lifecycle::Aborting;
                 match self.keepers.get_mut(account).expect("account keeper") {
                     Store::Private(keeper) => match &mut keeper.pending {
                         Some(pending) if exchange.file_active => pending.cancel = true,
@@ -975,52 +973,26 @@ impl Component {
         }
     }
 
-    // The live exchange chain includes detached sockets; retired slots stay in the slab
-    // until reclaim (programming-model.md, 5.2; oauth.md, 6.5).
     fn insert_exchange(&mut self, exchange: Exchange) -> Id<Exchange> {
-        let id = match self.exchanges.insert(exchange) {
+        match self.exchanges.insert(exchange) {
             Ok(id) => id,
             Err(_) => unreachable!("admitted exchange slot"),
-        };
-        let mut next = self.first_exchange;
-        while let Some(previous) = next {
-            let exchange = self.exchanges.get_mut(previous).expect("live exchange");
-            if exchange.next.is_none() {
-                exchange.next = Some(id);
-                return id;
-            }
-            next = exchange.next;
         }
-        self.first_exchange = Some(id);
-        id
     }
 
     fn retire_exchange(&mut self, id: Id<Exchange>) {
-        let following = self.exchanges.get(id).expect("live exchange").next;
-        if self.first_exchange == Some(id) {
-            self.first_exchange = following;
-        } else {
-            let mut next = self.first_exchange;
-            while let Some(previous) = next {
-                let exchange = self.exchanges.get_mut(previous).expect("live exchange");
-                if exchange.next == Some(id) {
-                    exchange.next = following;
-                    break;
-                }
-                next = exchange.next;
-            }
-        }
+        self.exchanges.get_mut(id).expect("live exchange").lifecycle = Lifecycle::Closed;
         self.exchanges.retire(id);
     }
 
     fn account_has_exchanges(&self, account: u32) -> bool {
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get(id).expect("live exchange");
+        for (_, exchange) in &self.exchanges {
+            if exchange.lifecycle == Lifecycle::Closed {
+                continue;
+            }
             if exchange.account == account {
                 return true;
             }
-            next = exchange.next;
         }
         false
     }
@@ -1069,8 +1041,10 @@ impl Component {
         if self.removing() {
             return;
         }
-        if self.first_exchange.is_some() {
-            return;
+        for (_, exchange) in &self.exchanges {
+            if exchange.lifecycle != Lifecycle::Closed {
+                return;
+            }
         }
         for keeper in &self.keepers {
             match keeper {
@@ -1116,11 +1090,13 @@ impl Component {
                 Store::Owner => {}
             }
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get(id).expect("live exchange");
-            next = exchange.next;
-            if exchange.has_work() || (self.lifecycle == Lifecycle::Aborting && !exchange.aborted) {
+        for (_, exchange) in &self.exchanges {
+            if exchange.lifecycle == Lifecycle::Closed {
+                continue;
+            }
+            if exchange.has_work()
+                || (self.lifecycle == Lifecycle::Aborting && exchange.lifecycle != Lifecycle::Aborting)
+            {
                 return true;
             }
         }
@@ -1151,10 +1127,10 @@ impl Component {
                 Store::Owner => {}
             }
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get(id).expect("live exchange");
-            next = exchange.next;
+        for (_, exchange) in &self.exchanges {
+            if exchange.lifecycle == Lifecycle::Closed {
+                continue;
+            }
             if let OwnerLock::Waiting { until } = exchange.lock {
                 earliest = skein_lib::earliest(earliest, Some(until));
             }

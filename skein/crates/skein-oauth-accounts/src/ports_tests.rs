@@ -389,6 +389,54 @@ fn two_accounts_on_one_fixed_port_listen_one_at_a_time() {
 }
 
 #[test]
+fn retired_exchanges_do_not_schedule_work_or_block_close_before_reclaim() {
+    let mut owner = restart_owner(1, false, RESTART_LISTENERS);
+    let old = first_visit(&mut owner);
+    cancel_first(&mut owner);
+    cancelled(&mut owner, 0);
+    take_abort(&mut owner);
+    owner.socket(LowerEvent::Closed { owner: old });
+    assert!(!owner.component.has_work());
+    assert_eq!(owner.component.next_deadline(), None);
+    owner.fire();
+    assert!(owner.above.is_empty() && owner.io.is_empty());
+    owner.ask(Request::Abort);
+    assert_event(owner.above.pop(), Event::Closed);
+    owner.fire();
+    assert!(!owner.component.has_work());
+    assert!(owner.above.is_empty() && owner.io.is_empty());
+}
+
+#[test]
+fn a_reused_exchange_slot_still_waits_for_a_detached_listener() {
+    let mut owner = restart_owner(2, false, RESTART_LISTENERS);
+    let old = first_visit(&mut owner);
+    owner.ask(Request::SignIn { account: 1, subject: None });
+    cancel_first(&mut owner);
+    cancelled(&mut owner, 0);
+    take_abort(&mut owner);
+    owner.socket(LowerEvent::Closed { owner: old });
+    let (second, port) = owner.take_listen();
+    assert_eq!(port, FIXED_PORT);
+    owner.listening(second, FIXED_PORT);
+    drop(owner.visit());
+    owner.component.reclaim();
+    owner.ask(Request::SignIn { account: 0, subject: None });
+    assert!(owner.above.is_empty() && owner.io.is_empty());
+    owner.ask(Request::Cancel { account: 1 });
+    cancelled(&mut owner, 1);
+    take_abort(&mut owner);
+    assert!(owner.io.is_empty());
+    owner.socket(LowerEvent::Closed { owner: second });
+    let (new, port) = owner.take_listen();
+    assert_eq!(port, FIXED_PORT);
+    assert_ne!(new, old);
+    owner.listening(new, FIXED_PORT);
+    drop(owner.visit());
+    assert!(owner.above.is_empty() && owner.io.is_empty());
+}
+
+#[test]
 fn a_restart_with_one_listener_allowed_is_full_until_the_old_listener_settles() {
     let mut owner = restart_owner(1, false, 1);
     let old = first_visit(&mut owner);
