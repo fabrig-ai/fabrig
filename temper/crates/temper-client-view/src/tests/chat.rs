@@ -8,7 +8,7 @@ use skein_lib::{List, Wall};
 use skein_ui::Role;
 
 #[test]
-fn the_playground_chat_context_names_its_project_playground() {
+fn the_playground_project_is_named_playground() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut view = fixtures::view_of(words);

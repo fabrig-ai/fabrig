@@ -11,21 +11,6 @@ use temper_client_domain::{self as d, Address, Step, pages};
 use temper_client_protocol_wire::v1 as w;
 
 const HERE: u16 = 3;
-/// The fake box's Forgejo elsewhere (temper-fake's `managed()`):
-/// configured as its admin, not connected, with no `web`.
-const ADMIN: u16 = 4;
-fn rows_with_an_admin_forgejo() -> skein_lib::List<w::ForgeRow> {
-    let mut rows = skein_lib::List::with_capacity(3);
-    for row in &forge::rows(w::Connection::NotSetUp, w::Offer::Offered) {
-        rows.push(row.clone()).unwrap();
-    }
-    let mut parts =
-        forge::row(ADMIN, w::Kind::Forgejo, w::Mode::Managed, w::Connection::NotConnected, w::Offer::NotOffered)
-            .into_parts();
-    parts.admin = true;
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-    rows
-}
 fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
     let choices = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICES)).unwrap();
     tree.nodes()
@@ -36,20 +21,15 @@ fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
 }
 
 #[test]
-fn the_welcome_leaves_other_forgejos_to_connect_a_forge() {
-    for (address, cards) in [
-        (Address::Welcome { step: Step::Forge { forge: None } }, ["GitHub", "Forgejo"].as_slice()),
-        (
-            Address::ConnectForge { forge: None },
-            ["GitHub", "Forgejo on this machine", "Forgejo at forge 4", "A Forgejo elsewhere"].as_slice(),
-        ),
-    ] {
-        let view = f::page_view(&f::forge_root(address.clone(), rows_with_an_admin_forgejo()));
-        assert_eq!(
-            choice_cards(view.tree()),
-            cards.iter().map(|name| name.as_bytes()).collect::<Vec<_>>(),
-            "{address:?}"
-        );
+fn the_forge_step_shows_choices_after_reset() {
+    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, skein_lib::List::with_capacity(0));
+    assert!(root.forge().playground().is_none());
+    assert_eq!(d::address::print(root.pages().address()).as_ref(), b"/welcome?at=forge");
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(choice_cards(view.tree()), [b"GitHub".as_slice(), b"Forgejo on this machine", b"Your Forgejo"]);
+        node(view.tree(), Role::Button, "Connect GitHub");
+        node(view.tree(), Role::Link, "Forgejo on this machine");
+        node(view.tree(), Role::Link, "Your Forgejo");
     }
 }
 
@@ -222,8 +202,8 @@ fn the_welcome_has_a_bare_frame_and_no_banner() {
     assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Region).count(), 2);
 }
 #[test]
-fn the_welcome_step_says_its_words_and_offers_both_cards() {
-    let root = f::welcome_root(Step::Welcome, true);
+fn an_empty_store_offers_both_cards() {
+    let root = f::welcome_root(Step::Welcome, false);
     assert!(root.pages().welcome().unwrap().decided);
     let view = f::page_view(&root);
     let mut bytes = Vec::new();
@@ -300,6 +280,7 @@ fn the_welcome_tagline_and_lead_are_named_and_emphasize_what_and_how() {
     );
 }
 #[test]
+<<<<<<< HEAD
 fn a_document_with_no_playground_has_neither_the_playground_card_nor_the_closing_line() {
     let root = f::welcome_root(Step::Welcome, false);
     assert!(root.pages().welcome().unwrap().decided);
@@ -309,6 +290,8 @@ fn a_document_with_no_playground_has_neither_the_playground_card_nor_the_closing
     assert!(!words.contains("playground"));
 }
 #[test]
+=======
+>>>>>>> origin/pgkit/t-view-welcome
 fn the_welcome_shows_its_heading_alone_until_it_decides() {
     let (mut root, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, &f::limits());
     f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) });
@@ -372,7 +355,11 @@ fn the_model_step_offers_the_accounts_ways() {
     assert!(view.tree().nodes().iter().any(|node| node.role == Role::TextField));
 }
 #[test]
+<<<<<<< HEAD
 fn each_later_step_offers_back_later_and_the_playground_while_the_playground_is_answered() {
+=======
+fn each_later_step_offers_the_playground_only_for_an_empty_store() {
+>>>>>>> origin/pgkit/t-view-welcome
     for (step, back) in
         [(Step::Forge { forge: None }, Step::Welcome), (Step::Model { way: None }, Step::Forge { forge: None })]
     {
@@ -400,8 +387,13 @@ fn each_later_step_offers_back_later_and_the_playground_while_the_playground_is_
                         .contains(&crate::look::FLOW_QUIET)
                 );
             }
+<<<<<<< HEAD
             assert_eq!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some(), playground);
             if playground {
+=======
+            assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some());
+            {
+>>>>>>> origin/pgkit/t-view-welcome
                 let id = node(view.tree(), Role::Button, "Try the playground instead");
                 assert!(
                     !view
@@ -589,7 +581,7 @@ fn ready_has_no_foot_controls() {
 }
 
 #[test]
-fn a_connected_real_forge_hides_the_playground_before_its_end_is_read() {
+fn a_kept_real_forge_hides_the_playground() {
     let mut cases = Vec::new();
     cases.push(forge::rows(forge::connected(), w::Offer::Offered));
     for app in [w::AppWay::Manifest, w::AppWay::Pasted] {
@@ -601,7 +593,11 @@ fn a_connected_real_forge_hides_the_playground_before_its_end_is_read() {
     }
     for rows in cases {
         for step in [Step::Forge { forge: None }, Step::Model { way: None }] {
+<<<<<<< HEAD
             let root = f::playground_forges_root(Address::Welcome { step }, rows.clone());
+=======
+            let root = f::demo_forges_root(Address::Welcome { step }, rows.clone());
+>>>>>>> origin/pgkit/t-view-welcome
             assert!(root.forge().playground().is_some(), "the cached answer has not been reread yet");
             let view = f::page_view(&root);
             assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
@@ -641,6 +637,7 @@ fn ready_under_way_lists_model_forge_and_project_with_folded_progress() {
 }
 
 #[test]
+<<<<<<< HEAD
 fn model_choose_excludes_the_playgrounds_provider_before_and_after_retirement() {
     let address = Address::Welcome { step: Step::Model { way: None } };
     let (mut root, watch) = super::choice::playground_offers_root(address, true);
@@ -675,6 +672,8 @@ fn model_choose_excludes_the_playgrounds_provider_before_and_after_retirement() 
 }
 
 #[test]
+=======
+>>>>>>> origin/pgkit/t-view-welcome
 fn welcome_keeps_failed_setup_steps_at_model_forge_and_ready() {
     for step in [Step::Model { way: None }, Step::Forge { forge: Some(d::Choice::Forge(HERE)) }, Step::Ready] {
         for (rows, failed, why) in forge::failure_cases() {
@@ -1125,67 +1124,43 @@ fn ready_offers_connect_a_model_as_a_terminal_command() {
     );
 }
 
-#[test]
-fn welcome_forgejo_card_runs_under_the_box_and_links_to_details_elsewhere() {
-    for (offer, time) in
-        [(w::Offer::Offered, "Here · about a minute"), (w::Offer::NotUnderTheBox, "Needs four commands and a restart")]
-    {
-        let root = f::forge_root(
-            Address::Welcome { step: Step::Forge { forge: None } },
-            forge::rows(w::Connection::NotSetUp, offer.clone()),
-        );
-        let mut view = f::browser_page_view(&root);
-        node(view.tree(), Role::Region, "Forgejo");
-        node(
-            view.tree(),
-            Role::Paragraph,
-            "A forge of your own. temper can start it and manage it, or you can connect your own deployment.",
-        );
-        let time = node(view.tree(), Role::Paragraph, time);
-        assert!(
-            view.tree()
-                .nodes()
-                .iter()
-                .find(|n| n.id == time)
-                .unwrap()
-                .styles
-                .as_slice()
-                .contains(&crate::look::FLOW_MUTED)
-        );
-        let role = if offer == w::Offer::Offered { Role::Button } else { Role::Link };
-        let run = node(view.tree(), role, "Run on this machine");
-        assert!(
-            view.tree()
-                .nodes()
-                .iter()
-                .find(|n| n.id == run)
-                .unwrap()
-                .styles
-                .as_slice()
-                .contains(&crate::look::FLOW_SECONDARY)
-        );
-        if offer == w::Offer::Offered {
-            assert_eq!(
-                crate::act(&mut view, run, Act::Press),
-                Some(d::Action::Forge(d::forge::Act::SetUpAtOnce { forge: HERE }))
-            );
-        } else {
-            assert_eq!(crate::href(&mut view, run).as_deref(), Some(b"/welcome?at=forge&forge=3".as_slice()));
+fn first_run_destination(root: &mut d::Domain) -> Address {
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::limits() },
+        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) },
+        &mut out,
+    );
+    for request in &out {
+        if let d::Request::Show { address, replace: true } = request {
+            return address.clone();
         }
-        let deployment = node(view.tree(), Role::Link, "Or connect your deployment");
-        assert!(
-            view.tree()
-                .nodes()
-                .iter()
-                .find(|n| n.id == deployment)
-                .unwrap()
-                .styles
-                .as_slice()
-                .contains(&crate::look::FLOW_QUIET)
-        );
-        assert_eq!(
-            crate::href(&mut view, deployment).as_deref(),
-            Some(b"https://github.com/fabrig-ai/temper/blob/main/docs/help/server.md".as_slice())
-        );
     }
+    panic!("first-run destination");
+}
+
+#[test]
+fn an_unfinished_store_opens_at_its_step() {
+    for (rows, step, heading) in [
+        (forge::rows(w::Connection::NotSetUp, w::Offer::Offered), Step::Forge { forge: None }, "Connect a forge"),
+        (owned_adopted_rows(), Step::Model { way: None }, "Connect a model"),
+    ] {
+        let mut root = f::forge_root(Address::Welcome { step: Step::Ready }, rows);
+        assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Unfinished { step }));
+        let address = first_run_destination(&mut root);
+        assert!(f::find(f::page_view(&root).tree(), Role::Region, b"Set up temper").is_none());
+        assert_eq!(address, Address::Welcome { step });
+        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
+        let view = f::page_view(&root);
+        node(view.tree(), Role::Heading { level: 1 }, heading);
+        assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
+    }
+}
+
+#[test]
+fn a_whole_store_moves_on() {
+    let mut root = ready_root(owned_adopted_rows());
+    assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Whole));
+    assert_eq!(first_run_destination(&mut root), Address::Chats { filter: ChatsFilter::All, start: false });
 }

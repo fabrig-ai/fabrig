@@ -3,13 +3,13 @@ mod choice;
 mod confirm;
 mod delegation;
 mod playground;
-mod playground_start;
 pub(crate) mod fixtures;
 mod forge_page;
 mod forges;
 mod frame;
 mod inbox;
 mod look;
+mod playground_start;
 use jig_client::contract::{Part, PartScope};
 use skein_ui::Role;
 

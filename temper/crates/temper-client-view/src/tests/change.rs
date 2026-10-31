@@ -516,7 +516,7 @@ fn playground_toolbar(on_playground: bool, address: &[u8]) -> Tree {
         change,
         &words,
         words.capacity().unwrap(),
-        root.forge().serves_pages(change.forge()),
+        crate::pages::serves_pages(&root, change.forge()),
     );
     builder.finish()
 }

@@ -52,6 +52,9 @@ pub(crate) fn main(
         b.style(crate::look::PAGEBAR);
         text(b, Role::Heading { level: 1 }, &words.say(Word::Chats, &[]));
         b.close();
+        if root.forge().playground_starting() {
+            text(b, Role::Status, &words.say(Word::PlaygroundStarting, &[]));
+        }
     }
     if let Some(chats) = root.pages().chats() {
         if root.pages().me(root.client()).is_some() && root.pages().project().is_some() {
@@ -202,25 +205,19 @@ fn start(
     b.style(crate::look::CHATBAR);
     b.open(Role::Slot);
     text(b, Role::Paragraph, &words.say(Word::NewChat, &[]));
-    let full = match root.forge().playground_request() {
-        Some(request) => crate::cards::full_progress(b, words, root, request),
-        None => false,
+    b.open(Role::Status);
+    b.style(crate::look::STATUS_QUIET);
+    let status = if root.forge().playground_failure().is_some() {
+        Word::PlaygroundNotStarted
+    } else if root.forge().playground_starting() {
+        Word::PlaygroundStarting
+    } else {
+        Word::Ready
     };
-    if !full {
-        b.open(Role::Status);
-        b.style(crate::look::STATUS_QUIET);
-        let status = if root.forge().playground_starting() {
-            Word::PlaygroundStarting
-        } else if root.forge().playground_failure().is_some() {
-            Word::PlaygroundNotStarted
-        } else {
-            Word::Ready
-        };
-        let ready = words.say(status, &[]);
-        b.name(&ready);
-        b.text(Run::Plain, &ready);
-        b.close();
-    }
+    let ready = words.say(status, &[]);
+    b.name(&ready);
+    b.text(Run::Plain, &ready);
+    b.close();
     b.close();
     b.open(Role::Slot);
     text(b, Role::Paragraph, &words.say(Word::PlaygroundModelName, &[]));
@@ -262,7 +259,8 @@ pub(crate) fn row(
     // Keep the number's link in a container: a paragraph is flattened to text
     // by the terminal, hiding the command promised by client/README.md, 3.5.
     b.open(Role::Slot);
-    if let Some(project) = super::project_name(root.pages().me(root.client()), root.forge().playground(), line.project, words)
+    if let Some(project) =
+        super::project_name(root.pages().me(root.client()), root.forge().playground(), line.project, words)
     {
         b.text(Run::Plain, &project);
         words.text(b, Word::ToolSeparator, &[]);
@@ -449,12 +447,18 @@ fn closed_status(b: &mut Builder, words: &Words) {
     b.close();
 }
 
-/// The playground whose start the Chats page shows, when it shows one.
+/// The playground whose invitation the Chats page shows (temper/docs/design/draft/playground-reset.md, 6.1).
 pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::forge::Playground> {
     let Address::Chats { .. } = root.pages().address() else { return None };
-    match root.playground() {
-        Some((playground, halves)) if halves.model && root.pages().project() == Some(playground.project) => Some(playground),
-        _ => None,
+    let playground = root.forge().playground()?;
+    let selected = match playground.project {
+        Some(project) => root.pages().project() == Some(project),
+        None => true,
+    };
+    if playground.state != temper_client_domain::forge::PlaygroundState::Resetting && selected {
+        Some(playground)
+    } else {
+        None
     }
 }
 
@@ -477,7 +481,7 @@ fn suggestions(
         &words.say(Word::PlaygroundRequest, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]),
     );
     if let Some(failure) = root.forge().playground_failure() {
-        use temper_client_domain::forge::model::StartFailure;
+        use temper_client_domain::forge::playground::StartFailure;
         let message = match failure {
             StartFailure::Group(why) => {
                 words.say(Word::PlaygroundGroupFailed, &[Hole::Name(temper_client_domain::forge::words::lossy(why))])

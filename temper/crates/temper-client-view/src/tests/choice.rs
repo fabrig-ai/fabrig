@@ -1294,46 +1294,6 @@ pub(super) fn playground_offers_root(address: Address, playground: bool) -> (d::
     (root, forges.unwrap())
 }
 
-pub(super) fn retire_playground(root: &mut d::Domain, watch: Token) -> Token {
-    use temper_client_protocol_wire::v1 as w;
-    let mut out = super::connect_forge::deliver(
-        root,
-        watch,
-        super::connect_forge::rows(super::connect_forge::connected(), w::Offer::Offered),
-    );
-    while let Some(request) = out.pop() {
-        if let d::Request::Client {
-            request:
-                jig_client::Request::Down {
-                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
-                },
-        } = request
-        {
-            assert_eq!(
-                temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read(),
-                &w::Read::Playground
-            );
-            return read;
-        }
-    }
-    panic!("a real forge's connection rereads the playground");
-}
-
-pub(super) fn answer_retired_playground(root: &mut d::Domain, read: Token) {
-    fixtures::root_event(
-        root,
-        d::Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Family { family: temper_client_protocol_wire::FORGE, record: None },
-                },
-            },
-        },
-    );
-    assert!(root.forge().playground().is_none());
-}
-
 #[test]
 fn the_model_choice_leaves_the_scripted_provider_out() {
     for address in [Address::ConnectForge { forge: None }, Address::Forges] {

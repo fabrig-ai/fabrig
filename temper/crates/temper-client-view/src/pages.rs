@@ -18,7 +18,7 @@ pub(crate) fn project_name(
     words: &crate::words::Words,
 ) -> Option<Box<[u8]>> {
     if let Some(playground) = playground
-        && playground.project == project
+        && playground.project == Some(project)
     {
         return Some(words.say(crate::words::Word::Playground, &[]));
     }
@@ -28,4 +28,12 @@ pub(crate) fn project_name(
         }
     }
     None
+}
+
+/// The playground's forge has no external pages (temper/docs/design/draft/playground-reset.md, 6.1).
+pub(crate) fn serves_pages(root: &temper_client_domain::Domain, forge: u16) -> bool {
+    match root.forge().playground() {
+        Some(playground) => playground.forge != forge,
+        None => true,
+    }
 }

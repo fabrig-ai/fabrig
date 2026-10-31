@@ -83,6 +83,7 @@ fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() 
 
 #[test]
 fn other_chats_keep_their_heading_and_no_start() {
+<<<<<<< HEAD
     for (row, project, model, playground) in [
         ("other project", f::SECOND_PROJECT, true, true),
         ("forge alone", f::PROJECT, false, true),
@@ -90,6 +91,13 @@ fn other_chats_keep_their_heading_and_no_start() {
     ] {
         let root = if playground {
             f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
+=======
+    for (row, project, model, demo) in
+        [("other project", f::SECOND_PROJECT, true, true), ("no answer", f::PROJECT, true, false)]
+    {
+        let root = if demo {
+            f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
+>>>>>>> origin/pgkit/t-view-welcome
         } else {
             f::chats_root()
         };
@@ -168,9 +176,15 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
 }
 
 #[test]
+<<<<<<< HEAD
 fn a_chats_context_follows_the_chatbar_only_in_the_playground_project_even_without_its_model() {
     for (row, project, model, playground, shown) in [
         ("playground", f::PROJECT, true, true, true),
+=======
+fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
+    for (row, project, model, demo, shown) in [
+        ("demo", f::PROJECT, true, true, true),
+>>>>>>> origin/pgkit/t-view-welcome
         ("forge alone", f::PROJECT, false, true, true),
         ("other project", f::SECOND_PROJECT, true, true, false),
         ("no answer", f::PROJECT, true, false, false),
@@ -219,8 +233,13 @@ fn the_context_repository_has_its_own_node_and_style() {
 }
 
 #[test]
+<<<<<<< HEAD
 fn the_invitation_is_a_named_region_with_its_parts_in_order() {
     let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+=======
+fn chats_invites_to_the_playground_and_starts_it() {
+    let root = f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+>>>>>>> origin/pgkit/t-view-welcome
     let view = f::page_view(&root);
     let tree = view.tree();
     let region = f::find(tree, Role::Region, b"What shall we change?").expect("named invitation region");
@@ -250,7 +269,10 @@ fn the_invitation_is_a_named_region_with_its_parts_in_order() {
 
 #[test]
 fn starting_waits_and_each_failure_explains_why_with_try_again() {
+<<<<<<< HEAD
     use temper_client_domain::forge::model::PlaygroundState;
+=======
+>>>>>>> origin/pgkit/t-view-welcome
     use temper_client_protocol_wire::v1 as w;
     for (why, expected) in [
         (
@@ -264,6 +286,7 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         (w::StartFailure::Adoption, "The playground did not start: acme/shop was not adopted."),
         (w::StartFailure::NotConnected, "The playground did not start: Playground forge did not connect."),
     ] {
+<<<<<<< HEAD
         let mut root =
             f::playground_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::PlaygroundState::Starting);
         assert_eq!(root.forge().playground().unwrap().state, PlaygroundState::Starting);
@@ -282,10 +305,19 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
                 .contains(&skein_ui::State::Disabled)
         );
         let _: Option<skein_lib::Token> = f::playground_start_answer(
+=======
+        let mut root = start_root();
+        let attempt = f::demo_start_attempt(&mut root);
+        let view = f::page_view(&root);
+        assert!(f::find(view.tree(), Role::Status, b"Starting").is_some());
+        let read = f::demo_start_answer(
+>>>>>>> origin/pgkit/t-view-welcome
             &mut root,
             attempt,
             w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
-        );
+        )
+        .expect("failure rereads the playground");
+        f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
         let mut view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, b"Not started").is_some());
         assert!(f::find(view.tree(), Role::Alert, expected.as_bytes()).is_some(), "{expected}");
@@ -299,10 +331,10 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         );
     }
 }
-
 #[test]
 fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() {
     use temper_client_protocol_wire::v1 as w;
+<<<<<<< HEAD
     let mut root =
         f::playground_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::PlaygroundState::Starting);
     let attempt = f::playground_start_attempt(&mut root);
@@ -310,10 +342,20 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
         w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: Box::from([255_u8; 256]) }).unwrap(),
     );
     let _: Option<skein_lib::Token> = f::playground_start_answer(
+=======
+    let mut root = start_root();
+    let attempt = f::demo_start_attempt(&mut root);
+    let why = w::StartFailure::Group(
+        w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: Box::from([255_u8; 256]) }).unwrap(),
+    );
+    let read = f::demo_start_answer(
+>>>>>>> origin/pgkit/t-view-welcome
         &mut root,
         attempt,
         w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
-    );
+    )
+    .expect("failure rereads the playground");
+    f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
     let domain = f::domain_limits();
     let words = f::words();
     let limits = crate::Limits::of(&domain, &words).unwrap();
@@ -324,6 +366,7 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
 }
 
 #[test]
+<<<<<<< HEAD
 fn a_retired_reload_removes_the_welcome_playground_card() {
     let root = f::playground_state_root(
         Address::Welcome { step: temper_client_domain::Step::Welcome },
@@ -339,13 +382,20 @@ fn a_retired_reload_removes_the_welcome_playground_card() {
 }
 
 #[test]
+=======
+>>>>>>> origin/pgkit/t-view-welcome
 fn enter_and_start_wait_for_the_playground_start_answer() {
     use temper_client_domain::{Action, pages::Act};
     use temper_client_protocol_wire::v1 as w;
 
+<<<<<<< HEAD
     let mut root =
         f::playground_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::PlaygroundState::Starting);
     let attempt = f::playground_start_attempt(&mut root);
+=======
+    let mut root = start_root();
+    let attempt = f::demo_start_attempt(&mut root);
+>>>>>>> origin/pgkit/t-view-welcome
     assert_eq!(f::type_into(&mut root, b"Start a chat", b"Add CSV export").as_ref(), b"Add CSV export");
     assert!(root.forge().playground_starting());
     let mut view = f::page_view(&root);
@@ -354,8 +404,13 @@ fn enter_and_start_wait_for_the_playground_start_answer() {
     assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), None);
     assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None, "Enter waits as the button does");
 
+<<<<<<< HEAD
     let read = f::playground_start_answer(&mut root, attempt, w::Outcome::Running).expect("fresh playground read");
     f::playground_read_answer(&mut root, read, f::PROJECT, w::PlaygroundState::Running);
+=======
+    let read = f::demo_start_answer(&mut root, attempt, w::Outcome::Running).expect("fresh playground read");
+    f::deliver_playground(&mut root, read, w::PlaygroundState::Running, f::FORGE, Some(f::PROJECT));
+>>>>>>> origin/pgkit/t-view-welcome
     assert_eq!(root.pages().chats().expect("kept draft").words.as_ref(), b"Add CSV export");
     let mut view = f::page_view(&root);
     let button = f::find(view.tree(), Role::Button, b"Start chat").expect("ready start button");
@@ -363,4 +418,46 @@ fn enter_and_start_wait_for_the_playground_start_answer() {
     assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), Some(Action::Pages(Act::StartChat)));
     let action = crate::act(&mut view, field, skein_ui::Act::Submit).expect("ready Enter");
     assert_eq!(action, Action::Pages(Act::StartChat));
+}
+
+fn start_root() -> temper_client_domain::Domain {
+    let address = Address::Chats { filter: ChatsFilter::All, start: false };
+    let template = f::demo_root(address.clone(), f::PROJECT, true);
+    let (mut root, me, _, _, accounts, _) = f::root_at_with_forges(
+        address,
+        &f::domain_limits(),
+        b"Shop",
+        None,
+        None,
+        Some(skein_lib::List::with_capacity(0)),
+    );
+    f::root_event(
+        &mut root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(
+                        template.pages().me(template.client()).unwrap().clone(),
+                    ))),
+                },
+            },
+        },
+    );
+    f::welcome_account(&mut root, accounts.unwrap());
+    root
+}
+
+#[test]
+fn a_starting_row_without_a_project_keeps_its_invitation_and_cues_disabled() {
+    use temper_client_protocol_wire::v1 as w;
+    let mut root = start_root();
+    let attempt = f::demo_start_attempt(&mut root);
+    let read = f::demo_start_answer(&mut root, attempt, w::Outcome::Running).expect("playground read");
+    f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
+    let mut view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"What shall we change?").is_some());
+    assert!(f::find(view.tree(), Role::Status, b"Starting").is_some());
+    let cue = f::find(view.tree(), Role::Button, f::DEMO_CUE).unwrap();
+    assert_eq!(crate::act(&mut view, cue, skein_ui::Act::Press), None);
 }

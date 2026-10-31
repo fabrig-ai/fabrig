@@ -4,11 +4,10 @@ use temper_client_domain::ChatsFilter;
 use temper_client_domain::{Action, Address, Event, pages::Act};
 
 #[test]
-fn suggestions_show_only_in_the_playground_project_with_the_model_half() {
+fn suggestions_show_only_in_the_playground_project() {
     for (row, project, model, playground, shown) in [
         ("playground project", f::PROJECT, true, true, true),
         ("other project", f::SECOND_PROJECT, true, true, false),
-        ("no model half", f::PROJECT, false, true, false),
         ("no playground", f::PROJECT, true, false, false),
     ] {
         let root = if playground {
@@ -162,7 +161,6 @@ fn the_playground_account_always_names_default_whatever_the_model_or_project() {
         ("default", f::PROJECT, true, false, "Using Scripted model · Default"),
         ("requested", f::PROJECT, true, true, "Using Scripted model · Default"),
         ("another project", f::SECOND_PROJECT, true, false, "Using Scripted model · Default"),
-        ("forge alone", f::PROJECT, false, false, "No model yet · Connect a model"),
     ] {
         let choice = if requested {
             Some(c::LlmChoice {
@@ -246,9 +244,9 @@ fn pending_words_without_a_party_are_named_you() {
 }
 
 #[test]
-fn t1_keeps_the_playground_line_after_another_providers_key() {
+fn a_real_account_keeps_the_playgrounds_scripted_model() {
     let root = f::playground_kept_root();
-    assert!(!root.playground().unwrap().1.model);
+    assert!(root.forge().playground().is_some());
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, "Using Scripted model · Default".as_bytes()).is_some());
 }
