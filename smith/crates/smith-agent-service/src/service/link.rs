@@ -64,8 +64,8 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
         | domain::Request::Deliver { .. }
         | domain::Request::Unauthorized { .. }
         | domain::Request::Limited { .. }
-        | domain::Request::Refused { .. } => {}
-        domain::Request::Answer { .. } => {}
+        | domain::Request::Refused { .. }
+        | domain::Request::Answer { .. } => {}
     }
     let token = service.next_send();
     let mut answered = false;
