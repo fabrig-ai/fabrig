@@ -887,6 +887,9 @@ fn local_service(config: fixtures::ConfiguredEngine, store: crate::store::Store)
     service
 }
 fn restore_local(service: &mut crate::Service) {
+    restore_local_with_file(service, true);
+}
+fn restore_local_with_file(service: &mut crate::Service, absent: bool) {
     // The generic kernel refuses unhandled network connects. Hold local work
     // until service admission opens, then give its real setup streams to Face.
     // domain/root.md, 9.1 holds effects through the durable mark; the service pass
@@ -908,6 +911,12 @@ fn restore_local(service: &mut crate::Service) {
             }
             crate::engine::iterate(engine, Time::from_nanos(1), Wall::from_nanos(1));
             advance(engine);
+            if absent && let Some(read) = service.take_handover_read() {
+                service.handover_read(read.forge, read.run, Ok(None));
+                let engine = service.engine.as_mut().unwrap();
+                crate::engine::iterate(engine, Time::from_nanos(1), Wall::from_nanos(1));
+                advance(engine);
+            }
             return;
         }
     }
@@ -1765,6 +1774,7 @@ fn setup_reconciliation_waits_for_the_mark() {
     assert!(engine.setup.component.is_none());
     assert!(engine.setup.runs.is_empty());
     assert!(engine.setup.io.is_empty());
+    assert!(lifecycle::take_read(engine).is_none(), "no handover read before the durable mark");
     let mark = engine.store.held_mark.take().unwrap();
     engine.store.hold_mark = false;
     assert!(engine.store.down(mark));
@@ -1774,6 +1784,12 @@ fn setup_reconciliation_waits_for_the_mark() {
     assert!(engine.store.component.mark_durable());
     assert!(engine.setup.lifecycle.startup_restored());
     assert!(engine.setup.component.is_some());
+    assert!(engine.setup.runs.is_empty(), "the handover read precedes reconciliation");
+    let read = lifecycle::take_read(engine).expect("startup handover read after the durable mark");
+    lifecycle::read(engine, read.forge, read.run, Ok(None));
+    for _ in 0..PASSES {
+        crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+    }
     assert_eq!(engine.setup.runs.len(), 1, "one configured reconciliation");
     for _ in 0..PASSES {
         crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
@@ -2070,7 +2086,7 @@ fn forgetting_before_the_host_starts_does_not_restore_the_forge() {
 }
 
 #[test]
-fn a_kept_fake_waits_for_the_box_before_reading_its_handover() {
+fn a_kept_fake_reads_at_start_then_waits_for_the_box_when_the_handover_is_absent() {
     let mut service = local_service(runtime_config(), local_store(false));
     let record = runtime_record(domain::Kind::Forgejo, domain::Mode::Fake);
     let engine = service.engine.as_mut().unwrap();
@@ -2082,6 +2098,11 @@ fn a_kept_fake_waits_for_the_box_before_reading_its_handover() {
     lifecycle::restored(engine);
     advance(engine);
     assert!(!engine.setup.lifecycle.local(2).unwrap().pending);
+    let read = lifecycle::take_read(engine).expect("startup checks for a present handover");
+    assert_eq!(read.forge, 2);
+    assert_eq!(read.path.as_ref(), b"/data/playground-2/admin_token");
+    lifecycle::read(engine, 2, read.run, Ok(None));
+    advance(engine);
     let mut not_set_up = false;
     for event in &engine.events {
         if let root::Event::Forge(event) = event

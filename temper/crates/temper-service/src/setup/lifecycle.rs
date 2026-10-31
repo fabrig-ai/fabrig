@@ -1,4 +1,4 @@
-//! Connection sequencing and serialized installation rewrites (protocol/forge.md, 2.2–2.6).
+//! Connection sequencing and serialized installation rewrites (temper/docs/design/protocol/forge.md, 2.1–2.6).
 use super::{Write, answer, ended, failure_text};
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -901,7 +901,15 @@ fn start_pending(engine: &mut crate::engine::Engine, forge: u16) -> bool {
         && local.restored
         && local.pending
     {
-        start_local(engine, forge);
+        if local.source == Source::Prepared && local.handover.is_none() {
+            let run = next_run(&mut engine.setup.lifecycle);
+            let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
+            local.pending = false;
+            local.file = FileStep::Reading { run, sent: false };
+            state(engine, forge, domain::Connection::Connecting);
+        } else {
+            start_local(engine, forge);
+        }
         return true;
     }
     false
@@ -913,7 +921,7 @@ fn start_local(engine: &mut crate::engine::Engine, forge: u16) {
     let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
     assert!(local.source != Source::Managed || local.handover.is_none(), "managed string form never stages TakeOver");
     local.pending = false;
-    if local.trigger == Trigger::StartFake {
+    if local.trigger == Trigger::StartFake && local.handover.is_none() {
         state(engine, forge, domain::Connection::NotSetUp);
         return;
     }
