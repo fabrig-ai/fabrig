@@ -568,6 +568,7 @@ impl Machine {
                 Event::Listening { .. } => "listening",
                 Event::ListenerLost => "lost",
                 Event::Closed => "closed",
+                Event::Added { .. } => unreachable!("no runtime forge added in this fixture"),
                 Event::Connected { .. } => unreachable!("connected taken"),
             };
             self.event_order.push(name);
@@ -592,6 +593,7 @@ impl Machine {
                     self.access_event(forge, false);
                     self.stopped.push((forge, why));
                 }
+                Event::Added { .. } => unreachable!("no runtime forge added in this fixture"),
                 Event::Connected { .. } => unreachable!("connected taken"),
                 Event::Hint(hint) => {
                     assert!(self.fake.is_some(), "GitHub log fixture");

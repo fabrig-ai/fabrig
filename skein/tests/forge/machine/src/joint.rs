@@ -393,6 +393,7 @@ impl Joint {
                 }
                 Event::Listening { .. } => {}
                 Event::ListenerLost => panic!("hook listener lost"),
+                Event::Added { .. } => unreachable!("no runtime forge added in this fixture"),
                 Event::Connected { .. } => self.connected += 1,
                 Event::Closed => self.closed = true,
             }

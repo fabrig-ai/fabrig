@@ -46,6 +46,7 @@ fn changes(world: &Machine) -> Vec<(u64, Change)> {
             | Event::GitToken { .. }
             | Event::Answered(_)
             | Event::Hint(_)
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. }
             | Event::Listening { .. }
@@ -79,6 +80,7 @@ fn acceptance_after_empty_start_checks_identity_without_reconnecting() {
         | Event::Fact { .. }
         | Event::Answered(_)
         | Event::Hint(_)
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Listening { .. }

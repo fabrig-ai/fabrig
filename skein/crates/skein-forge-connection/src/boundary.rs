@@ -57,6 +57,9 @@ pub struct Answered {
 /// From the routing.
 #[derive(Debug)]
 pub enum Request {
+    /// Adds one forge, checked as at start (3.2), then started as at start (3.3).
+    /// With no access it runs no start until its Connect; ignored after Close or Abort.
+    Add { forge: crate::settings::Forge },
     /// Hands or replaces a forge's access (forge-connection.md, 3.5): at most one
     /// Connected and at most one Stopped per generation, including refusal after Ready.
     /// A replacement suppresses the old generation's remaining events.
@@ -89,6 +92,8 @@ pub enum Request {
 /// To the routing; io's requests go in a queue of their own.
 #[derive(Debug)]
 pub enum Event {
+    /// Add's one answer; refused names the value start would refuse.
+    Added { forge: u16, refused: Option<crate::Unusable> },
     /// A call's one terminal.
     Answered(Answered),
     /// A retained installation's lifecycle, with its current or last known account.

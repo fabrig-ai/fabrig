@@ -51,6 +51,7 @@ fn changes(h: &mut Harness) -> Box<[(u64, Option<Account>, Change)]> {
             | Event::Hint(_)
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. }
             | Event::Closed => unreachable!("installation collection"),

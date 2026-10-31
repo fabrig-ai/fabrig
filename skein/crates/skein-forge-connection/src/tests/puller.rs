@@ -282,6 +282,7 @@ fn page_gap_emits_once_and_rereads_installations() {
         | Event::Hint(_)
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("fact"),
@@ -355,6 +356,7 @@ fn repository_row_reads_whole_and_sends_its_installation_change() {
         | Event::Hint(_)
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("installation"),
@@ -376,6 +378,7 @@ fn refused_hint_blocks_remaining_deliveries_until_offer_and_admission() {
         | Event::GitToken { .. }
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("hint"),
@@ -393,6 +396,7 @@ fn refused_hint_blocks_remaining_deliveries_until_offer_and_admission() {
         | Event::GitToken { .. }
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("hint"),
@@ -588,6 +592,7 @@ fn puller_holding_a_hint_stays_under_the_growth_ceiling() {
         | Event::GitToken { .. }
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("hint"),

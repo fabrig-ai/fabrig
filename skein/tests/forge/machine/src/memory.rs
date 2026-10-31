@@ -369,6 +369,7 @@ impl World {
                     self.hints += 1;
                     self.seen.held_hints = self.seen.held_hints.max(self.hints);
                 }
+                Event::Added { .. } => unreachable!("no runtime forge added in this fixture"),
                 Event::Connected { .. } => self.seen.forges += 1,
                 Event::Installation { .. } | Event::Fact { .. } | Event::Listening { .. } => {}
                 Event::GitToken { token, .. } => {

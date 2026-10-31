@@ -716,6 +716,8 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
                 }
                 engine.drain_facts();
             }
+            // fr-connections adds forges at runtime
+            skein_forge_connection::Event::Added { .. } => {}
             skein_forge_connection::Event::Connected { forge } => crate::setup::lifecycle::connected(engine, forge),
             skein_forge_connection::Event::Installation { forge, installation, account, change } => {
                 crate::setup::lifecycle::installation(engine, forge, installation, account, change);

@@ -274,6 +274,7 @@ impl Host for Hosted {
         while let Some(e) = self.above.pop() {
             match e {
                 Event::Installation { .. } | Event::Fact { .. } | Event::GitToken { .. } => panic!("Forgejo fixture"),
+                Event::Added { .. } => unreachable!("no runtime forge added in this fixture"),
                 Event::Connected { .. } => {}
                 Event::Answered(a) => assert!(self.answer.replace(a).is_none(), "once per call"),
                 Event::Stopped { why, .. } => {

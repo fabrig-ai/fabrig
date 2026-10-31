@@ -82,6 +82,7 @@ fn expiry(h: &Harness, index: usize) -> Wall {
         | Event::Hint(_)
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("token history"),
@@ -591,6 +592,7 @@ fn renewed_contents_follows_changes_once() {
         | Event::Hint(_)
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("held token"),
