@@ -447,14 +447,7 @@ fn log_number(name: &[u8]) -> Option<u64> {
     if name.len() != 24 || name.get(..4)? != b"log-" {
         return None;
     }
-    let mut number = 0_u64;
-    for &byte in name.get(4..)? {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        number = number.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(number)
+    skein_lib::Decimal::read(name.get(4..)?)
 }
 
 /// The owner's request.

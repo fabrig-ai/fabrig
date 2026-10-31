@@ -543,11 +543,9 @@ impl Component {
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut earliest = Time::earliest(self.wake, self.hooks.deadline());
-        for slot in &self.github {
-            if let Some(gh) = slot {
-                earliest = Time::earliest(earliest, gh.puller.due);
-                earliest = Time::earliest(earliest, gh.deadline());
-            }
+        for gh in self.github.iter().flatten() {
+            earliest = Time::earliest(earliest, gh.puller.due);
+            earliest = Time::earliest(earliest, gh.deadline());
         }
         for (_, id) in &self.connections {
             let c = self.connection_slab.get(*id).expect("indexed connection");

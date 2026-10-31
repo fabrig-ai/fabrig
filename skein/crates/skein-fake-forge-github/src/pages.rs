@@ -432,7 +432,7 @@ fn reach(service: &Service, query: &Map<Box<[u8]>, Box<[u8]>>) -> Option<Reach> 
     let mut rest = listed.as_ref();
     for _id in 0..listed.len() {
         let (text, tail) = split(rest, b',')?;
-        let id = unsigned(text)?;
+        let id = u32::try_from(Decimal::read(text)?).ok()?;
         if !service.repositories.contains_key(&id) || ids.as_slice().contains(&id) {
             return None;
         }
@@ -450,19 +450,6 @@ fn reach(service: &Service, query: &Map<Box<[u8]>, Box<[u8]>>) -> Option<Reach> 
 fn redirect(setup: &[u8], id: u64, action: &[u8], state: &[u8], max: u32) -> Option<Box<[u8]>> {
     let digits = Decimal::of(id);
     join(&[setup, b"?installation_id=", digits.as_bytes(), b"&setup_action=", action, b"&state=", state], max)
-}
-fn unsigned(text: &[u8]) -> Option<u32> {
-    if text.is_empty() {
-        return None;
-    }
-    let mut id = 0_u32;
-    for byte in text {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        id = id.checked_mul(10)?.checked_add(u32::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(id)
 }
 pub(crate) fn unreserved(text: &[u8]) -> bool {
     if text.is_empty() {

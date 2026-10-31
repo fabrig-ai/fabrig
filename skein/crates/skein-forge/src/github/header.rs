@@ -1,11 +1,8 @@
 //! The answer head read beside GitHub's documents (forge-github.md, section 2).
 use super::limits::Limits;
-use crate::{
-    api,
-    forgejo::{id::unsigned, time},
-};
+use crate::{api, forgejo::time};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Wall};
+use skein_lib::{Decimal, Duration, Wall};
 /// GitHub's rate window, present only when all three fields arrived.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RateFields {
@@ -150,7 +147,7 @@ pub fn field(head: &mut Head, name: &[u8], value: &[u8], limits: &Limits) {
         head.date = time::http_date(value);
     } else if name.eq_ignore_ascii_case(b"Retry-After") {
         head.retry_at = None;
-        head.retry_after = match unsigned(value) {
+        head.retry_after = match Decimal::read(value) {
             Some(seconds) => seconds_duration(seconds),
             None => {
                 head.retry_at = time::http_date(value);
@@ -203,7 +200,7 @@ pub fn field(head: &mut Head, name: &[u8], value: &[u8], limits: &Limits) {
     };
 }
 fn number(value: &[u8]) -> Option<u32> {
-    u32::try_from(unsigned(value)?).ok()
+    u32::try_from(Decimal::read(value)?).ok()
 }
 fn split(bytes: &[u8], delimiter: u8) -> (&[u8], &[u8]) {
     for (i, byte) in bytes.iter().enumerate() {
@@ -323,7 +320,7 @@ fn seconds_duration(seconds: u64) -> Option<Duration> {
     Some(Duration::from_nanos(seconds.checked_mul(1_000_000_000)?))
 }
 fn seconds_wall(bytes: &[u8]) -> Option<Wall> {
-    Some(Wall::from_nanos(unsigned(bytes)?.checked_mul(1_000_000_000)?))
+    Some(Wall::from_nanos(Decimal::read(bytes)?.checked_mul(1_000_000_000)?))
 }
 
 fn retry_date(at: Option<Wall>, date: Option<Wall>) -> Option<Duration> {

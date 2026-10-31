@@ -154,18 +154,7 @@ pub(crate) fn from_head(call: &skein_http::server::Call, registered: &[u8], limi
 pub(crate) fn port(uri: &[u8]) -> Option<u16> {
     let (_, authority, _) = parts(uri)?;
     let at = colon(authority)?;
-    let digits = authority.get(at.checked_add(1)?..)?;
-    if digits.is_empty() {
-        return None;
-    }
-    let mut port = 0_u16;
-    for byte in digits {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        port = port.checked_mul(10)?.checked_add(u16::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(port)
+    u16::try_from(skein_lib::Decimal::read(authority.get(at.checked_add(1)?..)?)?).ok()
 }
 
 fn parts(uri: &[u8]) -> Option<(&[u8], &[u8], &[u8])> {

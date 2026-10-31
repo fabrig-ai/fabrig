@@ -62,8 +62,8 @@ pub(crate) fn decode(method: Method, target: &[u8], limits: &Limits) -> Option<R
         let installation = tail.get(..split)?;
         let repository = tail.get(split.checked_add(1)?..)?;
         let repository = repository.strip_prefix(b"repositories/")?;
-        let installation = skein_forge::forgejo::id::unsigned(installation)?;
-        let repository = u32::try_from(skein_forge::forgejo::id::unsigned(repository)?).ok()?;
+        let installation = skein_lib::Decimal::read(installation)?;
+        let repository = u32::try_from(skein_lib::Decimal::read(repository)?).ok()?;
         let add = match method {
             Method::Put => true,
             Method::Delete => false,

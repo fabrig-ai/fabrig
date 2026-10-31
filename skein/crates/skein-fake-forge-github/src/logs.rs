@@ -5,7 +5,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api as a};
-use skein_forge::{forgejo::id::unsigned, github::request::Method};
+use skein_forge::github::request::Method;
 use skein_lib::{Decimal, Queue, ReplyTo, Rng, Secret, Wall, Writer, bytes, sha256::Hmac};
 
 const LIFE: u64 = 600_000_000_000;
@@ -189,17 +189,17 @@ fn verify(key: &Secret, target: &[u8], now: Wall) -> Option<(u32, u64, u32)> {
         return None;
     }
     let at = bytes::find(prefix, b"?expires=")?;
-    let expires = unsigned(prefix.get(at.checked_add(9)?..)?)?;
+    let expires = Decimal::read(prefix.get(at.checked_add(9)?..)?)?;
     if now.as_nanos() >= expires {
         return None;
     }
     let path = prefix.get(..at)?.strip_prefix(b"/logs/")?;
     let first = bytes::find(path, b"/")?;
-    let repository = u32::try_from(unsigned(path.get(..first)?)?).ok()?;
+    let repository = u32::try_from(Decimal::read(path.get(..first)?)?).ok()?;
     let tail = path.get(first.checked_add(1)?..)?;
     let second = bytes::find(tail, b"/")?;
-    let job = unsigned(tail.get(..second)?)?;
-    let attempt = u32::try_from(unsigned(tail.get(second.checked_add(1)?..)?)?).ok()?;
+    let job = Decimal::read(tail.get(..second)?)?;
+    let attempt = u32::try_from(Decimal::read(tail.get(second.checked_add(1)?..)?)?).ok()?;
     Some((repository, job, attempt))
 }
 pub(crate) fn empty(status: u16) -> Response {

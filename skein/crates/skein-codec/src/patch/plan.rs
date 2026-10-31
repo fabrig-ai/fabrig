@@ -4,7 +4,7 @@ use super::text::{self, Block, Kind, Line, LineKind, Parsed, Range, Token};
 use super::{Missing, Op, PatchError, PatchWrong, Tables, Target, add, spelled};
 use crate::schema::{DeclIx, FieldIx, Held, Schema, Shape, Span, Type, TypeIx, VariantIx};
 use alloc::boxed::Box;
-use skein_lib::{List, bytes};
+use skein_lib::{Decimal, List, bytes};
 
 #[cfg(test)]
 mod tests;
@@ -824,7 +824,7 @@ fn spells(patch: &[u8], parsed: &Parsed, range: Range, schema: &Schema, mut ty: 
             return false;
         }
         if let Some(bound) = bound {
-            if at >= range.end || text::decimal(spelled(patch, word(parsed, at))) != Some(u64::from(bound)) {
+            if at >= range.end || Decimal::read(spelled(patch, word(parsed, at))) != Some(u64::from(bound)) {
                 return false;
             }
             at = add(at, 1);
@@ -1164,7 +1164,7 @@ fn value(
                         | Type::Option(_)
                         | Type::Named(_) => unreachable!("integer type"),
                     };
-                    let value = text::decimal(word).ok_or(wrong)?;
+                    let value = Decimal::read(word).ok_or(wrong)?;
                     let maximum = match width {
                         1 => u64::from(u8::MAX),
                         2 => u64::from(u16::MAX),

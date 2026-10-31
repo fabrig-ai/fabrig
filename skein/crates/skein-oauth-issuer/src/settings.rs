@@ -190,21 +190,8 @@ fn ipv6_host(host: &[u8]) -> bool {
     core::net::Ipv6Addr::from_str(host).is_ok()
 }
 fn port_number(port: &[u8]) -> bool {
-    if port.is_empty() {
-        return false;
+    match skein_lib::Decimal::read(port) {
+        Some(number) => number != 0 && number <= u64::from(u16::MAX),
+        None => false,
     }
-    let mut number = 0_u16;
-    for &byte in port {
-        if !byte.is_ascii_digit() {
-            return false;
-        }
-        let Some(tens) = number.checked_mul(10) else {
-            return false;
-        };
-        let Some(next) = tens.checked_add(u16::from(byte.wrapping_sub(b'0'))) else {
-            return false;
-        };
-        number = next;
-    }
-    number != 0
 }

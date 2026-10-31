@@ -289,16 +289,7 @@ fn number(tokens: &List<Token>, at: u32, member: &[u8], variant: &[u8]) -> Resul
     let Some(Token::Number(bytes)) = tokens.get(at) else {
         return Err(refuse(variant, member, Reason::Type));
     };
-    let mut value = 0_u64;
-    for digit in bytes {
-        if !digit.is_ascii_digit() {
-            return Err(refuse(variant, member, Reason::Value));
-        }
-        let shifted = value.checked_mul(10).ok_or(refuse(variant, member, Reason::Value))?;
-        value =
-            shifted.checked_add(u64::from(digit.saturating_sub(b'0'))).ok_or(refuse(variant, member, Reason::Value))?;
-    }
-    Ok(value)
+    skein_lib::Decimal::read(bytes).ok_or(refuse(variant, member, Reason::Value))
 }
 fn position(tokens: &List<Token>, at: u32, member: &[u8], variant: &[u8]) -> Result<u32, Refusal> {
     u32::try_from(number(tokens, at, member, variant)?).or(Err(refuse(variant, member, Reason::Value)))

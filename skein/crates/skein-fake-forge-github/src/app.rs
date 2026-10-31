@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use skein_forge::github::{document::Permission, jwt};
 use skein_json::{Token, tokenizer};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Env, List, Queue, Secret, Time, Wall, base64, bytes};
+use skein_lib::{Decimal, Env, List, Queue, Secret, Time, Wall, base64, bytes};
 
 // The fake checks the dialect's RS256/JWT header independently (forge-github.md, 8.1).
 pub(crate) const HEADER: &[u8] = b"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9";
@@ -222,7 +222,7 @@ fn claims_read(input: &[u8]) -> Result<Claims, Refused> {
                         | Token::False
                         | Token::Null => unreachable!("claim text"),
                     }
-                    let value = unsigned(text).ok_or(Refused::Malformed)?;
+                    let value = Decimal::read(text).ok_or(Refused::Malformed)?;
                     let slot = match field {
                         Field::Issued => &mut issued,
                         Field::Expires => &mut expires,
@@ -246,20 +246,6 @@ fn claims_read(input: &[u8]) -> Result<Claims, Refused> {
         expires: expires.ok_or(Refused::Malformed)?,
         issuer: app_id.ok_or(Refused::Malformed)?,
     })
-}
-
-fn unsigned(text: &[u8]) -> Option<u64> {
-    if text.is_empty() {
-        return None;
-    }
-    let mut number = 0_u64;
-    for byte in text {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        number = number.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(number)
 }
 
 // Retention, nesting and the driving loop are bounded by the admitted token size.

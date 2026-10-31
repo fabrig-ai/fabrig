@@ -31,7 +31,7 @@ pub(crate) fn route(method: Method, target: &[u8]) -> Option<Route> {
     }
     let tail = target.strip_prefix(b"/repos/")?;
     let at = bytes::find(tail, b"/issues/comments/")?;
-    let id = skein_forge::forgejo::id::unsigned(tail.get(at.checked_add(17)?..)?)?;
+    let id = skein_lib::Decimal::read(tail.get(at.checked_add(17)?..)?)?;
     Some(Route { repository: bytes::copy_of(tail.get(..at)?), id })
 }
 pub(crate) fn call(service: &Service, route: Route, access: Access, body: &[u8], reply_to: ReplyTo) -> Outcome {

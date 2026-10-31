@@ -74,7 +74,7 @@ pub(super) fn query_value(pairs: &[Pair], key: &[u8]) -> Option<Box<[u8]>> {
     None
 }
 pub(super) fn number_value(text: &[u8]) -> Result<u64, Unrouted> {
-    id::unsigned(text).ok_or(Unrouted::Malformed)
+    skein_lib::Decimal::read(text).ok_or(Unrouted::Malformed)
 }
 pub(super) fn page(query: &[Pair]) -> Result<Page, Unrouted> {
     let mut page = Page { page: None, limit: None };

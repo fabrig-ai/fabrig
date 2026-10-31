@@ -514,8 +514,8 @@ pub(crate) fn enqueue_finish(
 fn node(id: &[u8]) -> Option<(u32, u64)> {
     let suffix = id.strip_prefix(b"PR_")?;
     let at = bytes::find(suffix, b"_")?;
-    let repository = skein_forge::forgejo::id::unsigned(suffix.get(..at)?)?;
-    let number = skein_forge::forgejo::id::unsigned(suffix.get(at.checked_add(1)?..)?)?;
+    let repository = skein_lib::Decimal::read(suffix.get(..at)?)?;
+    let number = skein_lib::Decimal::read(suffix.get(at.checked_add(1)?..)?)?;
     Some((u32::try_from(repository).ok()?, number))
 }
 
