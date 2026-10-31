@@ -311,7 +311,7 @@ fn batch_is_atomic_and_cycles_and_limits_refuse_at_entrance() {
 }
 
 #[test]
-fn bounded_historical_inputs_are_left_for_the_roots_archive_check() {
+fn bounded_retained_inputs_are_left_for_the_roots_archive_check() {
     let mut w = World::new(101, LIMITS);
     let mut next = task(2, &[]);
     next.spec.inputs = Box::new([99]);

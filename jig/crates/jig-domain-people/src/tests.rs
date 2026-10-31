@@ -980,7 +980,7 @@ fn role_success_restores_before_identities_and_replays_after_roster_changes() {
     cold.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
     cold.d.start_restore(cold.env.wall);
     assert!(cold.send_bounded(Event::Restore { record: saved_answer(completed.as_slice()) }).is_empty());
-    // The historical roster differs from today's; the original owner is now an observer.
+    // The roster at the time differs from today's; the original owner is now an observer.
     assert!(
         cold.send_bounded(Event::Restore {
             record: Stored::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Observer }]) }
@@ -1017,7 +1017,7 @@ fn role_success_restores_before_identities_and_replays_after_roster_changes() {
 }
 
 #[test]
-fn restored_role_success_checks_historical_people_and_project_after_all_rows_arrive() {
+fn restored_role_success_checks_earlier_people_and_project_after_all_rows_arrive() {
     let key = RequestKey { person: 1, key: [7; 16] };
     for (project, person) in [(1, 99), (2, 1)] {
         let mut test = Test::new(LIMITS);
@@ -1088,7 +1088,7 @@ fn refused_role_requests_restore_invalid_rosters_and_unknown_targets_for_replay(
                     at: Wall::EPOCH,
                 },
             })
-            .expect("historical unknown-project answer");
+            .expect("earlier unknown-project answer");
         } else {
             let request = route(rows.as_slice());
             if role == Role::Owner && project == 1 {

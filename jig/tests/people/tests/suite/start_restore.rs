@@ -267,7 +267,7 @@ fn selected_census_projects_needs_results_and_chats_without_opening() {
 }
 
 #[test]
-fn selected_historical_ended_owners_retain_only_loaded_read_position_witnesses() {
+fn selected_ended_owners_retain_only_loaded_read_position_witnesses() {
     use jig_domain_people::{Domain, Event, RestoreProjection, Stored, step};
     use jig_people_world::{LIMITS, identity};
     use skein_lib::{Env, Queue, Time, Wall};
@@ -302,5 +302,5 @@ fn selected_historical_ended_owners_retain_only_loaded_read_position_witnesses()
         eprintln!("people_ended_witnesses count={count} heap_peak_bytes={peak}");
         peaks.push(peak);
     }
-    assert_eq!(peaks[0], peaks[1], "historical owners retain no growing marker set");
+    assert_eq!(peaks[0], peaks[1], "ended owners retain no growing marker set");
 }

@@ -353,7 +353,7 @@ fn a_restart_restores_no_decided_person_proposal() {
         response(&mut world, |reply_to| Event::ProposePerson { reply_to, proposal: goal_proposal(2) }),
         Reply::Done
     );
-    assert!(world.records.contains_key(&tasks::Key::PersonProposal(2)), "startup completed without historical rows");
+    assert!(world.records.contains_key(&tasks::Key::PersonProposal(2)), "startup completed without ended rows");
     assert!(world.records.contains_key(&tasks::Key::DecidedProposal(1)), "history remains durable");
 }
 

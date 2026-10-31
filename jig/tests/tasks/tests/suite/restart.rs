@@ -200,7 +200,7 @@ fn delegate_cancel_cut_after_durability_stops_adopted_runs_then_closes_deepest()
 }
 
 #[test]
-fn dependency_progress_survives_restore_without_loading_historical_ends() {
+fn dependency_progress_survives_restore_without_loading_retained_ends() {
     let mut w = World::new(29, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[]), task(2, &[]), task(3, &[1, 2])]);
     w.claim(1, 1);
