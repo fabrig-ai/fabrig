@@ -2,7 +2,6 @@
 use super::mutable;
 use crate::acts::{Act, Admission, allowed, bounds, standing};
 use crate::{Core, Limits};
-use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -29,17 +28,10 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
             admission
         }
         Act::Stop | Act::Cancel | Act::Release => {
-            let ask = match act {
-                Act::Stop => people::Ask::Stop { project: row.project, task: number },
-                Act::Cancel => {
-                    people::Ask::Cancel { project: row.project, task: number, reason: Box::new([]), grace: None }
-                }
-                Act::Release => people::Ask::Release {
-                    project: row.project,
-                    task: number,
-                    revision: row.revisions.hold,
-                    again: None,
-                },
+            let control = match act {
+                Act::Stop => crate::routing::party::Control::Stop,
+                Act::Cancel => crate::routing::party::Control::Cancel { reason_len: 0, grace: None },
+                Act::Release => crate::routing::party::Control::Release { again: None },
                 Act::Message
                 | Act::Answer
                 | Act::Take
@@ -62,7 +54,12 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
                 | Act::MakeService
                 | Act::SetPool => unreachable!("control act selected"),
             };
-            if let Err(why) = core.control_admit(&ask, party, row.project, held, &limits.tasks) {
+            if let Err(why) = core.control_admit(
+                crate::compound::PartyTask { person: party, project: row.project, role: held, task: number },
+                control,
+                &limits.tasks,
+                &tasks::CompoundAdmission::new(&core.tasks, 0),
+            ) {
                 return Admission::Refused(why);
             }
             if act == Act::Stop
@@ -89,9 +86,12 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
             }
             Admission::Allowed
         }
-        Act::Move => {
-            allowed(core.move_admit(party, held, row.project, number, limits.tasks.tree_tasks, limits.tasks.depth))
-        }
+        Act::Move => allowed(core.move_admit(
+            crate::compound::PartyTask { person: party, role: held, project: row.project, task: number },
+            limits.tasks.tree_tasks,
+            limits.tasks.depth,
+            &tasks::CompoundAdmission::new(&core.tasks, 0),
+        )),
         Act::Seen => {
             if core.conversation_requester(row) == Some(party) && held.is_some() {
                 Admission::Allowed
@@ -139,7 +139,7 @@ pub(crate) fn write_in(
         },
         Some(people::Role::Member | people::Role::Observer) | None => false,
     };
-    if !any && !Core::person_tree_in(party, number, limits.tasks.depth, admission) {
+    if !any && !Core::person_tree(party, number, limits.tasks.depth, admission) {
         return Err(people::Refusal::Unknown);
     }
     match row.executor {

@@ -1,9 +1,10 @@
 //! Owner settings decisions, atomic with their keyed answer (engine.md, 17.2).
+use super::party::{Party, Routed};
 use crate::routing::Work;
 use crate::{Core, Event, Limits, Request, settings as s};
 use alloc::boxed::Box;
 use jig_domain_people as people;
-use skein_lib::{Env, Map, Queue, ReplyTo, Token};
+use skein_lib::{Env, Map, Queue, ReplyTo};
 
 #[expect(clippy::too_many_arguments, reason = "the keyed envelope and its value cross admission together")]
 pub(super) fn start(
@@ -44,29 +45,21 @@ pub(super) fn start(
     drop(core.settings_input.take());
     result
 }
-pub(super) fn admitted(
-    core: &mut Core,
-    env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
-    person: u64,
-    against: u32,
-) {
+pub(super) fn admitted(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, party: Party, against: u32) {
+    let Party { request, person, .. } = party;
+
     let outcome = match core.settings_input.take() {
         Some(_) if against != core.current.newest() => {
             people::Outcome::Refused(people::Refusal::Stale { newest: core.current.newest() })
         }
-        Some((Ok(change), room)) => {
-            match decide(core, env, work, out, s::Decider::Party(person), None, *change, room) {
-                Ok(revision) => people::Outcome::SettingsChanged { revision },
-                Err(why) => people::Outcome::Refused(why),
-            }
-        }
+        Some((Ok(change), room)) => match decide(core, env, routed, s::Decider::Party(person), None, *change, room) {
+            Ok(revision) => people::Outcome::SettingsChanged { revision },
+            Err(why) => people::Outcome::Refused(why),
+        },
         Some((Err(failure), _)) => malformed(failure),
         None => people::Outcome::Refused(people::Refusal::NotOffered),
     };
-    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
+    routed.work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
 }
 pub(super) fn malformed(failure: s::Failure) -> people::Outcome {
     people::Outcome::Refused(malformed_refusal(failure))
@@ -77,15 +70,10 @@ fn malformed_refusal(failure: s::Failure) -> people::Refusal {
         why: people::Malformed::Settings { setting: failure.setting, fault: failure.fault },
     }
 }
-#[expect(
-    clippy::too_many_arguments,
-    reason = "the shared whole-set decision carries its decider and proposal identity"
-)]
 pub(super) fn decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
+    routed: &mut Routed,
     by: s::Decider,
     proposal: Option<(people::Proposer, u32)>,
     change: s::Change,
@@ -147,9 +135,9 @@ pub(super) fn decide(
             }
         }
     }
-    let before = out.len();
-    charters |= core.held.retain(&core.current, &plan, out);
-    let held_writes = out.len().checked_sub(before).expect("held writes appended");
+    let before = routed.out.len();
+    charters |= core.held.retain(&core.current, &plan, &mut routed.out);
+    let held_writes = routed.out.len().checked_sub(before).expect("held writes appended");
     drop(plan);
     drop(after);
     if keep_previous {
@@ -172,18 +160,18 @@ pub(super) fn decide(
     );
     core.current.oldest = oldest;
     for write in writes.into_boxed() {
-        out.push(Request::Write(write));
+        routed.out.push(Request::Write(write));
     }
-    withdraw_stale(core, env, out, proposal);
+    withdraw_stale(core, env, &mut routed.out, proposal);
     core.tell_replaced_settings(env, rules, charters);
     if moves {
-        move_tasks(core, env, out, None);
+        move_tasks(core, env, &mut routed.out, None);
     }
     if charters || rules {
         core.touch_deployment();
         core.touch_run_waits();
     }
-    super::watch_marks::settings_revised(core, work, templates);
+    super::watch_marks::settings_revised(core, &mut routed.work, templates);
     Ok(number)
 }
 
@@ -228,17 +216,18 @@ pub(super) fn propose_start(
 pub(super) fn propose_admitted(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
+    routed: &mut Routed,
+    party: Party,
     against: u32,
     reason: Box<[u8]>,
 ) {
+    let Party { request, person, .. } = party;
+
     let result = proposal_check(core, env, against);
     let change = match result {
         Ok(change) => change,
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -247,14 +236,14 @@ pub(super) fn propose_admitted(
     };
     let Some(next) = core.counters.deployment().messages.checked_add(1) else {
         return super::refusals::pool_refused(
-            work,
+            &mut routed.work,
             request,
             people::Refusal::Limit { which: people::LimitKind::Arithmetic },
         );
     };
     let Ok(number) = u32::try_from(next) else {
         return super::refusals::pool_refused(
-            work,
+            &mut routed.work,
             request,
             people::Refusal::Limit { which: people::LimitKind::Arithmetic },
         );
@@ -268,7 +257,7 @@ pub(super) fn propose_admitted(
         request,
         crate::GoalRoute::Offering { proposal: fresh, to: people::Role::Owner.number(), stubs: Box::new([]) },
     );
-    work.push(Work::Event(Event::Tasks(jig_domain_tasks::Event::ProposePerson {
+    routed.work.push(Work::Event(Event::Tasks(jig_domain_tasks::Event::ProposePerson {
         reply_to: ReplyTo::new(request),
         proposal: jig_domain_tasks::PersonProposal {
             number: fresh,
@@ -553,8 +542,7 @@ pub(super) fn propose_run(
 pub(super) fn accept(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
+    routed: &mut Routed,
     person: u64,
     key: (people::Proposer, u32),
     running: people::Running,
@@ -567,8 +555,7 @@ pub(super) fn accept(
     decide(
         core,
         env,
-        work,
-        out,
+        routed,
         s::Decider::Party(person),
         Some(key),
         s::Change { against: set.against, items: set.items, running },

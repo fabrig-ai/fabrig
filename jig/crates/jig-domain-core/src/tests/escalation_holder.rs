@@ -123,7 +123,12 @@ fn a_move_is_refused_while_nobody_holds_its_escalations() {
     make_task(&mut core, &limits, TASK);
     holder_policy(&mut core, authority::Proposals(0), None);
     assert_eq!(
-        core.move_admit(REQUESTER, Some(people::Role::Owner), PROJECT, TASK, 2, 2),
+        core.move_admit(
+            compound::PartyTask { person: REQUESTER, role: Some(people::Role::Owner), project: PROJECT, task: TASK },
+            2,
+            2,
+            &tasks::CompoundAdmission::new(&core.tasks, 0)
+        ),
         Err(people::Refusal::NoEscalationHolder)
     );
 }

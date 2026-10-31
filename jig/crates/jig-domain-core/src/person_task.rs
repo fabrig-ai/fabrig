@@ -4,44 +4,28 @@
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{ReplyTo, Token};
+use skein_lib::ReplyTo;
 
 use crate::{Core, PersonTaskRoute};
 
-pub(crate) fn number(ask: &people::Ask) -> u64 {
-    match ask {
-        people::Ask::TakePerson { task, .. }
-        | people::Ask::HandBackPerson { task, .. }
-        | people::Ask::AnswerPerson { task, .. } => *task,
-        people::Ask::Compound { .. }
-        | people::Ask::MarkSeen { .. }
-        | people::Ask::Application { .. }
-        | people::Ask::Move { .. }
-        | people::Ask::DecideProposal { .. }
-        | people::Ask::Say { .. }
-        | people::Ask::AnswerQuestion { .. }
-        | people::Ask::Amend { .. }
-        | people::Ask::EditNote { .. }
-        | people::Ask::MakeService { .. }
-        | people::Ask::SetRoles { .. }
-        | people::Ask::Adopt { .. }
-        | people::Ask::Rename { .. }
-        | people::Ask::MakeProject { .. }
-        | people::Ask::ChangeSettings { .. }
-        | people::Ask::MoveToNewest { .. }
-        | people::Ask::ChangePolicy { .. }
-        | people::Ask::SetPool { .. }
-        | people::Ask::DecideEscalation { .. }
-        | people::Ask::Stop { .. }
-        | people::Ask::Cancel { .. }
-        | people::Ask::Lift { .. }
-        | people::Ask::Release { .. }
-        | people::Ask::Create { .. }
-        | people::Ask::Propose { .. }
-        | people::Ask::Withdraw { .. }
-        | people::Ask::AccountSignIn { .. }
-        | people::Ask::AccountSignOut { .. }
-        | people::Ask::AccountChange { .. } => unreachable!("person-task route owns its ask"),
+#[derive(Clone)]
+pub(crate) enum Action {
+    Take { task: u64 },
+    HandBack { task: u64 },
+    Answer { task: u64, revision: u64, result: people::PersonResult },
+}
+impl Action {
+    pub(crate) fn task(&self) -> u64 {
+        match self {
+            Self::Take { task } | Self::HandBack { task } | Self::Answer { task, .. } => *task,
+        }
+    }
+    fn act(&self) -> crate::acts::Act {
+        match self {
+            Self::Take { .. } => crate::acts::Act::Take,
+            Self::HandBack { .. } => crate::acts::Act::HandBack,
+            Self::Answer { .. } => crate::acts::Act::Answer,
+        }
     }
 }
 
@@ -114,21 +98,22 @@ impl Core {
         people::Outcome::Refused(refusal)
     }
 
-    pub fn person_task(
+    pub(crate) fn person_task(
         &mut self,
-        request: Token,
-        person: u64,
-        project: u32,
-        _role: Option<people::Role>,
-        ask: people::Ask,
+        party: crate::routing::party::Party,
+        action: Action,
     ) -> Result<tasks::Event, people::Refusal> {
+        let crate::routing::party::Party { request, person, project, .. } = party;
         self.start_input();
-        let task = number(&ask);
+        let task = action.task();
         if self.tasks.task(task).ok_or(people::Refusal::Unknown)?.project != project {
             return Err(people::Refusal::Unknown);
         }
-        let act = person_act(&ask);
-        let revision = if let people::Ask::AnswerPerson { revision, .. } = &ask { Some(*revision) } else { None };
+        let act = action.act();
+        let revision = match &action {
+            Action::Answer { revision, .. } => Some(*revision),
+            Action::Take { .. } | Action::HandBack { .. } => None,
+        };
         match crate::acts::person(self, person, act, task, revision) {
             Ok(()) => {}
             // The task owner supplies its exact capacity observation.
@@ -136,16 +121,16 @@ impl Core {
                 if act == crate::acts::Act::Answer => {}
             Err(why) => return Err(why),
         }
-        let (route, event) = match ask {
-            people::Ask::TakePerson { .. } => (
+        let (route, event) = match action {
+            Action::Take { .. } => (
                 PersonTaskRoute::Take(task),
                 tasks::Event::TakePerson { reply_to: ReplyTo::new(request), task, person },
             ),
-            people::Ask::HandBackPerson { .. } => (
+            Action::HandBack { .. } => (
                 PersonTaskRoute::HandBack(task),
                 tasks::Event::HandBackPerson { reply_to: ReplyTo::new(request), task, person },
             ),
-            people::Ask::AnswerPerson { result, .. } => {
+            Action::Answer { result, .. } => {
                 let row = self.tasks.task(task).expect("person act admission checked");
                 if !approval_matches(&row.contract, &result) {
                     return Err(people::Refusal::Moved {
@@ -162,74 +147,8 @@ impl Core {
                     },
                 )
             }
-            people::Ask::Compound { .. }
-            | people::Ask::MarkSeen { .. }
-            | people::Ask::Application { .. }
-            | people::Ask::Move { .. }
-            | people::Ask::DecideProposal { .. }
-            | people::Ask::Say { .. }
-            | people::Ask::AnswerQuestion { .. }
-            | people::Ask::Amend { .. }
-            | people::Ask::EditNote { .. }
-            | people::Ask::MakeService { .. }
-            | people::Ask::SetRoles { .. }
-            | people::Ask::Adopt { .. }
-            | people::Ask::Rename { .. }
-            | people::Ask::MakeProject { .. }
-            | people::Ask::ChangeSettings { .. }
-            | people::Ask::MoveToNewest { .. }
-            | people::Ask::ChangePolicy { .. }
-            | people::Ask::SetPool { .. }
-            | people::Ask::DecideEscalation { .. }
-            | people::Ask::Stop { .. }
-            | people::Ask::Cancel { .. }
-            | people::Ask::Lift { .. }
-            | people::Ask::Release { .. }
-            | people::Ask::Create { .. }
-            | people::Ask::Propose { .. }
-            | people::Ask::Withdraw { .. }
-            | people::Ask::AccountSignIn { .. }
-            | people::Ask::AccountSignOut { .. }
-            | people::Ask::AccountChange { .. } => unreachable!("person-task route owns its ask"),
         };
         let request = self.fly_person_task(request, route);
         Ok(crate::flight::bind(event, request))
-    }
-}
-
-fn person_act(ask: &people::Ask) -> crate::acts::Act {
-    match ask {
-        people::Ask::TakePerson { .. } => crate::acts::Act::Take,
-        people::Ask::HandBackPerson { .. } => crate::acts::Act::HandBack,
-        people::Ask::AnswerPerson { .. } => crate::acts::Act::Answer,
-        people::Ask::Compound { .. }
-        | people::Ask::MarkSeen { .. }
-        | people::Ask::Application { .. }
-        | people::Ask::Move { .. }
-        | people::Ask::DecideProposal { .. }
-        | people::Ask::Say { .. }
-        | people::Ask::AnswerQuestion { .. }
-        | people::Ask::Amend { .. }
-        | people::Ask::EditNote { .. }
-        | people::Ask::MakeService { .. }
-        | people::Ask::SetRoles { .. }
-        | people::Ask::Adopt { .. }
-        | people::Ask::Rename { .. }
-        | people::Ask::MakeProject { .. }
-        | people::Ask::ChangeSettings { .. }
-        | people::Ask::MoveToNewest { .. }
-        | people::Ask::ChangePolicy { .. }
-        | people::Ask::SetPool { .. }
-        | people::Ask::DecideEscalation { .. }
-        | people::Ask::Stop { .. }
-        | people::Ask::Cancel { .. }
-        | people::Ask::Lift { .. }
-        | people::Ask::Release { .. }
-        | people::Ask::Create { .. }
-        | people::Ask::Propose { .. }
-        | people::Ask::Withdraw { .. }
-        | people::Ask::AccountSignIn { .. }
-        | people::Ask::AccountSignOut { .. }
-        | people::Ask::AccountChange { .. } => unreachable!("person-task route owns its ask"),
     }
 }

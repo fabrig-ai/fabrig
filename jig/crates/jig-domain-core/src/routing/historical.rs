@@ -1,26 +1,31 @@
 //! Historical decision-race answers routed back to authenticated parties
 //! (`domain/people.md`, section 5.1). These complete keyed decisions, not reads.
 
+use super::party::Party;
 use crate::routing::Work;
 use crate::{Core, EscalationDecisionRecord, Event, Limits, Request};
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Queue, Token};
+use skein_lib::{Env, Queue};
 
-#[expect(clippy::too_many_arguments, reason = "the route retains its event fields")]
+pub(super) struct Escalation {
+    pub task: u64,
+    pub revision: u64,
+    pub row: Option<EscalationDecisionRecord>,
+    pub busy: bool,
+}
+
 pub(super) fn route_historical_escalation(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    task: u64,
-    revision: u64,
-    row: Option<EscalationDecisionRecord>,
-    busy: bool,
+    party: Party,
+    reply: Escalation,
 ) -> Queue<Request> {
+    let Escalation { task, revision, row, busy } = reply;
+    let Party { request, person, project, .. } = party;
+
     let outcome = if busy {
         people::Outcome::Again(people::Again::Busy)
     } else if let Some(row) = row {
@@ -87,18 +92,17 @@ pub(super) fn route_historical_escalation(
     Queue::uncapped()
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains its event fields")]
 pub(super) fn route_historical_proposal(
     core: &mut Core,
     work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
+    party: Party,
     proposer: people::Proposer,
     proposal: u64,
     row: Option<crate::ProposalDecisionRecord>,
     busy: bool,
 ) -> Queue<Request> {
+    let Party { request, person, project, .. } = party;
+
     let outcome = if busy {
         people::Outcome::Again(people::Again::Busy)
     } else if let Some(row) = row {

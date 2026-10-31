@@ -6,30 +6,19 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
+#[derive(Clone, Copy)]
 pub(crate) struct PartyTask {
     pub person: u64,
     pub project: u32,
     pub role: Option<people::Role>,
     pub task: u64,
 }
-pub(crate) struct Route {
-    pub request: Token,
-    pub person: u64,
-    pub project: u32,
-    pub role: Option<people::Role>,
-}
-
-impl Route {
-    fn task(&self, task: u64) -> PartyTask {
-        PartyTask { person: self.person, project: self.project, role: self.role, task }
-    }
-}
-
+use crate::routing::party::Party;
 pub(crate) fn route(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    route: Route,
+    route: Party,
     inputs: List<people::Operation>,
 ) {
     let context = tasks::CompoundContext {
@@ -45,7 +34,7 @@ pub(crate) fn route(
     let child_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
     for (at, input) in inputs.into_boxed().into_iter().enumerate() {
         let at = u32::try_from(at).expect("bounded operation count");
-        let mut operation = match check(core, env, &route, &admission, input) {
+        let mut operation = match check(core, env, route, &admission, input) {
             Ok(operation) => operation,
             Err(why) => return refused(work, route.request, at, people::Outcome::Refused(why)),
         };
@@ -99,7 +88,7 @@ pub(crate) fn refused(work: &mut Queue<Work>, request: Token, at: u32, outcome: 
 fn check(
     core: &Core,
     env: &Env<Limits>,
-    route: &Route,
+    route: Party,
     admission: &tasks::CompoundAdmission<'_>,
     operation: people::Operation,
 ) -> Result<tasks::Operation, people::Refusal> {
@@ -118,11 +107,9 @@ fn check(
     crate::acts::role(core, route.project, route.role, act)?;
     match operation {
         people::Operation::Cancel { reason, grace, .. } => {
-            core.control_admit_in(
-                &people::Ask::Cancel { project: route.project, task, reason: Box::new([]), grace },
-                route.person,
-                route.project,
-                route.role,
+            core.control_admit(
+                route.task(task),
+                crate::routing::party::Control::Cancel { reason_len: 0, grace },
                 &env.limits.tasks,
                 admission,
             )?;
@@ -136,23 +123,14 @@ fn check(
             Ok(tasks::Operation::Cancel { task, reason, grace, message })
         }
         people::Operation::Stop { .. } => {
-            core.control_admit_in(
-                &people::Ask::Stop { project: route.project, task },
-                route.person,
-                route.project,
-                route.role,
-                &env.limits.tasks,
-                admission,
-            )?;
+            core.control_admit(route.task(task), crate::routing::party::Control::Stop, &env.limits.tasks, admission)?;
             crate::acts::mutable_phase(&row.phase)?;
             Ok(tasks::Operation::Stop { task, hold: 0 })
         }
         people::Operation::Release { revision, again, .. } => {
-            core.control_admit_in(
-                &people::Ask::Release { project: route.project, task, revision, again },
-                route.person,
-                route.project,
-                route.role,
+            core.control_admit(
+                route.task(task),
+                crate::routing::party::Control::Release { again },
                 &env.limits.tasks,
                 admission,
             )?;
@@ -169,7 +147,7 @@ fn check(
             Ok(tasks::Operation::Release { task, again, message })
         }
         people::Operation::Move { reason, .. } => {
-            core.move_admit_in(route.task(task), env.limits.tasks.tree_tasks, env.limits.tasks.depth, admission)?;
+            core.move_admit(route.task(task), env.limits.tasks.tree_tasks, env.limits.tasks.depth, admission)?;
             Ok(tasks::Operation::Move { task, reason })
         }
         people::Operation::Amend { revision, amendment, release, .. } => {

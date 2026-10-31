@@ -1,9 +1,9 @@
 //! Reading releases tasks of the forgotten-once-read retention class (people.md, 6).
+use crate::Core;
 use crate::routing::Work;
-use crate::{Core, Limits};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Queue, Wall};
+use skein_lib::{Queue, Wall};
 
 /// The requesting party's reading and the task's live references.
 #[derive(Clone, Copy, Debug)]
@@ -86,12 +86,7 @@ pub fn forgets(owner: &Owner, reading: Reading) -> Option<u64> {
 }
 
 /// Erase the owner and its result/index rows in the mark's decision.
-pub(crate) fn forget(
-    core: &mut Core,
-    _env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    owner: &Owner,
-) -> Queue<crate::Request> {
+pub(crate) fn forget(core: &mut Core, work: &mut Queue<Work>, owner: &Owner) -> Queue<crate::Request> {
     let mut out = Queue::uncapped();
     if core.people.ready() && owner.result_position <= core.counters.deployment().messages {
         let party = owner.party;

@@ -58,6 +58,7 @@ mod historical;
 #[path = "notes.rs"]
 mod note_routes;
 mod parties;
+pub(crate) mod party;
 mod party_controls;
 mod party_decisions;
 #[path = "people.rs"]
@@ -450,7 +451,7 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
         Work::StartBrief { task } => start_brief(core, env, work, task),
         Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
         Work::PreparationFailed { task } => route_preparation_failed(core, work, task),
-        Work::Forget { owner } => crate::forget::forget(core, env, work, &owner),
+        Work::Forget { owner } => crate::forget::forget(core, work, &owner),
     }
 }
 
@@ -589,13 +590,21 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             historical::decided_proposal(core, to, key, proposal, row, busy)
         }
         Event::HistoricalProposal { request, person, project, proposer, proposal, row, busy } => {
-            route_historical_proposal(core, work, request, person, project, proposer, proposal, row, busy)
+            route_historical_proposal(
+                core,
+                work,
+                party::Party { request, person, project, role: None },
+                proposer,
+                proposal,
+                row,
+                busy,
+            )
         }
         Event::EndedTaskLoaded { request, row, busy } => result_reads::loaded(core, env, work, request, row, busy),
         Event::PartyInputsLoaded { request, row, busy } => {
-            let mut out = Queue::uncapped();
-            party_inputs::loaded(core, env, &mut out, work, party_inputs::Loaded { request, row, busy });
-            out
+            let mut routed = party::Routed::new(work);
+            party_inputs::loaded(core, env, &mut routed, party_inputs::Loaded { request, row, busy });
+            routed.finish(work)
         }
         Event::HistoricalPersonTask { request, person, project, task, row, busy } => {
             let outcome = core.person_task_ended(person, project, task, row, busy);
@@ -603,7 +612,13 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             Queue::uncapped()
         }
         Event::HistoricalEscalation { request, person, project, task, revision, row, busy } => {
-            route_historical_escalation(core, env, work, request, person, project, task, revision, row, busy)
+            route_historical_escalation(
+                core,
+                env,
+                work,
+                party::Party { request, person, project, role: None },
+                historical::Escalation { task, revision, row, busy },
+            )
         }
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
