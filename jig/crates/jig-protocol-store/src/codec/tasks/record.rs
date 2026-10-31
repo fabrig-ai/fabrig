@@ -11,12 +11,9 @@ fn optional_grace(source: Option<&domain::Grace>, limits: &wire::Limits) -> Resu
         None => Ok(None),
     }
 }
-fn read_optional_grace(
-    source: Option<wire::Grace>,
-    limits: &wire::Limits,
-) -> Result<Option<domain::Grace>, wire::Problem> {
+fn read_optional_grace(source: Option<wire::Grace>) -> Result<Option<domain::Grace>, wire::Problem> {
     match source {
-        Some(source) => Ok(Some(phase::read_grace(source, limits)?)),
+        Some(source) => Ok(Some(phase::read_grace(source)?)),
         None => Ok(None),
     }
 }
@@ -30,12 +27,9 @@ fn optional_retry_notice(
         None => Ok(None),
     }
 }
-fn read_optional_retry_notice(
-    source: Option<wire::RetryNotice>,
-    limits: &wire::Limits,
-) -> Result<Option<domain::RetryNotice>, wire::Problem> {
+fn read_optional_retry_notice(source: Option<wire::RetryNotice>) -> Result<Option<domain::RetryNotice>, wire::Problem> {
     match source {
-        Some(source) => Ok(Some(phase::read_retry_notice(source, limits)?)),
+        Some(source) => Ok(Some(phase::read_retry_notice(source)?)),
         None => Ok(None),
     }
 }
@@ -71,10 +65,9 @@ fn optional_person_answer(
 }
 fn read_optional_person_answer(
     source: Option<wire::PersonAnswer>,
-    limits: &wire::Limits,
 ) -> Result<Option<domain::PersonAnswer>, wire::Problem> {
     match source {
-        Some(source) => Ok(Some(state::read_person_answer(source, limits)?)),
+        Some(source) => Ok(Some(state::read_person_answer(source)?)),
         None => Ok(None),
     }
 }
@@ -88,12 +81,9 @@ fn optional_person_wait(
         None => Ok(None),
     }
 }
-fn read_optional_person_wait(
-    source: Option<wire::PersonWait>,
-    limits: &wire::Limits,
-) -> Result<Option<domain::PersonWait>, wire::Problem> {
+fn read_optional_person_wait(source: Option<wire::PersonWait>) -> Result<Option<domain::PersonWait>, wire::Problem> {
     match source {
-        Some(source) => Ok(Some(state::read_person_wait(source, limits)?)),
+        Some(source) => Ok(Some(state::read_person_wait(source)?)),
         None => Ok(None),
     }
 }
@@ -140,13 +130,10 @@ fn question_lines(
     }
     Ok(members)
 }
-fn read_question_lines(
-    source: List<wire::QuestionLine>,
-    limits: &wire::Limits,
-) -> Result<Box<[domain::QuestionLine]>, wire::Problem> {
+fn read_question_lines(source: List<wire::QuestionLine>) -> Result<Box<[domain::QuestionLine]>, wire::Problem> {
     let mut members = List::with_capacity(source.len());
     for member in source.into_boxed() {
-        members.push(index::read_question_line(member, limits)?).expect("same number of members");
+        members.push(index::read_question_line(member)?).expect("same number of members");
     }
     Ok(members.into_boxed())
 }
@@ -164,13 +151,10 @@ fn proposal_rows(
     }
     Ok(members)
 }
-fn read_proposal_rows(
-    source: List<wire::ProposalRow>,
-    limits: &wire::Limits,
-) -> Result<Box<[domain::ProposalRow]>, wire::Problem> {
+fn read_proposal_rows(source: List<wire::ProposalRow>) -> Result<Box<[domain::ProposalRow]>, wire::Problem> {
     let mut members = List::with_capacity(source.len());
     for member in source.into_boxed() {
-        members.push(index::read_proposal_row(member, limits)?).expect("same number of members");
+        members.push(index::read_proposal_row(member)?).expect("same number of members");
     }
     Ok(members.into_boxed())
 }
@@ -185,13 +169,10 @@ fn replies(source: &[domain::ReplyHint], limits: &wire::Limits) -> Result<List<w
     }
     Ok(members)
 }
-fn read_replies(
-    source: List<wire::ReplyHint>,
-    limits: &wire::Limits,
-) -> Result<Box<[domain::ReplyHint]>, wire::Problem> {
+fn read_replies(source: List<wire::ReplyHint>) -> Result<Box<[domain::ReplyHint]>, wire::Problem> {
     let mut members = List::with_capacity(source.len());
     for member in source.into_boxed() {
-        members.push(state::read_reply_hint(member, limits)?).expect("same number of members");
+        members.push(state::read_reply_hint(member)?).expect("same number of members");
     }
     Ok(members.into_boxed())
 }
@@ -227,13 +208,10 @@ fn subscriptions(
     }
     Ok(members)
 }
-fn read_subscriptions(
-    source: List<wire::Subscription>,
-    limits: &wire::Limits,
-) -> Result<Box<[domain::Subscription]>, wire::Problem> {
+fn read_subscriptions(source: List<wire::Subscription>) -> Result<Box<[domain::Subscription]>, wire::Problem> {
     let mut members = List::with_capacity(source.len());
     for member in source.into_boxed() {
-        members.push(state::read_subscription(member, limits)?).expect("same number of members");
+        members.push(state::read_subscription(member)?).expect("same number of members");
     }
     Ok(members.into_boxed())
 }
@@ -271,7 +249,7 @@ fn read_inbox(source: List<wire::InboxItem>, limits: &wire::Limits) -> Result<In
                 words.push(activity::read_word(word, limits)?).expect("same number of items");
             }
             wire::InboxItem::Credit(credit) => {
-                credits.push(state::read_question_credit(credit, limits)?).expect("same number of items");
+                credits.push(state::read_question_credit(credit)?).expect("same number of items");
             }
         }
     }
@@ -287,13 +265,10 @@ fn saved(source: &[domain::SavedResource], limits: &wire::Limits) -> Result<List
     }
     Ok(members)
 }
-fn read_saved(
-    source: List<wire::SavedResource>,
-    limits: &wire::Limits,
-) -> Result<Box<[domain::SavedResource]>, wire::Problem> {
+fn read_saved(source: List<wire::SavedResource>) -> Result<Box<[domain::SavedResource]>, wire::Problem> {
     let mut members = List::with_capacity(source.len());
     for member in source.into_boxed() {
-        members.push(state::read_saved_resource(member, limits)?).expect("same number of members");
+        members.push(state::read_saved_resource(member)?).expect("same number of members");
     }
     Ok(members.into_boxed())
 }
@@ -458,21 +433,21 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
         label: definition.label,
         flags: phase::read_flags(definition.flags),
         last_activity: Wall::from_nanos(history.last_activity),
-        ended_below: index::read_endings(history.ended_below, limits)?,
-        question_lines: read_question_lines(history.question_lines, limits)?,
+        ended_below: index::read_endings(history.ended_below)?,
+        question_lines: read_question_lines(history.question_lines)?,
         hold: history.hold,
         placed: history.placed,
-        proposal_rows: read_proposal_rows(history.proposal_rows, limits)?,
+        proposal_rows: read_proposal_rows(history.proposal_rows)?,
         instructions: history.instructions,
         refused: phase::read_references(history.refused),
-        grace: read_optional_grace(history.grace, limits)?,
+        grace: read_optional_grace(history.grace)?,
         settings: domain::SettingsRevision { task: history.settings.task(), run: *history.settings.run() },
-        revisions: phase::read_revisions(history.revisions, limits)?,
+        revisions: phase::read_revisions(history.revisions)?,
         created_at: Wall::from_nanos(history.created_at),
         changed: Wall::from_nanos(history.changed),
         phase_since: Wall::from_nanos(history.phase_since),
         run_since: value::read_wall(history.run_since),
-        retry_notice: read_optional_retry_notice(history.retry_notice, limits)?,
+        retry_notice: read_optional_retry_notice(history.retry_notice)?,
         ended_at: value::read_wall(history.ended_at),
         revision: history.revision,
         milestone: run.milestone,
@@ -481,8 +456,8 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
         narrowing: run.narrowing,
         result_position: run.result_position,
         last_reply: run.last_reply,
-        replies: read_replies(run.replies, limits)?,
-        escalation: state::read_escalation(run.escalation, limits)?,
+        replies: read_replies(run.replies)?,
+        escalation: state::read_escalation(run.escalation)?,
         proposal: read_optional_proposal(run.proposal, limits)?,
         result_proposal: run.result_proposal,
         number: run.number,
@@ -496,8 +471,8 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
         llm: value::read_llm(definition.llm),
         kept_account: definition.kept_account,
         taken_by: definition.taken_by,
-        person_answer: read_optional_person_answer(definition.person_answer, limits)?,
-        person_wait: read_optional_person_wait(definition.person_wait, limits)?,
+        person_answer: read_optional_person_answer(definition.person_answer)?,
+        person_wait: read_optional_person_wait(definition.person_wait)?,
         recurring: read_optional_recurring(definition.recurring, limits)?,
         tracked: definition.tracked,
         spec: value::read_spec(definition.spec, limits)?,
@@ -516,12 +491,12 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
         result_followups: phase::read_references(interests.result_followups),
         references: phase::read_references(interests.references),
         questions,
-        subscriptions: read_subscriptions(interests.subscriptions, limits)?,
-        wake: phase::read_wake(interests.wake, limits)?,
+        subscriptions: read_subscriptions(interests.subscriptions)?,
+        wake: phase::read_wake(interests.wake)?,
         turn: interests.turn,
         last_message: interests.last_message,
         inbox,
-        saved: read_saved(interests.saved, limits)?,
+        saved: read_saved(interests.saved)?,
         ever_turned: interests.ever_turned.into_parts().ever_turned,
         made: interests.made,
         attempt: outcome.attempt,

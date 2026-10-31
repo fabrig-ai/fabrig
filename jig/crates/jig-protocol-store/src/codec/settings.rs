@@ -15,14 +15,14 @@ use skein_lib::{List, Reader, Wall, Writer};
 fn bound() -> wire::Problem {
     wire::Problem { path: wire::Path::DefaultValue, reason: skein_codec::Reason::Bound }
 }
-fn encode_kinds(value: &fleet::Kinds, _limits: &wire::Limits) -> wire::Kinds {
+fn encode_kinds(value: &fleet::Kinds) -> wire::Kinds {
     match value {
         fleet::Kinds::Workers => wire::Kinds::Workers,
         fleet::Kinds::Engine => wire::Kinds::Engine,
         fleet::Kinds::Both => wire::Kinds::Both,
     }
 }
-fn decode_kinds(value: wire::Kinds, _limits: &wire::Limits) -> fleet::Kinds {
+fn decode_kinds(value: wire::Kinds) -> fleet::Kinds {
     match value {
         wire::Kinds::Workers => fleet::Kinds::Workers,
         wire::Kinds::Engine => fleet::Kinds::Engine,
@@ -43,7 +43,7 @@ fn encode_setting(value: &settings::Setting, limits: &wire::Limits) -> Result<wi
         settings::Setting::Rules => wire::Setting::Rules,
     })
 }
-fn decode_setting(value: wire::Setting, _limits: &wire::Limits) -> settings::Setting {
+fn decode_setting(value: wire::Setting) -> settings::Setting {
     match value {
         wire::Setting::Charter(entry) => {
             let wire::CharterNumberParts { number } = entry.into_parts();
@@ -70,7 +70,7 @@ fn encode_last(value: &authority::Last, limits: &wire::Limits) -> Result<wire::L
         }
     })
 }
-fn decode_last(value: wire::Last, _limits: &wire::Limits) -> authority::Last {
+fn decode_last(value: wire::Last) -> authority::Last {
     match value {
         wire::Last::Exact(entry) => {
             let wire::LastExactParts { bytes } = entry.into_parts();
@@ -96,7 +96,7 @@ fn encode_executor(value: &authority::Executor, limits: &wire::Limits) -> Result
         }
     })
 }
-fn decode_executor(value: wire::Executor, _limits: &wire::Limits) -> authority::Executor {
+fn decode_executor(value: wire::Executor) -> authority::Executor {
     match value {
         wire::Executor::Charter(entry) => {
             let wire::ExecutorCharterParts { number } = entry.into_parts();
@@ -120,7 +120,7 @@ fn encode_guard(value: &authority::Guard, limits: &wire::Limits) -> Result<wire:
         }
     })
 }
-fn decode_guard(value: wire::Guard, _limits: &wire::Limits) -> authority::Guard {
+fn decode_guard(value: wire::Guard) -> authority::Guard {
     match value {
         wire::Guard::Guarded => authority::Guard::Guarded,
         wire::Guard::Observed(entry) => {
@@ -141,7 +141,7 @@ fn encode_template_executor(
         people::TemplateExecutor::Chosen => wire::TemplateExecutor::Chosen,
     })
 }
-fn decode_template_executor(value: wire::TemplateExecutor, _limits: &wire::Limits) -> people::TemplateExecutor {
+fn decode_template_executor(value: wire::TemplateExecutor) -> people::TemplateExecutor {
     match value {
         wire::TemplateExecutor::Charter(entry) => {
             let wire::TemplateCharterParts { number } = entry.into_parts();
@@ -164,7 +164,7 @@ fn encode_template_budget(
         people::TemplateBudget::Given => wire::TemplateBudget::Given,
     })
 }
-fn decode_template_budget(value: wire::TemplateBudget, _limits: &wire::Limits) -> people::TemplateBudget {
+fn decode_template_budget(value: wire::TemplateBudget) -> people::TemplateBudget {
     match value {
         wire::TemplateBudget::Amount(entry) => {
             let wire::AmountParts { amount } = entry.into_parts();
@@ -189,7 +189,7 @@ fn encode_template_deadline(
         people::TemplateDeadline::Given => wire::TemplateDeadline::Given,
     })
 }
-fn decode_template_deadline(value: wire::TemplateDeadline, _limits: &wire::Limits) -> people::TemplateDeadline {
+fn decode_template_deadline(value: wire::TemplateDeadline) -> people::TemplateDeadline {
     match value {
         wire::TemplateDeadline::None => people::TemplateDeadline::None,
         wire::TemplateDeadline::Span(entry) => {
@@ -199,7 +199,7 @@ fn decode_template_deadline(value: wire::TemplateDeadline, _limits: &wire::Limit
         wire::TemplateDeadline::Given => people::TemplateDeadline::Given,
     }
 }
-fn encode_part_kind(value: &tasks::PartKind, _limits: &wire::Limits) -> wire::PartKind {
+fn encode_part_kind(value: &tasks::PartKind) -> wire::PartKind {
     match value {
         tasks::PartKind::Resource => wire::PartKind::Resource,
         tasks::PartKind::Pool => wire::PartKind::Pool,
@@ -210,7 +210,7 @@ fn encode_part_kind(value: &tasks::PartKind, _limits: &wire::Limits) -> wire::Pa
         tasks::PartKind::Hold => wire::PartKind::Hold,
     }
 }
-fn decode_part_kind(value: wire::PartKind, _limits: &wire::Limits) -> tasks::PartKind {
+fn decode_part_kind(value: wire::PartKind) -> tasks::PartKind {
     match value {
         wire::PartKind::Resource => tasks::PartKind::Resource,
         wire::PartKind::Pool => tasks::PartKind::Pool,
@@ -238,13 +238,13 @@ fn encode_part_key(value: &tasks::PartKey, limits: &wire::Limits) -> Result<wire
         }
     })
 }
-fn decode_part_key(value: wire::PartKey, limits: &wire::Limits) -> tasks::PartKey {
+fn decode_part_key(value: wire::PartKey) -> tasks::PartKey {
     match value {
         wire::PartKey::Path(entry) => {
             let wire::PartPathParts { segments } = entry.into_parts();
             let mut list_2 = List::with_capacity((segments).len());
             for entry in (segments).into_boxed() {
-                let element = decode_segment(entry, limits);
+                let element = decode_segment(entry);
                 list_2.push(element).expect("decoded list bound");
             }
             tasks::PartKey::Path(list_2)
@@ -280,11 +280,11 @@ fn encode_contract(value: &tasks::Contract, limits: &wire::Limits) -> Result<wir
         )?),
     })
 }
-fn decode_contract(value: wire::Contract, limits: &wire::Limits) -> tasks::Contract {
+fn decode_contract(value: wire::Contract) -> tasks::Contract {
     match value {
         wire::Contract::Approval(entry) => {
             let wire::ApprovalParts { state, part } = entry.into_parts();
-            tasks::Contract::Approval { state, part: decode_part(part, limits) }
+            tasks::Contract::Approval { state, part: decode_part(part) }
         }
         wire::Contract::Report(entry) => {
             let wire::ReportParts { words } = entry.into_parts();
@@ -294,7 +294,7 @@ fn decode_contract(value: wire::Contract, limits: &wire::Limits) -> tasks::Contr
             let wire::VerdictChoicesParts { choices } = entry.into_parts();
             let mut list_4 = List::with_capacity((choices).len());
             for entry in (choices).into_boxed() {
-                let element = decode_verdict(entry, limits);
+                let element = decode_verdict(entry);
                 list_4.push(element).expect("decoded list bound");
             }
             tasks::Contract::Verdict { choices: list_4.into_boxed() }
@@ -305,25 +305,25 @@ fn decode_contract(value: wire::Contract, limits: &wire::Limits) -> tasks::Contr
         }
     }
 }
-fn encode_retention(value: &tasks::Retention, _limits: &wire::Limits) -> wire::Retention {
+fn encode_retention(value: &tasks::Retention) -> wire::Retention {
     match value {
         tasks::Retention::Kept => wire::Retention::Kept,
         tasks::Retention::ForgottenOnceRead => wire::Retention::ForgottenOnceRead,
     }
 }
-fn decode_retention(value: wire::Retention, _limits: &wire::Limits) -> tasks::Retention {
+fn decode_retention(value: wire::Retention) -> tasks::Retention {
     match value {
         wire::Retention::Kept => tasks::Retention::Kept,
         wire::Retention::ForgottenOnceRead => tasks::Retention::ForgottenOnceRead,
     }
 }
-fn encode_ended_by(value: &tasks::EndedBy, _limits: &wire::Limits) -> wire::EndedBy {
+fn encode_ended_by(value: &tasks::EndedBy) -> wire::EndedBy {
     match value {
         tasks::EndedBy::Result => wire::EndedBy::Result,
         tasks::EndedBy::Requester => wire::EndedBy::Requester,
     }
 }
-fn decode_ended_by(value: wire::EndedBy, _limits: &wire::Limits) -> tasks::EndedBy {
+fn decode_ended_by(value: wire::EndedBy) -> tasks::EndedBy {
     match value {
         wire::EndedBy::Result => tasks::EndedBy::Result,
         wire::EndedBy::Requester => tasks::EndedBy::Requester,
@@ -339,9 +339,9 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
 }
 fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::Value, wire::Problem> {
     Ok(match value {
-        wire::Value::Charter(entry) => settings::Value::Charter(Box::new(decode_charter(*entry, limits))),
-        wire::Value::Template(entry) => settings::Value::Template(Box::new(decode_template(*entry, limits))),
-        wire::Value::Policy(entry) => settings::Value::Policy(Box::new(decode_configured_policy(*entry, limits))),
+        wire::Value::Charter(entry) => settings::Value::Charter(Box::new(decode_charter(*entry))),
+        wire::Value::Template(entry) => settings::Value::Template(Box::new(decode_template(*entry))),
+        wire::Value::Policy(entry) => settings::Value::Policy(Box::new(decode_configured_policy(*entry))),
         wire::Value::Rules(entry) => settings::Value::Rules(Box::new(decode_rules(*entry, limits)?)),
     })
 }
@@ -354,7 +354,7 @@ fn encode_decider(value: &settings::Decider, limits: &wire::Limits) -> Result<wi
         }
     })
 }
-fn decode_decider(value: wire::Decider, _limits: &wire::Limits) -> settings::Decider {
+fn decode_decider(value: wire::Decider) -> settings::Decider {
     match value {
         wire::Decider::FirstStart => settings::Decider::FirstStart,
         wire::Decider::Release => settings::Decider::Release,
@@ -374,7 +374,7 @@ fn encode_proposer(value: &people::Proposer, limits: &wire::Limits) -> Result<wi
         }
     })
 }
-fn decode_proposer(value: wire::Proposer, _limits: &wire::Limits) -> people::Proposer {
+fn decode_proposer(value: wire::Proposer) -> people::Proposer {
     match value {
         wire::Proposer::Task(entry) => {
             let wire::PartyParts { number } = entry.into_parts();
@@ -409,7 +409,7 @@ fn encode_text(value: &[u8], limits: &wire::Limits) -> Result<wire::Text, wire::
     let field_bytes = Box::from(value);
     wire::Text::new(limits, wire::TextParts { bytes: field_bytes })
 }
-fn decode_text(value: wire::Text, _limits: &wire::Limits) -> Box<[u8]> {
+fn decode_text(value: wire::Text) -> Box<[u8]> {
     let wire::TextParts { bytes } = value.into_parts();
 
     bytes
@@ -460,7 +460,7 @@ fn encode_model(value: &core::Model, limits: &wire::Limits) -> Result<wire::Mode
         },
     )
 }
-fn decode_model(value: wire::Model, limits: &wire::Limits) -> core::Model {
+fn decode_model(value: wire::Model) -> core::Model {
     let wire::ModelParts {
         dialect,
         endpoint,
@@ -489,7 +489,7 @@ fn decode_model(value: wire::Model, limits: &wire::Limits) -> core::Model {
     let field_price_unit = price_unit;
     let mut list_6 = List::with_capacity((efforts).len());
     for entry in (efforts).into_boxed() {
-        let element = decode_text(entry, limits);
+        let element = decode_text(entry);
         list_6.push(element).expect("decoded list bound");
     }
     let field_efforts = list_6.into_boxed();
@@ -548,7 +548,7 @@ fn encode_run_policy(value: &core::RunPolicy, limits: &wire::Limits) -> Result<w
         },
     )
 }
-fn decode_run_policy(value: wire::RunPolicy, limits: &wire::Limits) -> core::RunPolicy {
+fn decode_run_policy(value: wire::RunPolicy) -> core::RunPolicy {
     let wire::RunPolicyParts {
         instructions,
         waiting,
@@ -568,10 +568,10 @@ fn decode_run_policy(value: wire::RunPolicy, limits: &wire::Limits) -> core::Run
     let field_time = time;
     let field_reserve_turns = reserve_turns;
     let field_reserve_time = reserve_time;
-    let field_model = decode_model(model, limits);
+    let field_model = decode_model(model);
     let mut list_8 = List::with_capacity((alternatives).len());
     for entry in (alternatives).into_boxed() {
-        let element = decode_model(entry, limits);
+        let element = decode_model(entry);
         list_8.push(element).expect("decoded list bound");
     }
     let field_alternatives = list_8.into_boxed();
@@ -600,18 +600,18 @@ fn decode_run_policy(value: wire::RunPolicy, limits: &wire::Limits) -> core::Run
 fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::Charter, wire::Problem> {
     let field_number = value.number;
     let field_policy = encode_run_policy(&value.policy, limits)?;
-    let field_hosts = encode_kinds(&value.hosts, limits);
+    let field_hosts = encode_kinds(&value.hosts);
     let field_spend = value.spend;
     wire::Charter::new(
         limits,
         wire::CharterParts { number: field_number, policy: field_policy, hosts: field_hosts, spend: field_spend },
     )
 }
-fn decode_charter(value: wire::Charter, limits: &wire::Limits) -> core::Charter {
+fn decode_charter(value: wire::Charter) -> core::Charter {
     let wire::CharterParts { number, policy, hosts, spend } = value.into_parts();
     let field_number = number;
-    let field_policy = decode_run_policy(policy, limits);
-    let field_hosts = decode_kinds(hosts, limits);
+    let field_policy = decode_run_policy(policy);
+    let field_hosts = decode_kinds(hosts);
     let field_spend = spend;
     core::Charter { number: field_number, policy: field_policy, hosts: field_hosts, spend: field_spend }
 }
@@ -619,7 +619,7 @@ fn encode_segment(value: &[u8], limits: &wire::Limits) -> Result<wire::Segment, 
     let field_bytes = Box::from(value);
     wire::Segment::new(limits, wire::SegmentParts { bytes: field_bytes })
 }
-fn decode_segment(value: wire::Segment, _limits: &wire::Limits) -> Box<[u8]> {
+fn decode_segment(value: wire::Segment) -> Box<[u8]> {
     let wire::SegmentParts { bytes } = value.into_parts();
 
     bytes
@@ -636,15 +636,15 @@ fn encode_pattern(value: &authority::Pattern, limits: &wire::Limits) -> Result<w
     let field_last = encode_last(&value.last, limits)?;
     wire::Pattern::new(limits, wire::PatternParts { segments: field_segments, last: field_last })
 }
-fn decode_pattern(value: wire::Pattern, limits: &wire::Limits) -> authority::Pattern {
+fn decode_pattern(value: wire::Pattern) -> authority::Pattern {
     let wire::PatternParts { segments, last } = value.into_parts();
     let mut list_10 = List::with_capacity((segments).len());
     for entry in (segments).into_boxed() {
-        let element = decode_segment(entry, limits);
+        let element = decode_segment(entry);
         list_10.push(element).expect("decoded list bound");
     }
     let field_segments = list_10.into_boxed();
-    let field_last = decode_last(last, limits);
+    let field_last = decode_last(last);
     authority::Pattern { segments: field_segments, last: field_last }
 }
 fn encode_grant(value: &authority::Grant, limits: &wire::Limits) -> Result<wire::Grant, wire::Problem> {
@@ -653,11 +653,11 @@ fn encode_grant(value: &authority::Grant, limits: &wire::Limits) -> Result<wire:
     let field_pattern = encode_pattern(&value.pattern, limits)?;
     wire::Grant::new(limits, wire::GrantParts { connector: field_connector, kind: field_kind, pattern: field_pattern })
 }
-fn decode_grant(value: wire::Grant, limits: &wire::Limits) -> authority::Grant {
+fn decode_grant(value: wire::Grant) -> authority::Grant {
     let wire::GrantParts { connector, kind, pattern } = value.into_parts();
     let field_connector = connector;
     let field_kind = kind;
-    let field_pattern = decode_pattern(pattern, limits);
+    let field_pattern = decode_pattern(pattern);
     authority::Grant { connector: field_connector, kind: field_kind, pattern: field_pattern }
 }
 fn encode_resource_scope(
@@ -668,10 +668,10 @@ fn encode_resource_scope(
     let field_pattern = encode_pattern(&value.pattern, limits)?;
     wire::ResourceScope::new(limits, wire::ResourceScopeParts { connector: field_connector, pattern: field_pattern })
 }
-fn decode_resource_scope(value: wire::ResourceScope, limits: &wire::Limits) -> authority::ResourceScope {
+fn decode_resource_scope(value: wire::ResourceScope) -> authority::ResourceScope {
     let wire::ResourceScopeParts { connector, pattern } = value.into_parts();
     let field_connector = connector;
-    let field_pattern = decode_pattern(pattern, limits);
+    let field_pattern = decode_pattern(pattern);
     authority::ResourceScope { connector: field_connector, pattern: field_pattern }
 }
 fn encode_delegation(value: &authority::Delegation, limits: &wire::Limits) -> Result<wire::Delegation, wire::Problem> {
@@ -687,11 +687,11 @@ fn encode_delegation(value: &authority::Delegation, limits: &wire::Limits) -> Re
     let field_depth = value.depth;
     wire::Delegation::new(limits, wire::DelegationParts { kinds: field_kinds, tasks: field_tasks, depth: field_depth })
 }
-fn decode_delegation(value: wire::Delegation, limits: &wire::Limits) -> authority::Delegation {
+fn decode_delegation(value: wire::Delegation) -> authority::Delegation {
     let wire::DelegationParts { kinds, tasks, depth } = value.into_parts();
     let mut list_12 = List::with_capacity((kinds).len());
     for entry in (kinds).into_boxed() {
-        let element = decode_executor(entry, limits);
+        let element = decode_executor(entry);
         list_12.push(element).expect("decoded list bound");
     }
     let field_kinds = list_12.into_boxed();
@@ -704,7 +704,7 @@ fn encode_models(value: &authority::Models, limits: &wire::Limits) -> Result<wir
     let field_all = value.is_all();
     wire::Models::new(limits, wire::ModelsParts { bits: field_bits, all: field_all })
 }
-fn decode_models(value: wire::Models, _limits: &wire::Limits) -> authority::Models {
+fn decode_models(value: wire::Models) -> authority::Models {
     let wire::ModelsParts { bits, all } = value.into_parts();
     let field_bits = bits;
     let field_all = all;
@@ -718,7 +718,7 @@ fn encode_budget(value: &authority::Budget, limits: &wire::Limits) -> Result<wir
     };
     wire::Budget::new(limits, wire::BudgetParts { spend: field_spend, deadline: field_deadline })
 }
-fn decode_budget(value: wire::Budget, _limits: &wire::Limits) -> authority::Budget {
+fn decode_budget(value: wire::Budget) -> authority::Budget {
     let wire::BudgetParts { spend, deadline } = value.into_parts();
     let field_spend = spend;
     let field_deadline = match deadline {
@@ -762,22 +762,22 @@ fn encode_authority(value: &authority::Authority, limits: &wire::Limits) -> Resu
         },
     )
 }
-fn decode_authority(value: wire::Authority, limits: &wire::Limits) -> authority::Authority {
+fn decode_authority(value: wire::Authority) -> authority::Authority {
     let wire::AuthorityParts { tools, models, grants, delegation, budget, notes, note_resources } = value.into_parts();
     let field_tools = authority::Tools(tools);
-    let field_models = decode_models(models, limits);
+    let field_models = decode_models(models);
     let mut list_15 = List::with_capacity((grants).len());
     for entry in (grants).into_boxed() {
-        let element = decode_grant(entry, limits);
+        let element = decode_grant(entry);
         list_15.push(element).expect("decoded list bound");
     }
     let field_grants = list_15.into_boxed();
-    let field_delegation = decode_delegation(delegation, limits);
-    let field_budget = decode_budget(budget, limits);
+    let field_delegation = decode_delegation(delegation);
+    let field_budget = decode_budget(budget);
     let field_notes = authority::Scopes(notes);
     let mut list_16 = List::with_capacity((note_resources).len());
     for entry in (note_resources).into_boxed() {
-        let element = decode_resource_scope(entry, limits);
+        let element = decode_resource_scope(entry);
         list_16.push(element).expect("decoded list bound");
     }
     let field_note_resources = list_16.into_boxed();
@@ -800,7 +800,7 @@ fn encode_judge(value: &authority::Judge, limits: &wire::Limits) -> Result<wire:
         wire::JudgeParts { connector: field_connector, requirement: field_requirement, parameters: field_parameters },
     )
 }
-fn decode_judge(value: wire::Judge, _limits: &wire::Limits) -> authority::Judge {
+fn decode_judge(value: wire::Judge) -> authority::Judge {
     let wire::JudgeParts { connector, requirement, parameters } = value.into_parts();
     let field_connector = connector;
     let field_requirement = requirement;
@@ -829,13 +829,13 @@ fn encode_requirement(
         },
     )
 }
-fn decode_requirement(value: wire::Requirement, limits: &wire::Limits) -> authority::Requirement {
+fn decode_requirement(value: wire::Requirement) -> authority::Requirement {
     let wire::RequirementParts { connector, kind, pattern, judge, guard, must_be_guarded } = value.into_parts();
     let field_connector = connector;
     let field_kind = kind;
-    let field_pattern = decode_pattern(pattern, limits);
-    let field_judge = decode_judge(judge, limits);
-    let field_guard = decode_guard(guard, limits);
+    let field_pattern = decode_pattern(pattern);
+    let field_judge = decode_judge(judge);
+    let field_guard = decode_guard(guard);
     let field_must_be_guarded = must_be_guarded;
     authority::Requirement {
         connector: field_connector,
@@ -858,7 +858,7 @@ fn encode_implication(
         wire::ImplicationParts { connector: field_connector, kind: field_kind, implies: field_implies },
     )
 }
-fn decode_implication(value: wire::Implication, _limits: &wire::Limits) -> authority::Implication {
+fn decode_implication(value: wire::Implication) -> authority::Implication {
     let wire::ImplicationParts { connector, kind, implies } = value.into_parts();
     let field_connector = connector;
     let field_kind = kind;
@@ -901,19 +901,19 @@ fn encode_rules(value: &authority::Rules, limits: &wire::Limits) -> Result<wire:
 fn decode_rules(value: wire::Rules, limits: &wire::Limits) -> Result<authority::Rules, wire::Problem> {
     let wire::RulesParts { ceiling, period_spend, minimum_run_spend, maximum_run_spend, implies, requirements } =
         value.into_parts();
-    let field_ceiling = decode_authority(ceiling, limits);
+    let field_ceiling = decode_authority(ceiling);
     let field_period_spend = period_spend;
     let field_minimum_run_spend = minimum_run_spend;
     let field_maximum_run_spend = maximum_run_spend;
     let mut list_19 = List::with_capacity((implies).len());
     for entry in (implies).into_boxed() {
-        let element = decode_implication(entry, limits);
+        let element = decode_implication(entry);
         list_19.push(element).expect("decoded list bound");
     }
     let field_implies = authority::Implies::new(list_19.into_boxed(), limits.rules_implies).ok_or(bound())?;
     let mut list_20 = List::with_capacity((requirements).len());
     for entry in (requirements).into_boxed() {
-        let element = decode_requirement(entry, limits);
+        let element = decode_requirement(entry);
         list_20.push(element).expect("decoded list bound");
     }
     let field_requirements = list_20.into_boxed();
@@ -943,10 +943,10 @@ fn encode_role(value: &authority::Role, limits: &wire::Limits) -> Result<wire::R
         },
     )
 }
-fn decode_role(value: wire::Role, limits: &wire::Limits) -> authority::Role {
+fn decode_role(value: wire::Role) -> authority::Role {
     let wire::RoleParts { number, authority, period_spend, requests, decides } = value.into_parts();
     let field_number = number;
-    let field_authority = decode_authority(authority, limits);
+    let field_authority = decode_authority(authority);
     let field_period_spend = period_spend;
     let field_requests = authority::Requests(requests);
     let field_decides = authority::Proposals(decides);
@@ -998,27 +998,27 @@ fn encode_policy(value: &authority::Policy, limits: &wire::Limits) -> Result<wir
         },
     )
 }
-fn decode_policy(value: wire::Policy, limits: &wire::Limits) -> authority::Policy {
+fn decode_policy(value: wire::Policy) -> authority::Policy {
     let wire::PolicyParts { escalation_role, ceiling, projections, period_spend, roles, requirements } =
         value.into_parts();
     let field_escalation_role = escalation_role;
-    let field_ceiling = decode_authority(ceiling, limits);
+    let field_ceiling = decode_authority(ceiling);
     let mut list_24 = List::with_capacity((projections).len());
     for entry in (projections).into_boxed() {
-        let element = decode_grant(entry, limits);
+        let element = decode_grant(entry);
         list_24.push(element).expect("decoded list bound");
     }
     let field_projections = list_24.into_boxed();
     let field_period_spend = period_spend;
     let mut list_25 = List::with_capacity((roles).len());
     for entry in (roles).into_boxed() {
-        let element = decode_role(entry, limits);
+        let element = decode_role(entry);
         list_25.push(element).expect("decoded list bound");
     }
     let field_roles = list_25.into_boxed();
     let mut list_26 = List::with_capacity((requirements).len());
     for entry in (requirements).into_boxed() {
-        let element = decode_requirement(entry, limits);
+        let element = decode_requirement(entry);
         list_26.push(element).expect("decoded list bound");
     }
     let field_requirements = list_26.into_boxed();
@@ -1043,7 +1043,7 @@ fn encode_permission_role(
         wire::PermissionRoleParts { connector: field_connector, permission: field_permission, role: field_role },
     )
 }
-fn decode_permission_role(value: wire::PermissionRole, _limits: &wire::Limits) -> people::PermissionRole {
+fn decode_permission_role(value: wire::PermissionRole) -> people::PermissionRole {
     let wire::PermissionRoleParts { connector, permission, role } = value.into_parts();
     let field_connector = connector;
     let field_permission = permission;
@@ -1079,19 +1079,19 @@ fn encode_template_override(
         },
     )
 }
-fn decode_template_override(value: wire::TemplateOverride, limits: &wire::Limits) -> people::TemplateOverride {
+fn decode_template_override(value: wire::TemplateOverride) -> people::TemplateOverride {
     let wire::TemplateOverrideParts { template, executor, budget, deadline, priority } = value.into_parts();
     let field_template = template;
     let field_executor = match executor {
-        Some(entry) => Some(decode_template_executor(entry, limits)),
+        Some(entry) => Some(decode_template_executor(entry)),
         None => None,
     };
     let field_budget = match budget {
-        Some(entry) => Some(decode_template_budget(entry, limits)),
+        Some(entry) => Some(decode_template_budget(entry)),
         None => None,
     };
     let field_deadline = match deadline {
-        Some(entry) => Some(decode_template_deadline(entry, limits)),
+        Some(entry) => Some(decode_template_deadline(entry)),
         None => None,
     };
     let field_priority = priority;
@@ -1133,18 +1133,18 @@ fn encode_configured_policy(
         },
     )
 }
-fn decode_configured_policy(value: wire::ConfiguredPolicy, limits: &wire::Limits) -> core::ConfiguredPolicy {
+fn decode_configured_policy(value: wire::ConfiguredPolicy) -> core::ConfiguredPolicy {
     let wire::ConfiguredPolicyParts { policy, permissions, templates } = value.into_parts();
-    let field_policy = decode_policy(policy, limits);
+    let field_policy = decode_policy(policy);
     let mut list_29 = List::with_capacity((permissions).len());
     for entry in (permissions).into_boxed() {
-        let element = decode_permission_role(entry, limits);
+        let element = decode_permission_role(entry);
         list_29.push(element).expect("decoded list bound");
     }
     let field_permissions = list_29.into_boxed();
     let mut list_30 = List::with_capacity((templates).len());
     for entry in (templates).into_boxed() {
-        let element = decode_template_override(entry, limits);
+        let element = decode_template_override(entry);
         list_30.push(element).expect("decoded list bound");
     }
     let field_templates = list_30.into_boxed();
@@ -1155,7 +1155,7 @@ fn encode_field_rule(value: &tasks::FieldRule, limits: &wire::Limits) -> Result<
     let field_max = value.max;
     wire::FieldRule::new(limits, wire::FieldRuleParts { name: field_name, max: field_max })
 }
-fn decode_field_rule(value: wire::FieldRule, _limits: &wire::Limits) -> tasks::FieldRule {
+fn decode_field_rule(value: wire::FieldRule) -> tasks::FieldRule {
     let wire::FieldRuleParts { name, max } = value.into_parts();
     let field_name = name;
     let field_max = max;
@@ -1178,14 +1178,14 @@ fn encode_verdict(value: &tasks::Verdict, limits: &wire::Limits) -> Result<wire:
         wire::VerdictParts { code: field_code, words: field_words, followups: field_followups, fields: field_fields },
     )
 }
-fn decode_verdict(value: wire::Verdict, limits: &wire::Limits) -> tasks::Verdict {
+fn decode_verdict(value: wire::Verdict) -> tasks::Verdict {
     let wire::VerdictParts { code, words, followups, fields } = value.into_parts();
     let field_code = code;
     let field_words = words;
     let field_followups = followups;
     let mut list_32 = List::with_capacity((fields).len());
     for entry in (fields).into_boxed() {
-        let element = decode_field_rule(entry, limits);
+        let element = decode_field_rule(entry);
         list_32.push(element).expect("decoded list bound");
     }
     let field_fields = list_32.into_boxed();
@@ -1193,22 +1193,22 @@ fn decode_verdict(value: wire::Verdict, limits: &wire::Limits) -> tasks::Verdict
 }
 fn encode_part(value: &tasks::Part, limits: &wire::Limits) -> Result<wire::Part, wire::Problem> {
     let field_connector = value.connector;
-    let field_kind = encode_part_kind(&value.kind, limits);
+    let field_kind = encode_part_kind(&value.kind);
     let field_key = encode_part_key(&value.key, limits)?;
     wire::Part::new(limits, wire::PartParts { connector: field_connector, kind: field_kind, key: field_key })
 }
-fn decode_part(value: wire::Part, limits: &wire::Limits) -> tasks::Part {
+fn decode_part(value: wire::Part) -> tasks::Part {
     let wire::PartParts { connector, kind, key } = value.into_parts();
     let field_connector = connector;
-    let field_kind = decode_part_kind(kind, limits);
-    let field_key = decode_part_key(key, limits);
+    let field_kind = decode_part_kind(kind);
+    let field_key = decode_part_key(key);
     tasks::Part { connector: field_connector, kind: field_kind, key: field_key }
 }
 fn encode_flags(value: &tasks::Flags, limits: &wire::Limits) -> Result<wire::Flags, wire::Problem> {
     let field_conversation = value.conversation;
     let field_listed = value.listed;
-    let field_retention = encode_retention(&value.retention, limits);
-    let field_ended_by = encode_ended_by(&value.ended_by, limits);
+    let field_retention = encode_retention(&value.retention);
+    let field_ended_by = encode_ended_by(&value.ended_by);
     wire::Flags::new(
         limits,
         wire::FlagsParts {
@@ -1219,12 +1219,12 @@ fn encode_flags(value: &tasks::Flags, limits: &wire::Limits) -> Result<wire::Fla
         },
     )
 }
-fn decode_flags(value: wire::Flags, limits: &wire::Limits) -> tasks::Flags {
+fn decode_flags(value: wire::Flags) -> tasks::Flags {
     let wire::FlagsParts { conversation, listed, retention, ended_by } = value.into_parts();
     let field_conversation = conversation;
     let field_listed = listed;
-    let field_retention = decode_retention(retention, limits);
-    let field_ended_by = decode_ended_by(ended_by, limits);
+    let field_retention = decode_retention(retention);
+    let field_ended_by = decode_ended_by(ended_by);
     tasks::Flags {
         conversation: field_conversation,
         listed: field_listed,
@@ -1237,7 +1237,7 @@ fn encode_model_effort(value: &tasks::ModelEffort, limits: &wire::Limits) -> Res
     let field_effort = value.effort;
     wire::ModelEffort::new(limits, wire::ModelEffortParts { model: field_model, effort: field_effort })
 }
-fn decode_model_effort(value: wire::ModelEffort, _limits: &wire::Limits) -> tasks::ModelEffort {
+fn decode_model_effort(value: wire::ModelEffort) -> tasks::ModelEffort {
     let wire::ModelEffortParts { model, effort } = value.into_parts();
     let field_model = model;
     let field_effort = effort;
@@ -1259,13 +1259,13 @@ fn encode_llm_choice(value: &tasks::LlmChoice, limits: &wire::Limits) -> Result<
         wire::LlmChoiceParts { account: field_account, main: field_main, subagents: field_subagents },
     )
 }
-fn decode_llm_choice(value: wire::LlmChoice, limits: &wire::Limits) -> tasks::LlmChoice {
+fn decode_llm_choice(value: wire::LlmChoice) -> tasks::LlmChoice {
     let wire::LlmChoiceParts { account, main, subagents } = value.into_parts();
     let field_account = account;
-    let field_main = decode_model_effort(main, limits);
+    let field_main = decode_model_effort(main);
     let mut list_34 = List::with_capacity((subagents).len());
     for entry in (subagents).into_boxed() {
-        let element = decode_model_effort(entry, limits);
+        let element = decode_model_effort(entry);
         list_34.push(element).expect("decoded list bound");
     }
     let field_subagents = list_34.into_boxed();
@@ -1305,7 +1305,7 @@ fn encode_template(value: &core::Template, limits: &wire::Limits) -> Result<wire
         },
     )
 }
-fn decode_template(value: wire::Template, limits: &wire::Limits) -> core::Template {
+fn decode_template(value: wire::Template) -> core::Template {
     let wire::TemplateParts {
         number,
         name,
@@ -1322,17 +1322,17 @@ fn decode_template(value: wire::Template, limits: &wire::Limits) -> core::Templa
     } = value.into_parts();
     let field_number = number;
     let field_name = name;
-    let field_executor = decode_template_executor(executor, limits);
-    let field_contract = decode_contract(contract, limits);
+    let field_executor = decode_template_executor(executor);
+    let field_contract = decode_contract(contract);
     let field_shallower = shallower;
-    let field_budget = decode_template_budget(budget, limits);
-    let field_deadline = decode_template_deadline(deadline, limits);
+    let field_budget = decode_template_budget(budget);
+    let field_deadline = decode_template_deadline(deadline);
     let field_tracked = tracked;
-    let field_flags = decode_flags(flags, limits);
+    let field_flags = decode_flags(flags);
     let field_label = label;
     let field_grace = grace;
     let field_llm = match llm {
-        Some(entry) => Some(decode_llm_choice(entry, limits)),
+        Some(entry) => Some(decode_llm_choice(entry)),
         None => None,
     };
     core::Template {
@@ -1358,9 +1358,9 @@ fn encode_proposal_id(
     let field_number = value.1;
     wire::ProposalId::new(limits, wire::ProposalIdParts { proposer: field_proposer, number: field_number })
 }
-fn decode_proposal_id(value: wire::ProposalId, limits: &wire::Limits) -> (people::Proposer, u32) {
+fn decode_proposal_id(value: wire::ProposalId) -> (people::Proposer, u32) {
     let wire::ProposalIdParts { proposer, number } = value.into_parts();
-    let field_proposer = decode_proposer(proposer, limits);
+    let field_proposer = decode_proposer(proposer);
     let field_number = number;
     (field_proposer, field_number)
 }
@@ -1386,14 +1386,14 @@ fn encode_head(value: &settings::Head, limits: &wire::Limits) -> Result<wire::He
         },
     )
 }
-fn decode_head(value: wire::Head, limits: &wire::Limits) -> settings::Head {
+fn decode_head(value: wire::Head) -> settings::Head {
     let wire::HeadParts { number, against, at, by, proposal, moved } = value.into_parts();
     let field_number = number;
     let field_against = against;
     let field_at = Wall::from_nanos(at);
-    let field_by = decode_decider(by, limits);
+    let field_by = decode_decider(by);
     let field_proposal = match proposal {
-        Some(entry) => Some(decode_proposal_id(entry, limits)),
+        Some(entry) => Some(decode_proposal_id(entry)),
         None => None,
     };
     let field_moved = moved;
@@ -1413,7 +1413,7 @@ fn encode_item(value: &settings::Item, limits: &wire::Limits) -> Result<wire::It
 }
 fn decode_item(value: wire::Item, limits: &wire::Limits) -> Result<settings::Item, wire::Problem> {
     let wire::ItemParts { setting, edit } = value.into_parts();
-    let field_setting = decode_setting(setting, limits);
+    let field_setting = decode_setting(setting);
     let field_edit = decode_edit(edit, limits)?;
     Ok(settings::Item { setting: field_setting, edit: field_edit })
 }
@@ -1498,7 +1498,7 @@ fn decode_revision(
     names: &[settings::ModelName],
 ) -> Result<settings::Revision, wire::Problem> {
     let wire::RevisionParts { models, head, items } = value.into_parts();
-    let field_head = decode_head(head, limits);
+    let field_head = decode_head(head);
     let mut list_36 = List::with_capacity((items).len());
     for entry in (items).into_boxed() {
         let element = decode_item(entry, limits)?;
@@ -1525,10 +1525,10 @@ fn encode_charter_version(
     };
     wire::CharterVersion::new(limits, wire::CharterVersionParts { charter: field_charter })
 }
-fn decode_charter_version(value: wire::CharterVersion, limits: &wire::Limits) -> settings::CharterVersion {
+fn decode_charter_version(value: wire::CharterVersion) -> settings::CharterVersion {
     let wire::CharterVersionParts { charter } = value.into_parts();
     let field_charter = match charter {
-        Some(charter) => Some(Box::new(decode_charter(charter, limits))),
+        Some(charter) => Some(Box::new(decode_charter(charter))),
         None => None,
     };
     settings::CharterVersion { charter: field_charter }
@@ -1696,7 +1696,7 @@ pub fn decode(
         settings::Key::Charter { charter, revision } => settings::Record::Charter {
             charter: *charter,
             revision: *revision,
-            value: decode_charter_version(wire::CharterVersion::decode(limits, &mut reader)?, limits),
+            value: decode_charter_version(wire::CharterVersion::decode(limits, &mut reader)?),
         },
         settings::Key::Proposal { proposer, proposal } => settings::Record::Proposal {
             proposer: *proposer,

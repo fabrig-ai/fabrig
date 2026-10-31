@@ -9,7 +9,7 @@ use jig_domain_core::RestoreRange;
 use skein_io::{file, kernel::Kind};
 use skein_lib::{List, Token};
 
-/// B1's manifest order is the supplied sets' order, then their families'.
+/// The manifest order is the supplied sets' order, then their families'.
 #[derive(Debug)]
 pub(crate) struct Counted {
     pub owner: Owner,

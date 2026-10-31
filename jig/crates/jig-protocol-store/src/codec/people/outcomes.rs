@@ -42,7 +42,7 @@ pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> 
         )?),
         domain::Outcome::Again(value) => wire::Outcome::Again(wire::OutcomeAgain::new(
             limits,
-            wire::OutcomeAgainParts { value: encode_again(*value, limits) },
+            wire::OutcomeAgainParts { value: encode_again(*value) },
         )?),
         domain::Outcome::AccountKeyKept { source } => wire::Outcome::AccountKeyKept(wire::OutcomeAccountKeyKept::new(
             limits,
@@ -326,7 +326,7 @@ fn encode_proposal_decided(
             proposal,
             by,
             at: at.as_nanos(),
-            choice: encode_proposal_choice(choice, limits),
+            choice: encode_proposal_choice(choice),
             repeated,
         },
     )
@@ -357,7 +357,7 @@ fn encode_escalation_decided(
             revision,
             by,
             at: at.as_nanos(),
-            choice: encode_escalation_choice(choice, limits),
+            choice: encode_escalation_choice(choice),
         },
     )
 }
