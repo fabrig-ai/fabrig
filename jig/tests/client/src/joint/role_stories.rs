@@ -47,108 +47,10 @@ fn configured_with_bounds(
     configure: fn(&mut jig_test_domain::Config, &jig_test_domain::Limits),
     receiving: &jig_client_test_domain::Limits,
 ) -> World<Test, Joint> {
-<<<<<<< HEAD
     World::new(
         Settings { seed, ..Settings::default() },
         super::super::role_fixture::front(seed, scripts, slots, configure, receiving),
     )
-=======
-    let (mut configuration, mut owner) = jig_core_world::peers::fixture(seed, 0);
-    configuration.core.owners = Box::new([]);
-    owner.core.fleet.slots = slots;
-    // Four adoption identities and their four later public client sign-ins.
-    owner.core.people.sign_ins = 8;
-    // Four adoption peer watches plus eight public watches per client.
-    owner.core.views.watchers = 36;
-    owner.core.documents.rows = 2;
-    owner.core.documents.lines = 2;
-    owner.core.documents.chips = 2;
-    owner.core.documents.text_bytes = receiving.client.domain.text;
-    // This scenario offers its agent and human executor, not a procedure.
-    let kinds = Box::new([jig_domain_authority::Executor::Charter(1), jig_domain_authority::Executor::Role(1)]);
-
-    let mut authority_rules = configuration.core.defaults.rules.clone();
-    authority_rules.ceiling.delegation.kinds = kinds.clone();
-    let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
-    policy.ceiling.delegation.kinds = kinds.clone();
-    for role in &mut policy.roles {
-        role.authority.delegation.kinds = kinds.clone();
-    }
-    policy.roles[0].authority.budget.spend = 500;
-    configuration.core.defaults.rules = (jig_domain_authority::Domain::new(authority_rules, owner.core.authority)
-        .expect("role scenario bounds"))
-    .rules()
-    .clone();
-    configuration.core.seed_projects[0].policy.policy = policy;
-    configure(&mut configuration, &owner);
-    jig_core_world::peers::journal(&mut owner);
-    let roles = [PartyRole::Owner, PartyRole::Maintainer, PartyRole::Member, PartyRole::Observer];
-    let parties = roles
-        .iter()
-        .enumerate()
-        .map(|(i, role)| {
-            Party::new(
-                1,
-                *role,
-                10_000 * (i as u64 + 1),
-                Box::new([Act::SignIn { provider: 0, subject: (7 + i as u64).to_be_bytes().into() }]),
-            )
-        })
-        .collect();
-    let mut driver = Driver::new(
-        configuration,
-        owner,
-        Peers::new(vec![Worker::new(7, slots, scripts)], parties),
-        Time::ZERO,
-        clock(Time::ZERO),
-    );
-    let holdings = driver
-        .world
-        .peers
-        .as_ref()
-        .expect("setup peers")
-        .parties
-        .iter()
-        .enumerate()
-        .map(|(i, party)| people::Holding {
-            person: party.person.expect("setup sign-in"),
-            role: match i {
-                0 => people::Role::Owner,
-                1 => people::Role::Maintainer,
-                2 => people::Role::Member,
-                3 => people::Role::Observer,
-                _ => unreachable!("four setup roles"),
-            },
-        })
-        .collect();
-    driver.send(
-        Time::ZERO,
-        clock(Time::ZERO),
-        jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Roles { project: 1, holdings })),
-    );
-    let codec = jig_protocol_transcript::Limits {
-        smith: smith_transcript::v6::CEILINGS,
-        bytes: 1_048_576,
-        turn: client::TurnLimits { messages: 8, blocks: 8, text: 128 },
-    };
-    let identities = (1..=4)
-        .map(|id| {
-            (
-                id,
-                people::Identity {
-                    key: people::IdentityKey { provider: 0, subject: (id + 6_u64).to_be_bytes().into() },
-                    login: b"login".as_slice().into(),
-                    name: b"Person".as_slice().into(),
-                },
-            )
-        })
-        .collect();
-    let mut front = Joint::new(Session::new(driver, *receiving, codec), identities, clock);
-    front.unsigned_on_bind();
-    front.session.capture_task_offers();
-    front.session.stream_heartbeat(Duration::from_millis(50));
-    World::new(Settings { seed, ..Settings::default() }, front)
->>>>>>> origin/jigq/quality
 }
 
 fn start(words: &[u8]) -> Vec<Step<jig_client_test_domain::Address>> {
