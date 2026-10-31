@@ -4,6 +4,7 @@
 use alloc::boxed::Box;
 
 use crate::btree::price;
+use crate::grow::growth;
 use crate::{Buffer, Intake, List, Map, Queue, Set, Stack};
 
 #[test]
@@ -163,6 +164,19 @@ fn a_queue_is_fifo_and_bounded() {
 }
 
 #[test]
+fn a_queue_cleared_is_refilled_to_its_capacity() {
+    let mut queue = Queue::with_capacity(3);
+    queue.push('a');
+    queue.push('b');
+    queue.clear();
+    assert!(queue.is_empty());
+    assert_eq!(queue.room(), 3, "its capacity kept");
+    queue.push('c');
+    assert_eq!(queue.pop(), Some('c'));
+    assert_eq!(queue.pop(), None);
+}
+
+#[test]
 #[should_panic(expected = "the loop reserves room for every output")]
 fn pushing_past_the_reservation_is_a_bug() {
     let mut queue = Queue::with_capacity(0);
@@ -183,6 +197,40 @@ fn a_stack_is_lifo_and_bounded() {
     assert_eq!(stack.pop(), Some('a'));
     assert_eq!(stack.pop(), None);
     assert!(stack.is_empty());
+}
+
+#[test]
+fn a_stack_cleared_is_refilled_to_its_capacity() {
+    let mut stack = Stack::with_capacity(3);
+    assert_eq!(stack.push(1_u8), Ok(()));
+    assert_eq!(stack.push(2), Ok(()));
+    stack.clear();
+    assert!(stack.is_empty());
+    assert_eq!(stack.top(), None);
+    assert_eq!(stack.capacity(), 3, "its capacity kept");
+    assert_eq!(stack.push(3), Ok(()));
+    assert_eq!(stack.pop(), Some(3));
+}
+
+#[test]
+fn every_container_grows_by_one_rule() {
+    // A buffer with room grows by nothing.
+    assert_eq!(growth(2, 4, 3, 100), 0);
+    assert_eq!(growth(0, 0, 0, 100), 0);
+    // A full one doubles, from at least four, never past its cap.
+    assert_eq!(growth(0, 0, 1, 100), 4);
+    assert_eq!(growth(4, 4, 5, 100), 4);
+    assert_eq!(growth(40, 40, 41, 50), 10);
+    assert_eq!(growth(0, 0, 1, 2), 2);
+    // Growth by more than one item (an intake's append) takes what it needs.
+    assert_eq!(growth(4, 4, 30, 100), 26);
+    assert_eq!(growth(2, 4, 30, 30), 28);
+}
+
+#[test]
+#[should_panic(expected = "a container grows only within its cap")]
+fn growing_past_the_cap_is_a_bug() {
+    assert_eq!(growth(2, 2, 3, 2), 0, "never reached");
 }
 
 #[test]

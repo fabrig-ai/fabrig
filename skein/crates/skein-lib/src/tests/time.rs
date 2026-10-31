@@ -75,3 +75,20 @@ fn draws_stay_in_range() {
     assert!(!rng.chance(0));
     assert!(rng.chance(1000));
 }
+
+#[test]
+fn the_earliest_of_two_deadlines_is_the_one_present_or_the_earlier() {
+    let early = Some(Time::from_nanos(3));
+    let late = Some(Time::from_nanos(9));
+    assert_eq!(Time::earliest(early, late), early);
+    assert_eq!(Time::earliest(late, early), early);
+    assert_eq!(Time::earliest(late, late), late);
+    assert_eq!(Time::earliest(None, late), late);
+    assert_eq!(Time::earliest(late, None), late);
+    assert_eq!(Time::earliest(None, None), None);
+    let mut next = None;
+    for deadline in [9, 4, 7] {
+        next = Time::earliest(next, Some(Time::from_nanos(deadline)));
+    }
+    assert_eq!(next, Some(Time::from_nanos(4)), "folded over a step's deadlines");
+}

@@ -31,6 +31,24 @@ impl Decimal {
         Decimal { digits, first }
     }
 
+    /// The count that `digits` spell, `1*DIGIT` (RFC 5234): `None` for no
+    /// digits, for any byte that is not one, or past a `u64`. Leading zeros
+    /// are digits like any other.
+    #[must_use]
+    pub fn read(digits: &[u8]) -> Option<u64> {
+        if digits.is_empty() {
+            return None;
+        }
+        let mut value = 0_u64;
+        for &byte in digits {
+            if !byte.is_ascii_digit() {
+                return None;
+            }
+            value = value.checked_mul(10)?.checked_add(u64::from(byte.wrapping_sub(b'0')))?;
+        }
+        Some(value)
+    }
+
     /// The digits, most significant first.
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {

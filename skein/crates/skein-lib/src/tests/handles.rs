@@ -1,8 +1,9 @@
 //! Handles and slabs (lib.md, 3): a handle's round trip through a token, a
-//! full slab, and a retired entity reachable until it is reclaimed, its
-//! handle stale after.
+//! full slab, a retired entity reachable until it is reclaimed, its handle
+//! stale after, a walk over the live entities, and a component's lifecycle
+//! (lib.md, 3.1).
 
-use crate::{Id, Slab};
+use crate::{Id, Lifecycle, Slab};
 
 #[test]
 fn a_handle_survives_the_round_trip_through_a_token() {
@@ -74,4 +75,70 @@ fn a_slab_hands_out_slots_in_the_order_it_did() {
         assert_eq!((id.slot(), id.generation()), parts);
     }
     assert_eq!(slab.get(reused_second), Some(&'d'), "a reused slot keeps its generation across growth");
+}
+
+#[test]
+fn a_slab_walks_its_live_entities_in_slot_order() {
+    let mut slab = Slab::with_capacity(5);
+    let a = slab.insert('a').expect("fresh slot");
+    let b = slab.insert('b').expect("fresh slot");
+    let c = slab.insert('c').expect("fresh slot");
+    let d = slab.insert('d').expect("fresh slot");
+    slab.retire(b);
+    slab.reclaim();
+    slab.retire(c);
+    let mut walk = slab.iter();
+    assert_eq!(walk.next(), Some((a, &'a')));
+    assert_eq!(walk.next(), Some((d, &'d')), "a vacant slot and a retired entity are skipped");
+    assert_eq!(walk.next(), None);
+    let e = slab.insert('e').expect("the reclaimed slot");
+    let mut walk = (&slab).into_iter();
+    assert_eq!(walk.next(), Some((a, &'a')));
+    assert_eq!(walk.next(), Some((e, &'e')), "slot order, not the order of insertion");
+    assert_eq!(walk.next(), Some((d, &'d')));
+    assert_eq!(walk.next(), None);
+    for (id, value) in &slab {
+        assert_eq!(slab.get(id), Some(value), "each handle names its entity");
+    }
+}
+
+#[test]
+fn an_empty_slab_walks_nothing() {
+    let mut slab = Slab::with_capacity(2);
+    assert_eq!(slab.iter().next(), None);
+    let id = slab.insert(1_u8).expect("room for one");
+    slab.retire(id);
+    assert_eq!(slab.iter().next(), None, "a retired entity is not walked before its reclaim");
+    slab.reclaim();
+    assert_eq!(slab.iter().next(), None);
+}
+
+#[test]
+fn a_component_closes_then_aborts_and_neither_twice() {
+    let mut lifecycle = Lifecycle::Live;
+    assert!(lifecycle.close());
+    assert_eq!(lifecycle, Lifecycle::Closing);
+    assert!(!lifecycle.close(), "a second close changes nothing");
+    assert!(lifecycle.abort(), "an abort after a close turns it into an abort");
+    assert_eq!(lifecycle, Lifecycle::Aborting);
+    assert!(!lifecycle.close(), "a close after an abort changes nothing");
+    assert!(!lifecycle.abort(), "a second abort changes nothing");
+    assert_eq!(lifecycle, Lifecycle::Aborting);
+    let mut lifecycle = Lifecycle::Live;
+    assert!(lifecycle.abort(), "a live component aborts at once");
+    assert_eq!(lifecycle, Lifecycle::Aborting);
+}
+
+#[test]
+#[should_panic(expected = "an owner sends nothing after Closed")]
+fn a_close_after_closed_is_a_bug() {
+    let mut lifecycle = Lifecycle::Closed;
+    assert!(!lifecycle.close(), "never reached");
+}
+
+#[test]
+#[should_panic(expected = "an owner sends nothing after Closed")]
+fn an_abort_after_closed_is_a_bug() {
+    let mut lifecycle = Lifecycle::Closed;
+    assert!(!lifecycle.abort(), "never reached");
 }

@@ -55,6 +55,20 @@ impl Time {
         self.0
     }
 
+    /// The earlier of two deadlines, either of which may be absent: the one
+    /// present, or `None` when neither is. A step that gathers its next
+    /// deadline folds each one it holds into it with this.
+    #[must_use]
+    pub const fn earliest(left: Option<Time>, right: Option<Time>) -> Option<Time> {
+        match left {
+            Some(left) => match right {
+                Some(right) if right.0 < left.0 => Some(right),
+                Some(_) | None => Some(left),
+            },
+            None => right,
+        }
+    }
+
     /// `span` later, or `None` past the end of time.
     #[must_use]
     pub const fn checked_add(self, span: Duration) -> Option<Time> {
