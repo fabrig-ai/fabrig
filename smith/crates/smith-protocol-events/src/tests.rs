@@ -1,9 +1,6 @@
 //! Event projection scenarios with bounded typed inputs.
 
-#![expect(
-    clippy::disallowed_macros,
-    reason = "programming-model.md, section 10.2: deterministic test harness uses ordinary Rust"
-)]
+#![expect(clippy::disallowed_macros, reason = "test modules are ordinary Rust: programming-model.md 10.2")]
 
 use alloc::boxed::Box;
 

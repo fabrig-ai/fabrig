@@ -30,7 +30,6 @@ pub(super) fn render(
     Some(line)
 }
 
-#[expect(clippy::manual_map, reason = "the protocol subset matches Option without callbacks")]
 pub(super) fn render_observed(
     prompt: &mut llm::Prompt,
     ledger: &List<calls::Call>,

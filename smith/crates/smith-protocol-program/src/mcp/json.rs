@@ -348,7 +348,6 @@ impl super::Server {
         }
     }
 
-    #[expect(clippy::manual_map, reason = "the protocol subset uses exhaustive matches without callbacks")]
     fn call(&mut self, document: &Document, params: Option<u32>, id: Box<[u8]>) {
         let name = text_in(document, field_in(document, params, b"name"));
         let arguments = field_in(document, params, b"arguments");

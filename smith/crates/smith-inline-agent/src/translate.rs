@@ -2,8 +2,6 @@
 //! Translations move values into the root; its admission checks decide their
 //! semantics. It knows no codec, policy interpretation or credential values.
 
-#![expect(clippy::manual_map, reason = "no application closures or map in the strict subset")]
-
 use skein_lib::{List, ReplyTo, Token};
 use smith_domain::{self as smith, run};
 use smith_host_domain as host;

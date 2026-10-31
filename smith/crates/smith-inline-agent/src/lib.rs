@@ -21,6 +21,10 @@
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(
+    clippy::manual_map,
+    reason = "closures are out of step code (programming-model.md 10.3), so an Option is mapped by a match"
+)]
 
 extern crate alloc;
 

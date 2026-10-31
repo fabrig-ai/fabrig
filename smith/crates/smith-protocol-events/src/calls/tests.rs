@@ -1,7 +1,4 @@
-#![expect(
-    clippy::disallowed_methods,
-    reason = "programming-model.md section10.2: deterministic test harnesses use ordinary Rust"
-)]
+#![expect(clippy::disallowed_methods, reason = "test modules are ordinary Rust: programming-model.md 10.2")]
 
 use super::*;
 use crate::sinks::tests::{drain, drain_ready, grant};
