@@ -311,6 +311,13 @@ pub(super) fn tag_people(
                             super::amendment_reads::Evidence::new(&env.limits.tasks),
                         );
                     }
+                    people::Ask::RemoveProject { .. } => {
+                        // Project removal is not offered until jp-delete.
+                        work.push(Event::People(people::Event::Decided {
+                            request,
+                            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
+                        }));
+                    }
                     people::Ask::Rename { name, .. } => {
                         super::projects::rename_request(core, env, work, &mut out, request, person, project, name);
                     }

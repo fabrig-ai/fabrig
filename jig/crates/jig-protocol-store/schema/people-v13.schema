@@ -151,6 +151,7 @@ record AskSay { project: u32 task: u64 words: bytes 8192 }
 record AskAnswerQuestion { project: u32 task: u64 question: u64 words: bytes 8192 }
 record AskAmend { project: u32 task: u64 revision: u64 amendment: Amendment release: option u64 }
 record AskSetRoles { project: u32 holdings: list 1024 Holding }
+record AskRemoveProject { project: u32 }
 record AskRename { project: u32 name: text 64 }
 record AskChangeSettings { against: u32 digest: fixed 32 }
 record SettingNumber { number: u32 }
@@ -187,7 +188,7 @@ record AccountChangeFinishSignIn { source: u32 digest: bytes 32 }
 enum AccountChange { add_key: AccountChangeAddKey, replace_key: AccountChangeReplaceKey, remove_key: AccountChangeRemoveKey, resume: AccountChangeResume, remove: AccountChangeRemove, move_account: AccountChangeMoveAccount, move_source: AccountChangeMoveSource, set_uses: AccountChangeSetUses, declare_program: AccountChangeDeclareProgram, check_program: AccountChangeCheckProgram, move_out: AccountChangeMoveOut, written: AccountChangeWritten, move_in: AccountChangeMoveIn, finish_sign_in: AccountChangeFinishSignIn }
 record AskAccountChange { holder: AccountHolder change: AccountChange }
 record AskMoveToNewest { revision: u32 }
-enum Ask { rename: AskRename, make_project: AskMakeProject, compound: AskCompound, create: AskCreate, mark_seen: AskMarkSeen, application: AskApplication, edit_note: AskEditNote, make_service: AskMakeService, adopt: AskAdopt, stop: AskStop, cancel: AskCancel, release: AskRelease, take_person: AskTakePerson, hand_back_person: AskHandBackPerson, answer_person: AskAnswerPerson, move_task: AskMove, decide_proposal: AskDecideProposal, say: AskSay, answer_question: AskAnswerQuestion, amend: boxed AskAmend, set_roles: AskSetRoles, change_policy: AskChangePolicy, set_pool: AskSetPool, decide_escalation: AskDecideEscalation, propose: AskPropose, withdraw: AskWithdraw, account_sign_in: AskAccountSignIn, account_sign_out: AskAccountSignOut, account_change: AskAccountChange, change_settings: AskChangeSettings, move_to_newest: AskMoveToNewest, lift: AskLift }
+enum Ask { rename: AskRename, make_project: AskMakeProject, compound: AskCompound, create: AskCreate, mark_seen: AskMarkSeen, application: AskApplication, edit_note: AskEditNote, make_service: AskMakeService, adopt: AskAdopt, stop: AskStop, cancel: AskCancel, release: AskRelease, take_person: AskTakePerson, hand_back_person: AskHandBackPerson, answer_person: AskAnswerPerson, move_task: AskMove, decide_proposal: AskDecideProposal, say: AskSay, answer_question: AskAnswerQuestion, amend: boxed AskAmend, set_roles: AskSetRoles, change_policy: AskChangePolicy, set_pool: AskSetPool, decide_escalation: AskDecideEscalation, propose: AskPropose, withdraw: AskWithdraw, account_sign_in: AskAccountSignIn, account_sign_out: AskAccountSignOut, account_change: AskAccountChange, change_settings: AskChangeSettings, move_to_newest: AskMoveToNewest, lift: AskLift, remove_project: AskRemoveProject }
 record StoredPerson { number: u64 identity: Identity }
 record StoredReadResults { party: u64 through: u64 }
 record StoredReadConversation { party: u64 task: u64 through: u64 }

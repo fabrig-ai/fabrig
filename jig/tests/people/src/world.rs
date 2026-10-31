@@ -636,6 +636,7 @@ impl World {
                         | Ask::Move { .. }
                         | Ask::AnswerQuestion { .. }
                         | Ask::SetRoles { .. }
+                        | Ask::RemoveProject { .. }
                         | Ask::Rename { .. }
                         | Ask::MakeProject { .. }
                         | Ask::ChangeSettings { .. }
@@ -1037,6 +1038,7 @@ impl World {
                                         | Ask::AnswerQuestion { .. }
                                         | Ask::Amend { .. }
                                         | Ask::SetRoles { .. }
+                                        | Ask::RemoveProject { .. }
                                         | Ask::Rename { .. }
                                         | Ask::MakeProject { .. }
                                         | Ask::ChangeSettings { .. }
@@ -1064,6 +1066,7 @@ impl World {
                             | Ask::Move { .. }
                             | Ask::AnswerQuestion { .. }
                             | Ask::SetRoles { .. }
+                            | Ask::RemoveProject { .. }
                             | Ask::Rename { .. }
                             | Ask::MakeProject { .. }
                             | Ask::ChangeSettings { .. }

@@ -20,6 +20,7 @@ use skein_lib::{List, Wall};
 pub(crate) use standing::role;
 
 /// An act in the client's closed order, translated between vocabularies by the wire.
+/// Project removal follows temper/docs/design/draft/playground-reset.md, 5.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Act {
     /// Write to an agent.
@@ -62,6 +63,8 @@ pub enum Act {
     ChangePolicy,
     /// Rename the project.
     Rename,
+    /// Remove the project.
+    RemoveProject,
     /// Change roles.
     SetRoles,
     /// Make a service.

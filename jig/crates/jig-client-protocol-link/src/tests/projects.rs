@@ -6,6 +6,7 @@ use skein_lib::Writer;
 fn project_requests_round_trip_and_restore_their_whole_fields() {
     let limits = fixtures::limits();
     for ask in [
+        c::Ask::RemoveProject { project: u32::MAX },
         c::Ask::Rename { project: u32::MAX, name: c::Text::new(b"Tally".as_slice().into(), 64).unwrap() },
         c::Ask::MakeProject { name: c::Text::new(b"Tally".as_slice().into(), 64).unwrap(), policy: u32::MAX },
     ] {
@@ -45,6 +46,7 @@ fn project_outcomes_round_trip_the_supplied_project_number() {
 fn project_refusals_keep_each_name_rule_and_the_deployment_limit() {
     let limits = fixtures::limits();
     assert_eq!(translate::documents::act_kind_fields(&w::ActKind::Rename, &limits), c::ActKind::Rename);
+    assert_eq!(translate::documents::act_kind_fields(&w::ActKind::RemoveProject, &limits), c::ActKind::RemoveProject);
     assert_eq!(answers::refusal(&w::Refusal::NameTaken, &limits), Ok(c::Refusal::NameTaken));
     assert_eq!(answers::admission_limit(&w::AdmissionLimit::Projects, &limits), c::AdmissionLimit::Projects);
     for (wire, expected) in [
@@ -77,6 +79,7 @@ fn project_refusals_keep_each_name_rule_and_the_deployment_limit() {
 fn neither_project_request_can_be_a_compound_operation() {
     let limits = fixtures::limits();
     for ask in [
+        c::Ask::RemoveProject { project: 1 },
         c::Ask::Rename { project: 1, name: fixtures::store_text() },
         c::Ask::MakeProject { name: fixtures::store_text(), policy: 1 },
     ] {

@@ -113,6 +113,7 @@ pub enum AnswerOn {
     Person { task: u64, revision: Revision, answer: PersonAnswer },
 }
 /// Every jig request, without keys owned by the root table.
+/// Project removal follows temper/docs/design/draft/playground-reset.md, 5.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ask {
     ChangeSettings(super::ChangeSettings),
@@ -239,6 +240,10 @@ pub enum Ask {
         project: u32,
         name: Text,
         role: HeldRole,
+    },
+    /// Remove a project as its owner.
+    RemoveProject {
+        project: u32,
     },
     /// Rename a project as its owner (contract.md, 3.2).
     Rename {

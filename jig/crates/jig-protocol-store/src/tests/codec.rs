@@ -1387,6 +1387,7 @@ fn project_asks_answers_and_name_refusals_round_trip() {
     use jig_domain_people::{Ask, LimitKind, Malformed, NameRule, Outcome, Refusal, RequestKey, Stored};
     for (ask, outcome) in [
         (Ask::Rename { project: 1, name: "Tally".into() }, Outcome::Renamed { project: 1 }),
+        (Ask::RemoveProject { project: u32::MAX }, Outcome::ProjectRemoved { project: u32::MAX }),
         (Ask::MakeProject { name: "Tally".into(), policy: 1 }, Outcome::ProjectMade { project: 2 }),
     ] {
         people_round_trip(Stored::Answer {

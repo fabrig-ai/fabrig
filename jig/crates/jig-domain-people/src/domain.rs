@@ -768,6 +768,7 @@ fn apply_roles(
         | Ask::EditNote { .. }
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -821,6 +822,7 @@ fn apply_roles(
         | Ask::EditNote { .. }
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -949,6 +951,7 @@ fn make_service(domain: &mut Domain, env: &Env<Limits>, request: Token, person: 
         | Ask::Amend { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -1173,7 +1176,8 @@ fn project(ask: &Ask) -> u32 {
         | Ask::AccountSignOut { .. }
         | Ask::AccountChange { .. } => 0,
         Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => crate::DEPLOYMENT,
-        Ask::Rename { project, .. }
+        Ask::RemoveProject { project, .. }
+        | Ask::Rename { project, .. }
         | Ask::Compound { project, .. }
         | Ask::EditNote { project, .. }
         | Ask::MakeService { project, .. }
@@ -1307,7 +1311,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                     None => false,
                 }
         }
-        Ask::ChangeSettings { .. }
+        Ask::RemoveProject { .. }
+        | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
         | Ask::Application { .. }
         | Ask::AccountSignIn { .. }
@@ -1428,7 +1433,8 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         Ask::Create { batch, .. } | Ask::Propose { action: crate::Action::Batch(batch), .. } => {
             crate::batch::invalid(limits, batch)
         }
-        Ask::Rename { .. }
+        Ask::RemoveProject { .. }
+        | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
@@ -1498,6 +1504,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Roles(u32, bool),
         Policy(u32),
         Rename(u32),
+        RemoveProject(u32),
         MakeProject,
         ChangeSettings,
         MoveToNewest,
@@ -1553,6 +1560,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         }
         Ask::ChangePolicy { project, .. } => Expected::Policy(*project),
         Ask::Rename { project, .. } => Expected::Rename(*project),
+        Ask::RemoveProject { project } => Expected::RemoveProject(*project),
         Ask::MakeProject { .. } => Expected::MakeProject,
         Ask::ChangeSettings { .. } => Expected::ChangeSettings,
         Ask::MoveToNewest { .. } => Expected::MoveToNewest,
@@ -1641,7 +1649,8 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Outcome::AccountRemoved { .. } => expected == Expected::AccountRemoved,
         Outcome::AccountSignedOut { .. } => expected == Expected::AccountSignOut,
         Outcome::Refused(_) => true,
-        Outcome::Again(_) | Outcome::SignedOut | Outcome::ProjectRemoved { .. } => false,
+        Outcome::ProjectRemoved { project } => expected == Expected::RemoveProject(project),
+        Outcome::Again(_) | Outcome::SignedOut => false,
     }
 }
 
@@ -1875,6 +1884,7 @@ fn reserves_answer(ask: &Ask) -> bool {
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -1935,6 +1945,13 @@ pub(super) fn answer_decided(
         assert!(removed == Some(id), "flight has one key index");
     }
 
+    // Until jp-delete, a removal's not-offered refusal leaves its request key available.
+    if outcome == Outcome::Refused(Refusal::NotOffered) && ask == (Ask::RemoveProject { project: project(&ask) }) {
+        for to in replies.into_boxed() {
+            refused(to, Refusal::NotOffered, out);
+        }
+        return;
+    }
     match outcome {
         // A refused admission is retryable with the same key, including
         // pressure reported by tasks or another child through the root.
@@ -2152,6 +2169,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 | Ask::MakeService { .. }
                 | Ask::Adopt { .. }
                 | Ask::ChangePolicy { .. }
+                | Ask::RemoveProject { .. }
                 | Ask::Rename { .. }
                 | Ask::MakeProject { .. }
                 | Ask::ChangeSettings { .. }
@@ -2269,6 +2287,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -2310,6 +2329,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -2395,6 +2415,7 @@ fn admission(domain: &Domain, person: u64, _project: u32, role: Option<Role>, as
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::SetPool { .. }

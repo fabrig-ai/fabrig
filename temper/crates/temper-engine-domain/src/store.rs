@@ -742,7 +742,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::Move { reason, .. } | jig_domain_people::Ask::Cancel { reason, .. } => {
                         u64::try_from(reason.len()).ok()
                     }
-                    jig_domain_people::Ask::ChangeSettings { .. }
+                    jig_domain_people::Ask::RemoveProject { .. }
+                    | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
                     | jig_domain_people::Ask::MarkSeen { .. }

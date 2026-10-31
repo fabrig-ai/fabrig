@@ -465,6 +465,10 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
             limits,
             wire::AskSetRolesParts { project: *project, holdings: encode_holdings(holdings, limits)? },
         )?),
+        domain::Ask::RemoveProject { project } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
+            limits,
+            wire::AskRemoveProjectParts { project: *project },
+        )?),
         domain::Ask::Rename { project, name } => wire::Ask::Rename(wire::AskRename::new(
             limits,
             wire::AskRenameParts { project: *project, name: name.as_bytes().into() },
@@ -640,6 +644,7 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
             let wire::AskSetRolesParts { project, holdings } = value.into_parts();
             domain::Ask::SetRoles { project, holdings: decode_holdings(holdings) }
         }
+        wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject { project: value.project() },
         wire::Ask::Rename(value) => {
             let wire::AskRenameParts { project, name } = value.into_parts();
             domain::Ask::Rename { project, name: project_name(&name, wire::Path::AskRenameName)? }
