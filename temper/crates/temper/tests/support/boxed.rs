@@ -988,10 +988,10 @@ pub fn dying_with_test(mut command: Command) -> Command {
     command
 }
 
-/// Cut the box when a process-tier probe observes its named setup boundary.
+/// Drive a crash story; the probe either cuts at its boundary or lets ctl finish.
 /// The keeper drains every descendant before the deployment is started again.
 #[must_use]
-pub fn run_ctl_until_killed(
+pub fn run_ctl_with_cut(
     directory: &Path,
     flags: Vec<String>,
     steps: Vec<super::ctl::Step>,
@@ -1002,15 +1002,20 @@ pub fn run_ctl_until_killed(
         cut: &'a mut F,
         killed: &'a Cell<bool>,
         next_probe: Time,
+        armed: bool,
     }
     impl<F: FnMut(&Binary, &super::ctl::Calls) -> bool> Referee<Process> for CutJudge<'_, F> {
         fn act(&mut self, now: Time, procs: &mut [Process]) {
             let [Process::Binary(binary), Process::Calls(calls), ..] = procs else { panic!("box and ctl") };
-            if !self.killed.get() && binary.exit_status().is_none() && (self.cut)(binary, calls) {
+            if self.armed && !self.killed.get() && calls.idle() {
                 binary.signal(Signal::Kill);
+                self.killed.set(true);
+            } else if !self.armed && binary.exit_status().is_none() && (self.cut)(binary, calls) {
+                // Keep the boundary while the caller reaps; it shares the observer's cgroup.
+                binary.signal(Signal::Stop);
                 calls.cancel();
                 self.inner.stopping = true;
-                self.killed.set(true);
+                self.armed = true;
             }
             self.next_probe = now.saturating_add(Duration::from_millis(2));
             self.inner.act(now, procs);
@@ -1027,19 +1032,7 @@ pub fn run_ctl_until_killed(
     }
     fn check(_: &Binary) {}
     let clock = Clock::new();
-    let mut binary = Binary::start_with_tree(
-        dying_with_test(Command {
-            program: skein_scratch::paths::binary("temper"),
-            arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
-            directory: directory.into(),
-            environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
-        }),
-        Mode::Pipes,
-        262_144,
-        Expectation::Supervise,
-        false,
-    )
-    .expect("temper box starts");
+    let mut binary = cut_binary(directory, flags);
     let streams = binary.take_streams().expect("box pipes");
     let mut fds = streams.descriptors();
     let root = skein_shell::open_root(directory).expect("client root");
@@ -1072,6 +1065,7 @@ pub fn run_ctl_until_killed(
         cut: &mut cut,
         killed: &killed,
         next_probe: Time::ZERO,
+        armed: false,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds, || {
@@ -1091,7 +1085,23 @@ pub fn run_ctl_until_killed(
             .iter()
             .map(|call| super::Ended { exit: call.exit, stdout: call.stdout.clone(), stderr: call.stderr.clone() })
             .collect(),
-        checked: killed.get().then_some(()),
+        checked: checked.take().or_else(|| killed.get().then_some(())),
         visits: Vec::new(),
     }
+}
+
+fn cut_binary(directory: &Path, flags: Vec<String>) -> Binary {
+    Binary::start_with_tree(
+        dying_with_test(Command {
+            program: skein_scratch::paths::binary("temper"),
+            arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
+            directory: directory.into(),
+            environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+        }),
+        Mode::Pipes,
+        262_144,
+        Expectation::Supervise,
+        false,
+    )
+    .expect("temper box starts")
 }
