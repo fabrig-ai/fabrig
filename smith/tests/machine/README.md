@@ -27,6 +27,6 @@ exercise simulated child IO; every run closes its root.
 
 Besides the saturated component memory control, a checked world covers
 file load, a maximal 128-byte store, a timed-out child, and the full
-flood, metering construction, every iteration and drop. The application
-bound includes the component and IO bounds plus a bounded 21,000-byte
-reserve for its finite queues, request, terminal and fixture payloads.
+flood, metering construction, every iteration and drop. The checked
+process heap has a total ceiling of 21,000 bytes, covering the component,
+IO, finite queues, request, terminal and fixture payloads.
