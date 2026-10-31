@@ -299,3 +299,202 @@ fn restart_configuration_preserves_the_ordinary_read_allowance() {
     let jig_protocol_store::Request::Load { bytes, .. } = request else { panic!("ordinary load") };
     assert_eq!(bytes, 7);
 }
+
+#[test]
+fn start_phases_select_their_exact_ranges() {
+    use core::start::Phase;
+    use jig_protocol_store::{Request, Restore};
+    let census =
+        core::Census { questions: Box::new([(7, 3)]), results: Box::new([core::ReadResults { party: 4, after: 2 }]) };
+    for phase in
+        [Phase::LoadCore, Phase::LoadInbox, Phase::RestoreConnector { connector: 2 }, Phase::Sweep, Phase::Switch]
+    {
+        let mut routes = fixtures::routes();
+        let selected = if phase == Phase::LoadInbox { Some(census.clone()) } else { None };
+        let request = route::down(&mut routes, StoreOut::Start { phase, census: selected }).expect("start request");
+        if phase == Phase::Switch {
+            let Request::Switch { .. } = request else { panic!("switch request") };
+            continue;
+        }
+        let Request::Restore { range, after: None, rows: 2, bytes, .. } = request else { panic!("first restore page") };
+        assert!(bytes > 0);
+        match (phase, range) {
+            (Phase::LoadCore, Restore::Jig(ranges)) => assert_eq!(ranges.as_ref(), &core::RestoreRange::LIVE),
+            (Phase::LoadInbox, Restore::Jig(ranges)) => {
+                assert_eq!(ranges.as_ref(), &[core::RestoreRange::Census(census.clone())]);
+            }
+            (Phase::RestoreConnector { connector }, Restore::Application(ranges)) => {
+                assert_eq!(ranges.as_ref(), &[crate::live(connector)]);
+            }
+            (Phase::Sweep, Restore::Jig(ranges)) => assert_eq!(ranges.as_ref(), &[core::RestoreRange::People]),
+            _ => panic!("phase's exact restore range"),
+        }
+    }
+}
+
+#[test]
+fn start_connector_pages_decode_rows_in_order_then_finish_the_phase() {
+    use core::start::Phase;
+    let mut component = fixtures::starting_component();
+    let mut routes = fixtures::routes();
+    let rows = [routed_result(1, 1), routed_result(1, 2), routed_result(1, 3)];
+    let mut writes = skein_lib::List::with_capacity(4);
+    writes.push(fixtures::header(1)).expect("header");
+    for row in rows.clone() {
+        writes.push(root::Write::Save(row)).expect("fixture row");
+    }
+    fixtures::routed(&mut component, &mut routes, StoreOut::Commit { number: 1, writes: writes.into_boxed() });
+    let phase = Phase::RestoreConnector { connector: 1 };
+    let outputs = fixtures::routed(&mut component, &mut routes, StoreOut::Start { phase, census: None });
+    let mut found = skein_lib::List::with_capacity(3);
+    let mut done = false;
+    for output in outputs {
+        match output {
+            Up::Root(root::Event::StartRecord(row)) => {
+                assert!(!done);
+                found.push(row).expect("fixture row");
+            }
+            Up::Root(root::Event::StartDone(found)) => {
+                assert!(!done);
+                assert_eq!(found, phase);
+                done = true;
+            }
+            Up::Root(_) | Up::Restore(_) | Up::Ask(_) => panic!("start rows then its terminal"),
+        }
+    }
+    assert!(done);
+    assert_eq!(found.into_boxed().as_ref(), &rows);
+    assert!(routes.idle());
+}
+
+#[test]
+fn start_core_page_records_reach_the_root_without_people_restored() {
+    use core::start::Phase;
+    let mut component = fixtures::starting_component();
+    let mut routes = fixtures::routes();
+    fixtures::routed(&mut component, &mut routes, fixtures::core_commit());
+    let outputs =
+        fixtures::routed(&mut component, &mut routes, StoreOut::Start { phase: Phase::LoadCore, census: None });
+    let mut records = skein_lib::List::with_capacity(3);
+    for output in outputs {
+        match output {
+            Up::Root(root::Event::StartRecord(row)) => {
+                records.push(row).expect("fixture row");
+            }
+            Up::Root(root::Event::StartDone(Phase::LoadCore)) => assert_eq!(records.len(), 3),
+            Up::Root(_) | Up::Restore(_) | Up::Ask(_) => panic!("only start records and done"),
+        }
+    }
+    assert_eq!(records.len(), 3);
+    assert!(routes.idle());
+}
+
+#[test]
+fn start_missing_owner_keeps_both_keys() {
+    use core::start::Phase;
+    use jig_protocol_store::{Event, Request, restore::Item};
+    let mut routes = fixtures::routes();
+    let Some(Request::Restore { owner, .. }) = route::down(
+        &mut routes,
+        StoreOut::Start {
+            phase: Phase::LoadInbox,
+            census: Some(core::Census { questions: Box::new([]), results: Box::new([]) }),
+        },
+    ) else {
+        panic!("inbox page")
+    };
+    let record = core::Key::People(people::Key::EndedRead { task: 7, party: 4 });
+    let target = core::Key::Tasks(jig_domain_tasks::Key::Ended(7));
+    let mut out = skein_lib::Queue::uncapped();
+    route::up(
+        &mut routes,
+        Event::Page {
+            owner,
+            items: Box::new([Item::MissingLink { record: record.clone(), target: target.clone() }]),
+            next: None,
+        },
+        &mut out,
+    );
+    let Some(Up::Root(root::Event::StartMissing { record: found_record, target: found_target })) = out.pop() else {
+        panic!("missing link")
+    };
+    assert_eq!((found_record, found_target), (record, target));
+    let Some(Up::Root(root::Event::StartDone(Phase::LoadInbox))) = out.pop() else { panic!("inbox done") };
+    assert!(out.is_empty());
+    assert!(routes.idle());
+}
+
+#[test]
+fn refused_start_page_preserves_the_store_failure_and_terminates_the_flight() {
+    use core::start::Phase;
+    use jig_protocol_store::{
+        Event, Request,
+        restore::{Cause, Failure, RangeFailure},
+    };
+    let mut routes = fixtures::routes();
+    let Some(Request::Restore { owner, .. }) =
+        route::down(&mut routes, StoreOut::Start { phase: Phase::LoadCore, census: None })
+    else {
+        panic!("core page")
+    };
+    let failure = Failure { cause: Cause::Range(RangeFailure::Cursor), row: None };
+    let mut out = skein_lib::Queue::uncapped();
+    route::up(&mut routes, Event::PageRefused { owner, failure: failure.clone() }, &mut out);
+    let Some(Up::Root(root::Event::StartPageRefused { failure: found })) = out.pop() else {
+        panic!("typed page refusal")
+    };
+    assert_eq!(found, failure);
+    assert!(out.is_empty());
+    assert!(routes.idle());
+}
+
+#[test]
+fn switched_start_completes_the_switch_phase() {
+    use core::start::Phase;
+    use jig_protocol_store::{Event, Request};
+    let mut routes = fixtures::routes();
+    let Some(Request::Switch { owner }) =
+        route::down(&mut routes, StoreOut::Start { phase: Phase::Switch, census: None })
+    else {
+        panic!("switch request")
+    };
+    let mut out = skein_lib::Queue::uncapped();
+    route::up(&mut routes, Event::Switched { owner }, &mut out);
+    let Some(Up::Root(root::Event::StartDone(Phase::Switch))) = out.pop() else { panic!("switch done") };
+    assert!(out.is_empty());
+    assert!(routes.idle());
+}
+
+#[test]
+fn start_application_decode_failure_is_typed_and_has_the_record_key() {
+    use core::start::Phase;
+    use jig_protocol_store::{
+        Event, Request, Row,
+        restore::{Cause, DecodeFailure, Item},
+    };
+    let mut routes = fixtures::routes();
+    let Some(Request::Restore { owner, .. }) =
+        route::down(&mut routes, StoreOut::Start { phase: Phase::RestoreConnector { connector: 1 }, census: None })
+    else {
+        panic!("connector page")
+    };
+    let key = crate::keys::encode(1, &jig_test_connector::RecordKey::Result(7));
+    let mut out = skein_lib::Queue::uncapped();
+    route::up(
+        &mut routes,
+        Event::Page {
+            owner,
+            items: Box::new([Item::Row(Row::Application { key: key.clone(), value: Box::new([]) })]),
+            next: None,
+        },
+        &mut out,
+    );
+    let Some(Up::Root(root::Event::StartPageRefused { failure })) = out.pop() else { panic!("typed decode refusal") };
+    assert_eq!(failure.cause, Cause::Decode(DecodeFailure::Value));
+    assert_eq!(
+        failure.row.expect("application row").key,
+        jig_protocol_store::keys::application(&key, u32::MAX).expect("key")
+    );
+    assert!(out.is_empty());
+    assert!(routes.idle());
+}

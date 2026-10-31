@@ -470,3 +470,24 @@ fn wires_commit_holds_its_continuation_before_any_connector_read() {
     }
     assert!(read);
 }
+
+#[test]
+fn a_store_page_refusal_stops_with_its_typed_cause_and_phase() {
+    use jig_protocol_store::restore::{Cause, Failure as PageFailure, RangeFailure};
+    let mut host = Host::new(Vec::new());
+    host.begin();
+    let failure = PageFailure { cause: Cause::Range(RangeFailure::Cursor), row: None };
+    crate::step(&mut host.domain, &host.env, Event::StartPageRefused { failure: failure.clone() });
+    assert_eq!(host.domain.start_page_failure(), Some(&(Phase::LoadCore, failure)));
+    assert_eq!(host.domain.start_failure(), None);
+    assert!(!host.domain.ready());
+    assert!(host.domain.journal.idle());
+    crate::step(&mut host.domain, &host.env, Event::StartDone(Phase::LoadCore));
+    host.drive();
+    assert!(host.stopped);
+    assert!(host.commits.is_empty());
+    assert!(host.domain.journal.commit().is_none());
+    let mut out = Queue::uncapped();
+    crate::release(&mut host.domain, &host.env, &mut out);
+    assert!(out.is_empty(), "stop is reported once");
+}

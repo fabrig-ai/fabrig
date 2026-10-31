@@ -31,6 +31,9 @@ pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
         | Event::ReadApplication { .. }
         | Event::Application { .. }
         | Event::StartBegin { .. }
+        | Event::StartRecord(_)
+        | Event::StartMissing { .. }
+        | Event::StartPageRefused { .. }
         | Event::StartDone(_)
         | Event::RestartBegin { .. }
         | Event::RestartDone(_)

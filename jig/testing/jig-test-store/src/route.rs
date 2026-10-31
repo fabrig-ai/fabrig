@@ -20,6 +20,7 @@ pub struct Routes {
 }
 #[derive(Debug)]
 enum Flight {
+    Start { phase: core::start::Phase, census: Option<core::Census> },
     Restart { step: core::RestartStep, census: Option<core::Census> },
     Read(Token),
     Notes(Token),
@@ -81,6 +82,26 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             routes.commit = number;
             Request::Commit { number, writes: translated.into_boxed() }
         }
+        StoreOut::Start { phase, census } => {
+            use core::start::Phase;
+            match phase {
+                Phase::LoadCore | Phase::RestoreConnector { .. } | Phase::Sweep | Phase::Switch => {}
+                Phase::LoadInbox => {
+                    census.as_ref()?;
+                }
+                Phase::Link
+                | Phase::Wires
+                | Phase::AdoptRuns
+                | Phase::ReadAfresh { .. }
+                | Phase::SettleOutbox { .. }
+                | Phase::Open => return None,
+            }
+            let owner = routes.keep(Flight::Start { phase, census });
+            if phase == Phase::Switch {
+                return Some(Request::Switch { owner });
+            }
+            restart(routes, owner, None)?
+        }
         StoreOut::Restart { step, census } => {
             if step == core::RestartStep::Switch {
                 let owner = routes.keep(Flight::Restart { step, census });
@@ -126,19 +147,36 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
     })
 }
 fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Option<Request> {
-    let (step, census) = match routes.pending.get(&owner)? {
-        Flight::Restart { step, census } => (step, census),
+    use core::start::Phase;
+    let (phase, census) = match routes.pending.get(&owner)? {
+        Flight::Start { phase, census } => (*phase, census),
+        Flight::Restart { step, census } => (
+            match step {
+                core::RestartStep::LoadCore => Phase::LoadCore,
+                core::RestartStep::LoadInbox => Phase::LoadInbox,
+                core::RestartStep::RestoreConnector { connector } => Phase::RestoreConnector { connector: *connector },
+                core::RestartStep::Switch
+                | core::RestartStep::AdoptRuns
+                | core::RestartStep::ReadAfresh { .. }
+                | core::RestartStep::SettleOutbox { .. }
+                | core::RestartStep::Open => return None,
+            },
+            census,
+        ),
         Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) | Flight::Window { .. } => return None,
     };
-    let range = match step {
-        core::RestartStep::LoadCore => Restore::Jig(Box::new(core::RestoreRange::LIVE)),
-        core::RestartStep::LoadInbox => Restore::Jig(Box::new([core::RestoreRange::Census(census.clone()?)])),
-        core::RestartStep::RestoreConnector { connector } => Restore::Application(Box::new([live(*connector)])),
-        core::RestartStep::Switch
-        | core::RestartStep::AdoptRuns
-        | core::RestartStep::ReadAfresh { .. }
-        | core::RestartStep::SettleOutbox { .. }
-        | core::RestartStep::Open => return None,
+    let range = match phase {
+        Phase::LoadCore => Restore::Jig(Box::new(core::RestoreRange::LIVE)),
+        Phase::LoadInbox => Restore::Jig(Box::new([core::RestoreRange::Census(census.clone()?)])),
+        Phase::RestoreConnector { connector } => Restore::Application(Box::new([live(connector)])),
+        Phase::Sweep => Restore::Jig(Box::new([core::RestoreRange::People])),
+        Phase::Link
+        | Phase::Switch
+        | Phase::Wires
+        | Phase::AdoptRuns
+        | Phase::ReadAfresh { .. }
+        | Phase::SettleOutbox { .. }
+        | Phase::Open => return None,
     };
     Some(Request::Restore {
         owner,
@@ -151,7 +189,9 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
 fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Request> {
     let (task, attempt, turn) = match routes.pending.get(&owner)? {
         Flight::Window { task, attempt, turn } => (task, attempt, turn),
-        Flight::Restart { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) => return None,
+        Flight::Start { .. } | Flight::Restart { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) => {
+            return None;
+        }
     };
     let limits = routes.limits?;
     Some(Request::Transcript {
@@ -209,7 +249,12 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
 /// Translate a terminal, preserving pages and requesting their continuations.
 pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
     match event {
-        Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
+        Event::Page { owner, items, next } => page(routes, owner, items, next, into),
+        Event::PageRefused { owner, failure } => {
+            if let Some(Flight::Start { .. }) = routes.pending.remove(&owner) {
+                into.push(Up::Root(root::Event::StartPageRefused { failure }));
+            }
+        }
         // The reference shells never hand patch sets. Return the unknown
         // written site to its open's asker through their ordinary request path.
         Event::Site { owner, patcher, site, .. } => {
@@ -290,11 +335,7 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
             stop(routes, into);
         }
         Event::OpenRefused { .. } => stop(routes, into),
-        Event::Switched { owner } => {
-            if let Some(Flight::Restart { step: core::RestartStep::Switch, .. }) = routes.pending.remove(&owner) {
-                into.push(Up::Root(root::Event::Switched));
-            }
-        }
+        Event::Switched { owner } => switched(routes, owner, into),
         // The shell driving open owns progress; this root route prints no lines.
         Event::Patched { .. }
         | Event::Opened { .. }
@@ -304,6 +345,25 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         | Event::Erased { .. }
         | Event::Secret { .. }
         | Event::SecretsLoaded { .. } => {}
+    }
+}
+fn switched(routes: &mut Routes, owner: Token, into: &mut Queue<Up>) {
+    match routes.pending.remove(&owner) {
+        Some(Flight::Start { phase: core::start::Phase::Switch, .. }) => {
+            into.push(Up::Root(root::Event::StartDone(core::start::Phase::Switch)));
+        }
+        Some(Flight::Restart { step: core::RestartStep::Switch, .. }) => {
+            into.push(Up::Root(root::Event::Switched));
+        }
+        Some(
+            Flight::Start { .. }
+            | Flight::Restart { .. }
+            | Flight::Read(_)
+            | Flight::Notes(_)
+            | Flight::Historical(_)
+            | Flight::Window { .. },
+        )
+        | None => {}
     }
 }
 fn loaded(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<store::Cursor>, into: &mut Queue<Up>) {
@@ -331,23 +391,9 @@ fn restored(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<st
     let step = *step;
     let limits = routes.limits.expect("configured routing");
     for row in rows {
-        let record = match row {
-            Row::Jig(row) => root::Record::Core(row),
-            Row::Application { key, value } => {
-                let Some((number, _)) = keys::decode(&key, &limits.connector) else {
-                    stop(routes, into);
-                    return;
-                };
-                let Ok(record) = records::decode(&value, &limits.connector) else {
-                    stop(routes, into);
-                    return;
-                };
-                if keys::encode(number, &record.key()) != key {
-                    stop(routes, into);
-                    return;
-                }
-                root::Record::Connector { number, record }
-            }
+        let Ok(record) = decode(row, &limits) else {
+            stop(routes, into);
+            return;
         };
         into.push(Up::Restore(record));
     }
@@ -361,6 +407,68 @@ fn restored(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<st
             into.push(Up::Root(root::Event::Core(core::Event::People(people::Event::Restored))));
         }
         into.push(Up::Root(root::Event::RestartDone(step)));
+    }
+}
+fn decode(row: Row, limits: &root::Limits) -> Result<root::Record, store::restore::Failure> {
+    use store::restore::{Cause, DecodeFailure, Failure, RowSite};
+    Ok(match row {
+        Row::Jig(row) => root::Record::Core(row),
+        Row::Application { key, value } => {
+            let site = RowSite {
+                family: Some(store::Family::Application),
+                key: store::keys::application(&key, u32::MAX).expect("bounded application key"),
+                key_bytes: u64::try_from(key.len()).expect("bounded key").checked_add(1).expect("bounded tagged key"),
+                truncated: false,
+            };
+            let Some((number, _)) = keys::decode(&key, &limits.connector) else {
+                return Err(Failure { cause: Cause::Decode(DecodeFailure::Key), row: Some(site) });
+            };
+            let Ok(record) = records::decode(&value, &limits.connector) else {
+                return Err(Failure { cause: Cause::Decode(DecodeFailure::Value), row: Some(site) });
+            };
+            if keys::encode(number, &record.key()) != key {
+                return Err(Failure { cause: Cause::Decode(DecodeFailure::KeyValueDisagree), row: Some(site) });
+            }
+            root::Record::Connector { number, record }
+        }
+    })
+}
+fn page(
+    routes: &mut Routes,
+    owner: Token,
+    items: Box<[store::restore::Item]>,
+    next: Option<store::Cursor>,
+    into: &mut Queue<Up>,
+) {
+    let Some(Flight::Start { phase, .. }) = routes.pending.get(&owner) else {
+        return;
+    };
+    let phase = *phase;
+    let limits = routes.limits.expect("configured routing");
+    for item in items {
+        let event = match item {
+            store::restore::Item::Row(row) => {
+                let record = match decode(row, &limits) {
+                    Ok(record) => record,
+                    Err(failure) => {
+                        routes.pending.remove(&owner);
+                        into.push(Up::Root(root::Event::StartPageRefused { failure }));
+                        return;
+                    }
+                };
+                root::Event::StartRecord(record)
+            }
+            store::restore::Item::MissingLink { record, target } => root::Event::StartMissing { record, target },
+        };
+        into.push(Up::Root(event));
+    }
+    if let Some(after) = next {
+        if let Some(request) = restart(routes, owner, Some(after)) {
+            into.push(Up::Ask(request));
+        }
+    } else {
+        routes.pending.remove(&owner);
+        into.push(Up::Root(root::Event::StartDone(phase)));
     }
 }
 fn stop(routes: &Routes, into: &mut Queue<Up>) {
