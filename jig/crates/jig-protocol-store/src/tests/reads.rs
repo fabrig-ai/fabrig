@@ -882,3 +882,12 @@ fn a_filtered_note_counts_as_examined_before_a_join_cut() {
     let result = load(&mut store, range);
     assert_too_linked(&result, NO_JOINS);
 }
+
+#[test]
+fn erasure_scopes_answer_an_empty_page() {
+    let mut store = child_store();
+    for scope in [reads::Scope::EndedTasks, reads::Scope::TaskRows { task: CHILD }] {
+        let result = load(&mut store, fixtures::read(ALICE, scope));
+        assert_empty(&result);
+    }
+}

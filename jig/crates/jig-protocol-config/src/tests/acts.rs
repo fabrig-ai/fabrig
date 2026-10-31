@@ -12,11 +12,18 @@ fn absent_acts_grant_nothing() {
 }
 #[test]
 fn a_valid_grant_keeps_every_kind_including_make_project() {
-    let document = with(ENGINE_SMALL, br#""connectors": [1],"#, br#""connectors": [1], "acts": [{"connector":1,"may":["close","add_key","remove_account","adopt","make_project"]}],"#);
+    let document = with(ENGINE_SMALL, br#""connectors": [1],"#, br#""connectors": [1], "acts": [{"connector":1,"may":["close","add_key","remove_account","adopt","make_project","remove_project"]}],"#);
     let engine = engine(&document).expect("configured acts");
     let expected = Box::new([ActGrant {
         connector: 1,
-        may: Box::new([ActKind::Close, ActKind::AddKey, ActKind::RemoveAccount, ActKind::Adopt, ActKind::MakeProject]),
+        may: Box::new([
+            ActKind::Close,
+            ActKind::AddKey,
+            ActKind::RemoveAccount,
+            ActKind::Adopt,
+            ActKind::MakeProject,
+            ActKind::RemoveProject,
+        ]),
     }]);
     assert_eq!(&*engine.acts, &*expected);
     assert_eq!(engine.limits.core.people.act_grants, 1);
@@ -65,4 +72,27 @@ fn every_configured_connector_can_hold_one_full_grant() {
     for grant in &engine.acts {
         assert_eq!(&*grant.may, ActKind::ALL);
     }
+}
+
+#[test]
+fn remove_project_is_granted_by_its_word() {
+    let document = with(
+        ENGINE_SMALL,
+        br#""connectors": [1],"#,
+        br#""connectors": [1], "acts": [{"connector":1,"may":["remove_project"]}],"#,
+    );
+    let engine = engine(&document).expect("remove_project grant");
+    assert_eq!(engine.acts.as_ref(), &[ActGrant { connector: 1, may: Box::new([ActKind::RemoveProject]) }]);
+}
+
+#[test]
+fn remove_project_twice_is_refused_as_unique() {
+    let document = with(
+        ENGINE_SMALL,
+        br#""connectors": [1],"#,
+        br#""connectors": [1], "acts": [{"connector":1,"may":["remove_project","remove_project"]}],"#,
+    );
+    let problems = engine(&document).expect_err("duplicate remove_project grant");
+    let path = Path::root().member(b"acts").child(Segment::Index(0)).member(b"may").child(Segment::Index(1));
+    assert_eq!(problems.problems.as_slice(), &[crate::Problem { path, what: What::Unique }]);
 }

@@ -258,7 +258,7 @@ fn permanent(outcome: &Outcome) -> bool {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "the closed act vocabulary validates each outcome against its request")]
+#[expect(clippy::too_many_lines, reason = "one exhaustive deployment act and outcome shape table")]
 pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bool {
     if let Outcome::Refused(_) = outcome {
         return true;
