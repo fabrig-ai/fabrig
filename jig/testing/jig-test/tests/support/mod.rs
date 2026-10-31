@@ -194,7 +194,7 @@ impl Host for Person {
                 client.account_request(jig_client::accounts::add_key(
                     jig_client::Key { asker: jig_client::Asker(77), number: 1 },
                     [61; 16],
-                    jig_client::contract::AccountHolder::Deployment,
+                    jig_client::contract::AskAccountHolder::Deployment,
                     1,
                     None,
                     skein_lib::Secret::new(b"token".as_slice().into()),
