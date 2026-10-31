@@ -168,6 +168,12 @@ impl Domain {
     pub fn backlog(&self) -> u32 {
         self.facts.len()
     }
+
+    /// Lossless observation retention leaves no dropped facts.
+    #[must_use]
+    pub const fn facts_lost(&self) -> u64 {
+        0
+    }
 }
 
 /// Consume one parent notice or lower terminal with injected clocks.
