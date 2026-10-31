@@ -460,8 +460,7 @@ impl Core {
         self.start.phase.is_none()
             && !self.start_stopped()
             && match self.restart {
-                restart::Restart::Cold => self.people.ready(),
-                restart::Restart::Open => true,
+                restart::Restart::Cold | restart::Restart::Open => true,
                 restart::Restart::Waiting(_) | restart::Restart::Failed(_) => false,
             }
     }
