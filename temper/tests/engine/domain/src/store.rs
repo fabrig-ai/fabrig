@@ -420,6 +420,7 @@ impl Store {
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
+            Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Opened { last, pending, .. } => {
                 self.applied = last;
                 self.pending_generation = pending;

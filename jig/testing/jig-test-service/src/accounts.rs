@@ -752,6 +752,9 @@ impl Accounts {
             return;
         }
         match event {
+            store::Event::Page { .. } | store::Event::PageRefused { .. } => {
+                unreachable!("a start's pages need a start-mode store")
+            }
             store::Event::Secret { owner, value } if owner.raw() & MOVE_OUT == MOVE_OUT => {
                 let source = move_source(owner);
                 let Ok(value) = self.secret(store, value, SecretKind::Record) else {
@@ -976,6 +979,9 @@ impl Accounts {
     fn answers(&mut self, store: &mut crate::store::Store, events: &mut Queue<root::Event>) {
         for _ in 0..store.sources.len() {
             match store.sources.pop().expect("source answers") {
+                store::Event::Page { .. } | store::Event::PageRefused { .. } => {
+                    unreachable!("a start's pages need a start-mode store")
+                }
                 store::Event::Secret { owner, value } if owner.raw() & FINISH_EXCHANGE == FINISH_EXCHANGE => {
                     let Ok(value) = self.secret(store, value, SecretKind::Held) else {
                         return;

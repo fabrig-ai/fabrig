@@ -209,6 +209,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
 /// Translate a terminal, preserving pages and requesting their continuations.
 pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
     match event {
+        Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
         // The reference shells never hand patch sets. Return the unknown
         // written site to its open's asker through their ordinary request path.
         Event::Site { owner, patcher, site, .. } => {
