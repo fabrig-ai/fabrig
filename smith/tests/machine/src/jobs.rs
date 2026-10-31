@@ -8,12 +8,7 @@ use smith_protocol_machine::{FromDomain, ToDomain};
 
 impl World {
     /// Exercise successive job acts in one activation on the real kernel.
-    pub fn jobs(&mut self, requests: Vec<FromDomain>) -> Vec<ToDomain> {
-        self.jobs_after(requests, Vec::new())
-    }
-
-    /// Exercise successive job acts in one activation on the real kernel.
-    pub fn jobs_after(&mut self, mut requests: Vec<FromDomain>, delays: Vec<Duration>) -> Vec<ToDomain> {
+    pub fn jobs(&mut self, mut requests: Vec<FromDomain>) -> Vec<ToDomain> {
         let owner = Job::Request(requests.first().expect("one spawn").clone(), false).owner();
         let path = std::env::temp_dir().join(format!("smith-machine-jobs-{}-{}", std::process::id(), self.seed));
         std::fs::create_dir(&path).expect("unique job workspace");
@@ -46,7 +41,7 @@ impl World {
                 self.writable,
                 Time::ZERO,
                 root,
-                Job::Sequence { requests, delays },
+                Job::Sequence { requests, delays: Vec::new() },
                 self.limits,
                 &self.environment,
             )

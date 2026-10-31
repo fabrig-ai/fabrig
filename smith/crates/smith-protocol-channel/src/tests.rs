@@ -220,7 +220,7 @@ fn optional_usage_round_trips_without_turning_absence_into_zero() {
 }
 
 #[test]
-fn size_refusal_subject_size_and_bound_survive_version_three_resume() {
+fn size_refusal_subject_size_and_bound_survive_current_version_resume() {
     use smith_domain_session::llm;
     use smith_domain_tools::{Outcome, SizePart};
     let endpoints = saved_endpoints();
@@ -250,7 +250,7 @@ fn size_refusal_subject_size_and_bound_survive_version_three_resume() {
 }
 
 #[test]
-fn resolved_failures_round_trip_in_version_three_and_refuse_unnormalized_paths() {
+fn resolved_failures_round_trip_in_current_version_and_refuse_unnormalized_paths() {
     use smith_domain_session::{llm, record};
     use smith_domain_tools::{Name, Outcome, Resolved};
     let endpoints = saved_endpoints();
@@ -811,7 +811,7 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
                 valid: Duration::from_secs(3600),
                 renewable,
             },
-            "actual refresh conversion"
+            "observed refresh conversion"
         );
         let mut grants = List::with_capacity(1);
         grants.push(grant).expect("one grant");
@@ -831,7 +831,7 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
             },
         )
         .expect("bounded start envelope");
-        let decoded = crate::start_context(start, grant_charter(), None).expect("actual start conversion");
+        let decoded = crate::start_context(start, grant_charter(), None).expect("observed start conversion");
         assert_eq!(decoded.grants.len(), 1);
         let kept = &decoded.grants[0];
         assert_eq!((kept.name, kept.valid, kept.renewable), (refresh.name, refresh.valid, renewable));

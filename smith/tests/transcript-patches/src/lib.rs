@@ -1,4 +1,4 @@
-//! A fixture owner's kept turn and patch (transcript.md, 12).
+//! A fixture owner's kept turn and patch (smith/docs/design/protocol/transcript.md, 12).
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

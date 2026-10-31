@@ -433,7 +433,7 @@ fn a_create_cancelled_or_past_its_deadline_between_steps_sends_nothing_more() {
 }
 
 #[test]
-fn cancellation_is_sent_below_and_the_actual_terminal_decides_the_race() {
+fn cancellation_is_sent_below_and_the_observed_terminal_decides_the_race() {
     let mut component = component();
     let mut to_domain = Queue::with_capacity(2);
     let mut below = Queue::with_capacity(2);
@@ -553,7 +553,7 @@ fn guide_read_cuts_utf8_and_closes_before_answer() {
 }
 
 #[test]
-fn cancelling_a_guide_open_waits_for_its_actual_file_terminal() {
+fn cancelling_a_guide_open_waits_for_its_observed_file_terminal() {
     for probe in [false, true] {
         let mut component = component();
         let mut to_domain = Queue::with_capacity(1);
@@ -567,7 +567,7 @@ fn cancelling_a_guide_open_waits_for_its_actual_file_terminal() {
             FromDomain::Read { owner, at, max: 3, deadline }
         };
         component.from_domain(&env(), request, &mut to_domain, &mut below);
-        let Some(Below::OpenRead { .. }) = below.pop() else { panic!("expected an actual guide open") };
+        let Some(Below::OpenRead { .. }) = below.pop() else { panic!("expected an observed guide open") };
         component.from_domain(&env(), FromDomain::Cancel { owner }, &mut to_domain, &mut below);
         assert_eq!(below.pop(), Some(Below::CancelFile { owner }));
         assert!(to_domain.is_empty(), "cancel request does not fabricate the guide's terminal");
@@ -601,7 +601,7 @@ fn a_cancelled_guide_closes_its_open_descriptor_before_its_terminal() {
         &mut to_domain,
         &mut below,
     );
-    below.pop().expect("actual open request");
+    below.pop().expect("observed open request");
     component.from_below(
         &env(),
         BelowEvent::File(file::Event::Opened { owner, file: descriptor, len: 4 }),
@@ -609,13 +609,13 @@ fn a_cancelled_guide_closes_its_open_descriptor_before_its_terminal() {
         &mut below,
     );
     let Some(Below::File { request: file::Request::ReadAt { .. }, .. }) = below.pop() else {
-        panic!("expected an actual guide read");
+        panic!("expected an observed guide read");
     };
     component.from_domain(&env(), FromDomain::Cancel { owner }, &mut to_domain, &mut below);
     assert_eq!(below.pop(), Some(Below::CancelFile { owner }));
     component.from_below(&env(), BelowEvent::File(file::Event::Cancelled { owner }), &mut to_domain, &mut below);
     let Some(Below::File { request: file::Request::Close { file, .. }, .. }) = below.pop() else {
-        panic!("expected an actual descriptor close");
+        panic!("expected an observed descriptor close");
     };
     assert_eq!(file, descriptor);
     component.from_domain(&env(), FromDomain::Cancel { owner }, &mut to_domain, &mut below);

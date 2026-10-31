@@ -1,6 +1,6 @@
 //! Resume admission and recoverable teardown (protocol/programs.md 5.8).
 //! Reuses the stopped invocation's storage; never reads the session database.
-//! A resumed assistant wait identifies a parked held turn (programs.md 5.9).
+//! A resumed assistant wait identifies a parked held turn (smith/docs/design/protocol/programs.md 5.9).
 use super::{Backend, Phase, tail};
 use smith_domain::llm;
 use smith_protocol_llm::FromDomain;

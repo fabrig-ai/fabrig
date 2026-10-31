@@ -8,8 +8,6 @@
 //! Accepted calls have one typed terminal.
 //! Contract: protocol/llm.md, sections 1, 6 to 10.
 
-#![expect(clippy::manual_let_else, clippy::single_match, reason = "explicit bounded routing cases")]
-
 use alloc::boxed::Box;
 use core::fmt;
 
@@ -145,9 +143,8 @@ pub fn component_valid(limits: &ComponentLimits, endpoints: &Endpoints) -> bool 
             Ok(head) => head,
             Err(_) => return false,
         };
-        let reservation = match shared::client::largest_reservation(&native) {
-            Some(reservation) => reservation,
-            None => return false,
+        let Some(reservation) = shared::client::largest_reservation(&native) else {
+            return false;
         };
         if reservation > pool.memory || shared::client::encoder_bound(&native).is_none() {
             return false;
@@ -335,9 +332,8 @@ impl Component {
     pub fn fire(&mut self, env: &Env<ComponentLimits>, to_domain: &mut Queue<ToDomain>, io: &mut Queue<IoRequest>) {
         assert!(self.measures.is_empty(), "the owner drains observations before another entrance");
         let child_env = self.child_env(env);
-        match self.next.pop_first() {
-            Some(call) => self.connection.down(&child_env, connection::Request::Next { call }, &mut self.events, io),
-            None => {}
+        if let Some(call) = self.next.pop_first() {
+            self.connection.down(&child_env, connection::Request::Next { call }, &mut self.events, io);
         }
         self.connection.fire(&child_env, &mut self.events, io);
         self.route(env.now, to_domain);
@@ -414,12 +410,9 @@ impl Component {
             Self::local_failure(owner, llm::Failure::Invalid, bounds.max_failure_bytes, to_domain);
             return;
         }
-        let options = match self.options.get(&prompt.endpoint.0) {
-            Some(options) => options,
-            None => {
-                Self::local_failure(owner, llm::Failure::Invalid, bounds.max_failure_bytes, to_domain);
-                return;
-            }
+        let Some(options) = self.options.get(&prompt.endpoint.0) else {
+            Self::local_failure(owner, llm::Failure::Invalid, bounds.max_failure_bytes, to_domain);
+            return;
         };
         let drop_reasoning = options.drop_reasoning(&prompt.model);
         let credential = match self.grants.credential(grant, env.now) {
@@ -477,9 +470,8 @@ impl Component {
                 return;
             }
         }
-        match captured {
-            Some(prompt) => self.measures.push(crate::Measure::Prompt { at: env.now, owner, prompt }),
-            None => {}
+        if let Some(prompt) = captured {
+            self.measures.push(crate::Measure::Prompt { at: env.now, owner, prompt });
         }
         let whole = deadlines.whole;
         let deadlines = connection::Deadlines {
@@ -528,9 +520,8 @@ impl Component {
         // One finite child entrance produced these events; routing never adds
         // child events, so draining this snapshot empties the hand-off.
         for _ in 0..self.events.len() {
-            let event = match self.events.pop() {
-                Some(event) => event,
-                None => break,
+            let Some(event) = self.events.pop() else {
+                break;
             };
             match event {
                 connection::Event::Closed => self.record_closed(),
@@ -567,57 +558,44 @@ impl Component {
                 }
                 connection::Event::Completed { call, completion, measures } => {
                     self.next.remove(&call);
-                    match self.active.remove(&call) {
-                        Some(active) => {
-                            self.measures.push(crate::Measure::Terminal { owner: call, measures });
-                            match active.observation {
-                                Some(_) => {
-                                    let completion =
-                                        crate::capture::completion(&completion, &active.context.limits.client)
-                                            .expect("the actual client admitted its bounded blocks and replay");
-                                    self.measures.push(crate::Measure::Completion { at: now, owner: call, completion });
-                                }
-                                None => {}
-                            }
-                            let resolved = self.resolve(&completion, &active);
-                            match crate::completion(active.context, call, completion, resolved) {
-                                Ok(event) => Self::domain_event(event, to_domain),
-                                Err(error) => {
-                                    Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
-                                }
+                    if let Some(active) = self.active.remove(&call) {
+                        self.measures.push(crate::Measure::Terminal { owner: call, measures });
+                        if active.observation.is_some() {
+                            let completion = crate::capture::completion(&completion, &active.context.limits.client)
+                                .expect("the observed client admitted its bounded blocks and replay");
+                            self.measures.push(crate::Measure::Completion { at: now, owner: call, completion });
+                        }
+                        let resolved = self.resolve(&completion, &active);
+                        match crate::completion(active.context, call, completion, resolved) {
+                            Ok(event) => Self::domain_event(event, to_domain),
+                            Err(error) => {
+                                Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
                             }
                         }
-                        None => {}
                     }
                 }
                 connection::Event::Failed { call, failure, evidence, report, detail, measures } => {
                     self.next.remove(&call);
-                    match self.active.remove(&call) {
-                        Some(active) => {
-                            self.measures.push(crate::Measure::Terminal { owner: call, measures });
-                            match crate::failed(active.context, call, failure, evidence, detail, report) {
-                                Ok(event) => Self::domain_event(event, to_domain),
-                                Err(error) => {
-                                    Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
-                                }
+                    if let Some(active) = self.active.remove(&call) {
+                        self.measures.push(crate::Measure::Terminal { owner: call, measures });
+                        match crate::failed(active.context, call, failure, evidence, detail, report) {
+                            Ok(event) => Self::domain_event(event, to_domain),
+                            Err(error) => {
+                                Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
                             }
                         }
-                        None => {}
                     }
                 }
                 connection::Event::Cancelled { call, measures } => {
                     self.next.remove(&call);
-                    match self.active.remove(&call) {
-                        Some(active) => {
-                            self.measures.push(crate::Measure::Terminal { owner: call, measures });
-                            match crate::cancelled(active.context, call) {
-                                Ok(event) => Self::domain_event(event, to_domain),
-                                Err(error) => {
-                                    Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
-                                }
+                    if let Some(active) = self.active.remove(&call) {
+                        self.measures.push(crate::Measure::Terminal { owner: call, measures });
+                        match crate::cancelled(active.context, call) {
+                            Ok(event) => Self::domain_event(event, to_domain),
+                            Err(error) => {
+                                Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
                             }
                         }
-                        None => {}
                     }
                 }
             }
@@ -664,8 +642,15 @@ impl Component {
     fn resolve(&self, completion: &shared::Completion, active: &Active) -> Box<[crate::ResolvedCall]> {
         let mut resolved = List::with_capacity(self.limits.adapter.client.output_items);
         for (position, block) in completion.content.iter().enumerate() {
-            let shared::Block::ToolCall { name, arguments, .. } = block else {
-                continue;
+            let (name, arguments) = match block {
+                shared::Block::ToolCall { name, arguments, .. } => (name, arguments),
+                shared::Block::Text { .. }
+                | shared::Block::Refusal { .. }
+                | shared::Block::ToolResult { .. }
+                | shared::Block::Oversize { .. }
+                | shared::Block::Cut { .. }
+                | shared::Block::Dropped { .. }
+                | shared::Block::Reasoning { .. } => continue,
             };
             let mut offered = false;
             for descriptor in active.context.application() {

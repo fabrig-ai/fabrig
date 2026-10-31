@@ -1,10 +1,10 @@
-//! Actual prepared Clients retain native replay, usage and failure evidence.
+//! Observed prepared Clients retain native replay, usage and failure evidence.
 //! Synthetic handwritten HTTP/SSE fixtures are independent of the peer encoder.
 //! Restored no-effect history is a caller/adapter handoff, not a root restore
 //! or combined memory proof. The separate malformed-call story drives original
 //! root discovery, byte peers, one corrected host effect and cancellation.
-//! Contract: scratch/client.md, sections 1–7; domain/run.md, sections 5.2,
-//! 10, 13 and 14; testing-strategy.md, sections 2.3, 2.4, 4.1 and 6.
+//! Contract: domain/run.md, sections 5.2,
+//! 10 and 13; testing-strategy.md, sections 2.3, 2.4, 4.1 and 6.
 
 use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Script, Turn};
 use skein_lib::{Duration, Time, Token, Wall};
@@ -19,7 +19,7 @@ use smith_protocol_llm_world::{
 };
 
 // Codex retains known reasoning fields; unknown extensions are scanned and
-// skipped (skein llm.md, section 4.4). Anthropic thinking below stays whole.
+// skipped (skein/docs/design/llm.md, section 4.4). Anthropic thinking below stays whole.
 const CODEX_REASONING: &[u8] = br#"{"id":"rs_c","type":"reasoning","encrypted_content":"exact-opaque","summary":[]}"#;
 const CODEX_TEXT_REPLAY: &[u8] = br#"{"id":"msg_c","phase":"commentary"}"#;
 const CODEX_REFUSAL_REPLAY: &[u8] = br#"{"id":"msg_r"}"#;
@@ -140,7 +140,7 @@ fn adopt(
         },
         &bounds,
     )
-    .expect("actual adapter prepares exactly one Client");
+    .expect("observed adapter prepares exactly one Client");
     let mut peer = RawWorld::prepared(client, bounds.client, source, 71);
     peer.env.now = Time::from_nanos(3000);
     peer.env.wall = Wall::from_nanos(9000);
@@ -166,7 +166,7 @@ fn take_terminal(peer: &mut RawWorld) -> client::Event {
             | client::Event::Closed => None,
         })
         .collect();
-    let [position] = positions.as_slice() else { panic!("one actual terminal") };
+    let [position] = positions.as_slice() else { panic!("one observed terminal") };
     peer.seen.remove(*position)
 }
 
@@ -174,11 +174,11 @@ fn completed(context: Context, peer: &mut RawWorld, expected_owner: Token) -> ll
     peer.request(client::Request::Start);
     peer.run();
     let client::Event::Completed { owner, completion } = take_terminal(peer) else {
-        panic!("actual native completion")
+        panic!("observed native completion")
     };
     assert_eq!(owner, expected_owner);
     let Event::Completed { owner, completion } =
-        adapter::completion(context, owner, completion, Box::new([])).expect("actual owned terminal translates")
+        adapter::completion(context, owner, completion, Box::new([])).expect("observed owned terminal translates")
     else {
         panic!("completed translation")
     };
@@ -206,9 +206,10 @@ fn envelope(bytes: &[u8], header: [u8; 7], payload: &[u8]) -> bool {
     bytes.get(..7) == Some(header.as_slice()) && bytes.get(7..) == Some(payload)
 }
 
-fn usage(actual: llm::Usage, expected: [Option<u64>; 4]) {
-    let observed = [actual.input_tokens, actual.output_tokens, actual.cache_read_tokens, actual.cache_write_tokens];
-    assert_eq!(observed, expected, "all four actual translated usage fields");
+fn usage(observed: llm::Usage, expected: [Option<u64>; 4]) {
+    let observed =
+        [observed.input_tokens, observed.output_tokens, observed.cache_read_tokens, observed.cache_write_tokens];
+    assert_eq!(observed, expected, "all four observed translated usage fields");
     for index in 0..4 {
         let mut changed = observed;
         changed[index] = Some(changed[index].unwrap_or(0) + 1);
@@ -242,7 +243,7 @@ fn anthropic_evidence(completion: &llm::Completion) -> bool {
         && text.as_ref() == b"Answer"
 }
 
-// Mechanical transfer of actual no-effect data into caller-owned continuation
+// Mechanical transfer of observed no-effect data into caller-owned continuation
 // history. This fixture supplies no application classification or root decoder.
 fn history(completion: llm::Completion) -> Box<[llm::Message]> {
     let blocks: Vec<_> = completion
@@ -261,7 +262,7 @@ fn history(completion: llm::Completion) -> Box<[llm::Message]> {
 /// The first request's body as it reads without its coding (gzip on the Codex route).
 fn native_body(peer: &RawWorld) -> Vec<u8> {
     let sent = skein_llm_world::identity(&peer.sent);
-    let at = sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("actual HTTP request") + 4;
+    let at = sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("observed HTTP request") + 4;
     sent[at..].to_vec()
 }
 
@@ -290,15 +291,15 @@ fn codex_reasoning_refusal_and_message_identity_continue_exactly() {
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(CODEX_RESPONSE), true);
     let (context, mut peer) = adopt(&configuration, Token::new(0), Box::new([user(b"Start.")]), source);
     let mut completion = completed(context, &mut peer, Token::new(0));
-    assert!(codex_evidence(&completion), "actual translated ordered replay/refusal: {completion:?}");
+    assert!(codex_evidence(&completion), "observed translated ordered replay/refusal: {completion:?}");
     usage(completion.usage, [Some(8), Some(3), Some(4), None]);
     completion.content.swap(0, 1);
     assert!(!codex_evidence(&completion));
     completion.content.swap(0, 1);
-    let llm::Said::Refusal { replay, .. } = &mut completion.content[2] else { panic!("actual refusal") };
+    let llm::Said::Refusal { replay, .. } = &mut completion.content[2] else { panic!("observed refusal") };
     let retained = replay.take();
     assert!(!codex_evidence(&completion));
-    let llm::Said::Refusal { replay, .. } = &mut completion.content[2] else { panic!("actual refusal") };
+    let llm::Said::Refusal { replay, .. } = &mut completion.content[2] else { panic!("observed refusal") };
     *replay = retained;
     assert!(codex_evidence(&completion));
     close(&mut peer);
@@ -319,15 +320,15 @@ fn anthropic_all_usage_signed_and_redacted_replay_continue_exactly() {
     let source = response(200, "Content-Type: text/event-stream\r\n", ANTHROPIC_RESPONSE, true);
     let (context, mut peer) = adopt(&configuration, Token::new(99), Box::new([user(b"Start.")]), source.clone());
     let mut completion = completed(context, &mut peer, Token::new(99));
-    assert!(anthropic_evidence(&completion), "actual translated ordered thinking: {completion:?}");
+    assert!(anthropic_evidence(&completion), "observed translated ordered thinking: {completion:?}");
     usage(completion.usage, [Some(7), Some(9), Some(11), Some(13)]);
     completion.content.swap(0, 1);
     assert!(!anthropic_evidence(&completion));
     completion.content.swap(0, 1);
-    let llm::Said::Opaque { bytes } = &mut completion.content[0] else { panic!("actual thinking") };
+    let llm::Said::Opaque { bytes } = &mut completion.content[0] else { panic!("observed thinking") };
     bytes[2] = 1;
     assert!(!anthropic_evidence(&completion));
-    let llm::Said::Opaque { bytes } = &mut completion.content[0] else { panic!("actual thinking") };
+    let llm::Said::Opaque { bytes } = &mut completion.content[0] else { panic!("observed thinking") };
     bytes[2] = 2;
     assert!(anthropic_evidence(&completion));
     close(&mut peer);
@@ -367,12 +368,12 @@ fn correction_script() -> Box<[Script]> {
 }
 
 fn pair(assistant: &[Part], user: &[Part], expected_id: &[u8], arguments: &[u8], feedback: &[u8]) -> bool {
-    let [Part::ToolCall { id, name, arguments: actual }] = assistant else { return false };
+    let [Part::ToolCall { id, name, arguments: observed }] = assistant else { return false };
     let [Part::ToolOutput { id: returned, output, is_error }] = user else { return false };
     id.as_ref() == expected_id
         && returned.as_ref() == expected_id
         && name.as_ref() == b"host_action"
-        && actual.as_ref() == arguments
+        && observed.as_ref() == arguments
         && output.as_ref() == feedback
         && !is_error
 }
@@ -389,11 +390,11 @@ fn corrected_feedback(query: &Query) -> bool {
 }
 
 fn feedback_corruptions(query: &Query) {
-    assert!(invalid_feedback(query), "actual full positive malformed history");
+    assert!(invalid_feedback(query), "observed full positive malformed history");
     for field in 0..6 {
         let mut changed = query.clone();
         let [Part::ToolCall { id, name, arguments }] = changed.messages[1].parts.as_mut() else {
-            panic!("actual malformed call")
+            panic!("observed malformed call")
         };
         match field {
             0 => *id = b"different".as_slice().into(),
@@ -403,7 +404,7 @@ fn feedback_corruptions(query: &Query) {
             _ => panic!("bounded corruption field"),
         }
         let [Part::ToolOutput { id, output, is_error }] = changed.messages[2].parts.as_mut() else {
-            panic!("actual feedback")
+            panic!("observed feedback")
         };
         match field {
             0..=2 => {}
@@ -424,20 +425,20 @@ fn feedback_corruptions(query: &Query) {
 
 fn await_query(world: &mut World, count: usize) {
     for _ in 0..100_000 {
-        assert!(!world.drive(1), "actual query precedes root answer");
+        assert!(!world.drive(1), "observed query precedes root answer");
         if world.prompts().len() == count {
             return;
         }
     }
-    panic!("actual query {count} not observed: {:?}", world.trace());
+    panic!("observed query {count} not observed: {:?}", world.trace());
 }
 
 fn discovered(world: &World) {
     let read = world.trace().iter().position(|line| line.contains("agent -> Read {")).expect("original discovery read");
     let returned =
-        world.trace().iter().position(|line| line.contains("agent <- Read {")).expect("actual discovery terminal");
+        world.trace().iter().position(|line| line.contains("agent <- Read {")).expect("observed discovery terminal");
     let complete =
-        world.trace().iter().position(|line| line.contains("agent -> Complete {")).expect("actual root Complete");
+        world.trace().iter().position(|line| line.contains("agent -> Complete {")).expect("observed root Complete");
     assert!(read < returned && returned < complete);
     assert!(
         world.prompts()[0]
@@ -453,7 +454,7 @@ fn corrected_host(world: &World) {
     assert_eq!(submission.tool.as_ref(), b"host_action");
     assert_eq!(submission.effect, run::HostEffect::Write);
     assert_eq!(submission.input.bytes(), BODY);
-    let [(_, _, run::HostReply::Answered(answer))] = world.host_terminals() else { panic!("one actual host result") };
+    let [(_, _, run::HostReply::Answered(answer))] = world.host_terminals() else { panic!("one observed host result") };
     assert_eq!(answer.text(), HOST_RESULT);
     assert!(!answer.error());
     assert!(
@@ -463,13 +464,13 @@ fn corrected_host(world: &World) {
         if id.as_ref() == CALL_ID && name.as_ref() == b"host_action" && input.as_ref() == RAW
         && envelope(&replay.bytes, *b"\x00\x01\x01\x00\x00\x00\x16", ROOT_REPLAY))
         ),
-        "actual root Turn retains original malformed call replay"
+        "observed root Turn retains original malformed call replay"
     );
 }
 
 fn retired(world: &World) {
     assert!(matches!(world.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
-    let [first, second, third] = world.wire_bindings() else { panic!("three actual Clients") };
+    let [first, second, third] = world.wire_bindings() else { panic!("three observed Clients") };
     for binding in [first, second] {
         assert_eq!(
             binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
@@ -502,7 +503,7 @@ fn root_malformed_call_has_no_effect_and_corrected_call_runs_once() {
     let mut world = World::with_wire(settings, None, configuration, bounds, correction_script());
     world.wall_at(Wall::from_nanos(9000));
     await_query(&mut world, 2);
-    assert!(world.host_submissions().is_empty(), "malformed actual call confers no host effect");
+    assert!(world.host_submissions().is_empty(), "malformed observed call confers no host effect");
     feedback_corruptions(&world.prompts()[1]);
     discovered(&world);
     await_query(&mut world, 3);
@@ -524,32 +525,32 @@ fn failure_evidence(
 }
 
 fn failure_corruptions(event: &mut Event, owner: Token, failure: llm::Failure, evidence: llm::Evidence, detail: &[u8]) {
-    assert!(failure_evidence(event, owner, failure, evidence, detail), "full actual failure: {event:?}");
-    let Event::Failed { owner: actual, .. } = event else { panic!("actual failure") };
-    *actual = Token::new(999);
+    assert!(failure_evidence(event, owner, failure, evidence, detail), "full observed failure: {event:?}");
+    let Event::Failed { owner: observed, .. } = event else { panic!("observed failure") };
+    *observed = Token::new(999);
     assert!(!failure_evidence(event, owner, failure, evidence, detail));
-    let Event::Failed { owner: actual, detail: actual_detail, .. } = event else { panic!("actual failure") };
-    *actual = owner;
-    let retained = std::mem::replace(actual_detail, b"rewritten".as_slice().into());
+    let Event::Failed { owner: observed, detail: observed_detail, .. } = event else { panic!("observed failure") };
+    *observed = owner;
+    let retained = std::mem::replace(observed_detail, b"rewritten".as_slice().into());
     assert!(!failure_evidence(event, owner, failure, evidence, detail));
-    let Event::Failed { detail: actual_detail, evidence: actual_evidence, .. } = event else {
-        panic!("actual failure")
+    let Event::Failed { detail: observed_detail, evidence: observed_evidence, .. } = event else {
+        panic!("observed failure")
     };
-    *actual_detail = retained;
-    *actual_evidence = if matches!(evidence, llm::Evidence::Response { .. }) {
+    *observed_detail = retained;
+    *observed_evidence = if matches!(evidence, llm::Evidence::Response { .. }) {
         llm::Evidence::Unsent
     } else {
         llm::Evidence::Response { status: None }
     };
     assert!(!failure_evidence(event, owner, failure, evidence, detail));
-    let Event::Failed { evidence: actual_evidence, failure: actual_failure, .. } = event else {
-        panic!("actual failure")
+    let Event::Failed { evidence: observed_evidence, failure: observed_failure, .. } = event else {
+        panic!("observed failure")
     };
-    *actual_evidence = evidence;
-    *actual_failure = llm::Failure::Invalid;
+    *observed_evidence = evidence;
+    *observed_failure = llm::Failure::Invalid;
     assert!(!failure_evidence(event, owner, failure, evidence, detail));
-    let Event::Failed { failure: actual_failure, .. } = event else { panic!("actual failure") };
-    *actual_failure = failure;
+    let Event::Failed { failure: observed_failure, .. } = event else { panic!("observed failure") };
+    *observed_failure = failure;
     assert!(failure_evidence(event, owner, failure, evidence, detail));
 }
 
@@ -601,7 +602,7 @@ fn response_unknown_and_unsent_failures_preserve_full_evidence() {
     let (context, mut peer) = adopt(&configuration, Token::new(71), Box::new([user(b"Start.")]), source);
     peer.request(client::Request::Start);
     peer.run();
-    assert!(!peer.sent.is_empty(), "actual request preceded native refusal");
+    assert!(!peer.sent.is_empty(), "observed request preceded native refusal");
     observe_failure(
         context,
         &mut peer,
@@ -619,7 +620,7 @@ fn response_unknown_and_unsent_failures_preserve_full_evidence() {
         assert!(peer.tick(false));
     }
     assert!(!peer.sent.is_empty());
-    assert_eq!(peer.source_at, 0, "no response bytes precede actual transport loss");
+    assert_eq!(peer.source_at, 0, "no response bytes precede observed transport loss");
     assert_eq!(peer.terminals(), 0);
     peer.transport_failed();
     observe_failure(
@@ -689,18 +690,18 @@ fn an_oversized_call_beside_an_ordinary_one_completes_with_a_fixable_error() {
     bounds.client.input = 16;
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(BLOCK_RESPONSE), true);
     let (context, mut peer) = block_peer(&configuration, &bounds, source);
-    let actual = completed(context, &mut peer, Token::new(71));
+    let observed = completed(context, &mut peer, Token::new(71));
     let [
         llm::Said::ToolCall { id, input, call: llm::Decoded::Invalid { problem }, replay: None, .. },
         llm::Said::ToolCall { call: llm::Decoded::Served { ask: run::Ask::Host { .. } }, .. },
-    ] = actual.content.as_ref()
+    ] = observed.content.as_ref()
     else {
-        panic!("one invalid and one ordinary call: {:?}", actual.content);
+        panic!("one invalid and one ordinary call: {:?}", observed.content);
     };
     assert_eq!(id.as_ref(), b"large-call");
     assert_eq!(input.as_ref(), b"{}");
     assert_eq!(problem, &llm::Problem::Oversize { bytes: 24, bound: 16 });
-    assert_eq!(actual.usage.cache_read_tokens, None);
+    assert_eq!(observed.usage.cache_read_tokens, None);
     close(&mut peer);
 }
 
@@ -715,11 +716,11 @@ fn a_cut_call_is_replaced_and_the_next_request_replays() {
     let bounds = limits();
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(&messages), true);
     let (context, mut peer) = block_peer(&configuration, &bounds, source);
-    let actual = completed(context, &mut peer, Token::new(71));
+    let observed = completed(context, &mut peer, Token::new(71));
     let [llm::Said::ToolCall { id, name, input, call: llm::Decoded::Invalid { problem }, replay: None }] =
-        actual.content.as_ref()
+        observed.content.as_ref()
     else {
-        panic!("cut becomes one replayable call: {:?}", actual.content);
+        panic!("cut becomes one replayable call: {:?}", observed.content);
     };
     assert_eq!(input.as_ref(), b"{}");
     assert_eq!(problem, &llm::Problem::CutOff { bytes: 7 });
@@ -786,7 +787,7 @@ fn a_reasoning_item_past_its_bound_fails_unless_the_model_drops_it() {
                     terminal,
                     client::Event::Failed { failure: shared::Failure::Limit { which: shared::Cap::Reasoning, .. }, .. }
                 ),
-                "actual typed reasoning cap: {terminal:?}"
+                "observed typed reasoning cap: {terminal:?}"
             );
             peer.settle();
         }

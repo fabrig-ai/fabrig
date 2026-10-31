@@ -1,4 +1,4 @@
-//! Kept turns, their pieces word and their patch set (transcript.md, 12).
+//! Kept turns, their pieces word and their patch set (smith/docs/design/protocol/transcript.md, 12).
 
 use std::{collections::BTreeSet, fs};
 

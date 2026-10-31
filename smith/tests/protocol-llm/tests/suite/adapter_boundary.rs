@@ -1,7 +1,7 @@
-//! Positive-first adapter boundary controls over actual shared Client terminals.
+//! Positive-first adapter boundary controls over observed shared Client terminals.
 //! Caller schemas, restored results and a literal Wait attestation are fixture
 //! data; no application decoder or Finish policy lives in this test.
-//! Contract: scratch/client.md, sections 1–6; testing-strategy.md, sections 2.5 and 6.
+//! Contract: testing-strategy.md, sections 2.5 and 6.
 
 use skein_fake_llm_domain::{self as fake, api};
 use skein_lib::{Env, Queue, Time, Token, Wall};
@@ -121,7 +121,7 @@ fn quiesce(peer: &mut Exchange) {
             return;
         }
     }
-    panic!("bounded actual exchange did not quiesce");
+    panic!("bounded observed exchange did not quiesce");
 }
 
 fn take_terminal(peer: &mut Exchange) -> client::Event {
@@ -141,7 +141,7 @@ fn take_terminal(peer: &mut Exchange) -> client::Event {
         })
         .collect();
     let [position] = positions.as_slice() else {
-        panic!("one actual native terminal: {:?}", peer.seen);
+        panic!("one observed native terminal: {:?}", peer.seen);
     };
     peer.seen.remove(*position)
 }
@@ -158,7 +158,7 @@ fn close_won(peer: &mut Exchange) {
     )));
     let events = peer.seen.len();
     peer.settle();
-    assert_eq!(peer.seen.len(), events, "repeated actual settlement emits nothing");
+    assert_eq!(peer.seen.len(), events, "repeated observed settlement emits nothing");
     assert_eq!(peer.machine.waiting(), client::Waiting::Nothing);
 }
 
@@ -169,7 +169,7 @@ fn completed(configuration: &Configuration, calls: bool) -> (Context, Exchange, 
     assert_eq!(peer.queries.len(), 1);
     assert_eq!(peer.seen.iter().filter(|event| matches!(event, client::Event::Reusable)).count(), 1);
     let client::Event::Completed { owner, completion } = take_terminal(&mut peer) else {
-        panic!("actual scripted successful terminal");
+        panic!("observed scripted successful terminal");
     };
     assert_eq!(owner, OWNER);
     (context, peer, owner, completion)
@@ -192,7 +192,7 @@ fn completed_owner_is_preserved_and_a_different_owner_is_refused() {
                 assert_eq!(completion.stop, llm::Stop::EndTurn);
                 assert_eq!(completion.usage.output_tokens, Some(7));
                 let [llm::Said::Text { text, .. }] = completion.content.as_ref() else {
-                    panic!("literal actual text completion");
+                    panic!("literal observed text completion");
                 };
                 assert_eq!(text.as_ref(), b"admitted exact");
             }
@@ -219,15 +219,15 @@ fn failed(configuration: &Configuration) -> (Context, Exchange, client::Event) {
     peer.manual_replies = true;
     peer.start();
     quiesce(&mut peer);
-    assert_eq!(peer.pending.len(), 1, "one actual HTTP request issued a domain reply right");
+    assert_eq!(peer.pending.len(), 1, "one observed HTTP request issued a domain reply right");
     let config = fake::Config { overloaded: 1000, ..skein_llm_world::fake::config() };
     let mut domain = fake::Domain::new(&config, 7);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
     let mut out = Queue::uncapped();
-    fake::step(&mut domain, &env, peer.pending.pop().expect("actual independent peer request"), &mut out);
-    assert!(out.pop().is_none(), "the actual fake decision awaits its timer entrance");
+    fake::step(&mut domain, &env, peer.pending.pop().expect("observed independent peer request"), &mut out);
+    assert!(out.pop().is_none(), "the observed fake decision awaits its timer entrance");
     fake::fire(&mut domain, &env, &mut out);
-    peer.reply(out.pop().expect("actual configured fake overloaded terminal"));
+    peer.reply(out.pop().expect("observed configured fake overloaded terminal"));
     assert!(out.pop().is_none());
     domain.reclaim();
     assert_eq!(domain.calls(), 0);
@@ -253,7 +253,7 @@ fn failed_owner_class_evidence_and_detail_survive_only_the_matching_context() {
         for wrong_owner in [false, true] {
             let (context, mut peer, terminal) = failed(configuration);
             let client::Event::Failed { owner, failure, evidence, report, detail } = terminal else {
-                panic!("actual byte-peer failure established above");
+                panic!("observed byte-peer failure established above");
             };
             let returned =
                 adapter::failed(context, if wrong_owner { OTHER } else { owner }, failure, evidence, detail, report);
@@ -274,7 +274,7 @@ fn failed_owner_class_evidence_and_detail_survive_only_the_matching_context() {
 }
 
 #[test]
-fn cancelled_owner_is_checked_only_after_genuine_lower_settlement() {
+fn cancelled_owner_is_checked_only_after_observed_lower_settlement() {
     for configuration in &wire::configurations() {
         for wrong_owner in [false, true] {
             let (context, mut peer) = adopt(input(configuration), false);
@@ -306,8 +306,8 @@ fn cancelled_owner_is_checked_only_after_genuine_lower_settlement() {
 fn schema_inventory_admits_first_then_refuses_missing_duplicate_and_unoffered_entries() {
     for configuration in &wire::configurations() {
         let (context, mut peer, owner, completion) = completed(configuration, false);
-        let [query] = peer.queries.as_slice() else { panic!("one observed actual query") };
-        let [declaration] = query.tools.as_ref() else { panic!("one actual offered application schema") };
+        let [query] = peer.queries.as_slice() else { panic!("one observed observed query") };
+        let [declaration] = query.tools.as_ref() else { panic!("one observed offered application schema") };
         assert_eq!(declaration.name.as_ref(), b"wait");
         assert_eq!(declaration.description.as_ref(), b"Boundary caller declaration.");
         assert_eq!(declaration.parameters.as_ref(), WAIT_SCHEMA);
@@ -552,7 +552,7 @@ fn child_completed(configuration: &Configuration, arguments: &[u8]) -> (Context,
         account_id: offered.credential.account_id.clone(),
         scheme: skein_llm::Scheme::Bearer,
     };
-    let adapter::Prepared { client, context } = adapter::prepare(offered, &limits()).expect("actual admission");
+    let adapter::Prepared { client, context } = adapter::prepare(offered, &limits()).expect("observed admission");
     let script = Box::new([api::Script {
         cue: b"@adapter-boundary".as_slice().into(),
         turns: Box::new([api::Turn {
@@ -564,7 +564,7 @@ fn child_completed(configuration: &Configuration, arguments: &[u8]) -> (Context,
     let mut peer = Exchange::prepared(client, endpoint, Some(credential), limits().client, script);
     peer.start();
     peer.run();
-    let [query] = peer.queries.as_slice() else { panic!("one actual provider query") };
+    let [query] = peer.queries.as_slice() else { panic!("one observed provider query") };
     let [tool] = query.tools.as_ref() else { panic!("one offered child tool") };
     assert_eq!(tool.name.as_ref(), b"sub_agent");
     assert_eq!(tool.parameters, schema, "the provider sees the complete production schema");
@@ -573,13 +573,13 @@ fn child_completed(configuration: &Configuration, arguments: &[u8]) -> (Context,
     }
     assert!(!tool.parameters.windows(b"maximum".len()).any(|part| part == b"maximum"));
     let client::Event::Completed { owner, completion } = take_terminal(&mut peer) else {
-        panic!("one actual provider completion");
+        panic!("one observed provider completion");
     };
     (context, peer, owner, completion)
 }
 
 #[test]
-fn optional_child_shares_cross_both_provider_schemas_and_actual_completions() {
+fn optional_child_shares_cross_both_provider_schemas_and_observed_completions() {
     use skein_lib::Duration;
 
     let cases = [
@@ -625,9 +625,9 @@ fn optional_child_shares_cross_both_provider_schemas_and_actual_completions() {
                 ),
             }]);
             let Event::Completed { completion, .. } =
-                adapter::completion(context, owner, completion, resolved).expect("actual checked adapter callback")
+                adapter::completion(context, owner, completion, resolved).expect("observed checked adapter callback")
             else {
-                panic!("the actual call has one root completion");
+                panic!("the observed call has one root completion");
             };
             let [llm::Said::ToolCall { input, call, .. }] = completion.content.as_ref() else {
                 panic!("the root retains the original call")

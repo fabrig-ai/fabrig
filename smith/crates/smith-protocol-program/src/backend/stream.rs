@@ -1,4 +1,4 @@
-//! Startup stream admission (programs.md, sections 5.1 and 5.5).
+//! Startup stream admission (smith/docs/design/protocol/programs.md, sections 5.1 and 5.5).
 //! Retains no stream state; checks complete init lines and encodes user and control input.
 
 use crate::mcp::{self, json};

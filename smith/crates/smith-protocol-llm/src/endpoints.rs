@@ -1,6 +1,6 @@
 //! Startup endpoint names and their resolved transport, dialect and options.
 //! This table retains no credential. The service gives the destinations to
-//! skein's connection component and keeps their actual HTTP heads for native
+//! skein's connection component and keeps their observed HTTP heads for native
 //! validation before copying an observation, using names through this mapping.
 //! Contract: protocol/agent.md, section 4; protocol/llm.md, sections 2 and 6.
 
@@ -30,9 +30,8 @@ pub enum OversizedReasoning {
     Drop,
 }
 
-/// Measure actual endpoint options and provider identity for startup's own part.
+/// Measure observed endpoint options and provider identity for startup's own part.
 /// Field punctuation belongs to the separately measured provider framing.
-/// Contract: protocol/limits.md, sections 3.2 and 3.9.
 pub fn endpoint_own(identity: IdentityProfile) -> Result<u64, crate::Error> {
     let mut bytes = 0_u64;
     match identity {
@@ -82,7 +81,7 @@ pub struct EndpointOptions {
     pub handshake: Duration,
     /// Dialect that owns replay and provider-specific request rules.
     pub provider: Provider,
-    /// Actual destination head used to validate content before its observation is copied.
+    /// Destination head validates content before the observation is copied.
     pub endpoint: skein_llm::Endpoint,
     /// Native per-endpoint bounds, including its transport pieces and measured head.
     pub client: skein_llm::client::Limits,

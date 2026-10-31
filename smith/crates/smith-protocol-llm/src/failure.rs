@@ -9,11 +9,11 @@ use smith_domain::{Event, llm};
 
 use crate::{Context, Error};
 
-/// Moves one actual shared Failed terminal into the root boundary unchanged in meaning.
+/// Moves one observed shared Failed terminal into the root boundary unchanged in meaning.
 /// Detail is exact under the secured receiving cap; the policy consumes/drops it
 /// after observation and retains only typed class/evidence in facts and End.
 /// Incorrect owner or over-cap diagnostic is a sender contract refusal.
-/// The actual Client remains owned until its independent lower Closed terminal.
+/// The component retains the lower client until its independent Closed terminal.
 pub fn failed(
     context: Context,
     owner: Token,
@@ -70,10 +70,10 @@ pub(crate) fn class(failure: shared::Failure) -> llm::Failure {
     }
 }
 
-/// Translates the actual shared cancellation terminal after real lower settlement.
+/// Translates the observed shared cancellation terminal after real lower settlement.
 /// A cancellation request alone never permits calling this function; already
 /// won Completed/Failed terminals keep their values and consume context instead.
-/// An incorrect callback owner is Invalid and confers no terminal authority.
+/// An incorrect call owner is Invalid and confers no terminal authority.
 pub fn cancelled(context: Context, owner: Token) -> Result<Event, Error> {
     if owner == context.owner { Ok(Event::Cancelled { owner }) } else { Err(Error::Invalid) }
 }

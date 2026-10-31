@@ -60,8 +60,8 @@ fn native_open_reply_wakes_once_without_artificial_transcript() {
         );
         world.run(100_000);
         assert!(matches!(world.answer(), run::Answer::Parked { turns: 2, .. }));
-        assert_eq!(world.prompts().len(), 2, "each genuine reply has one completion");
-        assert_eq!(world.turns().len(), 2, "Open main must keep its actual turns");
+        assert_eq!(world.prompts().len(), 2, "each observed reply has one completion");
+        assert_eq!(world.turns().len(), 2, "Open main must keep its observed turns");
         assert_eq!(tool_blocks(&world), 0, "text replies create no tool call or result");
         let prompt = &world.prompts()[1];
         assert_eq!(prompt.messages.last().expect("waking message").role, Role::User);
@@ -99,7 +99,7 @@ fn native_open_finish_is_unoffered_and_decodes_as_unknown() {
                     }
                 )
             ),
-            "actual public decoder feedback"
+            "observed public decoder feedback"
         );
         assert_eq!(world.waiting().len(), 1);
     }
@@ -114,7 +114,7 @@ fn native_open_final_text_parks_after_the_last_reserved_turn() {
             tokens: 2,
         };
         let reserve = run::charter::Reserve { turns: 1, time: Duration::from_secs(60) };
-        // One actual truncated ordinary completion leaves the one final turn.
+        // One observed truncated ordinary completion leaves the one final turn.
         let mut world = world(dialect, Box::new([truncated, says(HELLO, 3)]), reserve, 2);
         world.run(100_000);
         assert!(matches!(world.answer(), run::Answer::Parked { turns: 2, .. }));

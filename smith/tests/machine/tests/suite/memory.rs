@@ -140,7 +140,7 @@ fn shared_harness_meters_file_child_and_flood_runs_through_drop() {
     world.settle();
     assert_eq!(world.peaks().len(), 4, "every independent run was metered");
     assert!(world.peaks().iter().all(|peak| *peak > 0));
-    assert!(!world.trace().is_empty(), "actual kernel operations ran");
+    assert!(!world.trace().is_empty(), "observed kernel operations ran");
 }
 
 #[test]

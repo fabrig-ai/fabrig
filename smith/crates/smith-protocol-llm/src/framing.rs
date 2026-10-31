@@ -11,7 +11,7 @@ use skein_llm::{self as shared, client};
 use crate::Error;
 
 /// Measure fixed provider framing, including the largest supported optional routing fields.
-/// Actual endpoint option text and identity are counted separately in its own part.
+/// Observed endpoint option text and identity are counted separately in its own part.
 pub fn prompt_allowance(provider: shared::Provider, client: &client::Limits, tools: u32) -> Result<u64, Error> {
     let endpoint = match provider {
         shared::Provider::OpenAi => shared::Endpoint::openai(),
@@ -43,7 +43,7 @@ pub fn prompt_allowance(provider: shared::Provider, client: &client::Limits, too
     let credential =
         shared::Credential { value: Box::from(b"a".as_slice()), account_id, scheme: skein_llm::Scheme::Bearer };
     let mut limits = *client;
-    // Only these actual fixed records participate in this measurement.
+    // Only these observed fixed records participate in this measurement.
     // Runtime history/tool maxima do not belong to its temporary wrappers.
     limits.tools = tools;
     limits.history_items = 2;

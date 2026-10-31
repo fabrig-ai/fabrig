@@ -1,4 +1,4 @@
-//! Ordered host sections through actual main/child sessions and native restore.
+//! Ordered host sections through observed main/child sessions and native restore.
 //! Expected system bodies are handwritten outside literals; concrete history,
 //! child results, usage and lower settlement come from the composed routes.
 //! Contract: domain/run.md, sections 3.1, 3.3, 5.3, 6 and 13;
@@ -227,15 +227,15 @@ fn typed_openings(world: &World) {
         ["@brief-child CHILD-TASK-ONLY: inspect both mounts.\n\n", GUIDES, CHILD_MECHANICS].concat().into_bytes();
     let main = world.prompts().iter().filter(|query| query.system.starts_with(b"@brief-main")).collect::<Vec<_>>();
     let child = world.prompts().iter().filter(|query| query.system.starts_with(b"@brief-child")).collect::<Vec<_>>();
-    assert_eq!(main.len(), 5, "actual main turns, including child result and accepted finish");
-    assert_eq!(child.len(), 3, "actual child reads, denied edit and terminal answer");
+    assert_eq!(main.len(), 5, "observed main turns, including child result and accepted finish");
+    assert_eq!(child.len(), 3, "observed child reads, denied edit and terminal answer");
     assert_eq!(main.len() + child.len(), world.prompts().len());
     for query in &main {
         assert_eq!(query.system.as_ref(), main_system, "literal complete ordered main system");
         assert_eq!(query.model.as_ref(), b"fake-1");
     }
     for query in &child {
-        assert_eq!(query.system.as_ref(), child_system, "literal task, actual guides and narrowed mechanics");
+        assert_eq!(query.system.as_ref(), child_system, "literal task, observed guides and narrowed mechanics");
         for sentinel in [
             b"PARENT-INSTRUCTIONS".as_slice(),
             b"PARENT-TITLE-Z",
@@ -338,7 +338,7 @@ fn ordered_sections_and_instructions_reach_main_but_child_receives_only_its_own_
             })
             .count(),
         1,
-        "actual child result is paired once with its caller's concrete Turn"
+        "observed child result is paired once with its caller's concrete Turn"
     );
     assert!(matches!(world.answer(), run::Answer::Accepted {
         outcome: run::outcome::Declared::Report(report), turns: 5, ..
@@ -419,7 +419,7 @@ fn native_accounting(
                 .sum::<usize>();
         let prompt_bytes = fixed + prefix.iter().flat_map(|message| &message.parts).map(part_bytes).sum::<usize>();
         let tokens = u64::try_from(prompt_bytes / 4).expect("bounded outside fixture");
-        // Only an earlier actual request wrote its prompt. Its answer was not
+        // Only an earlier observed request wrote its prompt. Its answer was not
         // written until the next request includes it. A new World has no writes.
         let read = if index == 0 {
             0
@@ -460,8 +460,8 @@ fn native_accounting(
         assert_eq!(turn.dialect, 1);
         assert_eq!(turn.spent, spent.units);
     }
-    assert!(matches!(world.answer(), run::Answer::Parked { turns, spent: actual }
-        if *turns == spent.turns && *actual == spent));
+    assert!(matches!(world.answer(), run::Answer::Parked { turns, spent: observed }
+        if *turns == spent.turns && *observed == spent));
 }
 
 #[test]
@@ -484,7 +484,7 @@ fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer(
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
-                .expect("actual receiving reservation");
+                .expect("observed receiving reservation");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
         let scripts = Box::new([Script {
@@ -542,7 +542,7 @@ fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer(
             true,
             if index == 0 { Some(0) } else { None },
         );
-        assert_eq!(world.wire_bindings().len(), 5, "five actual native Client requests");
+        assert_eq!(world.wire_bindings().len(), 5, "five observed native Client requests");
     }
 }
 
@@ -588,14 +588,14 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
                     .checked_mul(u64::try_from(core::mem::size_of::<llm::Decoded>()).expect("decoded cell"))?,
             )
         })
-        .expect("actual batch inputs plus fallback cells");
+        .expect("observed batch inputs plus fallback cells");
     settings.limits.session.completion_bytes =
         adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
-            .expect("actual batch and history receiving reservation");
+            .expect("observed batch and history receiving reservation");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
     let batch = 16_usize;
-    // Each read asks a window its whole result fits, so every result stays below the line (session.md, 8.1).
+    // Each read asks a window its whole result fits, so every result stays below the line (smith/docs/design/domain/session.md, 8.1).
     let read = || call(b"read", br#"{"path":"data.txt","window":64}"#);
     let scripts = Box::new([Script {
         cue: b"@brief-native".as_slice().into(),
@@ -695,7 +695,7 @@ fn native_settled(world: &World, settings: &Settings, roots: &[Token], expected_
             binding.observed.iter().map(|(_, _, seen)| *seen).collect::<Vec<_>>(),
             [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
         );
-        assert!(binding.retired.is_some(), "actual lower Closed precedes physical retirement");
+        assert!(binding.retired.is_some(), "observed lower Closed precedes physical retirement");
     }
 }
 
@@ -714,9 +714,9 @@ fn recorded_wait(turn: &smith_domain::Turn, resumed: bool) {
                 None
             }
         })
-        .expect("actual historical Wait call");
+        .expect("observed historical Wait call");
     assert_eq!(
-        turn.messages.last().expect("actual parked tail").role,
+        turn.messages.last().expect("observed parked tail").role,
         llm::Role::Assistant,
         "parked own wait remains unresulted"
     );
@@ -734,7 +734,7 @@ fn recorded_wait(turn: &smith_domain::Turn, resumed: bool) {
 }
 
 #[test]
-fn structured_brief_native_wait_park_and_genuine_transcript_restore_in_both_wire_forms() {
+fn structured_brief_native_wait_park_and_observed_transcript_restore_in_both_wire_forms() {
     for index in 0..2 {
         let mut bounds = Limits {
             client: skein_llm_world::limits(),
@@ -778,14 +778,14 @@ fn structured_brief_native_wait_park_and_genuine_transcript_restore_in_both_wire
         native_accounting(&first, &first_system, &[opening], &[17], 0, true, if index == 0 { Some(0) } else { None });
         native_settled(&first, &settings, &roots, 0);
         recorded_wait(&first.turns()[0], false);
-        let actual = &first.turns()[0];
+        let observed = &first.turns()[0];
         let saved = Transcript {
-            version: actual.version,
-            endpoint: actual.endpoint,
-            dialect: actual.dialect,
+            version: observed.version,
+            endpoint: observed.endpoint,
+            dialect: observed.dialect,
             turns: first.turns().into(),
         };
-        assert_eq!(saved.turns.last().expect("actual persisted transcript tail").sequence, 1);
+        assert_eq!(saved.turns.last().expect("observed persisted transcript tail").sequence, 1);
         settings.resume = true;
         let (disk, mounted) = workspace();
         let roots = mounted.directories.iter().map(|directory| directory.root).collect::<Vec<_>>();
@@ -812,7 +812,11 @@ fn structured_brief_native_wait_park_and_genuine_transcript_restore_in_both_wire
         native_settled(&restored, &settings, &roots, 0);
         recorded_wait(&restored.turns()[0], true);
         assert_eq!(first.turn_metadata()[0].2.output, Some(17));
-        assert_eq!(restored.turn_metadata()[0].2.output, Some(11), "new activation charges only its actual completion");
+        assert_eq!(
+            restored.turn_metadata()[0].2.output,
+            Some(11),
+            "new activation charges only its observed completion"
+        );
     }
 }
 
@@ -850,7 +854,7 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
-                .expect("actual receiving reservation");
+                .expect("observed receiving reservation");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
         let (disk, mounted) = workspace();
@@ -898,7 +902,7 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
             resumed.turns().iter().map(|turn| (turn.sequence, turn.kind.clone())).collect::<Vec<_>>(),
             [(2, smith_domain::session::record::Kind::Ordinary), (3, smith_domain::session::record::Kind::Ordinary),]
         );
-        assert_eq!(resumed.prompts().len(), 3, "two main requests and one actual child request");
+        assert_eq!(resumed.prompts().len(), 3, "two main requests and one observed child request");
         for (query, binding) in resumed.prompts().iter().zip(resumed.wire_bindings()) {
             if original.affinity.is_some() {
                 assert_eq!(query.caching, skein_fake_llm_domain::api::Caching::Scope(affinity.key));
@@ -908,20 +912,24 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
                     "Anthropic ignores affinity and uses its native breakpoints"
                 );
             }
-            let actual = smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request);
-            match (&original.affinity, &actual.affinity) {
-                (Some(original), Some(actual)) => {
-                    assert_eq!(actual[..2], original[..2], "recorded run key and session header survive the new seed");
+            let observed = smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request);
+            match (&original.affinity, &observed.affinity) {
+                (Some(original), Some(observed)) => {
+                    assert_eq!(
+                        observed[..2],
+                        original[..2],
+                        "recorded run key and session header survive the new seed"
+                    );
                     if query.system.starts_with(b"@affinity-child") {
-                        assert_ne!(actual[2], original[2], "a child has its own conversation thread");
+                        assert_ne!(observed[2], original[2], "a child has its own conversation thread");
                     } else {
-                        assert_eq!(actual[2], original[2], "resumed main retains thread zero");
+                        assert_eq!(observed[2], original[2], "resumed main retains thread zero");
                     }
                 }
                 (None, None) => {}
                 other => panic!("both requests use the same dialect: {other:?}"),
             }
-            assert!(binding.retired.is_some(), "actual lower Closed settles every request");
+            assert!(binding.retired.is_some(), "observed lower Closed settles every request");
         }
     }
 }

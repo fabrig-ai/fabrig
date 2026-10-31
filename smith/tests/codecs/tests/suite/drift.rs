@@ -1,4 +1,4 @@
-//! Frozen generated code and bytes follow codec.md, section 6.
+//! Frozen generated code and bytes follow skein/docs/design/codec.md, section 6.
 
 use std::{fs, path::Path};
 

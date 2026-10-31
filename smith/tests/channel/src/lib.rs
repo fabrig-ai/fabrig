@@ -576,7 +576,7 @@ impl World {
         self.host.read_host();
     }
 
-    /// Actual application demands, excluding opening and control continuation.
+    /// Observed application demands, excluding opening and control continuation.
     #[must_use]
     pub fn host_read_count(&self) -> u64 {
         self.host.host_read_count
@@ -608,7 +608,7 @@ impl World {
         }
     }
 
-    /// Actual bytes each side received from the wire, including opening bytes.
+    /// Observed bytes each side received from the wire, including opening bytes.
     #[must_use]
     pub fn received_bytes(&self) -> (usize, usize) {
         (self.host.received_bytes, self.agent.received_bytes)
@@ -686,7 +686,7 @@ impl World {
         );
     }
 
-    /// Route the host domain's actual first Send through the host protocol half.
+    /// Route the host domain's observed first Send through the host protocol half.
     pub fn send_domain_start(
         &mut self,
         start: smith_host_domain::channel::Start,
@@ -810,12 +810,12 @@ impl World {
         self.agent_answers(smith_domain::run::Answer::Parked { spent: smith_domain::run::Spend::ZERO, turns: 0 });
     }
 
-    /// Send one actual typed domain answer through the agent half.
+    /// Send one observed typed domain answer through the agent half.
     pub fn agent_answers(&mut self, answer: smith_domain::run::Answer) {
         self.agent_answers_with_fence(answer, None);
     }
 
-    /// Send the final fence with its one actual domain terminal.
+    /// Send the final fence with its one observed domain terminal.
     pub fn agent_answers_with_fence(&mut self, answer: smith_domain::run::Answer, read: Option<Token>) {
         if let Half::Agent(agent) = &mut self.agent.half {
             agent
@@ -840,7 +840,7 @@ impl World {
         }
     }
 
-    /// Tell one actual run refusal through the agent half.
+    /// Tell one observed run refusal through the agent half.
     pub fn agent_refuses_message(&mut self, name: Token, reason: smith_domain::run::MessageRefusal) {
         if let Half::Agent(agent) = &mut self.agent.half {
             agent
@@ -886,7 +886,7 @@ impl World {
         }
     }
 
-    /// Try to end one actual open span; false means an ordering refusal.
+    /// Try to end one observed open span; false means an ordering refusal.
     pub fn agent_try_ends_long(&mut self) -> bool {
         if let Half::Agent(agent) = &mut self.agent.half {
             return agent
@@ -896,7 +896,7 @@ impl World {
         false
     }
 
-    /// Tell the host that one begun span has actually ended.
+    /// Tell the host that one begun span has ended.
     pub fn agent_ends_long(&mut self) {
         assert!(self.agent_try_ends_long(), "one begun span owns the terminal");
     }
@@ -968,7 +968,6 @@ impl World {
     }
 
     /// Attempt a scripted turn while the host may still hold all its credit.
-    ///
     /// # Errors
     /// Returns the channel's flow-control or encoding error.
     pub fn try_agent_tells_turn(

@@ -1,4 +1,4 @@
-//! Private payload boundaries (programs.md, sections 5.6 and 9). Debug keeps
+//! Private payload boundaries (smith/docs/design/protocol/programs.md, sections 5.6 and 9). Debug keeps
 //! lengths; upward diagnostics replace the secret and private run names.
 
 use super::{Backend, Below};

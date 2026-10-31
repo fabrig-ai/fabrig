@@ -656,12 +656,12 @@ fn run_message_counts_and_nullable_final_fence_are_required_exact_fields() {
             let line = write(&record, &capture, &limits()).expect("bounded run").expect("record");
             let decoded = read(&line, &limits()).expect("run").expect("known record");
             match (&record.event, &decoded.event) {
-                (Event::RunStarted(expected), Event::RunStarted(actual)) => {
-                    assert_eq!(actual.messages, expected.messages);
+                (Event::RunStarted(expected), Event::RunStarted(observed)) => {
+                    assert_eq!(observed.messages, expected.messages);
                 }
-                (Event::RunCompleted(expected), Event::RunCompleted(actual)) => {
-                    assert_eq!(actual.read, expected.read);
-                    assert_eq!(actual.unread, expected.unread);
+                (Event::RunCompleted(expected), Event::RunCompleted(observed)) => {
+                    assert_eq!(observed.read, expected.read);
+                    assert_eq!(observed.unread, expected.unread);
                 }
                 _ => panic!("run fixture"),
             }
@@ -765,7 +765,7 @@ fn conversation_thread_and_response_window_are_required_exact_metadata_under_eve
         for value in [0, 1, 9_007_199_254_740_993, u64::MAX] {
             let line = base.replace(&initial_field, &format!("\"{field}\":{value}"));
             let record = read(line.as_bytes(), &limits()).expect("independent exact wire").expect("known record");
-            let actual = match &record.event {
+            let observed = match &record.event {
                 Event::ConversationOpened(opened) => opened.thread,
                 Event::ResponseStarted(started) => started.window,
                 Event::Budget(_)
@@ -786,7 +786,7 @@ fn conversation_thread_and_response_window_are_required_exact_metadata_under_eve
                 | Event::MessageUnread(_)
                 | Event::Notice(_) => panic!("independent conversation or response record"),
             };
-            assert_eq!(actual, value);
+            assert_eq!(observed, value);
             for capture in [Capture::None, Capture::Calls, Capture::Everything] {
                 let encoded = write(&record, &capture, &limits()).expect("metadata fits").expect("record");
                 assert_eq!(core::str::from_utf8(&encoded).expect("JSON").trim_end(), line);
@@ -1080,6 +1080,6 @@ fn a_tool_completed_with_a_job_round_trips() {
 }
 
 #[test]
-fn a_version_three_line_is_refused() {
+fn a_different_event_version_is_refused() {
     assert_eq!(read(br#"{"v":3,"type":"future","t_ms":0}"#, &limits()), Err(Error::Version(3)));
 }

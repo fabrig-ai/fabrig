@@ -1,4 +1,4 @@
-//! Actual content observations through Smith's component and the native HTTP/SSE client.
+//! Observed content observations through Smith's component and the native HTTP/SSE client.
 //! Contracts: protocol/events.md, sections 3.5 and 3.11.
 
 use skein_lib::Token;
@@ -7,7 +7,7 @@ use smith_protocol_llm::Measure;
 use smith_protocol_llm_world::pool_peer::Peer;
 
 #[test]
-fn actual_codex_text_deltas_join_to_the_observed_completion() {
+fn observed_codex_text_deltas_join_to_the_observed_completion() {
     let body = [
         r#"{"type":"response.output_item.added","output_index":0,"item":{"type":"message","id":"item","role":"assistant","content":[]}}"#,
         r#"{"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":"one "}"#,
@@ -63,7 +63,7 @@ fn actual_codex_text_deltas_join_to_the_observed_completion() {
 }
 
 #[test]
-fn actual_transport_latency_and_event_gap_use_the_peer_clock_without_content_capture() {
+fn observed_transport_latency_and_event_gap_use_the_peer_clock_without_content_capture() {
     // An opened message item is only progress; its first delta is the first output event.
     let first = concat!(
         "data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"item\",\"role\":\"assistant\",\"content\":[]}}\n\n",
@@ -84,8 +84,8 @@ fn actual_transport_latency_and_event_gap_use_the_peer_clock_without_content_cap
     peer.advance(8);
     peer.bytes(100, last.as_bytes());
     assert_eq!(peer.terminals.len(), 1);
-    assert_eq!(peer.measures.len(), 1, "disabled capture retains only the actual terminal measures");
-    let Measure::Terminal { owner, measures } = peer.measures[0] else { panic!("actual terminal measures") };
+    assert_eq!(peer.measures.len(), 1, "disabled capture retains only the observed terminal measures");
+    let Measure::Terminal { owner, measures } = peer.measures[0] else { panic!("observed terminal measures") };
     assert_eq!(owner, Token::new(7));
     assert_eq!(measures.request_bytes, Some(peer.request_bytes));
     assert_eq!(measures.first_byte, Some(skein_lib::Duration::from_secs(5)));

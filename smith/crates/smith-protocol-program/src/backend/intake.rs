@@ -1,4 +1,4 @@
-//! Deferred stdout bytes (protocol/events.md 3.5; programs.md 5.5).
+//! Deferred stdout bytes (protocol/events.md 3.5; smith/docs/design/protocol/programs.md 5.5).
 //! Keeps at most one 4096-byte read. Parsing pauses for the service's measure
 //! drain and the domain's next Complete, so content retains its response owner.
 

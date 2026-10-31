@@ -1,4 +1,4 @@
-//! Actual shared completions into root blocks, with immutable declaration lookup.
+//! Observed shared completions into root blocks, with immutable declaration lookup.
 //! No provider ID, assistant position or declared host effect comes from a caller override.
 
 use alloc::boxed::Box;
@@ -12,12 +12,12 @@ use crate::types::{Context, ResolvedCall, ToolKind};
 
 use crate::Error;
 
-/// Consumes one actual shared completed value under its retained receiving contract.
+/// Consumes one observed shared completed value under its retained receiving contract.
 /// Full original fields, optional replay, stop and u64 usage survive. Host input
 /// gets real JSON-object attestation; non-host decoding is an explicit checked
-/// caller handoff. Excess decoded ownership becomes `TooLarge` without losing
-/// original provider bytes. Invalid caller handoff or incompatible replay is a
-/// typed translation refusal; an admitted actual Client replay fits its envelope.
+/// resolution lookup. Excess decoded ownership becomes `TooLarge` without losing
+/// original provider bytes. Invalid resolution lookup or incompatible replay is a
+/// typed translation refusal; an admitted observed Client replay fits its envelope.
 pub fn completion(
     context: Context,
     owner: Token,
@@ -54,7 +54,7 @@ pub fn completion(
                 if held > context.receiving.max_completion_bytes {
                     return Err(Error::Limit);
                 }
-                reasoning_dropped.push(bytes).expect("one drop per actual block");
+                reasoning_dropped.push(bytes).expect("one drop per observed block");
                 continue;
             }
             block @ (shared::Block::Text { .. }
@@ -70,7 +70,7 @@ pub fn completion(
         if held > context.receiving.max_completion_bytes {
             return Err(Error::Limit);
         }
-        translated.push(said).expect("one translated block per actual input block");
+        translated.push(said).expect("one translated block per observed input block");
     }
     for resolution in &resolutions {
         if resolution.is_some() {
@@ -255,7 +255,7 @@ fn take_resolution(
         }
     }
     match found {
-        Some(index) => Ok(resolved.get_mut(index).expect("found actual resolution slot").take()),
+        Some(index) => Ok(resolved.get_mut(index).expect("found observed resolution slot").take()),
         None => Ok(None),
     }
 }
@@ -285,7 +285,7 @@ fn host(declaration: &run::HostTool, input: &[u8], context: &Context, remaining:
 }
 
 fn host_wanted(declaration: &run::HostTool, input: &[u8]) -> Option<u64> {
-    // This call's wrapper was reserved with every actual tool-call cell
+    // This call's wrapper was reserved with every observed tool-call cell
     // before decoding. Only the new declaration/input payload needs room.
     u64::try_from(declaration.name.len()).ok()?.checked_add(u64::try_from(input.len()).ok()?)
 }
@@ -298,14 +298,14 @@ fn matches_kind(kind: ToolKind, call: &llm::Decoded) -> bool {
             ToolKind::Finish | ToolKind::Deliver | ToolKind::SubAgent | ToolKind::Wait => false,
         },
         llm::Decoded::Served { ask } => {
-            let actual = match ask {
+            let observed = match ask {
                 run::Ask::Host { .. } => return false,
                 run::Ask::Finish { .. } => ToolKind::Finish,
                 run::Ask::Deliver { .. } => ToolKind::Deliver,
                 run::Ask::SubAgent { .. } => ToolKind::SubAgent,
                 run::Ask::Wait => ToolKind::Wait,
             };
-            kind == actual
+            kind == observed
         }
     }
 }
@@ -328,7 +328,7 @@ fn decoded_cells(content: &[shared::Block]) -> Result<u64, Error> {
 }
 
 fn receiving_call(call: llm::Decoded, held: &mut u64, maximum: u64) -> llm::Decoded {
-    // Every actual tool call already owns its full fixed fallback cell.
+    // Every observed tool call already owns its full fixed fallback cell.
     // Admission charges only additional owned payload; an over-cap result
     // moves to the reserved fixed TooLarge cell without erasing its price.
     let extra = match call.owned_bytes() {

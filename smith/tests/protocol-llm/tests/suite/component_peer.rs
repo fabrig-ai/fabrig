@@ -403,7 +403,7 @@ fn run_story(
     if observed {
         assert!(io.is_empty(), "the observed prompt is recorded before the request reaches the connection");
         assert!(up.is_empty(), "a provider terminal cannot precede its recorded prompt");
-        assert!(!component.measures_drained(), "the held handoff owes its actual prompt observation");
+        assert!(!component.measures_drained(), "the held handoff owes its observed prompt observation");
     }
     for _ in 0_u32..40_000 {
         if !recorder.drain(&mut component, &env, &mut up, &mut io) {
@@ -629,7 +629,7 @@ fn run_story(
                     assert_eq!(prompt.system.as_deref(), Some(b"connection-world".as_slice()));
                     assert_eq!(prompt.messages.len(), 1);
                     assert_eq!(
-                        prompt.messages.get(0).expect("first actual message").blocks.as_slice(),
+                        prompt.messages.get(0).expect("first observed message").blocks.as_slice(),
                         &[smith_events::Block::Text { text: b"hi".to_vec().into() }]
                     );
                     assert_eq!(
@@ -703,13 +703,13 @@ fn anthropic_tool_input_is_typed_through_the_owned_connection() {
 }
 
 #[test]
-fn captured_native_codex_text_and_calls_keep_actual_prompt_and_deltas() {
+fn captured_native_codex_text_and_calls_keep_observed_prompt_and_deltas() {
     run(Provider::OpenAiCodex, false, true, false);
     run(Provider::OpenAiCodex, true, true, false);
 }
 
 #[test]
-fn captured_native_anthropic_text_and_calls_keep_actual_prompt_and_deltas() {
+fn captured_native_anthropic_text_and_calls_keep_observed_prompt_and_deltas() {
     run(Provider::Anthropic, false, true, false);
     run(Provider::Anthropic, true, true, false);
 }

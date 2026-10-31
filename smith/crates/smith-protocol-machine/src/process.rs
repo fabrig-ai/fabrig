@@ -533,7 +533,7 @@ pub(crate) fn shell(
     Some((Process::new(Purpose::Shell, deadline, head, tail, None), Below::Spawn { owner, root: cwd.root, spawn }))
 }
 
-#[expect(clippy::too_many_arguments, clippy::single_match, reason = "strict subset uses exhaustive option matches")]
+#[expect(clippy::too_many_arguments, reason = "owned search request fields cross the machine boundary")]
 pub(crate) fn search(
     owner: Token,
     at: tools::Place,
@@ -564,14 +564,11 @@ pub(crate) fn search(
     expression.put(b"--regexp=").ok()?;
     expression.put(&pattern).ok()?;
     args.push(expression.finish()).ok()?;
-    match glob {
-        Some(glob) => {
-            let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
-            filter.put(b"--glob=").ok()?;
-            filter.put(&glob).ok()?;
-            args.push(filter.finish()).ok()?;
-        }
-        None => {}
+    if let Some(glob) = glob {
+        let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
+        filter.put(b"--glob=").ok()?;
+        filter.put(&glob).ok()?;
+        args.push(filter.finish()).ok()?;
     }
     args.push(Box::from(&b"--"[..])).ok()?;
     args.push(crate::files::io_path(at.path)).ok()?;
@@ -632,11 +629,7 @@ pub(crate) fn stream(process: &mut Process, pipe: Token, up: Up, below: &mut Que
 }
 
 /// Start a selected-file listing; rg owns ignore and glob rules, the parser owns the tree.
-#[expect(
-    clippy::too_many_arguments,
-    clippy::single_match,
-    reason = "owned request fields cross the machine boundary with exhaustive options"
-)]
+#[expect(clippy::too_many_arguments, reason = "owned listing request fields cross the machine boundary")]
 pub(crate) fn list(
     owner: Token,
     at: tools::Place,
@@ -667,14 +660,11 @@ pub(crate) fn list(
     {
         args.push(Box::from(word)).ok()?;
     }
-    match glob {
-        Some(glob) => {
-            let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
-            filter.put(b"--glob=").ok()?;
-            filter.put(&glob).ok()?;
-            args.push(filter.finish()).ok()?;
-        }
-        None => {}
+    if let Some(glob) = glob {
+        let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
+        filter.put(b"--glob=").ok()?;
+        filter.put(&glob).ok()?;
+        args.push(filter.finish()).ok()?;
     }
     args.push(Box::from(b"--".as_slice())).ok()?;
     args.push(Box::from(b".".as_slice())).ok()?;
@@ -720,12 +710,6 @@ mod signal_tests {
     use super::{Process, Purpose, ToDomain, kernel};
     use skein_lib::{Time, Token};
 
-    // Ordinary harness formatting inspects the typed terminal without requiring
-    // the repaired variant to exist on the defect's parent (testing-strategy.md, 2.1).
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "programming-model.md 10.2: test-only Debug inspection runs on the unrepaired parent too"
-    )]
     #[test]
     fn a_check_ended_by_a_signal_keeps_its_number() {
         for signal in [1, 15, 27, u32::MAX] {
@@ -735,7 +719,7 @@ mod signal_tests {
                 panic!("a check has a checked terminal");
             };
             assert_eq!(owner, Token::new(7));
-            assert_eq!(alloc::format!("{:?}", ran.exit), alloc::format!("Signalled {{ signal: {signal} }}"));
+            assert_eq!(ran.exit, smith_domain::run::Exit::Signalled { signal });
         }
     }
 }

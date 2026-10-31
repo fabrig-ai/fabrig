@@ -16,10 +16,10 @@ pub use smith_protocol_llm::{
 /// acquisition and refresh remain outside Smith.
 #[expect(missing_debug_implementations, reason = "input owns caller credential bytes")]
 pub struct Input {
-    /// Root completion callback owner, echoed exactly by its actual terminal.
+    /// Root completion callback owner, echoed exactly by its observed terminal.
     pub owner: Token,
 
-    /// Actual root prompt, consumed without retained borrowed application data.
+    /// Observed root prompt, consumed without retained borrowed application data.
     pub prompt: llm::Prompt,
 
     /// Caller-configured neutral endpoint identity; must equal the prompt's identity.
@@ -28,29 +28,28 @@ pub struct Input {
     /// Shared Client endpoint configuration, passed unchanged without provider branches.
     pub endpoint: Endpoint,
 
-    /// Actual caller-provided credential; Smith owns no exchange or refresh client.
+    /// Observed caller-provided credential; Smith owns no exchange or refresh client.
     pub credential: Credential,
 
-    /// Exact bounded application schema inventory; retained until actual terminal translation.
+    /// Exact bounded application schema inventory; retained until observed terminal translation.
     pub application: Box<[ToolSchema]>,
 
-    /// Receiving metadata of the root's actual Complete request.
+    /// Receiving metadata of the root's observed Complete request.
     pub receiving: Receiving,
 }
 
 /// One prepared shared Client and its retained application translation context.
 /// The caller drives the Client itself; no second client or protocol state machine is created.
-#[expect(missing_debug_implementations, reason = "the actual Client holds credential-bearing HTTP state")]
+#[expect(missing_debug_implementations, reason = "the observed Client holds credential-bearing HTTP state")]
 pub struct Prepared {
-    /// Actual shared Client, retained through real Reusable or Close/Closed settlement.
+    /// Observed shared Client, retained through real Reusable or Close/Closed settlement.
     pub client: client::Client,
 
-    /// Owned declarations and receiving contract, consumed by exactly one actual terminal translation.
+    /// Owned declarations and receiving contract, consumed by exactly one observed terminal translation.
     pub context: Context,
 }
 
 /// Prepare the shared client with the production translator.
-///
 /// # Errors
 /// Refuses incompatible receiving limits or invalid prompt declarations.
 pub fn prepare(input: Input, limits: &Limits) -> Result<Prepared, Error> {
@@ -70,7 +69,6 @@ pub fn prepare(input: Input, limits: &Limits) -> Result<Prepared, Error> {
 }
 
 /// Prepare a client with the production schemas for the admitted contract.
-///
 /// # Errors
 /// Refuses invalid schemas, declarations or receiving limits.
 pub fn prepare_for_contract(

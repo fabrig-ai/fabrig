@@ -1,4 +1,4 @@
-//! Private startup files and ordered cleanup (programs.md, sections 4.2, 5.1).
+//! Private startup files and ordered cleanup (smith/docs/design/protocol/programs.md, sections 4.2, 5.1).
 //! Keeps only created-file flags and directory handles; never scans old runs.
 
 use super::{Backend, Below, Phase};

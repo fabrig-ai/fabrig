@@ -1,5 +1,6 @@
-//! Bounded caller-owned codec data and one actual Client's translation context.
+//! Bounded caller-owned codec data and one observed Client's translation context.
 //! No borrowed application value survives an entry point.
+//! Contract: protocol/llm.md, sections 3, 4 and 6.
 
 use alloc::boxed::Box;
 
@@ -9,7 +10,6 @@ use smith_domain::{llm, tools};
 use crate::{Limits, Receiving};
 
 /// A preparation refusal reported by the protocol adapter to its caller.
-/// Contract: protocol/llm.md, sections 3 and 4.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Error {
     /// The caller supplied an invalid application value; no call starts.
@@ -42,26 +42,21 @@ impl Error {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ToolKind {
     /// A concrete checkout operation, offered only under its existing family grant.
-    /// Contract: domain/tools.md, section 9.
     Owned(
         /// Exact checkout operation whose typed input the caller decodes.
         tools::Tool,
     ),
 
     /// The run's offered finish descriptor.
-    /// Contract: domain/run.md, section 12.
     Finish,
 
     /// The separately granted mid-run delivery descriptor.
-    /// Contract: domain/run.md, section 8.4.
     Deliver,
 
     /// The run's offered child-conversation descriptor.
-    /// Contract: domain/run.md, section 5.3.
     SubAgent,
 
     /// The main conversation's offered wait descriptor.
-    /// Contract: domain/run.md, section 6.
     Wait,
 }
 
@@ -69,7 +64,7 @@ pub enum ToolKind {
 /// All offered application tools require exactly one descriptor; no schema is invented.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ToolSchema {
-    /// Semantic classification checked against the prompt's actual grants/descriptors.
+    /// Semantic classification checked against the prompt's observed grants/descriptors.
     pub kind: ToolKind,
 
     /// Exact nonempty tool name, unique across application and host declarations.
@@ -83,13 +78,12 @@ pub struct ToolSchema {
     pub schema: Box<[u8]>,
 }
 
-/// Caller-decoded non-host input for one actual completion block.
+/// Caller-decoded non-host input for one observed completion block.
 /// The adapter checks its descriptor and cannot accept a caller-supplied host operation.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct ResolvedCall {
-    /// Actual zero-based assistant block position, including preceding text/refusal/replay blocks.
-    /// It is only a lookup key; the run derives durable names from actual transcript origin.
-    /// Contract: domain/run.md, sections 3.2 and 5.2.
+    /// Observed zero-based assistant block position, including preceding text/refusal/replay blocks.
+    /// It is only a lookup key; the run derives durable names from observed transcript origin.
     pub position: u32,
 
     /// Exact provider tool name whose bytes were decoded by the caller.
@@ -102,8 +96,8 @@ pub struct ResolvedCall {
     pub call: llm::Decoded,
 }
 
-/// Immutable context for the actual call. No provider schema or application policy is interpreted.
-/// Declarations survive consumed prompt preparation and are released after actual terminal translation.
+/// Immutable context for the observed call. No provider schema or application policy is interpreted.
+/// Declarations survive consumed prompt preparation and are released after observed terminal translation.
 #[derive(Debug)]
 pub struct Context {
     pub(crate) owner: Token,
@@ -135,7 +129,7 @@ impl Context {
         self.grants
     }
 
-    /// Borrowed actual offered run declarations, valid only during this entry.
+    /// Borrowed observed offered run declarations, valid only during this entry.
     /// Callers use them for explicit application decoding without copying a
     /// consumed prompt; host decoding remains the adapter's own declaration lookup.
     #[must_use]
@@ -143,7 +137,7 @@ impl Context {
         &self.served
     }
 
-    /// Borrowed actual non-host descriptors admitted before the wire attempt.
+    /// Borrowed observed non-host descriptors admitted before the wire attempt.
     /// A static application decoder may inspect these without a callback or
     /// retained borrow; the adapter later checks the exact decoded classification.
     #[must_use]
@@ -151,7 +145,7 @@ impl Context {
         &self.application
     }
 
-    /// Secured receiving metadata for this actual completion, copied unchanged.
+    /// Secured receiving metadata for this observed completion, copied unchanged.
     /// The caller's bounded decoder prices its input under this aggregate cap.
     #[must_use]
     pub const fn receiving(&self) -> Receiving {

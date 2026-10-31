@@ -1,17 +1,17 @@
 //! The scripted shell for the copied domain tree (domain/host.md, sections 2
-//! and 11; domain/run.md, section 14). It keeps schedules, pending boundary
+//! and 10; domain/run.md, section 13). It keeps schedules, pending boundary
 //! requests, checkout bytes and observations; it never uses private state to
 //! choose replies. Only final quiescence checks read public domain counters.
-//! An opt-in wire composition retains actual Clients separately from root callback
+//! An opt-in wire composition retains observed Clients separately from root callback
 //! lookup, exposes byte-peer queries, and closes physical owners bottom-up. The
 //! root's iteration supplies both clocks; pending wire progress prevents timer
 //! jumps. Provider grammar and generic stream scheduling remain unknown here.
 //! Exactly one backend is selected before construction: wire worlds retain no
 //! unused typed provider, provider queues or provider-call ledger.
 //! Entrances are original Start, bounded drive, parent message/cancel and wall
-//! injection (scratch/client.md, sections 1, 4 and 5; programming-model.md, section 9).
-//! The separate parent-delivery entrance exposes whole actual submissions and
-//! retains their existing flight/snapshot until an actual outside terminal is
+//! injection (programming-model.md, section 9).
+//! The separate parent-delivery entrance exposes whole observed submissions and
+//! retains their existing flight/snapshot until an observed outside terminal is
 //! scheduled. It never chooses that parent's durable decision or fabricates a
 //! channel return (domain/run.md, section 8.2; domain/host.md, section 9).
 
@@ -34,37 +34,34 @@ use crate::{
     translate, wire,
 };
 
-/// Scripted host choice; materialized as a sealed actual terminal at submission.
+/// Scripted host choice; materialized as a sealed observed terminal at submission.
 /// It is scenario data, not a second protocol or delivery implementation.
-/// Contract: domain/run.md, sections 8.2 and 13; testing-strategy.md, section 2.2.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[expect(
     clippy::large_enum_variant,
     reason = "scenario choices retain the sealed fixed diagnostic inline and stay Copy"
 )]
 pub enum HostReply {
-    /// Real changed-directory receipt. Contract: domain/run.md, section 8.2.
+    /// Real changed-directory receipt.
     Delivered,
-    /// Maximum sealed non-UTF8 receipt, supplied as an actual successful terminal.
-    /// Contract: domain/run.md, sections 8.2 and 13; testing-strategy.md, section 7.
+    /// Maximum sealed non-UTF8 receipt, supplied as an observed successful terminal.
     OpaqueDelivered,
-    /// No changed directory. Contract: domain/run.md, section 8.2.
+    /// No changed directory.
     Nothing,
-    /// Named conflict marker. Contract: domain/run.md, sections 8.1 and 8.2.
+    /// Named conflict marker.
     Refused,
-    /// Fixed generic failed operation. Contract: domain/run.md, section 8.2.
+    /// Fixed generic failed operation.
     Failed(
-        /// Sealed fixed-size reason and diagnostic emitted at the actual host
-        /// deadline. Contract: domain/run.md, section 8.2.
+        /// Sealed fixed-size reason and diagnostic emitted at the observed host
+        /// deadline.
         run::DeliveryFailure,
     ),
-    /// Moved host context. Contract: domain/run.md, section 8.2.
+    /// Moved host context.
     Stale,
 }
 
 /// One sealed scripted-host receipt, used only by boundary fixtures.
 /// Its opaque text has no domain interpretation; mount zero is writable.
-/// Contract: domain/run.md, sections 8.2 and 13; testing-strategy.md, section 2.2.
 #[must_use]
 pub fn delivered() -> run::Delivery {
     run::Delivery::Delivered(
@@ -82,7 +79,7 @@ impl HostReply {
             Self::OpaqueDelivered => run::Delivery::Delivered(
                 run::Delivered::new(Box::new([run::Receipt::new(0, vec![0xff; run::Receipt::CAPACITY].into())
                     .expect("maximum sealed opaque receipt")]))
-                .expect("one actual changed directory"),
+                .expect("one observed changed directory"),
             ),
             Self::Nothing => run::Delivery::Nothing,
             Self::Refused => run::Delivery::Refused(
@@ -99,76 +96,46 @@ impl HostReply {
 }
 
 /// Immutable deterministic scenario inputs for the composed agent on a
-/// scripted typed host; terminal choices are sealed only at actual submission.
-/// Contract: domain/run.md, sections 8 and 13; testing-strategy.md, section 7.
+/// scripted typed host; terminal choices are sealed only at observed submission.
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
     /// Host selects supplied history explicitly; false starts fresh even if present.
-    /// Contract: domain/run.md, sections 3 and 13.
     pub resume: bool,
     /// Positive idle threshold; independent run wall time never pauses.
-    /// Contract: domain/run.md, sections 6 and 10.
     pub waiting: Duration,
 
-    /// Generic-host recovery schedule. Contract: domain/run.md, sections 5.2 and 13.
+    /// Generic-host recovery schedule.
     pub host: HostSchedule,
     /// Replay seed for the host, agent and provider, independently derived.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub seed: u64,
     /// Script selected by the charter's brief.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub job: Job,
     /// Host tool name declared for the `HostTools` fixture.
-    /// Contract: domain/run.md, section 5.2.
     pub host_tool_name: &'static [u8],
     /// The agent's immutable admission and ownership limits.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub limits: Limits,
     /// The run's token and wall-time allowance, shared across conversations.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub budget: run::Budget,
     /// Whether the scripted host grants checkout modification.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub writable: bool,
     /// The fake provider's latency, failures and ownership limits.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub provider: provider::Config,
     /// Latency of host and IO terminals; zero is permitted.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub network: Span,
     /// Time spent by the fixture's checks, capped by their request deadline.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub check: Span,
     /// The host's reply to each push; refusal feedback remains typed and bounded.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub push: HostReply,
     /// Explicit host cancellation time; `None` sends no cancel.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub cancel_at: Option<Duration>,
     /// A cancel loses to its existing terminal with this chance per mille.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub races: u32,
     /// Whether the scripted parent retains drained facts; false drains without a sink.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub drain_facts: bool,
 }
 
 impl Settings {
     /// A coding charter, ample bounds and a successful typed host, from `seed`.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn calm(seed: u64) -> Settings {
         let provider = smith_session_world::Settings::calm(seed).provider;
@@ -193,46 +160,40 @@ impl Settings {
     }
 }
 
-/// Finite typed host choices; responses settle actual attempts before recovery.
-/// Contract: domain/run.md, sections 5.2 and 13.
+/// Finite typed host choices; responses settle observed attempts before recovery.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum HostSchedule {
-    /// Immediate first recorded answer. Contract: domain/run.md, section 5.2.
+    /// Immediate first recorded answer.
     Answer,
-    /// Busy, lost committed answer, then replay first recorded answer. Contract: domain/run.md, section 5.2.
+    /// Busy, lost committed answer, then replay first recorded answer.
     Replay,
-    /// Wait beyond declared deadline, settle withdrawn, then recover. Contract: domain/run.md, section 5.2.
+    /// Wait beyond declared deadline, settle withdrawn, then recover.
     Withdraw,
-    /// Wait for withdrawal, but replay actual recorded answer. Contract: domain/run.md, section 5.2.
+    /// Wait for withdrawal, but replay observed recorded answer.
     LateAnswer,
 }
 
-/// Outside record of an actual root delivery handed to an opt-in parent bridge.
+/// Outside record of an observed root delivery handed to an opt-in parent bridge.
 /// The World retains at most 256 bounded submission records. They expose no private state.
-/// The existing flight ledger retains each operation until its actual terminal.
-/// Contract: domain/run.md, sections 8.2, 10 and 14; domain/host.md, sections 2 and 9.
+/// The existing flight ledger retains each operation until its observed terminal.
 #[derive(Clone, Debug)]
 pub struct DeliverySubmission {
-    /// Original parent logical scope, echoed unchanged. Contract: domain/run.md, section 8.2.
+    /// Original parent logical scope, echoed unchanged.
     pub host_run: Token,
 
-    /// Actual callback right, distinct from the durable name. Contract: domain/run.md, section 8.2.
+    /// Observed callback right, distinct from the durable name.
     pub owner: Token,
 
-    /// Actual transcript-derived operation identity. Contract: domain/run.md, section 8.2.
+    /// Observed transcript-derived operation identity.
     pub name: run::CallName,
 
     /// Whole validated opaque metadata, bounded by root outcome limits.
-
-    /// Contract: domain/run.md, sections 7.1 and 8.2; domain/host.md, section 2.
     pub change: run::outcome::Change,
 
-    /// Actual operation deadline; withdrawal never consumes this right.
-
-    /// Contract: domain/run.md, sections 8.2 and 10.
+    /// Observed operation deadline; withdrawal never consumes this right.
     pub deadline: Time,
 
-    /// Observed root submission clock. Contract: domain/run.md, section 14.
+    /// Observed root submission clock.
     pub at: Time,
 }
 
@@ -321,78 +282,69 @@ impl Backend {
     }
 }
 
-/// Actual lower requests observed without inspecting domain state.
-/// Contract: domain/run.md, sections 3.2 and 14; testing-strategy.md, section 7.
+/// Lower requests recorded without inspecting domain state.
 #[derive(Clone, Debug)]
 pub enum Boundary {
-    /// Actual guide discovery. Contract: domain/run.md, section 3.3.
+    /// Observed guide discovery.
     Read {
-        /// Accepted lower place. Contract: domain/run.md, section 3.3.
+        /// Accepted lower place.
         at: run::Place,
     },
-    /// Actual writable check discovery. Contract: domain/run.md, section 8.1.
+    /// Observed writable check discovery.
     Probe {
-        /// Accepted lower place. Contract: domain/run.md, section 8.1.
+        /// Accepted lower place.
         at: run::Place,
     },
-    /// Actual checked snapshot. Contract: domain/run.md, section 8.1.
+    /// Observed checked snapshot.
     Check {
-        /// Accepted lower program. Contract: domain/run.md, section 8.1.
+        /// Accepted lower program.
         program: run::Place,
     },
-    /// Actual session filesystem/program operation. Contract: domain/tools.md, section 2.
+    /// Observed session filesystem/program operation.
     Io {
-        /// Existing tools boundary. Contract: domain/tools.md, section 2.
+        /// Existing tools boundary.
         op: tools::Op,
     },
 }
 
-/// One actual provider admission and terminal, observed outside accounting.
+/// One observed provider admission and terminal, observed outside accounting.
 /// A finite turn/conversation/block/retry bound caps this fixture activation; model bytes are
 /// copied from the original Complete, never inferred from a Turn.
-/// Contract: domain/run.md, sections 9 and 14; testing-strategy.md, section 7.
 #[derive(Clone, Debug)]
 pub struct CompletionObservation {
-    /// Actual callback owner. Contract: domain/run.md, section 14.
+    /// Observed callback owner.
     pub owner: Token,
 
-    /// Caller-selected model from actual Complete. Contract: domain/run.md, section 9.
+    /// Caller-selected model from observed Complete.
     pub model: Box<[u8]>,
 
-    /// Actual completion start clock. Contract: domain/run.md, section 10.
+    /// Observed completion start clock.
     pub started: Time,
 
-    /// Actual terminal clock and SDK-shaped usage, or failure/cancellation.
+    /// Observed terminal clock and SDK-shaped usage, or failure/cancellation.
     /// Pending is None; failure/cancellation has no invented usage.
-    /// Contract: domain/run.md, sections 9 and 10.
     pub terminal: Option<(Time, CompletionTerminal)>,
 }
 
-/// Actual completion terminal class, independent of Session's price calculation.
-/// Contract: domain/run.md, sections 9 and 10; testing-strategy.md, section 7.
+/// Observed completion terminal class, independent of Session's price calculation.
 #[derive(Clone, Copy, Debug)]
 pub enum CompletionTerminal {
     /// All four exact accepted provider counters.
-    /// Contract: domain/run.md, section 9; scratch/client.md, section 4.
     Completed(
         /// SDK usage shape copied at the terminal.
-        /// Contract: scratch/client.md, section 4.
         skein_llm::Usage,
     ),
 
-    /// Genuine provider failure. Contract: scratch/client.md, section 4.
+    /// Observed provider failure.
     Failed,
 
-    /// Genuine settled cancellation. Contract: scratch/client.md, section 5.
+    /// Observed settled cancellation.
     Cancelled,
 }
 
-/// The agent on a typed scripted host or actual wire backend. [`World::run`]
+/// The agent on a typed scripted host or observed wire backend. [`World::run`]
 /// drives every boundary to settlement, then checks its ledgers, referee and facts.
 /// The selected backend owns only its corresponding provider state and queues.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; scratch/client.md,
-/// sections 1 and 5; testing-strategy.md, section 7.
 #[derive(Debug)]
 pub struct World {
     settings: Settings,
@@ -439,16 +391,13 @@ pub struct World {
 impl World {
     /// Creates one host request and a fresh agent tree. Fixed queue slack
     /// exercises output pressure; finite trace and delivery caps fail fast.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn new(settings: Settings) -> World {
         Self::with_history(settings, None)
     }
 
-    /// Typed V2 entrance from saved turns, with no later answers supplied.
+    /// Typed entrance from saved turns, with no later answers supplied.
     /// History is host-owned; root/session admission decides before provider work.
-    /// Contract: domain/run.md, sections 3 and 13; domain/session.md, section 3.
     #[must_use]
     pub fn with_history(settings: Settings, transcript: Option<agent::Transcript>) -> World {
         Self::with_backend(&settings, transcript, Box::default(), Backend::typed(&settings))
@@ -577,19 +526,17 @@ impl World {
         }
     }
 
-    /// Opt into actual adapter/Client/byte-peer routing for the queued original
+    /// Opt into observed adapter/Client/byte-peer routing for the queued original
     /// Start and discovery. Caller data supplies native endpoint, credentials,
     /// limits and scripts; typed worlds keep their existing backend.
     /// The selected wire backend constructs no typed provider or provider queues;
-    /// actual Clients are prepared only when the root issues Complete. Receiving
-    /// metadata comes only from each actual Complete. The fixture asserts a
+    /// observed Clients are prepared only when the root issues Complete. Receiving
+    /// metadata comes only from each observed Complete. The fixture asserts a
     /// 256-call ceiling and compatible admission before any wire effect.
     /// The host supplies optional concrete history and committed results; the
     /// charter's resume flag selects it, and root/session admission precedes
     /// any provider effect. Success queues the original Start; its one Answer
-    /// and every actual lower Closed remain owed while the caller drives it.
-    /// Contract: scratch/client.md, sections 1, 3, 5 and 6; domain/run.md,
-    /// sections 3, 6, 10 and 14; domain/session.md, section 3.
+    /// and every observed lower Closed remain owed while the caller drives it.
     #[must_use]
     pub fn with_wire(
         settings: Settings,
@@ -624,9 +571,8 @@ impl World {
         )
     }
 
-    /// Caller-selected workspace/disk and actual typed scripts; no default roots
+    /// Caller-selected workspace/disk and observed typed scripts; no default roots
     /// are seeded. All accepted metadata and lower terminals use the existing world.
-    /// Contract: domain/run.md, sections 3.2, 8.3 and 14; testing-strategy.md, section 2.3.
     #[must_use]
     pub fn with_workspace_scripts(
         settings: Settings,
@@ -651,9 +597,8 @@ impl World {
         Self::with_selected_backend(&settings, transcript, Box::default(), workspace, disk, backend, None)
     }
 
-    /// Caller-selected mounts and actual Client/byte-peer scripts, using the same
+    /// Caller-selected mounts and observed Client/byte-peer scripts, using the same
     /// receiving and settling paths as `with_wire`; no unused fixture root is seeded.
-    /// Contract: domain/run.md, sections 3.2 and 14; scratch/client.md, sections 1 and 5.
     #[must_use]
     pub fn with_workspace_wire(
         settings: Settings,
@@ -679,7 +624,6 @@ impl World {
     /// sections and instructions are never derived from the job settings. The
     /// admission path decides refusal, or one terminal Answer after settling.
     /// Existing receiving bounds, typed backend exclusivity and history apply.
-    /// Contract: domain/run.md, sections 3.1, 3.3, 5.3, 13 and 14.
     #[must_use]
     pub fn with_workspace_scripts_charter(
         settings: Settings,
@@ -706,11 +650,9 @@ impl World {
     }
 
     /// Caller-selected complete Charter, concrete saved history and native
-    /// configuration/limits use the original root Start, actual Client and byte
+    /// configuration/limits use the original root Start, observed Client and byte
     /// peer. Only the selected native backend exists; receiving bounds and
     /// all pending lower terminals apply through the one host Answer.
-    /// Contract: domain/run.md, sections 3.1, 3.3, 5.3, 13 and 14;
-    /// scratch/client.md, sections 1, 3 and 5.
     #[must_use]
     pub fn with_workspace_wire_charter(
         settings: Settings,
@@ -734,31 +676,27 @@ impl World {
     }
 
     /// Route subsequent checked submissions to the outside parent.
-    /// Contract: domain/run.md, sections 8.2 and 10.
     pub fn enable_parent_deliveries(&mut self) {
         self.parent_deliveries = true;
     }
 
-    /// Actual fake filesystem state, with no domain-private authority inspection.
-    /// Contract: domain/run.md, section 14; testing-strategy.md, section 4.3.
+    /// Observed fake filesystem state, with no domain-private authority inspection.
     #[must_use]
     pub fn disk(&self) -> &Checkout {
         &self.disk
     }
 
     /// A parent submission grants access to its current exclusive snapshot.
-    /// The actual host terminal remains owed and is supplied by `return_delivery`.
-    /// Contract: domain/run.md, sections 8.2 and 10; testing-strategy.md, section 4.3.
+    /// The observed host terminal remains owed and is supplied by `return_delivery`.
     pub fn delivery_checkout(&mut self, owner: Token) -> &mut Checkout {
         assert!(
             self.parent_deliveries && self.snapshots.contains_key(&owner),
-            "only an actual pending parent submission exposes its checkout"
+            "only an observed pending parent submission exposes its checkout"
         );
         &mut self.disk
     }
 
-    /// Actual lower boundary observations, in emission order at injected time.
-    /// Contract: domain/run.md, sections 3.2 and 14; testing-strategy.md, section 7.
+    /// Observed lower boundary observations, in emission order at injected time.
     #[must_use]
     pub fn boundaries(&self) -> &[(Time, Boundary)] {
         &self.boundaries
@@ -767,7 +705,6 @@ impl World {
     /// Set the externally injected wall clock before the next iteration.
     /// Monotonic deadlines keep running independently; the same wall is handed
     /// to root, shared Client, scripted domain and byte peer.
-    /// Contract: scratch/client.md, section 1; programming-model.md, section 9.
     pub fn wall_at(&mut self, wall: Wall) {
         self.stage.env.wall = wall;
         match &mut self.backend {
@@ -776,12 +713,11 @@ impl World {
         }
     }
 
-    /// Original Start/discovery with actual delivery rights routed to the outside
+    /// Original Start/discovery with observed delivery rights routed to the outside
     /// parent rather than automatically answered. Existing schedule and ledger
     /// retain ownership; drive yields at the current clock while a parent reply
-    /// is owed. Caller must supply that actual terminal through `return_delivery`.
+    /// is owed. Caller must supply that observed terminal through `return_delivery`.
     /// At most 256 bounded submission records are retained by this fixture.
-    /// Contract: domain/run.md, sections 8.2, 10 and 14; domain/host.md, section 9.
     #[must_use]
     pub fn with_parent_deliveries(settings: Settings) -> World {
         let mut world = Self::new(settings);
@@ -789,19 +725,17 @@ impl World {
         world
     }
 
-    /// Actual root submissions observed by the opt-in parent; default worlds
+    /// Root submissions recorded by the opt-in parent; default worlds
     /// expose none. Records carry the whole bounded request and no extra right.
-    /// Contract: domain/run.md, sections 8.2 and 14; testing-strategy.md, section 2.3.
     #[must_use]
     pub fn delivery_submissions(&self) -> &[DeliverySubmission] {
         &self.delivery_submissions
     }
 
-    /// Parent supplies one actual sealed operation terminal for a previously
+    /// Parent supplies one observed sealed operation terminal for a pending
     /// observed root submission. It enters the existing shared schedule at now;
-    /// only its actual delivery consumes the existing flight/snapshot/referee.
+    /// only its observed delivery consumes the existing flight/snapshot/referee.
     /// Cancellation never substitutes a reply or removes the operation right.
-    /// Contract: domain/run.md, sections 8.2 and 10; domain/host.md, sections 2 and 9.
     ///
     /// # Errors
     /// Refuses non-bridge worlds, unknown callbacks and already queued terminals
@@ -811,10 +745,10 @@ impl World {
             return Err("parent delivery bridge is disabled");
         }
         let Some(flight) = self.flights.get_mut((Family::Delivery, owner)) else {
-            return Err("no actual parent delivery right");
+            return Err("no observed parent delivery right");
         };
         if flight.key.is_some() {
-            return Err("actual parent terminal is already queued");
+            return Err("observed parent terminal is already queued");
         }
         flight.key = Some(self.schedule.send(
             self.now,
@@ -824,23 +758,20 @@ impl World {
     }
 
     /// Queue a parent cancellation for the admitted original run. Its
-    /// Start reply and all actual lower terminals remain owed through close.
-    /// Contract: domain/run.md, sections 10 and 13; scratch/client.md, section 5.
+    /// Start reply and all observed lower terminals remain owed through close.
     pub fn cancel_run(&mut self) {
-        assert!(self.admitted.is_some(), "parent cancellation follows actual admission");
+        assert!(self.admitted.is_some(), "parent cancellation follows observed admission");
         self.schedule.send(self.now, Delivery::Cancel);
     }
 
     /// Current injected monotonic clock, for outside chronology controls.
-    /// Contract: domain/run.md, sections 6 and 10; programming-model.md, section 9.
     #[must_use]
     pub const fn now(&self) -> Time {
         self.now
     }
 
-    /// Actual physical-binding observations; typed-only worlds expose none.
-    /// Retired records keep no Client or credential. Contract: scratch/client.md,
-    /// section 5; testing-strategy.md, sections 2.3 and 6.
+    /// Observed physical-binding observations; typed-only worlds expose none.
+    /// Retired records keep no Client or credential.
     #[must_use]
     pub fn wire_bindings(&self) -> &[wire::Binding] {
         match &self.backend {
@@ -849,16 +780,13 @@ impl World {
         }
     }
 
-    /// Script an actual parent input; delivery requires prior Admitted, as the host does.
-    /// Contract: domain/run.md, section 6; testing-strategy.md, section 7.
+    /// Script an observed parent input; delivery requires prior Admitted, as the host does.
     pub fn message_at(&mut self, at: Time, name: Token, text: Box<[u8]>) {
         self.schedule.send(at, Delivery::Message { name, text });
     }
 
     /// Runs at most `iterations` deterministic shell rounds. Success means the
     /// one start answered, every boundary settled, and every expectation passed.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub fn run(&mut self, iterations: u32) {
         assert!(
             self.drive(iterations),
@@ -870,11 +798,10 @@ impl World {
 
     /// Advance up to this many loop rounds, allowing another domain
     /// to translate the emitted boundary records before the next round. Returns
-    /// true only after the original root/provider/IO ledgers actually settle.
+    /// true only after the original root/provider/IO ledgers settle.
     /// An opt-in parent delivery awaiting its external terminal keeps the current
     /// clock and returns control; it never advances a deadline in place of that
-    /// parent. The caller schedules the actual reply before driving settlement.
-    /// Contract: domain/host.md, section 9; testing-strategy.md, section 2.3.
+    /// parent. The caller schedules the observed reply before driving settlement.
     pub fn drive(&mut self, iterations: u32) -> bool {
         for _ in 0..iterations {
             self.stage.tick(self.now);
@@ -1105,7 +1032,7 @@ impl World {
                     .expect("fixture retry attempts");
                 assert!(
                     u64::try_from(self.completions.len()).expect("fixture observation count") < starts,
-                    "bounded actual provider chronology from receiving turn/concurrency/retry limits"
+                    "bounded observed provider chronology from receiving turn/concurrency/retry limits"
                 );
                 let completion_index = self.completions.len();
                 self.completions.push(CompletionObservation {
@@ -1115,7 +1042,7 @@ impl World {
                     terminal: None,
                 });
                 let completion_message =
-                    u32::try_from(prompt.messages.len()).expect("bounded actual prompt message count");
+                    u32::try_from(prompt.messages.len()).expect("bounded observed prompt message count");
                 self.flights.open(
                     (Family::Completion, owner),
                     Flight {
@@ -1288,7 +1215,7 @@ impl World {
                     Flight { key: None, cancelled: false, completion_message: None, completion_index: None },
                 );
                 if self.parent_deliveries {
-                    assert!(self.delivery_submissions.len() < 256, "finite actual parent delivery story ceiling");
+                    assert!(self.delivery_submissions.len() < 256, "finite observed parent delivery story ceiling");
                     self.delivery_submissions.push(DeliverySubmission {
                         host_run,
                         owner,
@@ -1391,7 +1318,7 @@ impl World {
                 assert!(self.host_pending.insert((relay.owner.raw(), relay.attempt), key).is_none());
             }
             Request::WithdrawHost { relay } => {
-                self.host_history.withdraw(relay).expect("withdraw retains actual terminal");
+                self.host_history.withdraw(relay).expect("withdraw retains observed terminal");
                 assert!(self.host_pending.contains_key(&(relay.owner.raw(), relay.attempt)));
             }
             Request::MessageRefused { .. }
@@ -1440,7 +1367,7 @@ impl World {
         match delivery {
             Delivery::Message { name, text } => {
                 self.messages_seen.push((self.now, crate::messages_referee::Seen::Input { name, text: text.clone() }));
-                let run = self.admitted.expect("parent sends only after actual admission");
+                let run = self.admitted.expect("parent sends only after observed admission");
                 self.stage.push(Event::Message {
                     finish_requested: false,
                     label: Box::from(&b"host"[..]),
@@ -1451,7 +1378,7 @@ impl World {
             }
             Delivery::Host { relay, reply } => {
                 self.host_terminals.push((relay, self.now, reply.clone()));
-                self.host_history.terminal(self.now, relay, &reply).expect("one actual host terminal");
+                self.host_history.terminal(self.now, relay, &reply).expect("one observed host terminal");
                 self.host_pending.remove(&(relay.owner.raw(), relay.attempt)).expect("host relay pending");
                 self.stage.push(Event::HostReturned { relay, reply });
                 self.terminals += 1;
@@ -1502,8 +1429,8 @@ impl World {
                 } if completion.stop == llm::Stop::ToolUse => {
                     self.host_history
                         .called(
-                            message.expect("actual completion flight retains its prompt origin"),
-                            u32::try_from(position).expect("bounded actual completion block position"),
+                            message.expect("observed completion flight retains its prompt origin"),
+                            u32::try_from(position).expect("bounded observed completion block position"),
                             id.clone(),
                             name.clone(),
                             input.clone(),
@@ -1521,7 +1448,6 @@ impl World {
     /// Observe the original owner's terminal before forwarding its event.
     /// Native usage comes directly from the matching SDK binding; typed usage
     /// is the exact callback value. No event or completion body is cloned.
-    /// Contract: scratch/client.md, section 4; domain/run.md, sections 9 and 13.
     fn observe_completion_terminal(&mut self, owner: Token, index: usize, event: &Event) {
         let outcome = match event {
             Event::Completed { completion, .. } => {
@@ -1533,7 +1459,7 @@ impl World {
                         .find(|binding| binding.owner == owner)
                         .expect("physical binding")
                         .accepted_usage
-                        .expect("actual SDK completed usage"),
+                        .expect("observed SDK completed usage"),
                     Backend::Typed { .. } => skein_llm::Usage {
                         input: completion.usage.input_tokens,
                         output: completion.usage.output_tokens,
@@ -1559,7 +1485,7 @@ impl World {
             | Event::Read { .. }
             | Event::Probed { .. }
             | Event::Checked { .. }
-            | Event::Aborted { .. } => panic!("completion flight receives only actual provider terminals"),
+            | Event::Aborted { .. } => panic!("completion flight receives only observed provider terminals"),
         };
         assert!(self.completions[index].terminal.replace((self.now, outcome)).is_none());
     }
@@ -1573,7 +1499,7 @@ impl World {
         match &event {
             Event::Completed { completion, .. } => {
                 self.observe_host_call(completion, flight.completion_message);
-                let index = flight.completion_index.expect("actual completion observation");
+                let index = flight.completion_index.expect("observed completion observation");
                 let prices = self.model_prices[&self.completions[index].model];
                 let usage = completion.usage;
                 let units = observed_price(prices, usage).unwrap_or(0);
@@ -1652,7 +1578,7 @@ impl World {
         };
         self.host_history
             .finish(continuation)
-            .expect("normal continuation owes exact host feedback; shutdown settles actual relays");
+            .expect("normal continuation owes exact host feedback; shutdown settles observed relays");
         assert!(self.host_pending.is_empty());
         self.flights.assert_settled();
         match &self.backend {
@@ -1726,56 +1652,48 @@ impl World {
     }
 
     /// Exact time-ordered outside observations for the independent chat oracle.
-    /// Contract: domain/run.md, sections 6 and 13; testing-strategy.md, section 7.
     #[must_use]
     pub fn messages_seen(&self) -> &[(Time, crate::messages_referee::Seen)] {
         &self.messages_seen
     }
 
-    /// Actual main concrete turns, in emitted order. Contract: domain/run.md, section 13.
+    /// Observed main concrete turns, in emitted order.
     #[must_use]
     pub fn turns(&self) -> &[agent::Turn] {
         &self.turns
     }
 
-    /// Actual activation numbers/read fences/token usage. Contract: domain/run.md, sections 6 and 13.
+    /// Observed activation numbers/read fences/token usage.
     #[must_use]
     pub fn turn_metadata(&self) -> &[(u32, Option<Token>, run::Spend)] {
         &self.turn_metadata
     }
 
-    /// Actual settled Waiting notices. Contract: domain/run.md, section 6.
+    /// Observed settled Waiting notices.
     #[must_use]
     pub fn waiting(&self) -> &[(Time, Option<Token>)] {
         &self.waiting
     }
 
-    /// Actual final root output after every lower terminal and main Turn.
-    /// Contract: domain/run.md, section 13; testing-strategy.md, section 7.
+    /// Observed final root output after every lower terminal and main Turn.
     #[must_use]
     pub fn answer(&self) -> &run::Answer {
         self.answer.as_ref().expect("the world has settled")
     }
 
-    /// Check outcomes actually delivered to the agent, in request order.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
+    /// Check outcomes delivered to the agent, in request order.
     #[must_use]
     pub fn checked(&self) -> &[bool] {
         &self.checked
     }
 
-    /// Typed push replies actually delivered by the scripted host.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
+    /// Typed push replies delivered by the scripted host.
     #[must_use]
     pub fn pushes(&self) -> &[run::Delivery] {
         &self.pushes
     }
 
     /// Bytes of the fixture code in the shared checkout, independent of the agent.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn code(&self) -> Vec<u8> {
         self.root
@@ -1783,91 +1701,72 @@ impl World {
     }
 
     /// Bytes retained by a successful host push; empty when nothing landed.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn landed(&self) -> &[u8] {
         &self.landed
     }
 
-    /// Content-free facts drained by the shell, never used to choose stimuli.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
+    /// Content-free facts drained by the shell; they never influence stimuli.
     #[must_use]
     pub fn facts(&self) -> &[Fact] {
         &self.facts
     }
 
     /// Optional content observations omitted by the capture buffer.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn lost(&self) -> u64 {
         self.agent.content_lost()
     }
 
     /// Provider queries observed at its boundary, including returned tool IDs.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn prompts(&self) -> &[provider::api::Query] {
         &self.prompts
     }
 
     /// Host-owned recorded decisions, distinct from relay attempts.
-    /// Contract: domain/run.md, sections 5.2 and 13.
     #[must_use]
     pub const fn host_decisions(&self) -> u32 {
         self.host_decisions
     }
 
-    /// Actual host relay terminals, retained only by this outside world.
-    /// Contract: domain/run.md, sections 5.2 and 13.
+    /// Observed host relay terminals, retained only by this outside world.
     #[must_use]
     pub fn host_terminals(&self) -> &[(run::RelayName, Time, run::HostReply)] {
         &self.host_terminals
     }
 
-    /// Actual observed cancellation/failed-run boundary time.
-    /// Contract: domain/run.md, sections 5.2 and 10.
+    /// Observed cancellation/failed-run boundary time.
     #[must_use]
     pub const fn host_shutdown_at(&self) -> Option<Time> {
         self.host_history.shutdown_at()
     }
 
     /// Immutable opaque relay observations for replay and recovery checks.
-    /// Contract: domain/run.md, sections 5.2 and 14.
     #[must_use]
     pub fn host_submissions(&self) -> &[crate::host_referee::Submission] {
         self.host_history.submissions()
     }
 
-    /// Stable host names and submission times observed from actual delivery.
-    /// Contract: domain/run.md, sections 8.2 and 13; testing-strategy.md, section 7.
+    /// Stable host names and submission times observed from observed delivery.
     #[must_use]
     pub fn delivery_names(&self) -> &[(run::CallName, Time)] {
         &self.delivery_names
     }
 
     /// Ordered boundary trace for same-seed replay comparisons.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn trace(&self) -> &[String] {
         self.trace.lines()
     }
 
     /// Injected monotonic time when the host received the answer.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn answered_at(&self) -> Time {
         self.answered.expect("the world has settled")
     }
 
-    /// Actual safety checks and met liveness obligations from the shared referee.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
+    /// Observed safety checks and met liveness obligations from the shared referee.
     #[must_use]
     pub fn judged(&self) -> (u64, u64) {
         self.referee.judged()
@@ -1996,16 +1895,15 @@ fn copy_answer(answer: &run::Answer) -> run::Answer {
 }
 
 impl World {
-    /// Bounded actual start/terminal chronology from Complete and callbacks.
+    /// Bounded observed start/terminal chronology from Complete and callbacks.
     /// Native exact SDK usage is also retained on each physical wire Binding.
-    /// Contract: domain/run.md, sections 9 and 14; scratch/client.md, section 4.
     #[must_use]
     pub fn completions(&self) -> &[CompletionObservation] {
         &self.completions
     }
 }
 
-// Independent outside scalar oracle from caller data and actual provider counts.
+// Independent outside scalar oracle from caller data and observed provider counts.
 fn observed_price(prices: run::Prices, usage: llm::Usage) -> Option<u64> {
     let denominator = u128::from(prices.unit);
     let fresh = u128::from(usage.input_tokens.expect("scripted peer supplies count"));

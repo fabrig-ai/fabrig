@@ -1,4 +1,4 @@
-//! Actual rg selection and the public machine entry points for tree listings.
+//! Observed rg selection and the public machine entry points for tree listings.
 
 use skein_io::kernel;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};

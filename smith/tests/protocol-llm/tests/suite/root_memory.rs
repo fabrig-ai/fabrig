@@ -1,14 +1,14 @@
-//! Attained V2 root ownership at public Start, Complete and concrete Turn seams.
-//! Records come from actual shared Client terminals, including the Wait
+//! Root ownership at public Start, Complete and concrete Turn seams.
+//! Records come from observed shared Client terminals, including the Wait
 //! result; fixture ownership is counted independently from production pricing.
 //! Root entrances and caller-copy transients are measured separately. One whole
-//! actual Client/adapter/peer lifecycle is measured while root and caller
+//! observed Client/adapter/peer lifecycle is measured while root and caller
 //! histories remain live, including two physical Clients across one logical
 //! callback: the won closing Client and its replacement with one active context.
 //! Passive simulator, referee and composition bookkeeping are outside this
 //! component ownership contract (skein-world/src/heap.rs).
-//! Contract: scratch/client.md, sections 1, 4, 5 and 6;
-//! domain/run.md, sections 3, 6, 13 and 14; domain/session.md, section 3;
+//! Contract:
+//! domain/run.md, sections 3, 6, 13 and 13; domain/session.md, section 3;
 //! programming-model.md, section 6.3; testing-strategy.md, sections 2.3 and 6.
 
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn as ScriptTurn};
@@ -30,8 +30,8 @@ const WORKER: Token = Token::new(91);
 const PARENT: Token = Token::new(92);
 const LARGE: usize = 8192;
 const ID: &[u8] = b"call_0000000000000001";
-const SAID: &[u8] = b"tiny actual text";
-const RESTORED: &[u8] = b"actual restored text";
+const SAID: &[u8] = b"tiny observed text";
+const RESTORED: &[u8] = b"observed restored text";
 
 fn size<T>() -> u64 {
     u64::try_from(size_of::<T>()).expect("fixture cell size fits")
@@ -362,7 +362,7 @@ fn retire(retained: Retained, meter: &Meter, bound: u64, now: Time, wall: Wall) 
     );
 }
 
-fn actual(
+fn observed(
     complete: Complete,
     configuration: &Configuration,
     cycles: u32,
@@ -384,7 +384,7 @@ fn actual(
     let before = meter.held();
     meter.start();
     let mut wire = Wire::prepare(owner, complete.prompt, complete.receiving, configuration, limits, scripts(cycles))
-        .expect("actual root receiving contract admits the Client");
+        .expect("observed root receiving contract admits the Client");
     wire.peer.observe(observations);
     wire.observed.reserve_exact(4);
     wire.peer.at(now, wall);
@@ -393,7 +393,7 @@ fn actual(
     let mut held = attributed(0, before, after, incoming, 0);
     let overlapping = old.is_some();
     if let Some(previous) = old.take() {
-        assert_eq!(previous.owner, owner, "new actual Client reuses the same live logical callback");
+        assert_eq!(previous.owner, owner, "new observed Client reuses the same live logical callback");
         assert_eq!(
             previous.wire.observed,
             [Observed::Completed(owner), Observed::Reusable, Observed::Close],
@@ -409,7 +409,7 @@ fn actual(
                     | skein_llm::client::Waiting::Closing
                     | skein_llm::client::Waiting::Nothing
             ),
-            "new actual Client is active before old Closed"
+            "new observed Client is active before old Closed"
         );
         // The new Wire and root/caller owners remain untouched throughout this
         // separate physical retirement measurement.
@@ -422,7 +422,7 @@ fn actual(
         meter.start();
         wire.peer.at(now, wall);
         let (progress, returned) = wire.tick();
-        assert!(returned.capacity() <= 4, "one actual terminal's public vector reservation");
+        assert!(returned.capacity() <= 4, "one observed terminal's public vector reservation");
         let mut handed = 0;
         for event in returned {
             handed = terminal_bytes(&event);
@@ -435,8 +435,8 @@ fn actual(
             break;
         }
     }
-    assert!(quiet, "actual byte peer reached bounded drainage");
-    let terminal = terminal.expect("bounded actual byte peer completed");
+    assert!(quiet, "observed byte peer reached bounded drainage");
+    let terminal = terminal.expect("bounded observed byte peer completed");
     assert!(matches!(&terminal, Event::Completed { owner: got, .. } if *got == owner));
     assert_eq!(wire.observed, [Observed::Completed(owner), Observed::Reusable]);
     assert_native_query(&wire, messages, large);
@@ -455,9 +455,9 @@ fn actual(
 // native lifecycle. The shared peer's focused control independently validates
 // raw response chunk payloads with the shared HTTP reference reader.
 fn assert_native_query(wire: &Wire, messages: usize, large: bool) {
-    let [query] = wire.peer.queries.as_slice() else { panic!("one actual native query") };
+    let [query] = wire.peer.queries.as_slice() else { panic!("one observed native query") };
     assert_eq!(query.model.as_ref(), b"fixture-model");
-    assert_eq!(query.messages.len(), messages, "actual whole alternating history reached the native peer");
+    assert_eq!(query.messages.len(), messages, "observed whole alternating history reached the native peer");
     assert!(query.system.windows(b"@root-memory".len()).any(|bytes| bytes == b"@root-memory"));
     assert_eq!(wire.peer.service.count(), 1);
     assert_eq!(wire.peer.service.calls(), 0);
@@ -473,8 +473,8 @@ fn assert_native_query(wire: &Wire, messages: usize, large: bool) {
 }
 
 fn terminal_bytes(event: &Event) -> u64 {
-    let Event::Completed { completion, .. } = event else { panic!("actual native successful terminal") };
-    let [said] = completion.content.as_ref() else { panic!("one actual scripted assistant block") };
+    let Event::Completed { completion, .. } = event else { panic!("observed native successful terminal") };
+    let [said] = completion.content.as_ref() else { panic!("one observed scripted assistant block") };
     let payload = match said {
         llm::Said::Text { text, replay } => {
             assert!(text.as_ref() == SAID || text.as_ref() == RESTORED);
@@ -489,14 +489,14 @@ fn terminal_bytes(event: &Event) -> u64 {
             sum([len(id), len(name), len(input), replay.as_ref().map_or(0, |value| len(&value.bytes))])
         }
         llm::Said::Refusal { .. } | llm::Said::Opaque { .. } | llm::Said::ToolCall { .. } => {
-            panic!("only actual literal Text and decoded Wait terminals belong to this measured fixture")
+            panic!("only observed literal Text and decoded Wait terminals belong to this measured fixture")
         }
     };
     sum([size::<llm::Said>(), payload])
 }
 
 fn schemas_bytes(schemas: &[ToolSchema]) -> u64 {
-    assert_eq!(schemas.len(), 2, "actual fixture offers only Finish and Wait");
+    assert_eq!(schemas.len(), 2, "observed fixture offers only Finish and Wait");
     assert!(schemas.iter().any(|schema| schema.kind == ToolKind::Finish && schema.name.as_ref() == b"finish"));
     assert!(schemas.iter().any(|schema| schema.kind == ToolKind::Wait && schema.name.as_ref() == b"wait"));
     sum([
@@ -505,7 +505,7 @@ fn schemas_bytes(schemas: &[ToolSchema]) -> u64 {
     ])
 }
 
-// The fixture ledger counts actual public cells and owning byte fields. It
+// The fixture ledger counts observed public cells and owning byte fields. It
 // neither calls owned_bytes/content_cost nor recreates admission or rendering.
 fn record_blocks(blocks: &[session::llm::Block]) -> u64 {
     let mut bytes = u64::try_from(blocks.len()).expect("bounded blocks") * size::<session::llm::Block>();
@@ -706,11 +706,11 @@ fn assert_rewritten(history: &root::Transcript, prompt: &llm::Prompt) {
                     assert_eq!(error, original_error);
                     assert_eq!(replay, envelope);
                 }
-                _ => panic!("actual root rewrite preserves the independent observed fields"),
+                _ => panic!("observed root rewrite preserves the independent observed fields"),
             }
         }
     }
-    let waking = prompt.messages.last().expect("actual waking User");
+    let waking = prompt.messages.last().expect("observed waking User");
     assert_eq!(waking.role, llm::Role::User);
     let [llm::Block::Text { text, replay: None }] = waking.content.as_ref() else { panic!("waking text") };
     assert_eq!(text.as_ref(), b"Continue the saved conversation.");
@@ -784,7 +784,7 @@ impl Counted {
         meter.check(measured, ceiling, limits);
         let mut native_limits = wire_limits();
         native_limits.stated = adapter::Stated::from_tools(&limits.session.tools, native_limits.client.input)
-            .expect("actual root numeric quantities fit");
+            .expect("observed root numeric quantities fit");
         Self {
             meter,
             ceiling,
@@ -834,7 +834,7 @@ impl Counted {
             "configuration construction has no unpriced transient"
         );
         self.meter.start();
-        let configuration = configurations.into_vec().pop().expect("actual native Anthropic fixture");
+        let configuration = configurations.into_vec().pop().expect("observed native Anthropic fixture");
         self.configuration_bytes = configuration_bytes(&configuration);
         let selected = self.meter.end();
         assert!(selected.peak() <= sum([before, constructor]));
@@ -918,12 +918,12 @@ impl Counted {
                 Request::Long { host_run, operation, .. } => {
                     assert_eq!(host_run, WORKER);
                     assert_eq!(operation, root::Operation::Completion, "this fixture only issues provider work");
-                    self.long_open = self.long_open.checked_add(1).expect("bounded actual provider spans");
-                    assert_eq!(self.long_open, 1, "one actual issued provider call per session");
+                    self.long_open = self.long_open.checked_add(1).expect("bounded observed provider spans");
+                    assert_eq!(self.long_open, 1, "one observed issued provider call per session");
                 }
                 Request::LongDone { host_run } => {
                     assert_eq!(host_run, WORKER);
-                    self.long_open = self.long_open.checked_sub(1).expect("terminal belongs to actual provider work");
+                    self.long_open = self.long_open.checked_sub(1).expect("terminal belongs to observed provider work");
                 }
                 Request::Yield { .. } => {}
                 Request::Cancel { owner } => {
@@ -993,11 +993,11 @@ impl Counted {
         assert!(self.admitted.is_some() && self.read.is_some());
         assert_eq!(self.calls, 0, "selected Start ownership survives outstanding discovery");
         assert!(self.complete.is_none());
-        assert_eq!(self.long_open, 0, "actual provider work settled before outside waiting");
+        assert_eq!(self.long_open, 0, "observed provider work settled before outside waiting");
     }
 
     fn discover(&mut self) {
-        let owner = self.read.take().expect("actual root discovery request");
+        let owner = self.read.take().expect("observed root discovery request");
         self.step(Event::Read { owner, read: run::Read::Missing });
         if let Some(owner) = self.probe.take() {
             self.step(Event::Probed { owner, executable: false });
@@ -1024,11 +1024,14 @@ impl Counted {
         }
         assert!(self.complete.is_none());
         assert!(!self.domain.as_ref().expect("live root").is_ready());
-        assert!(self.waiting || self.answer.is_some(), "bounded root loop reached an outside wait or actual terminal");
+        assert!(
+            self.waiting || self.answer.is_some(),
+            "bounded root loop reached an outside wait or observed terminal"
+        );
     }
 
     fn until_compaction(&mut self, configuration: &Configuration, cycles: u32) {
-        let complete = self.complete.take().expect("actual restored ordinary request");
+        let complete = self.complete.take().expect("observed restored ordinary request");
         assert!(matches!(complete.prompt.purpose, llm::Purpose::Ordinary { guard: Some(_) }));
         let event = self.native(complete, configuration, cycles);
         self.step(event);
@@ -1046,7 +1049,7 @@ impl Counted {
 
     fn wake(&mut self, name: Token, text: Box<[u8]>) {
         self.waiting = false;
-        let run = self.admitted.expect("actual admitted handle");
+        let run = self.admitted.expect("observed admitted handle");
         self.step(Event::Message { finish_requested: false, label: b"host".as_slice().into(), run, name, text });
     }
 
@@ -1083,7 +1086,7 @@ impl Counted {
         let before = self.meter.held();
         let native = Env { now: self.env.now, wall: self.env.wall, limits };
         let (event, retained, overlapping) =
-            actual(complete, configuration, cycles, &native, &self.meter, self.ceiling, &mut self.retained);
+            observed(complete, configuration, cycles, &native, &self.meter, self.ceiling, &mut self.retained);
         if overlapping {
             self.overlaps += 1;
             if self.prefix.is_some()
@@ -1096,7 +1099,7 @@ impl Counted {
             }
         }
         let terminal = terminal_bytes(&event);
-        assert!(terminal <= terminal_cap, "actual transferred terminal fits the root's advertised caller reserve");
+        assert!(terminal <= terminal_cap, "observed transferred terminal fits the root's advertised caller reserve");
         let expected = before
             .checked_sub(sum([incoming, old_held]))
             .and_then(|held| held.checked_add(sum([terminal, retained.held])))
@@ -1218,11 +1221,11 @@ fn cap(source: &Counted, waking: &[u8]) -> u64 {
     const PREAMBLE_BYTES: u64 = 97;
 
     let first = source.initial.as_ref().expect("observed fresh root prompt");
-    let [message] = first.messages.as_ref() else { panic!("fresh actual waking message") };
+    let [message] = first.messages.as_ref() else { panic!("fresh observed waking message") };
     let [llm::Block::Text { text, replay: None }] = message.content.as_ref() else { panic!("plain charter brief") };
     assert_eq!(text.as_ref(), b"Begin the work your brief describes.");
     assert_eq!(first.served.len(), 2);
-    // Independent public opening ownership plus actual concrete record fields.
+    // Independent public opening ownership plus observed concrete record fields.
     // Message/Turn envelopes are deliberately separate from this payload cap.
     let opening = len(&first.model)
         + len(&first.system)
@@ -1235,7 +1238,7 @@ fn cap(source: &Counted, waking: &[u8]) -> u64 {
     let prefix = source
         .prefix
         .as_ref()
-        .expect("actual prefix")
+        .expect("observed prefix")
         .turns
         .iter()
         .flat_map(|turn| &turn.messages)
@@ -1255,7 +1258,7 @@ fn generate_prefix(counted: &mut Counted, configuration: &Configuration, message
     assert!(counted.waiting);
     for at in 0..cycles {
         counted.waiting = false;
-        let run = counted.admitted.expect("actual admitted handle");
+        let run = counted.admitted.expect("observed admitted handle");
         let text = if at == 0 { vec![b'x'; LARGE - 6].into_boxed_slice() } else { b"x".as_slice().into() };
         counted.step(Event::Message {
             finish_requested: false,
@@ -1280,18 +1283,18 @@ fn generate_prefix(counted: &mut Counted, configuration: &Configuration, message
     assert_eq!(copied.held(), expected, "concrete source-record handoff owns all public envelopes and payloads");
     assert!(copied.peak() <= expected, "record handoff has no unpriced construction transient");
     counted.prefix = Some(prefix);
-    assert_generated(counted.prefix.as_ref().expect("actual selected history"), messages);
+    assert_generated(counted.prefix.as_ref().expect("observed selected history"), messages);
     counted.saved = counted.prefix.as_ref().map(copy_transcript);
     let first = counted.initial.as_ref().expect("observed fresh root prompt");
     let [llm::Block::Text { text, replay: None }] = first.messages[0].content.as_ref() else {
-        panic!("actual fresh waking text")
+        panic!("observed fresh waking text")
     };
     let capped = cap(counted, text);
     let tight = Limits {
         session: session::Limits { history_bytes: capped, ..counted.env.limits.session },
         ..counted.env.limits
     };
-    let run = counted.admitted.expect("actual source run");
+    let run = counted.admitted.expect("observed source run");
     counted.waiting = false;
     counted.step(Event::Cancel { run });
     counted.cycle(configuration, cycles + 1);
@@ -1304,7 +1307,7 @@ fn generate_prefix(counted: &mut Counted, configuration: &Configuration, message
 }
 
 fn restore_overlap(counted: &mut Counted, configuration: &Configuration, messages: u32, cycles: u32) {
-    // The full prefix owns messages - 4 slots. Restored waking, the actual
+    // The full prefix owns messages - 4 slots. Restored waking, the observed
     // Wait/result, the offered message and text, and the next nudge occupy six
     // more. Two provider slots and one summary slot remain for the next held
     // wait, so this overlap uses messages + 5. Payload caps retain the source contract.
@@ -1312,8 +1315,8 @@ fn restore_overlap(counted: &mut Counted, configuration: &Configuration, message
     counted.replace_root(&overlapping);
     counted.start(counted.prefix.as_ref().map(copy_transcript), true);
     counted.discover();
-    assert_eq!(counted.calls, 1, "full source history starts one actual restored callback");
-    let complete = counted.complete.as_ref().expect("actual restored Complete before overlapping physical bindings");
+    assert_eq!(counted.calls, 1, "full source history starts one observed restored callback");
+    let complete = counted.complete.as_ref().expect("observed restored Complete before overlapping physical bindings");
     assert_eq!(complete.prompt.messages.len(), usize::try_from(messages - 3).expect("full restored plus waking"));
     assert_rewritten(counted.prefix.as_ref().expect("maximum generated prefix"), &complete.prompt);
     counted.held_prompt = Some(copy_prompt(&complete.prompt));
@@ -1324,7 +1327,7 @@ fn restore_overlap(counted: &mut Counted, configuration: &Configuration, message
     assert!(counted.waiting && counted.records.is_empty(), "first restored native wait remains held");
     counted.wake(Token::new(100), b"wake".as_slice().into());
     counted.cycle(configuration, cycles + 2);
-    assert_eq!(counted.calls, 3, "two settled callbacks and the next held wait use three actual Clients");
+    assert_eq!(counted.calls, 3, "two settled callbacks and the next held wait use three observed Clients");
     assert_eq!(counted.records.len(), 2, "both restored terminals produced concrete Turns");
     assert_eq!(counted.records[0].sequence, 2 * cycles + 1);
     assert_eq!(counted.records[1].sequence, 2 * cycles + 2);
@@ -1332,8 +1335,8 @@ fn restore_overlap(counted: &mut Counted, configuration: &Configuration, message
         counted.restored_overlap,
         "full generated histories, both restored Prompt copies and a Turn copy coexist with native overlap"
     );
-    assert!(counted.waiting, "actual restored Wait/text pair reaches Waiting after both native terminals");
-    let run = counted.admitted.expect("actual overlapping restore activation");
+    assert!(counted.waiting, "observed restored Wait/text pair reaches Waiting after both native terminals");
+    let run = counted.admitted.expect("observed overlapping restore activation");
     counted.waiting = false;
     counted.step(Event::Cancel { run });
     counted.cycle(configuration, cycles + 2);
@@ -1344,7 +1347,7 @@ fn restore_overlap(counted: &mut Counted, configuration: &Configuration, message
 
 fn restore_exact(counted: &mut Counted, configuration: &Configuration, messages: u32, cycles: u32, tight: &Limits) {
     let prompt = counted.held_prompt.as_ref().expect("observed overlapping restore");
-    let waking = prompt.messages.last().expect("actual resumed waking message");
+    let waking = prompt.messages.last().expect("observed resumed waking message");
     let [llm::Block::Text { text: waking, replay: None }] = waking.content.as_ref() else {
         panic!("plain resumed waking text")
     };
@@ -1355,17 +1358,17 @@ fn restore_exact(counted: &mut Counted, configuration: &Configuration, messages:
     let history = counted.prefix.as_mut().expect("generated prefix");
     let last = history.turns.last_mut().expect("generated turns").messages.last_mut().expect("saved assistant");
     let [session::llm::Block::Text { text, replay: None }] = last.content.as_mut() else {
-        panic!("actual saved assistant text")
+        panic!("observed saved assistant text")
     };
     let mut padded = text.to_vec();
     padded.resize(padded.len() + usize::try_from(padding).expect("bounded wake difference"), b'x');
     *text = padded.into_boxed_slice();
-    assert_eq!(cap(counted, waking), tight.session.history_bytes, "history plus actual wake attains the payload cap");
+    assert_eq!(cap(counted, waking), tight.session.history_bytes, "history plus observed wake attains the payload cap");
     counted.replace_root(tight);
     counted.start(counted.prefix.as_ref().map(copy_transcript), true);
     counted.discover();
     assert_eq!(counted.calls, 1, "exact reservation-inclusive payload is admitted before native work");
-    let complete = counted.complete.as_ref().expect("actual rewritten Complete");
+    let complete = counted.complete.as_ref().expect("observed rewritten Complete");
     assert_eq!(complete.prompt.messages.len(), usize::try_from(messages - 3).expect("restored plus waking"));
     assert_eq!(complete.prompt.model, counted.initial.as_ref().expect("original observation").model);
     assert_eq!(complete.prompt.system, counted.initial.as_ref().expect("original observation").system);
@@ -1373,12 +1376,12 @@ fn restore_exact(counted: &mut Counted, configuration: &Configuration, messages:
     counted.held_prompt = Some(copy_prompt(&complete.prompt));
     counted.prompt_copy = counted.held_prompt.as_ref().map(copy_prompt);
     counted.until_compaction(configuration, cycles);
-    let [turn] = counted.records.as_slice() else { panic!("one actual concrete restored Turn") };
+    let [turn] = counted.records.as_slice() else { panic!("one observed concrete restored Turn") };
     assert_eq!(turn.sequence, 2 * cycles + 1);
     assert_eq!(turn.messages.len(), 2);
-    let [_, assistant] = turn.messages.as_ref() else { panic!("actual wake/assistant Turn") };
+    let [_, assistant] = turn.messages.as_ref() else { panic!("observed wake/assistant Turn") };
     let [session::llm::Block::Text { text, .. }] = assistant.content.as_ref() else {
-        panic!("actual restored native text")
+        panic!("observed restored native text")
     };
     assert_eq!(text.as_ref(), RESTORED);
     counted.turn_copy = Some(copy_turn(turn));
@@ -1406,7 +1409,7 @@ fn refuse_one_over(counted: &mut Counted, configuration: &Configuration, cycles:
                 + u64::from(negative.session.tools.path_bytes) * u64::from(negative.session.completion_blocks);
         }
         counted.replace_root(&negative);
-        let mut history = copy_transcript(counted.prefix.as_ref().expect("saved actual records"));
+        let mut history = copy_transcript(counted.prefix.as_ref().expect("saved observed records"));
         if extra_message {
             let last = history.turns.last_mut().expect("saved turns");
             let mut messages = last.messages.to_vec();
@@ -1430,7 +1433,7 @@ fn refuse_one_over(counted: &mut Counted, configuration: &Configuration, cycles:
                     | session::llm::Block::ToolResult { .. } => None,
                 })
                 .expect("literal generated large message");
-            // restore_exact filled the actual resumed wake's headroom in
+            // restore_exact filled the observed resumed wake's headroom in
             // this prefix, so one more byte is exactly over receiving credit.
             *text = vec![b'x'; LARGE + 1].into_boxed_slice();
         }
@@ -1452,7 +1455,7 @@ fn refuse_one_over(counted: &mut Counted, configuration: &Configuration, cycles:
 
 fn reclaim_every_owner(mut counted: Counted, tight: &Limits, configuration: Configuration) {
     counted.retire_native();
-    assert!(counted.overlaps > 0, "the memory run attained overlapping actual physical Clients");
+    assert!(counted.overlaps > 0, "the memory run attained overlapping observed physical Clients");
     counted.meter.start();
     drop(counted.domain.take());
     drop(counted.prefix.take());
@@ -1621,14 +1624,14 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
     // Brief/convention text; give this attained fixture its additional bytes.
     receiving.run.run_bytes = 16_384 + u64::from(receiving.run.directories) * u64::from(receiving.run.host_path_bytes);
     receiving.session.tools.repos = 2;
-    // The receiving root must retain every rendered actual run result. Select
+    // The receiving root must retain every rendered observed run result. Select
     // the public checked feedback bound exactly, rather than widening the
-    // original history/actual completion caps or bypassing root admission.
+    // original history/observed completion caps or bypassing root admission.
     receiving.session.delegated_result_bytes = root::feedback_bound(&receiving.run)
         .expect("maximum path charter has a finite exact receiving feedback bound")
         .max(receiving.session.delegated_result_bytes);
     let mut counted = Counted::with_window(&receiving, 65_536, BRIEF_CEILING);
-    // This combined fixture's actual system contains both maximum convention
+    // This combined fixture's observed system contains both maximum convention
     // labels plus full nested workspace metadata. Select explicit native input
     // string cap for that new prompt: 32,768 rather than the default 16,384.
     // HTTP request-head and dialect request/document caps stay 32,768, matching
@@ -1666,23 +1669,23 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
     });
     assert!(counted.admitted.is_some() && counted.read.is_some());
     assert_eq!(counted.calls, 0, "maximum retained paths and caller Start coexist before any provider effect");
-    let owner = counted.read.take().expect("actual maximum-path discovery");
+    let owner = counted.read.take().expect("observed maximum-path discovery");
     counted.step(Event::Read {
         owner,
         read: run::Read::Text { text: b"Maximum host-selected guide".as_slice().into(), whole: true },
     });
-    let owner = counted.probe.take().expect("actual maximum check-path Probe");
+    let owner = counted.probe.take().expect("observed maximum check-path Probe");
     counted.step(Event::Probed { owner, executable: true });
-    let owner = counted.read.take().expect("actual maximum guide-path Read for the readonly mount");
+    let owner = counted.read.take().expect("observed maximum guide-path Read for the readonly mount");
     counted.step(Event::Read {
         owner,
         read: run::Read::Text { text: b"Maximum readonly guide".as_slice().into(), whole: true },
     });
-    let first = counted.complete.as_ref().expect("actual first root Complete");
+    let first = counted.complete.as_ref().expect("observed first root Complete");
     assert!(first.prompt.system.len() > 16_384, "combined metadata exceeds the original native string cap");
-    assert!(first.prompt.system.len() <= 32_768, "explicit native string cap fits the actual combined prompt");
+    assert!(first.prompt.system.len() <= 32_768, "explicit native string cap fits the observed combined prompt");
     let source = counted.caller_charter.as_ref().expect("original caller Start remains independently owned");
-    assert!(first.prompt.system.starts_with(&source.instructions), "actual native main receives full literal role");
+    assert!(first.prompt.system.starts_with(&source.instructions), "observed native main receives full literal role");
     assert_eq!(
         source.brief.sections.len(),
         usize::try_from(receiving.run.brief_sections).expect("bounded receiving Section count fits usize")
@@ -1699,7 +1702,7 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
     assert_eq!(
         first.prompt.system.windows(path_bytes).filter(|path| *path == selected.guide.as_ref()).count(),
         2,
-        "both actual guide headings own the maximum selected path"
+        "both observed guide headings own the maximum selected path"
     );
     assert_eq!(
         first.prompt.system.windows(path_bytes).filter(|path| *path == selected.checks.as_ref()).count(),
@@ -1708,12 +1711,15 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
     );
     assert!(counted.probe.is_none(), "the readonly mount adds no second check probe");
     counted.cycle(&configuration, 1);
-    assert!(counted.waiting && counted.records.is_empty(), "actual wait is held before the native text callback");
+    assert!(counted.waiting && counted.records.is_empty(), "observed wait is held before the native text callback");
     counted.wake(Token::new(100), b"wake".as_slice().into());
     counted.cycle(&configuration, 2);
-    assert!(counted.waiting && counted.overlaps > 0, "actual Wait/text terminals settle with two Clients overlapping");
-    assert!(counted.caller_charter.is_some(), "caller owns both maximum paths throughout actual native handoffs");
-    let run = counted.admitted.expect("maximum-path activation was actually admitted");
+    assert!(
+        counted.waiting && counted.overlaps > 0,
+        "observed Wait/text terminals settle with two Clients overlapping"
+    );
+    assert!(counted.caller_charter.is_some(), "caller owns both maximum paths throughout observed native handoffs");
+    let run = counted.admitted.expect("maximum-path activation was admitted");
     counted.waiting = false;
     counted.step(Event::Cancel { run });
     counted.cycle(&configuration, 1);
@@ -1721,7 +1727,7 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_two_clients() {
     reclaim_every_owner(counted, &receiving, configuration);
 }
 
-/// Copy caller-owned maximum context into an independent actual Start.
+/// Copy caller-owned maximum context into an independent observed Start.
 fn maximum_caller_start(caller: &run::Charter) -> run::Charter {
     run::Charter {
         instructions: caller.instructions.clone(),

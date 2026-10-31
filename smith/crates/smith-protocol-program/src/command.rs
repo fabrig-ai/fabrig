@@ -60,7 +60,7 @@ pub struct Command {
 }
 
 impl Command {
-    /// Spawn with no stdin pipe, bounded stdout and a stderr tail (programs.md, 4.2).
+    /// Spawn with no stdin pipe, bounded stdout and a stderr tail (smith/docs/design/protocol/programs.md, 4.2).
     pub fn new(
         io_owner: Token,
         launch: Launch,

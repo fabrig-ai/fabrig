@@ -1,4 +1,4 @@
-//! Replies to held MCP calls and the run's timeout (programs.md 5.3, 5.7).
+//! Replies to held MCP calls and the run's timeout (smith/docs/design/protocol/programs.md 5.3, 5.7).
 //! Keeps no state; every user text in a reply pass belongs to its last held reply.
 
 use super::{Backend, calls};
@@ -72,7 +72,7 @@ pub(super) fn resume(
         }
         // Messages and nudges share the exact tail encoder. Its independent
         // input ceiling admits host offers larger than a tool reply, without
-        // retaining an extra unescaped copy (programs.md 5.9).
+        // retaining an extra unescaped copy (smith/docs/design/protocol/programs.md 5.9).
         prompt.messages = messages;
         let rendered = super::tail::render_observed(
             prompt,

@@ -1,4 +1,4 @@
-//! Actual provider calls refuse nesting through main and child sessions.
+//! Observed provider calls refuse nesting through main and child sessions.
 //! Contract: protocol/llm.md, section 4; domain/run.md, sections 5.3 and 13.
 
 use skein_fake_llm_domain::api::{Finish, Line, Part, Turn};
@@ -6,7 +6,7 @@ use smith_domain::{run, session::llm};
 use smith_protocol_llm_world::{Job, Settings, World, adapter, script, wire};
 
 #[test]
-fn nesting_asked_for_is_answered_as_its_problem_on_actual_provider_requests() {
+fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() {
     let mut crossed_old_document_cap = false;
     for configuration in wire::configurations() {
         let error_flag = configuration.error_flag;
@@ -42,7 +42,7 @@ fn nesting_asked_for_is_answered_as_its_problem_on_actual_provider_requests() {
         world.run(100_000);
         assert!(
             matches!(world.answer(), run::Answer::Accepted { .. }),
-            "actual native nesting terminal: {:?}; request bytes: {:?}",
+            "observed native nesting terminal: {:?}; request bytes: {:?}",
             world.answer(),
             world.wire_bindings().iter().map(|binding| binding.request.len()).collect::<Vec<_>>()
         );
@@ -71,7 +71,7 @@ fn nesting_asked_for_is_answered_as_its_problem_on_actual_provider_requests() {
                     llm::Block::ToolResult { result: llm::Returned::Invalid { problem: llm::Problem::Nesting }, .. }
                 )
             ),
-            "actual persisted main result retains the typed problem"
+            "observed persisted main result retains the typed problem"
         );
         let child =
             world.prompts().iter().filter(|query| query.system.windows(b"@fix".len()).any(|bytes| bytes == b"@fix"));
@@ -94,7 +94,7 @@ fn check_document_bound(world: &World, bounds: &adapter::Limits, error_flag: boo
     use skein_fake_llm_protocol::documents::{self, Provider};
 
     let tape = skein_llm_world::identity(
-        &world.wire_bindings().iter().max_by_key(|binding| binding.request.len()).expect("actual requests").request,
+        &world.wire_bindings().iter().max_by_key(|binding| binding.request.len()).expect("observed requests").request,
     );
     let head = tape.windows(4).position(|part| part == b"\r\n\r\n").expect("HTTP head");
     let body = &tape[head + 4..];
@@ -102,7 +102,7 @@ fn check_document_bound(world: &World, bounds: &adapter::Limits, error_flag: boo
     let peer = skein_llm_world::fake::limits(&bounds.client);
     assert!(
         documents::request(dialect, body, &peer.documents).is_ok(),
-        "the actual complete request fits its configured document bound"
+        "the observed complete request fits its configured document bound"
     );
     let mut small = peer.documents;
     small.anthropic.request = 8192;

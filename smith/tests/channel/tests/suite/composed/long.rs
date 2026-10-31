@@ -107,7 +107,7 @@ impl LongWorld {
                             spent: spent.units,
                             opens_window,
                             body: host::TurnValue::new(turn, self.host.stage.env.limits.turn_bytes)
-                                .expect("actual turn fits declared credit"),
+                                .expect("observed turn fits declared credit"),
                         },
                     });
                     self.host.event(host::Input::Parent(host::parent::Event::Acknowledge {
@@ -122,7 +122,7 @@ impl LongWorld {
                 AgentRequest::Answer { answer, read, .. } => {
                     self.wire.agent_answers_with_fence(answer, read);
                     self.wire.settle();
-                    let answer = self.wire.take_host_answer().expect("actual answer crosses the framed halves");
+                    let answer = self.wire.take_host_answer().expect("observed answer crosses the framed halves");
                     self.host.up(Up::Answer { answer });
                 }
                 other => panic!("unexpected command story request: {other:?}"),
@@ -132,7 +132,7 @@ impl LongWorld {
 }
 
 #[test]
-fn an_actual_command_crosses_the_channel_and_outlasts_no_progress_until_its_terminal() {
+fn an_observed_command_crosses_the_channel_and_outlasts_no_progress_until_its_terminal() {
     let mut world = LongWorld::new();
     let mut charter = composed_charter().into_value();
     charter.grants.tools.shell = true;
@@ -162,7 +162,7 @@ fn an_actual_command_crosses_the_channel_and_outlasts_no_progress_until_its_term
             valid: Duration::from_secs(7200),
         }]),
     });
-    let owner = world.completion.take().expect("actual provider request");
+    let owner = world.completion.take().expect("observed provider request");
     world.step(AgentEvent::Completed {
         owner,
         completion: agent::llm::Completion {
@@ -185,12 +185,12 @@ fn an_actual_command_crosses_the_channel_and_outlasts_no_progress_until_its_term
             }]),
         },
     });
-    let command = world.command.expect("actual command IO was issued");
+    let command = world.command.expect("observed command IO was issued");
     assert_eq!(world.notices, [Some(agent::Operation::Completion), None, Some(agent::Operation::Command)]);
     world.env.now = Time::ZERO.saturating_add(Duration::from_secs(11));
     world.host.at(11);
-    assert_eq!(world.host.seen.fault, None, "actual command stretches the ten-second no-progress watchdog");
-    world.step(AgentEvent::Cancel { run: world.run.expect("actual admitted run") });
+    assert_eq!(world.host.seen.fault, None, "observed command stretches the ten-second no-progress watchdog");
+    world.step(AgentEvent::Cancel { run: world.run.expect("observed admitted run") });
     world.ready();
     assert!(world.cancelled);
     assert_eq!(world.notices.len(), 3, "a cancel request is not the command terminal");

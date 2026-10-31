@@ -40,7 +40,7 @@ fn a_refused_write_names_its_payload_bound_and_the_piece_then_edits_route() {
     let text = String::from_utf8(text.into_vec()).expect("rendered UTF-8");
     assert!(error);
     assert!(text.contains("write content"), "what was too large: {text}");
-    assert!(text.contains("50008 bytes"), "actual size: {text}");
+    assert!(text.contains("50008 bytes"), "observed size: {text}");
     assert!(text.contains("bound 40960 bytes"), "declared bound: {text}");
     assert!(text.contains("first part within the bound"), "bounded first piece: {text}");
     assert!(text.contains("extend it with edits"), "extend the file: {text}");
@@ -300,11 +300,11 @@ fn oversized_write_and_edit_replay_the_same_concrete_piecewise_advice() {
         let bounds = limits();
         let offered = adapter::schemas(&history, &bounds.stated);
         let translated = adapter::prompt(history, &offered, &bounds).expect("corrective prompt");
-        let [skein_llm::Block::ToolCall { name: actual, arguments, .. }] = translated.messages[0].content.as_ref()
+        let [skein_llm::Block::ToolCall { name: observed, arguments, .. }] = translated.messages[0].content.as_ref()
         else {
             panic!("replayable call")
         };
-        assert_eq!(actual.as_ref(), name);
+        assert_eq!(observed.as_ref(), name);
         assert_eq!(arguments.as_ref(), b"{}");
         let [skein_llm::Block::ToolResult { id, text, is_error }] = translated.messages[1].content.as_ref() else {
             panic!("corrective result")
@@ -432,8 +432,8 @@ fn a_compactions_owed_results_are_cut_and_its_history_is_unchanged() {
         .expect("admitted prompt");
     retained_history(&ordinary, &summary);
     let mut kept = 0;
-    for (actual, whole) in summary.messages[2].content.iter().zip(ordinary.messages[2].content.iter()) {
-        let skein_llm::Block::ToolResult { text, is_error, .. } = actual else { panic!("owed result") };
+    for (observed, whole) in summary.messages[2].content.iter().zip(ordinary.messages[2].content.iter()) {
+        let skein_llm::Block::ToolResult { text, is_error, .. } = observed else { panic!("owed result") };
         let skein_llm::Block::ToolResult { text: original, is_error: old_error, .. } = whole else {
             panic!("ordinary result")
         };

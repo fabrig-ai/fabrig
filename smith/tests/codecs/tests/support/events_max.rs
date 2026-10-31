@@ -19,7 +19,7 @@ fn max_agent(limits: &smith_events::Limits) -> Agent {
     Agent { name: payload(limits.string), version: payload(limits.string) }
 }
 
-fn max_versions(_limits: &smith_events::Limits) -> Versions {
+fn max_versions() -> Versions {
     Versions {
         events: u64::MAX,
         channel: u64::MAX,
@@ -29,15 +29,15 @@ fn max_versions(_limits: &smith_events::Limits) -> Versions {
     }
 }
 
-fn max_loss(_limits: &smith_events::Limits) -> Loss {
+fn max_loss() -> Loss {
     Loss { events: u64::MAX, channel: Some(u64::MAX) }
 }
 
-fn max_cpu(_limits: &smith_events::Limits) -> Cpu {
+fn max_cpu() -> Cpu {
     Cpu { user: u64::MAX, system: u64::MAX, children_user: u64::MAX, children_system: u64::MAX }
 }
 
-fn max_peak_rss(_limits: &smith_events::Limits) -> PeakRss {
+fn max_peak_rss() -> PeakRss {
     PeakRss { self_bytes: u64::MAX, children: u64::MAX }
 }
 
@@ -53,7 +53,7 @@ fn max_model(limits: &smith_events::Limits) -> Model {
     }
 }
 
-fn max_usage(_limits: &smith_events::Limits) -> Usage {
+fn max_usage() -> Usage {
     Usage {
         input_tokens: Some(u64::MAX),
         cache_read_tokens: Some(u64::MAX),
@@ -63,7 +63,7 @@ fn max_usage(_limits: &smith_events::Limits) -> Usage {
     }
 }
 
-fn max_budget(_limits: &smith_events::Limits) -> Budget {
+fn max_budget() -> Budget {
     Budget {
         turns: u64::MAX,
         spend: u64::MAX,
@@ -150,7 +150,7 @@ fn max_completion(limits: &smith_events::Limits) -> Completion {
     Completion { blocks: max_list_block(limits) }
 }
 
-fn max_command_exit(_limits: &smith_events::Limits) -> CommandExit {
+fn max_command_exit() -> CommandExit {
     CommandExit::Signal { signal: u64::MAX }
 }
 
@@ -179,7 +179,7 @@ fn max_session_started(limits: &smith_events::Limits) -> SessionStarted {
         profile: payload(limits.string),
         capture: Capture::Unknown(payload(limits.string)),
         delivery: Delivery::Unknown(payload(limits.string)),
-        versions: max_versions(limits),
+        versions: max_versions(),
     }
 }
 
@@ -190,9 +190,9 @@ fn max_session_ended(limits: &smith_events::Limits) -> SessionEnded {
         aborted: Some(false),
         teardown_ms: Some(u64::MAX),
         emitted: max_list_count(limits),
-        loss: max_loss(limits),
-        cpu_ms: Some(max_cpu(limits)),
-        peak_rss_bytes: Some(max_peak_rss(limits)),
+        loss: max_loss(),
+        cpu_ms: Some(max_cpu()),
+        peak_rss_bytes: Some(max_peak_rss()),
     }
 }
 
@@ -202,7 +202,7 @@ fn max_run_started(limits: &smith_events::Limits) -> RunStarted {
         resumed: false,
         messages: u64::MAX,
         main: max_model(limits),
-        budget: max_budget(limits),
+        budget: max_budget(),
         tools: max_tools(limits),
         contract: max_list_form(limits),
     }
@@ -217,7 +217,7 @@ fn max_run_completed(limits: &smith_events::Limits) -> RunCompleted {
         result: Some(max_run_result(limits)),
         turns: u64::MAX,
         spent: u64::MAX,
-        usage: max_usage(limits),
+        usage: max_usage(),
         read: Some(u64::MAX),
         unread: u64::MAX,
         duration_ms: u64::MAX,
@@ -258,7 +258,7 @@ fn max_conversation_closed(limits: &smith_events::Limits) -> ConversationClosed 
         which: Some(payload(limits.string)),
         failure: Some(max_completion_failure(limits)),
         turns: u64::MAX,
-        usage: max_usage(limits),
+        usage: max_usage(),
         spent: u64::MAX,
         duration_ms: u64::MAX,
     }
@@ -292,7 +292,7 @@ fn max_response_completed(limits: &smith_events::Limits) -> ResponseCompleted {
         invalid: u64::MAX,
         oversized: u64::MAX,
         cut: u64::MAX,
-        usage: max_usage(limits),
+        usage: max_usage(),
         spent: u64::MAX,
         request_bytes: Some(u64::MAX),
         first_byte_ms: Some(u64::MAX),
@@ -335,7 +335,7 @@ fn max_tool_completed(limits: &smith_events::Limits) -> ToolCompleted {
         call: payload(limits.string),
         tool: payload(limits.string),
         verdict: Verdict::Unknown(payload(limits.string)),
-        exit: Some(max_command_exit(limits)),
+        exit: Some(max_command_exit()),
         job: Some(u64::MAX),
         bytes: u64::MAX,
         omitted_bytes: u64::MAX,
@@ -347,13 +347,13 @@ fn max_tool_completed(limits: &smith_events::Limits) -> ToolCompleted {
             turns: u64::MAX,
             time_ms: u64::MAX,
             spent: u64::MAX,
-            usage: max_usage(limits),
+            usage: max_usage(),
         }),
         delivery: Some(Delivered::Unknown(payload(limits.string))),
     }
 }
 
-fn max_check_started(_limits: &smith_events::Limits) -> CheckStarted {
+fn max_check_started() -> CheckStarted {
     CheckStarted { run: u64::MAX, deadline_ms: Some(u64::MAX) }
 }
 
@@ -476,12 +476,12 @@ pub fn largest_samples(limits: &smith_events::Limits) -> Vec<Record> {
                 job: u64::MAX,
                 call: payload(limits.string),
                 verdict: Verdict::Unknown(payload(limits.string)),
-                exit: Some(max_command_exit(limits)),
+                exit: Some(max_command_exit()),
                 unread_bytes: u64::MAX,
                 duration_ms: u64::MAX,
             }),
         },
-        Record { t_ms: u64::MAX, event: Event::CheckStarted(max_check_started(limits)) },
+        Record { t_ms: u64::MAX, event: Event::CheckStarted(max_check_started()) },
         Record { t_ms: u64::MAX, event: Event::CheckCompleted(max_check_completed(limits)) },
         Record { t_ms: u64::MAX, event: Event::Notice(max_notice(limits)) },
         Record {

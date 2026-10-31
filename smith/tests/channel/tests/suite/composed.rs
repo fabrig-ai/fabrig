@@ -48,7 +48,7 @@ fn the_host_start_enters_the_agent_domain_and_its_answer_returns_to_the_host_dom
     assert!(wire.observations().contains(&Observation::HostAdmitted));
     host_world.up(Up::Admitted);
     assert!(host_world.seen.admitted);
-    let span = completion_span.expect("actual issued completion announces its deadline");
+    let span = completion_span.expect("observed issued completion announces its deadline");
     assert!(wire.observations().contains(&Observation::HostLong { operation: agent::Operation::Completion, span }));
     host_world.up(Up::Long { operation: agent::Operation::Completion, span });
     host_world.at(11);
@@ -396,7 +396,7 @@ fn an_empty_start_waits_without_a_fence_and_the_first_wire_message_opens_main() 
             }
             _ => None,
         })
-        .expect("actual decoded message");
+        .expect("observed decoded message");
     while domain.pop_fact().is_some() {}
     agent::step(
         &mut domain,
@@ -405,7 +405,7 @@ fn an_empty_start_waits_without_a_fence_and_the_first_wire_message_opens_main() 
         &mut out,
     );
     let Some(AgentRequest::Long { operation: agent::Operation::Completion, .. }) = out.pop() else {
-        panic!("first wire work announces actual provider issuance");
+        panic!("first wire work announces observed provider issuance");
     };
     assert!(matches!(out.pop(), Some(AgentRequest::Complete { .. })), "first wire work opens the provider");
     assert!(out.pop().is_none());

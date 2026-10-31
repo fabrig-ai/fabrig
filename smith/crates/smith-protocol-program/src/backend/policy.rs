@@ -16,7 +16,7 @@ const MISSING: &[u8] = b"missing field ";
 const WRONG_TYPE: &[u8] = b"wrong field type ";
 const TOOLS_FLAG_BYTES: u32 = 30;
 
-/// A Claude built-in, checked before the program executes it (programs.md 5.4).
+/// A Claude built-in, checked before the program executes it (smith/docs/design/protocol/programs.md 5.4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Builtin {
     /// Inspect one file.

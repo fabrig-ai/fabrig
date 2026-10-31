@@ -1,5 +1,5 @@
 //! Expectations for the copied agent on its scripted host (domain/run.md,
-//! sections 13 and 14; testing-strategy.md, section 7). This module retains
+//! section 13; testing-strategy.md, section 7). This module retains
 //! observed starts, native request bytes, provider usage, check results, push
 //! snapshots and answers. It cannot inspect agent state or source fixtures.
 //! The shared referee owns deadlines and reports the first broken expectation.
@@ -13,7 +13,7 @@ use smith_domain::run::{
     outcome::{Declared, Field, FieldRule, Item, OutcomeSpec, TextSpec},
 };
 
-/// Exact JSON values from one actual native request, retained by the protocol oracle.
+/// Exact JSON values from one observed native request, retained by the protocol oracle.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NativeRequest {
     pub affinity: Option<[String; 3]>,
@@ -28,9 +28,9 @@ impl NativeRequest {
     #[must_use]
     pub fn from_http(bytes: &[u8]) -> Self {
         let bytes = &skein_llm_world::identity(bytes)[..];
-        let head = bytes.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("actual HTTP request head");
+        let head = bytes.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("observed HTTP request head");
         let fields: std::collections::BTreeMap<String, Box<serde_json::value::RawValue>> =
-            serde_json::from_slice(&bytes[head + 4..]).expect("actual native JSON request");
+            serde_json::from_slice(&bytes[head + 4..]).expect("observed native JSON request");
         let system = fields.get("instructions").or_else(|| fields.get("system")).expect("native system");
         let history = fields.get("input").or_else(|| fields.get("messages")).expect("native history");
         let items: Vec<Box<serde_json::value::RawValue>> =
@@ -122,146 +122,89 @@ impl NativeRequest {
 }
 
 /// A host or provider observation, independent of the agent's private state.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
 #[derive(Debug)]
 #[expect(
     clippy::large_enum_variant,
     reason = "observed push terminals retain the copied fixed diagnostic tail without changing their boundary value"
 )]
 pub enum Seen {
-    /// Actual native request body, observed by the byte peer for its conversation.
+    /// Native request body recorded by the byte peer for its conversation.
     Request { owner: Token, request: NativeRequest },
-    /// Actual root Turn output; final count must match this observed chronology.
-    /// Contract: domain/run.md, section 13.
+    /// Observed root Turn output; final count must match this observed chronology.
     Turn {
-        /// One-based activation output number. Contract: domain/run.md, section 13.
+        /// One-based activation output number.
         number: u32,
     },
     /// IO snapshots checkout bytes at the check request, before its terminal.
-    /// Contract: domain/run.md, sections 8.1 and 13; testing-strategy.md, section 7.
     Checking {
-        /// Live callback owner, not the durable host name. Contract: domain/run.md, section 8.2.
+        /// Live callback owner, not the durable host name.
         owner: Token,
-        /// Public IO snapshot to compare with actual delivery submission. Contract: domain/run.md, section 8.1.
+        /// Public IO snapshot to compare with observed delivery submission.
         tree: Vec<u8>,
     },
     /// The scripted host starts its one request; an answer is due within `within`.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     Started {
         /// Independently observed separate main delivery grant, not inferred from final Change permission.
-        /// Contract: domain/run.md, sections 8.4 and 13; testing-strategy.md, section 7.
         delivery: bool,
         /// Host-supplied rules observed at the typed Start boundary, retained by this independent referee.
-        ///
-        /// Contract: domain/run.md, sections 7.1 and 13; testing-strategy.md, section 7.
         contract: OutcomeSpec,
         /// Immutable aggregate result ownership cap supplied alongside the Start.
-        ///
-        /// Contract: domain/run.md, sections 7.1 and 13; testing-strategy.md, section 7.
         outcome_bytes: u64,
         /// Whether a change must pass the fixture's checks.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         checks: bool,
         /// The host's liveness allowance, including cancellation settlement.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         within: Duration,
     },
     /// The agent asks the provider for a completion; its owner may be reused
     /// only after the previous terminal has been observed.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     Completing {
         /// The agent's name for the pending provider request.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         owner: Token,
     },
     /// One accepted provider terminal, counted once in the final spend.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     Completed {
         /// The agent's completion owner, unique until that completion ends.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         owner: Token,
         /// The provider's independently reported usage for that completion.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         spent: Spend,
     },
     /// A provider request ended without usage, by failure or cancellation.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     CompletionEnded {
         /// The agent's name for the provider request being ended.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         owner: Token,
     },
     /// The checks' terminal as IO sends it to the agent.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     Checked {
         /// The finishing call that asked for the check.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         owner: Token,
         /// Zero is the only passing code; an abort carries no process exit.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         exit: Option<Exit>,
     },
     /// The host sees a push request and snapshots exactly the checkout bytes.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     Pushing {
         /// Host-observed final Change metadata rather than the separate delivery grant's metadata.
-        /// Contract: domain/run.md, sections 7.1, 8.4 and 13.
         finishing: bool,
         /// Public durable transcript origin, separate from the live callback owner.
-        /// Contract: domain/run.md, sections 8.2 and 13; testing-strategy.md, section 7.
         name: smith_domain::run::CallName,
         /// The finishing call that asked for the push.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         owner: Token,
         /// The independently observed checkout snapshot at the request.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         tree: Vec<u8>,
     },
-    /// The host's terminal for a push, and what it actually retained as landed.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
+    /// The host's terminal for a push, and what it retained as landed.
     Delivered {
         /// The finishing call that asked for the push.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         owner: Token,
         /// Scripted host outcome; a successful push retains the snapshot.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         push: Delivery,
         /// Landed bytes for `Done`; empty for a refusal or stale branch.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         tree: Vec<u8>,
     },
     /// The host receives the one answer to its start.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     Answered {
         /// The answer received at the boundary, never read from domain state.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         answer: Answer,
         /// Number of agent requests still awaiting terminals at that boundary.
-        ///
-        /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
         pending: usize,
     },
 }
@@ -274,8 +217,6 @@ enum Phase {
 }
 
 /// Scenario policy; its state is populated only by [`Seen`] observations.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
 #[derive(Debug)]
 pub struct Meeting {
     requests: std::collections::BTreeMap<Token, NativeRequest>,
@@ -341,7 +282,7 @@ impl Expectations for Meeting {
             Seen::Turn { number } => {
                 judge.check(
                     self.turns.checked_add(1) == Some(number),
-                    "actual turn output numbers form an exact prefix",
+                    "observed turn output numbers form an exact prefix",
                 );
                 self.turns = number;
             }
@@ -397,7 +338,7 @@ impl Expectations for Meeting {
                 );
                 judge.check(
                     name.completion > 0 && self.names.insert((name.completion, name.position)),
-                    "durable names are nonzero and distinct across actual submissions",
+                    "durable names are nonzero and distinct across observed submissions",
                 );
                 judge.check(
                     self.pushing.insert(owner, (name, tree, finishing)).is_none(),
@@ -412,7 +353,6 @@ impl Expectations for Meeting {
 
 impl Meeting {
     /// Check one delivery terminal against its observed submission.
-    /// Contract: domain/run.md, sections 8.2 and 8.4; testing-strategy.md, section 7.
     fn delivered(&mut self, owner: Token, push: &Delivery, tree: &[u8], judge: &mut Judge<&'static str, ()>) {
         let asked = self.pushing.remove(&owner);
         judge.check(asked.is_some(), "a host push terminal names a pending push");
@@ -433,9 +373,8 @@ impl Meeting {
         }
     }
 
-    /// Check the final boundary value against actual terminals and provider usage,
+    /// Check the final boundary value against observed terminals and provider usage,
     /// then discharge the one answer obligation. No production state is inspected.
-    /// Contract: domain/run.md, sections 8.4, 10 and 13; testing-strategy.md, section 7.
     fn answer(&mut self, answer: &Answer, pending: usize, judge: &mut Judge<&'static str, ()>) {
         judge.check(self.phase == Phase::Running, "exactly one answer per host start");
         judge.check(
@@ -449,7 +388,7 @@ impl Meeting {
         };
         match answer {
             Answer::Parked { turns, .. } | Answer::Accepted { turns, .. } | Answer::Failed { turns, .. } => {
-                judge.check(*turns == self.turns, "final turn count follows every actual root output");
+                judge.check(*turns == self.turns, "final turn count follows every observed root output");
             }
             Answer::Refused(_) => judge.check(self.turns == 0, "refused start invented no turns"),
         }

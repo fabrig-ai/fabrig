@@ -119,7 +119,7 @@ impl Turns {
         self.assistant_events = self.assistant_events.checked_add(1)?;
         let value = json::field(document, 0, b"message")?;
         let id = json::text_in(document, json::field(document, value, b"id"))?;
-        // programs.md 5.5: an assistant ID without message_start is an
+        // smith/docs/design/protocol/programs.md 5.5: an assistant ID without message_start is an
         // atomic program-authored message. Framed IDs still wait for stop
         // and every block, including when the full content precedes stop.
         if let Some(message) = &self.message
@@ -238,7 +238,7 @@ impl Turns {
             }
         }
         // StructuredOutput's result supplies the finish input for this same
-        // model completion (programs.md 5.5), never an extra budgeted turn.
+        // model completion (smith/docs/design/protocol/programs.md 5.5), never an extra budgeted turn.
         if structured {
             return if boundary { None } else { Some(()) };
         }
@@ -259,7 +259,7 @@ impl Turns {
         Some(())
     }
 
-    // programs.md 5.5: a successful result without an assistant still hands
+    // smith/docs/design/protocol/programs.md 5.5: a successful result without an assistant still hands
     // the no-tool turn to the domain, which owns its nudge allowance.
     pub fn end_empty(&mut self) -> Option<()> {
         if self.assistant_events == 0 && self.ready.is_empty() {

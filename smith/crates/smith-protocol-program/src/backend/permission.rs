@@ -1,4 +1,4 @@
-//! Permission replies wait for the domain's next Complete (programs.md 5.7).
+//! Permission replies wait for the domain's next Complete (smith/docs/design/protocol/programs.md 5.7).
 //! Held prompts share the MCP queue's capacity and payload bound. Correlation
 //! uses the provider's tool id, or its name/input when the id is absent.
 

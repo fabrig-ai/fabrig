@@ -1,32 +1,28 @@
-//! The copied agent, run, session and tools together on a scripted typed host
-//! (domain/run.md, sections 13 and 14; domain/host.md, sections 2 and 11;
+//! The agent, run, session and tools together on a scripted typed host
+//! (domain/run.md, section 13; domain/host.md, sections 2 and 10;
 //! testing-strategy.md, sections 2.2, 6 and 7).
 //!
 //! The world owns time, seeds, a fake checkout and the fake LLM domain.
-//! Its opt-in actual-wire backend adopts prepared shared Clients and byte peers,
-//! passes each actual root Complete receiving contract through the adapter, and
-//! synchronizes their clocks with the root iteration. Active logical callbacks
-//! and retained physical close rights have separate ownership until actual Closed
-//! (scratch/client.md, sections 1, 4, 5 and 6).
-//! Its separate opt-in parent-delivery bridge exposes only actual root requests
-//! and accepts one actual sealed terminal through the existing shared schedule
-//! and flight ledger (domain/run.md, section 8.2; domain/host.md, section 9).
-//! It calls the agent's step, fire and resume entrances under bounded
-//! output pressure. Its host starts one charter, receives one answer and
-//! supplies typed push replies. No engine, host, forge, channel or agent
-//! protocol is linked. Opaque host objects are attested by the skein JSON
-//! parser in the test protocol face. Whole fixture schemas are explicit caller
-//! data; shared Skein owns provider grammar and transport. Arbitrary application
-//! Finish decoding and deployment remain later migration work.
+//! Its opt-in wire backend adopts prepared shared Clients and byte peers,
+//! passes each root Complete receiving contract through the adapter, and
+//! synchronizes their clocks with the root iteration. Logical call owners and
+//! physical close rights remain distinct until the lower Closed terminal.
+//! Its parent-delivery bridge exposes root requests and accepts sealed terminals
+//! through the shared schedule and flight ledger (domain/run.md, section 8.2;
+//! domain/host.md, section 9).
+//! It calls the agent's step, fire and resume entrances under bounded output
+//! pressure. Its host starts one charter, receives one answer and supplies typed
+//! push replies. The world composes the domain and optional protocol peers.
+//! Opaque host objects are attested by the skein JSON parser; fixture schemas
+//! are caller data. Skein owns provider grammar and transport.
 //!
-//! A fixture translator recognizes the copied scripts, not arbitrary provider
-//! documents. The independent referee sees only boundary observations. Facts
-//! are checked after settlement against those observations; they never drive
-//! the host. Replay and memory use skein's shared kit, with no local allocator.
+//! A fixture translator recognizes the scripts' finite argument vocabulary.
+//! The independent referee checks boundary observations after settlement; those
+//! observations never drive the host. Replay and memory use skein's shared kit.
 
 pub mod adapter;
 
-/// Actual Smith component peer for shared-pool and model-progress stories.
+/// Observed Smith component peer for shared-pool and model-progress stories.
 pub mod pool_peer;
 
 mod fixture;

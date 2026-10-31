@@ -98,7 +98,6 @@ impl From<skein_lib::Overflow> for Error {
 }
 
 /// Room a caller keeps at the host-channel edge for one entrance.
-///
 /// At most one owner event and six lower operations fit; past this room the
 /// entrance waits. `send_live` and `offer_fact` count the dropped piece's bytes
 /// or fact instead.
@@ -119,11 +118,9 @@ pub const fn edge_room(_limits: &Limits) -> EdgeRoom {
 
 /// Whether codec edges and responder capacities fit (programming-model.md, 6.3).
 #[must_use]
-#[expect(clippy::manual_let_else, reason = "programming-model.md, section 10: explicit exhaustive matches")]
 pub fn valid(limits: &Limits) -> bool {
-    let schema = match schema(limits) {
-        Ok(schema) => schema,
-        Err(_) => return false,
+    let Ok(schema) = schema(limits) else {
+        return false;
     };
     // Skein's channel sum also checks these control-frame and queue capacities.
     // Check them explicitly rather than probing that heap sum.

@@ -19,7 +19,7 @@ pub const SUBSCRIPTION: &[u8] = b"claude.ai";
 /// Maximum status standard output, in bytes.
 pub const STATUS_BYTES: u32 = 4096;
 
-/// A program's status record, read by the host or agent (programs.md, section 3).
+/// A program's status record, read by the host or agent (smith/docs/design/protocol/programs.md, section 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Status {
     /// Exit 0, logged in through the person's subscription.
@@ -83,7 +83,7 @@ const FILTER: json::Filter = json::Filter {
     ]),
 };
 
-/// Read exit 0 or 1; the caller handles all other exits (programs.md, section 3).
+/// Read exit 0 or 1; the caller handles all other exits (smith/docs/design/protocol/programs.md, section 3).
 #[must_use]
 pub fn status(code: u8, stdout: &[u8]) -> Status {
     if code == 1 {

@@ -1,8 +1,8 @@
-//! Original Start/discovery, actual native replay, parking and root restoration.
+//! Original Start/discovery, observed native replay, parking and root restoration.
 //! Caller fixtures supply opaque native data and handwritten outside expectations;
-//! Skein alone owns their grammar. Every historical body comes from an actual
+//! Skein alone owns their grammar. Every historical body comes from an observed
 //! root Turn, including the independently saved concrete post-transcript result.
-//! Contract: scratch/client.md, sections 1, 3–7; domain/run.md, sections 6,
+//! Contract: domain/run.md, sections 6,
 //! 9, 10 and 13; domain/session.md, section 3; testing-strategy.md, sections 2.3 and 6.
 
 use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Query, Role, Script, Turn};
@@ -18,7 +18,7 @@ use smith_protocol_llm_world::{
 const BEGIN: &[u8] = b"Begin the work your brief describes.";
 const ID: &[u8] = b"call_0000000000000001";
 const FIRST: &[u8] = b"First activation parked.";
-const RESUMED: &[u8] = b"Actual resumed activation.";
+const RESUMED: &[u8] = b"Observed resumed activation.";
 const LAST: &[u8] = b"Second activation parked.";
 const PERSON: &[u8] = b"host: native wake";
 const WAITED: &[u8] = b"Messages arrived. Read them before continuing.";
@@ -134,7 +134,7 @@ fn settings(seed: u64, resume: bool, bounds: &Limits) -> Settings {
     };
     settings.limits.session.completion_bytes =
         adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
-            .expect("complete actual translated reservation before Start");
+            .expect("complete observed translated reservation before Start");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
     settings
@@ -217,10 +217,10 @@ fn exact_prefix(query: &Query, expected: &[Message]) -> bool {
 }
 
 fn prefix_corruptions(query: &Query, fixture: &Fixture, expected: &[Message]) {
-    assert!(exact_prefix(query, expected), "whole positive actual native prefix: {query:?}");
+    assert!(exact_prefix(query, expected), "whole positive observed native prefix: {query:?}");
     for &marker in fixture.markers {
         let mut changed = query.clone();
-        let Part::Opaque { bytes } = &mut changed.messages[1].parts[0] else { panic!("actual opaque") };
+        let Part::Opaque { bytes } = &mut changed.messages[1].parts[0] else { panic!("observed opaque") };
         let at = bytes.windows(marker.len()).position(|part| part == marker).expect("positive opaque metadata");
         bytes[at] = b'X';
         assert!(!exact_prefix(&changed, expected), "rewritten native metadata {marker:?}");
@@ -240,16 +240,18 @@ fn prefix_corruptions(query: &Query, fixture: &Fixture, expected: &[Message]) {
             0 => changed.messages[1].role = Role::User,
             1 => changed.messages[2].role = Role::Assistant,
             2 => {
-                let Part::ToolCall { id, .. } = &mut changed.messages[1].parts[1] else { panic!("actual call") };
+                let Part::ToolCall { id, .. } = &mut changed.messages[1].parts[1] else { panic!("observed call") };
                 *id = b"rewritten-id".as_slice().into();
             }
             3 => {
-                let Part::ToolOutput { id, .. } = &mut changed.messages[2].parts[0] else { panic!("actual feedback") };
+                let Part::ToolOutput { id, .. } = &mut changed.messages[2].parts[0] else {
+                    panic!("observed feedback")
+                };
                 *id = b"rewritten-id".as_slice().into();
             }
             4 => {
                 let Part::ToolOutput { output, .. } = &mut changed.messages[2].parts[0] else {
-                    panic!("actual feedback")
+                    panic!("observed feedback")
                 };
                 *output = b"rewritten feedback".as_slice().into();
             }
@@ -260,8 +262,8 @@ fn prefix_corruptions(query: &Query, fixture: &Fixture, expected: &[Message]) {
     }
 }
 
-fn replay(actual: Option<&llm::Replay>, expected: Option<&[u8]>) -> bool {
-    actual.map(|replay| replay.bytes.as_ref()) == expected
+fn replay(observed: Option<&llm::Replay>, expected: Option<&[u8]>) -> bool {
+    observed.map(|replay| replay.bytes.as_ref()) == expected
 }
 
 fn recorded_wait(turn: &smith_domain::Turn, fixture: &Fixture, opaque: bool) -> bool {
@@ -306,7 +308,7 @@ fn recorded_corruptions(turn: &smith_domain::Turn, fixture: &Fixture) {
     assert!(recorded_wait(turn, fixture, true), "positive full root-owned replay and concrete feedback");
     for at in [0, 1, 2, 6, 7] {
         let mut changed = turn.clone();
-        let llm::Block::Opaque { bytes } = &mut changed.messages[1].content[0] else { panic!("actual envelope") };
+        let llm::Block::Opaque { bytes } = &mut changed.messages[1].content[0] else { panic!("observed envelope") };
         bytes[at] ^= 1;
         assert!(!recorded_wait(&changed, fixture, true), "version/tag/length/body corruption {at}");
     }
@@ -314,7 +316,9 @@ fn recorded_corruptions(turn: &smith_domain::Turn, fixture: &Fixture) {
     missing.messages[1].content = Box::new([missing.messages[1].content[1].clone()]);
     assert!(!recorded_wait(&missing, fixture, true));
     let mut unresolved = turn.clone();
-    let llm::Block::ToolCall { call, .. } = &mut unresolved.messages[1].content[1] else { panic!("actual historical") };
+    let llm::Block::ToolCall { call, .. } = &mut unresolved.messages[1].content[1] else {
+        panic!("observed historical")
+    };
     *call = llm::Decoded::Delegated {
         descriptor: skein_lib::Token::new(99),
         source: smith_domain::session::ToolSource::Run,
@@ -324,23 +328,23 @@ fn recorded_corruptions(turn: &smith_domain::Turn, fixture: &Fixture) {
     assert!(!recorded_wait(&unresolved, fixture, true));
     if fixture.call_replay.is_some() {
         let mut missing = turn.clone();
-        let llm::Block::ToolCall { replay, .. } = &mut missing.messages[1].content[1] else { panic!("actual call") };
+        let llm::Block::ToolCall { replay, .. } = &mut missing.messages[1].content[1] else { panic!("observed call") };
         *replay = None;
         assert!(!recorded_wait(&missing, fixture, true));
     }
 }
 
 fn history(world: &World) -> Transcript {
-    let first = world.turns().first().expect("actual root Turn");
+    let first = world.turns().first().expect("observed root Turn");
     Transcript { version: first.version, endpoint: first.endpoint, dialect: first.dialect, turns: world.turns().into() }
 }
 
-// The parent retains an actual prefix and its concrete result separately;
+// The parent retains an observed prefix and its concrete result separately;
 // no completion, application classification, feedback or usage is manufactured.
 fn post_tail(world: &World) -> (Transcript, AnsweredCall) {
     let mut saved = history(world);
     let first = saved.turns[0].clone();
-    let result = first.messages.last().expect("actual saved Wait terminal").clone();
+    let result = first.messages.last().expect("observed saved Wait terminal").clone();
     saved.turns = Box::new([first]);
     let llm::Block::ToolResult { result: llm::Returned::Text { text, error, .. }, .. } = &result.content[0] else {
         panic!("saved host answer")
@@ -392,7 +396,7 @@ fn accounting(world: &World, fixture: &Fixture, expected_prompts: &[Vec<Message>
     for (index, ((query, turn), expected_prompt)) in
         world.prompts().iter().zip(world.turns()).zip(expected_prompts).enumerate()
     {
-        assert!(exact_prefix(query, expected_prompt), "actual query {index}: {query:?}");
+        assert!(exact_prefix(query, expected_prompt), "observed query {index}: {query:?}");
         let wanted = expected_usage(
             query,
             expected_prompt,
@@ -400,15 +404,15 @@ fn accounting(world: &World, fixture: &Fixture, expected_prompts: &[Vec<Message>
             outputs[index],
             fixture,
         );
-        let actual = [
+        let observed = [
             turn.usage.input_tokens.expect("SDK fixture reports usage"),
             turn.usage.output_tokens.expect("SDK fixture reports usage"),
             turn.usage.cache_read_tokens.expect("SDK fixture reports usage"),
             turn.usage.cache_write_tokens.expect("SDK fixture reports usage"),
         ];
-        assert_eq!(actual, wanted, "all four actual SDK usage fields at completion {index}");
+        assert_eq!(observed, wanted, "all four observed SDK usage fields at completion {index}");
         for field in 0..4 {
-            let mut changed = actual;
+            let mut changed = observed;
             changed[field] += 1;
             assert_ne!(changed, wanted, "usage field {field} participates in the oracle");
         }
@@ -437,7 +441,7 @@ fn settled(world: &World, settings: &Settings) {
     assert_eq!(world.waiting().len(), if world.turns().len() == 2 { 2 } else { 1 });
     assert_eq!(world.waiting()[0].1, None);
     assert!(
-        world.answered_at() >= world.waiting().last().expect("actual idle wait").0.saturating_add(settings.waiting)
+        world.answered_at() >= world.waiting().last().expect("observed idle wait").0.saturating_add(settings.waiting)
     );
     assert!(world.host_submissions().is_empty() && world.host_terminals().is_empty());
     assert_eq!(world.host_decisions(), 0);
@@ -452,12 +456,13 @@ fn settled(world: &World, settings: &Settings) {
             binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
             [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
         );
-        assert!(binding.retired.is_some(), "actual lower Closed permits physical retirement");
+        assert!(binding.retired.is_some(), "observed lower Closed permits physical retirement");
     }
     let read = world.trace().iter().position(|line| line.contains("agent -> Read {")).expect("original discovery");
     let returned =
-        world.trace().iter().position(|line| line.contains("agent <- Read {")).expect("actual guide terminal");
-    let complete = world.trace().iter().position(|line| line.contains("agent -> Complete {")).expect("actual Complete");
+        world.trace().iter().position(|line| line.contains("agent <- Read {")).expect("observed guide terminal");
+    let complete =
+        world.trace().iter().position(|line| line.contains("agent -> Complete {")).expect("observed Complete");
     assert!(read < returned && returned < complete);
     assert!(
         world.prompts()[0]
@@ -478,7 +483,7 @@ fn resume(first: &World, fixture: &Fixture, index: usize, tail: bool) {
     } else {
         (history(first), Box::default())
     };
-    let sequence = saved.turns.last().expect("actual persisted prefix").sequence;
+    let sequence = saved.turns.last().expect("observed persisted prefix").sequence;
     let bounds = bounds();
     let settings = settings(920, true, &bounds);
     let mut world =
