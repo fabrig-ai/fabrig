@@ -1284,7 +1284,8 @@ impl World {
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
         self.fake_env.now = self.env.now;
         self.fake_env.wall = self.env.wall;
-        if let Some(event) = self.events.pop_front() {
+        if let Some(index) = self.events.iter().position(|event| !crate::waits_for_start(&self.root, event)) {
+            let event = self.events.remove(index).expect("selected eligible input");
             self.send(event);
         }
         if let Some((_, writes)) = self.store.pending.front() {
