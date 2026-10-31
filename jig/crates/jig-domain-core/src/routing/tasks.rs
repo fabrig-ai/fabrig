@@ -284,40 +284,11 @@ pub(super) fn tag_tasks(
                 continue;
             }
             tasks::Request::EscalationNeeded { context } => {
-                let role = core.people.role(context.requester, context.project);
-                let Some(holder) = core.escalation_recipient(&env.limits, &context, role) else {
-                    out.push(Request::Now(Box::new(Now::RestoreRefused)));
-                    continue;
-                };
-                match context.escalation {
-                    tasks::Escalation::Waiting { holder: old, .. } if old == holder => continue,
-                    tasks::Escalation::Waiting { revision, holder: old, .. }
-                        if old != holder && revision == u64::MAX =>
-                    {
-                        out.push(Request::Now(Box::new(Now::RestoreRefused)));
-                        continue;
-                    }
-                    tasks::Escalation::Unheld { .. }
-                    | tasks::Escalation::Routing { .. }
-                    | tasks::Escalation::Waiting { .. }
-                    | tasks::Escalation::Rejected { .. } => {}
-                }
-                let Some(entry) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-                    out.push(Request::Now(Box::new(Now::RestoreRefused)));
-                    continue;
-                };
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                    tasks::Event::RoutedEscalation {
-                        task: context.task,
-                        revision: context.escalation.revision(),
-                        holder,
-                        entry,
-                    },
-                    &mut follow,
-                );
+                if !core.route_waiting_escalation(env, &context, &mut follow) {
+                    out.push(Request::Now(Box::new(Now::RestoreRefused)));
+                    continue;
+                }
                 for _ in 0..follow.len() {
                     pending.push(follow.pop().expect("escalation output count"));
                 }
