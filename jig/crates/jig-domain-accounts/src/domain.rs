@@ -481,11 +481,11 @@ impl Domain {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the event table keeps each accounts transition exhaustive")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.consume_restore();
     domain.now = env.now;
     match event {
-        Event::ForgetProject { .. } => {}
         Event::Restore { record } => restore(domain, env, record),
         Event::Want => want(domain, env, out),
         Event::ProgramTargets { source, hosts } => crate::programs::targets(domain, source, hosts, out),
@@ -505,7 +505,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Adopted { source, kept } if domain.wanted() => {
             crate::signing::adopted(domain, env, source, kept, out);
         }
-        Event::Withdrawn { .. } | Event::Opened { .. } | Event::NotOurs { .. } | Event::Adopted { .. } => {}
+        Event::ForgetProject { .. }
+        | Event::Withdrawn { .. }
+        | Event::Opened { .. }
+        | Event::NotOurs { .. }
+        | Event::Adopted { .. } => {}
         Event::Close => close(domain, env, out),
         Event::Component(FromComponent::Closed) => {
             if domain.phase != Phase::Closing {
