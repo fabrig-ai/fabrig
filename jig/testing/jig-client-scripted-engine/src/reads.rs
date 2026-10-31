@@ -1,5 +1,5 @@
 //! Retained rows and scoped opaque cursors; contract.md, 6.
-use crate::{Bounds, Engine, Invalid, Up, payload};
+use crate::{Bounds, Engine, Invalid, Up};
 use jig_client_domain::contract::{
     ActivityLine, ActivityPage, Cursor, HistoryPage, HistoryRow, InboxGroup, InboxReadGroup, Note, NotePage, NoteScope,
     ObjectKey, OwnerEndedDelegate, OwnerEndedPage, OwnerFundingRecord, OwnerInboxEntry, OwnerInboxPage, OwnerSpendPage,
@@ -8,7 +8,7 @@ use jig_client_domain::contract::{
 use skein_lib::{List, Time, Token};
 
 /// An authoritative retained row collection, not a protocol page.
-/// Every row is checked as a whole payload; the protocol chooses bounded pages.
+/// Each row passes through the wire codec and link; the protocol chooses bounded pages.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Rows {
     Tasks(Vec<jig_client_domain::contract::TaskLine>),
@@ -29,7 +29,7 @@ pub struct Source {
 impl Source {
     pub(crate) fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
         let (read, cursor) = plain(self.read.clone());
-        if cursor.is_some() || !payload::fits(&read, bounds) || !self.rows.matches(&read) {
+        if cursor.is_some() || crate::codec::selector(&read, bounds).is_err() || !self.rows.matches(&read) {
             return Err(Invalid::Identity);
         }
         self.rows.validate(bounds)?;
@@ -175,7 +175,7 @@ pub(crate) fn plain(mut read: Read) -> (Read, Option<Cursor>) {
 impl<A: crate::Application> Engine<A> {
     /// Captures one read at the latest numbered commit. A token receives one terminal.
     pub fn read(&mut self, now: Time, sign_in: u64, token: Token, read: Read) -> core::result::Result<(), Invalid> {
-        if !payload::fits(&read, &self.bounds) {
+        if crate::codec::selector(&read, &self.bounds).is_err() {
             return Err(Invalid::Payload);
         }
         if !self.read_tokens.insert(token) {
@@ -342,7 +342,6 @@ impl<A: crate::Application> Engine<A> {
         };
         for row in rows {
             let source = row.source;
-            let decoded = row.decoded;
             if source.task == task
                 && matches!(source.line, jig_client_domain::contract::OwnerActivity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
             {
@@ -388,10 +387,10 @@ impl<A: crate::Application> Engine<A> {
                     | Read::Turn { .. } | Read::PersonTask { .. } | Read::Result { .. } | Read::Ended { .. } | Read::History { .. } | Read::Activity { .. } | Read::Spend { .. } | Read::Project { .. } | Read::Notes { .. } | Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => false,
                 }
             }).collect();
-                rows.sort_by(|a, b| {
-                    let order = if jig_client_view::page::inbox::needs(a.group()) { a.at.cmp(&b.at) } else { b.at.cmp(&a.at) };
-                    order.then(a.card_key().cmp(&b.card_key()))
-                });
+                // The core orders needs oldest first and updates newest first,
+                // then by update position, task and exact inbox object.
+                // jig/docs/design/domain/engine.md, 11.2.
+                rows.sort_by_key(inbox_order);
                 Rows::Inbox(rows)
             },
             Rows::Notes(rows) => Rows::Notes(rows.into_iter().filter(|row| {
@@ -473,5 +472,20 @@ fn empty(read: &Read) -> Rows {
     }
 }
 
-#[cfg(test)]
-mod page_loss;
+fn inbox_order(row: &OwnerInboxEntry) -> (bool, u64, u64, u64, jig_client_domain::contract::OwnerInboxObject) {
+    use jig_client_domain::contract::OwnerInboxObject;
+    let time = row.at.map_or(0, skein_lib::Wall::as_nanos);
+    let position = match row.object {
+        OwnerInboxObject::Result { position } => Some(position),
+        OwnerInboxObject::Reply { message } => Some(message),
+        OwnerInboxObject::Question { .. }
+        | OwnerInboxObject::Proposal { .. }
+        | OwnerInboxObject::Escalation { .. }
+        | OwnerInboxObject::PersonTask => None,
+    };
+    let task = row.task_number();
+    match position {
+        Some(position) => (true, u64::MAX - time, u64::MAX - position, task, row.object),
+        None => (false, time, task, task, row.object),
+    }
+}

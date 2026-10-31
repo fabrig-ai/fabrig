@@ -124,9 +124,7 @@ its own, wherever a presentation builds on skein's UI kit.
   read; watches delivered level-triggered, a delivery in flight at a
   time; a run's text written out over time. It holds the truth the
   referee compares with: what it committed, and when.
-  Its payloads' `heap_bound` functions size whole document values at
-  their receiving bounds, including nested allocations; these are
-  document envelopes, not a process heap sum.
+  It encodes what it serves with jig's wire codec and hands it to the client through the link's decoding, so the link's bounds are the one admission rule for both fronts.
 - **The transport, played by the world:** it carries the client's
   exchanges and its stream to the scripted engine, and its records to
   the small store, with section 7's faults between.

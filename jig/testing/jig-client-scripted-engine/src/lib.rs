@@ -11,15 +11,9 @@
 //! | retained key | different ask | unchanged | key conflict |
 //! The story supplies wall times separately from the scheduling clock.
 #![forbid(unsafe_code)]
-mod admission;
 mod application;
 mod codec;
 mod faults;
-pub mod offered;
-pub mod owner_wake;
-mod payload;
-pub use admission::{admit_activity_line, admit_answer, admit_delivery, admit_frame, admit_read_value};
-pub mod policy_edit;
 pub use application::{
     Application, ApplicationCommit, ApplicationScope, ApplicationValue, Decision, Never, NoApplication,
 };
@@ -437,33 +431,5 @@ impl<A: Application> Engine<A> {
 }
 #[cfg(test)]
 mod tests;
-
-pub mod owner_authority;
-pub mod owner_budget;
-
-pub use payload::owner_outcome::{admit_owner_outcome, owner_outcome_bytes};
-
-pub mod owner_chip;
-
-pub mod owner_amendment;
-
-pub mod owner_activity;
-
-pub mod owner_history;
-
-pub mod owner_milestone;
-
-pub mod owner_inbox;
-
-pub mod owner_tree;
-
-pub mod owner_person_task;
-pub mod owner_proposal;
-
-pub mod historical_pages;
-/// Deployment owner admission and recursive allocation bounds.
-pub mod owner_deployment;
-pub mod owner_historical;
-pub mod owner_project;
 
 mod queries;

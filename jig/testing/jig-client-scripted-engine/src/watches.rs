@@ -1,5 +1,5 @@
 //! One in-flight document and a dirty mark per watch; contract.md, 7.
-use crate::{Engine, Invalid, Rows, Up, payload, reads::list};
+use crate::{Engine, Invalid, Rows, Up, reads::list};
 use jig_client_domain::contract::{
     Call, Delivery, LiveCall, ObjectKey, OwnerInbox, OwnerInboxCursor, OwnerPhaseCounts, OwnerRequester, Phase,
     ProvisionalTurnName, Read, ReadValue, RunState, RunText, Subject, Tasks, Text, TurnName, WatchEnd, WatchEvent,
@@ -24,7 +24,7 @@ pub(crate) struct Watch {
 impl<A: crate::Application> Engine<A> {
     /// Admits one subject, then emits whole current values until one terminal.
     pub fn open(&mut self, now: Time, sign_in: u64, token: Token, subject: Subject) -> Result<(), Invalid> {
-        if !payload::fits(&subject, &self.bounds) {
+        if crate::codec::subject(&subject, &self.bounds).is_err() {
             return Err(Invalid::Payload);
         }
         if !self.watch_tokens.insert(token) {
@@ -254,14 +254,20 @@ impl<A: crate::Application> Engine<A> {
                     needs: list(
                         &rows
                             .iter()
-                            .filter(|row| jig_client_view::page::inbox::needs(row.group()))
+                            .filter(|row| {
+                                jig_client_domain::contract::InboxReadGroup::of(row.group())
+                                    == jig_client_domain::contract::InboxReadGroup::Needs
+                            })
                             .cloned()
                             .collect::<Vec<_>>(),
                     ),
                     updates: list(
                         &rows
                             .iter()
-                            .filter(|row| !jig_client_view::page::inbox::needs(row.group()))
+                            .filter(|row| {
+                                jig_client_domain::contract::InboxReadGroup::of(row.group())
+                                    != jig_client_domain::contract::InboxReadGroup::Needs
+                            })
                             .cloned()
                             .collect::<Vec<_>>(),
                     ),

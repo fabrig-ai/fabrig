@@ -14,7 +14,6 @@ jig-client-protocol-link.workspace = true
 skein-codec.workspace = true
 smith-transcript.workspace = true
 skein-lib.workspace = true
-jig-client-view.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

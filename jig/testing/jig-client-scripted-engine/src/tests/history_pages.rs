@@ -1,6 +1,4 @@
 use super::*;
-use crate::payload::Payload;
-use core::mem::size_of;
 fn semantic() -> HistoryRow {
     let task = task();
     let before = OwnerAmendmentState {
@@ -50,47 +48,7 @@ fn milestone() -> HistoryRow {
         at: Some(Wall::EPOCH),
     }))
 }
-#[test]
-fn whole_history_page_prices_all_boxes_stored_presence_and_reserved_rows_without_trimming() {
-    let mut bounds = live_script().bounds;
-    bounds.rows = 3;
-    bounds.document_bytes = u64::MAX;
-    let values = [semantic(), milestone()];
-    let mut rows = List::with_capacity(3);
-    for value in &values {
-        rows.push(value.clone()).unwrap();
-    }
-    let page = HistoryPage {
-        cut: true,
-        rows,
-        before: Some(Cursor::new(Box::from(b"opaque before".as_slice()), 1024).expect("bounded opaque cursor")),
-        after: Some(Cursor::new(Box::from(b"opaque after".as_slice()), 1024).expect("bounded opaque cursor")),
-    };
-    let mut expected = u64::try_from(size_of::<HistoryPage>()).unwrap()
-        + List::<HistoryRow>::price(3).unwrap()
-        + u64::try_from(b"opaque before".len() + b"opaque after".len()).unwrap();
-    for value in &values {
-        match value {
-            HistoryRow::Change(line) => expected += crate::owner_history::bytes(line, &bounds).unwrap(),
-            HistoryRow::Milestone(line) => expected += crate::owner_milestone::bytes(line, &bounds).unwrap(),
-        }
-    }
-    assert_eq!(page.heap(&bounds).unwrap() + u64::try_from(size_of::<HistoryPage>()).unwrap(), expected);
-    assert!(crate::payload::fits(&page, &Bounds { document_bytes: expected, ..bounds }));
-    assert!(!crate::payload::fits(&page, &Bounds { document_bytes: expected - 1, ..bounds }));
-    assert_eq!(page.rows.as_slice(), &values);
-    assert!(page.cut);
-    let row = semantic();
-    let row_bytes = row.heap(&bounds).unwrap() + u64::try_from(size_of::<HistoryRow>()).unwrap();
-    let source = Source {
-        party: 1,
-        read: Read::History { task: 8, subtree: true, after: None },
-        rows: Rows::History(vec![row.clone()]),
-    };
-    assert!(source.validate(&Bounds { document_bytes: row_bytes, ..bounds }).is_ok());
-    assert_eq!(source.validate(&Bounds { document_bytes: row_bytes - 1, ..bounds }), Err(Invalid::Payload));
-    assert_eq!(source.rows, Rows::History(vec![row]));
-}
+
 #[test]
 fn scripted_history_pages_keep_change_and_milestone_rows_under_opaque_source_continuations() {
     let values = vec![semantic(), milestone()];

@@ -1,6 +1,6 @@
 //! The story's starting documents and atomic changes; contract.md, 5.
 //! Documents carry offers, revisions, terminal facts and parts in the client's vocabulary.
-use crate::{Bounds, Invalid, Source, payload};
+use crate::{Bounds, Invalid, Source};
 use jig_client_domain::contract::{Answer, Ask, Me, Note, ObjectKey, OwnerTree, ReadValue};
 use std::collections::BTreeMap;
 
@@ -103,7 +103,7 @@ impl Change {
             Self::Revisions { value, .. } => {
                 crate::codec::read(&ReadValue::Revisions(Box::new(value.clone())), bounds).is_ok()
             }
-            Self::Request(ask) => payload::fits(ask, bounds),
+            Self::Request(ask) => crate::codec::ask(ask, bounds).is_ok(),
             Self::Source(value) => {
                 return value.validate(bounds);
             }
@@ -120,9 +120,7 @@ impl Change {
                 }
                 crate::codec::read(value, bounds).is_ok()
             }
-            Self::OwnerProject(value) => {
-                crate::codec::read(&ReadValue::OwnerProject(Box::new(value.clone())), bounds).is_ok()
-            }
+            Self::OwnerProject(value) => crate::codec::read(&ReadValue::OwnerProject(value.clone()), bounds).is_ok(),
             Self::Note(value) => crate::codec::read(
                 &ReadValue::Notes(Box::new(jig_client_domain::contract::NotePage {
                     cut: false,
@@ -305,7 +303,7 @@ impl Rule {
         if matches!(self.answer, Answer::Refused { refusal: _, .. }) && !self.changes.is_empty() {
             return Err(Invalid::Script);
         }
-        if !payload::fits(&self.ask, bounds) || crate::codec::answer(&self.answer, bounds).is_err() {
+        if crate::codec::ask(&self.ask, bounds).is_err() || crate::codec::answer(&self.answer, bounds).is_err() {
             return Err(Invalid::Payload);
         }
         for change in &self.changes {

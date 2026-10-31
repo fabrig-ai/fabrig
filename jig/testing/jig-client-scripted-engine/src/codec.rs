@@ -7,7 +7,7 @@ mod facts;
 mod front;
 mod turns;
 mod values;
-pub(crate) use front::{answer, delivery, none, read};
+pub(crate) use front::{answer, ask, delivery, none, read, selector, subject};
 use turns::turn_bytes;
 
 #[cfg(test)]

@@ -1,7 +1,5 @@
 //! Whole request receiving and durable key equality include the supplied reason.
 use super::*;
-use crate::payload::{self, Payload};
-use core::mem::size_of;
 fn amendment(reason: &[u8]) -> Ask {
     Ask::Amend {
         project: 1,
@@ -20,24 +18,7 @@ fn amendment(reason: &[u8]) -> Ask {
         }),
     }
 }
-#[test]
-fn whole_amendment_request_prices_full_reason_and_rejects_text_or_document_overflow() {
-    let mut bounds = Bounds { text: 32, rows: 2, document_bytes: u64::MAX, ..Bounds::default() };
-    for bytes in [b"".as_slice(), UTF8_TEXTS[0]] {
-        let ask = amendment(bytes);
-        let before = ask.clone();
-        let heap = u64::try_from(size_of::<Amendment>()).unwrap() + u64::try_from(bytes.len()).unwrap();
-        assert_eq!(ask.heap(&bounds).unwrap(), heap);
-        let total = u64::try_from(size_of::<Ask>()).unwrap() + heap;
-        bounds.document_bytes = total;
-        assert!(payload::fits(&ask, &bounds));
-        bounds.document_bytes = total - 1;
-        assert!(!payload::fits(&ask, &bounds));
-        assert_eq!(ask, before);
-        bounds.document_bytes = u64::MAX;
-    }
-    assert!(!payload::fits(&amendment(UTF8_TEXTS[1]), &bounds));
-}
+
 #[test]
 fn durable_amendment_key_replay_keeps_reason_and_changed_reason_is_a_conflict() {
     let mut setup = script();

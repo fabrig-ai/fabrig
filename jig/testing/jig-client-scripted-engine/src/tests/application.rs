@@ -12,16 +12,6 @@ struct OwnAsk {
     core: Option<List<Ask>>,
     raw: bool,
 }
-impl payload::Payload for OwnDocument {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        self.words.heap(bounds)?.checked_add(self.rows.heap(bounds)?)
-    }
-}
-impl payload::Payload for OwnAsk {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        self.words.heap(bounds)?.checked_add(self.transport.heap(bounds)?)?.checked_add(self.core.heap(bounds)?)
-    }
-}
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct OwnApplication {
     document: OwnDocument,
@@ -33,10 +23,16 @@ impl Application for OwnApplication {
     type Document = OwnDocument;
     fn fits(&self, value: ApplicationValue<'_, Self>, bounds: &Bounds) -> bool {
         match value {
-            ApplicationValue::Ask(value) => payload::fits(value, bounds),
-            ApplicationValue::Answer(value) | ApplicationValue::Document(value) => payload::fits(value, bounds),
-            ApplicationValue::Subject(value) => payload::fits(value, bounds),
-            ApplicationValue::State(value) => payload::fits(&value.document, bounds),
+            ApplicationValue::Ask(value) => {
+                value.words.fits(bounds.text)
+                    && value.transport.fits(bounds.text)
+                    && value.core.as_ref().is_none_or(|asks| {
+                        asks.capacity() <= bounds.rows && asks.iter().all(|ask| crate::codec::ask(ask, bounds).is_ok())
+                    })
+            }
+            ApplicationValue::Answer(value) | ApplicationValue::Document(value) => document_fits(value, bounds),
+            ApplicationValue::Subject(_) => true,
+            ApplicationValue::State(value) => document_fits(&value.document, bounds),
         }
     }
     fn decide(&mut self, _: &Truth, _: u64, ask: &OwnAsk, _: Wall) -> ApplicationDecision<OwnDocument> {
@@ -498,17 +494,6 @@ fn scenario_application_values_are_bounded_before_retention() {
     assert!(
         matches!(&engine.poll(at(20_000_000))[0],Up::ApplicationAnswer {answer:Some(Ok(doc)),..} if doc.revision==1)
     );
-    let mut setup = own_script();
-    setup.bounds.document_bytes = 5000;
-    let mut engine = Engine::with_application(setup, 24, own()).expect("whole-byte kit");
-    let mut ask = own_ask(b"large");
-    ask.words = text(&[b'a'; 3000]);
-    ask.transport = text(&[b'b'; 3000]);
-    assert_eq!(
-        engine.send_application(Time::ZERO, Wall::EPOCH, 11, [1; 16], Token::new(1), 7, 1, [1; 32], ask),
-        Err(Invalid::Payload),
-        "nested fields are priced together"
-    );
 }
 fn scenario_application_watches_coalesce_and_end_truthfully() {
     let mut engine = Engine::with_application(own_script(), 25, own()).expect("own watch kit");
@@ -540,4 +525,10 @@ pub(super) fn run() {
     scenario_application_jig_requests_cannot_bypass_admission();
     scenario_application_values_are_bounded_before_retention();
     scenario_application_watches_coalesce_and_end_truthfully();
+}
+
+fn document_fits(value: &OwnDocument, bounds: &Bounds) -> bool {
+    value.words.fits(bounds.text)
+        && value.rows.capacity() <= bounds.rows
+        && value.rows.iter().all(|text| text.fits(bounds.text))
 }

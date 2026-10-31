@@ -589,7 +589,6 @@ dependencies = [
  "jig-client-domain",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-view",
  "skein-codec",
  "skein-lib",
  "smith-transcript",

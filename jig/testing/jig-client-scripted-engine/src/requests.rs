@@ -5,7 +5,7 @@ mod decisions;
 use decisions::{decided, repeated};
 mod priorities;
 mod projects;
-use crate::{Engine, Envelope, Invalid, Keyed, RequestIdentity, Retained, Up, payload};
+use crate::{Engine, Envelope, Invalid, Keyed, RequestIdentity, Retained, Up};
 use jig_client_domain::contract::{
     ActKind, Admission, Answer, Ask, CurrentHold, Decision, Ending, Moved, ObjectKey, Offered, Outcome, OwnerChipHold,
     OwnerRequester, ReadValue, Recipient, Refusal, Revision,
@@ -25,7 +25,7 @@ impl<A: crate::Application> Engine<A> {
         attempt: Token,
         ask: Ask,
     ) -> core::result::Result<(), Invalid> {
-        if !payload::fits(&ask, &self.bounds) {
+        if crate::codec::ask(&ask, &self.bounds).is_err() {
             return Err(Invalid::Payload);
         }
         self.attempts.insert(attempt, sign_in);

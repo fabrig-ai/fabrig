@@ -1,6 +1,4 @@
 use super::*;
-use crate::payload::{self, Payload};
-use core::mem::size_of;
 
 #[test]
 fn scripted_owner_hold_moves_return_exact_category_for_release_and_atomic_amend_release() {
@@ -66,5 +64,3 @@ fn scripted_owner_hold_moves_return_exact_category_for_release_and_atomic_amend_
         );
     }
 }
-
-const UTF8_TEXTS: [&[u8]; 1] = [&[b'!'; 32]];
