@@ -775,6 +775,8 @@ pub fn settle_root(
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
                 | root::Request::BoxGroup { .. }
+                | root::Request::PlaygroundActs { .. }
+                | root::Request::ResetAct { .. }
                 | root::Request::BoxRemove { .. }
                 | root::Request::Connect { .. }
                 | root::Request::Manifest { .. }

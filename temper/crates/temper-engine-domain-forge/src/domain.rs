@@ -119,11 +119,19 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 /// The bounded forge connector subtree.
 #[derive(Debug)]
 pub struct Domain {
+    retire_pending: bool,
     pub(crate) machine: Option<crate::Machine>,
     pub(crate) records: Map<u16, crate::ForgeRecord>,
     pub(crate) forge_number: u16,
     pub(crate) configured: Map<u16, crate::Configured>,
     pub(crate) under_box: bool,
+    pub(crate) playground_config: Option<crate::PlaygroundConfig>,
+    pub(crate) playground: Option<crate::Playground>,
+    pub(crate) playground_pending: Map<Token, Token>,
+    pub(crate) playground_ends: Map<Token, Token>,
+    pub(crate) playground_answers: Map<Token, crate::Answered>,
+    pub(crate) playground_due: Option<skein_lib::Time>,
+    pub(crate) playground_request: Option<Token>,
     pub(crate) demo: Option<crate::DemoConfig>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) demo_state: Option<crate::DemoState>,
@@ -350,6 +358,9 @@ impl Domain {
         if let Some(answer) = self.connect.answers.get(&token) {
             return Some(answer.clone());
         }
+        if let Some(answer) = self.playground_answers.get(&token) {
+            return Some(answer.clone());
+        }
         if let Some(answer) = self.demo_answers.get(&token) {
             return Some(crate::Answered::StartDemo(answer.clone()));
         }
@@ -525,10 +536,18 @@ impl Domain {
         }
         Ok(Domain {
             machine: None,
+            retire_pending: false,
             records: Map::with_capacity(l.forges),
             forge_number,
             configured,
             under_box,
+            playground_config: None,
+            playground: None,
+            playground_pending: Map::with_capacity(l.applications),
+            playground_ends: Map::with_capacity(l.applications),
+            playground_answers: Map::with_capacity(l.applications.saturating_mul(2)),
+            playground_due: None,
+            playground_request: None,
             demo: None,
             demo_state: None,
             bindings: Map::with_capacity(l.bindings),
@@ -674,6 +693,9 @@ impl Domain {
             (Some(client), Some(brief)) => Some(client.min(brief)),
             (client, brief) => client.or(brief),
         }
+        .into_iter()
+        .chain(self.playground_due)
+        .min()
     }
 
     /// Earliest procedure or projection wait, reported to the root's clock.
@@ -1050,6 +1072,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             };
             out.push(Request::Bound { request, answer });
         }
+        Event::PlaygroundMade { project, account } => crate::playground::made(d, project, account, out),
+        Event::PlaygroundFailed { why } => crate::playground::failed(d, why, out),
+        Event::ResetActAnswered { key, keep } => crate::playground::act_answered(d, key, keep, out),
         Event::DemoActs { acts } => crate::demo::acts(d, acts, out),
         Event::DemoActAnswered { key, keep } => crate::demo::act_answered(d, key, keep, out),
         Event::SendDemoActs => crate::demo::send_acts(d, out),
@@ -1154,6 +1179,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 | crate::Connection::Stopped { .. } => None,
             };
             d.connections.insert(forge, (state, failed)).expect("configured forge connections");
+            crate::playground::connected(d, out);
             out.push(Request::MarkedForges);
         }
         Event::Installation { forge, installation, state } => {
@@ -1167,17 +1193,29 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             out.push(Request::MarkedForges);
         }
-        Event::SecretsErased { .. } | Event::BoxRemoved { .. } => {}
+        Event::SecretsErased { forge } => {
+            crate::removal::secrets_erased(d, forge, out);
+            crate::playground::removed(d, out);
+        }
+        Event::BoxRemoved { forge } => {
+            crate::removal::box_removed(d, forge, out);
+            crate::playground::removed(d, out);
+        }
         Event::Application { request, token, retention, ask, role, carried } => match ask {
-            ask @ (crate::Ask::RemoveForge { .. }
-            | crate::Ask::StartPlayground
-            | crate::Ask::EndPlayground
-            | crate::Ask::Connect { .. }
+            crate::Ask::RemoveForge { forge } => {
+                if let Some(value) = carried {
+                    out.push(Request::CarriedUnused { number: value.number });
+                }
+                crate::removal::admit(d, request, token, role, forge, out);
+            }
+            ask @ (crate::Ask::Connect { .. }
             | crate::Ask::Install { .. }
             | crate::Ask::Accept { .. }
             | crate::Ask::Reachable { .. }) => {
                 crate::connect::start(d, request, token, ask, role, carried, out);
             }
+            crate::Ask::StartPlayground => crate::playground::start(d, env.now, request, token, out),
+            crate::Ask::EndPlayground => crate::playground::end(d, request, token, out),
             crate::Ask::StartDemo => crate::demo::start(d, request, token, out),
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             ask @ crate::Ask::SetUp { .. } => make::setup(d, env, request, token, retention, ask, carried, out),
@@ -1334,6 +1372,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::ReadAfresh => read_afresh(d, env, out),
         Event::SettleOutbox => settle_outbox(d, env, out),
     }
+    if d.retire_pending {
+        d.retire_pending = false;
+        retire_ended(d, env, out);
+    }
 }
 
 /// Drive one child call after prior saves have committed.
@@ -1349,6 +1391,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         drain(d, env, out);
         return;
     }
+    crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     let before = out.len();
     handoff_one(d, env, out);
@@ -1385,6 +1428,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         drain(d, env, out);
         return;
     }
+    crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     let mut goals = List::with_capacity(env.limits.issues);
     for (goal, when) in &d.projection_due {
@@ -4755,9 +4799,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::ForgeNumber { last } => {
             d.forge_number = d.forge_number.max(last);
         }
-        Stored::Playground(_) => {
-            // t-forge-map keeps it
-        }
+        Stored::Playground(row) => d.playground = Some(row),
         Stored::Landing(row) => {
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
@@ -4890,6 +4932,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
             emit(out, Request::ForgeKept(record.clone()));
         }
     }
+    crate::removal::restart(d, out);
     emit(out, Request::RestartDone { stage: RestartStage::Restored });
 }
 
@@ -4913,6 +4956,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::landing::rebuild(d);
     d.restore_phase = RestorePhase::Active;
     crate::demo::restart(d, out);
+    crate::playground::restart(d, out);
     d.restart_fresh = Some(false);
     let mut lost_runs = List::with_capacity(env.limits.holds);
     for (_, hold) in &d.holds {
@@ -4950,37 +4994,52 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 // A permanently retired forge has no future observation to await. Its
 // historical rows stay; its live watches and local release gates do not.
-fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if d.demo_state != Some(crate::DemoState::Ended) {
-        return;
-    }
-    let mut removed = List::with_capacity(env.limits.holds);
+/// Drop the forge's local reads now; the event's environment retires its watches before returning.
+pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
+    let mut removed = List::with_capacity(d.lost.capacity());
     for (owner, pending) in &d.lost {
-        if d.forge_ended(pending.name.forge) {
+        if pending.name.forge == forge {
             removed.push(*owner).expect("bounded lost reads");
         }
     }
     for owner in removed.into_boxed() {
         d.lost.remove(&owner);
     }
-    let mut ci = List::with_capacity(env.limits.subscriptions);
+    let mut ci = List::with_capacity(d.pending_ci.capacity());
     for (owner, pending) in &d.pending_ci {
-        if d.forge_ended(pending.repository.forge) {
+        if pending.repository.forge == forge {
             ci.push(*owner).expect("bounded CI reads");
         }
     }
     for owner in ci.into_boxed() {
         d.pending_ci.remove(&owner);
     }
-    let mut files = List::with_capacity(env.limits.changes);
+    let mut files = List::with_capacity(d.goal_file_reads.capacity());
     for (owner, pending) in &d.goal_file_reads {
-        if d.forge_ended(pending.repository.forge) {
+        if pending.repository.forge == forge {
             files.push(*owner).expect("bounded goal file reads");
         }
     }
     for owner in files.into_boxed() {
         d.goal_file_reads.remove(&owner);
     }
+    d.retire_pending = true;
+}
+
+fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut ended = List::with_capacity(d.configured.capacity());
+    for (forge, _) in &d.configured {
+        if d.forge_ended(*forge) {
+            ended.push(*forge).expect("configured forge bound");
+        }
+    }
+    if ended.is_empty() {
+        return;
+    }
+    for forge in ended.into_boxed() {
+        retire_forge(d, forge);
+    }
+    d.retire_pending = false;
     let mut watches = Map::with_capacity(env.limits.client.resources);
     for (_, names) in &d.names {
         for name in names {

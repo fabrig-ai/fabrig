@@ -482,6 +482,8 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
                 | root::Request::BoxGroup { .. }
+                | root::Request::PlaygroundActs { .. }
+                | root::Request::ResetAct { .. }
                 | root::Request::BoxRemove { .. }
                 | root::Request::Return { .. }
                 | root::Request::SetUp { .. }

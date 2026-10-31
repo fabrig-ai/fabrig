@@ -485,6 +485,8 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 | Request::ForgeKept(_)
                 | Request::ForgeGone { .. }
                 | Request::BoxGroup { .. }
+                | Request::PlaygroundActs { .. }
+                | Request::ResetAct { .. }
                 | Request::BoxRemove { .. }
                 | Request::Connect { .. }
                 | Request::Manifest { .. }

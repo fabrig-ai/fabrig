@@ -34,6 +34,7 @@ mod judge;
 mod landing;
 mod limits;
 mod panel;
+mod playground;
 pub mod purpose;
 mod result;
 pub use result::{ChangeResult, ResultText};
