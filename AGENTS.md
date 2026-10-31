@@ -39,7 +39,7 @@ What every agent working here must know. Read it first, then the `AGENTS.md` of 
 
 ## 5. Build machines
 
-- Builders: hetzner6 (`free@2.29.120.8`; 8 cores, 15 GB) and hetzner9 (`free@2.29.101.185`; 8 vCPU, 15 GB), heavy admitting three builds at once on each. Their warm checkouts are the slots: `fab slot list`, `fab slot claim N RUN TASK` before using slot N, `fab slot release N RUN` after. hel8, where you run, builds nothing.
+- Builders: hetzner6 (`free@2.29.120.8`; 8 cores, 15 GB) and hetzner9 (`free@2.29.101.185`; 8 vCPU, 15 GB), heavy admitting four builds at once on each. Their warm checkouts are the slots: `fab slot list`, `fab slot claim N RUN TASK` before using slot N, `fab slot release N RUN` after. hel8, where you run, builds nothing.
 - `heavy cargo ...` for every build and test; what builds nothing (`cargo fmt`, `cargo tree`, `cargo metadata`) runs directly. Never `heavy --gate`.
 - One command at a time per checkout, and its inputs stay still until it reports. Never stop heavy's units or touch its state.
 - Disk: heavy waits for disk by itself, up to 20 minutes. Its exit 75 is `Infra: disk`. Free disk only in your own `target/`; never `kache clean --cache`, `~/.cache`, `~/.cargo`, another's worktree.
