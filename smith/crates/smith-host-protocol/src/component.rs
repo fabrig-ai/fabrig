@@ -9,16 +9,18 @@
 //! retained, since answers need no withdrawal and those names grow with a run.
 use alloc::boxed::Box;
 use skein_channel::{Closed, Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, frame_writer};
-use skein_lib::{Duration, Map, Queue, Reader, Time, Token, Writer};
+use skein_lib::{Duration, Map, Queue, Time, Token, Writer};
 use smith_host_domain::channel;
 
-use crate::answer::decode_answer;
 use crate::limits::{Error, Limits};
-use crate::translate::{Values, decode_ask, encode_reply, encode_start};
+use crate::translate::{Values, encode_reply, encode_start};
 
 mod notices;
+mod receive;
 
 const RULES: u16 = 256;
+const LIMITS: u16 = 2;
+const CHILD_TRANSITIONS: u8 = 8;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
@@ -375,15 +377,10 @@ impl Component {
         self.phase != Phase::Opening
     }
 
-    #[expect(
-        clippy::manual_map,
-        clippy::too_many_lines,
-        reason = "bounded channel event dispatch uses explicit matches"
-    )]
     fn drain(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
         // Eight child transitions bound an entrance: opening/terms, one demanded
         // record or refusal, and its output and close notifications.
-        for _ in 0_u8..8_u8 {
+        for _ in 0..CHILD_TRANSITIONS {
             let event = self.events.pop();
             match event {
                 Some(Event::Opening { .. }) => {
@@ -397,7 +394,7 @@ impl Component {
                     match smith_channel::peer_terms_gap(&self.schema, Role::Initiator, version, &terms) {
                         Some(kind) => {
                             self.machine.down(
-                                Request::Refuse { reason: 2, text: kind_text(kind) },
+                                Request::Refuse { reason: LIMITS, text: kind_text(kind) },
                                 &mut self.events,
                                 below,
                             );
@@ -408,234 +405,10 @@ impl Component {
                         }
                     }
                 }
-                Some(Event::Body { kind, body }) => match kind {
-                    0x0111 if self.phase == Phase::Admitted => {
-                        match smith_channel::MessageRefused::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(record) => {
-                                let reason = match record.reason() {
-                                    smith_channel::MessageRefusal::TooLarge => {
-                                        smith_host_domain::MessageRefusal::TooLarge
-                                    }
-                                    smith_channel::MessageRefusal::Full => smith_host_domain::MessageRefusal::Full,
-                                    smith_channel::MessageRefusal::NameInUse => {
-                                        smith_host_domain::MessageRefusal::NameInUse
-                                    }
-                                    smith_channel::MessageRefusal::Ending => smith_host_domain::MessageRefusal::Ending,
-                                };
-                                self.deliver(
-                                    OpenEvent::MessageRefused { name: Token::new(record.name()), reason },
-                                    to_service,
-                                );
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x0107 if self.phase == Phase::Admitted => {
-                        match smith_channel::Call::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(record) => {
-                                let key = CallKey::from_wire(record.name());
-                                if self.calls_by_name.contains_key(&key)
-                                    || self.calls_by_name.len() >= self.calls_by_name.capacity()
-                                {
-                                    self.refuse_rules(b"invalid answer", below);
-                                } else {
-                                    match decode_ask(&record) {
-                                        Ok(Some(ask)) => {
-                                            let call = Token::new(self.next_call);
-                                            match self.next_call.checked_add(1) {
-                                                Some(next) => {
-                                                    self.next_call = next;
-                                                    if self.calls_by_name.insert(key, call).is_err()
-                                                        || self.calls_by_token.insert(call, key).is_err()
-                                                    {
-                                                        self.refuse_rules(b"invalid answer", below);
-                                                    } else {
-                                                        self.deliver(
-                                                            OpenEvent::Call {
-                                                                call,
-                                                                name: key.domain(),
-                                                                deadline: self.now.saturating_add(record.deadline()),
-                                                                ask,
-                                                            },
-                                                            to_service,
-                                                        );
-                                                    }
-                                                }
-                                                None => self.refuse_rules(b"invalid answer", below),
-                                            }
-                                        }
-                                        Ok(None) | Err(_) => self.refuse_rules(b"invalid answer", below),
-                                    }
-                                }
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x0108 if self.phase == Phase::Admitted => {
-                        match smith_channel::Withdraw::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(record) => {
-                                let key = CallKey::from_wire(record.name());
-                                match self.calls_by_name.get(&key) {
-                                    Some(call) => {
-                                        self.deliver(OpenEvent::Withdraw { call: *call }, to_service);
-                                    }
-                                    // A withdrawal crossing the host's answer settles the call.
-                                    // Keep the demand for the next record (protocol/channel.md, 3–4).
-                                    None => self.machine.down(Request::Read, &mut self.events, below),
-                                }
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x010a if self.phase == Phase::Admitted => {
-                        match smith_channel::Waiting::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(waiting) => {
-                                let read = match waiting.last_read() {
-                                    Some(name) => Some(Token::new(*name)),
-                                    None => None,
-                                };
-                                self.deliver(OpenEvent::Waiting { read }, to_service);
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x0109 if self.phase == Phase::Admitted => {
-                        match smith_channel::Turn::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(turn) => {
-                                let decoded = match self.sequence.checked_add(1) {
-                                    Some(sequence) => smith_protocol_channel::decode_turn(
-                                        turn.body(),
-                                        sequence,
-                                        &self.transcript,
-                                        &self.endpoints,
-                                    )
-                                    .ok(),
-                                    None => None,
-                                };
-                                match decoded {
-                                    Some(value) => {
-                                        self.sequence = value.sequence;
-                                        self.live.turn(turn.number());
-                                        let body = smith_host_domain::TurnValue::new(value, u64::MAX)
-                                            .expect("codec bounds ensure representable ownership");
-                                        self.deliver(
-                                            OpenEvent::Turn {
-                                                turn: channel::Turn {
-                                                    number: turn.number(),
-                                                    opens_window: turn.opens_window(),
-                                                    spent: turn.spent(),
-                                                    read: match turn.last_read() {
-                                                        Some(name) => Some(Token::new(*name)),
-                                                        None => None,
-                                                    },
-                                                    body,
-                                                },
-                                            },
-                                            to_service,
-                                        );
-                                    }
-                                    None => self.refuse_rules(b"invalid answer", below),
-                                }
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x0112 => {
-                        if self.phase != Phase::Admitted {
-                            self.refuse_rules(b"live admission", below);
-                            continue;
-                        }
-                        match smith_channel::Live::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(piece) => match self.live.check(&piece) {
-                                Ok(()) => {
-                                    self.deliver(
-                                        OpenEvent::Live {
-                                            turn: piece.turn(),
-                                            retry: piece.retry(),
-                                            kind: piece.kind().clone(),
-                                            offset: piece.offset(),
-                                            bytes: Box::from(piece.bytes()),
-                                            call: piece.call().clone(),
-                                        },
-                                        to_service,
-                                    );
-                                }
-                                Err(rule) => self.refuse_rules(rule.reason(), below),
-                            },
-                            Err(_) => self.refuse_rules(b"live body", below),
-                        }
-                    }
-                    0x010f if self.phase == Phase::Admitted => {
-                        match smith_channel::Fact::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(_) => {
-                                self.deliver(OpenEvent::Fact { body }, to_service);
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x010d | 0x010e | 0x0113 if self.phase == Phase::Admitted => {
-                        match notices::decode(&self.bodies, kind, &body) {
-                            Ok(notice) => {
-                                self.deliver(notice, to_service);
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x010b if self.phase == Phase::Admitted && self.long_open < u32::MAX => {
-                        match smith_channel::Long::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(long) => {
-                                let operation = match long.operation() {
-                                    smith_channel::Operation::Check => smith_domain::Operation::Checks,
-                                    smith_channel::Operation::Completion => smith_domain::Operation::Completion,
-                                    smith_channel::Operation::Command => smith_domain::Operation::Command,
-                                };
-                                self.long_open = self.long_open.checked_add(1).expect("bounded active operations");
-                                self.deliver(OpenEvent::Long { operation, span: long.span() }, to_service);
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x010c if self.phase == Phase::Admitted && self.long_open > 0 => {
-                        match smith_channel::LongDone::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(_) => {
-                                self.long_open = self.long_open.checked_sub(1).expect("one begun operation ends");
-                                self.deliver(OpenEvent::LongDone, to_service);
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x0106 if self.phase == Phase::Started => {
-                        match smith_channel::Admitted::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(_) => {
-                                self.phase = Phase::Admitted;
-                                self.deliver(OpenEvent::Admitted, to_service);
-                            }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
-                        }
-                    }
-                    0x0110 => match smith_channel::Answer::decode(&self.bodies, &mut Reader::new(&body)) {
-                        Ok(record) => {
-                            let permitted = match record.result() {
-                                smith_channel::RunResult::Refused(_) => self.phase == Phase::Started,
-                                smith_channel::RunResult::Accepted(_)
-                                | smith_channel::RunResult::Parked
-                                | smith_channel::RunResult::Failed(_) => self.phase == Phase::Admitted,
-                            };
-                            if permitted {
-                                match decode_answer(&record, &self.charter) {
-                                    Ok(answer) => {
-                                        self.phase = Phase::Answered;
-                                        self.deliver(OpenEvent::Answer { answer, record }, to_service);
-                                    }
-                                    Err(_) => self.refuse_rules(b"invalid answer", below),
-                                }
-                            } else {
-                                self.refuse_rules(b"invalid answer", below);
-                            }
-                        }
-                        Err(_) => self.refuse_rules(b"invalid answer", below),
-                    },
-                    _ => self.refuse_rules(b"invalid answer", below),
+                Some(Event::Body { kind, body }) => match self.receive(kind, body) {
+                    Ok(Some(event)) => self.deliver(event, to_service),
+                    Ok(None) => self.machine.down(Request::Read, &mut self.events, below),
+                    Err(_) => self.refuse_rules(b"invalid record", below),
                 },
                 Some(Event::Closed { why }) => self.end(why, to_service),
                 Some(Event::Ended) => {
@@ -695,19 +468,11 @@ fn kind_text(kind: u16) -> Box<[u8]> {
         b' ',
         b'0',
         b'x',
-        hex(bytes[0] >> 4),
-        hex(bytes[0] & 15),
-        hex(bytes[1] >> 4),
-        hex(bytes[1] & 15),
+        skein_lib::bytes::hex_digit(bytes[0] >> 4),
+        skein_lib::bytes::hex_digit(bytes[0] & 15),
+        skein_lib::bytes::hex_digit(bytes[1] >> 4),
+        skein_lib::bytes::hex_digit(bytes[1] & 15),
     ])
-}
-
-fn hex(nibble: u8) -> u8 {
-    if nibble < 10 {
-        b'0'.checked_add(nibble).expect("hex digit fits")
-    } else {
-        b'a'.checked_add(nibble.checked_sub(10).expect("letter digit")).expect("hex digit fits")
-    }
 }
 
 #[cfg(test)]
