@@ -88,7 +88,11 @@ it is `Live`, and sets `Closed` when it reports its one terminal.
   changes nothing and answers `false`.
 - `abort()` is the owner's abort: a live or closing component aborts and
   the answer is `true`; a second abort answers `false`.
-- Either after `Closed` is the owner's bug, asserted.
+- Either after `Closed` changes nothing and answers `false`. A request
+  after `Closed` is the owner's bug (programming-model.md, 5.2), which a
+  component asserts at its entrance, as llm-connection does; oauth's
+  accounts answer nothing after it (oauth.md, 6.4), so the lifecycle
+  itself does not assert.
 
 What closing and aborting mean for the entities it keeps is the
 component's own; the answer says whether there is anything new to do.

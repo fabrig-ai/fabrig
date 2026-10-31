@@ -19,8 +19,9 @@ pub enum Lifecycle {
 
 impl Lifecycle {
     /// The owner's close. A live component starts closing, and the answer is
-    /// `true`; a second close, or a close after an abort, changes nothing.
-    /// A close after `Closed` is the owner's bug, asserted.
+    /// `true`; a second close, or a close after an abort or after `Closed`,
+    /// changes nothing. Whether a request after `Closed` is a bug is the
+    /// component's to assert at its entrance.
     #[must_use]
     pub fn close(&mut self) -> bool {
         match self {
@@ -28,15 +29,13 @@ impl Lifecycle {
                 *self = Lifecycle::Closing;
                 true
             }
-            Lifecycle::Closing | Lifecycle::Aborting => false,
-            Lifecycle::Closed => unreachable!("an owner sends nothing after Closed"),
+            Lifecycle::Closing | Lifecycle::Aborting | Lifecycle::Closed => false,
         }
     }
 
     /// The owner's abort. A live or closing component aborts, and the answer
     /// is `true`, turning what still closes gracefully into aborts; a second
-    /// abort changes nothing. An abort after `Closed` is the owner's bug,
-    /// asserted.
+    /// abort, or one after `Closed`, changes nothing.
     #[must_use]
     pub fn abort(&mut self) -> bool {
         match self {
@@ -44,8 +43,7 @@ impl Lifecycle {
                 *self = Lifecycle::Aborting;
                 true
             }
-            Lifecycle::Aborting => false,
-            Lifecycle::Closed => unreachable!("an owner sends nothing after Closed"),
+            Lifecycle::Aborting | Lifecycle::Closed => false,
         }
     }
 }

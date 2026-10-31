@@ -130,15 +130,9 @@ fn a_component_closes_then_aborts_and_neither_twice() {
 }
 
 #[test]
-#[should_panic(expected = "an owner sends nothing after Closed")]
-fn a_close_after_closed_is_a_bug() {
+fn a_close_or_an_abort_after_closed_changes_nothing() {
     let mut lifecycle = Lifecycle::Closed;
-    assert!(!lifecycle.close(), "never reached");
-}
-
-#[test]
-#[should_panic(expected = "an owner sends nothing after Closed")]
-fn an_abort_after_closed_is_a_bug() {
-    let mut lifecycle = Lifecycle::Closed;
-    assert!(!lifecycle.abort(), "never reached");
+    assert!(!lifecycle.close(), "a close after Closed changes nothing");
+    assert!(!lifecycle.abort(), "an abort after Closed changes nothing");
+    assert_eq!(lifecycle, Lifecycle::Closed);
 }
