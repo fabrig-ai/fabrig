@@ -353,16 +353,12 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     if finish_only {
         assert!(!domain.wrote && !domain.core.counters.dirty(), "stopping continuation makes no commit");
     }
-    // The cold load must read the durable header before numbering another
-    // commit. Copy this guard with the core's restart script.
-    if domain.wrote || (domain.core.counters.dirty() && domain.core.start_phase() != Some(core::start::Phase::LoadCore))
-    {
-        let header = domain.core.counters.next_commit();
-        write(
-            domain,
-            &mut decision,
-            Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))),
-        );
+    let header = if domain.wrote { Some(domain.core.commit_header()) } else { domain.core.cold_header() };
+    if let Some(header) = header {
+        let core::Write::Save(header) = header else {
+            unreachable!("a deployment header is a save");
+        };
+        write(domain, &mut decision, Write::Save(Record::Core(header)));
     }
     domain.journal.accept(decision);
     if let Some(commits) = domain.restored_commits.take() {
@@ -427,12 +423,7 @@ fn wall_due(env: &Env<Limits>, expiry: skein_lib::Wall) -> bool {
 
 fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
     for due in [
-        domain.core.people.next_deadline(),
-        domain.core.tasks.next_deadline(),
-        domain.core.fleet.next_deadline(),
-        domain.core.brief.next_deadline(),
-        domain.core.accounts.next_deadline(),
-        domain.core.views.next_deadline(),
+        domain.core.next_deadline(env.now, env.wall),
         observability::next_deadline(&domain.observability),
         infrastructure::next_deadline(&domain.infrastructure),
         domain.next_turn_deadline(),
@@ -442,11 +433,6 @@ fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
         {
             return true;
         }
-    }
-    if let Some(expiry) = domain.core.people.next_wall_expiry()
-        && wall_due(env, expiry)
-    {
-        return true;
     }
     match domain.core.effect_deadline() {
         Some(due) => wall_due(env, due),

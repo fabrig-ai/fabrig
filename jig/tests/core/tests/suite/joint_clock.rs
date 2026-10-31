@@ -80,9 +80,7 @@ fn joint_scheduler_expires_the_actual_sign_in_at_its_armed_people_deadline() {
     let mut world = World::scripted_clock(world::config(8453), limits, Peers::new(Vec::new(), Vec::new()), now, wall);
     sign_in(&mut world, 7);
     let due = Time::from_nanos(now.as_nanos() + limits.core.people.sign_in_lifetime.as_nanos());
-    assert!(
-        world.domain.core_deadlines(world.clocks().0, world.clocks().1).contains(&(core::Timer::People, Some(due)))
-    );
+    assert!(world.domain.core().next_deadline(world.clocks().0, world.clocks().1) == Some(due));
     let saved = world
         .store
         .rows
@@ -103,7 +101,7 @@ fn joint_scheduler_expires_the_actual_sign_in_at_its_armed_people_deadline() {
     assert!(!world.store.rows.contains_key(&saved), "People fired through the normal durable root route");
     assert!(world.store.applied > applied);
     assert_eq!(world.clocks(), (due, wall), "an elapsed deadline needs no wall jump");
-    assert!(world.domain.core_deadlines(world.clocks().0, world.clocks().1).contains(&(core::Timer::People, None)));
+    assert_eq!(world.domain.core().people.next_deadline(), None);
 }
 
 #[test]

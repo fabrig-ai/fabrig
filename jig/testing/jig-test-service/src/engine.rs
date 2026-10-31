@@ -140,17 +140,13 @@ impl Engine {
             );
         }
         let mut next = crate::accounts::earliest(self.store.next_deadline(), self.values.accounts.next_expiry());
-        for (timer, deadline) in self.domain.core_deadlines(self.env.now, self.env.wall) {
-            if (self.domain.stopping() && timer.waits_while_stopping()) || (!self.held.is_empty() && timer.new_work()) {
-                continue;
-            }
-            if let Some(deadline) = deadline {
-                next = Some(match next {
-                    Some(previous) => deadline.min(previous),
-                    None => deadline,
-                });
-            }
-        }
+        let core = self.domain.core();
+        let deadline = if self.held.is_empty() {
+            core.next_deadline(self.env.now, self.env.wall)
+        } else {
+            core.next_finishing_deadline(self.env.now, self.env.wall)
+        };
+        next = crate::accounts::earliest(next, deadline);
         if !self.domain.stopping() {
             for (_, deadline) in self.domain.connector_deadlines() {
                 next = wall_deadline(next, deadline, &self.env);
@@ -468,16 +464,15 @@ fn release(engine: &mut Engine) {
 }
 
 fn fire(engine: &mut Engine) {
-    for (timer, deadline) in engine.domain.core_deadlines(engine.env.now, engine.env.wall) {
-        if (engine.domain.stopping() && timer.waits_while_stopping()) || (!engine.held.is_empty() && timer.new_work()) {
-            continue;
-        }
-        if let Some(deadline) = deadline
-            && deadline <= engine.env.now
-        {
-            engine.step(root::Event::Timer(timer));
-            return;
-        }
+    let core = engine.domain.core();
+    let due = if engine.held.is_empty() {
+        core.due(engine.env.now, engine.env.wall)
+    } else {
+        core.finishing_due(engine.env.now, engine.env.wall)
+    };
+    if let Some(timer) = due {
+        engine.step(root::Event::Timer(timer));
+        return;
     }
     if engine.domain.stopping() {
         return;

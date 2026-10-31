@@ -23,6 +23,7 @@ mod brief_text;
 mod compound;
 pub use brief_text::{BriefPart, BriefTextLimits, note_index_text, read_brief_part};
 pub mod connector;
+mod deadlines;
 mod delegation;
 pub use amendments::TaskAmendDenied;
 pub use delegation::{
