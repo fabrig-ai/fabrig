@@ -3207,6 +3207,7 @@ dependencies = [
  "smith-protocol-machine",
  "smith-protocol-program",
  "smith-protocol-translate",
+ "smith-transcript",
 ]
 
 [[package]]

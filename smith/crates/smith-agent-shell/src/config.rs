@@ -121,7 +121,7 @@ fn event_limits(
     Ok(events)
 }
 
-fn effective_header(
+pub(crate) fn effective_header(
     profile: &service::profile::Profile,
     declarations: &service::profile::Configuration,
     limits: &service::Limits,
@@ -195,12 +195,7 @@ fn build_parts(document: Document) -> Result<Configuration, ConfigurationRefusal
     let mut limits = service::profile::derive(&profile, &declarations).map_err(ConfigurationRefusal::Profile)?;
     let domain_programs = programs::domain(&endpoint_programs, &mut limits.domain)?;
     let environment = machine::Environment::encode(&environment, &limits.machine).map_err(environment_refusal)?;
-    let prices: Vec<_> = document
-        .endpoints
-        .iter()
-        .flat_map(|endpoint| endpoint.models.iter().map(|model| model.prices.rates()))
-        .collect();
-    let endpoints = build_endpoints(document.endpoints, &limits.llm, &profile)?;
+    let endpoints = build_endpoints(document.endpoints, &declarations, &limits, &profile)?;
     let llm_endpoints =
         llm::Endpoints::new(endpoints.llm, ENDPOINTS).map_err(|error| format!("LLM endpoints: {error:?}"))?;
     if let Some(trace) = &trace {
@@ -211,31 +206,13 @@ fn build_parts(document: Document) -> Result<Configuration, ConfigurationRefusal
                 Some(event_limits(&limits, trace.capture, header.as_slice(), profile.policy.write_deadline)?);
         }
     }
-    let mut models = Vec::new();
-    for endpoint in &declarations.endpoints {
-        let protocol_allowance = service::profile::endpoint_allowance(&profile, endpoint, &limits.domain.session.tools)
-            .map_err(ConfigurationRefusal::Profile)?;
-        for model in &endpoint.models {
-            models.push(domain::ConfiguredModel {
-                prices: *prices.get(models.len()).expect("one resolved price per declared model"),
-                endpoint: run::charter::Endpoint(endpoint.number),
-                model: model.name.clone(),
-                efforts: model.efforts.clone(),
-                window: model.window,
-                output: model.output,
-                protocol_allowance,
-                head: model.head,
-                idle: model.idle,
-            });
-        }
-    }
     let config = service::Config {
         program: programs::backend(&programs, &endpoint_programs),
         limits,
         domain: domain::Config {
             programs: domain_programs,
             endpoints: endpoints.domain,
-            models: models.into_boxed_slice(),
+            models: endpoints.models,
         },
         channel_endpoints: endpoints.channel,
         llm_endpoints,
@@ -259,21 +236,23 @@ struct PreparedEndpoints {
     domain: Box<[run::charter::Endpoint]>,
     channel: smith_protocol_translate::Endpoints,
     llm: Box<[llm::ConfiguredEndpoint]>,
+    models: Box<[domain::ConfiguredModel]>,
 }
 
 fn build_endpoints(
     endpoints: Vec<Endpoint>,
-    limits: &llm::ComponentLimits,
+    declarations: &service::profile::Configuration,
+    limits: &service::Limits,
     profile: &service::profile::Profile,
 ) -> Result<PreparedEndpoints, ConfigurationRefusal> {
     let mut domain_endpoints = Vec::with_capacity(endpoints.len());
     let mut channel_endpoints = List::with_capacity(ENDPOINTS);
     let mut llm_endpoints = Vec::with_capacity(endpoints.len());
+    let mut models = Vec::new();
     let mut names = std::collections::BTreeSet::new();
     let mut numbers = std::collections::BTreeSet::new();
-    for endpoint in endpoints {
-        let declared = build_models(&endpoint)?;
-        let mut client = service::profile::endpoint_client(profile, &declared, limits.adapter.client.history_items)
+    for (endpoint, declared) in endpoints.into_iter().zip(&declarations.endpoints) {
+        let mut client = service::profile::endpoint_client(profile, declared, limits.llm.adapter.client.history_items)
             .map_err(ConfigurationRefusal::Profile)?;
         if endpoint.name.is_empty()
             || endpoint.name.len()
@@ -290,11 +269,10 @@ fn build_endpoints(
         }
         let address = resolve(&endpoint.address)?;
         let transport = endpoint_transport(&endpoint, address)?;
-        let mut llm_endpoint = match endpoint.provider.as_str() {
-            "openai" => shared::Endpoint::openai(),
-            "codex" => shared::Endpoint::codex(),
-            "anthropic" => shared::Endpoint::anthropic(),
-            _ => return Err("endpoint provider must be openai, codex or anthropic".into()),
+        let mut llm_endpoint = match declared.provider {
+            shared::Provider::OpenAi => shared::Endpoint::openai(),
+            shared::Provider::OpenAiCodex => shared::Endpoint::codex(),
+            shared::Provider::Anthropic => shared::Endpoint::anthropic(),
         };
         if let Some(authority) = endpoint.authority {
             if authority.is_empty() || authority.contains(['\r', '\n']) {
@@ -330,7 +308,22 @@ fn build_endpoints(
                 dialect: endpoint.dialect,
             })
             .map_err(|_| "too many channel endpoints")?;
-        let credential = credential_limits(limits);
+        let protocol_allowance = service::profile::endpoint_allowance(profile, declared, &limits.domain.session.tools)
+            .map_err(ConfigurationRefusal::Profile)?;
+        for (model, input) in declared.models.iter().zip(&endpoint.models) {
+            models.push(domain::ConfiguredModel {
+                prices: input.prices.rates(),
+                endpoint: run::charter::Endpoint(declared.number),
+                model: model.name.clone(),
+                efforts: model.efforts.clone(),
+                window: model.window,
+                output: model.output,
+                protocol_allowance,
+                head: model.head,
+                idle: model.idle,
+            });
+        }
+        let credential = credential_limits(&limits.llm);
         let head = shared::client::request_head(&llm_endpoint, &credential, &client).map_err(|error| {
             ConfigurationRefusal::Profile(Refusal::Connection(connection::EndpointError::Client(error)))
         })?;
@@ -339,7 +332,7 @@ fn build_endpoints(
         client.http.request = head;
         let mut destination =
             connection::Endpoint { address, transport, llm: llm_endpoint, limits: client, credential };
-        destination.pieces(&limits.connection);
+        destination.pieces(&limits.llm.connection);
         llm_endpoints.push(llm::ConfiguredEndpoint {
             name: domain::llm::Endpoint(endpoint.number),
             destination,
@@ -353,6 +346,7 @@ fn build_endpoints(
         domain: domain_endpoints.into_boxed_slice(),
         channel: smith_protocol_translate::Endpoints::new(channel_endpoints),
         llm: llm_endpoints.into_boxed_slice(),
+        models: models.into_boxed_slice(),
     })
 }
 
