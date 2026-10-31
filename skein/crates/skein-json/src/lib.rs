@@ -22,6 +22,7 @@ extern crate alloc;
 pub mod collector;
 pub mod document;
 mod number;
+mod parse;
 mod string;
 #[cfg(test)]
 mod tests;
@@ -31,4 +32,5 @@ mod utf8;
 pub mod writer;
 
 pub use document::{Compact, Document, Kind};
+pub use parse::{ParseError, parse};
 pub use token::Token;

@@ -82,3 +82,66 @@ fn a_long_string_cannot_be_written_back() {
     let document = Document::from_parts(Box::from([]), Box::from([long]), &limits).unwrap();
     Encoder::measure(&writer::Limits { depth: 1, length: 100 }).document(&document);
 }
+
+#[test]
+fn members_skip_nested_values_and_stop_at_the_object_end() {
+    let input = br#"[{"nested":{"needle":false},"items":[{},[]],"needle":42,"needle":7},{"outside":true}]"#;
+    let doc = crate::parse(input, &super::LIMITS, &Limits { tokens: 40, text: 80 }).unwrap();
+    let index = doc.member(1, b"needle").unwrap();
+    assert_eq!(doc.text(doc.token(index).unwrap()), Some(b"42".as_slice()));
+    assert_eq!(doc.member(1, b"outside"), None);
+    assert_eq!(doc.member(1, b"missing"), None);
+    assert_eq!(doc.member(0, b"needle"), None);
+    assert_eq!(doc.member(index, b"needle"), None);
+    assert_eq!(doc.member(u32::MAX, b"needle"), None);
+    let nested = doc.member(1, b"nested").unwrap();
+    let needle = doc.member(nested, b"needle").unwrap();
+    assert_eq!(doc.token(needle).unwrap().kind, Kind::False);
+    assert_eq!(doc.value_end(0), Some(doc.len()));
+    assert_eq!(doc.value_end(1), Some(doc.len() - 5));
+}
+
+#[test]
+fn value_ends_cover_every_kind_and_document_edges() {
+    let kinds = [Kind::String, Kind::Number, Kind::True, Kind::False, Kind::Null, Kind::Long];
+    for kind in kinds {
+        let doc = Document::from_parts(
+            Box::from([]),
+            Box::from([Compact { kind, start: 0, len: 0 }]),
+            &Limits { tokens: 1, text: 0 },
+        )
+        .unwrap();
+        assert_eq!(doc.value_end(0), Some(1), "{kind:?}");
+        assert_eq!(doc.value_end(1), None);
+        assert_eq!(doc.value_end(u32::MAX), None);
+    }
+    for token in [Token::Key(Box::from([])), Token::ObjectEnd, Token::ArrayEnd, Token::ObjectStart, Token::ArrayStart] {
+        let doc = Document::from_tokens(&[token], &Limits { tokens: 1, text: 0 }).unwrap();
+        assert_eq!(doc.value_end(0), None);
+        assert_eq!(doc.member(0, b"absent"), None);
+    }
+    let doc = Document::from_tokens(
+        &[Token::ObjectStart, Token::Key(Box::from(b"x".as_slice()))],
+        &Limits { tokens: 2, text: 1 },
+    )
+    .unwrap();
+    assert_eq!(doc.member(0, b"x"), None);
+    let empty = Document::from_tokens(&[], &Limits { tokens: 0, text: 0 }).unwrap();
+    assert_eq!(empty.value_end(0), None);
+    assert_eq!(empty.member(0, b"x"), None);
+}
+
+#[test]
+fn a_long_member_is_a_value_without_retained_text() {
+    let records = [
+        Compact { kind: Kind::ObjectStart, start: 0, len: 0 },
+        Compact { kind: Kind::Key, start: 0, len: 1 },
+        Compact { kind: Kind::Long, start: 0, len: u32::MAX },
+        Compact { kind: Kind::ObjectEnd, start: 0, len: 0 },
+    ];
+    let doc =
+        Document::from_parts(Box::from(b"x".as_slice()), Box::from(records), &Limits { tokens: 4, text: 1 }).unwrap();
+    assert_eq!(doc.member(0, b"x"), Some(2));
+    assert_eq!(doc.value_end(2), Some(3));
+    assert_eq!(doc.value_end(0), Some(4));
+}

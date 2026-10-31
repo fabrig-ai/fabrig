@@ -484,6 +484,17 @@ pub enum Kind {
 - **Read by index.** `Document::token(i)` gives a borrowed view, its kind
   and its text, so a decoder walks a document as it walks the tokenizer's
   tokens, and copies out only what it keeps.
+- **Navigation within admitted records.** `Document::member(object, name)`
+  returns the index of the first direct member's value, or `None` for a
+  non-object, absent name or incomplete walk. Nested members are skipped.
+  Duplicate names select the first; consumers needing duplicate rejection
+  check that separately. `Document::value_end(start)` returns the exclusive
+  token end of a scalar or container, including `Long` as one scalar;
+  keys, closing records, missing indices and unfinished containers return
+  `None`. Both walk only the document's admitted record count, with checked
+  arithmetic and no allocation. They navigate producer-checked grammar;
+  they do not validate arbitrary sequences passed to `from_tokens` or
+  `from_parts`.
 - **Written back whole.** The writer's `document` call writes a document's
   tokens in order (section 4), so a value kept for replay goes back as it
   came, escaped afresh.
@@ -497,6 +508,19 @@ pub enum Kind {
 `document_bound(&limits)` bounds a retained document's tables and text;
 `validation_bound(&limits)` bounds the tokenizer scratch for validating
 one whole input. These are edge and decoder bounds, not a process sum.
+
+### 5.3 One-shot parsing
+
+`parse(input, tokenizer_limits, document_limits)` feeds one whole borrowed
+input through the tokenizer and returns a compact `Document`. It reads
+through trailing whitespace and the end, refusing empty, truncated or
+multiple values. `ParseError::Tokenizer` preserves the tokenizer's error;
+`ParseError::Document` reports retained token or decoded-text overflow.
+Nothing partial is returned. The tokenizer's input, nesting, string and
+number limits and the document's token and text limits remain separate.
+Scratch is bounded by `tokenizer_bound`, two one-entry queues and the
+retained document limits. The driver copies only each demanded delivery,
+never the whole input. Its steps are bounded by the input length.
 
 ## 6. Testing
 
