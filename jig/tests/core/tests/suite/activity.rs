@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 const PARTY: u64 = 1;
 const FIRST_TURN: u32 = 1;
 const SECOND_TURN: u32 = 2;
@@ -30,13 +31,14 @@ fn lines(world: &World, task: u64) -> Vec<tasks::ActivityLine> {
 #[expect(clippy::too_many_lines, reason = "one real-store story keeps its complete run and archive assertions")]
 fn a_chat_s_activity_holds_the_person_s_words_its_turns_and_its_delegate_s_result() {
     let (configuration, limits) = jig_core_world::faults::plan_fixture(506);
-    let mut world = World::configured_with(
-        506,
-        false,
-        configuration,
+    let mut world = World::new(Setup {
+        seed: 506,
+        configuration: Some(configuration),
         limits,
-        jig_core_world::stories::reads::forgettable_conversation(),
-    );
+        require_assignment: false,
+        initial: Some(jig_core_world::stories::reads::forgettable_conversation()),
+        ..Setup::default()
+    });
     let parent = world.assignments[0];
     world.turn(1, 2, None, b"the first committed turn");
     world.send(root::Event::Core(core::Event::People(people::Event::Ask {

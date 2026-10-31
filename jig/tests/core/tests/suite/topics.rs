@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::{World, fixture};
 use jig_core_world::fixtures::live_row;
 use jig_domain_authority as authority;
@@ -33,7 +34,7 @@ fn topic_world(seed: u64, grant: bool) -> World {
         .expect("checked rules"))
     .rules()
     .clone();
-    World::configured(seed, false, configuration, limits)
+    World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() })
 }
 
 fn subscribe(world: &mut World, topic: u16) {

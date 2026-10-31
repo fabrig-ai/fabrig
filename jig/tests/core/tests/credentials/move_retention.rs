@@ -1,5 +1,6 @@
 //! A move's completion must remain possible at the retained-answer boundary.
 use super::*;
+use jig_core_world::effects::Setup;
 
 const SEED: u64 = 211;
 // The fixture's chat, the account sign-in, and its move out each retain one answer.
@@ -22,7 +23,7 @@ fn signed(requests: u32) -> (World, u32, u32) {
     limits.core.people.requests = requests;
     limits.core.people.pending = TRANSFER_PENDING;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = World::configured(SEED, false, config, limits);
+    let mut world = World::new(Setup { seed: SEED, configuration: Some(config), limits, ..Setup::default() });
     let (account, source) = signed_in(&mut world);
     world.announce_grant(source, 1, accounts::Form::Credential(accounts::Scheme::Bearer));
     (world, account, source)

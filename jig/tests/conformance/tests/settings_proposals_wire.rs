@@ -1,4 +1,5 @@
 //! Settings proposal admission on the client's wire (`contract.md`, 3.2).
+use jig_core_world::effects::Setup;
 use skein_world::domain::heap;
 
 #[global_allocator]
@@ -76,7 +77,7 @@ fn a_real_pending_review_survives_both_wire_translations() {
     use jig_domain_people as people;
     use jig_test_domain as root;
     use skein_lib::{Reader, ReplyTo};
-    let mut world = World::new(6002, false);
+    let mut world = World::new(Setup { seed: 6002, ..Setup::default() });
     let owner = world.sign_in.expect("owner sign-in");
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: 0,

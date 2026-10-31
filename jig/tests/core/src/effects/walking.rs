@@ -1,36 +1,97 @@
-//! The walking world's scripted delivery responses.
-use super::{ReplyTo, Scenario, Token, World, core, people, root, tasks};
-impl World {
+//! Short walking scripts share the core world's store and loop (engine.md, 15).
+use super::{ReplyTo, Token, World, core, people, root, tasks};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Scenario {
+    Chat,
+    Goal,
+    Batch,
+}
+
+/// The walking peer's observations and script position; it owns no driver.
+#[derive(Debug)]
+pub struct Walking {
+    pub sign_in: Option<u64>,
+    pub chat: Option<u64>,
+    pub assignment: Option<root::Assignment>,
+    pub turn_acks: u32,
+    pub answer_acks: u32,
+    pub results: u32,
+    pub procedure: Option<u64>,
+    pub batch_refusals: u32,
+    scenario: Scenario,
+    delegated: bool,
+    goal_answer_sent: bool,
+}
+impl Walking {
+    pub(super) fn new(scenario: Scenario) -> Self {
+        Self {
+            sign_in: None,
+            chat: None,
+            assignment: None,
+            turn_acks: 0,
+            answer_acks: 0,
+            results: 0,
+            procedure: None,
+            batch_refusals: 0,
+            scenario,
+            delegated: false,
+            goal_answer_sent: false,
+        }
+    }
+    pub(super) fn tick(&mut self, world: &mut World) {
+        if self.scenario == Scenario::Goal
+            && self.delegated
+            && !self.goal_answer_sent
+            && let Some(procedure) = self.procedure
+            && world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(procedure))))
+        {
+            let assignment = self.assignment.as_ref().expect("goal worker was assigned");
+            self.goal_answer_sent = true;
+            world.events.push_back(root::Event::Turn {
+                opens_window: false,
+                refused: Box::new([]),
+                channel: Token::new(7),
+                task: assignment.task,
+                attempt: assignment.attempt,
+                turn: 1,
+                read: None,
+                cumulative: 3,
+                transcript: b"procedure finished".as_slice().into(),
+            });
+        }
+    }
+}
+impl Walking {
     #[expect(clippy::too_many_lines, reason = "one script handles each externally observed delivery")]
-    pub(super) fn delivered(&mut self, mut delivery: root::Delivery) {
-        self.observer.delivered(self.iteration * 1_000_000, &mut delivery);
+    pub(super) fn delivered(&mut self, world: &mut World, delivery: root::Delivery) {
         match delivery {
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
                 assert!(sources.is_empty(), "walking worker source fixture");
-                self.events.push_back(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Logins {
+                world.events.push_back(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Logins {
                     channel,
                     logins: Box::new([]),
                 })));
             }
             root::Delivery::Projection { connector, feed } => {
                 if feed.closing {
-                    self.events.push_back(root::Event::Core(core::Event::ProjectionSettled {
+                    world.events.push_back(root::Event::Core(core::Event::ProjectionSettled {
                         goal: feed.goal.number,
                         connector,
                     }));
                 }
             }
 
-            root::Delivery::Core(core::Held::Load(load)) => self.store.ask(jig_test_store::StoreOut::Now(*load)),
+            root::Delivery::Core(core::Held::Load(load)) => world.store.ask(jig_test_store::StoreOut::Now(*load)),
             root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
-                self.store.ask(jig_test_store::StoreOut::NotesLoad { owner, range });
+                world.store.ask(jig_test_store::StoreOut::NotesLoad { owner, range });
             }
             root::Delivery::Core(core::Held::PeopleReply {
                 reply: people::Reply::SignedIn { sign_in, .. }, ..
             }) => {
                 self.sign_in = Some(sign_in);
                 let people::Ask::Create { project, mut batch } =
-                    crate::fixtures::create_chat(&self.creating, 1, 0, b"hello".as_slice().into())
+                    crate::fixtures::create_chat(&world.creating, 1, 0, b"hello".as_slice().into())
                 else {
                     unreachable!()
                 };
@@ -45,7 +106,7 @@ impl World {
                     member.authority.spend = 100;
                 }
                 let ask = people::Ask::Create { project, batch };
-                self.events.push_back(root::Event::Core(core::Event::People(people::Event::Ask {
+                world.events.push_back(root::Event::Core(core::Event::People(people::Event::Ask {
                     models: Box::new([]),
                     reply_to: ReplyTo::new(Token::new(102)),
                     sign_in,
@@ -59,14 +120,15 @@ impl World {
             }) => {
                 self.chat = Some(task);
                 assert!(
-                    self.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))),
+                    world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))),
                     "party saw task only after commit"
                 );
             }
             root::Delivery::Assigned { channel, assignment } => {
                 assert_eq!(channel, Token::new(7));
                 assert!(
-                    self.store
+                    world
+                        .store
                         .rows
                         .contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::RunProof(assignment.task))))
                 );
@@ -74,7 +136,7 @@ impl World {
                 let attempt = assignment.attempt;
                 self.assignment = Some(assignment);
                 match self.scenario {
-                    Scenario::Chat => self.events.push_back(root::Event::Turn {
+                    Scenario::Chat => world.events.push_back(root::Event::Turn {
                         opens_window: false,
                         refused: Box::new([]),
                         channel,
@@ -121,7 +183,7 @@ impl World {
                             Scenario::Batch => vec![delegate.clone(), delegate].into_boxed_slice(),
                             Scenario::Chat => unreachable!("chat does not delegate"),
                         };
-                        self.events.push_back(root::Event::Core(core::Event::DelegateValidated {
+                        world.events.push_back(root::Event::Core(core::Event::DelegateValidated {
                             to: ReplyTo::new(Token::new(104)),
                             key: core::CallKey { task, attempt, completion: 1, position: 0 },
                             batch,
@@ -132,7 +194,7 @@ impl World {
             }
             root::Delivery::Procedure { task, connector, code, context, .. } => {
                 self.procedure = Some(task);
-                self.events.push_back(root::Event::Connector {
+                world.events.push_back(root::Event::Connector {
                     number: connector,
                     event: root::procedure_input(&context, code, jig_test_connector_world::path(1, 1)),
                 });
@@ -158,7 +220,7 @@ impl World {
             }
             root::Delivery::Message { channel, task: run, attempt, word } => {
                 assert_eq!(word.from, tasks::Party::Task(self.procedure.expect("delegated child")));
-                self.events.push_back(root::Event::Answer {
+                world.events.push_back(root::Event::Answer {
                     read: None,
                     refused: Box::new([]),
                     channel,
@@ -174,7 +236,7 @@ impl World {
             root::Delivery::Core(core::Held::AcknowledgeTurn { channel, run, attempt, turn }) => {
                 assert_eq!(channel, Token::new(7));
                 assert!(
-                    self.store.rows.contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::Turn {
+                    world.store.rows.contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::Turn {
                         task: run.raw(),
                         attempt: attempt.raw(),
                         turn,
@@ -182,7 +244,7 @@ impl World {
                     "worker saw ACK only after turn committed"
                 );
                 self.turn_acks += 1;
-                self.events.push_back(root::Event::Answer {
+                world.events.push_back(root::Event::Answer {
                     read: None,
                     refused: Box::new([]),
                     channel,
@@ -197,7 +259,7 @@ impl World {
             }
             root::Delivery::Core(core::Held::Acknowledge { .. }) => self.answer_acks += 1,
             root::Delivery::Core(core::Held::Result { task, words, .. }) => {
-                assert!(self.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))));
+                assert!(world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))));
                 assert_eq!(words.as_ref(), b"done");
                 self.results += 1;
             }
@@ -216,7 +278,7 @@ impl World {
             | root::Delivery::System { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::LostRead { .. }) => {
-                panic!("unhandled walking delivery {other:?}: {:?}", self.trace)
+                panic!("unhandled walking delivery {other:?}: {:?}", world.trace)
             }
         }
     }

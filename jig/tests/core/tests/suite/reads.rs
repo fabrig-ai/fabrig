@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::Cut,
     reads::{Fence, ask, complete, latest},
@@ -467,9 +468,20 @@ fn question_world_with_obligation(
     }
     jig_core_world::peers::journal(&mut limits);
     let mut world = if enabled {
-        jig_core_world::effects::World::configured_with_startup(seed, configuration, limits, enable_person_answers)
+        jig_core_world::effects::World::new(Setup {
+            seed,
+            configuration: Some(configuration),
+            limits,
+            startup: Some(enable_person_answers),
+            ..Setup::default()
+        })
     } else {
-        jig_core_world::effects::World::configured(seed, false, configuration, limits)
+        jig_core_world::effects::World::new(Setup {
+            seed,
+            configuration: Some(configuration),
+            limits,
+            ..Setup::default()
+        })
     };
     world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
     let parent = chat_task(&world);

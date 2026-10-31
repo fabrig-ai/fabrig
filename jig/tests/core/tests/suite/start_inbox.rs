@@ -1,4 +1,5 @@
 //! The inbox census builds the same projections through either start entrance.
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::{World, fixture},
     fixtures::{ask_as, chat, people_member},
@@ -57,7 +58,7 @@ fn next_chat(world: &mut World, key: u8) -> u64 {
 
 fn stored_world() -> World {
     let limits = limits();
-    let mut world = World::configured(SEED, false, configuration(), limits);
+    let mut world = World::new(Setup { seed: SEED, configuration: Some(configuration()), limits, ..Setup::default() });
     let read = finish(&mut world);
     let sign_in = world.sign_in.expect("signed in owner");
     ask_as(

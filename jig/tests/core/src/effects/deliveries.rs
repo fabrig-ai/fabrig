@@ -4,6 +4,13 @@ impl World {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) {
         self.observer.delivered(self.wall, &mut delivery);
+        if !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
+            && let Some(mut walking) = self.walking.take()
+        {
+            walking.delivered(self, delivery);
+            self.walking = Some(walking);
+            return;
+        }
         if let Some(offers) = &mut self.offers {
             offers.delivered(&mut delivery);
         }

@@ -91,18 +91,20 @@ pub fn tracked_amendment(priority: u32) -> c::Amendment {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use jig_core_world::effects::Setup;
     #[test]
     fn the_wait_story_creates_a_tracked_person_task() {
         let limits = query_limits();
         let ask = jig_client_world::joint::wire::asks::ask(&c::Ask::Create { project: 1, tasks: person_tasks() }, &[])
             .expect("whole create");
-        let world = jig_core_world::effects::World::configured_with(
-            super::super::SEED,
-            false,
-            person_batch_config(super::super::SEED),
-            super::super::journal(limits),
-            ask,
-        );
+        let world = jig_core_world::effects::World::new(Setup {
+            seed: super::super::SEED,
+            configuration: Some(person_batch_config(super::super::SEED)),
+            limits: super::super::journal(limits),
+            require_assignment: false,
+            initial: Some(ask),
+            ..Setup::default()
+        });
         assert_eq!(
             world.people_answers.last(),
             Some(&jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Created {

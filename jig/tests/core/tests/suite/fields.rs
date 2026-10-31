@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::World;
 use jig_core_world::fixtures::ask_as;
 use jig_core_world::stories::offers::no_holder_fixture;
@@ -10,7 +11,7 @@ use skein_lib::{ReplyTo, Time, Token, Wall};
 
 #[test]
 fn a_chats_flags_and_last_activity_survive_a_cold_restart() {
-    let mut world = World::new(171, false);
+    let mut world = World::new(Setup { seed: 171, ..Setup::default() });
     world.set_clock(Time::from_nanos(9_000_000_000), Wall::from_nanos(9_000_000_000));
     world.send(root::Event::Core(core::Event::People(people::Event::Ask {
         models: Box::new([]),
@@ -51,7 +52,7 @@ const COMPLETION: u32 = 1;
 
 fn member_world() -> (World, u64, u64) {
     let (configuration, limits) = no_holder_fixture(172);
-    let mut world = World::configured(172, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 172, configuration: Some(configuration), limits, ..Setup::default() });
     let owner = world.sign_in.expect("signed-in owner");
     world.send(root::Event::Core(core::Event::SignIn {
         held: None,

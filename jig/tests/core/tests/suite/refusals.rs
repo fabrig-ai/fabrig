@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -53,7 +54,7 @@ fn second_person(world: &mut World, role: bool) -> u64 {
 
 #[test]
 fn deciding_an_escalation_after_its_release_is_refused_as_not_waiting() {
-    let mut world = World::new(152, false);
+    let mut world = World::new(Setup { seed: 152, ..Setup::default() });
     let task = world.call_key(1).task;
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Stalled })));
     world.end(tasks::End::Parked, 0);
@@ -72,7 +73,7 @@ fn deciding_an_escalation_after_its_release_is_refused_as_not_waiting() {
 
 #[test]
 fn deciding_an_escalation_another_party_decided_says_by_whom() {
-    let mut world = World::new(153, false);
+    let mut world = World::new(Setup { seed: 153, ..Setup::default() });
     let first = world.sign_in.expect("first person");
     let second = second_person(&mut world, true);
     let task = world.call_key(1).task;
@@ -110,7 +111,7 @@ fn deciding_an_escalation_another_party_decided_says_by_whom() {
 
 #[test]
 fn deciding_an_escalation_of_an_unseen_project_is_unknown() {
-    let mut world = World::new(154, false);
+    let mut world = World::new(Setup { seed: 154, ..Setup::default() });
     let task = world.call_key(1).task;
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Stalled })));
     world.end(tasks::End::Parked, 0);
@@ -159,7 +160,7 @@ fn proposal_rows(world: &World) -> Vec<(root::Key, root::Record)> {
 #[test]
 fn a_run_proposing_an_effect_nobody_may_accept_is_refused() {
     let (configuration, limits) = policy_without_effect_approvers();
-    let mut world = World::configured(155, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 155, configuration: Some(configuration), limits, ..Setup::default() });
     let before = proposal_rows(&world);
     world.send(root::Event::EffectCall {
         to: ReplyTo::new(Token::new(8200)),
@@ -179,7 +180,7 @@ fn a_run_proposing_an_effect_nobody_may_accept_is_refused() {
 #[test]
 fn a_proposal_pending_when_the_policy_narrows_still_waits() {
     use jig_domain_authority as authority;
-    let mut world = World::new(156, false);
+    let mut world = World::new(Setup { seed: 156, ..Setup::default() });
     let proposal = world.propose(1);
     let task = world.call_key(1).task;
     let role = people::PolicyRole {

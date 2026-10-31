@@ -1,4 +1,5 @@
 use jig_core_world::Fault;
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     client_peer::ClientPeer,
     effects::World,
@@ -22,14 +23,15 @@ const SUBJECT: &[u8] = b"same identity";
 
 fn world(peer: ClientPeer) -> World {
     let (config, limits) = fixture(1212, 0);
-    let mut world = World::scripted(
-        config,
+    let mut world = World::new(Setup {
+        configuration: Some(config),
         limits,
-        Peers::new(
+        peers: Some(Peers::new(
             vec![Worker::new(7, 1, vec![Box::new([Script::Wait])])],
             vec![Party::new(1, Role::Owner, SCRIPTED, Box::new([]))],
-        ),
-    );
+        )),
+        ..Setup::default()
+    });
     world.client_peer = Some(peer);
     world
 }

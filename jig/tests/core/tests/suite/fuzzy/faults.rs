@@ -2,6 +2,7 @@
 //! after every root iteration. Each failing seed is printed for direct replay.
 
 use jig_core_world::Fault as StoreFault;
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::{Cut, World, fixture},
     faults,
@@ -111,7 +112,13 @@ fn random_effect_worlds_recover_lost_answers_and_late_copies_by_their_declared_c
                 (config, limits)
             };
             let (config, limits) = configuration();
-            let mut world = World::configured(seed, guarded, config, limits);
+            let mut world = World::new(Setup {
+                seed,
+                requirement: guarded,
+                configuration: Some(config),
+                limits,
+                ..Setup::default()
+            });
             if guarded {
                 world.observed(13);
             }
@@ -182,7 +189,7 @@ fn random_drawn_commit_cuts_preserve_whole_turns_and_atomic_effect_decisions() {
     for seed in 129..=160 {
         replay(seed, || {
             let mut rng = Rng::new(seed);
-            let mut world = World::new(seed, false);
+            let mut world = World::new(Setup { seed, ..Setup::default() });
             let next = world.store.applied + 1;
             let cut = if rng.below(2) == 0 { Cut::Submitted(next) } else { Cut::Durable(next) };
             world.cut = Some(cut);
