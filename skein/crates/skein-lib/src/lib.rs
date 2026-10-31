@@ -3,9 +3,10 @@
 //! sets and stacks, the per-layer deadline table, the stream vocabulary and
 //! the intake that meets its demands, a held buffer serving a stream,
 //! a reader and a writer for sized bytes, a reusable bounded byte buffer,
-//! and the decimal digits of a count to write with them, monotonic and wall
-//! time, randomness, the tokens that cross layer boundaries, and the
-//! environment a step reads, and keyless state digests.
+//! and the decimal and hex digits to write and read with them, monotonic and
+//! wall time and the earlier of two deadlines, randomness, the tokens that
+//! cross layer boundaries, a component's lifecycle, the environment a step
+//! reads, and keyless state digests.
 //!
 //! Application code does not hand-roll data structures: what is missing goes
 //! here, written once and tested hard.
@@ -24,9 +25,11 @@ mod deadlines;
 mod decimal;
 mod digest;
 mod env;
+mod growth;
 mod id;
 mod intake;
 mod journal;
+mod lifecycle;
 mod list;
 mod map;
 mod queue;
@@ -54,6 +57,7 @@ pub use env::Env;
 pub use id::Id;
 pub use intake::Intake;
 pub use journal::{Commit, Decision, Journal, JournalLimits, Released};
+pub use lifecycle::Lifecycle;
 pub use list::List;
 pub use map::Map;
 pub use queue::Queue;
@@ -65,8 +69,8 @@ pub use requests::{
 pub use rng::Rng;
 pub use secret::Secret;
 pub use set::Set;
-pub use slab::Slab;
+pub use slab::{Iter as SlabIter, Slab};
 pub use stack::Stack;
-pub use time::{Duration, Time, Wall};
+pub use time::{Duration, Time, Wall, earliest};
 pub use token::{ReplyTo, Token};
 pub use writer::{Overflow, Writer};
