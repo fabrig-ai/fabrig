@@ -36,23 +36,15 @@ fn configure(directory: &Path, llm: SocketAddr) -> oauth::Peer {
     let mut agent: serde_json::Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent")).expect("JSON");
     agent["endpoints"][0]["address"] = llm.to_string().into();
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
-    // Keep init's LLM registration, charters and worker, with the existing
-    // unreachable-forge fixture: this story needs serve alone, not box's demo.
+    // Keep init's LLM registration, charters and worker, with no forge records
+    // (temper/docs/design/draft/playground-reset.md, 3).
     let (_, fixture) = super::configuration::documents(
         directory,
         skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"),
     );
     let fixture: serde_json::Value = serde_json::from_slice(&fixture).expect("fixture JSON");
-    for field in ["forges", "identities", "setup", "demo", "webhooks", "workers", "clients"] {
+    for field in ["machine", "demo", "webhooks", "workers", "clients"] {
         value["application"][field] = fixture["application"][field].clone();
-    }
-    fs::create_dir_all(directory.join("secrets")).expect("fixture secrets");
-    for (file, bytes) in [
-        ("forge-1.user", b"42\n".as_slice()),
-        ("forge-1.api-token", b"forge-1-api-token-value"),
-        ("forge-1.git-token", b"forge-1-git-token-value"),
-    ] {
-        super::write_private(&directory.join("secrets").join(file), bytes);
     }
     super::write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("configuration JSON"));
     issuer
