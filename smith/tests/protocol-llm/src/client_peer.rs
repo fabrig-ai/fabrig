@@ -14,7 +14,7 @@ pub use smith_protocol_llm::fixture::schemas;
 pub use crate::fixture::{Configuration, configurations};
 
 /// Finite observed lower chronology, without retaining another completion body.
-/// Shared Client emits these observations; at most four belong to one ClientPeer.
+/// The skein Client emits these observations; at most four belong to one `ClientPeer`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Observed {
     /// Observed completed callback.
