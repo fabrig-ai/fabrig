@@ -115,7 +115,7 @@ impl Host {
                     live.answer(answer, &mut self.plan_out);
                 }
             }
-            Request::Close => {
+            Request::Close | Request::Abort => {
                 self.closing = true;
                 self.states.clear();
                 self.runs = Map::with_capacity(self.runs.capacity());
