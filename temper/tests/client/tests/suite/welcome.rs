@@ -120,7 +120,11 @@ fn a_configured_model_hides_the_banner_and_the_strips_model_half() {
     let document = d::pages::accounts::document(person.client()).expect("accounts delivered");
     assert!(document.usable, "the configured model is usable");
     assert!(!document.accounts.iter().any(|line| d::forge::demo::usable_account(line, None)));
-    assert_eq!(d::pages::welcome::decision(person), Some(false), "the forge is not connected");
+    assert_eq!(
+        d::pages::welcome::decision(person),
+        Some(d::pages::welcome::FirstRun::Unfinished { step: d::Step::Forge { forge: None } }),
+        "the forge is not connected"
+    );
     accounts::event(
         &mut front,
         &mut root,
@@ -143,7 +147,7 @@ fn a_configured_model_hides_the_banner_and_the_strips_model_half() {
         state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
     })));
     accounts::settle(&mut front, &mut root);
-    assert_eq!(d::pages::welcome::decision(root.person()), Some(true));
+    assert_eq!(d::pages::welcome::decision(root.person()), Some(d::pages::welcome::FirstRun::Whole));
     assert!(d::forge::listed::setup(root.person()).is_none());
 }
 

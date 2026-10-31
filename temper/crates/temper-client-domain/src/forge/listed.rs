@@ -96,7 +96,13 @@ pub struct Setup {
 }
 #[must_use]
 pub fn setup(root: &Domain) -> Option<Setup> {
-    if !root.demo_answered() || root.forge().demo_running() || welcome::decision(root) != Some(false) {
+    if !root.demo_answered()
+        || root.forge().demo_running()
+        || match welcome::decision(root) {
+            Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) => false,
+            Some(welcome::FirstRun::Whole) | None => true,
+        }
+    {
         return None;
     }
     let owner = accounts::current_me(root.client())?.deployment_role == Some(jig_client::contract::HeldRole::Owner);

@@ -84,7 +84,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
     };
     let me = accounts::current_me(client)?;
     let page = pages.connect_model()?;
-    for way in &accounts::ways(&me.providers, pages.demo_provider, page.holder) {
+    for way in &accounts::ways(&me.providers, pages.playground_provider, page.holder) {
         if model_way(*way).provider == chosen.provider && model_way(*way).kind == chosen.kind {
             return Some(*way);
         }

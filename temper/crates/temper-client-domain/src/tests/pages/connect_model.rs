@@ -145,7 +145,7 @@ fn unavailable_and_demo_ways_resolve_to_choose() {
     let (mut root, _, _) = root(Way::Key { provider: PROVIDER + 1 });
     assert_eq!(connect_model::way(root.pages(), root.client()), None);
     go(&mut root, Some(Way::Key { provider: PROVIDER }));
-    root.pages.demo_provider = Some(PROVIDER);
+    root.pages.playground_provider = Some(PROVIDER);
     assert_eq!(connect_model::way(root.pages(), root.client()), None);
 }
 #[test]

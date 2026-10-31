@@ -491,7 +491,7 @@ fn suggestions(
         text(b, Role::Alert, &message);
         b.open(Role::Button);
         b.name(&words.say(Word::DemoTryAgain, &[]));
-        b.bind(bindings.insert(Act::RetryDemo));
+        b.bind(bindings.insert(Act::RetryPlayground));
         b.close();
     }
     b.open(Role::List);
