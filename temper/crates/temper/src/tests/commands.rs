@@ -46,6 +46,7 @@ fn every_row_parses_from_an_example() {
         (&["box"], &["box", "--echo", "steps"]),
         (&["box"], &["box", "--fake-backends", "--bundle", "/bundle"]),
         (&["program-login"], &["program-login", "source"]),
+        (&["forge", "remove"], &["forge", "remove", "1"]),
         (&["forge", "fetch"], &["forge", "fetch", "1"]),
         (&["forge", "prepare"], &["forge", "prepare", "1"]),
         (&["forge", "run"], &["forge", "run", "1", "forgejo"]),

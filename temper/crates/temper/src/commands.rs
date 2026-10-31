@@ -56,7 +56,7 @@ const DIRECTORIES: Argument = Argument {
 const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
-pub const COMMANDS: [Row; 20] = [
+pub const COMMANDS: [Row; 21] = [
     Row {
         words: &["help"],
         who: Who::Documentation,
@@ -158,6 +158,16 @@ pub const COMMANDS: [Row; 20] = [
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
         notes: "Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child.",
+        transition: false,
+    },
+    Row {
+        words: &["forge", "remove"],
+        who: Who::Deployment,
+        forms: &["[DIRECTORIES] FORGE"],
+        line: "Remove a stopped box slot's forge directory, keeping the cache.",
+        arguments: &[DIRECTORIES, FORGE],
+        settings: &[&directories::SETTINGS],
+        notes: "Reads the slot's kind from box/groups/FORGE and refuses a directory outside data or in the cache.",
         transition: false,
     },
     Row {
