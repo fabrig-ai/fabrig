@@ -212,6 +212,7 @@ fn its_live_tasks_are_cancelled() {
     let root = world.assignments[0].0;
     let (first, second) = delegate_pair(&mut world);
     let (period_root, period_child) = recurring(&mut world);
+    assert_eq!(live_row(&world, period_root).requester, tasks::Party::Deployment { project: PROJECT });
     let answers = world.people_answers.len();
     remove(&mut world);
     for task in [root, first, second, period_root, period_child] {
@@ -433,8 +434,28 @@ fn recurring(world: &mut World) -> (u64, u64) {
             }]),
         },
     }));
-    let delegate = world.assignments.last().expect("recurring delegate run").0;
-    let tasks::Party::Task(task) = live_row(world, delegate).requester else { panic!("recurring delegate") };
+    let task = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| {
+            let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = record else { return None };
+            if row.requester == (tasks::Party::Deployment { project: PROJECT }) && row.recurring.is_some() {
+                Some(row.number)
+            } else {
+                None
+            }
+        })
+        .expect("deployment's recurring root");
+    let delegate = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| {
+            let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = record else { return None };
+            if row.requester == tasks::Party::Task(task) { Some(row.number) } else { None }
+        })
+        .expect("recurring delegate, even before a worker is available");
     (task, delegate)
 }
 
