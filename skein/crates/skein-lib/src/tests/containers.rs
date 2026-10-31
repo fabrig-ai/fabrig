@@ -163,6 +163,28 @@ fn a_queue_is_fifo_and_bounded() {
 }
 
 #[test]
+fn a_queue_cleared_is_refilled_to_its_cap() {
+    let mut queue = Queue::with_capacity(2);
+    queue.push(1_u8);
+    queue.push(2);
+    assert_eq!(queue.pop(), Some(1));
+    queue.push(3);
+    queue.clear();
+    queue.clear();
+    assert!(queue.is_empty());
+    assert_eq!(queue.len(), 0);
+    assert_eq!(queue.capacity(), 2);
+    assert_eq!(queue.room(), 2);
+    assert_eq!(queue.pop(), None);
+    queue.push(4);
+    assert_eq!(queue.try_push(5), Ok(()));
+    assert_eq!(queue.try_push(6), Err(6));
+    assert_eq!(queue.pop(), Some(4));
+    assert_eq!(queue.pop(), Some(5));
+    assert_eq!(queue.pop(), None);
+}
+
+#[test]
 #[should_panic(expected = "the loop reserves room for every output")]
 fn pushing_past_the_reservation_is_a_bug() {
     let mut queue = Queue::with_capacity(0);
@@ -183,6 +205,26 @@ fn a_stack_is_lifo_and_bounded() {
     assert_eq!(stack.pop(), Some('a'));
     assert_eq!(stack.pop(), None);
     assert!(stack.is_empty());
+}
+
+#[test]
+fn a_stack_cleared_is_refilled_to_its_cap() {
+    let mut stack = Stack::with_capacity(2);
+    assert_eq!(stack.push('a'), Ok(()));
+    assert_eq!(stack.push('b'), Ok(()));
+    stack.clear();
+    stack.clear();
+    assert!(stack.is_empty());
+    assert_eq!(stack.len(), 0);
+    assert_eq!(stack.capacity(), 2);
+    assert_eq!(stack.top(), None);
+    assert_eq!(stack.pop(), None);
+    assert_eq!(stack.push('c'), Ok(()));
+    assert_eq!(stack.push('d'), Ok(()));
+    assert_eq!(stack.push('e'), Err('e'));
+    assert_eq!(stack.pop(), Some('d'));
+    assert_eq!(stack.pop(), Some('c'));
+    assert_eq!(stack.pop(), None);
 }
 
 #[test]
