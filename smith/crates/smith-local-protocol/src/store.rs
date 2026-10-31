@@ -85,16 +85,12 @@ pub fn decode_state(bytes: &[u8]) -> Result<ChatState, StoreError> {
 /// Fixed-width numeric path for one turn, sortable in transcript order.
 #[must_use]
 pub fn turn_name(place: u32) -> Box<[u8]> {
-    let mut digits = [b'0'; 10];
-    let mut number = place;
-    for index in (0..10).rev() {
-        let digit = number.checked_rem(10).expect("nonzero base");
-        let cell = digits.get_mut(index).expect("decimal position within ten digits");
-        *cell = b'0'.checked_add(u8::try_from(digit).expect("decimal digit fits")).expect("digit fits");
-        number = number.checked_div(10).expect("nonzero base");
-    }
+    let digits = skein_lib::Decimal::of(u64::from(place));
     let mut writer = Writer::new(15);
-    writer.put(&digits).expect("ten digits fit");
+    for _ in digits.as_bytes().len()..10 {
+        writer.put(b"0").expect("ten digits fit");
+    }
+    writer.put(digits.as_bytes()).expect("ten digits fit");
     writer.put(b".turn").expect("turn suffix fits");
     writer.finish()
 }

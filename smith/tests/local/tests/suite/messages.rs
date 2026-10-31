@@ -67,7 +67,7 @@ fn a_brief_with_an_early_finish_carries_the_line_to_the_next_activation() {
     let mut world = World::finishing(27);
     follow_up(&mut world);
     assert!(world.drive_to_exit(2_000));
-    assert!(world.prompt_texts().iter().any(|text| text.windows(20).any(|part| part == b"And another question")));
+    assert!(world.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"And another question").is_some()));
     assert_eq!(world.into_store().read(), Some(Token::new(2)));
 }
 

@@ -792,12 +792,12 @@ impl World {
     /// Reject a failure diagnostic found in a durable turn or any provider prompt.
     #[must_use]
     pub fn diagnostic_in_history(&self, diagnostic: &[u8]) -> bool {
-        self.prompt_texts.iter().any(|text| text.windows(diagnostic.len()).any(|part| part == diagnostic))
+        self.prompt_texts.iter().any(|text| skein_lib::bytes::find(text, diagnostic).is_some())
             || self.store.turns.iter().any(|turn| {
                 turn.messages.iter().any(|message| {
                     message.content.iter().any(|block| {
                         matches!(block, agent::session::llm::Block::Text { text, .. } | agent::session::llm::Block::Refusal { text, .. }
-                    if text.windows(diagnostic.len()).any(|part| part == diagnostic))
+                    if skein_lib::bytes::find(text, diagnostic).is_some())
                     })
                 })
             })
@@ -1486,7 +1486,7 @@ impl World {
                 let mut first = None;
                 for path in paths {
                     let at = [b"work/".as_slice(), path.as_ref()].concat();
-                    if self.disk.content(&at).is_some_and(|text| text.windows(7).any(|part| part == b"<<<<<<<")) {
+                    if self.disk.content(&at).is_some_and(|text| skein_lib::bytes::find(text, b"<<<<<<<").is_some()) {
                         first = Some(path);
                         break;
                     }
@@ -1732,7 +1732,7 @@ impl World {
                 let passed = self
                     .disk
                     .load(program.root.raw(), b"src/lib.rs", 4096)
-                    .is_ok_and(|(text, _)| text.windows(2).any(|part| part == b"43"));
+                    .is_ok_and(|(text, _)| skein_lib::bytes::find(&text, b"43").is_some());
                 if passed {
                     let directory =
                         u32::try_from(program.root.raw().checked_sub(1).expect("fixture roots start at one"))

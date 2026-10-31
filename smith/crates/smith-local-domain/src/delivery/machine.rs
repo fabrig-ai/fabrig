@@ -438,13 +438,10 @@ fn inspected(
 ) -> State {
     match result {
         GitResult::Inspected { head, named: true } => {
-            let capacity =
-                u32::try_from(head.len()).expect("bounded inspected head").checked_add(7).expect("receipt bound");
-            let mut text = List::with_capacity(capacity);
-            for byte in b"commit ".iter().chain(head.iter()) {
-                text.push(*byte).expect("receipt capacity");
-            }
-            committed(domain, env, call, GitResult::Committed { receipt: text.into_boxed(), head }, out)
+            let Some(receipt) = crate::commit_receipt(&head) else {
+                return failure(call.next, run::DeliveryReason::TooLarge);
+            };
+            committed(domain, env, call, GitResult::Committed { receipt, head }, out)
         }
         GitResult::Inspected { head, named: false } => {
             let mut unchanged = false;

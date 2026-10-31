@@ -341,13 +341,10 @@ fn delivery_name(name: run::CallName) -> Box<[u8]> {
 }
 
 fn decimal(out: &mut [u8], cursor: &mut usize, value: u64, width: usize) {
-    let mut number = value;
-    let end = cursor.saturating_add(width);
-    for index in (*cursor..end).rev() {
-        let cell = out.get_mut(index).expect("fixed decimal slot");
-        *cell = b'0'.checked_add(u8::try_from(number % 10).expect("digit fits")).expect("ASCII digit fits");
-        number /= 10;
-    }
+    let digits = skein_lib::Decimal::of(value);
+    let end = cursor.checked_add(width).expect("fixed decimal field bound");
+    let start = end.checked_sub(digits.as_bytes().len()).expect("value fits its decimal field");
+    out.get_mut(start..end).expect("fixed decimal slot").copy_from_slice(digits.as_bytes());
     *cursor = end;
 }
 

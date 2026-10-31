@@ -315,19 +315,8 @@ fn newline(text: &mut Shown) {
     }
 }
 
-fn decimal(text: &mut Shown, mut number: u64) {
-    let mut digits = [0; 20];
-    let mut first = digits.len();
-    for _ in 0..digits.len() {
-        first = first.checked_sub(1).expect("u64 fits twenty decimal digits");
-        *digits.get_mut(first).expect("bounded decimal position") =
-            u8::try_from(number % 10).expect("decimal digit").checked_add(b'0').expect("ASCII digit");
-        number /= 10;
-        if number == 0 {
-            break;
-        }
-    }
-    append(text, digits.get(first..).expect("bounded decimal suffix"));
+fn decimal(text: &mut Shown, number: u64) {
+    append(text, skein_lib::Decimal::of(number).as_bytes());
 }
 
 #[cfg(test)]

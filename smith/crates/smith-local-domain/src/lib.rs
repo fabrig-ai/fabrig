@@ -65,6 +65,7 @@ pub use boundary::{
 };
 pub use choices::Slash;
 pub use config::{Config, Contract, Invalid, Mode, PushTarget, charter};
+pub use delivery::{commit_receipt, delivery_trailer};
 pub use domain::{Domain, fire, resume, step};
 pub use end::EndCause;
 pub use facts::Fact;

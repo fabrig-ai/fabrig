@@ -149,12 +149,8 @@ fn inspected(
                 && !head.is_empty()
                 && head.len() <= agent::run::Receipt::CAPACITY.checked_sub(7).expect("receipt prefix fits")
             {
-                let mut text =
-                    List::with_capacity(u32::try_from(agent::run::Receipt::CAPACITY).expect("fixed receipt bound"));
-                for byte in b"commit ".iter().chain(head.iter()) {
-                    text.push(*byte).expect("bounded receipt");
-                }
-                reconcile.receipt(entry.directory, text.into_boxed());
+                let text = crate::commit_receipt(&head).expect("bounded named head fits a receipt");
+                reconcile.receipt(entry.directory, text);
                 match entry.push {
                     Some(target) => {
                         out.push(Request::Git {

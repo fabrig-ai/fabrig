@@ -13,16 +13,11 @@ fn a_chat_granted_sub_agents_delegates_a_reading_and_answers() {
         assert!(served.is_empty(), "the child cannot delegate or use main's served tools");
     }
     assert!(
-        world.tool_results().iter().any(|text| text
-            .windows(b"The answer is in src/lib.rs".len())
-            .any(|part| part == b"The answer is in src/lib.rs")),
+        world.tool_results().iter().any(|text| skein_lib::bytes::find(text, b"The answer is in src/lib.rs").is_some()),
         "main receives the child's reading"
     );
     assert!(
-        world
-            .tool_results()
-            .iter()
-            .any(|text| text.windows(b"pub fn answer()".len()).any(|part| part == b"pub fn answer()")),
+        world.tool_results().iter().any(|text| skein_lib::bytes::find(text, b"pub fn answer()").is_some()),
         "the child receives the file read"
     );
     assert!(world.shown().iter().any(|text| text.as_ref() == b"The delegated reading found the answer."));
@@ -45,12 +40,7 @@ fn a_question_is_answered_and_the_chat_waits_for_the_next() {
     assert_eq!(world.saved_turns(), 1, "the answered exchange is durable while the next wait remains withheld");
     assert!(world.waiting(), "the run asked to wait for another person message");
     assert!(world.completions() >= 2, "the fake provider served the reply and wait");
-    assert!(
-        world
-            .shown()
-            .iter()
-            .any(|text| text.windows(b"Hello from the agent.".len()).any(|bytes| bytes == b"Hello from the agent."))
-    );
+    assert!(world.shown().iter().any(|text| skein_lib::bytes::find(text, b"Hello from the agent.").is_some()));
 }
 
 #[test]
@@ -79,7 +69,7 @@ fn a_delivery_with_no_changes_answers_nothing_and_the_llm_is_told() {
     world.line(b"Deliver the current state");
     world.drive(400);
     assert!(matches!(world.delivery(), Some(smith_domain::run::Delivery::Nothing)));
-    assert!(world.tool_results().iter().any(|text| text.windows(b"nothing".len()).any(|part| part == b"nothing")));
+    assert!(world.tool_results().iter().any(|text| skein_lib::bytes::find(text, b"nothing").is_some()));
 }
 
 #[test]
@@ -91,9 +81,7 @@ fn a_marker_left_in_a_conflicted_file_refuses_the_delivery_naming_it() {
         panic!("marker refusal recorded")
     };
     assert_eq!(refusal.marker().expect("named marker").path(), b"src/lib.rs");
-    assert!(
-        world.tool_results().iter().any(|text| text.windows(b"src/lib.rs".len()).any(|part| part == b"src/lib.rs"))
-    );
+    assert!(world.tool_results().iter().any(|text| skein_lib::bytes::find(text, b"src/lib.rs").is_some()));
 }
 
 #[test]
@@ -275,7 +263,7 @@ fn a_crash_after_a_commit_tells_the_resumed_run_what_was_committed() {
     second.line(b"What happened before the crash?");
     second.drive(600);
     assert!(
-        second.prompt_texts().iter().any(|text| text.windows(b"commit 2".len()).any(|part| part == b"commit 2")),
+        second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"commit 2").is_some()),
         "prompts: {:?}, trace: {:?}, shown: {:?}",
         second.prompt_texts(),
         second.trace(),
@@ -297,10 +285,7 @@ fn two_deliveries_before_a_saved_turn_are_both_told_after_a_crash() {
     assert_eq!(second.delivery_commits(), 1, "the first delivery is not repeated");
     let prompts = second.prompt_texts();
     for answer in [b"position=0 tool=deliver result: delivered".as_slice(), b"position=1 tool=deliver error: nothing"] {
-        assert!(
-            prompts.iter().any(|text| text.windows(answer.len()).any(|part| part == answer)),
-            "missing: {answer:?}"
-        );
+        assert!(prompts.iter().any(|text| skein_lib::bytes::find(text, answer).is_some()), "missing: {answer:?}");
     }
 }
 
@@ -314,9 +299,7 @@ fn a_saved_stale_answer_is_told_after_a_crash() {
     second.line(b"What happened?");
     second.drive(600);
     assert!(
-        second.prompt_texts().iter().any(|text| text
-            .windows(b"tool=deliver error: stale".len())
-            .any(|part| part == b"tool=deliver error: stale"))
+        second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"tool=deliver error: stale").is_some())
     );
     assert_eq!(second.delivery_commits(), 1);
 }
@@ -331,7 +314,7 @@ fn a_saved_failure_after_a_commit_is_told_after_a_crash() {
     second.line(b"What happened?");
     second.drive(600);
     let outcome = b"tool=deliver error: delivery-failed directory=1 reason=broken";
-    assert!(second.prompt_texts().iter().any(|text| text.windows(outcome.len()).any(|part| part == outcome)));
+    assert!(second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, outcome).is_some()));
     assert_eq!(second.delivery_commits(), 1);
 }
 
@@ -344,7 +327,7 @@ fn a_maximum_length_person_line_reaches_the_run_whole_after_a_crash() {
     let line = vec![b'Q'; 1024];
     second.line(&line);
     second.drive(600);
-    assert!(second.prompt_texts().iter().any(|text| text.windows(line.len()).any(|part| part == line)));
+    assert!(second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, &line).is_some()));
 }
 
 #[test]
@@ -378,12 +361,12 @@ fn an_intent_after_the_first_of_two_commits_reports_only_that_commit() {
     };
     assert_eq!(failure.directory, 1);
     assert_eq!(failure.reason, smith_domain::run::DeliveryReason::Broken);
-    assert!(failure.diagnostic.output().windows(b"commit 2".len()).any(|part| part == b"commit 2"));
+    assert!(skein_lib::bytes::find(failure.diagnostic.output(), b"commit 2").is_some());
     assert_eq!(second.delivery_commits(), 1, "recovery did not commit again");
     second.line(b"What landed?");
     second.drive(600);
     assert!(
-        second.prompt_texts().iter().any(|text| text.windows(b"commit 2".len()).any(|part| part == b"commit 2")),
+        second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"commit 2").is_some()),
         "prompts: {:?}, shown: {:?}",
         second.prompt_texts(),
         second.shown()
@@ -403,7 +386,7 @@ fn an_intent_after_every_commit_reconciles_to_delivered() {
     second.line(b"What landed?");
     second.drive(600);
     assert!(
-        second.prompt_texts().iter().any(|text| text.windows(b"commit 2".len()).any(|part| part == b"commit 2")),
+        second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"commit 2").is_some()),
         "prompts: {:?}, shown: {:?}",
         second.prompt_texts(),
         second.shown()
@@ -441,9 +424,7 @@ fn a_chat_with_no_workspace_waits_parks_and_resumes_on_the_next_invocation() {
     assert!(!second.drive(300), "a fresh domain resumes from {prior_turns} stored turns: {:?}", second.trace());
     assert_eq!(second.activation(), 2, "the next activation is durable before its agent runs");
     assert_eq!(second.prompt_assistants().first(), Some(&prior_turns), "provider sees the saved assistant history");
-    assert!(
-        second.shown().iter().any(|text| text.windows(b"Welcome back.".len()).any(|bytes| bytes == b"Welcome back."))
-    );
+    assert!(second.shown().iter().any(|text| skein_lib::bytes::find(text, b"Welcome back.").is_some()));
 }
 
 #[test]
@@ -568,11 +549,7 @@ fn an_expired_credential_is_refreshed_and_the_completion_retried() {
     assert!(world.drive(300), "the provider retry reaches the next wait");
     assert_eq!(world.credential_requests(), 2, "the rejected generation triggers one refresh");
     assert!(world.completions() >= 3, "the rejected completion was retried");
-    assert!(
-        world.shown().iter().any(|text| {
-            text.windows(b"Hello from the agent.".len()).any(|bytes| bytes == b"Hello from the agent.")
-        })
-    );
+    assert!(world.shown().iter().any(|text| { skein_lib::bytes::find(text, b"Hello from the agent.").is_some() }));
 }
 
 #[test]
@@ -743,7 +720,7 @@ fn an_unknown_commit_keeps_its_intent_until_a_restart_finds_it() {
     second.line(b"What landed?");
     second.drive(600);
     assert_eq!(second.delivery_commits(), 1, "reconciliation never committed again");
-    assert!(second.prompt_texts().iter().any(|text| text.windows(b"delivered".len()).any(|part| part == b"delivered")));
+    assert!(second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"delivered").is_some()));
 }
 
 #[test]
@@ -775,12 +752,7 @@ fn a_headless_prompt_opens_the_run_and_its_answer_ends_the_host() {
     assert_eq!(world.activation(), 1);
     let prompt = String::from_utf8_lossy(&world.prompt_texts()[0]);
     assert!(prompt.contains("person") && prompt.contains("Change the answer in work"));
-    assert!(
-        !world
-            .prompt_texts()
-            .iter()
-            .any(|text| text.windows(b"This follow-up".len()).any(|bytes| bytes == b"This follow-up"))
-    );
+    assert!(!world.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"This follow-up").is_some()));
 }
 
 #[test]
@@ -842,7 +814,7 @@ fn a_provider_refusal_is_shown_with_its_class_and_text() {
     world.line(b"Hello");
     world.drive(300);
     let shown = world.shown().iter().find(|text| text.starts_with(b"run failed: ")).expect("failure line");
-    assert!(shown.windows(18).any(|part| part == b"invalid (HTTP 400)"));
+    assert!(skein_lib::bytes::find(shown, b"invalid (HTTP 400)").is_some());
     assert!(shown.ends_with(b"after 1 attempts: model does not exist\n"));
-    assert!(!shown.windows(11).any(|part| part == b"second line"));
+    assert!(!skein_lib::bytes::find(shown, b"second line").is_some());
 }
