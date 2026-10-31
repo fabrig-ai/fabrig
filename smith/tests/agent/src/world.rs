@@ -460,7 +460,7 @@ impl<B: Backend> World<B> {
         answered: Box<[agent::AnsweredCall]>,
         workspace: Option<run::Workspace>,
         disk: Checkout,
-        backend: B,
+        mut backend: B,
         selected_charter: Option<run::Charter>,
         selected_start: Option<Event>,
     ) -> Self {
@@ -475,6 +475,7 @@ impl<B: Backend> World<B> {
             .as_ref()
             .and_then(|workspace| workspace.directories.first())
             .map(|directory| directory.root.raw());
+        backend.contract(charter.outcome.clone(), charter.grants.deliver.clone());
         let observed_contract = charter.outcome.clone();
         let delivery = charter.grants.deliver.is_some();
         let checks = !supplied_start

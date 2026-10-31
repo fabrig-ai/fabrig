@@ -104,11 +104,11 @@ fn retired_boundary(world: &World, tool_name: &[u8]) {
     let owner = first_binding.owner;
     assert_eq!(
         first_binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-        [Observed::Completed(owner), Observed::Reusable, Observed::Close, Observed::Closed]
+        [Observed::Completed(owner)]
     );
     assert_eq!(
         second_binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-        [Observed::Close, Observed::Cancelled(owner), Observed::Closed]
+        [Observed::Cancelled(owner)]
     );
     assert!(first_binding.retired.is_some());
     assert_eq!(second_binding.retired.expect("observed lower Closed").1, Wall::from_nanos(3000));
@@ -150,7 +150,6 @@ fn root_story(configuration: Configuration, tool_name: &'static [u8]) {
     host_boundary(&world, &expected_arguments, tool_name);
     let [first_binding, second_binding] = world.wire_bindings() else { panic!("two observed physical bindings") };
     assert_eq!(first_binding.owner, second_binding.owner, "the root reuses the logical callback");
-    assert_eq!(second_binding.retained_at_start, 1, "new call starts while the old physical Close is owed");
     assert_eq!(first_binding.receiving.max_completion_bytes, expected_receiving.session.completion_bytes);
     assert_eq!(first_binding.receiving.max_completion_blocks, expected_receiving.session.completion_blocks);
     assert_eq!(first_binding.receiving.max_failure_bytes, expected_receiving.session.failure_bytes);

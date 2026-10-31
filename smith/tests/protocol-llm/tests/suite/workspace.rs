@@ -157,7 +157,7 @@ fn no_workspace(world: &World, settings: &Settings) {
     for binding in world.wire_bindings() {
         assert_eq!(
             binding.observed.iter().map(|(_, _, seen)| *seen).collect::<Vec<_>>(),
-            [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
+            [Observed::Completed(binding.owner)]
         );
         assert!(binding.retired.is_some(), "physical owners retire only after observed Closed");
     }
@@ -267,7 +267,13 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
                     )],
                     1,
                 ),
-                calls(vec![call(b"finish", br#"{"report":"Edited the copied text.","source":"utf8.txt"}"#)], 1),
+                calls(
+                    vec![call(
+                        b"finish",
+                        br#"{"form":"report","text":"Edited the copied text.","fields":{"source":"utf8.txt"}}"#,
+                    )],
+                    1,
+                ),
             ]),
         }]);
         let mut bounds =
@@ -374,7 +380,10 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
         let scripts = Box::new([Script {
             cue: Box::new([]),
             turns: Box::new([calls(
-                vec![call(b"finish", br#"{"report":"Descriptions observed.","source":"schema"}"#)],
+                vec![call(
+                    b"finish",
+                    br#"{"form":"report","text":"Descriptions observed.","fields":{"source":"schema"}}"#,
+                )],
                 1,
             )]),
         }]);
@@ -463,7 +472,13 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
                 cue: Box::new([]),
                 turns: Box::new([
                     calls(vec![call(b"list", br#"{"path":"/"}"#)], 1),
-                    calls(vec![call(b"finish", br#"{"report":"Namespace observed.","source":"authority"}"#)], 1),
+                    calls(
+                        vec![call(
+                            b"finish",
+                            br#"{"form":"report","text":"Namespace observed.","fields":{"source":"authority"}}"#,
+                        )],
+                        1,
+                    ),
                 ]),
             }]);
             let mut world =

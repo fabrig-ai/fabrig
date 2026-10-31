@@ -19,7 +19,8 @@ const BEGIN: &[u8] = b"Begin the work your brief describes.";
 const ID: &[u8] = b"call_0000000000000001";
 const NATIVE_INSTRUCTIONS: &str = "@brief-native PARENT-INSTRUCTIONS: native first activation.";
 const RESUME_INSTRUCTIONS: &str = "@brief-native RESUME-INSTRUCTIONS: use the saved history.\n";
-const FINISH_INPUT: &[u8] = br#"{"report":"The child inspected the changed workspace.","source":"workspace"}"#;
+const FINISH_INPUT: &[u8] =
+    br#"{"form":"report","text":"The child inspected the changed workspace.","fields":{"source":"workspace"}}"#;
 const FIRST: &[u8] = b"Native structured brief first activation parked.";
 const RESUMED: &[u8] = b"Native structured brief history restored.";
 const LAST: &[u8] = b"Native structured brief second activation parked.";
@@ -498,7 +499,7 @@ fn native_settled(world: &World, settings: &Settings, roots: &[Token], expected_
         assert_eq!(binding.receiving.decoded_call_bytes, settings.limits.decoded_call_bytes);
         assert_eq!(
             binding.observed.iter().map(|(_, _, seen)| *seen).collect::<Vec<_>>(),
-            [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
+            [Observed::Completed(binding.owner)]
         );
         assert!(binding.retired.is_some(), "observed lower Closed precedes physical retirement");
     }

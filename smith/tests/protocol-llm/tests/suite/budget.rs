@@ -19,7 +19,8 @@ fn script() -> Box<[Script]> {
             Turn {
                 lines: Box::new([Line::Call {
                     name: b"finish".as_slice().into(),
-                    arguments: br#"{"report":"Native answer.","source":"peer"}"#.as_slice().into(),
+                    arguments:
+                        br#"{"form":"report","text":"Native answer.","fields":{"source":"peer"}}"#.as_slice().into(),
                 }]),
                 finish: Finish::ToolCalls,
                 tokens: 7,

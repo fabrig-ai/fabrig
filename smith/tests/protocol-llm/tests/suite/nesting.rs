@@ -12,6 +12,13 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
         let error_flag = configuration.error_flag;
         let mut scripts = script::all().into_vec();
         let main = scripts.iter_mut().find(|script| script.cue.as_ref() == b"@delegate").expect("main script");
+        main.turns.last_mut().expect("main finish").lines = Box::new([Line::Call {
+            name: b"finish".as_slice().into(),
+            arguments:
+                br#"{"form":"change","fields":{"title":"Make the answer 43","body":"A sub-agent made the answer 43."}}"#
+                    .as_slice()
+                    .into(),
+        }]);
         let mut turns = vec![Turn {
             lines: Box::new([Line::Call {
                 name: b"sub_agent".as_slice().into(),

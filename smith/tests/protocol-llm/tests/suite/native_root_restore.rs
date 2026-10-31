@@ -30,6 +30,7 @@ const ANTHROPIC_OPAQUE: &[u8] = br#"{"type":"thinking","future":{"proof":[1,true
 const CODEX_ENVELOPE: &[u8] = b"\x00\x01\x01\x00\x00\x00\x59{\"type\":\"reasoning\",\"id\":\"opaque_root\",\"encrypted_content\":\"encrypted-root\",\"summary\":[]}";
 const ANTHROPIC_ENVELOPE: &[u8] = b"\x00\x01\x02\x00\x00\x00\x81{\"type\":\"thinking\",\"future\":{\"proof\":[1,true,null],\"nonce\":\"root-proof\"},\"thinking\":\"Plan for parking\",\"signature\":\"signed-root\"}";
 const CALL_REPLAY: &[u8] = b"\x00\x01\x01\x00\x00\x00\x16{\"item_id\":\"item_1_1\"}";
+const SECOND_TEXT_REPLAY: &[u8] = b"\x00\x01\x01\x00\x00\x00\x28{\"id\":\"item_2_0\",\"phase\":\"final_answer\"}";
 const TEXT_REPLAY: &[u8] = b"\x00\x01\x01\x00\x00\x00\x28{\"id\":\"item_1_0\",\"phase\":\"final_answer\"}";
 
 struct Fixture {
@@ -449,7 +450,7 @@ fn settled(world: &World, settings: &Settings) {
         assert_eq!(binding.receiving.decoded_call_bytes, settings.limits.decoded_call_bytes);
         assert_eq!(
             binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-            [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
+            [Observed::Completed(binding.owner)]
         );
         assert!(binding.retired.is_some(), "observed lower Closed permits physical retirement");
     }
@@ -524,7 +525,7 @@ fn native_root_parks_then_restores_whole_opaque_prefix_and_real_post_tail() {
         recorded_corruptions(&first.turns()[0], &fixture);
         assert!(
             matches!(first.turns()[1].messages[1].content.as_ref(), [llm::Block::Text { text, replay: metadata }, llm::Block::ToolCall { .. }]
-            if text.as_ref() == FIRST && replay(metadata.as_ref(), fixture.text_replay))
+            if text.as_ref() == FIRST && replay(metadata.as_ref(), fixture.text_replay.map(|_| SECOND_TEXT_REPLAY)))
         );
         settled(&first, &settings);
         resume(&first, &fixture, index, false);

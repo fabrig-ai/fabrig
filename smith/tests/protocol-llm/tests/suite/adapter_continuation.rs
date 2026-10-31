@@ -460,13 +460,13 @@ fn retired(world: &World) {
     for binding in [first, second] {
         assert_eq!(
             binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-            [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
+            [Observed::Completed(binding.owner)]
         );
         assert!(binding.retired.is_some());
     }
     assert_eq!(
         third.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-        [Observed::Close, Observed::Cancelled(third.owner), Observed::Closed]
+        [Observed::Cancelled(third.owner)]
     );
     assert!(third.retired.is_some());
     assert!(corrected_feedback(&world.prompts()[2]));

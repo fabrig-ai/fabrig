@@ -42,7 +42,7 @@ fn world(configuration: wire::Configuration, job_input: &[u8]) -> World {
         turns: Box::new([
             call(b"shell", br#"{"command":"build","yield_seconds":1}"#),
             call(b"job", job_input),
-            call(b"finish", br#"{"report":"Read the job's end.","source":"job"}"#),
+            call(b"finish", br#"{"form":"report","text":"Read the job's end.","fields":{"source":"job"}}"#),
         ]),
     }]);
     World::with_workspace_wire(settings, None, Some(workspace), disk, configuration, bounds, scripts)

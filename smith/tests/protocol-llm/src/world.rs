@@ -8,10 +8,10 @@ use smith_protocol_llm::Limits as WireLimits;
 
 /// The shared agent loop with native byte observations.
 #[derive(Debug)]
-pub struct World(smith_agent_world::World<wire::Composition>);
+pub struct World(smith_agent_world::World<crate::component_backend::Protocol>);
 
 impl core::ops::Deref for World {
-    type Target = smith_agent_world::World<wire::Composition>;
+    type Target = smith_agent_world::World<crate::component_backend::Protocol>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -46,7 +46,7 @@ impl World {
             &settings,
             transcript,
             Box::default(),
-            wire::Composition::new(configuration, limits, scripts, settings.seed),
+            crate::component_backend::Protocol::new(configuration, limits, scripts, settings.seed, &settings.limits),
         ))
     }
 
@@ -65,7 +65,7 @@ impl World {
             &settings,
             transcript,
             answered,
-            wire::Composition::new(configuration, limits, scripts, settings.seed),
+            crate::component_backend::Protocol::new(configuration, limits, scripts, settings.seed, &settings.limits),
         ))
     }
 
@@ -88,7 +88,7 @@ impl World {
             Box::default(),
             workspace,
             disk,
-            wire::Composition::new(configuration, limits, scripts, settings.seed),
+            crate::component_backend::Protocol::new(configuration, limits, scripts, settings.seed, &settings.limits),
             None,
             None,
         ))
@@ -116,14 +116,14 @@ impl World {
             Box::default(),
             workspace,
             disk,
-            wire::Composition::new(configuration, limits, scripts, settings.seed),
+            crate::component_backend::Protocol::new(configuration, limits, scripts, settings.seed, &settings.limits),
             Some(charter),
             None,
         ))
     }
     /// Observed native bindings, retained after retirement.
     #[must_use]
-    pub fn wire_bindings(&self) -> &[wire::Binding] {
+    pub fn wire_bindings(&self) -> &[crate::component_backend::Call] {
         self.0.backend().bindings()
     }
 

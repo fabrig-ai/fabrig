@@ -180,3 +180,55 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
         assert!(query.tools[1].parameters.windows(b"ticket".len()).any(|part| part == b"ticket"));
     }
 }
+
+#[test]
+fn root_finish_uses_the_admitted_contract_and_corrects_the_fixture_grammar() {
+    use smith_protocol_llm_world::{Job, World, fixture};
+    for configuration in wire::configurations() {
+        let mut settings = fixture::settings(903);
+        settings.job = Job::Reporting;
+        let mut bounds = limits();
+        bounds.client.http.request = 16384;
+        bounds.client.request = 16384;
+        let receiving = smith_protocol_llm::fixture::receiving(&bounds.client, settings.limits.decoded_call_bytes)
+            .expect("receiving bounds");
+        settings.limits.session.completion_bytes = receiving.max_completion_bytes;
+        settings.limits.session.completion_blocks = receiving.max_completion_blocks;
+        settings.limits.session.failure_bytes = receiving.max_failure_bytes;
+        let mut charter = smith_agent_world::scripted_charter(&settings);
+        charter.outcome.report = Some(run::outcome::TextSpec { max: 80, fields: Box::new([field(b"evidence", 20)]) });
+        let scripts = Box::new([Script {
+            cue: b"@report".as_slice().into(),
+            turns: [
+                br#"{"report":"fixture grammar","evidence":"peer"}"#.as_slice(),
+                br#"{"form":"report","text":"production grammar","fields":{"evidence":"peer"}}"#,
+            ]
+            .into_iter()
+            .map(|arguments| Turn {
+                lines: Box::new([Line::Call { name: b"finish".as_slice().into(), arguments: arguments.into() }]),
+                finish: Finish::ToolCalls,
+                tokens: 1,
+            })
+            .collect(),
+        }]);
+        let mut world = World::with_workspace_wire_charter(
+            settings,
+            None,
+            None,
+            skein_fake_checkout::Checkout::new(),
+            (configuration, bounds),
+            scripts,
+            charter,
+        );
+        world.run(100_000);
+        let run::Answer::Accepted { outcome: run::outcome::Declared::Report(report), .. } = world.answer() else {
+            panic!("production finish accepted: {:?}", world.answer())
+        };
+        assert_eq!(report.text.as_ref(), b"production grammar");
+        assert_eq!(report.fields[0].name.as_ref(), b"evidence");
+        assert_eq!(world.completions().len(), 2);
+        assert!(world.prompts()[0].tools.iter().any(|tool| tool.name.as_ref() == b"finish"
+            && tool.parameters.windows(b"evidence".len()).any(|part| part == b"evidence")));
+        assert!(world.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(|block| matches!(block, smith_domain::session::llm::Block::ToolResult { result: smith_domain::session::llm::Returned::Invalid { problem: llm::Problem::Missing { field } }, .. } if field.as_ref() == b"form")));
+    }
+}
