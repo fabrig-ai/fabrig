@@ -2247,6 +2247,7 @@ fn a_removed_forge_reads_nothing_after() {
     world.adopt();
     world.event(top::Event::Restore {
         record: top::Stored::Forge(top::ForgeRecord {
+            git_program: None,
             number: 1,
             kind: top::Kind::Forgejo,
             mode: top::Mode::Connected,

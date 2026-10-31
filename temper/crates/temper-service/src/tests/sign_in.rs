@@ -70,9 +70,16 @@ pub(crate) fn world_settings(
         .unwrap();
     config.jig.providers = providers.into_boxed();
     config.jig.clients.provider = provider;
-    let mut clients =
-        Clients::new(&config.jig, &config.clients, &fixtures::seeds(), &config.limits.root.journal, None, files)
-            .unwrap();
+    let mut clients = Clients::new(
+        &jig_protocol_config::Directories::working(),
+        &config.jig,
+        &config.clients,
+        &fixtures::seeds(),
+        &config.limits.root.journal,
+        None,
+        files,
+    )
+    .unwrap();
     let mut limits = config.limits.sign_in;
     limits.pending = pending;
     limits.deadline = lifetime;

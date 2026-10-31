@@ -93,6 +93,7 @@ pub fn seed_forgejo(
 #[must_use]
 pub fn forgejo_record(address: SocketAddr) -> forge::ForgeRecord {
     forge::ForgeRecord {
+        git_program: None,
         number: 1,
         kind: forge::Kind::Forgejo,
         mode: forge::Mode::Connected,

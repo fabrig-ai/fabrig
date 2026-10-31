@@ -175,6 +175,8 @@ fn admin_how(
     };
     w::ForgejoAdmin::new(&bounds, w::ForgejoAdminParts { first }).ok().ok_or(invalid)
 }
+const MANAGED_FAILURE: &[u8] = b"invalid --api, --tls, --git, --web or --git-program";
+
 #[expect(clippy::manual_map, reason = "the domain matches without closures")]
 pub(super) fn send(
     state: &mut Forges,
@@ -244,7 +246,7 @@ pub(super) fn send(
             match managed(&called.call, &env.limits) {
                 Some(forge) => Some(w::ForgeAsk::Managed(forge)),
                 None => {
-                    let printed = render::failure(b"invalid --api, --tls, --git or --web", called.json, 1);
+                    let printed = render::failure(MANAGED_FAILURE, called.json, 1);
                     finish(called, printed, out);
                     return;
                 }
@@ -697,7 +699,12 @@ fn managed(call: &jig::call::Call, limits: &Limits) -> Option<w::ManagedForge> {
     }
     let tls = text_option(call, 7).ok()?;
     let web = text_option(call, 9).ok()?;
-    w::ManagedForge::new(&bounds, w::ManagedForgeParts { host: host.into(), port, tls, git: git.clone(), web }).ok()
+    let git_program = text_option(call, 10).ok()?;
+    w::ManagedForge::new(
+        &bounds,
+        w::ManagedForgeParts { host: host.into(), port, tls, git: git.clone(), web, git_program },
+    )
+    .ok()
 }
 
 fn text_option(call: &jig::call::Call, index: usize) -> Result<Option<Box<[u8]>>, ()> {

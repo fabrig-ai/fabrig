@@ -11,7 +11,7 @@ record Adopt { project: u32 home: bool forge: u16 owner: bytes 1024 name: bytes 
 # The family's keyed requests and setup outcome (client/README.md, 4.6).
 # temper/docs/design/draft/playground-reset.md, 3: kept and new forges.
 record Kept { forge: u16 }
-record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes 2048 web: option bytes 2048 }
+record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes 2048 web: option bytes 2048 git_program: option bytes 4096 }
 enum ForgeAsk { github, owned, managed: ManagedForge }
 record NewForge { forge: ForgeAsk }
 enum Making { kept: Kept, new: NewForge }

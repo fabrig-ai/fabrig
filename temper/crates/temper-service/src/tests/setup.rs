@@ -1875,6 +1875,7 @@ fn runtime_config() -> fixtures::ConfiguredEngine {
 }
 fn runtime_record(kind: domain::Kind, mode: domain::Mode) -> domain::ForgeRecord {
     domain::ForgeRecord {
+        git_program: None,
         number: 2,
         kind,
         mode,

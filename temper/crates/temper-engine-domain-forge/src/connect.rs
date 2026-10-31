@@ -185,23 +185,23 @@ fn make(
     if role != Some(Role::Owner) {
         return Err(ForgeRefusal::Role);
     }
-    let (kind, mode, place) = match forge {
+    let (kind, mode, place, git_program) = match forge {
         crate::ForgeAsk::GitHub => {
             let Some(machine) = &d.machine else { return Err(ForgeRefusal::NoSuchForge) };
             match how {
                 crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } => {}
                 crate::How::ForgejoAdmin { .. } => return Err(ForgeRefusal::NotTaken),
             }
-            (crate::Kind::GitHub, crate::Mode::Connected, machine.github.clone())
+            (crate::Kind::GitHub, crate::Mode::Connected, machine.github.clone(), machine.github_git_program.clone())
         }
-        crate::ForgeAsk::Managed { place } => {
+        crate::ForgeAsk::Managed { place, git_program } => {
             match how {
                 crate::How::ForgejoAdmin { .. } => {}
                 crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } => {
                     return Err(ForgeRefusal::NotTaken);
                 }
             }
-            (crate::Kind::Forgejo, crate::Mode::Managed, place)
+            (crate::Kind::Forgejo, crate::Mode::Managed, place, git_program)
         }
         crate::ForgeAsk::Owned => return Err(ForgeRefusal::NotTaken),
     };
@@ -239,7 +239,7 @@ fn make(
             }
         }
     };
-    match crate::forges::make(d, kind, mode, place, crate::domain::make::bot(), false, first, out) {
+    match crate::forges::make(d, kind, mode, place, git_program, crate::domain::make::bot(), false, first, out) {
         Some(forge) => Ok(forge),
         None => Err(ForgeRefusal::Busy),
     }

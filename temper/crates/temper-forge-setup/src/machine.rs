@@ -60,6 +60,7 @@ pub struct FakeMachine {
 /// GitHub's place, none for GitHub itself; `--fake-backends` names its fake.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct GitHubMachine {
+    pub git: Option<Box<[u8]>>,
     pub api: config::Address,
     pub tls: bool,
     pub remote: Box<[u8]>,
@@ -103,6 +104,11 @@ pub fn read(
                     &mut ps,
                 );
             }
+        }
+        if let Some(github) = &mut machine.github
+            && let Some(git) = &mut github.git
+        {
+            resolve_path(directories, config::Directory::Data, git, p.member(b"github").member(b"git"), &mut ps);
         }
         if let Some(fake) = &mut machine.fake {
             resolve_path(
@@ -218,6 +224,19 @@ fn github(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<
     let transport_at = o.required(d, b"transport", p, ps);
     let remote = text(d, &mut o, b"remote", p, ps);
     let web = text(d, &mut o, b"web", p, ps);
+    let git = match o.member(d, b"git") {
+        Some(at) => match read::text(d, at, 4096) {
+            Ok(value) => {
+                valid(path(&value), p.member(b"git"), ps);
+                Some(value)
+            }
+            Err(what) => {
+                ps.push(p.member(b"git"), what);
+                return None;
+            }
+        },
+        None => None,
+    };
     o.finish(d, p, ps);
     let api = config::address::read(d, api_at?, &p.member(b"api"), ps)?;
     let tls = transport(d, transport_at?, &p.member(b"transport"), ps)?;
@@ -243,7 +262,7 @@ fn github(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<
     let web = web?;
     valid(git_base(&remote), p.member(b"remote"), ps);
     valid(git_base(&web), p.member(b"web"), ps);
-    Some(GitHubMachine { api, tls, remote, web })
+    Some(GitHubMachine { git, api, tls, remote, web })
 }
 fn transport(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<bool> {
     if d.token(at)?.kind == Kind::String {

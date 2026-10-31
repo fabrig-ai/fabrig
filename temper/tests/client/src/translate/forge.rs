@@ -690,6 +690,7 @@ fn making(value: temper_client_protocol_wire::v1::Making) -> owner::Making {
             temper_client_protocol_wire::v1::ForgeAsk::Managed(value) => {
                 let value = value.into_parts();
                 owner::ForgeAsk::Managed {
+                    git_program: value.git_program,
                     place: owner::Place {
                         api: owner::Address { host: value.host, port: value.port, tls: value.tls },
                         git: value.git,

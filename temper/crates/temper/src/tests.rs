@@ -372,6 +372,7 @@ fn github_runtime_holds_unresolved_hosts_and_uses_the_machine_socket() {
     let default = super::github_runtime(None, &roots, reject_names).expect("held default");
     assert_eq!(default.address, temper_service::forge::HELD_ADDRESS);
     let machine = temper_forge_setup::machine::GitHubMachine {
+        git: None,
         api: jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into())),
         tls: false,
         remote: b"http://127.0.0.1:3001".as_slice().into(),

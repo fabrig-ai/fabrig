@@ -875,6 +875,7 @@ pub fn issue_row() -> top::IssueRow {
 
 pub fn forge_record() -> top::ForgeRecord {
     top::ForgeRecord {
+        git_program: Some(b"/data/bin/git".as_slice().into()),
         number: u16::MAX,
         kind: top::Kind::Forgejo,
         mode: top::Mode::Connected,

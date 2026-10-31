@@ -114,6 +114,7 @@ fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured],
     for row in rows {
         last = last.max(row.number);
         let record = forge::ForgeRecord {
+            git_program: None,
             number: row.number,
             kind: row.kind,
             mode: row.mode,

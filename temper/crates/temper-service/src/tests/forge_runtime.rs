@@ -11,6 +11,7 @@ const PORT: u16 = 3076;
 
 fn record(host: &[u8]) -> domain::ForgeRecord {
     domain::ForgeRecord {
+        git_program: Some(b"/data/bin/git".as_slice().into()),
         number: NUMBER,
         kind: domain::Kind::Forgejo,
         mode: domain::Mode::Connected,
@@ -90,6 +91,7 @@ fn a_kept_record_adds_its_forge_and_connects_from_its_secrets() {
     let kept = engine.workers.forges.get(NUMBER).unwrap();
     assert_eq!((kept.number, kept.identity, kept.user), (NUMBER, u32::from(NUMBER), 42));
     assert_eq!(kept.mode, domain::Mode::Connected);
+    assert_eq!(kept.git_program.as_deref(), Some(b"/data/bin/git".as_slice()));
     assert!(kept.api_token.is_none());
     assert_eq!(kept.git.as_ref(), b"http://forge.test:3076");
     let (number, access) = engine.forge.starts.get(0).unwrap();

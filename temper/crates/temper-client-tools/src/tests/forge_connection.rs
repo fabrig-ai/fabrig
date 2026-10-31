@@ -777,7 +777,7 @@ fn an_accept_recovers_its_durable_answer_with_its_own_operation_name() {
 #[test]
 fn forge_connect_admin_with_an_api_sends_a_new_managed_forge() {
     for optional in [false, true] {
-        let mut words = skein_lib::List::with_capacity(23);
+        let mut words = skein_lib::List::with_capacity(25);
         for word in [
             "forge",
             "connect",
@@ -794,6 +794,8 @@ fn forge_connect_admin_with_an_api_sends_a_new_managed_forge() {
         }
         if optional {
             for word in [
+                "--git-program",
+                "/data/bin/git",
                 "--tls",
                 "forge.invalid",
                 "--web",
@@ -815,6 +817,7 @@ fn forge_connect_admin_with_an_api_sends_a_new_managed_forge() {
         let w::ForgeAsk::Managed(managed) = new.forge() else { panic!("managed forge") };
         assert_eq!(managed.host(), b"forge.invalid");
         assert_eq!(managed.port(), 3000);
+        assert_eq!(managed.git_program().as_deref(), optional.then_some(b"/data/bin/git".as_slice()));
         assert_eq!(managed.git(), b"https://forge.invalid/git");
         assert_eq!(managed.tls().as_deref(), optional.then_some(b"forge.invalid".as_slice()));
         assert_eq!(managed.web().as_deref(), optional.then_some(b"https://forge.invalid".as_slice()));

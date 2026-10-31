@@ -29,6 +29,7 @@ pub struct Clients {
     pub(crate) listening: Option<::core::net::SocketAddr>,
     pub(crate) address: io::Addr,
     public: Option<crate::startup::application::Origin>,
+    directories: config::Directories,
     component: kit::Component,
     initial: Option<kit::Settings>,
     provider_documents: Option<provider::Documents>,
@@ -147,6 +148,7 @@ impl Clients {
     #[expect(clippy::too_many_lines, reason = "startup constructs bounded queues beside the client component")]
     #[expect(clippy::manual_map, reason = "the programming model uses explicit branches without closures")]
     pub fn new(
+        directories: &config::Directories,
         config: &config::Engine,
         clients: &crate::startup::application::Clients,
         seeds: &Seeds,
@@ -251,6 +253,7 @@ impl Clients {
             listening: None,
             address: *listener,
             public: clients.public.clone(),
+            directories: directories.clone(),
             component,
             initial: Some(settings()?),
             provider_documents,
@@ -500,6 +503,7 @@ impl Clients {
                         kit::ToApplication::Read { .. } | kit::ToApplication::Watch { .. } => None,
                     };
                     match crate::family::to_root(
+                        &self.directories,
                         value,
                         forges,
                         demo,

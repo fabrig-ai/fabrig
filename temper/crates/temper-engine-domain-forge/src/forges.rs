@@ -49,6 +49,7 @@ pub(crate) fn make(
     kind: Kind,
     mode: Mode,
     place: Place,
+    git_program: Option<Box<[u8]>>,
     bot: Bot,
     asked: bool,
     first: Option<FirstIntent>,
@@ -60,8 +61,18 @@ pub(crate) fn make(
     let number = d.forge_number.checked_add(1)?;
     d.forge_number = number;
     out.push(Request::Save { record: Stored::ForgeNumber { last: number }, release: None, read_afresh: None });
-    let record =
-        ForgeRecord { number, kind, mode, state: ForgeState::Kept, place, read_only: false, bot, asked, first };
+    let record = ForgeRecord {
+        number,
+        kind,
+        mode,
+        state: ForgeState::Kept,
+        place,
+        git_program,
+        read_only: false,
+        bot,
+        asked,
+        first,
+    };
     save(d, record.clone(), out);
     out.push(Request::ForgeKept(record));
     Some(number)
