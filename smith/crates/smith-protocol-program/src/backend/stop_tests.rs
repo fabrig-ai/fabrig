@@ -7,6 +7,7 @@
 use super::fixtures::active;
 use super::fixtures::{env, request};
 use super::*;
+use crate::backend::fixtures::COMPLETION;
 
 fn signal(below: &Queue<Below>, expected: kernel::Signal) -> usize {
     let mut count = 0_usize;
@@ -34,13 +35,13 @@ fn input_closed(below: &Queue<Below>) -> bool {
 #[test]
 fn a_cancel_interrupts_a_running_turn() {
     let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
-    backend.from_domain(&env(0), FromDomain::Cancel { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Cancel { owner: COMPLETION }, &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 1);
     assert!(!input_closed(&below));
     let Some(ToDomain::Cancelled { owner }) = up.pop() else {
         panic!("cancel terminal");
     };
-    assert_eq!(owner, Token::new(80));
+    assert_eq!(owner, COMPLETION);
 }
 
 #[test]
@@ -49,7 +50,7 @@ fn a_cancel_of_an_idle_program_closes_its_input() {
     backend.turns.result = true;
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.from_domain(&env(0), FromDomain::Cancel { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Cancel { owner: COMPLETION }, &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert!(input_closed(&below));
 }
@@ -142,7 +143,7 @@ fn builtin(backend: &mut Backend) {
                 eligible: true,
                 message: 1,
                 builtin: true,
-                owner: Some(Token::new(80)),
+                owner: Some(COMPLETION),
             })
             .is_ok()
     );
@@ -552,7 +553,7 @@ fn an_acknowledged_interrupt_still_needs_its_result() {
 fn a_cancel_after_the_interrupt_ack_still_signals() {
     let (mut backend, mut up, mut below) = yielding();
     backend.line(&env(0), CONTROL_SUCCESS, &mut up, &mut below);
-    backend.from_domain(&env(0), FromDomain::Cancel { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Cancel { owner: COMPLETION }, &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 1);
 }
 
@@ -572,7 +573,7 @@ fn an_interrupt_id_advances_in_the_same_process() {
     let (mut backend, mut up, mut below) = yielding();
     backend.line(&env(0), CONTROL_SUCCESS, &mut up, &mut below);
     backend.line(&env(0), INTERRUPTED_RESULT, &mut up, &mut below);
-    backend.owner = Some(Token::new(80));
+    backend.owner = Some(COMPLETION);
     backend.request = Some(request(&backend));
     backend.turns.restart();
     backend.yield_for_wind_down(&env(0), &mut up, &mut below);

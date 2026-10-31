@@ -1,6 +1,7 @@
 use super::fixtures::records as active;
 use super::fixtures::{env, records_with as running, request};
 use super::*;
+use crate::backend::fixtures::COMPLETION;
 
 #[test]
 fn an_unframed_tool_message_completes_without_any_partial() {
@@ -9,7 +10,7 @@ fn an_unframed_tool_message_completes_without_any_partial() {
     let Some(ToDomain::Completed { owner, completion }) = up.pop() else {
         panic!("unframed completion");
     };
-    assert_eq!(owner, Token::new(80));
+    assert_eq!(owner, COMPLETION);
     assert_eq!(completion.usage.input_tokens, Some(17));
     assert!(backend.turns.message.is_none());
 }

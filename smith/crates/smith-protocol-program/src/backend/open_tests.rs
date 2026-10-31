@@ -2,6 +2,7 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust step harness, programming-model.md 10.2")]
 use super::fixtures::{active as running, env, request};
 use super::*;
+use crate::backend::fixtures::COMPLETION;
 
 fn running_with_queues() -> (Backend, Queue<ToDomain>, Queue<Below>) {
     (running(), Queue::with_capacity(32), Queue::with_capacity(64))
@@ -164,7 +165,7 @@ fn a_host_message_uses_input_room_not_tool_reply_room() {
 fn a_yield_interrupts_and_returns_the_held_completion() {
     let (mut backend, mut up, mut below) = running_with_queues();
     assistant(&mut backend, &mut up, &mut below);
-    backend.from_domain(&env(0), FromDomain::Yield { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Yield { owner: COMPLETION }, &mut up, &mut below);
     assert!(interrupt_sent(&below));
     result(&mut backend, &mut up, &mut below);
     let completions: Box<[_]> = up
@@ -179,7 +180,7 @@ fn a_yield_interrupts_and_returns_the_held_completion() {
         })
         .collect();
     assert_eq!(completions.len(), 1);
-    assert_eq!(completions[0].0, Token::new(80));
+    assert_eq!(completions[0].0, COMPLETION);
     let llm::Said::Text { text, .. } = &completions[0].1.content[0] else { panic!("held text") };
     assert_eq!(text.as_ref(), b"Hello.");
 }
@@ -208,7 +209,7 @@ fn a_yield_without_an_outstanding_completion_is_ignored() {
     let (mut backend, mut up, mut below) = running_with_queues();
     backend.owner = None;
     backend.request = None;
-    backend.from_domain(&env(0), FromDomain::Yield { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Yield { owner: COMPLETION }, &mut up, &mut below);
     assert!(up.is_empty());
     assert!(below.is_empty());
     assert!(backend.stop == stop::Stop::None);
@@ -218,7 +219,7 @@ fn a_yield_without_an_outstanding_completion_is_ignored() {
 fn a_yield_during_startup_waits_for_the_running_boundary() {
     let (mut backend, mut up, mut below) = running_with_queues();
     backend.state = State::Starting;
-    backend.from_domain(&env(0), FromDomain::Yield { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Yield { owner: COMPLETION }, &mut up, &mut below);
     assert!(!interrupt_sent(&below));
     backend.state = State::Running;
     backend.fire(&env(0), &mut up, &mut below);

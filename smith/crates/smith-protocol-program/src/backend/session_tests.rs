@@ -9,6 +9,7 @@ use super::{
     fixtures::{backend, env, request},
     *,
 };
+use crate::backend::fixtures::COMPLETION;
 use serde_json::json;
 
 fn message(role: llm::Role, text: &[u8]) -> llm::Message {
@@ -57,7 +58,7 @@ fn a_new_window_stops_the_old_session() {
     backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
     let session::Opening::New { id } = session::opening(&ordinary(), None, None) else { panic!("new") };
     backend.running_session = Some(id);
-    backend.owner = Some(Token::new(80));
+    backend.owner = Some(COMPLETION);
     backend.request = Some(request(&backend));
     let mut next = request(&backend);
     let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
@@ -151,7 +152,7 @@ fn a_compaction_renders_the_window_as_one_message() {
 fn a_compaction_s_text_is_its_summary() {
     let mut backend = backend();
     backend.state = State::Running;
-    backend.owner = Some(Token::new(80));
+    backend.owner = Some(COMPLETION);
     backend.child = Some(backend.token(Owner::Program));
     backend.pipes.input = Some(Token::new(31));
     let mut request = request(&backend);

@@ -7,6 +7,7 @@
 use super::fixtures::records as active;
 use super::fixtures::{env, request};
 use super::*;
+use crate::backend::fixtures::COMPLETION;
 use alloc::{vec, vec::Vec};
 use smith_domain::tools::{Effect, Grants};
 
@@ -50,9 +51,9 @@ fn a_built_in_result_follows_its_completion() {
     backend.line(&env(0), RESULT, &mut up, &mut below);
     assert!(up.is_empty(), "result waits behind queued completion");
     backend.resume(&env(0), request(&backend), &mut up, &mut below);
-    completed(up.pop(), Token::new(80));
+    completed(up.pop(), COMPLETION);
     let Some(ToDomain::BuiltinResult { owner, id, text, error }) = up.pop() else { panic!("builtin result") };
-    assert_eq!(owner, Token::new(80));
+    assert_eq!(owner, COMPLETION);
     assert_eq!(id.as_ref(), b"r");
     assert_eq!(text.as_ref(), b"one\ntwo");
     assert!(error);
@@ -80,10 +81,10 @@ fn a_complete_s_result_for_a_built_in_is_skipped() {
     assert!(backend.outgoing.is_none());
     assert!(backend.ledger.get(0).expect("call").answer.is_none());
     backend.line(&env(0), RESULT, &mut up, &mut below);
-    result_id(up.pop(), Token::new(80), b"r");
+    result_id(up.pop(), COMPLETION, b"r");
     let later = read_record("later", "r2");
     backend.line(&env(0), &later, &mut up, &mut below);
-    completed(up.pop(), Token::new(80));
+    completed(up.pop(), COMPLETION);
     let mut next = request(&backend);
     let FromDomain::Complete { prompt, .. } = &mut next else { panic!("Complete") };
     prompt.messages = Box::new([llm::Message {
@@ -176,7 +177,7 @@ fn structured_output_is_the_finish_from_its_result() {
     assert!(up.is_empty(), "the program-owned result creates no domain event");
     backend.line(&env(0), br#"{"type":"result","subtype":"success","is_error":false,"structured_output":{"outcome":{"form":"report","text":"done","fields":{}}}}"#, &mut up, &mut below);
     let Some(ToDomain::Completed { owner, completion }) = up.pop() else { panic!("structured finish") };
-    assert_eq!(owner, Token::new(80));
+    assert_eq!(owner, COMPLETION);
     let [llm::Said::ToolCall { name, input, call, .. }] = completion.content.as_ref() else { panic!("finish alone") };
     assert_eq!(name.as_ref(), b"finish");
     assert_eq!(input.as_ref(), br#"{"form":"report","text":"done","fields":{}}"#);
@@ -395,8 +396,8 @@ fn queued_built_in_results_keep_their_message_owners() {
     backend.line(&env(0), &next_call, &mut up, &mut below);
     backend.line(&env(0), &next_result, &mut up, &mut below);
     backend.resume(&env(0), request(&backend), &mut up, &mut below);
-    completed(up.pop(), Token::new(80));
-    result_id(up.pop(), Token::new(80), b"r");
+    completed(up.pop(), COMPLETION);
+    result_id(up.pop(), COMPLETION, b"r");
     assert!(up.is_empty());
     while backend.pop_measure().is_some() {}
     let mut next = request(&backend);
@@ -553,7 +554,7 @@ fn a_host_combinator_is_named_before_listening() {
 
 #[test]
 fn launch_wraps_the_unchanged_contract_within_its_bound() {
-    let mut backend = resume_tests::launchable();
+    let mut backend = fixtures::resumable();
     backend.resuming = false;
     backend.request = Some(report_request(&backend));
     let spawn = backend.launch_spec().expect("launch");
@@ -588,7 +589,7 @@ fn native_call(name: &str, input: serde_json::Value) -> Backend {
         {"type":"tool_use","id":"n","name":name,"input":input}
     ]}});
     backend.line(&env(0), &serde_json::to_vec(&message).expect("native call"), &mut up, &mut below);
-    completed(up.pop(), Token::new(80));
+    completed(up.pop(), COMPLETION);
     while backend.pop_measure().is_some() {}
     backend.resume(&env(0), request(&backend), &mut up, &mut below);
     assert!(up.is_empty());
@@ -681,7 +682,7 @@ fn a_whole_native_read_snapshots_before_allow() {
         file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"file bytes".as_slice().into() },
         &mut up,
     );
-    native_version(up.pop(), Token::new(80), b"file bytes");
+    native_version(up.pop(), COMPLETION, b"file bytes");
     assert!(up.is_empty());
     allow_native(&mut backend, &input);
 }
@@ -697,7 +698,7 @@ fn a_partial_native_read_never_snapshots_even_with_null_fields() {
             allow_native(&mut backend, &input);
             let mut up = Queue::with_capacity(32);
             native_result(&mut backend, false, &mut up);
-            result_id(up.pop(), Token::new(80), b"n");
+            result_id(up.pop(), COMPLETION, b"n");
             assert!(up.is_empty(), "no observation that could replace earlier knowledge");
         }
     }
@@ -719,7 +720,7 @@ fn native_writes_and_edits_snapshot_after_their_results_including_errors() {
                 file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"stored bytes".as_slice().into() },
                 &mut up,
             );
-            native_version(up.pop(), Token::new(80), b"stored bytes");
+            native_version(up.pop(), COMPLETION, b"stored bytes");
             let Some(ToDomain::BuiltinResult { text, error: got, .. }) = up.pop() else { panic!("result") };
             assert_eq!(text.as_ref(), b"program text");
             assert_eq!(got, error);
@@ -825,8 +826,8 @@ fn queued_native_snapshots_keep_result_order_and_message_owners() {
         file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"first version".as_slice().into() },
         &mut up,
     );
-    native_version(up.pop(), Token::new(80), b"first version");
-    result_id(up.pop(), Token::new(80), b"n");
+    native_version(up.pop(), COMPLETION, b"first version");
+    result_id(up.pop(), COMPLETION, b"n");
     assert!(up.is_empty(), "the second result waits behind its own snapshot");
     native_load(&mut backend);
     backend.native_event(
@@ -906,7 +907,7 @@ fn an_mcp_successor_may_arrive_before_its_next_assistant_record() {
     backend.line(&env(0), br#"{"type":"assistant","message":{"id":"next-message","content":[{"type":"tool_use","id":"next","name":"mcp__smith__foo","input":{}}]}}"#,
         &mut up, &mut Queue::with_capacity(64));
     assert!(backend.calls.is_empty(), "the announcement correlates the RPC");
-    completed(up.pop(), Token::new(80));
+    completed(up.pop(), COMPLETION);
     let mut next = request(&backend);
     let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
     prompt.messages = Box::new([llm::Message {

@@ -1,57 +1,10 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary deterministic harness, programming-model.md 10.2")]
 use super::{
-    fixtures::{backend, env, request},
+    fixtures::{backend, env, request, resumable as launchable, resume_request as history},
     *,
 };
+use crate::backend::fixtures::COMPLETION;
 use alloc::string::ToString;
-
-fn history(backend: &Backend) -> FromDomain {
-    let mut request = request(backend);
-    let FromDomain::Complete { prompt, .. } = &mut request else { panic!("complete") };
-    prompt.messages = Box::new([
-        llm::Message {
-            role: llm::Role::User,
-            content: Box::new([llm::Block::Text { text: b"task".as_slice().into(), replay: None }]),
-        },
-        llm::Message {
-            role: llm::Role::Assistant,
-            content: Box::new([llm::Block::ToolCall {
-                id: b"wait-id".as_slice().into(),
-                name: b"wait".as_slice().into(),
-                input: b"{}".as_slice().into(),
-                replay: None,
-            }]),
-        },
-        llm::Message {
-            role: llm::Role::User,
-            content: Box::new([
-                llm::Block::ToolResult {
-                    id: b"wait-id".as_slice().into(),
-                    result: llm::Returned::Text { text: b"wait result".as_slice().into(), error: false, replay: None },
-                },
-                llm::Block::Text { text: b"new instruction".as_slice().into(), replay: None },
-            ]),
-        },
-    ]);
-    request
-}
-
-pub(super) fn launchable() -> Backend {
-    let mut backend = backend();
-    backend.settings.directory = Some(Root { file: Token::new(40), descriptor: kernel::Fd::new(41) });
-    backend.grant = Some(Grant {
-        name: GrantName { account: 0, generation: 1 },
-        source: b"source".as_slice().into(),
-        lapses: env(30).now,
-    });
-    let request = history(&backend);
-    let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
-    let session::Opening::Resume { id } = session::opening(prompt, None, None) else { panic!("resume") };
-    backend.names.session = session::uuid(id);
-    backend.resuming = true;
-    backend.request = Some(request);
-    backend
-}
 
 #[test]
 fn a_resume_names_the_window_s_session() {
@@ -207,7 +160,7 @@ fn launch_from_listener(
 fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backend, [u8; 16]) {
     let mut backend = launchable();
     backend.state = State::Starting;
-    backend.owner = Some(Token::new(80));
+    backend.owner = Some(COMPLETION);
     backend.open_runs(env(0).now, below);
     for (file, descriptor) in [(Token::new(42), kernel::Fd::new(43)), (Token::new(44), kernel::Fd::new(45))] {
         backend.from_io(
@@ -362,7 +315,7 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         backend.running_session = Some(id);
         backend.names.session = session::uuid(id);
         backend.resuming = false;
-        backend.owner = Some(Token::new(80));
+        backend.owner = Some(COMPLETION);
         backend.state = State::Starting;
         backend.child = Some(backend.token(Owner::Program));
         backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);

@@ -7,6 +7,7 @@
 use super::fixtures::window as active;
 use super::fixtures::{connect_server, env, request, server_reply};
 use super::*;
+use crate::backend::fixtures::COMPLETION;
 use serde_json::json;
 
 fn feed(backend: &mut Backend, value: serde_json::Value, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
@@ -99,7 +100,7 @@ fn cancelling_an_unjudged_finish_never_accepts_it() {
         .expect("ledger room");
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.from_domain(&env(0), FromDomain::Cancel { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Cancel { owner: COMPLETION }, &mut up, &mut below);
     assert!(backend.ledger.get(0).expect("finish").answer.is_none(), "the program cancels its held call");
 }
 #[test]
@@ -110,7 +111,7 @@ fn a_delivered_assistant_is_not_charged_again_at_result() {
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     feed(&mut backend, json!({"type":"result","is_error":false}), &mut up, &mut below);
     assert!(up.is_empty(), "result has no second API message");
-    assert_eq!(backend.owner, Some(Token::new(80)));
+    assert_eq!(backend.owner, Some(COMPLETION));
     assert!(backend.outgoing.is_some(), "pending Complete resumes the ended program turn");
 }
 #[test]
@@ -220,7 +221,7 @@ fn a_result_before_resume_does_not_charge_another_completion() {
     feed(&mut backend, json!({"type":"result","is_error":false}), &mut up, &mut below);
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     assert!(up.is_empty());
-    assert_eq!(backend.owner, Some(Token::new(80)));
+    assert_eq!(backend.owner, Some(COMPLETION));
     assert!(backend.outgoing.is_some());
 }
 

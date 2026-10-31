@@ -3,6 +3,8 @@
 use super::*;
 use skein_lib::Wall;
 
+pub(super) const COMPLETION: Token = Token::new(80);
+
 fn limits() -> protocol::ComponentLimits {
     let client = skein_llm_world::limits();
     let adapter = protocol::Limits {
@@ -105,7 +107,7 @@ pub(super) fn env(seconds: u64) -> Env<protocol::ComponentLimits> {
 
 pub(super) fn request(backend: &Backend) -> FromDomain {
     FromDomain::Complete {
-        owner: Token::new(80),
+        owner: COMPLETION,
         grant: Some(GrantName { account: 0, generation: 1 }),
         prompt: prompt_with(Box::default()),
         deadlines: smith_domain::session::Deadlines {
@@ -251,7 +253,7 @@ pub(super) fn running(mut backend: Backend) -> Backend {
     backend.state = State::Running;
     backend.child = Some(Token::new(30));
     backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
-    backend.owner = Some(Token::new(80));
+    backend.owner = Some(COMPLETION);
     backend.request = Some(request(&backend));
     backend
 }
@@ -352,5 +354,76 @@ pub(super) fn input(bytes: Box<[u8]>) -> Backend {
     backend.pipes.input = Some(Token::new(31));
     backend.outgoing = Some(bytes);
     backend.send_input();
+    backend
+}
+
+/// A completion configured for prompt and delta observations.
+pub(super) fn observed(observe: bool) -> Backend {
+    let mut backend = backend();
+    backend.state = State::Running;
+    backend.child = Some(Token::new(30));
+    backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
+    let mut request = request(&backend);
+    let FromDomain::Complete { prompt, observation, deltas, .. } = &mut request else { panic!("complete") };
+    *observation = if observe { Some(protocol::Observation { first: true, messages: 0 }) } else { None };
+    deltas.text = observe;
+    prompt.system = b"system".as_slice().into();
+    prompt.tools.inspect = true;
+    prompt.messages = Box::new([llm::Message {
+        role: llm::Role::User,
+        content: Box::new([llm::Block::Text { text: b"start text".as_slice().into(), replay: None }]),
+    }]);
+    backend.begin_prompt(&request);
+    backend.request = Some(request);
+    backend.owner = Some(COMPLETION);
+    backend
+}
+
+/// A persisted window and the launch configuration for resuming it.
+pub(super) fn resume_request(backend: &Backend) -> FromDomain {
+    let mut request = request(backend);
+    let FromDomain::Complete { prompt, .. } = &mut request else { panic!("complete") };
+    prompt.messages = Box::new([
+        llm::Message {
+            role: llm::Role::User,
+            content: Box::new([llm::Block::Text { text: b"task".as_slice().into(), replay: None }]),
+        },
+        llm::Message {
+            role: llm::Role::Assistant,
+            content: Box::new([llm::Block::ToolCall {
+                id: b"wait-id".as_slice().into(),
+                name: b"wait".as_slice().into(),
+                input: b"{}".as_slice().into(),
+                replay: None,
+            }]),
+        },
+        llm::Message {
+            role: llm::Role::User,
+            content: Box::new([
+                llm::Block::ToolResult {
+                    id: b"wait-id".as_slice().into(),
+                    result: llm::Returned::Text { text: b"wait result".as_slice().into(), error: false, replay: None },
+                },
+                llm::Block::Text { text: b"new instruction".as_slice().into(), replay: None },
+            ]),
+        },
+    ]);
+    request
+}
+
+pub(super) fn resumable() -> Backend {
+    let mut backend = backend();
+    backend.settings.directory = Some(Root { file: Token::new(40), descriptor: kernel::Fd::new(41) });
+    backend.grant = Some(Grant {
+        name: GrantName { account: 0, generation: 1 },
+        source: b"source".as_slice().into(),
+        lapses: env(30).now,
+    });
+    let request = resume_request(&backend);
+    let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
+    let session::Opening::Resume { id } = session::opening(prompt, None, None) else { panic!("resume") };
+    backend.names.session = session::uuid(id);
+    backend.resuming = true;
+    backend.request = Some(request);
     backend
 }

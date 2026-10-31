@@ -3,31 +3,11 @@
     clippy::disallowed_types,
     reason = "ordinary Rust deterministic harness, programming-model.md 10.2"
 )]
-use super::fixtures::{backend, env, request};
+use super::fixtures::{env, observed as active, request};
 use super::*;
+use crate::backend::fixtures::COMPLETION;
 use protocol::{Measure, Observation};
 use smith_events::{Block, Role};
-
-fn active(observe: bool) -> Backend {
-    let mut backend = backend();
-    backend.state = State::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
-    let mut request = request(&backend);
-    let FromDomain::Complete { prompt, observation, deltas, .. } = &mut request else { panic!("complete") };
-    *observation = if observe { Some(Observation { first: true, messages: 0 }) } else { None };
-    deltas.text = observe;
-    prompt.system = b"system".as_slice().into();
-    prompt.tools.inspect = true;
-    prompt.messages = Box::new([llm::Message {
-        role: llm::Role::User,
-        content: Box::new([llm::Block::Text { text: b"start text".as_slice().into(), replay: None }]),
-    }]);
-    backend.begin_prompt(&request);
-    backend.request = Some(request);
-    backend.owner = Some(Token::new(80));
-    backend
-}
 
 #[test]
 fn a_complete_measures_its_user_messages() {
@@ -35,7 +15,7 @@ fn a_complete_measures_its_user_messages() {
     backend.first_prompt_measure(Time::ZERO);
     backend.flush_prompt_measure(Time::ZERO);
     let Some(Measure::Prompt { owner, prompt, .. }) = backend.pop_measure() else { panic!("prompt") };
-    assert_eq!(owner, Token::new(80));
+    assert_eq!(owner, COMPLETION);
     assert_eq!(prompt.system.as_deref(), Some(b"system".as_slice()));
     assert_eq!(prompt.messages.get(0).unwrap().role, Role::User);
     assert_eq!(
@@ -60,7 +40,7 @@ fn a_partial_text_is_a_delta() {
     backend.line(&env(0), br#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"piece"}}}"#, &mut up, &mut below);
     let Some(Measure::Prompt { .. }) = backend.pop_measure() else { panic!("prompt first") };
     let Some(Measure::Delta { owner, block, text, .. }) = backend.pop_measure() else { panic!("delta") };
-    assert_eq!(owner, Token::new(80));
+    assert_eq!(owner, COMPLETION);
     assert_eq!(block, 0);
     assert_eq!(text.as_ref(), b"piece");
 }
@@ -76,7 +56,7 @@ fn an_api_retry_is_a_retry_measure() {
     );
     let Some(Measure::Prompt { .. }) = backend.pop_measure() else { panic!("prompt first") };
     let Some(Measure::Retried { owner, status, retry_ms, .. }) = backend.pop_measure() else { panic!("retry") };
-    assert_eq!(owner, Token::new(80));
+    assert_eq!(owner, COMPLETION);
     assert_eq!(status, Some(503));
     assert_eq!(retry_ms, Some(250));
     assert!(up.is_empty());
