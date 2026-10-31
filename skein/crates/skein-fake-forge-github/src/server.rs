@@ -309,12 +309,8 @@ pub fn close(
     server.call = None;
     server.reply = None;
     server.body.clear();
-    for _ in 0..server.events.len() {
-        drop(server.events.pop());
-    }
-    for _ in 0..server.requests.len() {
-        drop(server.requests.pop());
-    }
+    server.events.clear();
+    server.requests.clear();
     http_down(server, env, http::Request::Close, below);
     server.state = State::Closing;
     above.push(Event::Close);
