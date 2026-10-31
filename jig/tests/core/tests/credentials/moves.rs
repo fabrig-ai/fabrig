@@ -40,8 +40,6 @@ fn a_signed_in_account_moves_out_and_its_record_is_taken_once() {
     assert!(world.take_moved(source).is_none());
     let fact = world.domain.accounts().source(source).expect("moving source");
     assert_eq!((fact.state, fact.usable, fact.generation), (accounts::State::Moving, false, None));
-    // Finding: restart rewrites Accounts Source { account: 3, number: 2 }.held.
-    world.broken();
 }
 
 #[test]
@@ -55,8 +53,6 @@ fn the_accounts_document_shows_the_source_moving() {
     assert_eq!(line.number, account);
     let source = line.sources.get(0).expect("moving source");
     assert_eq!((source.state, source.usable), (core::documents::AccountState::Moving, false));
-    // Finding: restart rewrites Accounts Source { account: 3, number: 2 }.held.
-    world.broken();
 }
 
 #[test]
@@ -98,8 +94,6 @@ fn the_deployment_document_shows_its_signed_in_source_moving() {
     let line = document.accounts.iter().find(|line| line.number == account).expect("moving account");
     assert_eq!((line.state, line.usable), (core::documents::AccountState::Moving, false));
     assert_eq!(line.sources.get(0).expect("moving source").state, core::documents::AccountState::Moving);
-    // Finding: restart rewrites Accounts Source { account: 3, number: 2 }.held.
-    world.broken();
 }
 
 #[test]
@@ -128,8 +122,6 @@ fn a_second_move_out_is_refused_while_the_source_is_moving() {
     let (mut world, account, _, _) = moving(194);
     ask(&mut world, 51, change(people::AccountChange::MoveOut { account }));
     refused(&world, people::AccountMoveWhy::Moving);
-    // Finding: restart rewrites Accounts Source { account: 3, number: 2 }.held.
-    world.broken();
 }
 
 #[test]
@@ -221,8 +213,6 @@ fn a_move_out_replay_keeps_its_number_and_has_no_second_record() {
         Some(&people::Reply::Outcome(people::Outcome::AccountMovingOut { account, number, source }))
     );
     assert!(world.take_moved(source).is_none());
-    // Finding: restart rewrites Accounts Source { account: 3, number: 2 }.held.
-    world.broken();
 }
 
 #[test]
@@ -269,6 +259,4 @@ fn another_holder_cannot_move_out_or_finish_the_holders_move() {
         );
         assert_eq!(world.domain.accounts().source(source).expect("still moving").state, accounts::State::Moving);
     }
-    // Finding: restart rewrites Accounts Source { account: 3, number: 2 }.held.
-    world.broken();
 }
