@@ -276,3 +276,16 @@ version moved; the container types behind the accessors.
   `temper-fake`: no refactor. The same holds for any other exhaustive
   function outside the owned files that the new arms take past its
   line limit: a scoped expectation on it, named in the report.
+
+### 2026-10-31: 4 runs without landing; needs judgement (playground-reset-r2/forge-families-4, foreman playground-reset-r2/forge-families/foreman-5)
+
+Add the scoped `too_many_lines` expectation directly on `temper-fake::check::evidence`, beside its `type_complexity` expectation; no refactor.
+
+The task spec’s Answers, “2026-10-31 (fourth),” explicitly settles this question:
+> “Add, directly on `evidence` beside its `type_complexity` expectation,”
+> `#[expect(clippy::too_many_lines, reason = "one exhaustive evidence map for every durable forge family")]`
+> “and nothing else of `temper-fake`: no refactor.”
+
+The next run adds that expectation, names it in the report, and completes the remaining checks, commits and branch push.
+
+The report file could not be written because this run’s filesystem permissions are read-only.
