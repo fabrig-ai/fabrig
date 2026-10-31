@@ -45,9 +45,13 @@ fn a_refusal_a_proposal_could_answer_offers_to_propose_with_its_own_confirmation
         ],
     );
     assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
-    world.person(client, vec![Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") }]);
-    assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
-    world.person(client, vec![Step::See { find: Find::text(b"Proposed"), within: WAIT }]);
+    world.person(
+        client,
+        vec![
+            Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
+            Step::Gone { find: Find::text(b"Being decided"), within: WAIT },
+        ],
+    );
     assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
 }
 #[test]

@@ -39,7 +39,7 @@ pub fn a_proposal_accepted_in_the_inbox_leaves_its_chat_too<F: Front<Test>>(worl
 }
 pub fn two_tabs_deciding_one_thing_are_told_who_decided_first<F: Front<Test>>(world: &mut World<Test, F>) {
     let first = ready(world);
-    let second = world.client(1, crate::stories::inbox());
+    let second = world.tab(first);
     open(world, second, Find::named(Role::Button, b"Accept"));
     finish(world);
     let accept = |client| {
