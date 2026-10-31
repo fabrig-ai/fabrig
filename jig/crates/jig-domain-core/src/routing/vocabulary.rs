@@ -42,6 +42,11 @@ pub enum Request {
 /// A question or retained-section command for a numbered connector.
 #[derive(Debug)]
 pub enum Ask {
+    /// Release every adoption this connector holds for a project being deleted
+    /// (temper/docs/design/draft/playground-reset.md, 5). Answered by
+    /// `Event::ProjectReleased` once the release commits; at once when none are held.
+    /// Sent again at each start until answered, so a connector releases idempotently.
+    ReleaseProject { project: u32 },
     /// The complete procedure step committed with these spec revisions.
     StepMade { task: u64, step: u64, first: Option<u64>, revisions: Box<[(u64, u64)]> },
     /// No part of the procedure step committed.
@@ -405,6 +410,9 @@ pub struct CoreBriefBudgets {
 /// One event routed to a child of the core.
 #[derive(Debug)]
 pub enum Event {
+    /// A connector's release of a deleted project's adoptions has committed
+    /// (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectReleased { connector: u16, project: u32 },
     /// Owner settings value held only while people admits its keyed digest.
     ChangeSettings {
         reply_to: ReplyTo,
@@ -888,7 +896,8 @@ impl Event {
             | Self::ProcedureHoldings { .. }
             | Self::ProcedureStep { .. }
             | Self::Brief(..)
-            | Self::Holdings { .. } => false,
+            | Self::Holdings { .. }
+            | Self::ProjectReleased { .. } => false,
         }
     }
 }

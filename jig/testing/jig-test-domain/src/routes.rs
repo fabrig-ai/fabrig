@@ -122,6 +122,9 @@ fn route_ask(
     work: &mut Queue<Work>,
 ) {
     match ask {
+        core::Ask::ReleaseProject { project } => {
+            work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
+        }
         core::Ask::StepMade { task, step, first, revisions } => {
             domain.procedure_steps.remove(&task);
             work.push(Work::Connector { number, event: connector::Event::StepMade { task, step, first, revisions } });
@@ -1014,6 +1017,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::RolesSet { .. }
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
+        | people::Outcome::ProjectRemoved { .. }
         | people::Outcome::SettingsChanged { .. }
         | people::Outcome::MovedToNewest { .. }
         | people::Outcome::PolicyChanged { .. }
