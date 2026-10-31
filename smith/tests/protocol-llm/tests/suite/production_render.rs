@@ -1,17 +1,8 @@
 //! Production rendering of typed workspace outcomes in live and saved prompts.
 
 use smith_domain::{llm, tools};
-use smith_protocol_llm_world::adapter::{self as adapter, Limits};
-
-fn limits() -> Limits {
-    Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: smith_protocol_llm_world::adapter::stated(),
-    }
-}
+use smith_protocol_llm_world::adapter::{self as adapter};
+use smith_protocol_llm_world::fixture::limits;
 
 #[test]
 fn a_refused_write_names_its_payload_bound_and_the_piece_then_edits_route() {

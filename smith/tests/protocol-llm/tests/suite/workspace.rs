@@ -166,13 +166,8 @@ fn no_workspace(world: &World, settings: &Settings) {
 #[test]
 fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
     for index in 0..2 {
-        let mut bounds = Limits {
-            client: skein_llm_world::limits(),
-            tool_bytes: 32768,
-            history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: skein_llm_world::limits().strings,
-            stated: smith_protocol_llm_world::adapter::stated(),
-        };
+        let mut bounds =
+            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {
@@ -275,13 +270,8 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
                 calls(vec![call(b"finish", br#"{"report":"Edited the copied text.","source":"utf8.txt"}"#)], 1),
             ]),
         }]);
-        let mut bounds = Limits {
-            client: skein_llm_world::limits(),
-            tool_bytes: 32768,
-            history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: skein_llm_world::limits().strings,
-            stated: smith_protocol_llm_world::adapter::stated(),
-        };
+        let mut bounds =
+            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
         // The native request includes the complete depth/glob schema inventory.
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
@@ -371,11 +361,11 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
         client.request = 16384;
         client.http.request = 16384;
         let bounds = Limits {
-            client,
-            tool_bytes: 32768,
             history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: client.strings,
-            stated: adapter::Stated::from_tools(caps, client.input).expect("observed numeric quantities"),
+            ..smith_protocol_llm::fixture::small(
+                client,
+                adapter::Stated::from_tools(caps, client.input).expect("observed numeric quantities"),
+            )
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&client, settings.limits.decoded_call_bytes).expect("receiving");
@@ -457,12 +447,12 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
             let mut client = skein_llm_world::limits();
             client.request = 16384;
             let bounds = Limits {
-                client,
-                tool_bytes: 32768,
                 history_bytes: u64::from(skein_llm_world::limits().request),
-                rendered_result: client.strings,
-                stated: adapter::Stated::from_tools(&settings.limits.session.tools, client.input)
-                    .expect("valid namespace fixture"),
+                ..smith_protocol_llm::fixture::small(
+                    client,
+                    adapter::Stated::from_tools(&settings.limits.session.tools, client.input)
+                        .expect("valid namespace fixture"),
+                )
             };
             settings.limits.session.completion_bytes =
                 adapter::completion_bound(&client, settings.limits.decoded_call_bytes)

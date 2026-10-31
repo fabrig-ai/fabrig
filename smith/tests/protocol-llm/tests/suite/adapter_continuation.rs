@@ -13,6 +13,7 @@ use skein_llm_world::{World as RawWorld, events, response, text_response};
 use skein_world::domain::Span;
 use smith_domain::{Event, llm, run, session::llm as recorded, tools};
 use smith_protocol_llm_world::adapter::{self as adapter, Context, Input, Limits, Receiving};
+use smith_protocol_llm_world::fixture::limits;
 use smith_protocol_llm_world::{
     Job, Settings, World,
     wire::{self, Configuration, Observed},
@@ -75,16 +76,6 @@ data: {"type":"message_stop"}
 
 const CODEX_HISTORY: &[u8] = br#""input":[{"id":"rs_c","type":"reasoning","encrypted_content":"exact-opaque","summary":[]},{"type":"message","role":"assistant","id":"msg_c","phase":"commentary","content":[{"type":"output_text","text":"Reading"}]},{"type":"message","role":"assistant","id":"msg_r","content":[{"type":"refusal","refusal":"Cannot comply"}]},{"type":"message","role":"user","content":[{"type":"input_text","text":"Continue."}]}]"#;
 const ANTHROPIC_HISTORY: &[u8] = br#""messages":[{"role":"assistant","content":[{"type":"thinking","future":{"proof":[1,true,null]},"thinking":"Plan carefully","signature":"signed-opaque"},{"type":"redacted_thinking","data":"hidden-opaque"},{"type":"text","text":"Answer"}]},{"role":"user","content":[{"type":"text","text":"Continue.","cache_control":{"type":"ephemeral"}}]}]"#;
-
-fn limits() -> Limits {
-    Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: smith_protocol_llm_world::adapter::stated(),
-    }
-}
 
 fn receiving(bounds: &Limits) -> Receiving {
     Receiving {

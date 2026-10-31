@@ -3,18 +3,9 @@
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_lib::Token;
 use smith_domain::{llm, run};
-use smith_protocol_llm_world::adapter::{self as adapter, Limits};
+use smith_protocol_llm_world::adapter::{self as adapter};
+use smith_protocol_llm_world::fixture::limits;
 use smith_protocol_llm_world::wire;
-
-fn limits() -> Limits {
-    Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: smith_protocol_llm_world::adapter::stated(),
-    }
-}
 
 fn field(name: &[u8], max: u32) -> run::outcome::FieldRule {
     run::outcome::FieldRule { name: name.into(), max }

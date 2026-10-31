@@ -14,57 +14,17 @@ use skein_llm::{Credential, Provider};
 use skein_tls_world::{drive::Wire, pki, server::Server};
 use smith_domain::{GrantName, llm, run, tools};
 use smith_protocol_llm_world::adapter::{
-    self as adapter, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
+    Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, ToDomain,
 };
 
 fn limits() -> ComponentLimits {
-    let client = skein_llm_world::limits();
-    let decoded_call_bytes = 4096;
-    ComponentLimits {
-        adapter: adapter::Limits {
-            client,
-            tool_bytes: 32768,
-            history_bytes: u64::from(client.request),
-            rendered_result: client.strings,
-            stated: smith_protocol_llm_world::adapter::stated(),
-        },
-        connection: skein_llm_connection::Limits {
-            memory: 1 << 40,
-            endpoints: 1,
-            connections: 1,
-            calls: 1,
-            per_endpoint: 1,
-            idle_keep: smith_agent_service::profile::standard().policy.connection_keep,
-            io: skein_io::Limits {
-                sockets: 1,
-                names: 0,
-                refusals: 1,
-                intake: 19_000,
-                receive: 1024,
-                output: 19_000,
-                sends: 2,
-                accepts: 1,
-                backlog: 1,
-                close_timeout: Duration::from_secs(1),
-                retry: Duration::from_millis(10),
-            },
-            tls: skein_tls::client::Limits {
-                read: skein_llm::client::largest_read(&client),
-                send: 4096,
-                records: skein_tls::client::MAX_RECORD,
-            },
-        },
-        receiving: Receiving {
-            max_completion_bytes: adapter::completion_bound(&client, decoded_call_bytes).expect("receiving bound"),
-            max_completion_blocks: client.output_items,
-            decoded_call_bytes,
-            max_failure_bytes: client.detail_bytes,
-        },
-        contract_bytes: 4096,
-        llms: 1,
-        accounts: 1,
-        grant_value_bytes: 128,
-    }
+    let mut limits = smith_protocol_llm_world::fixture::component();
+    limits.connection.calls = 1;
+    limits.connection.connections = 1;
+    limits.connection.per_endpoint = 1;
+    limits.connection.io.sockets = 1;
+    limits.connection.io.backlog = 1;
+    limits
 }
 
 // Three later owner entrances wait through each seeded sink hold.

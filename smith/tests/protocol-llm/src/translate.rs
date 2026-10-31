@@ -67,13 +67,7 @@ pub(crate) fn decode(
             ask: run::Ask::SubAgent { brief, families, llm: field(arguments, b"llm"), share: run::Share::UNASKED },
         };
     }
-    let limits = adapter::Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: crate::adapter::stated(),
-    };
+    let limits = smith_protocol_llm::fixture::small(skein_llm_world::limits(), crate::adapter::stated());
     adapter::decode(name, arguments, grants, served, asker, &limits)
 }
 

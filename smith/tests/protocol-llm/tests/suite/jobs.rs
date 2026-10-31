@@ -29,13 +29,10 @@ fn world(configuration: wire::Configuration, job_input: &[u8]) -> World {
         adapter::completion_bound(&client, settings.limits.decoded_call_bytes).expect("native receiving");
     settings.limits.session.completion_blocks = client.output_items;
     settings.limits.session.failure_bytes = client.detail_bytes;
-    let bounds = adapter::Limits {
+    let bounds = smith_protocol_llm::fixture::small(
         client,
-        tool_bytes: 32768,
-        history_bytes: u64::from(client.request),
-        rendered_result: client.strings,
-        stated: adapter::Stated::from_tools(&settings.limits.session.tools, client.input).expect("effective bounds"),
-    };
+        adapter::Stated::from_tools(&settings.limits.session.tools, client.input).expect("effective bounds"),
+    );
     let scripts = Box::new([Script {
         cue: Box::new([]),
         turns: Box::new([
@@ -129,13 +126,7 @@ fn decoded(name: &[u8], input: &[u8]) -> llm::Decoded {
         tools::Grants { inspect: false, modify: false, shell: true },
         &[],
         llm::Asker::Main,
-        &adapter::Limits {
-            client,
-            tool_bytes: 32768,
-            history_bytes: u64::from(client.request),
-            rendered_result: client.strings,
-            stated: adapter::stated(),
-        },
+        &smith_protocol_llm::fixture::small(client, adapter::stated()),
     )
 }
 

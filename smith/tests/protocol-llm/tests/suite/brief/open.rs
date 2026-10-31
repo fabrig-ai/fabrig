@@ -7,13 +7,7 @@ const AGAIN: &[u8] = b"A second reply.";
 const NEXT: Token = Token::new(0);
 
 fn world(dialect: usize, turns: Box<[Turn]>, reserve: run::charter::Reserve, budget_turns: u32) -> World {
-    let bounds = Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: adapter::stated(),
-    };
+    let bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), adapter::stated());
     let mut settings = Settings { job: Job::Waiting, network: Span::millis(1, 1), ..Settings::calm(306) };
     settings.limits.session.completion_bytes =
         adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("native receiving");

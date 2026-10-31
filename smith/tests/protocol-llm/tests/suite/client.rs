@@ -7,21 +7,12 @@ use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
 use skein_lib::{Duration, Token};
 use smith_domain::{Event, llm, run, tools};
 use smith_protocol_llm_world::adapter::{self as adapter, Limits, Receiving};
+use smith_protocol_llm_world::fixture::limits;
 use smith_protocol_llm_world::wire::{self, Configuration, Observed, Wire};
 
 const BODY: &[u8] = br#"{ "opaque" : {"future":[1,true,null]}, "extra":"unchanged" }"#;
 const SCHEMA: &[u8] = br#"{"type":"object","properties":{"opaque":{"type":"object"}},"required":["opaque"],"x-caller":{"nested":[1,null,true]}}"#;
 const FEEDBACK: &[u8] = b"exact host receipt\nsecond line";
-
-fn limits() -> Limits {
-    Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: smith_protocol_llm_world::adapter::stated(),
-    }
-}
 
 fn receiving(bounds: &Limits) -> Receiving {
     let decoded_call_bytes = 4096;

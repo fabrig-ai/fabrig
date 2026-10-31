@@ -9,7 +9,7 @@ use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Role, Script, Turn
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
 use smith_domain::{Transcript, run, session::llm, tools};
-use smith_protocol_llm_world::adapter::{self as adapter, Limits};
+use smith_protocol_llm_world::adapter::{self as adapter};
 use smith_protocol_llm_world::{
     Boundary, Job, Settings, World,
     wire::{self, Observed},
@@ -285,13 +285,7 @@ fn native_accounting(
 #[test]
 fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer() {
     for index in 0..2 {
-        let mut bounds = Limits {
-            client: skein_llm_world::limits(),
-            tool_bytes: 32768,
-            history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: skein_llm_world::limits().strings,
-            stated: adapter::stated(),
-        };
+        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), adapter::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {
@@ -365,7 +359,6 @@ fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer(
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one native control retains its full large-batch fixture and observations")]
 fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
     const THINKING: &[u8] =
         br#"{"type":"thinking","thinking":"Inspect the whole batch.","signature":"fixture-signature"}"#;
@@ -385,13 +378,7 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
     client.http.read = pieces.http.read;
     client.http.send = pieces.http.send;
     client.sse.chunk = pieces.sse.chunk;
-    let bounds = Limits {
-        client,
-        tool_bytes: 32768,
-        history_bytes: u64::from(client.request),
-        rendered_result: client.strings,
-        stated: adapter::stated(),
-    };
+    let bounds = smith_protocol_llm::fixture::small(client, adapter::stated());
     let mut settings = Settings {
         job: Job::Waiting,
         waiting: Duration::from_secs(1),
@@ -554,13 +541,8 @@ fn recorded_wait(turn: &smith_domain::Turn, resumed: bool) {
 #[test]
 fn structured_brief_native_wait_park_and_observed_transcript_restore_in_both_wire_forms() {
     for index in 0..2 {
-        let mut bounds = Limits {
-            client: skein_llm_world::limits(),
-            tool_bytes: 32768,
-            history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: skein_llm_world::limits().strings,
-            stated: smith_protocol_llm_world::adapter::stated(),
-        };
+        let mut bounds =
+            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {
@@ -655,13 +637,7 @@ fn affinity_scripts() -> Box<[Script]> {
 #[test]
 fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
     for dialect in 0..2 {
-        let mut bounds = Limits {
-            client: skein_llm_world::limits(),
-            tool_bytes: 32768,
-            history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: skein_llm_world::limits().strings,
-            stated: adapter::stated(),
-        };
+        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), adapter::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {

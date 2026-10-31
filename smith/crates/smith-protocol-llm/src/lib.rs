@@ -27,6 +27,8 @@ mod decode;
 mod descriptions;
 mod endpoints;
 mod failure;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 mod framing;
 mod grants;
 mod guard;

@@ -244,13 +244,8 @@ fn script(cue: &[u8], turns: Vec<Turn>) -> Script {
 }
 
 fn bounds(settings: &mut Settings) -> Limits {
-    let mut bounds = Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: smith_protocol_llm_world::adapter::stated(),
-    };
+    let mut bounds =
+        smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
     settings.limits.session.completion_bytes =
