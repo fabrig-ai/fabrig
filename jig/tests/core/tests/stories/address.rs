@@ -87,6 +87,7 @@ fn a_person_task_is_readdressed_after_durability_and_the_previous_taker_cannot_a
         },
     );
     assert_eq!(w.people_answers.last(), Some(&people::Reply::Outcome(people::Outcome::PersonAnswered { task })));
+    w.close();
 }
 
 #[test]
@@ -137,4 +138,5 @@ fn address_and_spec_and_exact_hold_release_are_one_decision_and_stale_address_re
     );
     assert_eq!(live_row(&w, task).executor, tasks::Executor::Person(tasks::PersonAddress::Role(1)));
     assert_eq!(live_row(&w, task).spec.words.as_ref(), b"second question");
+    w.close();
 }

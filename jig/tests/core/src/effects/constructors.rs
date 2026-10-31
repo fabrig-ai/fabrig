@@ -262,6 +262,7 @@ impl World {
         world.seed(rows.into_boxed_slice());
         world.move_provider =
             configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
+        world.restart_config = (crate::oracle::configuration(&configuration), *limits);
         world.domain = root::Domain::new(configuration, limits);
         world.startup = setup;
         if let Some(setup) = setup {
@@ -330,6 +331,8 @@ impl World {
         let store = Store::with_patch_sets(limits, &configuration.core.settings.models, sets);
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
+            broken: false,
+            restart_config: (crate::oracle::configuration(&configuration), *limits),
             startup: None,
             bootstrap_owners: Vec::new(),
             fixture_accounts: Box::new([]),

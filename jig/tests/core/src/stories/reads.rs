@@ -229,6 +229,7 @@ pub fn a_backward_wall_correction_keeps_reply_paging_whole_after_restart() {
         }
     }
     assert_eq!(found, expected, "cold live and stored pages return every reply exactly once in wall order");
+    world.close();
 }
 
 /// The fake store begins with retained owner entries, not cached note bodies.
@@ -296,6 +297,7 @@ pub fn scoped_description_search_pages_durable_notes_after_restart() {
         assert_eq!(found, [3, 5], "scoped matches survive paging and cold restart");
         assert_eq!(empty, 1, "the first examined page has no selected rows but continues");
     }
+    world.close();
 }
 
 /// The independent party pages mixed live and retained updates under each exact kind.
@@ -355,4 +357,5 @@ pub fn result_and_reply_filters_page_their_own_retained_updates() {
         expected.reverse();
         assert_eq!(found, expected, "each kind contains every retained update exactly once");
     }
+    world.close();
 }
