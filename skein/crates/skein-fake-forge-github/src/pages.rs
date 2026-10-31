@@ -9,7 +9,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_forge::github::{document, request::Method, server};
-use skein_lib::{Decimal, Duration, List, Map, Rng, Secret, Wall, Writer, bytes};
+use skein_lib::{Decimal, Duration, List, Map, Rng, Secret, Wall, Writer, bytes, hex};
 
 /// One hour on the forge's clock; the expiry instant is excluded.
 pub const CODE_LIFE: Duration = Duration::from_secs(3600);
@@ -542,8 +542,8 @@ fn nibble(byte: u8) -> Option<u8> {
 fn hex(rng: &mut Rng, length: usize) -> Option<Secret> {
     let mut out = Writer::new(length);
     for _byte in 0..length {
-        let index = usize::try_from(rng.below(16)).ok()?;
-        out.put(&[*b"0123456789abcdef".get(index)?]).ok()?;
+        let nibble = u8::try_from(rng.below(16)).ok()?;
+        out.put(&[hex::digit(nibble)]).ok()?;
     }
     Some(Secret::new(out.finish()))
 }
