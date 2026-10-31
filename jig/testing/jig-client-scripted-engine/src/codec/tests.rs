@@ -79,3 +79,26 @@ fn recursive_fact_pieces_preserve_parent_indexes_and_child_order() {
     assert_eq!(child.value(), &w::EndingFields::Done);
     assert!(reader.is_empty());
 }
+
+#[test]
+fn committed_turns_use_the_transcript_and_client_codecs() {
+    let text = c::Text::new(Box::from(b"reply".as_slice()), 32).expect("fixture text fits");
+    let value = c::ReadValue::Turn(Box::new(c::ArchivedTurn {
+        task: 7,
+        name: c::TurnName { attempt: 1, number: 1 },
+        cumulative: 5,
+        read: None,
+        at: skein_lib::Wall::from_nanos(3),
+        turn: c::TurnRead::Decoded(c::Turn {
+            messages: List::from_boxed(Box::new([c::Message {
+                speaker: c::Speaker::Assistant,
+                blocks: List::from_boxed(Box::new([c::Block::Text(text)])),
+            }])),
+            used: c::Usage { input: 1, output: 2, cached: 3, cache_written: 4 },
+            spent: 5,
+            read_through: None,
+            cut: false,
+        }),
+    }));
+    assert_eq!(read(&value, &Bounds::default()), Ok(value));
+}

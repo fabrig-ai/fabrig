@@ -230,8 +230,9 @@ fn revision_refusals_scripts_retention_and_whole_payload_admission() {
     setup.bounds.document_bytes = 1;
     assert_eq!(Engine::new(setup, 1).err(), Some(Invalid::Payload));
     let mut setup = script();
-    setup.truth.frames.get_mut(&1).expect("frame").projects = List::with_capacity(33);
-    assert_eq!(Engine::new(setup, 1).err(), Some(Invalid::Payload), "unused list capacity is part of a whole payload");
+    let project = setup.truth.frames[&1].projects.get(0).expect("project").clone();
+    setup.truth.frames.get_mut(&1).expect("frame").projects = list(vec![project; 33]);
+    assert_eq!(Engine::new(setup, 1).err(), Some(Invalid::Payload), "the link refuses too many supplied projects");
     let mut engine = Engine::new(script(), 1).expect("valid script");
     let ask =
         fixtures::create(1, Text::new(vec![0; 4097].into_boxed_slice(), 5000).expect("larger producer permits text"));
@@ -699,7 +700,7 @@ fn oversized_bounded_offer_payloads() {
                 authority: Box::new(owner_authority()),
                 pool_left: 1,
                 procedures: List::with_capacity(0),
-                charters: List::with_capacity(33),
+                charters: list(vec![1; 33]),
                 latest: None,
                 budget: 1,
                 maximum_budget: 2,
@@ -710,20 +711,42 @@ fn oversized_bounded_offer_payloads() {
             let mut ceiling = owner_authority();
             let mut grants = list(vec![]);
             if variant == 1 {
-                grants = List::with_capacity(33);
+                grants = list(vec![
+                    OwnerGrant {
+                        connector: 1,
+                        kind: 1,
+                        pattern: OwnerPattern {
+                            segments: List::with_capacity(0),
+                            last: OwnerPatternEnd::Exact(Box::new([]))
+                        }
+                    };
+                    33
+                ]);
             }
             if variant == 2 {
-                direct.authority.delegation.kinds = List::with_capacity(33);
+                direct.authority.delegation.kinds = list(vec![OwnerAuthorityExecutor::Charter(1); 33]);
             }
             if variant == 3 {
                 ceiling.authority.grants = list(vec![overlong_resource_grant()]);
             }
             if variant == 4 {
-                ceiling.authority.note_resources = List::with_capacity(33);
+                ceiling.authority.note_resources = list(vec![
+                    OwnerResourceScope {
+                        connector: 1,
+                        pattern: OwnerPattern {
+                            segments: List::with_capacity(0),
+                            last: OwnerPatternEnd::Exact(Box::new([]))
+                        }
+                    };
+                    33
+                ]);
             }
             DraftBounds::Amend {
                 budget_left: 1,
-                implications: List::with_capacity(if variant == 5 { 33 } else { 0 }),
+                implications: list(vec![
+                    OwnerKindImplication { connector: 1, kind: 1, implies: 2 };
+                    if variant == 5 { 33 } else { 0 }
+                ]),
                 grants,
                 authority: Box::new(direct),
                 ceiling: Box::new(ceiling),
@@ -735,7 +758,7 @@ fn oversized_bounded_offer_payloads() {
             admission: Admission::Bounded { within, beyond: Beyond::Proposed { to: Recipient::Party(2) } },
         }]);
         setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
-        assert_eq!(Engine::new(setup, 1).err(), Some(Invalid::Payload), "all nested bounded facts are priced");
+        assert_eq!(Engine::new(setup, 1).err(), Some(Invalid::Payload), "the link refuses oversized nested facts");
     }
 }
 
@@ -1352,7 +1375,7 @@ fn activation_observations_and_prior_closing_are_admitted_whole_with_their_alloc
     row.context.as_mut().expect("supplied task context").runtime = Runtime::Held {
         was: Some(HeldRuntime::Closing(Closing {
             delegates: 0,
-            connectors: Some(List::with_capacity(setup.bounds.rows + 1)),
+            connectors: Some(list(vec![1; usize::try_from(setup.bounds.rows + 1).unwrap()])),
             stage: Some(ClosingStage::Run { attempt: u64::MAX }),
             ending: None,
         })),
@@ -1626,20 +1649,17 @@ fn live_raw_calls_price_both_texts_whole_and_refuse_without_replacing_retained_r
     };
     let held = RunText { call: Some(LiveCall::Raw(large)), ..run.clone() };
     let delivery = run_delivery(held.clone());
-    let whole = u64::try_from(core::mem::size_of::<Delivery>()).unwrap() + delivery.heap(&original_bounds).unwrap();
-    let mut setup = setup;
-    setup.bounds.document_bytes = whole;
     let mut engine = Engine::new(setup, 26).unwrap();
     let token = Token::new(1);
     engine.open(Time::ZERO, 11, token, Subject::Run { task: 8, turn: None, offset: 0 }).unwrap();
     drop(engine.poll(Time::ZERO));
     engine.write_live(Time::ZERO, 8, name, None, &held.text, held.call.clone()).unwrap();
     assert!(engine.poll(Time::ZERO).contains(&Up::Watch { token, event: WatchEvent::Delivered(delivery.clone()) }));
-    let excess = core::mem::size_of::<Delivery>() + 1;
-    assert_eq!(
-        engine.write_live(Time::ZERO, 8, name, Some(Wall::EPOCH), &text(&vec![b'!'; excess]), held.call.clone()),
-        Err(Invalid::Payload)
-    );
+    let overlong = Text::new(vec![b'!'; 4097].into_boxed_slice(), 4097).unwrap();
+    let mut rejected = held.call.clone();
+    let Some(LiveCall::Raw(call)) = &mut rejected else { panic!("raw current call") };
+    call.input = overlong;
+    assert_eq!(engine.write_live(Time::ZERO, 8, name, Some(Wall::EPOCH), &text(b""), rejected), Err(Invalid::Payload));
     engine.continue_run(token, Some(provisional(name)), 0).unwrap();
     assert!(
         engine.poll(Time::ZERO).contains(&Up::Watch { token, event: WatchEvent::Delivered(delivery) }),
@@ -1732,9 +1752,6 @@ fn whole_run_state_prices_independent_call_and_writing_and_preserves_refused_sna
     };
     let held = RunState { call: Some(large), ..state.clone() };
     let delivery = Delivery::RunState(Box::new(held.clone()));
-    let exact = u64::try_from(core::mem::size_of::<Delivery>()).unwrap() + delivery.heap(&original).unwrap();
-    let mut setup = setup;
-    setup.bounds.document_bytes = exact;
     let mut engine = Engine::new(setup, 27).unwrap();
     let token = Token::new(1);
     engine.open(Time::ZERO, 11, token, Subject::Run { task: 8, turn: None, offset: 0 }).unwrap();
@@ -1743,6 +1760,8 @@ fn whole_run_state_prices_independent_call_and_writing_and_preserves_refused_sna
     assert!(engine.poll(Time::ZERO).contains(&Up::Watch { token, event: WatchEvent::Delivered(delivery.clone()) }));
     engine.taken(token);
     assert!(engine.poll(Time::ZERO).is_empty(), "taking a normal document cannot create a stream delivery loop");
+    let mut writing = writing;
+    writing.text = Text::new(vec![b'x'; 4097].into_boxed_slice(), 4097).unwrap();
     let overflow = RunState { writing: Some(writing), ..held.clone() };
     assert_eq!(engine.write_run_state(Time::ZERO, overflow), Err(Invalid::Payload));
     engine.continue_run(token, None, 0).unwrap();
@@ -2037,78 +2056,6 @@ fn inbox_entry(
     row
 }
 
-pub(super) fn engine_value<A: Application>(value: &Up<A>) {
-    match value {
-        Up::Read { terminal: ReadResult::Value(value), .. } => {
-            assert!(
-                matches!(
-                    value,
-                    ReadValue::Me(_)
-                        | ReadValue::Tasks(_)
-                        | ReadValue::Task(_)
-                        | ReadValue::Historical(_)
-                        | ReadValue::OwnerProposal(_)
-                        | ReadValue::OwnerEscalation(_)
-                        | ReadValue::Question(_)
-                        | ReadValue::OwnerPersonTask(_)
-                        | ReadValue::Result(_)
-                        | ReadValue::OwnerEnded(_)
-                        | ReadValue::History(_)
-                        | ReadValue::Activity(_)
-                        | ReadValue::Turn(_)
-                        | ReadValue::OwnerInbox(_)
-                        | ReadValue::OwnerSpend(_)
-                        | ReadValue::OwnerProject(_)
-                        | ReadValue::Notes(_)
-                        | ReadValue::Settings(_)
-                        | ReadValue::Setting(_)
-                        | ReadValue::Revision(_)
-                        | ReadValue::Revisions(_)
-                        | ReadValue::OwnerDeployment(_)
-                ),
-                "engine read dialect: {value:?}"
-            );
-        }
-        Up::Watch { event: WatchEvent::Delivered(value), .. } => {
-            assert!(
-                matches!(
-                    value,
-                    Delivery::Me(_)
-                        | Delivery::Task(_)
-                        | Delivery::OwnerTree(_)
-                        | Delivery::Chips(_)
-                        | Delivery::OwnerInbox(_)
-                        | Delivery::Tasks(_)
-                        | Delivery::RunState(_)
-                        | Delivery::Settings(_)
-                        | Delivery::OwnerDeployment(_)
-                        | Delivery::OwnerProject(_)
-                        | Delivery::OwnerProposal(_)
-                        | Delivery::OwnerAccounts(_)
-                ),
-                "engine delivery dialect: {value:?}"
-            );
-            assert!(crate::engine_set::delivery(value), "owner delivery wrappers: {value:?}");
-        }
-        Up::Answer { answer: Some(Answer::Done(value)), .. } => assert!(
-            matches!(
-                value,
-                Outcome::Owner(_)
-                    | Outcome::Made { .. }
-                    | Outcome::SettingsChanged { .. }
-                    | Outcome::MovedToNewest { .. }
-            ),
-            "engine outcome dialect: {value:?}"
-        ),
-        Up::Answer { .. }
-        | Up::Read { .. }
-        | Up::Watch { .. }
-        | Up::ApplicationAnswer { .. }
-        | Up::ApplicationRead { .. }
-        | Up::App { .. }
-        | Up::Ended { .. } => {}
-    }
-}
 fn run_delivery(value: RunText) -> Delivery {
     Delivery::RunState(Box::new(RunState {
         task: 8,

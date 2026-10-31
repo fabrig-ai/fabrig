@@ -392,8 +392,6 @@ impl<A: Application> Engine<A> {
                     }
                     Up::Watch { .. } | Up::App { .. } | Up::Ended { .. } => {}
                 }
-                #[cfg(test)]
-                crate::tests::engine_value(&due.up);
                 out.push(due.up);
             } else {
                 held.push(due);

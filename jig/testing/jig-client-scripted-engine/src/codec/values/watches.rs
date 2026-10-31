@@ -1,5 +1,5 @@
 //! Wire projections of watches facts (client/domain/testing.md, 4).
-use super::super::{bytes, c, facts, pieces, w};
+use super::super::{bytes, c, facts, pieces, problem, w};
 use super::{
     wire_current_call, wire_live_call, wire_me, wire_owner_accounts, wire_owner_deployment, wire_owner_inbox,
     wire_owner_project, wire_owner_proposal, wire_owner_tree, wire_settings_document, wire_task, wire_tasks,
@@ -23,6 +23,7 @@ pub(in crate::codec) fn wire_delivery_value(
         )?),
         c::Delivery::OwnerInbox(value) => w::DeliveryValue::OwnerInbox(wire_owner_inbox(value, limits)?),
         c::Delivery::Tasks(value) => w::DeliveryValue::Tasks(wire_tasks(value, limits)?),
+        c::Delivery::Run(_) => return Err(problem()),
         c::Delivery::RunState(value) => w::DeliveryValue::RunState(wire_run_state(value, limits)?),
         c::Delivery::OwnerDeployment(value) => w::DeliveryValue::OwnerDeployment(wire_owner_deployment(value, limits)?),
         c::Delivery::OwnerAccounts(value) => w::DeliveryValue::OwnerAccounts(wire_owner_accounts(value, limits)?),
