@@ -122,11 +122,11 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
     let effective = json(&docs.temper);
     let effective_agent = json(&docs.agent);
-    let forge = &effective["application"]["forges"][1];
+    let forge = &effective["application"]["machine"]["github"];
     assert_eq!(forge["api"], json!({"socket":"127.0.0.1:9101"}));
-    assert_eq!(forge["git"], "http://127.0.0.1:9101");
+    assert_eq!(forge["remote"], "http://127.0.0.1:9101");
     assert_eq!(forge["web"], "http://127.0.0.1:9101");
-    assert_eq!(forge["transport"], "plaintext");
+    assert_eq!(forge["tls"], false);
     let sign_in = &effective["engine"]["llm"]["providers"][0]["sources"]["sign_in"];
     for (name, expected) in [
         ("issuer", "http://127.0.0.1:9102"),
@@ -184,7 +184,7 @@ fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
     // Fill every TLS removal slot alongside all welcome git/program edits.
     const TLS: [&str; 4] = ["server_name", "trust", "trust_der", "identity_file"];
     let (mut temper, mut agent, paths, peers) = fixture();
-    for pointer in ["/application/forges/1", "/engine/llm/providers/0/sources/sign_in", "/engine/llm/endpoints/0"] {
+    for pointer in ["/engine/llm/providers/0/sources/sign_in", "/engine/llm/endpoints/0"] {
         for member in TLS {
             temper.pointer_mut(pointer).expect("rewrite target")[member] = "/stale/root.der".into();
         }
@@ -192,7 +192,6 @@ fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
     for member in TLS {
         agent["endpoints"][0][member] = "/stale/root.der".into();
     }
-    temper["application"]["forges"].as_array_mut().expect("forges").reverse();
     temper["engine"]["llm"]["providers"].as_array_mut().expect("providers").reverse();
     agent["endpoints"].as_array_mut().expect("endpoints").reverse();
     let docs = write(&temper, &agent, &paths, &peers).expect("structural rewrite");
@@ -203,7 +202,6 @@ fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
     assert!(effective_agent["endpoints"][1].get("trust_der").is_none());
     assert_eq!(effective_agent["endpoints"][1]["address"], "127.0.0.1:9103");
     for target in [
-        &effective["application"]["forges"][1],
         &effective["engine"]["llm"]["providers"][1]["sources"]["sign_in"],
         &effective["engine"]["llm"]["endpoints"][0],
         &effective_agent["endpoints"][1],
@@ -218,9 +216,6 @@ fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
 fn malformed_targets_have_named_refusals() {
     let (temper, agent, paths, peers) = fixture();
     for (pointer, replacement, words) in [
-        ("/application/forges/1/kind", json!("forgejo"), "forge 2 must be GitHub"),
-        ("/application/forges/1/number", json!("2"), "wrong value kind"),
-        ("/application/forges/1/api", json!(42), "wrong value kind"),
         ("/engine/llm/providers/0/sources/sign_in/issuer", json!(false), "wrong value kind"),
         ("/engine/llm/providers/0/sources/sign_in/client", json!("other"), "expected the shipped registration"),
         ("/engine/llm/providers/0/sources/sign_in/redirect_port", json!(0), "expected shipped callback 1455"),
@@ -247,9 +242,9 @@ fn malformed_targets_have_named_refusals() {
 #[test]
 fn duplicate_targets_and_members_are_refused() {
     let (mut temper, agent, paths, peers) = fixture();
-    let target = temper["application"]["forges"][1].clone();
-    temper["application"]["forges"].as_array_mut().expect("forges").push(target);
-    assert_eq!(write(&temper, &agent, &paths, &peers).expect_err("duplicate forge").words, b"target must be unique");
+    let target = temper["engine"]["llm"]["providers"][0].clone();
+    temper["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(target);
+    assert_eq!(write(&temper, &agent, &paths, &peers).expect_err("duplicate provider").words, b"target must be unique");
     let agent = serde_json::to_vec(&agent).expect("agent bytes");
     assert_eq!(
         rewrite(br#"{"engine":{},"engine":{}}"#, &agent, &paths, &peers).expect_err("duplicate member").words,
@@ -288,7 +283,7 @@ fn peer_and_effective_path_bounds_refuse_before_rewriting() {
 }
 
 #[test]
-fn managed_four_and_adapter_are_ordinary_and_preserve_existing_entries() {
+fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
     for present in [false, true] {
         let (temper, mut agent, paths, peers) = fixture();
         if present {
@@ -297,20 +292,11 @@ fn managed_four_and_adapter_are_ordinary_and_preserve_existing_entries() {
         let docs = write(&temper, &agent, &paths, &peers).expect("ordinary rewrite");
         let effective = json(&docs.temper);
         let effective_agent = json(&docs.agent);
-        for index in [0_usize, 2] {
-            assert_eq!(effective["application"]["forges"][index], temper["application"]["forges"][index]);
+        assert!(effective["application"].get("forges").is_none());
+        assert!(effective["application"].get("setup").is_none());
+        for kind in ["owned", "fake"] {
+            assert_eq!(effective["application"]["machine"][kind], temper["application"]["machine"][kind]);
         }
-        assert_eq!(effective["application"]["forges"][1]["git_program"], "/effective/data/demo/bin/git");
-        assert!(
-            effective["application"]["forges"][2].get("git_program").is_none(),
-            "Forgejo here keeps the machine git"
-        );
-        assert_eq!(effective["application"]["forges"][3]["git_program"], "/effective/data/demo/bin/git");
-        assert_eq!(
-            effective["application"]["forges"][3],
-            json!({"number":4,"kind":"forgejo","api":{"socket":"127.0.0.1:9104"},"git":"http://127.0.0.1:9104","git_program":"/effective/data/demo/bin/git","web":null,"transport":"plaintext"})
-        );
-        assert_eq!(effective["application"]["setup"][2]["mode"], "managed");
         assert_eq!(
             effective_agent["programs"]["claude_code"],
             json!({"path":"/fixture/fake-claude","directory":"/effective/data/programs"})
@@ -405,21 +391,19 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
     use skein_lib::{Queue, Secret};
     let (temper, agent, paths, peers) = fixture();
     let docs = write(&temper, &agent, &paths, &peers).expect("rewrite");
-    let document = crate::read::document(&docs.temper).expect("effective document");
-    let application =
-        super::member(&document, 0, b"application", &jig_protocol_config::Path::root()).expect("application");
-    let setup = super::member(&document, application, b"setup", &jig_protocol_config::Path::root()).expect("setup");
-    let mut problems = temper_forge_setup::problem::Problems::empty();
     let limits = temper_forge_setup::limits::small();
-    let setup = temper_forge_setup::Setup::read(
-        &document,
-        setup,
-        &limits,
-        &jig_protocol_config::Directories::working(),
-        &mut problems,
-    )
-    .expect("ordinary setup fixture");
-    let given = temper_forge_setup::given::values(setup.entry(4).expect("managed entry"), None, &limits);
+    let entry = temper_forge_setup::setup::Entry {
+        forge: 4,
+        directory: Box::new([]),
+        bot: temper_forge_setup::setup::Account {
+            login: b"temper".as_slice().into(),
+            email: b"temper@localhost".as_slice().into(),
+        },
+        orgs: Box::new([]),
+        mode: temper_forge_setup::setup::Mode::Managed { admin_token: None },
+        asked: false,
+    };
+    let given = temper_forge_setup::given::values(&entry, None, &limits);
     assert_eq!(given.admin_name.as_ref(), b"admin");
     let token = crate::credential::credential(SEED, crate::credential::ADMIN_TOKEN);
     let forge = crate::forge::Document::decode(&docs.forgejo).expect("forge document");
