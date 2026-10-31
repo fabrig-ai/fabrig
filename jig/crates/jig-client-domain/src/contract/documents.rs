@@ -3,8 +3,8 @@
 //! List capacities and Text byte bounds are validated by the protocol before entry;
 //! the working set keeps only what its own configured limits admit.
 use super::{
-    Actor, DocumentText, Ending, Executor, Lacking, NoteScope, Part, Party, Phase, ProposalKey, Refusal, Revision,
-    TaskLine, Text, TurnName, TurnRead,
+    Actor, DocumentText, Ending, Executor, NoteScope, Part, Party, Phase, ProposalKey, Refusal, Revision, TaskLine,
+    Text, TurnName, TurnRead,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
@@ -101,7 +101,7 @@ pub struct Task {
 }
 
 /// Whole separately supplied task context (client/domain/contract.md, 5.1).
-/// Absence supplies no runtime, impact, spend, panel, slot or escalation facts.
+/// Absence supplies no runtime, impact, spend, panel or writer-slot facts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TaskContext {
     pub parts: List<Part>,
@@ -313,15 +313,6 @@ pub enum FailureClass {
     Permanent,
     /// The run stalled.
     Stall,
-}
-
-/// A holder an object passed and why.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Passed {
-    pub by: Actor,
-    pub at: Wall,
-    pub reason: Text,
-    pub lacking: Option<Lacking>,
 }
 
 /// One task in a proposal batch.
@@ -609,28 +600,6 @@ impl ActivityLine {
     }
 }
 
-/// How an agent run begins.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum RunBeginning {
-    /// Resumed its transcript.
-    Resumed,
-    /// Started from a brief with a conversation tail.
-    Fresh { tail: u32 },
-}
-
-/// How a run ended.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum RunEnding {
-    /// Parked for later.
-    Parked,
-    /// Finished its task.
-    Finished,
-    /// Cancelled.
-    Cancelled,
-    /// Failed with a class and reason.
-    Failed { class: FailureClass, reason: Text },
-}
-
 /// Facts about a task phase that a chip alone does not carry.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Runtime {
@@ -688,10 +657,4 @@ pub struct LiveDelegate {
 pub struct Tasks {
     pub rows: List<TaskLine>,
     pub more: bool,
-}
-/// Spend attributed to one goal or chat, largest first.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TaskSpend {
-    pub chip: Chip,
-    pub spent: u64,
 }

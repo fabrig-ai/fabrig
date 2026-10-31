@@ -1,25 +1,8 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
     Box, Limits, List, Reader, Wall, c, chip_fields, cursor_fields, owner_chip_ending_fields, owner_task_link_fields,
-    piece_problem, result_piece, too_large, w,
+    piece_problem, too_large, w,
 };
-pub(crate) fn object_page_fields(value: &w::ObjectPage, limits: &Limits) -> Result<c::ObjectPage, w::Problem> {
-    let opt0 = match value.before() {
-        Some(item) => Some(cursor_fields(item, limits)?),
-        None => None,
-    };
-    let opt1 = match value.after() {
-        Some(item) => Some(cursor_fields(item, limits)?),
-        None => None,
-    };
-    Ok(c::ObjectPage {
-        cut: value.cut(),
-        rows: result_piece(value.rows(), limits, limits.client.rows)?,
-        before: opt0,
-        after: opt1,
-    })
-}
-
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn owner_ended_delegate_fields(
     value: &w::OwnerEndedDelegate,

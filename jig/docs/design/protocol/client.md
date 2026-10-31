@@ -211,7 +211,7 @@ from the whole authority payload used for edits (`../client/domain/contract.md`,
 3.2); decoding retains the flag, and `whole()` refuses a cut projection.
 
 Client v11 appends the public provider catalogue and startup key bound to `me`,
-and provider/payer readiness to `accounts`. Deployment includes the same
+and provider/payer readiness to `accounts`. `OwnerDeployment` includes the same
 catalogue and viewer readiness for the reference fragment. Each deployment host's
 `OwnerHostRule` is `open`, `person` with an `OwnerHostPerson` party number,
 `several`, or `unknown`, recording its current kept-login placement rule.

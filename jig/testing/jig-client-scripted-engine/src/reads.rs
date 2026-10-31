@@ -346,7 +346,7 @@ impl<A: crate::Application> Engine<A> {
             if source.task == task
                 && matches!(source.line, jig_client_domain::contract::OwnerActivity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
             {
-                let archive = decoded.ok_or(ReadNone::Malformed)?;
+                let archive = row.decoded.ok_or(ReadNone::Malformed)?;
                 if (archive.task, archive.name.attempt, archive.name.number) != (task, attempt, turn)
                     || matches!(archive.turn, jig_client_domain::contract::TurnRead::Undecodable { .. })
                 {

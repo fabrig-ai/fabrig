@@ -592,6 +592,7 @@ fn offers(value: &ReadValue) -> Option<&List<Offered>> {
 fn task_hold_reason(value: &OwnerChipHold) -> CurrentHold {
     CurrentHold::Reason(value.reason)
 }
+
 fn ending(value: &ReadValue) -> Option<Ending> {
     match value {
         ReadValue::Task(v) => match v.result.as_ref()? {

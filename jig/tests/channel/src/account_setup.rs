@@ -273,11 +273,9 @@ fn observe(client: &jig_client_protocol_world::native::NativeClient, views: &mut
     }
     for received in &client.received {
         match received {
-            Received::Delivery(c::Delivery::Task(task)) => match &*task.chip.details {
-                c::ChipPhase::Owner { details, .. } => views.activity_seen |= details.observation.is_some(),
-                c::ChipPhase::Active(run) => views.activity_seen |= run.observation.is_some(),
-                _ => {}
-            },
+            Received::Delivery(c::Delivery::Task(task)) => {
+                views.activity_seen |= task.chip.details.details.observation.is_some();
+            }
             Received::Delivery(c::Delivery::Run(text)) => {
                 views.text_bytes = views.text_bytes.max(text.text.bytes().len());
             }

@@ -224,7 +224,7 @@ impl Truth {
                     (&source.read, &source.rows)
                     && let Some(ReadValue::Task(doc)) = self.objects.get_mut(&ObjectKey::Task(*task))
                 {
-                    doc.activity = rows.last().map_or(0, |line| line.position);
+                    doc.activity = rows.last().map_or(0, |line| line.source.position);
                 }
             }
             Change::Seen { party, results, replies } => {

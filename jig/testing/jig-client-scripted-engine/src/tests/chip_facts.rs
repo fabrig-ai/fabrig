@@ -50,7 +50,7 @@ fn whole_chip_admission_prices_mandatory_metadata_reserved_dependencies_and_titl
         title: DocumentText { bytes: text(b"partial"), cut: true },
         executor: Executor::Role { project: u32::MAX, role: u32::MAX },
         phase: Phase::Waiting,
-        details: Box::new(ChipPhase::Owner {
+        details: Box::new(ChipPhase {
             phase: OwnerChipPhase::Waiting { dependencies, more: true, holds: true },
             details: Box::new(details()),
         }),

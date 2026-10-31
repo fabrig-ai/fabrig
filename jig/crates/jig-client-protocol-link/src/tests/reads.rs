@@ -366,8 +366,7 @@ fn the_turn_inspector_rejects_incomplete_or_false_envelopes() {
 #[test]
 fn the_single_turn_decoder_uses_the_archive_bound() {
     // The archive decoder applies its TurnCarriedBytes bound.
-    let mut archive_limits = fixtures::limits();
-    archive_limits.wire.activity_turn_turn = 1;
+    let archive_limits = fixtures::limits();
     assert_eq!(
         translate::turn::archive(fixtures::single_turn_record(fixtures::FULL_TURN), &archive_limits),
         Ok(fixtures::expected_single_turn())
