@@ -252,6 +252,14 @@ pub fn abandon(domain: &mut Loads, owner: Token) {
     }
 }
 
+/// A missing obligation belongs only to a live startup page.
+pub(crate) fn startup_owner(domain: &Loads, owner: Token) -> bool {
+    match domain.entries.get(Id::from_token(owner)) {
+        Some(entry) => entry.phase == Phase::Waiting && restarting(entry.waiter),
+        None => false,
+    }
+}
+
 /// Accept the store's failed terminal. Reserve one output. Notify a live waiter once with
 /// `Failure::Store`; discarded abandoned/late answers create no replacement request.
 pub fn unloaded(domain: &mut Loads, owner: Token, out: &mut Queue<Request>) {
