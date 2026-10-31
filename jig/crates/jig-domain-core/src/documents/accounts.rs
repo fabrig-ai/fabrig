@@ -173,7 +173,7 @@ fn serves_work(core: &Core, party: u64) -> bool {
         if !fact.usable {
             continue;
         }
-        if crate::coverage::serves(&core.people, account, accounts::Use::Party(party)) {
+        if crate::coverage::serves(&core.people, account, accounts::Use::Party(party), None) {
             return true;
         }
     }
