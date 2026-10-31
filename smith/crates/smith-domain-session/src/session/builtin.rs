@@ -164,7 +164,7 @@ pub(super) fn prepare(
                     .expect("reserved result room");
                 conversation.bytes = conversation.bytes.checked_add(kept_bytes).expect("stand-in fits history");
             }
-            Block::ToolCall { .. } => tools.slots.push(Slot::Withheld).expect("one slot per call"),
+            Block::ToolCall { .. } => tools.slots.push(Slot::Unstarted).expect("one slot per call"),
             Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {}
         }
     }
@@ -304,7 +304,7 @@ pub(crate) fn result(
             };
             match tools.slots.get_mut(index).expect("owed slot") {
                 Slot::Done { result } => result,
-                Slot::Running { .. } | Slot::Withheld => unreachable!("built-in is done immediately"),
+                Slot::Running { .. } | Slot::Unstarted | Slot::Withheld => unreachable!("built-in is done immediately"),
             }
         }
         Place::Result { message, block } => conversation
@@ -345,20 +345,17 @@ pub(super) fn finish_closing(conversation: &mut Conversation, tools: Option<Tool
     let message = conversation.transcript.last().expect("assistant recorded before tooling");
     let mut results = List::with_capacity(tools.slots.len());
     let mut slots = tools.slots.into_boxed().into_iter();
-    for (position, block) in message.content.iter().enumerate() {
+    for block in &message.content {
         match block {
             Block::ToolCall { id, .. } => match slots.next().expect("one prepared slot per call") {
                 Slot::Done { result } => results.push(result).expect("result slot"),
-                Slot::Withheld => {
-                    if position >= usize::try_from(tools.next).expect("bounded position") {
-                        results
-                            .push(Block::ToolResult {
-                                id: id.clone(),
-                                result: Returned::NotRun { why: crate::llm::NotRun::Stopped },
-                            })
-                            .expect("stopped result slot");
-                    }
-                }
+                Slot::Unstarted => results
+                    .push(Block::ToolResult {
+                        id: id.clone(),
+                        result: Returned::NotRun { why: crate::llm::NotRun::Stopped },
+                    })
+                    .expect("stopped result slot"),
+                Slot::Withheld => {}
                 Slot::Running { .. } => unreachable!("closing waits for active calls"),
             },
             Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {}

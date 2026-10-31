@@ -12,7 +12,7 @@ pub(super) fn tell(facts: &mut Facts, runs: &Slab<Run>, session: &mut Session, o
     let opener = session.conversation.opener;
     let made = usize::try_from(mark).expect("a u32 fits in a usize");
     for request in out.iter().skip(made) {
-        compaction::tell(&mut session.conversation, facts, request);
+        compaction::follow(&mut session.conversation, facts, request);
         let fact = match request {
             Request::Opened { opener, session: _ } => FactKind::Opened { opener: *opener },
             Request::Yielded { opener, stop, text: _ } => FactKind::Yielded { opener: *opener, stop: *stop },

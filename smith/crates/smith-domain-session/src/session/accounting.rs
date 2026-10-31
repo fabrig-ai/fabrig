@@ -1,6 +1,8 @@
 //! Retained bytes, receiving credit and completion spend. This module knows no provider wire form; admission and terminal handlers use its checked sums.
 //! Contract: smith/docs/design/domain/session.md, sections 3, 4 and 6.
 
+use core::mem;
+
 use super::{
     Block, Box, Call, Conversation, Decoded, Descriptor, End, Entry, Failure, Limits, Outcome, Problem, Queue, Request,
     Returned, Slot, Spending, ToolChoice, Usage, blocks_fit, choice_bytes, chosen, compaction, receiving_reserve,
@@ -172,16 +174,16 @@ pub(super) fn reserve_provider(conversation: &mut Conversation, limits: &Limits)
     } else {
         receiving_reserve(conversation, limits).expect("checked receiving bounds")
     };
-    assert!(conversation.provider_credit.is_none(), "one provider right at a time");
-    conversation.reserved = conversation.reserved.checked_add(credit).expect("checked receiving room");
-    conversation.provider_credit = Some(credit);
+    conversation.provider = match mem::replace(&mut conversation.provider, Provider::Idle) {
+        Provider::Idle => Provider::Reserved { credit },
+        Provider::Reserved { .. } => unreachable!("one provider right at a time"),
+    };
+    follow_provider(conversation, 0);
     true
 }
 
 pub(super) fn release_provider(conversation: &mut Conversation) {
-    if let Some(credit) = conversation.provider_credit.take() {
-        conversation.reserved = conversation.reserved.checked_sub(credit).expect("provider right owned credit");
-    }
+    let _released: Option<u64> = take_provider(conversation);
 }
 
 pub(super) fn receive_completion(
@@ -195,8 +197,7 @@ pub(super) fn receive_completion(
     } else {
         held(content, calls, &conversation.choice, conversation.choice_names.as_deref())
     };
-    let credit = conversation.provider_credit.take().expect("completion owns receiving credit");
-    conversation.reserved = conversation.reserved.checked_sub(credit).expect("provider credit was reserved");
+    let credit = take_provider(conversation).expect("completion owns receiving credit");
     let Some(content_bytes) = content_cost(content) else {
         return false;
     };
@@ -411,4 +412,38 @@ pub(super) fn len(bytes: &[u8]) -> Option<u64> {
 /// nothing.
 pub(super) fn count(items: usize) -> u32 {
     u32::try_from(items).unwrap_or(u32::MAX)
+}
+
+/// Receiving credit is present only while a provider terminal is owed.
+#[derive(Debug)]
+pub(super) enum Provider {
+    Idle,
+    Reserved { credit: u64 },
+}
+
+impl Provider {
+    pub(super) const fn credit(&self) -> Option<u64> {
+        match self {
+            Self::Idle => None,
+            Self::Reserved { credit } => Some(*credit),
+        }
+    }
+}
+
+fn take_provider(conversation: &mut Conversation) -> Option<u64> {
+    let credit = conversation.provider.credit();
+    conversation.provider = match mem::replace(&mut conversation.provider, Provider::Idle) {
+        Provider::Idle | Provider::Reserved { .. } => Provider::Idle,
+    };
+    follow_provider(conversation, credit.unwrap_or(0));
+    credit
+}
+
+fn follow_provider(conversation: &mut Conversation, previous: u64) {
+    conversation.reserved = conversation
+        .reserved
+        .checked_sub(previous)
+        .expect("provider right owned credit")
+        .checked_add(conversation.provider.credit().unwrap_or(0))
+        .expect("checked receiving room");
 }

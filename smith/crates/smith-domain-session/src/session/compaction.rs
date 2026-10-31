@@ -387,7 +387,7 @@ fn summary_text(content: &[Block]) -> Box<[u8]> {
     written.finish()
 }
 
-pub(super) fn tell(conversation: &mut Conversation, facts: &mut crate::facts::Facts, request: &Request) {
+pub(super) fn follow(conversation: &mut Conversation, facts: &mut crate::facts::Facts, request: &Request) {
     let opener = conversation.opener;
     match request {
         Request::Complete { .. } => match &mut conversation.compaction {

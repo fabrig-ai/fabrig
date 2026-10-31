@@ -2,6 +2,8 @@
 //! inputs; the session machine follows the returned state.
 //! Contract: smith/docs/design/domain/session.md, section 4.
 
+use alloc::boxed::Box;
+
 use super::{
     Conversation, End, Env, Failure, Id, Limits, OUT_OF_TIME, Queue, Request, Rng, Session, State, ask, compaction,
     finish,
@@ -97,7 +99,7 @@ pub(super) fn failed(
         Retry::Fail => finish(End::Failed {
             failure,
             evidence,
-            detail: alloc::boxed::Box::default(),
+            detail: Box::default(),
             attempts: attempt.checked_add(1).expect("an admitted completion leaves room for its first attempt"),
         }),
         Retry::TimeUp => finish(OUT_OF_TIME),

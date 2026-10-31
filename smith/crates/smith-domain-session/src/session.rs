@@ -29,10 +29,9 @@
 //! delegated calls and closes its kit, which cancels the tools' calls, and
 //! waits for all of it to settle (skein/docs/foundation/programming-model.md, section 5.3).
 //!
-//! The transition table. Every other cell is unreachable by the boundary's
-//! contract: one terminal event per request, a request only from the states
-//! that wait for its terminal event, and a `Continue` only to a yielded
-//! session.
+//! The transition table covers the provider, tool and opener lifecycles.
+//! Terminals require a live request; a `Continue` requires a yielded session.
+//! Stale close, narrowing and unsent-settlement events are ignored.
 //!
 //! ```text
 //! state     event or alarm             next      requests
@@ -47,6 +46,9 @@
 //!           completed, no calls        Yielded   used, yielded (malformed)
 //!           completed, otherwise       Yielded   used, yielded
 //!           completed, does not fit    Closing   used (its kit closes)
+//!           narrowed                   Completing complete (replacement)
+//!           budget denied, unsent close Closing  (its kit closes)
+//!           overflowed                 Closing   (its kit closes)
 //!           failed, transient          Backoff
 //!           failed, otherwise          Closing   (its kit closes)
 //!           close, expiry              Closing   cancel
@@ -68,7 +70,8 @@
 //! Closing   its kit closed, nothing    Closed    ended
 //!             left to wait for
 //!           completed                  Closing   used
-//!           failed, cancelled          Closing
+//!           failed, cancelled, overflowed Closing
+//!           delegated withheld         Closing
 //!           a run ends                 Closing
 //!           close                      Closing   (already closing)
 //! Closed    continue, close            Closed    (dropped: the handle is stale)
@@ -210,7 +213,7 @@ struct Conversation {
     bytes: u64,
     /// Logical space owed to provider and tool terminals.
     reserved: u64,
-    provider_credit: Option<u64>,
+    provider: accounting::Provider,
     /// One-based attempt of the last issued completion, retained through close.
     completion_attempts: u32,
     /// What the session may spend, and what it has: completions received, and
@@ -317,7 +320,9 @@ pub(crate) enum Slot {
     Running { run: Id<Run> },
     /// The call has its result.
     Done { result: Block },
-    /// An unstarted regular call, or a wait the opener parked without a historical result.
+    /// The batch has not reached this call.
+    Unstarted,
+    /// The opener parked this call without a historical result.
     Withheld,
 }
 
@@ -1615,7 +1620,9 @@ fn finish_tools(
     for slot in tools.slots.into_boxed() {
         match slot {
             Slot::Done { result } => results.push(result).expect("a result for every slot"),
-            Slot::Running { .. } | Slot::Withheld => unreachable!("ordinary tooling has a result for every call"),
+            Slot::Running { .. } | Slot::Unstarted | Slot::Withheld => {
+                unreachable!("ordinary tooling has a result for every call")
+            }
         }
     }
     let results = Message { role: Role::User, content: results.into_boxed() };
@@ -1874,7 +1881,7 @@ fn cancel_tools(runs: &Slab<Run>, tools: Tools, end: End, out: &mut Queue<Reques
                 By::Program => unreachable!("program observation owners never run in slots"),
                 By::Opener => out.push(Request::Withdraw { owner: run.token() }),
             },
-            Slot::Done { .. } | Slot::Withheld => {}
+            Slot::Done { .. } | Slot::Unstarted | Slot::Withheld => {}
         }
     }
     let running = tools.running;
@@ -1992,7 +1999,7 @@ fn admit(
         transcript,
         bytes,
         reserved: 0,
-        provider_credit: None,
+        provider: accounting::Provider::Idle,
         completion_attempts: 0,
         budget: spec.budget,
         turns: 0,
@@ -2476,7 +2483,7 @@ pub(crate) fn exhaust_origin_for_test(domain: &mut Domain, owner: Token) {
 #[cfg(test)]
 pub(crate) fn provider_credit_for_test(domain: &Domain, owner: Token) -> (u64, Option<u64>) {
     let session = domain.sessions.get(Id::from_token(owner)).expect("admitted test session before reclaim");
-    (session.conversation.reserved, session.conversation.provider_credit)
+    (session.conversation.reserved, session.conversation.provider.credit())
 }
 
 fn tool_metadata(
