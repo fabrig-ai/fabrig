@@ -447,6 +447,16 @@ fn a_restored_sources_wrong_kind_stops_the_engine() {
             &mut engine.values,
         );
         crate::store::answer(engine);
-        let Some(crate::End::Stopped(_)) = &engine.end else { panic!("wrong restored kind must stop: {kind:?}") };
+        assert_eq!(
+            engine.end,
+            Some(crate::End::Stopped(crate::Stop::StorePage {
+                phase: None,
+                failure: store::restore::Failure {
+                    cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),
+                    row: None,
+                },
+            })),
+            "wrong restored kind must stop: {kind:?}"
+        );
     }
 }
