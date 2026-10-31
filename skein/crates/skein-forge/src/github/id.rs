@@ -19,9 +19,6 @@ fn digit(byte: u8) -> Option<u8> {
         _ => None,
     }
 }
-fn hex(byte: u8) -> u8 {
-    if byte < 10 { b'0'.saturating_add(byte) } else { b'a'.saturating_add(byte.saturating_sub(10)) }
-}
 /// Writes the 40 digits of a commit whose last 12 bytes are zero.
 #[must_use]
 pub fn write_commit(commit: &api::Commit) -> Option<[u8; 40]> {
@@ -32,8 +29,8 @@ pub fn write_commit(commit: &api::Commit) -> Option<[u8; 40]> {
     }
     let mut out = [0; 40];
     for (byte, pair) in commit.iter().take(20).zip(out.chunks_exact_mut(2)) {
-        *pair.first_mut()? = hex(byte / 16);
-        *pair.get_mut(1)? = hex(byte % 16);
+        *pair.first_mut()? = skein_lib::hex::digit(byte / 16);
+        *pair.get_mut(1)? = skein_lib::hex::digit(byte % 16);
     }
     Some(out)
 }
