@@ -533,7 +533,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::Tasks(event) => {
             let Requests::Out(mut out) = route_tasks(core, env, work, event);
-            crate::deletion::advance(core, env, &mut out);
+            if !core.deletions.in_route() {
+                crate::deletion::advance(core, env, &mut out);
+            }
             Requests::Out(out)
         }
         Event::StartRecurring { project, authority, template } => {
@@ -749,15 +751,4 @@ pub(crate) fn deletion_event(core: &mut Core, env: &Env<Limits>, event: Event, o
     }
     assert!(work.is_empty(), "deletion sibling routes drained");
     let _previous = core.deletions.route(previous);
-}
-
-/// The compound terminal belongs to deletion, rather than a people flight.
-pub(crate) fn deletion_compound(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
-    let mut child = Queue::uncapped();
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
-    let Requests::Out(mut batch) = tag_tasks(core, env, child, false, false, false);
-    for _ in 0..batch.len() {
-        let request = batch.pop().expect("deletion task output count");
-        out.push(request);
-    }
 }

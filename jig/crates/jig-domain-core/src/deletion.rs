@@ -35,6 +35,10 @@ impl Deletions {
     pub(crate) fn route(&mut self, active: bool) -> bool {
         core::mem::replace(&mut self.routing, active)
     }
+
+    pub(crate) fn in_route(&self) -> bool {
+        self.routing
+    }
 }
 impl Deleting {
     fn new(step: people::DeletionStep) -> Self {
@@ -203,10 +207,10 @@ fn cancel(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project:
     // This synchronous child decision owns its terminal; no people flight is retained.
     let token = Token::new(u64::from(project));
     core.deletions.live.get_mut(&project).expect("kept deletion").compound = Some(token);
-    crate::routing::deletion_compound(
+    crate::routing::deletion_event(
         core,
         env,
-        tasks::Event::Compound {
+        Event::Tasks(tasks::Event::Compound {
             reply_to: ReplyTo::new(token),
             by: tasks::Party::Deployment { project },
             project,
@@ -214,7 +218,7 @@ fn cancel(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project:
             period: core.period(project),
             pool_budget: 0,
             period_budget: core.period_budget(project),
-        },
+        }),
         out,
     );
     core.deletions.live.get_mut(&project).expect("kept deletion").compound = None;
@@ -311,10 +315,16 @@ fn finish(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project:
 
 /// The compound is synchronous; its terminal cannot name a people flight.
 pub(crate) fn compound_done(core: &mut Core, token: Token) -> bool {
-    for (_, state) in &core.deletions.live {
+    let mut project = None;
+    for (&number, state) in &core.deletions.live {
         if state.compound == Some(token) {
-            return true;
+            project = Some(number);
+            break;
         }
+    }
+    if let Some(project) = project {
+        core.deletions.live.get_mut(&project).expect("kept deletion").compound = None;
+        return true;
     }
     false
 }
