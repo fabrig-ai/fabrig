@@ -318,7 +318,6 @@ pub fn row_key(row: &Row) -> Option<Position> {
 
 fn is_page(scope: &Scope) -> bool {
     match scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => true,
         Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Activity { .. }
@@ -327,7 +326,9 @@ fn is_page(scope: &Scope) -> bool {
         | Scope::Notes { .. }
         | Scope::ScopedNotes { .. }
         | Scope::SettingsHistory { .. }
-        | Scope::Spend { .. } => true,
+        | Scope::Spend { .. }
+        | Scope::EndedTasks
+        | Scope::TaskRows { .. } => true,
         Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
@@ -528,7 +529,6 @@ fn object(
     wall: skein_lib::Wall,
 ) -> Result<Option<Answer>, Missing> {
     match &range.scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => Ok(None),
         Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
             let Some(owner) = row_owner(&row) else {
                 return Ok(None);
@@ -544,7 +544,6 @@ fn object(
                 documents::result_from_row(core, limits, range.party, owner, wall)?,
             )?;
             let answer = match range.scope {
-                Scope::EndedTasks | Scope::TaskRows { .. } => unreachable!("task object scope"),
                 Scope::Task { .. } => historical(
                     Past::Task {
                         document: Box::new(hydrate_task(
@@ -588,7 +587,9 @@ fn object(
                 | Scope::Notes { .. }
                 | Scope::ScopedNotes { .. }
                 | Scope::SettingsHistory { .. }
-                | Scope::Spend { .. } => unreachable!("task object scope"),
+                | Scope::Spend { .. }
+                | Scope::EndedTasks
+                | Scope::TaskRows { .. } => unreachable!("task object scope"),
             };
             Ok(Some(answer))
         }
@@ -841,14 +842,15 @@ fn object(
         | Scope::Notes { .. }
         | Scope::ScopedNotes { .. }
         | Scope::SettingsHistory { .. }
-        | Scope::Spend { .. } => Ok(None),
+        | Scope::Spend { .. }
+        | Scope::EndedTasks
+        | Scope::TaskRows { .. } => Ok(None),
     }
 }
 
 #[expect(clippy::too_many_lines, reason = "exhaustive read construction keeps each owner conversion visible")]
 fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Option<PageRow>, Missing> {
     match &range.scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => Ok(None),
         Scope::EndedDelegates { task } => super::indexed::ended_delegate_row(limits, *task, &row),
         Scope::History { task, subtree } => {
             let Some(owner) = row_owner(&row) else {
@@ -954,13 +956,14 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
         | Scope::Result { .. }
         | Scope::Reply { .. }
         | Scope::SettingsHistory { .. }
-        | Scope::Turn { .. } => Ok(None),
+        | Scope::Turn { .. }
+        | Scope::EndedTasks
+        | Scope::TaskRows { .. } => Ok(None),
     }
 }
 
 fn inbox_contexts(scope: &Scope, rows: u32) -> Option<List<documents::InboxSelection>> {
     match &scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => None,
         Scope::Inbox { .. } => Some(List::with_capacity(rows)),
         Scope::Task { .. }
         | Scope::Proposal { .. }
@@ -977,7 +980,9 @@ fn inbox_contexts(scope: &Scope, rows: u32) -> Option<List<documents::InboxSelec
         | Scope::Notes { .. }
         | Scope::ScopedNotes { .. }
         | Scope::SettingsHistory { .. }
-        | Scope::Spend { .. } => None,
+        | Scope::Spend { .. }
+        | Scope::EndedTasks
+        | Scope::TaskRows { .. } => None,
     }
 }
 
@@ -1462,7 +1467,6 @@ fn inbox_key_allowed(group: Group, task: u64, object: documents::InboxObject, ke
 pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
     match position {
         Position::Inbox { task, object, key, .. } => match scope {
-            Scope::EndedTasks | Scope::TaskRows { .. } => false,
             Scope::Inbox { group, .. } => inbox_key_allowed(*group, *task, *object, key),
             Scope::Task { .. }
             | Scope::Proposal { .. }
@@ -1479,12 +1483,13 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
             | Scope::Notes { .. }
             | Scope::ScopedNotes { .. }
             | Scope::SettingsHistory { .. }
-            | Scope::Spend { .. } => false,
+            | Scope::Spend { .. }
+            | Scope::EndedTasks
+            | Scope::TaskRows { .. } => false,
         },
         Position::Owner(key) => {
             let kind = key_kind(key);
             match scope {
-                Scope::EndedTasks | Scope::TaskRows { .. } => false,
                 Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
                     kind == KeyKind::Ended(*task)
                 }
@@ -1524,7 +1529,7 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
                     | Key::People(_)
                     | Key::Accounts(_) => false,
                 },
-                Scope::SettingsHistory { .. } => false,
+                Scope::EndedTasks | Scope::TaskRows { .. } | Scope::SettingsHistory { .. } => false,
                 Scope::Spend { project } => kind == KeyKind::Ledger(*project),
                 Scope::Inbox { group, .. } => group.updates() && super::indexed::is_update(key),
             }
