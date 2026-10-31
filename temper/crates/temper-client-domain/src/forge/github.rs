@@ -127,7 +127,7 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
             w::Connect::new(
                 &bounds,
                 w::ConnectParts {
-                    forge,
+                    forge: w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).expect("forge number")),
                     how: w::How::GithubApp(w::GitHubApp::new(&bounds, w::GitHubAppParts { id }).expect("valid App id")),
                 },
             )
@@ -153,7 +153,16 @@ pub(crate) fn manifest(side: &mut Side, limits: Limits, forge: u16, back: Box<[u
         w::GitHubManifest::new(&bounds, w::GitHubManifestParts { back: Some(back) })
             .expect("printed flow address fits"),
     );
-    let request = w::Request::Connect(w::Connect::new(&bounds, w::ConnectParts { forge, how }).expect("connect fits"));
+    let request = w::Request::Connect(
+        w::Connect::new(
+            &bounds,
+            w::ConnectParts {
+                forge: w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).expect("forge number")),
+                how,
+            },
+        )
+        .expect("connect fits"),
+    );
     dispatch(side, &bounds, forge, request, true, out);
 }
 fn dispatch(
@@ -273,7 +282,11 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::StartRefused(_)
                 | w::Outcome::StartFailed(_)
                 | w::Outcome::Returning
-                | w::Outcome::Link(_) => None,
+                | w::Outcome::Link(_)
+                | w::Outcome::Removed
+                | w::Outcome::RemoveRefused(_)
+                | w::Outcome::Reset
+                | w::Outcome::EndRefused(_) => None,
             }
         }
         Answered::Jig(_) | Answered::Family(_) => None,

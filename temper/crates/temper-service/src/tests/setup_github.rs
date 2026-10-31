@@ -96,6 +96,10 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 | root::Request::Bound { .. }
                 | root::Request::StopGroup { .. }
                 | root::Request::SetUpGroup { .. }
+                | root::Request::ForgeKept(_)
+                | root::Request::ForgeGone { .. }
+                | root::Request::BoxGroup { .. }
+                | root::Request::BoxRemove { .. }
                 | root::Request::Return { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Connect { .. }
@@ -204,7 +208,7 @@ fn connect_request(app: u64) -> w::Request {
         w::Connect::new(
             &w::CEILINGS,
             w::ConnectParts {
-                forge: FORGE,
+                forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: FORGE }).unwrap()),
                 how: w::How::GithubApp(w::GitHubApp::new(&w::CEILINGS, w::GitHubAppParts { id: app }).unwrap()),
             },
         )

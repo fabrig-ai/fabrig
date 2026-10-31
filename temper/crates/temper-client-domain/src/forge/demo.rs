@@ -500,7 +500,11 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
             w::StartFailure::Adoption => StartFailure::Adoption,
             w::StartFailure::NotConnected => StartFailure::NotConnected,
         }),
-        w::Outcome::Connecting
+        w::Outcome::Removed
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Reset
+        | w::Outcome::EndRefused(_)
+        | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
         | w::Outcome::Page(_)
