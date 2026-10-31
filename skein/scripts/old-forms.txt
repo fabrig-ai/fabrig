@@ -9,4 +9,4 @@ earliest_helper 3
 enum_lifecycle 3
 growth_floor 1
 pop_loop 21
-decimal_hex 26
+decimal_hex 23
