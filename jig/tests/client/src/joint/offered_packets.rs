@@ -40,11 +40,9 @@ pub(super) fn read(captured: &mut Option<Captured>, source: &reads::Answer, inco
     match (source, native) {
         (reads::Answer::Document(source), native) => {
             let (key, original, received) = match (source.as_ref(), native) {
-                (documents::Document::Proposal(source), client::ReadValue::OwnerProposal(native)) => (
-                    client::ObjectKey::Proposal(super::wire::proposals::key(source.proposer, source.number)),
-                    &source.acts,
-                    &native.acts,
-                ),
+                (documents::Document::Proposal(source), client::ReadValue::OwnerProposal(native)) => {
+                    (client::ObjectKey::Proposal(native.key), &source.acts, &native.acts)
+                }
                 (documents::Document::Escalation(source), client::ReadValue::OwnerEscalation(native)) => {
                     (client::ObjectKey::Escalation(source.task.chip.number), &source.acts, &native.acts)
                 }

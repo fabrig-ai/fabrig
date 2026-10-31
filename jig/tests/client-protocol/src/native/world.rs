@@ -61,7 +61,7 @@ impl Delegate for Process {
         }
     }
 }
-// The world plays the application calendar child (service.md, 7; ruling 275).
+// The world plays the application calendar child (service.md, 7).
 struct PeriodSource {
     supplied: bool,
 }

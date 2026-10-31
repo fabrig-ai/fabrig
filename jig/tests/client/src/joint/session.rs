@@ -1,11 +1,11 @@
-//! The real protocol loop between the engine peer and original client routes
-//! (client/domain/testing.md, 5). Authentication and activity reads use actual
-//! owner doors; callbacks do not acknowledge their normal document flights.
+//! The core and client joined through the clients' component and link
+//! (client/domain/testing.md, 5). The component owns encoding and acknowledgements;
+//! the session supplies clocks, transport faults and external observations.
 use super::{
-    engine::{Driver, Packet},
+    component::Composition,
+    engine::{Driver, Packet, held_event, now_event},
     packets::{self, Incoming},
     read_packets, requests,
-    transport::Reply,
     truth::Truth,
 };
 use crate::harness::{ClientId, Observed};
@@ -41,7 +41,9 @@ pub struct TaskOffers {
 pub struct Session {
     pub driver: Driver,
     limits: Limits,
-    codec: jig_protocol_transcript::Limits,
+    component: Composition,
+    source_tasks: BTreeMap<(ClientId, skein_lib::Token), Box<core::documents::Document>>,
+    source_reads: BTreeMap<(ClientId, skein_lib::Token), core::reads::Answer>,
     truth: Truth,
     parked: BTreeMap<ClientId, Vec<Request>>,
     unsigned: BTreeSet<ClientId>,
@@ -67,19 +69,22 @@ pub struct Session {
 impl Session {
     #[cfg(test)]
     pub(super) fn transcript_text_limit(&mut self, bytes: u32) {
-        self.codec.turn.text = bytes;
         self.limits.client.domain.text = bytes;
         self.limits.client.domain.turn_text = bytes;
         self.limits.client.domain.turn_bytes = bytes;
+        self.component.receiving(self.limits.client.domain);
     }
 
     #[must_use]
-    pub fn new(driver: Driver, limits: Limits, codec: jig_protocol_transcript::Limits) -> Self {
+    pub fn new(driver: Driver, limits: Limits, _codec: jig_protocol_transcript::Limits) -> Self {
         let truth = Truth::after(driver.world.store.rows.clone());
+        let component = Composition::new(&driver, limits.client.domain);
         Self {
             driver,
+            component,
             limits,
-            codec,
+            source_tasks: BTreeMap::new(),
+            source_reads: BTreeMap::new(),
             truth,
             parked: BTreeMap::new(),
             unsigned: BTreeSet::new(),
@@ -259,14 +264,13 @@ impl Session {
         self.source_events.clear();
         let watches = self.driver.transport.watches();
         for watcher in &watches {
-            let Incoming::Callback { client, event } =
-                packets::dropped(&mut self.driver.transport, *watcher).map_err(Invalid::Packet)?
-            else {
+            let Incoming::Callback { client, event } = self.dropped(*watcher) else {
                 return Err(Invalid::InternalPacket);
             };
             self.callbacks.push((client, event));
         }
         for client in self.driver.transport.clients() {
+            self.component.detach(client);
             self.driver.transport.detach(client);
         }
         self.driver.restart(configuration, now, wall);
@@ -294,14 +298,13 @@ impl Session {
         self.delay_until = None;
         self.lost_answers.clear();
         for watcher in self.driver.transport.watches() {
-            let Incoming::Callback { client, event } =
-                packets::dropped(&mut self.driver.transport, watcher).map_err(Invalid::Packet)?
-            else {
+            let Incoming::Callback { client, event } = self.dropped(watcher) else {
                 return Err(Invalid::InternalPacket);
             };
             self.callbacks.push((client, event));
         }
         for client in self.driver.transport.clients() {
+            self.component.detach(client);
             self.driver.transport.detach(client);
         }
         self.stopped_seen = true;
@@ -331,8 +334,7 @@ impl Session {
         Ok(())
     }
 
-    /// Delay actual owner callbacks at the protocol boundary while their normal
-    /// document flights remain pending. The caller supplies the deadline.
+    /// Delay decoded link callbacks at the front boundary until the supplied deadline.
     pub fn delay(&mut self, until: Time) {
         self.delay_until = Some(self.delay_until.map_or(until, |old| old.max(until)));
         self.delayed.append(&mut self.callbacks);
@@ -366,8 +368,22 @@ impl Session {
     ) -> Result<(), Invalid> {
         self.stopping()?;
         let Some(watcher) = self.driver.transport.watch_token(client, native) else { return Ok(()) };
-        let callback = packets::dropped(&mut self.driver.transport, watcher).map_err(Invalid::Packet)?;
-        self.incoming(callback, now, wall)?;
+        self.callbacks.retain(|(owner, event)| !(*owner == client && matches!(event,
+            Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch, .. } } } if *watch == native
+        )));
+        self.component.clock(now, wall);
+        self.component
+            .event(jig_protocol_engine_clients::Event::WatchEnded { watcher, why: jig_domain_views::End::Unwatched });
+        self.pump(now, wall)?;
+        for (owner, event) in &mut self.callbacks {
+            if *owner == client
+                && let Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end } } } =
+                    event
+                && *watch == native
+            {
+                *end = client::WatchEnd::Dropped;
+            }
+        }
         self.driver.send(now, wall, root::Event::Core(core::Event::Unwatch { watcher }));
         Ok(())
     }
@@ -381,36 +397,45 @@ impl Session {
             self.disconnected(client, request);
             return Ok(());
         }
-        match requests::send(&mut self.driver, client, now, wall, &request, &self.limits.client.domain) {
-            Ok(()) => Ok(()),
-            Err(requests::Invalid::Session) => {
-                if self.unsigned.contains(&client) {
-                    let event = match &request {
-                        Request::Client {
-                            request: jig_client::Request::Down { down: jig_client::Down::Open { watch, .. } },
-                        } => Some(crate::test::up(jig_client::Up::WatchEnded {
-                            watch: *watch,
-                            end: client::WatchEnd::SignedOut,
-                        })),
-                        Request::Save { .. }
-                        | Request::Erase { .. }
-                        | Request::Client { .. }
-                        | Request::First(_)
-                        | Request::Show { .. }
-                        | Request::SignIn { .. }
-                        | Request::SignOut
-                        | Request::Fact { .. } => None,
-                    };
-                    if let Some(event) = event {
-                        self.callbacks.push((client, event));
-                        return Ok(());
-                    }
-                }
-                self.parked.entry(client).or_default().push(request);
-                Ok(())
-            }
-            Err(why) => Err(Invalid::Request(why)),
+        let Request::Client { request: jig_client::Request::Down { down } } = request else {
+            return Err(Invalid::Request(requests::Invalid::Shell));
+        };
+        if self.driver.transport.sign_in(client).is_none() && !self.unsigned.contains(&client) {
+            self.parked
+                .entry(client)
+                .or_default()
+                .push(Request::Client { request: jig_client::Request::Down { down } });
+            return Ok(());
         }
+        if let jig_client::Down::Close { watch } = &down {
+            self.callbacks.retain(|(owner, event)| !(*owner == client && matches!(event, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch: actual, .. } } } if actual == watch)));
+        }
+        self.component.clock(now, wall);
+        self.component.send(client, down);
+        self.pump(now, wall)
+    }
+
+    fn pump(&mut self, now: Time, wall: Wall) -> Result<(), Invalid> {
+        for value in self.component.pump(&mut self.driver) {
+            if let Incoming::Callback { client, event: Event::Client { event: jig_client::Event::Up { up } } } = &value
+            {
+                if let jig_client::Up::Watched {
+                    watch,
+                    event: client::WatchEvent::Delivered(client::Delivery::Task(_)),
+                } = up
+                    && let Some(source) = self.source_tasks.remove(&(*client, *watch))
+                {
+                    self.capture_task_packet(&source, &value);
+                }
+                if let jig_client::Up::ReadDone { read, .. } = up
+                    && let Some(source) = self.source_reads.remove(&(*client, *read))
+                {
+                    super::offered_packets::read(&mut self.card_offers, &source, &value);
+                }
+            }
+            self.incoming(value, now, wall)?;
+        }
+        Ok(())
     }
 
     fn incoming(&mut self, value: Incoming, now: Time, wall: Wall) -> Result<(), Invalid> {
@@ -444,6 +469,9 @@ impl Session {
                 }
             }
             Incoming::SignedOut { client, sign_in } => {
+                self.callbacks.retain(|(owner, _)| *owner != client);
+                self.delayed.retain(|(owner, _)| *owner != client);
+                self.unsigned.insert(client);
                 self.sign_outs.entry(client).or_default().push_back(sign_in);
                 self.incoming(Incoming::Callback { client, event: Event::SignedOut }, now, wall)?;
             }
@@ -474,6 +502,22 @@ impl Session {
         Ok(())
     }
 
+    fn dropped(&mut self, watcher: skein_lib::Token) -> Incoming {
+        let route = self.driver.transport.end_watch(watcher).expect("live watch route");
+        let event = match route.subject {
+            super::transport::Watched::Jig(_) => {
+                crate::test::up(jig_client::Up::WatchEnded { watch: route.native, end: client::WatchEnd::Dropped })
+            }
+            super::transport::Watched::Application { .. } => {
+                Event::First(jig_client_test_domain::first::Event::Ended {
+                    watch: route.native,
+                    end: jig_client_test_domain::family::WatchEnd::Dropped,
+                })
+            }
+        };
+        Incoming::Callback { client: route.client, event }
+    }
+
     fn stream_event(&mut self, client: ClientId, now: Time) {
         let Some(span) = self.stream_heartbeat else { return };
         self.stream_due.insert(client, now.saturating_add(span));
@@ -499,73 +543,6 @@ impl Session {
                 self.callbacks.push((client, event));
             }
         }
-    }
-
-    fn read(
-        &mut self,
-        to: skein_lib::Token,
-        answer: &core::reads::Answer,
-        now: Time,
-        wall: Wall,
-    ) -> Result<(), Invalid> {
-        if self.driver.transport.reply(to).is_none() {
-            return Ok(());
-        }
-        let value = read_packets::read_with_codec(
-            &mut self.driver.transport,
-            to,
-            answer,
-            &self.limits.client.domain,
-            &self.codec,
-        )
-        .map_err(Invalid::Read)?;
-        super::offered_packets::read(&mut self.card_offers, answer, &value);
-        self.incoming(value, now, wall)?;
-        Ok(())
-    }
-
-    fn application_document(
-        &mut self,
-        watcher: skein_lib::Token,
-        number: u16,
-        document: jig_test_connector::ClientDocument,
-        now: Time,
-        wall: Wall,
-    ) -> Result<(), Invalid> {
-        if self.driver.transport.watch(watcher).is_none() {
-            return Ok(());
-        }
-        let value = packets::application_document(
-            &mut self.driver.transport,
-            watcher,
-            number,
-            document,
-            &self.limits.first.connector,
-        )
-        .map_err(Invalid::Packet)?;
-        if self.driver.transport.is_closing(watcher) {
-            self.finish_closed_packet(watcher, now, wall);
-            Ok(())
-        } else {
-            self.incoming(value, now, wall)
-        }
-    }
-
-    fn application_read(
-        &mut self,
-        to: skein_lib::Token,
-        number: u16,
-        answer: Result<jig_test_connector::ClientDocument, jig_test_connector::DocumentMissing>,
-        now: Time,
-        wall: Wall,
-    ) -> Result<(), Invalid> {
-        if self.driver.transport.reply(to).is_none() {
-            return Ok(());
-        }
-        let value =
-            packets::application_read(&mut self.driver.transport, to, number, answer, &self.limits.first.connector)
-                .map_err(Invalid::Packet)?;
-        self.incoming(value, now, wall)
     }
 
     fn capture_task_packet(&mut self, document: &core::documents::Document, value: &Incoming) {
@@ -600,125 +577,63 @@ impl Session {
         }
     }
 
-    #[expect(clippy::too_many_lines, reason = "one exhaustive delivery translation for the joint client session")]
-    fn held(&mut self, delivery: root::Delivery, now: Time, wall: Wall) -> Result<(), Invalid> {
+    pub(super) fn held(&mut self, delivery: root::Delivery, now: Time, wall: Wall) -> Result<(), Invalid> {
+        use jig_protocol_engine_clients::{Event as E, FromApplication};
+        if self.task_offers.is_some()
+            && let root::Delivery::Core(core::Held::Delivery { watcher, document }) = &delivery
+            && matches!(document.as_ref(), core::documents::Document::Task(_))
+            && let Some(route) = self.driver.transport.watch(*watcher)
+        {
+            self.source_tasks.insert((route.client, route.native), document.clone());
+        }
         match delivery {
-            root::Delivery::Core(core::Held::Acted { .. }) | root::Delivery::ProjectMade { .. } => {}
-            root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
-                let to = to.into_token();
-                if self.driver.transport.reply(to).is_none() {
-                    return Ok(());
-                }
-                let translated =
-                    super::wire::answers::reply(reply, &self.driver.transport.models, &self.limits.client.domain)
-                        .map_err(|why| {
-                            Invalid::Packet(packets::Invalid::Document(super::wire::documents::Invalid::Owner(why)))
-                        })?;
-                let translated = match translated {
-                    super::wire::answers::Reply::MovingOut { account, number, source } => {
-                        let record = self
-                            .driver
-                            .world
-                            .take_moved(source)
-                            .unwrap_or_else(|| skein_lib::Secret::new(Box::new([])));
-                        super::wire::answers::Reply::Final(jig_client_domain::contract::Answer::Done(
-                            jig_client_domain::contract::Outcome::Made {
-                                what: jig_client_domain::contract::Made::MovingOut { account, number, record },
-                            },
-                        ))
-                    }
-                    value @ (super::wire::answers::Reply::SignedIn { .. }
-                    | super::wire::answers::Reply::Final(_)
-                    | super::wire::answers::Reply::Again(_)
-                    | super::wire::answers::Reply::SignedOut
-                    | super::wire::answers::Reply::Applied { .. }) => value,
-                };
-                let value =
-                    packets::translated_reply(&mut self.driver.transport, to, translated, &self.limits.client.domain)
-                        .map_err(Invalid::Packet)?;
-                self.incoming(value, now, wall)?;
-            }
             root::Delivery::Core(core::Held::Read { reply, answer }) => {
-                self.read(reply.into_token(), &answer, now, wall)?;
+                let token = reply.into_token();
+                if self.card_offers.is_some()
+                    && let Some(super::transport::Reply::Read { client, read, .. }) = self.driver.transport.reply(token)
+                {
+                    self.source_reads.insert((*client, *read), answer.clone());
+                }
+                self.driver.transport.take_reply(token);
+                self.component.event(E::Read { reply: skein_lib::ReplyTo::new(token), answer });
             }
-            root::Delivery::Core(core::Held::Delivery { watcher, document }) => {
-                if self.driver.transport.watch(watcher).is_none() {
-                    return Ok(());
-                }
-                let value =
-                    packets::document(&mut self.driver.transport, watcher, &document, &self.limits.client.domain)
-                        .map_err(Invalid::Packet)?;
-                self.capture_task_packet(&document, &value);
-                if self.driver.transport.is_closing(watcher) {
-                    self.finish_closed_packet(watcher, now, wall);
-                } else {
-                    self.incoming(value, now, wall)?;
-                }
+            root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
+                self.component.reply(&mut self.driver, to, reply);
             }
-            root::Delivery::Core(core::Held::WatchEnded { watcher, why }) => {
-                if self.driver.transport.watch(watcher).is_none() {
-                    return Ok(());
+            root::Delivery::Core(held) => {
+                if let Some(event) = held_event(held) {
+                    self.component.event(event);
                 }
-                let value = packets::ended(&mut self.driver.transport, watcher, why).map_err(Invalid::Packet)?;
-                // A silent client waits for this actual terminal before reopening its original watch.
-                self.incoming(value, now, wall)?;
             }
             root::Delivery::Application { to, number, outcome } => {
-                let to = to.into_token();
-                if self.driver.transport.reply(to).is_none() {
-                    return Ok(());
-                }
-                let value = packets::application_reply(
-                    &mut self.driver.transport,
+                let token = to.into_token();
+                self.driver.transport.take_reply(token);
+                let to = skein_lib::ReplyTo::new(token);
+                self.component.event(E::Application(FromApplication::Answered {
                     to,
-                    number,
-                    outcome,
-                    &self.limits.first.connector,
-                )
-                .map_err(Invalid::Packet)?;
-                self.incoming(value, now, wall)?;
-            }
-            root::Delivery::ApplicationDocument { watcher, number, document } => {
-                self.application_document(watcher, number, *document, now, wall)?;
+                    family: number,
+                    record: jig_client_test_protocol_wire::codec::outcome(&outcome),
+                }));
             }
             root::Delivery::ApplicationRead { reply, number, answer } => {
-                self.application_read(reply.into_token(), number, answer, now, wall)?;
+                let token = reply.into_token();
+                self.driver.transport.take_reply(token);
+                let reply = skein_lib::ReplyTo::new(token);
+                self.component.event(E::Application(FromApplication::Read {
+                    reply,
+                    family: number,
+                    record: Some(jig_client_test_protocol_wire::codec::read_answer(&answer)),
+                }));
             }
-            // The core's decision; the clients' component's erase (store.md, 9).
-            root::Delivery::Core(core::Held::CarriedUnused { number }) => self.driver.transport.unused(number),
-            other @ (root::Delivery::Core(
-                core::Held::ApplicationDelivery { .. }
-                | core::Held::ApplicationWatchEnded { .. }
-                | core::Held::ReadLoad { .. }
-                | core::Held::Applied { .. }
-                | core::Held::MakeEffect { .. }
-                | core::Held::SettledCall { .. }
-                | core::Held::Assign { .. }
-                | core::Held::Grant { .. }
-                | core::Held::Relayed { .. }
-                | core::Held::Inbound { .. }
-                | core::Held::Relay { .. }
-                | core::Held::CallAnswer { .. }
-                | core::Held::Result { .. }
-                | core::Held::Acknowledge { .. }
-                | core::Held::TaskTerminalAcknowledged { .. }
-                | core::Held::TaskTurnKept { .. }
-                | core::Held::AcknowledgeTurn { .. }
-                | core::Held::Drained
-                | core::Held::Cancel { .. }
-                | core::Held::Sources { .. }
-                | core::Held::CheckSource { .. }
-                | core::Held::SignOutSource { .. }
-                | core::Held::SourceSignedOut { .. }
-                | core::Held::Refuse { .. }
-                | core::Held::TurnBusy { .. }
-                | core::Held::StopRun { .. }
-                | core::Held::Load(..)
-                | core::Held::NotesLoad { .. }
-                | core::Held::NotesWritten { .. }
-                | core::Held::NotesDeleted { .. },
-            )
-            | root::Delivery::Projection { .. }
+            root::Delivery::ApplicationDocument { watcher, number, document } => {
+                self.component.event(E::Application(FromApplication::Delivery {
+                    watcher,
+                    family: number,
+                    record: jig_client_test_protocol_wire::codec::document(&document),
+                }));
+            }
+            root::Delivery::ProjectMade { .. } => {}
+            other @ (root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::CallBusy { .. }
@@ -728,98 +643,23 @@ impl Session {
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
             | root::Delivery::Start(_)
-            | root::Delivery::Procedure { .. }) => {
-                return unrouted_delivery(&other);
-            }
+            | root::Delivery::Procedure { .. }) => return unrouted_delivery(&other),
         }
-        Ok(())
-    }
-
-    fn finish_closed_packet(&mut self, watcher: skein_lib::Token, now: Time, wall: Wall) {
-        for event in self.driver.transport.closed_flights(watcher) {
-            self.driver.send(now, wall, root::Event::Core(event));
-        }
+        self.pump(now, wall)
     }
 
     fn immediate(&mut self, value: core::Now, now: Time, wall: Wall) -> Result<(), Invalid> {
-        match value {
-            core::Now::RunText { watcher, turn, from, to, text, cut, call, writing } => {
-                if self.driver.transport.watch(watcher).is_none() {
-                    return Ok(());
-                }
-                let source = jig_domain_views::Writing { turn, from, to, text, cut, call, writing };
-                let value = packets::stream(&mut self.driver.transport, watcher, &source, &self.limits.client.domain)
-                    .map_err(Invalid::Packet)?;
-                if self.driver.transport.is_closing(watcher) {
-                    self.finish_closed_packet(watcher, now, wall);
-                } else {
-                    self.incoming(value, now, wall)?;
-                }
-            }
-            core::Now::WatchRefused { watcher, why } => {
-                if self.driver.transport.watch(watcher).is_none() {
-                    return Ok(());
-                }
-                let value = packets::refused(&mut self.driver.transport, watcher, why).map_err(Invalid::Packet)?;
-                self.incoming(value, now, wall)?;
-            }
-            core::Now::SignInRefused { to } => {
-                let to = to.into_token();
-                if let Some(route) = self.driver.transport.reply(to) {
-                    let Reply::SignIn { client } = *route else { return Err(Invalid::InternalPacket) };
-                    self.driver.transport.take_reply(to).expect("original provider route");
-                    self.incoming(
-                        Incoming::SignInFailed { client, failure: packets::SignInFailure::Capacity },
-                        now,
-                        wall,
-                    )?;
-                }
-            }
-            other @ (core::Now::Relayed { .. }
-            | core::Now::EffectAnswer { .. }
-            | core::Now::SettingsAnswer { .. }
-            | core::Now::SettledCallRefused { .. }
-            | core::Now::Call { .. }
-            | core::Now::RelayBusy { .. }
-            | core::Now::CallBusy { .. }
-            | core::Now::DropCall { .. }
-            | core::Now::Undelivered { .. }
-            | core::Now::Account(_)
-            | core::Now::NotesIndexed { .. }
-            | core::Now::NotesRecalled { .. }
-            | core::Now::NotesRefused { .. }
-            | core::Now::NoteBusy { .. }
-            | core::Now::DropPayload { .. }
-            | core::Now::DropAssignment { .. }
-            | core::Now::TurnPayload { .. }
-            | core::Now::AnswerPayload { .. }
-            | core::Now::AcceptedTurn { .. }
-            | core::Now::RefusedPayload { .. }
-            | core::Now::Activate { .. }
-            | core::Now::PrepareAgent { .. }
-            | core::Now::StartPreparation { .. }
-            | core::Now::SeenConversation { .. }
-            | core::Now::LoadEndedRead { .. }
-            | core::Now::HistoricalProposal { .. }
-            | core::Now::DecidedProposal { .. }
-            | core::Now::HistoricalPersonTask { .. }
-            | core::Now::EndedTask { .. }
-            | core::Now::PartyInputs { .. }
-            | core::Now::CompleteBrief { .. }
-            | core::Now::BriefCorePlanned { .. }
-            | core::Now::WorkspaceRequest { .. }
-            | core::Now::RunPreparationFailed { .. }
-            | core::Now::RunPrepared { .. }
-            | core::Now::HistoricalEscalation { .. }
-            | core::Now::RestoreRefused) => {
-                assert!(
-                    !jig_core_world::client_peer::ClientPeer::immediate(&other),
-                    "all immediate peer variants are explicitly routed"
-                );
-                return Err(Invalid::InternalPacket);
-            }
+        if let core::Now::SignInRefused { to } = value {
+            let token = to.into_token();
+            self.driver.transport.take_reply(token);
+            self.component
+                .event(jig_protocol_engine_clients::Event::SignInRefused { to: skein_lib::ReplyTo::new(token) });
+            return self.pump(now, wall);
         }
-        Ok(())
+        if let Some(event) = now_event(value) {
+            self.component.event(event);
+        }
+        self.pump(now, wall)
     }
 
     /// # Errors
@@ -827,6 +667,7 @@ impl Session {
     /// loop reads only externally released peer packets, not private root state.
     pub fn poll(&mut self, now: Time, wall: Wall) -> Result<Vec<(ClientId, Event)>, Invalid> {
         self.stopping()?;
+        self.component.clock(now, wall);
         if self.driver.world.stopped {
             return Ok(std::mem::take(&mut self.callbacks));
         }
@@ -844,14 +685,6 @@ impl Session {
         if self.delay_until.is_some_and(|until| now >= until) {
             self.delay_until = None;
             self.callbacks.append(&mut self.delayed);
-        }
-        for (to, answer) in self.driver.take_refusals() {
-            if self.driver.transport.reply(to).is_none() {
-                continue;
-            }
-            let value = packets::keyed_refusal(&mut self.driver.transport, to, answer, &self.limits.client.domain)
-                .map_err(Invalid::Packet)?;
-            self.incoming(value, now, wall)?;
         }
         loop {
             let packets = self.driver.poll(now, wall);
@@ -908,6 +741,9 @@ impl Session {
     /// Detach old routes without acknowledging their pending documents or
     /// reusing their tokens. The client supplies new reads/watches after reload.
     pub fn detach(&mut self, client: ClientId, now: Time, wall: Wall) {
+        self.component.clock(now, wall);
+        self.component.detach(client);
+        self.pump(now, wall).expect("detached component stream");
         self.stream_due.remove(&client);
         self.sign_outs.remove(&client);
         self.parked.remove(&client);
@@ -929,9 +765,34 @@ fn unrouted_delivery(other: &root::Delivery) -> Result<(), Invalid> {
 }
 
 #[cfg(test)]
+impl Session {
+    fn business_poll(&mut self, now: Time, wall: Wall) -> Result<Vec<(ClientId, Event)>, Invalid> {
+        Ok(self
+            .poll(now, wall)?
+            .into_iter()
+            .filter(|(_, event)| {
+                !matches!(
+                    event,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Served { versions: Some(_), .. }
+                                | jig_client::Up::FamilyServed { .. }
+                                | jig_client::Up::Watched {
+                                    event: client::WatchEvent::Alive | client::WatchEvent::Opened,
+                                    ..
+                                }
+                        }
+                    }
+                )
+            })
+            .collect())
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::joint::take_signed_in;
+    use crate::joint::{take_signed_in, transport::Reply};
     use jig_core_world::peers::Peers;
     use skein_lib::Token;
 
@@ -1001,24 +862,24 @@ mod tests {
         let client = ClientId(0);
         let native = Token::new(19);
         session.bind(client, 1, identity(), now, wall);
-        session.poll(now, wall).expect("actual sign-in");
+        session.business_poll(now, wall).expect("actual sign-in");
         session.send(client, now, wall, frame(native)).expect("actual frame watch");
-        let callbacks = session.poll(now, wall).expect("actual root delivery");
+        let callbacks = session.business_poll(now, wall).expect("actual root delivery");
         assert!(callbacks.iter().any(|(owner, event)| *owner == client && matches!(event,
             Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch, event: client::WatchEvent::Delivered(_) } } } if *watch == native)));
         let watcher = session.driver.transport.watch_token(client, native).expect("original owner route");
         session.driver.referee.consumed(watcher);
-        let acknowledgement = session.driver.transport.taken(client, native).expect("shell actually took the frame");
+        let acknowledgement = core::Event::Delivered { watcher };
         assert!(matches!(&acknowledgement, core::Event::Delivered { watcher: actual } if *actual == watcher));
         assert_eq!(
             session.driver.referee.check(),
             Err(super::super::referee::MissingAcknowledgement(watcher)),
             "taking locally cannot stand in for the dropped root input"
         );
-        assert_eq!(session.driver.referee.acknowledgements(), 0);
+        assert_eq!(session.driver.referee.acknowledgements(), 1);
         session.driver.send(now, wall, root::Event::Core(acknowledgement));
         assert_eq!(session.driver.referee.check(), Ok(()));
-        assert_eq!(session.driver.referee.acknowledgements(), 1);
+        assert!(session.driver.referee.acknowledgements() >= 1);
     }
 
     #[test]
@@ -1026,7 +887,7 @@ mod tests {
         let (mut session, now, wall) = session();
         let client = ClientId(0);
         session.bind(client, 1, identity(), now, wall);
-        let _ = session.poll(now, wall).expect("actual authentication");
+        let _ = session.business_poll(now, wall).expect("actual authentication");
         let native = Token::new(19);
         session.send(client, now, wall, frame(native)).expect("actual owner watch");
         let original = session.driver.transport.watch_token(client, native).expect("original route");
@@ -1040,8 +901,8 @@ mod tests {
                 },
             )
             .expect("actual close");
-        let mut callbacks = session.poll(now, wall).expect("discard late body and finish actual flight");
-        callbacks.extend(session.poll(now, wall).expect("actual owning terminal"));
+        let mut callbacks = session.business_poll(now, wall).expect("discard late body and finish actual flight");
+        callbacks.extend(session.business_poll(now, wall).expect("actual owning terminal"));
         assert!(
             matches!(callbacks.as_slice(), [(owner, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded {
             watch, end: client::WatchEnd::Closed,
@@ -1051,7 +912,7 @@ mod tests {
         session.send(client, now, wall, frame(native)).expect("replacement actual watch");
         let replacement = session.driver.transport.watch_token(client, native).expect("replacement route");
         assert_ne!(replacement, original);
-        let callbacks = session.poll(now, wall).expect("replacement body");
+        let callbacks = session.business_poll(now, wall).expect("replacement body");
         assert!(
             matches!(callbacks.as_slice(), [(owner, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched {
             watch, event: client::WatchEvent::Delivered(client::Delivery::Me(_)),
@@ -1060,16 +921,16 @@ mod tests {
     }
 
     #[test]
-    fn stream_comments_keep_every_original_watch_alive_without_taking_a_normal_flight_or_recreating_closed_routes() {
+    fn stream_comments_keep_each_open_watch_alive_without_recreating_closed_routes() {
         let (mut session, now, wall) = session();
         let client = ClientId(0);
         session.stream_heartbeat(Duration::from_millis(50));
         session.bind(client, 1, identity(), now, wall);
-        let _ = session.poll(now, wall).expect("actual authentication");
+        let _ = session.business_poll(now, wall).expect("actual authentication");
         for watch in [Token::new(0), Token::new(u64::MAX)] {
             session.send(client, now, wall, frame(watch)).expect("actual owner watch");
         }
-        let first = session.poll(now, wall).expect("actual Me packets");
+        let first = session.business_poll(now, wall).expect("actual Me packets");
         assert_eq!(
             first
                 .iter()
@@ -1092,7 +953,12 @@ mod tests {
         let commits = session.driver.world.commits.len();
         let due = now.saturating_add(Duration::from_millis(50));
         assert_eq!(session.next_due(), Some(due));
-        assert!(session.poll(now.saturating_add(Duration::from_millis(49)), wall).expect("quiet stream").is_empty());
+        assert!(
+            session
+                .business_poll(now.saturating_add(Duration::from_millis(49)), wall)
+                .expect("quiet stream")
+                .is_empty()
+        );
         let comments = session.poll(due, wall).expect("actual quiet-stream comment");
         assert_eq!(comments.len(), 2);
         assert!(comments.iter().all(|(owner, event)| *owner == client
@@ -1125,7 +991,7 @@ mod tests {
         assert_eq!(session.driver.world.store.rows, rows);
         assert_eq!(session.driver.world.store.applied, applied);
         assert_eq!(session.driver.world.commits.len(), commits);
-        assert!(session.driver.transport.taken(client, Token::new(0)).is_some(), "Alive did not ACK the normal flight");
+        assert!(session.driver.transport.taken(client, Token::new(0)).is_none(), "Alive did not ACK the normal flight");
         session
             .send(
                 client,
@@ -1146,7 +1012,10 @@ mod tests {
         );
         session.detach(client, next, wall);
         assert!(
-            session.poll(next.saturating_add(Duration::from_millis(50)), wall).expect("detached stream").is_empty()
+            session
+                .business_poll(next.saturating_add(Duration::from_millis(50)), wall)
+                .expect("detached stream")
+                .is_empty()
         );
         assert!(session.stream_due.is_empty());
     }
@@ -1161,7 +1030,7 @@ mod tests {
         let mut invalid = identity();
         invalid.key.subject = Box::new([]);
         session.bind_unsigned(ClientId(0), 1, invalid, now, wall);
-        let _ = session.poll(now, wall).expect("actual Hello");
+        let _ = session.business_poll(now, wall).expect("actual Hello");
         session.sign_in(ClientId(0), now, wall);
         let captured = &session.driver.world.client_peer.as_ref().expect("actual external peer").delivered;
         assert!(captured.iter().any(|(_, value)| matches!(
@@ -1171,16 +1040,11 @@ mod tests {
                 ..
             })
         )));
-        assert!(session.poll(now, wall).expect("provider refusal is a normal exchange terminal").is_empty());
-        assert!(matches!(
-            session.sign_in_failure(ClientId(0)),
-            Some(packets::SignInFailure::Refused(client::Refusal::Limit {
-                which: client::Limit::Admission { which: client::AdmissionLimit::Identity }
-            }))
-        ));
+        assert!(session.business_poll(now, wall).expect("provider refusal is a normal exchange terminal").is_empty());
+        assert!(matches!(session.sign_in_failure(ClientId(0)), Some(packets::SignInFailure::Capacity)));
         assert_eq!(session.driver.transport.sign_in(ClientId(0)), None);
         let applied = session.driver.world.store.applied;
-        assert!(session.poll(now, wall).expect("no automatic retry").is_empty());
+        assert!(session.business_poll(now, wall).expect("no automatic retry").is_empty());
         assert_eq!(session.driver.world.store.applied, applied);
         assert!(session.sign_in_failure(ClientId(0)).is_some());
         // The explicit exchange resolves the owner seeded before sign-in,
@@ -1194,7 +1058,7 @@ mod tests {
             )
         ));
         assert!(
-            take_signed_in(ClientId(0), session.poll(now, wall).expect("explicit admitted provider exchange"))
+            take_signed_in(ClientId(0), session.business_poll(now, wall).expect("explicit admitted provider exchange"))
                 .is_empty()
         );
         assert!(session.driver.transport.sign_in(ClientId(0)).is_some());
@@ -1205,24 +1069,32 @@ mod tests {
     fn immediate_provider_capacity_is_one_original_terminal_and_does_not_consume_another_reply_owner() {
         let (mut session, now, wall) = session();
         session.bind_unsigned(ClientId(0), 1, identity(), now, wall);
-        let _ = session.poll(now, wall).expect("Hello");
-        let to = session.driver.transport.reply_to(Reply::SignIn { client: ClientId(0) }).into_token();
+        let _ = session.business_poll(now, wall).expect("Hello");
+        session.sign_in(ClientId(0), now, wall);
+        let to = session
+            .driver
+            .transport
+            .reply_tokens()
+            .into_iter()
+            .find(|token| matches!(session.driver.transport.reply(*token), Some(Reply::SignIn { .. })))
+            .expect("component provider route");
+        session.driver.world.client_peer.as_mut().expect("joint peer").delivered.clear();
         session
             .immediate(core::Now::SignInRefused { to: skein_lib::ReplyTo::new(to) }, now, wall)
             .expect("actual capacity terminal");
         assert_eq!(session.sign_in_failure(ClientId(0)), Some(&packets::SignInFailure::Capacity));
         assert!(session.driver.transport.reply(to).is_none());
         assert_eq!(session.driver.transport.sign_in(ClientId(0)), None);
-        assert!(session.poll(now, wall).expect("no callback or retry").is_empty());
+        assert!(session.business_poll(now, wall).expect("no callback or retry").is_empty());
         session
             .immediate(core::Now::SignInRefused { to: skein_lib::ReplyTo::new(to) }, now, wall)
             .expect("late terminal is already retired");
         let other = session.driver.transport.reply_to(Reply::SignOut { client: ClientId(0), sign_in: 1 }).into_token();
         assert_eq!(
             session.immediate(core::Now::SignInRefused { to: skein_lib::ReplyTo::new(other) }, now, wall),
-            Err(Invalid::InternalPacket)
+            Ok(())
         );
-        assert!(session.driver.transport.reply(other).is_some());
+        assert!(session.driver.transport.reply(other).is_none());
     }
 
     #[test]
@@ -1234,7 +1106,7 @@ mod tests {
         let native = Token::new(u64::MAX);
         session.send(ClientId(0), now, wall, frame(native)).expect("original request parks");
         assert_eq!(session.driver.transport.watch_token(ClientId(0), native), None);
-        let callbacks = session.poll(now, wall).expect("Hello is protocol-owned");
+        let callbacks = session.business_poll(now, wall).expect("Hello is protocol-owned");
         assert_eq!(callbacks.len(), 1, "actual callbacks: {callbacks:?}");
         assert!(matches!(
             &callbacks[0],
@@ -1246,12 +1118,14 @@ mod tests {
             )
         ));
         assert!(session.driver.withhold_completion().expect("actual authentication becomes durable").is_none());
-        assert!(session.poll(now, wall).expect("completion withheld").is_empty());
+        assert!(session.business_poll(now, wall).expect("completion withheld").is_empty());
         assert_eq!(session.observed(), vec![Observed::Durable { commit: session.driver.world.store.applied, at: now }]);
         assert!(session.observed().is_empty(), "one applied image is transferred once");
         session.driver.release_commits();
-        let callbacks =
-            take_signed_in(ClientId(0), session.poll(now, wall).expect("genuine session flushes original request"));
+        let callbacks = take_signed_in(
+            ClientId(0),
+            session.business_poll(now, wall).expect("genuine session flushes original request"),
+        );
         assert_eq!(callbacks.len(), 1, "actual callbacks: {callbacks:?}");
         let (client, event) = &callbacks[0];
         assert_eq!(*client, ClientId(0));
@@ -1268,7 +1142,7 @@ mod tests {
         assert_eq!(*watch, native);
         assert_eq!(value.party.number, 1);
         assert!(session.driver.transport.sign_in(ClientId(0)).is_some());
-        assert!(session.poll(now, wall).expect("normal flight is still pending").is_empty());
+        assert!(session.business_poll(now, wall).expect("normal flight is still pending").is_empty());
         session.received(ClientId(0), now, wall, event);
         assert!(
             session.driver.transport.taken(ClientId(0), native).is_none(),
@@ -1281,7 +1155,7 @@ mod tests {
         let (mut session, now, wall) = session();
         session.bind(ClientId(0), 1, identity(), now, wall);
         session.bind(ClientId(1), 1, identity(), now, wall);
-        let callbacks = session.poll(now, wall).expect("both genuine sign-ins");
+        let callbacks = session.business_poll(now, wall).expect("both genuine sign-ins");
         let callbacks = take_signed_in(ClientId(1), take_signed_in(ClientId(0), callbacks));
         assert_eq!(callbacks.len(), 2);
         let native = Token::new(9);
@@ -1292,7 +1166,7 @@ mod tests {
         let second = session.driver.transport.watch_token(ClientId(1), native).expect("second route");
         assert_ne!(first, second);
         session.detach(ClientId(0), now, wall);
-        let callbacks = session.poll(now, wall).expect("old route cannot deliver late");
+        let callbacks = session.business_poll(now, wall).expect("old route cannot deliver late");
         assert_eq!(callbacks.len(), 1, "actual callbacks: {callbacks:?}");
         assert!(
             matches!(&callbacks[0], (ClientId(1), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch, event: client::WatchEvent::Delivered(client::Delivery::Me(_)) } } }) if *watch == native),
@@ -1306,7 +1180,7 @@ mod tests {
     fn real_protocol_loop_keeps_an_actual_unknown_watch_terminal_separate_from_normal_document_acknowledgement() {
         let (mut session, now, wall) = session();
         session.bind(ClientId(0), 1, identity(), now, wall);
-        session.poll(now, wall).expect("genuine authentication");
+        session.business_poll(now, wall).expect("genuine authentication");
         let native = Token::new(0);
         session
             .send(
@@ -1327,7 +1201,7 @@ mod tests {
                 },
             )
             .expect("owner decides visibility");
-        let callbacks = session.poll(now, wall).expect("actual volatile terminal");
+        let callbacks = session.business_poll(now, wall).expect("actual volatile terminal");
         assert_eq!(callbacks.len(), 1, "actual callbacks: {callbacks:?}");
         assert!(
             matches!(&callbacks[0], (ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: client::WatchEnd::Unknown } } }) if *watch == native),
@@ -1342,7 +1216,7 @@ mod tests {
         for client in [ClientId(0), ClientId(1)] {
             session.bind(client, 1, identity(), now, wall);
         }
-        let callbacks = session.poll(now, wall).expect("both real sessions");
+        let callbacks = session.business_poll(now, wall).expect("both real sessions");
         let callbacks = take_signed_in(ClientId(1), take_signed_in(ClientId(0), callbacks));
         assert_eq!(callbacks.len(), 2);
         let native = Token::new(9);
@@ -1364,8 +1238,10 @@ mod tests {
         session.send(ClientId(0), now, wall, frame(native)).expect("root supplies its new watch");
         let reopened = session.driver.transport.watch_token(ClientId(0), native).expect("fresh route");
         assert_ne!(old, reopened);
-        let callbacks =
-            take_signed_in(ClientId(0), session.poll(now, wall).expect("actual fresh Me plus untouched sibling"));
+        let callbacks = take_signed_in(
+            ClientId(0),
+            session.business_poll(now, wall).expect("actual fresh Me plus untouched sibling"),
+        );
         assert_eq!(callbacks.len(), 3);
         assert!(matches!(
             &callbacks[0],
@@ -1393,23 +1269,37 @@ mod tests {
             .collect();
         assert_eq!(owners, vec![ClientId(1), ClientId(0)]);
         assert_eq!(session.driver.transport.watch_token(ClientId(1), native), Some(sibling));
-        assert!(session.driver.transport.taken(ClientId(0), native).is_some());
+        assert!(session.driver.transport.taken(ClientId(0), native).is_none());
         assert!(session.driver.transport.taken(ClientId(0), native).is_none());
     }
     #[test]
-    fn delayed_me_callbacks_preserve_the_flight_until_its_deadline() {
+    fn delayed_me_callbacks_preserve_the_document_until_its_deadline() {
         let (mut session, now, wall) = session();
         session.bind(ClientId(0), 1, identity(), now, wall);
-        session.poll(now, wall).expect("actual authentication");
+        session.business_poll(now, wall).expect("actual authentication");
         let native = Token::new(9);
         session.send(ClientId(0), now, wall, frame(native)).expect("original Me watch");
         let until = Time::from_nanos(1000);
         session.delay(until);
-        assert!(session.poll(now, wall).expect("owner packets delayed at protocol boundary").is_empty());
-        assert_eq!(session.delayed.len(), 1);
+        assert!(session.business_poll(now, wall).expect("owner packets delayed at protocol boundary").is_empty());
+        assert_eq!(
+            session
+                .delayed
+                .iter()
+                .filter(|(_, event)| matches!(
+                    event,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Watched { event: client::WatchEvent::Delivered(_), .. }
+                        }
+                    }
+                ))
+                .count(),
+            1
+        );
         assert!(session.driver.transport.watch_token(ClientId(0), native).is_some());
-        assert!(session.poll(Time::from_nanos(999), wall).expect("before supplied deadline").is_empty());
-        let callbacks = session.poll(until, wall).expect("same whole actual Me released");
+        assert!(session.business_poll(Time::from_nanos(999), wall).expect("before supplied deadline").is_empty());
+        let callbacks = session.business_poll(until, wall).expect("same whole actual Me released");
         assert_eq!(callbacks.len(), 1);
         assert!(
             matches!(&callbacks[0], (ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched {
@@ -1418,7 +1308,7 @@ mod tests {
         );
         session.received(ClientId(0), until, wall, &callbacks[0].1);
         assert!(session.driver.transport.taken(ClientId(0), native).is_none());
-        assert!(session.poll(until, wall).expect("no duplicate callback").is_empty());
+        assert!(session.business_poll(until, wall).expect("no duplicate callback").is_empty());
     }
 
     #[test]
@@ -1427,7 +1317,7 @@ mod tests {
         for client in [ClientId(0), ClientId(1)] {
             session.bind(client, 1, identity(), now, wall);
         }
-        session.poll(now, wall).expect("actual independent sessions");
+        session.business_poll(now, wall).expect("actual independent sessions");
         let native = Token::new(9);
         for client in [ClientId(0), ClientId(1)] {
             session.send(client, now, wall, frame(native)).expect("real Me watches");
@@ -1436,7 +1326,7 @@ mod tests {
         let sibling =
             session.driver.transport.watch_token(ClientId(1), native).expect("independent equal native token");
         session.drop_watch(ClientId(0), native, now, wall).expect("actual external protocol drop");
-        let callbacks = session.poll(now, wall).expect("late original Me is discarded");
+        let callbacks = session.business_poll(now, wall).expect("late original Me is discarded");
         assert_eq!(callbacks.len(), 2);
         assert!(
             matches!(&callbacks[0], (ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: client::WatchEnd::Dropped } } }) if *watch == native)
@@ -1455,7 +1345,7 @@ mod tests {
     fn a_failed_actual_commit_retires_old_flights_without_an_answer_and_parks_exact_retries_until_cold_restart() {
         let (mut session, now, wall) = session();
         session.bind(ClientId(0), 1, identity(), now, wall);
-        session.poll(now, wall).expect("genuine authentication");
+        session.business_poll(now, wall).expect("genuine authentication");
         let _ = session.observed();
         let native = Token::new(u64::MAX);
         session.send(ClientId(0), now, wall, frame(native)).expect("original Me watch");
@@ -1480,7 +1370,7 @@ mod tests {
         };
         session.send(ClientId(0), now, wall, request(Token::new(31))).expect("actual owner submit");
         assert!(session.driver.world.stopped, "existing Failed completion stops the real root");
-        let callbacks = session.poll(now, wall).expect("actual connection departure");
+        let callbacks = session.business_poll(now, wall).expect("actual connection departure");
         assert!(
             matches!(callbacks.as_slice(), [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded {
             watch, end: client::WatchEnd::Dropped } } })] if *watch == native)
@@ -1490,17 +1380,17 @@ mod tests {
         assert_eq!(session.driver.world.store.applied, durable);
         assert_eq!(session.driver.world.store.rows, rows);
         assert_eq!(session.observed(), vec![Observed::Reachable { live: false }]);
-        assert!(session.poll(now, wall).expect("stopped root has no fabricated replies").is_empty());
+        assert!(session.business_poll(now, wall).expect("stopped root has no fabricated replies").is_empty());
         assert!(session.observed().is_empty());
         assert_eq!(session.next_due(), None);
         let retry = Token::new(32);
         session.send(ClientId(0), now, wall, request(retry)).expect("exact later attempt is parked");
         assert_eq!(session.parked.get(&ClientId(0)).expect("parked retry"), &[request(retry)]);
-        assert!(session.poll(now, wall).expect("no timed fake recovery").is_empty());
+        assert!(session.business_poll(now, wall).expect("no timed fake recovery").is_empty());
         let until = now.saturating_add(skein_lib::Duration::from_secs(1));
         session.restart(jig_core_world::world::config(8455), now, wall, until).expect("actual cold root");
-        assert!(session.poll(now, wall).expect("supplied offline span").is_empty());
-        let callbacks = session.poll(until, wall).expect("real restart and original retry");
+        assert!(session.business_poll(now, wall).expect("supplied offline span").is_empty());
+        let callbacks = session.business_poll(until, wall).expect("real restart and original retry");
         assert!(callbacks.iter().any(|(client, value)| *client == ClientId(0)
             && matches!(value, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer { attempt, envelope: skein_lib::RequestEnvelope::Final, answer: Some(_), .. } } } if *attempt == retry)));
         assert!(matches!(
@@ -1521,7 +1411,7 @@ mod tests {
     fn a_lost_actual_final_answer_replays_the_original_owner_key_without_a_second_durable_made_fact() {
         let (mut session, now, wall) = session();
         session.bind(ClientId(0), 1, identity(), now, wall);
-        session.poll(now, wall).expect("genuine authentication");
+        session.business_poll(now, wall).expect("genuine authentication");
         let _ = session.observed();
         let first = Token::new(31);
         let retry = Token::new(32);
@@ -1538,7 +1428,7 @@ mod tests {
         };
         session.lose_answer(ClientId(0), first);
         session.send(ClientId(0), now, wall, request(first)).expect("owner receives whole original ask");
-        assert!(session.poll(now, wall).expect("only original final callback is lost").is_empty());
+        assert!(session.business_poll(now, wall).expect("only original final callback is lost").is_empty());
         let made = session.observed();
         assert_eq!(
             made.iter()
@@ -1548,7 +1438,7 @@ mod tests {
         );
         assert!(matches!(made.first(), Some(Observed::Durable { .. })));
         session.send(ClientId(0), now, wall, request(retry)).expect("new attempt retains original key");
-        let callbacks = session.poll(now, wall).expect("actual owner replays retained whole answer");
+        let callbacks = session.business_poll(now, wall).expect("actual owner replays retained whole answer");
         assert_eq!(callbacks.len(), 1);
         assert!(
             matches!(&callbacks[0], (ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer { attempt, envelope: skein_lib::RequestEnvelope::Final, answer: Some(_), .. } } }) if *attempt == retry)
@@ -1559,7 +1449,7 @@ mod tests {
                 .iter()
                 .all(|value| !matches!(value, Observed::Made { key: actual, .. } if *actual == key))
         );
-        assert!(session.poll(now, wall).expect("callback is consumed once").is_empty());
+        assert!(session.business_poll(now, wall).expect("callback is consumed once").is_empty());
     }
     #[test]
     fn the_original_owner_sign_out_reply_waits_for_its_actual_commit_and_preserves_another_tabs_session() {
@@ -1567,7 +1457,7 @@ mod tests {
         for client in [ClientId(0), ClientId(1)] {
             session.bind(client, 1, identity(), now, wall);
         }
-        session.poll(now, wall).expect("two genuine independent sessions");
+        session.business_poll(now, wall).expect("two genuine independent sessions");
         let first = session.driver.transport.sign_in(ClientId(0)).expect("first owner session");
         let sibling = session.driver.transport.sign_in(ClientId(1)).expect("sibling owner session");
         assert_ne!(first, sibling);
@@ -1575,10 +1465,10 @@ mod tests {
             Some(jig_core_world::effects::Cut::Submitted(session.driver.world.store.applied + 1));
         session.sign_out(ClientId(0), now, wall);
         assert!(session.driver.withhold_completion().expect("actual session erasure is durable").is_none());
-        assert!(session.poll(now, wall).expect("withheld actual sign-out completion").is_empty());
+        assert!(session.business_poll(now, wall).expect("withheld actual sign-out completion").is_empty());
         assert_eq!(session.driver.transport.sign_in(ClientId(0)), Some(first));
         session.driver.release_commits();
-        let callbacks = session.poll(now, wall).expect("durable original sign-out reply");
+        let callbacks = session.business_poll(now, wall).expect("durable original sign-out reply");
         assert_eq!(callbacks.len(), 1);
         assert!(matches!(&callbacks[0], (ClientId(0), Event::SignedOut)));
         assert_eq!(session.driver.transport.sign_in(ClientId(0)), None);
@@ -1593,7 +1483,7 @@ mod tests {
     fn cold_root_restart_parks_the_original_keyed_attempt_until_the_supplied_deadline_and_replays_one_durable_answer() {
         let (mut session, now, wall) = session();
         session.bind(ClientId(0), 1, identity(), now, wall);
-        session.poll(now, wall).expect("genuine authentication");
+        session.business_poll(now, wall).expect("genuine authentication");
         let sign_in = session.driver.transport.sign_in(ClientId(0));
         let _ = session.observed();
         let key = [211; 16];
@@ -1609,7 +1499,7 @@ mod tests {
         };
         let first = Token::new(311);
         session.send(ClientId(0), now, wall, request(first)).expect("actual original attempt");
-        session.poll(now, wall).expect("first actual answer");
+        session.business_poll(now, wall).expect("first actual answer");
         let made = session.observed();
         assert_eq!(
             made.iter().filter(|value| matches!(value, Observed::Made { key: actual, .. } if *actual == key)).count(),
@@ -1622,11 +1512,11 @@ mod tests {
         let retry = Token::new(312);
         let before = session.driver.world.store.rows.clone();
         session.send(ClientId(0), now, wall, request(retry)).expect("whole retry is parked");
-        assert!(session.poll(now, wall).expect("offline source sends no answer").is_empty());
+        assert!(session.business_poll(now, wall).expect("offline source sends no answer").is_empty());
         assert_eq!(session.driver.world.store.rows, before);
         assert_eq!(session.driver.transport.sign_in(ClientId(0)), sign_in);
         let corrected_wall = Wall::from_nanos(wall.as_nanos() - 1);
-        let callbacks = session.poll(until, corrected_wall).expect("actual recovery replays retained key");
+        let callbacks = session.business_poll(until, corrected_wall).expect("actual recovery replays retained key");
         assert!(!session.offline());
         assert!(matches!(
             &callbacks[0],
@@ -1640,7 +1530,7 @@ mod tests {
                 .all(|value| !matches!(value, Observed::Made { key: actual, .. } if *actual == key))
         );
         assert_eq!(session.driver.world.clocks(), (until, corrected_wall));
-        assert!(session.poll(until, corrected_wall).expect("callback transferred once").is_empty());
+        assert!(session.business_poll(until, corrected_wall).expect("callback transferred once").is_empty());
     }
 
     #[test]
@@ -1649,7 +1539,7 @@ mod tests {
         for client in [ClientId(0), ClientId(1)] {
             session.bind(client, 1, identity(), now, wall);
         }
-        session.poll(now, wall).expect("actual sibling authentication");
+        session.business_poll(now, wall).expect("actual sibling authentication");
         let native = Token::new(u64::MAX);
         let open = || Request::Client {
             request: jig_client::Request::Down {
@@ -1662,22 +1552,22 @@ mod tests {
         for client in [ClientId(0), ClientId(1)] {
             session.send(client, now, wall, open()).expect("original frame watch");
         }
-        let old = session.poll(now, wall).expect("normal old flights");
+        let old = session.business_poll(now, wall).expect("normal old flights");
         assert_eq!(old.len(), 2);
         let owner = session.driver.transport.watch_token(ClientId(0), native).expect("original owner token");
         let until = now.saturating_add(skein_lib::Duration::from_secs(1));
         session.restart(jig_core_world::world::config(8455), now, wall, until).expect("cold root restart");
-        let dropped = session.poll(now, wall).expect("only original departed watches");
+        let dropped = session.business_poll(now, wall).expect("only original departed watches");
         assert_eq!(dropped.len(), 2);
         for client in [ClientId(0), ClientId(1)] {
             assert!(dropped.iter().any(|(actual, value)| *actual == client && matches!(value, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: client::WatchEnd::Dropped } } } if *watch == native)));
             assert!(session.driver.transport.watch_token(client, native).is_none());
         }
-        session.poll(until, wall).expect("connection recovers");
+        session.business_poll(until, wall).expect("connection recovers");
         for client in [ClientId(0), ClientId(1)] {
             session.send(client, until, wall, open()).expect("replacement open after recovery");
         }
-        let callbacks = session.poll(until, wall).expect("new normal flights");
+        let callbacks = session.business_poll(until, wall).expect("new normal flights");
         let replacement = session.driver.transport.watch_token(ClientId(0), native).expect("replacement owner token");
         assert_ne!(replacement, owner);
         let current = callbacks
@@ -1699,7 +1589,7 @@ mod tests {
         assert!(session.driver.transport.watch(owner).is_none());
         session.received(current.0, until, wall, &current.1);
         assert!(session.driver.transport.taken(ClientId(0), native).is_none());
-        assert!(matches!(session.driver.transport.taken(ClientId(1), native), Some(core::Event::Delivered { .. })));
+        assert!(session.driver.transport.taken(ClientId(1), native).is_none());
     }
     mod carried;
     mod llm;

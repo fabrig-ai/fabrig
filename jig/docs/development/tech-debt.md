@@ -69,12 +69,11 @@ integration the first look found unproven now runs.
 four worlds:
 
 - **the joint world,** `tests/client/src/joint/`: the client before
-  jig's core under its test root, through the clients' component's
-  translation with no transport between. 257 tests (`rg -c '#\[test\]'
-  tests/client/src/joint tests/client/tests/suite/fuzzy/joint.rs`), 126 of them
-  in `joint/wire/`, which compare each carrier with its engine source
-  field by field: the check against `client/domain/contract.md` that the
-  first look recommended;
+  jig's core under its test root. It runs `jig-protocol-engine-clients`
+  and `jig-client-protocol-link` in process, passing their wire records
+  directly in memory. The packet and `joint/wire/` modules remain for
+  temper's client world, its engine fixtures and one scripted-client fixture;
+  the joint session does not use their translation;
 - **the protocol world,** `tests/client-protocol`: the same over native
   HTTP bytes, 60 tests;
 - **`ops`'s joint world,** `tests/ops/src/joint/`: `ops`'s client before
