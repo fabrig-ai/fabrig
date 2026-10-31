@@ -242,7 +242,7 @@ pub(crate) fn ended_answer(domain: &mut Domain, read: EndedRead, row: Option<Box
         }
         EndedRead::PartyInput { request, .. } => jig_domain_core::Event::PartyInputsLoaded { request, row, busy },
         EndedRead::PersonTask { request, person, project, task } => {
-            jig_domain_core::Event::HistoricalPersonTask { request, person, project, task, row, busy }
+            jig_domain_core::Event::EndedPersonTask { request, person, project, task, row, busy }
         }
     };
     domain.work.push(Work::Core(event));

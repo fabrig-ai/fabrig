@@ -1,8 +1,9 @@
 //! Volatile party inbox projections from the task child's durable rows.
 //! The core routes these sibling facts on save and restore (domain/engine.md, 4.4).
 
-use crate::routing::Work;
 mod census;
+
+use crate::routing::Work;
 pub(crate) use census::Progress;
 
 use alloc::boxed::Box;
@@ -61,7 +62,7 @@ pub(crate) fn question_capacity(limits: &Limits) -> Option<u32> {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub(crate) struct ArchivedChat {
+pub(crate) struct EndedChat {
     pub(crate) party: u64,
     pub(crate) project: u32,
     pub(crate) at: Option<skein_lib::Wall>,
@@ -154,7 +155,7 @@ impl Core {
         }
     }
     /// Keep whole committed archive facts only while the shared recent prefix may deliver them.
-    pub(crate) fn cache_archived_chat(&mut self, limits: &Limits, row: &tasks::TaskRecord, seen: Option<u64>) {
+    pub(crate) fn cache_ended_chat(&mut self, limits: &Limits, row: &tasks::TaskRecord, seen: Option<u64>) {
         let party = match row.requester {
             tasks::Party::Person(party) => party,
             tasks::Party::Task(_) | tasks::Party::Deployment { .. } => return,
@@ -173,27 +174,20 @@ impl Core {
         };
         let chip = crate::documents::chip_from_row(limits, row).expect("ended chip has no whole resource paths");
         assert!(
-            self.archived_chats
+            self.ended_chats
                 .insert(
                     row.number,
-                    ArchivedChat {
-                        party,
-                        project: row.project,
-                        at: row.ended_at,
-                        chip,
-                        line,
-                        last_reply: row.last_reply
-                    }
+                    EndedChat { party, project: row.project, at: row.ended_at, chip, line, last_reply: row.last_reply }
                 )
                 .is_ok(),
             "one temporary archive slot beyond the bounded prefix"
         );
-        let mut names = List::with_capacity(self.archived_chats.capacity());
-        for (number, _) in &self.archived_chats {
+        let mut names = List::with_capacity(self.ended_chats.capacity());
+        for (number, _) in &self.ended_chats {
             names.push(*number).expect("archive snapshot bound");
         }
         for number in names.into_boxed() {
-            let owner = self.archived_chats.get(&number).expect("snapshot archive").party;
+            let owner = self.ended_chats.get(&number).expect("snapshot archive").party;
             let mut needed = false;
             if let Some(updates) = self.people.cached_updates(&limits.people, owner) {
                 for update in updates {
@@ -205,7 +199,7 @@ impl Core {
                 }
             }
             if !needed {
-                drop(self.archived_chats.remove(&number));
+                drop(self.ended_chats.remove(&number));
             }
         }
     }
@@ -420,14 +414,14 @@ pub(crate) fn seen_conversation_loaded(
                 outcome: people::Outcome::Refused(people::Refusal::Role { held: core.people.role(party, row.project) }),
             }
         } else {
-            let request = core.fly(crate::flight::Flight::EndedMark {
+            let request = core.fly(crate::routing::flight::Flight::EndedMark {
                 request,
-                route: crate::ended_marks::Loaded {
+                route: crate::routing::ended_marks::Loaded {
                     task,
                     party,
                     project: row.project,
                     last_reply: row.last_reply,
-                    owner: crate::forget::Owner::of_row(&row),
+                    owner: crate::reads::forget::Owner::of_row(&row),
                 },
             });
             let mut out = Queue::uncapped();
@@ -466,5 +460,13 @@ impl Core {
         let mut counts = self.people.need_counts(party)?;
         counts.proposals = counts.proposals.checked_add(self.settings_needs(party))?;
         Some(counts)
+    }
+}
+
+impl Core {
+    /// Enable the person's direct inbox answers (domain/people.md, 6).
+    /// Set by the application after `Core::new`, before the first step; off by default.
+    pub fn person_answers(&mut self) {
+        self.person_answers = true;
     }
 }

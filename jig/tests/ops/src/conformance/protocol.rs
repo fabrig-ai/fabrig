@@ -8,7 +8,7 @@ pub(super) fn agent(peers: &mut Peers, request: host::ToAgent) -> Vec<Input<root
     if let host::ToAgent::Answer { answer: host::CallAnswer::Relayed { error, text }, .. } = &request {
         peers.call_answers.push((*error, text.clone()));
     }
-    peers.agents.answer(request)
+    if let Some(state) = &mut peers.scenario { state.agent(request) } else { peers.agents.answer(request) }
 }
 
 impl Peers {

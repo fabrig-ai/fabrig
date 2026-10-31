@@ -66,7 +66,7 @@ fn a_procedure_step_proposing_what_nobody_may_accept_is_refused() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut work = Queue::with_capacity(4);
     let mut out = Queue::with_capacity(4);
-    effects::procedure_propose(&mut core, &env, &mut work, &mut out, Token::new(121), 1, 1, 1, &description);
+    crate::effects::procedure_propose(&mut core, &env, &mut work, &mut out, Token::new(121), 1, 1, 1, &description);
     let Some(Request::Ask {
         connector: 1,
         ask: Ask::Effect(connector::Ask::Drop { owner, answer: authority::Answer::Refuse, .. }),

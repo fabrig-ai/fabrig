@@ -176,7 +176,7 @@ pub(crate) fn answer(
         reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value, limits)?),
         reads::Answer::Tasks(page) => pages::tasks(page, limits)?,
         reads::Answer::Page(page) => pages::page(models, read, page, limits)?,
-        reads::Answer::Document(_) | reads::Answer::Historical(_) => objects::document(answer, models, limits)?,
+        reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, limits)?,
     };
     let mut out = Writer::new(usize::try_from(value.measure()).expect("wire measure fits"));
     value.encode(&mut out).expect("measured value");

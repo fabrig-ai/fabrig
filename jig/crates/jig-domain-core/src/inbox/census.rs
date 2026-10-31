@@ -1,6 +1,8 @@
 //! Rebuild live projections once, then name the indexed ended owners (store.md 7.2).
-use crate::start::{LiveSet, Phase};
-use crate::{Census, Core, Limits, ReadResults};
+use crate::{
+    Census, Core, Limits, ReadResults,
+    start::{LiveSet, Phase},
+};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -258,18 +260,18 @@ impl Core {
             tasks::Party::Person(party) => self.people.role(party, row.project).is_some(),
             tasks::Party::Task(_) | tasks::Party::Deployment { .. } => false,
         };
-        if visible && (seen.is_some() || !self.archived_chats.contains_key(&row.number)) {
-            if !self.archived_chats.contains_key(&row.number)
+        if visible && (seen.is_some() || !self.ended_chats.contains_key(&row.number)) {
+            if !self.ended_chats.contains_key(&row.number)
                 && !self.start_room(
                     LiveSet::Conversations,
                     record.key(),
-                    self.archived_chats.len(),
-                    self.archived_chats.capacity(),
+                    self.ended_chats.len(),
+                    self.ended_chats.capacity(),
                 )
             {
                 return false;
             }
-            self.cache_archived_chat(limits, row, seen);
+            self.cache_ended_chat(limits, row, seen);
         }
         self.start_failure().is_none()
     }

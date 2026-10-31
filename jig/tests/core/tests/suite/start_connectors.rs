@@ -24,7 +24,7 @@ struct Harness {
     records: BTreeMap<connector::RecordKey, connector::Record>,
     task: u64,
     resource: tasks::Name,
-    outcome: Option<core::connector::OutboxOutcome>,
+    outcome: Option<core::effects::connector::OutboxOutcome>,
     complete: bool,
     wires: bool,
 }
@@ -241,22 +241,24 @@ impl Harness {
                 match out.pop().expect("connector output") {
                     connector::Request::Resource { project, resource } => {
                         let role = match resource.role {
-                            connector::ResourceRole::Owned => core::connector::ResourceRole::Owned,
-                            connector::ResourceRole::Participating => core::connector::ResourceRole::Participant,
-                            connector::ResourceRole::Context => core::connector::ResourceRole::Context,
-                            connector::ResourceRole::Unavailable => core::connector::ResourceRole::Unavailable,
+                            connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
+                            connector::ResourceRole::Participating => {
+                                core::effects::connector::ResourceRole::Participant
+                            }
+                            connector::ResourceRole::Context => core::effects::connector::ResourceRole::Context,
+                            connector::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
                         };
                         let hold = match resource.hold {
-                            connector::Hold::None => core::connector::HoldKind::Shared,
-                            connector::Hold::Exclusive { mode } => {
-                                core::connector::HoldKind::Exclusive { wait: mode == connector::HoldMode::Wait }
-                            }
-                            connector::Hold::Pooled { mode } => core::connector::HoldKind::Pooled {
+                            connector::Hold::None => core::effects::connector::HoldKind::Shared,
+                            connector::Hold::Exclusive { mode } => core::effects::connector::HoldKind::Exclusive {
+                                wait: mode == connector::HoldMode::Wait,
+                            },
+                            connector::Hold::Pooled { mode } => core::effects::connector::HoldKind::Pooled {
                                 slots: self.connector.slots(&resource.path).expect("configured pool"),
                                 wait: mode == connector::HoldMode::Wait,
                             },
                         };
-                        self.route_core(core::Event::EffectConnector(core::connector::Event::Resource {
+                        self.route_core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
                             project,
                             name: task_name(&resource.path),
                             role,
@@ -275,15 +277,15 @@ impl Harness {
                     }
                     connector::Request::Outcome { entry, outcome } => {
                         let outcome = match outcome {
-                            connector::Outcome::Made { .. } => core::connector::OutboxOutcome::Made,
-                            connector::Outcome::Held => core::connector::OutboxOutcome::Held { entry },
-                            connector::Outcome::Failed => core::connector::OutboxOutcome::Failed,
-                            connector::Outcome::Uncertain => core::connector::OutboxOutcome::Uncertain,
-                            connector::Outcome::Withdrawn => core::connector::OutboxOutcome::Withdrawn,
-                            connector::Outcome::Skipped => core::connector::OutboxOutcome::NotMade,
+                            connector::Outcome::Made { .. } => core::effects::connector::OutboxOutcome::Made,
+                            connector::Outcome::Held => core::effects::connector::OutboxOutcome::Held { entry },
+                            connector::Outcome::Failed => core::effects::connector::OutboxOutcome::Failed,
+                            connector::Outcome::Uncertain => core::effects::connector::OutboxOutcome::Uncertain,
+                            connector::Outcome::Withdrawn => core::effects::connector::OutboxOutcome::Withdrawn,
+                            connector::Outcome::Skipped => core::effects::connector::OutboxOutcome::NotMade,
                         };
                         self.outcome = Some(outcome);
-                        self.route_core(core::Event::EffectConnector(core::connector::Event::Outbox {
+                        self.route_core(core::Event::EffectConnector(core::effects::connector::Event::Outbox {
                             connector: 1,
                             entry,
                             task: self.task,
@@ -328,8 +330,8 @@ impl Harness {
         self.connector_event(connector::Event::Restart(connector::RestartStep::SettleOutbox));
         assert!(self.complete, "the root advances only after the connector reports settled");
         // The core ignores completion; its root translates it to the matching phase completion.
-        self.route_core(core::Event::EffectConnector(core::connector::Event::RestartDone {
-            stage: core::connector::RestartStage::Settled,
+        self.route_core(core::Event::EffectConnector(core::effects::connector::Event::RestartDone {
+            stage: core::effects::connector::RestartStage::Settled,
         }));
     }
 
@@ -389,7 +391,7 @@ impl Harness {
 fn recovered(recovery: u16, applications: usize, calls: u64) {
     let mut started = Harness::new(recovery);
     started.started();
-    assert_eq!(started.outcome, Some(core::connector::OutboxOutcome::Made));
+    assert_eq!(started.outcome, Some(core::effects::connector::OutboxOutcome::Made));
     assert!(started.records.values().any(|row| matches!(row, connector::Record::Made { state: 11, .. })));
     assert!(!started.records.values().any(|row| matches!(row, connector::Record::Outbox(_))));
     assert_eq!(started.core.tasks.writer(&started.resource), None);
@@ -416,7 +418,7 @@ fn uncertain_idempotent_effect_repeats_after_its_saved_deadline() {
 fn unrecoverable_effect_holds_its_task_and_writer() {
     let mut started = Harness::new(4);
     started.started();
-    assert_eq!(started.outcome, Some(core::connector::OutboxOutcome::Held { entry: ENTRY }));
+    assert_eq!(started.outcome, Some(core::effects::connector::OutboxOutcome::Held { entry: ENTRY }));
     assert!(started.records.values().any(|row| matches!(
         row,
         connector::Record::Outbox(connector::OutboxEntry { phase: connector::EffectPhase::Held, .. })

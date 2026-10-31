@@ -1,15 +1,19 @@
 //! Start opening and phase discipline (jig/docs/design/domain/engine.md, 6).
-mod connectors;
-mod inbox;
-mod links;
-mod projections;
-mod restore;
-mod rows;
-mod runs;
-mod settings;
-use super::{Core, Env, Queue, Time, Wall, config, limits, tasks};
-use crate::start::{Action, Failure, Phase, SweepInput};
-use crate::{Key, Request, Write, people};
+
+pub(in crate::tests) mod connectors;
+pub(in crate::tests) mod inbox;
+pub(in crate::tests) mod links;
+pub(in crate::tests) mod projections;
+pub(in crate::tests) mod restore;
+pub(in crate::tests) mod rows;
+pub(in crate::tests) mod runs;
+pub(in crate::tests) mod settings;
+
+use crate::{
+    Key, Request, Write, people,
+    start::{Action, Failure, Phase, SweepInput},
+    tests::{Core, Env, Queue, Time, Wall, config, limits, tasks},
+};
 
 struct Entrance {
     name: &'static str,
@@ -93,7 +97,7 @@ fn every_operational_entrance_prevents_late_start() {
             input: |core, env| {
                 let _begin = core.start_begin(false, env.wall);
                 let configured = config(41);
-                let value = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
+                let value = crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
                     .expect("bounded policy");
                 let _accepted = core.restore_policy(&env.limits, 1, Box::from("Project 1"), value);
             },
@@ -102,7 +106,8 @@ fn every_operational_entrance_prevents_late_start() {
             name: "restore_resource_role",
             input: |core, env| {
                 let name = tasks::Name { connector: 1, path: Box::new([Box::from(b"resource".as_slice())]) };
-                let _accepted = core.restore_resource_role(env, 1, name, crate::connector::ResourceRole::Context);
+                let _accepted =
+                    core.restore_resource_role(env, 1, name, crate::effects::connector::ResourceRole::Context);
             },
         },
         Entrance {
@@ -155,8 +160,13 @@ fn every_operational_entrance_prevents_late_start() {
             name: "person_task",
             input: |core, _| {
                 let _refused = core.person_task(
-                    crate::routing::party::Party { request: Token::new(1), person: 1, project: 1, role: None },
-                    crate::person_task::Action::Take { task: 1 },
+                    crate::routing::party::dispatch::Party {
+                        request: Token::new(1),
+                        person: 1,
+                        project: 1,
+                        role: None,
+                    },
+                    crate::admission::person_task::Action::Take { task: 1 },
                 );
             },
         },
@@ -225,7 +235,7 @@ fn every_operational_entrance_prevents_late_start() {
             name: "sent",
             input: |core, env| {
                 let request = Token::new(1);
-                let request = core.fly(crate::flight::Flight::Saying { request, task: 1, question: None });
+                let request = core.fly(crate::routing::flight::Flight::Saying { request, task: 1, question: None });
                 let word = tasks::Word {
                     number: 1,
                     from: tasks::Party::Person(1),
@@ -561,7 +571,8 @@ fn every_start_reaches_switch_and_waits_for_wires() {
 fn core_owned_people_rows_survive_sweep() {
     let limits = limits();
     let configured = config(41);
-    let value = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("bounded policy");
+    let value = crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
+        .expect("bounded policy");
     let stored = [
         people::Stored::Policy { project: 1, name: Box::from("Project 1"), value },
         people::Stored::EndedRead { task: 2, party: 1, through: 0 },

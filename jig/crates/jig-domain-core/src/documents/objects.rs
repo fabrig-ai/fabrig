@@ -3,15 +3,19 @@
 //! `client/domain/pages.md`, 5.2). Store readers supply retained rows. Routing
 //! trails and before/after history require those store rows; no trail is cached.
 #![expect(clippy::manual_map, reason = "step code uses explicit matches instead of closures")]
-use super::{
-    AuthorityLine, Chip, ContractLine, Ending, HoldLine, Missing, Parameter, Part, PartKey, PartKind, PriorPhase,
-    Proposer, Task, TaskLink, Text,
+
+mod party;
+
+use crate::{
+    Core, Limits,
+    documents::{
+        AuthorityLine, Chip, ContractLine, Ending, HoldLine, Missing, Parameter, Part, PartKey, PartKind, PriorPhase,
+        Proposer, Task, TaskLink, Text,
+    },
 };
-use crate::{Core, Limits};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
-mod party;
 
 /// A specification without application values; loss is explicit on every text and list.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

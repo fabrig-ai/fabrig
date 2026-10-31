@@ -1,6 +1,8 @@
 //! Complete close-disposal identities and their owner funding (`client/domain/objects.md`, 11).
-use super::{Chip, Missing};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Chip, Missing},
+};
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 

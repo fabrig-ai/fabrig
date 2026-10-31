@@ -1,7 +1,9 @@
 //! Read pages and the owner-keyed store transport (`contract.md`, section 6).
 //! Cursors name a query and an owner key. The client only echoes them.
-use crate::documents::{self, Document, Proposer};
-use crate::{Core, CoreRecord, Key, Record};
+use crate::{
+    Core, CoreRecord, Key, Record,
+    documents::{self, Document, Proposer},
+};
 use alloc::boxed::Box;
 use core::mem::{size_of, size_of_val};
 use jig_domain_notes as notes;
@@ -101,7 +103,7 @@ pub enum Scope {
     Notes { project: u32 },
     /// Exact notes owner scope and optional byte substring of its descriptions.
     ScopedNotes { scope: notes::Scope, description: Option<Box<[u8]>> },
-    /// Historical period ledgers; project zero selects the deployment's projects.
+    /// Ended period ledgers; project zero selects the deployment's projects.
     Spend { project: u32 },
 }
 
@@ -232,7 +234,7 @@ pub enum Read {
         description: Option<Box<[u8]>>,
         from: Option<Cursor>,
     },
-    /// Historical period spending; project zero selects the deployment's projects.
+    /// Ended period spending; project zero selects the deployment's projects.
     Spend {
         project: u32,
         from: Option<Cursor>,
@@ -242,7 +244,7 @@ pub enum Read {
 }
 
 /// One store request. The transport selects the owner's range, never a cache.
-/// `after` is exclusive in the stated order. Historical rows carry their owner
+/// `after` is exclusive in the stated order. Ended rows carry their owner
 /// and bounded durable requester ancestry for visibility and subtree checks.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Range {
@@ -316,15 +318,15 @@ impl TurnFailure {
 
 /// An ended object's document and its durable ending facts.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Historical {
-    pub value: Past,
+pub struct Ended {
+    pub value: EndedValue,
     pub at: Option<Wall>,
     pub by: Option<tasks::Party>,
 }
 
-/// Typed historical values, made by the same owners as live documents.
+/// Typed retained values, made by the same owners as live documents.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Past {
+pub enum EndedValue {
     /// Full ended task overview and retained outcome.
     Task { document: Box<documents::Task>, result: Box<documents::ResultDoc> },
     /// Immutable task proposal and final routing state.
@@ -382,7 +384,7 @@ pub enum PageRow {
     Inbox(documents::InboxEntry),
     /// One loaded note.
     Note(documents::Note),
-    /// Historical period accounting, never inferred from live roots.
+    /// Ended period accounting, never inferred from live roots.
     Spend(tasks::FundingRecord),
 }
 
@@ -427,7 +429,7 @@ pub enum Answer {
     /// A current document.
     Document(Box<Document>),
     /// An ended or decided object, with kept actor and wall time.
-    Historical(Box<Historical>),
+    Ended(Box<Ended>),
     /// A bounded list page.
     Page(Box<Page>),
     /// No value is available.
@@ -441,7 +443,7 @@ pub enum Why {
     Unknown,
     /// A construction or load bound prevents admission.
     Busy,
-    /// Required historical rows are no longer retained.
+    /// Required retained rows are no longer retained.
     Gone,
     /// The visible turn could not fit the read budget; original payload bytes.
     TooLarge { bytes: u64 },

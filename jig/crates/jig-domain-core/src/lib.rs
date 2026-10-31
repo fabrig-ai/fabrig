@@ -8,113 +8,35 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 
+pub mod acts;
+mod admission;
+pub mod documents;
+pub mod effects;
+mod funding;
+mod inbox;
+mod limits;
+mod numbers;
+pub mod reads;
+mod routing;
+pub mod runs;
+pub mod settings;
+pub mod start;
+mod stored;
+#[cfg(test)]
+mod tests;
+mod translate;
+pub(crate) mod vocabulary;
+
 extern crate alloc;
 
-mod live;
-pub use live::LiveAsk;
-
-pub mod templates;
-pub use templates::Template;
-pub mod acts;
-mod amendments;
-mod as_allowed;
-mod authority_facts;
-mod brief_text;
-mod compound;
-pub use brief_text::{BriefPart, BriefTextLimits, note_index_text, read_brief_part};
-pub mod connector;
-mod deadlines;
-mod delegation;
-pub use amendments::TaskAmendDenied;
-pub use delegation::{
-    Delegate, Dependency, ProcedureStep, StepAmendment, StepCancel, StepEnd, StepMessage, resolved_delegate_authority,
-    symbolic_grants,
+use crate::{
+    admission::{deletion, policy},
+    effects::resources,
+    reads::watches::{WatchBinding, WatchedSubject},
+    routing::{flight, task::erase},
+    runs::state::RetainedResult,
+    settings::{charters, fleet_needs, templates},
 };
-pub mod documents;
-mod effects;
-mod escalation;
-pub mod waits;
-pub use effects::{EffectKey, EffectOrigin, EffectPurpose};
-
-mod deletion;
-mod ended_marks;
-mod erase;
-mod flight;
-pub mod forget;
-mod funding;
-mod goal_of;
-mod goals;
-pub use goals::CreateStart;
-mod account_preference;
-mod coverage;
-mod historical;
-mod inbox;
-mod indexes;
-mod llm;
-mod memory;
-
-pub use memory::{Problem, policy_owned_bytes, valid};
-mod model_names;
-mod numbers;
-mod person_task;
-mod policy;
-mod projects;
-pub use policy::{grants_to_authority, snapshot as policy_snapshot};
-mod projections;
-pub use projections::{
-    MilestoneId, Projection, ProjectionFeed, ProjectionGoal, ProjectionKey, ProjectionMilestone, ProjectionRecord,
-    ProjectionTask, finish_decision, projection_bytes, projection_record_bytes,
-};
-mod proposals;
-/// Authenticated one-shot reads whose answers wait for durability.
-pub mod reads;
-pub use reads::{SettingsAnswer, SettingsRead};
-mod relays;
-mod resources;
-pub mod start;
-mod stopping;
-pub use start::HeldLimit;
-pub use start::{Census, ReadResults, Restore, RestoreRange, restore_cursor};
-mod host_rule;
-mod revisions;
-mod roles;
-mod routing;
-mod run;
-mod run_choice;
-mod transcript_text;
-pub use host_rule::HostRule;
-pub use run_choice::{RunAllowance, RunChoice, RunWait};
-pub use transcript_text::{TranscriptRow, TranscriptText};
-mod sibling_routes;
-pub use numbers::{Counters, Deployment, Family, fresh};
-pub use routing::{
-    Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
-    ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write, fire, resume_fleet,
-    step, want_accounts,
-};
-pub use sibling_routes::{MadeRoute, PersonMessage, SentRoute};
-mod conversation;
-pub use conversation::{DeliveryOutcome, Settled, SettledAnswer, SettledCall};
-pub mod charters;
-pub mod fleet_needs;
-pub mod settings;
-pub use charters::Charter;
-mod stored;
-mod translate;
-use run::HistoricalResult;
-pub use run::{
-    EFFORT_BYTES, EFFORTS, GoalRoute, MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Model, PendingRelay,
-    PersonProposalRoute, PersonTaskRoute, RestoringProof, RoutedCall, RunAdmission, RunCharter, RunPolicy, Transcript,
-    reserve_floor,
-};
-pub use stored::{
-    CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key, Made,
-    ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
-};
-pub use translate::{
-    authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority,
-};
-
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
@@ -124,7 +46,58 @@ use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
-use skein_lib::{List, Map, Queue, Token, Wall};
+use skein_lib::{List, Map, Queue, Wall};
+
+pub use crate::{
+    admission::{
+        amendments::TaskAmendDenied,
+        policy::{grants_to_authority, snapshot as policy_snapshot},
+    },
+    effects::{
+        EffectKey, EffectOrigin, EffectPurpose,
+        projections::{
+            MilestoneId, Projection, ProjectionFeed, ProjectionGoal, ProjectionKey, ProjectionMilestone,
+            ProjectionRecord, ProjectionTask, finish_decision, projection_bytes, projection_record_bytes,
+        },
+    },
+    funding::pools::CreateStart,
+    limits::{Problem, policy_owned_bytes, valid},
+    numbers::{Counters, Deployment, Family, fresh},
+    reads::{SettingsAnswer, SettingsRead},
+    routing::{
+        fire, resume_fleet,
+        sibling_routes::{MadeRoute, PersonMessage, SentRoute},
+        step, want_accounts,
+    },
+    runs::{
+        brief_text::{BriefPart, BriefTextLimits, note_index_text, read_brief_part},
+        conversation::{DeliveryOutcome, Settled, SettledAnswer, SettledCall},
+        delegation::{
+            Delegate, Delegating, Dependency, ProcedureStep, StepAmendment, StepCancel, StepEnd, StepMessage,
+            resolved_delegate_authority, symbolic_grants,
+        },
+        host_rule::HostRule,
+        live::LiveAsk,
+        run_choice::{RunAllowance, RunChoice, RunWait},
+        state::{
+            EFFORT_BYTES, EFFORTS, GoalRoute, MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Model, PendingRelay,
+            PersonProposalRoute, PersonTaskRoute, RestoringProof, RoutedCall, RunAdmission, RunCharter, RunPolicy,
+            Transcript, reserve_floor,
+        },
+        transcript_text::{TranscriptRow, TranscriptText},
+    },
+    settings::{charters::Charter, templates::Template},
+    start::{Census, HeldLimit, ReadResults, Restore, RestoreRange, restore_cursor},
+    stored::{
+        CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
+        Made, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
+    },
+    translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
+    vocabulary::{
+        Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
+        ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
+    },
+};
 
 /// Policy copied into a later project (configuration.md, 3; core.md, 6.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -253,30 +226,6 @@ impl ToolFamilies {
     };
 }
 
-/// A watch's authenticated owner and concrete construction inputs.
-/// `client/domain/contract.md`, sections 7.1 and 7.2.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub(crate) struct WatchBinding {
-    /// The party whose document is constructed.
-    pub(crate) party: u64,
-    /// The sign-in that admitted this watch.
-    pub(crate) sign_in: u64,
-    /// The core-owned subject.
-    pub(crate) subject: skein_lib::Id<WatchedSubject>,
-    /// The requested bounded window.
-    pub(crate) window: documents::Window,
-}
-
-/// A concrete subject shared by watches, with its opaque child name.
-#[derive(Debug)]
-pub(crate) struct WatchedSubject {
-    pub(crate) subject: documents::Subject,
-    pub(crate) watchers: u32,
-}
-
-/// One delegation waiting for the task child's durable creation reply.
-pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
-
 /// The engine's children, routing and durable live state (domain/engine.md,
 /// section 3). Configuration limits stay immutable (programming-model.md,
 /// section 10.1); the hand-off bound also validates restored projection history.
@@ -303,7 +252,7 @@ pub struct Core {
     pub(crate) question_activity: Map<(u64, u64), tasks::ActivityLine>,
     pub(crate) census_progress: Map<u64, inbox::Progress>,
     pub(crate) census_position: Option<(u64, u64, u64)>,
-    pub(crate) archived_chats: Map<u64, inbox::ArchivedChat>,
+    pub(crate) ended_chats: Map<u64, inbox::EndedChat>,
     pub(crate) proposed_input: Option<Result<Box<settings::Proposal>, people::Malformed>>,
     pub(crate) settings_proposals: Map<(people::Proposer, u32), settings::Proposal>,
     pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32)>,
@@ -320,16 +269,16 @@ pub struct Core {
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
     pub(crate) changed_views: skein_lib::Set<skein_lib::Id<WatchedSubject>>,
     pub(crate) reads: skein_lib::Slab<reads::Pending>,
-    /// Historical dependency results held for preparation.
-    pub(crate) dependency_results: Map<u64, Box<[HistoricalResult]>>,
-    /// Ended result positions waiting to be delivered.
+    /// Retained dependency results held for preparation.
+    pub(crate) dependency_results: Map<u64, Box<[RetainedResult]>>,
+    /// Retained result positions waiting to be delivered.
     pub ending_positions: Map<u64, u64>,
     /// Child requests awaiting their typed continuation.
     pub(crate) flight_people_capacity: u32,
     pub(crate) flight_tasks_capacity: u32,
     pub(crate) flights: skein_lib::Slab<flight::Flight>,
     pub(crate) person_task_capacity: u32,
-    pub(crate) resource_roles: Map<resources::Key, connector::ResourceRole>,
+    pub(crate) resource_roles: Map<resources::Key, effects::connector::ResourceRole>,
     pub(crate) resource_roles_full: bool,
     /// At most one committed word per run awaiting host delivery.
     pub(crate) relaying: Map<u64, PendingRelay>,
@@ -417,159 +366,12 @@ fn assert_connector_registry(connectors: &[u16]) {
 }
 
 impl Core {
-    pub(crate) fn ready(&self) -> bool {
-        self.start.phase.is_none() && !self.start_stopped()
-    }
-
-    /// Enable the person's direct inbox answers (domain/people.md, 6).
-    /// Set by the application after `Core::new`, before the first step; off by default.
-    pub fn person_answers(&mut self) {
-        self.person_answers = true;
-    }
-
-    /// Earliest absolute wall time among retained effect reply rights
-    /// (`domain/engine.md`, 4.4). Stale rights remain visible until the
-    /// existing effect-deadline event consumes them; this query changes nothing.
-    #[must_use]
-    pub fn effect_deadline(&self) -> Option<Wall> {
-        effects::next_deadline(self)
-    }
-
-    /// Whether a live task still holds this exact fenced attempt.
-    #[must_use]
-    pub fn current_proof(&self, task: u64, attempt: u64) -> bool {
-        match self.proofs.get(&task) {
-            Some(proof) => proof.attempt == attempt,
-            None => false,
-        }
-    }
-
-    /// Retain the canonical terminal of an unpriced attempt before the task
-    /// child makes its next lifecycle decision.
-    pub fn remember_unpriced_terminal(&mut self, run: Token, attempt: Token, end: tasks::End) {
-        self.start_runtime_input();
-        if self.committed_terminal(run.raw(), attempt.raw()).is_some() {
-            return;
-        }
-        let proof = self.proofs.get_mut(&run.raw()).expect("current fleet terminal has pre-reserved proof");
-        assert!(proof.attempt == attempt.raw(), "fleet terminal belongs to current proof");
-        let cumulative = match proof.turn {
-            Some(turn) => turn.cumulative,
-            None => 0,
-        };
-        proof.terminal = Some(TerminalRecord { task: run.raw(), attempt: attempt.raw(), cumulative, end });
-    }
-
-    pub(crate) fn committed_terminal(&self, task: u64, attempt: u64) -> Option<TerminalRecord> {
-        if self.tasks.task(task)?.last_answer != Some(attempt) {
-            return None;
-        }
-        let proof = self.proofs.get(&task)?;
-        if proof.attempt != attempt {
-            return None;
-        }
-        proof.terminal.clone()
-    }
-
-    /// Whether a named call can proceed or replay its retained answer.
-    /// Pending calls wait; new calls share the configured record bound.
-    #[must_use]
-    pub fn call_room(&self, key: CallKey) -> bool {
-        !self.pending_calls.contains_key(&key)
-            && (self.call_parts.contains_key(&key)
-                || self.call_parts.len().saturating_add(self.pending_calls.len()) < self.call_parts.capacity())
-    }
-
-    /// Retain one newly accepted named call decision. The application saves
-    /// its store row and holds the outward answer behind the same commit.
-    pub fn record_call(&mut self, key: CallKey, part: CallPart) {
-        self.start_runtime_input();
-        assert!(self.call_parts.insert(key, part) == Ok(None), "named call room reserved");
-    }
-
-    /// Restore one live named call only after its current task proof was
-    /// restored. The connector's separately owned answer is validated by the
-    /// application before it asks the core to retain this part.
-    pub(crate) fn restore_call(&mut self, key: CallKey, part: CallPart) -> bool {
-        self.start_input();
-        {
-            assert!(self.start_loading(), "calls load before Link");
-            assert!(!self.call_parts.contains_key(&key), "duplicate call {:?}", Key::Core(CoreKey::Call(key)));
-            if !self.start_room(
-                start::LiveSet::Calls,
-                Key::Core(CoreKey::Call(key)),
-                self.call_parts.len(),
-                self.call_parts.capacity(),
-            ) {
-                return false;
-            }
-        }
-        self.call_parts.insert(key, part) == Ok(None)
-    }
-
-    /// Forget named calls whose answer entered a committed later turn. The
-    /// application erases these keys in the same decision and drops any
-    /// connector-owned answer for them.
-    pub fn retire_calls(&mut self, task: u64, attempt: u64, turn: u32, room: u32) -> Box<[CallKey]> {
-        self.start_runtime_input();
-        let mut retired = List::with_capacity(self.call_parts.len());
-        for (&key, _) in &self.call_parts {
-            if key.task == task && (key.attempt < attempt || (key.attempt == attempt && key.completion < turn)) {
-                retired.push(key).expect("all retained call names fit their configured bound");
-            }
-        }
-        assert!(retired.len() <= room, "retired calls fit their configured bound");
-        for &key in &retired {
-            self.call_settled.remove(&key);
-            match self.call_parts.remove(&key) {
-                Some(CallPart::Effect { entry, .. }) => {
-                    self.effect_replies.remove(&entry);
-                }
-                Some(
-                    CallPart::Connector { .. }
-                    | CallPart::EffectRefused(_)
-                    | CallPart::EffectDenied { .. }
-                    | CallPart::ToolDenied { .. }
-                    | CallPart::EscalationDecided { .. }
-                    | CallPart::EscalationRefused(_)
-                    | CallPart::Proposed { .. }
-                    | CallPart::ProposalDecided { .. }
-                    | CallPart::SettingsRefused(_)
-                    | CallPart::ProposalRefused(_)
-                    | CallPart::HoldOwner { .. }
-                    | CallPart::Controlled
-                    | CallPart::ControlRefused(_)
-                    | CallPart::ControlDenied { .. }
-                    | CallPart::Sent { .. }
-                    | CallPart::Introduced
-                    | CallPart::MessageRefused(_)
-                    | CallPart::Subscribed { .. }
-                    | CallPart::Unsubscribed
-                    | CallPart::SubscriptionRefused(_)
-                    | CallPart::Delegated(_)
-                    | CallPart::DelegationDenied { .. }
-                    | CallPart::DelegationRefused(_)
-                    | CallPart::NoteWritten { .. }
-                    | CallPart::NoteRecalled { .. }
-                    | CallPart::NoteRefused(_)
-                    | CallPart::Revised { .. }
-                    | CallPart::Moved { .. }
-                    | CallPart::Again { .. }
-                    | CallPart::PassedUp { .. }
-                    | CallPart::Unavailable,
-                )
-                | None => {}
-            }
-        }
-        retired.into_boxed()
-    }
-
     /// Allocate the eight children and the bounded live core tables.
     /// # Errors
     /// A configured worker count or name exceeds the priced membership bounds.
     #[expect(clippy::too_many_lines, reason = "construct all bounded children, bindings and subject marks together")]
     pub fn new(mut config: Config, limits: &Limits) -> Result<Core, Problem> {
-        let worker_names = memory::problems(core::mem::replace(&mut config.worker_names, Box::new([])), limits)?;
+        let worker_names = limits::problems(core::mem::replace(&mut config.worker_names, Box::new([])), limits)?;
         assert!(limits.people.words <= limits.tasks.message_bytes, "party words fit one run message");
         assert!(limits.tasks.message_bytes >= 24, "projection refusal news fits one run message");
         assert!(config.settings.tools.valid(), "each engine tool has one configured authority bit");
@@ -641,7 +443,7 @@ impl Core {
             question_activity: Map::with_capacity(inbox::question_capacity(limits).expect("validated question bound")),
             census_progress: Map::with_capacity(limits.people.people),
             census_position: None,
-            archived_chats: Map::with_capacity(
+            ended_chats: Map::with_capacity(
                 limits
                     .people
                     .people
@@ -740,120 +542,4 @@ impl Core {
             settings: config.settings,
         })
     }
-
-    /// Reclaim retired child slots at the application's iteration boundary.
-    pub fn reclaim(&mut self) {
-        self.tasks.reclaim();
-        self.people.reclaim();
-        self.fleet.reclaim();
-        self.views.reclaim();
-        self.view_names.reclaim();
-        self.reads.reclaim();
-    }
-
-    /// Discard expendable child observations without changing a decision.
-    pub fn drain_facts(&mut self, limits: &Limits) {
-        for _ in 0..limits.tasks.facts {
-            let _fact = self.tasks.pop_fact();
-        }
-        for _ in 0..limits.people.facts {
-            let _fact = self.people.pop_fact();
-        }
-        for _ in 0..limits.fleet.facts {
-            let _fact = self.fleet.pop_fact();
-        }
-        for _ in 0..limits.accounts.facts {
-            let _fact = self.accounts.pop_fact();
-        }
-        for _ in 0..limits.views.facts {
-            let _fact = self.views.pop_fact();
-        }
-    }
-
-    /// Pure, allocation-free finishing derivation (domain/root.md, section 3).
-    /// Child-held waits and future alarms alone owe no finishing. Before
-    /// omitting a closure the root must also check its current-clock timers.
-    #[must_use]
-    pub fn finish_owed(&self) -> bool {
-        self.counters.dirty()
-            || (self.draining == Some(true) && self.watch_flights() == 0)
-            || !self.changed_views.is_empty()
-            || projections::owed(self)
-            || routing::watch_marks::retention_owed(self)
-            || routing::watch_marks::endings_owed(self)
-    }
-
-    /// Idle fence including journal, routing and finishing (domain/root.md,
-    /// section 3). A host may still hold a live attempt. False can mean a child
-    /// awaits input; use `finish_owed` for closure after checking due timers.
-    #[must_use]
-    pub fn quiescent(&self, journal_idle: bool) -> bool {
-        self.counters.quiescent(journal_idle)
-            && self.reads.is_empty()
-            && self.dependency_results.is_empty()
-            && self.pending_calls.is_empty()
-            && self.pending_note_briefs.is_empty()
-            && self.ending_positions.is_empty()
-            && self.flights_idle()
-            && self.relaying.is_empty()
-            && self.adopted.is_empty()
-            && self.due.is_empty()
-            && self.claiming.is_empty()
-            && self.replaced.is_empty()
-            && self.contexts.is_empty()
-            && self.workspace_credentials.is_empty()
-            && self.transcripts.is_empty()
-            && self.restoring_proofs.is_empty()
-            && self.unreported_restored.is_empty()
-            && self.brief.is_idle()
-            && !self.fleet.is_ready()
-            && self.fleet.turns() == 0
-            && self.fleet.calls() == 0
-            && self.fleet.next_deadline().is_none()
-            && !self.accounts.waiting()
-            && !self.finish_owed()
-    }
-
-    /// Restore one current claim only when it matches the live task's
-    /// transient correlation. An archive row can never enter this live map.
-    pub(crate) fn restore_proof(&mut self, proof: RunProof, result_bytes: u32) -> bool {
-        self.start_input();
-        {
-            assert!(self.start_loading(), "proofs load before Link");
-            let key = Key::Core(CoreKey::RunProof(proof.task));
-            assert!(!self.proofs.contains_key(&proof.task), "duplicate {key:?}");
-            if !self.start_room(start::LiveSet::RunProofs, key.clone(), self.proofs.len(), self.proofs.capacity()) {
-                return false;
-            }
-            let mut bytes = u64::try_from(proof.outstanding.len()).expect("allocated proof fits u64");
-            let mut limit = u64::from(self.run_inbox);
-            if bytes <= limit {
-                bytes = u64::try_from(proof.accounts.len()).expect("allocated accounts fit u64");
-                limit = u64::from(tasks::MODELS);
-            }
-            if bytes <= limit {
-                bytes = u64::try_from(proof.credentials.len()).expect("allocated credentials fit u64");
-                limit = u64::from(self.accounts.credential_limit());
-            }
-            if bytes <= limit
-                && let Some(terminal) = &proof.terminal
-            {
-                bytes = tasks::terminal_bytes(&terminal.end).expect("allocated terminal has a representable measure");
-                limit = u64::from(result_bytes).checked_mul(2).expect("result bound");
-            }
-            if bytes > limit {
-                let _refused = self.start_refuse(start::Failure::LiveSet {
-                    set: start::LiveSet::RunProofs,
-                    key,
-                    held: bytes,
-                    limit,
-                });
-                return false;
-            }
-        }
-        self.proofs.insert(proof.task, proof).is_ok()
-    }
 }
-
-#[cfg(test)]
-mod tests;

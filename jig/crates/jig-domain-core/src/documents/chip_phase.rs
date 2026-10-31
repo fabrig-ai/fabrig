@@ -1,7 +1,9 @@
 //! Nonrecursive chip facts (`client/domain/objects.md`, 3 and 5). Durable
 //! lifecycle clocks remain distinct from best-effort engine receipt clocks.
-use super::{BudgetLine, HoldLine, Missing, Part, PartKey, PartKind, ResourceLine};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{BudgetLine, HoldLine, Missing, Part, PartKey, PartKind, ResourceLine},
+};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;

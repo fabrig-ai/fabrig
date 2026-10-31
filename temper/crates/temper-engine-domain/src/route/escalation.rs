@@ -36,7 +36,7 @@ pub(crate) fn historical_begin(
     let query = Query { request, person, project, task, revision };
     match domain.archive_reads.insert(Some(Read::Escalation(query))) {
         Ok(waiter) => emit(barrier, &env.limits, Delivery::ReadEscalationDecision { waiter: waiter.token() }),
-        Err(_) => domain.work.push(Work::Core(jig_domain_core::Event::HistoricalEscalation {
+        Err(_) => domain.work.push(Work::Core(jig_domain_core::Event::EndedEscalation {
             request,
             person,
             project,
@@ -78,7 +78,7 @@ pub(crate) fn loaded(domain: &mut Domain, _env: &Env<Limits>, waiter: Token, row
     } else {
         None
     };
-    domain.work.push(Work::Core(jig_domain_core::Event::HistoricalEscalation {
+    domain.work.push(Work::Core(jig_domain_core::Event::EndedEscalation {
         request,
         person,
         project,
@@ -93,7 +93,7 @@ pub(crate) fn failed(domain: &mut Domain, waiter: Token) {
     let Some(read) = super::take_read(domain, waiter) else { return };
     domain.archive_reads.retire(Id::from_token(waiter));
     let Query { request, person, project, task, revision } = query(read);
-    domain.work.push(Work::Core(jig_domain_core::Event::HistoricalEscalation {
+    domain.work.push(Work::Core(jig_domain_core::Event::EndedEscalation {
         request,
         person,
         project,
