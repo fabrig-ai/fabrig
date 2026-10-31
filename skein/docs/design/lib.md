@@ -78,6 +78,8 @@ them (testing.md, section 6).
   `#[must_use]`: replying consumes it, so a second reply does not
   compile. A missing one is the simulator's to catch.
 
+A token's top four bits may tag its namespace (`Token::tagged`, `tag`, `untagged`), for a root that hands tokens to several children.
+
 ## 5. Containers
 
 | Container | What | Over |
