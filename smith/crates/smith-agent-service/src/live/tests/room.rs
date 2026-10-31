@@ -23,7 +23,7 @@ pub(super) struct Room {
     pub sent: List<Sent>,
     pub channel: channel::Component,
     pub limits: channel::Limits,
-    pub above: Queue<channel::OpenEvent>,
+    pub above: Queue<channel::Heard>,
     pub below: Queue<Lower>,
     pub incoming: VecDeque<u8>,
     pub next: u64,
@@ -106,7 +106,7 @@ impl Room {
         self.transport();
         assert!(
             self.above.iter().any(|event| match event {
-                channel::OpenEvent::Start { .. } => true,
+                channel::Heard::Start { .. } => true,
                 _ => false,
             }),
             "real channel accepted Start: {:?}",

@@ -13,7 +13,7 @@ use smith_protocol_channel::{self as channel, Piece};
 // One entrance borrows the channel edge; no borrow survives a service step.
 pub(crate) struct HostLink<'a> {
     pub channel: &'a mut channel::Component,
-    pub above: &'a mut Queue<channel::OpenEvent>,
+    pub above: &'a mut Queue<channel::Heard>,
     pub below: &'a mut Queue<Lower>,
     pub next: &'a mut u64,
     pub failed: bool,
