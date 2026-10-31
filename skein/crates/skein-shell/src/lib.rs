@@ -31,6 +31,8 @@ mod clock;
 #[cfg(all(unix, target_os = "macos"))]
 mod darwin;
 mod drive;
+#[cfg(test)]
+mod drive_tests;
 #[cfg(unix)]
 mod group;
 #[cfg(unix)]
