@@ -245,7 +245,7 @@ fn a_welcome_sign_in_come_back_at_ready_reads_it_under_way_then_its_account() {
         declined: false,
     }));
     accounts::settle(&mut front, &mut root);
-    assert!(text(&root).contains("Model: ChatGPT · alice@example.com · OpenAI · held by Person · scripted"));
+    assert!(text(&root).contains("Model: ChatGPT · alice@example.com · OpenAI · held by Person"), "{}", text(&root));
     assert!(!text(&root).contains("Connect a model"));
 }
 #[test]

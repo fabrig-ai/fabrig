@@ -199,8 +199,8 @@ pub struct World {
     /// Independent read parties and owner-range store transport, enabled in read stories.
     pub reads: Option<crate::reads::Parties>,
     /// Referee observations, independent of the root state.
-    pub observer: crate::observations::Observer,
-    heap: crate::observations::Heap,
+    pub observer: crate::conformance::Observer,
+    heap: crate::conformance::Heap,
     restoring: Option<(core::start::Phase, usize)>,
     restart_reads: std::collections::BTreeMap<u16, core::start::Phase>,
     pub events: VecDeque<root::Event>,

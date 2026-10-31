@@ -191,10 +191,7 @@ impl Store {
             &mut above,
             &mut below,
         );
-        while let Some(request) = below.pop() {
-            let arrived = self.file(0, request);
-            skein_kv::up(&mut stores.store, &env, arrived.event, &mut above, &mut below);
-        }
+        assert!(below.is_empty(), "map gets answer from the recovered memory map");
         let Some(skein_kv::Event::Got { value: Some(bytes), .. }) = above.pop() else {
             panic!("component wires row");
         };
@@ -425,9 +422,9 @@ impl Store {
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
         loop {
-            if self.disk.is_some() {
-                let env = self.env();
-                protocol::fire(self.component.as_mut().expect("component exists"), &env, &mut above, &mut below);
+            let env = self.env();
+            if let Some(disk) = &mut self.disk {
+                disk.drive(self.component.as_mut().expect("component exists"), &env, &mut above);
             }
             if let Some(event) = above.pop() {
                 self.event(event, &mut requests);
@@ -435,21 +432,25 @@ impl Store {
             }
             if let Some(request) = requests.pop_front() {
                 let env = self.env();
-                protocol::down(
-                    self.component.as_mut().expect("component exists"),
-                    &env,
-                    request,
-                    &mut above,
-                    &mut below,
-                );
+                if let Some(disk) = &mut self.disk {
+                    disk.request(self.component.as_mut().expect("component exists"), &env, request, &mut above);
+                } else {
+                    protocol::down(
+                        self.component.as_mut().expect("component exists"),
+                        &env,
+                        request,
+                        &mut above,
+                        &mut below,
+                    );
+                }
                 continue;
             }
             let io = if let Some(request) = below.transcripts.pop() {
-                Io::Transcripts(self.file(2, request))
+                Io::Transcripts(self.file(request))
             } else if let Some(request) = below.store.pop() {
-                Io::Store(self.file(0, request))
+                Io::Store(self.file(request))
             } else if let Some(request) = below.secrets.pop() {
-                Io::Secrets(self.file(1, request))
+                Io::Secrets(self.file(request))
             } else {
                 break;
             };
@@ -457,11 +458,9 @@ impl Store {
             protocol::up(self.component.as_mut().expect("component exists"), &env, io, &mut above, &mut below);
         }
     }
-    fn file(&mut self, driver: usize, request: skein_io::file::Request) -> protocol::Arrived {
-        match &mut self.disk {
-            Some(disk) => disk.answer(driver, request),
-            None => self.files.answer(request),
-        }
+    fn file(&mut self, request: skein_io::file::Request) -> protocol::Arrived {
+        assert!(self.disk.is_none(), "directory file operations belong to the host");
+        self.files.answer(request)
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
@@ -636,7 +635,7 @@ pub fn component_limits(root: &root::Limits) -> Limits {
     kv.queued_bytes = u64::from(sizes.commit) * u64::from(kv.queued);
     kv.segment = u64::from(sizes.commit) * 2;
     kv.snapshot_after = u64::from(sizes.commit);
-    kv.chunk = sizes.key.checked_add(sizes.value).and_then(|sum| sum.checked_add(20)).expect("bounded largest row");
+    kv.chunk = skein_kv::chunk_bytes(sizes.key, sizes.value).expect("bounded largest row");
     kv.page.bytes = sizes.key.checked_add(sizes.value).expect("one largest row fits");
     protocol::sizes::whole(kv.chunk).expect("the largest row chunk also holds the whole manifest");
     Limits {

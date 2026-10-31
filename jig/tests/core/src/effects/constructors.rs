@@ -210,8 +210,8 @@ impl World {
 
     #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
     fn empty(configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::PatchSets) -> World {
-        let observer = crate::observations::Observer::new(&configuration);
-        let heap = crate::observations::Heap::new();
+        let observer = crate::conformance::Observer::new(&configuration);
+        let heap = crate::conformance::Heap::new();
         let creating = crate::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
         let initial_ask = initial_request(&configuration, &creating);
         let protocol = crate::protocol::Stand::with_models(limits.core, &configuration.core.settings.models);

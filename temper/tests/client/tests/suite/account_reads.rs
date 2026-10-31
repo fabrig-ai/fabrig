@@ -44,6 +44,11 @@ fn a_changing_accounts_watch_completes_the_agents_wait() {
     assert_eq!(changed.status, 0, "{changed:?}");
     let after = std::str::from_utf8(&changed.stdout).expect("wait JSON UTF-8");
     assert!(!after.contains(digest), "the joined account digest changed");
-    assert!(after.contains("\"kind\":\"later\""), "the deployment account shows the worker's limit");
+    assert!(after.contains("\"readiness\":\"unavailable\""), "the owner readiness changes first: {after}");
+    let read = fixtures::give(&mut world, agent, &[b"account", b"list", b"--json"]);
+    let latest = fixtures::answered(&mut world, agent, read);
+    assert_eq!(latest.status, 0);
+    let latest = std::str::from_utf8(&latest.stdout).expect("account JSON UTF-8");
+    assert!(latest.contains("\"kind\":\"later\""), "the deployment account shows the worker's limit: {latest}");
     assert!(after.ends_with(",\"met\":true}"));
 }

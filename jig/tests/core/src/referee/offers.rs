@@ -82,7 +82,7 @@ impl Referee {
                             let offer =
                                 Admission::Bounded { within: creating.within.clone(), beyond: creating.beyond.clone() };
                             if let Some(expected) = facts::predict(&offer, ask, None) {
-                                self.pending.insert(crate::observations::destination(reply_to), expected);
+                                self.pending.insert(jig_conformance::core::destination(reply_to), expected);
                             }
                         }
                     }
@@ -99,7 +99,7 @@ impl Referee {
                 if let Some(offer) = received.offers.iter().find(|value| value.act == act)
                     && let Some(expected) = facts::predict(&offer.admission, ask, received.task.as_ref())
                 {
-                    self.pending.insert(crate::observations::destination(reply_to), expected);
+                    self.pending.insert(jig_conformance::core::destination(reply_to), expected);
                 }
             }
         }
@@ -150,7 +150,7 @@ impl Referee {
                 }
             }
             root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
-                if let Some(expected) = self.pending.remove(&crate::observations::destination(to)) {
+                if let Some(expected) = self.pending.remove(&jig_conformance::core::destination(to)) {
                     check(&expected, reply).expect("delivered offer matches admission");
                     self.checked += 1;
                 }

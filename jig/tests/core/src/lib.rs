@@ -17,7 +17,7 @@ pub use jig_test_store_files::{Fault, Store};
 
 pub mod oracle;
 
-pub mod observations;
+pub mod conformance;
 pub mod referee;
 
 pub mod faults;

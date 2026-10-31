@@ -370,7 +370,7 @@ pub fn remove(world: &mut World) {
         world.peers.start_phases
     );
     for (key, record) in &world.store.rows {
-        if let Some(name) = jig_core_world::observations::naming::naming(key, record) {
+        if let Some(name) = jig_core_world::conformance::naming::naming(key, record) {
             assert!(
                 (name.project != Some(1) && !name.task.is_some_and(|task| tasks.contains(&task)))
                     || name.outlives.is_some(),
