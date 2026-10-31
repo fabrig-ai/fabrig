@@ -16,6 +16,7 @@ extern crate alloc;
 mod answers;
 mod calls;
 mod children;
+mod completion;
 pub mod events;
 mod inputs;
 mod messages;

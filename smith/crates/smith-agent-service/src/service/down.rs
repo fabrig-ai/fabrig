@@ -4,7 +4,7 @@
 
 use super::request::domain_request;
 use super::routing::component_owner;
-use super::{Failure, Frame, Owner, PendingMessage, Stages, face, program};
+use super::{Frame, Owner, PendingMessage, Stages, face, program};
 use skein_channel::Lower as ChannelLower;
 use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::stream;
@@ -71,12 +71,15 @@ pub(super) fn drain_facts(service: &mut Stages, mut frame: Option<&mut Frame>) {
             None => break,
         };
         let token = service.next_send();
-        if let Some(channel) = face::channel_mut(frame.as_deref_mut())
-            && channel
-                .send_fact(&fact, service.run_started, token, &mut service.channel_events, &mut service.channel_below)
-                .is_err()
-        {
-            service.mark_failed(Failure::Send);
+        if let Some(channel) = face::channel_mut(frame.as_deref_mut()) {
+            let result = channel.send_fact(
+                &fact,
+                service.run_started,
+                token,
+                &mut service.channel_events,
+                &mut service.channel_below,
+            );
+            super::link::sent(service, result.is_ok());
         }
         if let Some(events) = &mut service.events {
             events.fact(&fact);

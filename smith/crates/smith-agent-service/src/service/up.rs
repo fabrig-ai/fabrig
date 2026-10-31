@@ -140,7 +140,7 @@ pub(super) fn live_step(service: &mut Stages, frame: Option<&mut Frame>, action:
         | crate::live::Action::Delta { .. }
         | crate::live::Action::Pump => false,
     };
-    let mut room = crate::live::Connection {
+    let mut room = super::link::HostLink {
         channel,
         above: &mut service.channel_events,
         below: &mut service.channel_below,
@@ -150,9 +150,8 @@ pub(super) fn live_step(service: &mut Stages, frame: Option<&mut Frame>, action:
         ending,
     };
     service.live.act(action, service.io_env.now, &mut room);
-    if room.failed {
-        service.mark_failed(Failure::Send);
-    }
+    let succeeded = !room.failed;
+    super::link::sent(service, succeeded);
 }
 
 fn llm_measures(service: &mut Stages, mut frame: Option<&mut Frame>) {
@@ -303,19 +302,14 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
             llm::ToDomain::Text { owner: _, bytes } => {
                 let Some(frame) = frame.as_deref_mut() else { continue };
                 let token = service.next_send();
-                if frame
-                    .channel
-                    .send_text_arrived(
-                        service.domain_env.now.saturating_since(Time::ZERO),
-                        u64::from(bytes),
-                        token,
-                        &mut service.channel_events,
-                        &mut service.channel_below,
-                    )
-                    .is_err()
-                {
-                    service.mark_failed(Failure::Send);
-                }
+                let result = frame.channel.send_text_arrived(
+                    service.domain_env.now.saturating_since(Time::ZERO),
+                    u64::from(bytes),
+                    token,
+                    &mut service.channel_events,
+                    &mut service.channel_below,
+                );
+                super::link::sent(service, result.is_ok());
             }
         }
     }

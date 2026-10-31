@@ -1,4 +1,5 @@
 use super::*;
+use smith_events::{CompletionFailure, Evidence, FailureClass};
 
 fn meta() -> AnswerMeta {
     AnswerMeta {

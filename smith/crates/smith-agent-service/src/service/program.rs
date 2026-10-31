@@ -10,7 +10,23 @@ use smith_domain::{self as domain};
 use smith_protocol_llm as llm;
 use smith_protocol_program::{Programs, backend};
 
-const FIRST: Token = Token::new(u64::MAX - 1024);
+// The program owns the upper private token range below the root-close token.
+const OWNER_NAMES: u64 = 1024;
+const FIRST: Token = Token::new(u64::MAX.checked_sub(OWNER_NAMES).expect("private owner range"));
+// Host-result allowance shared with smith_protocol_llm::render_bound.
+const HOST_RESULT_OVERHEAD_BYTES: u64 = 7;
+const FIXED_RESULT_BYTES: u64 = 4096;
+// MCP IDs, names, descriptions and the RPC envelope surround the admitted body.
+const MCP_ENVELOPE_BYTES: u32 = 4096;
+// Native JSON headers, usage and block envelopes surround semantic payloads.
+const STREAM_ENVELOPE_BYTES: u32 = 65_536;
+// A JSON byte can be emitted as a six-byte Unicode escape.
+const JSON_ESCAPE_BYTES: u32 = 6;
+const CONTRACT_SCHEMAS: u32 = 2;
+const MCP_AUTHENTICATION: Duration = Duration::from_secs(5);
+const STARTUP: Duration = Duration::from_secs(30);
+const RELAY_PATH_BYTES: usize = 4096;
+const ENTROPY_BYTES: usize = 32;
 const IO_SLOTS: u32 = 11;
 // Three private directories and one serialized native snapshot load.
 const FILE_SLOTS: u32 = 4;
@@ -55,9 +71,9 @@ fn settings(
         .domain
         .session
         .delegated_result_bytes
-        .max(u64::from(limits.domain.run.host_reply_bytes).checked_add(7)?)
+        .max(u64::from(limits.domain.run.host_reply_bytes).checked_add(HOST_RESULT_OVERHEAD_BYTES)?)
         .max(u64::from(limits.domain.run.message_bytes))
-        .max(4096)
+        .max(FIXED_RESULT_BYTES)
         .checked_add(u64::from(llm::CUT_MARKER_BYTES))?;
     adapter.rendered_result = u32::try_from(result).ok()?;
     let contract_bytes = u32::try_from(limits.llm.contract_bytes).ok()?;
@@ -69,21 +85,22 @@ fn settings(
         .max(u32::try_from(llm::fixed_schema_bytes(&adapter.stated)?).ok()?);
     // A call's JSON input plus its RPC ID/name/envelope. This is a line
     // ceiling, not another allocation beside MCP's priced input buffers.
-    let call_bytes = adapter.stated.call_input_bytes.checked_add(4096)?;
+    let call_bytes = adapter.stated.call_input_bytes.checked_add(MCP_ENVELOPE_BYTES)?;
     // Each tool byte can become six JSON escape bytes in tools/list. Finish
     // and delivery schemas each have their own contract-sized encoded ceiling;
     // fixed room covers descriptions, names and the RPC/list envelope.
     let tool_bytes = u32::try_from(adapter.tool_bytes)
         .ok()?
-        .checked_mul(6)?
-        .checked_add(contract_bytes.checked_mul(2)?)?
-        .checked_add(4096)?;
+        .checked_mul(JSON_ESCAPE_BYTES)?
+        .checked_add(contract_bytes.checked_mul(CONTRACT_SCHEMAS)?)?
+        .checked_add(MCP_ENVELOPE_BYTES)?;
     // A result byte needs at most six JSON escape bytes. Tool-list and result
     // are alternative messages in the same MCP output slot, hence max, not sum.
-    let answer_bytes = adapter.rendered_result.checked_mul(6)?.checked_add(4096)?.max(tool_bytes);
+    let answer_bytes =
+        adapter.rendered_result.checked_mul(JSON_ESCAPE_BYTES)?.checked_add(MCP_ENVELOPE_BYTES)?.max(tool_bytes);
     // Stream JSON wraps semantic answer text/arguments (six-byte escapes),
     // plus message headers, IDs, usage and block envelopes.
-    let line_bytes = adapter.client.answer.checked_mul(6)?.checked_add(65_536)?;
+    let line_bytes = adapter.client.answer.checked_mul(JSON_ESCAPE_BYTES)?.checked_add(STREAM_ENVELOPE_BYTES)?;
     Some(backend::Settings {
         program: Programs { claude: config.program.claude.clone(), directory: config.program.directory.clone() },
         relay: config.relay.clone(),
@@ -96,7 +113,7 @@ fn settings(
             answer_bytes,
             schema_bytes,
             calls: u16::try_from(limits.domain.run.calls).ok()?,
-            unauthenticated: skein_lib::Time::from_nanos(5_000_000_000),
+            unauthenticated: skein_lib::Time::from_nanos(MCP_AUTHENTICATION.as_nanos()),
         },
         adapter,
         receiving: limits.llm.receiving,
@@ -106,10 +123,10 @@ fn settings(
         line_bytes,
         // client.request already bounds encoded JSON, including escaping and
         // all admitted history. This user envelope omits the model's schemas.
-        input_bytes: adapter.client.request.checked_add(65_536)?,
+        input_bytes: adapter.client.request.checked_add(STREAM_ENVELOPE_BYTES)?,
         max_turns: 1,
         grace: limits.io.close_timeout,
-        startup: Duration::from_secs(30),
+        startup: STARTUP,
     })
 }
 
@@ -122,7 +139,7 @@ fn reserved(limits: &Limits, settings: &backend::Settings) -> Option<Limits> {
     reserved.llm.connection.io.intake = reserved.io.intake;
     reserved.file_slots = reserved.file_slots.checked_add(FILE_SLOTS)?;
     let operations = io::operations(&reserved.io)?;
-    reserved.routes = reserved.routes.max(operations.checked_add(64)?);
+    reserved.routes = reserved.routes.max(operations.checked_add(super::ROUTE_HEADROOM)?);
     Some(reserved)
 }
 
@@ -165,9 +182,9 @@ fn new(
     environment: &smith_protocol_machine::Environment,
 ) -> Result<Box<Program>, ConfigError> {
     let settings = settings(&config, limits, environment).ok_or(ConfigError::Limits)?;
-    if config.entropy.len() != 32
+    if config.entropy.len() != ENTROPY_BYTES
         || !config.relay.starts_with(b"/")
-        || config.relay.len() > 4096
+        || config.relay.len() > RELAY_PATH_BYTES
         || config.relay.contains(&0)
         || core::str::from_utf8(&config.relay).is_err()
         || settings.line_bytes == 0

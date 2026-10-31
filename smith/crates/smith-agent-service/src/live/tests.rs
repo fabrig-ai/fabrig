@@ -1,9 +1,11 @@
-use super::{Live, Room as ChannelRoom, wanted};
+use super::{Action, Live, wanted};
 use crate::profile::standard;
 use alloc::boxed::Box;
 use skein_lib::{List, Time, Token};
 use smith_domain::llm;
-use smith_protocol_channel::Piece;
+use smith_protocol_channel as channel;
+mod room;
+use room::Room;
 
 const AT_ZERO: Time = Time::ZERO;
 const PIECE_BOUND: usize = 4096;
@@ -22,60 +24,6 @@ struct Sent {
     bytes: Box<[u8]>,
     call: Option<smith_channel::LiveCall>,
 }
-struct Room {
-    takes: bool,
-    remaining: u32,
-    lost: u64,
-    sent: List<Sent>,
-}
-impl Room {
-    fn new(takes: bool) -> Self {
-        Self { takes, remaining: u32::MAX, lost: 0, sent: List::with_capacity(super::HELD) }
-    }
-    fn payloads(&self) -> List<&[u8]> {
-        let mut pieces = List::with_capacity(self.sent.len());
-        for piece in &self.sent {
-            pieces.push(piece.bytes.as_ref()).expect("sent piece count");
-        }
-        pieces
-    }
-    fn offsets(&self) -> List<(u64, usize)> {
-        let mut offsets = List::with_capacity(self.sent.len());
-        for piece in &self.sent {
-            offsets.push((piece.offset, piece.bytes.len())).expect("sent piece count");
-        }
-        offsets
-    }
-}
-impl ChannelRoom for Room {
-    fn takes(&self, _: smith_protocol_channel::PieceKind<'_>, _: u32) -> bool {
-        self.takes && self.remaining > 0
-    }
-    fn send(&mut self, piece: Piece<'_>) {
-        self.sent
-            .push(Sent {
-                turn: piece.turn,
-                retry: piece.retry,
-                offset: piece.offset,
-                bytes: Box::from(piece.bytes),
-                call: match piece.kind {
-                    smith_protocol_channel::PieceKind::Text => None,
-                    smith_protocol_channel::PieceKind::Input { id, tool } => Some(
-                        smith_channel::LiveCall::new(
-                            &smith_channel::CEILINGS,
-                            smith_channel::LiveCallParts { id: id.into(), tool: tool.into() },
-                        )
-                        .expect("valid input identity"),
-                    ),
-                },
-            })
-            .expect("piece bound");
-        self.remaining = self.remaining.saturating_sub(1);
-    }
-    fn lose(&mut self, bytes: u64) {
-        self.lost = self.lost.saturating_add(bytes);
-    }
-}
 fn ask(text: bool, reasoning: bool, input: bool) -> smith_channel::LiveAsk {
     smith_channel::LiveAsk::new(&smith_channel::CEILINGS, smith_channel::LiveAskParts { text, reasoning, input })
         .expect("ask")
@@ -83,27 +31,27 @@ fn ask(text: bool, reasoning: bool, input: bool) -> smith_channel::LiveAsk {
 fn stream(takes: bool) -> (Live, Room) {
     let mut live = Live::new(Some(ask(true, false, false)), standard().policy.live_interval);
     let mut room = Room::new(takes);
-    live.open(OWNER, 1, 0, &mut room);
+    room.act(&mut live, Action::Open { owner: OWNER, retry: 0 }, AT_ZERO);
     (live, room)
 }
 #[test]
 fn a_stream_past_the_held_bytes_drops_the_newest_and_counts_them() {
     let (mut live, mut room) = stream(false);
-    live.delta(OWNER, &[b'a'; LARGE_DELTA], AT_ZERO, &mut room);
-    live.delta(OWNER, &[b'b'; LARGE_DELTA], AT_ZERO, &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b'a'; LARGE_DELTA] }, AT_ZERO);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b'b'; LARGE_DELTA] }, AT_ZERO);
     assert_eq!(room.lost, 3616, "20,000 provider bytes minus the held bound");
     room.takes = true;
-    live.pump(AT_ZERO.saturating_add(standard().policy.live_interval), &mut room);
+    room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
     assert_eq!(room.offsets().as_slice(), [(0, 4096), (4096, 4096), (8192, 4096), (12_288, 4096)]);
-    live.delta(OWNER, b"c", AT_ZERO, &mut room);
-    live.pump(AT_ZERO.saturating_add(standard().policy.live_interval), &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"c" }, AT_ZERO);
+    room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
     assert_eq!(room.sent.last().expect("later piece").offset, 20_000, "the omitted suffix leaves a gap");
 }
 #[test]
 fn a_delta_past_the_piece_bound_goes_in_several_pieces() {
     let (mut live, mut room) = stream(true);
-    live.delta(OWNER, &[b'a'; LARGE_DELTA], AT_ZERO, &mut room);
-    live.pump(AT_ZERO.saturating_add(standard().policy.live_interval), &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b'a'; LARGE_DELTA] }, AT_ZERO);
+    room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
     assert_eq!(room.offsets().as_slice(), [(0, 4096), (4096, 4096), (8192, 1808)]);
     let mut joined = List::with_capacity(u32::try_from(LARGE_DELTA).expect("fixture bound"));
     for piece in &room.sent {
@@ -117,33 +65,33 @@ fn a_delta_past_the_piece_bound_goes_in_several_pieces() {
 fn ending_a_turn_settles_the_held_bytes_first() {
     for (takes, pieces, lost) in [(true, 1, 0), (false, 0, 4)] {
         let (mut live, mut room) = stream(false);
-        live.delta(OWNER, b"held", AT_ZERO, &mut room);
+        room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"held" }, AT_ZERO);
         room.takes = takes;
-        live.end(&mut room);
+        room.act(&mut live, Action::End { turn: 1 }, AT_ZERO);
         assert_eq!((room.sent.len(), room.lost), (pieces, lost), "room={takes}");
         room.takes = true;
-        live.pump(AT_ZERO.saturating_add(standard().policy.live_interval), &mut room);
+        room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
         assert_eq!(room.sent.len(), pieces, "no piece follows the ended turn");
     }
 }
 #[test]
 fn a_delta_after_its_turn_is_dropped_and_counted() {
     let (mut live, mut room) = stream(true);
-    live.end(&mut room);
-    live.delta(OWNER, b"late", AT_ZERO, &mut room);
+    room.act(&mut live, Action::End { turn: 1 }, AT_ZERO);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"late" }, AT_ZERO);
     assert_eq!((room.sent.len(), room.lost), (0, 4));
 }
 #[test]
 fn a_new_retry_starts_again_at_offset_zero() {
     let (mut live, mut room) = stream(true);
-    live.delta(OWNER, b"first", AT_ZERO, &mut room);
-    live.pump(AT_ZERO.saturating_add(standard().policy.live_interval), &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"first" }, AT_ZERO);
+    room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
     room.takes = false;
-    live.delta(OWNER, b"held", AT_ZERO, &mut room);
-    live.open(RETRY_OWNER, 1, 1, &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"held" }, AT_ZERO);
+    room.act(&mut live, Action::Open { owner: RETRY_OWNER, retry: 1 }, AT_ZERO);
     room.takes = true;
-    live.delta(RETRY_OWNER, b"again", AT_ZERO, &mut room);
-    live.pump(AT_ZERO.saturating_add(standard().policy.live_interval), &mut room);
+    room.act(&mut live, Action::Delta { owner: RETRY_OWNER, bytes: b"again" }, AT_ZERO);
+    room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
     let mut identities = List::with_capacity(room.sent.len());
     for piece in &room.sent {
         identities.push((piece.turn, piece.retry, piece.offset)).expect("sent identities");
@@ -183,10 +131,10 @@ fn only_the_main_ordinary_completion_is_wanted() {
 fn the_held_bound_keeps_the_prefix_and_drops_only_the_excess() {
     for (input, lost) in [(AT_BOUND.as_slice(), 0), (PAST_BOUND.as_slice(), 1)] {
         let (mut live, mut room) = stream(false);
-        live.delta(OWNER, input, AT_ZERO, &mut room);
+        room.act(&mut live, Action::Delta { owner: OWNER, bytes: input }, AT_ZERO);
         assert_eq!(room.lost, lost);
         room.takes = true;
-        live.pump(AT_ZERO.saturating_add(standard().policy.live_interval), &mut room);
+        room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
         let mut joined = List::with_capacity(super::HELD);
         for piece in &room.sent {
             for byte in &piece.bytes {
@@ -199,14 +147,14 @@ fn the_held_bound_keeps_the_prefix_and_drops_only_the_excess() {
 #[test]
 fn a_gap_survives_partial_draining_and_later_held_bytes() {
     let (mut live, mut room) = stream(false);
-    live.delta(OWNER, &[b'a'; LARGE_DELTA], AT_ZERO, &mut room);
-    live.delta(OWNER, &[b'b'; LARGE_DELTA], AT_ZERO, &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b'a'; LARGE_DELTA] }, AT_ZERO);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b'b'; LARGE_DELTA] }, AT_ZERO);
     room.takes = true;
     room.remaining = 1;
-    live.pump(AT_ZERO.saturating_add(standard().policy.live_interval), &mut room);
-    live.delta(OWNER, b"c", AT_ZERO, &mut room);
+    room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"c" }, AT_ZERO);
     room.remaining = u32::MAX;
-    live.pump(AT_ZERO.saturating_add(standard().policy.live_interval), &mut room);
+    room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
     assert_eq!(room.offsets().as_slice(), [(0, 4096), (4096, 4096), (8192, 4096), (12_288, 4096), (20_000, 1)]);
     assert_eq!(room.lost, 3616);
 }
@@ -214,12 +162,12 @@ fn a_gap_survives_partial_draining_and_later_held_bytes() {
 fn a_short_piece_goes_at_the_intervals_end() {
     let interval = standard().policy.live_interval;
     let (mut live, mut room) = stream(true);
-    live.delta(OWNER, b"Hel", AT_ZERO, &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"Hel" }, AT_ZERO);
     let end = AT_ZERO.saturating_add(interval);
-    live.pump(Time::from_nanos(end.as_nanos() - 1), &mut room);
+    room.act(&mut live, Action::Pump, Time::from_nanos(end.as_nanos() - 1));
     assert_eq!(room.sent.len(), 0, "held before the interval ends");
     assert_eq!(live.deadline(), Some(end));
-    live.pump(end, &mut room);
+    room.act(&mut live, Action::Pump, end);
     assert_eq!(room.payloads().as_slice(), [b"Hel"]);
     assert_eq!(live.deadline(), None);
 }
@@ -227,7 +175,7 @@ fn a_short_piece_goes_at_the_intervals_end() {
 #[test]
 fn a_piece_reaching_the_bound_goes_before_the_interval() {
     let (mut live, mut room) = stream(true);
-    live.delta(OWNER, &[b'a'; PIECE_BOUND], AT_ZERO, &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b'a'; PIECE_BOUND] }, AT_ZERO);
     assert_eq!(room.payloads().as_slice(), [[b'a'; PIECE_BOUND].as_slice()]);
     assert_eq!(live.deadline(), None);
 }
@@ -236,21 +184,21 @@ fn a_piece_reaching_the_bound_goes_before_the_interval() {
 fn draining_a_piece_retains_the_next_bytes_arrival_time() {
     let interval = standard().policy.live_interval;
     let (mut live, mut room) = stream(true);
-    live.delta(OWNER, &[b'a'; PIECE_BOUND - 1], AT_ZERO, &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b'a'; PIECE_BOUND - 1] }, AT_ZERO);
     let end = AT_ZERO.saturating_add(interval);
     let later = Time::from_nanos(end.as_nanos() - 1);
-    live.delta(OWNER, b"bc", later, &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"bc" }, later);
     assert_eq!(live.deadline(), Some(later.saturating_add(interval)));
 }
 #[test]
 fn unnamed_refused_and_earlier_calls_arguments_are_counted() {
     let (mut live, mut room) = stream(true);
-    live.arguments(OWNER, 0, b"unnamed", AT_ZERO, &mut room);
-    live.call(OWNER, 0, &[b'x'; 257], b"tool");
-    live.arguments(OWNER, 0, b"refused", AT_ZERO, &mut room);
-    live.call(OWNER, 1, b"first", b"tool");
-    live.call(OWNER, 2, b"second", b"tool");
-    live.arguments(OWNER, 1, b"earlier", AT_ZERO, &mut room);
+    room.act(&mut live, Action::Arguments { owner: OWNER, index: 0, bytes: b"unnamed" }, AT_ZERO);
+    room.act(&mut live, Action::Call { owner: OWNER, index: 0, id: &[b'x'; 257], tool: b"tool" }, AT_ZERO);
+    room.act(&mut live, Action::Arguments { owner: OWNER, index: 0, bytes: b"refused" }, AT_ZERO);
+    room.act(&mut live, Action::Call { owner: OWNER, index: 1, id: b"first", tool: b"tool" }, AT_ZERO);
+    room.act(&mut live, Action::Call { owner: OWNER, index: 2, id: b"second", tool: b"tool" }, AT_ZERO);
+    room.act(&mut live, Action::Arguments { owner: OWNER, index: 1, bytes: b"earlier" }, AT_ZERO);
     assert_eq!(room.lost, 21);
     assert!(room.sent.is_empty());
 }
@@ -258,14 +206,14 @@ fn unnamed_refused_and_earlier_calls_arguments_are_counted() {
 #[test]
 fn interleaved_text_and_input_keep_separate_offsets_and_identities() {
     let (mut live, mut room) = stream(true);
-    live.delta(OWNER, b"ab", AT_ZERO, &mut room);
-    live.call(OWNER, 0, b"first", b"tool");
-    live.arguments(OWNER, 0, b"12", AT_ZERO, &mut room);
-    live.delta(OWNER, b"cd", AT_ZERO, &mut room);
-    live.arguments(OWNER, 0, b"34", AT_ZERO, &mut room);
-    live.call(OWNER, 1, b"second", b"other");
-    live.arguments(OWNER, 1, b"56", AT_ZERO, &mut room);
-    live.end(&mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"ab" }, AT_ZERO);
+    room.act(&mut live, Action::Call { owner: OWNER, index: 0, id: b"first", tool: b"tool" }, AT_ZERO);
+    room.act(&mut live, Action::Arguments { owner: OWNER, index: 0, bytes: b"12" }, AT_ZERO);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: b"cd" }, AT_ZERO);
+    room.act(&mut live, Action::Arguments { owner: OWNER, index: 0, bytes: b"34" }, AT_ZERO);
+    room.act(&mut live, Action::Call { owner: OWNER, index: 1, id: b"second", tool: b"other" }, AT_ZERO);
+    room.act(&mut live, Action::Arguments { owner: OWNER, index: 1, bytes: b"56" }, AT_ZERO);
+    room.act(&mut live, Action::End { turn: 1 }, AT_ZERO);
     assert_eq!(room.offsets().as_slice(), [(0, 2), (0, 2), (2, 2), (2, 2), (0, 2)]);
     let mut calls = List::with_capacity(5);
     for piece in &room.sent {
@@ -284,16 +232,32 @@ fn interleaved_text_and_input_keep_separate_offsets_and_identities() {
 #[test]
 fn text_and_calls_share_the_held_bound() {
     let (mut live, mut room) = stream(false);
-    live.delta(OWNER, &[b't'; LARGE_DELTA], AT_ZERO, &mut room);
-    live.call(OWNER, 0, b"call", b"tool");
-    live.arguments(OWNER, 0, &[b'i'; LARGE_DELTA], AT_ZERO, &mut room);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b't'; LARGE_DELTA] }, AT_ZERO);
+    room.act(&mut live, Action::Call { owner: OWNER, index: 0, id: b"call", tool: b"tool" }, AT_ZERO);
+    room.act(&mut live, Action::Arguments { owner: OWNER, index: 0, bytes: &[b'i'; LARGE_DELTA] }, AT_ZERO);
     assert_eq!(room.lost, 3616);
     room.takes = true;
-    live.end(&mut room);
+    room.act(&mut live, Action::End { turn: 1 }, AT_ZERO);
     assert_eq!(room.lost, 3616);
     let mut bytes: usize = 0;
     for piece in &room.sent {
         bytes = bytes.checked_add(piece.bytes.len()).expect("held bound");
     }
     assert_eq!(bytes, HELD);
+}
+
+#[test]
+fn new_admission_releases_the_emitted_prefix() {
+    let (mut live, mut room) = stream(false);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &AT_BOUND }, AT_ZERO);
+    room.takes = true;
+    room.remaining = 1;
+    room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
+    room.takes = false;
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b'b'; PIECE_BOUND] }, AT_ZERO);
+    let mut retained = 0_usize;
+    for run in live.first.iter().chain(live.held.iter()) {
+        retained = retained.checked_add(run.bytes.len()).expect("held payload bound");
+    }
+    assert_eq!(retained, HELD, "emitted prefixes do not occupy the held payload allowance");
 }

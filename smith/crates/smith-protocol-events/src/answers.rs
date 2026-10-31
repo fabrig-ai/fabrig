@@ -5,10 +5,9 @@
 
 use skein_lib::{Duration, List};
 use smith_domain::run;
-use smith_events::{
-    AnswerClass, AnswerFailure, CompletionFailure, Evidence, FailureClass, Form, RunCompleted, RunResult, Status, Usage,
-};
+use smith_events::{AnswerClass, AnswerFailure, Form, RunCompleted, RunResult, Status, Usage};
 
+use crate::completion::from_run as completion;
 use crate::sinks::Capture;
 
 /// Parts of a run terminal supplied by the writer that meets its answer.
@@ -254,129 +253,6 @@ pub fn failure_record(why: run::Failure, now: skein_lib::Time) -> AnswerFailure 
             result.reason = Some(which.into());
             result
         }
-    }
-}
-
-fn completion(why: run::CompletionFailure, evidence: run::CompletionEvidence) -> CompletionFailure {
-    let (class, retry_after_ms) = match why {
-        run::CompletionFailure::Limit { .. } | run::CompletionFailure::ApplicationLimit => (FailureClass::Limit, None),
-        run::CompletionFailure::Protocol => (FailureClass::Protocol, None),
-        run::CompletionFailure::Cancelled => (FailureClass::Cancelled, None),
-        run::CompletionFailure::Overloaded => (FailureClass::Overloaded, None),
-        run::CompletionFailure::Unavailable => (FailureClass::Unavailable, None),
-        run::CompletionFailure::TimedOut { .. } => (FailureClass::TimedOut, None),
-        run::CompletionFailure::ContextTooLong => (FailureClass::ContextTooLong, None),
-        run::CompletionFailure::Unsupported => (FailureClass::Unsupported, None),
-        run::CompletionFailure::Invalid => (FailureClass::Invalid, None),
-        run::CompletionFailure::Refused => (FailureClass::Refused, None),
-        run::CompletionFailure::Unauthorized => (FailureClass::Unauthorized, None),
-        run::CompletionFailure::RateLimited { retry_after } => {
-            (FailureClass::RateLimited, Some(retry_after.as_millis()))
-        }
-        run::CompletionFailure::Exhausted { retry_after } => (
-            FailureClass::Exhausted,
-            match retry_after {
-                Some(reset) => Some(reset.as_millis()),
-                None => None,
-            },
-        ),
-    };
-    let status = match evidence {
-        run::CompletionEvidence::Unsent | run::CompletionEvidence::Unknown => None,
-        run::CompletionEvidence::Response { status } => match status {
-            Some(status) => Some(u64::from(status)),
-            None => None,
-        },
-    };
-    let phase = match why {
-        run::CompletionFailure::TimedOut { phase } => Some(match phase {
-            run::CompletionPhase::Connect => smith_events::FailurePhase::Connect,
-            run::CompletionPhase::Handshake => smith_events::FailurePhase::Handshake,
-            run::CompletionPhase::Head => smith_events::FailurePhase::Head,
-            run::CompletionPhase::Idle => smith_events::FailurePhase::Idle,
-            run::CompletionPhase::Whole => smith_events::FailurePhase::Whole,
-        }),
-        run::CompletionFailure::Limit { .. }
-        | run::CompletionFailure::ApplicationLimit
-        | run::CompletionFailure::Protocol
-        | run::CompletionFailure::Cancelled
-        | run::CompletionFailure::Overloaded
-        | run::CompletionFailure::Unavailable
-        | run::CompletionFailure::ContextTooLong
-        | run::CompletionFailure::Refused
-        | run::CompletionFailure::Unsupported
-        | run::CompletionFailure::Invalid
-        | run::CompletionFailure::Unauthorized
-        | run::CompletionFailure::RateLimited { .. }
-        | run::CompletionFailure::Exhausted { .. } => None,
-    };
-    let limit = match why {
-        run::CompletionFailure::Limit { which, bound } => {
-            Some(smith_events::FailureLimit { which: limit_name(which).into(), bound })
-        }
-        run::CompletionFailure::ApplicationLimit
-        | run::CompletionFailure::Protocol
-        | run::CompletionFailure::Cancelled
-        | run::CompletionFailure::Overloaded
-        | run::CompletionFailure::Unavailable
-        | run::CompletionFailure::TimedOut { .. }
-        | run::CompletionFailure::ContextTooLong
-        | run::CompletionFailure::Refused
-        | run::CompletionFailure::Unsupported
-        | run::CompletionFailure::Invalid
-        | run::CompletionFailure::Unauthorized
-        | run::CompletionFailure::RateLimited { .. }
-        | run::CompletionFailure::Exhausted { .. } => None,
-    };
-    let evidence = match evidence {
-        run::CompletionEvidence::Unsent => Evidence::Unsent,
-        run::CompletionEvidence::Unknown => Evidence::MaybeSent,
-        run::CompletionEvidence::Response { .. } => Evidence::Response,
-    };
-    CompletionFailure {
-        field: None,
-        code: None,
-        request_id: None,
-        class,
-        evidence,
-        retry_after_ms,
-        phase,
-        limit,
-        status,
-        detail: None,
-    }
-}
-
-fn limit_name(which: run::Limit) -> &'static [u8] {
-    match which {
-        run::Limit::Pool { .. } => b"pool",
-        run::Limit::History => b"history",
-        run::Limit::Window => b"window",
-        run::Limit::Call => b"call",
-        run::Limit::Message => b"message",
-        run::Limit::Path(which) => match which {
-            run::Cap::Request => b"request",
-            run::Cap::RequestHead => b"request_head",
-            run::Cap::ResponseHead => b"response_head",
-            run::Cap::ResponseFields => b"response_fields",
-            run::Cap::Skip => b"skip",
-            run::Cap::Field => b"field",
-            run::Cap::Retained => b"retained",
-            run::Cap::Tokens => b"tokens",
-            run::Cap::Depth => b"depth",
-            run::Cap::Strings => b"strings",
-            run::Cap::Number => b"number",
-            run::Cap::Reasoning => b"reasoning",
-            run::Cap::OutputItems => b"output_items",
-            run::Cap::Metadata => b"metadata",
-            run::Cap::Tools => b"tools",
-            run::Cap::HistoryItems => b"history_items",
-            run::Cap::Output => b"output",
-            run::Cap::Answer => b"answer",
-            run::Cap::ErrorBody => b"error_body",
-            run::Cap::AccessToken => b"access_token",
-            run::Cap::AccountId => b"account_id",
-        },
     }
 }
 

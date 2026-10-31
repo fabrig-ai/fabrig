@@ -63,8 +63,7 @@ fn authoritative_credit_uses_its_own_metadata_and_answer_bounds() {
     assert!(sinks.takes(), "two ordinary records and every authoritative record have separate reserved credit");
 }
 
-#[test]
-fn only_everything_captures_the_exact_accepted_report_text_and_fields() {
+fn accepted_report(capture: Capture) -> smith_events::RunCompleted {
     let seen = smith_domain::run::Answer::Accepted {
         outcome: smith_domain::run::outcome::Declared::Report(smith_domain::run::outcome::Report {
             text: b"Frozen task token: ALPHA.\n\"quoted\"".to_vec().into(),
@@ -81,58 +80,80 @@ fn only_everything_captures_the_exact_accepted_report_text_and_fields() {
         },
         turns: 2,
     };
-    for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-        let mut limits = limits(1);
-        limits.output =
-            largest_line(&limits.records, capture, limits.answer_bytes, limits.metadata_string).unwrap() * 6;
-        let token = Token::new(11);
-        let mut sinks = Sinks::new(&limits, capture, 7, DEADLINE);
-        sinks.add(Destination::Trace, token, Delivery::Complete).unwrap();
-        let answer = crate::answer_record(
-            crate::AnswerMeta {
-                now: Time::ZERO,
-                run: 7,
-                wind_down: true,
-                read: Some(31),
-                unread: 1,
-                elapsed: Duration::from_millis(29),
-            },
-            &seen,
-            capture,
-        );
-        sinks.record(&Record { t_ms: 37, event: Event::RunCompleted(answer) });
-        // The same policy grants the request's content in 02.6.
-        let request =
-            golden(include_bytes!("../../../smith-events/golden/v4/response_started_everything.jsonl"), &limits);
-        let Event::ResponseStarted(expected) = &request.event else { panic!("golden request") };
-        let expected = expected.prompt.clone();
+    let mut bounds = limits(1);
+    bounds.output = largest_line(&bounds.records, capture, bounds.answer_bytes, bounds.metadata_string)
+        .unwrap()
+        .checked_mul(6)
+        .unwrap();
+    let destination = Token::new(11);
+    let mut sinks = Sinks::new(&bounds, capture, 7, DEADLINE);
+    sinks.add(Destination::Trace, destination, Delivery::Complete).unwrap();
+    let answer = crate::answer_record(
+        crate::AnswerMeta {
+            now: Time::ZERO,
+            run: 7,
+            wind_down: true,
+            read: Some(31),
+            unread: 1,
+            elapsed: Duration::from_millis(29),
+        },
+        &seen,
+        capture,
+    );
+    sinks.record(&Record { t_ms: 37, event: Event::RunCompleted(answer) });
+    sinks.finish();
+    let records = drain(&mut sinks, destination);
+    let Event::RunCompleted(answer) = &records[0].event else { panic!("typed answer") };
+    answer.clone()
+}
+
+#[test]
+fn accepted_reports_keep_the_domain_accounting() {
+    let answer = accepted_report(Capture::None);
+    assert_eq!(answer.status, smith_events::Status::Accepted);
+    assert_eq!(
+        (answer.run, answer.turns, answer.spent, answer.read, answer.unread, answer.duration_ms),
+        (7, 2, 17, Some(31), 1, 29)
+    );
+    assert!(answer.wind_down);
+    assert_eq!(
+        (answer.usage.input_tokens, answer.usage.output_tokens, answer.usage.reasoning_tokens),
+        (Some(19), Some(23), None)
+    );
+}
+
+#[test]
+fn only_everything_captures_exact_report_content() {
+    let fields = [smith_events::Field { name: b"source".as_slice().into(), text: b"\nreport".as_slice().into() }];
+    for (capture, text, fields) in [
+        (Capture::None, None, None),
+        (Capture::Calls, None, None),
+        (Capture::Everything, Some(b"Frozen task token: ALPHA.\n\"quoted\"".as_slice()), Some(fields.as_slice())),
+    ] {
+        let answer = accepted_report(capture);
+        let result = answer.result.unwrap();
+        assert_eq!(result.form, smith_events::Form::Report);
+        assert_eq!(result.text.as_deref(), text);
+        assert_eq!(result.fields.as_ref().map(List::as_slice), fields);
+    }
+}
+
+#[test]
+fn only_everything_captures_the_request_prompt() {
+    let bounds = limits(1);
+    let request = golden(include_bytes!("../../../smith-events/golden/v4/response_started_everything.jsonl"), &bounds);
+    let Event::ResponseStarted(expected) = &request.event else { panic!("golden request") };
+    for (capture, prompt) in
+        [(Capture::None, None), (Capture::Calls, None), (Capture::Everything, expected.prompt.clone())]
+    {
+        let destination = Token::new(11);
+        let mut sinks = Sinks::new(&bounds, capture, bounds.output, DEADLINE);
+        sinks.add(Destination::Trace, destination, Delivery::Complete).unwrap();
         sinks.record(&request);
         sinks.finish();
-        let records = drain(&mut sinks, token);
-        let Event::RunCompleted(answer) = &records[0].event else { panic!("typed answer") };
-        assert_eq!(answer.status, smith_events::Status::Accepted);
-        assert_eq!(
-            (answer.run, answer.turns, answer.spent, answer.read, answer.unread, answer.duration_ms),
-            (7, 2, 17, Some(31), 1, 29)
-        );
-        assert!(answer.wind_down);
-        assert_eq!(answer.usage.input_tokens, Some(19));
-        assert_eq!(answer.usage.output_tokens, Some(23));
-        assert_eq!(answer.usage.reasoning_tokens, None);
-        let result = answer.result.as_ref().unwrap();
-        assert_eq!(result.form, smith_events::Form::Report);
-        if capture == Capture::Everything {
-            assert_eq!(result.text.as_deref(), Some(b"Frozen task token: ALPHA.\n\"quoted\"".as_slice()));
-            assert_eq!(
-                result.fields.as_ref().unwrap().as_slice(),
-                &[smith_events::Field { name: b"source".to_vec().into(), text: b"\nreport".to_vec().into() }]
-            );
-        } else {
-            assert_eq!(result.text, None);
-            assert_eq!(result.fields, None);
-        }
-        let Event::ResponseStarted(request) = &records[1].event else { panic!("typed request") };
-        assert_eq!(request.prompt, if capture == Capture::Everything { expected } else { None });
+        let records = drain(&mut sinks, destination);
+        let Event::ResponseStarted(request) = &records[0].event else { panic!("typed request") };
+        assert_eq!(request.prompt, prompt);
     }
 }
 
@@ -182,21 +203,23 @@ fn settled_end_preserves_read_or_unread_resources_and_the_seen_exit() {
             peak_rss_bytes: 6,
         },
     };
-    for usage in [io::Measured::Read(measured), io::Measured::Unread] {
-        for exit in [0, 1] {
+    for (usage, cpu, peak_rss) in [
+        (
+            io::Measured::Read(measured),
+            Some(smith_events::Cpu { user: 1, system: 2, children_user: 3, children_system: 4 }),
+            Some(smith_events::PeakRss { self_bytes: 5, children: 6 }),
+        ),
+        (io::Measured::Unread, None, None),
+    ] {
+        for (exit, answered, teardown, teardown_ms) in
+            [(0, true, Some(Duration::from_millis(3)), Some(3)), (1, false, None, None)]
+        {
             let limits = limits(1);
             let token = Token::new(11);
             let mut sinks = Sinks::new(&limits, Capture::None, limits.output, DEADLINE);
             sinks.add(Destination::Trace, token, Delivery::Complete).unwrap();
             sinks.record(&counted(1));
-            let ended = Ended {
-                exit,
-                answered: exit == 0,
-                aborted: false,
-                teardown: if exit == 0 { Some(Duration::from_nanos(3_000_000)) } else { None },
-                usage,
-                channel: Some(7),
-            };
+            let ended = Ended { exit, answered, aborted: false, teardown, usage, channel: Some(7) };
             sinks.ended(Time::from_nanos(12_000_000), Time::from_nanos(2_000_000), &ended);
             let records = drain(&mut sinks, token);
             assert!(sinks.closed());
@@ -205,24 +228,13 @@ fn settled_end_preserves_read_or_unread_resources_and_the_seen_exit() {
             assert_eq!(last.t_ms, 10);
             let Event::SessionEnded(end) = &last.event else { panic!("one final process end") };
             assert_eq!(end.exit, i64::from(exit));
-            assert_eq!(end.answered, exit == 0);
-            assert_eq!(end.teardown_ms, if exit == 0 { Some(3) } else { None });
+            assert_eq!(end.answered, answered);
+            assert_eq!(end.teardown_ms, teardown_ms);
             assert_eq!(end.loss, smith_events::Loss { events: 0, channel: Some(7) });
             assert_eq!(end.emitted.iter().map(|entry| entry.count).sum::<u64>(), 2);
             assert_eq!(end.emitted.iter().find(|entry| entry.record.as_ref() == b"session.ended").unwrap().count, 1);
-            match usage {
-                io::Measured::Read(_) => {
-                    assert_eq!(
-                        end.cpu_ms,
-                        Some(smith_events::Cpu { user: 1, system: 2, children_user: 3, children_system: 4 })
-                    );
-                    assert_eq!(end.peak_rss_bytes, Some(smith_events::PeakRss { self_bytes: 5, children: 6 }));
-                }
-                io::Measured::Unread => {
-                    assert_eq!(end.cpu_ms, None);
-                    assert_eq!(end.peak_rss_bytes, None);
-                }
-            }
+            assert_eq!(end.cpu_ms, cpu);
+            assert_eq!(end.peak_rss_bytes, peak_rss);
         }
     }
 }

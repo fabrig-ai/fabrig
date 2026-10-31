@@ -15,6 +15,7 @@
 
 mod retry;
 
+pub(crate) use crate::completion::from_llm as completion_failure;
 use alloc::boxed::Box;
 
 use skein_lib::{List, Map, Time, Token};
@@ -887,137 +888,6 @@ fn stop_kind(stop: llm::Stop) -> Stop {
         llm::Stop::ToolUse => Stop::Tools,
         llm::Stop::MaxTokens => Stop::MaxTokens,
         llm::Stop::Refusal => Stop::Refusal,
-    }
-}
-
-pub(crate) fn completion_failure(failure: llm::Failure, evidence: llm::Evidence) -> CompletionFailure {
-    let (class, retry_after_ms) = match failure {
-        llm::Failure::Limit { .. } | llm::Failure::ApplicationLimit => (smith_events::FailureClass::Limit, None),
-        llm::Failure::Protocol => (smith_events::FailureClass::Protocol, None),
-        llm::Failure::Cancelled => (smith_events::FailureClass::Cancelled, None),
-        llm::Failure::Overloaded => (smith_events::FailureClass::Overloaded, None),
-        llm::Failure::Unavailable => (smith_events::FailureClass::Unavailable, None),
-        llm::Failure::TimedOut { .. } => (smith_events::FailureClass::TimedOut, None),
-        llm::Failure::ContextTooLong => (smith_events::FailureClass::ContextTooLong, None),
-        llm::Failure::Refused => (smith_events::FailureClass::Refused, None),
-        llm::Failure::Unsupported => (smith_events::FailureClass::Unsupported, None),
-        llm::Failure::Invalid | llm::Failure::Program { .. } | llm::Failure::SessionGone => {
-            (smith_events::FailureClass::Invalid, None)
-        }
-        llm::Failure::SignedOut | llm::Failure::Unauthorized => (smith_events::FailureClass::Unauthorized, None),
-        llm::Failure::RateLimited { retry_after } => {
-            (smith_events::FailureClass::RateLimited, Some(retry_after.as_millis()))
-        }
-        llm::Failure::Exhausted { retry_after } => (
-            smith_events::FailureClass::Exhausted,
-            match retry_after {
-                Some(reset) => Some(reset.as_millis()),
-                None => None,
-            },
-        ),
-    };
-    let status = match evidence {
-        llm::Evidence::Unsent | llm::Evidence::Unknown => None,
-        llm::Evidence::Response { status } => match status {
-            Some(status) => Some(u64::from(status)),
-            None => None,
-        },
-    };
-    let evidence = match evidence {
-        llm::Evidence::Unsent => smith_events::Evidence::Unsent,
-        llm::Evidence::Unknown => smith_events::Evidence::MaybeSent,
-        llm::Evidence::Response { .. } => smith_events::Evidence::Response,
-    };
-    let phase = match failure {
-        llm::Failure::TimedOut { phase } => Some(match phase {
-            llm::CompletionPhase::Connect => smith_events::FailurePhase::Connect,
-            llm::CompletionPhase::Handshake => smith_events::FailurePhase::Handshake,
-            llm::CompletionPhase::Head => smith_events::FailurePhase::Head,
-            llm::CompletionPhase::Idle => smith_events::FailurePhase::Idle,
-            llm::CompletionPhase::Whole => smith_events::FailurePhase::Whole,
-        }),
-        llm::Failure::Limit { .. }
-        | llm::Failure::ApplicationLimit
-        | llm::Failure::Protocol
-        | llm::Failure::Cancelled
-        | llm::Failure::Overloaded
-        | llm::Failure::Unavailable
-        | llm::Failure::ContextTooLong
-        | llm::Failure::Refused
-        | llm::Failure::Program { .. }
-        | llm::Failure::SessionGone
-        | llm::Failure::SignedOut
-        | llm::Failure::Unsupported
-        | llm::Failure::Invalid
-        | llm::Failure::Unauthorized
-        | llm::Failure::RateLimited { .. }
-        | llm::Failure::Exhausted { .. } => None,
-    };
-    let limit = match failure {
-        llm::Failure::Limit { which, bound } => {
-            Some(smith_events::FailureLimit { which: limit_name(which).into(), bound })
-        }
-        llm::Failure::ApplicationLimit
-        | llm::Failure::Protocol
-        | llm::Failure::Cancelled
-        | llm::Failure::Overloaded
-        | llm::Failure::Unavailable
-        | llm::Failure::TimedOut { .. }
-        | llm::Failure::ContextTooLong
-        | llm::Failure::Refused
-        | llm::Failure::Program { .. }
-        | llm::Failure::SessionGone
-        | llm::Failure::SignedOut
-        | llm::Failure::Unsupported
-        | llm::Failure::Invalid
-        | llm::Failure::Unauthorized
-        | llm::Failure::RateLimited { .. }
-        | llm::Failure::Exhausted { .. } => None,
-    };
-    CompletionFailure {
-        field: None,
-        code: None,
-        request_id: None,
-        class,
-        evidence,
-        retry_after_ms,
-        phase,
-        limit,
-        status,
-        detail: None,
-    }
-}
-
-fn limit_name(which: llm::Limit) -> &'static [u8] {
-    match which {
-        llm::Limit::Pool { .. } => b"pool",
-        llm::Limit::History => b"history",
-        llm::Limit::Window => b"window",
-        llm::Limit::Call => b"call",
-        llm::Limit::Message => b"message",
-        llm::Limit::Path(which) => match which {
-            llm::Cap::Request => b"request",
-            llm::Cap::RequestHead => b"request_head",
-            llm::Cap::ResponseHead => b"response_head",
-            llm::Cap::ResponseFields => b"response_fields",
-            llm::Cap::Skip => b"skip",
-            llm::Cap::Field => b"field",
-            llm::Cap::Retained => b"retained",
-            llm::Cap::Tokens => b"tokens",
-            llm::Cap::Depth => b"depth",
-            llm::Cap::Strings => b"strings",
-            llm::Cap::Number => b"number",
-            llm::Cap::Reasoning => b"reasoning",
-            llm::Cap::OutputItems => b"output_items",
-            llm::Cap::Metadata => b"metadata",
-            llm::Cap::Tools => b"tools",
-            llm::Cap::HistoryItems => b"history_items",
-            llm::Cap::Output => b"output",
-            llm::Cap::Answer => b"answer",
-            llm::Cap::ErrorBody => b"error_body",
-            llm::Cap::AccessToken => b"access_token",
-            llm::Cap::AccountId => b"account_id",
-        },
     }
 }
 
