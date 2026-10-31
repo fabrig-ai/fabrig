@@ -105,7 +105,8 @@ graceful close's, or a retry's), and `down` one request. io's stage in
 the up pass is `resume` until the ready list is empty, then `up` for
 each completion, then `fire` while a deadline is due; the loop hands io
 no completion while the ready list holds something, so what the down
-pass made is told first. Requests to the kernel go out as `Submit`
+pass made is told first. Both stages are written once, as
+`skein_io::stage` (2.1). Requests to the kernel go out as `Submit`
 records into the queue the loop hands the kernel. The kernel's
 submission and completion queues stay capped, with
 `MAX_OUT_DOWN`/`MAX_OUT_UP` and `takes` keeping their room checks
@@ -164,6 +165,45 @@ room there. New external work waits at the root's watermark
   than `Limits::largest_room` (the output cap). A demand past either
   could never be met, and io asserts it, as lib's intake does (lib.md,
   7). A read of what has arrived is met whatever its maximum.
+
+### 2.1 io's stage
+
+A loop calls io once in each pass, through two free functions over io,
+its environment and the loop's queues:
+
+```rust
+// skein_io::stage
+pub fn up(io: &mut Io, env: &Env<Limits>, completions: &mut Queue<Complete>,
+          events: &mut Queue<Event>, subs: &mut Queue<Submit>);
+pub fn down(io: &mut Io, env: &Env<Limits>, requests: &mut Queue<Request>,
+            subs: &mut Queue<Submit>);
+```
+
+- **`up` is the ready list, then the completions, then the deadlines.**
+  `resume` while io is ready, at most once for each entity and each
+  refusal held (`Limits::sockets` plus `Limits::refusals` calls): an
+  entity readied while the stage runs waits for the next stage. Then,
+  only once the ready list is empty, `up` for each completion the queue
+  held when the stage began. Then, only once every completion is taken,
+  `fire` while a deadline is due at `env.now`, at most two per entity (a
+  close's and a retry's), so that progress that came wins over a deadline
+  that passed while the loop waited (programming-model.md, 9).
+- **`down` is the requests, oldest first:** each request the queue held
+  when the stage began, while io takes one (`Io::takes`: it can hold a
+  refusal).
+- **Room before each call.** Each call waits for room in `subs` for the
+  most its entry point submits: `MAX_OUT_RESUME`, `MAX_OUT_UP`,
+  `MAX_OUT_FIRE` or `MAX_OUT_DOWN` (programming-model.md, section 2).
+  What does not fit stays where it was, on the ready list, in its queue
+  or in io's deadline table, for the next iteration's stage, and no later
+  step of `up` runs past an earlier one that waits.
+- **The time is `env.now`,** the one the stage hands every entry point,
+  so a deadline is judged due at the instant `fire` fires it.
+- **The entry points alone.** A loop that must see each call calls the
+  entry points itself, in the same order and with the same room checks:
+  a test of io that checks each call's `MAX_OUT` or meters its memory, a
+  harness that plays the kernel one operation at a time, or a host whose
+  completion queue also carries operations that are not io's.
 
 ## 3. Sockets and pipes
 
