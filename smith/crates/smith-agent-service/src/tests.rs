@@ -35,52 +35,7 @@ fn every_settled_check_exit_preserves_its_kind_and_only_zero_passes() {
 
 pub(crate) use crate::fixture::declarations;
 
-pub(crate) fn priced_charter() -> smith_domain::run::Charter {
-    use skein_lib::Duration;
-    use smith_domain::run;
-    run::Charter {
-        mode: run::Mode::Finite,
-        reserve: run::charter::Reserve { turns: 0, time: Duration::ZERO },
-        instructions: Box::default(),
-        brief: run::Brief {
-            sections: Box::new([run::Section { title: Box::default(), text: b"Review the change.".as_slice().into() }]),
-        },
-        conventions: None,
-        resume: false,
-        waiting: Duration::from_secs(300),
-        grants: run::charter::Grants {
-            wait: true,
-            deliver: None,
-            agents: false,
-            host_tools: Box::default(),
-            tools: run::charter::Tools { inspect: false, modify: false, shell: false },
-        },
-        outcome: run::outcome::OutcomeSpec {
-            change: None,
-            verdicts: Box::default(),
-            failure: None,
-            report: Some(run::outcome::TextSpec { max: 4096, fields: Box::default() }),
-        },
-        budget: run::Budget { turns: 512, spend: 25_000_000, time: Duration::from_secs(3600) },
-        llm: run::charter::Llm {
-            effort: None,
-            prices: run::Prices {
-                input: 1_250_000,
-                cached: 125_000,
-                cache_write: None,
-                output: 10_000_000,
-                unit: 1_000_000,
-            },
-            account: Some(0),
-            endpoint: run::charter::Endpoint(1),
-            model: b"gpt-5".as_slice().into(),
-            window: 2_097_152,
-            output: 65_536,
-            dialect: 1,
-        },
-        models: Box::default(),
-    }
-}
+pub(crate) use smith_protocol_events::fixture::priced_charter;
 
 #[test]
 fn standard_profile_admits_the_priced_shell_run_defaults() {

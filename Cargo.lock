@@ -3164,7 +3164,6 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
- "skein-llm-world",
  "skein-tls",
  "smith-agent-service",
  "smith-agent-world",
@@ -3653,11 +3652,9 @@ dependencies = [
 name = "smith-protocol-events"
 version = "0.0.0"
 dependencies = [
- "serde_json",
  "skein-heap",
  "skein-io",
  "skein-lib",
- "skein-llm",
  "smith-agent-world",
  "smith-domain",
  "smith-events",

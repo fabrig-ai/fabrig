@@ -12,7 +12,6 @@ fixture = []
 [dependencies]
 skein-lib.workspace = true
 skein-io.workspace = true
-skein-llm.workspace = true
 smith-domain.workspace = true
 smith-events.workspace = true
 smith-protocol-channel.workspace = true
@@ -20,7 +19,6 @@ smith-protocol-llm.workspace = true
 
 [dev-dependencies]
 skein-heap.workspace = true
-serde_json = "1.0"
 smith-agent-world.workspace = true
 
 [lints]

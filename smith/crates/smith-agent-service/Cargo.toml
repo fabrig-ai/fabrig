@@ -34,7 +34,6 @@ smith-protocol-events = { workspace = true, features = ["fixture"] }
 serde_json = "1.0"
 skein-heap.workspace = true
 smith-agent-world.workspace = true
-skein-llm-world.workspace = true
 
 [lints]
 workspace = true

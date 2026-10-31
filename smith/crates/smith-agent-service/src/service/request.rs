@@ -5,7 +5,7 @@
 use super::up::live_step;
 use super::{Failure, Service, program, teardown};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Time, Token};
+use skein_lib::{Duration, Time};
 use smith_domain as domain;
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
