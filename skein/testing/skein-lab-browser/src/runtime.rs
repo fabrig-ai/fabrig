@@ -406,25 +406,21 @@ impl Runtime {
             let (host, complete) = self.ring.complete(complete);
             self.ring.returned(host, complete);
         }
+        // A spawn's pid is read once, as its completion arrives.
+        let held = self.complete.len();
         self.ring.deliver(0, &mut self.complete);
+        for complete in self.complete.iter().skip(usize::try_from(held).expect("queue length fits usize")) {
+            if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
+                self.pid = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0);
+            }
+        }
         let mut roots = Queue::with_capacity(1);
         self.ring.deliver(1, &mut roots);
         if let Some(complete) = roots.pop() {
             complete.result.map_err(|e| format!("root close: {e:?}"))?;
             self.root_closed = true;
         }
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
-        while let Some(complete) = self.complete.pop() {
-            if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
-                self.pid = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0);
-            }
-            io::up(&mut self.io, &self.ienv, complete, &mut self.io_events, &mut self.submits);
-        }
-        while self.io.is_due(time.now) {
-            io::fire(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
+        io::stage::up(&mut self.io, &self.ienv, &mut self.complete, &mut self.io_events, &mut self.submits, time.now);
         while let Some(event) = self.io_events.pop() {
             self.io_event(event)?;
         }
@@ -466,6 +462,7 @@ impl Runtime {
         self.io.reclaim();
         self.browser.reclaim();
         let pending = self.io.is_ready()
+            || !self.complete.is_empty()
             || !self.requests.is_empty()
             || !self.answers.is_empty()
             || !self.input_events.is_empty()
