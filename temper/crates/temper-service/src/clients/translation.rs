@@ -96,6 +96,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::ProcedureStep { .. }
         | core::Event::Brief(..)
         | core::Event::Holdings { .. }
+        | core::Event::ProjectReleased { .. }
         | core::Event::Account(..)
         | core::Event::View(..)
         | core::Event::Notes(..)

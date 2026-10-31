@@ -134,6 +134,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Requests> {
         | Event::DelegateHoldings { .. }
         | Event::Brief(_)
         | Event::Holdings { .. }
+        | Event::ProjectReleased { .. }
         | Event::Account(_)
         | Event::View(_)
         | Event::Notes(_)

@@ -553,6 +553,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::ProcedureStep { .. }
         | core::Event::Brief(_)
         | core::Event::Holdings { .. }
+        | core::Event::ProjectReleased { .. }
         | core::Event::Account(_)
         | core::Event::View(_)
         | core::Event::Notes(_) => None,

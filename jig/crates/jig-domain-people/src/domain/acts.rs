@@ -30,6 +30,8 @@ impl Acted {
 
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
+        // This build does not offer project deletion (temper/docs/design/draft/playground-reset.md, 5).
+        Act::RemoveProject { .. } => return Err(Refusal::NotOffered),
         Act::Close { task, reason, .. } => {
             if *task == 0 {
                 return Err(Refusal::Unknown);
@@ -55,6 +57,7 @@ pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
 fn kind(act: &Act) -> ActKind {
     match act {
         Act::MakeProject { .. } => ActKind::MakeProject,
+        Act::RemoveProject { .. } => ActKind::RemoveProject,
         Act::Close { .. } => ActKind::Close,
         Act::AddKey { .. } => ActKind::AddKey,
         Act::RemoveAccount { .. } => ActKind::RemoveAccount,
@@ -222,6 +225,7 @@ fn permanent(outcome: &Outcome) -> bool {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
@@ -254,11 +258,57 @@ fn permanent(outcome: &Outcome) -> bool {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive deployment act and outcome shape table")]
 pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bool {
     if let Outcome::Refused(_) = outcome {
         return true;
     }
     match act {
+        Act::RemoveProject { project } => match outcome {
+            Outcome::ProjectRemoved { project: answered } => answered == project,
+            Outcome::Compound { .. }
+            | Outcome::CompoundRefused { .. }
+            | Outcome::Again(_)
+            | Outcome::SignedOut
+            | Outcome::MarkedSeen { .. }
+            | Outcome::Applied { .. }
+            | Outcome::NoteEdited { .. }
+            | Outcome::ServiceMade { .. }
+            | Outcome::Adopted { .. }
+            | Outcome::RolesSet { .. }
+            | Outcome::PolicyChanged { .. }
+            | Outcome::Renamed { .. }
+            | Outcome::ProjectMade { .. }
+            | Outcome::SettingsChanged { .. }
+            | Outcome::MovedToNewest { .. }
+            | Outcome::PoolSet { .. }
+            | Outcome::Said { .. }
+            | Outcome::QuestionAnswered { .. }
+            | Outcome::Amended { .. }
+            | Outcome::Moved { .. }
+            | Outcome::Stopped { .. }
+            | Outcome::Cancelled { .. }
+            | Outcome::Lifted { .. }
+            | Outcome::Released { .. }
+            | Outcome::Created { .. }
+            | Outcome::Proposed { .. }
+            | Outcome::Withdrawn { .. }
+            | Outcome::PersonTaken { .. }
+            | Outcome::PersonHandedBack { .. }
+            | Outcome::PersonAnswered { .. }
+            | Outcome::EscalationDecided { .. }
+            | Outcome::ProposalDecided { .. }
+            | Outcome::AccountSignInStarted { .. }
+            | Outcome::AccountProgramDeclared { .. }
+            | Outcome::AccountKeyKept { .. }
+            | Outcome::AccountMovingOut { .. }
+            | Outcome::AccountFinishing { .. }
+            | Outcome::AccountMovedIn { .. }
+            | Outcome::AccountChanged
+            | Outcome::AccountRemoved { .. }
+            | Outcome::AccountSignedOut { .. }
+            | Outcome::Refused(_) => false,
+        },
         Act::Close { project, .. } => match outcome {
             Outcome::Compound { project: answered, operations, first_message } => {
                 answered == project && *operations != 0 && *operations <= limits.operations && *first_message != 0
@@ -275,6 +325,7 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
             | Outcome::PolicyChanged { .. }
             | Outcome::Renamed { .. }
             | Outcome::ProjectMade { .. }
+            | Outcome::ProjectRemoved { .. }
             | Outcome::SettingsChanged { .. }
             | Outcome::MovedToNewest { .. }
             | Outcome::PoolSet { .. }
