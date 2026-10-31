@@ -96,13 +96,7 @@ impl Face {
 
     pub fn down(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits.io };
-        for _ in 0..self.limits.queue {
-            if self.submissions.room() < 2 || !self.io.takes() {
-                break;
-            }
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
 
