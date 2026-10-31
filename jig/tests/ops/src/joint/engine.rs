@@ -178,7 +178,7 @@ impl Application for OpsApplication {
         let mut conformance = Ops::peers(config, seed);
         // Interactive navigation and the post-action health wait outlive the
         // inline scenario's 2,000 iterations; keep their joint allowance finite.
-        conformance.policy.story_steps = 20_000;
+        conformance.observer.referee.policy.story_steps = 20_000;
         Peers {
             conformance,
             packets: Vec::new(),
