@@ -1,0 +1,4 @@
+== jig == 
+Replace permission mappings:
+  Replace permission mappings
+  Connector 65535 permission 65535 maps to role 4294967295

@@ -4,16 +4,14 @@
     reason = "ordinary proofs query checked source trees and select public action requests"
 )]
 use crate::tests::fixtures::Fixture;
+use crate::tests::kit::Goldens;
 use crate::words::Words;
 use crate::{JigBindings, tree::fragments::proposal as view};
-use skein_ui::phrases::{Hole, PhraseLimits, Phrasebook, Segment, SpanUnit, WallFormat};
+use skein_ui::phrases::{Hole, PhraseLimits, Phrasebook, SpanUnit, WallFormat};
 use skein_ui::{Builder, Tree};
 
 use jig_client::contract::*;
-use skein_lib::{
-    List, Wall,
-    bytes::{copy_of, find},
-};
+use skein_lib::{List, Wall, bytes::copy_of};
 fn doc(bytes: &[u8], cut: bool) -> DocumentText {
     DocumentText { bytes: Text::new(copy_of(bytes), 32).unwrap(), cut }
 }
@@ -124,16 +122,7 @@ fn words(selected: bool) -> Words {
     first.wall = WallFormat::Nanos;
     first.span_unit = SpanUnit::Nanos;
     let languages: Box<[skein_ui::phrases::Language]> = if selected {
-        let mut second = first.clone();
-        for p in &mut second.phrases {
-            for f in &mut p.forms {
-                for s in &mut f.segments {
-                    if let Segment::Text(bytes) = s {
-                        *bytes = copy_of(b"second ");
-                    }
-                }
-            }
-        }
+        let second = crate::tests::kit::translated_language(b"second ");
         Box::new([first, second])
     } else {
         Box::new([first])
@@ -156,12 +145,10 @@ fn words(selected: bool) -> Words {
         0,
     )
 }
-fn capacity(f: skein_ui::Limits) -> skein_ui::Limits {
-    f
-}
+
 fn build(value: &OwnerProposal, w: &Words) -> (Tree, JigBindings) {
     let f = crate::tests::render_limits(&limits(), w).unwrap();
-    let mut b = Builder::new(&capacity(f));
+    let mut b = Builder::new(&f);
     let mut bindings = JigBindings::new(f.bindings, 256);
     let client = Fixture::new(&limits());
     view::render(&mut b, &client.view(), value, w, &mut bindings);
@@ -179,9 +166,7 @@ fn build(value: &OwnerProposal, w: &Words) -> (Tree, JigBindings) {
     assert!(total <= u64::from(f.text_bytes));
     (tree, bindings)
 }
-fn has(tree: &Tree, bytes: &[u8]) -> bool {
-    tree.nodes().iter().any(|n| n.text.iter().any(|r| find(&r.text, bytes).is_some()))
-}
+
 fn batch() -> List<ProposedTask> {
     let mut tasks = List::with_capacity(3);
     for n in 0..3 {
@@ -212,55 +197,41 @@ fn batch() -> List<ProposedTask> {
 }
 #[test]
 fn owner_proposal_five_whole_actions_keep_effect_coordinates_release_hold_links_and_unscoped_outbox() {
+    let mut goldens = Goldens::new("tree/fragments/proposal/owner_proposal_five");
     let w = words(false);
     let task = OwnerTaskLink::Stored { number: u64::MAX, status: None };
     let cases = [
-        (OwnerProposalAction::Batch(batch()), b"Proposed batch".as_slice()),
-        (
-            OwnerProposalAction::Effect {
-                part: part(),
-                authority: authority(),
-                attempt: u64::MAX,
-                completion: u32::MAX,
-                position: u32::MAX,
-                purpose: u64::MAX,
-            },
-            b"Proposed effect",
-        ),
-        (
-            OwnerProposalAction::ProcedureEffect {
-                part: part(),
-                authority: authority(),
-                step: u64::MAX,
-                purpose: u64::MAX,
-            },
-            b"Proposed effect",
-        ),
-        (
-            OwnerProposalAction::Amend {
-                task: task.clone(),
-                addressed: None,
-                before: Box::new(state(b"before context", true)),
-                after: Box::new(state(b"after context", false)),
-                reason: doc(b"why amend", true),
-                release: None,
-            },
-            b"Proposed amendment",
-        ),
-        (
-            OwnerProposalAction::Widen { task: task.clone(), before: authority(), after: authority() },
-            b"Proposed authority widening",
-        ),
-        (OwnerProposalAction::Release { task, hold: Some(Box::new(hold())) }, b"Proposed release"),
+        OwnerProposalAction::Batch(batch()),
+        OwnerProposalAction::Effect {
+            part: part(),
+            authority: authority(),
+            attempt: u64::MAX,
+            completion: u32::MAX,
+            position: u32::MAX,
+            purpose: u64::MAX,
+        },
+        OwnerProposalAction::ProcedureEffect {
+            part: part(),
+            authority: authority(),
+            step: u64::MAX,
+            purpose: u64::MAX,
+        },
+        OwnerProposalAction::Amend {
+            task: task.clone(),
+            addressed: None,
+            before: Box::new(state(b"before context", true)),
+            after: Box::new(state(b"after context", false)),
+            reason: doc(b"why amend", true),
+            release: None,
+        },
+        OwnerProposalAction::Widen { task: task.clone(), before: authority(), after: authority() },
+        OwnerProposalAction::Release { task, hold: Some(Box::new(hold())) },
     ];
-    for (action, caption) in cases {
+    for action in cases {
         let v = source(action);
         let original = v.clone();
         let (tree, bindings) = build(&v, &w);
-        assert!(has(&tree, caption));
-        assert!(has(&tree, b"Proposal number: 18446744073709551615"));
-        assert!(has(&tree, b"Proposal project: 4294967295"));
-        assert!(has(&tree, b"whole proposal reason"));
+        goldens.check(&tree);
         for node in tree.nodes() {
             if let Some(slot) = node.slot
                 && let Some(raw) = bindings.owner_part(slot.token)
@@ -271,27 +242,12 @@ fn owner_proposal_five_whole_actions_keep_effect_coordinates_release_hold_links_
             }
         }
         match &v.action {
-            OwnerProposalAction::Effect { .. } => {
-                assert!(has(&tree, b"Effect attempt: 18446744073709551615"));
-                assert!(has(&tree, b"Effect completion: 4294967295"));
-                assert!(has(&tree, b"Effect position: 4294967295"));
-                assert!(has(&tree, b"Effect purpose: 18446744073709551615"));
+            OwnerProposalAction::Effect { .. } | OwnerProposalAction::ProcedureEffect { .. } => {
+                goldens.check(&tree);
                 assert_eq!(v.funding.len(), 0);
-                assert!(!has(&tree, b"Funding needed: 0"));
-            }
-            OwnerProposalAction::ProcedureEffect { .. } => {
-                assert!(has(&tree, b"Procedure step: 18446744073709551615"));
-                assert!(has(&tree, b"Effect purpose: 18446744073709551615"));
-                assert!(!has(&tree, b"Effect attempt:"));
-                assert!(!has(&tree, b"Effect completion:"));
-                assert!(!has(&tree, b"Effect position:"));
-                assert_eq!(v.funding.len(), 0);
-                assert!(!has(&tree, b"Funding needed: 0"));
             }
             OwnerProposalAction::Release { .. } => {
-                assert!(has(&tree, b"Hold revision: 18446744073709551615"));
-                assert!(has(&tree, b"hold explanation"));
-                assert!(has(&tree, b"Prior stage running attempt: 17"));
+                goldens.check(&tree);
             }
             _ => {}
         }
@@ -300,18 +256,20 @@ fn owner_proposal_five_whole_actions_keep_effect_coordinates_release_hold_links_
 }
 #[test]
 fn owner_proposal_amendment_contexts_address_and_release_presence_never_join_a_current_task() {
-    amendment_contexts(None);
+    let mut goldens = Goldens::new("tree/fragments/proposal/owner_proposal_amendment");
+    amendment_contexts(None, &mut goldens);
 }
 
 #[test]
 fn owner_proposal_addressed_amendment_contexts_and_release_presence_never_join_a_current_task() {
-    amendment_contexts(Some(AddressChange {
-        revision: Revision { value: u64::MAX },
-        address: PersonAddress::Party(u64::MAX),
-    }));
+    let mut goldens = Goldens::new("tree/fragments/proposal/owner_proposal_addressed");
+    amendment_contexts(
+        Some(AddressChange { revision: Revision { value: u64::MAX }, address: PersonAddress::Party(u64::MAX) }),
+        &mut goldens,
+    );
 }
 
-fn amendment_contexts(addressed: Option<AddressChange>) {
+fn amendment_contexts(addressed: Option<AddressChange>, goldens: &mut Goldens) {
     let w = words(false);
     for release in [None, Some(0), Some(u64::MAX)] {
         for after in [None, Some(doc(b"", false)), Some(doc(b"exact effective after", true))] {
@@ -326,29 +284,14 @@ fn amendment_contexts(addressed: Option<AddressChange>) {
                 release,
             });
             let tree = build(&v, &w).0;
-            assert!(has(&tree, b"Before proposed change"));
-            assert!(has(&tree, b"After proposed change"));
-            assert!(has(&tree, b"before supplied context"));
-            assert!(has(&tree, b"own action reason"));
-            assert_eq!(has(&tree, b"Address change not supplied"), addressed.is_none());
-            assert_eq!(has(&tree, b"Proposed release not supplied"), release.is_none());
-            if release == Some(0) {
-                assert!(has(&tree, b"Proposed release revision: 0"));
-            }
-            if addressed.is_some() {
-                assert!(has(&tree, b"Person-task revision 18446744073709551615"));
-            }
-            if after.as_ref().is_some_and(|v| v.cut) {
-                assert!(has(&tree, b"exact effective after"));
-            }
-            assert!(!has(&tree, b"whole task instructions"));
-            assert!(has(&tree, b"Stored status unavailable"));
+            goldens.check(&tree);
         }
     }
 }
 
 #[test]
 fn owner_proposal_all_funders_independent_optional_amounts_and_holder_variants_preserve_supplied_identity() {
+    let mut goldens = Goldens::new("tree/fragments/proposal/owner_proposal_all");
     let w = words(false);
     for funder in [
         Funder::Task(u64::MAX),
@@ -367,17 +310,7 @@ fn owner_proposal_all_funders_independent_optional_amounts_and_holder_variants_p
                     v.funding.push(OwnerFundingOffer { source: funder, needed: u64::MAX, left, after }).unwrap();
                     let original = v.clone();
                     let tree = build(&v, &w).0;
-                    assert!(has(&tree, b"Funding needed: 18446744073709551615"));
-                    assert_eq!(has(&tree, b"Funding left not supplied"), left.is_none());
-                    assert_eq!(has(&tree, b"Funding after not supplied"), after.is_none());
-                    assert_eq!(has(&tree, b"Not proposed as holder"), !as_holder);
-                    assert!(has(&tree, b"Release hold not supplied"));
-                    if left == Some(0) {
-                        assert!(has(&tree, b"Funding left: 0"));
-                    }
-                    if after == Some(0) {
-                        assert!(has(&tree, b"Funding after: 0"));
-                    }
+                    goldens.check(&tree);
                     assert_eq!(v, original);
                 }
             }
@@ -392,17 +325,17 @@ fn owner_proposal_all_funders_independent_optional_amounts_and_holder_variants_p
     ] {
         let mut v = source(OwnerProposalAction::Batch(List::with_capacity(3)));
         v.waiting.holder = OwnerHistoryHolder::Policy { project: u32::MAX, kind };
-        assert!(has(&build(&v, &w).0, b"Holder policy project: 4294967295"));
+        goldens.check(&build(&v, &w).0);
     }
 }
 #[test]
 fn owner_proposal_exact_checked_envelopes_keep_selected_language_whole_loss_and_one_under_refusals() {
+    let mut goldens = Goldens::new("tree/fragments/proposal/owner_proposal_exact");
     let w = words(true);
     let v = source(OwnerProposalAction::Batch(batch()));
     let unchanged = v.clone();
     let (tree, _) = build(&v, &w);
-    assert!(has(&tree, b"second 18446744073709551615"));
-    assert!(!has(&tree, b"Pending proposal"));
+    goldens.check(&tree);
     let f = crate::tests::render_limits(&limits(), &w).unwrap();
 
     assert_eq!(v, unchanged);
@@ -424,7 +357,7 @@ fn owner_proposal_exact_checked_envelopes_keep_selected_language_whole_loss_and_
     let id = crate::words::proposal_words::ProposalPhrase::Attempt.id();
     assert_eq!(w.book().say(1, id, &[Hole::Wall(Wall::EPOCH)]).unwrap_err(), skein_ui::phrases::Invalid::Values { id });
     assert_eq!(w.book().say(1, id, &[Hole::Number(u64::MAX)]).unwrap().text.as_ref(), b"second 18446744073709551615");
-    let short = skein_ui::Limits { nodes: tree.len() - 1, ..capacity(f) };
+    let short = skein_ui::Limits { nodes: tree.len() - 1, ..f };
     let _refusal = std::panic::catch_unwind(|| {
         let mut b = Builder::new(&short);
         let mut bindings = JigBindings::new(f.bindings, 256);
@@ -436,6 +369,7 @@ fn owner_proposal_exact_checked_envelopes_keep_selected_language_whole_loss_and_
 #[test]
 fn owner_proposal_link_presence_and_same_keyed_card_across_contexts_keep_current_facts_and_checked_confirmation() {
     use crate::{Event, state::action::Act};
+    let mut goldens = Goldens::new("tree/fragments/proposal/owner_proposal_link");
     let w = words(false);
     let mut chip = crate::tests::tree::cards_objects::task_doc(&[]).chip;
     chip.title = doc(b"supplied linked title", true);
@@ -451,18 +385,7 @@ fn owner_proposal_link_presence_and_same_keyed_card_across_contexts_keep_current
     for link in links {
         let v = source(OwnerProposalAction::Release { task: link.clone(), hold: None });
         let tree = build(&v, &w).0;
-        match link {
-            OwnerTaskLink::Live(_) => assert!(has(&tree, b"Live task")),
-            OwnerTaskLink::Retained { at, .. } => {
-                assert!(has(&tree, b"Retained ended task"));
-                assert_eq!(has(&tree, b"Ended time unavailable"), at.is_none());
-            }
-            OwnerTaskLink::Stored { status, .. } => {
-                assert!(has(&tree, b"Stored task 8"));
-                assert_eq!(has(&tree, b"Stored status unavailable"), status.is_none());
-                assert!(!has(&tree, b"supplied linked title"));
-            }
-        }
+        goldens.check(&tree);
     }
     whole_linked_owner_carrier(&w);
     let mut maker_keys = List::with_capacity(2);
@@ -487,17 +410,12 @@ fn owner_proposal_link_presence_and_same_keyed_card_across_contexts_keep_current
             crate::tree::cards::Place::TaskPage,
             crate::tree::cards::Place::Elsewhere,
         ] {
-            let mut b = Builder::new(&skein_ui::Limits { nodes: f.nodes + 100, ..capacity(f) });
+            let mut b = Builder::new(&skein_ui::Limits { nodes: f.nodes + 100, ..f });
             let mut bindings = JigBindings::new(f.bindings, 256);
             assert!(crate::tree::cards::card(&mut b, &client.view(), id, &place, &w, &mut bindings));
             let tree = b.finish();
             crate::tests::tree::cards_access::check(&tree);
-            assert!(has(&tree, b"Proposed release"));
-            assert!(
-                tree.nodes()
-                    .iter()
-                    .any(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Accept"))
-            );
+            goldens.check(&tree);
             let key = tree.nodes()[0].key.unwrap();
             if let Some(previous) = expected {
                 assert_eq!(key, previous);
@@ -512,13 +430,12 @@ fn owner_proposal_link_presence_and_same_keyed_card_across_contexts_keep_current
             Event::Act { action: Act::Intend { object: id.token(), act: ActKind::Accept } },
         );
         assert_eq!(client.confirmation().unwrap().revision, None);
-        let mut b = Builder::new(&skein_ui::Limits { nodes: f.nodes + 100, ..capacity(f) });
+        let mut b = Builder::new(&skein_ui::Limits { nodes: f.nodes + 100, ..f });
         let mut bindings = JigBindings::new(f.bindings, 256);
         crate::tree::confirmation::confirmation(&mut b, &client.view(), &w, &mut bindings);
         let tree = b.finish();
         crate::tests::tree::cards_access::check(&tree);
-        assert!(has(&tree, b"Proposed release"));
-        assert!(has(&tree, b"Release hold not supplied"));
+        goldens.check(&tree);
         crate::tests::tree::cards::drive(&mut client, Event::Act { action: Act::Dismiss });
         assert!(client.confirmation().is_none());
     }
@@ -526,6 +443,7 @@ fn owner_proposal_link_presence_and_same_keyed_card_across_contexts_keep_current
 }
 
 fn whole_linked_owner_carrier(w: &Words) {
+    let mut goldens = Goldens::new("tree/fragments/proposal/whole_linked_owner");
     let mut details = crate::tests::tree::fragments::chip::details();
     details.hold = Some(hold());
     details.ending = Some(OwnerChipEnding::Failed(doc(b"whole linked failure", true)));
@@ -551,11 +469,7 @@ fn whole_linked_owner_carrier(w: &Words) {
         hold: Some(Box::new(hold())),
     });
     let linked_tree = build(&linked, w).0;
-    assert!(has(&linked_tree, b"Retained ended task"));
-    assert!(!has(&linked_tree, b"whole linked failure"));
-    assert!(!has(&linked_tree, b"Resource kind: 65535"));
-    assert!(!has(&linked_tree, b"Writer effect: 18446744073709551615"));
-    assert!(!has(&linked_tree, b"Resource list incomplete"));
+    goldens.check(&linked_tree);
     let (linked_client, linked_id) = crate::tests::tree::cards_objects::loaded(
         ObjectKey::Proposal(linked.key),
         ReadValue::OwnerProposal(Box::new(linked.clone())),

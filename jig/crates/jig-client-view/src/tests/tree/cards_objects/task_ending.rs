@@ -1,10 +1,10 @@
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 #[test]
 fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw_slots() {
-    let mut segments = List::with_capacity(CLIENT.client.rows);
-    segments.push(Box::from(*b"a/b")).unwrap();
-    segments.push(Box::from([255_u8, 0])).unwrap();
+    let mut goldens = Goldens::new("tree/cards_objects/task_ending/task_overview_shows");
+    let segments = crate::tests::kit::list_in(CLIENT.client.rows, [Box::from(*b"a/b"), Box::from([255_u8, 0])]);
     let part = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Result, key: OwnerPartKey::Path(segments) };
     for result in [
         None,
@@ -27,18 +27,12 @@ fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw
             at: Wall::from_nanos(u64::MAX),
         })));
         let (tree, bindings) = task_contract::page(row.clone());
-        assert!(contains(&tree, b"Cancelled with reason"));
-        assert!(contains(&tree, b"source reason"));
-        assert!(contains(&tree, b"Supplied words incomplete"));
-        assert!(contains(&tree, b"Cancellation requester deployment project: 4294967295"));
-        assert!(contains(&tree, b"Cancelled at:"));
-        assert!(!contains(&tree, b"Result time was not supplied"));
+        goldens.check(&tree);
         assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
         let mut fragment_slots = 0;
         match result {
             Some(ResultValue::Approved { .. }) => {
-                let escaped = "\\xFF".repeat(32);
-                assert!(contains(&tree, escaped.as_bytes()));
+                goldens.check(&tree);
             }
             Some(ResultValue::Change { .. }) => {
                 fragment_slots = 1;
@@ -51,10 +45,9 @@ fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw
                     }
                 }
                 assert_eq!(found, 2, "shared card and overview each retain the whole raw part");
-                assert!(contains(&tree, b"a/b"));
-                assert!(contains(&tree, b"\\xFF\\x00"));
+                goldens.check(&tree);
             }
-            None => assert!(!contains(&tree, b"Approval state")),
+            None => goldens.check(&tree),
             Some(
                 ResultValue::Report(_)
                 | ResultValue::Words(_)
@@ -80,7 +73,7 @@ fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw
         builder.close();
         let tree = builder.finish();
         assert!(tree.len() <= crate::tree::fragments::task_result::nodes(&CLIENT, &(CLIENT).client).unwrap());
-        assert!(contains(&tree, b"source reason"));
+        goldens.check(&tree);
         let slots: Vec<_> = tree.nodes().iter().filter_map(|node| node.slot).collect();
         assert_eq!(slots.len(), fragment_slots);
         for slot in slots {
@@ -92,12 +85,11 @@ fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw
 
 #[test]
 fn task_result_document_keeps_its_own_time_value_and_departure_state_without_owner_conversion() {
+    let mut goldens = Goldens::new("tree/cards_objects/task_ending/task_result_document");
     let result = result();
     let mut row = task_doc(&[]);
     row.result = Some(TaskResult::Document(Box::new(result.clone())));
     let (tree, _) = task_contract::page(row);
-    assert!(contains(&tree, b"whole failure"));
-    assert!(contains(&tree, b"whole report"));
-    assert!(!contains(&tree, b"Cancellation requester deployment project:"));
+    goldens.check(&tree);
     assert_eq!(result.at, Some(Wall::EPOCH));
 }

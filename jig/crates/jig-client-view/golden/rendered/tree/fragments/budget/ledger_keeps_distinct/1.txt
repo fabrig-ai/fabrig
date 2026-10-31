@@ -1,0 +1,10 @@
+== jig == 
+Ledger source:
+  Budget: 100
+  Spent directly: 4
+  Settled spend below: 7
+  Reserved for funded work: 11
+  Left: 17
+  Ledger source
+  Funded by pool in project 4294967295, person 18446744073709551615, period 18446744073709551614
+  Ledger is open

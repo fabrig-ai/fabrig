@@ -5,8 +5,10 @@
     reason = "ordinary fixtures script public events and query semantic nodes"
 )]
 use crate::tests::fixtures::{Fixture, ReadPage};
+use crate::tests::kit::Goldens;
+pub(in crate::tests) use crate::tests::kit::list;
 use crate::tests::tree::{
-    cards::{contains, document, drive, text, words},
+    cards::{document, drive, text, words},
     pages::{build, deliver},
 };
 use crate::{JigBindings, words::Words};
@@ -21,14 +23,7 @@ use crate::{
 };
 use jig_client::contract::*;
 use skein_lib::List;
-pub(in crate::tests) fn list<T>(values: impl IntoIterator<Item = T>) -> List<T> {
-    let values: Vec<_> = values.into_iter().collect();
-    let mut rows = List::with_capacity(u32::try_from(values.len()).unwrap());
-    for value in values {
-        rows.push(value).ok().unwrap();
-    }
-    rows
-}
+
 pub(in crate::tests) fn part() -> Part {
     Part::Panel { connector: 2, task: 8 }
 }
@@ -115,6 +110,7 @@ fn slot(tree: &Tree, bindings: &JigBindings) {
     assert_eq!(bindings.part(reference.token), Some(&part()));
 }
 fn task_sections(words: &Words) {
+    let mut goldens = Goldens::new("tree/work_pages/task_sections");
     for executor in [
         Executor::Agent { charter: 2 },
         Executor::Procedure { connector: 2, kind: 1 },
@@ -124,23 +120,14 @@ fn task_sections(words: &Words) {
         for section in [TaskSection::Overview, TaskSection::Activity, TaskSection::Budget, TaskSection::Panels] {
             let (d, _) = task(section, executor);
             let (tree, bindings) = build(&d, 3, words);
-            assert!(contains(&tree, b"Task 8"));
-            assert!(contains(&tree, b"held") || contains(&tree, b"Held"));
-            assert!(contains(&tree, b"Goal"));
-            assert!(contains(&tree, b"Priority 1"));
+            goldens.check(&tree);
             acts_are_named(&tree);
-            if section == TaskSection::Overview {
-                assert!(contains(&tree, b"whole task specification"));
-            }
+
             if section == TaskSection::Panels {
                 slot(&tree, &bindings);
             }
             if section == TaskSection::Activity && executor == (Executor::Procedure { connector: 2, kind: 1 }) {
                 slot(&tree, &bindings);
-            }
-            if section == TaskSection::Budget {
-                assert!(contains(&tree, b"Budget: 20"));
-                assert!(contains(&tree, b"Left: 20"));
             }
         }
     }

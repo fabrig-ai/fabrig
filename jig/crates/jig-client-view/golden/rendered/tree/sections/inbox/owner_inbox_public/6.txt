@@ -1,0 +1,31 @@
+== Inbox == 
+Inbox:
+  [1] All projects
+  [2] Project: One
+  [3] All kinds
+  [4] Question
+  [5] Proposal
+  [6] Escalation
+  [7] Person task
+  [8] Result
+  [9] Reply
+  [10] All goals
+  4294967295 need you
+  17 updates not read
+Needs you:
+  ## Needs you
+  * Finding how this ended
+  Start of the list
+  End of the list
+Updates:
+  ## Updates
+  - Result position: 18446744073709551615
+    Stored task 18446744073709551615
+    Stored status unavailable
+    - Object:
+        ## Object
+        * Open
+        * Loading object
+  * Finding how this ended
+  Start of the list
+  End of the list

@@ -1,0 +1,19 @@
+== jig == 
+Inbox:
+  [1] All projects
+  [2] Project: One
+  [3] All kinds
+  [4] Question
+  [5] Proposal
+  [6] Escalation
+  [7] Person task
+  [8] Result
+  [9] Reply
+  [10] All goals
+  0 need you
+  0 updates not read
+Needs you:
+  ## Needs you
+  * Finding how this ended
+  Start of the list
+  End of the list

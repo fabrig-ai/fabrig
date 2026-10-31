@@ -1,0 +1,27 @@
+== jig == 
+  selected 18446744073709551615
+  selected 4294967295
+  selected 4294967295
+  selected 18446744073709551615
+  selected 255
+  selected 00:01
+  selected 
+  selected 
+  selected 65535
+  selected 65535
+  selected 
+  `a/b`
+  `\xFF\x00\x80`
+  
+  selected 
+  `tail/`
+  selected 
+  selected 4294967295
+  selected 4294967295
+  selected 4294967295
+  selected 
+  selected 2
+  selected 
+  selected 
+  `*raw/`
+  selected 

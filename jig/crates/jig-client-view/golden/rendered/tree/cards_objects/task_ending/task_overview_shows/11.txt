@@ -1,0 +1,14 @@
+== jig == 
+Cancelled with reason
+`source reason`
+Supplied words incomplete
+Cancellation requester deployment project: 4294967295
+Cancelled at: 23:34
+Change result kind 65535
+retained
+Result reference:
+  Connector 65535
+  Result reference
+  `a/b`
+  `\xFF\x00`
+  * Loading connector content (busy)

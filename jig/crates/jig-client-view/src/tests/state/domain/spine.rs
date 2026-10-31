@@ -131,9 +131,11 @@ fn start_opens_me_before_any_other_watch() {
 
 #[test]
 fn a_different_party_keeps_the_previous_partys_work_hidden_until_they_return() {
-    let mut kept = List::with_capacity(1);
-    kept.push(Record::Place { version: crate::state::store::STORE_VERSION, party: 7, address: Address::Deployment })
-        .unwrap();
+    let kept = crate::tests::kit::list([Record::Place {
+        version: crate::state::store::STORE_VERSION,
+        party: 7,
+        address: Address::Deployment,
+    }]);
     let mut domain = Fixture::new(&LIMITS);
     let watch = start(&mut domain, kept);
     let refused = delivered(&mut domain, Time::ZERO, watch, frame(8));
@@ -241,15 +243,13 @@ fn own_kept_requests_do_not_hide_work_or_override_kept_draft_guard() {
     drive(&mut domain, Time::ZERO, jig_client::Up::NotKept { key: [1; 16] });
     assert!(work_page(&domain));
 
-    let mut kept = List::with_capacity(1);
-    kept.push(Record::Draft {
+    let kept = crate::tests::kit::list([Record::Draft {
         version: crate::state::store::STORE_VERSION,
         party: 8,
         task: 9,
         words: jig_client::contract::Text::new(Box::from(*b"old"), LIMITS.client.text).unwrap(),
         touched: 1,
-    })
-    .unwrap();
+    }]);
     let mut guarded = restored(
         &[(1, 7)],
         kept,

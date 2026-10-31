@@ -1,8 +1,9 @@
 use crate::tests::fixtures::refusal_answer;
+use crate::tests::kit::Goldens;
 use crate::tests::state::domain::{confirmation, native, spine};
 use crate::tests::{
     fixtures::{FireClient, Fixture, MOST, kept, one},
-    tree::cards::{contains, tree},
+    tree::cards::tree,
 };
 use crate::{
     Event, Request,
@@ -120,6 +121,7 @@ fn a_request_shows_the_progress_the_client_reports() {
 
 #[test]
 fn a_request_not_kept_is_offered_again() {
+    let mut goldens = Goldens::new("state/domain/pending/a_request_not");
     let (mut fixture, id, _) = ready();
     let original = key(&press(&mut fixture, id));
     let saved = saved_record(&fixture).key;
@@ -127,7 +129,7 @@ fn a_request_not_kept_is_offered_again() {
     assert_eq!(fixture.client.pending(original), None);
     assert_eq!(fixture.objects().get(id).unwrap().card, Card::NotSent { why: intents::NotSent::NotKept });
     assert_eq!(fixture.objects().get(id).unwrap().answer, None);
-    assert!(contains(&tree(&fixture, None, Some(id)), b"Request not kept; it was not sent. Try again."));
+    goldens.check(&tree(&fixture, None, Some(id)));
     fixture.reclaim();
     let fresh = key(&press(&mut fixture, id));
     assert_ne!(fresh, original);
@@ -151,16 +153,18 @@ fn a_kept_request_refused_shows_a_notice() {
 
 #[test]
 fn another_party_s_kept_work_shows_someone_else_s_work() {
+    let mut goldens = Goldens::new("state/domain/pending/another_party_s");
     let (mut fixture, handle) = spine::restored(&[(FIRST, OTHER)], List::with_capacity(0), &spine::LIMITS);
     spine::delivered(&mut fixture, Time::ZERO, handle, spine::frame(ME));
     assert_eq!(fixture.client.pending(Key { asker: Asker::JIG, number: u64::from(FIRST) }).unwrap().party, OTHER);
     assert_eq!(fixture.page(), &Page::SomeoneElse);
-    assert!(contains(&tree(&fixture, None, None), b"Someone else"));
+    goldens.check(&tree(&fixture, None, None));
     assert!(fixture.intents().ids().is_empty());
 }
 
 #[test]
 fn an_act_past_the_client_s_limit_is_refused_in_place() {
+    let mut goldens = Goldens::new("state/domain/pending/an_act_past");
     let (mut fixture, id, _) = ready();
     for number in [FIRST, SECOND] {
         fixture.drive(
@@ -177,7 +181,7 @@ fn an_act_past_the_client_s_limit_is_refused_in_place() {
     assert_eq!(fixture.objects().get(id).unwrap().card, Card::NotSent { why: intents::NotSent::Limit });
     assert_eq!(fixture.objects().get(id).unwrap().answer, None);
     assert!(fixture.down.as_slice().is_empty());
-    assert!(contains(&tree(&fixture, None, Some(id)), b"Too many requests in flight"));
+    goldens.check(&tree(&fixture, None, Some(id)));
     fixture.drive(Time::from_nanos(MOST.as_nanos()), FireClient { wall: Wall::EPOCH });
     assert!(fixture.down.as_slice().is_empty());
 }
@@ -225,6 +229,7 @@ fn someone_else_s_work_leaves_when_its_requests_are_unknown() {
 
 #[test]
 fn kept_work_dropped_at_start_shows_a_notice() {
+    let mut goldens = Goldens::new("state/domain/pending/kept_work_dropped");
     let mut records = List::with_capacity(3);
     for number in [FIRST, SECOND, THIRD] {
         records.push(kept(number, ME)).unwrap();
@@ -232,7 +237,7 @@ fn kept_work_dropped_at_start_shows_a_notice() {
     let fixture = Fixture::restored(&spine::LIMITS, List::with_capacity(0), records);
     let (id, ()) = fixture.notices().ids().first().unwrap();
     assert_eq!(fixture.notices().get(*id).unwrap().kind, Kind::Dropped { count: 1 });
-    assert!(contains(&tree(&fixture, None, None), b"1 requests kept from before were not sent"));
+    goldens.check(&tree(&fixture, None, None));
     assert!(fixture.intents().ids().is_empty());
 }
 

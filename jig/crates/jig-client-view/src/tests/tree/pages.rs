@@ -7,7 +7,9 @@
 use crate::JigBindings;
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Ended, Fixture, ReadPage, Served, Watched};
-use crate::tests::tree::cards::{CLIENT, contains, document, drive, start, text, words};
+use crate::tests::kit::Goldens;
+pub(in crate::tests) use crate::tests::kit::page as build;
+use crate::tests::tree::cards::{CLIENT, document, drive, start, text, words};
 use crate::{
     Event, Request,
     state::{
@@ -18,26 +20,7 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{List, Token};
 use skein_ui::{Builder, Role, Tree};
-pub(in crate::tests) fn build(d: &Fixture, kind: u8, words: &crate::words::Words) -> (Tree, JigBindings) {
-    let mut limits = crate::tests::tree::cards::limits();
-    limits.nodes = 2000;
-    limits.depth = 32;
-    limits.bindings = 512;
-    limits.text_bytes = 200_000;
-    let mut b = Builder::new(&limits);
-    let mut bindings = JigBindings::new(512, CLIENT.client.text);
-    b.open(Role::Page);
-    match kind {
-        0 | 1 | 3 => {
-            crate::tree::pages::main(&mut b, &d.view(), words, &mut bindings);
-        }
-        _ => {
-            crate::tree::pages::not_the_work(&mut b, &d.view(), words, &mut bindings);
-        }
-    }
-    b.close();
-    (b.finish(), bindings)
-}
+
 pub(in crate::tests) fn deliver(d: &mut Fixture, token: jig_client::Handle, document: Delivery) -> Vec<Request> {
     drive(d, Watched { watch: token, event: WatchEvent::Delivered(document) })
 }
@@ -45,11 +28,12 @@ pub(in crate::tests) fn named_binding(tree: &Tree, name: &[u8]) -> Token {
     tree.nodes().iter().find(|n| n.name.as_deref() == Some(name) && n.binding.is_some()).unwrap().binding.unwrap().token
 }
 pub(in crate::tests) fn special_pages(words: &crate::words::Words) {
+    let mut goldens = Goldens::new("tree/pages/special_pages");
     let (mut d, f) = start();
-    assert!(contains(&build(&d, 2, words).0, b"Connecting"));
+    goldens.check(&build(&d, 2, words).0);
     deliver(&mut d, f, Delivery::Me(Box::new(document())));
     drive(&mut d, Event::Went { place: Place::Missing });
-    assert!(contains(&build(&d, 2, words).0, b"Page missing"));
+    goldens.check(&build(&d, 2, words).0);
     drive(&mut d, jig_client::Up::SignedOut);
     assert_eq!(d.page(), &Page::SigningIn);
     let (tree, _) = build(&d, 2, words);
@@ -57,17 +41,15 @@ pub(in crate::tests) fn special_pages(words: &crate::words::Words) {
     let (mut d, f) = start();
     drive(&mut d, Served { served: false });
     assert!(deliver(&mut d, f, Delivery::Me(Box::new(document()))).is_empty());
-    assert!(contains(&build(&d, 2, words).0, b"update or reload"));
+    goldens.check(&build(&d, 2, words).0);
     let mut d = Fixture::new(&CLIENT);
-    let mut kept = List::with_capacity(1);
-    kept.push(crate::state::store::Record::Draft {
+    let kept = crate::tests::kit::list([crate::state::store::Record::Draft {
         version: crate::state::store::STORE_VERSION,
         party: 2,
         task: 1,
         words: text(b"private"),
         touched: 1,
-    })
-    .unwrap();
+    }]);
     let out =
         drive(&mut d, Event::Start { seed: 8, place: Place::Jig(Address::Inbox { project: None }), records: kept });
     let f = out
@@ -82,8 +64,7 @@ pub(in crate::tests) fn special_pages(words: &crate::words::Words) {
     deliver(&mut d, f, Delivery::Me(Box::new(document())));
     assert_eq!(d.page(), &Page::SomeoneElse);
     let tree = build(&d, 2, words).0;
-    assert!(contains(&tree, b"Someone else's work"));
-    assert!(!contains(&tree, b"private"));
+    goldens.check(&tree);
 }
 
 fn conversations_domain() -> Fixture {
@@ -97,11 +78,10 @@ fn conversations_domain() -> Fixture {
     d
 }
 fn conversations_form(words: &crate::words::Words) {
+    let mut goldens = Goldens::new("tree/pages/conversations_form");
     let mut d = conversations_domain();
     let (tree, mut bindings) = build(&d, 1, words);
-    for label in [b"Conversations".as_slice(), b"First words", b"Charter 2", b"Budget 20", b"End of the list"] {
-        assert!(contains(&tree, label) || tree.nodes().iter().any(|n| n.name.as_deref() == Some(label)));
-    }
+    goldens.check(&tree);
     assert_eq!(
         crate::decode(&mut bindings, named_binding(&tree, b"Start a conversation"), skein_ui::Act::Press),
         Some(crate::state::action::Act::BeginConversation { project: 4 })
@@ -122,9 +102,9 @@ fn conversations_form(words: &crate::words::Words) {
         })
         .unwrap();
     let waiting = build(&d, 1, words).0;
-    assert!(waiting.nodes().iter().any(|n| n.states.as_slice().contains(&skein_ui::State::Busy)));
+    goldens.check(&waiting);
     drive(&mut d, AnsweredByEngine { request, answer: refusal_answer(Refusal::NotOffered) });
-    assert!(contains(&build(&d, 1, words).0, b"This act is not offered"));
+    goldens.check(&build(&d, 1, words).0);
     assert!(
         tree.nodes()
             .iter()
@@ -161,6 +141,7 @@ fn whole_page(d: &Fixture) -> Tree {
 #[test]
 fn each_of_jigs_pages_keeps_the_outline() {
     use crate::state::address::{ProjectSection, TaskSection};
+    let mut goldens = Goldens::new("pages/frame");
     let rows = [
         ("inbox", Place::Jig(Address::Inbox { project: None })),
         ("conversations", Place::Jig(Address::Conversations { project: None })),
@@ -170,7 +151,9 @@ fn each_of_jigs_pages_keeps_the_outline() {
         ("page missing", Place::Missing),
     ];
     let (mut d, watch) = start();
-    assert_eq!(skein_ui::outline::check(&whole_page(&d)), None, "starting");
+    let tree = whole_page(&d);
+    goldens.check(&tree);
+    assert_eq!(skein_ui::outline::check(&tree), None, "starting");
     deliver(&mut d, watch, Delivery::Me(Box::new(document())));
     for (label, place) in rows {
         let out = drive(&mut d, Event::Went { place });
@@ -183,17 +166,20 @@ fn each_of_jigs_pages_keeps_the_outline() {
                 deliver(&mut d, watch, Delivery::Task(Box::new(crate::tests::tree::cards_objects::task_doc(&[]))));
             }
         }
-        assert_eq!(skein_ui::outline::check(&whole_page(&d)), None, "{label}");
+        let tree = whole_page(&d);
+        goldens.check(&tree);
+        assert_eq!(skein_ui::outline::check(&tree), None, "{label}");
     }
     drive(&mut d, jig_client::Up::SignedOut);
-    assert_eq!(skein_ui::outline::check(&whole_page(&d)), None, "signing in");
+    let tree = whole_page(&d);
+    goldens.check(&tree);
+    assert_eq!(skein_ui::outline::check(&tree), None, "signing in");
 }
 
 fn domain_with_an_owed_card() -> Fixture {
     let (mut d, watch) = start();
     deliver(&mut d, watch, Delivery::Me(Box::new(document())));
-    let mut objects = List::with_capacity(1);
-    objects.push(ObjectKey::Task(8)).unwrap();
+    let objects = crate::tests::kit::list([ObjectKey::Task(8)]);
     let out = drive(&mut d, Event::Named { objects, sections: List::with_capacity(0) });
     for request in out {
         if let Request::Client {
@@ -240,6 +226,7 @@ fn the_owed_cards_sit_in_their_aside_after_the_main() {
 
 #[test]
 fn the_inbox_header_shows_with_either_group() {
+    let mut goldens = Goldens::new("tree/pages/the_inbox_header");
     let (d, _) = crate::tests::tree::work_pages::entered(Address::Inbox { project: None });
     for group in [InboxReadGroup::Needs, InboxReadGroup::Updates] {
         let mut b = Builder::new(&crate::tests::tree::cards::limits());
@@ -260,7 +247,7 @@ fn the_inbox_header_shows_with_either_group() {
             1,
             "{group:?}"
         );
-        assert!(contains(&tree, b"0 need you"), "{group:?}");
+        goldens.check(&tree);
     }
     let (other, _) = crate::tests::tree::work_pages::entered(Address::Conversations { project: None });
     let mut b = Builder::new(&crate::tests::tree::cards::limits());
@@ -285,12 +272,12 @@ fn the_new_chat_form_is_a_form_inside_the_conversations() {
 
 #[test]
 fn a_missing_section_says_so_in_its_own_region() {
+    let mut goldens = Goldens::new("tree/pages/a_missing_section");
     let (mut domain, frame) = start();
     deliver(&mut domain, frame, Delivery::Me(Box::new(document())));
     drive(&mut domain, Event::Went { place: Place::Elsewhere });
     let section = crate::state::page::Section::Task { task: 8, section: crate::state::address::TaskSection::Plan };
-    let mut sections = List::with_capacity(1);
-    sections.push(section).unwrap();
+    let sections = crate::tests::kit::list([section]);
     let opened = drive(&mut domain, Event::Named { objects: List::with_capacity(0), sections });
     let watch = opened
         .iter()
@@ -306,7 +293,7 @@ fn a_missing_section_says_so_in_its_own_region() {
     let tree = builder.finish();
     assert_eq!(tree.nodes()[0].region, Some(crate::regions::JigRegion::TaskPlan.region()));
     assert_eq!(tree.nodes()[0].size, tree.len());
-    assert!(contains(&tree, b"Page missing"));
+    goldens.check(&tree);
 }
 
 #[test]

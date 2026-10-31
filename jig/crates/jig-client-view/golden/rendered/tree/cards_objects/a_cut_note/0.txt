@@ -1,0 +1,9 @@
+== jig == 
+Review before confirming:
+  Edit note
+  note title
+  Replace the named note revision
+  This note has more references; read the whole note before replacing it
+  * Supply the amendment
+  [-] Confirm (disabled)
+  [1] Dismiss

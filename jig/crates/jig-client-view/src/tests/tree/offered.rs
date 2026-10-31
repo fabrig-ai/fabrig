@@ -3,7 +3,8 @@
     clippy::disallowed_types,
     reason = "ordinary public tree proofs inspect nodes and decoded meanings"
 )]
-use crate::tests::tree::cards::{CLIENT, contains, words};
+use crate::tests::kit::Goldens;
+use crate::tests::tree::cards::{CLIENT, words};
 use crate::tests::tree::cards_objects::{loaded, task_doc};
 use crate::{JigBindings, decode, tree::cards};
 use skein_ui::Act;
@@ -40,6 +41,7 @@ const KINDS: [ActKind; 23] = [
 ];
 #[test]
 fn every_closed_offer_control_and_whole_refusal_fits_the_public_card_tree_with_two_paged_rows() {
+    let mut goldens = Goldens::new("tree/offered/every_closed_offer");
     assert!(u32::try_from(KINDS.len()).unwrap() <= MAX_OFFERED_ACTS);
     let w = words();
     let mut limits = crate::tests::render_limits(&CLIENT, w).unwrap();
@@ -98,8 +100,7 @@ fn every_closed_offer_control_and_whole_refusal_fits_the_public_card_tree_with_t
         assert!(total <= u64::from(limits.text_bytes));
         if refused {
             assert!(decoded.is_empty());
-            assert!(contains(&tree, b"whole failure"));
-            assert!(contains(&tree, b"18446744073709551615"));
+            goldens.check(&tree);
             let revisions = tree
                 .nodes()
                 .iter()

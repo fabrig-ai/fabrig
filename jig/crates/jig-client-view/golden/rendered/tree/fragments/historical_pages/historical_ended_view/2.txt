@@ -1,0 +1,15 @@
+== jig == 
+Ended delegates:
+  Ended delegate task: 18446744073709551615:
+    [1] Task 18446744073709551615: 
+    Title is incomplete
+    Agent charter 4294967295
+    Ended
+    Cancelled with reason
+    `actual cancellation`
+    Supplied words incomplete
+    Cancellation requester task: 18446744073709551615
+    Cancelled at: 18446744073709551615
+    actual result
+    Only part of this text was supplied
+    Ending time not supplied

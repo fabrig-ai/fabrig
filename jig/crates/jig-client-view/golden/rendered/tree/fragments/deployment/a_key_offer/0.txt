@@ -1,0 +1,49 @@
+== jig == 
+Deployment owner facts:
+  Store map bytes: 0
+  Store high-water mark in bytes: 0
+  Hosts:
+    Hosts:
+    Hosts forgotten: 18446744073709551615
+  Tracked attempts:
+  LLM accounts:
+    LLM provider offers
+    Maximum key bytes 123
+    - LLM provider 37
+      `Quasar Example`
+      Key
+      Some rows were omitted
+      Manage usage <https://usage.example/other>
+    More provider offers omitted
+    - LLM provider 37
+      Pays for project 91
+      Readiness unknown
+      Program checks unknown
+    More payer readiness omitted
+    LLM accounts:
+  Resource capacities:
+    Tasks Capacity:
+      Used: 0
+      Limit: 4294967295
+    Workers Capacity:
+      Used: 4294967295
+      Limit: 1
+    Attempts Capacity:
+      Used: 7
+      Limit: 11
+    Proposals Capacity:
+      Used: 3
+      Limit: 17
+    Waiting attempts: 19
+    Deployment grace bound: 307445734
+  Project capacities:
+  Refused hellos:
+  Hellos forgotten: 1
+  Person room refusals:
+  Person refusals forgotten: 2
+  Person answer retention: 0
+  Task room refusals:
+  Task refusals forgotten: 3
+  Configured connectors:
+    No configured connectors
+  Some rows were omitted

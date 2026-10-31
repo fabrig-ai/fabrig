@@ -7,8 +7,9 @@
 )]
 use crate::JigBindings;
 use crate::tests::fixtures::{Fixture, ReadPage};
+use crate::tests::kit::Goldens;
 use crate::tests::tree::{
-    cards::{CLIENT, contains, drive, text, words},
+    cards::{CLIENT, drive, text, words},
     pages::deliver,
     work_pages::{entered, list},
 };
@@ -100,6 +101,7 @@ fn cards(tree: &Tree, key: ProposalKey) -> usize {
 
 #[test]
 fn a_task_activity_renders_the_native_whole_pending_proposal_with_its_supplied_funding() {
+    let mut goldens = Goldens::new("tree/task_proposals/a_task_activity");
     let k = key(Proposer::Task(8));
     let (mut d, _, out) = opened(&[k]);
     let native = OwnerProposal {
@@ -123,9 +125,5 @@ fn a_task_activity_renders_the_native_whole_pending_proposal_with_its_supplied_f
     );
     let tree = build(&d);
     assert_eq!(cards(&tree, k), 1);
-    assert!(contains(&tree, b"native whole shared reason"));
-    assert!(contains(&tree, b"150"));
-    assert!(contains(&tree, b"250"));
-    assert!(contains(&tree, b"100"));
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Accept")));
+    goldens.check(&tree);
 }

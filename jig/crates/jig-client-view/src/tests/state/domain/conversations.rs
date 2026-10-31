@@ -2,15 +2,14 @@ const OTHER_PENDING: jig_client::Key = jig_client::Key { asker: jig_client::Aske
 use crate::Request;
 use crate::state::objects::{Objects, Source};
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Reported, Watched};
+pub(in crate::tests) use crate::tests::kit::text;
 use jig_client::contract::{
     ActivityLine, ActivityPage, Block, Call, Cursor, Message, ObjectKey, ProvisionalTurnName, Read, RunText, Speaker,
-    Text, Turn, TurnName, TurnRead, Usage,
+    Turn, TurnName, TurnRead, Usage,
 };
 use jig_client::thread::{CallName, Fold, Thread};
 use skein_lib::{List, Wall};
-fn text(bytes: &[u8]) -> Text {
-    Text::new(bytes.into(), 100).unwrap()
-}
+
 fn cursor(bytes: &[u8]) -> Cursor {
     Cursor::new(Box::from(bytes), 1024).expect("bounded opaque cursor")
 }
@@ -42,8 +41,7 @@ fn page(positions: &[u64], older: Option<&[u8]>, newer: Option<&[u8]>) -> Activi
     }
 }
 fn engine_call() -> Call {
-    let mut objects = List::with_capacity(2);
-    objects.push(ObjectKey::Task(44)).unwrap();
+    let objects = crate::tests::kit::list_in(2, [ObjectKey::Task(44)]);
     Call {
         number: 7,
         tool: text(b"delegate"),
@@ -59,9 +57,7 @@ fn engine_call() -> Call {
 fn calls_fold_on_the_page_and_engine_objects_share_one_live_card() {
     let mut c = Thread::new(9, &jig_client::thread::Limits { lines: 3, bytes: 65536, text: 4096 });
     assert!(c.moved(2).is_some());
-    let mut rows = List::with_capacity(2);
-    rows.push(calls(2, 2)).unwrap();
-    rows.push(calls(1, 1)).unwrap();
+    let rows = crate::tests::kit::list([calls(2, 2), calls(1, 1)]);
     assert_eq!(c.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
     let call = CallName { attempt: 1, turn: 2, call: 7 };
     assert_eq!(c.fold(call), Fold::Folded);
@@ -100,8 +96,7 @@ fn provisional_turns_append_by_offset_and_commit_only_replaces_the_same_name() {
         3
     );
     assert!(c.ui.conversation.moved(1).is_some());
-    let mut rows = List::with_capacity(1);
-    rows.push(calls(1, 1)).unwrap();
+    let rows = crate::tests::kit::list([calls(1, 1)]);
     assert_eq!(c.ui.conversation.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
     assert_eq!(c.conversation().live.len(), 1);
     assert_eq!(c.conversation().live.get(0).unwrap().name.number, 2);
@@ -579,8 +574,7 @@ fn opaque_current_calls_replace_by_full_owner_completion_and_id_without_numeric_
     assert!(c.conversation().parts(4).is_empty());
     assert!(!fold_call(&mut c, CallName { attempt: 1, turn: 1, call: 7 }, Fold::Open));
     assert!(c.ui.conversation.moved(1).is_some());
-    let mut rows = List::with_capacity(1);
-    rows.push(calls(1, 1)).unwrap();
+    let rows = crate::tests::kit::list([calls(1, 1)]);
     assert_eq!(c.ui.conversation.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
     assert!(c.conversation().live.is_empty());
     assert!(c.ui.conversation.current_opened.is_empty());
@@ -623,8 +617,7 @@ fn whole_run_state_keeps_call_only_and_postcommit_facts_without_a_synthetic_turn
     assert_eq!(c.conversation().live.len(), 1, "owner progress alone cannot hide unread committed text");
     assert_eq!(c.conversation().live.get(0).unwrap().name, writing.turn);
     assert!(c.ui.conversation.moved(1).is_some());
-    let mut rows = List::with_capacity(1);
-    rows.push(calls(1, 1)).unwrap();
+    let rows = crate::tests::kit::list([calls(1, 1)]);
     assert_eq!(c.ui.conversation.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
     assert!(c.conversation().live.is_empty(), "actual activity replaces only matching provisional text");
     assert_eq!(c.conversation().current_run.cloned(), Some(state.clone()), "a committed turn is not a tool-end report");
@@ -734,8 +727,7 @@ fn mandatory_empty_retry_replaces_same_turn_and_stale_retries_cannot_restore_old
     feed_run(&mut c, run, crate::tests::fixtures::run(invalid));
     assert_eq!(c.first_turn(), Some(retry.turn));
     assert!(c.ui.conversation.moved(1).is_some());
-    let mut rows = List::with_capacity(1);
-    rows.push(calls(1, 2)).unwrap();
+    let rows = crate::tests::kit::list([calls(1, 2)]);
     assert_eq!(c.ui.conversation.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
     assert!(c.conversation().live.is_empty(), "committed attempt/turn replaces all provisional retries of that turn");
     feed_run(&mut c, run, crate::tests::fixtures::run(retry));
@@ -823,10 +815,8 @@ fn row(position: u64) -> ActivityLine {
 }
 
 fn calls(position: u64, number: u32) -> ActivityLine {
-    let mut blocks = List::with_capacity(2);
-    blocks.push(Block::Call(engine_call())).unwrap();
-    let mut messages = List::with_capacity(1);
-    messages.push(Message { speaker: Speaker::Assistant, blocks }).unwrap();
+    let blocks = crate::tests::kit::list_in(2, [Block::Call(engine_call())]);
+    let messages = crate::tests::kit::list([Message { speaker: Speaker::Assistant, blocks }]);
     crate::tests::fixtures::archive(
         9,
         position,

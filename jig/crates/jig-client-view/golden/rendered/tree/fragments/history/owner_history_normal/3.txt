@@ -1,0 +1,149 @@
+== jig == 
+selected history: :
+  selected history: 18446744073709551615
+  selected history: 6
+  selected history: 18446744073709551615
+  selected history: 
+  selected history: 
+  reason
+  selected history: 
+  selected history: 
+  selected history: 
+  selected history: :
+    selected history: 18446744073709551615
+    selected history: 18446744073709551615
+    selected history: 
+    stored
+    selected history: 
+    spec
+    selected history: 4294967295selected history: 18446744073709551615
+    selected history: 1
+    bytes
+    selected history: 2selected history: 65535selected history: 18446744073709551615
+    selected history: 9
+    selected history: 18446744073709551615
+    selected history: 
+      selected history: 18446744073709551615
+      selected history: 4294967295
+      selected history: 4294967295
+      selected history: 18446744073709551615
+      selected history: 255
+      selected history: 18446744073709551615
+      selected history: 
+      selected history: 
+      selected history: 65535
+      selected history: 65535
+      selected history: 
+      `a/b`
+      `\xFF\x00`
+      
+      selected history: 
+      `tail`
+      selected history: 
+      selected history: 4294967295
+      selected history: 4294967295
+      selected history: 4294967295
+      selected history: 
+      selected history: 7
+      selected history: 
+      selected history: 
+      `*`
+    selected history: :
+      selected history: 
+      selected history: 
+      selected history: 
+      selected history: 
+      selected history: 
+      selected history: 4294967295selected history: 18446744073709551615selected history: 
+      selected history: 
+      selected history: 
+      selected history: 
+      selected history: 
+    selected history: 18446744073709551615
+    selected history: 7
+  selected history: 
+  selected history: :
+    selected history: 18446744073709551615
+    selected history: 18446744073709551615
+    selected history: 
+    stored
+    selected history: 
+    spec
+    selected history: 4294967295selected history: 18446744073709551615
+    selected history: 1
+    bytes
+    selected history: 2selected history: 65535selected history: 18446744073709551615
+    selected history: 9
+    selected history: 18446744073709551615
+    selected history: 
+      selected history: 18446744073709551615
+      selected history: 4294967295
+      selected history: 4294967295
+      selected history: 18446744073709551615
+      selected history: 255
+      selected history: 18446744073709551615
+      selected history: 
+      selected history: 
+      selected history: 65535
+      selected history: 65535
+      selected history: 
+      `a/b`
+      `\xFF\x00`
+      
+      selected history: 
+      `tail`
+      selected history: 
+      selected history: 4294967295
+      selected history: 4294967295
+      selected history: 4294967295
+      selected history: 
+      selected history: 7
+      selected history: 
+      selected history: 
+      `*`
+    selected history: :
+      selected history: 
+      selected history: 
+      selected history: 
+      selected history: 
+      selected history: 
+      selected history: 4294967295selected history: 18446744073709551615selected history: 
+      selected history: 
+      selected history: 
+      selected history: 
+      selected history: 
+    selected history: 18446744073709551615
+    selected history: 7
+  selected history: 18446744073709551615
+  selected history: 18446744073709551615
+  selected history: 
+  selected history: 
+  selected history: 18446744073709551615
+    selected history: 18446744073709551615
+    selected history: 4294967295
+    selected history: 4294967295
+    selected history: 18446744073709551615
+    selected history: 255
+    selected history: 18446744073709551615
+    selected history: 
+    selected history: 
+    selected history: 65535
+    selected history: 65535
+    selected history: 
+    `a/b`
+    `\xFF\x00`
+    
+    selected history: 
+    `tail`
+    selected history: 
+    selected history: 4294967295
+    selected history: 4294967295
+    selected history: 4294967295
+    selected history: 
+    selected history: 7
+    selected history: 
+    selected history: 
+    `*`
+  selected history: 
+  selected history: 18446744073709551615
+  selected history: 7

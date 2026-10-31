@@ -1,0 +1,12 @@
+== jig == 
+Wake policy:
+  Words
+  Wakes after 4294967295 messages or 18446744073709551615 ns of oldest message age
+  Notices
+  Wakes after 4294967295 messages or 18446744073709551615 ns of oldest message age
+  News
+  Wakes after 4294967295 messages or 18446744073709551615 ns of oldest message age
+  Delegate results do not wake
+  Questions do not wake
+  Answers do not wake
+  Timers wake
