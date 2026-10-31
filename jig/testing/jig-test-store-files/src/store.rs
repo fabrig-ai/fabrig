@@ -35,12 +35,18 @@ struct Delayed {
     event: Event,
     delay: u32,
 }
+#[derive(Clone, Copy)]
+enum StartMode {
+    Default,
+    LoadAndLink,
+}
 /// The real component, with a typed mirror of its durable writes.
 #[expect(
     clippy::struct_excessive_bools,
     reason = "generation pending, paused pages, held acknowledgements and failure are independent shell facts"
 )]
 pub struct Store {
+    start_mode: StartMode,
     pub applied: u64,
     /// Whether this open serves a copy awaiting the core’s switch step.
     pub generation_pending: bool,
@@ -97,6 +103,19 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::PatchSets,
     ) -> Store {
+        Self::build(limits, models, sets, StartMode::Default)
+    }
+    /// Open the real store with typed start pages (protocol/store.md, 7.1).
+    #[must_use]
+    pub fn starting(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
+        Self::build(limits, models, protocol::PatchSets::NONE, StartMode::LoadAndLink)
+    }
+    fn build(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::PatchSets,
+        start_mode: StartMode,
+    ) -> Store {
         let component_limits = component_limits(limits);
         let disk = if sets.sets.is_empty() { None } else { Some(crate::disk::Disk::new(&component_limits)) };
         let application = jig_test_store::application(&limits.connector);
@@ -114,6 +133,7 @@ impl Store {
         routes.configure(limits);
         routes.configure_restore(&component_limits).expect("restart page bounds fit");
         let mut store = Store {
+            start_mode,
             applied: 0,
             generation_pending: false,
             switch_requests: 0,
@@ -326,7 +346,8 @@ impl Store {
     pub fn ask(&mut self, out: StoreOut) {
         match out {
             StoreOut::Commit { number, writes } => self.submit(number, writes, 0),
-            out @ (StoreOut::Restart { .. }
+            out @ (StoreOut::Start { .. }
+            | StoreOut::Restart { .. }
             | StoreOut::ReadLoad { .. }
             | StoreOut::NotesLoad { .. }
             | StoreOut::Now(_)) => self.request(out),
@@ -357,6 +378,9 @@ impl Store {
         !self.delayed.is_empty() || !self.routes.idle()
     }
     fn open(&mut self) {
+        if matches!(self.start_mode, StartMode::LoadAndLink) {
+            self.component.as_mut().expect("component exists").start_restore();
+        }
         self.patched = 0;
         let root = match &self.disk {
             Some(disk) => disk.root(),
