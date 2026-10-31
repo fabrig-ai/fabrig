@@ -74,7 +74,7 @@ fn a_cancel_while_a_change_is_checked_stops_the_checks_once_main_withdraws_its_c
 }
 
 #[test]
-fn a_push_that_lands_while_a_cancel_closes_main_wins_over_it() {
+fn a_delivery_that_lands_while_a_cancel_closes_main_wins_over_it() {
     let mut harness = Harness::new(LIMITS);
     let (run, conversation) = harness.coding(1, 100);
     let owner = harness.land(conversation, 7);
@@ -93,9 +93,11 @@ fn a_push_that_lands_while_a_cancel_closes_main_wins_over_it() {
     let requests = harness.step(ended(conversation, End::Closed, Spend::ZERO));
     let accepted = Answer::Accepted { outcome: Declared::Change(change()), spent: Spend::ZERO, turns: 0 };
     assert_eq!(answered(requests), (1, accepted));
+}
 
-    // Or the host operation times out while run cancellation settles.
-    // Cancellation does not abandon that submitted operation or invent its result.
+#[test]
+fn a_submitted_delivery_timeout_settles_before_a_cancelled_run_answers() {
+    let mut harness = Harness::new(LIMITS);
     let (run, conversation) = harness.coding(2, 101);
     let owner = harness.land(conversation, 8);
     drop(harness.step(pass_checks(owner)));
@@ -117,7 +119,7 @@ fn a_push_that_lands_while_a_cancel_closes_main_wins_over_it() {
 }
 
 #[test]
-fn a_push_that_lands_after_the_deadline_wins_over_it() {
+fn a_delivery_that_lands_after_the_deadline_wins_over_it() {
     let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.coding(1, 100);
     let owner = harness.land(conversation, 7);
@@ -136,8 +138,10 @@ fn a_push_that_lands_after_the_deadline_wins_over_it() {
     let requests = harness.step(ended(conversation, End::Closed, Spend::ZERO));
     let accepted = Answer::Accepted { outcome: Declared::Change(change()), spent: Spend::ZERO, turns: 0 };
     assert_eq!(answered(requests), (1, accepted));
+}
 
-    // Over the budget, too.
+#[test]
+fn a_delivery_after_both_spend_and_time_exhaustion_wins_over_them() {
     let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.coding(1, 100);
     drop(harness.step(Event::Used { conversation, spend: spend(BUDGET.spend + 1) }));
@@ -161,7 +165,7 @@ fn a_push_that_lands_after_the_deadline_wins_over_it() {
 }
 
 #[test]
-fn checks_that_pass_once_the_run_winds_down_push_nothing() {
+fn checks_that_pass_once_the_run_winds_down_delivery_nothing() {
     let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.coding(1, 100);
     let owner = harness.land(conversation, 7);

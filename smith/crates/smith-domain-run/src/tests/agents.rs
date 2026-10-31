@@ -23,7 +23,7 @@ fn a_child_closed_after_its_last_charge_tells_the_budget_of_its_return() {
 }
 
 #[test]
-fn a_childs_return_pushes_one_budget_even_with_its_stage_change() {
+fn a_childs_return_delivers_one_budget_even_with_its_stage_change() {
     let mut harness = Harness::new(LIMITS);
     let mut charter = agents();
     charter.reserve.turns = 2;

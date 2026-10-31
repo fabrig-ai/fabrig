@@ -40,7 +40,7 @@ fn a_verdict_that_fits_is_accepted_and_the_run_finishes_with_it() {
 }
 
 #[test]
-fn a_change_runs_each_repositorys_checks_then_is_pushed_and_accepted() {
+fn a_change_runs_each_repositorys_checks_then_is_delivered_and_accepted() {
     let mut harness = Harness::new(LIMITS);
     let (run, conversation) = harness.coding(1, 100);
     let owner = harness.land(conversation, 7);
@@ -76,7 +76,7 @@ fn a_change_runs_each_repositorys_checks_then_is_pushed_and_accepted() {
 }
 
 #[test]
-fn a_change_that_fails_its_checks_or_its_push_goes_back_to_the_llm() {
+fn a_change_that_fails_its_checks_or_its_delivery_goes_back_to_the_llm() {
     let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.coding(1, 100);
     let owner = harness.land(conversation, 7);
@@ -230,8 +230,13 @@ fn a_landing_past_its_deadline_is_stopped_and_returns_timed_out_once_it_has() {
     assert_eq!(&*harness.step(pass_checks(owner)), &[returned(7, Returned::TimedOut)]);
     assert_eq!(harness.step(end_turn(conversation)).len(), 1, "the run goes on: a nudge");
     harness.domain.reclaim();
+}
 
-    // Past its deadline while it is pushed.
+#[test]
+fn a_submitted_delivery_keeps_its_terminal_after_caller_expiry() {
+    let mut harness = Harness::new(LIMITS);
+    let (_, conversation) = harness.coding(1, 100);
+    let minute = Duration::from_secs(60);
     let deadline = harness.env.now.saturating_add(minute);
     let requests = harness.step(finish_by(conversation, 8, Declared::Change(change()), deadline));
     let [Request::Check { owner, .. }, Request::Checking { .. }] = &*requests else {
@@ -269,8 +274,11 @@ fn past_the_budget_a_finish_in_the_turn_in_flight_still_counts() {
         answered(requests),
         (1, Answer::Accepted { outcome: verdict(b"approve", Box::new([])), spent: total, turns: 0 })
     );
+}
 
-    // A refused one closes main, and the run fails for budget.
+#[test]
+fn a_refused_finish_after_spend_exhaustion_closes_main_for_budget() {
+    let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.running(2, 101);
     drop(harness.step(Event::Used { conversation, spend: spend(BUDGET.spend + 1) }));
     let requests = harness.step(finish(conversation, 8, verdict(b"reject", Box::new([]))));
@@ -292,7 +300,7 @@ fn a_run_out_of_time_while_it_prepares_answers_once_its_look_has_ended() {
 }
 
 #[test]
-fn nothing_to_push_is_specific_feedback_and_the_run_can_retry() {
+fn nothing_to_delivery_is_specific_feedback_and_the_run_can_retry() {
     let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.coding(1, 100);
     let owner = harness.land(conversation, 7);
@@ -306,7 +314,7 @@ fn nothing_to_push_is_specific_feedback_and_the_run_can_retry() {
 }
 
 #[test]
-fn failed_push_reason_and_diagnostics_return_to_the_finish_caller() {
+fn failed_delivery_reason_and_diagnostics_return_to_the_finish_caller() {
     let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.coding(1, 100);
     let owner = harness.land(conversation, 7);
@@ -368,7 +376,7 @@ fn a_failed_delivery_with_an_unmounted_directory_is_broken_evidence() {
 }
 
 #[test]
-fn reports_and_declared_failures_settle_once_without_checks_or_push() {
+fn reports_and_declared_failures_settle_once_without_checks_or_delivery() {
     for (failure, text) in [(false, b"".as_slice()), (true, b"no".as_slice())] {
         let mut harness = Harness::new(LIMITS);
         let (run, conversation) = harness.running_on(1, 100, text_charter(failure));
@@ -473,37 +481,100 @@ fn a_mid_run_delivery_uses_the_change_contracts_optional_checks() {
     );
 }
 
-#[test]
-fn mid_report_landing_settles_before_an_interrupted_run_answers() {
-    for interrupted in [false, true] {
+struct MidDelivery {
+    harness: Harness,
+    run: Token,
+    conversation: Token,
+    owner: Token,
+}
+
+impl MidDelivery {
+    fn pending() -> Self {
         let mut harness = Harness::new(LIMITS);
         let (run, conversation) = mid_running(&mut harness);
         let owner = submit_mid(&mut harness, conversation);
-        if interrupted {
-            drop(harness.step(Event::Cancel { run }));
-            assert!(harness.step(Event::Withdraw { conversation, call: Token::new(50) }).is_empty());
-        }
-        let requests = harness.step(Event::Delivered { owner, delivery: delivered() });
-        assert_eq!(requests.as_ref(), &[returned(50, Returned::Delivered(receipts()))]);
+        Self { harness, run, conversation, owner }
+    }
+
+    fn short_caller() -> Self {
+        let mut harness = Harness::new(LIMITS);
+        let (run, conversation) = mid_running(&mut harness);
+        let caller_deadline = harness.env.now.saturating_add(Duration::from_secs(1));
+        let mut ask = mid_ask(conversation, 3);
+        let Event::Delegated { deadline, .. } = &mut ask else { unreachable!("delegated fixture") };
+        *deadline = caller_deadline;
+        let requests = harness.step(ask);
+        let [Request::Check { owner, .. }, Request::Checking { .. }] = requests.as_ref() else {
+            panic!("delivery checks first")
+        };
+        let owner = *owner;
+        let requests = harness.step(pass_checks(owner));
+        let [Request::Deliver { deadline, .. }] = requests.as_ref() else {
+            panic!("checks submit exactly one delivery")
+        };
+        assert_eq!(*deadline, caller_deadline);
+        Self { harness, run, conversation, owner }
+    }
+
+    fn delivered(&mut self) -> Box<[Request]> {
+        let requests = self.harness.step(Event::Delivered { owner: self.owner, delivery: delivered() });
         assert!(
-            harness.step(Event::Delivered { owner, delivery: delivered() }).is_empty(),
+            self.harness.step(Event::Delivered { owner: self.owner, delivery: delivered() }).is_empty(),
             "stale duplicate is inert before reclaim"
         );
-        if !interrupted {
-            drop(harness.step(finish(conversation, 51, report())));
-        }
-        let answer = answered(harness.step(ended(conversation, End::Closed, Spend::ZERO))).1;
-        if interrupted {
-            assert_eq!(answer, Answer::Failed { failure: Failure::Cancelled, spent: Spend::ZERO, turns: 0 });
-        } else {
-            assert_eq!(answer, Answer::Accepted { outcome: report(), spent: Spend::ZERO, turns: 0 });
-        }
-        harness.domain.reclaim();
+        requests
+    }
+
+    fn accepted_delivery(&mut self) {
+        assert_eq!(self.delivered().as_ref(), &[returned(50, Returned::Delivered(receipts()))]);
+    }
+
+    fn expire_caller(&mut self) {
+        self.harness.after(Duration::from_secs(1));
+        assert!(self.harness.domain.is_due(self.harness.env.now));
+        assert!(self.harness.fire().is_empty(), "expiry retains the host terminal right");
+    }
+
+    fn withdraw_caller(&mut self) {
         assert!(
-            harness.step(Event::Delivered { owner, delivery: delivered() }).is_empty(),
+            self.harness.step(Event::Withdraw { conversation: self.conversation, call: Token::new(50) }).is_empty()
+        );
+    }
+
+    fn ended(&mut self, expected: Answer, spent: Spend) {
+        assert_eq!(answered(self.harness.step(ended(self.conversation, End::Closed, spent))).1, expected);
+        self.harness.domain.reclaim();
+        assert!(
+            self.harness.step(Event::Delivered { owner: self.owner, delivery: delivered() }).is_empty(),
             "stale generation is inert after reclaim"
         );
     }
+
+    fn cancelled(&mut self) {
+        assert_eq!(self.harness.step(Event::Cancel { run: self.run }).as_ref(), &[Request::Close { peer: PEER }]);
+        self.ended(Answer::Failed { failure: Failure::Cancelled, spent: Spend::ZERO, turns: 0 }, Spend::ZERO);
+    }
+
+    fn reported(&mut self) {
+        drop(self.harness.step(finish(self.conversation, 51, report())));
+        self.ended(Answer::Accepted { outcome: report(), spent: Spend::ZERO, turns: 0 }, Spend::ZERO);
+    }
+}
+
+#[test]
+fn submitted_mid_delivery_settles_before_a_cancelled_run_answers() {
+    let mut delivery = MidDelivery::pending();
+    drop(delivery.harness.step(Event::Cancel { run: delivery.run }));
+    delivery.withdraw_caller();
+    delivery.accepted_delivery();
+    delivery.ended(Answer::Failed { failure: Failure::Cancelled, spent: Spend::ZERO, turns: 0 }, Spend::ZERO);
+}
+
+#[test]
+fn submitted_mid_delivery_settles_before_main_reports() {
+    let mut delivery = MidDelivery::pending();
+    delivery.accepted_delivery();
+    delivery.reported();
 }
 
 #[test]
@@ -530,38 +601,46 @@ fn malformed_host_mount_or_zero_origin_never_becomes_successful_delivery() {
 }
 
 #[test]
-fn time_and_spend_shutdown_keep_an_already_submitted_mid_landing() {
-    for timed in [false, true] {
-        let mut harness = Harness::new(LIMITS);
-        let (_, conversation) = mid_running(&mut harness);
-        let owner = submit_mid(&mut harness, conversation);
-        let expected = if timed {
-            harness.env.now = EXPIRY;
-            for _ in 0_u32..2 {
-                if harness.domain.is_due(harness.env.now) {
-                    drop(harness.fire());
-                }
-            }
-            Failure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) }
-        } else {
-            drop(harness.step(Event::Used { conversation, spend: spend(BUDGET.spend + 1) }));
-            Failure::Budget { exhausted: Exhausted::Spend, used: Some(BUDGET.spend + 1), bound: Some(BUDGET.spend) }
-        };
-        let expected_spend = if timed { Spend::ZERO } else { spend(BUDGET.spend + 1) };
-        let requests = harness.step(Event::Delivered { owner, delivery: delivered() });
-        if timed {
-            assert_eq!(requests.as_ref(), &[returned(50, Returned::Delivered(receipts()))]);
-        } else {
-            assert_eq!(
-                requests.as_ref(),
-                &[returned(50, Returned::Delivered(receipts())), Request::Close { peer: PEER },]
-            );
+fn time_shutdown_keeps_an_already_submitted_mid_landing() {
+    let mut delivery = MidDelivery::pending();
+    delivery.harness.env.now = EXPIRY;
+    for _ in 0_u32..2 {
+        if delivery.harness.domain.is_due(delivery.harness.env.now) {
+            drop(delivery.harness.fire());
         }
-        // Closing the session waits for the host terminal; its one End
-        // then reports the spend it already used, without another delivery.
-        let answer = answered(harness.step(ended(conversation, End::Closed, expected_spend))).1;
-        assert_eq!(answer, Answer::Failed { failure: expected, spent: expected_spend, turns: 0 });
     }
+    delivery.accepted_delivery();
+    delivery.ended(
+        Answer::Failed {
+            failure: Failure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) },
+            spent: Spend::ZERO,
+            turns: 0,
+        },
+        Spend::ZERO,
+    );
+}
+
+#[test]
+fn spend_shutdown_keeps_an_already_submitted_mid_landing() {
+    let mut delivery = MidDelivery::pending();
+    let spent = spend(BUDGET.spend + 1);
+    drop(delivery.harness.step(Event::Used { conversation: delivery.conversation, spend: spent }));
+    assert_eq!(
+        delivery.delivered().as_ref(),
+        &[returned(50, Returned::Delivered(receipts())), Request::Close { peer: PEER }]
+    );
+    delivery.ended(
+        Answer::Failed {
+            failure: Failure::Budget {
+                exhausted: Exhausted::Spend,
+                used: Some(BUDGET.spend + 1),
+                bound: Some(BUDGET.spend),
+            },
+            spent,
+            turns: 0,
+        },
+        spent,
+    );
 }
 
 #[test]
@@ -594,51 +673,33 @@ fn impossible_delivery_grant_and_zero_host_deadline_refuse_before_preparation() 
 }
 
 #[test]
-fn caller_only_stop_keeps_submitted_mid_delivery_and_ordinary_continuation() {
-    for expired in [false, true] {
-        for later_cancel in [false, true] {
-            let mut harness = Harness::new(LIMITS);
-            let (run, conversation) = mid_running(&mut harness);
-            let caller_deadline = harness.env.now.saturating_add(Duration::from_secs(1));
-            let mut ask = mid_ask(conversation, 3);
-            let Event::Delegated { deadline, .. } = &mut ask else { unreachable!("delegated fixture") };
-            *deadline = caller_deadline;
-            let requests = harness.step(ask);
-            let [Request::Check { owner, .. }, Request::Checking { .. }] = requests.as_ref() else {
-                panic!("delivery checks first")
-            };
-            let owner = *owner;
-            let requests = harness.step(Event::Checked { owner, ran: ran(0, b"passed") });
-            let [Request::Deliver { deadline, .. }] = requests.as_ref() else {
-                panic!("checks submit exactly one delivery")
-            };
-            assert_eq!(*deadline, caller_deadline);
-            if expired {
-                harness.env.now = caller_deadline;
-                assert!(harness.domain.is_due(harness.env.now));
-                assert!(harness.fire().is_empty(), "expiry retains the host terminal right");
-            } else {
-                assert!(harness.step(Event::Withdraw { conversation, call: Token::new(50) }).is_empty());
-            }
-            assert_eq!(
-                harness.step(Event::Delivered { owner, delivery: delivered() }).as_ref(),
-                &[returned(50, Returned::Delivered(receipts()))],
-                "caller-only stop neither abandons the host nor closes main"
-            );
-            if later_cancel {
-                assert_eq!(harness.step(Event::Cancel { run }).as_ref(), &[Request::Close { peer: PEER }]);
-            } else {
-                drop(harness.step(finish(conversation, 51, report())));
-            }
-            let answer = answered(harness.step(ended(conversation, End::Closed, Spend::ZERO))).1;
-            assert_eq!(
-                answer,
-                if later_cancel {
-                    Answer::Failed { failure: Failure::Cancelled, spent: Spend::ZERO, turns: 0 }
-                } else {
-                    Answer::Accepted { outcome: report(), spent: Spend::ZERO, turns: 0 }
-                }
-            );
-        }
-    }
+fn caller_expiry_keeps_submitted_delivery_until_its_terminal_then_cancellation() {
+    let mut delivery = MidDelivery::short_caller();
+    delivery.expire_caller();
+    delivery.accepted_delivery();
+    delivery.cancelled();
+}
+
+#[test]
+fn caller_expiry_keeps_submitted_delivery_until_its_terminal_then_report() {
+    let mut delivery = MidDelivery::short_caller();
+    delivery.expire_caller();
+    delivery.accepted_delivery();
+    delivery.reported();
+}
+
+#[test]
+fn caller_withdrawal_keeps_submitted_delivery_until_its_terminal_then_cancellation() {
+    let mut delivery = MidDelivery::short_caller();
+    delivery.withdraw_caller();
+    delivery.accepted_delivery();
+    delivery.cancelled();
+}
+
+#[test]
+fn caller_withdrawal_keeps_submitted_delivery_until_its_terminal_then_report() {
+    let mut delivery = MidDelivery::short_caller();
+    delivery.withdraw_caller();
+    delivery.accepted_delivery();
+    delivery.reported();
 }
