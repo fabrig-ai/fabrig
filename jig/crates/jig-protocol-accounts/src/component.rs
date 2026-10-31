@@ -20,7 +20,10 @@ pub enum Event {
     Request(domain::Request),
     Io(io::Event),
     Store(store::Event),
-    Opened { installation: [u8; 16] },
+    /// The store has acknowledged this start's durable mark.
+    Opened {
+        installation: [u8; 16],
+    },
     Abort,
 }
 /// Outputs are routed without deciding the accounts' ordering.
@@ -28,32 +31,37 @@ pub enum Event {
 pub enum Effect {
     Child(domain::Event),
     Io(io::Request),
-    Store { exchange: Token, request: store::Secrets },
-    Granted { source: u32, generation: u64, value: table::Value, expires: Time },
-    Removed { source: u32 },
+    Store {
+        exchange: Token,
+        request: store::Secrets,
+    },
+    /// Update the owner's credential delivery projection before notifying its child.
+    Granted {
+        source: u32,
+        generation: u64,
+        value: table::Value,
+        expires: Time,
+    },
+    /// Withdraw a credential from the owner's delivery projection.
+    Removed {
+        source: u32,
+    },
+    /// The driver has released this source; a move may now read its final record.
+    SourceRemoved {
+        source: u32,
+    },
     InvalidSecret,
 }
 /// Pending store effects and their answers, owned by the composition.
-struct Store {
-    component: Mark,
+struct StoreState {
+    durable: bool,
     installation: [u8; 16],
-    sources: Queue<store::Event>,
-    above: Queue<store::Event>,
-    restored: Queue<(u32, Option<store::SecretValue>)>,
+    answers: Queue<store::Event>,
     requests: Queue<Effect>,
 }
-struct Mark {
-    durable: bool,
-}
-impl Mark {
-    fn mark_durable(&self) -> bool {
-        self.durable
-    }
-}
-impl Store {
-    fn secrets(&mut self, exchange: Token, request: store::Secrets) -> Option<store::Event> {
+impl StoreState {
+    fn request(&mut self, exchange: Token, request: store::Secrets) {
         self.requests.push(Effect::Store { exchange, request });
-        None
     }
 }
 /// The driver starts after the start mark is durable (llm.md, 5.4).
@@ -68,9 +76,11 @@ enum Erasing {
     SignOut { confirmed: bool },
     Removing,
 }
+/// Owns the accounts protocol ordering, the OAuth driver and the credential table
+/// (jig/docs/design/protocol/llm.md, 5). Owner request tokens remain opaque.
 #[expect(missing_debug_implementations, reason = "owns driver state and secret records")]
 pub struct Component {
-    component: Option<driver::Component>,
+    driver: Option<driver::Component>,
     phase: Phase,
     env: Env<driver::Limits>,
     providers: Map<u32, driver::Account>,
@@ -95,14 +105,18 @@ pub struct Component {
     /// Aborted: the store is closing, and takes no more records.
     aborting: bool,
     closed: bool,
-    store: Store,
+    dispatching_move: bool,
+    store: StoreState,
     table: table::Table,
     output: Queue<Effect>,
     restoring: Map<u32, (u32, domain::Kind)>,
 }
 fn unkept(account: &driver::Account) -> driver::Account {
-    let driver::Account::SignIn { registration, endpoint, shared, origins, .. } = account else {
-        unreachable!("provider template is a public sign-in");
+    let (registration, endpoint, shared, origins) = match account {
+        driver::Account::SignIn { registration, endpoint, shared, origins, .. } => {
+            (registration, endpoint, shared, origins)
+        }
+        driver::Account::HandedIn => unreachable!("provider template is a public sign-in"),
     };
     driver::Account::SignIn {
         registration: oauth::Registration {
@@ -133,8 +147,9 @@ fn unkept(account: &driver::Account) -> driver::Account {
 }
 
 fn required_scopes(account: &driver::Account) -> Box<[u8]> {
-    let driver::Account::SignIn { registration, .. } = account else {
-        unreachable!("party sources use provider registrations");
+    let registration = match account {
+        driver::Account::SignIn { registration, .. } => registration,
+        driver::Account::HandedIn => unreachable!("party sources use provider registrations"),
     };
     match &registration.terms {
         Some(terms) => terms.required_scopes.clone().unwrap_or_default(),
@@ -151,12 +166,7 @@ enum SecretKind {
 }
 
 impl Component {
-    fn secret(
-        &mut self,
-        store: &mut Store,
-        value: Option<store::SecretValue>,
-        expected: SecretKind,
-    ) -> Result<Option<Secret>, ()> {
+    fn secret(&mut self, value: Option<store::SecretValue>, expected: SecretKind) -> Result<Option<Secret>, ()> {
         let payload = match value {
             None => return Ok(None),
             Some(store::SecretValue::Record(value)) if expected == SecretKind::Record => value,
@@ -171,13 +181,7 @@ impl Component {
                 | store::SecretValue::Application(_)
                 | store::SecretValue::Held(_),
             ) => {
-                store.above.push(store::Event::PageRefused {
-                    owner: Token::new(0),
-                    failure: store::restore::Failure {
-                        cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),
-                        row: None,
-                    },
-                });
+                self.output.push(Effect::InvalidSecret);
                 self.abort();
                 return Err(());
             }
@@ -185,28 +189,61 @@ impl Component {
         Ok(Some(payload))
     }
 
+    #[must_use]
     pub fn startup(&self, source: u32) -> (bool, u32, u32) {
         let mut restores = 0_u32;
         let mut wants = 0_u32;
         for request in &self.early {
-            if let domain::Request::Signing(domain::Signing::Restore { source: found, .. }) = request
-                && *found == source
-            {
-                restores = restores.checked_add(1).expect("bounded early queue");
-            }
-            if let domain::Request::Component(domain::ToComponent::Want { account }) = request
-                && *account == source
-            {
-                wants = wants.checked_add(1).expect("bounded early queue");
+            match request {
+                domain::Request::Signing(signing) => match signing {
+                    domain::Signing::Restore { source: found, .. } => {
+                        if *found == source {
+                            restores = restores.checked_add(1).expect("bounded early queue");
+                        }
+                    }
+                    domain::Signing::Withdraw { .. }
+                    | domain::Signing::Return { .. }
+                    | domain::Signing::Refresh { .. }
+                    | domain::Signing::Open { .. }
+                    | domain::Signing::Adopt { .. }
+                    | domain::Signing::Keep { .. }
+                    | domain::Signing::Forget { .. }
+                    | domain::Signing::Restored
+                    | domain::Signing::SignIn { .. }
+                    | domain::Signing::Redirected { .. }
+                    | domain::Signing::CancelSignIn { .. }
+                    | domain::Signing::SignOut { .. }
+                    | domain::Signing::Replaced { .. } => (),
+                },
+                domain::Request::Component(request) => match request {
+                    domain::ToComponent::Want { account } => {
+                        if *account == source {
+                            wants = wants.checked_add(1).expect("bounded early queue");
+                        }
+                    }
+                    domain::ToComponent::Rejected { .. }
+                    | domain::ToComponent::Release { .. }
+                    | domain::ToComponent::Close => (),
+                },
+                domain::Request::Granted { .. }
+                | domain::Request::Save { .. }
+                | domain::Request::Erase { .. }
+                | domain::Request::Answer { .. }
+                | domain::Request::Programs { .. }
+                | domain::Request::CheckProgram { .. }
+                | domain::Request::SignOutProgram { .. }
+                | domain::Request::Closed => (),
             }
         }
-        (self.component.is_some(), restores, wants)
+        (self.driver.is_some(), restores, wants)
     }
     pub fn take_moved(&mut self, source: u32) -> Option<Secret> {
         self.moves.take(source)
     }
 
-    /// Provider templates use owner keepers; the durable installation is supplied before work starts.
+    /// Limits and public provider templates have passed the driver's validation.
+    /// The durable installation is supplied before work starts; page_rows is the secrets store's page bound.
+    #[must_use]
     pub fn new(
         application: Box<[u8]>,
         providers: Map<u32, driver::Account>,
@@ -215,7 +252,7 @@ impl Component {
         page_rows: u32,
     ) -> Self {
         Self {
-            component: None,
+            driver: None,
             phase: Phase::Loading { crypto },
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             providers,
@@ -238,12 +275,11 @@ impl Component {
             files: Queue::uncapped(),
             aborting: false,
             closed: false,
-            store: Store {
-                component: Mark { durable: false },
+            dispatching_move: false,
+            store: StoreState {
+                durable: false,
                 installation: [0; 16],
-                sources: Queue::uncapped(),
-                above: Queue::uncapped(),
-                restored: Queue::uncapped(),
+                answers: Queue::uncapped(),
                 requests: Queue::uncapped(),
             },
             table: table::Table::new(limits.accounts, limits.client.document.token_bytes),
@@ -252,12 +288,12 @@ impl Component {
         }
     }
     fn down(&mut self, request: driver::Request) {
-        if let Some(component) = &mut self.component {
+        if let Some(component) = &mut self.driver {
             component.down(&self.env, request, &mut self.above, &mut self.io, &mut self.files);
         }
     }
     /// The domain's request: to the driver once it runs, held until then.
-    pub fn request(&mut self, request: domain::Request) {
+    fn request(&mut self, request: domain::Request) {
         match request {
             domain::Request::Component(_) | domain::Request::Signing(_) => {
                 self.early.push(request);
@@ -272,7 +308,7 @@ impl Component {
             | domain::Request::Closed => (),
         }
     }
-    fn dispatch(&mut self, request: domain::Request, store: &mut Store, values: &mut table::Table) {
+    fn dispatch(&mut self, request: domain::Request, store: &mut StoreState) {
         match request {
             domain::Request::Component(request) => match request {
                 domain::ToComponent::Want { account } if self.keys.contains(account) => {
@@ -294,7 +330,7 @@ impl Component {
                     self.down(translate::down(other));
                 }
             },
-            domain::Request::Signing(signing) => self.signing(translate::down_signing(signing), store, values),
+            domain::Request::Signing(signing) => self.signing(translate::down_signing(signing), store),
             domain::Request::Granted { .. }
             | domain::Request::Save { .. }
             | domain::Request::Erase { .. }
@@ -305,52 +341,41 @@ impl Component {
             | domain::Request::Closed => (),
         }
     }
-    fn restore_source(
-        &mut self,
-        source: u32,
-        provider: u32,
-        kind: domain::Kind,
-        store: &mut Store,
-        _values: &mut table::Table,
-    ) {
+    fn restore_source(&mut self, source: u32, provider: u32, kind: domain::Kind, store: &mut StoreState) {
         self.inventory.name(source);
         self.restoring.insert(source, (provider, kind)).expect("admitted restored source");
-        let _later = store.secrets(
+        store.request(
             Token::new(u64::from(source)),
             store::Secrets::Get { owner: store::SecretOwner::Source, number: u64::from(source) },
         );
     }
-    fn restored_value(
-        &mut self,
-        source: u32,
-        value: Option<store::SecretValue>,
-        store: &mut Store,
-        values: &mut table::Table,
-    ) {
+    fn restored_value(&mut self, source: u32, value: Option<store::SecretValue>, values: &mut table::Table) {
         let (provider, kind) = self.restoring.remove(&source).expect("pending source restore");
         let expected = match kind {
             domain::Kind::Key => SecretKind::Key,
             domain::Kind::SignIn => SecretKind::Record,
             domain::Kind::Program | domain::Kind::None => return,
         };
-        let Ok(value) = self.secret(store, value, expected) else { return };
+        let Ok(value) = self.secret(value, expected) else { return };
         match kind {
             domain::Kind::Key => self.keys.restore(source, value, values).expect("restored key fits"),
             domain::Kind::SignIn => self.restore_signed_in(source, provider, value),
             domain::Kind::Program | domain::Kind::None => (),
         }
     }
-    fn signing(&mut self, signing: translate::Down, store: &mut Store, values: &mut table::Table) {
+    fn signing(&mut self, signing: translate::Down, store: &mut StoreState) {
         match signing {
             translate::Down::Restore { source, provider, kind } => {
-                self.restore_source(source, provider, kind, store, values);
+                self.restore_source(source, provider, kind, store);
             }
             translate::Down::Withdraw { source, display } => {
+                self.dispatching_move = true;
                 self.ready(source, false);
                 let next = self.moves.withdraw(source, display);
                 self.move_out.push(next);
             }
             translate::Down::Return { source } => {
+                self.dispatching_move = true;
                 let next = self.moves.returning(source);
                 self.move_out.push(next);
             }
@@ -358,10 +383,12 @@ impl Component {
                 self.ready(source, true);
             }
             translate::Down::Open { source, carried } => {
+                self.dispatching_move = true;
                 let next = self.moves.open(source, carried);
                 self.move_out.push(next);
             }
             translate::Down::Adopt { source, carried } => {
+                self.dispatching_move = true;
                 let next = self.moves.adopt(source, carried, &self.env.limits.client.document);
                 self.move_out.push(next);
             }
@@ -412,7 +439,7 @@ impl Component {
                 let account = unkept(template);
                 let required = required_scopes(&account);
                 let before = self.above.len();
-                self.component.as_mut().expect("running driver").add(&self.env, source, account, &mut self.above);
+                self.driver.as_mut().expect("running driver").add(&self.env, source, account, &mut self.above);
                 if self.above.len() != before {
                     return;
                 }
@@ -424,15 +451,16 @@ impl Component {
             }
         }
     }
-    pub fn clock(&mut self, now: Time, wall: Wall) {
+    fn clock(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
     }
-    pub fn up(&mut self, event: io::Event) {
-        if let Some(component) = &mut self.component {
+    fn up(&mut self, event: io::Event) {
+        if let Some(component) = &mut self.driver {
             component.up(&self.env, event, &mut self.above, &mut self.io, &mut self.files);
         }
     }
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         (self.aborting || (!self.inventory.active() && !self.keys.pending() && !self.finishes.pending()))
             && self.move_out.is_empty()
@@ -445,19 +473,34 @@ impl Component {
             && self.above.is_empty()
             && self.files.is_empty()
             && self.early.is_empty()
+            && self.output.is_empty()
+            && self.store.answers.is_empty()
+            && self.store.requests.is_empty()
+            && self.restoring.is_empty()
     }
+    #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        match &self.component {
+        if self.closed {
+            return None;
+        }
+        let driver = match &self.driver {
             Some(component) => component.next_deadline(),
             None => None,
+        };
+        match self.table.next_expiry() {
+            Some(expiry) => Some(match driver {
+                Some(time) => time.min(expiry),
+                None => expiry,
+            }),
+            None => driver,
         }
     }
-    pub fn work_pending(&self, now: Time, marked: bool) -> bool {
+    fn work_pending(&self, now: Time, marked: bool) -> bool {
         let starting = match &self.phase {
             // The driver cannot start until the store acknowledges the mark.
             // Claiming work before then keeps delayed io from completing.
             Phase::Loading { .. } => marked,
-            Phase::Running => !self.early.is_empty(),
+            Phase::Running => !self.early.is_empty() && !self.dispatching_move && self.restoring.is_empty(),
         };
         starting
             || self.inventory.work_pending()
@@ -469,7 +512,7 @@ impl Component {
             || !self.above.is_empty()
             || !self.io.is_empty()
             || !self.files.is_empty()
-            || match &self.component {
+            || match &self.driver {
                 Some(component) => component.has_work(),
                 None => false,
             }
@@ -478,8 +521,10 @@ impl Component {
                 None => false,
             }
     }
-    pub fn abort(&mut self) {
+    fn abort(&mut self) {
         self.aborting = true;
+        self.dispatching_move = false;
+        self.restoring = Map::with_capacity(self.env.limits.accounts);
         self.finishes.abort();
         for _ in 0..self.finish_out.len() {
             let _unasked = self.finish_out.pop();
@@ -488,7 +533,7 @@ impl Component {
         for _ in 0..self.move_out.len() {
             let _unasked = self.move_out.pop();
         }
-        if self.component.is_some() {
+        if self.driver.is_some() {
             self.down(driver::Request::Abort);
         } else {
             self.closed = true;
@@ -513,15 +558,11 @@ impl Component {
         wall: Wall,
         values: &mut table::Table,
         events: &mut Queue<domain::Event>,
-        store: &mut Store,
+        store: &mut StoreState,
     ) {
         self.clock(now, wall);
-        for _ in 0..store.restored.len() {
-            let (source, value) = store.restored.pop().expect("restore answers");
-            self.restored_value(source, value, store, values);
-        }
-        self.answers(store, events);
-        self.start(store, values);
+        self.answers(store, values, events);
+        self.start(store);
         self.move_steps(events, store);
         self.key_steps(values, events, store);
         self.finish_steps(events, store);
@@ -530,11 +571,11 @@ impl Component {
         self.driver_events(values, events, store);
         assert!(self.files.is_empty(), "owner keepers file nothing");
         values.expire(now);
-        if let Some(component) = &mut self.component {
+        if let Some(component) = &mut self.driver {
             component.reclaim();
         }
     }
-    fn driver_events(&mut self, values: &mut table::Table, events: &mut Queue<domain::Event>, store: &mut Store) {
+    fn driver_events(&mut self, values: &mut table::Table, events: &mut Queue<domain::Event>, store: &mut StoreState) {
         let now = self.env.now;
         for _ in 0..self.above.len() {
             let event = self.above.pop().expect("account events");
@@ -563,7 +604,7 @@ impl Component {
                 translate::Up::Revoked { source } => {
                     values.remove(source);
                     self.output.push(Effect::Removed { source });
-                    self.erase(source, Erasing::Revoked, events, store);
+                    self.erase(source, Erasing::Revoked, store);
                     domain::FromComponent::Failed { account: source, failure: domain::Failure::SignInAgain }
                 }
                 translate::Up::Finishing { source } => {
@@ -591,7 +632,7 @@ impl Component {
                     continue;
                 }
                 translate::Up::SignedOut { source, confirmed } => {
-                    self.erase(source, Erasing::SignOut { confirmed }, events, store);
+                    self.erase(source, Erasing::SignOut { confirmed }, store);
                     continue;
                 }
                 translate::Up::Removed { source } => {
@@ -620,6 +661,7 @@ impl Component {
         }
     }
     fn removed(&mut self, source: u32, values: &mut table::Table) {
+        self.output.push(Effect::SourceRemoved { source });
         if let Some(next) = self.moves.removed(source) {
             self.move_out.push(next);
             return;
@@ -633,7 +675,7 @@ impl Component {
         self.output.push(Effect::Removed { source });
     }
     fn fire_driver(&mut self) {
-        if let Some(component) = &mut self.component {
+        if let Some(component) = &mut self.driver {
             component.fire(&self.env, &mut self.above, &mut self.io, &mut self.files);
         }
     }
@@ -653,17 +695,20 @@ impl Component {
     }
     fn ready(&mut self, source: u32, refresh: bool) {
         if let Some(account) = self.moves.ready(source, refresh) {
-            self.component.as_mut().expect("running driver").add(&self.env, source, account, &mut self.above);
+            self.driver.as_mut().expect("running driver").add(&self.env, source, account, &mut self.above);
         }
     }
-    fn move_steps(&mut self, events: &mut Queue<domain::Event>, store: &mut Store) {
+    fn move_steps(&mut self, events: &mut Queue<domain::Event>, store: &mut StoreState) {
         if self.aborting {
             return;
         }
         for _ in 0..self.move_out.len() {
             match self.move_out.pop().expect("move steps") {
                 moves::Next::Driver(request) => self.down(request),
-                moves::Next::Child(event) => events.push(event),
+                moves::Next::Child(event) => {
+                    self.dispatching_move = false;
+                    events.push(event);
+                }
                 moves::Next::Store { source, request } => {
                     let (prefix, request) = match request {
                         moves::Store::ReadOut => (
@@ -689,14 +734,12 @@ impl Component {
                             },
                         ),
                     };
-                    if let Some(event) = store.secrets(Token::new(prefix | u64::from(source)), request) {
-                        self.move_answer(event, events, store);
-                    }
+                    store.request(Token::new(prefix | u64::from(source)), request);
                 }
             }
         }
     }
-    fn move_answer(&mut self, event: store::Event, events: &mut Queue<domain::Event>, store: &mut Store) {
+    fn move_answer(&mut self, event: store::Event, events: &mut Queue<domain::Event>) {
         if self.aborting {
             return;
         }
@@ -706,7 +749,7 @@ impl Component {
             }
             store::Event::Secret { owner, value } if owner.raw() & MOVE_OUT == MOVE_OUT => {
                 let source = move_source(owner);
-                let Ok(value) = self.secret(store, value, SecretKind::Record) else {
+                let Ok(value) = self.secret(value, SecretKind::Record) else {
                     return;
                 };
                 let provider = self.source_providers.get(&source).expect("withdrawn source provider");
@@ -717,13 +760,14 @@ impl Component {
             store::Event::Secret { owner, value } if owner.raw() & MOVE_BACK == MOVE_BACK => {
                 let source = move_source(owner);
                 let provider = *self.source_providers.get(&source).expect("returning source provider");
-                let Ok(value) = self.secret(store, value, SecretKind::Record) else {
+                let Ok(value) = self.secret(value, SecretKind::Record) else {
                     return;
                 };
                 self.restore_signed_in(source, provider, value);
+                self.dispatching_move = false;
             }
             store::Event::Secret { owner, value } => {
-                let Ok(value) = self.secret(store, value, SecretKind::Carried(store::CarriedKind::Moved)) else {
+                let Ok(value) = self.secret(value, SecretKind::Carried(store::CarriedKind::Moved)) else {
                     return;
                 };
                 let next =
@@ -732,6 +776,7 @@ impl Component {
             }
             store::Event::Kept { owner } => {
                 let source = move_source(owner);
+                self.dispatching_move = false;
                 if let Some(adoption) = self.moves.adopted(source, true) {
                     self.inventory.name(source);
                     self.restore_signed_in(source, adoption.provider, Some(adoption.value));
@@ -740,6 +785,7 @@ impl Component {
             }
             store::Event::Stale { owner } => {
                 let source = move_source(owner);
+                self.dispatching_move = false;
                 let _unkept = self.moves.adopted(source, false);
                 events.push(domain::Event::Adopted { source, kept: false });
             }
@@ -771,8 +817,8 @@ impl Component {
         }
         self.inventory.loaded(next);
     }
-    fn sweep(&mut self, store: &mut Store) {
-        if self.aborting || !store.component.mark_durable() {
+    fn sweep(&mut self, store: &mut StoreState) {
+        if self.aborting || !store.durable {
             return;
         }
         let Some(step) = self.inventory.step() else { return };
@@ -780,14 +826,10 @@ impl Component {
             restart::Sweep::Load { after } => store::Secrets::Load { owner: store::SecretOwner::Source, after },
             restart::Sweep::Erase { number } => store::Secrets::Erase { owner: store::SecretOwner::Source, number },
         };
-        match store.secrets(SWEEP, request) {
-            Some(store::Event::SecretsLoaded { rows, next, .. }) => self.sweep_loaded(rows, next),
-            Some(store::Event::Erased { .. }) => self.inventory.erased(),
-            None => (),
-            Some(other) => unreachable!("Source sweep answers load or erase: {other:?}"),
-        }
+        store.request(SWEEP, request);
     }
-    fn key_steps(&mut self, values: &mut table::Table, events: &mut Queue<domain::Event>, store: &mut Store) {
+
+    fn key_steps(&mut self, values: &mut table::Table, events: &mut Queue<domain::Event>, store: &mut StoreState) {
         if self.aborting {
             return;
         }
@@ -795,7 +837,7 @@ impl Component {
             let source = self.forgotten.pop().expect("forgotten LLM key");
             values.remove(source);
             self.output.push(Effect::Removed { source });
-            let _later = store.secrets(
+            store.request(
                 Token::new(u64::from(source)),
                 store::Secrets::Erase { owner: store::SecretOwner::Source, number: u64::from(source) },
             );
@@ -815,15 +857,9 @@ impl Component {
                             replaces,
                         },
                     };
-                    if let Some(store::Event::Secret { value, .. }) = store.secrets(owner, request) {
-                        let Ok(value) = self.secret(store, value, SecretKind::Carried(store::CarriedKind::Key)) else {
-                            return;
-                        };
-                        if let Some(next) = self.keys.read(exchange, value) {
-                            self.key_out.push(next);
-                        }
-                    }
+                    store.request(owner, request);
                 }
+
                 keys::Next::Child(event) => {
                     match &event {
                         domain::FromComponent::KeepFailed { account, .. } => {
@@ -854,25 +890,35 @@ impl Component {
         }
         for _ in 0..self.key_events.len() {
             let event = self.key_events.pop().expect("LLM key grant events");
+            match &event {
+                domain::FromComponent::Granted { account, generation, .. } => {
+                    if let Some(value) = values.value(*account, *generation, self.env.now) {
+                        self.output.push(Effect::Granted {
+                            source: *account,
+                            generation: *generation,
+                            value: value.clone(),
+                            expires: Time::from_nanos(u64::MAX),
+                        });
+                    }
+                }
+                domain::FromComponent::Expiring { .. }
+                | domain::FromComponent::KeepFailed { .. }
+                | domain::FromComponent::Failed { .. }
+                | domain::FromComponent::Closed => (),
+            }
             events.push(domain::Event::Component(event));
         }
     }
-    fn finish_steps(&mut self, events: &mut Queue<domain::Event>, store: &mut Store) {
+    fn finish_steps(&mut self, events: &mut Queue<domain::Event>, store: &mut StoreState) {
         for _ in 0..self.finish_out.len() {
             match self.finish_out.pop().expect("finish steps") {
                 finishes::Next::Get { exchange, carried } => {
-                    if let Some(store::Event::Secret { value, .. }) = store.secrets(
+                    store.request(
                         Token::new(FINISH_EXCHANGE | exchange.raw()),
                         store::Secrets::Get { owner: store::SecretOwner::Application, number: carried },
-                    ) {
-                        let Ok(value) = self.secret(store, value, SecretKind::Held) else {
-                            return;
-                        };
-                        if let Some(next) = self.finishes.read(exchange, value) {
-                            self.finish_out.push(next);
-                        }
-                    }
+                    );
                 }
+
                 finishes::Next::Driver(request) => self.down(request),
                 finishes::Next::Child(event) => events.push(event),
             }
@@ -891,7 +937,7 @@ impl Component {
         values.granted(account, generation, value, expires).expect("startup checks token bounds");
         form
     }
-    fn erase(&mut self, source: u32, reason: Erasing, events: &mut Queue<domain::Event>, store: &mut Store) {
+    fn erase(&mut self, source: u32, reason: Erasing, store: &mut StoreState) {
         if let Some(pending) = self.erasing.get_mut(&source) {
             match pending {
                 Erasing::Revoked => match reason {
@@ -903,13 +949,12 @@ impl Component {
             return;
         }
         self.erasing.insert(source, reason).expect("one erase per driver account");
-        if let Some(store::Event::Erased { owner }) = store.secrets(
+        store.request(
             Token::new(u64::from(source)),
             store::Secrets::Erase { owner: store::SecretOwner::Source, number: u64::from(source) },
-        ) {
-            self.erased(source, owner, events);
-        }
+        );
     }
+
     fn erased(&mut self, number: u32, _owner: Token, events: &mut Queue<domain::Event>) {
         let Some(pending) = self.erasing.remove(&number) else { return };
         match pending {
@@ -929,14 +974,23 @@ impl Component {
     }
     /// The store's answers: the records it holds, and whether each write was
     /// kept (store.md 9).
-    fn answers(&mut self, store: &mut Store, events: &mut Queue<domain::Event>) {
-        for _ in 0..store.sources.len() {
-            match store.sources.pop().expect("source answers") {
+    fn answers(&mut self, store: &mut StoreState, values: &mut table::Table, events: &mut Queue<domain::Event>) {
+        for _ in 0..store.answers.len() {
+            let answer = store.answers.pop().expect("source answers");
+            if self.aborting {
+                continue;
+            }
+            match answer {
                 store::Event::Page { .. } | store::Event::PageRefused { .. } => {
                     unreachable!("a start's pages need a start-mode store")
                 }
+                store::Event::Secret { owner, value }
+                    if u32::try_from(owner.raw()).is_ok() && self.restoring.contains_key(&source(owner)) =>
+                {
+                    self.restored_value(source(owner), value, values);
+                }
                 store::Event::Secret { owner, value } if owner.raw() & FINISH_EXCHANGE == FINISH_EXCHANGE => {
-                    let Ok(value) = self.secret(store, value, SecretKind::Held) else {
+                    let Ok(value) = self.secret(value, SecretKind::Held) else {
                         return;
                     };
                     if !self.aborting
@@ -946,7 +1000,7 @@ impl Component {
                     }
                 }
                 store::Event::Secret { owner, value } if owner.raw() & KEY_EXCHANGE == KEY_EXCHANGE => {
-                    let Ok(value) = self.secret(store, value, SecretKind::Carried(store::CarriedKind::Key)) else {
+                    let Ok(value) = self.secret(value, SecretKind::Carried(store::CarriedKind::Key)) else {
                         return;
                     };
                     if !self.aborting
@@ -955,11 +1009,11 @@ impl Component {
                         self.key_out.push(next);
                     }
                 }
-                event @ store::Event::Secret { .. } => self.move_answer(event, events, store),
+                event @ store::Event::Secret { .. } => self.move_answer(event, events),
                 event @ (store::Event::Kept { owner } | store::Event::Stale { owner })
                     if owner.raw() & MOVE_ADOPT == MOVE_ADOPT =>
                 {
-                    self.move_answer(event, events, store);
+                    self.move_answer(event, events);
                 }
                 store::Event::SecretsLoaded { owner: SWEEP, rows, next } => self.sweep_loaded(rows, next),
                 store::Event::SecretsLoaded { .. } => unreachable!("only the source inventory loads pages"),
@@ -1014,8 +1068,9 @@ impl Component {
     }
     /// The durable installation identity replaces this start's draw before any restore or sign-in.
     fn opened(&mut self, kept: &[u8; 16]) {
-        let Phase::Loading { crypto } = ::core::mem::replace(&mut self.phase, Phase::Running) else {
-            unreachable!("loading");
+        let crypto = match core::mem::replace(&mut self.phase, Phase::Running) {
+            Phase::Loading { crypto } => crypto,
+            Phase::Running => unreachable!("driver starts once"),
         };
         let component = driver::Component::new(List::with_capacity(0), &self.env.limits, crypto)
             .expect("startup checked driver bounds");
@@ -1023,40 +1078,44 @@ impl Component {
         let mut after = 0;
         for _ in 0..self.providers.len() {
             let Some((&number, _)) = self.providers.range(after..).next() else { break };
-            if let Some(driver::Account::SignIn { registration, .. }) = self.providers.get_mut(&number)
-                && let Some(terms) = &mut registration.terms
-            {
-                terms.parameters.first_mut().expect("installation parameter").value = installation::urn(kept);
+            let account = self.providers.get_mut(&number).expect("named provider");
+            match account {
+                driver::Account::SignIn { registration, .. } => {
+                    if let Some(terms) = &mut registration.terms {
+                        terms.parameters.first_mut().expect("installation parameter").value = installation::urn(kept);
+                    }
+                }
+                driver::Account::HandedIn => unreachable!("provider template is a sign-in"),
             }
             let Some(next) = number.checked_add(1) else { break };
             after = next;
         }
-        self.component = Some(component);
+        self.driver = Some(component);
     }
     /// Wait for the durable start mark, then route the child's restored sources and runtime requests.
-    fn start(&mut self, store: &mut Store, values: &mut table::Table) {
+    fn start(&mut self, store: &mut StoreState) {
         match &mut self.phase {
             Phase::Loading { .. } => {
-                if store.component.mark_durable() {
+                if store.durable {
                     self.opened(&store.installation);
                 }
             }
             Phase::Running => {
                 for _ in 0..self.early.len() {
-                    // move_requests_dispatched: finish the previous move before another entrance.
-                    if !self.move_out.is_empty() || !self.restoring.is_empty() {
+                    // Dispatch the previous move before another entrance.
+                    if self.dispatching_move || !self.move_out.is_empty() || !self.restoring.is_empty() {
                         break;
                     }
                     let request = self.early.pop().expect("early requests");
-                    self.dispatch(request, store, values);
+                    self.dispatch(request, store);
                 }
             }
         }
     }
 }
-fn replace(store: &mut Store, keep: records::Keep) {
+fn replace(store: &mut StoreState, keep: records::Keep) {
     let records::Keep { account, value, replaces } = keep;
-    let _later = store.secrets(
+    store.request(
         Token::new(u64::from(account)),
         store::Secrets::Replace {
             owner: store::SecretOwner::Source,
@@ -1115,17 +1174,13 @@ impl Component {
         match event {
             Event::Request(request) => self.request(request),
             Event::Io(event) => self.up(event),
-            Event::Store(event) => match event {
-                store::Event::Secret { owner, value }
-                    if owner.raw() <= u64::from(u32::MAX) && self.restoring.contains_key(&source(owner)) =>
-                {
-                    self.store.restored.push((source(owner), value));
-                }
-                other => self.store.sources.push(other),
-            },
+            Event::Store(event) if self.aborting => {
+                drop(event);
+            }
+            Event::Store(event) => self.store.answers.push(event),
             Event::Opened { installation } => {
                 self.store.installation = installation;
-                self.store.component.durable = true;
+                self.store.durable = true;
             }
             Event::Abort => self.abort(),
         }
@@ -1134,12 +1189,10 @@ impl Component {
     pub fn fire(&mut self, env: &Env<driver::Limits>, out: &mut Queue<Effect>) {
         let mut store = core::mem::replace(
             &mut self.store,
-            Store {
-                component: Mark { durable: false },
+            StoreState {
+                durable: false,
                 installation: [0; 16],
-                sources: Queue::uncapped(),
-                above: Queue::uncapped(),
-                restored: Queue::uncapped(),
+                answers: Queue::uncapped(),
                 requests: Queue::uncapped(),
             },
         );
@@ -1150,11 +1203,10 @@ impl Component {
             self.output.push(Effect::Child(events.pop().expect("child events")));
         }
         for _ in 0..store.requests.len() {
-            self.output.push(store.requests.pop().expect("store requests"));
-        }
-        for _ in 0..store.above.len() {
-            let _invalid = store.above.pop();
-            self.output.push(Effect::InvalidSecret);
+            let effect = store.requests.pop().expect("store requests");
+            if !self.aborting {
+                self.output.push(effect);
+            }
         }
         self.table = table;
         self.store = store;
@@ -1168,12 +1220,16 @@ impl Component {
             out.push(Effect::Io(self.io.pop().expect("driver io")));
         }
     }
+    #[must_use]
     pub fn value(&self, source: u32, generation: u64, now: Time) -> Option<&table::Value> {
         self.table.value(source, generation, now)
     }
+    #[must_use]
     pub fn has_work(&self, now: Time) -> bool {
-        self.work_pending(now, self.store.component.durable)
-            || !self.store.sources.is_empty()
-            || !self.store.restored.is_empty()
+        self.work_pending(now, self.store.durable) || !self.store.answers.is_empty()
     }
 }
+
+#[cfg(test)]
+#[path = "component_tests.rs"]
+mod tests;

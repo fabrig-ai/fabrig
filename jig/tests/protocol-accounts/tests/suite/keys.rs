@@ -45,7 +45,6 @@ fn a_removed_key_is_withdrawn_and_erased() {
     world.keep(7, carried, false);
     world.forget(7);
     assert!(world.table.value(7, 1, Time::ZERO).is_none());
-    assert!(!world.keys.contains(7));
     assert_eq!(world.get(SecretOwner::Source, 7), None);
 }
 #[test]

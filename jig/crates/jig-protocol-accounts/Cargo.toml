@@ -1,6 +1,6 @@
 [package]
 name = "jig-protocol-accounts"
-description = "The accounts vocabulary over skein's OAuth driver"
+description = "Accounts composition over skein's OAuth driver"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
