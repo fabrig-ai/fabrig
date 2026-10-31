@@ -13,6 +13,13 @@ fn tasks_rows_of_a_deleted_project_go() {
 fn people_rows_of_a_deleted_project_go() {
     let _world = deletion::run(Family::People, 73, Cut::None);
 }
+
+#[test]
+fn deletion_resumes_after_policy_erasure_before_connector_release() {
+    let world = deletion::run(Family::People, 71, Cut::AfterCommit(23));
+    assert!(world.outcome().crashes.contains(&23), "policy-erasure commit was cut");
+}
+
 #[test]
 fn notes_of_a_deleted_project_go() {
     let _world = deletion::run(Family::Notes, 74, Cut::None);
