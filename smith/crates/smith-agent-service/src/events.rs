@@ -8,7 +8,6 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, List, Time, Token};
 use smith_domain::{self as domain, run};
 use smith_events::{Event, Record};
-use smith_protocol_channel as channel;
 
 use crate::sinks::{Capture, SinkLimits, Sinks};
 

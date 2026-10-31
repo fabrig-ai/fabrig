@@ -5,8 +5,8 @@
 //! one host answer; these encoders know neither host policy nor callbacks.
 
 use alloc::boxed::Box;
-use skein_channel::{Frame, frame_writer};
-use skein_lib::{Duration, List, Writer};
+use skein_channel::Frame;
+use skein_lib::{Duration, List};
 use smith_channel as wire;
 use smith_domain::run;
 
@@ -63,14 +63,8 @@ fn call(
         run::HostEffect::Write => wire::Effect::Write,
     };
     let record = wire::Call::new(limits, wire::CallParts { name, effect, deadline, ask })?;
-    let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::ResultCapacity);
-    };
-    let mut body = Writer::new(length);
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0107, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    let frame = smith_channel::frame(smith_channel::Body::Call(record))?;
+    Ok(frame)
 }
 
 /// Ask the host to settle one relay without releasing its durable name.
@@ -80,14 +74,8 @@ pub(crate) fn withdraw(name: run::CallName, limits: &wire::Limits) -> Result<Fra
         wire::CallNameParts { activation: name.activation, completion: name.completion, position: name.position },
     )?;
     let record = wire::Withdraw::new(limits, wire::WithdrawParts { name })?;
-    let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::ResultCapacity);
-    };
-    let mut body = Writer::new(length);
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0108, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    let frame = smith_channel::frame(smith_channel::Body::Withdraw(record))?;
+    Ok(frame)
 }
 
 /// Interpret one host terminal for a declared tool; temporary refusals stay distinct.

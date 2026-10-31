@@ -1,8 +1,7 @@
 //! Text pieces at the channel boundary (protocol/channel.md, sections 4 and 7).
 use crate::Error;
 use alloc::boxed::Box;
-use skein_channel::{Frame, frame_writer};
-use skein_lib::Writer;
+use skein_channel::Frame;
 
 /// The stream selected by the service for a live piece.
 #[derive(Clone, Copy, Debug)]
@@ -45,14 +44,8 @@ pub(crate) fn frame(piece: Piece<'_>, limits: &smith_channel::Limits) -> Result<
             call,
         },
     )?;
-    let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::ResultCapacity);
-    };
-    let mut body = Writer::new(length);
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0112, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    let frame = smith_channel::frame(smith_channel::Body::Live(record))?;
+    Ok(frame)
 }
 
 pub(crate) fn frame_bytes(limits: &smith_channel::Limits, bytes: u32) -> Option<u32> {

@@ -56,23 +56,7 @@ pub fn valid(limits: &Limits) -> bool {
     let Ok(schema) = schema(limits) else {
         return false;
     };
-    // Skein's channel sum also checks these control-frame and queue capacities.
-    // Check them explicitly rather than probing that heap sum.
-    let terms = match limits.channel.kinds.checked_mul(6) {
-        Some(kinds) => kinds.checked_add(4),
-        None => return false,
-    };
-    let open = limits.channel.credential.checked_add(14);
-    let control = match terms {
-        Some(terms) => match open {
-            Some(open) => terms.max(open).max(262),
-            None => return false,
-        },
-        None => return false,
-    };
-    schema.check(skein_channel::Role::Responder, &limits.channel).is_ok()
-        && limits.channel.output_frames.checked_add(3).is_some()
-        && control.checked_add(8).is_some()
+    skein_channel::valid(&schema, skein_channel::Role::Responder, &limits.channel)
         && start_cells(&limits.bodies).is_some()
         && charter_cells(&limits.charter).is_some()
         && turn_cells(&limits.transcript).is_some()
@@ -95,7 +79,7 @@ pub fn schema_for_start(
         let version = schema.versions.get_mut(version_index).expect("indexed version");
         for kind_index in 0..version.kinds.len() {
             let kind = version.kinds.get_mut(kind_index).expect("indexed kind");
-            if kind.kind == 0x0100 {
+            if kind.kind == smith_channel::kind::START {
                 if start_bytes == 0 || start_bytes > kind.largest {
                     return Err(smith_channel::Overflow::Frame);
                 }

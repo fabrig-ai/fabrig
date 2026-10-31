@@ -7,7 +7,6 @@ use alloc::boxed::Box;
 use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::{Duration, Map, Queue, Secret, Token};
 use smith_domain::{self as domain};
-use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 use smith_protocol_program::{Programs, backend};
 

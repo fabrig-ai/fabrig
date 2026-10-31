@@ -3270,7 +3270,6 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "smith-agent-process-world",
- "smith-agent-service",
  "smith-agent-world",
  "smith-channel",
  "smith-charter",

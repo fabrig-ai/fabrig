@@ -5,7 +5,7 @@
 use skein_channel::{Direction, Kind, Role, Schema, Term, Version};
 use skein_lib::List;
 
-use crate::v5;
+use crate::{kind, v5};
 
 /// A version-five body's number, sender, admission obligation and codec.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,26 +55,46 @@ pub enum Overflow {
 
 /// The 20 kinds required by channel version five, in wire number order.
 pub const V5: &[KindRule] = &[
-    KindRule { kind: 0x0100, direction: Direction::FromInitiator, required: true, body: Body::Start },
-    KindRule { kind: 0x0101, direction: Direction::FromInitiator, required: true, body: Body::Message },
-    KindRule { kind: 0x0102, direction: Direction::FromInitiator, required: true, body: Body::HostAnswer },
-    KindRule { kind: 0x0103, direction: Direction::FromInitiator, required: true, body: Body::Acknowledge },
-    KindRule { kind: 0x0104, direction: Direction::FromInitiator, required: true, body: Body::GrantRefresh },
-    KindRule { kind: 0x0105, direction: Direction::FromInitiator, required: true, body: Body::Cancel },
-    KindRule { kind: 0x0106, direction: Direction::FromResponder, required: true, body: Body::Admitted },
-    KindRule { kind: 0x0107, direction: Direction::FromResponder, required: true, body: Body::Call },
-    KindRule { kind: 0x0108, direction: Direction::FromResponder, required: true, body: Body::Withdraw },
-    KindRule { kind: 0x0109, direction: Direction::FromResponder, required: true, body: Body::Turn },
-    KindRule { kind: 0x010a, direction: Direction::FromResponder, required: true, body: Body::Waiting },
-    KindRule { kind: 0x010b, direction: Direction::FromResponder, required: true, body: Body::Long },
-    KindRule { kind: 0x010c, direction: Direction::FromResponder, required: true, body: Body::LongDone },
-    KindRule { kind: 0x010d, direction: Direction::FromResponder, required: true, body: Body::Unauthorized },
-    KindRule { kind: 0x010e, direction: Direction::FromResponder, required: true, body: Body::Limited },
-    KindRule { kind: 0x010f, direction: Direction::FromResponder, required: true, body: Body::Fact },
-    KindRule { kind: 0x0110, direction: Direction::FromResponder, required: true, body: Body::Answer },
-    KindRule { kind: 0x0111, direction: Direction::FromResponder, required: true, body: Body::MessageRefused },
-    KindRule { kind: 0x0112, direction: Direction::FromResponder, required: true, body: Body::Live },
-    KindRule { kind: 0x0113, direction: Direction::FromResponder, required: true, body: Body::AccountRefused },
+    KindRule { kind: kind::START, direction: Direction::FromInitiator, required: true, body: Body::Start },
+    KindRule { kind: kind::MESSAGE, direction: Direction::FromInitiator, required: true, body: Body::Message },
+    KindRule { kind: kind::HOST_ANSWER, direction: Direction::FromInitiator, required: true, body: Body::HostAnswer },
+    KindRule { kind: kind::ACKNOWLEDGE, direction: Direction::FromInitiator, required: true, body: Body::Acknowledge },
+    KindRule {
+        kind: kind::GRANT_REFRESH,
+        direction: Direction::FromInitiator,
+        required: true,
+        body: Body::GrantRefresh,
+    },
+    KindRule { kind: kind::CANCEL, direction: Direction::FromInitiator, required: true, body: Body::Cancel },
+    KindRule { kind: kind::ADMITTED, direction: Direction::FromResponder, required: true, body: Body::Admitted },
+    KindRule { kind: kind::CALL, direction: Direction::FromResponder, required: true, body: Body::Call },
+    KindRule { kind: kind::WITHDRAW, direction: Direction::FromResponder, required: true, body: Body::Withdraw },
+    KindRule { kind: kind::TURN, direction: Direction::FromResponder, required: true, body: Body::Turn },
+    KindRule { kind: kind::WAITING, direction: Direction::FromResponder, required: true, body: Body::Waiting },
+    KindRule { kind: kind::LONG, direction: Direction::FromResponder, required: true, body: Body::Long },
+    KindRule { kind: kind::LONG_DONE, direction: Direction::FromResponder, required: true, body: Body::LongDone },
+    KindRule {
+        kind: kind::UNAUTHORIZED,
+        direction: Direction::FromResponder,
+        required: true,
+        body: Body::Unauthorized,
+    },
+    KindRule { kind: kind::LIMITED, direction: Direction::FromResponder, required: true, body: Body::Limited },
+    KindRule { kind: kind::FACT, direction: Direction::FromResponder, required: true, body: Body::Fact },
+    KindRule { kind: kind::ANSWER, direction: Direction::FromResponder, required: true, body: Body::Answer },
+    KindRule {
+        kind: kind::MESSAGE_REFUSED,
+        direction: Direction::FromResponder,
+        required: true,
+        body: Body::MessageRefused,
+    },
+    KindRule { kind: kind::LIVE, direction: Direction::FromResponder, required: true, body: Body::Live },
+    KindRule {
+        kind: kind::ACCOUNT_REFUSED,
+        direction: Direction::FromResponder,
+        required: true,
+        body: Body::AccountRefused,
+    },
 ];
 
 /// Build the version-five channel schema from receiving codec limits.
@@ -110,7 +130,7 @@ pub fn schema(limits: &v5::Limits) -> Result<Schema, Overflow> {
         kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("V5 has exactly 20 kinds");
     }
     let mut versions = List::with_capacity(1);
-    versions.push(Version { version: 5, kinds }).expect("one version has one slot");
+    versions.push(Version { version: kind::VERSION, kinds }).expect("one version has one slot");
     Ok(Schema { magic: *b"smth", versions })
 }
 
@@ -157,6 +177,7 @@ impl KindRule {
 #[cfg(test)]
 mod optional_tests {
     use super::{Body, KindRule, required_terms_gap};
+    use crate::kind;
     use skein_channel::{Direction, Kind, Role, Schema, Term, Version};
     use skein_lib::List;
 
@@ -173,7 +194,7 @@ mod optional_tests {
             kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest: 32 }).expect("four test kinds");
         }
         let mut versions = List::with_capacity(1);
-        versions.push(Version { version: 5, kinds }).expect("one test version");
+        versions.push(Version { version: kind::VERSION, kinds }).expect("one test version");
         let schema = Schema { magic: *b"smth", versions };
         let mut host_terms = List::with_capacity(1);
         host_terms.push(Term { kind: 0x0100, largest: 32 }).expect("one required kind");

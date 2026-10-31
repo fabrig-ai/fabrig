@@ -1,9 +1,7 @@
 //! Agent-side opening machine (protocol/channel.md, sections 2 and 5).
 use alloc::boxed::Box;
-use skein_channel::{
-    Closed, Event, Frame, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, frame_writer,
-};
-use skein_lib::{Duration, Map, Queue, Reader, Time, Token, Writer};
+use skein_channel::{Closed, Event, Frame, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode};
+use skein_lib::{Duration, Map, Queue, Reader, Time, Token};
 
 use crate::calls;
 use crate::credentials::Credentials;
@@ -19,8 +17,7 @@ use smith_protocol_translate::{
 
 mod notices;
 
-const RULES: u16 = 256;
-const UNAUTHORIZED: u16 = 258;
+use smith_channel::reason::{RULES, UNAUTHORIZED};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
@@ -186,15 +183,9 @@ impl Component {
             return Err(Error::Order);
         }
         let record = smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {})?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::ResultCapacity);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x0106, record.measure())?;
-        frame.put(&body.finish())?;
+        let frame = smith_channel::frame(smith_channel::Body::Admitted(record))?;
         self.phase = Phase::Admitted;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
         Ok(())
@@ -222,11 +213,8 @@ impl Component {
             &self.bodies,
             smith_channel::MessageRefusedParts { name: name.raw(), reason },
         )?;
-        let mut body = Writer::new(usize::try_from(record.measure()).expect("fixed refusal length"));
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x0111, record.measure())?;
-        frame.put(&body.finish())?;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        let frame = smith_channel::frame(smith_channel::Body::MessageRefused(record))?;
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
         Ok(())
@@ -252,15 +240,9 @@ impl Component {
             return Err(Error::Order);
         }
         let record = answer_record(now, answer, read, &self.bodies, &self.charter)?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::ResultCapacity);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x0110, record.measure())?;
-        frame.put(&body.finish())?;
+        let frame = smith_channel::frame(smith_channel::Body::Answer(record))?;
         self.phase = Phase::Answered;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.machine.down(Request::Finish, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -284,14 +266,8 @@ impl Component {
             None => None,
         };
         let record = smith_channel::Waiting::new(&self.bodies, smith_channel::WaitingParts { last_read })?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::ResultCapacity);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x010a, record.measure())?;
-        frame.put(&body.finish())?;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        let frame = smith_channel::frame(smith_channel::Body::Waiting(record))?;
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
         Ok(())
@@ -316,15 +292,9 @@ impl Component {
             smith_domain::Operation::Command => smith_channel::Operation::Command,
         };
         let record = smith_channel::Long::new(&self.bodies, smith_channel::LongParts { operation, span })?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::ResultCapacity);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x010b, record.measure())?;
-        frame.put(&body.finish())?;
+        let frame = smith_channel::frame(smith_channel::Body::Long(record))?;
         self.long_open = next;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
         Ok(())
@@ -341,15 +311,9 @@ impl Component {
             return Err(Error::Order);
         }
         let record = smith_channel::LongDone::new(&self.bodies, smith_channel::LongDoneParts {})?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::ResultCapacity);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x010c, record.measure())?;
-        frame.put(&body.finish())?;
+        let frame = smith_channel::frame(smith_channel::Body::LongDone(record))?;
         self.long_open = self.long_open.checked_sub(1).expect("a begun operation owns this terminal");
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
         Ok(())
@@ -388,14 +352,7 @@ impl Component {
             &self.bodies,
             smith_channel::TurnParts { number, spent: spent.units, last_read, opens_window, body },
         )?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::ResultCapacity);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x0109, record.measure())?;
-        frame.put(&body.finish())?;
-        let frame = frame.finish()?;
+        let frame = smith_channel::frame(smith_channel::Body::Turn(record))?;
         if self.turns.insert(number, body_bytes).is_err() {
             return Err(Error::Window);
         }
@@ -547,14 +504,7 @@ impl Component {
             return Ok(false);
         }
         let record = smith_channel::Fact::new(&self.bodies, smith_channel::FactParts { kind, elapsed, count })?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::ResultCapacity);
-        };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x010f, record.measure())?;
-        frame.put(&body.finish())?;
-        let frame = frame.finish()?;
+        let frame = smith_channel::frame(smith_channel::Body::Fact(record))?;
         let room = self.machine.room();
         let reserve = match crate::live::frame_bytes(&self.bodies, self.bodies.live_bytes) {
             Some(live) => match self.fact_reserve_bytes.checked_add(live) {
@@ -680,7 +630,11 @@ impl Component {
             match event {
                 Some(Event::Opening { credential, lowest: _, highest }) => {
                     if credential.is_empty() {
-                        self.machine.down(Request::Accept { version: highest.min(5) }, &mut self.events, below);
+                        self.machine.down(
+                            Request::Accept { version: highest.min(smith_channel::kind::VERSION) },
+                            &mut self.events,
+                            below,
+                        );
                     } else {
                         self.machine.down(
                             Request::Refuse { reason: UNAUTHORIZED, text: Box::from(*b"credential on pipe") },
@@ -693,7 +647,7 @@ impl Component {
                     match smith_channel::peer_terms_gap(&self.schema, Role::Responder, version, &terms) {
                         Some(kind) => {
                             self.machine.down(
-                                Request::Refuse { reason: 2, text: kind_text(kind) },
+                                Request::Refuse { reason: smith_channel::reason::LIMITS, text: kind_text(kind) },
                                 &mut self.events,
                                 below,
                             );
@@ -705,7 +659,7 @@ impl Component {
                         }
                     }
                 }
-                Some(Event::Body { kind: 0x0101, body })
+                Some(Event::Body { kind: smith_channel::kind::MESSAGE, body })
                     if self.phase == Phase::Started || self.phase == Phase::Admitted =>
                 {
                     match smith_channel::Message::decode(&self.bodies, &mut Reader::new(&body)) {
@@ -721,7 +675,7 @@ impl Component {
                         Err(_) => self.refuse_rules(below),
                     }
                 }
-                Some(Event::Body { kind: 0x0102, body }) if self.phase == Phase::Admitted => {
+                Some(Event::Body { kind: smith_channel::kind::HOST_ANSWER, body }) if self.phase == Phase::Admitted => {
                     match smith_channel::HostAnswer::decode(&self.bodies, &mut Reader::new(&body)) {
                         Ok(answer) => {
                             let key = CallKey::from_wire(answer.name());
@@ -756,7 +710,7 @@ impl Component {
                         Err(_) => self.refuse_rules(below),
                     }
                 }
-                Some(Event::Body { kind: 0x0103, body })
+                Some(Event::Body { kind: smith_channel::kind::ACKNOWLEDGE, body })
                     if self.phase == Phase::Admitted || self.phase == Phase::Answered =>
                 {
                     match smith_channel::Acknowledge::decode(&self.bodies, &mut Reader::new(&body)) {
@@ -798,7 +752,9 @@ impl Component {
                         Err(_) => self.refuse_rules(below),
                     }
                 }
-                Some(Event::Body { kind: 0x0104, body }) if self.phase == Phase::Admitted => {
+                Some(Event::Body { kind: smith_channel::kind::GRANT_REFRESH, body })
+                    if self.phase == Phase::Admitted =>
+                {
                     match smith_channel::GrantRefresh::decode(&self.bodies, &mut Reader::new(&body)) {
                         Ok(refresh) => {
                             let grant = refresh.grant();
@@ -821,7 +777,7 @@ impl Component {
                         Err(_) => self.refuse_rules(below),
                     }
                 }
-                Some(Event::Body { kind: 0x0105, body })
+                Some(Event::Body { kind: smith_channel::kind::CANCEL, body })
                     if self.phase == Phase::Started || self.phase == Phase::Admitted =>
                 {
                     if self.cancelled {
@@ -838,7 +794,7 @@ impl Component {
                     }
                 }
                 Some(Event::Body { kind, body }) => {
-                    if self.phase != Phase::Opened || kind != 0x0100 {
+                    if self.phase != Phase::Opened || kind != smith_channel::kind::START {
                         self.refuse_rules(below);
                     } else {
                         match smith_channel::Start::decode(&self.bodies, &mut Reader::new(&body)) {
@@ -1004,12 +960,8 @@ fn invalid_answer(limits: &smith_channel::Limits, invalid: smith_channel::Invali
         },
     )
     .ok()?;
-    let body_len = usize::try_from(record.measure()).ok()?;
-    let mut body = Writer::new(body_len);
-    record.encode(&mut body).ok()?;
-    let mut frame = frame_writer(0x0110, record.measure()).ok()?;
-    frame.put(&body.finish()).ok()?;
-    frame.finish().ok()
+    let frame = smith_channel::frame(smith_channel::Body::Answer(record)).ok()?;
+    Some(frame)
 }
 
 fn kind_text(kind: u16) -> Box<[u8]> {
@@ -1022,17 +974,9 @@ fn kind_text(kind: u16) -> Box<[u8]> {
         b' ',
         b'0',
         b'x',
-        hex(bytes[0] >> 4),
-        hex(bytes[0] & 15),
-        hex(bytes[1] >> 4),
-        hex(bytes[1] & 15),
+        skein_lib::bytes::hex_digit(bytes[0] >> 4),
+        skein_lib::bytes::hex_digit(bytes[0] & 15),
+        skein_lib::bytes::hex_digit(bytes[1] >> 4),
+        skein_lib::bytes::hex_digit(bytes[1] & 15),
     ])
-}
-
-fn hex(nibble: u8) -> u8 {
-    if nibble < 10 {
-        b'0'.checked_add(nibble).expect("hex digit fits")
-    } else {
-        b'a'.checked_add(nibble.checked_sub(10).expect("letter digit")).expect("hex digit fits")
-    }
 }

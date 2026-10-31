@@ -21,7 +21,6 @@ smith-protocol-channel.workspace = true
 smith-protocol-translate.workspace = true
 smith-host-protocol.workspace = true
 smith-agent-world.workspace = true
-smith-agent-service.workspace = true
 smith-agent-process-world.workspace = true
 smith-host-world.workspace = true
 

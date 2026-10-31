@@ -18,7 +18,6 @@ use skein_llm_connection as connection;
 use skein_tls as tls;
 use smith_agent_service as service;
 use smith_domain::{self as domain, run};
-use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
 
