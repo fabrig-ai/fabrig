@@ -249,23 +249,10 @@ pub(super) fn encode_owner_outcome(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerOutcome::ProjectMade { project } => {
-            out.object_start();
-            out.key(b"project_made");
-            out.object_start();
-            out.key(b"project");
-            out.unsigned(u64::from(*project));
-            out.object_end();
-            out.object_end();
-        }
-        jig_client::contract::OwnerOutcome::Renamed { project } => {
-            out.object_start();
-            out.key(b"renamed");
-            out.object_start();
-            out.key(b"project");
-            out.unsigned(u64::from(*project));
-            out.object_end();
-            out.object_end();
+        jig_client::contract::OwnerOutcome::ProjectMade { project } => encode_project(b"project_made", *project, out),
+        jig_client::contract::OwnerOutcome::Renamed { project } => encode_project(b"renamed", *project, out),
+        jig_client::contract::OwnerOutcome::ProjectRemoved { project } => {
+            encode_project(b"project_removed", *project, out);
         }
         jig_client::contract::OwnerOutcome::AccountChanged => out.string(b"account_changed"),
         jig_client::contract::OwnerOutcome::AccountRemoved { confirmed, failed_hosts } => {
@@ -723,6 +710,16 @@ fn encode_moved_in(account: u32, renewed: bool, out: &mut Encoder) {
     out.unsigned(u64::from(account));
     out.key(b"renewed");
     out.boolean(renewed);
+    out.object_end();
+    out.object_end();
+}
+
+fn encode_project(word: &[u8], project: u32, out: &mut Encoder) {
+    out.object_start();
+    out.key(word);
+    out.object_start();
+    out.key(b"project");
+    out.unsigned(u64::from(project));
     out.object_end();
     out.object_end();
 }

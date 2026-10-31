@@ -113,9 +113,10 @@ fn problem() -> w::Problem {
 #[expect(clippy::too_many_lines, reason = "one total match names every people outcome")]
 fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::Problem> {
     Ok(match value {
-        p::Outcome::ProjectRemoved { .. } => {
-            unreachable!("no party ask answers ProjectRemoved before the client wire carries it")
-        }
+        p::Outcome::ProjectRemoved { project } => w::OwnerOutcome::ProjectRemoved(w::OwnerOutcomeProjectRemoved::new(
+            limits,
+            w::OwnerOutcomeProjectRemovedParts { project: *project },
+        )?),
         p::Outcome::AccountFinishing { source } => w::OwnerOutcome::AccountFinishing(
             w::OwnerOutcomeAccountFinishing::new(limits, w::OwnerOutcomeAccountFinishingParts { source: *source })?,
         ),

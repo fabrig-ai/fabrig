@@ -333,9 +333,9 @@ fn fixed_redirect_ports_reject_listeners_on_the_reserved_number() {
     for (port, listener, expected) in [
         (7100, Listener::Clients, "redirect_port: fixed port conflicts with application.clients.listener\n"),
         (7101, Listener::Webhooks, "redirect_port: fixed port conflicts with application.webhooks.listener\n"),
-        (7100, Listener::Owned(2), "redirect_port: fixed port conflicts with application.setup[2].mode.owned.listen\n"),
+        (7100, Listener::Owned(2), "redirect_port: fixed port conflicts with application.machine.owned.listen\n"),
         (7100, Listener::Demo, "redirect_port: fixed port conflicts with application.demo.llm.listen\n"),
-        (7100, Listener::Fake(2), "redirect_port: fixed port conflicts with application.setup[2].mode.fake.listen\n"),
+        (7100, Listener::Fake(2), "redirect_port: fixed port conflicts with application.machine.fake.listen\n"),
     ] {
         let mut problems = Problems::empty();
         checks::redirect_ports(&fixed_redirects(), Some(port), listener, &mut problems);

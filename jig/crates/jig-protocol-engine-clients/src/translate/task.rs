@@ -74,9 +74,7 @@ pub fn act(value: acts::Act, _limits: &w::Limits) -> Result<w::ActKind, w::Probl
         acts::Act::EditNote => w::ActKind::EditNote,
         acts::Act::DeleteNote => w::ActKind::DeleteNote,
         acts::Act::Adopt => w::ActKind::Adopt,
-        acts::Act::RemoveProject => {
-            unreachable!("project deletion is omitted until its client vocabulary is available")
-        }
+        acts::Act::RemoveProject => w::ActKind::RemoveProject,
         acts::Act::Rename => w::ActKind::Rename,
         acts::Act::ChangePolicy => w::ActKind::ChangePolicy,
         acts::Act::SetRoles => w::ActKind::SetRoles,
@@ -222,9 +220,6 @@ pub fn offered(
     }
     let mut rows = List::with_capacity(value.capacity());
     for item in value {
-        if item.act == acts::Act::RemoveProject {
-            continue;
-        }
         rows.push(w::Offered::new(
             limits,
             w::OfferedParts {

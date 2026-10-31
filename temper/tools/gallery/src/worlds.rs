@@ -2134,6 +2134,7 @@ fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
             | c::ActKind::SetRoles
             | c::ActKind::MakeService
             | c::ActKind::SetPool
+            | c::ActKind::RemoveProject
             | c::ActKind::Rename
             | c::ActKind::Withdraw => None,
         };

@@ -83,6 +83,7 @@ pub fn edit(before: &Ask, field: Field, bytes: Box<[u8]>, text: u32) -> Option<A
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -654,6 +655,7 @@ fn policy_request(ask: &Ask) -> Option<&PolicyEdit> {
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -742,6 +744,7 @@ fn holdings_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contract::
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -775,6 +778,7 @@ fn pool_request(ask: &Ask) -> bool {
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -808,6 +812,7 @@ fn service_request(ask: &Ask) -> Option<(&jig_client::contract::Text, jig_client
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -1260,6 +1265,7 @@ fn render_request(b: &mut Builder, ask: &Ask, words: &Words, text_limit: u32, ro
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
