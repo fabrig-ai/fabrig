@@ -79,6 +79,38 @@ fn close_mid_run_ends_it_unheard_and_says_closed() {
     assert_eq!(world.aborts(), 1);
 }
 
+#[test]
+fn abort_mid_run_ends_it_unheard_and_leaves_the_host_empty() {
+    let mut world = HostWorld::new(7, &[Connect::Silent]);
+    world.run(1);
+    world.settle();
+    world.abort();
+    world.settle();
+    assert_eq!(world.heard(), &[Heard::Closed { at: Duration::ZERO }]);
+    assert_eq!(world.aborts(), 1);
+    assert_eq!(world.host_deadline(), None);
+    world.close();
+    world.abort();
+    world.finish();
+    assert_eq!(world.heard(), &[Heard::Closed { at: Duration::ZERO }]);
+    assert_eq!(world.aborts(), 1);
+}
+#[test]
+fn abort_turns_a_graceful_close_held_by_its_peer_into_an_abort() {
+    let mut limits = fixtures::host_limits();
+    limits.runs = 1;
+    let mut world = HostWorld::new_with(7, &[Connect::AnswersOpen(401, b"")], fixtures::host_settings(), limits);
+    world.run(1);
+    world.settle();
+    assert!(matches!(world.heard(), [Heard::Stop { failure, .. }] if failure.why == Why::Refused(401)));
+    assert_eq!(world.aborts(), 0, "the reply's connection closes gracefully, held by its peer");
+    world.abort();
+    world.settle();
+    assert_eq!(world.aborts(), 1, "aborted before io's close deadline");
+    assert!(matches!(world.heard(), [Heard::Stop { .. }, Heard::Closed { at }] if *at == Duration::ZERO));
+    assert_eq!(world.host_deadline(), None);
+}
+
 fn connected(world: &mut HostWorld) -> u64 {
     let id = fixtures::seed_connected_tokens(world.store_mut());
     world.put(Item::ApiToken, fixtures::secret(fixtures::API));

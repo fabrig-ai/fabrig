@@ -109,9 +109,19 @@ pub(super) enum Dialect {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Request {
-    Run { run: Token, plan: Plan },
-    Answer { run: Token, answer: Answer },
+    Run {
+        run: Token,
+        plan: Plan,
+    },
+    Answer {
+        run: Token,
+        answer: Answer,
+    },
+    /// Ends every run unheard and aborts every socket; `Closed` answers it (6.3).
     Close,
+    /// A close that does not wait: the host's close already waits for nothing, so an
+    /// abort does as `Close` does, and either after the other changes nothing (6.3).
+    Abort,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Answer {

@@ -38,6 +38,8 @@ pub struct Listener {
     pub closed: bool,
     settlement: Settlement,
     settling: BTreeMap<Token, (Token, Time)>,
+    /// Each socket io was asked to end, `true` once that end is an abort.
+    ends: BTreeMap<Token, bool>,
     response_cut: Option<(usize, bool)>,
     response_bytes: usize,
     response_count: u64,
@@ -66,6 +68,7 @@ impl Listener {
             closed: false,
             settlement: Settlement::Automatic,
             settling: BTreeMap::new(),
+            ends: BTreeMap::new(),
             response_cut: None,
             response_bytes: 0,
             response_count: 0,
@@ -159,6 +162,11 @@ impl Listener {
         }
         self.settle();
     }
+    /// Held sockets io was asked to close gracefully and never to abort.
+    #[must_use]
+    pub fn graceful_settling(&self) -> usize {
+        self.settling.keys().filter(|socket| self.ends.get(socket) == Some(&false)).count()
+    }
     /// Independent owner-event history.
     #[must_use]
     pub fn event_order(&self) -> &[&'static str] {
@@ -249,23 +257,8 @@ impl Listener {
                     self.fault(stream, reset);
                 }
             }
-            skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => {
-                if entity == Token::new(90) {
-                    if matches!(self.settlement, Settlement::Held) {
-                        self.settling.insert(
-                            entity,
-                            (self.owner, self.env.now.saturating_add(fixtures::shared().io.close_timeout)),
-                        );
-                    } else {
-                        self.up(skein_io::Event::Closed { owner: self.owner });
-                    }
-                } else {
-                    if matches!(self.settlement, Settlement::Automatic) {
-                        self.expiries += 1;
-                    }
-                    self.close(entity);
-                }
-            }
+            skein_io::Request::Close { entity } => self.end(entity, false),
+            skein_io::Request::Abort { entity } => self.end(entity, true),
             skein_io::Request::Reject { socket } => {
                 self.peers.get_mut(&socket).expect("accepted").closed = true;
             }
@@ -278,6 +271,28 @@ impl Listener {
             | skein_io::Request::Signal { .. }
             | skein_io::Request::Usage { .. }
             | skein_io::Request::Window { .. } => panic!("hook socket io only"),
+        }
+    }
+    /// Ends a socket as io would: a close, then at most an abort, per socket.
+    fn end(&mut self, entity: Token, abort: bool) {
+        if let Some(aborted) = self.ends.get(&entity).copied() {
+            assert!(abort && !aborted, "a close, then at most an abort, per socket");
+            self.ends.insert(entity, true);
+            return;
+        }
+        self.ends.insert(entity, abort);
+        if entity == Token::new(90) {
+            if matches!(self.settlement, Settlement::Held) {
+                self.settling
+                    .insert(entity, (self.owner, self.env.now.saturating_add(fixtures::shared().io.close_timeout)));
+            } else {
+                self.up(skein_io::Event::Closed { owner: self.owner });
+            }
+        } else {
+            if matches!(self.settlement, Settlement::Automatic) {
+                self.expiries += 1;
+            }
+            self.close(entity);
         }
     }
     fn settle(&mut self) {

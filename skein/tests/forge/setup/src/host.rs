@@ -329,6 +329,14 @@ impl HostWorld {
     pub fn close(&mut self) {
         self.action(Request::Close);
     }
+    pub fn abort(&mut self) {
+        self.action(Request::Abort);
+    }
+    /// The host's own earliest deadline, without the world's.
+    #[must_use]
+    pub fn host_deadline(&self) -> Option<Time> {
+        self.host.next_deadline()
+    }
     fn action(&mut self, request: Request) {
         self.host.down(&self.env, request, &mut self.above, &mut self.below);
     }

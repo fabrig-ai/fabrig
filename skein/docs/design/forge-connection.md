@@ -13,7 +13,7 @@ It also takes each forge's access when the owner hands it, checks it,
 holds and renews the credential, resolves repositories and users, and
 turns verified deliveries into hints: a webhook's, or a GitHub App's
 delivery log's. When its owner closes it, it closes everything it keeps
-and says so. A service that works on a forge writes no connection code.
+and says so; when its owner aborts it, it aborts everything it keeps. A service that works on a forge writes no connection code.
 
 ## 1. In one page
 
@@ -60,9 +60,10 @@ and says so. A service that works on a forge writes no connection code.
     where it fires its own;
   - routes what passes between the component, io and the owner's
     domain, and decides nothing;
-  - closes the component as part of its own end, and counts it settled
-    only on the component's `closed` (programming-model.md, section
-    5.2).
+  - closes the component as part of its own end, or aborts it, and
+    counts it settled only on the component's `closed`; a termination
+    signal while the component closes sends it its abort
+    (programming-model.md, section 5.2).
 
 ### 2.1 What crosses
 
@@ -71,7 +72,8 @@ Down, from the owner: a **call** (token, forge, repository, `Op`);
 take; **returned**, an answer handed back in the domain's drain; an
 **offer**, when the domain has room; a forge's **connect**, with its
 access (3.5); a GitHub forge's **installations**, the ones the owner
-accepted (4.4); and the **close**, its last act.
+accepted (4.4); and the **close**, its last act, or the **abort**, a
+close that does not wait (8.5).
 
 Up, to the owner: **answered**, a call's one terminal with its token,
 cost and result; a **hint**, after its delivery's response is queued
@@ -89,6 +91,7 @@ diagnostic for the owner's log; and **closed**, the last event (8.5).
 | | `Event::Installation { forge, installation, account, change }` |
 | | `Event::GitToken { forge, installation, account, token, expires }` |
 | | `Event::Fact { forge, fact }` |
+| `Request::Close`, `Request::Abort` | `Event::Closed` |
 
 An installation event's `account` is `Some` with its current id and
 login, or its last known value on `Deleted`. `None` occurs only on
@@ -842,6 +845,16 @@ and crosses Answering's deadline and the close with a held hint.
 - **It closes what it keeps:** its connections, the listener and each
   webhook connection. **`closed`** goes up once, when none is left and
   io has settled every socket. It is the last event.
+- **The abort is a close that does not wait.** It ends what is open as
+  the close does, so no call is answered, and it aborts every socket at
+  io: each connection's, the listener's and each webhook connection's,
+  idle, busy or already closing gracefully. An abort after a close turns
+  what still closes gracefully into aborts; a close after an abort, or a
+  second of either, changes nothing. `closed` follows either, once and
+  last, when io has settled every socket. A request after `closed` is
+  ignored.
+- **No TLS close.** A TLS connection ends at io, closed or aborted, with
+  no `close_notify` of its own (12).
 
 ### 8.6 An installation's tokens
 
@@ -896,7 +909,7 @@ the check; Close discards all private work and token values.
 The owner's protocol layer owes the routing of section 2, **the values**
 of 3.1 and 7.3 with limits that pass 7.4, the log origins' addresses
 resolved, **a decision on `stopped`**, **a decision on `listener lost`**
-and **the close after its domain's drain** (8.5). It owes too:
+and **the close after its domain's drain**, or its abort (8.5). It owes too:
 
 - **a connect** for each forge it holds access for, at start or when
   setup hands it, with access that setup checked and the owner keeps
@@ -934,7 +947,9 @@ The owner's domain owes:
   connection closed for a call to another forge; a held answer offered
   again, and a returned one never; the owner's close in every state,
   crossed with a terminal racing it, `closed` once and last, with no
-  spin; access handed at runtime, replaced while calls run and wait,
+  spin, and the same for an abort, an abort after a close and a close
+  after an abort, with every socket still settling aborted at io, the
+  listener's and each webhook connection's among them; access handed at runtime, replaced while calls run and wait,
   and one answering as someone else; for a GitHub forge, on the fake's
   GitHub layer and clock (fake-forge.md): a renewal due while a call
   waits on it, a mint refused each way of 5.1, a call's token chosen by
@@ -1008,3 +1023,10 @@ The owner's domain owes:
 - **A listener over TLS,** for a forge on another host, waits for
   skein-tls's server side (tls.md). Default: that forge polls alone
   until then.
+
+## 12. Later
+
+- **The TLS close.** A TLS connection ends at io with no `close_notify`
+  sent (8.5): the close and the abort alike end the socket below it.
+  The close comes with the transport the forge components will share,
+  which owns the TLS session's end.

@@ -111,6 +111,7 @@ pub struct Component {
     held: Map<Token, Held>,
     holders: Map<Token, Token>,
     closed: bool,
+    aborted: bool,
     diagnostics: Diagnostics,
     shared: Shared,
     connections: Map<Token, Id<Connection>>,
@@ -172,6 +173,7 @@ impl Component {
             held: Map::with_capacity(shared.calls),
             holders: Map::with_capacity(shared.calls),
             closed: false,
+            aborted: false,
             diagnostics: Diagnostics { long_bodies: 0, malformed: 0 },
             shared: *shared,
             connections: Map::with_capacity(limits.connections.checked_add(reserved).expect("checked connections")),
@@ -239,6 +241,17 @@ impl Component {
         io: &mut Queue<skein_io::Request>,
     ) {
         if self.closed {
+            match request {
+                Request::Abort => self.abort(env, up, io),
+                Request::Connect { .. }
+                | Request::Installations { .. }
+                | Request::Call { .. }
+                | Request::Refused(_)
+                | Request::RefusedHint(_)
+                | Request::Returned(_)
+                | Request::Offer
+                | Request::Close => {}
+            }
             return;
         }
         match request {
@@ -298,28 +311,46 @@ impl Component {
                 self.drive(env, up, io);
             }
             Request::Close => {
-                for _ in 0..self.calls.len() {
-                    let Some((call, id)) = self.calls.first() else {
-                        break;
-                    };
-                    let (call, id) = (*call, *id);
-                    self.waiting.retire(id);
-                    let _removed: Option<Id<Waiting>> = self.calls.remove(&call);
-                }
-                self.held = Map::with_capacity(self.held.capacity());
-                self.holders = Map::with_capacity(self.holders.capacity());
-                for at in 0..self.starts.len() {
-                    self.settings.forges.get_mut(at).expect("forge").access = None;
-                    if let Some(github) = self.github.get_mut(at).expect("forge slot") {
-                        github.forget();
-                    }
-                    *self.own_plans.get_mut(at).expect("forge plan") = None;
-                }
-                self.closed = true;
-                self.hooks.close();
+                self.close();
                 self.drive(env, up, io);
             }
+            Request::Abort => {
+                self.close();
+                self.abort(env, up, io);
+            }
         }
+    }
+    /// Ends what is open (forge-connection.md, 8.5): no call is answered, and nothing
+    /// held is offered again.
+    fn close(&mut self) {
+        for _ in 0..self.calls.len() {
+            let Some((call, id)) = self.calls.first() else {
+                break;
+            };
+            let (call, id) = (*call, *id);
+            self.waiting.retire(id);
+            let _removed: Option<Id<Waiting>> = self.calls.remove(&call);
+        }
+        self.held = Map::with_capacity(self.held.capacity());
+        self.holders = Map::with_capacity(self.holders.capacity());
+        for at in 0..self.starts.len() {
+            self.settings.forges.get_mut(at).expect("forge").access = None;
+            if let Some(github) = self.github.get_mut(at).expect("forge slot") {
+                github.forget();
+            }
+            *self.own_plans.get_mut(at).expect("forge plan") = None;
+        }
+        self.closed = true;
+        self.hooks.close();
+    }
+    /// A close that does not wait: every socket is aborted, from then on (8.5).
+    fn abort(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+        if self.aborted || self.ended {
+            return;
+        }
+        self.aborted = true;
+        self.hooks.abort();
+        self.drive(env, up, io);
     }
     fn offer_pullers(&mut self) {
         for at in 0..self.github.len() {
@@ -721,6 +752,11 @@ impl Component {
         }
     }
     fn drive(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+        if self.aborted {
+            for (_, id) in &self.connections {
+                self.connection_slab.get_mut(*id).expect("indexed connection").abort(io);
+            }
+        }
         if self.settings.webhooks.is_some() {
             self.hooks.drive(env, &self.settings, up, io);
         }

@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_forge::forgejo::plans::{Failure, Heard, plan::Range};
 use skein_forge::forgejo::request;
 use skein_lib::{
-    Duration, Time, Wall,
+    Duration, Time, Token, Wall,
     stream::{Fault, Up},
 };
 
@@ -157,6 +157,68 @@ fn an_idle_connection_closes_at_idle() {
     h.send(crate::Request::Close);
     h.run(Duration::ZERO);
     assert!(h.closed, "component no longer holds the socket");
+}
+
+/// The closes queued for io, in order, `true` for an abort; the queue is left as it was.
+fn ends(io: &mut skein_lib::Queue<skein_io::Request>) -> skein_lib::List<(Token, bool)> {
+    let mut ends = skein_lib::List::with_capacity(4);
+    for _ in 0..io.len() {
+        let request = io.pop().expect("queued request");
+        match &request {
+            skein_io::Request::Close { entity } => ends.push((*entity, false)).expect("few closes"),
+            skein_io::Request::Abort { entity } => ends.push((*entity, true)).expect("few closes"),
+            skein_io::Request::Stream { .. }
+            | skein_io::Request::Connect { .. }
+            | skein_io::Request::Listen { .. }
+            | skein_io::Request::Bind { .. }
+            | skein_io::Request::Reject { .. }
+            | skein_io::Request::Output { .. }
+            | skein_io::Request::Spawn { .. }
+            | skein_io::Request::Signal { .. }
+            | skein_io::Request::Usage { .. }
+            | skein_io::Request::Window { .. } => {}
+        }
+        io.push(request);
+    }
+    ends
+}
+
+#[test]
+fn abort_mid_call_aborts_its_connection_answers_nothing_and_leaves_the_component_empty() {
+    use skein_forge::api;
+    let mut h = fixtures::Harness::ready();
+    h.call(1, fixtures::REPO, api::Op::Read(api::Read::Settings));
+    let socket = Token::new(101);
+    assert!(!h.io.is_empty(), "the call's request is on its connection");
+    assert!(ends(&mut h.io).is_empty());
+    h.send(crate::Request::Abort);
+    assert_eq!(ends(&mut h.io).as_slice(), [(socket, true)], "aborted, not closed");
+    h.send(crate::Request::Close);
+    h.send(crate::Request::Abort);
+    assert_eq!(ends(&mut h.io).as_slice(), [(socket, true)], "a close or an abort after an abort changes nothing");
+    assert_eq!(h.component.next_deadline(), None, "no deadline while io settles");
+    h.run(Duration::ZERO);
+    assert!(h.closed, "closed once io settled the socket");
+    assert_eq!(h.answered(1), None, "the call ends unanswered");
+    assert_eq!(h.component.next_deadline(), None);
+    h.run(Duration::from_secs(60));
+    assert!(h.up.is_empty() && h.io.is_empty(), "an ended component does nothing");
+}
+
+#[test]
+fn an_abort_after_a_close_turns_a_graceful_close_into_an_abort() {
+    let mut h = fixtures::Harness::ready();
+    let socket = Token::new(101);
+    h.send(crate::Request::Close);
+    assert_eq!(ends(&mut h.io).as_slice(), [(socket, false)], "the idle connection closes gracefully");
+    h.send(crate::Request::Abort);
+    assert_eq!(ends(&mut h.io).as_slice(), [(socket, false), (socket, true)], "the abort turns its close into one");
+    h.send(crate::Request::Abort);
+    h.send(crate::Request::Close);
+    assert_eq!(ends(&mut h.io).len(), 2, "nothing more");
+    h.run(Duration::ZERO);
+    assert!(h.closed);
+    assert_eq!(h.component.next_deadline(), None);
 }
 
 #[test]
@@ -419,13 +481,7 @@ fn start_retry_after_wins_over_the_backoff_cap() {
     h.run(Duration::from_nanos(1));
     assert_eq!(
         h.answered(1),
-        Some(&Answered {
-            call: skein_lib::Token::new(1),
-            cost: 0,
-            free: 0,
-            rate: None,
-            result: Err(api::Error::Unavailable)
-        })
+        Some(&Answered { call: Token::new(1), cost: 0, free: 0, rate: None, result: Err(api::Error::Unavailable) })
     );
     assert_eq!(h.answers.len(), 1);
     h.run(Duration::from_nanos(9_999_999_999));
@@ -471,7 +527,7 @@ fn an_unconfigured_forge_is_unavailable_at_zero_cost() {
     assert_eq!(
         h.answered(1),
         Some(&crate::Answered {
-            call: skein_lib::Token::new(1),
+            call: Token::new(1),
             cost: 0,
             free: 0,
             rate: None,
@@ -496,7 +552,7 @@ fn a_stopped_forge_does_not_stop_another() {
     assert_eq!(
         h.answered(1),
         Some(&crate::Answered {
-            call: skein_lib::Token::new(1),
+            call: Token::new(1),
             cost: 2,
             free: 0,
             rate: None,
@@ -530,7 +586,7 @@ fn an_idle_connection_is_reassigned_to_another_forge() {
     assert_eq!(
         h.answered(2),
         Some(&crate::Answered {
-            call: skein_lib::Token::new(2),
+            call: Token::new(2),
             cost: 2,
             free: 0,
             rate: None,

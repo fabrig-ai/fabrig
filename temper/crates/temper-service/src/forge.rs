@@ -252,7 +252,7 @@ impl Layer {
         self.held.get(&forge).cloned()
     }
     pub(crate) fn down(&mut self, request: skein_forge_connection::Request) {
-        if let skein_forge_connection::Request::Close = &request {
+        if let skein_forge_connection::Request::Close | skein_forge_connection::Request::Abort = &request {
             self.begun = true; // A closed component owes no initial begin, including before the mark.
         }
         if let skein_forge_connection::Request::Connect { forge, .. } = &request {

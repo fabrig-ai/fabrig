@@ -112,6 +112,12 @@ struct JsonBody {
     below: bool,
     ended: bool,
 }
+/// How io is asked to end a socket.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum End {
+    Close,
+    Abort,
+}
 /// One connection's machines, socket identity, request and pending output.
 pub(crate) struct Connection {
     pub(crate) forge: u16,
@@ -122,6 +128,8 @@ pub(crate) struct Connection {
     pub(crate) deadline: Option<Time>,
     pub(crate) socket: Option<Token>,
     pub(crate) closing: bool,
+    /// How io was asked to end the socket.
+    end: Option<End>,
     pub(crate) written: bool,
     http: http::Client,
     tls: Option<skein_tls::client::Client>,
@@ -179,6 +187,7 @@ impl Connection {
             deadline: Some(deadline),
             socket: None,
             closing: false,
+            end: None,
             written: false,
             http: http::Client::new(&limits::http(l, tls.is_some(), &shared.io)),
             tls,
@@ -927,11 +936,23 @@ impl Connection {
         self.request = None;
         if let Some(socket) = self.socket {
             self.closing = true;
+            self.end = Some(if abort { End::Abort } else { End::Close });
             io.push(if abort {
                 skein_io::Request::Abort { entity: socket }
             } else {
                 skein_io::Request::Close { entity: socket }
             });
+        }
+    }
+    /// Closes at once with an abort, or turns a graceful close already sent into one.
+    pub fn abort(&mut self, io: &mut Queue<skein_io::Request>) {
+        if !self.closing {
+            self.close(true, io);
+        } else if self.end == Some(End::Close)
+            && let Some(socket) = self.socket
+        {
+            self.end = Some(End::Abort);
+            io.push(skein_io::Request::Abort { entity: socket });
         }
     }
     fn answer_pending(&self) -> bool {
