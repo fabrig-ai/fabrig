@@ -48,6 +48,17 @@ fn mark(world: &World, since: usize) -> &[root::Write] {
     marks[0]
 }
 
+fn wires(world: &mut World) -> Box<[u8]> {
+    world
+        .store
+        .retained()
+        .into_iter()
+        .find_map(|(key, value)| {
+            (jig_protocol_store::keys::decode_own(&key) == Some(jig_protocol_store::keys::Own::Wires)).then_some(value)
+        })
+        .expect("component wires row")
+}
+
 fn durable_mark(world: World, since: usize, last: u64) {
     assert_eq!(world.store.applied, last + 1, "the mark is the next numbered commit");
     assert_eq!(mark(&world, since).len(), 2, "wires and deployment header alone");
@@ -55,7 +66,7 @@ fn durable_mark(world: World, since: usize, last: u64) {
     let mut world = world;
     world.release_commits();
     assert!(world.domain.ready());
-    let bytes = world.store.into_wires();
+    let bytes = wires(&mut world);
     let row = component_v3::Wires::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).expect("component wires");
     let wires: Vec<_> = row.wires().iter().map(|wire| (wire.name().to_vec(), wire.version())).collect();
     assert_eq!(wires, [(b"channel".to_vec(), 3), (b"fixture".to_vec(), 7)]);
@@ -106,13 +117,13 @@ fn a_start_with_nothing_pending_takes_the_switch_step_and_commits_its_wires() {
 
 #[test]
 fn a_first_start_takes_the_switch_step() {
-    let world = World::first_start(world::config(f::SEED), world::limits());
+    let mut world = World::first_start(world::config(f::SEED), world::limits());
     let restores = &world.restart_steps[..RESTORES.len()];
     assert_eq!(restores, RESTORES);
     assert_eq!(world.store.switch_requests, 0);
     assert_eq!(mark(&world, 0).len(), 2);
     assert!(world.domain.ready());
-    let bytes = world.store.into_wires();
+    let bytes = wires(&mut world);
     let row = component_v3::Wires::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).expect("empty wires row");
     assert!(row.wires().is_empty(), "an empty shell wire list is still committed");
 }
@@ -144,6 +155,8 @@ fn a_restart_refused_before_the_switch_leaves_the_old_generation_active() {
     assert_eq!(world.store.applied, last);
     assert_eq!(world.store.rows, rows);
     assert!(!world.store.generation_pending);
+    // The lowered policy limit deliberately refuses the restart.
+    world.broken();
 }
 
 #[test]
@@ -157,6 +170,8 @@ fn a_refused_store_switch_stops_the_start() {
     assert!(world.stopped);
     assert!(!world.domain.ready());
     assert!(world.commits[since..].is_empty(), "no mark after refusal");
+    // The deliberately stale pending flag leaves the start stopped after Switch refusal.
+    world.broken();
 }
 
 #[test]
@@ -168,10 +183,11 @@ fn a_failed_mark_never_adopts_the_runs() {
     assert!(world.stopped);
     assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Wires));
     assert_eq!(world.restart_steps, RESTORES);
+    // The Wires commit is deliberately failed and the store remains failed.
+    world.broken();
 }
 
 #[test]
-#[ignore = "start: root routes stopping to the core before durable Wires"]
 fn stopping_before_the_mark_does_not_commit_it() {
     let mut world = at_switch(f::BEFORE);
     let before = world.store.applied;
@@ -208,6 +224,8 @@ fn a_broken_task_set_refuses_before_the_switch() {
 
 // Every refusal must leave A byte-for-byte reopenable by the earlier build.
 fn refuses_before_switch(mut world: World, _child: core::RestoreChild) {
+    // Each caller deliberately seeds an unmade link and inspects the unfinished copy.
+    world.broken();
     world.store.crash(f::SEED);
     let source = world.store.generation_contents(b"generations/1");
     let last = world.store.applied;
@@ -276,6 +294,8 @@ fn an_account_source_without_its_account_panics_at_link_on_the_active_generation
     assert!(world.domain.accounts().source(ORPHAN_SOURCE).is_some(), "the source is retained until its link is made");
     assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
     assert_eq!(world.store.switch_requests, 0);
+    // The seeded source deliberately names an absent account and leaves Link unfinished.
+    world.broken();
 }
 
 #[test]

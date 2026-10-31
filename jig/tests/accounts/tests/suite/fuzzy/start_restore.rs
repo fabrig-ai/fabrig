@@ -1,4 +1,4 @@
-//! Writer snapshots read back through the opted-in cold reader (engine.md, 15).
+//! Writer snapshots read back through the cold reader (engine.md, 15).
 #[test]
 fn seeded_writer_snapshots_restore_and_replay() {
     for seed in 0..128 {

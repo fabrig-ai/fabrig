@@ -42,9 +42,11 @@ fn an_ended_conversation_moves_its_position_to_the_ended_family() {
 }
 
 #[test]
-fn an_ended_read_position_is_refused_at_restore() {
+#[should_panic(expected = "wrong people family")]
+fn an_ended_read_position_panics_at_restore() {
     let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
+    domain.start_restore(env.wall);
     let mut out = Queue::uncapped();
     step(
         &mut domain,
@@ -52,15 +54,6 @@ fn an_ended_read_position_is_refused_at_restore() {
         Event::Restore { record: Stored::EndedRead { task: TASK, party: PARTY, through: 1 } },
         &mut out,
     );
-    assert!(!domain.ready());
-    assert_eq!(
-        out.pop(),
-        Some(Request::RestoreRefused {
-            key: Key::EndedRead { task: TASK, party: PARTY },
-            refusal: Refusal::Limit { which: LimitKind::Restore },
-        })
-    );
-    assert!(out.is_empty());
 }
 
 #[test]

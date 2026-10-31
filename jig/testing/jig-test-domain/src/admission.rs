@@ -66,7 +66,6 @@ pub fn class(event: &Event) -> Class {
         | Event::ReadApplication { .. }
         | Event::Application { .. }
         | Event::StartBegin { .. }
-        | Event::RestartBegin { .. }
         | Event::Credential { .. }
         | Event::ProjectionEffect { .. }
         | Event::TopicCall { .. }
@@ -74,12 +73,10 @@ pub fn class(event: &Event) -> Class {
         Event::ResultRead { .. }
         | Event::Stop
         | Event::ConnectorTimer { .. }
-        | Event::Switched
         | Event::StartRecord(_)
         | Event::StartMissing { .. }
         | Event::StartPageRefused { .. }
         | Event::StartDone(_)
-        | Event::RestartDone(..)
         | Event::CallAnswered { .. }
         | Event::Text { .. }
         | Event::Turn { .. }
@@ -150,12 +147,10 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             step(domain, env, event);
             Ok(())
         }
-        event @ (Event::Switched
-        | Event::StartRecord(_)
+        event @ (Event::StartRecord(_)
         | Event::StartMissing { .. }
         | Event::StartPageRefused { .. }
         | Event::StartDone(_)
-        | Event::RestartDone(_)
         | Event::TranscriptLoaded { .. }
         | Event::Core(
             core::Event::ReadLoaded { .. }
@@ -184,7 +179,6 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         | Event::WriterRead { .. }
         | Event::ConnectorTimer { .. }
         | Event::StartBegin { .. }
-        | Event::RestartBegin { .. }
         | Event::Timer(..)
         | Event::Core(..)
         | Event::Credential { .. }
@@ -269,13 +263,10 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::WriterRead { .. }
         | Event::ConnectorTimer { .. }
         | Event::StartBegin { .. }
-        | Event::RestartBegin { .. }
-        | Event::Switched
         | Event::StartRecord(_)
         | Event::StartMissing { .. }
         | Event::StartPageRefused { .. }
         | Event::StartDone(_)
-        | Event::RestartDone(..)
         | Event::Timer(..)
         | Event::Core(..)
         | Event::Credential { .. }

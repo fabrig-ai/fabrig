@@ -168,7 +168,7 @@ fn stored_settings_whole_fit_refuses_at_load_core_without_root_completion() {
 }
 
 #[test]
-fn stored_proposal_consistency_is_not_rejudged_at_link() {
+fn stored_proposals_require_their_links_at_link() {
     let mut h = Harness::stored(false, false);
     let record = people::Stored::Person {
         number: 1,
@@ -197,7 +197,9 @@ fn stored_proposal_consistency_is_not_rejudged_at_link() {
         ),
         core::Restored::Live
     );
-    phase(&h.link(), Phase::Sweep);
+    let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| h.link()))
+        .expect_err("a proposal requires its retained links");
+    assert_eq!(h.core.start_phase(), Some(Phase::Link));
     assert_eq!(h.core.start_failure(), None);
     assert!(h.out.is_empty());
 }

@@ -243,7 +243,7 @@ fn held_rows_past_each_limit_keep_their_refusal_detail() {
 }
 
 #[test]
-fn a_proposal_without_its_tasks_counterpart_asserts_at_link() {
+fn a_proposal_requires_its_links_under_the_selected_start() {
     for selected in [false, true] {
         let (mut core, env) = loaded(selected);
         let record = people::Stored::Person {
@@ -273,7 +273,7 @@ fn a_proposal_without_its_tasks_counterpart_asserts_at_link() {
             let _panic = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
                 super::through_link(&mut core, &env, &mut Queue::uncapped());
             }))
-            .expect_err("missing proposal counterpart asserts at Link");
+            .expect_err("a proposal requires its retained links");
             assert_eq!(core.start_phase(), Some(Phase::Link));
             assert_eq!(core.start_failure(), None);
         } else {

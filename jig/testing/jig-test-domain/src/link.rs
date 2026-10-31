@@ -304,7 +304,6 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
         | Delivery::Application { .. }
         | Delivery::ProjectMade { .. }
         | Delivery::Projection { .. }
-        | Delivery::Restart(_)
         | Delivery::System { .. }
         | Delivery::LostRead { .. }
         | Delivery::Procedure { .. }) => return other,
@@ -477,8 +476,6 @@ pub(super) enum Work {
     ConnectorResume {
         number: u16,
     },
-    Switched,
-    Restart(core::RestartRequest),
     Start(crate::StartInput),
     ConnectorRestartDone {
         number: u16,
@@ -487,9 +484,6 @@ pub(super) enum Work {
         to: ReplyTo,
         call: core::SettledCall,
     },
-    SwitchChecked,
-    AdoptRestored,
-    AdoptDone,
     WriterRead {
         connector: u16,
         resource: tasks::Name,
