@@ -249,3 +249,14 @@ version moved; the container types behind the accessors.
   `src/tests/kept.rs`. If another exhaustive `RecordKind` match outside
   the owned files breaks the build, the same rule holds: an arm for each
   new variant, named in the report.
+
+2026-10-31 (third).
+
+- **May this task put a scoped `too_many_lines` expectation on
+  `Domain::new`?** Yes. The four required constructor entries take
+  `Domain::new` past clippy's 100 lines; add, directly on it,
+  `#[expect(clippy::too_many_lines, reason = "initializes each bounded
+  connector table")]`, as `restore`, the input dispatcher and the
+  crate's other exhaustive functions carry theirs, and nothing else of
+  the constructor. No refactor of `Domain::new` here: the forge-records
+  part owns `domain.rs` next. Name the expectation in the report.
