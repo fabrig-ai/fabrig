@@ -19,6 +19,9 @@ pub(crate) struct Acted {
 }
 
 impl Acted {
+    pub(super) const fn outcome(&self) -> &Outcome {
+        &self.outcome
+    }
     pub(super) fn project_deadline(&mut self, env: &Env<Limits>) -> Time {
         self.due = deadline(env, answer_expiry(self.at, &env.limits));
         self.due

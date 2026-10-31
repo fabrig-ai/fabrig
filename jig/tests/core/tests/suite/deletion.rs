@@ -224,12 +224,16 @@ fn restart_world(world: &mut World) {
         .values()
         .filter_map(|row| {
             if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row
-                && matches!(row.phase, tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. }))
+                && matches!(
+                    row.phase,
+                    tasks::Phase::Active(tasks::Active::Running { .. })
+                        | tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. })
+                )
             {
                 Some(fleet::Hosted {
                     run: Token::new(row.number),
                     attempt: Token::new(row.attempt),
-                    phase: fleet::Phase::Ending,
+                    phase: fleet::Phase::Active,
                 })
             } else {
                 None
@@ -585,6 +589,7 @@ fn a_closed_project_refuses_every_entry_as_one_never_made() {
 #[test]
 fn a_resent_removal_answers_removed_then_unknown() {
     let mut world = deleted_world(SEED);
+    world.hold_project_releases.push(2);
     remove(&mut world, REMOVE);
     removed(&world);
     assert!(world.store.rows.contains_key(&deletion()));
@@ -592,6 +597,17 @@ fn a_resent_removal_answers_removed_then_unknown() {
     remove(&mut world, REMOVE);
     removed(&world);
     assert_eq!(world.commits.len(), commits, "same kept answer makes no decision");
+    settle_hosts(&mut world);
+    assert!(matches!(
+        world.store.rows.get(&deletion()),
+        Some(root::Record::Core(core::Record::People(people::Stored::Deletion {
+            step: people::DeletionStep::Release,
+            ..
+        })))
+    ));
+    remove(&mut world, REMOVE);
+    removed(&world);
+    world.send(root::Event::Core(core::Event::ProjectReleased { connector: 2, project: PROJECT }));
     finish(&mut world);
     let rows = world.store.rows.clone();
     remove(&mut world, REMOVE);
