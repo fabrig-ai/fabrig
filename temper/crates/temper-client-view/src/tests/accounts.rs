@@ -718,7 +718,7 @@ fn owner_root_with_accounts() -> (d::Domain, Token, Token) {
             })
             .unwrap();
     let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
-    let deployment = jig_client_protocol_link::translate::documents::owner_deployment(
+    let deployment = jig_client_protocol_link::translate::documents::deployment(
         jig_client_test_records::deployment_rows_record(),
         &link,
     )
