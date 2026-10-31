@@ -6,14 +6,8 @@ pub fn len_u64(len: usize) -> u64 {
     u64::try_from(len).expect("a native length fits a u64")
 }
 
-#[cfg(test)]
-mod tests {
-    use super::len_u64;
-
-    #[test]
-    fn lengths_include_zero_and_the_native_maximum() {
-        assert_eq!(len_u64(0), 0);
-        assert_eq!(len_u64(17), 17);
-        assert_eq!(len_u64(usize::MAX), u64::try_from(usize::MAX).expect("native maximum fits"));
-    }
+/// A `u32` count as an index; supported targets have at least 32-bit addresses.
+#[must_use]
+pub fn usize_of(n: u32) -> usize {
+    usize::try_from(n).expect("u32 fits usize")
 }

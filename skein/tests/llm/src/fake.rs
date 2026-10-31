@@ -10,6 +10,7 @@
 use skein_fake_llm_domain::{self as fake, api};
 use skein_fake_llm_protocol::{documents, provider};
 use skein_http::{server as http, sse::writer as sse};
+use skein_lib::length::usize_of as index;
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Env, Intake, Queue, Time, Token, Wall};
 use skein_llm::{Call, Credential, Endpoint, Provider, client};
@@ -69,10 +70,6 @@ fn cells<T>(count: u32) -> Option<u64> {
 
 fn bytes(value: &[u8]) -> Option<u64> {
     u64::try_from(value.len()).ok()
-}
-
-fn index(count: u32) -> usize {
-    usize::try_from(count).expect("u32 fits usize")
 }
 
 fn reserve<T>(items: &mut Vec<T>, count: u32) {

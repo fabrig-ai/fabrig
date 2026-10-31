@@ -5,6 +5,7 @@
 use alloc::boxed::Box;
 use core::mem;
 
+use skein_lib::length::usize_of;
 use skein_lib::stream::{Down, Fault, OutputDown, OutputOutcome, OutputUp, Read, Up};
 use skein_lib::{Env, Id, Intake, Queue, Token, bytes};
 
@@ -1025,7 +1026,7 @@ fn demand(open: &mut Open, read: Read, room: u32, id: Id<Entity>, env: &Env<Limi
         }
         Read::Scan { until, max } => {
             assert!(
-                max <= cap && index(max) >= until.as_bytes().len(),
+                max <= cap && usize_of(max) >= until.as_bytes().len(),
                 "a scan within the intake's cap and long enough for its delimiter (Limits::largest_read)"
             );
             false
@@ -1128,7 +1129,7 @@ fn open_received(
     match result {
         Ok(0) => open.reader = Reader::Ended,
         Ok(n) => {
-            let bytes = buf.get(..index(n)).expect("a receive counts no more than its buffer");
+            let bytes = buf.get(..usize_of(n)).expect("a receive counts no more than its buffer");
             open.intake.append(bytes).expect("a receive asks for no more than the intake has room for");
         }
         // It did nothing: received again once the retry deadline passes.
@@ -1167,7 +1168,7 @@ fn open_sent(
     open.writer = match result {
         Ok(n) => {
             let from = from.checked_add(n).expect("a send counts no more than was left");
-            if index(from) < bytes.len() {
+            if usize_of(from) < bytes.len() {
                 // A short send: the rest from the same box, never copied.
                 Writer::Sending { flight: send(open.fd, bytes, from, id, tables, subs), finishing }
             } else {
@@ -1347,7 +1348,7 @@ fn closing_sent(
     closing.flush = match result {
         Ok(n) => {
             let from = from.checked_add(n).expect("a send counts no more than was left");
-            if index(from) < bytes.len() {
+            if usize_of(from) < bytes.len() {
                 Flush::Sending(send(closing.fd, bytes, from, id, tables, subs))
             } else {
                 drop(bytes);
@@ -1556,7 +1557,7 @@ fn next_writer(
 }
 
 fn receive(fd: Fd, len: u32, id: Id<Entity>, tables: &mut Tables, subs: &mut Queue<Submit>) -> Id<Flight> {
-    let op = Op::recv(fd, bytes::zeroed(index(len))).expect("a receive asks for at least a byte");
+    let op = Op::recv(fd, bytes::zeroed(usize_of(len))).expect("a receive asks for at least a byte");
     tables.submit(subs, id, Purpose::Recv, op)
 }
 
@@ -1574,10 +1575,6 @@ fn send(
 
 fn shutdown(fd: Fd, id: Id<Entity>, tables: &mut Tables, subs: &mut Queue<Submit>) -> Id<Flight> {
     tables.submit(subs, id, Purpose::Shutdown, Op::Shutdown { fd })
-}
-
-fn index(n: u32) -> usize {
-    usize::try_from(n).expect("a u32 fits a usize")
 }
 
 pub(crate) const fn opened(owner: Token, addr: Addr) -> Stream {
