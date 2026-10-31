@@ -775,3 +775,7 @@ fn read_item(
         None => None,
     }
 }
+
+#[cfg(test)]
+#[path = "tests/forge_gone.rs"]
+mod gone_tests;

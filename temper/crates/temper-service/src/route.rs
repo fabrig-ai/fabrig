@@ -13,7 +13,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     #[expect(clippy::match_same_arms, reason = "each request's arm is filled by its own task")]
     match request {
         root::Request::ForgeKept(record) => crate::forges::record(engine, record),
-        root::Request::ForgeGone { .. } => {}
+        root::Request::ForgeGone { forge } => crate::forge::gone::request(engine, forge),
         root::Request::BoxGroup { .. } => {}
         root::Request::BoxRemove { .. } => {}
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
