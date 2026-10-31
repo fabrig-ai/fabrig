@@ -135,7 +135,7 @@ impl Core {
                 }
                 let mut child = Queue::uncapped();
                 self.people.start_sweep_row(
-                    &Env { now: env.now, wall: self.start.at, limits: env.limits.people },
+                    &Env { wall: self.start.at, ..env.with(env.limits.people) },
                     &record,
                     &mut child,
                 );
@@ -172,7 +172,7 @@ impl Core {
         match continuation.phase {
             Phase::AdoptRuns => {
                 assert!(
-                    self.people.start_complete(&Env { now: env.now, wall: env.wall, limits: env.limits.people }),
+                    self.people.start_complete(&env.with(env.limits.people)),
                     "linked people complete after durable Wires"
                 );
                 let _adoption = self.start_ask(Phase::AdoptRuns);
@@ -259,17 +259,12 @@ impl Core {
             let _refused = self.start_refuse(Failure::ProjectPolicy { project });
             return;
         }
-        if !self.people.start_link(&Env { now: env.now, wall: self.start.at, limits: env.limits.people }) {
+        if !self.people.start_link(&Env { wall: self.start.at, ..env.with(env.limits.people) }) {
             self.start_collect_failure();
             return;
         }
         let mut child = Queue::uncapped();
-        tasks::step(
-            &mut self.tasks,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-            tasks::Event::Check,
-            &mut child,
-        );
+        crate::routing::step::step_tasks(self, env, tasks::Event::Check, &mut child);
         self.start_collect_failure();
         if self.start.failure.is_some() {
             return;

@@ -42,7 +42,7 @@ pub(crate) fn route(
     let mut admission = tasks::CompoundAdmission::new(&core.tasks, env.limits.tasks.tasks);
     let mut operations = List::with_capacity(inputs.len());
     let mut first_message = 0;
-    let child_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+    let child_env = env.with(env.limits.tasks);
     for (at, input) in inputs.into_boxed().into_iter().enumerate() {
         let at = u32::try_from(at).expect("bounded operation count");
         let mut operation = match check(core, env, &route, &admission, input) {
