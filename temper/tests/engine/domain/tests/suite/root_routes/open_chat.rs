@@ -344,7 +344,7 @@ fn assert_ended_conversation(driver: &mut Driver, task: u64) {
     let mut from = None;
     loop {
         let reads::Answer::Tasks(page) =
-            read(driver, reads::Read::Tasks { query: jig_core_world::fixtures::OWN_TASKS, live: None, ended: from })
+            read(driver, reads::Read::Tasks { query: jig_test_profile::fixtures::OWN_TASKS, live: None, ended: from })
         else {
             panic!("conversation page")
         };
@@ -365,7 +365,7 @@ fn a_goals_delegate_still_ends_by_its_result_beside_open_chats() {
     let goal = walking::goal_from(
         open,
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 150, priority: 1, deadline: None },
+        jig_test_profile::fixtures::Goal { budget: 150, priority: 1, deadline: None },
     );
     ask(&mut driver, 64, goal);
     let run = driver.last_assignment();

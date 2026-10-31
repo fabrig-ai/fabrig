@@ -9,7 +9,7 @@ impl Story {
     /// The existing owner policy with a finite first deadline and an unbounded ceiling.
     #[must_use]
     pub fn live_span_goal(seed: u64, first: Wall) -> Self {
-        let mut config = jig_core_world::world::config(seed);
+        let mut config = jig_test_profile::config(seed);
         let mut policy = config.core.seed_projects[0].policy.policy.clone();
         policy.roles[0].authority.budget.deadline = Some(first);
         config.core.seed_projects[0].policy.policy = policy;
@@ -61,7 +61,7 @@ impl Story {
 impl Story {
     #[must_use]
     pub fn requester_chat(seed: u64) -> Self {
-        let mut config = jig_core_world::world::config(seed);
+        let mut config = jig_test_profile::config(seed);
         config.core.defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Requester;
         let mut story = Self::configured(seed, &fixtures::owner_limits(), config);
         story.sign_in();

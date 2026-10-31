@@ -21,7 +21,7 @@ skein-fake-machine.workspace = true
 skein-sim.workspace = true
 
 [dev-dependencies]
-jig-core-world = { path = "../../tests/core" }
+jig-test-profile.workspace = true
 
 # This is a test kit, not a step crate.
 [lints.rust]

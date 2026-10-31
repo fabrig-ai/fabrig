@@ -2,7 +2,7 @@
 use super::*;
 
 fn goal(budget: u64) -> people::Ask {
-    let mut member = jig_core_world::fixtures::people_member(b"procedure goal", budget);
+    let mut member = jig_test_profile::fixtures::people_member(b"procedure goal", budget);
     member.executor = people::TaskExecutor::Procedure { connector: 1, code: 1 };
     member.flags.listed = true;
     member.label = jig_client_test_records::GOAL;
@@ -130,7 +130,7 @@ fn a_procedure_goal_commits_before_delivery_and_replays_its_exact_owner_facts() 
 fn a_procedure_goal_proposal_restores_and_accepts_the_original_executor() {
     let mut world = jig_core_world::stories::offers::world(216, None);
     world.hold_procedures = true;
-    ask(&mut world, 90, jig_core_world::fixtures::propose_goal(goal(300)));
+    ask(&mut world, 90, jig_test_profile::fixtures::propose_goal(goal(300)));
     let Some(people::Reply::Outcome(people::Outcome::Proposed { proposal, to: 0 })) =
         world.people_answers.last().cloned()
     else {
@@ -154,7 +154,7 @@ fn a_procedure_goal_proposal_restores_and_accepts_the_original_executor() {
         world.store.rows.get(&key),
         Some(&root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(row.clone()))))
     );
-    ask(&mut world, 90, jig_core_world::fixtures::propose_goal(goal(300)));
+    ask(&mut world, 90, jig_test_profile::fixtures::propose_goal(goal(300)));
     assert_eq!(
         world.people_answers.last(),
         Some(&people::Reply::Outcome(people::Outcome::Proposed { proposal, to: 0 }))

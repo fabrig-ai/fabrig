@@ -42,7 +42,7 @@ pub(super) struct Engine {
 }
 impl Engine {
     pub fn bounded(seed: u64, limits: &root::Limits) -> Self {
-        Self::configured(seed, limits, jig_core_world::world::config(seed))
+        Self::configured(seed, limits, jig_test_profile::config(seed))
     }
     pub fn configured(seed: u64, limits: &root::Limits, config: root::Config) -> Self {
         Self::with_peers(seed, limits, config, crate::fixtures::peers())
@@ -385,7 +385,7 @@ impl Engine {
         std::mem::take(&mut self.observed)
     }
     pub fn chats_made(&self) -> usize {
-        let label = jig_core_world::fixtures::templates()
+        let label = jig_test_profile::fixtures::templates()
             .iter()
             .find(|template| template.number == jig_client::shapes::CHAT)
             .expect("chat template")

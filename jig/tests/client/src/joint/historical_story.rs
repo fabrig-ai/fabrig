@@ -2,7 +2,7 @@
 use super::*;
 
 fn world() -> World<Test, Joint> {
-    let mut owner = jig_core_world::world::limits();
+    let mut owner = jig_test_profile::limits();
     owner.core.documents.rows = 2;
     owner.core.documents.lines = 2;
     owner.core.documents.chips = 2;
@@ -16,7 +16,7 @@ fn world() -> World<Test, Joint> {
         ])],
     );
     let driver = Driver::new(
-        jig_core_world::world::config(8512),
+        jig_test_profile::config(8512),
         owner,
         Peers::new(vec![worker], Vec::new()),
         Time::ZERO,

@@ -1,6 +1,6 @@
 //! A holder's moves cross people, the core, the child and the scripted component.
 use super::*;
-use jig_core_world::effects::Setup;
+use jig_core_world::world::Setup;
 
 fn change(change: people::AccountChange) -> people::Ask {
     people::Ask::AccountChange { holder: people::AccountHolder::Own, change }

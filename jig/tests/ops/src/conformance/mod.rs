@@ -257,7 +257,7 @@ impl Application for Ops {
     fn start(config: &Config, store: &mut Store) -> Vec<root::Event> {
         if store.rows.is_empty() {
             let configuration = config::root_for(config.seed, config.story == Story::Environment).0;
-            for row in jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers) {
+            for row in jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers) {
                 let jig_test_domain::Record::Core(row) = row else { panic!("account fixture row") };
                 let row = root::Record::Core(row);
                 store.rows.insert(row.key(), row);

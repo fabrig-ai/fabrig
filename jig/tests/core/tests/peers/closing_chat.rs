@@ -1,9 +1,8 @@
 //! Independent scripted parties close a chat across disposal and restart boundaries.
-use crate::effects::Setup;
-use crate::{
-    effects::World,
-    peers::{Peers, fixture},
-};
+use jig_core_world::peers::Peers;
+use jig_core_world::peers::fixture;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -34,7 +33,7 @@ fn fixture_with_delegates() -> (World, root::Config, u64, [u64; 2]) {
     limits.core.tasks.inbox_bytes = 512;
     limits.core.tasks.contract_choices = 1;
     limits.core.people.inbox_recipients = 24;
-    crate::peers::journal(&mut limits);
+    jig_core_world::peers::journal(&mut limits);
     let mut world = World::new(Setup {
         configuration: Some(fixture(7074, 0).0),
         limits,

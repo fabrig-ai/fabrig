@@ -1,6 +1,6 @@
 //! Admission refuses party proposals with no accepting role (QUESTIONS 31).
 use super::*;
-use jig_core_world::effects::Setup;
+use jig_core_world::world::Setup;
 const READ_CREATING: u64 = 94;
 // Project subject actions, including Rename (people.md, 5.1).
 const PROJECT_ACTS: u32 = 7;
@@ -36,7 +36,7 @@ fn a_members_goal_beyond_their_pool_is_refused_when_nobody_may_accept_it() {
         1,
         b"beyond my pool".as_slice().into(),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 600, priority: 1, ..Default::default() },
+        jig_test_profile::fixtures::Goal { budget: 600, priority: 1, ..Default::default() },
     );
     let refused = people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Authority {
         lacking: people::Lack::Budget { needs: 600, left: 100 },
@@ -89,7 +89,7 @@ fn a_member_is_offered_a_goal_past_their_allotment_as_proposed() {
     assert!(*maximum_budget >= 600);
     assert_eq!((*project, roles.as_slice()), (1, [0].as_slice()));
     let before = world.assignments.len();
-    ask(&mut world, 92, jig_core_world::fixtures::propose_goal(goal(600)));
+    ask(&mut world, 92, jig_test_profile::fixtures::propose_goal(goal(600)));
     let Some(people::Reply::Outcome(people::Outcome::Proposed { proposal, to: 0 })) = world.people_answers.last()
     else {
         panic!("goal proposed");

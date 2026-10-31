@@ -1,7 +1,7 @@
 //! Read receipts observed at the root/store boundary (`contract.md`, section 6).
 //! Parties know the last submitted commit and the real store's durable number.
 //! They never inspect the core or the journal. Their receipts survive a crash.
-use crate::{Store, effects::World};
+use crate::{Store, world::World};
 use jig_domain_core::{self as core, reads};
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};

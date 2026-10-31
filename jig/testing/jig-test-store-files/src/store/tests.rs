@@ -18,7 +18,7 @@ fn result(number: u16, task: u64) -> root::Record {
 }
 
 fn snapshot_store() -> Store {
-    let limits = jig_core_world::world::limits();
+    let limits = jig_test_profile::limits();
     let mut store = Store::new(&limits, &[]);
     let header = core::Deployment {
         id: [0; 16],
@@ -291,7 +291,7 @@ fn readback_rejects_unread_transcript_after_a_successful_prefix() {
 }
 
 fn starting_snapshot() -> Store {
-    let limits = jig_core_world::world::limits();
+    let limits = jig_test_profile::limits();
     let mut store = Store::starting(&limits, &[]);
     let header = core::Deployment {
         id: [0; 16],

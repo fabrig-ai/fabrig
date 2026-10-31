@@ -15,7 +15,7 @@ use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
 
 struct World {
-    creating: jig_core_world::fixtures::Creating,
+    creating: jig_test_profile::fixtures::Creating,
     root: engine::Domain,
     env: Env<engine::Limits>,
     out: Queue<engine::Request>,
@@ -271,7 +271,7 @@ impl World {
         limits.journal.writes = CHANGE_WRITES;
         let store = temper_engine_domain_world::fixtures::restored_store(bootstrap, &limits);
         Self {
-            creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
+            creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),

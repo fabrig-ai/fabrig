@@ -1,5 +1,5 @@
 use super::*;
-use jig_core_world::effects::Setup;
+use jig_core_world::world::Setup;
 
 #[test]
 fn a_second_party_proposal_request_reads_the_original_committed_decision_after_restart() {
@@ -10,9 +10,9 @@ fn a_second_party_proposal_request_reads_the_original_committed_decision_after_r
         1,
         b"retain the goal decision".as_slice().into(),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 600, ..Default::default() },
+        jig_test_profile::fixtures::Goal { budget: 600, ..Default::default() },
     );
-    ask(&mut world, 80, jig_core_world::fixtures::propose_goal(proposed_goal));
+    ask(&mut world, 80, jig_test_profile::fixtures::propose_goal(proposed_goal));
     let Some(people::Reply::Outcome(people::Outcome::Proposed { proposal, to: 0 })) =
         world.people_answers.last().cloned()
     else {
