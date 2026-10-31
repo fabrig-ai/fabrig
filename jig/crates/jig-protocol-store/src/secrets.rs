@@ -590,10 +590,12 @@ fn carry(
     ]);
     submit(store, env, ops, Pending::Carry { owner, key, holds, number }, above, below);
 }
-pub(crate) fn start_sweep(store: &mut Store) {
-    if !store.secret_state.swept {
-        store.secret_state.sweeping = true;
+pub(crate) fn start_sweep(store: &mut Store) -> bool {
+    if store.secret_state.swept || store.secret_state.sweeping {
+        return false;
     }
+    store.secret_state.sweeping = true;
+    true
 }
 pub(crate) fn sweep(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     if !store.mark_durable()
