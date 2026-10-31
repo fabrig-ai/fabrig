@@ -244,8 +244,7 @@ pub fn read_configuration(file: &Path) -> Result<PinnedConfiguration, Refusal> {
     match pin.agent {
         Agent::Smith => {
             if let Some(commit) = &pin.minimum_commit
-                && (commit.len() != 40
-                    || !commit.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))
+                && (!crate::formats::lowercase_hex(&commit, 40))
             {
                 return Err(Refusal::new(file, "minimum_commit", "expected a full lowercase source commit"));
             }
@@ -261,7 +260,7 @@ pub fn read_configuration(file: &Path) -> Result<PinnedConfiguration, Refusal> {
                 .sha256
                 .as_deref()
                 .ok_or_else(|| Refusal::new(file, "sha256", "Codex requires an executable digest"))?;
-            if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            if !crate::formats::lowercase_hex(&digest, 64)
             {
                 return Err(Refusal::new(file, "sha256", "expected 64 lowercase hexadecimal digits"));
             }

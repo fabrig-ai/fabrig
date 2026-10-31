@@ -326,7 +326,7 @@ pub fn from_summary(summary: &RunSummary) -> Result<Parity, String> {
         return Err("parity needs one smith source commit".into());
     }
     let commit = commits.first().expect("one commit");
-    if commit.len() != 40 || !commit.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+    if commit.len() != 40 || !commit.bytes().all(|byte| skein_lib::bytes::hex_value(byte).is_some()) {
         return Err("parity needs the smith arm's full source commit".into());
     }
     recompute(&summary.attempts, summary.seed, &summary.priced_at, commits.first().expect("one commit"))

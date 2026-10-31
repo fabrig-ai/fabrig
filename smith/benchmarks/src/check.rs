@@ -328,7 +328,7 @@ fn valid_name(name: &str) -> bool {
 }
 
 fn valid_digest(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    crate::formats::lowercase_hex(value, 64)
 }
 
 fn check_prompt(file: &Path, key: &str, prompt: &str) -> Result<(), Refusal> {

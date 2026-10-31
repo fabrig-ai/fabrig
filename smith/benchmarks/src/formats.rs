@@ -34,3 +34,11 @@ pub(crate) fn parse_document<T: DeserializeOwned>(file: &Path, text: &str) -> Re
         Refusal::new(file, &key, reason)
     })
 }
+
+/// Fixed-width lowercase identities in committed manifests.
+pub(crate) fn lowercase_hex(value: &str, length: usize) -> bool {
+    value.len() == length
+        && value.bytes().all(|byte| {
+            skein_lib::bytes::hex_value(byte).is_some_and(|value| skein_lib::bytes::hex_digit(value) == byte)
+        })
+}

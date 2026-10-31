@@ -55,13 +55,9 @@ pub enum ArmRef {
     Built(Build),
 }
 
-fn hexadecimal(value: &str, length: usize) -> bool {
-    value.len() == length && value.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-}
-
 /// Name an arm from its full commit and the product executable's SHA-256.
 pub fn arm_name(commit: &str, sha256: &str) -> Result<String, String> {
-    if !hexadecimal(commit, 40) || !hexadecimal(sha256, 64) {
+    if !crate::formats::lowercase_hex(commit, 40) || !crate::formats::lowercase_hex(sha256, 64) {
         return Err("arm identity needs a full lowercase commit and SHA-256".into());
     }
     Ok(format!("{commit}-{sha256}"))
@@ -106,7 +102,7 @@ pub(crate) fn commit(repository: &Path, reference: &str) -> Result<String, Strin
         "resolve commit",
     )?;
     let commit = commit.trim();
-    if !hexadecimal(commit, 40) {
+    if !crate::formats::lowercase_hex(commit, 40) {
         return Err("unknown or unsupported commit".into());
     }
     Ok(commit.into())
@@ -290,7 +286,7 @@ pub fn read_build(program: &Path) -> Result<Build, String> {
     for binary in &arm.binaries {
         if binary.name.is_empty()
             || !binary.name.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
-            || !hexadecimal(&binary.sha256, 64)
+            || !crate::formats::lowercase_hex(&binary.sha256, 64)
             || !names.insert(&binary.name)
         {
             return Err("arm manifest has an unsafe or repeated binary identity".into());
