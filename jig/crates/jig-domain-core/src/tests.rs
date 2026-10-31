@@ -468,6 +468,7 @@ fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u3
 
 fn clear_projects(core: &mut Core, limits: &Limits) {
     core.authority = authority::Domain::new(core.authority.rules().clone(), limits.authority).expect("restore rules");
+    core.authority.start_restore();
     core.projects.clear();
     core.names = Map::with_capacity(limits.authority.projects);
     core.permission_roles = Map::with_capacity(limits.authority.projects);
@@ -3049,12 +3050,7 @@ fn invisible_and_absent_reads_have_the_same_unknown_answer() {
     }
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
-    people::step(
-        &mut core.people,
-        &env,
-        people::Event::Restore { record: people::Stored::Roles { project: 1, holdings: Box::new([]) } },
-        &mut out,
-    );
+    people::step(&mut core.people, &env, people::Event::Roles { project: 1, holdings: Box::new([]) }, &mut out);
     let Held::Read { answer, .. } = read_answer(&mut core, &limits, 10, reads::Read::Task { task: 1 }) else {
         panic!("read terminal expected")
     };

@@ -90,6 +90,7 @@ fn every_operational_entrance_consumes_selection() {
         Entrance {
             name: "restore_policy",
             input: |core, env| {
+                let _begin = core.start_begin(false, env.wall);
                 let configured = config(41);
                 let value = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
                     .expect("bounded policy");
