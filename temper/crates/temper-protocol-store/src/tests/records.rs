@@ -557,8 +557,8 @@ fn application_limit_refusals(rows: &mut skein_lib::List<jig_domain_people::Refu
 fn application_refusal_lists(rows: &mut skein_lib::List<jig_domain_people::Refusal>) {
     use jig_domain_people as p;
     for (count, circle) in [
-        (jig_protocol_store::people_v13::CEILINGS.refusal_circle_tasks, true),
-        (jig_protocol_store::people_v13::CEILINGS.refusal_kept_pending, false),
+        (jig_protocol_store::people_v14::CEILINGS.refusal_circle_tasks, true),
+        (jig_protocol_store::people_v14::CEILINGS.refusal_kept_pending, false),
     ] {
         let mut tasks = skein_lib::List::with_capacity(count);
         for task in 0..count {
@@ -711,7 +711,7 @@ fn every_application_outcome_preserves_its_complete_record() {
         assert_eq!(bytes[2], 15, "the Application family tag");
     }
     assert!(
-        jig_protocol_store::people_v13::Refusal::encoded_bound(&jig_protocol_store::people_v13::CEILINGS)
+        jig_protocol_store::people_v14::Refusal::encoded_bound(&jig_protocol_store::people_v14::CEILINGS)
             .expect("bounded facts")
             <= u64::from(v10::CEILINGS.core_refused_refusal)
     );
@@ -860,7 +860,7 @@ fn embedded_people_refusals_changed_at_store_nine() {
     // The people v11 generated Unknown golden was [9]; v12 inserts NameTaken
     // before every existing refusal. All 38 existing Refusal goldens change.
     let mut after = skein_lib::Writer::new(1);
-    jig_protocol_store::people_v13::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_protocol_store::people_v14::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
     assert_eq!(crate::STORE_VERSION, 10);
 }

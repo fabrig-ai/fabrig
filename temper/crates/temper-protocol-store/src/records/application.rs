@@ -24,7 +24,7 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
         ),
         d::ApplicationOutcome::CoreRefused(v) => {
             let record =
-                refusal::encode_refusal(v, &jig_protocol_store::people_v13::CEILINGS).expect("refusal facts fit");
+                refusal::encode_refusal(v, &jig_protocol_store::people_v14::CEILINGS).expect("refusal facts fit");
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("small refusal"));
             record.encode(&mut writer).expect("measured room");
             w::ApplicationOutcome::CoreRefused(
@@ -55,7 +55,7 @@ pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored
         w::ApplicationOutcome::CoreRefused(v) => {
             let mut reader = Reader::new(v.refusal());
             let record =
-                jig_protocol_store::people_v13::Refusal::decode(&jig_protocol_store::people_v13::CEILINGS, &mut reader)
+                jig_protocol_store::people_v14::Refusal::decode(&jig_protocol_store::people_v14::CEILINGS, &mut reader)
                     .or(Err(Undecodable))?;
             d::ApplicationOutcome::CoreRefused(refusal::decode_refusal(record))
         }
