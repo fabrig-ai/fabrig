@@ -238,14 +238,7 @@ impl Store {
             State::Compatibility(state) => Some(self.compatibility_request(state)),
             State::Load(state) => Some(self.load_request(state)),
             State::Fresh(state) => Some(self.fresh_request(state)),
-            State::Write(writing) => Some(file::Request::Store {
-                owner: self.owner,
-                root: self.root,
-                path: writing.file.name.clone(),
-                bytes: writing.file.bytes.clone(),
-                expected: writing.expected,
-                no_follow: true,
-            }),
+            State::Write(writing) => Some(writing.request(self.owner, self.root)),
             State::Closing => Some(file::Request::Close { owner: self.owner, file: self.root }),
             State::Idle => {
                 if self.closing {

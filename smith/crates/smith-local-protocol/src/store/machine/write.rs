@@ -2,7 +2,8 @@
 //! The pending state retains retry bytes and the continuation until durability settles.
 use super::Terminal;
 use super::{
-    Action, ChatState, Digest, Expect, File, Fresh, Queue, RecordName, Resume, State, Store, StoreFault, digest, local,
+    Action, ChatState, Digest, Expect, File, Fresh, Queue, RecordName, Resume, State, Store, StoreFault, Token, digest,
+    file, local,
 };
 
 #[derive(Debug)]
@@ -22,12 +23,39 @@ impl AfterWrite {
 }
 
 #[derive(Debug)]
-pub(super) struct Writing {
+pub(super) struct Pending {
     pub(super) record: RecordName,
     pub(super) file: File,
     pub(super) expected: Expect,
     pub(super) after: AfterWrite,
-    pub(super) retried: bool,
+}
+
+#[derive(Debug)]
+pub(super) enum Writing {
+    First(Pending),
+    Retry(Pending),
+}
+
+impl Writing {
+    pub(super) fn request(&self, owner: Token, root: Token) -> file::Request {
+        let pending = match self {
+            Self::First(pending) | Self::Retry(pending) => pending,
+        };
+        file::Request::Store {
+            owner,
+            root,
+            path: pending.file.name.clone(),
+            bytes: pending.file.bytes.clone(),
+            expected: pending.expected,
+            no_follow: true,
+        }
+    }
+
+    fn into_pending(self) -> Pending {
+        match self {
+            Self::First(pending) | Self::Retry(pending) => pending,
+        }
+    }
 }
 
 impl Store {
@@ -52,13 +80,21 @@ impl Store {
                 None => Expect::Absent,
             },
         };
-        State::Write(Writing { record, file, expected, after, retried: false })
+        State::Write(Writing::First(Pending { record, file, expected, after }))
     }
 
     pub(super) fn write_event(&mut self, writing: Writing, event: Terminal, out: &mut Queue<Action>) -> State {
         match event {
-            Terminal::Stored(digest) => self.stored(writing, digest, out),
-            Terminal::Committed(_) => self.retry_committed(writing, out),
+            Terminal::Stored(digest) => self.stored(writing.into_pending(), digest, out),
+            Terminal::Committed(_) => match writing {
+                Writing::First(pending) => self.retry_committed(pending),
+                Writing::Retry(pending) => Self::failure(
+                    pending.record,
+                    StoreFault::NotDurable { file: pending.record },
+                    pending.after.loading(),
+                    out,
+                ),
+            },
             event @ (Terminal::Loaded(_)
             | Terminal::Scanned { .. }
             | Terminal::Removed
@@ -66,23 +102,19 @@ impl Store {
             | Terminal::Closed
             | Terminal::Missing
             | Terminal::Fault(_)) => {
-                Self::failure(writing.record, super::event_fault(writing.record, event), writing.after.loading(), out)
+                let pending = writing.into_pending();
+                Self::failure(pending.record, super::event_fault(pending.record, event), pending.after.loading(), out)
             }
         }
     }
 
-    fn retry_committed(&mut self, mut writing: Writing, out: &mut Queue<Action>) -> State {
-        self.retain_written(writing.file.name.clone(), digest(&writing.file.bytes));
-        if writing.retried {
-            Self::failure(writing.record, StoreFault::NotDurable { file: writing.record }, writing.after.loading(), out)
-        } else {
-            writing.retried = true;
-            writing.expected = Expect::Digest(digest(&writing.file.bytes));
-            State::Write(writing)
-        }
+    fn retry_committed(&mut self, mut pending: Pending) -> State {
+        self.retain_written(pending.file.name.clone(), digest(&pending.file.bytes));
+        pending.expected = Expect::Digest(digest(&pending.file.bytes));
+        State::Write(Writing::Retry(pending))
     }
 
-    fn stored(&mut self, writing: Writing, digest: Digest, out: &mut Queue<Action>) -> State {
+    fn stored(&mut self, writing: Pending, digest: Digest, out: &mut Queue<Action>) -> State {
         self.retain_written(writing.file.name.clone(), digest);
         let retained = match writing.record {
             RecordName::Turn(_) => true,

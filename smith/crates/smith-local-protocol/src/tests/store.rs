@@ -598,3 +598,72 @@ fn a_failed_previous_root_close_leaves_the_opened_candidate_unchecked() {
     assert_eq!(root, Token::new(20));
     assert_eq!(path.as_ref(), b"format");
 }
+
+fn loading_fresh_scan() -> (Store, Queue<Action>) {
+    let mut store = store();
+    let mut out = Queue::with_capacity(3);
+    check_empty(&mut store, &mut out);
+    store.request(StoreRequest::Load, Time::ZERO, &mut out);
+    let file::Request::Load { path, .. } = io(&mut out) else { panic!("fresh journal load") };
+    assert_eq!(path.as_ref(), b"fresh");
+    store.from_io(file::Event::Loaded { owner: OWNER, bytes: crate::save_state(state()).bytes }, Time::ZERO, &mut out);
+    let file::Request::Load { path, .. } = io(&mut out) else { panic!("current metadata load") };
+    assert_eq!(path.as_ref(), b"state");
+    store.from_io(
+        file::Event::Failed { owner: OWNER, error: kernel::Error::NotFound, committed: false, residue: None },
+        Time::ZERO,
+        &mut out,
+    );
+    (store, out)
+}
+
+fn saving_fresh_scan() -> (Store, Queue<Action>) {
+    let mut store = store();
+    let mut out = Queue::with_capacity(3);
+    check_empty(&mut store, &mut out);
+    store.request(StoreRequest::SaveState { state: state(), history: History::Fresh }, Time::ZERO, &mut out);
+    let file::Request::Store { path, .. } = io(&mut out) else { panic!("new fresh journal") };
+    assert_eq!(path.as_ref(), b"fresh");
+    store.from_io(
+        file::Event::Stored { owner: OWNER, digest: digest(&crate::save_state(state()).bytes) },
+        Time::ZERO,
+        &mut out,
+    );
+    (store, out)
+}
+
+#[test]
+fn a_fresh_removal_failure_keeps_its_load_or_save_terminal_and_settles_a_pending_close() {
+    for ((mut store, mut out), reason) in
+        [(loading_fresh_scan(), local::StoreFailure::Read), (saving_fresh_scan(), local::StoreFailure::Write)]
+    {
+        let file::Request::Scan { .. } = io(&mut out) else { panic!("fresh scan") };
+        store.from_io(
+            file::Event::Scanned {
+                owner: OWNER,
+                entries: Box::new([file::Entry {
+                    name: b"0000000001.turn".as_slice().into(),
+                    kind: kernel::Kind::File,
+                }]),
+                more: 0,
+            },
+            Time::ZERO,
+            &mut out,
+        );
+        expect_remove(&mut out, kernel::Fd::new(9), b"0000000001.turn", false);
+        store.close(Time::ZERO, &mut out);
+        assert!(out.is_empty());
+        store.from_io(failed(false), Time::ZERO, &mut out);
+        let Some(Action::Fault(StoreFault::Io { file: RecordName::Turn(1), .. })) = out.pop() else {
+            panic!("failed removal names its record")
+        };
+        let Some(Action::Domain(local::Event::StoreFailed { turn: Some(1), reason: got })) = out.pop() else {
+            panic!("one original operation terminal")
+        };
+        assert_eq!(got, reason);
+        closed_root(&mut out, Token::new(8));
+        store.from_io(file::Event::Closed { owner: OWNER }, Time::ZERO, &mut out);
+        let Some(Action::Closed) = out.pop() else { panic!("pending close settles after the failed operation") };
+        assert!(out.is_empty());
+    }
+}
