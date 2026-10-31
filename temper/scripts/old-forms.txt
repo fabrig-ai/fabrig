@@ -4,5 +4,5 @@ max_out 0
 JournalRoom 0
 takes 0
 worst_case 0
-comment:actual 73
+comment:actual 72
 comment:genuine 9
