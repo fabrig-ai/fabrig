@@ -9,15 +9,6 @@ use skein_lib::{Duration, Env, List, Map, Queue, Time, Wall};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 
-/// The mirrored durable demo state gates every service path (protocol/forge.md, 8.1).
-pub(crate) fn ended(engine: &crate::engine::Engine, forge: u16) -> bool {
-    engine.domain.forge_ended(forge)
-        || match &engine.demo {
-            Some(demo) => demo.forge == forge && demo.state == Some(forge::DemoState::Ended),
-            None => false,
-        }
-}
-
 /// The user agent every forge request carries; a test pins it.
 pub const USER_AGENT: &str = "temper/0.0.0";
 const WORD: &[u8] = b"temper";
@@ -530,7 +521,7 @@ pub(crate) enum Start {
 /// nothing reaches skein's connection; otherwise the start goes down, or the reason it
 /// can't is noted.
 pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16, start: Result<Start, crate::NotConnected>) {
-    if ended(engine, number) {
+    if engine.domain.forge_ended(number) {
         return;
     }
     if let Some(host) = engine.forge.unreachable(number) {

@@ -403,7 +403,6 @@ pub fn valid(limits: &Limits) -> bool {
     let Some(row) = row_bound(limits) else { return false };
     if limits.watermark == 0
         || limits.memory_bytes == 0
-        || limits.forge.tasks < limits.tasks.tasks
         || limits.brief.parts == 0
         || limits.brief.gather == skein_lib::Duration::ZERO
         || limits.forge.brief_sections < brief_fetches

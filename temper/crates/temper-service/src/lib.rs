@@ -154,8 +154,8 @@ pub enum Note {
         patch: u32,
         counts: jig_protocol_store::Counts,
     },
-    /// A bounded diagnostic from the demo end (protocol/setup.md, 8.4).
-    Demo {
+    /// A bounded reset diagnostic (temper/docs/design/draft/playground-reset.md, 6.2).
+    Playground {
         line: Box<[u8]>,
     },
     /// A listener bound its address (protocol/README.md, 15.3).

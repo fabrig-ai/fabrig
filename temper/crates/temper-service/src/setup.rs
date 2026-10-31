@@ -420,7 +420,7 @@ fn forge(plan: &host::Plan) -> u16 {
 pub(crate) fn request(engine: &mut crate::engine::Engine, run: Token) {
     let Some(plan) = engine.setup.staged.remove(&run) else { return };
     let number = forge(&plan);
-    if crate::forge::ended(engine, number) {
+    if engine.domain.forge_ended(number) {
         ended(engine, run, root::SetupEnd::Stopped { forge: number, reason: Box::from(b"forge ended".as_slice()) });
     } else if engine.drain.is_some() || engine.setup.closing || engine.setup.component.is_none() {
         ended(
@@ -708,7 +708,7 @@ mod tests;
 /// Every setup path, including internal follow-ups, crosses the same unresolved-host gate.
 fn run_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
     let number = forge(&plan);
-    if crate::forge::ended(engine, number) {
+    if engine.domain.forge_ended(number) {
         lifecycle::refused(engine, run, number, Box::from(b"forge ended".as_slice()));
     } else if let Some(host) = engine.forge.unreachable(number) {
         lifecycle::refused(engine, run, number, crate::forge::unreachable_text(&host));

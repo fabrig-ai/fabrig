@@ -791,7 +791,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Act::RemoveAccount { .. }
                     | jig_domain_people::Act::RemoveProject { .. } => 0,
                     jig_domain_people::Act::Adopt { adoption, .. } => adoption_bytes(adoption)?,
-                    jig_domain_people::Act::MakeProject { .. } => unreachable!("demo never makes a project"),
+                    jig_domain_people::Act::MakeProject { .. } => unreachable!("project making is transient"),
                 };
                 payload.checked_add(program_answer_bytes(outcome)?)
             }

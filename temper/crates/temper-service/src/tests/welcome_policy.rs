@@ -78,7 +78,6 @@ fn generated() -> (engine::Config, engine::Limits) {
     let core = config::core(&settings.jig, seeds.deployment, seeds.seed);
     let (forge, identities) = crate::forge::config(&settings, seeds.deployment);
     let forges = application::configured(&settings);
-    let demo = settings.demo.as_ref().map(|demo| demo.domain(&settings.forges, settings.limits.setup.deadline));
     (
         engine::Config {
             machine: None,
@@ -87,8 +86,7 @@ fn generated() -> (engine::Config, engine::Limits) {
             forge,
             identities,
             forges,
-            playground: crate::system::playground_config(demo.as_ref()),
-            demo,
+            playground: crate::system::playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
             landing: settings.landing,
             forge_charter: settings.charter,
             under_box: false,
