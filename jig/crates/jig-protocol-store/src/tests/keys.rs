@@ -170,3 +170,18 @@ fn settings_subfamilies_and_history_follow_their_domain_order() {
         previous = bytes;
     }
 }
+
+#[test]
+fn removal_keys_carry_tag_ten_and_a_project_within_u32() {
+    let key = Key::Core(CoreKey::Removal(7));
+    let bytes = keys::encode(&key, fixtures::KEY_LIMIT).expect("within the key limit");
+    assert_eq!(&*bytes, &[1, 0, 10, 0, 0, 0, 0, 0, 0, 0, 7]);
+    assert_eq!(keys::decode(&bytes), Some(key.clone()));
+    let ranges = [jig_domain_core::RestoreRange::Core, jig_domain_core::RestoreRange::Tasks];
+    let cursor = crate::intervals::cursor(&ranges, &bytes).expect("live removal interval");
+    assert_eq!(cursor.interval, 1);
+    assert_eq!(jig_domain_core::restore_cursor(&ranges, &key), Some((1, key)));
+    let mut wide = bytes;
+    wide[6] = 1;
+    assert_eq!(keys::decode(&wide), None, "a project past u32 is rejected");
+}

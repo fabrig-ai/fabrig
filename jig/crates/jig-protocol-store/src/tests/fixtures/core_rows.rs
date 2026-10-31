@@ -124,3 +124,14 @@ pub fn escalation() -> core::EscalationDecisionRecord {
         decision: people::EscalationDecision::Reject { reason: Box::from(b"rejected".as_slice()) },
     }
 }
+
+pub fn removals() -> [core::ProjectRemoval; 6] {
+    [
+        core::ProjectRemoval { project: 7, stage: core::RemovalStage::Ending },
+        core::ProjectRemoval { project: 7, stage: core::RemovalStage::Erasing { after: None } },
+        core::ProjectRemoval { project: 7, stage: core::RemovalStage::Erasing { after: Some(0) } },
+        core::ProjectRemoval { project: u32::MAX, stage: core::RemovalStage::Erasing { after: Some(u64::MAX) } },
+        core::ProjectRemoval { project: 7, stage: core::RemovalStage::Notes },
+        core::ProjectRemoval { project: 7, stage: core::RemovalStage::Rows },
+    ]
+}

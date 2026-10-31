@@ -29,6 +29,7 @@ pub(crate) enum Refusal {
     FrameTooLarge { task: u64, bytes: u32, limit: u32 },
 }
 
+#[expect(clippy::too_many_lines, reason = "commit translation covers every write and core record exhaustively")]
 pub(crate) fn operations(
     store: &mut Store,
     number: u64,
@@ -84,6 +85,7 @@ pub(crate) fn operations(
                     | CoreRecord::Settings(_)
                     | CoreRecord::Projection(_)
                     | CoreRecord::Call(_)
+                    | CoreRecord::Removal(_)
                     | CoreRecord::RunProof(_)
                     | CoreRecord::Terminal(_)
                     | CoreRecord::ProposalDecision(_)
@@ -165,6 +167,7 @@ fn header_id(write: &Write) -> Option<[u8; 16]> {
                 CoreRecord::Settings(_)
                 | CoreRecord::Projection(_)
                 | CoreRecord::Call(_)
+                | CoreRecord::Removal(_)
                 | CoreRecord::RunProof(_)
                 | CoreRecord::Turn(_)
                 | CoreRecord::Terminal(_)

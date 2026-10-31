@@ -596,7 +596,8 @@ fn attempt_records(driver: &Driver, assignment: &engine::Assignment) -> Vec<(usi
                 core::CoreRecord::Turn(turn) => (turn.task, turn.attempt),
                 core::CoreRecord::Terminal(terminal) => (terminal.task, terminal.attempt),
                 core::CoreRecord::RunProof(proof) => (proof.task, proof.attempt),
-                core::CoreRecord::Deployment(_)
+                core::CoreRecord::Removal(_)
+                | core::CoreRecord::Deployment(_)
                 | core::CoreRecord::Settings(_)
                 | core::CoreRecord::Projection(_)
                 | core::CoreRecord::ProposalDecision(_)

@@ -138,6 +138,9 @@ fn task_row(row: &tasks::Stored, tasks: &BTreeMap<u64, u32>, projects: &mut BTre
 
 fn core_row(row: &core::CoreRecord, tasks: &BTreeMap<u64, u32>, projects: &mut BTreeSet<u32>) {
     match row {
+        core::CoreRecord::Removal(row) => {
+            projects.insert(row.project);
+        }
         core::CoreRecord::Projection(row) => match row {
             core::ProjectionRecord::Goal { goal, .. } => {
                 projects.insert(goal.project);
