@@ -52,7 +52,7 @@ fn a_held_grant_serves_a_later_start() {
 }
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script};
 use skein_lib::{Duration, ReplyTo, Time, Token};
 use smith_agent_world::{World, messages_referee::Seen};
 use smith_domain::{Event, Fact, Grant, GrantName, Window, llm, session};
@@ -91,14 +91,13 @@ fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failu
     };
     let scripts = Box::new([Script {
         cue: b"@report".as_slice().into(),
-        turns: Box::new([Turn {
-            lines: Box::new([Line::Call {
+        turns: Box::new([smith_agent_world::fixture::calls(
+            Box::new([Line::Call {
                 name: b"finish".as_slice().into(),
                 arguments: br#"{"report":"Account answered.","source":"provider"}"#.as_slice().into(),
             }]),
-            finish: Finish::ToolCalls,
-            tokens: 8,
-        }]),
+            8,
+        )]),
     }]);
     let mut world = World::with_workspace_scripts_start(settings, Checkout::new(), scripts, start);
     world.fail_calls(failures, failure, RESPONSE_401);

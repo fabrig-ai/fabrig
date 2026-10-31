@@ -64,22 +64,20 @@ fn world_with_history(refused: bool, immediate: bool, saved: smith_domain::Trans
             conflicts: Box::new([]),
         }]),
     };
-    let finish = Turn {
-        finish: Finish::ToolCalls,
-        tokens: 32,
-        lines: Box::new([Line::Call {
+    let finish = smith_agent_world::fixture::calls(
+        Box::new([Line::Call {
             name: b"finish".as_slice().into(),
             arguments: br#"{"report":"finished","source":"compaction"}"#.as_slice().into(),
         }]),
-    };
-    let read = Turn {
-        finish: Finish::ToolCalls,
-        tokens: 32,
-        lines: Box::new([Line::Call {
+        32,
+    );
+    let read = smith_agent_world::fixture::calls(
+        Box::new([Line::Call {
             name: b"read".as_slice().into(),
             arguments: br#"{"path":"data.txt"}"#.as_slice().into(),
         }]),
-    };
+        32,
+    );
     let summary = Turn {
         finish: if refused { Finish::ContentFilter } else { Finish::Stop },
         tokens: 40,

@@ -30,7 +30,7 @@ base64 = "0.22"
 rusqlite = { version = "0.37", features = ["bundled"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }
 smith-local-shell = { path = "../crates/smith-local-shell" }
-smith-events.workspace = true
+smith-events = { workspace = true, features = ["fixture"] }
 skein-lib.workspace = true
 skein-llm.workspace = true
 skein-world.workspace = true

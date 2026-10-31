@@ -3,7 +3,7 @@
 //! Incoming streamed argument bytes are checked exactly at the root. Continued
 //! native embedded objects use handwritten outside wire expectations: whitespace
 //! serialization preserves the complete nested value and every extra field.
-use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Script};
 use skein_lib::{Duration, Token};
 use smith_domain::{Event, llm, run, tools};
 use smith_protocol_llm_world::client_peer::{self, ClientPeer, Configuration, Observed};
@@ -53,16 +53,14 @@ fn scripts() -> Box<[Script]> {
     Box::new([Script {
         cue: b"@client-host".as_slice().into(),
         turns: Box::new([
-            Turn {
-                lines: Box::new([Line::Call { name: b"opaque_host".as_slice().into(), arguments: BODY.into() }]),
-                finish: Finish::ToolCalls,
-                tokens: 8,
-            },
-            Turn {
-                lines: Box::new([Line::Text { text: b"observed continued result".as_slice().into() }]),
-                finish: Finish::Stop,
-                tokens: 4,
-            },
+            smith_protocol_llm_world::fixture::calls(
+                Box::new([Line::Call { name: b"opaque_host".as_slice().into(), arguments: BODY.into() }]),
+                8,
+            ),
+            smith_protocol_llm_world::fixture::says(
+                Box::new([Line::Text { text: b"observed continued result".as_slice().into() }]),
+                4,
+            ),
         ]),
     }])
 }
@@ -420,8 +418,8 @@ fn two_calls(
     .expect("admitted Client reserves every possible fixed decoded cell");
     let scripts = Box::new([Script {
         cue: b"@client-host".as_slice().into(),
-        turns: Box::new([Turn {
-            lines: Box::new([
+        turns: Box::new([smith_protocol_llm_world::fixture::calls(
+            Box::new([
                 Line::Call {
                     name: b"finish".as_slice().into(),
                     arguments: format!(r#"{{"form":"report","text":"{}","fields":{{}}}}"#, "x".repeat(512))
@@ -430,9 +428,8 @@ fn two_calls(
                 },
                 Line::Call { name: b"opaque_host".as_slice().into(), arguments: BODY.into() },
             ]),
-            finish: Finish::ToolCalls,
-            tokens: 8,
-        }]),
+            8,
+        )]),
     }]);
     let peer = skein_llm_world::fake::Exchange::prepared(client, endpoint, Some(credential), bounds.client, scripts);
     (context, peer)
@@ -537,14 +534,10 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
         };
         let script = Box::new([Script {
             cue: b"@client-host".as_slice().into(),
-            turns: Box::new([Turn {
-                lines: Box::new([Line::Call {
-                    name: b"not-offered".as_slice().into(),
-                    arguments: b"{}".as_slice().into(),
-                }]),
-                finish: Finish::ToolCalls,
-                tokens: 4,
-            }]),
+            turns: Box::new([smith_protocol_llm_world::fixture::calls(
+                Box::new([Line::Call { name: b"not-offered".as_slice().into(), arguments: b"{}".as_slice().into() }]),
+                4,
+            )]),
         }]);
         let mut wire = ClientPeer::prepare(Token::new(33), prompt(), secured, configuration, &bounds, script)
             .expect("one observed unknown call has its fixed wrapper reserved before Client preparation");

@@ -1,5 +1,6 @@
 //! Open uses the existing root/native world and byte peers (domain/run.md, sections 6 and 13).
 use super::*;
+use skein_fake_llm_domain::api::Finish;
 
 const CUE: &str = "@open-main";
 const HELLO: &[u8] = b"Hello from an open turn.";

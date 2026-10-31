@@ -3683,6 +3683,7 @@ dependencies = [
  "skein-llm-world",
  "skein-tls",
  "smith-domain",
+ "smith-domain-tools",
  "smith-events",
 ]
 

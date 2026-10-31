@@ -3,7 +3,7 @@
 //! historical and child-inclusive Turn bills never supply its global total.
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Query, Role, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Message, Part, Query, Role, Script, Turn};
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
 use smith_agent_world::{Boundary, CompletionObservation, CompletionTerminal, Job, Settings, World};
@@ -218,11 +218,11 @@ fn call(name: &[u8], arguments: &[u8]) -> Line {
 }
 
 fn calls(lines: Vec<Line>, tokens: u64) -> Turn {
-    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens }
+    smith_agent_world::fixture::calls(lines.into(), tokens)
 }
 
 fn says(text: &[u8], tokens: u64) -> Turn {
-    Turn { lines: Box::new([Line::Text { text: text.into() }]), finish: Finish::Stop, tokens }
+    smith_agent_world::fixture::says(Box::new([Line::Text { text: text.into() }]), tokens)
 }
 
 fn script(cue: &[u8], turns: Vec<Turn>) -> Script {

@@ -1,7 +1,7 @@
 //! Optional-workspace admission and host effects belong to the domain world.
 //! Contract: smith/docs/design/domain/run.md, sections 3 and 5.2.
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script};
 use skein_lib::Duration;
 use smith_agent_world::{Job, Settings, World};
 use smith_domain::{Transcript, run};
@@ -18,7 +18,7 @@ fn scripts() -> Box<[Script]> {
             Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
         ]
         .into_iter()
-        .map(|line| Turn { lines: Box::new([line]), finish: Finish::ToolCalls, tokens: 1 })
+        .map(|line| smith_agent_world::fixture::calls(Box::new([line]), 1))
         .collect(),
     }])
 }

@@ -19,7 +19,7 @@
 
 pub mod backend;
 
-mod fixture;
+pub mod fixture;
 
 pub mod host_referee;
 

@@ -7,7 +7,7 @@
 //! The scripts follow the fixture ([`crate::fixture`]): the answer in
 //! `src/lib.rs` is 42 and the checks want 43.
 
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script, Turn};
 
 /// What a run is for, which picks the script of its main conversation.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -99,7 +99,7 @@ pub fn all() -> Box<[Script]> {
         script(
             b"@local-chat",
             vec![
-                Turn { lines: Box::new([text("Hello from the agent.")]), finish: Finish::Stop, tokens: 20 },
+                crate::fixture::says(Box::new([text("Hello from the agent.")]), 20),
                 calls(vec![Line::Text { text: b"Welcome back.".as_slice().into() }, call("wait", "{}")]),
                 calls(vec![Line::Text { text: b"Welcome back.".as_slice().into() }, call("wait", "{}")]),
                 calls(vec![Line::Text { text: b"Welcome back.".as_slice().into() }, call("wait", "{}")]),
@@ -185,12 +185,12 @@ fn text(text: &str) -> Line {
 
 /// An answer that calls tools.
 fn calls(lines: Vec<Line>) -> Turn {
-    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: 40 }
+    crate::fixture::calls(lines.into(), 40)
 }
 
 /// An answer that ends the turn saying `said`.
 fn says(said: &str) -> Turn {
-    Turn { lines: Box::new([text(said)]), finish: Finish::Stop, tokens: 20 }
+    crate::fixture::says(Box::new([text(said)]), 20)
 }
 
 fn read(path: &str) -> Line {

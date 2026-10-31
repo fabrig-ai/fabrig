@@ -2,7 +2,7 @@
 
 use smith_events::{Capture, Event, Limits, Record};
 
-pub const LIMITS: Limits = Limits { string: 128, content: 1024, items: 16 };
+pub const LIMITS: Limits = Limits { string: 128, items: 16, ..smith_events::fixture::SMALL };
 
 #[must_use]
 pub fn record(source: &str) -> Record {

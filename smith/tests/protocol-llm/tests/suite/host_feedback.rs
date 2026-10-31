@@ -4,7 +4,7 @@
 //! Contract: domain/run.md,
 //! sections 5.2, 10 and 13; testing-strategy.md, sections 2.3 and 6.
 
-use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Query, Script};
 use skein_lib::{Time, Wall};
 use skein_world::domain::Span;
 use smith_domain::{run, session::llm};
@@ -22,16 +22,14 @@ fn scripts(tool_name: &[u8]) -> Box<[Script]> {
     Box::new([Script {
         cue: b"@hosttools".as_slice().into(),
         turns: Box::new([
-            Turn {
-                lines: Box::new([Line::Call { name: tool_name.into(), arguments: BODY.into() }]),
-                finish: Finish::ToolCalls,
-                tokens: 8,
-            },
-            Turn {
-                lines: Box::new([Line::Text { text: b"observed continued result".as_slice().into() }]),
-                finish: Finish::Stop,
-                tokens: 4,
-            },
+            smith_protocol_llm_world::fixture::calls(
+                Box::new([Line::Call { name: tool_name.into(), arguments: BODY.into() }]),
+                8,
+            ),
+            smith_protocol_llm_world::fixture::says(
+                Box::new([Line::Text { text: b"observed continued result".as_slice().into() }]),
+                4,
+            ),
         ]),
     }])
 }

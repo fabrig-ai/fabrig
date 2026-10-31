@@ -38,28 +38,22 @@ pub const BUDGET: agent::Budget = agent::Budget {
 pub const TOOLS: tools::Limits = tools::Limits {
     shell_output: 512,
     kits: 4,
-    calls: 4,
     repos: 1,
     path_bytes: 256,
-    host_path_bytes: 4096,
     known_files: 16,
     file_bytes: 1 << 16,
     tool_payload: 1 << 16,
     read_bytes: 4096,
     list_entries: 64,
-    list_bytes: 4096,
     match_lines: 8,
     file_timeout: Duration::from_secs(30),
-    jobs: 4,
-    job_poll: Duration::from_secs(30),
-    job_wait: Duration::from_secs(30),
     shell_timeout: Duration::from_secs(30),
     tool_deadline: Duration::from_secs(120),
     shell_head: 256,
     shell_tail: 256,
     search_hits: 16,
     search_bytes: 1024,
-    search_timeout: Duration::from_secs(30),
+    ..smith_domain_tools::fixture::SMALL
 };
 
 /// Checked credit envelope around the original retained-payload pressure.

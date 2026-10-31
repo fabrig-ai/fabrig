@@ -18,29 +18,14 @@ pub const BUDGET: Budget = Budget {
 /// The tools' limits: a kit for each session, room for a batch and more.
 pub const TOOLS: tools::Limits = tools::Limits {
     shell_output: 128,
-    kits: 2,
     calls: 8,
     repos: 2,
-    path_bytes: 64,
-    host_path_bytes: 4096,
-    known_files: 8,
     file_bytes: 65_536,
     tool_payload: 65_536,
     read_bytes: 4096,
-    list_entries: 16,
-    list_bytes: 4096,
-    match_lines: 4,
     file_timeout: Duration::from_secs(60),
-    jobs: 4,
-    job_poll: Duration::from_secs(30),
-    job_wait: Duration::from_secs(30),
-    shell_timeout: Duration::from_secs(60),
-    tool_deadline: Duration::from_secs(600),
-    shell_head: 64,
     shell_tail: 64,
-    search_hits: 8,
-    search_bytes: 256,
-    search_timeout: Duration::from_secs(30),
+    ..smith_domain_tools::fixture::SMALL
 };
 
 /// Two sessions with room for a small transcript and two parallel tools.
