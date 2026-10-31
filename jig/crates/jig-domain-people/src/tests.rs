@@ -2529,6 +2529,40 @@ fn a_deleting_projects_seen_chat_can_end_before_it_is_forgotten() {
 }
 
 #[test]
+fn deleting_projects_frees_their_bounded_inbox_census_places() {
+    let limits = Limits { people: 1, projects: 1, ..LIMITS };
+    let mut test = Test::new(limits);
+    test.member();
+    for project in [1, 2] {
+        test.send(Event::Roles { project, holdings: Box::new([Holding { person: 1, role: Role::Member }]) });
+        test.send(Event::ChatState {
+            party: 1,
+            project,
+            task: u64::from(project),
+            last_reply: 1,
+            live: false,
+            seen: None,
+            replies: Box::new([]),
+        });
+        test.d.remember_result(
+            &limits,
+            1,
+            ResultRef {
+                task: u64::from(project),
+                project,
+                at: Wall::EPOCH,
+                position: u64::from(project),
+                forgettable: None,
+            },
+        );
+        assert_eq!(test.d.counts(&limits, 1), Some(Counts { needs: 0, unread: 2, more_unread: false }));
+        test.send(Event::CloseProject { project });
+        test.send(Event::ForgetProject { project });
+        assert_eq!(test.d.counts(&limits, 1), Some(Counts { needs: 0, unread: 0, more_unread: false }));
+    }
+}
+
+#[test]
 fn an_owners_remove_project_ask_routes_before_the_deletion_is_kept() {
     let mut test = Test::new(LIMITS);
     test.signin(1, 10, identity(0, 1));

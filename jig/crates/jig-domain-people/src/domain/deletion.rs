@@ -24,6 +24,7 @@ pub(super) fn close(domain: &mut Domain, project: u32, out: &mut Queue<Request>)
 }
 
 pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    forget_census(domain, project);
     let mut answers = List::with_capacity(domain.answers.len());
     for (key, answer) in &domain.answers {
         if kept_answer(domain, &answer.outcome) {
@@ -51,6 +52,27 @@ pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>
         domain.acted.remove(&key);
         domain.act_alarms.cancel(key);
         out.push(Request::Erase { key: Key::Acted(key) });
+    }
+}
+
+fn forget_census(domain: &mut Domain, project: u32) {
+    let mut parties = List::with_capacity(domain.chat_updates.len());
+    for (&(party, scope), _) in &domain.chat_updates {
+        if scope == project {
+            parties.push(party).expect("project reply census subset");
+        }
+    }
+    for party in parties.into_boxed() {
+        domain.chat_updates.remove(&(party, project));
+    }
+    let mut parties = List::with_capacity(domain.result_census.len());
+    for (&(party, scope), _) in &domain.result_census {
+        if scope == project {
+            parties.push(party).expect("project result census subset");
+        }
+    }
+    for party in parties.into_boxed() {
+        drop(domain.result_census.remove(&(party, project)));
     }
 }
 
