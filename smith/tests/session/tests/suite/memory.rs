@@ -5,13 +5,38 @@
 use std::mem::size_of;
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-use skein_world::domain::heap::Meter;
+use skein_world::domain::heap::{Measured, Meter};
 use smith_domain_session::llm::{Block, Completion, Decoded, Descriptor, Endpoint, Failure, Problem, Stop, Usage};
 use smith_domain_session::{Budget, Domain, Event, Limits, MAX_PARALLEL, Request, Spec};
 use smith_domain_tools::{
     Authority, Budget as ToolBudget, Call, Done, Effect, Grants, Name, Part, Path, Repo, Version,
 };
 use smith_session_world::{TOOLS, reservation_envelope};
+
+const SUMMARY: &[u8] = b"Summarise the work so far.";
+const PREAMBLE: &[u8] = b"Earlier window summary:";
+
+fn spec_bytes(delegates: u64) -> u64 {
+    4 + size(SUMMARY.len())
+        + size(PREAMBLE.len())
+        + delegates * size(size_of::<Descriptor>())
+        + size(size_of::<Block>())
+}
+
+#[derive(Clone, Copy, Default)]
+struct Seen {
+    opened: bool,
+    used: u32,
+    recorded: u32,
+    priced: u32,
+}
+
+fn measure(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>, meter: &Meter, event: Event) -> Measured {
+    meter.start();
+    while domain.pop_fact().is_some() {}
+    smith_domain_session::step(domain, env, event, out);
+    meter.end()
+}
 
 fn bytes(len: u64) -> Box<[u8]> {
     vec![b'x'; usize::try_from(len).expect("a test length fits")].into_boxed_slice()
@@ -97,7 +122,7 @@ fn pressure_limits(original: &Limits, route: Route, messages: u32) -> (Limits, u
     let pressure = original.history_bytes;
     let block = size(size_of::<Block>());
     let part = size(size_of::<Part>());
-    let spec_cost = 2 + 2 * size(size_of::<Descriptor>()) + block + 2 + 26 + 23;
+    let spec_cost = spec_bytes(2);
     let tooling_cost = block + 3 + part + 1 + block + 1;
     let output = pressure.checked_sub(spec_cost + tooling_cost).expect("original full Tool payload fits");
     let field =
@@ -136,7 +161,7 @@ fn pressure_limits(original: &Limits, route: Route, messages: u32) -> (Limits, u
 
 /// Observe co-emitted boundary records without replacing an outstanding
 /// provider/IO request, then drop receiver-owned payload copies before metering.
-fn observe_fill(out: &mut Queue<Request>, observed: &mut [(bool, u32, u32, u32, bool)]) -> Option<Asked> {
+fn observe_fill(out: &mut Queue<Request>, observed: &mut [Seen]) -> Option<Asked> {
     let mut asked = None;
     while let Some(request) = out.pop() {
         match request {
@@ -151,22 +176,22 @@ fn observe_fill(out: &mut Queue<Request>, observed: &mut [(bool, u32, u32, u32, 
             }
             Request::Opened { opener, .. } => {
                 let row = &mut observed[usize::try_from(opener.raw()).expect("bounded opener")];
-                assert!(!row.0, "one opening per original full-payload fixture");
-                row.0 = true;
+                assert!(!row.opened, "one opening per original full-payload fixture");
+                row.opened = true;
             }
             Request::Used { opener, usage } => {
                 assert_eq!(usage, Usage::ZERO);
-                observed[usize::try_from(opener.raw()).expect("bounded opener")].1 += 1;
+                observed[usize::try_from(opener.raw()).expect("bounded opener")].used += 1;
             }
             Request::Turn { opener, turn } => {
                 let row = &mut observed[usize::try_from(opener.raw()).expect("bounded opener")];
-                row.2 += 1;
+                row.recorded += 1;
                 assert_eq!(
                     (turn.version, turn.endpoint, turn.dialect, turn.sequence),
-                    (smith_domain_session::record::VERSION, Some(Endpoint(0)), 2, row.2)
+                    (smith_domain_session::record::VERSION, Some(Endpoint(0)), 2, row.recorded)
                 );
                 assert_eq!((turn.usage, turn.spent), (Usage::ZERO, 0));
-                assert_eq!(row.1, row.2, "every accepted completion emits concrete history");
+                assert_eq!(row.used, row.recorded, "every accepted completion emits concrete history");
                 for message in &turn.messages {
                     for block in &message.content {
                         if let Block::ToolCall { call, .. } = block {
@@ -177,7 +202,7 @@ fn observe_fill(out: &mut Queue<Request>, observed: &mut [(bool, u32, u32, u32, 
             }
             Request::Priced { opener, spent, own_spent } => {
                 assert_eq!((spent, own_spent), (0, 0));
-                observed[usize::try_from(opener.raw()).expect("bounded opener")].3 += 1;
+                observed[usize::try_from(opener.raw()).expect("bounded opener")].priced += 1;
             }
             Request::Yielded { .. } => {
                 if asked.is_none() {
@@ -216,15 +241,12 @@ fn fill(original: &Limits, route: Route, full_service: bool, bound: u64) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
     let count = usize::try_from(limits.sessions).expect("bounded session count");
-    let mut observed = vec![(false, 0_u32, 0_u32, 0_u32, false); count];
+    let mut observed = vec![Seen::default(); count];
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 1);
     let mut step = |event: Event| -> Option<Asked> {
         let may_rest = matches!(route, Route::Invalid) && matches!(event, Event::Completed { .. });
-        meter.start();
-        while domain.pop_fact().is_some() {}
-        smith_domain_session::step(&mut domain, &env, event, &mut out);
-        let measured = meter.end();
+        let measured = measure(&mut domain, &env, &mut out, &meter, event);
         let mut asked = observe_fill(&mut out, &mut observed);
         meter.check(measured, bound, &limits);
         if may_rest {
@@ -301,11 +323,9 @@ fn fill(original: &Limits, route: Route, full_service: bool, bound: u64) {
         }
     }
     let turns = if full_service { 2 } else { 1 };
-    assert!(observed.iter().all(|&(opened, used, recorded, priced, ended)| opened
-        && used == turns
-        && recorded == turns
-        && priced >= turns
-        && !ended));
+    assert!(
+        observed.iter().all(|seen| seen.opened && seen.used == turns && seen.recorded == turns && seen.priced >= turns)
+    );
     assert_eq!(domain.sessions(), limits.sessions, "every session slot is held");
     assert_retained_payload(&meter, &limits, route, full_service, pressure);
 }
@@ -388,6 +408,22 @@ fn fill_service_tail(
     );
 }
 
+fn priced_opening(
+    spec: Spec,
+    transcript: Option<smith_domain_session::record::Transcript>,
+) -> Box<smith_domain_session::record::Opening> {
+    use smith_domain_session::record::{Opening, Prices};
+    Box::new(Opening {
+        window_llm: None,
+        spec,
+        dialect: 2,
+        prices: Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+        budget: 1,
+        transcript,
+        answered: Box::default(),
+    })
+}
+
 fn zero_opening(spec: Spec) -> Box<smith_domain_session::record::Opening> {
     Box::new(smith_domain_session::record::Opening {
         window_llm: None,
@@ -408,8 +444,8 @@ fn fill_spec(limits: &Limits) -> Spec {
         final_turn: None,
         window: u32::MAX,
         line: u64::from(u32::MAX) - 1,
-        summary: b"Summarise the work so far.".as_slice().into(),
-        preamble: b"Earlier window summary:".as_slice().into(),
+        summary: SUMMARY.into(),
+        preamble: PREAMBLE.into(),
         affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
         protocol_allowance: 0,
         progress: smith_domain_session::Progress { head: Duration::from_secs(30), idle: Duration::from_secs(30) },
@@ -472,7 +508,7 @@ const RECORDED_DELEGATION_CEILING: u64 = 48_000;
 fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
     use smith_domain_session::record;
     let block = size(size_of::<Block>());
-    let spec_charge = 2 + size(size_of::<Descriptor>()) + block + 2 + 26 + 23;
+    let spec_charge = spec_bytes(1);
     let turn_charge = block + 1 + block + 3 + block + 1;
     let output = 16_384 - spec_charge - turn_charge;
     let limits = Limits {
@@ -493,10 +529,7 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
     let mut saved = Vec::new();
     let mut ended = None;
     let mut drive = |event| {
-        meter.start();
-        while domain.pop_fact().is_some() {}
-        smith_domain_session::step(&mut domain, &env, event, &mut out);
-        let measured = meter.end();
+        let measured = measure(&mut domain, &env, &mut out, &meter, event);
         let mut completion = None;
         let mut delegate = None;
         while let Some(request) = out.pop() {
@@ -524,38 +557,11 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
         (completion, delegate)
     };
     let spec = Spec {
-        backend: smith_domain_session::record::Backend::Direct,
-        effort: None,
-        final_turn: None,
-        window: u32::MAX,
-        line: u64::from(u32::MAX) - 1,
-        summary: b"Summarise the work so far.".as_slice().into(),
-        preamble: b"Earlier window summary:".as_slice().into(),
-        affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
-        protocol_allowance: 0,
-        progress: smith_domain_session::Progress { head: Duration::from_secs(30), idle: Duration::from_secs(30) },
-        account: Some(0),
         endpoint: Endpoint(7),
-        model: bytes(1),
-        system: bytes(1),
-        authority: authority(),
         delegated: Box::new([Descriptor { ticket: Token::new(2), effect: Effect::Write }]),
-        prompt: bytes(1),
-        output: 1,
-        budget: limits.budget,
+        ..fill_spec(&limits)
     };
-    let (owner, _) = drive(Event::Open {
-        opener: Token::new(1),
-        opening: Box::new(record::Opening {
-            window_llm: None,
-            spec,
-            dialect: 2,
-            prices: record::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
-            budget: 1,
-            transcript: None,
-            answered: Box::default(),
-        }),
-    });
+    let (owner, _) = drive(Event::Open { opener: Token::new(1), opening: priced_opening(spec, None) });
     let (_, delegate) = drive(Event::Completed {
         owner: owner.expect("the counted scenario fits"),
         completion: Completion {
@@ -612,30 +618,14 @@ fn restoring_a_maximum_foreign_history_stays_within_the_counted_bound() {
     let meter = Meter::new();
     let mut domain = Domain::new(&limits, 78);
     let block = size(size_of::<Block>());
-    let charge = 2 + size(size_of::<Descriptor>()) + block + 2 + 26 + 23;
+    let charge = spec_bytes(1);
     let reserve = smith_domain_session::completion_reserve(&limits).expect("complete receiving credit");
     let headroom = block + 256;
     let opaque = limits.history_bytes - charge - 2 * block - 1 - reserve - headroom;
     let spec = Spec {
-        backend: smith_domain_session::record::Backend::Direct,
-        effort: None,
-        final_turn: None,
-        window: u32::MAX,
-        line: u64::from(u32::MAX) - 1,
-        summary: b"Summarise the work so far.".as_slice().into(),
-        preamble: b"Earlier window summary:".as_slice().into(),
-        affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
-        protocol_allowance: 0,
-        progress: smith_domain_session::Progress { head: Duration::from_secs(30), idle: Duration::from_secs(30) },
-        account: Some(0),
         endpoint: Endpoint(7),
-        model: bytes(1),
-        system: bytes(1),
-        authority: authority(),
         delegated: Box::new([Descriptor { ticket: Token::new(2), effect: Effect::Write }]),
-        prompt: bytes(1),
-        output: 1,
-        budget: limits.budget,
+        ..fill_spec(&limits)
     };
     let history = record::Transcript {
         version: record::VERSION,
@@ -660,18 +650,7 @@ fn restoring_a_maximum_foreign_history_stays_within_the_counted_bound() {
     smith_domain_session::step(
         &mut domain,
         &env,
-        Event::Open {
-            opener: Token::new(1),
-            opening: Box::new(record::Opening {
-                window_llm: None,
-                spec,
-                dialect: 2,
-                prices: record::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
-                budget: 1,
-                transcript: Some(history),
-                answered: Box::default(),
-            }),
-        },
+        Event::Open { opener: Token::new(1), opening: priced_opening(spec, Some(history)) },
         &mut out,
     );
     let measured = meter.end();
@@ -714,7 +693,7 @@ fn an_oversized_waking_result_tail_is_refused_before_cloning_provider_ids() {
     let calls = 128_u32;
     let id_bytes = 8192_u64;
     let block = size(size_of::<Block>());
-    let spec_charge = 2 + size(size_of::<Descriptor>()) + block + 2 + 26 + 23;
+    let spec_charge = spec_bytes(1);
     let original = block + 1 + u64::from(calls) * (block + id_bytes + 2);
     let limits =
         Limits { history_messages: 4, history_bytes: spec_charge + original, spend: u64::MAX, tools, ..LIMITS };
@@ -745,43 +724,16 @@ fn an_oversized_waking_result_tail_is_refused_before_cloning_provider_ids() {
         ]))]),
     };
     let spec = Spec {
-        backend: smith_domain_session::record::Backend::Direct,
-        effort: None,
-        final_turn: None,
-        window: u32::MAX,
-        line: u64::from(u32::MAX) - 1,
-        summary: b"Summarise the work so far.".as_slice().into(),
-        preamble: b"Earlier window summary:".as_slice().into(),
-        affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
-        protocol_allowance: 0,
-        progress: smith_domain_session::Progress { head: Duration::from_secs(30), idle: Duration::from_secs(30) },
-        account: Some(0),
         endpoint: Endpoint(7),
-        model: bytes(1),
-        system: bytes(1),
-        authority: authority(),
         delegated: Box::new([Descriptor { ticket: Token::new(2), effect: Effect::Write }]),
-        prompt: bytes(1),
-        output: 1,
-        budget: limits.budget,
+        ..fill_spec(&limits)
     };
     meter.start();
     while domain.pop_fact().is_some() {}
     smith_domain_session::step(
         &mut domain,
         &env,
-        Event::Open {
-            opener: Token::new(1),
-            opening: Box::new(record::Opening {
-                window_llm: None,
-                spec,
-                dialect: 2,
-                prices: record::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
-                budget: 1,
-                transcript: Some(history),
-                answered: Box::default(),
-            }),
-        },
+        Event::Open { opener: Token::new(1), opening: priced_opening(spec, Some(history)) },
         &mut out,
     );
     let measured = meter.end();
@@ -943,10 +895,7 @@ fn measured_step(
     bound: u64,
     event: Event,
 ) -> MemorySeen {
-    meter.start();
-    while domain.pop_fact().is_some() {}
-    smith_domain_session::step(domain, env, event, out);
-    let measured = meter.end();
+    let measured = measure(domain, env, out, meter, event);
     let seen = memory_seen(out);
     meter.check(measured, bound, &env.limits);
     seen
@@ -997,7 +946,7 @@ fn read_completion(width: u32) -> Completion {
 #[test]
 fn provider_admission_and_owned_result_space_have_exact_and_one_short_controls() {
     let block = size(size_of::<Block>());
-    let spec_cost = 2 + 2 * size(size_of::<Descriptor>()) + block + 2 + 26 + 23;
+    let spec_cost = spec_bytes(2);
     let completion_bytes = block + 3 + size(size_of::<Part>()) + 1;
     let base = Limits { completion_bytes, completion_blocks: 1, failure_bytes: 0, history_messages: 5, ..LIMITS };
     let reserve = smith_domain_session::completion_reserve(&base).expect("checked provider terminal");
@@ -1334,7 +1283,7 @@ fn the_four_message_cap_asks_for_compaction_before_provider_growth() {
             }
             Route::Talk => {
                 let block = size(size_of::<Block>());
-                let spec_cost = 2 + 2 * size(size_of::<Descriptor>()) + block + 2 + 26 + 23;
+                let spec_cost = spec_bytes(2);
                 let message = original.history_bytes - spec_cost - block - 1 - block;
                 let seen = measured_step(
                     &mut domain,
@@ -1387,7 +1336,7 @@ fn the_largest_fitting_note_and_all_offered_choices_obey_the_session_byte_cap() 
     const ALLOWED_CALLS: u64 = 2;
     const ALLOWED_NAME_BYTES: u64 = 13;
     let block = size(size_of::<Block>());
-    let spec_cost = 2 + 2 * size(size_of::<Descriptor>()) + block + 2 + 26 + 23;
+    let spec_cost = spec_bytes(2);
     let choice_cost = ALLOWED_CALLS * (size(size_of::<Token>()) + size(size_of::<Box<[u8]>>())) + ALLOWED_NAME_BYTES;
     let note_bytes = 8192;
     let original = Limits { history_messages: 5, ..LIMITS };
@@ -1453,7 +1402,7 @@ const CHILD_NOTE_CEILING: u64 = 18_000;
 #[test]
 fn a_maximum_child_final_note_is_charged_before_its_first_request_and_released() {
     let block = size(size_of::<Block>());
-    let spec_cost = 2 + 2 * size(size_of::<Descriptor>()) + block + 2 + 26 + 23;
+    let spec_cost = spec_bytes(2);
     let note_bytes = 8192;
     let original = Limits { history_messages: 5, ..LIMITS };
     let credit = smith_domain_session::completion_reserve(&original).expect("whole provider credit");
