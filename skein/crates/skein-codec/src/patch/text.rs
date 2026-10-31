@@ -1,7 +1,7 @@
 //! Patch tokens and statement grammar (codec.md, 11.1).
 
 use super::{Expected, Header, LANGUAGE, Op, PatchError, PatchWrong, Span, add, error, spelled};
-use skein_lib::List;
+use skein_lib::{Decimal, List};
 
 #[cfg(test)]
 mod tests;
@@ -253,7 +253,7 @@ impl Reader {
                 return Err(token.error(PatchWrong::Expected(wanted)));
             }
         }
-        let number = decimal(bytes).ok_or(token.error(PatchWrong::Number))?;
+        let number = Decimal::parse(bytes).ok_or(token.error(PatchWrong::Number))?;
         if number > u64::from(max) {
             return Err(token.error(PatchWrong::Number));
         }
@@ -324,19 +324,6 @@ impl Reader {
     }
 }
 
-pub(crate) fn decimal(bytes: &[u8]) -> Option<u64> {
-    if bytes.is_empty() {
-        return None;
-    }
-    let mut value = 0_u64;
-    for &byte in bytes {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(value)
-}
 fn name(bytes: &[u8]) -> bool {
     let mut bytes = bytes.iter();
     let Some(&first) = bytes.next() else {
@@ -424,7 +411,7 @@ pub(crate) fn after(text: &[u8], range: Span, upstream: &[u8]) -> Option<u32> {
         }
         let level = cursor.next(bytes).ok()??;
         if spelled(bytes, token.at) == upstream {
-            return u32::try_from(decimal(spelled(bytes, level.at))?).ok();
+            return u32::try_from(Decimal::parse(spelled(bytes, level.at))?).ok();
         }
     }
     None
