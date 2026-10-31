@@ -3,8 +3,8 @@
 //! iteration, as a service's loop drives its layers (programming-model.md,
 //! section 2; simulator.md, 3), and checking as it goes:
 //!
-//! - **contracts:** each entry point within its `MAX_OUT`; io's contract with
-//!   the owner, in the [`Ledger`];
+//! - **contracts:** stage admission within the kernel's submission room;
+//!   io's contract with the owner, in the [`Ledger`];
 //! - **the scenario's expectations,** in the [`Referee`];
 //! - **invariants once settled:** every slab empty and nothing in flight in
 //!   io, nothing in flight in the simulator and every descriptor closed, every
@@ -16,7 +16,7 @@ use std::collections::VecDeque;
 use std::fmt::Write;
 
 use skein_io::kernel::{Complete, Op, Submit};
-use skein_io::{Event, Io, Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, Request};
+use skein_io::{Event, Io, Limits, MAX_OUT_DOWN, Request, stage};
 use skein_lib::{Env, Queue, Time, Wall};
 use skein_sim::{Config, Entry, Pid, Sim};
 
@@ -72,25 +72,7 @@ impl Proc {
     pub fn iterate(&mut self, now: Time, wall: Wall, directory: &mut Directory) {
         self.env.now = now;
         self.env.wall = wall;
-        // io's stage: the ready list first, then completions, then deadlines.
-        while self.io.is_ready() && self.room(MAX_OUT_RESUME) {
-            let mark = self.marks();
-            skein_io::resume(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-            self.within(mark, MAX_OUT_RESUME, "resume");
-        }
-        if !self.io.is_ready() {
-            while !self.completions.is_empty() && self.room(MAX_OUT_UP) {
-                let complete = self.completions.pop().expect("not empty");
-                let mark = self.marks();
-                skein_io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.subs);
-                self.within(mark, MAX_OUT_UP, "up");
-            }
-        }
-        while self.io.is_due(now) && self.room(MAX_OUT_FIRE) {
-            let mark = self.marks();
-            skein_io::fire(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-            self.within(mark, MAX_OUT_FIRE, "fire");
-        }
+        stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.subs, now);
         // The owner's stage.
         while let Some(event) = self.events.pop() {
             self.ledger.event(&event);
@@ -98,15 +80,18 @@ impl Proc {
             self.owner.on(now, event, directory, &mut self.requests);
         }
         self.owner.tick(now, directory, &mut self.requests);
-        // io's down stage.
-        while self.io.takes() && self.room(MAX_OUT_DOWN) {
+        // The ledger observes each request only when the stage can take it.
+        let mut requests = Queue::with_capacity(1);
+        while self.io.takes() && self.subs.room() >= MAX_OUT_DOWN.submissions {
             let Some(request) = self.requests.pop_front() else {
                 break;
             };
             self.ledger.request(&request);
-            let mark = self.marks();
-            skein_io::down(&mut self.io, &self.env, request, &mut self.subs);
-            self.within(mark, MAX_OUT_DOWN, "down");
+            requests.push(request);
+            let before = self.subs.len();
+            stage::down(&mut self.io, &self.env, &mut requests, &mut self.subs);
+            assert!(self.subs.len() - before <= MAX_OUT_DOWN.submissions, "one request's submission bound");
+            assert!(requests.is_empty(), "the ledger records only requests taken by io");
         }
         if !self.io.takes() && !self.requests.is_empty() {
             self.held_back += 1;
@@ -121,19 +106,6 @@ impl Proc {
         }
         assert!(accepts <= self.env.limits.accepts, "{accepts} accepts armed in one iteration, past the batch");
         self.io.reclaim();
-    }
-
-    fn room(&self, max: MaxOut) -> bool {
-        self.subs.room() >= max.submissions
-    }
-
-    fn marks(&self) -> u32 {
-        self.subs.len()
-    }
-
-    /// An entry point emitted no more than it declared.
-    fn within(&self, subs: u32, max: MaxOut, entry: &str) {
-        assert!(self.subs.len() - subs <= max.submissions, "{entry} submitted no more than its submission bound");
     }
 
     /// Whether the loop has work now, without the kernel or time.

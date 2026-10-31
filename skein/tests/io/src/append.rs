@@ -3,7 +3,7 @@
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::kernel::{Complete, Fd, Submit};
-use skein_io::{Event, Io, Limits, Request};
+use skein_io::{Event, Io, Limits, Request, stage};
 use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_sim::{Answer, Call, Config, Handle};
@@ -52,6 +52,7 @@ pub struct Writer {
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     up: Queue<Event>,
+    requests: Queue<Request>,
 }
 
 impl Writer {
@@ -83,6 +84,7 @@ impl Writer {
             completions: Queue::with_capacity(8),
             submissions: Queue::with_capacity(8),
             up: Queue::with_capacity(4),
+            requests: Queue::with_capacity(1),
         }
     }
 
@@ -131,13 +133,6 @@ impl Writer {
         }
     }
 
-    fn ready(&mut self) {
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &self.env, &mut self.up, &mut self.submissions);
-            self.observed();
-        }
-    }
-
     #[must_use]
     pub fn failures(&self) -> usize {
         self.events.iter().filter(|event| matches!(event, Evidence::Failed(_))).count()
@@ -148,50 +143,45 @@ impl Host for Writer {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        self.ready();
-        while let Some(complete) = self.completions.pop() {
-            skein_io::up(&mut self.io, &self.env, complete, &mut self.up, &mut self.submissions);
-            self.observed();
-            self.ready();
-        }
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &self.env, &mut self.up, &mut self.submissions);
-            self.observed();
-        }
-        let request = match self.phase {
-            Phase::Asking if self.sent < PARTS.len() => {
-                self.phase = Phase::Waiting;
-                Some(Request::Stream {
-                    stream: self.stream,
-                    down: Down::Demand {
-                        read: Read::Nothing,
-                        room: u32::try_from(PARTS[self.sent].len()).expect("small part"),
-                    },
-                })
-            }
-            Phase::Asking => {
-                self.phase = Phase::Closing;
-                match self.story {
-                    Story::Finish => Some(Request::Stream { stream: self.stream, down: Down::Finish }),
-                    Story::Close => Some(Request::Close { entity: self.stream }),
-                    Story::Abort => Some(Request::Abort { entity: self.stream }),
-                    Story::WriteDeadline => {
-                        self.phase = Phase::Idle;
-                        None
+        stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.up, &mut self.submissions, now);
+        self.observed();
+        if self.requests.is_empty() {
+            let request = match self.phase {
+                Phase::Asking if self.sent < PARTS.len() => {
+                    self.phase = Phase::Waiting;
+                    Some(Request::Stream {
+                        stream: self.stream,
+                        down: Down::Demand {
+                            read: Read::Nothing,
+                            room: u32::try_from(PARTS[self.sent].len()).expect("small part"),
+                        },
+                    })
+                }
+                Phase::Asking => {
+                    self.phase = Phase::Closing;
+                    match self.story {
+                        Story::Finish => Some(Request::Stream { stream: self.stream, down: Down::Finish }),
+                        Story::Close => Some(Request::Close { entity: self.stream }),
+                        Story::Abort => Some(Request::Abort { entity: self.stream }),
+                        Story::WriteDeadline => {
+                            self.phase = Phase::Idle;
+                            None
+                        }
                     }
                 }
+                Phase::Granted => {
+                    let bytes = Box::from(PARTS[self.sent]);
+                    self.sent += 1;
+                    self.phase = Phase::Asking;
+                    Some(Request::Stream { stream: self.stream, down: Down::Send(bytes) })
+                }
+                Phase::Waiting | Phase::Idle | Phase::Closing | Phase::Closed => None,
+            };
+            if let Some(request) = request {
+                self.requests.push(request);
             }
-            Phase::Granted => {
-                let bytes = Box::from(PARTS[self.sent]);
-                self.sent += 1;
-                self.phase = Phase::Asking;
-                Some(Request::Stream { stream: self.stream, down: Down::Send(bytes) })
-            }
-            Phase::Waiting | Phase::Idle | Phase::Closing | Phase::Closed => None,
-        };
-        if let Some(request) = request {
-            skein_io::down(&mut self.io, &self.env, request, &mut self.submissions);
         }
+        stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.submissions);
     }
 
     fn drain(&mut self) {
@@ -207,9 +197,10 @@ impl Host for Writer {
         self.io.is_ready()
             || self.io.is_due(now)
             || !self.completions.is_empty()
+            || !self.requests.is_empty()
             || matches!(self.phase, Phase::Asking | Phase::Granted)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 
@@ -218,7 +209,11 @@ impl Host for Writer {
     }
 
     fn is_empty(&self) -> bool {
-        self.phase == Phase::Closed && self.io.is_empty() && self.completions.is_empty() && self.submissions.is_empty()
+        self.phase == Phase::Closed
+            && self.io.is_empty()
+            && self.completions.is_empty()
+            && self.submissions.is_empty()
+            && self.requests.is_empty()
     }
     fn operations(&self) -> u32 {
         skein_io::operations(&self.env.limits).expect("small ring")
@@ -298,4 +293,35 @@ pub fn simulated(seed: u64, config: Config, story: Story, memory: Memory) -> ske
     let mut world = World::new(seed, config, Judge, memory).with_machine(machine);
     world.spawn_append(file, |fd| Writer::new(fd, story, Duration::from_millis(10)));
     world.run()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Phase, Story, Writer};
+    use skein_io::Request;
+    use skein_io::kernel::{Fd, Op, Submit};
+    use skein_lib::{Duration, Time, Token, Wall};
+    use skein_world::Host;
+
+    #[test]
+    fn a_blocked_down_stage_keeps_the_pending_append_request() {
+        let mut writer = Writer::new(Fd::new(40), Story::Finish, Duration::from_secs(1));
+        while writer.submissions.room() > 0 {
+            writer.submissions.push(Submit { op: Token::new(99), kind: Op::Usage });
+        }
+        for _ in 0..2 {
+            writer.iterate(Time::ZERO, Wall::EPOCH);
+            assert_eq!(writer.phase, Phase::Waiting);
+            assert_eq!(writer.sent, 0);
+            assert_eq!(writer.requests.len(), 1, "the blocked demand stays queued once");
+            assert!(writer.work_pending(Time::ZERO));
+        }
+        assert!(matches!(writer.requests.iter().next(), Some(Request::Stream { .. })));
+        writer.submissions.clear();
+        writer.iterate(Time::ZERO, Wall::EPOCH);
+        assert!(writer.requests.is_empty(), "the stage takes the demand once room returns");
+        writer.drain();
+        writer.iterate(Time::ZERO, Wall::EPOCH);
+        assert_eq!(writer.sent, 1, "the answered demand sends the first part once");
+    }
 }

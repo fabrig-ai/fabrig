@@ -3,7 +3,7 @@
 //! The same owner runs against the minimal machine and the real fixture.
 
 use skein_io::kernel::{Complete, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
-use skein_io::{Event, Io, Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, Request};
+use skein_io::{Event, Io, Limits, Request, stage};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_sim::{Config, Handle};
@@ -56,15 +56,6 @@ pub struct Process {
 }
 
 impl Process {
-    fn mark(&self, max: MaxOut) -> u32 {
-        assert!(self.submissions.room() >= max.submissions);
-        self.submissions.len()
-    }
-
-    fn within(&self, before: u32, max: MaxOut) {
-        assert!(self.submissions.len().checked_sub(before).expect("submissions append") <= max.submissions);
-    }
-
     /// Starts the actual owner; `real` requires the fixture's complete readiness line.
     #[must_use]
     pub fn new(root: Fd, program: &[u8], story: Story, real: bool) -> Self {
@@ -213,35 +204,22 @@ impl Host for Process {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        while self.io.is_ready() {
-            let before = self.mark(MAX_OUT_RESUME);
-            skein_io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-            self.within(before, MAX_OUT_RESUME);
-        }
-        while let Some(complete) = self.completions.pop() {
+        // Startup's root close belongs to the host, outside io's stage.
+        for _ in 0..self.completions.len() {
+            let complete = self.completions.pop().expect("the reaped completion count");
             if complete.op == ROOT_CLOSE {
                 assert!(complete.result.is_ok());
                 self.root_closing = false;
             } else {
-                let before = self.mark(MAX_OUT_UP);
-                skein_io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
-                self.within(before, MAX_OUT_UP);
+                self.completions.push(complete);
             }
         }
-        while self.io.is_due(now) {
-            let before = self.mark(MAX_OUT_FIRE);
-            skein_io::fire(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-            self.within(before, MAX_OUT_FIRE);
-        }
+        stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             self.observe(event);
         }
         self.act();
-        while let Some(request) = self.requests.pop() {
-            let before = self.mark(MAX_OUT_DOWN);
-            skein_io::down(&mut self.io, &self.env, request, &mut self.submissions);
-            self.within(before, MAX_OUT_DOWN);
-        }
+        stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
         if self.io.is_empty()
             && self.lifecycle == Lifecycle::Closed
@@ -260,7 +238,7 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         self.io.is_ready() || self.io.is_due(now) || !self.completions.is_empty() || !self.requests.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 

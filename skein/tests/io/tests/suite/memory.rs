@@ -158,7 +158,8 @@ impl Driver {
         self.end("down");
     }
 
-    /// The reclaim point, then the ready list drained.
+    /// The reclaim point, then each ready step measured on its own.
+    /// Event ownership and submitted buffers leave the meter after each resume.
     fn next(&mut self) {
         self.meter.start();
         self.io().reclaim();
