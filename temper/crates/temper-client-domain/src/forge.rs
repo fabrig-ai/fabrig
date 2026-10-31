@@ -1,4 +1,4 @@
-//! The forge's adoption form, demo read, panel watch and receiving state.
+//! The forge's adoption form, playground read, panel watch and receiving state.
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time};
 pub mod admin;
@@ -13,6 +13,7 @@ pub mod listed;
 pub(crate) mod me;
 pub mod panel;
 pub mod picker;
+pub mod playground;
 pub mod start;
 mod vocabulary;
 pub mod words;
@@ -40,6 +41,7 @@ pub enum Event {
 }
 #[derive(Debug)]
 pub enum Request {
+    PlaygroundReset,
     PanelEnded { subject: panel::Subject },
     Show { address: Address },
     Leave { to: Box<[u8]> },
@@ -48,7 +50,7 @@ pub enum Request {
 }
 #[derive(Debug)]
 pub struct Side {
-    demo: demo::State,
+    playground: playground::State,
     forges: forges::State,
     forges_open: bool,
     set_up: Option<Box<forges::SetUp>>,
@@ -74,7 +76,7 @@ impl Side {
     #[must_use]
     pub fn new(_limits: &Limits, seed: u64) -> Side {
         Side {
-            demo: demo::State::new(),
+            playground: playground::State::new(),
             forges: forges::State::Unknown,
             forges_open: false,
             set_up: None,
@@ -110,29 +112,63 @@ impl Side {
         self.form.as_ref()
     }
     #[must_use]
-    pub const fn demo_answered(&self) -> bool {
-        self.demo.answered
+    pub const fn playground(&self) -> Option<&Playground> {
+        self.playground.answer.as_ref()
     }
     #[must_use]
+    pub const fn playground_answered(&self) -> bool {
+        self.playground.answered
+    }
+    #[must_use]
+    pub fn playground_starting(&self) -> bool {
+        if self.playground.start.is_some() {
+            return true;
+        }
+        match &self.playground.answer {
+            Some(answer) => answer.state == PlaygroundState::Starting,
+            None => false,
+        }
+    }
+    #[must_use]
+    pub const fn playground_failure(&self) -> Option<&playground::StartFailure> {
+        self.playground.failure.as_ref()
+    }
+    /// From the act's send until the read is none (temper/docs/design/draft/playground-reset.md, 6.2).
+    #[must_use]
+    pub const fn leaving(&self) -> bool {
+        self.playground.leaving
+    }
+    #[must_use]
+    pub fn playground_provider(&self) -> Option<u32> {
+        Some(self.playground.answer.as_ref()?.provider)
+    }
+    #[must_use]
+    pub const fn demo_answered(&self) -> bool {
+        self.playground.answered
+    }
+    #[must_use]
+    // t-view-drop removes it
     pub const fn demo(&self) -> Option<&Demo> {
-        self.demo.answer.as_ref()
+        self.playground.bridge.as_ref()
     }
     #[must_use]
     pub fn demo_running(&self) -> bool {
-        match &self.demo.answer {
+        match &self.playground.bridge {
             Some(demo) => {
-                demo.state == demo::DemoState::Running || self.demo.start.is_some() || self.demo.failure.is_some()
+                demo.state == demo::DemoState::Running
+                    || self.playground.start.is_some()
+                    || self.playground.failure.is_some()
             }
             None => false,
         }
     }
     #[must_use]
     pub const fn demo_starting(&self) -> bool {
-        self.demo.start.is_some()
+        self.playground.start.is_some()
     }
     #[must_use]
     pub const fn demo_failure(&self) -> Option<&demo::StartFailure> {
-        self.demo.failure.as_ref()
+        self.playground.failure.as_ref()
     }
     #[must_use]
     pub const fn panel(&self) -> Option<&panel::Panel> {
@@ -258,7 +294,8 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::ConnectManifest { forge, back } => github::manifest(side, limits, forge, back, out),
         Act::ConnectApp { forge } => github::send(side, limits, forge, None, out),
         Act::Install { forge, back } => github::send(side, limits, forge, Some(back), out),
-        Act::StartDemo => demo::start(side, limits, out),
+        Act::StartDemo | Act::StartPlayground => playground::start(side, limits, out),
+        Act::EndPlayground => playground::end(side, limits, out),
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
         Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
         Act::SetupWrite { field, text } => forges::write(side, limits, field, text),

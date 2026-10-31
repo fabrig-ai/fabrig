@@ -166,19 +166,18 @@ const fn role_from(role: &w::Role) -> forge::Role {
 /// Decode the demo's complete record, including its embedded family version.
 #[must_use]
 pub fn demo(record: &[u8], limits: &w::Limits) -> Option<forge::Demo> {
-    let answer = wire::decode_demo_answer(record, limits)?.into_parts();
+    let answer = playground(record, limits)?;
     Some(forge::Demo {
         state: match answer.state {
-            w::DemoState::NotStarted => forge::demo::DemoState::NotStarted,
-            w::DemoState::Running => forge::demo::DemoState::Running,
-            w::DemoState::Ended => forge::demo::DemoState::Ended,
+            forge::PlaygroundState::Starting => forge::demo::DemoState::NotStarted,
+            forge::PlaygroundState::Running | forge::PlaygroundState::Resetting => forge::demo::DemoState::Running,
         },
-        project: answer.project,
+        project: answer.project?,
         forge: answer.forge,
         provider: answer.provider,
         owner: answer.owner,
         name: answer.name,
-        cues: answer.cues.into_boxed(),
+        cues: answer.cues,
     })
 }
 
@@ -199,8 +198,17 @@ pub fn set_up(
             w::SetUpProject::New(w::NewProject::new(limits, w::NewProjectParts { name }).ok()?)
         }
     };
-    let forge = w::Making::Kept(w::Kept::new(limits, w::KeptParts { forge }).ok()?);
-    let request = w::SetUp::new(limits, w::SetUpParts { playground, forge, org, repository, project }).ok()?;
+    let request = w::SetUp::new(
+        limits,
+        w::SetUpParts {
+            playground,
+            forge: w::Making::Kept(w::Kept::new(limits, w::KeptParts { forge }).ok()?),
+            org,
+            repository,
+            project,
+        },
+    )
+    .ok()?;
     let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::SetUp(request) }).ok()?;
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
 }
@@ -446,4 +454,23 @@ fn admin_stop(stop: w::AdminStop) -> forge::forges::AdminStop {
             },
         },
     }
+}
+
+/// Decode the playground's complete record (temper/docs/design/draft/playground-reset.md, 6.1).
+#[must_use]
+pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Playground> {
+    let answer = wire::decode_playground_answer(record, limits)?.into_parts();
+    Some(forge::Playground {
+        state: match answer.state {
+            w::PlaygroundState::Starting => forge::PlaygroundState::Starting,
+            w::PlaygroundState::Running => forge::PlaygroundState::Running,
+            w::PlaygroundState::Resetting => forge::PlaygroundState::Resetting,
+        },
+        forge: answer.forge,
+        project: answer.project,
+        provider: answer.provider,
+        owner: answer.owner,
+        name: answer.name,
+        cues: answer.cues.into_boxed(),
+    })
 }
