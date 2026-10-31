@@ -17,6 +17,7 @@ smith-domain-run = { workspace = true, features = ["fixture"] }
 skein-world.workspace = true
 
 [dev-dependencies]
+smith-machine-world.workspace = true
 smith-agent-world.workspace = true
 smith-domain.workspace = true
 smith-tools-world.workspace = true
