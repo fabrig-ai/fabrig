@@ -20,6 +20,7 @@ mod projection;
 mod purpose;
 mod reconcile;
 mod records;
+mod removal;
 mod restore_fit;
 mod runs;
 mod stopping;

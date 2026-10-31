@@ -272,6 +272,7 @@ impl Core {
             | people::Stored::SignIn { .. }
             | people::Stored::Roles { .. }
             | people::Stored::Acted { .. }
+            | people::Stored::Deletion { .. }
             | people::Stored::Policy { .. } => true,
         }
     }

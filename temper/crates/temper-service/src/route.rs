@@ -10,13 +10,22 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();
     }
+    #[expect(clippy::match_same_arms, reason = "each request's arm is filled by its own task")]
     match request {
-        root::Request::PlaygroundActs { .. }
-        | root::Request::ResetAct { .. }
-        | root::Request::ForgeKept(_)
-        | root::Request::ForgeGone { .. }
-        | root::Request::BoxGroup { .. }
-        | root::Request::BoxRemove { .. } => {}
+        root::Request::PlaygroundActs { .. } => {}
+        root::Request::ResetAct { .. } => {}
+        root::Request::ForgeKept(_) => {}
+        root::Request::ForgeGone { .. } => {}
+        root::Request::BoxGroup { forge, kind, request } => {
+            let mut out = skein_lib::Queue::with_capacity(3);
+            engine.box_link.group(forge, kind, request, &mut out);
+            box_link::drain(engine, &mut out);
+        }
+        root::Request::BoxRemove { forge } => {
+            let mut out = skein_lib::Queue::with_capacity(1);
+            engine.box_link.remove(forge, &mut out);
+            box_link::drain(engine, &mut out);
+        }
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
         root::Request::StopGroup { forge } => {
             let mut out = skein_lib::Queue::with_capacity(1);

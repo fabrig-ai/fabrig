@@ -223,6 +223,7 @@ impl World {
                         | people::Stored::EndedRead { .. }
                         | people::Stored::Roles { .. }
                         | people::Stored::Acted { .. }
+                        | people::Stored::Deletion { .. }
                         | people::Stored::Policy { .. }
                         | people::Stored::Answer { .. },
                     )

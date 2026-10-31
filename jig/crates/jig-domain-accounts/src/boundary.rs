@@ -73,6 +73,10 @@ pub struct Grant {
 /// confirmed the revocation (2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// Close project rows (temper/docs/design/draft/playground-reset.md, 5).
+    ForgetProject {
+        project: u32,
+    },
     Restore {
         record: Stored,
     },

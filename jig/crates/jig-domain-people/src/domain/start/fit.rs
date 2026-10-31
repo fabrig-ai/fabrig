@@ -210,7 +210,8 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
             crate::ProposalDecision::Accept | crate::ProposalDecision::Pass => Ok(()),
         },
         Ask::AccountChange { change, .. } => account_change(key, limits, change),
-        Ask::MarkSeen { .. }
+        Ask::RemoveProject { .. }
+        | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }

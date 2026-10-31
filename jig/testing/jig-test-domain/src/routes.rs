@@ -26,6 +26,9 @@ pub(super) fn route_core(
     let core::Requests::Out(mut requests) = requests;
     for _ in 0..requests.len() {
         match requests.pop().expect("core request count") {
+            core::Request::Write(core::Write::DropTranscript { task }) => {
+                write(domain, decision, Write::DropTranscript { task });
+            }
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
                 write(domain, decision, Write::CopySettingsRevision(number));
             }

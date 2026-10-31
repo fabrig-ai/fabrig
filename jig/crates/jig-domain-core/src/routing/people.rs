@@ -67,6 +67,9 @@ pub(super) fn route_people(
         other @ (people::Event::ChatState { .. }
         | people::Event::MoveChat { .. }
         | people::Event::ConversationSeen { .. }
+        | people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
         | people::Event::Seed { .. }
@@ -160,6 +163,7 @@ pub(super) fn tag_people(
                     | people::Key::ReadConversation { .. }
                     | people::Key::SignIn(_)
                     | people::Key::Roles(_)
+                    | people::Key::Deletion(_)
                     | people::Key::Policy(_) => {}
                 }
                 Request::Write(Write::Erase(Key::People(key)))
@@ -244,6 +248,10 @@ pub(super) fn tag_people(
                     continue;
                 }
                 match *ask {
+                    people::Ask::RemoveProject { .. } => work.push(Event::People(people::Event::Decided {
+                        request,
+                        outcome: people::Outcome::Refused(people::Refusal::NotOffered),
+                    })),
                     people::Ask::Compound { operations, .. } => {
                         crate::compound::route(
                             core,

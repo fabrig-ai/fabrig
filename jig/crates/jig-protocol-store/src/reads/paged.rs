@@ -224,6 +224,8 @@ pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) 
             | reads::Scope::Inbox { .. }
             | reads::Scope::Tasks { .. }
             | reads::Scope::SettingsHistory { .. }
+            | reads::Scope::EndedTasks
+            | reads::Scope::TaskRows { .. }
             | reads::Scope::Spend { .. } => return Err(Failure::Corrupt),
         };
         if !selected {

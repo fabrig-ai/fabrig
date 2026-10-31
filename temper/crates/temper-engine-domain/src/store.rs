@@ -550,6 +550,8 @@ impl Record {
 /// (domain/root.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Write {
+    /// Whole-task transcript erasure (temper/docs/design/draft/playground-reset.md, 5; jig/docs/design/protocol/store.md, 8.5, 11.1).
+    DropTranscript { task: u64 },
     /// Persist the shell-supplied wire versions in the start’s mark.
     Wires,
     /// Copy a held revision to its history destination before its held row is erased.
@@ -569,6 +571,11 @@ impl Write {
             Write::CopySettingsRevision(number) => Key::Core(jig_domain_core::Key::Core(
                 jig_domain_core::CoreKey::Settings(jig_domain_core::settings::Key::History(*number)),
             )),
+            Write::DropTranscript { task } => Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                task: *task,
+                attempt: 0,
+                turn: 0,
+            })),
             Write::Wires => Key::Wires,
             Write::Save(row) => row.key(),
             Write::Erase(key) => key.clone(),
@@ -734,7 +741,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::Move { reason, .. } | jig_domain_people::Ask::Cancel { reason, .. } => {
                         u64::try_from(reason.len()).ok()
                     }
-                    jig_domain_people::Ask::ChangeSettings { .. }
+                    jig_domain_people::Ask::RemoveProject { .. }
+                    | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
                     | jig_domain_people::Ask::MarkSeen { .. }
@@ -768,7 +776,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                 }?;
                 model_context_bytes(models)?.checked_add(payload)?.checked_add(program_answer_bytes(outcome)?)
             }
-            jig_domain_people::Stored::SignIn { .. }
+            jig_domain_people::Stored::Deletion { .. }
+            | jig_domain_people::Stored::SignIn { .. }
             | jig_domain_people::Stored::ReadResults { .. }
             | jig_domain_people::Stored::EndedRead { .. }
             | jig_domain_people::Stored::ReadConversation { .. } => Some(0),
@@ -820,6 +829,7 @@ fn note_entry_bytes(entry: &jig_domain_notes::Entry) -> Option<u64> {
 pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
     match write {
         Write::CopySettingsRevision(_) => u64::try_from(size_of::<u32>()).ok(), // The store copies the payload; only the number crosses this boundary.
+        Write::DropTranscript { .. } => Some(8),
         Write::Save(record) => record_bytes(record),
         Write::Erase(Key::Core(jig_domain_core::Key::Notes(jig_domain_notes::Key::Line { scope, .. }))) => {
             note_scope_bytes(scope)

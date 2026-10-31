@@ -210,9 +210,11 @@ fn expired(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
     match record {
         Stored::SignIn { expires, .. } => *expires <= at,
         Stored::Answer { at: saved, .. } | Stored::Acted { at: saved, .. } => answer_expiry(*saved, limits) <= at,
-        Stored::Person { .. } | Stored::Roles { .. } | Stored::ReadResults { .. } | Stored::ReadConversation { .. } => {
-            false
-        }
+        Stored::Deletion { .. }
+        | Stored::Person { .. }
+        | Stored::Roles { .. }
+        | Stored::ReadResults { .. }
+        | Stored::ReadConversation { .. } => false,
         Stored::Policy { .. } | Stored::EndedRead { .. } => unreachable!("wrong people family: {:?}", record.key()),
     }
 }
@@ -235,6 +237,7 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         return super::restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
+        Stored::Deletion { .. } => {}
         Stored::Person { number, identity } => {
             domain.identities.insert(identity.key.clone(), number).expect("identity fit checked");
             domain.people.insert(number, identity).expect("person fit checked");
@@ -277,6 +280,7 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
         | crate::Ask::MakeService { .. }
         | crate::Ask::Adopt { .. }
         | crate::Ask::ChangePolicy { .. }
+        | crate::Ask::RemoveProject { .. }
         | crate::Ask::Rename { .. }
         | crate::Ask::MakeProject { .. }
         | crate::Ask::ChangeSettings { .. }
@@ -307,6 +311,7 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
 fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate::RestoreCause> {
     let key = record.key();
     match record {
+        Stored::Deletion { .. } => Ok(()),
         Stored::Person { number, identity } => {
             assert!(!domain.people.contains_key(number), "duplicate {key:?}");
             assert!(!domain.identities.contains_key(&identity.key), "identity index collision at {key:?}");

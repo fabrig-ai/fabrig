@@ -1,6 +1,6 @@
 //! Forge application refusals at the family's embedded people-store version.
 use jig_domain_people as p;
-use jig_protocol_store::people_v13 as w;
+use jig_protocol_store::people_v14 as w;
 use skein_lib::Wall;
 pub(super) fn encode_failure_class(value: p::FailureClass, _l: &w::Limits) -> w::FailureClass {
     match value {

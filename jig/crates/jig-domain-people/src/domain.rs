@@ -109,6 +109,7 @@ pub(crate) struct Recent {
 /// (domain/people.md, sections 2–6).
 #[derive(Debug)]
 pub struct Domain {
+    deletions: Map<u32, crate::DeletionStep>,
     phase: Phase,
     start: start::Phase,
     start_at: Option<Wall>,
@@ -153,6 +154,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Kept deletions, restored at start (temper/docs/design/draft/playground-reset.md, 5).
+    #[must_use]
+    pub fn deletions(&self) -> &Map<u32, crate::DeletionStep> {
+        &self.deletions
+    }
+
     pub(super) fn party_pending(&self, id: Id<Pending>) -> Option<&PartyPending> {
         self.pending.get(id)?.party()
     }
@@ -233,6 +240,7 @@ impl Domain {
             }
         }
         Domain {
+            deletions: Map::with_capacity(limits.projects),
             phase: Phase::Restoring,
             start: start::Phase::Default,
             start_at: None,
@@ -570,6 +578,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.touched = true;
     match event {
+        Event::Deleting { .. } | Event::CloseProject { .. } | Event::ForgetProject { .. } => {}
         Event::Act { reply_to, connector, key, act } => {
             acts::admit(domain, env, reply_to, crate::ActKey { connector, key }, *act, out);
         }
@@ -768,6 +777,7 @@ fn apply_roles(
         | Ask::EditNote { .. }
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -821,6 +831,7 @@ fn apply_roles(
         | Ask::EditNote { .. }
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -949,6 +960,7 @@ fn make_service(domain: &mut Domain, env: &Env<Limits>, request: Token, person: 
         | Ask::Amend { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -1173,7 +1185,8 @@ fn project(ask: &Ask) -> u32 {
         | Ask::AccountSignOut { .. }
         | Ask::AccountChange { .. } => 0,
         Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => crate::DEPLOYMENT,
-        Ask::Rename { project, .. }
+        Ask::RemoveProject { project }
+        | Ask::Rename { project, .. }
         | Ask::Compound { project, .. }
         | Ask::EditNote { project, .. }
         | Ask::MakeService { project, .. }
@@ -1307,7 +1320,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                     None => false,
                 }
         }
-        Ask::ChangeSettings { .. }
+        Ask::RemoveProject { .. }
+        | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
         | Ask::Application { .. }
         | Ask::AccountSignIn { .. }
@@ -1428,7 +1442,8 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         Ask::Create { batch, .. } | Ask::Propose { action: crate::Action::Batch(batch), .. } => {
             crate::batch::invalid(limits, batch)
         }
-        Ask::Rename { .. }
+        Ask::RemoveProject { .. }
+        | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
@@ -1516,6 +1531,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
     }
 
     let expected = match ask {
+        Ask::RemoveProject { .. } => return false,
         Ask::Compound { project, operations } => Expected::Compound(*project, operations.len()),
         Ask::MarkSeen { seen } => Expected::MarkSeen(*seen),
         Ask::Application { connector, .. } => Expected::Application(*connector),
@@ -1673,6 +1689,9 @@ fn admit_ask(
     };
     if session.expires <= env.wall || session.due <= env.now {
         return signed_out(to, out);
+    }
+    if ask == (Ask::RemoveProject { project: project(&ask) }) {
+        return refused(to, Refusal::NotOffered, out);
     }
     let key = RequestKey { person: session.person, key: bytes };
     if !valid_ask(&env.limits, &ask) || !crate::valid_model_context(&ask, &models) {
@@ -1875,6 +1894,7 @@ fn reserves_answer(ask: &Ask) -> bool {
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -1994,6 +2014,7 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Que
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive table restores each admitted people row")]
 fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
     match domain.phase {
         Phase::Ready => {
@@ -2037,6 +2058,7 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         Stored::Roles { project, holdings } => {
             valid_roles(domain, &env.limits, *project, holdings).is_ok() && !domain.roles.contains_key(project)
         }
+        Stored::Deletion { .. } => true,
         Stored::Policy { .. } | Stored::EndedRead { .. } => false,
         Stored::Answer { key, ask, models, outcome, at } => {
             valid_ask(&env.limits, ask)
@@ -2079,6 +2101,7 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
             let saved = domain.roles.insert(project, holdings);
             assert!(saved.is_ok(), "restored roles admitted");
         }
+        Stored::Deletion { .. } => {}
         Stored::Policy { .. } | Stored::EndedRead { .. } => {
             unreachable!("root does not restore on-demand records into people")
         }
@@ -2152,6 +2175,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 | Ask::MakeService { .. }
                 | Ask::Adopt { .. }
                 | Ask::ChangePolicy { .. }
+                | Ask::RemoveProject { .. }
                 | Ask::Rename { .. }
                 | Ask::MakeProject { .. }
                 | Ask::ChangeSettings { .. }
@@ -2269,6 +2293,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -2310,6 +2335,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -2395,6 +2421,7 @@ fn admission(domain: &Domain, person: u64, _project: u32, role: Option<Role>, as
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::SetPool { .. }

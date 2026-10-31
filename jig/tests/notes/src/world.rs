@@ -91,6 +91,7 @@ impl World {
             let mut loads = Vec::new();
             for request in requests {
                 match request {
+                    Request::ProjectDropped { .. } => {}
                     Request::Save { record } => writes.push(Write::Save(record)),
                     Request::Erase { key } => writes.push(Write::Erase(key)),
                     Request::Load { owner, range } => {
