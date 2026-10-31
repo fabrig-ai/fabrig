@@ -254,7 +254,7 @@ pub fn encode(value: Encodable) -> Encoded {
 
 /// One of smith's channel facts as jig's activity, if it decodes.
 #[must_use]
-pub fn activity(body: &[u8]) -> Option<host::Activity> {
+pub fn activity(body: &[u8]) -> Option<host::AgentActivity> {
     let mut reader = Reader::new(body);
     let fact = smith_channel::Fact::decode(&smith_channel::CEILINGS, &mut reader).ok()?;
     if !reader.is_empty() {
@@ -272,7 +272,7 @@ pub fn activity(body: &[u8]) -> Option<host::Activity> {
         smith_channel::FactKind::CheckFinished => host::CountKind::CheckFinished,
         smith_channel::FactKind::TextArrived => host::CountKind::TextArrived,
     };
-    Some(host::Activity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
+    Some(host::AgentActivity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
 }
 
 /// A delivery the agent asks for: its commit's title and body.

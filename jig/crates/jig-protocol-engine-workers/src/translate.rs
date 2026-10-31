@@ -222,20 +222,20 @@ fn fact(record: wire::Fact) -> host::LinkUp {
                 },
             };
         }
-        wire::FactValue::Phase(value) => host::Activity::Phase(phase(value.into_parts().value)),
+        wire::FactValue::Phase(value) => host::AgentActivity::Phase(phase(value.into_parts().value)),
         wire::FactValue::Long(value) => {
             let fields = value.into_parts();
             let operation = match fields.operation {
-                wire::Operation::Checks => host::Operation::Checks,
-                wire::Operation::Completion => host::Operation::Completion,
-                wire::Operation::Command => host::Operation::Command,
+                wire::Operation::Checks => host::AgentOperation::Checks,
+                wire::Operation::Completion => host::AgentOperation::Completion,
+                wire::Operation::Command => host::AgentOperation::Command,
             };
-            host::Activity::Long { operation, span: fields.span }
+            host::AgentActivity::Long { operation, span: fields.span }
         }
-        wire::FactValue::LongDone => host::Activity::LongDone,
+        wire::FactValue::LongDone => host::AgentActivity::LongDone,
         wire::FactValue::Count(value) => {
             let fields = value.into_parts();
-            host::Activity::Count { kind: count_kind(fields.kind), elapsed: fields.elapsed, count: fields.value }
+            host::AgentActivity::Count { kind: count_kind(fields.kind), elapsed: fields.elapsed, count: fields.value }
         }
     };
     host::LinkUp::Activity { run: Token::new(fields.task), attempt: Token::new(fields.attempt), activity }
@@ -288,7 +288,7 @@ pub(crate) fn answer(record: wire::Answer, parts: &mut Parts) -> host::LinkUp {
     host::LinkUp::Answer {
         run: Token::new(fields.task),
         attempt: Token::new(fields.attempt),
-        answer: host::Answer {
+        answer: host::RunAnswer {
             read: optional_token(fields.read),
             refused: refusals(fields.refused),
             turns: fields.turns,

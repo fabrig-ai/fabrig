@@ -36,7 +36,7 @@ fn a_full_payload_slab_returns_payload_records_but_takes_metadata() {
                 up: host::LinkUp::Answer {
                     run: Token::new(1),
                     attempt: Token::new(1),
-                    answer: host::Answer {
+                    answer: host::RunAnswer {
                         read: None,
                         refused: Box::new([]),
                         turns: 0,

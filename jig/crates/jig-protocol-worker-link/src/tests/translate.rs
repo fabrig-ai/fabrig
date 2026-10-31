@@ -80,7 +80,7 @@ fn activity_becomes_a_fact_record() {
     let up = host::LinkUp::Activity {
         run: Token::new(7),
         attempt: Token::new(2),
-        activity: host::Activity::Count {
+        activity: host::AgentActivity::Count {
             kind: host::CountKind::LlmFinished,
             elapsed: skein_lib::Duration::from_secs(1),
             count: 2,

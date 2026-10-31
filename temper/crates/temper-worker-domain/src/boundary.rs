@@ -87,7 +87,7 @@ pub enum Event {
     /// Terminal for `Encode`.
     Encoded { owner: Token, encoded: Encoded },
     /// Terminal for `Fact`: the fact as jig's activity, if it decoded.
-    Activity { owner: Token, activity: Option<host::Activity> },
+    Activity { owner: Token, activity: Option<host::AgentActivity> },
     /// Terminal for `Io`.
     Done { owner: Token, done: git::Done },
     /// From the shell: cancel every run, admit no more, and stop once nothing
@@ -113,7 +113,7 @@ pub enum Request {
     Answer {
         run: Token,
         attempt: Token,
-        answer: host::Answer,
+        answer: host::RunAnswer,
         work: wire::Work,
         preparation: Option<wire::Preparation>,
     },

@@ -132,7 +132,7 @@ fn a_transcript_piece_that_does_not_split_is_refused_as_invalid() {
             up: host::LinkUp::Answer {
                 run: Token::new(7),
                 attempt: Token::new(2),
-                answer: host::Answer {
+                answer: host::RunAnswer {
                     read: None,
                     refused: Box::new([]),
                     turns: 0,

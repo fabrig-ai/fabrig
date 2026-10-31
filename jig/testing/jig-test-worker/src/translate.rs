@@ -34,11 +34,11 @@ pub const fn refusal(value: smith::MessageRefusal) -> host::MessageRefusal {
 }
 
 #[must_use]
-pub const fn operation(value: smith::Operation) -> host::Operation {
+pub const fn operation(value: smith::Operation) -> host::AgentOperation {
     match value {
-        smith::Operation::Checks => host::Operation::Checks,
-        smith::Operation::Completion => host::Operation::Completion,
-        smith::Operation::Command => host::Operation::Command,
+        smith::Operation::Checks => host::AgentOperation::Checks,
+        smith::Operation::Completion => host::AgentOperation::Completion,
+        smith::Operation::Command => host::AgentOperation::Command,
     }
 }
 

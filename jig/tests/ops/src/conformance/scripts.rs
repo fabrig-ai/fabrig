@@ -684,9 +684,13 @@ pub fn lead() -> Box<[u8]> {
 fn completion_activity(owner: Token, turns: u32) -> Vec<root::Event> {
     let mut reports = Vec::new();
     for activity in [
-        host::Activity::Long { operation: host::Operation::Completion, span: Duration::from_secs(1) },
-        host::Activity::Count { kind: host::CountKind::LlmFinished, elapsed: Duration::ZERO, count: u64::from(turns) },
-        host::Activity::LongDone,
+        host::AgentActivity::Long { operation: host::AgentOperation::Completion, span: Duration::from_secs(1) },
+        host::AgentActivity::Count {
+            kind: host::CountKind::LlmFinished,
+            elapsed: Duration::ZERO,
+            count: u64::from(turns),
+        },
+        host::AgentActivity::LongDone,
     ] {
         reports.push(root::Event::Agent(host::FromAgent::Activity { owner, activity }));
     }

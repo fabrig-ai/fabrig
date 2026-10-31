@@ -1,5 +1,6 @@
 //! Host records used by the lifecycle scripts. Callback tokens are encoded
 //! as opaque names; names are opaque bytes.
+use jig_domain_host::FromAgent;
 use jig_domain_host::LinkDown;
 use jig_domain_host::{Ask, Assignment, Event, Finish, RunAssignment};
 use skein_lib::{Duration, Reader, Token};
@@ -23,15 +24,15 @@ pub fn inbound(run: Token, attempt: Token, name: Token, words: Box<[u8]>) -> Eve
 }
 #[must_use]
 pub fn called(owner: Token, call: Token, ask: Ask) -> Event {
-    Event::Called { owner, call: Box::from(call.raw().to_be_bytes()), ask }
+    Event::Agent(FromAgent::Called { owner, call: Box::from(call.raw().to_be_bytes()), ask })
 }
 #[must_use]
 pub fn withdrawn(owner: Token, call: Token) -> Event {
-    Event::Withdrawn { owner, call: Box::from(call.raw().to_be_bytes()) }
+    Event::Agent(FromAgent::Withdrawn { owner, call: Box::from(call.raw().to_be_bytes()) })
 }
 #[must_use]
 pub fn finished(owner: Token, finish: Finish) -> Event {
-    Event::Finished { read: None, owner, turns: 0, spent: 0, finish }
+    Event::Agent(FromAgent::Finished { read: None, owner, turns: 0, spent: 0, finish })
 }
 #[must_use]
 pub fn deliver(title: Box<[u8]>) -> Ask {
