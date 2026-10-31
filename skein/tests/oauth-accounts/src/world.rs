@@ -672,29 +672,15 @@ impl Host for Client {
         }
         let io_env = Env { now, wall, limits: self.limits.io };
         self.private_io(&env);
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_ready() {
-                break;
-            }
-            io::resume(&mut self.io, &io_env, &mut self.events, &mut self.submissions);
-        }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 {
-                break;
-            }
-            let Some(complete) = self.completions.pop() else { break };
+        for _ in 0..self.completions.len() {
+            let complete = self.completions.pop().expect("queued completion");
             if skein_world::files::Driver::owns(complete.op) {
                 self.file_driver.as_mut().expect("tagged file completion").up(complete);
             } else {
-                io::up(&mut self.io, &io_env, complete, &mut self.events, &mut self.submissions);
+                self.completions.push(complete);
             }
         }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_due(now) {
-                break;
-            }
-            io::fire(&mut self.io, &io_env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &io_env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         for _ in 0..ROOM {
             let Some(event) = self.events.pop() else { break };
             self.component.as_mut().expect("io follows started component").up(
@@ -719,10 +705,9 @@ impl Host for Client {
                 self.close(&env);
             }
         }
-        for _ in 0..ROOM {
-            if !self.io.takes() || self.submissions.room() < 2 {
-                break;
-            }
+        // The owner acts at each admitted socket request, before io consumes it.
+        let mut admitted = Queue::with_capacity(1);
+        while self.io.takes() && self.submissions.room() >= io::MAX_OUT_DOWN.submissions {
             let Some(request) = self.requests.pop() else { break };
             if !self.closing
                 && ((matches!(request, io::Request::Connect { .. })
@@ -737,7 +722,9 @@ impl Host for Client {
             }
             crate::accounts::before_socket(self, &env, &request);
             crate::shared::before_socket(self, &request);
-            io::down(&mut self.io, &io_env, request, &mut self.submissions);
+            admitted.push(request);
+            io::stage::down(&mut self.io, &io_env, &mut admitted, &mut self.submissions);
+            assert!(admitted.is_empty(), "request fits the io stage");
         }
         self.private_io(&env);
         self.io.reclaim();
@@ -764,17 +751,11 @@ impl Host for Client {
                 component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        skein_lib::earliest(
             self.io.next_deadline(),
             self.file_driver.as_ref().and_then(skein_world::files::Driver::next_deadline),
-            self.component.as_ref().and_then(accounts::Component::next_deadline),
-            (self.story == Story::Released && self.component.is_some() && !self.closing)
-                .then(|| self.started.saturating_add(Duration::from_secs(40))),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
+        )
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
