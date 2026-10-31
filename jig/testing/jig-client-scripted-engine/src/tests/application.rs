@@ -80,7 +80,7 @@ fn own_script() -> Script {
         let mut chip = task().chip;
         chip.task = task_number;
         chip.phase = Phase::Done;
-        chip.details = Box::new(super::chip_details(OwnerChipPhase::Ended));
+        chip.details = Box::new(super::chip_details(ChipPhase::Ended));
         setup.truth.objects.insert(
             entry.card_key(),
             ReadValue::Result(Box::new(jig_client_domain::contract::Result {
@@ -110,7 +110,9 @@ fn own_script() -> Script {
         setup.rules.push(Rule {
             party: Some(1),
             ask: Ask::Seen { through: SeenThrough::Results { through } },
-            answer: Answer::Done(Outcome::Owner(OwnerOutcome::MarkedSeen { seen: SeenThrough::Results { through } })),
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::MarkedSeen {
+                seen: SeenThrough::Results { through },
+            })),
             changes: vec![
                 Change::Seen { party: 1, results: through, replies: vec![] },
                 Change::Me(latest),
@@ -120,9 +122,7 @@ fn own_script() -> Script {
                     rows: Rows::Inbox(
                         entries
                             .iter()
-                            .filter(
-                                |entry| matches!(entry.cursor, OwnerInboxCursor::Number { number } if number > through),
-                            )
+                            .filter(|entry| matches!(entry.cursor, InboxCursor::Number { number } if number > through))
                             .cloned()
                             .collect(),
                     ),

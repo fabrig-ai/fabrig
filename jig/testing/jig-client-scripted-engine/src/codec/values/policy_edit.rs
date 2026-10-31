@@ -1,6 +1,6 @@
 //! Wire projections of policy edit facts (client/domain/testing.md, 4).
 use super::super::{c, w};
-use super::{wire_owner_authority, wire_owner_pattern};
+use super::{wire_authority, wire_pattern};
 pub(in crate::codec) fn wire_template_executor(
     value: &c::TemplateExecutor,
     limits: &w::Limits,
@@ -50,7 +50,7 @@ pub(in crate::codec) fn wire_policy_edit_role(
         limits,
         w::PolicyEditRoleParts {
             number: value.number,
-            authority: wire_owner_authority(&value.authority, limits)?,
+            authority: wire_authority(&value.authority, limits)?,
             period_spend: value.period_spend,
             requests: value.requests,
             decides: value.decides,
@@ -67,7 +67,7 @@ pub(in crate::codec) fn wire_policy_requirement(
         w::PolicyRequirementParts {
             connector: value.connector,
             kind: value.kind,
-            pattern: wire_owner_pattern(&value.pattern, limits)?,
+            pattern: wire_pattern(&value.pattern, limits)?,
             judge: wire_policy_judge(&value.judge, limits)?,
             guard: wire_policy_guard(&value.guard, limits)?,
             must_be_guarded: value.must_be_guarded,

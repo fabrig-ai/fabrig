@@ -1,8 +1,8 @@
 //! Wire projections of watches facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, facts, pieces, problem, w};
 use super::{
-    wire_current_call, wire_live_call, wire_me, wire_owner_accounts, wire_owner_deployment, wire_owner_inbox,
-    wire_owner_project, wire_owner_proposal, wire_owner_tree, wire_settings_document, wire_task, wire_tasks,
+    wire_accounts, wire_current_call, wire_deployment, wire_inbox, wire_live_call, wire_me, wire_project,
+    wire_proposal, wire_settings_document, wire_task, wire_tasks, wire_tree,
 };
 pub(in crate::codec) fn wire_delivery_value(
     value: &c::Delivery,
@@ -10,23 +10,23 @@ pub(in crate::codec) fn wire_delivery_value(
 ) -> Result<w::DeliveryValue, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::Delivery::Settings(value) => w::DeliveryValue::Settings(wire_settings_document(value, limits)?),
-        c::Delivery::OwnerProject(value) => w::DeliveryValue::OwnerProject(wire_owner_project(value, limits)?),
+        c::Delivery::Project(value) => w::DeliveryValue::Project(wire_project(value, limits)?),
         c::Delivery::Me(value) => w::DeliveryValue::Me(wire_me(value, limits)?),
         c::Delivery::Task(value) => w::DeliveryValue::Task(Box::new(wire_task(value, limits)?)),
-        c::Delivery::OwnerProposal(value) => w::DeliveryValue::OwnerProposal(wire_owner_proposal(value, limits)?),
-        c::Delivery::OwnerTree(value) => w::DeliveryValue::OwnerTree(wire_owner_tree(value, limits)?),
+        c::Delivery::Proposal(value) => w::DeliveryValue::Proposal(wire_proposal(value, limits)?),
+        c::Delivery::Tree(value) => w::DeliveryValue::Tree(wire_tree(value, limits)?),
         c::Delivery::Chips(value) => w::DeliveryValue::Chips(w::Chips::new(
             limits,
             w::ChipsParts {
                 rows: pieces((value).iter().map(|item| facts::chip(item, limits)), w::Chip::measure, w::Chip::encode)?,
             },
         )?),
-        c::Delivery::OwnerInbox(value) => w::DeliveryValue::OwnerInbox(wire_owner_inbox(value, limits)?),
+        c::Delivery::Inbox(value) => w::DeliveryValue::Inbox(wire_inbox(value, limits)?),
         c::Delivery::Tasks(value) => w::DeliveryValue::Tasks(wire_tasks(value, limits)?),
         c::Delivery::Run(_) => return Err(problem()),
         c::Delivery::RunState(value) => w::DeliveryValue::RunState(wire_run_state(value, limits)?),
-        c::Delivery::OwnerDeployment(value) => w::DeliveryValue::OwnerDeployment(wire_owner_deployment(value, limits)?),
-        c::Delivery::OwnerAccounts(value) => w::DeliveryValue::OwnerAccounts(wire_owner_accounts(value, limits)?),
+        c::Delivery::Deployment(value) => w::DeliveryValue::Deployment(wire_deployment(value, limits)?),
+        c::Delivery::Accounts(value) => w::DeliveryValue::Accounts(wire_accounts(value, limits)?),
     })
 }
 

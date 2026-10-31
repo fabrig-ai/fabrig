@@ -2,11 +2,9 @@ use super::*;
 
 #[test]
 fn task_list_filters_do_not_alias_person_task_and_deployment_requesters_with_equal_numbers() {
-    for (requester, asked_by_person) in [
-        (OwnerRequester::Person(1), true),
-        (OwnerRequester::Task(1), false),
-        (OwnerRequester::Deployment { project: 1 }, false),
-    ] {
+    for (requester, asked_by_person) in
+        [(Requester::Person(1), true), (Requester::Task(1), false), (Requester::Deployment { project: 1 }, false)]
+    {
         for asked_by_me in [false, true] {
             let mut setup = script();
             let mut row = task();
@@ -19,7 +17,7 @@ fn task_list_filters_do_not_alias_person_task_and_deployment_requesters_with_equ
                     11,
                     Token::new(3),
                     Subject::Tasks {
-                        query: TaskQuery { requester: asked_by_me.then_some(OwnerRequester::Person(1)), ..query(1) },
+                        query: TaskQuery { requester: asked_by_me.then_some(Requester::Person(1)), ..query(1) },
                         window: 2,
                     },
                 )
@@ -45,7 +43,7 @@ fn task_list_filters_do_not_alias_person_task_and_deployment_requesters_with_equ
             } else {
                 assert_eq!(rows.len(), 1);
                 assert_eq!(rows.get(0).unwrap().requester, requester);
-                assert_eq!(rows.get(0).unwrap().requester == OwnerRequester::Person(1), asked_by_person);
+                assert_eq!(rows.get(0).unwrap().requester == Requester::Person(1), asked_by_person);
             }
         }
     }

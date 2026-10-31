@@ -2,7 +2,7 @@ use crate::Bounds;
 use jig_client_domain::contract::*;
 use skein_lib::{List, Wall};
 
-fn goal() -> OwnerPersonProposalGoal {
+fn goal() -> PersonProposalGoal {
     let mut parameters = List::with_capacity(3);
     parameters.push(Parameter::Number { name: u32::MAX, value: u64::MAX }).expect("number fits");
     parameters.push(Parameter::Bytes { name: 0, value: super::text(UTF8_TEXTS[0]) }).expect("bytes fit");
@@ -15,20 +15,20 @@ fn goal() -> OwnerPersonProposalGoal {
         path.push(Bytes::new(Box::from(b"a/b".as_slice()), 4096).unwrap()).expect("literal segment fits");
         path.push(Bytes::new(Box::from([255, 0]), 4096).unwrap()).expect("opaque segment fits");
         let holding = if write {
-            OwnerGoalHolding::Write { connector: u16::MAX, path, kind: u16::MAX }
+            GoalHolding::Write { connector: u16::MAX, path, kind: u16::MAX }
         } else {
-            OwnerGoalHolding::Slot { connector: u16::MAX, path, kind: 0 }
+            GoalHolding::Slot { connector: u16::MAX, path, kind: 0 }
         };
         holdings.push(holding).expect("holding fits");
     }
-    OwnerPersonProposalGoal {
+    PersonProposalGoal {
         number: u64::MAX,
         project: u32::MAX,
-        executor: OwnerExecutor::Agent { charter: u32::MAX },
+        executor: Executor::Agent { charter: u32::MAX },
         spec: Specification { asks: false, words: super::text(UTF8_TEXTS[0]), parameters, inputs },
         contract: TaskContractDocument::Report { words: u32::MAX },
-        authority: super::owner_authority().authority,
-        numbers: OwnerNumbers { budget: 1, spent: 7, spent_below: 11, reserved: u64::MAX },
+        authority: super::authority().authority,
+        numbers: Numbers { budget: 1, spent: 7, spent_below: 11, reserved: u64::MAX },
         funder: Funder::Pool { project: u32::MAX, person: u64::MAX, period: 0 },
         dependencies: List::with_capacity(3),
         holdings,
@@ -36,15 +36,15 @@ fn goal() -> OwnerPersonProposalGoal {
         tracked: Some(u32::MAX),
     }
 }
-fn person(state: OwnerPersonProposalState) -> OwnerPersonProposal {
-    OwnerPersonProposal { number: u64::MAX, proposer: u64::MAX, project: u32::MAX, goal: goal(), state }
+fn person(state: PersonProposalState) -> PersonProposal {
+    PersonProposal { number: u64::MAX, proposer: u64::MAX, project: u32::MAX, goal: goal(), state }
 }
-fn record(choice: OwnerProposalChoice, created: Option<(u64, u64)>) -> OwnerProposalDecision {
-    OwnerProposalDecision {
+fn record(choice: ProposalChoice, created: Option<(u64, u64)>) -> ProposalDecision {
+    ProposalDecision {
         project: u32::MAX,
         proposer: Proposer::Party(u64::MAX),
         proposal: u64::MAX,
-        kind: OwnerMessageProposalKind::Batch,
+        kind: MessageProposalKind::Batch,
         by: u64::MAX,
         at: Wall::EPOCH,
         choice,
@@ -64,7 +64,7 @@ fn result() -> Result {
 fn question() -> Question {
     Question {
         task: super::task().chip,
-        from: Some(OwnerRequester::Deployment { project: u32::MAX }),
+        from: Some(Requester::Deployment { project: u32::MAX }),
         message: u64::MAX,
         words: DocumentText::complete(super::text(UTF8_TEXTS[0])),
         since: Wall::EPOCH,
@@ -72,40 +72,40 @@ fn question() -> Question {
         ending: None,
     }
 }
-fn answer() -> OwnerActivityLine {
-    OwnerActivityLine {
+fn answer() -> ActivityLine {
+    ActivityLine {
         task: 8,
         position: u64::MAX,
         at: Wall::from_nanos(u64::MAX),
-        line: OwnerActivity::Words {
+        line: Activity::Words {
             message: 0,
-            by: OwnerRequester::Task(u64::MAX),
-            kind: OwnerMessageKind::Answer { question: u64::MAX },
+            by: Requester::Task(u64::MAX),
+            kind: MessageKind::Answer { question: u64::MAX },
             words: super::text(UTF8_TEXTS[1]),
         },
     }
 }
-fn envelope(key: ObjectKey, value: OwnerHistoricalValue) -> OwnerHistorical {
-    OwnerHistorical { key, value, at: None, by: None }
+fn envelope(key: ObjectKey, value: EndedValue) -> Ended {
+    Ended { key, value, at: None, by: None }
 }
-fn person_value(state: OwnerPersonProposalState, decision: Option<OwnerProposalDecision>) -> OwnerHistorical {
+fn person_value(state: PersonProposalState, decision: Option<ProposalDecision>) -> Ended {
     envelope(
         ObjectKey::Proposal(ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX }),
-        OwnerHistoricalValue::PersonProposal { proposal: Box::new(person(state)), decision },
+        EndedValue::PersonProposal { proposal: Box::new(person(state)), decision },
     )
 }
 fn bounds() -> Bounds {
     Bounds { rows: 3, segments: 3, text: 32, document_bytes: 1_000_000, ..Bounds::default() }
 }
 #[test]
-fn historical_person_goal_keeps_raw_project_all_four_numbers_parameters_and_distinct_literal_holdings() {
+fn ended_person_goal_keeps_raw_project_all_four_numbers_parameters_and_distinct_literal_holdings() {
     // These full-width receiving facts are intentionally separate from the
     // authentic producer's initial spent/reserved/dependency admission rules.
-    let value = person_value(OwnerPersonProposalState::Pending { since: Wall::EPOCH }, None);
-    let OwnerHistoricalValue::PersonProposal { proposal, .. } = &value.value else { panic!("person source") };
+    let value = person_value(PersonProposalState::Pending { since: Wall::EPOCH }, None);
+    let EndedValue::PersonProposal { proposal, .. } = &value.value else { panic!("person source") };
     assert_eq!(proposal.goal.project, u32::MAX);
     assert_eq!(proposal.goal.number, u64::MAX);
-    assert_eq!(proposal.goal.numbers, OwnerNumbers { budget: 1, spent: 7, spent_below: 11, reserved: u64::MAX });
+    assert_eq!(proposal.goal.numbers, Numbers { budget: 1, spent: 7, spent_below: 11, reserved: u64::MAX });
     assert_eq!(proposal.goal.spec.words.bytes(), UTF8_TEXTS[0]);
     assert_eq!(proposal.goal.spec.parameters.capacity(), 3);
     assert_eq!(proposal.goal.spec.parameters.get(0), Some(&Parameter::Number { name: u32::MAX, value: u64::MAX }));
@@ -120,14 +120,14 @@ fn historical_person_goal_keeps_raw_project_all_four_numbers_parameters_and_dist
     assert_eq!(proposal.goal.spec.inputs.as_slice(), &[u64::MAX]);
     assert_eq!(proposal.goal.dependencies.capacity(), 3);
     assert!(proposal.goal.dependencies.is_empty());
-    let OwnerGoalHolding::Write { connector, path, kind } = proposal.goal.holdings.get(0).expect("write") else {
+    let GoalHolding::Write { connector, path, kind } = proposal.goal.holdings.get(0).expect("write") else {
         panic!("write kind preserved")
     };
     assert_eq!((*connector, *kind), (u16::MAX, u16::MAX));
     assert_eq!(path.capacity(), 3);
     assert_eq!(path.get(0).expect("literal").bytes(), b"a/b");
     assert_eq!(path.get(1).expect("opaque").bytes(), &[255, 0]);
-    let OwnerGoalHolding::Slot { connector, path, kind } = proposal.goal.holdings.get(1).expect("slot") else {
+    let GoalHolding::Slot { connector, path, kind } = proposal.goal.holdings.get(1).expect("slot") else {
         panic!("slot kind preserved")
     };
     assert_eq!((*connector, *kind), (u16::MAX, 0));
@@ -137,40 +137,40 @@ fn historical_person_goal_keeps_raw_project_all_four_numbers_parameters_and_dist
     assert!(!value.matches(ObjectKey::Proposal(ProposalKey { proposer: Proposer::Task(u64::MAX), number: u64::MAX })));
 }
 #[test]
-fn historical_person_states_keep_independent_decisions_choices_created_pairs_and_outer_absence() {
+fn ended_person_states_keep_independent_decisions_choices_created_pairs_and_outer_absence() {
     for choice in [
-        OwnerProposalChoice::Accepted,
-        OwnerProposalChoice::Rejected,
-        OwnerProposalChoice::Passed,
-        OwnerProposalChoice::Withdrawn,
-        OwnerProposalChoice::Stale,
+        ProposalChoice::Accepted,
+        ProposalChoice::Rejected,
+        ProposalChoice::Passed,
+        ProposalChoice::Withdrawn,
+        ProposalChoice::Stale,
     ] {
         for created in [None, Some((0, 0)), Some((0, u64::MAX)), Some((u64::MAX, u64::MAX))] {
             let decision = record(choice, created);
             let states = [
-                OwnerPersonProposalState::Pending { since: Wall::EPOCH },
-                OwnerPersonProposalState::Accepted { by: OwnerRequester::Person(u64::MAX) },
-                OwnerPersonProposalState::Rejected {
-                    by: OwnerRequester::Person(1),
+                PersonProposalState::Pending { since: Wall::EPOCH },
+                PersonProposalState::Accepted { by: Requester::Person(u64::MAX) },
+                PersonProposalState::Rejected {
+                    by: Requester::Person(1),
                     reason: super::text(UTF8_TEXTS[1]),
                     message: u64::MAX,
                     at: Wall::EPOCH,
                 },
             ];
             for state in states {
-                let pending = matches!(state, OwnerPersonProposalState::Pending { .. });
+                let pending = matches!(state, PersonProposalState::Pending { .. });
                 let original = person_value(state, Some(decision));
                 for at in [None, Some(Wall::EPOCH), Some(Wall::from_nanos(u64::MAX))] {
                     for by in [
                         None,
-                        Some(OwnerRequester::Task(0)),
-                        Some(OwnerRequester::Person(u64::MAX)),
-                        Some(OwnerRequester::Deployment { project: u32::MAX }),
+                        Some(Requester::Task(0)),
+                        Some(Requester::Person(u64::MAX)),
+                        Some(Requester::Deployment { project: u32::MAX }),
                     ] {
-                        let value = OwnerHistorical { at, by, ..original.clone() };
+                        let value = Ended { at, by, ..original.clone() };
                         assert!(value.matches(value.key));
                         assert_eq!(value.is_terminal(), !pending, "decision presence does not replace supplied state");
-                        let OwnerHistoricalValue::PersonProposal { decision: stored, .. } = &value.value else {
+                        let EndedValue::PersonProposal { decision: stored, .. } = &value.value else {
                             panic!("person source")
                         };
                         assert_eq!(*stored, Some(decision));
@@ -180,26 +180,22 @@ fn historical_person_states_keep_independent_decisions_choices_created_pairs_and
             }
         }
     }
-    let accepted = person_value(OwnerPersonProposalState::Accepted { by: OwnerRequester::Person(1) }, None);
+    let accepted = person_value(PersonProposalState::Accepted { by: Requester::Person(1) }, None);
     assert!(!accepted.matches(accepted.key), "authentic accepted source without decision returns Gone");
-    let mut wrong = person_value(
-        OwnerPersonProposalState::Pending { since: Wall::EPOCH },
-        Some(record(OwnerProposalChoice::Passed, None)),
-    );
-    let OwnerHistoricalValue::PersonProposal { decision: Some(decision), .. } = &mut wrong.value else {
-        panic!("record")
-    };
+    let mut wrong =
+        person_value(PersonProposalState::Pending { since: Wall::EPOCH }, Some(record(ProposalChoice::Passed, None)));
+    let EndedValue::PersonProposal { decision: Some(decision), .. } = &mut wrong.value else { panic!("record") };
     decision.proposer = Proposer::Task(u64::MAX);
     assert!(!wrong.matches(wrong.key));
 }
 
 #[test]
-fn historical_question_answer_and_full_ending_presence_are_independent_from_outer_sender_and_clock() {
+fn ended_question_answer_and_full_ending_presence_are_independent_from_outer_sender_and_clock() {
     for answer_present in [false, true] {
         for ending_present in [false, true] {
             let value = envelope(
                 ObjectKey::Question { task: 8, message: u64::MAX },
-                OwnerHistoricalValue::Question {
+                EndedValue::Question {
                     question: question(),
                     answer: answer_present.then(answer),
                     ending: ending_present.then(|| Box::new(result())),
@@ -212,62 +208,60 @@ fn historical_question_answer_and_full_ending_presence_are_independent_from_oute
     }
     let mut value = envelope(
         ObjectKey::Question { task: 8, message: u64::MAX },
-        OwnerHistoricalValue::Question { question: question(), answer: Some(answer()), ending: None },
+        EndedValue::Question { question: question(), answer: Some(answer()), ending: None },
     );
-    let OwnerHistoricalValue::Question { answer: Some(answer), .. } = &mut value.value else { panic!("answer") };
-    answer.line = OwnerActivity::Words {
+    let EndedValue::Question { answer: Some(answer), .. } = &mut value.value else { panic!("answer") };
+    answer.line = Activity::Words {
         message: 0,
-        by: OwnerRequester::Person(1),
-        kind: OwnerMessageKind::Answer { question: 7 },
+        by: Requester::Person(1),
+        kind: MessageKind::Answer { question: 7 },
         words: super::text(b""),
     };
     assert!(!value.matches(value.key));
 }
 
 #[test]
-fn historical_task_proposal_states_preserve_raw_maker_and_do_not_use_outer_context_as_terminal_evidence() {
+fn ended_task_proposal_states_preserve_raw_maker_and_do_not_use_outer_context_as_terminal_evidence() {
     let states = [
-        OwnerProposalHistoryState::Pending { holder: OwnerHistoryHolder::Task(u64::MAX), since: Wall::EPOCH },
-        OwnerProposalHistoryState::Accepted { by: OwnerRequester::Deployment { project: u32::MAX } },
-        OwnerProposalHistoryState::Rejected {
-            by: OwnerRequester::Task(0),
+        ProposalHistoryState::Pending { holder: HistoryHolder::Task(u64::MAX), since: Wall::EPOCH },
+        ProposalHistoryState::Accepted { by: Requester::Deployment { project: u32::MAX } },
+        ProposalHistoryState::Rejected {
+            by: Requester::Task(0),
             reason: DocumentText { bytes: super::text(UTF8_TEXTS[1]), cut: true },
         },
-        OwnerProposalHistoryState::Withdrawn,
+        ProposalHistoryState::Withdrawn,
     ];
     for state in states {
-        let pending = matches!(state, OwnerProposalHistoryState::Pending { .. });
-        let value = OwnerHistorical {
+        let pending = matches!(state, ProposalHistoryState::Pending { .. });
+        let value = Ended {
             key: ObjectKey::Proposal(ProposalKey { proposer: Proposer::Task(u64::MAX), number: 0 }),
-            value: OwnerHistoricalValue::Proposal(OwnerProposalHistory {
-                action: OwnerRetainedAction::Release { task: 0 },
+            value: EndedValue::Proposal(ProposalHistory {
+                action: RetainedAction::Release { task: 0 },
                 number: 0,
                 proposer: u64::MAX,
                 as_holder: false,
                 state,
             }),
             at: Some(Wall::EPOCH),
-            by: Some(OwnerRequester::Person(u64::MAX)),
+            by: Some(Requester::Person(u64::MAX)),
         };
         assert!(value.matches(value.key));
         assert_eq!(value.is_terminal(), !pending);
         assert!(!value.matches(ObjectKey::Proposal(ProposalKey { proposer: Proposer::Party(u64::MAX), number: 0 })));
-        assert!(crate::codec::read(&ReadValue::Historical(Box::new(value.clone())), &bounds()).is_ok());
+        assert!(crate::codec::read(&ReadValue::Ended(Box::new(value.clone())), &bounds()).is_ok());
     }
 }
 
 #[test]
-fn historical_escalation_decisions_keep_opaque_rejection_and_independent_optional_hold() {
+fn ended_escalation_decisions_keep_opaque_rejection_and_independent_optional_hold() {
     for decision in [
-        OwnerEscalationDecision::Release,
-        OwnerEscalationDecision::Pass,
-        OwnerEscalationDecision::Reject { reason: super::text(b"") },
-        OwnerEscalationDecision::Reject { reason: super::text(UTF8_TEXTS[0]) },
+        EscalationDecision::Release,
+        EscalationDecision::Pass,
+        EscalationDecision::Reject { reason: super::text(b"") },
+        EscalationDecision::Reject { reason: super::text(UTF8_TEXTS[0]) },
     ] {
-        for hold in
-            [None, Some(OwnerMilestoneLine { task: 8, position: 0, phase: OwnerMilestonePhase::Waiting, at: None })]
-        {
-            let record = OwnerEscalationDecisionRecord {
+        for hold in [None, Some(MilestoneLine { task: 8, position: 0, phase: MilestonePhase::Waiting, at: None })] {
+            let record = EscalationDecisionRecord {
                 project: 1,
                 requester: u64::MAX,
                 task: 8,
@@ -276,9 +270,9 @@ fn historical_escalation_decisions_keep_opaque_rejection_and_independent_optiona
                 at: Wall::from_nanos(u64::MAX),
                 decision: decision.clone(),
             };
-            let value = OwnerHistorical {
+            let value = Ended {
                 key: ObjectKey::Escalation(8),
-                value: OwnerHistoricalValue::Escalation {
+                value: EndedValue::Escalation {
                     task: Box::new(super::task()),
                     decision: record.clone(),
                     hold: hold.clone(),
@@ -289,14 +283,14 @@ fn historical_escalation_decisions_keep_opaque_rejection_and_independent_optiona
             assert!(value.matches(value.key));
             assert!(value.is_terminal());
             assert_eq!((value.at, value.by), (None, None));
-            let OwnerHistoricalValue::Escalation { decision: stored, hold: stored_hold, .. } = &value.value else {
+            let EndedValue::Escalation { decision: stored, hold: stored_hold, .. } = &value.value else {
                 panic!("escalation")
             };
             assert_eq!(stored, &record);
             assert_eq!(stored_hold, &hold);
-            assert!(crate::codec::read(&ReadValue::Historical(Box::new(value.clone())), &bounds()).is_ok());
+            assert!(crate::codec::read(&ReadValue::Ended(Box::new(value.clone())), &bounds()).is_ok());
             let mut wrong = value.clone();
-            let OwnerHistoricalValue::Escalation { decision, .. } = &mut wrong.value else { panic!("decision") };
+            let EndedValue::Escalation { decision, .. } = &mut wrong.value else { panic!("decision") };
             decision.task = 9;
             assert!(!wrong.matches(wrong.key));
         }

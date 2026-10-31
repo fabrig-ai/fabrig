@@ -1,8 +1,8 @@
 //! Independent whole-carrier proofs through the scripted peer's public entries.
 use super::*;
 
-pub(super) fn empty() -> OwnerDeployment {
-    OwnerDeployment {
+pub(super) fn empty() -> Deployment {
+    Deployment {
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -12,11 +12,11 @@ pub(super) fn empty() -> OwnerDeployment {
         hosts: List::with_capacity(2),
         attempts: List::with_capacity(2),
         accounts: List::with_capacity(2),
-        tasks: OwnerCapacity { used: 0, limit: u32::MAX },
-        workers: OwnerCapacity { used: u32::MAX, limit: 1 },
-        attempts_capacity: OwnerCapacity { used: 7, limit: 11 },
+        tasks: Capacity { used: 0, limit: u32::MAX },
+        workers: Capacity { used: u32::MAX, limit: 1 },
+        attempts_capacity: Capacity { used: 7, limit: 11 },
         waiting_attempts: 19,
-        proposals: OwnerCapacity { used: 3, limit: 17 },
+        proposals: Capacity { used: 3, limit: 17 },
         projects: List::with_capacity(2),
         grace_bound: Duration::from_nanos(u64::MAX),
         hello_refusals: List::with_capacity(2),
@@ -36,34 +36,30 @@ fn chip(number: u64) -> Chip {
     Chip {
         task: number,
         title: DocumentText::complete(text(b"task")),
-        executor: Executor::Agent { charter: 1 },
+        executor: ChipExecutor::Agent { charter: 1 },
         phase: Phase::Waiting,
-        details: Box::new(chip_details(OwnerChipPhase::Waiting {
-            dependencies: list(vec![]),
-            more: false,
-            holds: false,
-        })),
+        details: Box::new(chip_details(ChipPhase::Waiting { dependencies: list(vec![]), more: false, holds: false })),
     }
 }
-fn run(task: OwnerTaskLink, state: OwnerAttemptState, location: OwnerRunLocation) -> OwnerHostRun {
-    OwnerHostRun { task, attempt: u64::MAX, kept: u32::MAX, listed: false, state, location, grace_until: None }
+fn run(task: TaskLink, state: AttemptState, location: RunLocation) -> HostRun {
+    HostRun { task, attempt: u64::MAX, kept: u32::MAX, listed: false, state, location, grace_until: None }
 }
-fn round_trip(value: OwnerDeployment) {
+fn round_trip(value: Deployment) {
     let mut setup = script();
-    setup.truth.owner_deployment = Some(value.clone());
+    setup.truth.deployment = Some(value.clone());
     let mut engine = Engine::new(setup, 1).unwrap();
     engine.read(Time::ZERO, 11, Token::new(1), Read::Deployment).unwrap();
     assert_eq!(
         engine.poll(Time::ZERO),
         vec![Up::Read {
             token: Token::new(1),
-            terminal: ReadResult::Value(ReadValue::OwnerDeployment(Box::new(value.clone())))
+            terminal: ReadResult::Value(ReadValue::Deployment(Box::new(value.clone())))
         }]
     );
     engine.open(Time::ZERO, 11, Token::new(2), Subject::Deployment).unwrap();
     let events = engine.poll(Time::ZERO);
     let expected =
-        Up::Watch { token: Token::new(2), event: WatchEvent::Delivered(Delivery::OwnerDeployment(Box::new(value))) };
+        Up::Watch { token: Token::new(2), event: WatchEvent::Delivered(Delivery::Deployment(Box::new(value))) };
     assert!(events.contains(&expected));
     assert!(engine.commits().is_empty());
 }
@@ -71,8 +67,8 @@ fn round_trip(value: OwnerDeployment) {
 fn deployment_whole_twenty_one_fields_independent_capacities_loss_and_source_order_reach_read_and_watch() {
     let mut value = empty();
     value.projects = list(vec![
-        OwnerProjectCapacity { project: u32::MAX, tasks: OwnerCapacity { used: 23, limit: 29 }, proposals: 31 },
-        OwnerProjectCapacity { project: 0, tasks: OwnerCapacity { used: 37, limit: 41 }, proposals: 43 },
+        ProjectCapacity { project: u32::MAX, tasks: Capacity { used: 23, limit: 29 }, proposals: 31 },
+        ProjectCapacity { project: 0, tasks: Capacity { used: 37, limit: 41 }, proposals: 43 },
     ]);
     round_trip(value);
     let mut value = empty();
@@ -86,36 +82,36 @@ fn deployment_whole_twenty_one_fields_independent_capacities_loss_and_source_ord
 #[test]
 fn deployment_hosts_ten_attempt_states_three_placements_task_links_and_absent_clocks_are_independent() {
     let states = [
-        OwnerAttemptState::Waiting,
-        OwnerAttemptState::Adopted,
-        OwnerAttemptState::Claimed,
-        OwnerAttemptState::Cancelled,
-        OwnerAttemptState::Handed,
-        OwnerAttemptState::Acknowledged,
-        OwnerAttemptState::Stray,
-        OwnerAttemptState::Kept,
-        OwnerAttemptState::Fenced,
-        OwnerAttemptState::Closed,
+        AttemptState::Waiting,
+        AttemptState::Adopted,
+        AttemptState::Claimed,
+        AttemptState::Cancelled,
+        AttemptState::Handed,
+        AttemptState::Acknowledged,
+        AttemptState::Stray,
+        AttemptState::Kept,
+        AttemptState::Fenced,
+        AttemptState::Closed,
     ];
     let places = [
-        OwnerRunLocation::None,
-        OwnerRunLocation::Connected { channel: u64::MAX, kind: OwnerHostKind::Engine },
-        OwnerRunLocation::Adrift { channel: None, until: None, remaining: None },
-        OwnerRunLocation::Adrift { channel: Some(0), until: Some(Wall::EPOCH), remaining: Some(Duration::ZERO) },
+        RunLocation::None,
+        RunLocation::Connected { channel: u64::MAX, kind: HostKind::Engine },
+        RunLocation::Adrift { channel: None, until: None, remaining: None },
+        RunLocation::Adrift { channel: Some(0), until: Some(Wall::EPOCH), remaining: Some(Duration::ZERO) },
     ];
     for (i, state) in states.into_iter().enumerate() {
         let mut value = empty();
-        let attempt = run(OwnerTaskLink::Stored { number: u64::MAX, status: None }, state, places[i % places.len()]);
+        let attempt = run(TaskLink::Stored { number: u64::MAX, status: None }, state, places[i % places.len()]);
         value.attempts.push(attempt.clone()).unwrap();
         value
             .hosts
-            .push(OwnerHost {
+            .push(Host {
                 name: None,
                 awaiting_logins: false,
                 rule: HostRule::Open,
                 programs: List::with_capacity(0),
                 channel: u64::MAX,
-                kind: OwnerHostKind::Worker,
+                kind: HostKind::Worker,
                 slots: u32::MAX,
                 used: 7,
                 free: 13,
@@ -130,28 +126,28 @@ fn deployment_hosts_ten_attempt_states_three_placements_task_links_and_absent_cl
         round_trip(value);
     }
     for task in [
-        OwnerTaskLink::Live(chip(0)),
-        OwnerTaskLink::Retained { chip: chip(u64::MAX), at: None },
-        OwnerTaskLink::Retained { chip: chip(u64::MAX), at: Some(Wall::EPOCH) },
-        OwnerTaskLink::Stored { number: 0, status: Some(OwnerTaskStatus::Cancelled) },
+        TaskLink::Live(chip(0)),
+        TaskLink::Retained { chip: chip(u64::MAX), at: None },
+        TaskLink::Retained { chip: chip(u64::MAX), at: Some(Wall::EPOCH) },
+        TaskLink::Stored { number: 0, status: Some(TaskStatus::Cancelled) },
     ] {
         let mut value = empty();
-        let mut attempt = run(task, OwnerAttemptState::Closed, places[0]);
+        let mut attempt = run(task, AttemptState::Closed, places[0]);
         attempt.grace_until = Some(Wall::EPOCH);
         value.attempts.push(attempt).unwrap();
         round_trip(value);
     }
 }
-fn account_states() -> [OwnerAccountState; 8] {
+fn account_states() -> [AccountState; 8] {
     [
-        OwnerAccountState::Granted,
-        OwnerAccountState::Asking,
-        OwnerAccountState::SignInAgain,
-        OwnerAccountState::Misconfigured,
-        OwnerAccountState::Later { until: Some(Wall::EPOCH) },
-        OwnerAccountState::Unloaded { at: OwnerAccountPlace::File, why: OwnerAccountUnread::Refused },
-        OwnerAccountState::Cancelled,
-        OwnerAccountState::Closing,
+        AccountState::Granted,
+        AccountState::Asking,
+        AccountState::SignInAgain,
+        AccountState::Misconfigured,
+        AccountState::Later { until: Some(Wall::EPOCH) },
+        AccountState::Unloaded { at: AccountPlace::File, why: AccountUnread::Refused },
+        AccountState::Cancelled,
+        AccountState::Closing,
     ]
 }
 #[test]
@@ -161,7 +157,7 @@ fn deployment_accounts_five_states_independent_flags_spend_overlay_and_generatio
             let mut value = empty();
             value
                 .accounts
-                .push(OwnerAccount {
+                .push(Account {
                     provider_name: None,
                     manage_usage: None,
                     place: 0,
@@ -169,7 +165,7 @@ fn deployment_accounts_five_states_independent_flags_spend_overlay_and_generatio
                     plan: false,
                     provider: None,
                     display: DocumentText { bytes: Text::new(Box::from([]), 32).expect("empty display"), cut: false },
-                    holder: OwnerAccountHolder::Deployment,
+                    holder: AccountHolder::Deployment,
                     sources: List::with_capacity(0),
                     number: u32::MAX,
                     generation: Some(u64::MAX),
@@ -190,15 +186,15 @@ fn deployment_accounts_five_states_independent_flags_spend_overlay_and_generatio
 #[test]
 fn deployment_three_hello_refusals_keep_advertised_stop_bound_allowed_grace_and_original_clock() {
     for why in [
-        OwnerHelloRefusal::Position { worker: u32::MAX },
-        OwnerHelloRefusal::ReservedChannel,
-        OwnerHelloRefusal::Workers { limit: u32::MAX },
-        OwnerHelloRefusal::StopBound { grace: Duration::from_nanos(17) },
+        HelloRefusal::Position { worker: u32::MAX },
+        HelloRefusal::ReservedChannel,
+        HelloRefusal::Workers { limit: u32::MAX },
+        HelloRefusal::StopBound { grace: Duration::from_nanos(17) },
     ] {
         let mut value = empty();
         value
             .hello_refusals
-            .push(OwnerHelloRefusalLine {
+            .push(HelloRefusalLine {
                 channel: u64::MAX,
                 at: Wall::EPOCH,
                 slots: u32::MAX,
@@ -210,23 +206,20 @@ fn deployment_three_hello_refusals_keep_advertised_stop_bound_allowed_grace_and_
     }
 }
 
-fn person(action: OwnerPersonCapacityAction, cause: OwnerPersonCapacityCause) -> OwnerPersonCapacityRefusal {
-    OwnerPersonCapacityRefusal {
-        key: OwnerRequestKey {
-            person: u64::MAX,
-            key: [0, 255, 1, 254, 2, 253, 3, 252, 4, 251, 5, 250, 6, 249, 7, 248],
-        },
+fn person(action: PersonCapacityAction, cause: PersonCapacityCause) -> PersonCapacityRefusal {
+    PersonCapacityRefusal {
+        key: RequestKey { person: u64::MAX, key: [0, 255, 1, 254, 2, 253, 3, 252, 4, 251, 5, 250, 6, 249, 7, 248] },
         project: None,
         action,
         at: Wall::EPOCH,
         cause,
     }
 }
-fn task(action: OwnerTaskCapacityAction, cause: OwnerTaskCapacityCause) -> OwnerTaskCapacityRefusal {
-    OwnerTaskCapacityRefusal {
-        request: OwnerTaskCapacityRequest {
+fn task(action: TaskCapacityAction, cause: TaskCapacityCause) -> TaskCapacityRefusal {
+    TaskCapacityRefusal {
+        request: TaskCapacityRequest {
             project: Some(u32::MAX),
-            by: OwnerRequester::Deployment { project: u32::MAX },
+            by: Requester::Deployment { project: u32::MAX },
             action,
             cause,
         },
@@ -236,7 +229,7 @@ fn task(action: OwnerTaskCapacityAction, cause: OwnerTaskCapacityCause) -> Owner
 #[test]
 fn deployment_person_actions_four_causes_all_structural_limits_and_opaque_request_keys_survive() {
     use AdmissionLimit as L;
-    use OwnerPersonCapacityAction as A;
+    use PersonCapacityAction as A;
     let actions = [
         A::Create,
         A::Compound,
@@ -265,10 +258,7 @@ fn deployment_person_actions_four_causes_all_structural_limits_and_opaque_reques
     ];
     for action in actions {
         let mut value = empty();
-        value
-            .person_room_refusals
-            .push(person(action, OwnerPersonCapacityCause::Requests { limit: u32::MAX }))
-            .unwrap();
+        value.person_room_refusals.push(person(action, PersonCapacityCause::Requests { limit: u32::MAX })).unwrap();
         round_trip(value);
     }
     let limits = [
@@ -313,13 +303,11 @@ fn deployment_person_actions_four_causes_all_structural_limits_and_opaque_reques
         let mut value = empty();
         value
             .person_room_refusals
-            .push(person(A::Application { connector: u16::MAX }, OwnerPersonCapacityCause::Limit { which }))
+            .push(person(A::Application { connector: u16::MAX }, PersonCapacityCause::Limit { which }))
             .unwrap();
         round_trip(value);
     }
-    for cause in
-        [OwnerPersonCapacityCause::Pending { limit: u32::MAX }, OwnerPersonCapacityCause::Waiters { limit: u32::MAX }]
-    {
+    for cause in [PersonCapacityCause::Pending { limit: u32::MAX }, PersonCapacityCause::Waiters { limit: u32::MAX }] {
         let mut value = empty();
         let mut refusal = person(A::Application { connector: u16::MAX }, cause);
         refusal.project = Some(0);
@@ -329,8 +317,8 @@ fn deployment_person_actions_four_causes_all_structural_limits_and_opaque_reques
 }
 #[test]
 fn deployment_task_actions_fourteen_causes_three_requesters_and_four_funders_keep_full_width_values() {
-    use OwnerTaskCapacityAction as A;
-    use OwnerTaskCapacityCause as C;
+    use TaskCapacityAction as A;
+    use TaskCapacityCause as C;
     let actions = [
         A::Batch { first: None, members: u32::MAX },
         A::Batch { first: Some(0), members: 0 },
@@ -375,11 +363,7 @@ fn deployment_task_actions_fourteen_causes_three_requesters_and_four_funders_kee
         value.task_room_refusals.push(task(A::Move, cause)).unwrap();
         round_trip(value);
     }
-    for by in [
-        OwnerRequester::Task(u64::MAX),
-        OwnerRequester::Person(u64::MAX),
-        OwnerRequester::Deployment { project: u32::MAX },
-    ] {
+    for by in [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }] {
         let mut value = empty();
         let mut refusal = task(A::Release, C::Tasks { limit: 0 });
         refusal.request.by = by;

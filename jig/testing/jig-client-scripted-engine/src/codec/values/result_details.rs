@@ -1,57 +1,50 @@
 //! Wire projections of result details facts (client/domain/testing.md, 4).
 use super::super::{c, facts, pieces, w};
-use super::{wire_owner_executor, wire_proposal_key, wire_task_contract_document};
-pub(in crate::codec) fn wire_owner_requester(
-    value: &c::OwnerRequester,
-    limits: &w::Limits,
-) -> Result<w::OwnerRequester, w::Problem> {
+use super::{wire_executor, wire_proposal_key, wire_task_contract_document};
+pub(in crate::codec) fn wire_requester(value: &c::Requester, limits: &w::Limits) -> Result<w::Requester, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::OwnerRequester::Task(value) => {
-            w::OwnerRequester::Task(w::OwnerRequesterTask::new(limits, w::OwnerRequesterTaskParts { value: *(value) })?)
+        c::Requester::Task(value) => {
+            w::Requester::Task(w::RequesterTask::new(limits, w::RequesterTaskParts { value: *(value) })?)
         }
-        c::OwnerRequester::Person(value) => w::OwnerRequester::Person(w::OwnerRequesterPerson::new(
+        c::Requester::Person(value) => {
+            w::Requester::Person(w::RequesterPerson::new(limits, w::RequesterPersonParts { value: *(value) })?)
+        }
+        c::Requester::Deployment { project } => w::Requester::Deployment(w::RequesterDeployment::new(
             limits,
-            w::OwnerRequesterPersonParts { value: *(value) },
-        )?),
-        c::OwnerRequester::Deployment { project } => w::OwnerRequester::Deployment(w::OwnerRequesterDeployment::new(
-            limits,
-            w::OwnerRequesterDeploymentParts { project: *(project) },
+            w::RequesterDeploymentParts { project: *(project) },
         )?),
     })
 }
 
-pub(in crate::codec) fn wire_owner_task_status(
-    value: &c::OwnerTaskStatus,
+pub(in crate::codec) fn wire_task_status(
+    value: &c::TaskStatus,
     _limits: &w::Limits,
-) -> Result<w::OwnerTaskStatus, w::Problem> {
+) -> Result<w::TaskStatus, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::OwnerTaskStatus::Done => w::OwnerTaskStatus::Done,
-        c::OwnerTaskStatus::Failed => w::OwnerTaskStatus::Failed,
-        c::OwnerTaskStatus::Cancelled => w::OwnerTaskStatus::Cancelled,
+        c::TaskStatus::Done => w::TaskStatus::Done,
+        c::TaskStatus::Failed => w::TaskStatus::Failed,
+        c::TaskStatus::Cancelled => w::TaskStatus::Cancelled,
     })
 }
 
-pub(in crate::codec) fn wire_owner_task_link(
-    value: &c::OwnerTaskLink,
-    limits: &w::Limits,
-) -> Result<w::OwnerTaskLink, w::Problem> {
+pub(in crate::codec) fn wire_task_link(value: &c::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::OwnerTaskLink::Live(value) => w::OwnerTaskLink::Live(w::OwnerTaskLinkLive::new(
+        c::TaskLink::Live(value) => w::TaskLink::Live(w::TaskLinkLive::new(
             limits,
-            w::OwnerTaskLinkLiveParts { value: facts::chip(value, limits)? },
+            w::TaskLinkLiveParts { value: facts::chip(value, limits)? },
         )?),
-        c::OwnerTaskLink::Retained { chip, at } => w::OwnerTaskLink::Retained(w::OwnerTaskLinkRetained::new(
+        c::TaskLink::Retained { chip, at } => w::TaskLink::Retained(w::TaskLinkRetained::new(
             limits,
-            w::OwnerTaskLinkRetainedParts {
+            w::TaskLinkRetainedParts {
                 chip: facts::chip(chip, limits)?,
                 at: (at).as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
             },
         )?),
-        c::OwnerTaskLink::Stored { number, status } => w::OwnerTaskLink::Stored(w::OwnerTaskLinkStored::new(
+        c::TaskLink::Stored { number, status } => w::TaskLink::Stored(w::TaskLinkStored::new(
             limits,
-            w::OwnerTaskLinkStoredParts {
+            w::TaskLinkStoredParts {
                 number: *(number),
-                status: (status).as_ref().map(|item| wire_owner_task_status(item, limits)).transpose()?,
+                status: (status).as_ref().map(|item| wire_task_status(item, limits)).transpose()?,
             },
         )?),
     })
@@ -65,22 +58,22 @@ pub(in crate::codec) fn wire_result_details(
         limits,
         w::ResultDetailsParts {
             contract: wire_task_contract_document(&value.contract, limits)?,
-            requester: wire_owner_requester(&value.requester, limits)?,
-            executor: wire_owner_executor(&value.executor, limits)?,
+            requester: wire_requester(&value.requester, limits)?,
+            executor: wire_executor(&value.executor, limits)?,
             chosen_by: value.chosen_by.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             delegates: pieces(
-                value.delegates.iter().map(|item| wire_owner_task_link(item, limits)),
-                w::OwnerTaskLink::measure,
-                w::OwnerTaskLink::encode,
+                value.delegates.iter().map(|item| wire_task_link(item, limits)),
+                w::TaskLink::measure,
+                w::TaskLink::encode,
             )?,
             followups: value
                 .followups
                 .as_ref()
                 .map(|item| {
                     pieces(
-                        (item).iter().map(|item| wire_owner_task_link(item, limits)),
-                        w::OwnerTaskLink::measure,
-                        w::OwnerTaskLink::encode,
+                        (item).iter().map(|item| wire_task_link(item, limits)),
+                        w::TaskLink::measure,
+                        w::TaskLink::encode,
                     )
                 })
                 .transpose()?,

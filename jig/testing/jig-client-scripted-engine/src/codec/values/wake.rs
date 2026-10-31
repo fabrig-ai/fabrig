@@ -1,12 +1,12 @@
 //! Wire projections of owner wake facts (client/domain/testing.md, 4).
 use super::super::{c, list, w};
-pub(in crate::codec) fn wire_owner_wake_policy(
-    value: &c::OwnerWakePolicy,
+pub(in crate::codec) fn wire_wake_policy(
+    value: &c::WakePolicy,
     limits: &w::Limits,
-) -> Result<w::OwnerWakePolicy, w::Problem> {
-    w::OwnerWakePolicy::new(
+) -> Result<w::WakePolicy, w::Problem> {
+    w::WakePolicy::new(
         limits,
-        w::OwnerWakePolicyParts {
+        w::WakePolicyParts {
             words: wire_wake_rule(&value.words, limits)?,
             notices: wire_wake_rule(&value.notices, limits)?,
             news: wire_wake_rule(&value.news, limits)?,

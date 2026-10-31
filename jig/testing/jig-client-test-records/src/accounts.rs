@@ -7,14 +7,14 @@ use skein_lib::Duration;
 pub fn account_sources_record() -> Box<[u8]> {
     let l = limits();
     let sources = [
-        w::OwnerAccountSource::new(
+        w::AccountSource::new(
             &l,
-            w::OwnerAccountSourceParts {
+            w::AccountSourceParts {
                 name: None,
                 place: 2,
                 number: 11,
-                kind: w::OwnerAccountKind::SignIn,
-                state: w::OwnerAccountState::Granted,
+                kind: w::AccountKind::SignIn,
+                state: w::AccountState::Granted,
                 usable: true,
                 expiring: false,
                 attention: true,
@@ -22,16 +22,15 @@ pub fn account_sources_record() -> Box<[u8]> {
             },
         )
         .expect("literal"),
-        w::OwnerAccountSource::new(
+        w::AccountSource::new(
             &l,
-            w::OwnerAccountSourceParts {
+            w::AccountSourceParts {
                 name: None,
                 place: 5,
                 number: 12,
-                kind: w::OwnerAccountKind::Key,
-                state: w::OwnerAccountState::Later(
-                    w::OwnerAccountStateLater::new(&l, w::OwnerAccountStateLaterParts { until: None })
-                        .expect("literal"),
+                kind: w::AccountKind::Key,
+                state: w::AccountState::Later(
+                    w::AccountStateLater::new(&l, w::AccountStateLaterParts { until: None }).expect("literal"),
                 ),
                 usable: false,
                 expiring: true,
@@ -44,22 +43,21 @@ pub fn account_sources_record() -> Box<[u8]> {
     pieces(sources.iter().map(|s| encoded(s.measure(), |w| s.encode(w))))
 }
 #[must_use]
-pub fn account_line_record() -> w::OwnerAccountLine {
+pub fn account_line_record() -> w::AccountLine {
     let l = limits();
-    w::OwnerAccountLine::new(
+    w::AccountLine::new(
         &l,
-        w::OwnerAccountLineParts {
+        w::AccountLineParts {
             provider_name: None,
             manage_usage: None,
             number: 7,
             place: 3,
             uses: Some(rows([
-                w::OwnerAccountUse::Party(
-                    w::OwnerAccountUseParty::new(&l, w::OwnerAccountUsePartyParts { party: 23 }).expect("literal"),
+                w::AccountUse::Party(
+                    w::AccountUseParty::new(&l, w::AccountUsePartyParts { party: 23 }).expect("literal"),
                 ),
-                w::OwnerAccountUse::Project(
-                    w::OwnerAccountUseProject::new(&l, w::OwnerAccountUseProjectParts { project: 29 })
-                        .expect("literal"),
+                w::AccountUse::Project(
+                    w::AccountUseProject::new(&l, w::AccountUseProjectParts { project: 29 }).expect("literal"),
                 ),
             ])),
             plan: true,
@@ -69,8 +67,8 @@ pub fn account_line_record() -> w::OwnerAccountLine {
                 w::DocumentTextParts { bytes: Box::from(b"Personal".as_slice()), cut: true },
             )
             .expect("literal"),
-            holder: w::OwnerAccountHolder::Party(
-                w::OwnerAccountHolderParty::new(&l, w::OwnerAccountHolderPartyParts { party: 23 }).expect("literal"),
+            holder: w::AccountHolder::Party(
+                w::AccountHolderParty::new(&l, w::AccountHolderPartyParts { party: 23 }).expect("literal"),
             ),
             sources: account_sources_record(),
             cut: true,
@@ -79,12 +77,12 @@ pub fn account_line_record() -> w::OwnerAccountLine {
     .expect("literal")
 }
 #[must_use]
-pub fn accounts_record(end: Option<w::OwnerAccountEnd>) -> w::OwnerAccounts {
+pub fn accounts_record(end: Option<w::AccountEnd>) -> w::Accounts {
     let l = limits();
     let line = account_line_record();
-    let other = w::OwnerAccountLine::new(
+    let other = w::AccountLine::new(
         &l,
-        w::OwnerAccountLineParts {
+        w::AccountLineParts {
             provider_name: None,
             manage_usage: None,
             number: 9,
@@ -93,26 +91,26 @@ pub fn accounts_record(end: Option<w::OwnerAccountEnd>) -> w::OwnerAccounts {
             plan: false,
             provider: None,
             display: wire_text(b""),
-            holder: w::OwnerAccountHolder::Deployment,
+            holder: w::AccountHolder::Deployment,
             sources: Box::from([]),
             cut: false,
         },
     )
     .expect("literal");
-    let signing = w::OwnerAccountSignIn::new(
+    let signing = w::AccountSignIn::new(
         &l,
-        w::OwnerAccountSignInParts {
+        w::AccountSignInParts {
             source: 19,
             provider: 3,
-            holder: w::OwnerAccountHolder::Party(
-                w::OwnerAccountHolderParty::new(&l, w::OwnerAccountHolderPartyParts { party: 23 }).expect("literal"),
+            holder: w::AccountHolder::Party(
+                w::AccountHolderParty::new(&l, w::AccountHolderPartyParts { party: 23 }).expect("literal"),
             ),
         },
     )
     .expect("literal");
-    w::OwnerAccounts::new(
+    w::Accounts::new(
         &l,
-        w::OwnerAccountsParts {
+        w::AccountsParts {
             skein_bools: [true, false, true, false],
             readiness: Box::new([]),
             program_hosts: Box::new([]),
@@ -121,101 +119,84 @@ pub fn accounts_record(end: Option<w::OwnerAccountEnd>) -> w::OwnerAccounts {
                 encoded(other.measure(), |w| other.encode(w)),
             ]),
             signing: pieces([encoded(signing.measure(), |w| signing.encode(w))]),
-            last_end: end.map(|end| {
-                w::OwnerAccountLastEnd::new(&l, w::OwnerAccountLastEndParts { source: 11, end }).expect("literal")
-            }),
+            last_end: end
+                .map(|end| w::AccountLastEnd::new(&l, w::AccountLastEndParts { source: 11, end }).expect("literal")),
         },
     )
     .expect("literal")
 }
 #[must_use]
-pub fn account_end_records() -> Vec<w::OwnerAccountEnd> {
+pub fn account_end_records() -> Vec<w::AccountEnd> {
     let l = limits();
     let mut ends = vec![
-        w::OwnerAccountEnd::Made(
-            w::OwnerAccountEndMade::new(&l, w::OwnerAccountEndMadeParts { account: 7, declined: false })
-                .expect("literal"),
+        w::AccountEnd::Made(
+            w::AccountEndMade::new(&l, w::AccountEndMadeParts { account: 7, declined: false }).expect("literal"),
         ),
-        w::OwnerAccountEnd::Renewed(
-            w::OwnerAccountEndRenewed::new(&l, w::OwnerAccountEndRenewedParts { account: 7, declined: true })
-                .expect("literal"),
+        w::AccountEnd::Renewed(
+            w::AccountEndRenewed::new(&l, w::AccountEndRenewedParts { account: 7, declined: true }).expect("literal"),
         ),
     ];
     let refusals = [
-        w::OwnerAccountRefusal::NotLimited,
-        w::OwnerAccountRefusal::Uses,
-        w::OwnerAccountRefusal::NotKept(
-            w::OwnerAccountRefusalNotKept::new(
-                &l,
-                w::OwnerAccountRefusalNotKeptParts { why: w::OwnerAccountKeyFailure::NotStored },
-            )
-            .expect("literal"),
-        ),
-        w::OwnerAccountRefusal::Limit(
-            w::OwnerAccountRefusalLimit::new(
-                &l,
-                w::OwnerAccountRefusalLimitParts { bound: w::OwnerAccountBound::HolderAccounts },
-            )
-            .expect("literal"),
-        ),
-        w::OwnerAccountRefusal::Held(
-            w::OwnerAccountRefusalHeld::new(&l, w::OwnerAccountRefusalHeldParts { provider: 3 }).expect("literal"),
-        ),
-        w::OwnerAccountRefusal::Provider(
-            w::OwnerAccountRefusalProvider::new(&l, w::OwnerAccountRefusalProviderParts { provider: 3 })
+        w::AccountRefusal::NotLimited,
+        w::AccountRefusal::Uses,
+        w::AccountRefusal::NotKept(
+            w::AccountRefusalNotKept::new(&l, w::AccountRefusalNotKeptParts { why: w::AccountKeyFailure::NotStored })
                 .expect("literal"),
         ),
-        w::OwnerAccountRefusal::Subject,
-        w::OwnerAccountRefusal::Unknown,
-        w::OwnerAccountRefusal::Numbers,
-        w::OwnerAccountRefusal::Kind(
-            w::OwnerAccountRefusalKind::new(&l, w::OwnerAccountRefusalKindParts { kind: w::OwnerAccountKind::Program })
+        w::AccountRefusal::Limit(
+            w::AccountRefusalLimit::new(&l, w::AccountRefusalLimitParts { bound: w::AccountBound::HolderAccounts })
                 .expect("literal"),
         ),
-        w::OwnerAccountRefusal::Closing,
-        w::OwnerAccountRefusal::NotStarted,
-        w::OwnerAccountRefusal::NotSignedIn,
-        w::OwnerAccountRefusal::NotOurs,
-        w::OwnerAccountRefusal::Cancelled,
-        w::OwnerAccountRefusal::Moving,
+        w::AccountRefusal::Held(
+            w::AccountRefusalHeld::new(&l, w::AccountRefusalHeldParts { provider: 3 }).expect("literal"),
+        ),
+        w::AccountRefusal::Provider(
+            w::AccountRefusalProvider::new(&l, w::AccountRefusalProviderParts { provider: 3 }).expect("literal"),
+        ),
+        w::AccountRefusal::Subject,
+        w::AccountRefusal::Unknown,
+        w::AccountRefusal::Numbers,
+        w::AccountRefusal::Kind(
+            w::AccountRefusalKind::new(&l, w::AccountRefusalKindParts { kind: w::AccountKind::Program })
+                .expect("literal"),
+        ),
+        w::AccountRefusal::Closing,
+        w::AccountRefusal::NotStarted,
+        w::AccountRefusal::NotSignedIn,
+        w::AccountRefusal::NotOurs,
+        w::AccountRefusal::Cancelled,
+        w::AccountRefusal::Moving,
     ];
     for refusal in refusals {
-        ends.push(w::OwnerAccountEnd::Refused(
-            w::OwnerAccountEndRefused::new(&l, w::OwnerAccountEndRefusedParts { refusal }).expect("literal"),
+        ends.push(w::AccountEnd::Refused(
+            w::AccountEndRefused::new(&l, w::AccountEndRefusedParts { refusal }).expect("literal"),
         ));
     }
     let failures = [
-        w::OwnerAccountFailure::Later(
-            w::OwnerAccountFailureLater::new(
-                &l,
-                w::OwnerAccountFailureLaterParts { after: Some(Duration::from_nanos(103)) },
-            )
-            .expect("literal"),
-        ),
-        w::OwnerAccountFailure::Later(
-            w::OwnerAccountFailureLater::new(&l, w::OwnerAccountFailureLaterParts { after: None }).expect("literal"),
-        ),
-        w::OwnerAccountFailure::SignInAgain,
-        w::OwnerAccountFailure::MissingScope(
-            w::OwnerAccountFailureMissingScope::new(&l, w::OwnerAccountFailureMissingScopeParts { scope: 31 })
+        w::AccountFailure::Later(
+            w::AccountFailureLater::new(&l, w::AccountFailureLaterParts { after: Some(Duration::from_nanos(103)) })
                 .expect("literal"),
         ),
-        w::OwnerAccountFailure::Misconfigured,
-        w::OwnerAccountFailure::Unloaded(
-            w::OwnerAccountFailureUnloaded::new(
+        w::AccountFailure::Later(
+            w::AccountFailureLater::new(&l, w::AccountFailureLaterParts { after: None }).expect("literal"),
+        ),
+        w::AccountFailure::SignInAgain,
+        w::AccountFailure::MissingScope(
+            w::AccountFailureMissingScope::new(&l, w::AccountFailureMissingScopeParts { scope: 31 }).expect("literal"),
+        ),
+        w::AccountFailure::Misconfigured,
+        w::AccountFailure::Unloaded(
+            w::AccountFailureUnloaded::new(
                 &l,
-                w::OwnerAccountFailureUnloadedParts {
-                    at: w::OwnerAccountPlace::File,
-                    why: w::OwnerAccountUnread::Stalled,
-                },
+                w::AccountFailureUnloadedParts { at: w::AccountPlace::File, why: w::AccountUnread::Stalled },
             )
             .expect("literal"),
         ),
-        w::OwnerAccountFailure::Cancelled,
+        w::AccountFailure::Cancelled,
     ];
     for failure in failures {
-        ends.push(w::OwnerAccountEnd::Failed(
-            w::OwnerAccountEndFailed::new(&l, w::OwnerAccountEndFailedParts { failure }).expect("literal"),
+        ends.push(w::AccountEnd::Failed(
+            w::AccountEndFailed::new(&l, w::AccountEndFailedParts { failure }).expect("literal"),
         ));
     }
     ends

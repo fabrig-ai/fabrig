@@ -1,18 +1,18 @@
 use jig_client_domain::contract::*;
 use skein_lib::List;
-pub(super) fn source() -> OwnerProject {
-    OwnerProject {
+pub(super) fn source() -> Project {
+    Project {
         number: 1,
         name: DocumentText::complete(super::text(b"Kit")),
         acts: List::with_capacity(2),
         resources: List::with_capacity(2),
-        policy: OwnerProjectPolicy {
+        policy: ProjectPolicy {
             templates: skein_lib::List::with_capacity(0),
-            ceiling: OwnerAuthorityDocument::complete(OwnerAuthority {
+            ceiling: AuthorityDocument::complete(Authority {
                 models: None,
                 tools: u64::MAX,
                 grants: List::with_capacity(0),
-                delegation: OwnerDelegation { kinds: List::with_capacity(0), tasks: u32::MAX, depth: u32::MAX },
+                delegation: Delegation { kinds: List::with_capacity(0), tasks: u32::MAX, depth: u32::MAX },
                 spend: u64::MAX,
                 deadline: None,
                 notes: u8::MAX,

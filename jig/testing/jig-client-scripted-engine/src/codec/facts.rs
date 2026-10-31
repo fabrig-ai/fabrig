@@ -16,7 +16,7 @@ impl Facts {
     }
     pub(super) fn chip_phase(
         &mut self,
-        value: &c::ChipPhase,
+        value: &c::ChipPhaseFacts,
         parent: Option<u32>,
         limits: &w::Limits,
     ) -> Result<u32, w::Problem> {
@@ -24,7 +24,7 @@ impl Facts {
         self.rows.push(None);
         let row = w::Fact::ChipPhase(w::ChipPhaseRow::new(
             limits,
-            w::ChipPhaseRowParts { parent, value: values::wire_chip_phase_owner_fields(value, limits, self, index)? },
+            w::ChipPhaseRowParts { parent, value: values::wire_chip_phase_fields(value, limits, self, index)? },
         )?);
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
@@ -89,38 +89,32 @@ impl Facts {
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }
-    pub(super) fn owner_chip_details(
+    pub(super) fn chip_details(
         &mut self,
-        value: &c::OwnerChipDetails,
+        value: &c::ChipDetails,
         parent: Option<u32>,
         limits: &w::Limits,
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::OwnerChipDetails(Box::new(w::OwnerChipDetailsRow::new(
+        let row = w::Fact::ChipDetails(Box::new(w::ChipDetailsRow::new(
             limits,
-            w::OwnerChipDetailsRowParts {
-                parent,
-                value: values::wire_owner_chip_details_fields(value, limits, self, index)?,
-            },
+            w::ChipDetailsRowParts { parent, value: values::wire_chip_details_fields(value, limits, self, index)? },
         )?));
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }
-    pub(super) fn owner_chip_ending(
+    pub(super) fn chip_ending(
         &mut self,
-        value: &c::OwnerChipEnding,
+        value: &c::ChipEnding,
         parent: Option<u32>,
         limits: &w::Limits,
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::OwnerChipEnding(w::OwnerChipEndingRow::new(
+        let row = w::Fact::ChipEnding(w::ChipEndingRow::new(
             limits,
-            w::OwnerChipEndingRowParts {
-                parent,
-                value: values::wire_owner_chip_ending_fields(value, limits, self, index)?,
-            },
+            w::ChipEndingRowParts { parent, value: values::wire_chip_ending_fields(value, limits, self, index)? },
         )?);
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
@@ -171,14 +165,11 @@ pub(super) fn hold_reason(value: &c::HoldReason, limits: &w::Limits) -> Result<w
     let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), w::Fact::measure, w::Fact::encode)?;
     w::HoldReason::new(limits, w::HoldReasonParts { rows })
 }
-pub(super) fn owner_chip_ending(
-    value: &c::OwnerChipEnding,
-    limits: &w::Limits,
-) -> Result<w::OwnerChipEnding, w::Problem> {
+pub(super) fn chip_ending(value: &c::ChipEnding, limits: &w::Limits) -> Result<w::ChipEnding, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };
-    facts.owner_chip_ending(value, None, limits)?;
+    facts.chip_ending(value, None, limits)?;
     let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), w::Fact::measure, w::Fact::encode)?;
-    w::OwnerChipEnding::new(limits, w::OwnerChipEndingParts { rows })
+    w::ChipEnding::new(limits, w::ChipEndingParts { rows })
 }
 pub(super) fn result_value(value: &c::ResultValue, limits: &w::Limits) -> Result<w::ResultValue, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };

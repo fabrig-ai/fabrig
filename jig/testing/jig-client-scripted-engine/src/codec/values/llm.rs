@@ -1,7 +1,7 @@
 //! Wire projections of llm facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, list, w};
 use super::{
-    wire_document_text, wire_owner_account_use, wire_owner_hello_refusal, wire_owner_host_kind, wire_task_source_place,
+    wire_account_use, wire_document_text, wire_hello_refusal, wire_host_kind, wire_task_source_place,
     wire_task_source_unread,
 };
 pub(in crate::codec) fn wire_llm_choice(value: &c::LlmChoice, limits: &w::Limits) -> Result<w::LlmChoice, w::Problem> {
@@ -139,9 +139,9 @@ pub(in crate::codec) fn wire_task_wait_refused(
         c::TaskWaitRefused::Hello { kind, at, why } => w::TaskWaitRefused::Hello(w::TaskWaitHello::new(
             limits,
             w::TaskWaitHelloParts {
-                kind: wire_owner_host_kind(kind, limits)?,
+                kind: wire_host_kind(kind, limits)?,
                 at: (at).as_nanos(),
-                why: wire_owner_hello_refusal(why, limits)?,
+                why: wire_hello_refusal(why, limits)?,
             },
         )?),
         c::TaskWaitRefused::Program(value) => w::TaskWaitRefused::Program(w::TaskWaitRefusedProgram::new(
@@ -225,7 +225,7 @@ pub(in crate::codec) fn wire_payer_readiness(
         limits,
         w::PayerReadinessParts {
             provider: value.provider,
-            payer: wire_owner_account_use(&value.payer, limits)?,
+            payer: wire_account_use(&value.payer, limits)?,
             readiness: wire_readiness(&value.readiness, limits)?,
             settled: value.settled.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
         },

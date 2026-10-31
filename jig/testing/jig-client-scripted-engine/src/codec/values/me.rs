@@ -1,8 +1,8 @@
 //! Wire projections of me facts (client/domain/testing.md, 4).
 use super::super::{c, list, pieces, w};
 use super::{
-    wire_beyond, wire_count, wire_document_text, wire_held_role, wire_llm_choice, wire_me_model, wire_needs,
-    wire_owner_authority_document, wire_party_kind, wire_pool_ledger, wire_provider_offer, wire_task_contract_document,
+    wire_authority_document, wire_beyond, wire_count, wire_document_text, wire_held_role, wire_llm_choice,
+    wire_me_model, wire_needs, wire_party_kind, wire_pool_ledger, wire_provider_offer, wire_task_contract_document,
     wire_task_flags, wire_template_budget, wire_template_deadline, wire_template_executor,
 };
 pub(in crate::codec) fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template, w::Problem> {
@@ -32,7 +32,7 @@ pub(in crate::codec) fn wire_bounds_create(
     w::BoundsCreate::new(
         limits,
         w::BoundsCreateParts {
-            authority: wire_owner_authority_document(&value.authority, limits)?,
+            authority: wire_authority_document(&value.authority, limits)?,
             pool_left: value.pool_left,
             charters: list(value.charters.iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
             procedures: list(value.procedures.iter().map(|item| wire_create_procedure(item, limits)))?,

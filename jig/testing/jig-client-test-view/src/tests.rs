@@ -188,13 +188,13 @@ fn family_document_with_second(root: &mut Domain, proposal_count: u64, second: O
     )
 }
 
-fn owner_authority() -> OwnerAuthorityDocument {
-    OwnerAuthorityDocument {
-        authority: OwnerAuthority {
+fn owner_authority() -> AuthorityDocument {
+    AuthorityDocument {
+        authority: Authority {
             models: None,
             tools: 0,
             grants: List::with_capacity(0),
-            delegation: OwnerDelegation { kinds: List::with_capacity(0), tasks: 1, depth: 1 },
+            delegation: Delegation { kinds: List::with_capacity(0), tasks: 1, depth: 1 },
             spend: 1,
             deadline: None,
             notes: 0,
@@ -217,7 +217,7 @@ fn task() -> Task {
         chip: Chip {
             task: 9,
             title: DocumentText::complete(text(&[b't'; 32])),
-            executor: Executor::Procedure { connector: jig_client_test_domain::FIRST, kind: 1 },
+            executor: ChipExecutor::Procedure { connector: jig_client_test_domain::FIRST, kind: 1 },
             phase: Phase::Running,
             details: Box::new(procedure_phase()),
         },
@@ -226,7 +226,7 @@ fn task() -> Task {
         lineage_chips: list([]),
         inputs: list([]),
         project: 3,
-        requester: OwnerRequester::Person(7),
+        requester: Requester::Person(7),
         lineage: list([]),
         spec: SpecificationDocument::complete(Specification {
             asks: false,
@@ -238,7 +238,7 @@ fn task() -> Task {
         person_revision: None,
         taken_by: None,
         instructions: Some(DocumentText::complete(text(b"instructions"))),
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Never,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -253,8 +253,8 @@ fn task() -> Task {
         references: list([]),
         cut: false,
         resources: list([]),
-        budget: OwnerBudget {
-            numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+        budget: Budget {
+            numbers: Numbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
             left: 1,
             funder: Funder::Pool { project: 1, person: 7, period: 3 },
             deadline: None,
@@ -272,9 +272,11 @@ fn task() -> Task {
             parts: list([]),
             closing: None,
             spend: list([]),
-            runtime: Runtime::Procedure { panel: Part::Panel { connector: jig_client_test_domain::FIRST, task: 9 } },
+            runtime: Runtime::Procedure {
+                panel: ApplicationPart::Panel { connector: jig_client_test_domain::FIRST, task: 9 },
+            },
             impact: Impact {
-                tasks: PhaseCounts {
+                tasks: ImpactCounts {
                     ended: 0,
                     waiting: 0,
                     running: 0,
@@ -291,16 +293,16 @@ fn task() -> Task {
         })),
     }
 }
-fn proposal(key: ProposalKey) -> OwnerProposal {
-    OwnerProposal {
+fn proposal(key: ProposalKey) -> Proposal {
+    Proposal {
         key,
         project: 3,
         reason: DocumentText::complete(text(&[b'w'; 32])),
-        action: OwnerProposalAction::Effect {
-            part: OwnerPart {
+        action: ProposalAction::Effect {
+            part: Part {
                 connector: jig_client_test_domain::FIRST,
-                kind: OwnerPartKind::Effect,
-                key: OwnerPartKey::Number(key.number),
+                kind: PartKind::Effect,
+                key: PartKey::Number(key.number),
             },
             authority: owner_authority(),
             attempt: 1,
@@ -310,8 +312,8 @@ fn proposal(key: ProposalKey) -> OwnerProposal {
         },
         as_holder: false,
         funding: list([]),
-        waiting: OwnerProposalWaiting {
-            holder: OwnerHistoryHolder::Policy { project: 3, kind: OwnerMessageProposalKind::Effect },
+        waiting: ProposalWaiting {
+            holder: HistoryHolder::Policy { project: 3, kind: MessageProposalKind::Effect },
             since: Wall::EPOCH,
         },
         acts: list([]),
@@ -326,7 +328,7 @@ fn load_cards(root: &mut Domain, rows: Vec<Request>) {
         {
             let value = match what {
                 Read::Task { .. } => ReadValue::Task(Box::new(task())),
-                Read::Proposal { proposal: key } => ReadValue::OwnerProposal(Box::new(proposal(key))),
+                Read::Proposal { proposal: key } => ReadValue::Proposal(Box::new(proposal(key))),
                 _ => continue,
             };
             let parts = drive(
@@ -711,7 +713,11 @@ fn complete_application_object_uses_its_own_zero_value_form_and_exact_terminal_f
 #[test]
 fn unsupported_individual_deployment_parts_say_cannot_show_without_a_project_or_unknown_value() {
     let mut root = ready();
-    let part = Part::Outbox { connector: jig_client_test_domain::FIRST, scope: PartScope::Deployment, entry: u64::MAX };
+    let part = ApplicationPart::Outbox {
+        connector: jig_client_test_domain::FIRST,
+        scope: PartScope::Deployment,
+        entry: u64::MAX,
+    };
     let opened =
         drive(&mut root, Event::First(first::Event::Show { part: part.clone(), scope: family::Scope::Deployment }));
     let read = family_read(&opened);
@@ -855,18 +861,18 @@ fn family_request(ask: first::Ask) -> jig_client::Family {
     }
 }
 
-fn procedure_phase() -> ChipPhase {
-    ChipPhase {
-        phase: OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
-        details: Box::new(OwnerChipDetails {
+fn procedure_phase() -> ChipPhaseFacts {
+    ChipPhaseFacts {
+        phase: ChipPhase::Active(RunStage::Running { attempt: 1 }),
+        details: Box::new(ChipDetails {
             dependencies: list([]),
             project: 3,
-            executor: OwnerExecutor::Procedure { connector: jig_client_test_domain::FIRST, code: 1 },
+            executor: Executor::Procedure { connector: jig_client_test_domain::FIRST, code: 1 },
             phase_since: Wall::EPOCH,
             run_since: None,
             attempt: Some(1),
             retry: None,
-            wake: OwnerWakePolicy {
+            wake: WakePolicy {
                 words: WakeRule::Never,
                 notices: WakeRule::Never,
                 news: WakeRule::Never,
@@ -877,8 +883,8 @@ fn procedure_phase() -> ChipPhase {
             },
             person_wait: None,
             hold: None,
-            budget: OwnerBudget {
-                numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+            budget: Budget {
+                numbers: Numbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
                 left: 1,
                 funder: Funder::Period { project: 3, period: 1 },
                 deadline: None,

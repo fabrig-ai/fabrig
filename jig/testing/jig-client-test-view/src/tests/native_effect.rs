@@ -2,12 +2,12 @@ use super::native_hold::{drive, ready, view};
 use super::*;
 use jig_client_test_domain::connector_values as owner;
 
-fn proposal(part: OwnerPart) -> OwnerProposal {
-    OwnerProposal {
+fn proposal(part: Part) -> Proposal {
+    Proposal {
         key: ProposalKey { proposer: Proposer::Task(9), number: 2 },
         project: 11,
         reason: DocumentText::complete(text(b"supplied effect")),
-        action: OwnerProposalAction::Effect {
+        action: ProposalAction::Effect {
             part,
             authority: owner_authority(),
             attempt: 13,
@@ -16,12 +16,12 @@ fn proposal(part: OwnerPart) -> OwnerProposal {
             purpose: 19,
         },
         as_holder: true,
-        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(7), since: Wall::from_nanos(23) },
+        waiting: ProposalWaiting { holder: HistoryHolder::Person(7), since: Wall::from_nanos(23) },
         funding: List::with_capacity(0),
         acts: List::with_capacity(0),
     }
 }
-fn load(root: &mut Domain, proposal: OwnerProposal) -> Vec<Request> {
+fn load(root: &mut Domain, proposal: Proposal) -> Vec<Request> {
     let rows =
         drive(root, Event::Went { place: Place::Address(Address::First(first::Address { project: 3, item: 5 })) });
     drive(
@@ -68,14 +68,14 @@ fn load(root: &mut Domain, proposal: OwnerProposal) -> Vec<Request> {
             event: jig_client::Event::Up {
                 up: jig_client::Up::ReadDone {
                     read,
-                    result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::OwnerProposal(Box::new(proposal)))),
+                    result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Proposal(Box::new(proposal)))),
                 },
             },
         },
     )
 }
-fn part() -> OwnerPart {
-    OwnerPart { connector: jig_client_test_domain::FIRST, kind: OwnerPartKind::Effect, key: OwnerPartKey::Number(17) }
+fn part() -> Part {
+    Part { connector: jig_client_test_domain::FIRST, kind: PartKind::Effect, key: PartKey::Number(17) }
 }
 fn document(subject: family::Subject) -> owner::ConnectorDocument {
     let path = owner::Path::new(list([Box::<[u8]>::from(*b"literal/slash"), Box::<[u8]>::from([255, 0])]), 16).unwrap();
@@ -153,7 +153,7 @@ fn a_native_effect_slot_reads_its_separate_scoped_description_and_releases_it_on
     assert_eq!(root.first().object(id).unwrap().value, first::Value::Known(family::Document::Connector(supplied)));
     let retained =
         root.jig().objects().get(root.jig().objects().find(ObjectKey::Proposal(original.key)).unwrap()).unwrap();
-    let jig_client_view::objects::Body::OwnerProposal(retained) = retained.body.as_ref().unwrap() else {
+    let jig_client_view::objects::Body::Proposal(retained) = retained.body.as_ref().unwrap() else {
         panic!("whole owner proposal")
     };
     assert_eq!(retained.as_ref(), &original);
@@ -176,7 +176,7 @@ fn a_native_effect_slot_reads_its_separate_scoped_description_and_releases_it_on
 fn a_path_keyed_native_effect_keeps_whole_proposal_facts_without_inventing_a_read() {
     let mut root = ready();
     let mut part = part();
-    part.key = OwnerPartKey::Path(list([Box::<[u8]>::from(*b"number/17"), Box::<[u8]>::from([255, 0])]));
+    part.key = PartKey::Path(list([Box::<[u8]>::from(*b"number/17"), Box::<[u8]>::from([255, 0])]));
     let original = proposal(part);
     let rows = load(&mut root, original.clone());
     assert!(
@@ -195,7 +195,7 @@ fn a_path_keyed_native_effect_keeps_whole_proposal_facts_without_inventing_a_rea
     assert!(view.tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"Cannot show this part".as_slice())));
     let retained =
         root.jig().objects().get(root.jig().objects().find(ObjectKey::Proposal(original.key)).unwrap()).unwrap();
-    let jig_client_view::objects::Body::OwnerProposal(retained) = retained.body.as_ref().unwrap() else {
+    let jig_client_view::objects::Body::Proposal(retained) = retained.body.as_ref().unwrap() else {
         panic!("whole owner proposal")
     };
     assert_eq!(retained.as_ref(), &original);

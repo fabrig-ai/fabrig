@@ -1,12 +1,12 @@
 use super::*;
 
 #[test]
-fn owner_escalation_script_preserves_supplied_identity_scope_and_outer_offer_without_synthetic_terminal() {
+fn escalation_script_preserves_supplied_identity_scope_and_outer_offer_without_synthetic_terminal() {
     let mut setup = script();
     let mut task = task();
     task.context = None;
     task.acts = list(vec![Offered { effect: None, act: ActKind::Stop, admission: Admission::Allowed }]);
-    let value = ReadValue::OwnerEscalation(Box::new(OwnerEscalation {
+    let value = ReadValue::Escalation(Box::new(Escalation {
         task: Box::new(task),
         acts: list(vec![Offered { effect: None, act: ActKind::Release, admission: Admission::Allowed }]),
     }));
