@@ -1,7 +1,5 @@
 //! Result-paced print parent and private configuration fixtures, per
-//! protocol/programs.md, sections 5 and 8.
-
-#![allow(dead_code)]
+//! smith/docs/design/protocol/programs.md, sections 5 and 8.
 
 use super::{Invocation, Run};
 use skein_fake_machine::Item;

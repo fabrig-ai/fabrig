@@ -1,4 +1,4 @@
-//! Charter accounts are admitted before any provider effect (domain/run.md, section 4).
+//! Charter accounts are admitted before any provider effect (smith/docs/design/domain/run.md, section 4).
 use smith_agent_world::{Job, Settings, scripted_charter, world};
 use smith_domain::run;
 
@@ -127,8 +127,8 @@ fn counts(world: &World) -> (usize, usize, usize, usize) {
 
 #[test]
 fn nonrenewable_401_count_proof() {
-    // Attempts/retries/activation terminals/notices, observed at actual boundaries.
-    // The first row is the regression: former policy produces (4, 3, 1, 1).
+    // Attempts/retries/activation terminals/notices, observed at boundaries.
+    // The first row requires the nonrenewable counter to settle each admitted call.
     for (label, account, held, replacement, expected, generations) in [
         ("static key", Some(0), Some(grant(1, false, GRANT_LIFETIME)), None, (1, 0, 1, 1), vec![1]),
         ("no account", None, None, None, (1, 0, 1, 0), vec![]),
@@ -212,7 +212,7 @@ fn nonrenewable_401_count_proof() {
         if expected.1 == 0 {
             assert_eq!(
                 world.answered_at(),
-                world.completions()[0].terminal.expect("actual failure").0,
+                world.completions()[0].terminal.expect("failure").0,
                 "{label}: terminal does not wait for backoff"
             );
         }

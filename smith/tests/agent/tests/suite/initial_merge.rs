@@ -1,7 +1,7 @@
-//! A shared fake-git merge genuinely precedes Start. The parent refuses the
-//! actual unresolved tree, then commits the LLM's checked resolution with both
+//! A shared fake-git merge precedes Start. The parent refuses the
+//! unresolved tree, then commits the LLM's checked resolution with both
 //! original parents. No marker fixture or anticipated outcome stands in for git.
-//! Contract: domain/run.md, sections 3.2, 8.1–8.4 and 13; testing-strategy.md, section 4.3.
+//! Contract: smith/docs/design/domain/run.md, sections 3.2, 8.1–8.4 and 13; skein/docs/foundation/testing-strategy.md, section 4.3.
 
 use std::collections::BTreeMap;
 
@@ -42,7 +42,7 @@ impl Store {
         {
             let tree = [
                 (b"conflict.txt".to_vec(), value.to_vec()),
-                (b"AGENTS.md".to_vec(), b"Resolve the actual conflict.txt before delivery.".to_vec()),
+                (b"AGENTS.md".to_vec(), b"Resolve the conflict.txt before delivery.".to_vec()),
                 (b".temper/pre-pr".to_vec(), b"#!checks".to_vec()),
                 (b"src/lib.rs".to_vec(), b"pub fn answer() -> u32 { 43 }\n".to_vec()),
             ]
@@ -127,7 +127,7 @@ fn scripts() -> Box<[Script]> {
                     call(b"read", br#"{"path":"conflict.txt"}"#),
                     call(b"read", br#"{"path":"../notes/data.txt"}"#),
                 ]),
-                calls(vec![call(b"write", br#"{"path":"conflict.txt","content":"resolved by the actual LLM"}"#)]),
+                calls(vec![call(b"write", br#"{"path":"conflict.txt","content":"resolved by the LLM"}"#)]),
                 calls(vec![call(
                     b"edit",
                     br#"{"path":"../notes/data.txt","edits":[{"old":"old","new":"delivered-plain"}]}"#,
@@ -163,7 +163,7 @@ struct Fixture {
     store: Store,
     readonly_git: Tree,
     readonly_plain: Tree,
-    actual_conflicts: Vec<Vec<u8>>,
+    seen_conflicts: Vec<Vec<u8>>,
     roots: [Token; 4],
 }
 
@@ -171,8 +171,8 @@ fn setup() -> Fixture {
     let mut store = Store::new();
     let mut disk = Checkout::new();
     git::clone_repository(&mut store, &mut disk, b"merge-story", b"work").expect("shared clone imports both parents");
-    git::check_out(&store, &mut disk, b"work", 2).expect("actual local ours");
-    let merged = git::merge(&store, &mut disk, b"work", 3).expect("actual merge in progress before Start");
+    git::check_out(&store, &mut disk, b"work", 2).expect("local ours");
+    let merged = git::merge(&store, &mut disk, b"work", 3).expect("merge in progress before Start");
     assert_eq!(merged.conflicts, [b"conflict.txt".to_vec()]);
     assert_eq!(disk.content(b"work/conflict.txt"), Some(MARKERS));
     assert_eq!(store.commits.len(), 3, "merge makes no commit");
@@ -188,7 +188,7 @@ fn setup() -> Fixture {
     let readonly_git = disk.tree(b"archive");
     let readonly_plain = disk.tree(b"reference");
     let roots = [b"work".as_slice(), b"archive", b"notes", b"reference"].map(|name| Token::new(disk.root(name)));
-    let actual_conflicts = merged.conflicts;
+    let seen_conflicts = merged.conflicts;
     let workspace = run::Workspace {
         directories: Box::new([
             run::Directory {
@@ -197,7 +197,7 @@ fn setup() -> Fixture {
                 root: roots[0],
                 writable: true,
                 git: true,
-                conflicts: actual_conflicts.iter().map(|path| path.as_slice().into()).collect(),
+                conflicts: seen_conflicts.iter().map(|path| path.as_slice().into()).collect(),
             },
             run::Directory {
                 host: Box::from(b"/host".as_slice()),
@@ -230,7 +230,7 @@ fn setup() -> Fixture {
     settings.limits.session.tools.repos = 4;
     let mut world = World::with_workspace_scripts(settings, None, Some(workspace), disk, scripts());
     world.enable_parent_deliveries();
-    Fixture { world, store, readonly_git, readonly_plain, actual_conflicts, roots }
+    Fixture { world, store, readonly_git, readonly_plain, seen_conflicts, roots }
 }
 
 fn submitted(world: &mut World, count: usize) -> Token {
@@ -240,7 +240,7 @@ fn submitted(world: &mut World, count: usize) -> Token {
             return world.delivery_submissions()[count - 1].owner;
         }
     }
-    panic!("actual initial-merge delivery {count} never arrived");
+    panic!("initial-merge delivery {count} never arrived");
 }
 
 fn contains(bytes: &[u8], part: &[u8]) -> bool {
@@ -279,8 +279,8 @@ fn conflict_read(turn: &smith_domain::Turn) -> bool {
 }
 
 fn assert_conflict_read(world: &World, root: Token) {
-    let turn = world.turns().iter().find(|turn| turn.sequence == 3).expect("actual main read completion");
-    assert!(conflict_read(turn), "actual main call/result pair contains all five unresolved lines: {turn:?}");
+    let turn = world.turns().iter().find(|turn| turn.sequence == 3).expect("main read completion");
+    assert!(conflict_read(turn), "main call/result pair contains all five unresolved lines: {turn:?}");
     for field in 0..3 {
         let mut corrupted = turn.clone();
         for block in corrupted.messages.iter_mut().flat_map(|message| &mut message.content) {
@@ -316,7 +316,7 @@ fn assert_conflict_read(world: &World, root: Token) {
                 && *at > world.delivery_submissions()[0].at && *at < world.delivery_submissions()[1].at)
         })
         .count();
-    assert_eq!(reads, 2, "child and main issue actual loads after refusal and before resolved delivery");
+    assert_eq!(reads, 2, "child and main issue loads after refusal and before resolved delivery");
     assert!(
         world
             .prompts()
@@ -326,37 +326,37 @@ fn assert_conflict_read(world: &World, root: Token) {
             .flat_map(|message| &message.parts)
             .any(|part| matches!(part,
             Part::ToolOutput { output, is_error: false, .. } if output.as_ref() == READ_RESULT)),
-        "the typed fixture renders byte content through Debug, preserving the actual complete read"
+        "the typed fixture renders byte content through Debug, preserving the complete read"
     );
 }
 
 #[test]
 fn initial_merge_refusal_resolution_checks_and_two_parent_commit() {
-    let Fixture { mut world, mut store, readonly_git, readonly_plain, actual_conflicts, roots } = setup();
+    let Fixture { mut world, mut store, readonly_git, readonly_plain, seen_conflicts, roots } = setup();
     let first = submitted(&mut world, 1);
     assert_eq!(world.checked(), [true, true]);
     assert_eq!(world.delivery_submissions()[0].name, run::CallName { activation: 1, completion: 1, position: 1 });
     let unresolved = git::commit_merging(&mut store, world.delivery_checkout(first), b"work", 2, 3, b"initial merge");
-    assert_eq!(unresolved, Err(CommitFailure::Unresolved { files: actual_conflicts.clone() }));
-    assert_eq!(store.commits.len(), 3, "failed actual commit creates no object");
-    let Err(CommitFailure::Unresolved { files }) = unresolved else { panic!("actual remaining marker paths") };
+    assert_eq!(unresolved, Err(CommitFailure::Unresolved { files: seen_conflicts.clone() }));
+    assert_eq!(store.commits.len(), 3, "failed commit creates no object");
+    let Err(CommitFailure::Unresolved { files }) = unresolved else { panic!("remaining marker paths") };
     let refusal = run::DeliveryRefusal::new(
-        Some(run::Marker::new(0, files[0].as_slice().into()).expect("actual shared-git relative conflict")),
-        b"initial merge still has actual markers".as_slice().into(),
+        Some(run::Marker::new(0, files[0].as_slice().into()).expect("shared-git relative conflict")),
+        b"initial merge still has markers".as_slice().into(),
     )
-    .expect("bounded actual host refusal");
-    world.return_delivery(first, run::Delivery::Refused(refusal.clone())).expect("one actual refusal terminal");
+    .expect("bounded host refusal");
+    world.return_delivery(first, run::Delivery::Refused(refusal.clone())).expect("one refusal terminal");
     let second = submitted(&mut world, 2);
     assert_eq!(world.delivery_submissions()[1].name, run::CallName { activation: 1, completion: 6, position: 1 });
-    assert_eq!(world.checked(), [true, true, true, true], "both writable checks rerun after actual resolution");
-    assert_eq!(world.disk().content(b"work/conflict.txt"), Some(b"resolved by the actual LLM".as_slice()));
+    assert_eq!(world.checked(), [true, true, true, true], "both writable checks rerun after resolution");
+    assert_eq!(world.disk().content(b"work/conflict.txt"), Some(b"resolved by the LLM".as_slice()));
     assert_eq!(world.disk().content(b"notes/data.txt"), Some(b"delivered-plain".as_slice()));
     let commit = git::commit_merging(&mut store, world.delivery_checkout(second), b"work", 2, 3, b"initial merge")
-        .expect("actual shared merge commit after checked resolution");
+        .expect("shared merge commit after checked resolution");
     assert_eq!(store.parent(commit), Some(2));
     assert_eq!(store.merge_parent(commit), Some(3));
     assert_eq!(store.message(commit), b"initial merge");
-    assert_eq!(store.tree(commit).get(b"conflict.txt".as_slice()), Some(&b"resolved by the actual LLM".to_vec()));
+    assert_eq!(store.tree(commit).get(b"conflict.txt".as_slice()), Some(&b"resolved by the LLM".to_vec()));
     assert!(!world.disk().exists(b"work/.git/MERGE_HEAD"));
     assert_eq!(world.disk().content(b"work/.git/temper-head"), Some(commit.to_le_bytes().as_slice()));
     assert_eq!(world.disk().tree(b"archive"), readonly_git);
@@ -364,14 +364,12 @@ fn initial_merge_refusal_resolution_checks_and_two_parent_commit() {
     assert!(!world.disk().exists(b"notes/.git") && !world.disk().exists(b"reference/.git"));
     let receipt_text = format!("work: merge commit {commit}, parents 2 and 3").into_bytes();
     let receipts = run::Delivered::new(Box::new([
-        run::Receipt::new(0, receipt_text.clone().into()).expect("actual merge commit receipt"),
+        run::Receipt::new(0, receipt_text.clone().into()).expect("merge commit receipt"),
         run::Receipt::new(2, b"notes: delivered-plain files kept".as_slice().into())
-            .expect("actual changed plain-directory receipt"),
+            .expect("changed plain-directory receipt"),
     ]))
     .expect("exact complete changed writable directory set");
-    world
-        .return_delivery(second, run::Delivery::Delivered(receipts.clone()))
-        .expect("actual merge/plain landing terminal");
+    world.return_delivery(second, run::Delivery::Delivered(receipts.clone())).expect("merge/plain landing terminal");
     world.run(10_000);
     assert_eq!(world.pushes(), [run::Delivery::Refused(refusal), run::Delivery::Delivered(receipts)]);
     assert!(matches!(world.answer(), run::Answer::Accepted { outcome: run::outcome::Declared::Report(report), .. }
@@ -395,17 +393,17 @@ fn initial_merge_refusal_resolution_checks_and_two_parent_commit() {
         assert!(contains(&query.system, b"`reference`, which you may only read, a plain directory"));
     }
     let child =
-        world.prompts().iter().find(|query| query.system.starts_with(b"@initial-reader")).expect("actual child opened");
+        world.prompts().iter().find(|query| query.system.starts_with(b"@initial-reader")).expect("child opened");
     assert!(child.tools.iter().all(|tool| [b"read".as_slice(), b"list", b"search"].contains(&tool.name.as_ref())));
     let main =
         world.prompts().iter().filter(|query| query.system.starts_with(b"## Task\n\n@midreport")).collect::<Vec<_>>();
     assert!(main.iter().any(|query| query.messages.iter().flat_map(|message| &message.parts).any(|part|
         matches!(part, Part::ToolOutput { output, is_error: true, .. }
-            if output.as_ref() == b"delivery-refused explanation=\"initial merge still has actual markers\" marker-directory=0 marker-path=\"conflict.txt\""))),
-        "actual marker refusal reaches the LLM unchanged");
+            if output.as_ref() == b"delivery-refused explanation=\"initial merge still has markers\" marker-directory=0 marker-path=\"conflict.txt\""))),
+        "marker refusal reaches the LLM unchanged");
     assert_conflict_read(&world, roots[0]);
     assert!(main.iter().any(|query| query.messages.iter().flat_map(|message| &message.parts).any(|part|
         matches!(part, Part::ToolOutput { output, is_error: false, .. }
             if contains(output, &receipt_text) && contains(output, b"receipt directory=0") && contains(output, b"receipt directory=2")))),
-        "complete actual git/plain receipt names reach the continuation");
+        "complete git/plain receipt names reach the continuation");
 }

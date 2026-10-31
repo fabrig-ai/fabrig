@@ -74,7 +74,7 @@ fn a_sub_agents_completion_gives_no_piece() {
             deltas.extend_from_slice(&delta.text);
         }
     }
-    assert_eq!(deltas, b"actual child answer", "the event owner's child deltas remain observable");
+    assert_eq!(deltas, b"child answer", "the event owner's child deltas remain observable");
 }
 
 const HOLD: &[u8] = b"h";
@@ -143,7 +143,7 @@ fn no_retry_piece_follows_its_turns_record() {
     assert!(last_piece < turn, "no piece follows its turn");
 }
 
-// limits.md 3.6's held-byte bound; one frame leaves no room for live pieces.
+// smith/docs/design/protocol/limits.md 3.6's held-byte bound; one frame leaves no room for live pieces.
 const HELD_BYTES: usize = 16_384;
 const NO_LIVE_ROOM: u32 = 1;
 static HELD_REPLY: [u8; HELD_BYTES] = [b'x'; HELD_BYTES];

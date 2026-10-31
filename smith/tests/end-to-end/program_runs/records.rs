@@ -1,4 +1,4 @@
-//! Independent decoding of each process stream (protocol/events.md, sections 2 and 6).
+//! Independent decoding of each process stream (smith/docs/design/protocol/events.md, sections 2 and 6).
 pub(super) fn read(bytes: &[u8]) -> Vec<smith_events::Record> {
     // The binary harness captures at most one MiB per stream.
     const STREAM_BYTES: u32 = 1_048_576;

@@ -1,7 +1,7 @@
 //! The startup comparisons that use declared numbers and composed machine
 //! limits. No wire destinations or environment names are known here.
 //! `declarations` and `machine` return the first failed relationship.
-//! Contract: protocol/limits.md, section 4.
+//! Contract: smith/docs/design/protocol/limits.md, section 4.
 
 use core::mem::size_of;
 
@@ -66,7 +66,7 @@ pub fn declarations(profile: &Profile, configuration: &Configuration) -> Result<
 }
 
 /// Refuse missing endpoint or model declarations before their bounds are derived.
-/// Contract: protocol/agent.md, section 4.
+/// Contract: smith/docs/design/protocol/agent.md, section 4.
 pub fn configured_models(configuration: &Configuration) -> Result<(), Refusal> {
     if configuration.endpoints.is_empty() {
         return Err(Refusal::Field { limit: LimitName::deployment(Layer::Declared, "endpoints") });
@@ -81,7 +81,7 @@ pub fn configured_models(configuration: &Configuration) -> Result<(), Refusal> {
     Ok(())
 }
 
-// Contract: protocol/limits.md, section 4, `deadlines`.
+// Contract: smith/docs/design/protocol/limits.md, section 4, `deadlines`.
 fn policy_deadlines(profile: &Profile) -> Result<(), Refusal> {
     let policy = profile.policy;
     let values = [
@@ -400,7 +400,7 @@ pub(super) fn transcript_field(field: &'static str, required: Value, available: 
     )
 }
 
-/// The actual configured head, with credential and affinity maxima, fits one transport piece.
+/// The configured head, with credential and affinity maxima, fits one transport piece.
 /// Startup supplies the native measurement before constructing the connection component.
 pub fn request_head(endpoint: u32, required: u32, available: u32) -> Result<(), Refusal> {
     at_most(

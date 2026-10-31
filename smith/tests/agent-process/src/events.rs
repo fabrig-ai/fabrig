@@ -9,7 +9,7 @@ pub fn check(records: &[Record]) {
     check_transport(records, false);
 }
 
-/// Check program stream conformance with the unknown request measures of events.md 3.5.
+/// Check program stream conformance with the unknown request measures of smith/docs/design/protocol/events.md 3.5.
 pub fn check_program(records: &[Record], received: &[serde_json::Value]) {
     check_transport(records, true);
     let mut captured = Vec::<Vec<Vec<u8>>>::new();
@@ -55,7 +55,7 @@ pub fn check_program(records: &[Record], received: &[serde_json::Value]) {
 
 #[expect(
     clippy::too_many_lines,
-    reason = "one exhaustive Smith record referee keeps all18 pairings and actual count/charge checks together"
+    reason = "one exhaustive Smith record referee keeps all18 pairings and count/charge checks together"
 )]
 #[expect(
     clippy::wildcard_enum_match_arm,
@@ -91,7 +91,7 @@ fn check_transport(records: &[Record], program: bool) {
             Event::RunCompleted(run) => {
                 assert!(!answered.contains(&run.run));
                 answered.push(run.run);
-                assert_eq!(run.spent, spent, "actual run spend equals its response charges");
+                assert_eq!(run.spent, spent, "run spend equals its response charges");
                 assert_eq!(
                     [
                         run.usage.input_tokens,
@@ -111,10 +111,8 @@ fn check_transport(records: &[Record], program: bool) {
             }
             Event::ConversationClosed(conversation) => {
                 let identity = (conversation.run, conversation.conversation);
-                let index = conversations
-                    .iter()
-                    .position(|opened| *opened == identity)
-                    .expect("one actual opening before closure");
+                let index =
+                    conversations.iter().position(|opened| *opened == identity).expect("one opening before closure");
                 conversations.remove(index);
             }
             Event::ResponseStarted(response) => {
@@ -146,10 +144,10 @@ fn check_transport(records: &[Record], program: bool) {
                 let index = responses
                     .iter()
                     .position(|started| *started == identity)
-                    .expect("one actual provider handoff before terminal");
+                    .expect("one provider handoff before terminal");
                 responses.remove(index);
-                spent = spent.checked_add(response.spent).expect("bounded actual charges");
-                let actual = [
+                spent = spent.checked_add(response.spent).expect("bounded charges");
+                let seen = [
                     response.usage.input_tokens,
                     response.usage.cache_read_tokens,
                     response.usage.cache_write_tokens,
@@ -157,7 +155,7 @@ fn check_transport(records: &[Record], program: bool) {
                     response.usage.reasoning_tokens,
                 ];
                 if reported_usage {
-                    for (sum, value) in usage.iter_mut().zip(actual) {
+                    for (sum, value) in usage.iter_mut().zip(seen) {
                         *sum = match (*sum, value) {
                             (Some(sum), Some(value)) => Some(sum.checked_add(value).expect("bounded usage")),
                             (None, Some(value)) => Some(value),
@@ -165,7 +163,7 @@ fn check_transport(records: &[Record], program: bool) {
                         };
                     }
                 } else {
-                    usage = actual;
+                    usage = seen;
                     reported_usage = true;
                 }
                 let started = records[..position]
@@ -192,7 +190,7 @@ fn check_transport(records: &[Record], program: bool) {
                 calls.push(identity);
                 match header.capture {
                     smith_events::Capture::Calls | smith_events::Capture::Everything => {
-                        let input = call.input.as_ref().expect("the actual call carries its provider arguments");
+                        let input = call.input.as_ref().expect("the call carries its provider arguments");
                         assert_eq!(u64::try_from(input.len()).expect("bounded input length"), call.input_bytes);
                         if header.capture == smith_events::Capture::Everything {
                             let arguments = records
@@ -216,7 +214,7 @@ fn check_transport(records: &[Record], program: bool) {
                                     }
                                     _ => None,
                                 })
-                                .expect("the independently decoded provider completion contains the actual call");
+                                .expect("the independently decoded provider completion contains the call");
                             assert_eq!(input, arguments, "call inputs equal the provider's original arguments");
                         }
                     }
@@ -226,17 +224,15 @@ fn check_transport(records: &[Record], program: bool) {
             }
             Event::ToolCompleted(call) => {
                 let identity = (call.run, call.conversation, call.call.clone());
-                let index = calls
-                    .iter()
-                    .position(|started| *started == identity)
-                    .expect("one actual call start before terminal");
+                let index =
+                    calls.iter().position(|started| *started == identity).expect("one call start before terminal");
                 calls.remove(index);
                 let line = smith_events::write(
                     record,
                     &smith_events::Capture::Everything,
                     record_limits.get_or_init(|| crate::tracing::event_limits(&crate::limits()).sinks.records),
                 )
-                .expect("actual tool terminal fits its receiving bounds")
+                .expect("tool terminal fits its receiving bounds")
                 .expect("tool terminal is emitted");
                 assert!(
                     !line.windows(b"\"result\":".len()).any(|part| part == b"\"result\":"),
@@ -263,7 +259,7 @@ fn check_transport(records: &[Record], program: bool) {
     }
     assert!(
         responses.is_empty() && conversations.is_empty() && calls.is_empty() && checks.is_empty(),
-        "every actual start settles once"
+        "every start settles once"
     );
     assert_eq!(answered.len(), 1, "one answer includes the entrance refusal");
     assert!(runs.iter().all(|run| answered.contains(run)), "every admitted run answers");
@@ -297,7 +293,7 @@ fn name(event: &Event) -> &'static [u8] {
     }
 }
 
-/// Decode the actual closed append file under its producer's receiving ceiling.
+/// Decode the closed append file under its producer's receiving ceiling.
 #[must_use]
 pub fn read(bytes: &[u8], events: &smith_agent_service::EventLimits) -> Vec<Record> {
     let ceiling = events.sinks.line_ceiling(events.capture).expect("producer line ceiling");

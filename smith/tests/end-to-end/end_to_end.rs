@@ -219,7 +219,7 @@ fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
         "path": "result.txt", "content": "// coding regression\n".repeat(160)
     }))
     .expect("large coding tool arguments");
-    assert!(large.len() > 2048, "coding write exceeds the former input limit");
+    assert!(large.len() > 2048, "coding write exceeds 2,048 bytes");
     let mut turns = vec![(b"write".as_slice(), large)];
     for (name, arguments) in [
         ("read", r#"{"path":"result.txt"}"#),
@@ -258,7 +258,7 @@ fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
             .messages
             .iter()
             .any(|message| { message.parts.iter().any(|part| matches!(part, api::Part::ToolOutput { .. })) })),
-        "follow-up provider prompts contain actual workspace answers"
+        "follow-up provider prompts contain workspace answers"
     );
     let checkout = scratch.checkout();
     let files = checkout.files(&checkout.head().expect("committed head"));
@@ -585,7 +585,7 @@ fn an_ephemeral_directory_is_removed_when_product_startup_refuses() {
 
 /// What an ephemeral run left in the scratch runtime directory, where its
 /// private directory is made; none is ever made under the state directory
-/// (shell.md 4.2).
+/// (smith/docs/design/shell.md 4.2).
 fn ephemeral_directories(scratch: &Scratch) -> Vec<std::path::PathBuf> {
     let state = std::fs::read_dir(scratch.path().join("state")).into_iter().flatten();
     assert!(

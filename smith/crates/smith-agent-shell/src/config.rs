@@ -1,7 +1,7 @@
 //! Generated configuration values or JSON read once before the agent opens its channel.
 //! It retains endpoint names and destinations, program paths, limits, command environment,
 //! and future trace settings; no credential is read here.
-//! Durations in JSON are milliseconds. Contract: protocol/agent.md, sections 4 and 6.
+//! Durations in JSON are milliseconds. Contract: smith/docs/design/protocol/agent.md, sections 4 and 6.
 
 use std::net::SocketAddr;
 #[cfg(unix)]
@@ -285,7 +285,7 @@ pub fn parse(bytes: &[u8]) -> Result<Configuration, String> {
 }
 
 // The exact encoded count supplies machine.env_bytes before the shared encoder
-// validates names. Contract: protocol/limits.md, sections 3.5 and 4.
+// validates names. Contract: smith/docs/design/protocol/limits.md, sections 3.5 and 4.
 fn environment_size_refusal() -> ConfigurationRefusal {
     ConfigurationRefusal::Profile(Refusal::Derived { limit: LimitName::deployment(Layer::Machine, "env_bytes") })
 }
@@ -303,8 +303,6 @@ fn environment_refusal(error: machine::Unencodable) -> ConfigurationRefusal {
 
 fn event_limits(
     limits: &service::Limits,
-    _endpoints: &llm::Endpoints,
-    _declarations: &service::profile::Configuration,
     capture: Capture,
     header: &[smith_events::EffectiveLimit],
     write_deadline: Duration,
@@ -407,14 +405,8 @@ fn build_parts(document: Document) -> Result<Configuration, ConfigurationRefusal
         // First admit the sink, then include its own limits in the receiving header.
         for _ in 0..2 {
             let header = effective_header(&profile, &declarations, &limits, &endpoints.channel, &llm_endpoints)?;
-            limits.events = Some(event_limits(
-                &limits,
-                &llm_endpoints,
-                &declarations,
-                trace.capture,
-                header.as_slice(),
-                profile.policy.write_deadline,
-            )?);
+            limits.events =
+                Some(event_limits(&limits, trace.capture, header.as_slice(), profile.policy.write_deadline)?);
         }
     }
     let mut models = Vec::new();

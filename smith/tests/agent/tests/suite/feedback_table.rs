@@ -1,5 +1,5 @@
 //! Golden bytes for each run call terminal and its nested refusal vocabulary.
-//! Contract: domain/run.md, sections 5.2, 7, 8 and 10; testing-strategy.md, section 7.
+//! Contract: smith/docs/design/domain/run.md, sections 5.2, 7, 8 and 10; skein/docs/foundation/testing-strategy.md, section 7.
 
 use skein_lib::Duration;
 use smith_domain::{feedback, run};

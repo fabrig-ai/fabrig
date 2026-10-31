@@ -1,5 +1,5 @@
 //! Smith's shipped-binary stories: the shared person, browser, peers and scratch
-//! over Skein's real loop (testing.md, sections 2.3 and 5). Only outside
+//! over Skein's real loop (smith/docs/design/testing.md, sections 2.3 and 5). Only outside
 //! observations are kept; no local or agent state is available.
 
 use skein_io::kernel::Exit;
@@ -350,7 +350,7 @@ pub fn run_with_provider(
     assert!(
         records.iter().any(|record| matches!(&record.event,
             smith_events::Event::ToolStarted(started) if started.tool.as_ref() == b"finish")),
-        "agent actually called finish"
+        "agent observed called finish"
     );
     let trace = std::fs::read(path).expect("agent trace");
     for credential in [b"access-new".as_slice(), b"refresh-new".as_slice()] {
@@ -360,7 +360,7 @@ pub fn run_with_provider(
     seen
 }
 
-/// Decode actual append bytes within the producer's configured receiving bounds.
+/// Decode append bytes within the producer's configured receiving bounds.
 /// Each appended invocation is checked independently; a prior prefix stays untouched.
 #[must_use]
 pub fn read_trace(directory: &Path, prefix: &[u8]) -> Vec<smith_events::Record> {
@@ -391,8 +391,8 @@ fn read_trace_resolved(
     let configuration = &resolved.agent;
     let events = configuration.service.limits.events.expect("configured event producer");
     let limits = events.sinks.records;
-    let ceiling = events.sinks.line_ceiling(events.capture).expect("actual writer-derived line ceiling");
-    let bytes = std::fs::read(trace).expect("actual append trace");
+    let ceiling = events.sinks.line_ceiling(events.capture).expect("seen writer-derived line ceiling");
+    let bytes = std::fs::read(trace).expect("seen append trace");
     assert!(bytes.starts_with(prefix), "durable trace prefix stays unchanged");
     let mut reader = smith_events::Reader::with_ceiling(&limits, ceiling)
         .unwrap_or_else(|why| panic!("configured receiving bounds {limits:?}: {why:?}"));
@@ -413,7 +413,7 @@ fn read_trace_resolved(
     for (index, record) in records.iter().enumerate() {
         if matches!(&record.event, smith_events::Event::SessionEnded(_)) {
             smith_agent_process_world::assert_event_conformance(
-                records.get(beginning..=index).expect("one actual process stream"),
+                records.get(beginning..=index).expect("one seen process stream"),
             );
             beginning = index.checked_add(1).expect("bounded trace inventory");
         }

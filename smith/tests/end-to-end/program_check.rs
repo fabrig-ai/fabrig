@@ -1,4 +1,4 @@
-//! Program source startup and check through the shipped binary (shell.md, 4.4, 5.3).
+//! Program source startup and check through the shipped binary (smith/docs/design/shell.md, 4.4, 5.3).
 use super::support;
 use smith_real_world::Scratch;
 use std::os::unix::fs::DirBuilderExt;

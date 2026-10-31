@@ -327,7 +327,7 @@ fn read_past_payload_retains_both_names_values_and_units() {
 }
 
 #[test]
-fn output_at_the_window_names_the_actual_endpoint_and_model() {
+fn output_at_the_window_names_the_seen_endpoint_and_model() {
     let mut configuration = declarations();
     let model = configuration.endpoints.get_mut(0).expect("one endpoint").models.get_mut(0).expect("one model");
     model.window = 8192;
@@ -415,7 +415,7 @@ fn a_larger_inbox_does_not_raise_the_rooms_offer_bound() {
 }
 
 #[test]
-fn native_connection_relationship_keeps_its_actual_values() {
+fn native_connection_relationship_keeps_its_seen_values() {
     let refusal = Refusal::Connection(skein_llm_connection::EndpointError::HttpReadTlsRead { demand: 31, cap: 30 });
     assert_eq!(refusal.check(), None);
     assert_eq!(words(&refusal).as_ref(), b"http-read-tls-read: demand=31 bytes; cap=30 bytes");
@@ -519,7 +519,7 @@ fn window_first_refuses_each_history_dimension_by_its_name() {
 }
 
 #[test]
-fn request_head_and_uncut_rendering_keep_the_actual_byte_sides() {
+fn request_head_and_uncut_rendering_keep_the_seen_byte_sides() {
     validate::request_head(7, 100, 100).expect("head exactly fits");
     let refusal = validate::request_head(7, 101, 100).expect_err("head exceeds transport piece");
     assert_eq!(refusal.check(), Some(Check::RequestHead));

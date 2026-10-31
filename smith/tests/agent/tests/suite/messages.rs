@@ -1,6 +1,6 @@
-//! Actual shared-fake root/run/session messages and V2 replay histories.
-//! Contract: domain/run.md, sections 6, 10 and 13; domain/session.md, section 3;
-//! testing-strategy.md, sections 2.3 and 7.
+//! Shared-fake root/run/session messages and replay histories.
+//! Contract: smith/docs/design/domain/run.md, sections 6, 10 and 13; smith/docs/design/domain/session.md, section 3;
+//! skein/docs/foundation/testing-strategy.md, sections 2.3 and 7.
 
 use skein_fake_llm_domain::api::Part;
 use skein_lib::{Duration, Time, Token};
@@ -24,7 +24,7 @@ fn waiting(seed: u64) -> Settings {
 }
 
 fn history(world: &World) -> smith_domain::Transcript {
-    let first = world.turns().first().expect("actual main output");
+    let first = world.turns().first().expect("main output");
     smith_domain::Transcript {
         version: first.version,
         endpoint: first.endpoint,
@@ -34,7 +34,7 @@ fn history(world: &World) -> smith_domain::Transcript {
 }
 
 #[test]
-fn admission_records_actual_history_independently_of_the_restore_binding() {
+fn admission_records_seen_history_independently_of_the_restore_binding() {
     fn resumed(world: &World) -> bool {
         let mut values = Vec::new();
         for fact in world.facts() {
@@ -72,7 +72,7 @@ fn text_seen(world: &World, expected: &[u8]) -> bool {
 }
 
 #[test]
-fn wait_result_is_deferred_and_opaque_fifo_names_cross_only_actual_turns() {
+fn wait_result_is_deferred_and_opaque_fifo_names_cross_only_seen_turns() {
     let mut world = World::new(waiting(900));
     world.message_at(
         Time::from_nanos(500_000_000),
@@ -147,7 +147,7 @@ fn parked_transcript_resumes_without_recharging_history_or_reusing_activation_nu
     assert_eq!(
         next.turns()[0].usage.input_tokens,
         next.turn_metadata()[0].2.input,
-        "token budget charges only this activation's actual completion"
+        "token budget charges only this activation's completion"
     );
     let mut ignored = World::with_history(waiting(904), Some(saved));
     ignored.run(2000);
@@ -479,7 +479,7 @@ fn maximum_opaque_delivery_receipt_survives_continue_saved_turn_and_resumed_prom
         resumed.prompts()[0].messages.iter().flat_map(|message| &message.parts).any(|part| {
             matches!(part, Part::ToolOutput { output, is_error: false, .. } if output.as_ref() == expected)
         }),
-        "exact ASCII expansion remains in the actual resumed provider prompt"
+        "exact ASCII expansion remains in the seen resumed provider prompt"
     );
-    assert!(resumed.pushes().is_empty(), "restored actual result does not repeat its delivery effect");
+    assert!(resumed.pushes().is_empty(), "restored seen result does not repeat its delivery effect");
 }

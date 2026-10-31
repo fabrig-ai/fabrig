@@ -1,4 +1,4 @@
-//! One print conversation (protocol/programs.md, sections 5 and 8). Keeps
+//! One print conversation (smith/docs/design/protocol/programs.md, sections 5 and 8). Keeps
 //! parsed flags, session and request cursors, a system-cue selection and file
 //! phase; matches cues without otherwise interpreting or retaining prompt text.
 //! Session state survives a process resume.
@@ -268,14 +268,9 @@ impl Print {
                         ];
                     }
                     file::Event::Loaded { bytes, .. } => {
-                        // The original marker meant only that this ID was used.
-                        self.session = if bytes.len() == 1 {
-                            Session::default()
-                        } else {
-                            match serde_json::from_slice(&bytes) {
-                                Ok(session) => session,
-                                Err(_) => return error("invalid session state", 1),
-                            }
+                        self.session = match serde_json::from_slice(&bytes) {
+                            Ok(session) => session,
+                            Err(_) => return error("invalid session state", 1),
                         };
                     }
                     file::Event::Failed { error: skein_io::kernel::Error::NotFound, .. } => {}
@@ -479,7 +474,7 @@ impl Print {
                 self.session.messages.checked_sub(request.start).expect("request precedes turn"),
             )
         } else {
-            // Legacy stories restarted their positional turns in each process.
+            // Positional fallback turns start at zero in each process.
             (Selection::Otherwise, &self.story.turns[..], self.next_turn)
         };
         self.turn = turns.get(turn).cloned().unwrap_or_default();

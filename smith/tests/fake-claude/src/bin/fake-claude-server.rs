@@ -1,4 +1,4 @@
-//! Scripted MCP peer entry point (protocol/programs.md, sections 5 and 8).
+//! Scripted MCP peer entry point (smith/docs/design/protocol/programs.md, sections 5 and 8).
 
 fn main() -> std::process::ExitCode {
     skein_fail_stop::install();

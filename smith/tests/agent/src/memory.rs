@@ -1,4 +1,4 @@
-//! Counting-allocator driver for agent memory contracts (protocol/limits.md, sections 5 and 11).
+//! Counting-allocator driver for agent memory contracts (smith/docs/design/protocol/limits.md, sections 5 and 11).
 //! Containers are allocated before the meter; every entry point drains output and reclaims.
 
 use crate::TIGHT;
@@ -101,7 +101,7 @@ enum OpKind {
     Search { hits: u32, byte_cap: u32 },
 }
 
-/// Receiving contract observed on this actual root request, independently of
+/// Receiving contract observed on this root request, independently of
 /// stored history capacity. Every terminal must fit all three allowances.
 #[derive(Clone, Copy, Debug)]
 struct Receiving {
@@ -118,8 +118,7 @@ struct Driver {
     runs: Vec<(Token, Token)>,
     workers: u64,
     running: Option<smith_domain_tools::JobNumber>,
-    /// Requests seen, by kind: completions, io, looks, checks, pushes,
-    /// Requests: completions, io, looks, checks, pushes, answers; then actual
+    /// Requests: completions, io, looks, checks, pushes, answers; then
     /// full searches, passing/failing checks, delivered/stale/failed delivery,
     /// delivery after parent cancellation, full provider terminals, invalid semantic
     /// feedback, refused starts, provider terminals winning cancellation, and
@@ -134,7 +133,7 @@ impl Driver {
         while let Some(request) = out.pop() {
             match request {
                 Request::HostCall { .. } | Request::WithdrawHost { .. } => {
-                    panic!("random legacy driver has no host declarations")
+                    panic!("random scripted driver has no host declarations")
                 }
                 Request::Admitted { host_run, run } => self.runs.push((host_run, run)),
                 Request::Answer { answer, .. } => {
@@ -375,7 +374,7 @@ impl Driver {
         } else {
             None
         };
-        // Actual submissions make this race reachable; the other half retains
+        // submissions make this race reachable; the other half retains
         // arbitrary stale parent cancellation handles from the original sweep.
         let (host_run, run) = pending_delivery.unwrap_or_else(|| self.runs[index(&mut self.rng, self.runs.len())]);
         for asked in &mut self.asked {
@@ -394,7 +393,7 @@ fn served(prompt: &Prompt) -> (bool, bool) {
     let mut offered = (false, false);
     for tool in &prompt.served {
         match tool {
-            Served::Host(_) => panic!("random legacy driver has no host declarations"),
+            Served::Host(_) => panic!("random scripted driver has no host declarations"),
             Served::Wait | Served::Deliver => {}
             Served::Finish => offered.0 = true,
             Served::SubAgent => offered.1 = true,

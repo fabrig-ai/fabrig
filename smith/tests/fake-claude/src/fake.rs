@@ -1,5 +1,5 @@
-//! One invocation's I/O and settlement (protocol/programs.md, sections 5 and 8;
-//! testing.md, section 4). Startup loads a story and appends names before
+//! One invocation's I/O and settlement (smith/docs/design/protocol/programs.md, sections 5 and 8;
+//! smith/docs/design/testing.md, section 4). Startup loads a story and appends names before
 //! entering a command; terminal exits wait for every descriptor to close.
 
 use skein_io::{
@@ -41,7 +41,7 @@ pub struct Faces {
 }
 
 /// One fake invocation, driven unchanged by a world or the kernel loop.
-/// Commands own no home-directory state (protocol/programs.md, section 8).
+/// Commands own no home-directory state (smith/docs/design/protocol/programs.md, section 8).
 #[derive(Debug)]
 pub struct Fake {
     io: Io,
@@ -434,7 +434,7 @@ impl Fake {
             }
         }
         // Defer buffered reads until queued file effects have been submitted,
-        // just as an I/O demand used to answer on a later loop iteration.
+        // with its answer delivered on a later loop iteration.
         self.read_input();
         self.mcp.progress(&mut self.io_requests);
         self.stdout.progress(self.code.is_some(), &mut self.io_requests);

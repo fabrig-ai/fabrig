@@ -72,7 +72,7 @@ pub fn run() {
         .expect("sample host fixture");
     assert!(host.seen().started && host.seen().admitted, "the generated configuration admitted the run");
     assert!(host.seen().answered.is_some(), "the agent answered");
-    assert_eq!(host.seen().exits, 1, "one actual agent exit");
+    assert_eq!(host.seen().exits, 1, "one agent exit");
     assert_eq!(host.seen().reaps, 1, "the child is reaped");
     referee::review(host.observations()).assert_passed(91);
     smith_real_world::settled::assert_no_children();

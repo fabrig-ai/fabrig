@@ -1,7 +1,7 @@
 //! Scalar fact projections and bounded raw-report totals for the event producer. No provider,
 //! native call text, credential or sink state is known here; the caller supplies
 //! the process clock origin. Budget records enter through [`budget_record`].
-//! Contracts: protocol/events.md, sections 3.8, 3.10 and 4.
+//! Contracts: smith/docs/design/protocol/events.md, sections 3.8, 3.10 and 4.
 
 use alloc::boxed::Box;
 use skein_lib::Time;
@@ -69,7 +69,7 @@ const fn count_value(count: Count) -> Option<u64> {
     }
 }
 
-/// The actual settled checks' exit, with a passing result only for code zero.
+/// The settled checks' exit, with a passing result only for code zero.
 /// The run keeps cancellation and deadline expiry distinct after its tree stops.
 #[must_use]
 pub fn check_exit(exit: run::Exit) -> (smith_events::CheckExit, bool) {
@@ -82,7 +82,7 @@ pub fn check_exit(exit: run::Exit) -> (smith_events::CheckExit, bool) {
     }
 }
 
-/// The actual opening's model, joined to the configured endpoint name and effort.
+/// The opening's model, joined to the configured endpoint name and effort.
 /// The caller supplies configured metadata; no endpoint or model is inferred.
 #[must_use]
 #[expect(clippy::manual_map, reason = "the strict subset requires an explicit match instead of a closure")]
@@ -118,7 +118,7 @@ pub const fn reported_usage(usage: smith_domain::llm::Usage) -> smith_events::Us
     }
 }
 
-/// Tool selection of the actual surviving request handed to the LLM component.
+/// Tool selection of the surviving request handed to the LLM component.
 /// Logical completion-intent facts do not establish a provider request start.
 #[must_use]
 pub const fn request_tool_choice(choice: &smith_domain::llm::ToolChoice) -> smith_events::ToolChoice {
@@ -129,7 +129,7 @@ pub const fn request_tool_choice(choice: &smith_domain::llm::ToolChoice) -> smit
     }
 }
 
-/// A run's actual charge observation, joined to its Start activation and stamped from the process origin.
+/// A run's charge observation, joined to its Start activation and stamped from the process origin.
 #[must_use]
 pub fn budget_record(
     fact: &run::facts::Fact,
@@ -188,7 +188,7 @@ pub struct ChildShare {
     pub clamped: skein_lib::List<smith_events::Clamp>,
 }
 
-/// Project an actual child's opening, keeping an absent ask distinct from a grant.
+/// Project a child's opening, keeping an absent ask distinct from a grant.
 #[must_use]
 #[expect(clippy::manual_map, reason = "the strict subset requires explicit matches")]
 pub fn child_share(kind: run::facts::Kind) -> Option<ChildShare> {
@@ -228,7 +228,7 @@ fn clamp(clamped: &mut skein_lib::List<smith_events::Clamp>, part: smith_events:
     clamped.push(smith_events::Clamp { part, by }).expect("at most two share parts");
 }
 
-/// Join the run's settled usage to the child's actual session terminal and token totals.
+/// Join the run's settled usage to the child's session terminal and token totals.
 /// The caller supplies the stop and nullable provider totals; they are never inferred from a return.
 #[must_use]
 pub fn child_completed(

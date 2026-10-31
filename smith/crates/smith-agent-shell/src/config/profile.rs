@@ -1,4 +1,4 @@
-//! Profile overrides checked before startup (protocol/agent.md, section 4).
+//! Profile overrides checked before startup (smith/docs/design/protocol/agent.md, section 4).
 
 use super::{ConfigurationRefusal, DeclaredOverrides, PolicyOverrides, ProfileDocument, duration};
 use smith_agent_service::{

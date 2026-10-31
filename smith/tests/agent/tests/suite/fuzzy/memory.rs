@@ -51,9 +51,9 @@ fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_po
             }
         }
     }
-    eprintln!("agent memory actual boundary coverage: {seen:?}");
+    eprintln!("agent memory boundary coverage: {seen:?}");
     assert!(seen[..7].iter().all(|count| *count > 10), "every kind of request was made: {seen:?}");
-    assert!(seen[7..].iter().all(|count| *count > 0), "actual terminal and refusal classes occurred: {seen:?}");
+    assert!(seen[7..].iter().all(|count| *count > 0), "terminal and refusal classes occurred: {seen:?}");
 }
 
 #[test]

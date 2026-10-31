@@ -1,5 +1,5 @@
-//! Scripted sign-in and turns for Claude Code (protocol/programs.md, sections 5 and 8;
-//! testing.md, section 4). The fake keeps one command, its story and queued
+//! Scripted sign-in and turns for Claude Code (smith/docs/design/protocol/programs.md, sections 5 and 8;
+//! smith/docs/design/testing.md, section 4). The fake keeps one command, its story and queued
 //! I/O, and knows no person's home or credentials. [`Fake`] is the step
 //! machine, [`hosted`] its world factory and [`main`] its kernel entry point.
 

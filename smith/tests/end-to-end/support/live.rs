@@ -1,4 +1,4 @@
-//! Live account setup and command policy (testing.md, section 2.3).
+//! Live account setup and command policy (smith/docs/design/testing.md, section 2.3).
 //! Keeps only the guarded live root; smith owns all credential reads and writes.
 
 use smith_real_world::Scratch;

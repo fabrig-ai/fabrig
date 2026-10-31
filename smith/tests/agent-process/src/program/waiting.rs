@@ -1,4 +1,4 @@
-//! Host messages released after Waiting or inside a held program turn (programs.md 5.3, 5.9).
+//! Host messages released after Waiting or inside a held program turn (smith/docs/design/protocol/programs.md 5.3, 5.9).
 //! Keeps a script cursor and release deadline; observes wire frames and fake
 //! state, never agent internals. `observe` schedules; `act` only sets the
 //! parent's existing release flag, leaving heap ownership inside its calls.

@@ -1,10 +1,11 @@
 //! One agent run composed from its domain, host channel, LLM and machine.
 //! The service keeps the four machines, bounded routing tables, and the queues
 //! between them. It never knows provider wire syntax, charter policy decisions,
-//! or the meaning of a host's bearer token. [`iterate`] is its only progression
-//! entry point; [`Service::completions`] and [`Service::submissions`] meet a
-//! shell or simulated kernel. Contracts: protocol/agent.md, sections 4–6;
-//! protocol/README.md, sections 5–6.
+//! or the meaning of a host's bearer token. [`iterate`] drives the framed service;
+//! [`Effects`] drives lower effects for a host.
+//! [`Service::completions`] and [`Service::submissions`] meet a
+//! shell or simulated kernel. Contracts: smith/docs/design/protocol/agent.md, sections 4–6;
+//! smith/docs/design/protocol/README.md, sections 5–6.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

@@ -3,36 +3,29 @@
 //! message/block origin and complete ID/name/input; IDs in other historical turns
 //! confer no authority. Entrances observe calls, submissions, terminals and the
 //! exact locally paired prompt; the judge never reads private domain state.
-//! Contract: domain/run.md, sections 5.2 and 13; scratch/client.md, sections 3–5;
-//! testing-strategy.md, section 7.
+//! Contract: smith/docs/design/domain/run.md, sections 5.2 and 13;
+//! skein/docs/foundation/testing-strategy.md, section 7.
 
 use skein_lib::{Time, Token};
 use smith_domain::{llm, run};
 
 /// Public observations retained independently of the implementation.
-/// Contract: domain/run.md, sections 5.2 and 13.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Submission {
-    /// Parent-supplied logical scope. Contract: domain/run.md, section 5.2.
+    /// Parent-supplied logical scope.
     pub host_run: Token,
-    /// Actual callback generation and attempt. Contract: domain/run.md, section 5.2.
     pub relay: run::RelayName,
-    /// Immutable durable transcript name. Contract: domain/run.md, section 5.2.
+    /// Immutable durable transcript name.
     pub name: run::CallName,
-    /// Whole opaque tool identifier. Contract: domain/run.md, section 5.2.
     pub tool: Box<[u8]>,
-    /// Declared scheduling effect. Contract: domain/run.md, section 5.2.
     pub effect: run::HostEffect,
-    /// Whole protocol-attested input. Contract: domain/run.md, section 5.2.
     pub input: run::HostInput,
-    /// Actual admission time. Contract: domain/run.md, section 5.2.
+    /// Admission time.
     pub at: Time,
-    /// Effective bounded relay deadline. Contract: domain/run.md, section 5.2.
     pub deadline: Time,
 }
 
 /// Judge knows public submissions and terminals, never domain state.
-/// Contract: domain/run.md, sections 5.2, 13 and 14.
 #[derive(Debug, Default)]
 pub struct History {
     reply_cap: Option<u32>,
@@ -64,8 +57,6 @@ impl History {
     }
 
     /// Admission rejects live duplicates and mutable recovery input.
-    /// Contract: domain/run.md, section 5.2.
-    ///
     /// # Errors
     /// Rejects duplicate live relays, recovery after answer/feedback/shutdown,
     /// expired deadlines, a relay differing from observed provider name/input,
@@ -81,7 +72,7 @@ impl History {
             return Err("recovery after observed shutdown");
         }
         if self.answered.is_some() {
-            return Err("recovery after actual answer");
+            return Err("recovery after answer");
         }
         if submission.at >= submission.deadline {
             return Err("unbounded or expired relay");
@@ -115,17 +106,13 @@ impl History {
     }
 
     /// Withdrawal is only a request; it retains the live obligation.
-    /// Contract: domain/run.md, section 5.2.
-    ///
     /// # Errors
     /// Rejects a withdrawal naming an attempt that is not currently live.
     pub fn withdraw(&self, relay: run::RelayName) -> Result<(), &'static str> {
         if self.live == Some(relay) { Ok(()) } else { Err("withdrawal names no live relay") }
     }
 
-    /// Actual terminal closes this attempt and preserves any first decision.
-    /// Contract: domain/run.md, section 5.2.
-    ///
+    /// Terminal closes this attempt and preserves any first decision.
     /// # Errors
     /// Rejects unmatched callbacks, terminals before admission, and changed
     /// recorded answers for the same durable operation.
@@ -153,11 +140,9 @@ impl History {
         Ok(())
     }
 
-    /// Conversation feedback must wait for actual terminal and preserve text.
-    /// Contract: domain/run.md, section 5.2.
-    ///
+    /// Conversation feedback must wait for terminal and preserve text.
     /// # Errors
-    /// Rejects early/duplicate feedback or evidence differing from the actual
+    /// Rejects early/duplicate feedback or evidence differing from the
     /// terminal, including erasing uncertain effects into known predecision results.
     pub fn feedback(&mut self, result: &run::Returned) -> Result<(), &'static str> {
         if self.live.is_some() || self.feedback {
@@ -198,16 +183,13 @@ impl History {
         Ok(())
     }
 
-    /// The world binds one actual `ToolUse` call decoded as a served Host ask,
+    /// The world binds one `ToolUse` call decoded as a served Host ask,
     /// before the domain relays it. `message` is the next assistant index from
-    /// the owning actual Complete prompt; `position` is the actual Said index.
+    /// The owning Complete prompt; `position` is the Said index.
     /// Complete original ID/name/input bytes retain that bounded call's identity
     /// until its exact local feedback, or observed shutdown and relay settlement.
     /// Other historical turns may reuse the same provider ID. This single-call
     /// story retains one origin and three caller-bounded byte fields.
-    /// Contract: domain/run.md, sections 5.2 and 13; domain/session.md, section 3;
-    /// scratch/client.md, sections 3–5.
-    ///
     /// # Errors
     /// Rejects a second provider host-tool call in this single-operation story.
     pub fn called(
@@ -271,17 +253,14 @@ impl History {
         Ok(result)
     }
 
-    /// The world observes the next actual provider prompt and requires the
+    /// The world observes the next provider prompt and requires the
     /// retained original assistant call at its message/block origin, followed
     /// by exactly one matching result in its paired User message. Older turns
     /// with the same provider ID do not count. No feedback closes a live relay.
-    /// Contract: domain/run.md, sections 5.2 and 13; domain/session.md, section 3;
-    /// scratch/client.md, sections 3–5.
-    ///
     /// # Errors
     /// Rejects changed/missing call origins, duplicate local call IDs,
     /// missing/duplicate paired feedback, wrong result variants,
-    /// changed text/error classification or feedback before the actual terminal.
+    /// Changed text/error classification or feedback before the terminal.
     pub fn prompt(&mut self, prompt: &llm::Prompt) -> Result<(), &'static str> {
         if self.feedback || self.provider_call.is_none() {
             return Ok(());
@@ -290,7 +269,7 @@ impl History {
         match result {
             Some(llm::Returned::Text { text, error, replay }) => {
                 if self.live.is_some() || replay.is_some() {
-                    return Err("feedback precedes actual terminal or invents replay metadata");
+                    return Err("feedback precedes terminal or invents replay metadata");
                 }
                 if self.reported_too_large {
                     if text.as_ref() != b"host-decided answer-too-large answer-not-shown" || !error {
@@ -364,29 +343,25 @@ impl History {
         }
     }
 
-    /// Record actual outside cancellation or final failed-run shutdown evidence.
-    /// Contract: domain/run.md, sections 5.2 and 10.
+    /// Record outside cancellation or final failed-run shutdown evidence.
     pub fn shutdown(&mut self, at: Time) {
         self.shutdown = self.shutdown.or(Some(at));
     }
 
-    /// Actual outside shutdown time for chronology controls.
-    /// Contract: domain/run.md, sections 5.2 and 10.
+    /// Outside shutdown time for chronology controls.
     #[must_use]
     pub const fn shutdown_at(&self) -> Option<Time> {
         self.shutdown
     }
 
     /// A normal continuation owes exact feedback; observed shutdown may have
-    /// no next provider prompt, but it still owes every actual relay terminal.
-    /// Contract: domain/run.md, sections 5.2 and 10.
-    ///
+    /// No next provider prompt, but it still owes every relay terminal.
     /// # Errors
-    /// Rejects an outstanding actual relay, missing ordinary continuation
+    /// Rejects an outstanding relay, missing ordinary continuation
     /// feedback or a claimed shutdown that was never observed.
     pub fn finish(&self, continuation: bool) -> Result<(), &'static str> {
         if self.live.is_some() {
-            return Err("shutdown abandoned actual relay terminal");
+            return Err("shutdown abandoned relay terminal");
         }
         if !continuation && !self.submissions.is_empty() && self.shutdown.is_none() {
             return Err("shutdown was not observed");
@@ -398,7 +373,6 @@ impl History {
     }
 
     /// Exact observed operations for replay and immutable recovery assertions.
-    /// Contract: domain/run.md, sections 5.2 and 14.
     #[must_use]
     pub fn submissions(&self) -> &[Submission] {
         &self.submissions

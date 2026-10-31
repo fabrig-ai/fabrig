@@ -1,5 +1,5 @@
 //! The event vocabulary's effective names, with configured endpoint and model names.
-//! No addresses or credentials are read. Contract: protocol/limits.md, section 9.
+//! No addresses or credentials are read. Contract: smith/docs/design/protocol/limits.md, section 9.
 
 use super::super::Configuration;
 use super::{Limit, LimitName, Per, Value};

@@ -1,6 +1,6 @@
 //! Scenario configuration and observations of Skein's independent LLM peer.
 //! It keeps no transport state or service state; the peer owns both byte
-//! routing and its script. Contract: testing.md, sections 4 and 5.
+//! routing and its script. Contract: smith/docs/design/testing.md, sections 4 and 5.
 use skein_fake_llm_domain::{self as domain, api};
 use skein_fake_llm_protocol::{documents, provider};
 use skein_fake_peers::{Limits, Transport, llm};
@@ -132,7 +132,7 @@ pub fn configured_anthropic(scripts: Box<[api::Script]>, credential: skein_llm::
     configured_dialect(scripts, credential, Duration::ZERO, Transport::Plaintext, true, false)
 }
 
-/// An actual independent HTTP provider rejection, with no application decoder substitute.
+/// An independent HTTP provider rejection, with no application decoder substitute.
 #[must_use]
 pub fn rejected() -> llm::Peer {
     configured_dialect(
@@ -223,7 +223,7 @@ pub fn queries(peer: &llm::Peer) -> impl Iterator<Item = &api::Query> {
     })
 }
 
-/// Whether the actual script domain emitted a successful terminal.
+/// Whether the script domain emitted a successful terminal.
 #[must_use]
 pub fn replied(peer: &llm::Peer) -> bool {
     peer.observations()
@@ -231,7 +231,7 @@ pub fn replied(peer: &llm::Peer) -> bool {
         .any(|observation| matches!(observation, llm::Observation::Answered { result: Ok(()), .. }))
 }
 
-/// Whether the independent provider actually terminated with the configured context rejection.
+/// Whether the independent provider terminated with the configured context rejection.
 #[must_use]
 pub fn context_rejected(peer: &llm::Peer) -> bool {
     peer.observations().iter().any(|observation| {

@@ -1,4 +1,4 @@
-//! Job observations retain their original call identity (protocol/events.md, section 3.6).
+//! Job observations retain their original call identity (smith/docs/design/protocol/events.md, section 3.6).
 use super::{Event, Record, Scope, Time, command_exit, millis, session, tools, verdict_kind};
 
 pub(super) fn number(job: Option<tools::JobNumber>) -> Option<u64> {

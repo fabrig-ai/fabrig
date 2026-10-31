@@ -1,6 +1,6 @@
 //! Host-owned effects over the service's shared lower stages.
 //! It retains the service and installed grant names, never a root domain or
-//! channel. Contract: domain/host.md, section 9; protocol/hosts.md, section 5.6.
+//! channel. Contract: smith/docs/design/domain/host.md, section 9; smith/docs/design/protocol/hosts.md, section 5.6.
 
 use super::down::{component_down, domain_down};
 use super::routing::{io_down, io_event_owner};
@@ -17,7 +17,7 @@ use smith_protocol_channel as channel;
 
 /// Agent LLM and machine effects owned by a host that keeps the domain itself.
 /// Typed requests have typed terminals, with no channel, frames or agent process
-/// (domain/host.md, section 9; protocol/hosts.md, section 5.6).
+/// (smith/docs/design/domain/host.md, section 9; smith/docs/design/protocol/hosts.md, section 5.6).
 #[derive(Debug)]
 pub struct Effects {
     service: Service,
@@ -174,7 +174,7 @@ impl Effects {
     }
 
     /// Entries in the effects' own handoffs for the colocated host's
-    /// backlog (protocol/limits.md 3.8).
+    /// backlog (smith/docs/design/protocol/limits.md 3.8).
     #[must_use]
     pub fn backlog(&self) -> u64 {
         super::backlog(&self.service)

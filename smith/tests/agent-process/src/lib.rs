@@ -1,6 +1,6 @@
 //! A whole agent service on Skein's simulated kernel, with a scripted host
 //! speaking the real channel schema. The fake machine owns any filesystem and
-//! child-process effects. Contract: protocol/agent.md, sections 4–6.
+//! child-process effects. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use skein_channel::{Role, StreamMode, frame_writer};
 use skein_fake_channel::ScriptedPeer;
@@ -166,7 +166,7 @@ fn derive_limits() -> agent::Limits {
     let profile = profile();
     let configuration = declarations(0);
     let mut limits = agent::profile::derive(&profile, &configuration).expect("tiny profile derives");
-    // Worlds may lower or specialize a derived limit (protocol/limits.md2.2).
+    // Worlds may lower or specialize a derived limit (smith/docs/design/protocol/limits.md, section 2.2).
     limits.domain.run.models = 2;
     limits.domain.configured_model_bytes = 4096;
     limits.llm.connection.endpoints = 1;
@@ -296,7 +296,7 @@ pub fn host() -> ScriptedPeer {
 fn host_with_limits(mut limits: channel::Limits) -> ScriptedPeer {
     let schema = channel::schema_for_start(&limits.bodies, limits.start_bytes).expect("joint Start schema");
     // The scripted host sends the initiator's kinds, with the same joint
-    // Start as the agent receives (protocol/limits.md, section 3, rule 6).
+    // Start as the agent receives (smith/docs/design/protocol/limits.md, section 3, rule 6).
     let mut largest = 0;
     for version in &schema.versions {
         for kind in &version.kinds {
@@ -425,7 +425,7 @@ pub(crate) fn start_root(charter: &[u8], path: &[u8]) -> skein_channel::Frame {
     frame.finish().expect("Start frame")
 }
 
-/// Private credential fixture used to check that channel content stays credential-free.
+/// Private credential fixture for checking that channel content stays credential-free.
 pub const PRIVATE_GRANT: &[u8] = b"native-private-bearer-02.6";
 
 fn scenario_credential(anthropic: bool, private_grant: bool) -> skein_llm::Credential {

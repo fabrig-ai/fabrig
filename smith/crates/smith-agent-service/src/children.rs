@@ -1,10 +1,8 @@
-//! Scalar child joins from actual opening, raw provider usage and settled root facts.
+//! Scalar child joins from opening, raw provider usage and settled root facts.
 //! Each retained entry belongs to one live provider call, until its enclosing
 //! terminal. It keeps no child text, feedback or prompts, and never derives a
-//! child answer from wording. Contracts: protocol/events.md, sections3.6/3.10;
-//! domain/run.md, section5.3.
-
-#![expect(clippy::manual_let_else, reason = "bounded production joins keep explicit Option terminals")]
+//! child answer from wording. Contracts: smith/docs/design/protocol/events.md, sections 3.6 and 3.10;
+//! smith/docs/design/domain/run.md, section 5.3.
 
 use skein_lib::{Map, Time, Token};
 use smith_domain::{llm, run, session};
@@ -53,7 +51,7 @@ impl Book {
                 },
             )
             .expect("one child per provider call still owing a terminal");
-        assert!(previous.is_none(), "an actual child opens once");
+        assert!(previous.is_none(), "a child opens once");
     }
 
     pub(crate) fn received(&mut self, owner: Token, usage: llm::Usage) {
@@ -85,10 +83,7 @@ impl Book {
             | session::FactKind::DelegateCancelled { .. }
             | session::FactKind::DelegateWithheld { .. } => return,
         };
-        let child = match self.children.get_mut(&opener) {
-            Some(child) => child,
-            None => return,
-        };
+        let Some(child) = self.children.get_mut(&opener) else { return };
         match fact.kind {
             session::FactKind::Yielded { stop, .. } => {
                 child.budget = match stop {
@@ -102,9 +97,9 @@ impl Book {
             session::FactKind::Used { .. } => {
                 let spent = fact
                     .response
-                    .expect("actual provider charge accompanies Used")
+                    .expect("provider charge accompanies Used")
                     .spent
-                    .expect("accepted Used carries its actual charge");
+                    .expect("accepted Used carries its charge");
                 child.spent = child.spent.checked_add(spent).expect("source child bill fits");
             }
             session::FactKind::Ended { turns, .. } => child.turns = turns,
@@ -130,7 +125,7 @@ impl Book {
 
     pub(crate) fn ended(&mut self, owner: Token, end: run::facts::EndKind, at: Time) {
         if let Some(child) = self.children.get_mut(&owner) {
-            assert!(!child.ended, "one actual settled root terminal");
+            assert!(!child.ended, "one settled root terminal");
             child.ended = true;
             child.time_ms = at.saturating_since(child.opened).as_nanos() / 1_000_000;
             child.stop = match end {
@@ -148,12 +143,9 @@ impl Book {
     }
 
     pub(crate) fn returned(&mut self, call: Token, result: run::facts::Return) {
-        let owner = match self.owner(call) {
-            Some(owner) => owner,
-            None => return,
-        };
+        let Some(owner) = self.owner(call) else { return };
         let child = self.children.get_mut(&owner).expect("selected child");
-        assert!(child.ended, "the root returns only after the actual child settled");
+        assert!(child.ended, "the root returns only after the child settled");
         let used = match result {
             run::facts::Return::Answered { used, .. } => {
                 child.stop = if child.budget { smith_events::ChildStop::Budget } else { smith_events::ChildStop::End };
@@ -177,15 +169,15 @@ impl Book {
             | run::facts::Return::Stale
             | run::facts::Return::DeliveryFailed
             | run::facts::Return::Busy
-            | run::facts::Return::Refused => unreachable!("an actual child has a child terminal"),
+            | run::facts::Return::Refused => unreachable!("a child has a child terminal"),
         };
         if let Some(used) = used {
-            assert_eq!(used.turns, child.turns, "actual session totals join settled root usage");
+            assert_eq!(used.turns, child.turns, "session totals join settled root usage");
             assert_eq!(used.spend, child.spent, "child own charges join root own spend");
             assert_eq!(
                 used.time.as_nanos() / 1_000_000,
                 child.time_ms,
-                "the actual root interval matches the opening and settled end"
+                "the root interval matches the opening and settled end"
             );
         }
     }
@@ -193,7 +185,7 @@ impl Book {
     pub(crate) fn take(&mut self, call: Token) -> Option<smith_events::ChildCompleted> {
         let owner = self.owner(call)?;
         let child = self.children.remove(&owner).expect("selected child");
-        assert!(child.ended, "an enclosing terminal waits for the actual child terminal");
+        assert!(child.ended, "an enclosing terminal waits for the child terminal");
         Some(smith_events::ChildCompleted {
             conversation: child.number,
             stop: child.stop,

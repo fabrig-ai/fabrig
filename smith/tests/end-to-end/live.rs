@@ -1,4 +1,4 @@
-//! Shipped smith on its own live accounts (testing.md, section 2.3).
+//! Shipped smith on its own live accounts (smith/docs/design/testing.md, section 2.3).
 //! The live profile selects these stories serially, without retries.
 
 #[path = "support/live.rs"]

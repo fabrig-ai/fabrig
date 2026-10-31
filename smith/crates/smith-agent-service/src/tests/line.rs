@@ -1,4 +1,4 @@
-//! Session read results pass the real protocol guard (domain/session.md, 8.1).
+//! Session read results pass the real protocol guard (smith/docs/design/domain/session.md, 8.1).
 
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};

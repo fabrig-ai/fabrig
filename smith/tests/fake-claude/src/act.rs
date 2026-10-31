@@ -1,4 +1,4 @@
-//! Allowed workspace built-ins (protocol/programs.md, sections 5.3, 5.4 and 8).
+//! Allowed workspace built-ins (smith/docs/design/protocol/programs.md, sections 5.3, 5.4 and 8).
 //! Keeps one operation and its bounded edit operands, never permission policy.
 //! `start` and `file` return file effects or a terminal tool result; paths are
 //! resolved from the launch directory in the shared invocation file root.

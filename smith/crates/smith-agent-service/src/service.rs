@@ -1,10 +1,9 @@
 //! Bounded startup and staged routing for one agent process.
-//! The retained state is one root domain, three protocol components, Skein IO,
-//! one file driver, and queues for their requests and terminals. It never
+//! The framed service retains a root domain, protocol components and Skein IO.
+//! The host effects face retains lower components without a root or channel.
+//! Both keep a file driver and queues for their requests and terminals. It never
 //! chooses a domain outcome or interprets a bearer token.
-//! Contract: protocol/agent.md, sections 4–6; protocol/README.md, section 6.
-
-#![expect(clippy::manual_let_else, reason = "production steps use explicit bounded matches")]
+//! Contract: smith/docs/design/protocol/agent.md, sections 4–6; smith/docs/design/protocol/README.md, section 6.
 
 use alloc::boxed::Box;
 
@@ -65,7 +64,7 @@ pub struct Limits {
     pub file_entries: u32,
     pub file_bytes: u32,
     pub file_timeout: Duration,
-    /// Longest hold before projecting live bytes (protocol/limits.md 2.3).
+    /// Longest hold before projecting live bytes (smith/docs/design/protocol/limits.md 2.3).
     pub live_interval: Duration,
     /// Backlog watermark and maximum entries drained per iteration at each stage.
     pub queue: u32,
@@ -78,7 +77,7 @@ pub struct Limits {
 }
 
 /// All startup inputs except the inherited descriptors, which the shell
-/// adopts after constructing the service (protocol/agent.md, section 4).
+/// adopts after constructing the service (smith/docs/design/protocol/agent.md, section 4).
 #[derive(Debug)]
 pub struct Config {
     pub limits: Limits,
@@ -198,7 +197,7 @@ pub struct Service {
 
 const USAGE_OWNER: Token = Token::new(u64::MAX - 1);
 
-/// Whether the owned lower parts can be built (programming-model.md, 6.3).
+/// Whether the owned lower parts can be built (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn effects_valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
     // FileIo's sum checked the four positive capacities; its constructor
@@ -214,7 +213,7 @@ pub fn effects_valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
         && crate::events::valid(limits)
 }
 
-/// Whether all service parts and their IO composition fit (programming-model.md, 6.3).
+/// Whether all service parts and their IO composition fit (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
     effects_valid(limits, endpoints)
@@ -223,19 +222,13 @@ pub fn valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
         && io_valid(limits)
 }
 
-/// Whether native IO tables and the shared socket composition fit (programming-model.md, 6.3).
+/// Whether native IO tables and the shared socket composition fit (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn io_valid(limits: &Limits) -> bool {
     // Skein's IO constructor needs flights = 2 * operations and timers =
-    // 2 * sockets; these checks previously lived under its heap sum.
-    let operations = match io::operations(&limits.io) {
-        Some(operations) => operations,
-        None => return false,
-    };
-    let other = match limits.io.sockets.checked_sub(limits.llm.connection.connections) {
-        Some(other) => other,
-        None => return false,
-    };
+    // 2 * sockets; these checks bound the native IO tables.
+    let Some(operations) = io::operations(&limits.io) else { return false };
+    let Some(other) = limits.io.sockets.checked_sub(limits.llm.connection.connections) else { return false };
     let writers = match limits.events {
         Some(events) => match events.sinks.destinations.checked_add(1) {
             Some(writers) => writers,
@@ -364,10 +357,7 @@ impl Service {
         delivery: crate::sinks::Delivery,
         append: bool,
     ) -> Result<(), kernel::Fd> {
-        let events = match &mut self.events {
-            Some(events) => events,
-            None => return Err(fd),
-        };
+        let Some(events) = &mut self.events else { return Err(fd) };
         if !events.sinks.room_for_destination(destination) {
             return Err(fd);
         }
@@ -378,7 +368,7 @@ impl Service {
         Ok(())
     }
 
-    /// Record the shell's actual startup before any service pass.
+    /// Record the shell's startup before any service pass.
     pub fn start_session(&mut self, now: Time, header: smith_events::SessionStarted) {
         if let Some(events) = &mut self.events {
             events.started(now, header);
@@ -386,7 +376,7 @@ impl Service {
     }
 
     /// One destination IO gave up, and why, for the shell's operator line
-    /// (protocol/events.md, section 5.2).
+    /// (smith/docs/design/protocol/events.md, section 5.2).
     pub fn pop_given_up(&mut self) -> Option<crate::sinks::GivenUp> {
         match &mut self.events {
             Some(events) => events.sinks.pop_given_up(),
@@ -667,7 +657,7 @@ pub fn next_deadline(service: &Service) -> Option<Time> {
 }
 
 /// Earliest policy deadline: the domain's, the LLM's and the machine's,
-/// excluding io's and the files' (skein's testing-strategy.md, section 6).
+/// excluding io's and the files' (skein/docs/foundation/testing-strategy.md, section 6).
 #[must_use]
 pub fn next_policy_deadline(service: &Service) -> Option<Time> {
     let mut earliest = match &service.domain {

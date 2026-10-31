@@ -2,7 +2,7 @@
 //! knows channel bytes and kernel terminals, never agent state; the referee
 //! reads those bytes and independent provider observations, including facts
 //! decoded from the host's channel.
-//! Scheduling, replay and process heaps belong to Skein (testing.md, 2–5).
+//! Scheduling, replay and process heaps belong to Skein (smith/docs/design/testing.md, 2–5).
 use crate::fake;
 
 mod coding;
@@ -617,10 +617,10 @@ impl skein_world::Machine for Machine {
     }
 }
 
-// Reads the actual closed append file; no service or simulator decision is consulted.
+// Reads the closed append file; no service or simulator decision is consulted.
 fn read_records(machine: &mut Machine) -> (Vec<smith_events::Record>, Box<[u8]>) {
     let mut records = Vec::new();
-    let mut actual = Box::new([]) as Box<[u8]>;
+    let mut seen = Box::new([]) as Box<[u8]>;
     if let Some(index) = machine.trace_root {
         let root = machine.files.reopen_root(index);
         let file = machine
@@ -628,14 +628,14 @@ fn read_records(machine: &mut Machine) -> (Vec<smith_events::Record>, Box<[u8]>)
             .open(root, b"events.jsonl", skein_fake_machine::How::ReadNoFollow)
             .expect("settled trace exists");
         let size = u32::try_from(machine.files.stat(file).size).expect("finite trace bytes");
-        let bytes = machine.files.read(file, 0, size).expect("read actual trace file");
+        let bytes = machine.files.read(file, 0, size).expect("read trace file");
         machine.files.close(file);
         machine.files.close(root);
         let events = crate::tracing::event_limits(&crate::limits());
         records = crate::events::read(&bytes, &events);
-        actual = bytes.into();
+        seen = bytes.into();
     }
-    (records, actual)
+    (records, seen)
 }
 
 #[derive(Debug)]
@@ -777,7 +777,7 @@ impl skein_world::Referee<Proc> for Referee {
             if matches!(self.tracing, Some((TraceCase::Parked, _))) {
                 assert_eq!(fake::queries(peer).count(), 0, "empty zero-waiting work parks without a provider request");
             } else if self.provider_rejected || matches!(self.tracing, Some((TraceCase::ProviderRejected, _))) {
-                assert!(fake::context_rejected(peer), "the independent provider rejected the actual request");
+                assert!(fake::context_rejected(peer), "the independent provider rejected the request");
             } else if !self.cancel && !matches!(self.credential_story, CredentialStory::Refresh) && !entrance_refused {
                 assert!(fake::replied(peer), "provider answered before agent exit");
             }
@@ -850,7 +850,7 @@ impl skein_world::Referee<Proc> for Referee {
 }
 
 /// Scenario configuration and a settled shared-harness outcome.
-/// The actual run terminal selected by the process scenario's inputs.
+/// The run terminal selected by the process scenario's inputs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TraceCase {
     /// The independent provider calls the granted finish tool.
@@ -867,7 +867,7 @@ pub enum TraceCase {
     ChildAnswered,
     /// One native completion calls three children together, each of which answers.
     ThreeChildren,
-    /// The actual independent provider sends a typed HTTP context rejection.
+    /// The independent provider sends a typed HTTP context rejection.
     ProviderRejected,
     /// A read is told, then reasoning stops without a finish and needs a nudge.
     StoppedReasoning,
@@ -923,7 +923,7 @@ impl TraceCase {
             Self::Failed | Self::Refused | Self::Cancelled => return fake::peer_for(anthropic),
             Self::ProviderRejected => return fake::rejected(),
             Self::ChildAnswered | Self::ThreeChildren | Self::StoppedReasoning => {
-                unreachable!("selected actual child scripts above")
+                unreachable!("selected child scripts above")
             }
         };
         fake::configured(
@@ -948,7 +948,7 @@ fn child_peer(anthropic: bool, three: bool, credential: skein_llm::Credential) -
         scripts.push(api::Script {
             cue: cue.clone().into_bytes().into_boxed_slice(),
             turns: Box::new([api::Turn {
-                lines: Box::new([api::Line::Text { text: b"actual child answer".as_slice().into() }]),
+                lines: Box::new([api::Line::Text { text: b"child answer".as_slice().into() }]),
                 finish: api::Finish::Stop,
                 tokens: 1,
             }]),
@@ -1154,7 +1154,7 @@ impl World {
         self.observed().get(..self.parent().frames_at_release).expect("the observed prefix at release remains")
     }
 
-    /// Put the host's live-content ask in its actual Start.
+    /// Put the host's live-content ask in its Start.
     pub fn ask(&mut self, text: bool, reasoning: bool, input: bool) {
         self.live = Some(
             smith_channel::LiveAsk::new(
@@ -1193,7 +1193,7 @@ impl World {
         self.hold_channel = true;
     }
 
-    /// Make the independent byte provider refuse the actual model request.
+    /// Make the independent byte provider refuse the model request.
     pub fn reject_provider(&mut self) {
         self.provider_rejected = true;
     }
@@ -1203,7 +1203,7 @@ impl World {
         self.hang_up_mid_call = true;
     }
 
-    /// Send this concrete message in the actual channel Start.
+    /// Send this concrete message in the channel Start.
     pub fn initial_message(&mut self, name: u64, label: &[u8], text: &[u8]) {
         self.message = Some(
             smith_channel::Message::new(
@@ -1214,17 +1214,17 @@ impl World {
         );
     }
 
-    /// Select the actual event destination's capture policy before spawning.
+    /// Select the event destination's capture policy before spawning.
     pub fn capture(&mut self, capture: smith_agent_service::sinks::Capture) {
         self.capture = capture;
     }
 
-    /// Run the same actual agent against the independent Anthropic byte peer.
+    /// Run the same agent against the independent Anthropic byte peer.
     pub fn anthropic(&mut self) {
         self.anthropic = true;
     }
 
-    /// Give the actual Start and byte peer distinctive secret values for leak checks.
+    /// Give the Start and byte peer distinctive secret values for leak checks.
     pub fn private_grant(&mut self) {
         self.private_grant = true;
     }
@@ -1252,7 +1252,7 @@ impl World {
         self.charter = writer.finish();
     }
 
-    /// Machine-seam observations of commands spawned by the actual agent.
+    /// Machine-seam observations of commands spawned by the agent.
     #[must_use]
     pub fn command_environments(&self) -> Vec<Box<[Box<[u8]>]>> {
         self.outcome
@@ -1318,13 +1318,13 @@ impl World {
         &self.records
     }
 
-    /// Exact append-file bytes read after the actual writer has closed.
+    /// Exact append-file bytes read after the writer has closed.
     #[must_use]
     pub fn trace_bytes(&self) -> &[u8] {
         &self.trace_bytes
     }
 
-    /// Check record pairings, per-type counts and actual response totals from the file.
+    /// Check record pairings, per-type counts and response totals from the file.
     pub fn assert_event_conformance(&self) {
         crate::events::check(&self.records);
     }
@@ -1335,13 +1335,13 @@ impl World {
         self.observations().channel_loss
     }
 
-    /// Live bytes omitted from the owner's channel by the actual service.
+    /// Live bytes omitted from the owner's channel by the service.
     #[must_use]
     pub fn lost_live_bytes(&self) -> u64 {
         self.observations().lost_live_bytes
     }
 
-    /// Destination loss reported in the actual last stream record.
+    /// Destination loss reported in the last stream record.
     #[must_use]
     pub fn trace_loss(&self) -> u64 {
         let Some(smith_events::Record { event: smith_events::Event::SessionEnded(end), .. }) = self.records.last()
@@ -1351,17 +1351,17 @@ impl World {
         end.loss.events
     }
 
-    /// Request an actual pidfd termination signal after observed admission.
+    /// Request a pidfd termination signal after observed admission.
     pub fn signal(&mut self) {
         self.cancel = true;
     }
-    /// Request one more actual termination signal after the parent's channel answer.
+    /// Request one more termination signal after the parent's channel answer.
     pub fn signal_after_answer(&mut self) {
         self.after_answer = self.after_answer.checked_add(1).expect("bounded signal scenario");
         self.tracing = Some((TraceCase::Failed, 8));
     }
 
-    /// The parent's actual submitted signal count.
+    /// The parent's submitted signal count.
     #[must_use]
     pub fn signals(&self) -> u32 {
         self.parent().signalled
@@ -1687,13 +1687,13 @@ impl World {
     pub fn assert_agent_clean(&self) {
         assert!(self.outcome.as_ref().expect("settled world").killed.is_empty());
     }
-    /// The process status actually received by its parent.
+    /// The process status received by its parent.
     #[must_use]
     pub fn exit(&self) -> Option<kernel::Exit> {
         self.parent().status
     }
 
-    /// Diagnostic bytes actually read from the child's standard-error pipe.
+    /// Diagnostic bytes read from the child's standard-error pipe.
     #[must_use]
     pub fn errors(&self) -> Vec<u8> {
         self.parent().errors.clone()

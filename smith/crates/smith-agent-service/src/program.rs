@@ -1,4 +1,4 @@
-//! Program backend admission and lower routing (protocol/programs.md, 2, 3, 5).
+//! Program backend admission and lower routing (smith/docs/design/protocol/programs.md, 2, 3, 5).
 //! Keeps the selected endpoints and pipe routes; never reads source logins.
 //! The service calls these hooks at the same stages as its direct LLM component.
 
@@ -51,7 +51,7 @@ fn settings(
 ) -> Option<backend::Settings> {
     let mut adapter = limits.llm.adapter;
     // Built-in results are skipped before rendering; only host text and
-    // bounded root feedback use this MCP reply ceiling (programs.md 5.5).
+    // bounded root feedback use this MCP reply ceiling (smith/docs/design/protocol/programs.md 5.5).
     let result = limits
         .domain
         .session
@@ -62,9 +62,9 @@ fn settings(
         .checked_add(u64::from(llm::CUT_MARKER_BYTES))?;
     adapter.rendered_result = u32::try_from(result).ok()?;
     let contract_bytes = u32::try_from(limits.llm.contract_bytes).ok()?;
-    // Host schemas count in run::charter::cost against run_bytes (domain/run.md, 5.2).
+    // Host schemas count in run::charter::cost against run_bytes (smith/docs/design/domain/run.md, 5.2).
     // schemas_for_contract caps finish/deliver at contract_bytes; the fixed
-    // inventory bounds every other generated schema (protocol/programs.md, 5.3).
+    // inventory bounds every other generated schema (smith/docs/design/protocol/programs.md, 5.3).
     let schema_bytes = contract_bytes
         .max(u32::try_from(limits.domain.run.run_bytes).ok()?)
         .max(u32::try_from(llm::fixed_schema_bytes(&adapter.stated)?).ok()?);
@@ -134,21 +134,12 @@ pub(crate) fn bound(config: Option<&ProgramBackend>) -> Option<&ProgramBackend> 
     }
 }
 
-/// Whether a named program's settings and reserved service fit (programming-model.md, 6.3).
+/// Whether a named program's settings and reserved service fit (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn program_valid(config: &Config) -> bool {
-    let program = match bound(config.program.as_ref()) {
-        Some(program) => program,
-        None => return true,
-    };
-    let settings = match settings(program, &config.limits, &config.environment) {
-        Some(settings) => settings,
-        None => return false,
-    };
-    let reserved = match reserved(&config.limits, &settings) {
-        Some(reserved) => reserved,
-        None => return false,
-    };
+    let Some(program) = bound(config.program.as_ref()) else { return true };
+    let Some(settings) = settings(program, &config.limits, &config.environment) else { return false };
+    let Some(reserved) = reserved(&config.limits, &settings) else { return false };
     backend::backend_valid(&settings)
         && super::valid(&config.limits, &config.llm_endpoints)
         && super::valid(&reserved, &config.llm_endpoints)
@@ -533,10 +524,7 @@ pub(super) fn io_event(service: &mut Service, event: io::Event) {
 }
 
 pub(super) fn down(service: &mut Service) {
-    let program = match &mut service.program {
-        Some(program) => program,
-        None => return,
-    };
+    let Some(program) = &mut service.program else { return };
     for _ in 0..service.limits.queue {
         let waits_for_file = match program.below.iter().next() {
             Some(backend::Below::File { .. }) => !service.files.takes(),
@@ -545,10 +533,7 @@ pub(super) fn down(service: &mut Service) {
         if waits_for_file {
             break;
         }
-        let request = match program.below.pop() {
-            Some(request) => request,
-            None => break,
-        };
+        let Some(request) = program.below.pop() else { break };
         match request {
             backend::Below::File { request, deadline } => {
                 service.files.seed_randomness(service.next_operation);

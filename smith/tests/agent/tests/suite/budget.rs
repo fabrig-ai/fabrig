@@ -1,9 +1,9 @@
 //! Scalar activation bills through root/run/session/tools and a typed fake provider.
-//! The outside oracle prices the actual typed fake-provider callbacks with its own literal
+//! The outside oracle prices the typed fake-provider callbacks with its own literal
 //! model table, and sums each callback once. Child-inclusive Turn bills and
 //! historical bills never supply that global expected total.
-//! Contract: domain/run.md, sections 9, 10, 13 and 14;
-//! domain/session.md, section 6; testing-strategy.md, sections 2.3, 6 and 7.
+//! Contract: smith/docs/design/domain/run.md, sections 9, 10, 13;
+//! smith/docs/design/domain/session.md, section 6; skein/docs/foundation/testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Role, Script, Turn};
@@ -12,10 +12,10 @@ use skein_world::domain::Span;
 use smith_agent_world::{CompletionObservation, CompletionTerminal, Job, Settings, World};
 use smith_domain::{run, session::llm};
 
-const CHILD: &[u8] = b"BUDGET-CHILD: actual child result.";
+const CHILD: &[u8] = b"BUDGET-CHILD: child result.";
 const CHILD_INPUT: &[u8] = br#"{"brief":"@budget-child own task","tools":["inspect"],"llm":"fake-2"}"#;
 const GRAND_INPUT: &[u8] = br#"{"brief":"@budget-grand own task","tools":["inspect"],"llm":"fake-3"}"#;
-const REPORT: &[u8] = br#"{"report":"Budget work finished.","source":"actual-checkout"}"#;
+const REPORT: &[u8] = br#"{"report":"Budget work finished.","source":"checkout"}"#;
 const READ: &[u8] = br#"{"path":"data.txt"}"#;
 
 #[derive(Clone, Copy)]
@@ -46,11 +46,11 @@ fn charge(usage: llm::Usage, rate: Rate) -> u64 {
 }
 
 fn usage(observation: &CompletionObservation) -> llm::Usage {
-    let (at, terminal) = observation.terminal.expect("every actual completion settled");
+    let (at, terminal) = observation.terminal.expect("every completion settled");
     assert!(at >= observation.started);
     match terminal {
         CompletionTerminal::Completed(usage) => usage,
-        CompletionTerminal::Failed | CompletionTerminal::Cancelled => panic!("this story requires an actual winner"),
+        CompletionTerminal::Failed | CompletionTerminal::Cancelled => panic!("this story requires a winner"),
     }
 }
 
@@ -83,10 +83,10 @@ fn total(observations: &[CompletionObservation], rates: &[Rate]) -> run::Spend {
         ..run::Spend::ZERO
     };
     for observation in observations {
-        let actual = usage(observation);
+        let seen = usage(observation);
         let rate = rates.iter().find(|rate| rate.model == observation.model.as_ref()).expect("outside model table");
         expected.turns += 1;
-        expected.units += charge(actual, *rate);
+        expected.units += charge(seen, *rate);
     }
     expected
 }
@@ -96,7 +96,7 @@ fn spent(answer: &run::Answer) -> run::Spend {
         run::Answer::Accepted { spent, .. } | run::Answer::Parked { spent, .. } | run::Answer::Failed { spent, .. } => {
             *spent
         }
-        run::Answer::Refused(reason) => panic!("actual story was refused: {reason:?}"),
+        run::Answer::Refused(reason) => panic!("story was refused: {reason:?}"),
     }
 }
 
@@ -104,7 +104,7 @@ fn conservation(world: &World, rates: &[Rate]) -> run::Spend {
     let expected = total(world.completions(), rates);
     assert_eq!(spent(world.answer()), expected, "one own-completion charge per outside callback");
     assert_eq!(world.prompts().len(), world.completions().len());
-    assert_eq!(world.turn_metadata().last().expect("actual main Turn").2, expected);
+    assert_eq!(world.turn_metadata().last().expect("main Turn").2, expected);
     assert!(
         expected.input.unwrap_or(0) + expected.cache_read.unwrap_or(0) + expected.cache_write.unwrap_or(0) > 0
             && expected.output.unwrap_or(0) > 0
@@ -156,7 +156,7 @@ fn charter(settings: &Settings, cue: &[u8], rates: &[Rate]) -> run::Charter {
         brief: Brief {
             sections: Box::new([Section {
                 title: b"Budget task".as_slice().into(),
-                text: b"Use the actual workspace.".as_slice().into(),
+                text: b"Use the workspace.".as_slice().into(),
             }]),
         },
         grants: Grants {
@@ -242,8 +242,8 @@ fn query_result(query: &Query, name: &[u8], input: &[u8], output: &[u8]) -> bool
         pair[0].role == Role::Assistant
             && pair[1].role == Role::User
             && pair[0].parts.iter().any(|part| {
-                let Part::ToolCall { id, name: actual, arguments } = part else { return false };
-                actual.as_ref() == name
+                let Part::ToolCall { id, name: seen, arguments } = part else { return false };
+                seen.as_ref() == name
                     && arguments.as_ref() == input
                     && pair[1].parts.iter().any(|part| {
                         matches!(part, Part::ToolOutput { id: returned, output: text, is_error: false }
@@ -258,11 +258,11 @@ fn model_calls<'a>(world: &'a World, model: &[u8]) -> Vec<&'a CompletionObservat
 }
 
 fn own_units(calls: &[&CompletionObservation], rate: Rate) -> u64 {
-    calls.iter().map(|actual| charge(usage(actual), rate)).sum()
+    calls.iter().map(|seen| charge(usage(seen), rate)).sum()
 }
 
-fn turn_usage(actual: llm::Usage) -> llm::Usage {
-    actual
+fn turn_usage(seen: llm::Usage) -> llm::Usage {
+    seen
 }
 
 fn budget_prose(world: &World, settings: &Settings, child_bill: u64) {
@@ -299,10 +299,10 @@ fn budget_prose(world: &World, settings: &Settings, child_bill: u64) {
             | run::facts::FactKind::Answered { .. } => {}
         }
     }
-    let admitted_at = admitted_at.expect("actual admission clock");
-    let main_at = main_open.expect("actual main opening clock");
-    let (child_at, grant) = child_open.expect("actual effective child opening");
-    let (returned_at, child_used) = child_return.expect("actual child terminal");
+    let admitted_at = admitted_at.expect("admission clock");
+    let main_at = main_open.expect("main opening clock");
+    let (child_at, grant) = child_open.expect("effective child opening");
+    let (returned_at, child_used) = child_return.expect("child terminal");
     assert_eq!(child_used.turns, 3);
     assert_eq!(child_used.spend, child_bill);
     assert_eq!(child_used.time, returned_at.saturating_since(child_at));
@@ -313,7 +313,7 @@ fn budget_prose(world: &World, settings: &Settings, child_bill: u64) {
     );
     assert!(main_queries.iter().all(|query| query.system == main_queries[0].system), "Budget stays fixed at open");
     assert!(String::from_utf8_lossy(&main_queries[0].system).contains(&main_text));
-    assert_eq!(grant.turns, 63, "one actual main turn preceded delegation");
+    assert_eq!(grant.turns, 63, "one main turn preceded delegation");
     let child_left = (settings.budget.time.as_nanos() - child_at.saturating_since(admitted_at).as_nanos())
         .min(settings.limits.session.tools.tool_deadline.as_nanos());
     assert_eq!(grant.time.as_nanos(), child_left, "unasked share is the ordinary pool within the common tool deadline");
@@ -325,7 +325,7 @@ fn budget_prose(world: &World, settings: &Settings, child_bill: u64) {
     );
     assert!(child_queries.iter().all(|query| String::from_utf8_lossy(&query.system).contains(&child_text)));
     let used_seconds = child_used.time.as_nanos() / 1_000_000_000;
-    assert!(used_seconds > 1, "actual child work advances the injected clock");
+    assert!(used_seconds > 1, "child work advances the injected clock");
     let left_seconds =
         (settings.budget.time.as_nanos() - returned_at.saturating_since(admitted_at).as_nanos()) / 1_000_000_000;
     let suffix = format!(
@@ -369,10 +369,10 @@ fn two_priced_models_and_a_refused_child_delegate_conserve_global_own_charges() 
     assert_eq!((main.len(), child.len()), (3, 3));
     let child_bill = own_units(&child, MODEL_RATES[1]);
     let mut inclusive = child_bill;
-    for (index, actual) in main.iter().enumerate() {
-        inclusive += charge(usage(actual), MODEL_RATES[0]);
+    for (index, seen) in main.iter().enumerate() {
+        inclusive += charge(usage(seen), MODEL_RATES[0]);
         assert_eq!(world.turns()[index].spent, inclusive, "main includes the child's whole subtree bill once");
-        assert_eq!(world.turns()[index].usage, turn_usage(usage(actual)));
+        assert_eq!(world.turns()[index].usage, turn_usage(usage(seen)));
     }
     assert_eq!(inclusive, expected.units);
     let child_queries = world.prompts().iter().filter(|query| query.model.as_ref() == b"fake-2").collect::<Vec<_>>();
@@ -447,17 +447,16 @@ fn a_real_child_session_answers_its_last_turn_without_running_written_calls() {
     world.run(20_000);
     let expected = conservation(&world, &MODEL_RATES);
     assert_eq!(expected.turns, 3);
-    assert_eq!(model_calls(&world, b"fake-2").len(), 1, "actual child Session stops at its own turn quota");
-    assert_eq!(model_calls(&world, b"fake-1").len(), 2, "actual main Session receives the child terminal and finishes");
+    assert_eq!(model_calls(&world, b"fake-2").len(), 1, "child Session stops at its own turn quota");
+    assert_eq!(model_calls(&world, b"fake-1").len(), 2, "main Session receives the child terminal and finishes");
     let resumed =
         world.prompts().iter().filter(|query| query.model.as_ref() == b"fake-1").nth(1).expect("main resumes");
     assert!(resumed.messages.iter().flat_map(|message| &message.parts).any(|part| {
         matches!(part, Part::ToolOutput { is_error: false, output, .. }
             if output.starts_with(CHILD) && output.windows(b"stopped for budget: yes".len()).any(|text| text == b"stopped for budget: yes"))
-    }), "the actual asker receives the answer and budget stop");
-    let child_query =
-        world.prompts().iter().find(|query| query.model.as_ref() == b"fake-2").expect("actual child request");
-    assert_eq!(child_query.choice, skein_fake_llm_domain::api::ToolChoice::None, "actual native child choice");
+    }), "the asker receives the answer and budget stop");
+    let child_query = world.prompts().iter().find(|query| query.model.as_ref() == b"fake-2").expect("child request");
+    assert_eq!(child_query.choice, skein_fake_llm_domain::api::ToolChoice::None, "native child choice");
     assert!(child_query.messages.last().expect("one final note").parts.iter().any(|part| {
         matches!(part, Part::Text { text } if text.as_ref() == b"Your share is ending. This is your final turn. Answer now with what you have. No tool calls will run.")
     }));
@@ -492,8 +491,8 @@ fn main_final_turns_keep_definitions_append_one_note_and_skip_outside_workspace_
     let mut world = World::with_workspace_scripts_charter(settings, None, Some(workspace), disk, scripts, charter);
     world.run(20_000);
     assert!(matches!(world.answer(), run::Answer::Accepted { outcome: run::outcome::Declared::Report(_), .. }));
-    assert_eq!(world.completions().len(), 4, "two ordinary and two actual final completions");
-    assert_eq!(world.disk().load(root.raw(), b"data.txt", u64::MAX).expect("actual disk").0, b"before\n");
+    assert_eq!(world.completions().len(), 4, "two ordinary and two final completions");
+    assert_eq!(world.disk().load(root.raw(), b"data.txt", u64::MAX).expect("disk").0, b"before\n");
     let queries = world.prompts();
     for query in queries {
         assert_eq!(query.tools, queries[0].tools, "offered definitions stay fixed");
@@ -504,7 +503,7 @@ fn main_final_turns_keep_definitions_append_one_note_and_skip_outside_workspace_
     }));
     assert!(final_query.messages.iter().flat_map(|message| &message.parts).any(|part| {
         matches!(part, Part::ToolOutput { output, .. } if output.windows(b"UnknownTool".len()).any(|part| part == b"UnknownTool"))
-    }), "an allowed malformed finish preserves its actual argument problem");
+    }), "an allowed malformed finish preserves its argument problem");
     let note = |query: &Query| {
         query.messages.iter().flat_map(|message| &message.parts).filter(|part| {
         matches!(part, Part::Text { text } if text.windows(b"budget is spent".len()).any(|part| part == b"budget is spent"))

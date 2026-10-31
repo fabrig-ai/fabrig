@@ -1,7 +1,7 @@
 //! One end phase for the framed agent and its host-owned effects.
 //! It keeps the answer disposition and the ordered close reports, never a run
 //! outcome. Each pass advances what its children have reported, through usage
-//! and the event stream. Contract: protocol/agent.md, section 6.
+//! and the event stream. Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use skein_lib::{Time, Token};
 use smith_domain as domain;

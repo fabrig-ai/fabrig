@@ -1,6 +1,6 @@
 //! Downward passes from queued domain requests to lower components.
 //! Facts, messages and lower requests stay in the service; this stage never
-//! chooses their domain meaning. Contract: protocol/agent.md, sections 4–6.
+//! chooses their domain meaning. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use super::request::domain_request;
 use super::routing::component_owner;
@@ -24,9 +24,8 @@ pub(super) fn domain_down(service: &mut Service) {
             if !super::admits(service) {
                 break;
             }
-            let PendingMessage { finish_requested, name, label, text } = match service.pending_messages.pop() {
-                Some(message) => message,
-                None => break,
+            let Some(PendingMessage { finish_requested, name, label, text }) = service.pending_messages.pop() else {
+                break;
             };
             service.domain_events.push(domain::Event::Message { finish_requested, run, name, label, text });
         }
@@ -47,10 +46,7 @@ pub(super) fn domain_down(service: &mut Service) {
         if program::wait_for_close(service) {
             break;
         }
-        let request = match service.domain_requests.pop() {
-            Some(request) => request,
-            None => break,
-        };
+        let Some(request) = service.domain_requests.pop() else { break };
         domain_request(service, request);
     }
     match service.admitted {
@@ -114,10 +110,7 @@ pub(super) fn drain_facts(service: &mut Service) {
 #[expect(clippy::too_many_lines, reason = "bounded lower routing stays in one down-pass stage")]
 pub(super) fn component_down(service: &mut Service) {
     for _ in 0..service.channel_below.capacity() {
-        let request = match service.channel_below.pop() {
-            Some(request) => request,
-            None => break,
-        };
+        let Some(request) = service.channel_below.pop() else { break };
         match request {
             ChannelLower::Read(down) => {
                 if let Some(input) = service.input {
@@ -138,10 +131,7 @@ pub(super) fn component_down(service: &mut Service) {
     }
     program::down(service);
     for _ in 0..service.limits.queue {
-        let request = match service.llm_below.pop() {
-            Some(request) => request,
-            None => break,
-        };
+        let Some(request) = service.llm_below.pop() else { break };
         match request {
             io::Request::Connect { owner, addr } => {
                 let route = service.owners.insert(Owner::Llm(owner)).expect("LLM connection route capacity");
@@ -174,10 +164,7 @@ pub(super) fn component_down(service: &mut Service) {
         if waits_for_file {
             break;
         }
-        let request = match service.machine_below.pop() {
-            Some(request) => request,
-            None => break,
-        };
+        let Some(request) = service.machine_below.pop() else { break };
         match request {
             machine::Below::File { request, deadline } => {
                 service.files.seed_randomness(service.next_operation);

@@ -1,7 +1,7 @@
 //! Pure projection of the exact answer sent by the agent, without host or provider IO.
 //! Only an accepted answer owns result content. The caller supplies its run fence,
 //! wind-down and elapsed time; no observation of stdout establishes acceptance.
-//! Contract: protocol/events.md, sections 3.3 and 3.10.
+//! Contract: smith/docs/design/protocol/events.md, sections 3.3 and 3.10.
 
 #![expect(clippy::manual_map, reason = "the strict subset requires explicit matches instead of closures")]
 
@@ -14,7 +14,7 @@ use smith_events::{
 
 use crate::sinks::Capture;
 
-/// The settled agent's last operator line (protocol/agent.md, section 6).
+/// The settled agent's last operator line (smith/docs/design/protocol/agent.md, section 6).
 #[derive(Debug)]
 pub enum Last {
     /// An accepted or parked answer needs no failure line.
@@ -63,7 +63,7 @@ pub struct Answered {
     pub read: Option<u64>,
 }
 
-/// The run owner's final fence and measurements, supplied with its actual answer.
+/// The run owner's final fence and measurements, supplied with its answer.
 #[derive(Clone, Copy, Debug)]
 pub struct AnswerMeta {
     pub now: skein_lib::Time,
@@ -504,7 +504,7 @@ mod tests {
     }
 
     #[test]
-    fn every_actual_answer_kind_preserves_its_terminal_and_accounting() {
+    fn every_seen_answer_kind_preserves_its_terminal_and_accounting() {
         let spent = run::Spend {
             turns: 2,
             input: Some(3),
@@ -514,9 +514,9 @@ mod tests {
             reasoning: Some(2),
             units: 19,
         };
-        for (actual, expected_status, expected_class, expected_spend) in cases(spent) {
+        for (seen, expected_status, expected_class, expected_spend) in cases(spent) {
             for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-                let projected = answer_record(meta(), &actual, capture);
+                let projected = answer_record(meta(), &seen, capture);
                 assert_eq!(projected.status, expected_status);
                 assert_eq!(
                     match &projected.failure {

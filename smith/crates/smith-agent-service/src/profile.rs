@@ -1,7 +1,7 @@
 //! The agent profile keeps declared deployment quantities and policy ceilings and
 //! computes the service limits from them. It never knows endpoint destinations,
 //! credentials or a run's charter. `derive` returns typed refusals.
-//! Contract: shell.md, section 2.1; protocol/agent.md, section 4.
+//! Contract: smith/docs/design/shell.md, section 2.1; smith/docs/design/protocol/agent.md, section 4.
 
 use skein_io as io;
 use skein_lib::Duration;
@@ -66,7 +66,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     let path = path::path(profile, configuration)?;
     let mut client = path.client;
     // Receiving maxima cover both configured transports; each destination
-    // takes its own pieces before entering the actual native connection pool.
+    // takes its own pieces before entering the native connection pool.
     client.http.request = tls::client::MAX_PLAINTEXT;
     client.http.read = 19_000;
     client.http.send = tls::client::MAX_PLAINTEXT;
@@ -183,7 +183,7 @@ fn transcript(
         client.metadata.checked_add(shared::REPLAY_HEADER_BYTES).ok_or(derived(Layer::Transcript, "replay_bytes"))?;
     limits.text_text = client.answer.max(host).max(run.offer_bytes).max(run.answer_bytes);
     // Consecutive reasoning items share one block, which can hold the
-    // completion's whole reasoning share (protocol/limits.md, section 3.3).
+    // completion's whole reasoning share (smith/docs/design/protocol/limits.md, section 3.3).
     limits.opaque_bytes = client
         .output_items
         .checked_mul(client.reasoning)
@@ -259,7 +259,7 @@ fn transcript(
 }
 
 // Endpoint-derived request heads include both credential ceilings and fit one
-// native TLS plaintext piece (skein's llm-connection.md, section 7).
+// native TLS plaintext piece (skein/docs/design/llm-connection.md, section 7).
 fn tls_limits() -> tls::client::Limits {
     tls::client::Limits { read: 19_000, send: tls::client::MAX_PLAINTEXT, records: tls::client::MAX_RECORD }
 }
@@ -542,7 +542,7 @@ fn derive_domain(
     };
     validate::host_part_holds_the_role(profile, configuration, &run)?;
     // The entrance splits what the rendered charter leaves among the start's
-    // own directories (protocol/limits.md, section 3.9); this is only the cap.
+    // own directories (smith/docs/design/protocol/limits.md, section 3.9); this is only the cap.
     run.guide_bytes =
         u32::try_from(parts.host.min(u64::from(declared.guide))).or(Err(derived(Layer::Run, "guide_bytes")))?;
     let delegated = domain::feedback_bound(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
@@ -654,7 +654,7 @@ fn derived(layer: Layer, field: &'static str) -> Refusal {
     Refusal::Derived { limit: LimitName::deployment(layer, field) }
 }
 
-// protocol/limits.md, section 3.5: each conversation's batch and jobs
+// smith/docs/design/protocol/limits.md, section 3.5: each conversation's batch and jobs
 // coexist with one check per directory.
 fn machine_processes(domain: &domain::Limits) -> Option<u32> {
     let tools = domain.session.tools;
