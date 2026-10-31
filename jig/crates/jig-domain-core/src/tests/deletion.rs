@@ -394,6 +394,8 @@ fn a_kept_deletion_advances_after_fleet_inputs_and_timers() {
     for timer in [false, true] {
         let (mut core, limits) = core();
         let _started = begin(&mut core, &limits, 1);
+        let Requests::Out(metered) = step(&mut core, &environment(&limits), Event::Fill { bytes: 1 });
+        only_decided(metered);
         let Requests::Out(requests) = if timer {
             fire(&mut core, &environment(&limits), Timer::Tasks)
         } else {
@@ -403,7 +405,7 @@ fn a_kept_deletion_advances_after_fleet_inputs_and_timers() {
                 Event::Fleet(fleet::Event::Acknowledge { run: Token::new(99), attempt: Token::new(1) }),
             )
         };
-        let mut loads = 0;
+        let mut loads = 0_u32;
         for request in collect(requests) {
             if let Request::Held(held) = request
                 && let Held::ReadLoad { range, .. } = *held
