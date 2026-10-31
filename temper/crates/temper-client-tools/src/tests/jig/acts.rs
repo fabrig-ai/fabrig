@@ -129,13 +129,14 @@ fn each_kept_request_prints_its_operation_without_keys() {
         (
             fixtures::restored_message(fixtures::PARTY),
             true,
-            b"{\"operation\":\"message\",\"outcome\":{\"done\":{\"owner\":{\"amended\":{\"task\":9}}}}}\n".as_slice(),
+            b"{\"operation\":\"message\",\"outcome\":{\"done\":{\"document\":{\"amended\":{\"task\":9}}}}}\n"
+                .as_slice(),
         ),
         (fixtures::kept(fixtures::RESTORED_PREFIX), false, b"kept: stop, done: task 41, stop\n".as_slice()),
         (
             fixtures::kept(fixtures::RESTORED_PREFIX),
             true,
-            b"{\"operation\":\"stop\",\"outcome\":{\"done\":{\"owner\":{\"amended\":{\"task\":9}}}}}\n".as_slice(),
+            b"{\"operation\":\"stop\",\"outcome\":{\"done\":{\"document\":{\"amended\":{\"task\":9}}}}}\n".as_slice(),
         ),
     ] {
         let mut root = fixtures::started_with(records, fixtures::SEED, json);
@@ -154,7 +155,7 @@ fn a_kept_project_removal_prints_its_operation_and_outcome() {
         root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
         root.done(fixtures::EMPTY, c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project: 7 }));
         let expected = if json {
-            b"{\"operation\":\"remove-project\",\"outcome\":{\"done\":{\"owner\":{\"project_removed\":{\"project\":7}}}}}\n".as_slice()
+            b"{\"operation\":\"remove-project\",\"outcome\":{\"done\":{\"document\":{\"project_removed\":{\"project\":7}}}}}\n".as_slice()
         } else {
             b"kept: remove-project, done: remove-project\n".as_slice()
         };

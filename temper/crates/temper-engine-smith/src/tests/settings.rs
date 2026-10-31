@@ -252,10 +252,7 @@ fn settings_neutral_form_preserves_ctls_bounds() {
         "authority_note_resources"
     );
     assert_eq!(neutral.settings.delegation_kinds, ctl.settings.delegation_kinds, "delegation_kinds");
-    assert_eq!(
-        neutral.settings.part_key_path_value, ctl.settings.part_key_path_value,
-        "part_key_path_value"
-    );
+    assert_eq!(neutral.settings.part_key_path_value, ctl.settings.part_key_path_value, "part_key_path_value");
     assert_eq!(
         neutral.settings.part_key_path_value_item, ctl.settings.part_key_path_value_item,
         "part_key_path_value_item"
@@ -264,15 +261,9 @@ fn settings_neutral_form_preserves_ctls_bounds() {
         neutral.settings.pattern_end_exact_value, ctl.settings.pattern_end_exact_value,
         "pattern_end_exact_value"
     );
-    assert_eq!(
-        neutral.settings.pattern_end_open_value, ctl.settings.pattern_end_open_value,
-        "pattern_end_open_value"
-    );
+    assert_eq!(neutral.settings.pattern_end_open_value, ctl.settings.pattern_end_open_value, "pattern_end_open_value");
     assert_eq!(neutral.settings.pattern_segments, ctl.settings.pattern_segments, "pattern_segments");
-    assert_eq!(
-        neutral.settings.pattern_segments_item, ctl.settings.pattern_segments_item,
-        "pattern_segments_item"
-    );
+    assert_eq!(neutral.settings.pattern_segments_item, ctl.settings.pattern_segments_item, "pattern_segments_item");
     assert_eq!(neutral.settings.rules_implies, ctl.settings.rules_implies, "rules_implies");
     assert_eq!(neutral.settings.rules_requirements, ctl.settings.rules_requirements, "rules_requirements");
     assert_eq!(

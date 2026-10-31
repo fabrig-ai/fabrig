@@ -2,7 +2,7 @@
 //! Replace: infrastructure resources, procedures and the application's own forms.
 //! The owner supplies prices, end facts and drift (examples.md, 3 and 8).
 use alloc::boxed::Box;
-use jig_client::contract::{ObjectKey, ApplicationPart, ProposalKey, Revision};
+use jig_client::contract::{ApplicationPart, ObjectKey, ProposalKey, Revision};
 use skein_lib::List;
 /// Scope supplied with every read and watch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -143,8 +143,12 @@ pub fn subject(part: &ApplicationPart, scope: Scope) -> Option<Subject> {
         ApplicationPart::Project { project, .. } => {
             return Some(Subject { scope: Scope::Project(*project), kind: Kind::Project(*project) });
         }
-        ApplicationPart::Deployment { .. } => return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment }),
-        ApplicationPart::Connector { .. } | ApplicationPart::Resource { .. } | ApplicationPart::Kind { .. } => return None,
+        ApplicationPart::Deployment { .. } => {
+            return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment });
+        }
+        ApplicationPart::Connector { .. } | ApplicationPart::Resource { .. } | ApplicationPart::Kind { .. } => {
+            return None;
+        }
     };
     Some(Subject { scope, kind })
 }
