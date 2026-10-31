@@ -233,7 +233,7 @@ fn a_seen_conversation_is_read_back_through_the_store_after_restart() {
     );
 }
 #[test]
-fn a_historical_escalation_is_read_through_the_store() {
+fn a_ended_escalation_is_read_through_the_store() {
     let mut world = World::new(Setup { seed: 132, ..Setup::default() });
     let task = world.assigned.as_ref().expect("the world's chat").task;
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Stalled })));
@@ -253,10 +253,7 @@ fn a_historical_escalation_is_read_through_the_store() {
     world.restart(132, false);
     world.enable_tracing();
     release_escalation(&mut world, 65, task, revision);
-    assert!(
-        world.trace.iter().any(|line| line.starts_with("output Now(HistoricalEscalation")),
-        "historical store lookup"
-    );
+    assert!(world.trace.iter().any(|line| line.starts_with("output Now(EndedEscalation")), "ended store lookup");
     assert_eq!(world.people_answers.last().cloned(), answer);
 }
 

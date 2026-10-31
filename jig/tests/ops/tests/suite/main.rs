@@ -13,6 +13,7 @@ mod incident_leads;
 mod infrastructure;
 mod observability;
 mod orders;
+mod scenarios;
 mod stories;
 mod trace;
 mod turn_backoff;

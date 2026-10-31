@@ -256,9 +256,9 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::StartPreparation { .. }
         | core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }
-        | core::Now::HistoricalProposal { .. }
+        | core::Now::EndedProposal { .. }
         | core::Now::DecidedProposal { .. }
-        | core::Now::HistoricalPersonTask { .. }
+        | core::Now::EndedPersonTask { .. }
         | core::Now::EndedTask { .. }
         | core::Now::PartyInputs { .. }
         | core::Now::CompleteBrief { .. }
@@ -266,7 +266,7 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::RunPrepared { .. }
-        | core::Now::HistoricalEscalation { .. }
+        | core::Now::EndedEscalation { .. }
         | core::Now::RestoreRefused => return None,
     })
 }

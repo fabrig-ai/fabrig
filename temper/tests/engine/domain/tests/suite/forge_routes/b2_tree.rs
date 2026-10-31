@@ -638,8 +638,8 @@ fn task_document(answer: reads::Answer) -> Box<documents::Task> {
             let documents::Document::Task(task) = *value else { panic!("task document") };
             task
         }
-        reads::Answer::Historical(value) => {
-            let reads::Past::Task { document, .. } = value.value else { panic!("historical task") };
+        reads::Answer::Ended(value) => {
+            let reads::EndedValue::Task { document, .. } = value.value else { panic!("historical task") };
             document
         }
         other => panic!("served task: {other:?}"),

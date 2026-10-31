@@ -1,7 +1,9 @@
 //! Physical continuations for durable indexes (store.md 7.4).
-use super::{Filter, Group, Position, Scope};
-use crate::documents::Proposer;
-use crate::{Key, documents};
+use crate::{
+    Key,
+    documents::{self, Proposer},
+    reads::{Filter, Group, Position, Scope},
+};
 use jig_domain_tasks as tasks;
 
 /// Continue a live window in the index's physical order.

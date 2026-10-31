@@ -560,7 +560,7 @@ fn explicit_start_asserts_each_required_local_link_before_sweep() {
         assert!(result.is_err());
         assert!(out.is_empty(), "link panic erases no row");
     }
-    // A successful historical roster retains its members without equating it with today's roster.
+    // The roster of a successful decision retains its members without equating it with today's roster.
     let env = env();
     let (mut domain, mut out) = new_start(&env);
     load(&mut domain, &env, person(1), &mut out);

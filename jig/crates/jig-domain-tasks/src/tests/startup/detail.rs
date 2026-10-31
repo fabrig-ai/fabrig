@@ -465,12 +465,12 @@ fn nonparty_placed_owners_do_not_acquire_the_party_bound() {
 }
 
 #[test]
-#[should_panic(expected = "historical row in live load")]
-fn historical_row_is_phase_misuse() {
+#[should_panic(expected = "ended row in live load")]
+fn ended_row_is_phase_misuse() {
     let mut record = row();
     let Stored::Live(task) = &mut record else { panic!("row") };
-    let historical = Stored::Ended(task.clone());
-    empty(&LIMITS).send(Event::Restore { record: historical });
+    let ended = Stored::Ended(task.clone());
+    empty(&LIMITS).send(Event::Restore { record: ended });
 }
 
 #[test]

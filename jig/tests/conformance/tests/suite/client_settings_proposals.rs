@@ -174,25 +174,24 @@ fn retained_settings_actions_keep_the_revision_they_made() {
                 value: w::OwnerProposalHistory::new(&limits.wire, proposal).expect("history"),
             },
         )
-        .expect("historical proposal"),
+        .expect("ended proposal"),
     );
-    let mut historical = w::OwnerHistorical::decode(
+    let mut ended = w::OwnerHistorical::decode(
         &limits.wire,
         &mut Reader::new(include_bytes!(
             "../../../../crates/jig-client-protocol-wire/golden/record_owner_historical_smallest.bin"
         )),
     )
-    .expect("historical envelope")
+    .expect("ended envelope")
     .into_parts();
-    historical.key = w::ObjectKey::Proposal(
+    ended.key = w::ObjectKey::Proposal(
         w::ObjectKeyProposal::new(&limits.wire, w::ObjectKeyProposalParts { value: key }).expect("proposal subject"),
     );
-    historical.value = value;
-    let wire =
-        w::ReadValue::Historical(Box::new(w::OwnerHistorical::new(&limits.wire, historical).expect("historical")));
+    ended.value = value;
+    let wire = w::ReadValue::Historical(Box::new(w::OwnerHistorical::new(&limits.wire, ended).expect("ended")));
     let c::ReadValue::Historical(client) = translate::reads::value(&encoded!(&wire), &limits).expect("client history")
     else {
-        panic!("historical")
+        panic!("ended")
     };
     let c::OwnerHistoricalValue::Proposal(proposal) = client.value else { panic!("retained proposal") };
     assert_eq!(proposal.action, c::OwnerRetainedAction::Settings(retained));
@@ -312,17 +311,17 @@ fn engine_accepted_party_settings_history_keeps_its_party_key_and_revision() {
         },
         state: t::PersonProposalState::SettingsAccepted { by: t::Party::Person(10), revision: 2 },
     };
-    let historical = reads::Historical {
-        value: reads::Past::PersonProposal { proposal: Box::new(proposal), decision: None },
+    let ended = reads::Ended {
+        value: reads::EndedValue::PersonProposal { proposal: Box::new(proposal), decision: None },
         at: Some(skein_lib::Wall::EPOCH),
         by: Some(t::Party::Person(10)),
     };
-    let wire = jig_protocol_engine_clients::translate::objects::historical(&historical, &[], &limits.wire)
-        .expect("engine history");
+    let wire =
+        jig_protocol_engine_clients::translate::objects::historical(&ended, &[], &limits.wire).expect("engine history");
     let c::ReadValue::Historical(client) =
         translate::reads::value(&encoded!(&w::ReadValue::Historical(Box::new(wire))), &limits).expect("client history")
     else {
-        panic!("historical proposal")
+        panic!("ended proposal")
     };
     let key = c::ObjectKey::Proposal(c::ProposalKey { proposer: c::Proposer::Party(9), number: 7 });
     assert!(client.matches(key));

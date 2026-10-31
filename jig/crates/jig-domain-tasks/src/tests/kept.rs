@@ -34,7 +34,7 @@ fn shared_kept_rule_separates_claims_from_finish_authority() {
 }
 
 #[test]
-fn requester_ending_restores_without_rejudging_historical_authority() {
+fn requester_ending_restores_without_rejudging_earlier_authority() {
     let mut h = Harness::new();
     let mut open = task(1, &[]);
     open.flags.conversation = true;

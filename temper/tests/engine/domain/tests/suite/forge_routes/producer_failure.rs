@@ -85,12 +85,12 @@ fn an_inapplicable_producers_words_reach_its_hold_and_its_chats_reply() {
     for _ in 0..STEPS {
         world.tick();
     }
-    let reads::Answer::Historical(past) =
+    let reads::Answer::Ended(past) =
         world.party_read(reads::Read::Turn { task: resumed.task, attempt: resumed.attempt, turn: 1 })
     else {
         panic!("person reads the chat's reply")
     };
-    let reads::Past::Turn(turn) = past.value else { panic!("chat turn") };
+    let reads::EndedValue::Turn(turn) = past.value else { panic!("chat turn") };
     assert_eq!(turn.transcript.as_ref(), reply.as_bytes());
     assert!(turn.transcript.windows(REASON.len()).any(|bytes| bytes == REASON));
 }

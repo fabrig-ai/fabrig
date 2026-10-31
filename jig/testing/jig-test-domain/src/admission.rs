@@ -158,11 +158,11 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             | core::Event::EndedReadLoaded { .. }
             | core::Event::EndedTaskLoaded { .. }
             | core::Event::SeenConversationLoaded { .. }
-            | core::Event::HistoricalPersonTask { .. }
+            | core::Event::EndedPersonTask { .. }
             | core::Event::PartyInputsLoaded { .. }
-            | core::Event::HistoricalProposal { .. }
+            | core::Event::EndedProposal { .. }
             | core::Event::DecidedProposal { .. }
-            | core::Event::HistoricalEscalation { .. },
+            | core::Event::EndedEscalation { .. },
         )) => {
             domain.store_answers.push(Box::new(event));
             Ok(())

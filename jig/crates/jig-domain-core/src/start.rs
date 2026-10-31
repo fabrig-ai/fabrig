@@ -1,21 +1,24 @@
 //! Load, link and sweep before durable opening (jig/docs/design/domain/engine.md, 6).
+
 mod census;
 mod cursor;
-pub use census::{Census, ReadResults};
-pub use cursor::restore_cursor;
-
-mod restore;
-pub use restore::Restore;
+pub(crate) mod first;
 mod inbox;
 mod links;
 pub(crate) mod projections;
+mod restore;
 mod runs;
 mod script;
 mod settings;
+
+pub use census::{Census, ReadResults};
+pub use cursor::restore_cursor;
+
 use crate::{Core, Key, Wall, settings as core_settings};
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+pub use restore::Restore;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Phase {
@@ -256,5 +259,11 @@ impl RestoreRange {
             Key::Accounts(_) => *self == Self::Accounts,
             Key::Notes(_) => false,
         }
+    }
+}
+
+impl Core {
+    pub(crate) fn ready(&self) -> bool {
+        self.start.phase.is_none() && !self.start_stopped()
     }
 }

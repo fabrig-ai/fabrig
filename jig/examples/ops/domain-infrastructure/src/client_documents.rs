@@ -264,7 +264,7 @@ fn make(
                 proposal: *proposal,
                 task: *number,
                 effect: effect.clone(),
-                description: crate::domain::describe(effect, domain.backend),
+                description: crate::domain::describe(effect, domain.backend, &domain.vocabulary),
             })
         }
         ClientSubject::Outbox { project, entry: number } => {
@@ -283,7 +283,7 @@ fn make(
                     }
                     return Ok(ClientDocument::Outbox {
                         entry: entry.clone(),
-                        description: crate::domain::describe(&entry.effect, domain.backend),
+                        description: crate::domain::describe(&entry.effect, domain.backend, &domain.vocabulary),
                     });
                 }
             }

@@ -1,6 +1,8 @@
 //! Decision consequences are delivered facts, computed once by the engine.
-use super::*;
-use crate::acts::{Effect, Impact, ReleaseEffect};
+use crate::{
+    acts::{Effect, Impact, ReleaseEffect},
+    tests::acts::*,
+};
 const ROOT: u64 = 1;
 const RUNNING: u64 = 2;
 const HELD: u64 = 3;

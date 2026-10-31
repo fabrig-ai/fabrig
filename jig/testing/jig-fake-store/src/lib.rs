@@ -170,7 +170,7 @@ impl<K: Ord + Clone, R: Clone> Store<K, R> {
         self.failed = false;
     }
 
-    /// Read a live range at cold start; historical rows outside it stay in storage.
+    /// Read a live range at cold start; retained rows outside it stay in storage.
     pub fn restore<'a>(&'a self, first: &'a K, last: &'a K) -> impl Iterator<Item = &'a R> {
         self.rows.range(first.clone()..=last.clone()).map(|(_, row)| row)
     }

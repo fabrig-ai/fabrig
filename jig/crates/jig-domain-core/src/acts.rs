@@ -6,15 +6,15 @@
 
 pub(crate) mod bounds;
 mod effects;
-pub use effects::{Effect, Impact, ReleaseEffect};
 mod objects;
 mod requests;
 mod standing;
+
 use crate::{Core, Limits, documents};
 use alloc::boxed::Box;
+pub use effects::{Effect, Impact, ReleaseEffect};
 use jig_domain_people as people;
-pub(crate) use objects::mutable_phase;
-pub(crate) use objects::{escalation, person, proposal, question, write, write_in};
+pub(crate) use objects::{escalation, mutable_phase, person, proposal, question, write, write_in};
 pub(crate) use requests::request;
 use skein_lib::{List, Wall};
 pub(crate) use standing::role;

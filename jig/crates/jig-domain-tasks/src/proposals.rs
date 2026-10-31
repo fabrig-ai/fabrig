@@ -2,7 +2,7 @@
 //! The root decides authority, funding and holder coverage. This child keeps
 //! one pending proposal per live task, its action and current recipient; it
 //! never knows role membership or a worker call identity. Terminal proposals
-//! leave live memory as historical store rows.
+//! leave live memory as retained store rows.
 use crate::domain::{Domain, publish, record, refused, task_mut};
 use crate::{Amendment, Authority, Change, Limits, New, Party, Phase, Refusal, Request, Stored, Was};
 use alloc::boxed::Box;
@@ -123,7 +123,7 @@ pub enum ProposalKind {
     Release,
 }
 
-/// One proposal's current or historical decision state.
+/// One proposal's current or retained decision state.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ProposalState {
     /// No holder has decided yet.

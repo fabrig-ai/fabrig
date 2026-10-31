@@ -145,7 +145,7 @@ pub enum EscalationHolder {
     },
 }
 
-/// One semantic state per task; no receipt table, inbox or historical archive.
+/// One semantic state per task; no receipt table, inbox or decision archive.
 /// Root archives decisions; rejected chats remain held.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Escalation {
@@ -172,7 +172,7 @@ pub enum Escalation {
         since: Wall,
     },
     /// One completed rejection; retain reason while held without reopening or
-    /// rerouting. Historical transport outcome stays root-owned.
+    /// rerouting. Retained transport outcome stays root-owned.
     Rejected {
         revision: u64,
         by: u64,
@@ -227,7 +227,7 @@ pub enum EscalationOutcome {
         /// Unchanged hold revision at the new recipient.
         revision: u64,
     },
-    /// No exact live pending revision; root may read its own historical outcome
+    /// No exact live pending revision; root may read its own retained outcome
     Stale,
     /// A policy-role decision cannot pass further.
     NoFurther,

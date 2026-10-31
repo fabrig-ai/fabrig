@@ -1,17 +1,25 @@
 //! Deployment settings, defaults and revisions (domain/engine.md, section 17).
+
+mod change;
+pub mod charters;
+pub(crate) mod check;
+pub mod fleet_needs;
+pub(crate) mod held;
+pub(crate) mod restart;
+pub(crate) mod revisions;
+pub mod templates;
+#[cfg(test)]
+mod tests;
+
 use crate::{Charter, ConfiguredPolicy, Template};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use skein_lib::{List, Map, Wall};
 
-mod change;
-pub(crate) mod held;
-pub use held::{Held, VersionKey};
-pub(crate) mod check;
 pub(crate) use change::{apply, change_shape, changes_current};
-pub(crate) mod restart;
 pub use check::{check, check_change};
+pub use held::{Held, VersionKey};
 pub use restart::revision_writes;
 
 pub use people::{Running, Setting, SettingFault as Fault};
@@ -331,7 +339,7 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
         u64::try_from(size_of::<Template>())
             .ok()?
             .checked_add(u64::from(limits.documents.text_bytes))?
-            .checked_add(crate::memory::task_carrier(limits)?)?,
+            .checked_add(crate::limits::task_carrier(limits)?)?,
     )?;
     let policies = u64::from(limits.authority.projects)
         .checked_mul(limits.policy_bytes.checked_add(u64::try_from(size_of::<ConfiguredPolicy>()).ok()?)?)?;
@@ -348,9 +356,6 @@ pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(List::<Item>::price(capacity(limits)?.checked_mul(2)?)?)?
         .checked_add(u64::try_from(size_of::<Head>()).ok()?)
 }
-
-#[cfg(test)]
-mod tests;
 
 #[cfg(test)]
 impl Current {

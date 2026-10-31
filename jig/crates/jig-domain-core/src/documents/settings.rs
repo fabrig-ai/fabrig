@@ -1,7 +1,7 @@
 //! Settings inventory without values (client/domain/contract.md, 5.1 and 7.1).
-use super::{Missing, Text};
 use crate::{
     Core, Limits,
+    documents::{Missing, Text},
     settings::{Head, Setting, Value},
 };
 use jig_domain_people as people;

@@ -57,7 +57,7 @@ pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::R
             "historical",
             w::Read::Task(w::ReadTask::new(&limits, w::ReadTaskParts { task: 7 }).expect("task")),
             reads::Read::Task { task: 7 },
-            reads::Answer::Historical(Box::new(historical_task())),
+            reads::Answer::Ended(Box::new(historical_task())),
             value_answer(&w::ReadValue::Historical(Box::new(records::historical_task_record()))),
         ),
         (

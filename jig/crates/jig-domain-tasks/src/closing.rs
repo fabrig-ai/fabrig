@@ -1,5 +1,5 @@
 //! Bounded dependency and closing cascades (domain/tasks.md, sections 5.1 and 5.6). Tasks owns live topology and financial settlement;
-//! root completes Close obligations. No historical result credit or inbox
+//! root completes Close obligations. No retained result credit or inbox
 //! remains here, and ending a task does not replay its result after restart.
 use crate::domain::{Domain, activate, fact, publish, record, snapshot, task_mut};
 use crate::{
@@ -36,7 +36,7 @@ pub(crate) fn remember_stub(domain: &mut Domain, stub: crate::Stub, out: &mut Qu
     if domain.stubs.contains_key(&stub.task) {
         return;
     }
-    domain.stubs.insert(stub.task, stub).expect("new historical input fits bounded live names");
+    domain.stubs.insert(stub.task, stub).expect("new retained input fits bounded live names");
     out.push(Request::Save { record: Stored::Stub(stub) });
 }
 

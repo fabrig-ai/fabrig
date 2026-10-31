@@ -1,13 +1,13 @@
 //! Same-step gets and the core's archived reads (protocol/store.md, 3 and 7.1).
 use super::fixtures::{self, ALICE, ENDED};
-use crate::{Event, Get, Phase, Request, Row, Store, Write, codec, historical, keys};
+use crate::{Event, Get, Phase, Request, Row, Store, Write, codec, ended, keys};
 use jig_domain_core::{self as core, CoreKey, CoreRecord, Key, Now, Record};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::Token;
 
 const OWNER: Token = Token::new(7);
-const HISTORICAL: Token = Token::new(8);
+const ENDED_READ: Token = Token::new(8);
 
 fn get(store: &mut Store, key: Get) -> Box<[Event]> {
     fixtures::run(store, Request::Get { owner: OWNER, key })
@@ -59,16 +59,16 @@ fn an_application_get_answers_its_bytes() {
 }
 
 fn seen_conversation() -> Now {
-    Now::SeenConversation { request: HISTORICAL, task: ENDED }
+    Now::SeenConversation { request: ENDED_READ, task: ENDED }
 }
 
 fn person_task() -> Now {
-    Now::HistoricalPersonTask { request: HISTORICAL, person: ALICE, project: 2, task: ENDED }
+    Now::EndedPersonTask { request: ENDED_READ, person: ALICE, project: 2, task: ENDED }
 }
 
 fn proposal() -> Now {
-    Now::HistoricalProposal {
-        request: HISTORICAL,
+    Now::EndedProposal {
+        request: ENDED_READ,
         person: ALICE,
         project: 2,
         proposer: people::Proposer::Party(12),
@@ -77,7 +77,7 @@ fn proposal() -> Now {
 }
 
 fn escalation() -> Now {
-    Now::HistoricalEscalation { request: HISTORICAL, person: ALICE, project: 2, task: 11, revision: 3 }
+    Now::EndedEscalation { request: ENDED_READ, person: ALICE, project: 2, task: 11, revision: 3 }
 }
 
 fn ended_record() -> Box<tasks::TaskRecord> {
@@ -85,104 +85,104 @@ fn ended_record() -> Box<tasks::TaskRecord> {
     row
 }
 
-fn historical_answer(now: Now, record: Record) -> core::Event {
+fn ended_answer(now: Now, record: Record) -> core::Event {
     let mut store = fixtures::opened();
     fixtures::committed(&mut store, Box::new([fixtures::header(1), fixtures::save(record)]));
-    let key = historical::key(&now).expect("historical key");
-    let Some(Row::Jig(row)) = got(get(&mut store, Get::Jig(key))) else { panic!("historical record exists") };
-    historical::answer(now, Some(row)).expect("historical answer")
+    let key = ended::key(&now).expect("ended key");
+    let Some(Row::Jig(row)) = got(get(&mut store, Get::Jig(key))) else { panic!("ended record exists") };
+    ended::answer(now, Some(row)).expect("ended answer")
 }
 
 #[test]
 fn a_seen_conversation_is_answered_with_its_ended_task() {
-    let event = historical_answer(seen_conversation(), fixtures::ended_task(ENDED));
+    let event = ended_answer(seen_conversation(), fixtures::ended_task(ENDED));
     let core::Event::SeenConversationLoaded { request, row, busy } = event else { panic!("seen chat event") };
-    assert_eq!(request, HISTORICAL);
+    assert_eq!(request, ENDED_READ);
     assert_eq!(row, Some(ended_record()));
     assert!(!busy);
 }
 
 #[test]
 fn an_ended_task_read_is_answered_with_its_ended_row() {
-    let now = Now::EndedTask { request: HISTORICAL, task: ENDED };
-    let event = historical_answer(now, fixtures::ended_task(ENDED));
+    let now = Now::EndedTask { request: ENDED_READ, task: ENDED };
+    let event = ended_answer(now, fixtures::ended_task(ENDED));
     let core::Event::EndedTaskLoaded { request, row, busy } = event else { panic!("ended task event") };
-    assert_eq!(request, HISTORICAL);
+    assert_eq!(request, ENDED_READ);
     assert_eq!(row, Some(ended_record()));
     assert!(!busy);
 }
 
 #[test]
-fn a_historical_escalation_is_answered_with_its_decision() {
+fn a_ended_escalation_is_answered_with_its_decision() {
     let record = Record::Core(CoreRecord::EscalationDecision(fixtures::core_rows::escalation()));
-    let event = historical_answer(escalation(), record);
-    let core::Event::HistoricalEscalation { request, person, project, task, revision, row, busy } = event else {
-        panic!("historical escalation event");
+    let event = ended_answer(escalation(), record);
+    let core::Event::EndedEscalation { request, person, project, task, revision, row, busy } = event else {
+        panic!("ended escalation event");
     };
-    assert_eq!((request, person, project, task, revision), (HISTORICAL, ALICE, 2, 11, 3));
+    assert_eq!((request, person, project, task, revision), (ENDED_READ, ALICE, 2, 11, 3));
     assert_eq!(row, Some(fixtures::core_rows::escalation()));
     assert!(!busy);
 }
 
 #[test]
-fn a_historical_proposal_is_answered_with_its_decision() {
+fn a_ended_proposal_is_answered_with_its_decision() {
     let record = Record::Core(CoreRecord::ProposalDecision(fixtures::core_rows::proposal()));
-    let event = historical_answer(proposal(), record);
-    let core::Event::HistoricalProposal { request, person, project, proposer, proposal, row, busy } = event else {
-        panic!("historical proposal event");
+    let event = ended_answer(proposal(), record);
+    let core::Event::EndedProposal { request, person, project, proposer, proposal, row, busy } = event else {
+        panic!("ended proposal event");
     };
-    assert_eq!((request, person, project, proposer, proposal), (HISTORICAL, ALICE, 2, people::Proposer::Party(12), 13));
+    assert_eq!((request, person, project, proposer, proposal), (ENDED_READ, ALICE, 2, people::Proposer::Party(12), 13));
     assert_eq!(row, Some(fixtures::core_rows::proposal()));
     assert!(!busy);
 }
 
 #[test]
-fn a_historical_person_task_is_answered_with_its_ended_task() {
-    let event = historical_answer(person_task(), fixtures::ended_task(ENDED));
-    let core::Event::HistoricalPersonTask { request, person, project, task, row, busy } = event else {
-        panic!("historical person task event");
+fn a_ended_person_task_is_answered_with_its_ended_task() {
+    let event = ended_answer(person_task(), fixtures::ended_task(ENDED));
+    let core::Event::EndedPersonTask { request, person, project, task, row, busy } = event else {
+        panic!("ended person task event");
     };
-    assert_eq!((request, person, project, task), (HISTORICAL, ALICE, 2, ENDED));
+    assert_eq!((request, person, project, task), (ENDED_READ, ALICE, 2, ENDED));
     assert_eq!(row, Some(ended_record()));
     assert!(!busy);
 }
 
 #[test]
-fn historical_reads_name_their_store_keys() {
+fn ended_reads_name_their_store_keys() {
     for (now, expected) in [
-        (Now::EndedTask { request: HISTORICAL, task: ENDED }, Key::Tasks(tasks::Key::Ended(ENDED))),
+        (Now::EndedTask { request: ENDED_READ, task: ENDED }, Key::Tasks(tasks::Key::Ended(ENDED))),
         (seen_conversation(), Key::Tasks(tasks::Key::Ended(ENDED))),
         (person_task(), Key::Tasks(tasks::Key::Ended(ENDED))),
         (proposal(), Key::Core(CoreKey::ProposalDecision { proposer: people::Proposer::Party(12), proposal: 13 })),
         (escalation(), Key::Core(CoreKey::EscalationDecision { task: 11, revision: 3 })),
     ] {
-        assert_eq!(historical::key(&now), Some(expected));
+        assert_eq!(ended::key(&now), Some(expected));
     }
 }
 
 #[test]
-fn a_missing_historical_record_answers_none_without_busy() {
-    let event = historical::answer(seen_conversation(), None).expect("seen chat answer");
+fn a_missing_ended_record_answers_none_without_busy() {
+    let event = ended::answer(seen_conversation(), None).expect("seen chat answer");
     let core::Event::SeenConversationLoaded { request, row: None, busy: false } = event else {
         panic!("missing row is not busy");
     };
-    assert_eq!(request, HISTORICAL);
+    assert_eq!(request, ENDED_READ);
 }
 
 #[test]
-fn a_historical_row_from_another_family_answers_none() {
+fn a_ended_row_from_another_family_answers_none() {
     let row = Some(fixtures::person(ALICE));
-    let event = historical::answer(proposal(), row).expect("proposal answer");
-    let core::Event::HistoricalProposal { request, row: None, busy: false, .. } = event else {
+    let event = ended::answer(proposal(), row).expect("proposal answer");
+    let core::Event::EndedProposal { request, row: None, busy: false, .. } = event else {
         panic!("another family's row is absent");
     };
-    assert_eq!(request, HISTORICAL);
+    assert_eq!(request, ENDED_READ);
 }
 
 #[test]
-fn an_unrelated_core_output_has_no_historical_translation() {
-    assert_eq!(historical::key(&Now::RestoreRefused), None);
-    assert!(historical::answer(Now::RestoreRefused, None).is_none());
+fn an_unrelated_core_output_has_no_ended_translation() {
+    assert_eq!(ended::key(&Now::RestoreRefused), None);
+    assert!(ended::answer(Now::RestoreRefused, None).is_none());
 }
 
 fn planted_note(value: Box<[u8]>) -> Store {

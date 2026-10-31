@@ -443,12 +443,12 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::PreparedAgent { .. }
         | core::Event::EndedReadLoaded { .. }
         | core::Event::SeenConversationLoaded { .. }
-        | core::Event::HistoricalProposal { .. }
+        | core::Event::EndedProposal { .. }
         | core::Event::DecidedProposal { .. }
-        | core::Event::HistoricalPersonTask { .. }
+        | core::Event::EndedPersonTask { .. }
         | core::Event::EndedTaskLoaded { .. }
         | core::Event::PartyInputsLoaded { .. }
-        | core::Event::HistoricalEscalation { .. }
+        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }

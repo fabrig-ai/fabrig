@@ -1,6 +1,8 @@
 /// Bounds for observability's working set and system values.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
+    /// Identifiers shared with the deployment's specs, contracts and authority.
+    pub vocabulary: Vocabulary,
     /// Cached service facts.
     pub services: u32,
     /// Live subscriptions.
@@ -58,4 +60,36 @@ fn refresh_capacity(limits: &Limits) -> Option<u32> {
         .subscriptions
         .checked_add(limits.watches.checked_mul(limits.services_per_watch)?)?
         .checked_add(crate::incidents::capacity(limits)?)
+}
+
+/// Configured connector vocabulary (jig/docs/design/examples.md, 3–6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Vocabulary {
+    pub environment_parameter: u32,
+    pub service_parameter: u32,
+    pub silence_effect: u16,
+    pub logs_read: u16,
+    pub series_read: u16,
+    pub fired_read: u16,
+    pub noise_verdict: u32,
+    pub incident_verdict: u32,
+    pub watch_template_parameter: u32,
+}
+
+impl Vocabulary {
+    /// Identifiers used by the reference deployment.
+    #[must_use]
+    pub const fn reference() -> Self {
+        Self {
+            environment_parameter: 1,
+            service_parameter: 2,
+            silence_effect: 1,
+            logs_read: 2,
+            series_read: 3,
+            fired_read: 4,
+            noise_verdict: 1,
+            incident_verdict: 2,
+            watch_template_parameter: 3,
+        }
+    }
 }

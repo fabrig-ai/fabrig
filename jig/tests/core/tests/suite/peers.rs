@@ -12,10 +12,10 @@ use jig_fake_workers::{self as workers, Call, Script, Worker};
 use jig_test_domain as root;
 use skein_lib::{Duration, Time};
 
+#[path = "../peers/ended.rs"]
+mod ended;
 #[path = "../peers/facts.rs"]
 mod facts;
-#[path = "../peers/historical.rs"]
-mod historical;
 
 fn party(subject: u64, role: Role, first: u64) -> Party {
     Party::new(1, role, first, Box::new([Act::SignIn { provider: 0, subject: subject.to_be_bytes().into() }]))

@@ -38,7 +38,12 @@ pub(crate) fn relay_payload(
     }
     if let Some(core::CallPart::Effect {
         deadline,
-        outcome: None | Some(core::connector::OutboxOutcome::Uncertain | core::connector::OutboxOutcome::Held { .. }),
+        outcome:
+            None
+            | Some(
+                core::effects::connector::OutboxOutcome::Uncertain
+                | core::effects::connector::OutboxOutcome::Held { .. },
+            ),
         ..
     }) = domain.core.call_parts.get(&key)
         && env.wall < *deadline

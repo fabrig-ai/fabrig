@@ -20,56 +20,57 @@
 //! schedules still require their schedule owner. `make_with_clock` projects
 //! host grace from monotonic deadlines; account deadlines carry their source wall.
 
+mod accounts;
+mod catalogue;
+mod chip_phase;
+mod deployment;
+mod endings;
+mod inbox_deployment;
+mod inbox_selection;
+mod live_delegates;
+mod objects;
+mod offers;
+mod programs;
+mod project_note;
+mod settings;
+mod settings_review;
+mod small;
+mod task_lines;
+pub mod task_query;
+pub(crate) mod task_tree;
+mod task_wait;
+
 use jig_domain_people::ApplicationScope;
 
-mod chip_phase;
-mod endings;
-pub use chip_phase::{ChipDetails, ChipObservation, ChipWork};
-mod inbox_deployment;
-pub use inbox_deployment::{Inbox, InboxEntry, InboxObject};
-mod catalogue;
-pub use catalogue::{PayerReadiness, ProviderOffer, Readiness};
-mod accounts;
 pub use accounts::{AccountLine, Accounts, LastEnd, SignInLine, SourceLine};
-pub use jig_domain_accounts::Use;
-mod deployment;
-mod settings;
-pub(crate) use settings::inventory as settings_inventory;
-mod settings_review;
-pub use settings::{Follows, HeldRevision, SettingLine, Settings, SettingsProposal};
-pub use settings_review::{ReviewItem, SettingsReview, settings_heads};
-mod programs;
+pub use catalogue::{PayerReadiness, ProviderOffer, Readiness};
+pub use chip_phase::{ChipDetails, ChipObservation, ChipWork};
 pub use deployment::{
     Account, AccountState, Capacity, Deployment, DocumentClock, HelloRefusalLine, Host, HostRun, ProjectCapacity,
     RunLocation, StoreFill, make_with_clock,
 };
-pub use programs::{ProgramHost, ProgramLogin};
-mod inbox_selection;
+pub use inbox_deployment::{Inbox, InboxEntry, InboxObject};
 pub(crate) use inbox_selection::retained as inbox_selection_from_ancestry;
 pub use inbox_selection::{InboxSelection, inbox_selection_bound};
-mod objects;
-mod offers;
-mod project_note;
-mod task_lines;
-pub use task_lines::{ConversationRead, TaskLine, task_line};
-pub mod task_query;
-pub use task_query::{Lines, PhaseClass, QueryOrder, TaskQuery, lines};
-mod small;
+pub use jig_domain_accounts::Use;
+pub use live_delegates::LiveDelegate;
 pub use objects::{
     AmendmentChange, AmendmentState, EndedDelegate, Escalation, FundingOffer, HistoryLine, MilestoneLine,
     MilestonePhase, PersonTask, Proposal, ProposalAction, ProposalHistory, ProposalHistoryState, ProposalWaiting,
     ProposedTask, Question, ResultDoc, RetainedAction, ShownResult, SpecLine, ended_delegate_from_row,
     history_from_row, milestone_from_row, person_from_row, result_from_row, retained_action,
 };
+pub use programs::{ProgramHost, ProgramLogin};
 pub use project_note::{
     Ledger, Member, Note, NoteLocation, Policy, PolicyRole, Project, ProjectResource, Recurring, Requirement,
     ResourceRole, SpendLine, note_from_entry,
 };
+pub(crate) use settings::inventory as settings_inventory;
+pub use settings::{Follows, HeldRevision, SettingLine, Settings, SettingsProposal};
+pub use settings_review::{ReviewItem, SettingsReview, settings_heads};
 pub(crate) use small::text as bounded_text;
-mod live_delegates;
-pub use live_delegates::LiveDelegate;
-pub(crate) mod task_tree;
-mod task_wait;
+pub use task_lines::{ConversationRead, TaskLine, task_line};
+pub use task_query::{Lines, PhaseClass, QueryOrder, TaskQuery, lines};
 pub use task_tree::{
     AuthorityLine, BudgetLine, ContractLine, Dependency, Ending, EscalationState, FoldedCount, GrantLine, HoldLine,
     NoteScope, Parameter, Part, PartKey, PartKind, PatternEnd, PhaseCounts, PlacedLine, PriorPhase, ProposalRef,
@@ -77,7 +78,7 @@ pub use task_tree::{
 };
 pub use task_wait::{OpenProgram, TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
 
-pub use crate::waits::WaitsOn;
+pub use crate::runs::waits::WaitsOn;
 use crate::{Core, Limits};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -508,7 +509,7 @@ pub fn document_with_context_bound(limits: &Limits) -> Option<u64> {
         .checked_add(settings::document_bound(limits)?)?
         .checked_add(settings_review::document_bound(limits)?)?
         .checked_add(inbox_selection_bound(limits.documents.rows, limits.tasks.depth)?)?
-        .checked_add(u64::from(limits.documents.lines).checked_mul(crate::templates::list_bound(limits)?)?)
+        .checked_add(u64::from(limits.documents.lines).checked_mul(crate::settings::templates::list_bound(limits)?)?)
 }
 
 /// Join volatile live observations to a loaded owner row. The reader checks
