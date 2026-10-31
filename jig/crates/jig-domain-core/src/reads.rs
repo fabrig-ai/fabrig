@@ -108,8 +108,7 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
             group: Group::Needs | Group::Proposals | Group::Escalations | Group::Questions | Group::PersonTasks,
             ..
         }
-        | Scope::EndedTasks
-        | Scope::TaskRows { .. } => false,
+ => false,
     }
 }
 
@@ -256,8 +255,7 @@ fn backwards(scope: &Scope) -> bool {
             group: Group::Needs | Group::Proposals | Group::Escalations | Group::Questions | Group::PersonTasks,
             ..
         }
-        | Scope::EndedTasks
-        | Scope::TaskRows { .. }
+
         | Scope::Inbox { group: Group::Updates | Group::Results | Group::Replies, .. }
         | Scope::Tasks { .. }
         | Scope::Notes { .. }
