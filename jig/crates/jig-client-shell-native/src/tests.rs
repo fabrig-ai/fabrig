@@ -277,7 +277,7 @@ impl skein_shell::Host for Disk {
             if matches!(self.case, FileCase::DuringWrite | FileCase::RefusedDuringWrite) && self.write_acks.len() == 1 {
                 // A record as large as the whole store cannot fit its framing.
                 let bytes = if matches!(self.case, FileCase::RefusedDuringWrite) {
-                    vec![0; usize::try_from(limits().body_bytes).expect("store bound")]
+                    vec![0; skein_lib::length::usize_of(limits().body_bytes)]
                 } else {
                     b"later".to_vec()
                 };

@@ -10,7 +10,7 @@ pub const ACCOUNT_MANAGE_USAGE: u32 = 2_048;
 /// Configuration additionally checks host labels and ports; it accepts a subset.
 #[must_use]
 pub fn valid_manage_usage(value: &[u8]) -> bool {
-    if value.len() > usize::try_from(ACCOUNT_MANAGE_USAGE).expect("the address bound fits usize") {
+    if value.len() > skein_lib::length::usize_of(ACCOUNT_MANAGE_USAGE) {
         return false;
     }
     let Some(host) = value.strip_prefix(b"https://") else { return false };

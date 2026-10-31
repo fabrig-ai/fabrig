@@ -55,7 +55,7 @@ impl Stream {
         if !self.active {
             return;
         }
-        if piece.len() > usize::try_from(self.env.limits.chunk).expect("u32 fits") {
+        if piece.len() > skein_lib::length::usize_of(self.env.limits.chunk) {
             self.ended(out);
             return;
         }
@@ -144,7 +144,7 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 fn line_piece(bytes: &[u8], chunk: u32) -> &[u8] {
-    let maximum = core::cmp::min(bytes.len(), usize::try_from(chunk).expect("u32 fits usize"));
+    let maximum = core::cmp::min(bytes.len(), skein_lib::length::usize_of(chunk));
     let piece = bytes.get(..maximum).expect("bounded scan");
     for (at, byte) in piece.iter().enumerate() {
         if *byte == b'\r' || *byte == b'\n' {

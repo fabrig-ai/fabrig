@@ -20,7 +20,6 @@ pub(crate) fn wire_choice(
         w::LlmChoiceParts { account: value.account, main: wire_model_effort(&value.main, limits)?, subagents },
     )?))
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 fn wire_model_effort(value: &c::ModelEffort, limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
     w::ModelEffort::new(
         limits,

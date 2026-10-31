@@ -128,7 +128,6 @@ pub(crate) fn run_end_fields(value: &w::RunEnd) -> c::RunEnd {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c::Activity, w::Problem> {
     Ok(match value {
         w::Activity::Words(row) => c::Activity::Words {
@@ -172,7 +171,6 @@ pub(crate) fn activity_line_fields(value: &w::ActivityLine, limits: &Limits) -> 
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn archived_turn_fields(value: &w::ArchivedTurn, limits: &Limits) -> c::ArchivedTurn {
     let opt0 = match value.read() {
         Some(item) => Some(*item),

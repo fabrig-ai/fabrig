@@ -808,7 +808,7 @@ fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
     let expected = w::DeliveryValue::Inbox(
         jig_protocol_engine_clients::translate::inbox::document(&inbox, &w::CEILINGS).expect("component inbox encoder"),
     );
-    let mut writer = Writer::new(usize::try_from(expected.measure()).expect("inbox length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(expected.measure()));
     expected.encode(&mut writer).expect("measured inbox");
     let expected = jig_client_protocol_link::translate::watches::delivery(
         &writer.finish(),

@@ -85,7 +85,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<first::Act>
                 },
                 Meaning::Parameters { object, revision } => match act {
                     Act::Input { value } => {
-                        if value.len() > usize::try_from(bindings.text).expect("text fits usize") {
+                        if value.len() > skein_lib::length::usize_of(bindings.text) {
                             return None;
                         }
                         Some(first::Act::Parameters {

@@ -38,9 +38,9 @@ pub fn frame_two_projects_record() -> w::Me {
     for project in &projects {
         size = size.checked_add(project.measure()).expect("fixture sizes").checked_add(4).expect("piece header");
     }
-    let mut out = skein_lib::Writer::new(usize::try_from(size).expect("fixture size"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(size));
     for project in &projects {
-        let mut encoded = skein_lib::Writer::new(usize::try_from(project.measure()).expect("fixture size"));
+        let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(project.measure()));
         project.encode(&mut encoded).expect("fixture encode");
         skein_codec::piece::write(&mut out, &encoded.finish()).expect("fixture piece");
     }

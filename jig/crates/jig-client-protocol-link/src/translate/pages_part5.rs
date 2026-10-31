@@ -4,7 +4,6 @@ use super::{
     authority_fields, c, cursor_fields, history_holder_fields, period_times_fields, proposed_task_piece,
     task_link_fields, text, too_large, w,
 };
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn funding_record_fields(value: &w::FundingRecord) -> c::FundingRecord {
     let opt0 = match value.period() {
         Some(item) => Some(period_times_fields(item)),
@@ -71,7 +70,6 @@ pub(crate) fn specification_fields(value: &w::Specification, limits: &Limits) ->
     Ok(c::Specification { asks: value.asks(), words: text(value.words(), limits)?, parameters: list0, inputs: list1 })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn amendment_fields(value: &w::Amendment, limits: &Limits) -> Result<c::Amendment, w::Problem> {
     let opt0 = match value.addressed() {
         Some(item) => Some(address_change_fields(item)),
@@ -121,7 +119,6 @@ pub(crate) fn amendment_fields(value: &w::Amendment, limits: &Limits) -> Result<
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn proposal_action_fields(
     value: &w::ProposalAction,
     limits: &Limits,

@@ -45,7 +45,6 @@ pub(crate) fn escalation_choice(value: &w::EscalationChoice) -> c::EscalationCho
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields")]
 pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> Result<c::DocumentOutcome, w::Problem> {
     Ok(match value {
         w::DocumentOutcome::ProjectRemoved(row) => c::DocumentOutcome::ProjectRemoved { project: row.project() },
@@ -174,7 +173,6 @@ pub(crate) fn made(value: &w::Made) -> c::Made {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decision, w::Problem> {
     Ok(match value {
         w::Decision::Accepted => c::Decision::Accepted,
@@ -250,7 +248,7 @@ pub(crate) fn hold_owner(value: &w::HoldOwner) -> c::HoldOwner {
 }
 pub(crate) fn placed(value: Option<&w::PlacedLine>, limits: &Limits) -> Result<Option<c::PlacedHold>, w::Problem> {
     let Some(value) = value else { return Ok(None) };
-    if value.reason().len() > usize::try_from(limits.client().text).expect("text bound fits") {
+    if value.reason().len() > skein_lib::length::usize_of(limits.client().text) {
         return Err(super::too_large());
     }
     Ok(Some(c::PlacedHold {
@@ -271,7 +269,6 @@ pub(crate) fn placed(value: Option<&w::PlacedLine>, limits: &Limits) -> Result<O
         may_lift: value.may_lift(),
     }))
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn lacking(value: &w::Lacking) -> c::Lacking {
     match value {
         w::Lacking::Approver => c::Lacking::Approver,
@@ -474,7 +471,6 @@ fn ending(value: &w::Ending, limits: &Limits) -> Result<c::Ending, w::Problem> {
     super::facts::ending(value, limits)
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal, w::Problem> {
     Ok(match value {
         w::Refusal::Role(row) => {
@@ -662,7 +658,7 @@ fn original_nonzero_recipient_survives_wire_decoding_and_contract_translation() 
             w::OutcomeProposed::new(limits.wire(), w::OutcomeProposedParts { proposal: 31, to })
                 .expect("recipient record"),
         );
-        let mut out = Writer::new(usize::try_from(original.measure()).expect("small result"));
+        let mut out = Writer::new(skein_lib::length::usize_of(original.measure()));
         original.encode(&mut out).expect("measured room");
         let bytes = out.finish();
         let decoded = w::DocumentOutcome::decode(limits.wire(), &mut Reader::new(&bytes)).expect("real record decoder");

@@ -1,8 +1,4 @@
 //! Resource name segments are display bytes, never joined or parsed (authority.md, 4).
-#![expect(
-    clippy::disallowed_methods,
-    reason = "UTF-8 classification is for display only; supplied literal bytes remain opaque"
-)]
 use alloc::boxed::Box;
 use skein_lib::List;
 use skein_ui::{Builder, Run};
@@ -11,7 +7,7 @@ use skein_ui::{Builder, Run};
 #[must_use]
 pub fn display_bytes(bytes: &[u8]) -> Option<u32> {
     let count = u32::try_from(bytes.len()).ok()?;
-    if core::str::from_utf8(bytes).is_ok() { Some(count) } else { count.checked_mul(4) }
+    if skein_lib::bytes::is_utf8(bytes) { Some(count) } else { count.checked_mul(4) }
 }
 
 /// Byte envelope for a single segment, including non-UTF-8 escaping.
@@ -22,7 +18,7 @@ pub fn max_bytes(text: u32) -> Option<u32> {
 
 /// Preserve UTF-8 whole; escape a non-UTF-8 segment's bytes for display only.
 pub fn render(b: &mut Builder, bytes: &[u8]) {
-    if core::str::from_utf8(bytes).is_ok() {
+    if skein_lib::bytes::is_utf8(bytes) {
         b.text(Run::Code, bytes);
         return;
     }

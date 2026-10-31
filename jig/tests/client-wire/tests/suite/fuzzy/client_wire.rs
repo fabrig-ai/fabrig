@@ -6,7 +6,7 @@ use std::{fs, path::Path};
 macro_rules! check {
     ($record:ident, $bytes:expr) => {
         if let Ok(record) = $record::decode(&CEILINGS, &mut Reader::new($bytes)) {
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut writer).expect("measured room");
             assert_eq!(writer.finish().as_ref(), $bytes, stringify!($record));
         }

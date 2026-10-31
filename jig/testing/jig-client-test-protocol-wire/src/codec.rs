@@ -40,7 +40,7 @@ pub fn limits(limits: &d::Limits) -> Option<w::Limits> {
 pub fn request_record(project: u32, value: &d::ApplicationRequest) -> Box<[u8]> {
     let record = w::Request::new(&w::CEILINGS, w::RequestParts { project, value: encode_application_request(value) })
         .expect("admitted request fits schema");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -59,7 +59,7 @@ pub fn request(bytes: &[u8], bound: &d::Limits) -> Result<DecodedRequest, Undeco
 pub fn outcome(value: &d::ApplicationOutcome) -> Box<[u8]> {
     let record = w::Outcome::new(&w::CEILINGS, w::OutcomeParts { value: parts::encode_application_outcome(value) })
         .expect("admitted outcome fits schema");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -76,7 +76,7 @@ pub fn outcome_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ApplicationOu
 pub fn subject(value: &d::ClientSubject) -> Box<[u8]> {
     let record = w::Subject::new(&w::CEILINGS, w::SubjectParts { value: parts::encode_client_subject(value) })
         .expect("admitted subject fits schema");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -93,7 +93,7 @@ pub fn subject_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ClientSubject
 pub fn read(value: &d::ClientSubject) -> Box<[u8]> {
     let record = w::Read::new(&w::CEILINGS, w::ReadParts { value: parts::encode_client_subject(value) })
         .expect("admitted read fits schema");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -110,7 +110,7 @@ pub fn read_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ClientSubject, U
 pub fn document(value: &d::ClientDocument) -> Box<[u8]> {
     let record = w::Document::new(&w::CEILINGS, w::DocumentParts { value: documents::encode_client_document(value) })
         .expect("admitted document fits schema");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -136,7 +136,7 @@ pub fn read_answer(answer: &Result<d::ClientDocument, d::DocumentMissing>) -> Bo
         Err(d::DocumentMissing::NotAllowed) => w::ReadResult::NotAllowed,
     };
     let record = w::ReadAnswer::new(&w::CEILINGS, w::ReadAnswerParts { value }).expect("bounded read answer");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }

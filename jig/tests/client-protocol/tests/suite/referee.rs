@@ -6,7 +6,7 @@ use skein_lib::{Reader, Token, Writer};
 fn a_record_altered_on_the_wire_is_caught() {
     let value = wire::LinkSignIn::new(&wire::CEILINGS, wire::LinkSignInParts { secret: Box::new([7; 32]) })
         .expect("fixture record");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("fixture size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured record");
     let source = writer.finish();
     let mut actual = source.clone();

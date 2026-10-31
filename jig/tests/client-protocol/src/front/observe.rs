@@ -197,7 +197,7 @@ mod tests {
     const TASK: u64 = 8;
 
     fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(measure(value)).expect("bounded wire fixture"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
         encode(value, &mut writer).expect("measured wire fixture");
         writer.finish()
     }

@@ -53,7 +53,7 @@ pub(super) fn task(world: &mut World<Test, Joint>, client: crate::ClientId, numb
         "composed Amend and Release"
     );
     let start = tree.nodes().iter().position(|node| node.id == card).expect("card index");
-    let end = start + usize::try_from(tree.nodes()[start].size).expect("card size");
+    let end = start + skein_lib::length::usize_of(tree.nodes()[start].size);
     let count = tree.nodes()[start..end].iter().filter(|node| node.role == Role::Button).count();
     let expected = source
         .iter()
@@ -118,7 +118,7 @@ pub(super) fn card(world: &mut World<Test, Joint>, client: crate::ClientId, key:
         "composed Amend and Release"
     );
     let start = tree.nodes().iter().position(|node| node.id == card).expect("card index");
-    let end = start + usize::try_from(tree.nodes()[start].size).expect("card size");
+    let end = start + skein_lib::length::usize_of(tree.nodes()[start].size);
     let buttons = tree.nodes()[start..end].iter().filter(|node| node.role == Role::Button).count();
     let expected = source
         .iter()

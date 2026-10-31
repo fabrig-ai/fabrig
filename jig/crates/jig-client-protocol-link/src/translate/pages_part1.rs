@@ -25,7 +25,6 @@ pub(crate) fn address_change_fields(value: &w::AddressChange) -> c::AddressChang
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn retained_amendment_fields(
     value: &w::RetainedAmendment,
     limits: &Limits,
@@ -167,7 +166,6 @@ pub(crate) fn activity_line_piece(
     Err(too_large())
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn decoded_activity_line_fields(
     value: &w::DecodedActivityLine,
     limits: &Limits,

@@ -10,9 +10,8 @@ pub struct Text {
 }
 impl Text {
     /// Takes UTF-8 bytes only when their length fits the owner's bound.
-    #[expect(clippy::disallowed_methods, reason = "client/domain/contract.md, 5.3 requires UTF-8 text validation")]
     pub fn new(bytes: Box<[u8]>, limit: u32) -> Result<Self, Box<[u8]>> {
-        if bytes.len() > usize::try_from(limit).expect("u32 fits usize") || core::str::from_utf8(&bytes).is_err() {
+        if bytes.len() > skein_lib::length::usize_of(limit) || !skein_lib::bytes::is_utf8(&bytes) {
             return Err(bytes);
         }
         Ok(Self { bytes })
@@ -25,7 +24,7 @@ impl Text {
     /// Whether the already decoded text fits another owner's byte bound.
     #[must_use]
     pub fn fits(&self, limit: u32) -> bool {
-        self.bytes.len() <= usize::try_from(limit).expect("u32 fits usize")
+        self.bytes.len() <= skein_lib::length::usize_of(limit)
     }
     /// Moves the bytes to their next owner.
     #[must_use]
@@ -41,7 +40,7 @@ pub struct Bytes {
 impl Bytes {
     /// Takes opaque bytes only when their length fits the owner's bound.
     pub fn new(bytes: Box<[u8]>, limit: u32) -> Result<Self, Box<[u8]>> {
-        if bytes.len() > usize::try_from(limit).expect("u32 fits usize") {
+        if bytes.len() > skein_lib::length::usize_of(limit) {
             return Err(bytes);
         }
         Ok(Self { bytes })
@@ -54,7 +53,7 @@ impl Bytes {
     /// Whether the bytes fit another owner's byte bound.
     #[must_use]
     pub fn fits(&self, limit: u32) -> bool {
-        self.bytes.len() <= usize::try_from(limit).expect("u32 fits usize")
+        self.bytes.len() <= skein_lib::length::usize_of(limit)
     }
     /// Moves the complete bytes to their next owner.
     #[must_use]

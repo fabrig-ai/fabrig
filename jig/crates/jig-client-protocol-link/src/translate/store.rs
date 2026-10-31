@@ -63,7 +63,6 @@ fn policy_edit(value: &w::PolicyEdit, limits: &Limits) -> Result<c::PolicyEdit, 
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 #[expect(clippy::too_many_lines, reason = "one total match restores every client ask")]
 pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::Problem> {
     Ok(match value {
@@ -189,12 +188,11 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) -> Result<w::TableEntry, w::Problem> {
     let (owner, version, request) = match &value.request.request {
         Ask::Jig(value) => {
             let record = super::asks::ask(value, limits.wire())?;
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("u32 fits usize"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut writer).expect("measured ask");
             (w::Owner::Jig, wire::VERSION, writer.finish())
         }
@@ -222,7 +220,6 @@ pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) ->
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn restore_table(
     value: w::TableEntry,
     limits: &Limits,

@@ -139,11 +139,7 @@ pub fn store_asks() -> List<c::Ask> {
     ])
 }
 pub fn list<T, const N: usize>(values: [T; N]) -> List<T> {
-    let mut out = List::with_capacity(u32::try_from(N).unwrap());
-    for value in values {
-        out.push(value).ok().expect("fixture list fits");
-    }
-    out
+    List::from_boxed(Box::new(values))
 }
 pub const TABLE_VERSION: u16 = jig_client_domain::TABLE_VERSION;
 pub fn saved_table(ask: c::Ask) -> Saved {

@@ -182,7 +182,7 @@ fn encode_setting_pieces(values: &List<c::SettingItem>, limits: &w::Limits) -> R
         }
         rows.push(row).expect("same capacity");
     }
-    let mut writer = Writer::new(usize::try_from(size).expect("wire size fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(size));
     for row in rows.into_boxed() {
         writer.put(&row.measure().to_be_bytes()).expect("measured");
         row.encode(&mut writer).expect("measured");
@@ -190,7 +190,7 @@ fn encode_setting_pieces(values: &List<c::SettingItem>, limits: &w::Limits) -> R
     Ok(writer.finish())
 }
 fn decode_setting_pieces(values: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, w::Problem> {
-    if values.len() > usize::try_from(limits.receiving().propose_settings_items).expect("wire bytes fit") {
+    if values.len() > skein_lib::length::usize_of(limits.receiving().propose_settings_items) {
         return Err(super::too_large());
     }
     let count = piece_count(values)?;
@@ -221,7 +221,7 @@ fn encode_review_pieces(values: &List<c::ReviewItem>, limits: &w::Limits) -> Res
         }
         rows.push(row).expect("same capacity");
     }
-    let mut writer = Writer::new(usize::try_from(size).expect("wire size fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(size));
     for row in rows.into_boxed() {
         writer.put(&row.measure().to_be_bytes()).expect("measured");
         row.encode(&mut writer).expect("measured");
@@ -229,7 +229,7 @@ fn encode_review_pieces(values: &List<c::ReviewItem>, limits: &w::Limits) -> Res
     Ok(writer.finish())
 }
 fn decode_review_pieces(values: &[u8], limits: &Limits) -> Result<List<c::ReviewItem>, w::Problem> {
-    if values.len() > usize::try_from(limits.receiving().settings_review_items).expect("wire bytes fit") {
+    if values.len() > skein_lib::length::usize_of(limits.receiving().settings_review_items) {
         return Err(super::too_large());
     }
     let count = piece_count(values)?;

@@ -100,12 +100,7 @@ pub fn limits() -> jig_client_test_domain::Limits {
 /// Creates a bounded fixture list with room for all supplied rows.
 #[must_use]
 pub fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
-    let rows: Vec<_> = rows.into_iter().collect();
-    let mut out = List::with_capacity(u32::try_from(rows.len()).expect("fixture rows fit"));
-    for row in rows {
-        assert!(out.push(row).is_ok(), "fixture capacity");
-    }
-    out
+    List::from_boxed(rows.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 
 /// Check the public decision vocabulary supplied by an application's world.

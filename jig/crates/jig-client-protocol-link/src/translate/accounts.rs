@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code translates optional facts without closures")]
 //! Accounts watch decoding and shared deployment source facts (contract.md, 5.1).
 use super::{Limits, List, Reader, Wall, c, piece_problem, too_large, w};
 use alloc::boxed::Box;

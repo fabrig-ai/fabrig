@@ -53,7 +53,7 @@ pub(crate) fn merge(watch: &Watch, mut value: RunText, limit: u32) -> Option<Run
 
 fn tail(old: &[u8], incoming: &[u8], limit: u32) -> Text {
     let length = old.len().checked_add(incoming.len()).expect("validated text lengths");
-    let kept = length.min(usize::try_from(limit).expect("text bound fits usize"));
+    let kept = length.min(skein_lib::length::usize_of(limit));
     let dropped = length.saturating_sub(kept);
     let incoming_from = dropped.saturating_sub(old.len());
     let old = suffix(old, dropped.min(old.len()));

@@ -4,7 +4,6 @@ use super::{
     proposal_action_fields, proposal_waiting_fields, result_fields, specification_document_fields,
     task_contract_document_fields, task_fields, task_link_fields, too_large, w,
 };
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn funding_offer_fields(value: &w::FundingOffer) -> c::FundingOffer {
     let opt0 = match value.left() {
         Some(item) => Some(*item),
@@ -49,7 +48,6 @@ pub(crate) fn escalation_fields(value: &w::Escalation, limits: &Limits) -> Resul
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn question_fields(value: &w::Question, limits: &Limits) -> Result<c::Question, w::Problem> {
     let opt0 = match value.from() {
         Some(item) => Some(crate::translate::facts::requester(item)),
@@ -111,7 +109,6 @@ pub(crate) fn shown_result_piece(
     Err(too_large())
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn person_task_fields(value: &w::PersonTask, limits: &Limits) -> Result<c::PersonTask, w::Problem> {
     let opt0 = match value.taken_by() {
         Some(item) => Some(*item),

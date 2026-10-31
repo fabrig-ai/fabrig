@@ -102,7 +102,6 @@ pub(super) fn deadline(value: c::TemplateDeadline, limits: &w::Limits) -> Result
 pub(super) fn restore_templates(values: &List<w::TemplateOverride>) -> c::PolicyEdit {
     c::PolicyEdit::Templates { overrides: restore_template_overrides(values) }
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(super) fn restore_template_overrides(values: &List<w::TemplateOverride>) -> List<c::TemplateOverride> {
     let mut overrides = List::with_capacity(values.len());
     for v in values {
@@ -180,7 +179,7 @@ fn batch(tasks: &List<c::NewTask>, bound: u32, limits: &w::Limits) -> Result<Box
         }
         records.push(record).expect("same capacity");
     }
-    let mut out = skein_lib::Writer::new(usize::try_from(size).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(size));
     for record in records.into_boxed() {
         out.put(&record.measure().to_be_bytes()).expect("measured piece");
         record.encode(&mut out).expect("measured task");

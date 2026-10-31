@@ -3,7 +3,6 @@ use super::{
     Box, Limits, List, Reader, Wall, c, chip_ending_fields, chip_fields, cursor_fields, piece_problem,
     task_link_fields, too_large, w,
 };
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn ended_delegate_fields(value: &w::EndedDelegate, limits: &Limits) -> Result<c::EndedDelegate, w::Problem> {
     let opt0 = match value.at() {
         Some(item) => Some(Wall::from_nanos(*item)),
@@ -80,7 +79,6 @@ pub(crate) fn inbox_object_fields(value: &w::InboxObject) -> c::InboxObject {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn inbox_cursor_fields(value: &w::InboxCursor) -> c::InboxCursor {
     match value {
         w::InboxCursor::Number(row) => c::InboxCursor::Number { number: row.number() },
@@ -141,7 +139,6 @@ pub(crate) fn inbox_selection_piece(
     Err(too_large())
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn inbox_entry_fields(value: &w::InboxEntry, limits: &Limits) -> Result<c::InboxEntry, w::Problem> {
     let opt0 = match value.reply() {
         Some(item) => Some(Box::new(crate::translate::queries::line(item, limits)?)),
@@ -226,7 +223,6 @@ pub(crate) fn inbox_page_fields(value: &w::InboxPage, limits: &Limits) -> Result
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn period_times_fields(value: &w::PeriodTimes) -> c::PeriodTimes {
     let opt0 = match value.next() {
         Some(item) => Some(Wall::from_nanos(*item)),

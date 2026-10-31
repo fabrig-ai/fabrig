@@ -3,7 +3,6 @@ use super::{
     Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, piece_problem,
     result_value_fields, task_contract_document_fields, task_link_piece, too_large, w,
 };
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn spend_line_fields(value: &w::SpendLine) -> c::SpendLine {
     let opt0 = match value.attempt() {
         Some(item) => Some(*item),
@@ -50,7 +49,6 @@ pub(crate) fn kind_implication_fields(value: &w::KindImplication) -> c::KindImpl
     c::KindImplication { connector: value.connector(), kind: value.kind(), implies: value.implies() }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn bounds_fields(value: &w::Bounds, limits: &Limits) -> Result<c::Bounds, w::Problem> {
     Ok(match value {
         w::Bounds::Create(row) => {
@@ -125,7 +123,6 @@ pub(crate) fn admission_fields(value: &w::Admission, limits: &Limits) -> Result<
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches the optional engine effect")]
 pub(crate) fn offered_fields(value: &w::Offered, limits: &Limits) -> Result<c::Offered, w::Problem> {
     Ok(c::Offered {
         effect: match value.effect() {
@@ -180,7 +177,6 @@ pub(crate) fn ending_fields(value: &w::Ending, limits: &Limits) -> Result<c::End
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn result_details_fields(value: &w::ResultDetails, limits: &Limits) -> Result<c::ResultDetails, w::Problem> {
     let opt0 = match value.chosen_by() {
         Some(item) => Some(*item),
@@ -206,7 +202,6 @@ pub(crate) fn result_details_fields(value: &w::ResultDetails, limits: &Limits) -
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn result_fields(value: &w::ResultDocument, limits: &Limits) -> Result<c::Result, w::Problem> {
     let opt0 = match value.value() {
         Some(item) => Some(result_value_fields(item, limits)?),

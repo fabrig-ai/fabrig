@@ -169,7 +169,7 @@ pub(crate) fn show(
     let overlong = sections.len() > super::MOST_SECTIONS;
     let sections = sections
         .as_slice()
-        .get(..usize::try_from(sections.len().min(super::MOST_SECTIONS)).expect("bounded section count"))
+        .get(..skein_lib::length::usize_of(sections.len().min(super::MOST_SECTIONS)))
         .expect("bounded prefix");
     let previous = domain.sections.clone();
     domain.sections.clear();

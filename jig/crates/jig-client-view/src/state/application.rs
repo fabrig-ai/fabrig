@@ -427,7 +427,6 @@ pub(crate) fn owner_scope(part: &ApplicationPart, enclosing: contract::PartScope
         | ApplicationPart::Deployment { .. } => enclosing,
     }
 }
-#[expect(clippy::manual_map, reason = "step code matches optional values explicitly")]
 pub(crate) fn scope(domain: &Ui, part: &ApplicationPart, lent: &jig_client::Client) -> Option<contract::PartScope> {
     match part {
         ApplicationPart::Outbox { scope, .. } => Some(*scope),

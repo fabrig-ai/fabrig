@@ -8,7 +8,7 @@ fn a_remove_project_ask_round_trips() {
         let value = w::Ask::RemoveProject(
             w::RemoveProject::new(&w::CEILINGS, w::RemoveProjectParts { project }).expect("project"),
         );
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("ask size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("ask bytes");
         let bytes = out.finish();
         let mut input = Reader::new(&bytes);
@@ -23,7 +23,7 @@ fn a_project_removed_outcome_round_trips() {
         let value = w::DocumentOutcome::ProjectRemoved(
             w::OutcomeProjectRemoved::new(&w::CEILINGS, w::OutcomeProjectRemovedParts { project }).expect("project"),
         );
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("outcome size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("outcome bytes");
         let bytes = out.finish();
         let mut input = Reader::new(&bytes);

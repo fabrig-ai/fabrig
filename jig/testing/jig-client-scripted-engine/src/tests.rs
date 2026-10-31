@@ -13,11 +13,7 @@ fn text(bytes: &[u8]) -> Text {
     Text::new(bytes.into(), 4096).expect("fixture text fits")
 }
 fn list<T>(items: Vec<T>) -> List<T> {
-    let mut out = List::with_capacity(u32::try_from(items.len()).expect("fixture list fits"));
-    for item in items {
-        assert!(out.push(item).is_ok());
-    }
-    out
+    List::from_boxed(items.into_boxed_slice())
 }
 fn frame(number: u64) -> Me {
     Me {

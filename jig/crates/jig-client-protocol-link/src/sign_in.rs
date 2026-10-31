@@ -36,7 +36,7 @@ impl Link {
                     out.push(Request::Signing { signing: Signing::Refused });
                     return;
                 };
-                let mut writer = Writer::new(usize::try_from(record.measure()).expect("short sign-in"));
+                let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
                 record.encode(&mut writer).expect("measured sign-in");
                 self.signing_exchange(
                     ExchangeKind::SignIn,

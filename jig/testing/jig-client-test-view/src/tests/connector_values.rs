@@ -13,11 +13,7 @@ use skein_ui::{Builder, Role, Tree};
 
 use skein_lib::{List, Wall, bytes::copy_of};
 fn list<T>(capacity: u32, values: impl IntoIterator<Item = T>) -> List<T> {
-    let mut result = List::with_capacity(capacity);
-    for value in values {
-        result.push(value).ok().expect("fixture capacity");
-    }
-    result
+    List::from_boxed(capacity.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 fn path() -> Path {
     Path::new(list(2, [b"literal/slash".as_slice().into(), [0xff, 0x00].as_slice().into()]), 16).unwrap()

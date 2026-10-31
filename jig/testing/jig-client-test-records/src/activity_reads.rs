@@ -48,14 +48,14 @@ pub fn activity_rows(rows: &[w::DecodedActivityLine]) -> w::ActivityPage {
     let mut length = 0_usize;
     for row in rows {
         length = length
-            .checked_add(usize::try_from(row.measure()).expect("literal fixture fits"))
+            .checked_add(skein_lib::length::usize_of(row.measure()))
             .expect("literal fixture fits")
             .checked_add(4)
             .expect("literal fixture fits");
     }
     let mut piece = Writer::new(length);
     for row in rows {
-        let mut bytes = Writer::new(usize::try_from(row.measure()).expect("literal fixture fits"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut bytes).expect("literal fixture fits");
         skein_codec::piece::write(&mut piece, &bytes.finish()).expect("literal fixture fits");
     }

@@ -22,7 +22,7 @@ pub(crate) fn request(scope_value: c::Scope, record: &Family, limits: &w::Limits
         limits,
         w::FamilyRequestParts { scope: scope(scope_value, limits)?, record: bytes::copy_of(&record.bytes) },
     )?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("wire size fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured family request");
     Ok(writer.finish())
 }
@@ -41,7 +41,7 @@ pub(crate) fn record(
         limits,
         w::FamilyRecordParts { scope: scope(scope_value, limits)?, window, record: record.bytes },
     )?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("wire size fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured family record");
     Ok(writer.finish())
 }

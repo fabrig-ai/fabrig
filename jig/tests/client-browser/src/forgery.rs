@@ -52,7 +52,7 @@ pub(super) fn request() -> Box<[u8]> {
     tasks.push(task()).expect("one forged task");
     let ask = jig_client_protocol_link::translate::asks::ask(&c::Ask::Create { project: PROJECT, tasks }, &w::CEILINGS)
         .expect("forged request fits wire");
-    let mut writer = Writer::new(usize::try_from(ask.measure()).expect("request size fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(ask.measure()));
     ask.encode(&mut writer).expect("measured request");
     let keyed = w::Keyed::new(
         &w::CEILINGS,
@@ -65,7 +65,7 @@ pub(super) fn request() -> Box<[u8]> {
         },
     )
     .expect("bounded keyed request");
-    let mut writer = Writer::new(usize::try_from(keyed.measure()).expect("keyed size fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(keyed.measure()));
     keyed.encode(&mut writer).expect("measured keyed request");
     writer.finish()
 }

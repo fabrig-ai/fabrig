@@ -32,13 +32,13 @@ pub(super) fn key(record: &Saved) -> Box<[u8]> {
 }
 fn encoded(value: &Saved, limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
     let table = translate::store::table(&value.record, limits)?;
-    let mut writer = Writer::new(usize::try_from(table.measure()).expect("record fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(table.measure()));
     table.encode(&mut writer).expect("measured table record");
     let record = w::Kept::new(limits.wire(), w::KeptParts { store_version: value.version, record: writer.finish() })?;
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(translate::too_large());
     }
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("record fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured kept record");
     Ok(writer.finish())
 }
@@ -169,7 +169,7 @@ impl Link {
         ) else {
             return Err(crate::Undecodable::TooLarge);
         };
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("fixed stream record"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured stream record");
         out.push(Request::Save { record: Record { key: bytes::copy_of(crate::STREAM_KEY), bytes: writer.finish() } });
         Ok(())

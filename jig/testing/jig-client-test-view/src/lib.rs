@@ -1,5 +1,6 @@
 //! The test application's view composition (client/domain/root.md, section 9).
 //! Each child owns its words and bindings; this root only routes slots and acts.
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

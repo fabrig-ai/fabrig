@@ -60,7 +60,6 @@ pub(crate) fn held_runtime_fields(value: &w::HeldRuntime, limits: &Limits) -> Re
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn runtime_fields(value: &w::Runtime, limits: &Limits) -> Result<c::Runtime, w::Problem> {
     Ok(match value {
         w::Runtime::Active(row) => c::Runtime::Active(crate::translate::facts::active_run(row.value(), limits)?),
@@ -135,7 +134,6 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w::Problem> {
     let opt0 = match value.goal() {
         Some(item) => Some(*item),

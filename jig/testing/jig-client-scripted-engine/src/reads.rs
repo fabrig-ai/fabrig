@@ -134,11 +134,7 @@ fn cursor(number: u64, bounds: &Bounds) -> Cursor {
     Cursor::new(number.to_be_bytes().to_vec().into_boxed_slice(), bounds.text).expect("cursor bound checked")
 }
 pub(crate) fn list<T: Clone>(rows: &[T]) -> List<T> {
-    let mut list = List::with_capacity(u32::try_from(rows.len()).expect("bounded rows fit u32"));
-    for row in rows {
-        assert!(list.push(row.clone()).is_ok(), "reserved page capacity");
-    }
-    list
+    List::from_boxed(rows.to_vec().into_boxed_slice())
 }
 pub(crate) fn plain(mut read: Read) -> (Read, Option<Cursor>) {
     let position = match &mut read {
@@ -273,7 +269,7 @@ impl<A: crate::Application> Engine<A> {
         } else {
             0
         };
-        let maximum = usize::try_from(self.bounds.rows).expect("u32 fits usize");
+        let maximum = skein_lib::length::usize_of(self.bounds.rows);
         let mut count = maximum.min(if backward { index } else { rows.len() - index });
         if count == 0 && rows.len() != 0 {
             return Err(ReadNone::Busy);

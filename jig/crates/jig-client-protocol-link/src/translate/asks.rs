@@ -8,7 +8,6 @@ pub(crate) fn wire_revision(value: c::Revision, limits: &w::Limits) -> Result<w:
     w::Revision::new(limits, w::RevisionParts { value: value.value })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn wire_person_answer(value: &c::PersonAnswer, limits: &w::Limits) -> Result<w::PersonAnswer, w::Problem> {
     Ok(match value {
         c::PersonAnswer::Choice { option, reason } => w::PersonAnswer::Choice(w::PersonAnswerChoice::new(
@@ -54,7 +53,6 @@ pub(crate) fn wire_proposal_key(value: &c::ProposalKey, limits: &w::Limits) -> R
     )
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn wire_decision(value: &c::Decision, limits: &w::Limits) -> Result<w::Decision, w::Problem> {
     Ok(match value {
         c::Decision::Accepted => w::Decision::Accepted,
@@ -215,9 +213,9 @@ pub(super) fn wire_owner_grant_piece(rows: &List<w::Grant>, limits: &w::Limits) 
     if length > limits.owned_record {
         return Err(too_large());
     }
-    let mut writer = Writer::new(usize::try_from(length).expect("u32 fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(length));
     for row in rows {
-        let mut item = Writer::new(usize::try_from(row.measure()).expect("u32 fits usize"));
+        let mut item = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut item).expect("measured row");
         let item = item.finish();
         skein_codec::piece::write(&mut writer, &item).expect("measured piece");
@@ -271,9 +269,9 @@ fn wire_owner_resource_scope_piece(rows: &List<w::ResourceScope>, limits: &w::Li
     if length > limits.owned_record {
         return Err(too_large());
     }
-    let mut writer = Writer::new(usize::try_from(length).expect("u32 fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(length));
     for row in rows {
-        let mut item = Writer::new(usize::try_from(row.measure()).expect("u32 fits usize"));
+        let mut item = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut item).expect("measured row");
         let item = item.finish();
         skein_codec::piece::write(&mut writer, &item).expect("measured piece");
@@ -281,7 +279,6 @@ fn wire_owner_resource_scope_piece(rows: &List<w::ResourceScope>, limits: &w::Li
     Ok(writer.finish())
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn wire_owner_authority(value: &c::Authority, limits: &w::Limits) -> Result<w::Authority, w::Problem> {
     let mut list0 = List::with_capacity(value.grants.len());
     for item in &value.grants {
@@ -310,7 +307,6 @@ pub(crate) fn wire_owner_authority(value: &c::Authority, limits: &w::Limits) -> 
     )
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn wire_amendment(value: &c::Amendment, limits: &w::Limits) -> Result<w::Amendment, w::Problem> {
     let opt0 = match &value.addressed {
         Some(item) => Some(wire_address_change(item, limits)?),
@@ -458,9 +454,9 @@ fn wire_policy_requirement_piece(
     if length > limits.owned_record {
         return Err(too_large());
     }
-    let mut writer = Writer::new(usize::try_from(length).expect("u32 fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(length));
     for row in rows {
-        let mut item = Writer::new(usize::try_from(row.measure()).expect("u32 fits usize"));
+        let mut item = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut item).expect("measured row");
         let item = item.finish();
         skein_codec::piece::write(&mut writer, &item).expect("measured piece");
@@ -542,7 +538,6 @@ pub(crate) fn wire_holding(value: &c::Holding, limits: &w::Limits) -> Result<w::
     w::Holding::new(limits, w::HoldingParts { party: value.party, role: wire_held_role(value.role, limits)? })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 #[expect(clippy::too_many_lines, reason = "one exhaustive field translation arm per client ask")]
 pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
     Ok(match value {
@@ -787,8 +782,7 @@ fn account_set_uses(
                 None => None,
                 Some(uses) => {
                     if uses.len()
-                        > usize::try_from(limits.account_change_set_uses_uses_some.min(c::ACCOUNT_USES))
-                            .expect("account uses bound fits")
+                        > skein_lib::length::usize_of(limits.account_change_set_uses_uses_some.min(c::ACCOUNT_USES))
                     {
                         return Err(w::Problem {
                             path: w::Path::AccountChangeSetUsesUses,

@@ -61,7 +61,6 @@ pub(crate) fn goal_holding_piece(
     Err(too_large())
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn person_proposal_goal_fields(
     value: &w::PersonProposalGoal,
     limits: &Limits,
@@ -126,7 +125,6 @@ pub(crate) fn person_proposal_fields(
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn proposal_decision_fields(value: &w::ProposalDecision) -> c::ProposalDecision {
     let opt0 = match value.created() {
         Some(item) => Some((item.first(), item.last())),

@@ -253,7 +253,6 @@ pub fn draft(state: &Form, before: &Ask) -> Ask {
     }
     before.clone()
 }
-#[expect(clippy::manual_map, reason = "step code matches Option without closures")]
 pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
     if domain.blocked || domain.project_page.settings.pending.is_some() {
         return;
@@ -306,7 +305,6 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
     }
     domain.changed();
 }
-#[expect(clippy::manual_map, reason = "step code matches Option without closures")]
 pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
     if domain.blocked || domain.project_page.settings.pending.is_some() {
         return;

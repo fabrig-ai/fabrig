@@ -34,11 +34,7 @@ fn milestone(task: u64, position: u64) -> HistoryRow {
 }
 
 fn rows(values: [HistoryRow; 2]) -> List<HistoryRow> {
-    let mut rows = List::with_capacity(2);
-    for value in values {
-        rows.push(value).unwrap();
-    }
-    rows
+    List::from_boxed(Box::new(values))
 }
 
 fn history_read(requests: &[Request]) -> jig_client::Handle {

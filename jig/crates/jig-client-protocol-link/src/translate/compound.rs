@@ -16,7 +16,7 @@ pub(super) fn encode(project: u32, values: &List<c::Operation>, limits: &w::Limi
         }
         records.push(record).expect("same capacity");
     }
-    let mut out = Writer::new(usize::try_from(size).expect("wire size fits"));
+    let mut out = Writer::new(skein_lib::length::usize_of(size));
     for record in records.into_boxed() {
         out.put(&record.measure().to_be_bytes()).expect("measured piece");
         record.encode(&mut out).expect("measured operation");

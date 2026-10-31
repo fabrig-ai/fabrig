@@ -51,7 +51,7 @@ fn insertion(rows: &[Entry], parent: NodeId, before: Option<NodeId>) -> usize {
                 rows.len()
             } else {
                 let at = position(rows, parent);
-                at.checked_add(usize::try_from(rows[at].node.size).expect("small subtree")).expect("small tree")
+                at.checked_add(skein_lib::length::usize_of(rows[at].node.size)).expect("small tree")
             }
         }
     }
@@ -66,13 +66,13 @@ fn apply(rows: &mut Vec<Entry>, patch: Patch) {
         }
         Patch::Remove { node } => {
             let at = position(rows, node);
-            let end = at.checked_add(usize::try_from(rows[at].node.size).expect("small subtree")).expect("small tree");
+            let end = at.checked_add(skein_lib::length::usize_of(rows[at].node.size)).expect("small tree");
             drop(rows.drain(at..end));
             sizes(rows);
         }
         Patch::Move { node, parent, before } => {
             let at = position(rows, node);
-            let end = at.checked_add(usize::try_from(rows[at].node.size).expect("small subtree")).expect("small tree");
+            let end = at.checked_add(skein_lib::length::usize_of(rows[at].node.size)).expect("small tree");
             let mut moved: Vec<_> = rows.drain(at..end).collect();
             moved[0].parent = parent;
             sizes(rows);
@@ -102,7 +102,7 @@ fn apply(rows: &mut Vec<Entry>, patch: Patch) {
 }
 
 fn equal(rows: &[Entry], tree: &Tree) {
-    assert_eq!(rows.len(), usize::try_from(tree.len()).expect("small tree"), "platform-visible node count");
+    assert_eq!(rows.len(), skein_lib::length::usize_of(tree.len()), "platform-visible node count");
     for (row, node) in rows.iter().zip(tree.nodes().iter()) {
         let made = &row.node;
         assert_eq!(

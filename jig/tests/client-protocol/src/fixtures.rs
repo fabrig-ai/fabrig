@@ -187,7 +187,7 @@ pub fn printed(secret: &skein_lib::Secret) -> Box<[u8]> {
         u32::try_from(secret.expose().len()).expect("short secret"),
     )
     .expect("encoded secret");
-    let mut bytes = skein_lib::Writer::new(PREFIX.len() + usize::try_from(encoded).expect("u32 fits"));
+    let mut bytes = skein_lib::Writer::new(PREFIX.len() + skein_lib::length::usize_of(encoded));
     bytes.put(PREFIX).expect("prefix fits");
     skein_lib::base64::encode(skein_lib::base64::Alphabet::Url, secret.expose(), &mut bytes).expect("secret fits");
     bytes.finish()
@@ -290,7 +290,7 @@ fn turn_with_blocks(blocks: List<smith_transcript::v6::Block>) -> Box<[u8]> {
     turn.messages = List::with_capacity(1);
     turn.messages.push(s::Message::new(&s::CEILINGS, message).expect("source message")).expect("one message");
     let turn = s::Turn::new(&s::CEILINGS, turn).expect("source turn");
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("turn size"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure()));
     turn.encode(&mut writer).expect("v7 encoding");
     writer.finish()
 }
@@ -316,8 +316,7 @@ pub fn large_turn() -> Box<[u8]> {
             s::Text::new(
                 &s::CEILINGS,
                 s::TextParts {
-                    text: vec![b'x'; usize::try_from(LARGE_TURN_TEXT_BYTES).expect("bounded text size")]
-                        .into_boxed_slice(),
+                    text: vec![b'x'; skein_lib::length::usize_of(LARGE_TURN_TEXT_BYTES)].into_boxed_slice(),
                     replay: None,
                 },
             )

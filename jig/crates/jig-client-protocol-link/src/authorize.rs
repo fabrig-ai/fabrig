@@ -46,7 +46,7 @@ impl Link {
                 },
             )
             .expect("checked exchange capacity");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded query"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut writer).expect("measured authorization");
         self.exchange(exchange, Message::Authorize(writer.finish()), out);
     }

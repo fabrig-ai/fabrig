@@ -150,7 +150,7 @@ pub fn reading_deployment<F: Front<Test>>(world: &mut World<Test, F>) {
         .nodes()
         .iter()
         .skip(start.checked_add(1).expect("catalogue start"))
-        .take(usize::try_from(region.size.saturating_sub(1)).expect("catalogue size"))
+        .take(skein_lib::length::usize_of(region.size.saturating_sub(1)))
         .filter_map(|node| node.slot)
         .map(|slot| match jig_client_view::Owner::from_opaque(slot.owner) {
             Some(jig_client_view::Owner::Application { number }) => number,

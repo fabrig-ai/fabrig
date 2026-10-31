@@ -141,7 +141,6 @@ pub(crate) fn policy_permission_fields(value: &w::PolicyPermission) -> c::Policy
     c::PolicyPermission { connector: value.connector(), permission: value.permission(), role: value.role() }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn project_policy_fields(value: &w::ProjectPolicy, limits: &Limits) -> Result<c::ProjectPolicy, w::Problem> {
     let opt0 = match value.escalation_role() {
         Some(item) => Some(*item),
@@ -254,7 +253,6 @@ pub(crate) fn part_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<Li
     Err(too_large())
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn proposed_task_fields(value: &w::ProposedTask, limits: &Limits) -> Result<c::ProposedTask, w::Problem> {
     if value.dependencies().len() > limits.client().rows {
         return Err(too_large());
@@ -327,7 +325,6 @@ pub(crate) fn recurring_overlap_fields(value: &w::RecurringOverlap) -> c::Recurr
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn recurring_fields(value: &w::Recurring, limits: &Limits) -> Result<c::Recurring, w::Problem> {
     let opt0 = match value.began() {
         Some(item) => Some(Wall::from_nanos(*item)),

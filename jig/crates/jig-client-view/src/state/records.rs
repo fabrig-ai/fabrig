@@ -69,11 +69,11 @@ pub fn encode(record: &Record) -> (Box<[u8]>, Box<[u8]>) {
             ),
         ),
     };
-    let mut payload = Writer::new(usize::try_from(record.measure()).expect("record fits usize"));
+    let mut payload = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut payload).expect("measured page record");
     let record = w::Record::new(&w::CEILINGS, w::RecordParts { store_version: version, record: payload.finish() })
         .expect("bounded record");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("record fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured record");
     (key.encode(), writer.finish())
 }

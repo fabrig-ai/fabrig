@@ -73,18 +73,18 @@ fn body(b: &mut Builder, value: &Authority, words: &Words, text_limit: u32, rows
     }
     text(b, words, model_phrase(value.models.as_ref()), &[]);
     if let Some(AuthorityModels::Named(names)) = &value.models {
-        for name in names.iter().take(usize::try_from(rows).expect("rows fit")) {
+        for name in names.iter().take(skein_lib::length::usize_of(rows)) {
             b.text(Run::Plain, name);
         }
     }
     text(b, words, AuthorityPhrase::Grants, &[]);
-    for grant in value.grants.iter().take(usize::try_from(rows).expect("rows fit")) {
+    for grant in value.grants.iter().take(skein_lib::length::usize_of(rows)) {
         number(b, words, AuthorityPhrase::Connector, u64::from(grant.connector));
         number(b, words, AuthorityPhrase::Kind, u64::from(grant.kind));
         pattern(b, words, &grant.pattern, text_limit);
     }
     text(b, words, AuthorityPhrase::Delegation, &[]);
-    for kind in value.delegation.kinds.iter().take(usize::try_from(rows).expect("rows fit")) {
+    for kind in value.delegation.kinds.iter().take(skein_lib::length::usize_of(rows)) {
         match kind {
             AuthorityExecutor::Charter(code) => number(b, words, AuthorityPhrase::Charter, u64::from(*code)),
             AuthorityExecutor::Procedure(code) => number(b, words, AuthorityPhrase::Procedure, u64::from(*code)),
@@ -92,7 +92,7 @@ fn body(b: &mut Builder, value: &Authority, words: &Words, text_limit: u32, rows
         }
     }
     text(b, words, AuthorityPhrase::Resources, &[]);
-    for resource in value.note_resources.iter().take(usize::try_from(rows).expect("rows fit")) {
+    for resource in value.note_resources.iter().take(skein_lib::length::usize_of(rows)) {
         number(b, words, AuthorityPhrase::Connector, u64::from(resource.connector));
         pattern(b, words, &resource.pattern, text_limit);
     }
