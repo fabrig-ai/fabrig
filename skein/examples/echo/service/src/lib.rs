@@ -29,8 +29,6 @@
 
 extern crate alloc;
 
-mod io_stage;
-
 #[cfg(test)]
 mod tests;
 
@@ -321,7 +319,7 @@ pub fn iterate(svc: &mut Service, now: Time, wall: Wall) {
 /// once the ready list is empty, so that what the down pass made is told
 /// first: io.md, 2), then its deadlines.
 fn io_up(svc: &mut Service, now: Time) {
-    io_stage::up(&mut svc.io, &svc.io_env, &mut svc.completions, &mut svc.told, &mut svc.submissions, now);
+    io::stage::up(&mut svc.io, &svc.io_env, &mut svc.completions, &mut svc.told, &mut svc.submissions, now);
 }
 
 /// The protocol layer's stage of the up pass: its ready list, then what io
@@ -401,17 +399,5 @@ fn protocol_down(svc: &mut Service) {
 /// io's stage of the down pass: each request, while io can hold a refusal
 /// (`Io::takes`) and what it submits fits.
 fn io_down(svc: &mut Service) {
-    for _ in 0..svc.asked.len() {
-        if !svc.io.takes() || !io_room(svc, io::MAX_OUT_DOWN) {
-            break;
-        }
-        let Some(request) = svc.asked.pop() else {
-            break;
-        };
-        io::down(&mut svc.io, &svc.io_env, request, &mut svc.submissions);
-    }
-}
-
-fn io_room(svc: &Service, max: io::MaxOut) -> bool {
-    svc.submissions.room() >= max.submissions
+    io::stage::down(&mut svc.io, &svc.io_env, &mut svc.asked, &mut svc.submissions);
 }
