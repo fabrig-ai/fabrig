@@ -56,12 +56,12 @@ fn install(front: &mut Scripted, task: c::Task) {
 }
 pub fn scripted(front: &mut Scripted, facts: Facts) {
     let mut chat = crate::stories::conversations::chat(1, b"Hello", Wall::EPOCH);
-    chat.requester = c::OwnerRequester::Person(1);
+    chat.requester = c::Requester::Person(1);
     match facts {
         Facts::ProposedGoal => {
             let mut proposal = crate::stories::proposal();
             proposal.key.proposer = c::Proposer::Task(1);
-            proposal.waiting.holder = c::OwnerHistoryHolder::Person(1);
+            proposal.waiting.holder = c::HistoryHolder::Person(1);
             proposal.reason = c::DocumentText::complete(crate::stories::text(b"Resolve incident"));
             proposal.funding.clear();
             chat.proposals = crate::test::list([proposal.key]);
@@ -73,7 +73,7 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
                     Change::Object {
                         project: 1,
                         key: c::ObjectKey::Proposal(proposal.key),
-                        value: c::ReadValue::OwnerProposal(Box::new(proposal.clone())),
+                        value: c::ReadValue::Proposal(Box::new(proposal.clone())),
                     },
                 )
                 .expect("proposal fits");
@@ -111,7 +111,7 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
             let mut cancelled = crate::stories::task();
             cancelled.chip.task = 2;
             cancelled.chip.title = c::DocumentText::complete(crate::stories::text(b"Cancelled delegate"));
-            cancelled.requester = c::OwnerRequester::Task(1);
+            cancelled.requester = c::Requester::Task(1);
             cancelled.acts = crate::test::list([
                 c::Offered { effect: None, act: c::ActKind::Cancel, admission: c::Admission::Allowed },
                 c::Offered { effect: None, act: c::ActKind::Move, admission: c::Admission::Allowed },

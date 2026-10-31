@@ -87,22 +87,22 @@ fn pending_reviews_keep_origins_values_sizes_and_the_cut_fact() {
     let pending = values::pending();
     let wire = translate::settings_proposals::wire_owner_proposal_action_settings(&pending, limits.wire())
         .expect("settings action");
-    let mut parts = w::OwnerProposal::decode(
+    let mut parts = w::Proposal::decode(
         limits.wire(),
         &mut Reader::new(include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_owner_proposal_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_proposal_smallest.bin"
         )),
     )
     .expect("proposal envelope")
     .into_parts();
-    parts.action = w::OwnerProposalAction::Settings(Box::new(wire));
-    parts.waiting = w::OwnerProposalWaiting::new(
+    parts.action = w::ProposalAction::Settings(Box::new(wire));
+    parts.waiting = w::ProposalWaiting::new(
         limits.wire(),
-        w::OwnerProposalWaitingParts {
-            holder: w::OwnerHistoryHolder::Policy(
-                w::OwnerHistoryHolderPolicy::new(
+        w::ProposalWaitingParts {
+            holder: w::HistoryHolder::Policy(
+                w::HistoryHolderPolicy::new(
                     limits.wire(),
-                    w::OwnerHistoryHolderPolicyParts { project: 0, kind: w::OwnerMessageProposalKind::Settings },
+                    w::HistoryHolderPolicyParts { project: 0, kind: w::MessageProposalKind::Settings },
                 )
                 .expect("settings holder"),
             ),
@@ -111,17 +111,13 @@ fn pending_reviews_keep_origins_values_sizes_and_the_cut_fact() {
     )
     .expect("waiting");
 
-    let wire = w::ReadValue::OwnerProposal(w::OwnerProposal::new(limits.wire(), parts).expect("proposal"));
-    let c::ReadValue::OwnerProposal(client) =
-        translate::reads::value(&encoded!(&wire), &limits).expect("client proposal")
+    let wire = w::ReadValue::Proposal(w::Proposal::new(limits.wire(), parts).expect("proposal"));
+    let c::ReadValue::Proposal(client) = translate::reads::value(&encoded!(&wire), &limits).expect("client proposal")
     else {
         panic!("owner proposal")
     };
-    assert_eq!(client.action, c::OwnerProposalAction::Settings(Box::new(pending)));
-    assert_eq!(
-        client.waiting.holder,
-        c::OwnerHistoryHolder::Policy { project: 0, kind: c::OwnerMessageProposalKind::Settings }
-    );
+    assert_eq!(client.action, c::ProposalAction::Settings(Box::new(pending)));
+    assert_eq!(client.waiting.holder, c::HistoryHolder::Policy { project: 0, kind: c::MessageProposalKind::Settings });
     let review = values::review();
     let c::ReviewValue::TooLarge(size) = &review.items.get(0).expect("first review item").would_be else {
         panic!("oversized")
@@ -134,15 +130,15 @@ fn retained_settings_actions_keep_the_revision_they_made() {
     let retained = values::retained();
     let wire = translate::settings_proposals::wire_owner_retained_action_settings(&retained, limits.wire())
         .expect("retained settings");
-    let mut proposal = w::OwnerProposalHistory::decode(
+    let mut proposal = w::ProposalHistory::decode(
         limits.wire(),
         &mut Reader::new(include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_owner_proposal_history_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_proposal_history_smallest.bin"
         )),
     )
     .expect("history envelope")
     .into_parts();
-    proposal.action = w::OwnerRetainedAction::Settings(wire);
+    proposal.action = w::RetainedAction::Settings(wire);
     let key = w::ProposalKey::new(
         limits.wire(),
         w::ProposalKeyParts {
@@ -154,12 +150,12 @@ fn retained_settings_actions_keep_the_revision_they_made() {
         },
     )
     .expect("history key");
-    proposal.state = w::OwnerProposalHistoryState::Accepted(
-        w::OwnerProposalHistoryStateAccepted::new(
+    proposal.state = w::ProposalHistoryState::Accepted(
+        w::ProposalHistoryStateAccepted::new(
             limits.wire(),
-            w::OwnerProposalHistoryStateAcceptedParts {
-                by: w::OwnerRequester::Person(
-                    w::OwnerRequesterPerson::new(limits.wire(), w::OwnerRequesterPersonParts { value: 3 })
+            w::ProposalHistoryStateAcceptedParts {
+                by: w::Requester::Person(
+                    w::RequesterPerson::new(limits.wire(), w::RequesterPersonParts { value: 3 })
                         .expect("accepting party"),
                 ),
             },
@@ -167,19 +163,17 @@ fn retained_settings_actions_keep_the_revision_they_made() {
         .expect("accepted"),
     );
 
-    let value = w::OwnerHistoricalValue::Proposal(
-        w::OwnerHistoricalValueProposal::new(
+    let value = w::EndedValue::Proposal(
+        w::EndedValueProposal::new(
             limits.wire(),
-            w::OwnerHistoricalValueProposalParts {
-                value: w::OwnerProposalHistory::new(limits.wire(), proposal).expect("history"),
-            },
+            w::EndedValueProposalParts { value: w::ProposalHistory::new(limits.wire(), proposal).expect("history") },
         )
         .expect("ended proposal"),
     );
-    let mut ended = w::OwnerHistorical::decode(
+    let mut ended = w::Ended::decode(
         limits.wire(),
         &mut Reader::new(include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_owner_historical_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_ended_smallest.bin"
         )),
     )
     .expect("ended envelope")
@@ -188,13 +182,13 @@ fn retained_settings_actions_keep_the_revision_they_made() {
         w::ObjectKeyProposal::new(limits.wire(), w::ObjectKeyProposalParts { value: key }).expect("proposal subject"),
     );
     ended.value = value;
-    let wire = w::ReadValue::Historical(Box::new(w::OwnerHistorical::new(limits.wire(), ended).expect("ended")));
-    let c::ReadValue::Historical(client) = translate::reads::value(&encoded!(&wire), &limits).expect("client history")
+    let wire = w::ReadValue::Ended(Box::new(w::Ended::new(limits.wire(), ended).expect("ended")));
+    let c::ReadValue::Ended(client) = translate::reads::value(&encoded!(&wire), &limits).expect("client history")
     else {
         panic!("ended")
     };
-    let c::OwnerHistoricalValue::Proposal(proposal) = client.value else { panic!("retained proposal") };
-    assert_eq!(proposal.action, c::OwnerRetainedAction::Settings(retained));
+    let c::EndedValue::Proposal(proposal) = client.value else { panic!("retained proposal") };
+    assert_eq!(proposal.action, c::RetainedAction::Settings(retained));
 }
 
 #[test]
@@ -274,12 +268,12 @@ fn engine_pending_settings_review_reaches_the_client_and_encodes_back_without_lo
     let source = engine_proposal();
     let wire = jig_protocol_engine_clients::translate::objects::proposal(&[], &source, limits.wire())
         .expect("engine document");
-    let c::ReadValue::OwnerProposal(client) =
-        translate::reads::value(&encoded!(&w::ReadValue::OwnerProposal(wire.clone())), &limits).expect("client review")
+    let c::ReadValue::Proposal(client) =
+        translate::reads::value(&encoded!(&w::ReadValue::Proposal(wire.clone())), &limits).expect("client review")
     else {
         panic!("proposal document")
     };
-    let c::OwnerProposalAction::Settings(action) = client.action else { panic!("settings action") };
+    let c::ProposalAction::Settings(action) = client.action else { panic!("settings action") };
     assert_eq!((action.against, action.made), (1, None));
     let review = action.review.as_ref().expect("pending review");
     assert_eq!(review.newest, 1);
@@ -288,7 +282,7 @@ fn engine_pending_settings_review_reaches_the_client_and_encodes_back_without_lo
     let c::ReviewValue::Value(value) = &item.would_be else { panic!("proposed value") };
     let c::SettingValue::Template(template) = &value.value else { panic!("template") };
     assert_eq!(template.grace, Some(skein_lib::Duration::from_secs(4)));
-    let w::OwnerProposalAction::Settings(original) = wire.action() else { panic!("settings wire action") };
+    let w::ProposalAction::Settings(original) = wire.action() else { panic!("settings wire action") };
     assert_eq!(
         translate::settings_proposals::wire_owner_proposal_action_settings(&action, limits.wire())
             .expect("client encoder"),
@@ -316,17 +310,17 @@ fn engine_accepted_party_settings_history_keeps_its_party_key_and_revision() {
         at: Some(skein_lib::Wall::EPOCH),
         by: Some(t::Party::Person(10)),
     };
-    let wire = jig_protocol_engine_clients::translate::objects::historical(&ended, &[], limits.wire())
-        .expect("engine history");
-    let c::ReadValue::Historical(client) =
-        translate::reads::value(&encoded!(&w::ReadValue::Historical(Box::new(wire))), &limits).expect("client history")
+    let wire =
+        jig_protocol_engine_clients::translate::objects::ended(&ended, &[], limits.wire()).expect("engine history");
+    let c::ReadValue::Ended(client) =
+        translate::reads::value(&encoded!(&w::ReadValue::Ended(Box::new(wire))), &limits).expect("client history")
     else {
         panic!("ended proposal")
     };
     let key = c::ObjectKey::Proposal(c::ProposalKey { proposer: c::Proposer::Party(9), number: 7 });
     assert!(client.matches(key));
-    let c::OwnerHistoricalValue::Proposal(proposal) = client.value else { panic!("retained action history") };
-    let c::OwnerRetainedAction::Settings(action) = proposal.action else { panic!("settings heads") };
+    let c::EndedValue::Proposal(proposal) = client.value else { panic!("retained action history") };
+    let c::RetainedAction::Settings(action) = proposal.action else { panic!("settings heads") };
     assert_eq!((action.against, action.made), (1, Some(2)));
     assert_eq!(action.items.get(0).expect("head").setting, c::Setting::Template(c::SettingNumber { number: 1 }));
 }

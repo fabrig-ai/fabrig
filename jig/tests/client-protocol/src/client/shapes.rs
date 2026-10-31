@@ -31,7 +31,7 @@ impl Story {
         self.watch(DELEGATE, Watchable::Jig(c::Subject::Task { task }));
     }
     #[must_use]
-    pub fn delegate_requester(&self) -> Option<c::OwnerRequester> {
+    pub fn delegate_requester(&self) -> Option<c::Requester> {
         match self.client.document(DELEGATE)?.latest {
             Some(Latest::Jig(c::Delivery::Task(task))) => Some(task.requester),
             _ => None,
@@ -45,8 +45,8 @@ impl Story {
         assert!(self.run_until(|s| !s.answered(key).is_empty(), READY));
         let answers = self.answered(key);
         let [
-            client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::Created { first, last, given },
+            client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::Created { first, last, given },
             )))),
         ] = answers.as_slice()
         else {

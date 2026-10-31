@@ -21,8 +21,8 @@ fn answer(story: &Story, key: Key) -> c::Answer {
     let [Outcome::Answered(Answered::Jig(answer))] = answers.as_slice() else { panic!("one answer: {answers:?}") };
     answer.clone()
 }
-fn accounts(story: &Story) -> Option<&c::OwnerAccounts> {
-    let Some(Latest::Jig(c::Delivery::OwnerAccounts(value))) = &story.client.document(ACCOUNTS)?.latest else {
+fn accounts(story: &Story) -> Option<&c::Accounts> {
+    let Some(Latest::Jig(c::Delivery::Accounts(value))) = &story.client.document(ACCOUNTS)?.latest else {
         return None;
     };
     Some(value)
@@ -36,13 +36,14 @@ fn add(story: &mut Story, key: Key, name: u8, value: &[u8]) -> (u32, u32) {
         key,
         [name; 16],
         Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::AddKey { provider: 1, join: None, digest: sha256::digest(value) },
         })),
         value,
     );
     assert!(story.run_until(|s| !s.answered(key).is_empty(), PROOF_WAIT));
-    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountKeyKept { source })) = answer(story, key) else {
+    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountKeyKept { source })) = answer(story, key)
+    else {
         panic!("key kept")
     };
     assert!(story.run_until(
@@ -74,7 +75,8 @@ fn prepared() -> (Story, u64, (u32, u32), (u32, u32)) {
     tasks.get_mut(0).expect("bounded account story fixture").llm = Some(choice(first.0));
     story.send(CREATE, Ask::Jig(Box::new(c::Ask::Create { project: 1, tasks })));
     assert!(story.run_until(|s| !s.answered(CREATE).is_empty(), PROOF_WAIT));
-    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first: number, .. })) = answer(&story, CREATE)
+    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first: number, .. })) =
+        answer(&story, CREATE)
     else {
         panic!("created")
     };
@@ -133,12 +135,15 @@ fn a_client_can_switch_after_resuming_the_kept_source() {
     story.send(
         RESUME,
         Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::Resume { source: first.1 },
         })),
     );
     assert!(story.run_until(|s| !s.answered(RESUME).is_empty(), PROOF_WAIT));
-    assert!(matches!(answer(&story, RESUME), c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountChanged))));
+    assert!(matches!(
+        answer(&story, RESUME),
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountChanged))
+    ));
     amend(&mut story, number, second.0);
     assert!(matches!(answer(&story, AMEND), c::Answer::Done(_)));
     assert!(story.run_until(
@@ -157,11 +162,11 @@ fn a_move_keeps_a_project_key_covering_the_new_financial_payer() {
     const STOP_PROJECT: Key = Key { asker: Asker::JIG, number: 39 };
     let (mut story, original, _, _) = prepared();
     let mut uses = List::with_capacity(1);
-    uses.push(c::OwnerAccountUse::Project(1)).expect("bounded account story fixture");
+    uses.push(c::AccountUse::Project(1)).expect("bounded account story fixture");
     story.send(
         USES,
         Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Deployment,
+            holder: c::AskAccountHolder::Deployment,
             change: c::AccountChange::SetUses { account: 0, uses: Some(uses.into_boxed()) },
         })),
     );
@@ -238,7 +243,7 @@ fn a_task_watch_tracks_an_unknown_account_wait() {
     story.send(
         RESUME,
         Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::Resume { source: first.1 },
         })),
     );

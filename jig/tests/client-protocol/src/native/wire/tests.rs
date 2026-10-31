@@ -42,15 +42,15 @@ fn request() -> Request {
     }
 }
 fn reply() -> Event {
-    let value = w::OwnerOutcome::Compound(
-        w::OwnerOutcomeCompound::new(
+    let value = w::DocumentOutcome::Compound(
+        w::OutcomeCompound::new(
             &w::CEILINGS,
-            w::OwnerOutcomeCompoundParts { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
+            w::OutcomeCompoundParts { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
         )
         .expect("bounded wire fixture"),
     );
-    let outcome = w::Outcome::Owner(
-        w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value }).expect("bounded wire fixture"),
+    let outcome = w::Outcome::Document(
+        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value }).expect("bounded wire fixture"),
     );
     let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("bounded wire fixture"));
     let value = w::Owned::new(

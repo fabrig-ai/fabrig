@@ -4,7 +4,7 @@ use crate::harness::DraftOutcome;
 use jig_client::{
     Key,
     contract::{
-        Answer, Ask, Creating, Outcome, OwnerHistoryHolder, OwnerMessageProposalKind, OwnerOutcome, ProposalKey,
+        Answer, Ask, Creating, DocumentOutcome, HistoryHolder, MessageProposalKind, Outcome, ProposalKey,
         ProposeAction, Proposer, ReadValue, Recipient,
     },
     shapes::{self, Fall, GoalDraft},
@@ -19,7 +19,7 @@ pub(crate) struct Offers {
     recipients: BTreeMap<ProposalKey, Recipient>,
     proposed: BTreeMap<ProposalKey, Vec<Recipient>>,
     parties: BTreeMap<ClientId, u64>,
-    holders: BTreeMap<ProposalKey, OwnerHistoryHolder>,
+    holders: BTreeMap<ProposalKey, HistoryHolder>,
     roles: BTreeMap<u32, Vec<(u32, u8)>>,
 }
 impl Offers {
@@ -44,7 +44,7 @@ impl Offers {
                     }
                 }
             }
-            ReadValue::OwnerProject(project) => {
+            ReadValue::Project(project) => {
                 self.roles.insert(
                     project.number,
                     project.policy.roles.iter().map(|role| (role.number, role.decides)).collect(),
@@ -54,26 +54,26 @@ impl Offers {
                     self.owner_recipient(key, holder, judge);
                 }
             }
-            ReadValue::OwnerProposal(proposal) => self.owner_recipient(proposal.key, proposal.waiting.holder, judge),
+            ReadValue::Proposal(proposal) => self.owner_recipient(proposal.key, proposal.waiting.holder, judge),
             ReadValue::Tasks(_)
-            | ReadValue::Historical(_)
+            | ReadValue::Ended(_)
             | ReadValue::Task(_)
-            | ReadValue::OwnerEscalation(_)
+            | ReadValue::Escalation(_)
             | ReadValue::Question(_)
-            | ReadValue::OwnerPersonTask(_)
+            | ReadValue::PersonTask(_)
             | ReadValue::Result(_)
-            | ReadValue::OwnerEnded(_)
+            | ReadValue::Ended(_)
             | ReadValue::History(_)
             | ReadValue::Activity(_)
             | ReadValue::Turn(_)
-            | ReadValue::OwnerInbox(_)
-            | ReadValue::OwnerSpend(_)
+            | ReadValue::Inbox(_)
+            | ReadValue::Spend(_)
             | ReadValue::Notes(_)
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
-            | ReadValue::OwnerDeployment(_) => {}
+            | ReadValue::Deployment(_) => {}
         }
     }
     fn recipient(&mut self, key: ProposalKey, to: &Recipient, judge: &mut JudgeOf) {
@@ -84,22 +84,22 @@ impl Offers {
             }
         }
     }
-    fn owner_recipient(&mut self, key: ProposalKey, holder: OwnerHistoryHolder, judge: &mut JudgeOf) {
+    fn owner_recipient(&mut self, key: ProposalKey, holder: HistoryHolder, judge: &mut JudgeOf) {
         self.holders.insert(key, holder);
         let to = match holder {
-            OwnerHistoryHolder::Task(task) => Recipient::Task(task),
-            OwnerHistoryHolder::Person(person) => Recipient::Party(person),
-            OwnerHistoryHolder::Policy { project, kind } => {
+            HistoryHolder::Task(task) => Recipient::Task(task),
+            HistoryHolder::Person(person) => Recipient::Party(person),
+            HistoryHolder::Policy { project, kind } => {
                 let Some(roles) = self.roles.get(&project) else {
                     return;
                 };
                 let bit = match kind {
-                    OwnerMessageProposalKind::Settings => return,
-                    OwnerMessageProposalKind::Batch => 1,
-                    OwnerMessageProposalKind::Effect => 2,
-                    OwnerMessageProposalKind::Widen => 4,
-                    OwnerMessageProposalKind::Amend => 8,
-                    OwnerMessageProposalKind::Release => 16,
+                    MessageProposalKind::Settings => return,
+                    MessageProposalKind::Batch => 1,
+                    MessageProposalKind::Effect => 2,
+                    MessageProposalKind::Widen => 4,
+                    MessageProposalKind::Amend => 8,
+                    MessageProposalKind::Release => 16,
                 };
                 Recipient::Roles {
                     project,
@@ -210,8 +210,10 @@ impl Offers {
 }
 pub(crate) fn outcome(answer: &Answer) -> Option<DraftOutcome> {
     match answer {
-        Answer::Done(Outcome::Made { .. } | Outcome::Owner(OwnerOutcome::Created { .. })) => Some(DraftOutcome::Made),
-        Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal, to })) => {
+        Answer::Done(Outcome::Made { .. } | Outcome::Document(DocumentOutcome::Created { .. })) => {
+            Some(DraftOutcome::Made)
+        }
+        Answer::Done(Outcome::Document(DocumentOutcome::Proposed { proposal, to })) => {
             Some(DraftOutcome::ProposedByParty { number: *proposal, to: *to })
         }
         Answer::Refused { .. } => Some(DraftOutcome::Refused),

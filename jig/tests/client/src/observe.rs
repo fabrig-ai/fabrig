@@ -2,8 +2,8 @@
 use crate::harness::{CardKey, CardSeen, Receipt, Seen, Sent};
 use jig_client::contract::{AnswerOn, DecideOn};
 use jig_client_domain::contract::{
-    Answer, Ask, Delivery, Me, NoteScope, ObjectKey, Outcome, OwnerOutcome, Proposer, ReadNone, ReadResult, ReadValue,
-    Task, WatchEnd, WatchEvent,
+    Answer, Ask, Delivery, DocumentOutcome, Me, NoteScope, ObjectKey, Outcome, Proposer, ReadNone, ReadResult,
+    ReadValue, Task, WatchEnd, WatchEvent,
 };
 use jig_client_test_domain::{self as domain, Event, Request, family};
 use jig_client_view::Owner;
@@ -130,14 +130,14 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
     match v {
         ReadValue::Task(t) => vec![task(t)],
         ReadValue::Me(f) => frame(f, None),
-        ReadValue::OwnerEscalation(e) => {
+        ReadValue::Escalation(e) => {
             let mut revisions = vec![(1, e.task.spec_revision.value)];
             if let Some(hold) = &e.task.hold {
                 revisions.push((2, hold.revision().value));
             }
             vec![Receipt::Card { key: key(ObjectKey::Escalation(e.task.chip.task)), revisions }]
         }
-        ReadValue::OwnerPersonTask(p) => {
+        ReadValue::PersonTask(p) => {
             vec![Receipt::Card { key: key(ObjectKey::PersonTask(p.task.task)), revisions: vec![(3, p.revision.value)] }]
         }
         ReadValue::Notes(p) => p
@@ -154,22 +154,22 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
             })
             .collect(),
         ReadValue::Tasks(_)
-        | ReadValue::Historical(_)
-        | ReadValue::OwnerProposal(_)
+        | ReadValue::Ended(_)
+        | ReadValue::Proposal(_)
         | ReadValue::Question(_)
         | ReadValue::Result(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerEnded(_)
-        | ReadValue::OwnerSpend(_)
-        | ReadValue::OwnerProject(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Ended(_)
+        | ReadValue::Spend(_)
+        | ReadValue::Project(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::OwnerDeployment(_) => vec![],
+        | ReadValue::Deployment(_) => vec![],
     }
 }
 fn frame(frame: &Me, watch: Option<Token>) -> Vec<Receipt> {
@@ -219,8 +219,9 @@ pub fn up_received(up: &jig_client::Up) -> Vec<Receipt> {
     match up {
         Up::Answer { attempt, envelope, answer, why: None } => {
             let words = match answer {
-                Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
-                    OwnerOutcome::Said { task, message, .. } | OwnerOutcome::QuestionAnswered { task, message, .. },
+                Some(jig_client::Answered::Jig(Answer::Done(Outcome::Document(
+                    DocumentOutcome::Said { task, message, .. }
+                    | DocumentOutcome::QuestionAnswered { task, message, .. },
                 )))) => Some((*task, *message)),
                 Some(jig_client::Answered::Jig(_) | jig_client::Answered::Family(_)) | None => None,
             };
@@ -252,11 +253,11 @@ pub fn up_received(up: &jig_client::Up) -> Vec<Receipt> {
             receipts
         }
 
-        Up::Watched { event: WatchEvent::Delivered(Delivery::OwnerProject(value)), .. } => {
-            read(&ReadValue::OwnerProject(value.clone()))
+        Up::Watched { event: WatchEvent::Delivered(Delivery::Project(value)), .. } => {
+            read(&ReadValue::Project(value.clone()))
         }
-        Up::Watched { event: WatchEvent::Delivered(Delivery::OwnerProposal(value)), .. } => {
-            read(&ReadValue::OwnerProposal(value.clone()))
+        Up::Watched { event: WatchEvent::Delivered(Delivery::Proposal(value)), .. } => {
+            read(&ReadValue::Proposal(value.clone()))
         }
         Up::WatchEnded { watch, end } => {
             let mut receipts = vec![Receipt::WatchEnded { watch: *watch }];
@@ -600,12 +601,12 @@ mod tests {
             c::Ask::Rename { project: PROJECT, name: name.clone() },
             c::Ask::MakeProject { name, policy: 1 },
             c::Ask::SetPool { project: PROJECT, party: 1, budget: 10 },
-            c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 1 },
+            c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 1 },
             c::Ask::AccountChange {
-                holder: c::AccountHolder::Own,
+                holder: c::AskAccountHolder::Own,
                 change: c::AccountChange::CheckProgram { source: 1 },
             },
-            c::Ask::SignOut { holder: c::AccountHolder::Own, source: 1 },
+            c::Ask::SignOut { holder: c::AskAccountHolder::Own, source: 1 },
             c::Ask::Compound {
                 project: PROJECT,
                 operations: list([
@@ -756,13 +757,13 @@ mod tests {
     fn public_owner_answer_receipts_keep_original_attempt_envelope_and_exact_message_ids() {
         use super::{Receipt, received};
         use jig_client::Answered;
-        use jig_client_domain::contract::{Answer, Outcome, OwnerOutcome};
+        use jig_client_domain::contract::{Answer, DocumentOutcome, Outcome};
         use jig_client_test_domain::Event;
         use skein_lib::{RequestEnvelope, Token};
         let cases = [
-            (OwnerOutcome::Said { task: u64::MAX, message: 37 }, Some((u64::MAX, 37))),
-            (OwnerOutcome::Said { task: 41, message: u64::MAX }, Some((41, u64::MAX))),
-            (OwnerOutcome::QuestionAnswered { task: 43, question: 47, message: 53 }, Some((43, 53))),
+            (DocumentOutcome::Said { task: u64::MAX, message: 37 }, Some((u64::MAX, 37))),
+            (DocumentOutcome::Said { task: 41, message: u64::MAX }, Some((41, u64::MAX))),
+            (DocumentOutcome::QuestionAnswered { task: 43, question: 47, message: 53 }, Some((43, 53))),
         ];
         for (outcome, expected) in cases {
             for envelope in [RequestEnvelope::Final, RequestEnvelope::Again, RequestEnvelope::Lost] {
@@ -771,7 +772,7 @@ mod tests {
                         up: jig_client::Up::Answer {
                             attempt: Token::new(73),
                             envelope,
-                            answer: Some(Answered::Jig(Answer::Done(Outcome::Owner(outcome.clone())))),
+                            answer: Some(Answered::Jig(Answer::Done(Outcome::Document(outcome.clone())))),
                             why: None,
                         },
                     },
@@ -790,7 +791,7 @@ mod tests {
                     up: jig_client::Up::Answer {
                         attempt: Token::new(73),
                         envelope: RequestEnvelope::SignedOut,
-                        answer: Some(Answered::Jig(Answer::Done(Outcome::Owner(outcome)))),
+                        answer: Some(Answered::Jig(Answer::Done(Outcome::Document(outcome)))),
                         why: None,
                     },
                 },

@@ -321,18 +321,18 @@ fn text(bytes: &[u8]) -> Text {
 fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
     List::from_boxed(rows.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
-fn procedure_phase() -> ChipPhase {
-    ChipPhase {
-        phase: OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
-        details: Box::new(OwnerChipDetails {
+fn procedure_phase() -> ChipPhaseFacts {
+    ChipPhaseFacts {
+        phase: ChipPhase::Active(RunStage::Running { attempt: 1 }),
+        details: Box::new(ChipDetails {
             dependencies: list([]),
             project: 1,
-            executor: OwnerExecutor::Procedure { connector: 2, code: 1 },
+            executor: Executor::Procedure { connector: 2, code: 1 },
             phase_since: Wall::EPOCH,
             run_since: Some(Wall::EPOCH),
             attempt: Some(1),
             retry: None,
-            wake: OwnerWakePolicy {
+            wake: WakePolicy {
                 words: WakeRule::Never,
                 notices: WakeRule::Never,
                 news: WakeRule::Never,
@@ -343,8 +343,8 @@ fn procedure_phase() -> ChipPhase {
             },
             person_wait: None,
             hold: None,
-            budget: OwnerBudget {
-                numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+            budget: Budget {
+                numbers: Numbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
                 left: 1,
                 funder: Funder::Pool { project: 1, person: 7, period: 3 },
                 deadline: None,
@@ -353,7 +353,7 @@ fn procedure_phase() -> ChipPhase {
             resources: list([]),
             resources_cut: false,
             resources_observed: false,
-            procedure: Some(OwnerPart { connector: 2, kind: OwnerPartKind::Procedure, key: OwnerPartKey::Number(9) }),
+            procedure: Some(Part { connector: 2, kind: PartKind::Procedure, key: PartKey::Number(9) }),
             live_delegates: 0,
             closing_connectors: None,
             ending: None,
@@ -376,7 +376,7 @@ fn task() -> Task {
         chip: Chip {
             task: 9,
             title: DocumentText::complete(text(&[b't'; 32])),
-            executor: Executor::Procedure { connector: 2, kind: 1 },
+            executor: ChipExecutor::Procedure { connector: 2, kind: 1 },
             phase: Phase::Running,
             details: Box::new(procedure_phase()),
         },
@@ -385,7 +385,7 @@ fn task() -> Task {
         lineage_chips: list([]),
         inputs: list([]),
         project: 1,
-        requester: OwnerRequester::Person(7),
+        requester: Requester::Person(7),
         lineage: list([]),
         spec: SpecificationDocument::complete(Specification {
             asks: false,
@@ -397,7 +397,7 @@ fn task() -> Task {
         person_revision: None,
         taken_by: None,
         instructions: Some(DocumentText::complete(text(b"instructions"))),
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Never,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -412,18 +412,18 @@ fn task() -> Task {
         references: list([]),
         cut: false,
         resources: list([]),
-        budget: OwnerBudget {
-            numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+        budget: Budget {
+            numbers: Numbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
             left: 1,
             funder: Funder::Pool { project: 1, person: 7, period: 3 },
             deadline: None,
         },
-        authority: OwnerAuthorityDocument {
-            authority: OwnerAuthority {
+        authority: AuthorityDocument {
+            authority: Authority {
                 models: None,
                 tools: 0,
                 grants: list([]),
-                delegation: OwnerDelegation { kinds: list([]), tasks: 1, depth: 1 },
+                delegation: Delegation { kinds: list([]), tasks: 1, depth: 1 },
                 spend: 1,
                 deadline: None,
                 notes: 0,
@@ -438,7 +438,7 @@ fn task() -> Task {
             spend: list([]),
             runtime: Runtime::Procedure { panel: Part::Panel { connector: 2, task: 9 } },
             impact: Impact {
-                tasks: PhaseCounts {
+                tasks: ImpactCounts {
                     waiting: 0,
                     running: 0,
                     held: 0,
@@ -907,7 +907,7 @@ fn deployment_read(root: &mut Domain, connector: u16) -> Request {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: WatchEvent::Delivered(Delivery::OwnerDeployment(Box::new(configured_deployment(connector)))),
+                    event: WatchEvent::Delivered(Delivery::Deployment(Box::new(configured_deployment(connector)))),
                 },
             },
         },
@@ -1360,17 +1360,17 @@ fn environment_form_uses_the_supplied_request_revision_and_keeps_whole_width_sec
     );
 }
 
-fn configured_deployment(connector: u16) -> OwnerDeployment {
-    OwnerDeployment {
+fn configured_deployment(connector: u16) -> Deployment {
+    Deployment {
         store: StoreFill { bytes: 0, mark: 0 },
         hosts: list([]),
         attempts: list([]),
         accounts: list([]),
-        tasks: OwnerCapacity { used: 0, limit: 1 },
-        workers: OwnerCapacity { used: 0, limit: 1 },
-        attempts_capacity: OwnerCapacity { used: 0, limit: 1 },
+        tasks: Capacity { used: 0, limit: 1 },
+        workers: Capacity { used: 0, limit: 1 },
+        attempts_capacity: Capacity { used: 0, limit: 1 },
         waiting_attempts: 0,
-        proposals: OwnerCapacity { used: 0, limit: 1 },
+        proposals: Capacity { used: 0, limit: 1 },
         projects: list([]),
         grace_bound: Duration::from_secs(1),
         hello_refusals: list([]),

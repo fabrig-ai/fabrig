@@ -608,7 +608,9 @@ impl World {
                     attempt: exchange,
                     envelope: if final_answer { RequestEnvelope::Final } else { RequestEnvelope::Lost },
                     answer: if final_answer {
-                        Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountChanged))))
+                        Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::AccountChanged,
+                        ))))
                     } else {
                         None
                     },
@@ -812,9 +814,12 @@ fn keyed_answer() -> Box<[u8]> {
         w::Done::new(
             &w::CEILINGS,
             w::DoneParts {
-                outcome: w::Outcome::Owner(
-                    w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value: w::OwnerOutcome::AccountChanged })
-                        .expect("owner outcome"),
+                outcome: w::Outcome::Document(
+                    w::OutcomeDocument::new(
+                        &w::CEILINGS,
+                        w::OutcomeDocumentParts { value: w::DocumentOutcome::AccountChanged },
+                    )
+                    .expect("owner outcome"),
                 ),
             },
         )

@@ -69,7 +69,7 @@ fn answer(form: Form, seed: u64) {
 
 #[test]
 fn a_native_choice_card_and_confirmation_keep_one_platform_reason_input() {
-    answer(Form::OwnerChoice, 9311);
+    answer(Form::Choice, 9311);
 }
 #[test]
 fn a_choice_card_and_confirmation_keep_one_platform_reason_input() {
@@ -77,7 +77,7 @@ fn a_choice_card_and_confirmation_keep_one_platform_reason_input() {
 }
 #[test]
 fn a_native_report_card_and_confirmation_keep_one_platform_answer_input() {
-    answer(Form::OwnerReport, 9313);
+    answer(Form::Report, 9313);
 }
 #[test]
 fn a_words_card_and_confirmation_keep_one_platform_answer_input() {

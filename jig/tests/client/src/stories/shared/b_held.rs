@@ -5,8 +5,8 @@ use skein_lib::{Time, Wall};
 
 pub fn scripted(front: &mut Scripted) {
     let mut task = crate::stories::conversations::chat(1, b"Hello", Wall::EPOCH);
-    task.requester = c::OwnerRequester::Person(1);
-    let reason = c::OwnerChipHold {
+    task.requester = c::Requester::Person(1);
+    let reason = c::ChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -14,14 +14,14 @@ pub fn scripted(front: &mut Scripted) {
         source: None,
         reason: c::HoldCategory::Stopped,
         revision: 1,
-        before: c::OwnerPriorPhase::Active(c::RunStage::Idle),
+        before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: Some(Wall::EPOCH),
     };
     task.hold = Some(Box::new(reason.clone()));
     task.chip.phase = c::Phase::Held;
-    task.chip.details.phase = c::OwnerChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 };
+    task.chip.details.phase = c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 };
     task.chip.details.details.hold = Some(reason);
     task.context.as_mut().expect("task context").runtime = c::Runtime::Held { was: None };
     task.acts = crate::test::list([

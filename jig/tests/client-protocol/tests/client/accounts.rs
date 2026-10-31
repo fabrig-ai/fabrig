@@ -7,7 +7,7 @@ const FIRST: Key = Key { asker: Asker(7), number: 1 };
 const SECOND: Key = Key { asker: Asker(7), number: 2 };
 const WAIT: Duration = Duration::from_secs(1);
 fn ask() -> Ask {
-    Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 3 }))
+    Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 3 }))
 }
 fn answered(story: &mut Story, key: Key) -> Vec<Outcome> {
     assert!(story.run_until(|s| !s.answered(key).is_empty(), WAIT));
@@ -15,10 +15,9 @@ fn answered(story: &mut Story, key: Key) -> Vec<Outcome> {
 }
 fn started(answers: &[Outcome]) -> (u32, &[u8]) {
     let [
-        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignInStarted {
-            source,
-            address,
-        })))),
+        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::AccountSignInStarted { source, address },
+        )))),
     ] = answers
     else {
         panic!("one account sign-in started answer: {answers:?}")
@@ -48,7 +47,7 @@ fn a_sign_in_beyond_the_sign_ins_bound_is_refused_naming_it() {
     let mut story = Story::account_sign_in_two_providers(fixtures::SEED);
     story.hold_account_sign_in_burst();
     story.send(FIRST, ask());
-    story.send(SECOND, Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 4 })));
+    story.send(SECOND, Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 4 })));
     assert!(story.run_until(|s| s.account_sign_in_burst_len() == 2, WAIT));
     story.release_account_sign_in_burst();
     assert_eq!(
@@ -65,13 +64,12 @@ fn a_sign_out_is_answered_with_confirmed() {
     let mut story = Story::account_sign_in(fixtures::SEED, true);
     story.send(FIRST, ask());
     let (source, _) = started(&answered(&mut story, FIRST));
-    story.send(SECOND, Ask::Jig(Box::new(c::Ask::SignOut { holder: c::AccountHolder::Own, source })));
+    story.send(SECOND, Ask::Jig(Box::new(c::Ask::SignOut { holder: c::AskAccountHolder::Own, source })));
     assert_eq!(
         answered(&mut story, SECOND),
-        vec![Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignedOut {
-            confirmed: true,
-            failed_hosts: Box::new([])
-        }))))]
+        vec![Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::AccountSignedOut { confirmed: true, failed_hosts: Box::new([]) }
+        ))))]
     );
 }
 #[test]
@@ -85,8 +83,8 @@ fn a_sign_in_sent_again_after_its_answer_gets_the_same_answer() {
 }
 
 const ACCOUNTS: jig_client::Handle = jig_client::Handle { asker: Asker(7), number: 1 };
-fn accounts(story: &Story) -> Option<&c::OwnerAccounts> {
-    let jig_client::Latest::Jig(c::Delivery::OwnerAccounts(value)) = story.client.document(ACCOUNTS)?.latest? else {
+fn accounts(story: &Story) -> Option<&c::Accounts> {
+    let jig_client::Latest::Jig(c::Delivery::Accounts(value)) = story.client.document(ACCOUNTS)?.latest? else {
         panic!("an accounts document");
     };
     Some(value)
@@ -108,7 +106,7 @@ fn an_accounts_watch_delivers_the_partys_completed_sign_in() {
         |s| accounts(s).is_some_and(|d| d.usable
             && d.settled
             && d.last_end.is_some()
-            && d.accounts.iter().any(|a| a.sources.iter().any(|s| s.state == c::OwnerAccountState::Granted))),
+            && d.accounts.iter().any(|a| a.sources.iter().any(|s| s.state == c::AccountState::Granted))),
         WAIT
     ));
     let document = accounts(&story).expect("completed sign-in accounts");
@@ -117,18 +115,15 @@ fn an_accounts_watch_delivers_the_partys_completed_sign_in() {
     assert!(document.signing.is_empty());
     let [account] = document.accounts.as_slice() else { panic!("one signed-in account: {document:?}") };
     assert_eq!(account.provider, Some(3));
-    assert_eq!(account.holder, c::OwnerAccountHolder::Party(fixtures::FIRST_OWNER));
+    assert_eq!(account.holder, c::AccountHolder::Party(fixtures::FIRST_OWNER));
     let [grant] = account.sources.as_slice() else { panic!("one sign-in source: {account:?}") };
     assert_eq!(grant.number, source);
-    assert_eq!(grant.kind, c::OwnerAccountKind::SignIn);
-    assert_eq!(grant.state, c::OwnerAccountState::Granted);
+    assert_eq!(grant.kind, c::AccountKind::SignIn);
+    assert_eq!(grant.state, c::AccountState::Granted);
     assert!(grant.usable);
     assert_eq!(
         document.last_end,
-        Some(c::OwnerAccountLastEnd {
-            source,
-            end: c::OwnerAccountEnd::Made { account: account.number, declined: false }
-        })
+        Some(c::AccountLastEnd { source, end: c::AccountEnd::Made { account: account.number, declined: false } })
     );
 }
 

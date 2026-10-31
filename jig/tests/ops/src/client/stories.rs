@@ -144,11 +144,11 @@ pub fn incident_world(seed: u64) -> ClientWorld {
         truth.sign_ins.insert(party, party);
     }
     let mut p = proposal();
-    p.action = OwnerProposalAction::Effect {
-        part: OwnerPart {
+    p.action = ProposalAction::Effect {
+        part: Part {
             connector: number(Connector::Infrastructure),
-            kind: OwnerPartKind::Effect,
-            key: OwnerPartKey::Number(p.key.number),
+            kind: PartKind::Effect,
+            key: PartKey::Number(p.key.number),
         },
         authority: task().authority,
         attempt: 1,
@@ -160,21 +160,21 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     let mut lead = task();
     lead.chip.title = DocumentText::complete(text(b"I incident lead"));
     {
-        let ChipPhase { phase, .. } = lead.chip.details.as_mut();
-        *phase = OwnerChipPhase::Active(RunStage::Idle);
+        let ChipPhaseFacts { phase, .. } = lead.chip.details.as_mut();
+        *phase = ChipPhase::Active(RunStage::Idle);
     }
     let mut restart = task();
     restart.chip.task = 10;
     restart.chip.title = DocumentText::complete(text(b"R restart checkout"));
-    restart.requester = OwnerRequester::Task(9);
+    restart.requester = Requester::Task(9);
     restart.proposals = list([p.key]);
-    restart.chip.executor = Executor::Procedure { connector: number(Connector::Infrastructure), kind: 1 };
+    restart.chip.executor = ChipExecutor::Procedure { connector: number(Connector::Infrastructure), kind: 1 };
     {
-        let ChipPhase { details, .. } = restart.chip.details.as_mut();
-        details.procedure = Some(OwnerPart {
+        let ChipPhaseFacts { details, .. } = restart.chip.details.as_mut();
+        details.procedure = Some(Part {
             connector: number(Connector::Infrastructure),
-            kind: OwnerPartKind::Procedure,
-            key: OwnerPartKey::Number(10),
+            kind: PartKind::Procedure,
+            key: PartKey::Number(10),
         });
     }
     lead.delegates = list([LiveDelegate { chip: restart.chip.clone(), takeover_budget: 1 }]);
@@ -182,16 +182,16 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     for (key, value) in [
         (ObjectKey::Task(9), ReadValue::Task(Box::new(lead.clone()))),
         (ObjectKey::Task(10), ReadValue::Task(Box::new(restart.clone()))),
-        (ObjectKey::Proposal(p.key), ReadValue::OwnerProposal(Box::new(p.clone()))),
+        (ObjectKey::Proposal(p.key), ReadValue::Proposal(Box::new(p.clone()))),
     ] {
         truth.object_projects.insert(key, 1);
         truth.objects.insert(key, value);
     }
     truth.trees.insert(
         9,
-        OwnerTree {
+        Tree {
             root: lead.chip.clone(),
-            rows: list([OwnerTreeRow {
+            rows: list([TreeRow {
                 chip: restart.chip.clone(),
                 parent: 9,
                 depth: 1,
@@ -288,17 +288,17 @@ pub fn incident_world(seed: u64) -> ClientWorld {
             },
         }))),
     );
-    let decided = decided_proposal(&p, OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(7) });
+    let decided = decided_proposal(&p, ProposalHistoryState::Accepted { by: Requester::Person(7) });
     let rule = jig_client_scripted_engine::Rule {
         party: Some(7),
         ask: Ask::Decide {
             project: 1,
             on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
         },
-        answer: Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+        answer: Answer::Done(Outcome::Document(DocumentOutcome::ProposalDecided {
             proposal: p.key,
             by: 7,
-            choice: OwnerProposalChoice::Accepted,
+            choice: ProposalChoice::Accepted,
             at: Wall::EPOCH,
             repeated: false,
         })),
@@ -306,7 +306,7 @@ pub fn incident_world(seed: u64) -> ClientWorld {
             jig_client_scripted_engine::Change::Object {
                 project: 1,
                 key: ObjectKey::Proposal(p.key),
-                value: ReadValue::Historical(Box::new(decided)),
+                value: ReadValue::Ended(Box::new(decided)),
             },
             jig_client_scripted_engine::Change::Source(jig_client_scripted_engine::Source {
                 party: 7,
@@ -378,22 +378,22 @@ pub fn environment_world(seed: u64) -> ClientWorld {
     let mut chat = task();
     chat.chip.title = DocumentText::complete(text(b"Q staging chat"));
     {
-        let ChipPhase { phase, .. } = chat.chip.details.as_mut();
-        *phase = OwnerChipPhase::Active(RunStage::Idle);
+        let ChipPhaseFacts { phase, .. } = chat.chip.details.as_mut();
+        *phase = ChipPhase::Active(RunStage::Idle);
     }
     let mut p = proposal();
     p.reason = DocumentText::complete(text(b"Provision staging for one week"));
-    p.funding = list([OwnerFundingOffer {
+    p.funding = list([FundingOffer {
         source: Funder::Pool { project: 1, person: 7, period: 3 },
         needed: 40,
         left: Some(40),
         after: Some(0),
     }]);
-    p.action = OwnerProposalAction::Effect {
-        part: OwnerPart {
+    p.action = ProposalAction::Effect {
+        part: Part {
             connector: number(Connector::Infrastructure),
-            kind: OwnerPartKind::Effect,
-            key: OwnerPartKey::Number(p.key.number),
+            kind: PartKind::Effect,
+            key: PartKey::Number(p.key.number),
         },
         authority: task().authority,
         attempt: 1,
@@ -404,7 +404,7 @@ pub fn environment_world(seed: u64) -> ClientWorld {
     chat.proposals = list([p.key]);
     let ask = jig_client::shapes::chat(&truth.frames[&7], 1, text(b"staging for one week"))
         .expect("fixture offers the chat template");
-    let accepted = decided_proposal(&p, OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(7) });
+    let accepted = decided_proposal(&p, ProposalHistoryState::Accepted { by: Requester::Person(7) });
     let rule = jig_client_scripted_engine::Rule {
         party: Some(7),
         ask,
@@ -445,7 +445,7 @@ pub fn environment_world(seed: u64) -> ClientWorld {
             jig_client_scripted_engine::Change::Object {
                 project: 1,
                 key: ObjectKey::Proposal(p.key),
-                value: ReadValue::OwnerProposal(Box::new(p.clone())),
+                value: ReadValue::Proposal(Box::new(p.clone())),
             },
         ],
     };
@@ -455,17 +455,17 @@ pub fn environment_world(seed: u64) -> ClientWorld {
             project: 1,
             on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
         },
-        answer: Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+        answer: Answer::Done(Outcome::Document(DocumentOutcome::ProposalDecided {
             proposal: p.key,
             by: 7,
-            choice: OwnerProposalChoice::Accepted,
+            choice: ProposalChoice::Accepted,
             at: Wall::EPOCH,
             repeated: false,
         })),
         changes: vec![jig_client_scripted_engine::Change::Object {
             project: 1,
             key: ObjectKey::Proposal(p.key),
-            value: ReadValue::Historical(Box::new(accepted)),
+            value: ReadValue::Ended(Box::new(accepted)),
         }],
     };
     let mut ops = OpsScript::default();
@@ -565,30 +565,30 @@ fn inbox_entry(
     position: u64,
     at: Wall,
     reply: Option<Box<TaskLine>>,
-) -> OwnerInboxEntry {
+) -> InboxEntry {
     let (task, object) = match object {
-        ObjectKey::Question { task, message } => (task, OwnerInboxObject::Question { message }),
+        ObjectKey::Question { task, message } => (task, InboxObject::Question { message }),
         ObjectKey::Proposal(key) => (
             match key.proposer {
                 Proposer::Task(n) | Proposer::Party(n) => n,
             },
-            OwnerInboxObject::Proposal { proposer: key.proposer, number: key.number },
+            InboxObject::Proposal { proposer: key.proposer, number: key.number },
         ),
-        ObjectKey::Escalation(task) => (task, OwnerInboxObject::Escalation { revision: 1 }),
-        ObjectKey::PersonTask(task) => (task, OwnerInboxObject::PersonTask),
-        ObjectKey::Task(task) => (task, OwnerInboxObject::Reply { message: position }),
-        ObjectKey::Result(task) => (task, OwnerInboxObject::Result { position }),
+        ObjectKey::Escalation(task) => (task, InboxObject::Escalation { revision: 1 }),
+        ObjectKey::PersonTask(task) => (task, InboxObject::PersonTask),
+        ObjectKey::Task(task) => (task, InboxObject::Reply { message: position }),
+        ObjectKey::Result(task) => (task, InboxObject::Result { position }),
         ObjectKey::Note { .. } => unreachable!("notes have no inbox row"),
     };
-    let row = OwnerInboxEntry {
+    let row = InboxEntry {
         reply,
-        task: OwnerTaskLink::Stored { number: task, status: None },
+        task: TaskLink::Stored { number: task, status: None },
         project: Some(project),
         object,
         activity: None,
         at: Some(at),
         unread: None,
-        cursor: OwnerInboxCursor::Number { number: position },
+        cursor: InboxCursor::Number { number: position },
     };
     assert_eq!(row.group(), group);
     row

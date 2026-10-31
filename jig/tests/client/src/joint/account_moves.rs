@@ -73,7 +73,7 @@ impl Story {
         story.event(client::Event::Send {
             key: key(1),
             name: Some([1; 16]),
-            request: client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AccountHolder::Own, provider })),
+            request: client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider })),
         });
         story.event(client::Event::Watch { handle: WATCH, subject: client::Watchable::Jig(c::Subject::Accounts) });
         story.account = story.document().accounts.get(0).expect("signed-in account").number;
@@ -144,8 +144,8 @@ impl Story {
         }
         panic!("joint session did not settle");
     }
-    fn document(&self) -> &c::OwnerAccounts {
-        let Some(client::Latest::Jig(c::Delivery::OwnerAccounts(document))) =
+    fn document(&self) -> &c::Accounts {
+        let Some(client::Latest::Jig(c::Delivery::Accounts(document))) =
             self.client.document(WATCH).and_then(|d| d.latest)
         else {
             panic!("accounts document")
@@ -162,7 +162,7 @@ impl Story {
         outcome
     }
     fn moving(&mut self) -> (u32, Secret) {
-        self.event(client::accounts::move_out(key(2), [2; 16], c::AccountHolder::Own, self.account));
+        self.event(client::accounts::move_out(key(2), [2; 16], c::AskAccountHolder::Own, self.account));
         let client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::Made {
             what: c::Made::MovingOut { account, number, record },
         }))) = self.outcome(2)
@@ -175,7 +175,7 @@ impl Story {
         (number, record)
     }
     fn written(&mut self, number: u32) -> client::Outcome {
-        self.event(client::accounts::written(key(3), [3; 16], c::AccountHolder::Own, number));
+        self.event(client::accounts::written(key(3), [3; 16], c::AskAccountHolder::Own, number));
         self.outcome(3)
     }
     fn advance(&mut self, span: Duration) {
@@ -186,8 +186,8 @@ impl Story {
     }
 }
 fn done() -> client::Outcome {
-    client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-        c::OwnerOutcome::AccountChanged,
+    client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::AccountChanged,
     ))))
 }
 fn cancelled() -> client::Outcome {
@@ -201,7 +201,7 @@ fn moved_out_is_moving_until_written_then_gone() {
     let mut story = Story::new();
     let (number, _) = story.moving();
     let source = story.document().accounts.get(0).expect("own account").sources.get(0).expect("signed-in source");
-    assert_eq!((source.state, source.usable), (c::OwnerAccountState::Moving, false));
+    assert_eq!((source.state, source.usable), (c::AccountState::Moving, false));
     assert_eq!(story.written(number), done());
     assert!(story.document().accounts.is_empty());
 }
@@ -210,9 +210,9 @@ fn the_record_moves_in_and_the_account_returns() {
     let mut story = Story::new();
     let (number, record) = story.moving();
     assert_eq!(story.written(number), done());
-    story.event(client::accounts::move_in(key(4), [4; 16], c::AccountHolder::Own, record));
-    let client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-        c::OwnerOutcome::AccountMovedIn { account, renewed: false },
+    story.event(client::accounts::move_in(key(4), [4; 16], c::AskAccountHolder::Own, record));
+    let client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::AccountMovedIn { account, renewed: false },
     )))) = story.outcome(4)
     else {
         panic!("moved in")
@@ -220,7 +220,7 @@ fn the_record_moves_in_and_the_account_returns() {
     assert_eq!(story.document().accounts.get(0).expect("own account").number, account);
     assert_eq!(
         story.document().accounts.get(0).expect("own account").sources.get(0).expect("signed-in source").state,
-        c::OwnerAccountState::Granted
+        c::AccountState::Granted
     );
     story.advance(Duration::from_secs(1));
     assert_eq!(story.sent.iter().filter(|key| **key == [4; 16]).count(), 1);
@@ -229,7 +229,7 @@ fn the_record_moves_in_and_the_account_returns() {
 fn the_move_out_name_sent_again_is_lost_without_a_record() {
     let mut story = Story::new();
     story.moving();
-    story.event(client::accounts::move_out(key(4), [2; 16], c::AccountHolder::Own, story.account));
+    story.event(client::accounts::move_out(key(4), [2; 16], c::AskAccountHolder::Own, story.account));
     assert_eq!(story.outcome(4), client::Outcome::Lost);
     story.advance(Duration::from_secs(1));
     assert_eq!(story.sent, [[2; 16], [2; 16]], "one send per explicit caller request");
@@ -243,7 +243,7 @@ fn late_written_is_cancelled_and_the_source_is_refreshed() {
     assert_eq!(story.written(number), cancelled());
     assert_eq!(
         story.document().accounts.get(0).expect("own account").sources.get(0).expect("signed-in source").state,
-        c::OwnerAccountState::Granted
+        c::AccountState::Granted
     );
     assert_eq!(story.sent.iter().filter(|key| **key == [2; 16]).count(), 1);
 }
@@ -257,7 +257,7 @@ fn a_cold_engine_restart_cancels_the_move() {
     story.advance(Duration::from_millis(100));
     assert_eq!(
         story.document().accounts.get(0).expect("own account").sources.get(0).expect("signed-in source").state,
-        c::OwnerAccountState::Granted
+        c::AccountState::Granted
     );
     assert_eq!(story.written(number), cancelled());
     assert_eq!(story.sent.iter().filter(|key| **key == [2; 16]).count(), 1);

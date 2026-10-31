@@ -136,10 +136,8 @@ fn a_real_pending_review_survives_both_wire_translations() {
         .expect("receiving limits");
     let read = jig_client_protocol_link::translate::reads::value(value.record(), &link)
         .expect("client decodes the real review");
-    let jig_client_domain::contract::ReadValue::OwnerProposal(doc) = read else { panic!("proposal view") };
-    let jig_client_domain::contract::OwnerProposalAction::Settings(action) = doc.action else {
-        panic!("settings action")
-    };
+    let jig_client_domain::contract::ReadValue::Proposal(doc) = read else { panic!("proposal view") };
+    let jig_client_domain::contract::ProposalAction::Settings(action) = doc.action else { panic!("settings action") };
     assert_eq!(action.against, 1);
     assert_eq!(action.made, None);
     let review = action.review.expect("pending review");

@@ -271,7 +271,7 @@ fn a_client_reads_a_stopped_goals_hold_and_only_its_owner_lifts_it() {
     assert_eq!(
         owner_client
             .ask(&mut world, c::Ask::Lift { hold: number, revision: c::Revision { value: 1 }, with_tasks: true }),
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Lifted { hold: number, released: 2 }))
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Lifted { hold: number, released: 2 }))
     );
     assert!(owner_client.task(&mut world, goal).hold.is_none());
     assert!(owner_client.task(&mut world, child).hold.is_none());

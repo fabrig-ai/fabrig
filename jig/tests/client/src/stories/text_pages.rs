@@ -2,8 +2,8 @@
 use super::{held_chat, proposal_world, task, text};
 use crate::{Scripted, Test, World, test};
 use jig_client_domain::contract::{
-    self as c, Count, DocumentText, Ending, Executor, InboxGroup, InboxReadGroup, Needs, ObjectKey, OwnerEscalation,
-    OwnerRequester, Phase, Question, Read, ReadValue, ResultValue, Revision, TaskLine,
+    self as c, ChipExecutor, Count, DocumentText, Ending, Escalation, InboxGroup, InboxReadGroup, Needs, ObjectKey,
+    Phase, Question, Read, ReadValue, Requester, ResultValue, Revision, TaskLine,
 };
 use jig_client_scripted_engine::{Change, Rows, Source};
 use skein_lib::{Time, Wall};
@@ -41,7 +41,7 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
     let task = task();
     let question = Question {
         task: task.chip.clone(),
-        from: Some(OwnerRequester::Person(7)),
+        from: Some(Requester::Person(7)),
         message: 1,
         words: DocumentText::complete(text(b"Which option?")),
         since: Wall::EPOCH,
@@ -50,19 +50,19 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
     };
     let mut person_chip = task.chip.clone();
     person_chip.task = 10;
-    person_chip.executor = Executor::Party { party: 7 };
+    person_chip.executor = ChipExecutor::Party { party: 7 };
     person_chip.details = Box::new(super::owner_chip(
-        c::OwnerChipPhase::Person { address: c::PersonAddress::Party(7), taken_by: None, since: Some(Wall::EPOCH) },
+        c::ChipPhase::Person { address: c::PersonAddress::Party(7), taken_by: None, since: Some(Wall::EPOCH) },
         None,
     ));
     {
-        let c::ChipPhase { details, .. } = person_chip.details.as_mut();
-        details.executor = c::OwnerExecutor::Person(c::PersonAddress::Party(7));
+        let c::ChipPhaseFacts { details, .. } = person_chip.details.as_mut();
+        details.executor = c::Executor::Person(c::PersonAddress::Party(7));
     }
-    let person = c::OwnerPersonTask {
+    let person = c::PersonTask {
         task: person_chip,
         revision: Revision { value: 1 },
-        requester: OwnerRequester::Person(7),
+        requester: Requester::Person(7),
         spec: task.spec.clone(),
         address: c::PersonAddress::Party(7),
         taken_by: None,
@@ -77,11 +77,11 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
     let mut result_chip = task.chip.clone();
     result_chip.task = 11;
     result_chip.phase = Phase::Done;
-    result_chip.details = Box::new(super::owner_chip(c::OwnerChipPhase::Ended, None));
+    result_chip.details = Box::new(super::owner_chip(c::ChipPhase::Ended, None));
     {
-        let c::ChipPhase { details, .. } = result_chip.details.as_mut();
+        let c::ChipPhaseFacts { details, .. } = result_chip.details.as_mut();
         details.ended_at = Some(Wall::EPOCH);
-        details.ending = Some(c::OwnerChipEnding::Done(ResultValue::Report(DocumentText::complete(text(b"Finished")))));
+        details.ending = Some(c::ChipEnding::Done(ResultValue::Report(DocumentText::complete(text(b"Finished")))));
     }
     let result = c::Result {
         task: result_chip,
@@ -93,11 +93,8 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
     };
     for (key, value) in [
         (ObjectKey::Question { task: 9, message: 1 }, ReadValue::Question(Box::new(question))),
-        (
-            ObjectKey::Escalation(9),
-            ReadValue::OwnerEscalation(Box::new(OwnerEscalation { acts: held.acts.clone(), task: held })),
-        ),
-        (ObjectKey::PersonTask(10), ReadValue::OwnerPersonTask(Box::new(person))),
+        (ObjectKey::Escalation(9), ReadValue::Escalation(Box::new(Escalation { acts: held.acts.clone(), task: held }))),
+        (ObjectKey::PersonTask(10), ReadValue::PersonTask(Box::new(person))),
         (ObjectKey::Result(11), ReadValue::Result(Box::new(result))),
     ] {
         world
@@ -116,7 +113,7 @@ fn reply(task: c::Task) -> TaskLine {
             chip
         },
         project: 1,
-        requester: jig_client_domain::contract::OwnerRequester::Person(1),
+        requester: jig_client_domain::contract::Requester::Person(1),
         tracked: None,
         label: 1,
         flags: reply_flags(),
@@ -125,7 +122,7 @@ fn reply(task: c::Task) -> TaskLine {
         ended_at: None,
         budget: task.budget,
         waits_on: jig_client_domain::contract::WaitsOn::Nothing,
-        phases: jig_client_domain::contract::OwnerPhaseCounts {
+        phases: jig_client_domain::contract::PhaseCounts {
             waiting: 0,
             idle: 0,
             starting: 0,

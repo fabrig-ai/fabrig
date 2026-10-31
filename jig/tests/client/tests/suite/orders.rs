@@ -144,8 +144,8 @@ fn a_later_write_holds_its_requests_under_load() {
             (SECOND, jig_client::Outcome::NotKept),
             (
                 FIRST,
-                jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                    c::OwnerOutcome::AccountChanged
+                jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                    c::DocumentOutcome::AccountChanged
                 ))))
             ),
         ]

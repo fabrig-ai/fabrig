@@ -33,8 +33,7 @@ pub fn task_lines(story: &crate::client::Story, handle: Handle) -> Option<&c::Ta
 #[must_use]
 pub fn person_tasks() -> List<c::NewTask> {
     let mut tasks = tracked_tasks();
-    tasks.get_mut(0).expect("first member").executor =
-        c::OwnerExecutor::Person(c::PersonAddress::Party(super::FIRST_OWNER));
+    tasks.get_mut(0).expect("first member").executor = c::Executor::Person(c::PersonAddress::Party(super::FIRST_OWNER));
     tasks
 }
 #[must_use]
@@ -43,7 +42,7 @@ pub fn person_batch_config(seed: u64) -> jig_test_domain::Config {
     let mut config = super::batch_config(seed);
     let mut rules = config.core.defaults.rules.clone();
     let mut policy = config.core.seed_projects[0].policy.policy.clone();
-    let kinds: Box<[a::Executor]> = Box::new([a::Executor::Charter(1), a::Executor::Role(0)]);
+    let kinds: Box<[a::ChipExecutor]> = Box::new([a::ChipExecutor::Charter(1), a::ChipExecutor::Role(0)]);
     rules.ceiling.delegation.kinds.clone_from(&kinds);
     policy.ceiling.delegation.kinds.clone_from(&kinds);
     policy.roles[0].authority.delegation.kinds = kinds;
@@ -100,11 +99,13 @@ mod tests {
         assert!(story.run_until(|story| !story.answered(key).is_empty(), skein_lib::Duration::from_secs(1)));
         assert_eq!(
             story.answered(key),
-            vec![Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created {
-                first: FIRST_QUERY_TASK,
-                last: SECOND_QUERY_TASK,
-                given: Some(c::CreatedGiven { task: FIRST_QUERY_TASK, amount: 20 })
-            }))))]
+            vec![Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::Created {
+                    first: FIRST_QUERY_TASK,
+                    last: SECOND_QUERY_TASK,
+                    given: Some(c::CreatedGiven { task: FIRST_QUERY_TASK, amount: 20 })
+                }
+            ))))]
         );
     }
 }

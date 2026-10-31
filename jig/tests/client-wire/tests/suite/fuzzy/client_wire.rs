@@ -21,7 +21,7 @@ fn records_1(bytes: &[u8]) {
     check!(DeliveryValue, bytes);
     check!(StreamText, bytes);
     check!(Chips, bytes);
-    check!(OwnerInbox, bytes);
+    check!(Inbox, bytes);
     check!(Kept, bytes);
     check!(TableEntry, bytes);
     check!(Family, bytes);
@@ -44,16 +44,16 @@ fn records_1(bytes: &[u8]) {
     check!(OriginRevision, bytes);
     check!(ReviewItem, bytes);
     check!(SettingsReview, bytes);
-    check!(OwnerProposalActionSettings, bytes);
-    check!(OwnerRetainedActionSettings, bytes);
+    check!(ProposalActionSettings, bytes);
+    check!(RetainedActionSettings, bytes);
     check!(SettingOrigin, bytes);
     check!(ReviewValue, bytes);
 
-    check!(ExecutorAgent, bytes);
-    check!(ExecutorProcedure, bytes);
+    check!(ChipExecutorAgent, bytes);
+    check!(ChipExecutorProcedure, bytes);
     check!(ExecutorParty, bytes);
     check!(ExecutorRole, bytes);
-    check!(Executor, bytes);
+    check!(ChipExecutor, bytes);
     check!(Phase, bytes);
     check!(RunStageClaimed, bytes);
     check!(RunStageRunning, bytes);
@@ -71,12 +71,12 @@ fn records_1(bytes: &[u8]) {
     check!(HoldCategoryUncertain, bytes);
     check!(HoldCategoryPoolLost, bytes);
     check!(HoldCategory, bytes);
-    check!(OwnerChipPhaseWaiting, bytes);
-    check!(OwnerChipPhaseActive, bytes);
-    check!(OwnerChipPhasePerson, bytes);
-    check!(OwnerChipPhaseClosing, bytes);
-    check!(OwnerChipPhaseHeld, bytes);
-    check!(OwnerChipPhase, bytes);
+    check!(ChipPhaseWaiting, bytes);
+    check!(ChipPhaseActive, bytes);
+    check!(ChipPhasePerson, bytes);
+    check!(ChipPhaseClosing, bytes);
+    check!(ChipPhaseHeld, bytes);
+    check!(ChipPhase, bytes);
     check!(FailureClass, bytes);
 }
 
@@ -115,54 +115,54 @@ fn records_3(bytes: &[u8]) {
     check!(DecisionLeftHeld, bytes);
     check!(Decision, bytes);
     check!(AttemptFailure, bytes);
-    check!(OwnerExecutorAgent, bytes);
-    check!(OwnerExecutorProcedure, bytes);
-    check!(OwnerExecutorPerson, bytes);
-    check!(OwnerExecutor, bytes);
+    check!(ExecutorAgent, bytes);
+    check!(ExecutorProcedure, bytes);
+    check!(ExecutorPerson, bytes);
+    check!(Executor, bytes);
     check!(WakeRuleBatch, bytes);
     check!(WakeRule, bytes);
     check!(ResultsWake, bytes);
-    check!(OwnerWakePolicy, bytes);
-    check!(OwnerPersonStallNotice, bytes);
-    check!(OwnerPersonWait, bytes);
-    check!(OwnerPartKind, bytes);
-    check!(OwnerPartKeyPath, bytes);
-    check!(OwnerPartKeyNumber, bytes);
-    check!(OwnerPartKey, bytes);
-    check!(OwnerPart, bytes);
-    check!(OwnerPriorPhaseActive, bytes);
-    check!(OwnerPriorPhaseClosing, bytes);
-    check!(OwnerPriorPhase, bytes);
-    check!(OwnerEscalationHolderTask, bytes);
-    check!(OwnerEscalationHolderPerson, bytes);
-    check!(OwnerEscalationHolderRole, bytes);
-    check!(OwnerEscalationHolder, bytes);
-    check!(OwnerHoldEscalationWaiting, bytes);
-    check!(OwnerHoldEscalationRejected, bytes);
-    check!(OwnerHoldEscalation, bytes);
-    check!(OwnerFailureTries, bytes);
-    check!(OwnerChipHold, bytes);
-    check!(OwnerNumbers, bytes);
+    check!(WakePolicy, bytes);
+    check!(PersonStallNotice, bytes);
+    check!(PersonWait, bytes);
+    check!(PartKind, bytes);
+    check!(PartKeyPath, bytes);
+    check!(PartKeyNumber, bytes);
+    check!(PartKey, bytes);
+    check!(Part, bytes);
+    check!(PriorPhaseActive, bytes);
+    check!(PriorPhaseClosing, bytes);
+    check!(PriorPhase, bytes);
+    check!(EscalationHolderTask, bytes);
+    check!(EscalationHolderPerson, bytes);
+    check!(EscalationHolderRole, bytes);
+    check!(EscalationHolder, bytes);
+    check!(HoldEscalationWaiting, bytes);
+    check!(HoldEscalationRejected, bytes);
+    check!(HoldEscalation, bytes);
+    check!(FailureTries, bytes);
+    check!(ChipHold, bytes);
+    check!(Numbers, bytes);
     check!(FunderTask, bytes);
     check!(FunderPool, bytes);
     check!(FunderRecurring, bytes);
     check!(FunderPeriod, bytes);
     check!(Funder, bytes);
-    check!(OwnerBudget, bytes);
+    check!(Budget, bytes);
 }
 
 fn records_4(bytes: &[u8]) {
-    check!(OwnerResourceWriterRun, bytes);
-    check!(OwnerResourceWriterEffect, bytes);
-    check!(OwnerResourceWriter, bytes);
-    check!(OwnerResourceLine, bytes);
-    check!(OwnerChipWorkTool, bytes);
-    check!(OwnerChipWork, bytes);
-    check!(OwnerChipObservation, bytes);
-    check!(OwnerRequesterTask, bytes);
-    check!(OwnerRequesterPerson, bytes);
-    check!(OwnerRequesterDeployment, bytes);
-    check!(OwnerRequester, bytes);
+    check!(ResourceWriterRun, bytes);
+    check!(ResourceWriterEffect, bytes);
+    check!(ResourceWriter, bytes);
+    check!(ResourceLine, bytes);
+    check!(ChipWorkTool, bytes);
+    check!(ChipWork, bytes);
+    check!(ChipObservation, bytes);
+    check!(RequesterTask, bytes);
+    check!(RequesterPerson, bytes);
+    check!(RequesterDeployment, bytes);
+    check!(Requester, bytes);
     check!(ResultField, bytes);
     check!(ChipFields, bytes);
     check!(ChipRow, bytes);
@@ -192,13 +192,13 @@ fn records_5(bytes: &[u8]) {
     check!(HoldReasonStoppedFields, bytes);
     check!(HoldReasonFields, bytes);
     check!(HoldReasonRow, bytes);
-    check!(OwnerChipDetailsFields, bytes);
-    check!(OwnerChipDetailsRow, bytes);
-    check!(OwnerChipEndingDoneFields, bytes);
-    check!(OwnerChipEndingFailedFields, bytes);
-    check!(OwnerChipEndingCancelledFields, bytes);
-    check!(OwnerChipEndingFields, bytes);
-    check!(OwnerChipEndingRow, bytes);
+    check!(ChipDetailsFields, bytes);
+    check!(ChipDetailsRow, bytes);
+    check!(ChipEndingDoneFields, bytes);
+    check!(ChipEndingFailedFields, bytes);
+    check!(ChipEndingCancelledFields, bytes);
+    check!(ChipEndingFields, bytes);
+    check!(ChipEndingRow, bytes);
     check!(ResultValueReportFields, bytes);
     check!(ResultValueOwnerVerdictFields, bytes);
     check!(ResultValueVerdictFields, bytes);
@@ -211,7 +211,7 @@ fn records_5(bytes: &[u8]) {
     check!(ResultValueRow, bytes);
     check!(Fact, bytes);
     check!(Chip, bytes);
-    check!(ChipPhase, bytes);
+    check!(ChipPhaseFacts, bytes);
     check!(Closing, bytes);
     check!(Ending, bytes);
     check!(HeldRuntime, bytes);
@@ -219,8 +219,8 @@ fn records_5(bytes: &[u8]) {
 }
 
 fn records_6(bytes: &[u8]) {
-    check!(OwnerChipDetails, bytes);
-    check!(OwnerChipEnding, bytes);
+    check!(ChipDetails, bytes);
+    check!(ChipEnding, bytes);
     check!(ResultValue, bytes);
     check!(PersonAnswerChoice, bytes);
     check!(PersonAnswerApproved, bytes);
@@ -233,18 +233,18 @@ fn records_6(bytes: &[u8]) {
     check!(ParameterResource, bytes);
     check!(Parameter, bytes);
     check!(Specification, bytes);
-    check!(OwnerPatternEndExact, bytes);
-    check!(OwnerPatternEndOpen, bytes);
-    check!(OwnerPatternEnd, bytes);
-    check!(OwnerPattern, bytes);
-    check!(OwnerGrant, bytes);
-    check!(OwnerAuthorityExecutorCharter, bytes);
-    check!(OwnerAuthorityExecutorProcedure, bytes);
-    check!(OwnerAuthorityExecutorRole, bytes);
-    check!(OwnerAuthorityExecutor, bytes);
-    check!(OwnerDelegation, bytes);
-    check!(OwnerResourceScope, bytes);
-    check!(OwnerAuthority, bytes);
+    check!(PatternEndExact, bytes);
+    check!(PatternEndOpen, bytes);
+    check!(PatternEnd, bytes);
+    check!(Pattern, bytes);
+    check!(Grant, bytes);
+    check!(AuthorityExecutorCharter, bytes);
+    check!(AuthorityExecutorProcedure, bytes);
+    check!(AuthorityExecutorRole, bytes);
+    check!(AuthorityExecutor, bytes);
+    check!(Delegation, bytes);
+    check!(ResourceScope, bytes);
+    check!(Authority, bytes);
     check!(Amendment, bytes);
     check!(SeenResults, bytes);
     check!(SeenConversation, bytes);
@@ -328,50 +328,50 @@ fn records_7(bytes: &[u8]) {
     check!(TaskFlags, bytes);
     check!(Retention, bytes);
     check!(CreatedGiven, bytes);
-    check!(OwnerOutcomeCreated, bytes);
-    check!(AccountHolder, bytes);
+    check!(OutcomeCreated, bytes);
+    check!(AskAccountHolder, bytes);
     check!(AskSignIn, bytes);
     check!(AskSignOut, bytes);
     check!(Ask, bytes);
 }
 
 fn records_8(bytes: &[u8]) {
-    check!(OwnerProposalChoice, bytes);
-    check!(OwnerEscalationChoice, bytes);
-    check!(OwnerOutcomeMarkedSeen, bytes);
-    check!(OwnerOutcomeNoteEdited, bytes);
-    check!(OwnerOutcomeServiceMade, bytes);
-    check!(OwnerOutcomeAdopted, bytes);
-    check!(OwnerOutcomeStopped, bytes);
-    check!(OwnerOutcomeCancelled, bytes);
-    check!(OwnerOutcomeReleased, bytes);
-    check!(OwnerOutcomePersonTaken, bytes);
-    check!(OwnerOutcomePersonHandedBack, bytes);
-    check!(OwnerOutcomePersonAnswered, bytes);
-    check!(OwnerOutcomeMoved, bytes);
-    check!(OwnerOutcomeProposalDecided, bytes);
-    check!(OwnerOutcomeSaid, bytes);
-    check!(OwnerOutcomeQuestionAnswered, bytes);
-    check!(OwnerOutcomeAmended, bytes);
-    check!(OwnerOutcomeProposed, bytes);
-    check!(OwnerOutcomeWithdrawn, bytes);
-    check!(OwnerOutcomeRolesSet, bytes);
-    check!(OwnerOutcomePolicyChanged, bytes);
-    check!(OwnerOutcomeAccountSignInStarted, bytes);
-    check!(OwnerOutcomeAccountSignedOut, bytes);
-    check!(OwnerOutcomeRenamed, bytes);
-    check!(OwnerOutcomeProjectMade, bytes);
+    check!(ProposalChoice, bytes);
+    check!(EscalationChoice, bytes);
+    check!(OutcomeMarkedSeen, bytes);
+    check!(OutcomeNoteEdited, bytes);
+    check!(OutcomeServiceMade, bytes);
+    check!(OutcomeAdopted, bytes);
+    check!(OutcomeStopped, bytes);
+    check!(OutcomeCancelled, bytes);
+    check!(OutcomeReleased, bytes);
+    check!(OutcomePersonTaken, bytes);
+    check!(OutcomePersonHandedBack, bytes);
+    check!(OutcomePersonAnswered, bytes);
+    check!(OutcomeMoved, bytes);
+    check!(OutcomeProposalDecided, bytes);
+    check!(OutcomeSaid, bytes);
+    check!(OutcomeQuestionAnswered, bytes);
+    check!(OutcomeAmended, bytes);
+    check!(OutcomeProposed, bytes);
+    check!(OutcomeWithdrawn, bytes);
+    check!(OutcomeRolesSet, bytes);
+    check!(OutcomePolicyChanged, bytes);
+    check!(OutcomeAccountSignInStarted, bytes);
+    check!(OutcomeAccountSignedOut, bytes);
+    check!(OutcomeRenamed, bytes);
+    check!(OutcomeProjectMade, bytes);
     check!(NameRule, bytes);
     check!(MalformedName, bytes);
-    check!(OwnerOutcomePoolSet, bytes);
-    check!(OwnerOutcomeEscalationDecided, bytes);
-    check!(OwnerOutcome, bytes);
+    check!(OutcomePoolSet, bytes);
+    check!(OutcomeEscalationDecided, bytes);
+    check!(DocumentOutcome, bytes);
     check!(MadeTasks, bytes);
     check!(MadeService, bytes);
     check!(MadePersonResult, bytes);
     check!(MadeNote, bytes);
     check!(Made, bytes);
-    check!(OutcomeOwner, bytes);
+    check!(OutcomeDocument, bytes);
     check!(OutcomeMade, bytes);
 }
 
@@ -432,47 +432,47 @@ fn records_10(bytes: &[u8]) {
     check!(ReadNone, bytes);
     check!(ReadAnswerNone, bytes);
     check!(ReadAnswer, bytes);
-    check!(OwnerPeriodTimes, bytes);
-    check!(OwnerFundingRecord, bytes);
-    check!(OwnerSpendPage, bytes);
+    check!(PeriodTimes, bytes);
+    check!(FundingRecord, bytes);
+    check!(SpendPage, bytes);
 }
 
 fn records_11(bytes: &[u8]) {
-    check!(OwnerMessageProposalKind, bytes);
-    check!(OwnerNoticeState, bytes);
-    check!(OwnerNewsClass, bytes);
-    check!(OwnerWordResultApproved, bytes);
-    check!(OwnerWordResultVerdict, bytes);
-    check!(OwnerWordResultChange, bytes);
-    check!(OwnerWordResult, bytes);
-    check!(OwnerMessageKindEscalation, bytes);
-    check!(OwnerMessageKindProposal, bytes);
-    check!(OwnerMessageKindPersonStalled, bytes);
-    check!(OwnerMessageKindProposalDecision, bytes);
-    check!(OwnerMessageKindEffectNotMade, bytes);
-    check!(OwnerMessageKindAmendment, bytes);
-    check!(OwnerMessageKindAnswer, bytes);
-    check!(OwnerMessageKindNotice, bytes);
-    check!(OwnerMessageKindTimer, bytes);
-    check!(OwnerMessageKindNews, bytes);
-    check!(OwnerMessageKindResult, bytes);
-    check!(OwnerMessageKind, bytes);
-    check!(OwnerWord, bytes);
-    check!(OwnerRunWhyMessage, bytes);
-    check!(OwnerRunWhyRetry, bytes);
-    check!(OwnerRunWhy, bytes);
-    check!(OwnerRunEndFailed, bytes);
-    check!(OwnerRunEnd, bytes);
-    check!(OwnerActivityWords, bytes);
-    check!(OwnerActivityHeard, bytes);
-    check!(OwnerActivityNotified, bytes);
-    check!(OwnerActivityRunBegan, bytes);
-    check!(OwnerActivityRunEnded, bytes);
-    check!(OwnerActivityTurn, bytes);
-    check!(OwnerActivityDecided, bytes);
-    check!(OwnerActivityMilestone, bytes);
-    check!(OwnerActivity, bytes);
-    check!(OwnerActivityLine, bytes);
+    check!(MessageProposalKind, bytes);
+    check!(NoticeState, bytes);
+    check!(NewsClass, bytes);
+    check!(WordResultApproved, bytes);
+    check!(WordResultVerdict, bytes);
+    check!(WordResultChange, bytes);
+    check!(WordResult, bytes);
+    check!(MessageKindEscalation, bytes);
+    check!(MessageKindProposal, bytes);
+    check!(MessageKindPersonStalled, bytes);
+    check!(MessageKindProposalDecision, bytes);
+    check!(MessageKindEffectNotMade, bytes);
+    check!(MessageKindAmendment, bytes);
+    check!(MessageKindAnswer, bytes);
+    check!(MessageKindNotice, bytes);
+    check!(MessageKindTimer, bytes);
+    check!(MessageKindNews, bytes);
+    check!(MessageKindResult, bytes);
+    check!(MessageKind, bytes);
+    check!(Word, bytes);
+    check!(RunWhyMessage, bytes);
+    check!(RunWhyRetry, bytes);
+    check!(RunWhy, bytes);
+    check!(RunEndFailed, bytes);
+    check!(RunEnd, bytes);
+    check!(ActivityWords, bytes);
+    check!(ActivityHeard, bytes);
+    check!(ActivityNotified, bytes);
+    check!(ActivityRunBegan, bytes);
+    check!(ActivityRunEnded, bytes);
+    check!(ActivityTurn, bytes);
+    check!(ActivityDecided, bytes);
+    check!(ActivityMilestone, bytes);
+    check!(Activity, bytes);
+    check!(ActivityLine, bytes);
     check!(TurnName, bytes);
     check!(TurnCarried, bytes);
     check!(TurnTooLarge, bytes);
@@ -488,16 +488,16 @@ fn records_12(bytes: &[u8]) {
     check!(TaskContractDocumentVerdict, bytes);
     check!(TaskContractDocumentChange, bytes);
     check!(TaskContractDocument, bytes);
-    check!(OwnerTaskStatus, bytes);
-    check!(OwnerTaskLinkLive, bytes);
-    check!(OwnerTaskLinkRetained, bytes);
-    check!(OwnerTaskLinkStored, bytes);
-    check!(OwnerTaskLink, bytes);
+    check!(TaskStatus, bytes);
+    check!(TaskLinkLive, bytes);
+    check!(TaskLinkRetained, bytes);
+    check!(TaskLinkStored, bytes);
+    check!(TaskLink, bytes);
     check!(ResultDetails, bytes);
     check!(ActKind, bytes);
     check!(CreateProcedure, bytes);
-    check!(OwnerKindImplication, bytes);
-    check!(OwnerAuthorityDocument, bytes);
+    check!(KindImplication, bytes);
+    check!(AuthorityDocument, bytes);
     check!(BoundsCreate, bytes);
     check!(BoundsAmend, bytes);
     check!(Bounds, bytes);
@@ -521,11 +521,11 @@ fn records_12(bytes: &[u8]) {
 fn records_13(bytes: &[u8]) {
     check!(ObjectKeyNote, bytes);
     check!(ObjectKey, bytes);
-    check!(ActivityLine, bytes);
+    check!(DecodedActivityLine, bytes);
     check!(ActivityPage, bytes);
     check!(SpendLine, bytes);
     check!(Hold, bytes);
-    check!(OwnerHistoryChange, bytes);
+    check!(HistoryChange, bytes);
     check!(ParameterDocumentNumber, bytes);
     check!(ParameterDocumentBytes, bytes);
     check!(ParameterDocumentResource, bytes);
@@ -533,35 +533,35 @@ fn records_13(bytes: &[u8]) {
     check!(DocumentSpecification, bytes);
     check!(SpecificationDocument, bytes);
     check!(ProposedTask, bytes);
-    check!(OwnerRetainedAmendment, bytes);
-    check!(OwnerRetainedActionBatch, bytes);
-    check!(OwnerRetainedActionEffect, bytes);
-    check!(OwnerRetainedActionProcedureEffect, bytes);
-    check!(OwnerRetainedActionAmend, bytes);
-    check!(OwnerRetainedActionWiden, bytes);
-    check!(OwnerRetainedActionRelease, bytes);
+    check!(RetainedAmendment, bytes);
+    check!(RetainedActionBatch, bytes);
+    check!(RetainedActionEffect, bytes);
+    check!(RetainedActionProcedureEffect, bytes);
+    check!(RetainedActionAmend, bytes);
+    check!(RetainedActionWiden, bytes);
+    check!(RetainedActionRelease, bytes);
 }
 
 fn records_14(bytes: &[u8]) {
-    check!(OwnerRetainedAction, bytes);
-    check!(OwnerHistoryHolderTask, bytes);
-    check!(OwnerHistoryHolderPerson, bytes);
-    check!(OwnerHistoryHolderPolicy, bytes);
-    check!(OwnerHistoryHolder, bytes);
-    check!(OwnerProposalHistoryStatePending, bytes);
-    check!(OwnerProposalHistoryStateAccepted, bytes);
-    check!(OwnerProposalHistoryStateRejected, bytes);
-    check!(OwnerProposalHistoryState, bytes);
-    check!(OwnerProposalHistory, bytes);
-    check!(OwnerAmendmentState, bytes);
-    check!(OwnerHistoryAmendment, bytes);
-    check!(OwnerHistoryLine, bytes);
-    check!(OwnerMilestonePhaseActive, bytes);
-    check!(OwnerMilestonePhaseClosing, bytes);
-    check!(OwnerMilestonePhaseHeld, bytes);
-    check!(OwnerMilestonePhaseEnded, bytes);
-    check!(OwnerMilestonePhase, bytes);
-    check!(OwnerMilestoneLine, bytes);
+    check!(RetainedAction, bytes);
+    check!(HistoryHolderTask, bytes);
+    check!(HistoryHolderPerson, bytes);
+    check!(HistoryHolderPolicy, bytes);
+    check!(HistoryHolder, bytes);
+    check!(ProposalHistoryStatePending, bytes);
+    check!(ProposalHistoryStateAccepted, bytes);
+    check!(ProposalHistoryStateRejected, bytes);
+    check!(ProposalHistoryState, bytes);
+    check!(ProposalHistory, bytes);
+    check!(AmendmentState, bytes);
+    check!(HistoryAmendment, bytes);
+    check!(HistoryLine, bytes);
+    check!(MilestonePhaseActive, bytes);
+    check!(MilestonePhaseClosing, bytes);
+    check!(MilestonePhaseHeld, bytes);
+    check!(MilestonePhaseEnded, bytes);
+    check!(MilestonePhase, bytes);
+    check!(MilestoneLine, bytes);
     check!(HistoryRowChange, bytes);
     check!(HistoryRowMilestone, bytes);
     check!(HistoryRow, bytes);
@@ -578,27 +578,27 @@ fn records_14(bytes: &[u8]) {
 }
 
 fn records_15(bytes: &[u8]) {
-    check!(OwnerPhaseCounts, bytes);
+    check!(PhaseCounts, bytes);
     check!(NoteAuthorParty, bytes);
     check!(NoteAuthorTask, bytes);
     check!(NoteAuthor, bytes);
     check!(Note, bytes);
     check!(NotePage, bytes);
     check!(ObjectPage, bytes);
-    check!(OwnerEndedDelegate, bytes);
-    check!(OwnerEndedPage, bytes);
-    check!(OwnerInboxObjectQuestion, bytes);
-    check!(OwnerInboxObjectProposal, bytes);
-    check!(OwnerInboxObjectEscalation, bytes);
-    check!(OwnerInboxObjectTurn, bytes);
-    check!(OwnerInboxObjectResult, bytes);
-    check!(OwnerInboxObject, bytes);
-    check!(OwnerInboxCursorNumber, bytes);
-    check!(OwnerInboxCursorInbox, bytes);
-    check!(OwnerInboxCursor, bytes);
-    check!(OwnerInboxSelection, bytes);
-    check!(OwnerInboxEntry, bytes);
-    check!(OwnerInboxPage, bytes);
+    check!(EndedDelegate, bytes);
+    check!(EndedPage, bytes);
+    check!(InboxObjectQuestion, bytes);
+    check!(InboxObjectProposal, bytes);
+    check!(InboxObjectEscalation, bytes);
+    check!(InboxObjectTurn, bytes);
+    check!(InboxObjectResult, bytes);
+    check!(InboxObject, bytes);
+    check!(InboxCursorNumber, bytes);
+    check!(InboxCursorInbox, bytes);
+    check!(InboxCursor, bytes);
+    check!(InboxSelection, bytes);
+    check!(InboxEntry, bytes);
+    check!(InboxPage, bytes);
 }
 
 fn decoders(bytes: &[u8]) {
@@ -643,11 +643,11 @@ fn mutation_seed(path: &Path) -> bool {
             "enum_ask_",
             "record_rename_",
             "record_make_project_",
-            "record_owner_outcome_renamed_",
-            "record_owner_outcome_project_made_",
+            "record_outcome_renamed_",
+            "record_outcome_project_made_",
             "record_malformed_name_",
-            "enum_owner_outcome_renamed_",
-            "enum_owner_outcome_project_made_",
+            "enum_document_outcome_renamed_",
+            "enum_document_outcome_project_made_",
             "enum_refusal_name_taken_",
             "enum_malformed_name_",
             "enum_name_rule_",
@@ -661,19 +661,19 @@ fn mutation_seed(path: &Path) -> bool {
             "enum_read_value_",
             "enum_delivery_value_",
             "record_chips_",
-            "record_owner_inbox_",
+            "record_inbox_",
             "record_stream_text_",
-            "record_owner_spend_page_",
+            "record_spend_page_",
             "record_activity_page_",
             "record_history_page_",
-            "record_owner_inbox_page_",
-            "record_owner_historical_",
-            "enum_owner_goal_holding_",
-            "record_owner_person_proposal_goal_",
-            "record_owner_project_",
+            "record_inbox_page_",
+            "record_ended_",
+            "enum_goal_holding_",
+            "record_person_proposal_goal_",
+            "record_project_",
             "record_deployment_",
-            "record_owner_account_",
-            "record_owner_deployment_",
+            "record_account_",
+            "record_deployment_",
             "record_open_",
             "record_authorize_",
             "enum_authorize_",

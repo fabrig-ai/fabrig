@@ -135,7 +135,7 @@ fn creating(me: &c::Me, choice: c::LlmChoice) -> c::Ask {
 }
 
 fn created(answer: &c::Answer) -> u64 {
-    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, .. })) = answer else {
+    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, .. })) = answer else {
         panic!("created: {answer:?}")
     };
     *first
@@ -357,7 +357,7 @@ fn authority_admits_a_named_model() {
     second.llm.as_mut().expect("chosen model").main.model = text(b"alternate");
     *tasks = crate::test::list([first, second]);
     let answer = ask(&mut session, now, wall, 41, request);
-    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, last, .. })) = answer else {
+    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, last, .. })) = answer else {
         panic!("admitted named models: {answer:?}")
     };
     assert_eq!(last.checked_sub(first), Some(1));
