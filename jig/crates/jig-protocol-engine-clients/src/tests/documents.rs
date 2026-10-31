@@ -372,7 +372,7 @@ fn an_owner_is_offered_remove_project_and_a_member_is_not() {
     use skein_lib::{List, Reader};
     let limits = fixtures::wire_limits();
     // The protocol preserves the party-specific offers supplied by the core
-    // (temper/docs/design/draft/playground-reset.md, 5).
+    // (jig/docs/design/domain/people.md, 5.2).
     for owner in [true, false] {
         let mut project = fixtures::project_document();
         project.acts = List::with_capacity(2);

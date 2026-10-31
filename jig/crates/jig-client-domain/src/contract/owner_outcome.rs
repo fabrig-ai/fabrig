@@ -142,7 +142,7 @@ pub enum OwnerOutcome {
     Renamed {
         project: u32,
     },
-    /// The project was removed (temper/docs/design/draft/playground-reset.md, 5).
+    /// The project was removed (jig/docs/design/domain/people.md, 5.2).
     ProjectRemoved {
         project: u32,
     },

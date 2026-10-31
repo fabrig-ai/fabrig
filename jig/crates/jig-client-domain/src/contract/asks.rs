@@ -245,7 +245,7 @@ pub enum Ask {
         project: u32,
         name: Text,
     },
-    /// Remove a project as its owner (temper/docs/design/draft/playground-reset.md, 5).
+    /// Remove a project as its owner (jig/docs/design/domain/people.md, 5.2).
     RemoveProject {
         project: u32,
     },

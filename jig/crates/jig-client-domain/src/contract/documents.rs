@@ -240,7 +240,7 @@ pub enum ActKind {
     ChangePolicy,
     /// Rename a project.
     Rename,
-    /// Remove a project (temper/docs/design/draft/playground-reset.md, 5).
+    /// Remove a project (jig/docs/design/domain/people.md, 5.2).
     RemoveProject,
     /// Change roles.
     SetRoles,
