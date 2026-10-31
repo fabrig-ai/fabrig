@@ -362,13 +362,12 @@ pub fn remove(world: &mut World) {
     }
     assert!(
         !world.store.rows.keys().any(|key| matches!(key, root::Key::Core(core::Key::People(people::Key::Deletion(1))))),
-        "deletion ended whole: {:?}, ready {}, restart {:?}, failure {:?}, restore {:?}, steps {:?}",
+        "deletion ended whole: {:?}, ready {}, phase {:?}, failure {:?}, phases {:?}",
         world.outcome(),
         world.domain.ready(),
-        world.domain.restart_step(),
-        world.domain.restart_failure(),
-        world.domain.restore_failure(),
-        world.peers.restart_steps
+        world.domain.start_phase(),
+        world.domain.start_failure(),
+        world.peers.start_phases
     );
     for (key, record) in &world.store.rows {
         if let Some(name) = jig_core_world::observations::naming::naming(key, record) {

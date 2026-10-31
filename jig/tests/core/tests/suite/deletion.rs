@@ -102,10 +102,10 @@ fn deleted_world(seed: u64) -> World {
     let mut world = World::configured_with_rows(seed, false, config, limits, initial, rows);
     assert!(
         world.assigned.is_some(),
-        "fixture conversation assigned: {:?}; restore {:?}; restart {:?}; steps {:?}",
+        "fixture conversation assigned: {:?}; failure {:?}; phase {:?}; phases {:?}",
         world.people_answers,
-        world.domain.restore_failure(),
-        world.domain.restart_failure(),
+        world.domain.start_failure(),
+        world.domain.start_phase(),
         world.restart_steps
     );
     let ended = world.task();
@@ -259,9 +259,9 @@ pub(super) fn finish(world: &mut World) {
     settle_hosts(world);
     assert!(
         !world.stopped,
-        "restart {:?}; restore {:?}",
-        world.domain.restart_failure(),
-        world.domain.restore_failure()
+        "phase {:?}; failure {:?}",
+        world.domain.start_phase(),
+        world.domain.start_failure()
     );
     assert!(
         !world.store.rows.contains_key(&deletion()),

@@ -316,10 +316,6 @@ fn connector_policy(policy: &mut r::Policy, number: u16, connector: &connector::
 impl Observer {
     /// Capture policy from scenario configuration before constructing the root.
     #[must_use]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the observer translates the configured policy and initializes its evidence ledgers together"
-    )]
     pub fn new(configuration: &root::Config) -> Self {
         let deployment = &configuration.core.defaults.rules;
         let mut policy = r::Policy {
@@ -1135,6 +1131,7 @@ impl Observer {
     }
 
     /// A released output and the neighbours' receipt of its words or result.
+    #[expect(clippy::too_many_lines, reason = "one delivery translates its observed facts and receipt dependencies")]
     pub fn delivered(&mut self, now: u64, delivery: &mut root::Delivery) {
         if let root::Delivery::Core(core::Held::PeopleReply { to, reply }) = &mut *delivery {
             for observed in self.intents.reply(skein_lib::Token::new(destination(to)), reply) {

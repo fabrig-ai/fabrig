@@ -291,6 +291,10 @@ impl World {
         Self::empty_with_sets(configuration, limits, jig_protocol_store::PatchSets::NONE)
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one fixture initializes the root and scripted neighbours with shared limits"
+    )]
     fn empty_with_sets(
         configuration: root::Config,
         limits: &root::Limits,
