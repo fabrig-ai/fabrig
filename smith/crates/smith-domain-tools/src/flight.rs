@@ -37,7 +37,7 @@
 //!            exited                      Done      how rg failed
 //!            any other                   Done      what it says
 //! Editing    loaded, matched, edited    Storing   (store the edited file)
-//!            loaded, otherwise           Done      stale, no match, ambiguous, too large,
+//!            loaded, otherwise           Done      no match, ambiguous, too large,
 //!                                                  or cancelled if the kit is closing
 //!            missing                     Done      not found; nothing is known there
 //!            any other                   Done      what it says
@@ -652,7 +652,7 @@ fn exited(
         Done::Escapes => Outcome::Outside { path: authority::resolved(checkout, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("held commands are handled before exit settlement"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Loaded { .. }
         | Done::Listed { .. }
