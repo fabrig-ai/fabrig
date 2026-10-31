@@ -62,6 +62,112 @@ fn the_restart_asks_one_load_at_a_time() {
     assert!(fixtures::engine(&mut service).store.component.mark_durable());
 }
 
+#[test]
+fn sweep_rows_wait_for_each_erase_continuation() {
+    use core::start::Phase;
+    use jig_domain_people as people;
+    use jig_protocol_store::{Row, restore::Item};
+    let mut service = fixtures::started(&fixtures::engine_document());
+    for _ in 0..64_u32 {
+        fixtures::turn(&mut service);
+        if fixtures::engine(&mut service).domain.core_mut().start_phase() == Some(Phase::Sweep) {
+            break;
+        }
+    }
+    let engine = fixtures::engine(&mut service);
+    assert_eq!(engine.domain.core_mut().start_phase(), Some(Phase::Sweep));
+    let Some(StoreEvent::Page { owner, .. }) = engine.store.above.pop() else {
+        panic!("sweep page");
+    };
+    // Two expired rows in one terminal page each demand their own erase decision.
+    let items = [7, 8].map(|number| {
+        Item::Row(Row::Jig(core::Record::People(people::Stored::SignIn {
+            number,
+            person: 1,
+            expires: skein_lib::Wall::EPOCH,
+        })))
+    });
+    engine.store.above.push(StoreEvent::Page { owner, items: Box::new(items), next: None });
+    for _ in [7_u64, 8] {
+        let mut committed = None;
+        for _ in 0..64_u32 {
+            fixtures::turn(&mut service);
+            if let Some(event) = fixtures::engine(&mut service).store.above.pop() {
+                let event @ StoreEvent::Committed { .. } = event else {
+                    panic!("one erase commit before another row or EOF: {event:?}");
+                };
+                committed = Some(event);
+                break;
+            }
+        }
+        let committed = committed.expect("sweep erase commits");
+        for _ in 0..2_u32 {
+            fixtures::turn(&mut service);
+            let engine = fixtures::engine(&mut service);
+            assert!(engine.store.above.is_empty(), "no younger erase or page while durability is withheld");
+            assert_eq!(engine.domain.core_mut().start_phase(), Some(Phase::Sweep));
+            assert!(!engine.domain.ready());
+        }
+        fixtures::engine(&mut service).store.above.push(committed);
+    }
+    for _ in 0..64_u32 {
+        fixtures::turn(&mut service);
+        if fixtures::engine(&mut service).domain.ready() {
+            break;
+        }
+    }
+    assert!(fixtures::engine(&mut service).domain.ready());
+    assert_eq!(service.end(), None);
+}
+
+#[test]
+fn each_connectors_fresh_reads_finish_before_the_start_opens() {
+    use core::start::Phase;
+    let document = fixtures::with(&fixtures::accounts_document(),
+        br#"{"prefix":["one"],"resources":[]},{"prefix":["two"],"resources":[]}"#,
+        br#"{"prefix":["one"],"resources":[{"path":["one","a"],"state":1},{"path":["one","b"],"state":2}]},{"prefix":["two"],"resources":[{"path":["two","a"],"state":3}]}"#);
+    let mut service = fixtures::started(&document);
+    let mut phases = skein_lib::List::with_capacity(2);
+    for _ in 0..64_u32 {
+        fixtures::turn(&mut service);
+        let engine = fixtures::engine(&mut service);
+        match engine.domain.core_mut().start_phase() {
+            Some(Phase::Sweep) => {
+                // This fixture supplies no expired people rows in its sweep.
+                if let Some(StoreEvent::Page { owner, .. }) = engine.store.above.pop() {
+                    engine.store.above.push(StoreEvent::Page { owner, items: Box::new([]), next: None });
+                }
+            }
+            Some(Phase::ReadAfresh { connector }) => {
+                if phases.last() != Some(&connector) {
+                    let mut facts = 0_u32;
+                    for event in &engine.events {
+                        if let jig_test_domain::Event::Connector {
+                            number,
+                            event: jig_test_connector::Event::System(jig_test_connector::SystemEvent::Fact { .. }),
+                        } = event
+                        {
+                            assert_eq!(*number, connector);
+                            facts = facts.checked_add(1).expect("configured read count");
+                        }
+                    }
+                    assert_eq!(facts, if connector == 1 { 2 } else { 1 });
+                    phases.push(connector).expect("two connectors");
+                    assert!(!engine.domain.ready());
+                }
+            }
+            Some(_) | None => {}
+        }
+        if engine.domain.ready() {
+            break;
+        }
+    }
+    assert_eq!(phases.as_slice(), [1, 2]);
+    assert!(fixtures::engine(&mut service).domain.ready());
+    assert_eq!(fixtures::engine(&mut service).restart_reads, None);
+    assert_eq!(service.end(), None);
+}
+
 fn period(driven: &mut fixtures::Driven, number: u64) {
     driven.party(core::Event::Period { project: 1, period: number, budget: 100, next: None });
 }
