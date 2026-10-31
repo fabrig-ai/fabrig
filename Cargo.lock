@@ -721,10 +721,16 @@ dependencies = [
 name = "jig-client-wire-world"
 version = "0.0.0"
 dependencies = [
+ "jig-client-domain",
  "jig-client-protocol-wire",
+ "jig-client-test-domain",
+ "jig-client-test-protocol-wire",
+ "jig-client-test-records",
+ "jig-test-profile",
  "skein-codegen",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
