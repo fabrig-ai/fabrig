@@ -278,7 +278,7 @@ fn no_failure_words_enter_a_turn_or_a_prompt() {
     let mut world = smith_local_world::World::new(49);
     world.refuse_first_model();
     world.line(b"Hello");
-    world.drive(300);
+    world.drive(crate::bounds::CHAT);
     assert!(!world.diagnostic_in_history(b"model does not exist"));
     assert!(!world.diagnostic_in_history(b"run failed:"));
 }

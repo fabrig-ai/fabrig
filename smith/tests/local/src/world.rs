@@ -261,6 +261,12 @@ impl World {
         Self::with_capacity(seed, store, true, UNSAVED_TURNS, FACTS, scenario)
     }
 
+    /// Crash this invocation and restart a scenario over its durable store.
+    #[must_use]
+    pub fn crash_then_resume(self, scenario: Scenario, seed: u64) -> World {
+        Self::resumed(scenario, seed, self.into_store())
+    }
+
     /// Same chat with no observation capacity; domain behavior must agree.
     #[must_use]
     pub fn without_facts(seed: u64) -> World {

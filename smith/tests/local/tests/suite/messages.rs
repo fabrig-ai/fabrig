@@ -11,7 +11,7 @@ fn lines_then_the_end_of_input_are_each_read_before_the_host_exits() {
     world.line(b"What can you do?");
     world.line(b"And in this directory?");
     world.close();
-    assert!(world.drive_to_exit(2_000), "the chat parks and exits");
+    assert!(world.drive_to_exit(crate::bounds::DRAIN), "the chat parks and exits");
     assert_eq!(world.exit(), Some(ExitStatus::Accepted));
     assert_eq!(world.into_store().read(), Some(Token::new(2)), "both lines were read");
 }
@@ -28,7 +28,7 @@ fn follow_up(world: &mut World) {
 fn a_follow_up_sent_as_the_run_finishes_is_read_once() {
     let mut world = World::of(smith_local_world::Scenario::Finishing, 21);
     follow_up(&mut world);
-    assert!(world.drive_to_exit(2_000), "the unread follow-up opens another activation");
+    assert!(world.drive_to_exit(crate::bounds::DRAIN), "the unread follow-up opens another activation");
     assert_eq!(world.activation(), 2);
     assert_eq!(world.into_store().read(), Some(Token::new(2)));
 }
@@ -41,7 +41,7 @@ fn a_line_at_the_moment_of_parking_opens_the_next_activation() {
         Cue { on: Trigger::Answer, act: Act::Type(b"A question after parking".to_vec()) },
         Cue { on: Trigger::Steps(1), act: Act::Close },
     ]));
-    assert!(world.drive_to_exit(2_000));
+    assert!(world.drive_to_exit(crate::bounds::DRAIN));
     assert_eq!(world.activation(), 2);
     assert_eq!(world.into_store().read(), Some(Token::new(2)));
 }
@@ -55,7 +55,7 @@ fn an_interrupt_with_a_line_unread_shows_it_not_delivered_and_starts_nothing() {
         Cue { on: Trigger::Steps(1), act: Act::Interrupt },
         Cue { on: Trigger::Steps(1), act: Act::Close },
     ]));
-    assert!(world.drive_to_exit(2_000));
+    assert!(world.drive_to_exit(crate::bounds::DRAIN));
     assert!(
         world.notices().iter().any(|notice| matches!(notice, Notice::NotDelivered { why: Undelivered::Dropped, .. }))
     );
@@ -66,7 +66,7 @@ fn an_interrupt_with_a_line_unread_shows_it_not_delivered_and_starts_nothing() {
 fn a_brief_with_an_early_finish_carries_the_line_to_the_next_activation() {
     let mut world = World::of(smith_local_world::Scenario::Finishing, 27);
     follow_up(&mut world);
-    assert!(world.drive_to_exit(2_000));
+    assert!(world.drive_to_exit(crate::bounds::DRAIN));
     assert!(world.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"And another question").is_some()));
     assert_eq!(world.into_store().read(), Some(Token::new(2)));
 }
@@ -76,7 +76,7 @@ fn a_slow_store_racing_the_answer_loses_no_line() {
     let mut world = World::of(smith_local_world::Scenario::Finishing, 29);
     world.slow_store();
     follow_up(&mut world);
-    assert!(world.drive_to_exit(2_000));
+    assert!(world.drive_to_exit(crate::bounds::DRAIN));
     assert_eq!(world.activation(), 2);
     assert_eq!(world.into_store().read(), Some(Token::new(2)));
 }
@@ -89,7 +89,7 @@ fn the_held_input_reopens_when_a_fence_reads_a_line() {
         world.line(b"One queued question");
     }
     world.close();
-    assert!(world.drive_to_exit(2_000));
+    assert!(world.drive_to_exit(crate::bounds::DRAIN));
     assert_eq!(world.readings().first(), Some(&Reading::Held));
     assert_eq!(world.readings().last(), Some(&Reading::Open));
 }
@@ -99,10 +99,10 @@ fn no_waiting_notice_shows_while_a_sent_line_is_unread() {
     let mut world = World::new(33);
     world.line(b"First question");
     world.person(Person::new(vec![Cue { on: Trigger::Turn, act: Act::Type(b"Second question".to_vec()) }]));
-    assert!(world.drive_to_park(2_000), "the crossing wait parks after reading both lines");
+    assert!(world.drive_to_park(crate::bounds::DRAIN), "the crossing wait parks after reading both lines");
     assert!(!world.notices().contains(&Notice::Waiting));
     world.close();
-    assert!(world.drive_to_exit(2_000));
+    assert!(world.drive_to_exit(crate::bounds::DRAIN));
     assert_eq!(world.exit(), Some(ExitStatus::Accepted));
     assert_eq!(world.into_store().read(), Some(Token::new(2)));
 }
@@ -110,8 +110,8 @@ fn no_waiting_notice_shows_while_a_sent_line_is_unread() {
 #[test]
 fn no_waiting_notice_shows_before_the_first_turn() {
     let mut world = World::new(35);
-    assert!(!world.drive(20));
+    assert!(!world.drive(crate::bounds::PRESSURE));
     assert!(!world.notices().contains(&Notice::Waiting));
     world.close();
-    assert!(world.drive_to_exit(2_000));
+    assert!(world.drive_to_exit(crate::bounds::DRAIN));
 }

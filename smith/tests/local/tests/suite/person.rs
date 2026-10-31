@@ -13,7 +13,7 @@ fn a_person_typing_on_the_first_turn_has_both_lines_read() {
         Cue { on: Trigger::Turn, act: Act::Type(b"And then?".to_vec()) },
         Cue { on: Trigger::Answer, act: Act::Close },
     ]));
-    assert!(world.drive_to_exit(2_000), "the chat parks and exits");
+    assert!(world.drive_to_exit(crate::bounds::DRAIN), "the chat parks and exits");
     assert_eq!(world.exit(), Some(ExitStatus::Accepted));
     assert_eq!(world.into_store().read(), Some(Token::new(2)), "the second line was read");
 }
@@ -53,7 +53,7 @@ fn a_step_cue_fires_once_after_its_countdown() {
 fn closed_input_without_a_line_exits_the_chat() {
     let mut world = World::new(29);
     world.person(Person::new(vec![Cue { on: Trigger::Steps(0), act: Act::Close }]));
-    assert!(world.drive_to_exit(200));
+    assert!(world.drive_to_exit(crate::bounds::REPLY));
     assert_eq!(world.exit(), Some(ExitStatus::Accepted));
     assert_eq!(world.completions(), 0);
 }
