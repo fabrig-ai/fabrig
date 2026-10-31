@@ -334,11 +334,7 @@ fn crc(body: &[u8]) -> u32 {
 #[cfg(test)]
 #[expect(clippy::disallowed_types, clippy::disallowed_macros, reason = "a test builds bodies and members in a Vec")]
 #[expect(clippy::disallowed_methods, reason = "fixtures are built with ordinary iterators and slices")]
-#[expect(
-    clippy::arithmetic_side_effects,
-    clippy::default_numeric_fallback,
-    reason = "the fixtures' sizes and offsets use ordinary test arithmetic"
-)]
+#[expect(clippy::default_numeric_fallback, reason = "the fixtures' sizes and offsets use ordinary test integers")]
 mod tests {
     use super::*;
     use alloc::vec::Vec;
@@ -357,7 +353,15 @@ mod tests {
     }
 
     fn hex(text: &str) -> Vec<u8> {
-        (0..text.len()).step_by(2).map(|at| u8::from_str_radix(&text[at..at + 2], 16).expect("hex")).collect()
+        assert_eq!(text.len() % 2, 0, "whole hex bytes");
+        text.as_bytes()
+            .chunks_exact(2)
+            .map(|pair| {
+                let high = skein_lib::hex::value(pair[0]).expect("hex digit");
+                let low = skein_lib::hex::value(pair[1]).expect("hex digit");
+                (high << 4_u32) | low
+            })
+            .collect()
     }
 
     #[test]
