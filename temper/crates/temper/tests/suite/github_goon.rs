@@ -14,6 +14,8 @@ use std::{
     rc::Rc,
 };
 
+const CONVERTED_APP: u64 = 3;
+
 struct Setup {
     scratch: support::Scratch,
     paths: [PathBuf; 3],
@@ -72,7 +74,7 @@ impl Setup {
                 app_count_is_one(&checking, &made);
                 *app.borrow_mut() = Some(made);
                 // Do not visit the installation: the box stops after this kept read.
-                Call::new(&["forge", "list"])
+                wait_forges()
             })),
         ]);
         let app = converted.borrow_mut().take().expect("one manifest conversion completed");
@@ -103,7 +105,7 @@ impl App {
 fn keep_fake_app(fixture: &std::path::Path, app: &App) {
     let mut document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(fixture).expect("public fake descriptor")).expect("fake JSON");
-    document["github"]["app"]["id"] = 3.into();
+    document["github"]["app"]["id"] = CONVERTED_APP.into();
     document["github"]["app"]["slug"] = app.slug.clone().into();
     document["github"]["app"]["setup_url"] = app.callback.clone().into();
     document["github"]["accounts"][0]["installation"] = serde_json::Value::Null;
@@ -115,6 +117,9 @@ fn address(call: &Ended) -> String {
         .find(|line| line.starts_with("http://"))
         .expect("loopback browser address")
         .to_owned()
+}
+fn wait_forges() -> Call {
+    Call::new(&["forge", "list", "--until", "settled", "--timeout", "20s"])
 }
 fn listed(app: &App, call: &Ended) {
     let text = String::from_utf8_lossy(&call.stdout);
@@ -132,7 +137,7 @@ fn a_github_set_up_cut_after_its_app_goes_on_after_a_restart() {
     let fixture = setup.paths[1].join("box/fake-backends/config/github.json");
     let complete = app.clone();
     let seen = setup.run(vec![
-        Step::Run(Call::new(&["forge", "list"])),
+        Step::Run(wait_forges()),
         Step::Then(Box::new(move |calls| {
             listed(&unfinished, calls.last().expect("unfinished forge read"));
             Call::new(&["forge", "install", &unfinished.forge, "--key", "github-go-on"])
@@ -190,7 +195,7 @@ fn a_github_started_over_names_the_app_as_the_persons() {
     let unfinished = app.clone();
     let fixture = setup.paths[1].join("box/fake-backends/config/github.json");
     let seen = setup.run(vec![
-        Step::Run(Call::new(&["forge", "list"])),
+        Step::Run(wait_forges()),
         Step::Then(Box::new(move |calls| {
             listed(&unfinished, calls.last().expect("unfinished forge read"));
             Call::new(&["forge", "remove", &unfinished.forge, "--key", "github-remove"])
@@ -323,7 +328,7 @@ fn app_count_is_one(fixture: &std::path::Path, app: &App) {
     let key = PrivateKeyDer::from_pem_slice(&pem).expect("fixture PEM");
     let now = skein_shell::Clock::new().now().wall;
     let input = jwt::signing_input(
-        3,
+        CONVERTED_APP,
         now,
         skein_lib::Wall::from_nanos(
             now.as_nanos().checked_add(Duration::from_secs(60).as_nanos()).expect("fixture expiry"),
@@ -335,6 +340,6 @@ fn app_count_is_one(fixture: &std::path::Path, app: &App) {
     let reply = exchange(&format!("http://{}/app", document.listen()), None, Some(token.expose()));
     assert_eq!(reply.status, 200, "the one converted App remains on fake GitHub");
     let identity: serde_json::Value = serde_json::from_str(&reply.body).expect("fake App identity");
-    assert_eq!(identity["id"], 3, "one App conversion, with no second App");
+    assert_eq!(identity["id"], CONVERTED_APP, "one App conversion, with no second App");
     assert_eq!(identity["slug"], app.slug, "the person's same App remains");
 }
