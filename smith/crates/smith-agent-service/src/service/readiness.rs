@@ -23,17 +23,16 @@ pub(super) fn channel_event_ready(service: &Stages) -> bool {
         return false;
     }
     match service.channel_events.iter().next() {
-        Some(channel::OpenEvent::Start { .. } | channel::OpenEvent::Message { .. }) => admits(service),
+        Some(channel::Heard::Start { .. } | channel::Heard::Message { .. }) => admits(service),
         Some(
-            channel::OpenEvent::Opened { .. }
-            | channel::OpenEvent::HostReturned { .. }
-            | channel::OpenEvent::Delivered { .. }
-            | channel::OpenEvent::DeliveryUnsent { .. }
-            | channel::OpenEvent::Acknowledged { .. }
-            | channel::OpenEvent::Grant { .. }
-            | channel::OpenEvent::Cancel
-            | channel::OpenEvent::WriteFailed
-            | channel::OpenEvent::Ended { .. },
+            channel::Heard::Opened { .. }
+            | channel::Heard::Event { .. }
+            | channel::Heard::DeliveryUnsent { .. }
+            | channel::Heard::Acknowledged { .. }
+            | channel::Heard::Grant { .. }
+            | channel::Heard::Cancel
+            | channel::Heard::WriteFailed
+            | channel::Heard::Ended { .. },
         ) => true,
         None => false,
     }
@@ -50,7 +49,7 @@ pub(super) fn channel_room(service: &Stages, frame: Option<&Frame>) -> bool {
     if frame.is_none() {
         return true;
     }
-    let room = channel::edge_room(&service.limits.channel);
+    let room = channel::edge_room();
     service.channel_events.room() >= room.to_domain && service.channel_below.room() >= room.below
 }
 

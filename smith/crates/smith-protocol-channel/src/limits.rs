@@ -46,7 +46,7 @@ pub(crate) const EDGE_ROOM: EdgeRoom = EdgeRoom { to_domain: 1, below: 6 };
 
 /// Room a caller keeps at the host-channel edge for one entrance.
 #[must_use]
-pub const fn edge_room(_limits: &Limits) -> EdgeRoom {
+pub const fn edge_room() -> EdgeRoom {
     EDGE_ROOM
 }
 

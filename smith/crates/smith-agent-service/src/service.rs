@@ -177,7 +177,7 @@ pub(crate) struct Stages {
     llm_env: Env<llm::ComponentLimits>,
     machine_env: Env<machine::Limits>,
     io_env: Env<io::Limits>,
-    channel_events: Queue<channel::OpenEvent>,
+    channel_events: Queue<channel::Heard>,
     pending_messages: Queue<PendingMessage>,
     channel_below: Queue<ChannelLower>,
     llm_events: Queue<llm::ToDomain>,

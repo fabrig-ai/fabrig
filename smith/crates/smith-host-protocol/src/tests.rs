@@ -2,7 +2,7 @@
 use skein_channel::{Lower, StreamMode};
 use skein_lib::{Queue, stream};
 
-use crate::{Component, Limits, OpenEvent};
+use crate::{Component, Limits, Received};
 
 #[test]
 fn a_start_keeps_host_bytes_and_service_values_in_order() {
@@ -87,7 +87,7 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
 fn the_host_sends_open_before_the_domain_hears_anything() {
     let limits = process_limits();
     let mut component = Component::new(&limits, StreamMode::Two, endpoints()).expect("checked schema");
-    let mut to_service = Queue::<OpenEvent>::with_capacity(2);
+    let mut to_service = Queue::<Received>::with_capacity(2);
     let mut below = Queue::<Lower>::with_capacity(8);
     component.open(&mut to_service, &mut below);
     assert!(to_service.is_empty());

@@ -3,7 +3,7 @@ use super::cancellation::Cancellation;
 use super::state::{Active, State};
 use super::turns::Turns;
 use super::{CallKey, CallRoute, Component, invalid_answer, kind_text};
-use crate::{Error, OpenEvent, calls};
+use crate::{Error, Heard, calls};
 use alloc::boxed::Box;
 use core::mem;
 use skein_channel::{Closed, Event, Lower, Request, Role};
@@ -20,7 +20,7 @@ impl Component {
         self.state.follow(&mut self.machine, &mut self.events, below);
     }
 
-    pub(super) fn drain(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+    pub(super) fn drain(&mut self, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {
         // Eight child transitions bound opening/terms, one demanded record or
         // refusal, and the resulting output and close notifications.
         for _ in 0_u8..8_u8 {
@@ -61,7 +61,7 @@ impl Component {
                                 | State::Answered(_)
                                 | State::Refused => unreachable!("the channel becomes ready once"),
                             };
-                            to_service.push(OpenEvent::Opened { version });
+                            to_service.push(Heard::Opened { version });
                             self.follow(below);
                         }
                     }
@@ -80,7 +80,7 @@ impl Component {
                 Event::Closed { why } => self.ending.end(why, to_service),
                 Event::Ended => self.ending.end(Closed::Stream, to_service),
                 Event::Unsent { token, why: _ } => self.unsent(token, to_service),
-                Event::OutputFailed => to_service.push(OpenEvent::WriteFailed),
+                Event::OutputFailed => to_service.push(Heard::WriteFailed),
                 Event::Ping
                 | Event::Unsupported { .. }
                 | Event::Refused { .. }
@@ -95,7 +95,7 @@ impl Component {
         state: State,
         kind: u16,
         body: &[u8],
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<State, Broken> {
         match state {
@@ -135,12 +135,7 @@ impl Component {
         }
     }
 
-    fn start(
-        &mut self,
-        body: &[u8],
-        to_service: &mut Queue<OpenEvent>,
-        below: &mut Queue<Lower>,
-    ) -> Result<State, Broken> {
+    fn start(&mut self, body: &[u8], to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) -> Result<State, Broken> {
         let start = smith_channel::Start::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
         let charter = match decode_charter(start.charter(), &self.charter, &self.endpoints) {
             Ok(charter) => charter,
@@ -174,13 +169,13 @@ impl Component {
             cancellation: Cancellation::Waiting,
             long_open: 0,
         };
-        to_service.push(OpenEvent::Start { start: Box::new(start) });
+        to_service.push(Heard::Start { start: Box::new(start) });
         Ok(State::Started(active))
     }
 
-    fn message(&self, body: &[u8], to_service: &mut Queue<OpenEvent>) -> Result<(), Broken> {
+    fn message(&self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let message = smith_channel::Message::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
-        to_service.push(OpenEvent::Message {
+        to_service.push(Heard::Message {
             finish_requested: message.finish_requested(),
             name: Token::new(message.name()),
             label: Box::from(message.label()),
@@ -189,18 +184,19 @@ impl Component {
         Ok(())
     }
 
-    fn host_answer(&mut self, body: &[u8], to_service: &mut Queue<OpenEvent>) -> Result<(), Broken> {
+    fn host_answer(&mut self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let answer = smith_channel::HostAnswer::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
         let key = CallKey::from_wire(answer.name());
         match self.calls.remove(&key).ok_or(Broken)? {
             CallRoute::Host { relay, send: _ } => {
                 let reply = calls::host_reply(answer.reply()).ok_or(Broken)?;
-                to_service.push(OpenEvent::HostReturned { relay, reply });
+                to_service.push(Heard::Event { event: Box::new(smith_domain::Event::HostReturned { relay, reply }) });
             }
             CallRoute::Delivery { owner, send: _ } => match answer.reply() {
                 smith_channel::Reply::Delivery(delivery) => {
                     let delivery = saved_delivery(delivery.value()).or(Err(Broken))?;
-                    to_service.push(OpenEvent::Delivered { owner, delivery: Box::new(delivery) });
+                    to_service
+                        .push(Heard::Event { event: Box::new(smith_domain::Event::Delivered { owner, delivery }) });
                 }
                 smith_channel::Reply::Host(_)
                 | smith_channel::Reply::Busy
@@ -212,16 +208,16 @@ impl Component {
         Ok(())
     }
 
-    fn refresh(&mut self, body: &[u8], to_service: &mut Queue<OpenEvent>) -> Result<(), Broken> {
+    fn refresh(&mut self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let refresh = smith_channel::GrantRefresh::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
         let grant = refresh.grant();
         let value = crate::GrantValue::from_wire(grant.value()).or(Err(Broken))?;
         self.credentials.keep(grant.account(), grant.generation(), value).or(Err(Broken))?;
-        to_service.push(OpenEvent::Grant { grant: smith_protocol_translate::refreshed_grant(grant) });
+        to_service.push(Heard::Grant { grant: smith_protocol_translate::refreshed_grant(grant) });
         Ok(())
     }
 
-    fn unsent(&mut self, token: Token, to_service: &mut Queue<OpenEvent>) {
+    fn unsent(&mut self, token: Token, to_service: &mut Queue<Heard>) {
         let mut found = None;
         for (key, route) in &self.calls {
             let send = match route {
@@ -233,9 +229,13 @@ impl Component {
         }
         if let Some(key) = found {
             match self.calls.remove(&key) {
-                Some(CallRoute::Host { relay, send: _ }) => to_service
-                    .push(OpenEvent::HostReturned { relay, reply: run::HostReply::Unanswered(run::Unanswered::Lost) }),
-                Some(CallRoute::Delivery { owner, send: _ }) => to_service.push(OpenEvent::DeliveryUnsent { owner }),
+                Some(CallRoute::Host { relay, send: _ }) => to_service.push(Heard::Event {
+                    event: Box::new(smith_domain::Event::HostReturned {
+                        relay,
+                        reply: run::HostReply::Unanswered(run::Unanswered::Lost),
+                    }),
+                }),
+                Some(CallRoute::Delivery { owner, send: _ }) => to_service.push(Heard::DeliveryUnsent { owner }),
                 None => {}
             }
         }
@@ -278,11 +278,11 @@ fn cancel(
     cancellation: &mut Cancellation,
     body: &[u8],
     limits: &smith_channel::Limits,
-    to_service: &mut Queue<OpenEvent>,
+    to_service: &mut Queue<Heard>,
 ) -> Result<(), Broken> {
     smith_channel::Cancel::decode(limits, &mut Reader::new(body)).or(Err(Broken))?;
     cancellation.request().or(Err(Broken))?;
-    to_service.push(OpenEvent::Cancel);
+    to_service.push(Heard::Cancel);
     Ok(())
 }
 
@@ -290,10 +290,10 @@ fn acknowledge(
     turns: &mut Turns,
     body: &[u8],
     limits: &smith_channel::Limits,
-    to_service: &mut Queue<OpenEvent>,
+    to_service: &mut Queue<Heard>,
 ) -> Result<(), Broken> {
     let acknowledge = smith_channel::Acknowledge::decode(limits, &mut Reader::new(body)).or(Err(Broken))?;
     turns.acknowledge(acknowledge.number()).or(Err(Broken))?;
-    to_service.push(OpenEvent::Acknowledged { turn: acknowledge.number() });
+    to_service.push(Heard::Acknowledged { turn: acknowledge.number() });
     Ok(())
 }

@@ -38,7 +38,7 @@ mod translate;
 #[cfg(test)]
 mod tests;
 
-pub use component::{Component, OpenEvent};
+pub use component::{Component, Received};
 pub use limits::{Error, Limits, output_bytes};
 pub use process::{Launch, Process, ProcessEvent};
 pub use program::{ProgramSource, SourceAnswer, SourceAsk};

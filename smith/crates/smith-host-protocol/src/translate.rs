@@ -2,8 +2,8 @@
 //! The host service supplies opening paths and credential values; the host domain
 //! retains alias metadata and never credential values.
 use alloc::boxed::Box;
-use skein_channel::{Frame, frame_writer};
-use skein_lib::{List, Writer};
+use skein_channel::Frame;
+use skein_lib::List;
 use smith_channel as wire;
 use smith_host_domain::{self as host, channel};
 
@@ -115,11 +115,7 @@ pub fn encode_start(
             window,
         },
     )?;
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("measured body fits usize"));
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0100, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    Ok(wire::frame(wire::Body::Start(record))?)
 }
 
 fn encode_workspace(
@@ -285,14 +281,7 @@ pub(crate) fn encode_reply(
         channel::Reply::TooLarge => wire::Reply::TooLarge,
     };
     let record = wire::HostAnswer::new(limits, wire::HostAnswerParts { name, reply })?;
-    let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::MissingValue);
-    };
-    let mut body = Writer::new(length);
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0102, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    Ok(wire::frame(wire::Body::HostAnswer(record))?)
 }
 
 /// The form a service-owned value lends, checked against its grant

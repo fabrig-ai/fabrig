@@ -103,7 +103,7 @@ fn machine_terminal_and_channel_message_keep_their_domain_names() {
     channel_event(
         &mut service.stages,
         &mut service.frame,
-        channel::OpenEvent::Message {
+        channel::Heard::Message {
             finish_requested: true,
             name: owner,
             label: Box::from(&b"host"[..]),
@@ -139,7 +139,12 @@ fn llm_and_host_terminals_reach_the_domain_with_their_owners() {
     channel_event(
         &mut service.stages,
         &mut service.frame,
-        channel::OpenEvent::HostReturned { relay, reply: run::HostReply::Unanswered(run::Unanswered::Lost) },
+        channel::Heard::Event {
+            event: Box::new(smith_domain::Event::HostReturned {
+                relay,
+                reply: run::HostReply::Unanswered(run::Unanswered::Lost),
+            }),
+        },
     );
     match service.stages.domain_events.pop().expect("host terminal") {
         domain::Event::HostReturned { relay: observed, reply } => {
@@ -205,7 +210,7 @@ fn channel_loss_before_answer_keeps_a_concrete_failure_reason() {
     channel_event(
         &mut service.stages,
         &mut service.frame,
-        channel::OpenEvent::Ended { why: skein_channel::Closed::Truncated },
+        channel::Heard::Ended { why: skein_channel::Closed::Truncated },
     );
     assert_eq!(failure(&service), Some(Failure::ChannelEnded));
     assert_eq!(
@@ -443,13 +448,15 @@ fn an_answer_is_taken_past_the_watermark() {
     let relay = run::RelayName { owner: Token::new(5), attempt: 1 };
     enter(
         &mut service,
-        Input::Host(channel::OpenEvent::HostReturned {
-            relay,
-            reply: run::HostReply::Unanswered(run::Unanswered::Lost),
+        Input::Host(channel::Heard::Event {
+            event: Box::new(smith_domain::Event::HostReturned {
+                relay,
+                reply: run::HostReply::Unanswered(run::Unanswered::Lost),
+            }),
         }),
     );
-    enter(&mut service, Input::Host(channel::OpenEvent::Acknowledged { turn: 1 }));
-    enter(&mut service, Input::Host(channel::OpenEvent::Cancel));
+    enter(&mut service, Input::Host(channel::Heard::Acknowledged { turn: 1 }));
+    enter(&mut service, Input::Host(channel::Heard::Cancel));
     enter(&mut service, Input::Provider(llm::ToDomain::Cancelled { owner: Token::new(73) }));
     component_up(&mut service.stages, Some(&mut service.frame));
     assert!(service.stages.channel_events.is_empty());
@@ -532,7 +539,7 @@ fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
     let mut service = watermark(None);
     enter(
         &mut service,
-        Input::Host(channel::OpenEvent::Start {
+        Input::Host(channel::Heard::Start {
             start: Box::new(smith_protocol_translate::DecodedStart {
                 live: None,
                 identity: None,

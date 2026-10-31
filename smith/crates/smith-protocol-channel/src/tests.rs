@@ -3,7 +3,7 @@ use skein_channel::{Lower, StreamMode};
 use skein_lib::{Queue, stream};
 
 use crate::fixture::small as limits;
-use crate::{Component, Limits, OpenEvent};
+use crate::{Component, Heard, Limits};
 
 #[test]
 fn the_agent_demands_the_open_before_the_domain_hears_anything() {
@@ -11,7 +11,7 @@ fn the_agent_demands_the_open_before_the_domain_hears_anything() {
     let mut component =
         Component::new(&limits, StreamMode::Two, crate::Endpoints::new(skein_lib::List::with_capacity(0)))
             .expect("checked schema");
-    let mut to_service = Queue::<OpenEvent>::with_capacity(2);
+    let mut to_service = Queue::<Heard>::with_capacity(2);
     let mut below = Queue::<Lower>::with_capacity(8);
     component.fire(&mut to_service, &mut below);
     assert!(to_service.is_empty());

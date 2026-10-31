@@ -1,6 +1,6 @@
 //! Bounded account notices (smith/docs/design/protocol/channel.md, section 4).
 use super::Component;
-use crate::{Error, OpenEvent};
+use crate::{Error, Heard};
 use alloc::boxed::Box;
 use skein_channel::{Lower, Request};
 use skein_lib::{Duration, Queue, Token};
@@ -11,7 +11,7 @@ impl Component {
         &mut self,
         name: smith_domain::GrantName,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() {
@@ -40,7 +40,7 @@ impl Component {
         account: u32,
         reset: Option<Duration>,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() {
@@ -67,7 +67,7 @@ impl Component {
         code: &[u8],
         reason: &[u8],
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() {

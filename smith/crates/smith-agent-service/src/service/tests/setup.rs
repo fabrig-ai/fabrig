@@ -173,8 +173,8 @@ pub(super) fn at_watermark() -> Service {
     watermark(Some(Token::new(9)))
 }
 
-pub(super) fn host_message(name: u64) -> channel::OpenEvent {
-    channel::OpenEvent::Message {
+pub(super) fn host_message(name: u64) -> channel::Heard {
+    channel::Heard::Message {
         finish_requested: false,
         name: Token::new(name),
         label: Box::from(b"host".as_slice()),
@@ -255,7 +255,7 @@ fn end_channel(mut service: Service) -> Service {
 pub(super) enum Input {
     Machine(machine::ToDomain),
     Provider(llm::ToDomain),
-    Host(channel::OpenEvent),
+    Host(channel::Heard),
     Domain(domain::Event),
     Io(io::Event),
     IoRequest(io::Request),

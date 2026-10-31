@@ -52,7 +52,7 @@ fn a_process_exit_keeps_its_owner_and_status() {
     );
 }
 
-use smith_host_protocol::{OpenEvent, ProcessEvent};
+use smith_host_protocol::{ProcessEvent, Received};
 
 const AGENT: Token = Token::new(71);
 const RUN: Token = Token::new(43);
@@ -72,7 +72,7 @@ fn call() -> smith_channel::LiveCall {
 fn live(kind: smith_channel::LiveKind, call: Option<smith_channel::LiveCall>) -> ProcessEvent {
     ProcessEvent::Channel {
         agent: AGENT,
-        event: Box::new(OpenEvent::Live {
+        event: Box::new(Received::Live {
             turn: TURN,
             retry: RETRY,
             kind,

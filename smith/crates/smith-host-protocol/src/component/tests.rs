@@ -12,7 +12,7 @@ fn mismatched_values() -> [GrantValue; 2] {
     [GrantValue::Key(Box::from(b"key".as_slice())), GrantValue::Program(Box::from(b"claude-code".as_slice()))]
 }
 
-fn channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+fn channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
     let limits = crate::tests::process_limits();
     let component = Component::new(&limits, StreamMode::Two, crate::tests::endpoints()).expect("channel limits");
     (component, Queue::with_capacity(limits.channel.output_frames), Queue::with_capacity(limits.channel.kinds))
@@ -27,7 +27,7 @@ const REUSED_CALL: Token = Token::new(2);
 const REPLY: Token = Token::new(11);
 const CANCEL: Token = Token::new(12);
 
-fn opened_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+fn opened_channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
     let (mut component, mut above, mut below) = channel();
     let limits = crate::tests::process_limits();
     let mut entries = List::with_capacity(limits.channel.kinds);
@@ -71,7 +71,7 @@ fn opened_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
     (component, above, below)
 }
 
-pub(super) fn admitted_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+pub(super) fn admitted_channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
     let (mut component, mut above, mut below) = opened_channel();
     let mut start = smith_host_world::start();
     start.grants = Box::default();
@@ -147,7 +147,7 @@ fn receive(
     component: &mut Component,
     kind: u16,
     body: Box<[u8]>,
-    above: &mut Queue<crate::OpenEvent>,
+    above: &mut Queue<crate::Received>,
     below: &mut Queue<Lower>,
 ) {
     if !component.reading {
@@ -168,14 +168,14 @@ fn receive(
     }
 }
 
-fn called_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+fn called_channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
     let (mut component, mut above, mut below) = admitted_channel();
     receive(&mut component, 0x0107, call_body(1), &mut above, &mut below);
     while above.pop().is_some() {}
     (component, above, below)
 }
 
-fn answer(component: &mut Component, above: &mut Queue<crate::OpenEvent>, below: &mut Queue<Lower>) {
+fn answer(component: &mut Component, above: &mut Queue<crate::Received>, below: &mut Queue<Lower>) {
     component.send_reply(CALL, smith_host_domain::Reply::Unavailable, REPLY, above, below).expect("reply");
     // Finish the answer's write before checking for any later refusal output.
     while let Some(request) = below.pop() {
@@ -194,7 +194,7 @@ fn answer(component: &mut Component, above: &mut Queue<crate::OpenEvent>, below:
     while above.pop().is_some() {}
 }
 
-fn crossed_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+fn crossed_channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
     let (mut component, mut above, mut below) = called_channel();
     answer(&mut component, &mut above, &mut below);
     receive(&mut component, 0x0108, withdraw_body(1), &mut above, &mut below);
@@ -210,8 +210,8 @@ fn assert_no_refusal(below: &Queue<Lower>) {
     }
 }
 
-fn next_call(above: &mut Queue<crate::OpenEvent>) -> Token {
-    let Some(crate::OpenEvent::Call { call, .. }) = above.pop() else {
+fn next_call(above: &mut Queue<crate::Received>) -> Token {
+    let Some(crate::Received::Message { message: smith_host_domain::Up::Call { call, .. } }) = above.pop() else {
         panic!("the following call is delivered");
     };
     call
@@ -234,7 +234,10 @@ fn a_name_withdrawn_after_its_answer_can_be_called_again() {
     receive(&mut component, 0x0107, call_body(1), &mut above, &mut below);
     assert_eq!(next_call(&mut above), REUSED_CALL);
     receive(&mut component, 0x0108, withdraw_body(1), &mut above, &mut below);
-    assert_eq!(above.pop(), Some(crate::OpenEvent::Withdraw { call: REUSED_CALL }));
+    assert_eq!(
+        above.pop(),
+        Some(crate::Received::Message { message: smith_host_domain::Up::Withdraw { call: REUSED_CALL } })
+    );
     assert!(above.is_empty(), "one withdrawal event for the new call");
     assert_no_refusal(&below);
 }
