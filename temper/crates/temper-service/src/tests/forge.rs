@@ -556,6 +556,7 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
     let mut settings = fixtures::engine();
     settings.limits.forge_component.forges = 9;
     settings.limits.forge_component.repositories = 9;
+    settings.limits.forge.forges = 9;
     settings.limits.forge.repositories = 9;
     settings.limits.forge.client.repositories = 9;
     settings.limits.forge.output = 256;

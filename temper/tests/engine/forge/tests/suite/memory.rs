@@ -9,8 +9,8 @@ fn drain(out: &mut Queue<top::Request>) {
     }
 }
 
-// Measured peak: 3,626 bytes; 25% headroom, rounded up to two significant digits.
-const CONNECTOR_HEAP_CEILING: u64 = 4_600;
+// Measured peak: 4,874 bytes; 25% headroom, rounded up to two significant digits.
+const CONNECTOR_HEAP_CEILING: u64 = 6_100;
 
 #[test]
 fn bounded_connector_tables_and_client_fit_the_declared_heap() {

@@ -84,7 +84,6 @@ pub(crate) fn save(d: &mut Domain, record: ForgeRecord, out: &mut Queue<Request>
 }
 
 /// Erase a record whole; its number stays spent (section 4).
-#[cfg_attr(not(test), expect(dead_code, reason = "forge removal consumes this shared surface"))]
 pub(crate) fn erase(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
     d.records.remove(&forge);
     d.configured.remove(&forge);
