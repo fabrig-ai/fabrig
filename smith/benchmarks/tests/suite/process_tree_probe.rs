@@ -110,10 +110,7 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         }
         assert!(matches!(observed(&wrong, &check, &capture), Measure::Unavailable { .. }));
         let mut wrong = values.clone();
-        {
-            let value = crate::common::edit::tool_started(&mut wrong[5]);
-            value.input = None;
-        }
+        crate::common::edit::tool_started(&mut wrong[5]).input = None;
         assert!(matches!(observed(&wrong, &check, &capture), Measure::Unavailable { .. }));
     }
 }

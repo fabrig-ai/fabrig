@@ -97,10 +97,7 @@ fn small_window_requires_a_compaction_and_no_prompt_past_its_window() {
         observer.check(&smith_bench::EventCheck::PromptWithinWindow, "task").passed,
         Measure::Observed { value: true }
     );
-    {
-        let value = crate::common::edit::response_completed(&mut records[4]);
-        value.usage.input_tokens = Some(10_000);
-    }
+    crate::common::edit::response_completed(&mut records[4]).usage.input_tokens = Some(10_000);
     assert_eq!(
         history_observer(&mut records).check(&smith_bench::EventCheck::PromptWithinWindow, "task").passed,
         Measure::Observed { value: false }

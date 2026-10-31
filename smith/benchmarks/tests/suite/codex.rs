@@ -74,8 +74,8 @@ fn known_shapes_and_conflicting_usage_fail_with_named_evidence() {
     let conflict = crate::common::json::edit_lines(
         COMPLETED.lines().last().expect("usage"),
         "/usage/input_tokens",
-        &serde_json::json!(130418),
-        Some(&serde_json::json!(130419)),
+        &serde_json::json!(130_418),
+        Some(&serde_json::json!(130_419)),
         1,
     );
     assert!(observer.observe_line(&conflict).expect_err("conflict").to_string().contains("usage"));

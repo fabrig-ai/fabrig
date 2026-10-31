@@ -2,7 +2,9 @@
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
 //! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
 
-use super::*;
+use super::Planned;
+use crate::{AttemptResult, End, Judgment, Measure};
+use std::fmt::{self, Display};
 
 /// The settled attempt's printable outcome and measured wall and spend.
 #[derive(Debug)]

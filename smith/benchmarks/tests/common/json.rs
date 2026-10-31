@@ -1,5 +1,6 @@
 //! Structured edits count the matching fields in recorded JSON lines.
 
+#[must_use]
 pub fn edit_lines(
     source: &str,
     pointer: &str,

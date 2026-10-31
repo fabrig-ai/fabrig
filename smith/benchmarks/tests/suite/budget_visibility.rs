@@ -70,10 +70,7 @@ fn build_records() -> Vec<Record> {
         prompt.messages.push(smith_events::Message { role: smith_events::Role::User, blocks }).expect("one message");
     }
     let mut response = baseline[4].clone();
-    {
-        let value = crate::common::edit::response_completed(&mut response);
-        value.response = 1;
-    }
+    crate::common::edit::response_completed(&mut response).response = 1;
     values.extend([budget, opened, returned, request, response]);
     values.extend_from_slice(&baseline[5..]);
     report_text(&mut values, "ALPHA 6 6");
@@ -126,10 +123,7 @@ fn checked(records: &mut [Record], check: &EventCheck) -> Measure<bool> {
 }
 
 fn writing_budget(records: &mut [Record]) {
-    {
-        let value = crate::common::edit::budget(&mut records[5]);
-        value.call = Some(b"child0".as_slice().into());
-    }
+    crate::common::edit::budget(&mut records[5]).call = Some(b"child0".as_slice().into());
 }
 
 #[test]
@@ -137,10 +131,7 @@ fn told_values_equal_their_writing_steps_budget() {
     for (used_ms, time) in [(1500, "6 seconds"), (7000, "1 second"), (7999, "less than a second")] {
         let mut values = records();
         writing_budget(&mut values);
-        {
-            let value = crate::common::edit::budget(&mut values[5]);
-            value.time_ms.used = used_ms;
-        }
+        crate::common::edit::budget(&mut values[5]).time_ms.used = used_ms;
         told_text(&mut values, 6, time);
         assert_eq!(checked(&mut values, &EventCheck::BudgetTold), Measure::Observed { value: true });
     }
@@ -306,10 +297,7 @@ fn model_report_uses_the_last_of_two_observed_child_returns() {
         }
     }
     let mut response = values[9].clone();
-    {
-        let value = crate::common::edit::response_completed(&mut response);
-        value.response = 2;
-    }
+    crate::common::edit::response_completed(&mut response).response = 2;
     values.splice(10..10, [opened, returned, request, response]);
     report_text(&mut values, "ALPHA 5 4");
     assert_eq!(checked(&mut values, &EventCheck::BudgetReport), Measure::Observed { value: true });

@@ -202,6 +202,7 @@ fn raw(
     )
 }
 
+#[derive(Clone, Copy)]
 struct CommandPolicy<'a> {
     deadline_seconds: u64,
     environment: &'a BTreeMap<String, String>,

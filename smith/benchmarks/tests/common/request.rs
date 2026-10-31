@@ -3,6 +3,7 @@
 use super::bench::{Identity, run};
 use std::path::PathBuf;
 
+#[must_use]
 pub fn request(task: PathBuf, identity: Identity) -> run::Request {
     run::Request {
         task,

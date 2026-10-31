@@ -2,7 +2,9 @@
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
 //! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
 
-use super::*;
+use super::{Order, Planned, calibration_attempts, count, judgment};
+use crate::{AttemptResult, Judgment};
+use std::{fs, path::Path};
 
 pub(super) fn finish_calibration(
     repository: &Path,

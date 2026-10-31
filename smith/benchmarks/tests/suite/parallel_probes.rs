@@ -31,10 +31,7 @@ fn twenty_reads_must_be_in_one_response_and_content_absence_is_unknown() {
     assert_eq!(observe_wide(&records).check(&check, "task").passed, Measure::Observed { value: true });
     set_calls(&mut records[4], 10);
     let mut second = records[4].clone();
-    {
-        let value = crate::common::edit::response_completed(&mut second);
-        value.response = 1;
-    }
+    crate::common::edit::response_completed(&mut second).response = 1;
     records.insert(5, second);
     common::events::inventory(&mut records);
     assert_eq!(observe_wide(&records).check(&check, "task").passed, Measure::Observed { value: false });

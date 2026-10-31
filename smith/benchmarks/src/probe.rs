@@ -1,17 +1,7 @@
 //! Commands prepare frozen requests and print settled evidence; the shared
 //! dispatcher owns execution and judging (benchmarks.md, sections 5.1 and 11.5).
 
-use std::fmt::{self, Display};
-use std::fs::{self, OpenOptions};
-use std::io::Write;
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
-use std::path::{Path, PathBuf};
-
-use sha2::{Digest, Sha256};
-
-use crate::arm::ArmRef;
-use crate::guard::Guard;
-use crate::{Agent, AttemptResult, End, Identity, Judgment, Measure, ModelIdentity, Suite};
+use std::path::PathBuf;
 
 pub mod gating;
 

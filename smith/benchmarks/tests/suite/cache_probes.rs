@@ -118,10 +118,7 @@ fn one_read_each_rejects_batched_calls_and_retains_missing_capture() {
         }
         assert_eq!(observe(&records).check(&check, "task").passed, Measure::Observed { value: count == 1 });
     }
-    {
-        let value = crate::common::edit::response_completed(&mut records[4]);
-        value.completion = None;
-    }
+    crate::common::edit::response_completed(&mut records[4]).completion = None;
     assert!(matches!(observe(&records).check(&check, "task").passed, Measure::Unavailable { .. }));
 }
 
@@ -141,10 +138,7 @@ fn sequential_children_wait_for_the_parent_return_and_require_both_returns() {
             value.kind = smith_events::ConversationKind::Child;
         }
         let mut closed = baseline[5].clone();
-        {
-            let value = crate::common::edit::conversation_closed(&mut closed);
-            value.conversation = child;
-        }
+        crate::common::edit::conversation_closed(&mut closed).conversation = child;
         let mut returned = common::events::record(include_str!(
             "../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"
         ));

@@ -2,7 +2,14 @@
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
 //! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
 
-use super::*;
+use super::{
+    Order, ProbeAgent, Source, archived, check_parent, codex, finish_calibration, gating, judgment, plan, prepare,
+    summary, verdict_name,
+};
+use crate::arm::ArmRef;
+use crate::guard::Guard;
+use crate::{Judgment, Suite};
+use std::{fs, path::Path};
 
 /// Execute a parsed command with frozen arms, printing each settled attempt and summary.
 pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, String> {

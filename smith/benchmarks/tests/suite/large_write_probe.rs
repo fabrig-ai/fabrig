@@ -76,10 +76,7 @@ fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
     });
     assert_eq!(checked(&records), Measure::Observed { value: false });
     records = original.clone();
-    {
-        let start = crate::common::edit::tool_started(&mut records[7]);
-        start.input = None;
-    }
+    crate::common::edit::tool_started(&mut records[7]).input = None;
     assert!(matches!(checked(&records), Measure::Unavailable { .. }));
     records = original;
     fs::write(directory.join("payload.txt"), "altered").expect("saved file mismatch");
@@ -137,10 +134,7 @@ fn protocol_only_oversized_write_records_identity_and_elided_path() {
     for case in ["at-bound", "wrong-tool", "absent-content", "counter", "loss"] {
         records = original.clone();
         if case == "loss" {
-            {
-                let end = crate::common::edit::session_ended(records.last_mut().expect("ended"));
-                end.loss.events = 1;
-            }
+            crate::common::edit::session_ended(records.last_mut().expect("ended")).loss.events = 1;
         } else {
             let response = crate::common::edit::response_completed(&mut records[4]);
             match case {
@@ -206,31 +200,19 @@ fn saved_write_checks_content_size_pairing_and_capture_not_seed() {
         "encoded input size cannot replace content size"
     );
     let original = records.clone();
-    {
-        let value = crate::common::edit::tool_started(&mut records[5]);
-        value.input = None;
-    }
+    crate::common::edit::tool_started(&mut records[5]).input = None;
     assert!(matches!(checked(&records, 1), Measure::Unavailable { .. }));
     records = original.clone();
-    {
-        let value = crate::common::edit::tool_completed(&mut records[6]);
-        value.conversation = 7;
-    }
+    crate::common::edit::tool_completed(&mut records[6]).conversation = 7;
     assert_eq!(checked(&records, 1), Measure::Observed { value: false });
     records = original.clone();
-    {
-        let value = crate::common::edit::tool_started(&mut records[5]);
-        value.effect = Effect::Read;
-    }
+    crate::common::edit::tool_started(&mut records[5]).effect = Effect::Read;
     assert!(matches!(checked(&records, 1), Measure::Unavailable { .. }));
     records = original.clone();
     records.insert(7, records[6].clone());
     assert_eq!(checked(&records, 1), Measure::Observed { value: false });
     records = original.clone();
-    {
-        let value = crate::common::edit::session_ended(records.last_mut().expect("ended"));
-        value.loss.events = 1;
-    }
+    crate::common::edit::session_ended(records.last_mut().expect("ended")).loss.events = 1;
     assert!(matches!(checked(&records, 1), Measure::Unavailable { .. }));
     std::fs::write(directory.join("payload.txt"), "altered").expect("tampered saved file");
     assert_eq!(checked(&original, 1), Measure::Observed { value: false });
@@ -283,34 +265,20 @@ fn oversized_pieces_replay_successful_edits_and_keep_failed_edit_measurement() {
     };
     assert_eq!(checked(&records), Measure::Observed { value: true });
     let original = records.clone();
-    {
-        let value = crate::common::edit::response_completed(&mut records[4]);
-        value.completion = None;
-    }
+    crate::common::edit::response_completed(&mut records[4]).completion = None;
     assert!(matches!(checked(&records), Measure::Unavailable { .. }));
     records = original.clone();
-    {
-        let value = crate::common::edit::response_completed(&mut records[4]);
-        value.oversized = 0;
-    }
+    crate::common::edit::response_completed(&mut records[4]).oversized = 0;
     assert_eq!(checked(&records), Measure::Observed { value: false });
     records = original.clone();
-    {
-        let value = crate::common::edit::tool_completed(&mut records[12]);
-        value.call = b"foreign".as_slice().into();
-    }
+    crate::common::edit::tool_completed(&mut records[12]).call = b"foreign".as_slice().into();
     assert_eq!(checked(&records), Measure::Observed { value: false });
     records = original.clone();
-    {
-        let value = crate::common::edit::tool_started(&mut records[11]);
-        value.input = None;
-    }
+    crate::common::edit::tool_started(&mut records[11]).input = None;
     assert!(matches!(checked(&records), Measure::Unavailable { .. }));
     records = original.clone();
-    {
-        let value = crate::common::edit::tool_started(&mut records[9]);
-        value.input = Some(br#"{"path":"payload.txt","edits":[{"old":"missing","new":"wrong"}]}"#.as_slice().into());
-    }
+    crate::common::edit::tool_started(&mut records[9]).input =
+        Some(br#"{"path":"payload.txt","edits":[{"old":"missing","new":"wrong"}]}"#.as_slice().into());
     assert_eq!(checked(&records), Measure::Observed { value: false });
     std::fs::write(directory.join("payload.txt"), "different pieces").expect("tampered saved file");
     assert_eq!(checked(&original), Measure::Observed { value: false });
@@ -422,10 +390,7 @@ fn native_oversized_refusal_rejects_wrong_pairs_small_content_loss_and_absent_ca
                 }
             }
             "loss" => {
-                {
-                    let end = crate::common::edit::session_ended(records.last_mut().expect("ended"));
-                    end.loss.events = 1;
-                }
+                crate::common::edit::session_ended(records.last_mut().expect("ended")).loss.events = 1;
                 assert!(matches!(checked(&records), Measure::Unavailable { .. }));
             }
             "duplicate" => {

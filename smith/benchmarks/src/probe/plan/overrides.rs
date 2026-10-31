@@ -1,5 +1,6 @@
-use super::super::command::{settle_change, small_summary, suite_attempts};
+use super::super::command::{command, settle_change, small_summary, suite_attempts};
 use super::*;
+use crate::Judgment;
 
 fn fixture() -> (PathBuf, crate::CatalogueTask, Suite, ArmRef) {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

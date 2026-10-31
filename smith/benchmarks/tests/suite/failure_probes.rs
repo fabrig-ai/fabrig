@@ -76,30 +76,18 @@ fn model_failure_requires_the_run_class_and_the_observed_matching_exit() {
         value.result = None;
         value.failure = Some(failure);
     }
-    {
-        let value = crate::common::edit::session_ended(&mut records[7]);
-        value.exit = 1;
-    }
+    crate::common::edit::session_ended(&mut records[7]).exit = 1;
     let check =
         EventCheck::RunCompleted { status: "failed".into(), class: Some("model".into()), which: None, reason: None };
     let observer = observe(&records);
     assert_eq!(observer.check(&check, "task").passed, Measure::Observed { value: true });
     assert!(matches!(observer.classify(Exit::Code(1), Forced::No).end, End::Failed { .. }));
     assert!(matches!(observer.classify(Exit::Code(0), Forced::No).end, End::HarnessError { .. }));
-    {
-        let value = crate::common::edit::session_started(&mut records[0]);
-        value.mode = smith_events::Mode::Chat;
-    }
-    {
-        let value = crate::common::edit::session_ended(&mut records[7]);
-        value.exit = 0;
-    }
+    crate::common::edit::session_started(&mut records[0]).mode = smith_events::Mode::Chat;
+    crate::common::edit::session_ended(&mut records[7]).exit = 0;
     assert!(matches!(observe(&records).classify(Exit::Code(0), Forced::No).end, End::Failed { .. }));
     assert!(matches!(observe(&records).classify(Exit::Code(1), Forced::No).end, End::HarnessError { .. }));
-    {
-        let value = crate::common::edit::run_completed(&mut records[6]);
-        value.failure.as_mut().expect("failure").class = AnswerClass::Policy;
-    }
+    crate::common::edit::run_completed(&mut records[6]).failure.as_mut().expect("failure").class = AnswerClass::Policy;
     assert_eq!(observe(&records).check(&check, "task").passed, Measure::Observed { value: false });
 }
 
@@ -144,10 +132,7 @@ fn provider_failure_uses_typed_status_and_retained_bounded_detail() {
             None => assert!(matches!(got, Measure::Unavailable { .. })),
         }
     }
-    {
-        let run = crate::common::edit::run_completed(&mut records[6]);
-        run.failure.as_mut().expect("answer failure").completion = None;
-    }
+    crate::common::edit::run_completed(&mut records[6]).failure.as_mut().expect("answer failure").completion = None;
     assert!(matches!(observe_provider(&records).check(&check, "task").passed, Measure::Unavailable { .. }));
 }
 
@@ -178,10 +163,7 @@ fn set_completion_failure(records: &mut [smith_events::Record], completion: &smi
             reason: None,
         });
     }
-    {
-        let session = crate::common::edit::session_ended(&mut records[7]);
-        session.exit = 1;
-    }
+    crate::common::edit::session_ended(&mut records[7]).exit = 1;
 }
 
 // The fixture envelope admits a deliberate 1025-byte defect. The authored
@@ -227,10 +209,7 @@ fn reserve_refusal_requires_exact_typed_identity_under_every_capture() {
             reason: None,
         });
     }
-    {
-        let session = crate::common::edit::session_ended(&mut records[2]);
-        session.exit = 2;
-    }
+    crate::common::edit::session_ended(&mut records[2]).exit = 2;
     common::events::inventory(&mut records);
     for capture in [smith_events::Capture::None, smith_events::Capture::Calls, smith_events::Capture::Everything] {
         let observer = observe_capture(&records, &capture);
@@ -253,10 +232,8 @@ fn reserve_refusal_requires_exact_typed_identity_under_every_capture() {
             }
         }
         let mut changed = records.clone();
-        {
-            let run = crate::common::edit::run_completed(&mut changed[1]);
-            run.failure.as_mut().expect("refusal").class = AnswerClass::Budget;
-        }
+        crate::common::edit::run_completed(&mut changed[1]).failure.as_mut().expect("refusal").class =
+            AnswerClass::Budget;
         assert_eq!(
             observe_capture(&changed, &capture).check(&check, "task").passed,
             Measure::Observed { value: false }

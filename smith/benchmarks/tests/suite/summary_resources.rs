@@ -60,7 +60,7 @@ fn a_null_peak_record_leaves_smiths_own_unavailable() {
     let stream = crate::common::json::edit_lines(
         include_str!("../recorded/retried-failure-17d63afd-02.jsonl"),
         "/peak_rss_bytes",
-        &serde_json::json!({"self":17321984,"children":157687808}),
+        &serde_json::json!({"self":17_321_984,"children":157_687_808}),
         Some(&serde_json::Value::Null),
         1,
     );

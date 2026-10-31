@@ -44,10 +44,7 @@ fn payload_bytes_come_from_the_observed_matching_terminal_not_input_or_another_r
     let original = common::events::balanced();
     let mut values = original.clone();
     let (mut start, mut end) = common::tool_pair("shell", "shell-call");
-    {
-        let value = crate::common::edit::tool_started(&mut start);
-        value.input_bytes = 100_000;
-    }
+    crate::common::edit::tool_started(&mut start).input_bytes = 100_000;
     {
         let value = crate::common::edit::tool_completed(&mut end);
         value.bytes = 10241;
@@ -60,10 +57,7 @@ fn payload_bytes_come_from_the_observed_matching_terminal_not_input_or_another_r
     }
     common::events::inventory(&mut values);
     assert_eq!(observed(&values, &check), Measure::Observed { value: true });
-    {
-        let value = crate::common::edit::tool_completed(&mut values[6]);
-        value.bytes = 10240;
-    }
+    crate::common::edit::tool_completed(&mut values[6]).bytes = 10240;
     assert_eq!(observed(&values, &check), Measure::Observed { value: false });
     {
         let value = crate::common::edit::tool_completed(&mut values[6]);
@@ -132,28 +126,16 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
         assert!(verdict.evidence[0].contains("requested_seconds=9999 emitted_bound_ms=1000 duration_ms=1001"));
         for duration in [0, 999, 1251] {
             let mut changed = values.clone();
-            {
-                let value = crate::common::edit::tool_completed(&mut changed[6]);
-                value.duration_ms = duration;
-            }
+            crate::common::edit::tool_completed(&mut changed[6]).duration_ms = duration;
             assert_eq!(observed_capture(&changed, &check, &capture).passed, Measure::Observed { value: false });
         }
         let mut changed = values.clone();
-        {
-            let value = crate::common::edit::tool_started(&mut changed[5]);
-            value.deadline_ms = None;
-        }
+        crate::common::edit::tool_started(&mut changed[5]).deadline_ms = None;
         assert!(matches!(observed_capture(&changed, &check, &capture).passed, Measure::Unavailable { .. }));
-        {
-            let value = crate::common::edit::tool_started(&mut changed[5]);
-            value.deadline_ms = Some(2000);
-        }
+        crate::common::edit::tool_started(&mut changed[5]).deadline_ms = Some(2000);
         assert_eq!(observed_capture(&changed, &check, &capture).passed, Measure::Observed { value: false });
         changed = values.clone();
-        {
-            let value = crate::common::edit::tool_completed(&mut changed[6]);
-            value.clamped = false;
-        }
+        crate::common::edit::tool_completed(&mut changed[6]).clamped = false;
         assert_eq!(observed_capture(&changed, &check, &capture).passed, Measure::Observed { value: false });
         {
             let value = crate::common::edit::tool_completed(&mut changed[6]);
@@ -162,10 +144,8 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
         }
         assert!(matches!(observed_capture(&changed, &check, &capture).passed, Measure::Unavailable { .. }));
         changed = values.clone();
-        {
-            let value = crate::common::edit::tool_started(&mut changed[5]);
-            value.input = Some(Box::from(&br#"{"command":"sleep 600","timeout_seconds":1}"#[..]));
-        }
+        crate::common::edit::tool_started(&mut changed[5]).input =
+            Some(Box::from(&br#"{"command":"sleep 600","timeout_seconds":1}"#[..]));
         assert_eq!(observed_capture(&changed, &check, &capture).passed, Measure::Observed { value: false });
         let unclamped = EventCheck::ToolTimeout {
             requested_seconds: 1,
@@ -174,15 +154,10 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
             grace_ms: 250,
             command: None,
         };
-        {
-            let value = crate::common::edit::tool_completed(&mut changed[6]);
-            value.clamped = false;
-        }
+        crate::common::edit::tool_completed(&mut changed[6]).clamped = false;
         assert_eq!(observed_capture(&changed, &unclamped, &capture).passed, Measure::Observed { value: true });
-        {
-            let value = crate::common::edit::tool_started(&mut changed[5]);
-            value.input = Some(Box::from(&br#"{"command":"sleep 600","timeout_seconds":1,"output_bytes":99999}"#[..]));
-        }
+        crate::common::edit::tool_started(&mut changed[5]).input =
+            Some(Box::from(&br#"{"command":"sleep 600","timeout_seconds":1,"output_bytes":99999}"#[..]));
         assert_eq!(observed_capture(&changed, &unclamped, &capture).passed, Measure::Observed { value: false });
     }
     assert!(matches!(
@@ -239,15 +214,9 @@ fn story() -> Vec<Record> {
     let mut records = common::events::balanced();
     let (shell, running) = shell_records();
     let mut request = records[FIRST_REQUEST_AT].clone();
-    {
-        let value = crate::common::edit::response_started(&mut request);
-        value.response = 1;
-    }
+    crate::common::edit::response_started(&mut request).response = 1;
     let mut response = records[FIRST_RESPONSE_AT].clone();
-    {
-        let value = crate::common::edit::response_completed(&mut response);
-        value.response = 1;
-    }
+    crate::common::edit::response_completed(&mut response).response = 1;
 
     let mut poll = shell.clone();
     {
@@ -354,9 +323,6 @@ fn job_terminal_fails_on_a_job_told_twice() {
 #[test]
 fn job_terminal_ignores_another_jobs_reported_terminal() {
     let mut records = story();
-    {
-        let value = crate::common::edit::tool_completed(&mut records[JOB_TERMINAL_AT]);
-        value.job = Some(OTHER_JOB_NUMBER);
-    }
+    crate::common::edit::tool_completed(&mut records[JOB_TERMINAL_AT]).job = Some(OTHER_JOB_NUMBER);
     assert_eq!(observed(&records, &EventCheck::JobTerminal), Measure::Observed { value: false });
 }

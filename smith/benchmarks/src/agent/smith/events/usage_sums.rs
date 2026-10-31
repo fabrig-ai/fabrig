@@ -1,5 +1,5 @@
 //! Raw optional token totals compare only within the same session/run.
-//! Missing provider counts remain unknown (benchmarks.md11.1, events.md3.3/3.5).
+//! Missing provider counts remain unknown (benchmarks.md, section 11.1; protocol/events.md, sections 3.3 and 3.5).
 
 use super::Observer;
 use crate::Measure;
