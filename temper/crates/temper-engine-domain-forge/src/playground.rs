@@ -1,6 +1,6 @@
 //! Playground records and reset (temper/docs/design/draft/playground-reset.md, 6.1–6.3).
 use crate::{
-    Answered, Bot, BoxKind, Connection, Domain, EndAnswer, Key, Kind, Mode, Playground, PlaygroundConfig,
+    Answered, Bot, BoxKind, Connection, Domain, EndAnswer, ForgeState, Key, Kind, Mode, Playground, PlaygroundConfig,
     PlaygroundState, Request, ResetAct, ResetStep, StartAnswer, StartFailure, Stored,
 };
 use alloc::boxed::Box;
@@ -278,7 +278,14 @@ pub(crate) fn act_answered(d: &mut Domain, key: [u8; 16], keep: bool, out: &mut 
 
 pub(crate) fn removed(d: &mut Domain, out: &mut Queue<Request>) {
     let Some(mut row) = d.playground else { return };
-    if row.state == PlaygroundState::Resetting(ResetStep::Forge) && d.record(row.forge).is_none() {
+    let complete = match d.record(row.forge) {
+        None => true,
+        Some(record) => match record.state {
+            ForgeState::Kept => false,
+            ForgeState::Ended { secrets_erased, box_removed } => secrets_erased && box_removed,
+        },
+    };
+    if row.state == PlaygroundState::Resetting(ResetStep::Forge) && complete {
         row.state = PlaygroundState::Resetting(ResetStep::Account);
         save(d, row, out);
         reset(d, out);

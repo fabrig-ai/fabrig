@@ -12,8 +12,15 @@ fn place() -> Place {
 }
 
 fn configured() -> Domain {
-    let mut d = domain();
-    d.under_box = true;
+    let mut d = Domain::new(
+        &LIMITS,
+        4,
+        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+        &[],
+        &[],
+        true,
+    )
+    .expect("empty connector");
     d.set_machine(Machine { owned: None, fake: Some(place()), github: place() });
     d.configure_playground(Some(PlaygroundConfig { provider: 1, deadline: Duration::from_secs(10) }));
     d
@@ -159,14 +166,14 @@ fn end_resets_in_order_project_forge_account_then_erases_the_row() {
         Some(&Request::Save { record: Stored::Playground(*d.playground().unwrap()), release: None, read_afresh: None })
     );
     assert!(ask(&mut d, 3, Ask::EndPlayground).is_empty());
-    let mut sent = outputs(&mut d, Event::ResetActAnswered { key, keep: false });
-    // Forge removal keeps its own answers; account removal follows their completion.
-    if d.playground().unwrap().state == PlaygroundState::Resetting(ResetStep::Forge) {
-        assert!(sent.contains(&Request::ForgeGone { forge: 1 }));
-        let first = outputs(&mut d, Event::SecretsErased { forge: 1 });
-        assert!(!first.iter().any(|request| if let Request::ResetAct { .. } = request { true } else { false }));
-        sent = outputs(&mut d, Event::BoxRemoved { forge: 1 });
-    }
+    let sent = outputs(&mut d, Event::ResetActAnswered { key, keep: false });
+    assert_eq!(d.playground().unwrap().state, PlaygroundState::Resetting(ResetStep::Forge));
+    assert!(sent.contains(&Request::ForgeGone { forge: 1 }));
+    assert!(sent.contains(&Request::BoxRemove { forge: 1 }));
+    assert!(!sent.iter().any(|request| if let Request::ResetAct { .. } = request { true } else { false }));
+    let first = outputs(&mut d, Event::SecretsErased { forge: 1 });
+    assert!(!first.iter().any(|request| if let Request::ResetAct { .. } = request { true } else { false }));
+    let sent = outputs(&mut d, Event::BoxRemoved { forge: 1 });
     let (key, act) = reset_act(&sent);
     assert_eq!(act, ResetAct::RemoveAccount { account: 3 });
     assert_eq!(d.playground().unwrap().state, PlaygroundState::Resetting(ResetStep::Account));
@@ -218,16 +225,7 @@ fn a_restart_resends_the_step_it_cut() {
                 reset_act(&sent),
                 (crate::playground::reset_key(row.forge, step), ResetAct::RemoveProject { project: 5 })
             ),
-            ResetStep::Forge => assert!(
-                sent.contains(&Request::ForgeGone { forge: row.forge })
-                    || sent.iter().any(|request| {
-                        if let Request::ResetAct { act: ResetAct::RemoveAccount { .. }, .. } = request {
-                            true
-                        } else {
-                            false
-                        }
-                    })
-            ),
+            ResetStep::Forge => assert!(sent.contains(&Request::ForgeGone { forge: row.forge })),
             ResetStep::Account => assert_eq!(
                 reset_act(&sent),
                 (crate::playground::reset_key(row.forge, step), ResetAct::RemoveAccount { account: 3 })
@@ -305,4 +303,39 @@ fn starting_and_running_restart_the_group_and_only_starting_makes_acts() {
             !running
         );
     }
+}
+
+#[test]
+fn reset_keys_use_the_forge_and_step_and_ignore_unrelated_answers() {
+    assert_eq!(
+        crate::playground::reset_key(1, ResetStep::Project),
+        [191, 33, 239, 218, 184, 126, 213, 54, 171, 141, 50, 254, 98, 49, 70, 234]
+    );
+    assert_eq!(
+        crate::playground::reset_key(1, ResetStep::Account),
+        [54, 52, 76, 31, 237, 240, 117, 162, 96, 107, 155, 130, 105, 91, 124, 177]
+    );
+    assert_eq!(
+        crate::playground::reset_key(2, ResetStep::Project),
+        [4, 144, 89, 83, 69, 90, 149, 104, 187, 90, 248, 123, 62, 238, 220, 46]
+    );
+    let mut d = running();
+    ask(&mut d, 2, Ask::EndPlayground);
+    assert!(outputs(&mut d, Event::ResetActAnswered { key: [0; 16], keep: false }).is_empty());
+    assert_eq!(d.playground().unwrap().state, PlaygroundState::Resetting(ResetStep::Project));
+}
+
+#[test]
+fn ending_a_start_skips_absent_acts_and_answers_held_starts() {
+    let mut d = configured();
+    ask(&mut d, 1, Ask::StartPlayground);
+    let sent = ask(&mut d, 2, Ask::EndPlayground);
+    assert!(sent.contains(&Request::ForgeGone { forge: 1 }));
+    assert_eq!(d.application_answer(Token::new(101)), Some(Answered::StartPlayground(StartAnswer::NotOffered)));
+    assert_eq!(d.playground().unwrap().state, PlaygroundState::Resetting(ResetStep::Forge));
+    outputs(&mut d, Event::BoxRemoved { forge: 1 });
+    let sent = outputs(&mut d, Event::SecretsErased { forge: 1 });
+    assert!(sent.contains(&Request::Erase { key: Key::Playground }));
+    assert_eq!(d.playground(), None);
+    assert_eq!(d.application_answer(Token::new(102)), Some(Answered::EndPlayground(EndAnswer::Reset)));
 }
