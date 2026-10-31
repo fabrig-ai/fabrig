@@ -205,6 +205,8 @@ fn stopping_before_the_mark_does_not_commit_it() {
     assert!(world.domain.stopping());
     assert_eq!(world.store.applied, before);
     assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Switch));
+    world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
+    assert!(world.domain.ready());
 }
 
 #[test]
@@ -220,6 +222,8 @@ fn stopping_with_the_mark_held_does_not_adopt_runs() {
     assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Wires));
     assert!(!world.domain.ready());
     assert!(!world.restart_steps.contains(&core::start::Phase::AdoptRuns));
+    world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
+    assert!(world.domain.ready());
 }
 
 // Every refusal must leave A byte-for-byte reopenable by the earlier build.
@@ -258,6 +262,18 @@ fn refuses_before_switch(mut world: World) {
 }
 
 const PROJECT: u32 = 1;
+const ORPHAN_SOURCE: u32 = 97;
+
+fn orphan_source() -> root::Record {
+    root::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Source {
+        account: 98,
+        number: ORPHAN_SOURCE,
+        place: 0,
+        kind: jig_domain_accounts::Kind::Key,
+        name: Box::new([]),
+        held: None,
+    }))
+}
 
 #[test]
 fn an_account_source_without_its_account_panics_at_link_on_the_active_generation() {
@@ -268,7 +284,7 @@ fn an_account_source_without_its_account_panics_at_link_on_the_active_generation
     }));
     assert!(linked.is_err(), "the active generation also links each account source");
     assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Link));
-    assert_eq!(world.domain.accounts().unrestored(), 0);
+    assert_eq!(world.domain.accounts().restore_limit(), None);
     assert!(world.domain.accounts().source(ORPHAN_SOURCE).is_some(), "the source is retained until its link is made");
     assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
     assert_eq!(world.store.switch_requests, 0);

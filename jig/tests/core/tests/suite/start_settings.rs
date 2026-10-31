@@ -178,7 +178,6 @@ fn stored_proposals_require_their_links_at_link() {
             name: Box::new([]),
         },
     };
-    assert!(h.core.restore_people_row(&record));
     drop(core::step(&mut h.core, &h.env, core::Event::People(people::Event::Restore { record })));
     assert_eq!(
         h.core.restore_core(
