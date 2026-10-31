@@ -292,7 +292,7 @@ fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer(
             job: Job::Waiting,
             waiting: Duration::from_secs(1),
             network: Span::millis(1, 1),
-            ..Settings::calm(1103)
+            ..smith_protocol_llm_world::fixture::settings(1103)
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
@@ -383,7 +383,7 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
         job: Job::Waiting,
         waiting: Duration::from_secs(1),
         network: Span::millis(1, 1),
-        ..Settings::calm(1104)
+        ..smith_protocol_llm_world::fixture::settings(1104)
     };
     settings.limits.decoded_call_bytes = u64::from(declared.calls_per_response)
         .checked_mul(u64::from(bounds.client.input))
@@ -549,7 +549,7 @@ fn structured_brief_native_wait_park_and_observed_transcript_restore_in_both_wir
             job: Job::Waiting,
             waiting: Duration::from_secs(1),
             network: Span::millis(1, 1),
-            ..Settings::calm(1102)
+            ..smith_protocol_llm_world::fixture::settings(1102)
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
@@ -644,7 +644,7 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
             job: Job::Waiting,
             waiting: Duration::from_secs(1),
             network: Span::millis(1, 1),
-            ..Settings::calm(1110)
+            ..smith_protocol_llm_world::fixture::settings(1110)
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)

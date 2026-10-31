@@ -16,13 +16,7 @@ const FEEDBACK: &[u8] = b"exact host receipt\nsecond line";
 
 fn receiving(bounds: &Limits) -> Receiving {
     let decoded_call_bytes = 4096;
-    Receiving {
-        max_completion_bytes: adapter::completion_bound(&bounds.client, decoded_call_bytes)
-            .expect("full translated completion reservation"),
-        max_completion_blocks: bounds.client.output_items,
-        decoded_call_bytes,
-        max_failure_bytes: bounds.client.detail_bytes,
-    }
+    smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
 }
 
 fn prompt() -> llm::Prompt {
@@ -464,11 +458,8 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
     let payload = u64::try_from(b"opaque_host".len() + BODY.len()).expect("bounded observed host payload");
     let decoded_call_bytes = cells + payload - u64::from(!exact);
     let receiving = Receiving {
-        max_completion_bytes: adapter::completion_bound(&bounds.client, decoded_call_bytes)
-            .expect("wrapper floor admitted before observed call"),
         max_completion_blocks: 2,
-        decoded_call_bytes,
-        max_failure_bytes: bounds.client.detail_bytes,
+        ..smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
     };
     let (context, mut peer) = two_calls(configuration, &bounds, receiving);
     let (owner, observed_completion) = owned_completion(&mut peer);
@@ -537,10 +528,8 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
         bounds.client.output_items = 1;
         let floor = u64::try_from(core::mem::size_of::<llm::Decoded>()).expect("fixed fallback cell");
         let secured = Receiving {
-            max_completion_bytes: adapter::completion_bound(&bounds.client, floor).expect("full cell is secured"),
             max_completion_blocks: 1,
-            decoded_call_bytes: floor,
-            max_failure_bytes: bounds.client.detail_bytes,
+            ..smith_protocol_llm::fixture::receiving(&bounds.client, floor).expect("fixture receiving bound")
         };
         let script = Box::new([Script {
             cue: b"@client-host".as_slice().into(),

@@ -128,12 +128,7 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
             }]),
             max_tokens: 32,
         };
-        let receiving = adapter::Receiving {
-            max_completion_bytes: adapter::completion_bound(&bounds.client, 4096).expect("bounded completion"),
-            max_completion_blocks: bounds.client.output_items,
-            decoded_call_bytes: 4096,
-            max_failure_bytes: bounds.client.detail_bytes,
-        };
+        let receiving = smith_protocol_llm::fixture::receiving(&bounds.client, 4096).expect("fixture receiving bound");
         let prepared = adapter::prepare_for_contract(
             adapter::Input {
                 owner: Token::new(91),

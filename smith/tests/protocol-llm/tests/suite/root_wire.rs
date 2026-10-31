@@ -124,8 +124,12 @@ fn root_story(configuration: Configuration, tool_name: &'static [u8]) {
         smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
-    let mut settings =
-        Settings { job: Job::HostTools, writable: false, network: Span::millis(1, 1), ..Settings::calm(71) };
+    let mut settings = Settings {
+        job: Job::HostTools,
+        writable: false,
+        network: Span::millis(1, 1),
+        ..smith_protocol_llm_world::fixture::settings(71)
+    };
     settings.host_tool_name = tool_name;
     settings.limits.session.completion_bytes =
         adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)

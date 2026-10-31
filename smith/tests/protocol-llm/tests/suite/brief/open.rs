@@ -8,7 +8,8 @@ const NEXT: Token = Token::new(0);
 
 fn world(dialect: usize, turns: Box<[Turn]>, reserve: run::charter::Reserve, budget_turns: u32) -> World {
     let bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), adapter::stated());
-    let mut settings = Settings { job: Job::Waiting, network: Span::millis(1, 1), ..Settings::calm(306) };
+    let mut settings =
+        Settings { job: Job::Waiting, network: Span::millis(1, 1), ..smith_protocol_llm_world::fixture::settings(306) };
     settings.limits.session.completion_bytes =
         adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("native receiving");
     settings.limits.session.completion_blocks = bounds.client.output_items;

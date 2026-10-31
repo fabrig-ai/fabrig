@@ -74,10 +74,10 @@ fn tools() -> tools::Limits {
     reason = "deterministic test fixtures use ordinary Rust parsing and containers"
 )]
 fn random_outcomes_at_random_caps_fit_their_derived_render_bound() {
+    const CASES: usize = 128;
     let mut rng = Rng::new(941);
     let mut smallest_bound = u32::MAX;
     let mut read_cuts = Vec::new();
-    const CASES: usize = 128;
     for case in 0..CASES {
         let mut caps = tools();
         caps.read_bytes = u32::try_from(rng.next_u64() % 1024).expect("valid deterministic fixture");

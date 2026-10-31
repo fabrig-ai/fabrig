@@ -28,7 +28,7 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         // The byte peer decodes the same complete native documents the client renders.
-        let mut settings = Settings { job: Job::Delegating, ..Settings::calm(704) };
+        let mut settings = Settings { job: Job::Delegating, ..smith_protocol_llm_world::fixture::settings(704) };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("receiving bound");
         settings.limits.session.completion_blocks = bounds.client.output_items;

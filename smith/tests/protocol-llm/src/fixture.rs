@@ -13,3 +13,13 @@ pub fn component() -> ComponentLimits {
     smith_protocol_llm::fixture::component(limits(), smith_agent_service::profile::standard().policy.connection_keep)
         .expect("fixture receiving bound")
 }
+
+/// The shared agent settings with protocol token pricing and model window.
+#[must_use]
+pub fn settings(seed: u64) -> smith_agent_world::Settings {
+    smith_agent_world::Settings {
+        window: crate::MODEL_WINDOW,
+        limits: crate::LIMITS,
+        ..smith_agent_world::Settings::calm(seed)
+    }
+}

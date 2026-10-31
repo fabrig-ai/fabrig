@@ -139,7 +139,7 @@ fn settings(seed: u64, writable: bool, resume: bool) -> Settings {
         resume,
         waiting: Duration::from_secs(1),
         network: Span::millis(1, 1),
-        ..Settings::calm(seed)
+        ..smith_protocol_llm_world::fixture::settings(seed)
     };
     settings.budget.spend = 1 << 20;
     settings.limits.run.budget.spend = 1 << 20;

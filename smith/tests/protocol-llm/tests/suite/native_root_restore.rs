@@ -125,7 +125,7 @@ fn settings(seed: u64, resume: bool, bounds: &Limits) -> Settings {
         writable: false,
         waiting: Duration::from_secs(1),
         network: Span::millis(1, 1),
-        ..Settings::calm(seed)
+        ..smith_protocol_llm_world::fixture::settings(seed)
     };
     settings.limits.session.completion_bytes =
         adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
