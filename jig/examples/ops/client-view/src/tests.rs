@@ -822,25 +822,6 @@ fn outbox_entry() -> infrastructure::values::Entry {
         phase: n::Phase::Sent,
     }
 }
-fn outbox_document(subject: infrastructure::Subject) -> infrastructure::Document {
-    use infrastructure::values as n;
-    infrastructure::Document::Value(Box::new(n::Document {
-        subject,
-        value: n::Value::Outbox {
-            entry: outbox_entry(),
-            description: n::Description {
-                kind: 1,
-                resources: Box::new([]),
-                condition: false,
-                form: n::Form::Transition,
-                recovery: n::Recovery::Keyed,
-                price: None,
-                state: 1,
-            },
-        },
-    }))
-}
-
 #[test]
 fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenations_in_both_connectors() {
     let domain_limits = limits();
