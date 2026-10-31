@@ -677,8 +677,12 @@ impl World {
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
-                | engine::Request::StopGroup { .. }
-                | engine::Request::SetUpGroup { .. }
+                | engine::Request::ForgeKept(_)
+                | engine::Request::ForgeGone { .. }
+                | engine::Request::BoxGroup { .. }
+                | engine::Request::PlaygroundActs { .. }
+                | engine::Request::ResetAct { .. }
+                | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
@@ -806,8 +810,7 @@ impl World {
                 assert_eq!(self.worker_answer, WorkerAnswer::Retained, "the worker keeps its terminal until ACK");
             }
             Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
-            Delivery::DemoActed { .. }
-            | Delivery::DemoNote { .. }
+            Delivery::PlaygroundNote { .. }
             | Delivery::Application { .. }
             | Delivery::Forges { .. }
             | Delivery::ForgeDocument { .. }
@@ -826,6 +829,7 @@ impl World {
             Delivery::Start(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::ReadEscalationDecision { .. }

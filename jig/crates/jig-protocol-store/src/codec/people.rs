@@ -1,5 +1,6 @@
 //! People rows translated exhaustively (protocol/store.md, 5.1).
-use crate::people_v13 as wire;
+//! Durable deletion steps follow jig/docs/design/protocol/store.md, 11.1.
+use crate::people_v14 as wire;
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_people as domain;
@@ -36,8 +37,8 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
 /// Derive the people-v13 bounds before checking its schema ceilings.
 ///
 /// `None` means the derivation's checked arithmetic cannot represent a bound.
-/// A returned value may exceed `people_v13::CEILINGS`; callers must use
-/// `people_v13::check_limits` before using it to encode or decode records.
+/// A returned value may exceed `people_v14::CEILINGS`; callers must use
+/// `people_v14::check_limits` before using it to encode or decode records.
 /// Configuration uses this diagnostic seam to explain an envelope refusal
 /// (protocol/configuration.md, section 6).
 #[must_use]
@@ -156,6 +157,10 @@ pub fn encode(
     names: &[core::settings::ModelName],
 ) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
+        domain::Stored::Deletion { project, step } => wire::Value::Deletion(wire::StoredDeletion::new(
+            limits,
+            wire::StoredDeletionParts { project: *project, step: encode_deletion_step(*step) },
+        )?),
         domain::Stored::Person { number, identity } => wire::Value::Person(wire::StoredPerson::new(
             limits,
             wire::StoredPersonParts { number: *number, identity: encode_identity(identity, limits)? },
@@ -226,6 +231,10 @@ pub fn decode(
 ) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let row = match value {
+        wire::Value::Deletion(value) => {
+            let wire::StoredDeletionParts { project, step } = value.into_parts();
+            domain::Stored::Deletion { project, step: decode_deletion_step(step) }
+        }
         wire::Value::Person(value) => {
             let wire::StoredPersonParts { number, identity } = value.into_parts();
             domain::Stored::Person { number, identity: decode_identity(identity) }
@@ -578,6 +587,22 @@ pub(crate) fn refusal_bytes(value: &domain::Refusal) -> Result<Box<[u8]>, wire::
 }
 pub(crate) fn read_refusal(bytes: &[u8]) -> Result<domain::Refusal, wire::Problem> {
     Ok(outcomes::decode_refusal(wire::Refusal::decode(&wire::CEILINGS, &mut Reader::new(bytes))?))
+}
+
+const fn encode_deletion_step(step: domain::DeletionStep) -> wire::DeletionStep {
+    match step {
+        domain::DeletionStep::Tasks => wire::DeletionStep::Tasks,
+        domain::DeletionStep::Rows => wire::DeletionStep::Rows,
+        domain::DeletionStep::Release => wire::DeletionStep::Release,
+    }
+}
+
+const fn decode_deletion_step(step: wire::DeletionStep) -> domain::DeletionStep {
+    match step {
+        wire::DeletionStep::Tasks => domain::DeletionStep::Tasks,
+        wire::DeletionStep::Rows => domain::DeletionStep::Rows,
+        wire::DeletionStep::Release => domain::DeletionStep::Release,
+    }
 }
 
 #[cfg(test)]

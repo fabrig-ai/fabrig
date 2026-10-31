@@ -6,6 +6,7 @@
 mod application;
 mod compound;
 mod conversations;
+mod deletions;
 mod positions;
 mod proposals;
 mod revisions;
@@ -309,6 +310,31 @@ pub struct Snapshot {
     pub person_spend: BTreeMap<u64, u64>,
     /// Budget, direct spend, settled funded spend and open reservations.
     pub balances: Vec<(u64, u64, u64, u64)>,
+    /// Projects whose deletion row is kept (playground-reset.md, 5).
+    pub deleting: BTreeSet<u32>,
+    /// Every durable row that names a project or a task, from the store adapter.
+    pub naming: Vec<Naming>,
+}
+
+/// One durable row's names (jig/docs/design/domain/people.md, 5.2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Naming {
+    /// The row's key, printed, for the violation's words.
+    pub row: String,
+    pub project: Option<u32>,
+    pub task: Option<u64>,
+    /// What the draft keeps of a deleted project, if this row is that.
+    pub outlives: Option<Outlives>,
+}
+
+/// What outlives a deleted project (jig/docs/design/domain/people.md, 5.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Outlives {
+    /// A closed period's ledger: the project's spend in the period's totals.
+    Spend,
+    /// An account whose only use was the project: it pays for no one and its
+    /// number is never reused; widening it to every payer would be worse.
+    SoleUse,
 }
 
 /// Policy and time limits provided by the scenario, before the root exists.
@@ -353,6 +379,8 @@ pub enum Observed {
     Drained { at: u64 },
     /// A durable retention transaction erased an ended owner and its read marker.
     Forgotten { task: u64 },
+    /// A deletion's answer reached its asker: the project is closed.
+    ProjectRemoved { project: u32 },
     /// A delivery reached a host, party, or system.
     Released { requires: Vec<Receipt> },
     /// A host saw a reserved assignment.
@@ -429,6 +457,7 @@ pub struct Referee {
     proposals: proposals::Proposals,
     revisions: revisions::Revisions,
     applications: application::Applications,
+    deletions: deletions::Deletions,
     compounds: BTreeMap<Vec<u64>, compound::Compound>,
     pub policy: Policy,
     last: Snapshot,
@@ -466,6 +495,7 @@ impl Referee {
             proposals: proposals::Proposals::default(),
             revisions: revisions::Revisions::default(),
             applications: application::Applications::default(),
+            deletions: deletions::Deletions::default(),
             compounds: BTreeMap::new(),
             policy,
             last: Snapshot::default(),
@@ -539,8 +569,10 @@ impl Referee {
         clippy::too_many_lines,
         reason = "one atomic snapshot checks linked task, pool and effect evidence together"
     )]
-    fn durable(&mut self, number: u64, snapshot: Snapshot, now: u64) -> Result<(), Violation> {
+    fn durable(&mut self, number: u64, mut snapshot: Snapshot, now: u64) -> Result<(), Violation> {
         require(number == self.commit + 1, Promise::Commit, "commits apply whole in number order")?;
+        self.deletions.retain_acceptances(&self.last, &mut snapshot);
+        self.deletions.durable(&snapshot)?;
         for task in snapshot.tasks.values() {
             let before = self.last.tasks.get(&task.number);
             settings::task(before, task, snapshot.newest)?;
@@ -746,8 +778,13 @@ impl Referee {
         for (task, row) in &self.last.tasks {
             if row.closed() && !snapshot.tasks.contains_key(task) {
                 self.ended_budgets.insert(*task, row.budget);
+                if self.deletions.removed_project(row.project) {
+                    self.seen.remove(&Receipt::Task(*task));
+                    self.seen.remove(&Receipt::Ended(*task));
+                }
             }
         }
+        self.deletions.retire_receipts(&self.last, &snapshot, &mut self.seen);
         positions::check(&self.last, &snapshot)?;
         self.commit = number;
         for compound in self.compounds.values_mut() {
@@ -981,9 +1018,11 @@ impl Referee {
             }
             Observed::Drained { at } => {
                 require(at == self.commit, Promise::Commit, "drain preceded its durable commit barrier")?;
+                self.deletions.drained(&self.last)?;
                 self.drained = Some(at);
                 self.drained_receipts = Some(self.last.receipts.clone());
             }
+            Observed::ProjectRemoved { project } => self.deletions.removed(project),
             Observed::Forgotten { task } => {
                 require(!self.last.tasks.contains_key(&task), Promise::Commit, "forgotten owner remains durable")?;
                 self.seen.remove(&Receipt::Task(task));

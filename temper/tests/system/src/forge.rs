@@ -91,8 +91,6 @@ impl World {
                 limits.brief.gather =
                     temper_service::limits::profile(temper_service::limits::Profile::Small).root.brief.gather;
                 limits.tasks.tasks = 12;
-                // The demo's end may select every live task; engine::valid checks coverage.
-                limits.forge.tasks = limits.tasks.tasks;
                 limits.tasks.project_tasks = 12;
                 limits.tasks.delegates = 4;
                 limits.tasks.tree_tasks = 12;
@@ -339,6 +337,7 @@ impl World {
     }
 
     #[expect(clippy::wildcard_enum_match_arm, reason = "the world records only its scripted root deliveries")]
+    #[expect(clippy::too_many_lines, reason = "one dispatch handles the root's requests and scripted deliveries")]
     fn collect(&mut self) {
         for _ in 0..self.out.len() {
             let request = match self.protocol.play(self.out.pop().expect("counted root output")) {
@@ -419,14 +418,18 @@ impl World {
                     _ => {}
                 },
                 engine::Request::Account(_)
-                | engine::Request::SetUpGroup { .. }
+                | engine::Request::ForgeKept(_)
+                | engine::Request::ForgeGone { .. }
+                | engine::Request::BoxGroup { .. }
+                | engine::Request::PlaygroundActs { .. }
+                | engine::Request::ResetAct { .. }
+                | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }
                 | engine::Request::Accept { .. }
                 | engine::Request::EraseCarried { .. }
-                | engine::Request::StopGroup { .. }
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
                 | engine::Request::Return { .. }

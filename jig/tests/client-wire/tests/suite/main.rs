@@ -8,6 +8,7 @@ mod drift;
 mod fixtures;
 mod placed;
 mod placed_holds;
+mod remove_project;
 mod settings;
 mod settings_proposals;
 mod task_settings;

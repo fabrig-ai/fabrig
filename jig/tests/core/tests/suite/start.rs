@@ -199,7 +199,7 @@ fn an_empty_start_store_seeds_before_opening() {
             reason = "seed commits contain only configured people and settings rows"
         )]
         match record {
-            core::Record::People(people::Stored::Policy { .. }) => policy = true,
+            core::Record::People(people::Stored::Deletion { .. } | people::Stored::Policy { .. }) => policy = true,
             core::Record::People(people::Stored::Roles { project, .. }) => {
                 if project == people::DEPLOYMENT {
                     deployment_roles = true;

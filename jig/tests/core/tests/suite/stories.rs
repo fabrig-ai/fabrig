@@ -336,6 +336,7 @@ fn a_goal_cancelled_with_live_runs_and_an_effect_in_flight_closes_deepest_first(
         .filter_map(|write| match write {
             root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row)))) => Some(row.number),
             root::Write::Save(_)
+            | root::Write::DropTranscript { .. }
             | root::Write::Wires
             | root::Write::Erase(_)
             | root::Write::CopySettingsRevision(_) => None,

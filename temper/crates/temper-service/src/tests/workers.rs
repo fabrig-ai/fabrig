@@ -65,14 +65,19 @@ fn identities_are_announced_after_the_durable_start_wires() {
     }
     let engine = service.engine.as_mut().expect("engine");
     assert_eq!(engine.domain.start_phase(), Some(core::start::Phase::Wires));
-    assert!(!engine.credentials.is_empty(), "identities wait for the Wires continuation");
+    assert!(engine.values.identities.numbers().is_empty(), "identities wait for the durable wires");
+    assert!(engine.workers.forges.is_empty(), "runtime forges wait for the durable wires");
+    assert!(!engine.forge_records.pending.is_empty(), "restored forges await the mark");
     let mark = engine.store.held_mark.take().expect("held startup wires");
     assert!(!engine.store.component.mark_durable());
     engine.store.hold_mark = false;
     assert!(engine.store.down(mark));
     assert!(!service.engine.as_ref().expect("engine").forge_records.done(), "secrets follow the mark");
     fixtures::restart(&mut service);
-    assert!(service.engine.as_ref().expect("engine").credentials.is_empty());
+    let engine = service.engine.as_ref().expect("engine");
+    assert_eq!(engine.values.identities.numbers().as_slice(), &[1]);
+    assert!(engine.forge_records.pending.is_empty());
+    assert!(engine.domain.ready());
     assert!(service.engine.as_ref().expect("engine").store.component.mark_durable());
 }
 
@@ -123,8 +128,15 @@ fn an_assignment_carries_its_items_encoded_charter_and_identity_value() {
     let encoding = fixtures::encoding(&settings);
     let assignment = assignment_with_identity();
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
-    let event =
-        crate::assignment::down(assignment, &settings.forges, &encoding, &values, Token::new(8), Time::ZERO).unwrap();
+    let event = crate::assignment::down(
+        assignment,
+        &fixtures::forge_table(&fixtures::forges()),
+        &encoding,
+        &values,
+        Token::new(8),
+        Time::ZERO,
+    )
+    .unwrap();
     let jig_protocol_engine_workers::Event::Down {
         channel,
         down: jig_domain_host::LinkDown::Assign { assignment },
@@ -174,8 +186,15 @@ fn a_fresh_start_whose_tail_reaches_the_turns_headers_still_encodes() {
     });
     assignment.sections = sections.into_boxed_slice();
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
-    let event =
-        crate::assignment::down(assignment, &settings.forges, &encoding, &values, Token::new(8), Time::ZERO).unwrap();
+    let event = crate::assignment::down(
+        assignment,
+        &fixtures::forge_table(&fixtures::forges()),
+        &encoding,
+        &values,
+        Token::new(8),
+        Time::ZERO,
+    )
+    .unwrap();
     let jig_protocol_engine_workers::Event::Down { down: jig_domain_host::LinkDown::Assign { assignment }, .. } = event
     else {
         panic!("assignment event")
@@ -211,7 +230,10 @@ fn an_assignment_that_cannot_encode_its_items_is_refused() {
     let encoding = fixtures::encoding(&settings);
     let assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
-    assert!(crate::assignment::down(assignment, &[], &encoding, &values, Token::new(8), Time::ZERO).is_none());
+    assert!(
+        crate::assignment::down(assignment, &fixtures::forge_table(&[]), &encoding, &values, Token::new(8), Time::ZERO)
+            .is_none()
+    );
 }
 #[test]
 fn a_bad_or_missing_answer_part_discards_all_of_its_parts() {
@@ -281,8 +303,15 @@ fn an_assignment_preserves_its_ordered_messages_and_answered_calls() {
         },
     }]);
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
-    let event =
-        crate::assignment::down(assignment, &settings.forges, &encoding, &values, Token::new(8), Time::ZERO).unwrap();
+    let event = crate::assignment::down(
+        assignment,
+        &fixtures::forge_table(&fixtures::forges()),
+        &encoding,
+        &values,
+        Token::new(8),
+        Time::ZERO,
+    )
+    .unwrap();
     let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. } = event else {
         panic!("assignment")
     };
@@ -566,7 +595,15 @@ fn a_program_grants_charter_keeps_its_source_account() {
     }]);
     let empty = crate::values::Values::new(0, 0);
     let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment: sent }, values, .. } =
-        crate::assignment::down(assignment, &settings.forges, &encoding, &empty, Token::new(8), Time::ZERO).unwrap()
+        crate::assignment::down(
+            assignment,
+            &fixtures::forge_table(&fixtures::forges()),
+            &encoding,
+            &empty,
+            Token::new(8),
+            Time::ZERO,
+        )
+        .unwrap()
     else {
         panic!("assignment down")
     };
@@ -588,7 +625,15 @@ fn a_first_attempt_requests_saves_from_its_charters_resume_policy() {
         let mut run = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
         run.run.policy.resume = resume;
         let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, parts, .. } =
-            crate::assignment::down(run, &settings.forges, &encoding, &values, Token::new(8), Time::ZERO).unwrap()
+            crate::assignment::down(
+                run,
+                &fixtures::forge_table(&fixtures::forges()),
+                &encoding,
+                &values,
+                Token::new(8),
+                Time::ZERO,
+            )
+            .unwrap()
         else {
             panic!("assignment")
         };

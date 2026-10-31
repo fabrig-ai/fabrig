@@ -1,7 +1,7 @@
 //! The process tier's deployment, copied: `documents` from `crates/temper/tests/support/configuration.rs`
 //! and `write` from `support::configuration` with `Forge::Unreached`, which are test modules of package
-//! `temper` and cannot be imported. Three changes: the LLM endpoint is unreached at `127.0.0.1:9`, beside
-//! the forge; `application.clients.bundle` names the bundle; and every relative path is made absolute
+//! `temper` and cannot be imported. The LLM endpoint is unreached at `127.0.0.1:9`; no forge is kept
+//! until connected; `application.clients.bundle` names the bundle; and every relative path is made absolute
 //! under the scratch, as jig's `tests/client-browser` does, since `temper serve` joins paths to its working
 //! directory and the harness starts it in the test's.
 #[path = "../../real-loop/src/turn_bounds.rs"]
@@ -81,11 +81,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["application"] = serde_json::json!({
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
-        "forges":[{"number":1,"kind":"forgejo","api":{"socket":UNREACHED},"transport":"plaintext",
-            "git":format!("http://{UNREACHED}"),"webhook_secret":null,"api_token":"secrets/forge-1.api-token","user":{"file":"secrets/forge-1.user"},"identity":1}],
-        "identities":[{"number":1,"token":"secrets/forge-1.git-token","login":"temper",
-            "author":{"name":"Temper","email":"temper@example.test"}}],
-        "setup":[],"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{"github":null},"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
@@ -161,7 +157,7 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
         serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON");
     let sockets = [
         &value["application"]["clients"]["listener"]["socket"],
-        &value["application"]["forges"][0]["api"]["socket"],
+        &value["application"]["machine"]["fake"]["listen"]["socket"],
         &value["application"]["demo"]["llm"]["listen"]["socket"],
         &value["application"]["webhooks"]["listener"]["socket"],
     ];

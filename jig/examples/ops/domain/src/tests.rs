@@ -265,7 +265,8 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                         crate::Write::Save(
                             record @ crate::Record::Core(core::Record::Core(core::CoreRecord::Deployment(_))),
                         ) => header = Some(record),
-                        crate::Write::Wires
+                        crate::Write::DropTranscript { .. }
+                        | crate::Write::Wires
                         | crate::Write::Save(_)
                         | crate::Write::Erase(_)
                         | crate::Write::CopySettingsRevision(_) => {}
@@ -540,6 +541,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
     use jig_domain_people as people;
     use skein_lib::ReplyTo;
     let (mut domain, env) = fixture_with_commits(2);
+    domain.core.projects.push(1).expect("open fixture project");
     let identity = people::Identity {
         key: people::IdentityKey { provider: 0, subject: Box::from(*b"party") },
         login: Box::from(*b"party"),

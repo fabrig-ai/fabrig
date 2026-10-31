@@ -1,7 +1,8 @@
-//! The routing's box link: serve's side of the box's pipe (protocol/forge.md, 2.8).
+//! Serve's box pipe (temper/docs/design/draft/playground-reset.md, 3 and 4).
 
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Queue, Token, Writer, bytes};
+use temper_engine_domain_forge::BoxKind;
 
 /// The box's word for the step it runs (protocol/setup.md, 7.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,6 +29,8 @@ pub(crate) enum Out {
     Started { forge: u16 },
     /// `failed FORGE WHY`.
     Failed { forge: u16, why: Box<[u8]> },
+    /// `removed FORGE`: the group and its directory are gone.
+    Removed { forge: u16 },
     /// One log line naming what the link dropped, or the pipe's end.
     Named(Box<[u8]>),
     /// The pipe ended; the root decides what it means for the forges.
@@ -37,17 +40,40 @@ pub(crate) enum Out {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Ask {
     Start(u16),
-    Stop(u16),
+    End(End),
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum End {
+    Remove(u16),
+}
+impl End {
+    fn forge(self) -> u16 {
+        match self {
+            Self::Remove(forge) => forge,
+        }
+    }
+    fn word(self) -> &'static [u8] {
+        match self {
+            Self::Remove(_) => b"remove",
+        }
+    }
+    fn line(self) -> Box<[u8]> {
+        joined(&[self.word(), b" ", Decimal::of(u64::from(self.forge())).as_bytes(), b"\n"])
+    }
+}
+
+struct Start {
+    forge: u16,
+    kind: Option<BoxKind>,
+}
 pub(crate) struct Link {
     pub(crate) write: Option<Box<[u8]>>,
     ended: bool,
     asked: Option<Ask>,
-    // which the box link holds while another group starts and sends once that
-    // one answers (protocol/setup.md, 8.4).
-    held: Option<u16>,
-    stop: Option<u16>,
+    // A start retains its kind until the active ask ends (temper/docs/design/draft/playground-reset.md, 3).
+    held: Option<Start>,
+    pending_end: Option<End>,
     line_bytes: u32,
     partial: List<u8>,
     skipping: bool,
@@ -60,14 +86,22 @@ impl Link {
             ended: false,
             asked: None,
             held: None,
-            stop: None,
+            pending_end: None,
             line_bytes,
             partial: List::with_capacity(line_bytes),
             skipping: false,
         }
     }
     /// The caller reserves three output slots before asking.
+    #[cfg(test)]
     pub(crate) fn ask(&mut self, forge: u16, request: Token, out: &mut Queue<Out>) {
+        self.start(forge, None, request, out);
+    }
+    /// A kind is retained with a held start until the current ask ends.
+    pub(crate) fn group(&mut self, forge: u16, kind: BoxKind, request: Token, out: &mut Queue<Out>) {
+        self.start(forge, Some(kind), request, out);
+    }
+    fn start(&mut self, forge: u16, kind: Option<BoxKind>, request: Token, out: &mut Queue<Out>) {
         if self.held.is_some()
             || self.asked == Some(Ask::Start(forge))
             || self.ended
@@ -78,27 +112,32 @@ impl Link {
             return;
         }
         if self.asked.is_some() {
-            self.held = Some(forge);
+            self.held = Some(Start { forge, kind });
         } else {
             self.asked = Some(Ask::Start(forge));
-            out.push(Out::Write(start(forge)));
+            out.push(Out::Write(start(forge, kind)));
         }
         out.push(Out::SettingUp { forge, step: None });
         out.push(Out::Answered { forge, request, answer: Ok(()) });
     }
-    /// No request waits on the demo's stop. Keep it even when a start is held.
-    pub(crate) fn stop(&mut self, forge: u16, out: &mut Queue<Out>) {
+    /// Removal has a terminal only after the box reports the group gone.
+    pub(crate) fn remove(&mut self, forge: u16, out: &mut Queue<Out>) {
+        self.end(End::Remove(forge), out);
+    }
+    fn end(&mut self, end: End, out: &mut Queue<Out>) {
         if self.ended {
             return;
         }
-        if self.held == Some(forge) {
+        if let Some(held) = &self.held
+            && held.forge == end.forge()
+        {
             self.held = None;
         }
         if self.asked.is_some() {
-            self.stop = Some(forge);
+            self.pending_end = Some(end);
         } else {
-            self.asked = Some(Ask::Stop(forge));
-            out.push(Out::Write(stop(forge)));
+            self.asked = Some(Ask::End(end));
+            out.push(Out::Write(end.line()));
         }
     }
     /// Any chunking is accepted. The caller reserves one output slot per LF in
@@ -129,12 +168,12 @@ impl Link {
                 line(&mut self.asked, self.partial.as_slice(), out);
                 self.partial.clear();
                 if self.asked.is_none() {
-                    if let Some(forge) = self.stop.take() {
-                        self.asked = Some(Ask::Stop(forge));
-                        out.push(Out::Write(stop(forge)));
-                    } else if let Some(forge) = self.held.take() {
-                        self.asked = Some(Ask::Start(forge));
-                        out.push(Out::Write(start(forge)));
+                    if let Some(end) = self.pending_end.take() {
+                        self.asked = Some(Ask::End(end));
+                        out.push(Out::Write(end.line()));
+                    } else if let Some(held) = self.held.take() {
+                        self.asked = Some(Ask::Start(held.forge));
+                        out.push(Out::Write(start(held.forge, held.kind)));
                     }
                 }
             } else if self.partial.room() == 0 {
@@ -155,29 +194,35 @@ impl Link {
         out.push(Out::Named(Box::from(b"box link: the box closed the pipe".as_slice())));
         self.asked = None;
         self.held = None;
-        self.stop = None;
+        self.pending_end = None;
         out.push(Out::Closed);
     }
 }
 
-fn stop(forge: u16) -> Box<[u8]> {
-    joined(&[b"stop ", Decimal::of(u64::from(forge)).as_bytes(), b"\n"])
-}
-
-fn start(forge: u16) -> Box<[u8]> {
-    joined(&[b"start ", Decimal::of(u64::from(forge)).as_bytes(), b"\n"])
+fn start(forge: u16, kind: Option<BoxKind>) -> Box<[u8]> {
+    let suffix = match kind {
+        None => b"".as_slice(),
+        Some(BoxKind::Owned) => b" owned",
+        Some(BoxKind::Fake) => b" fake",
+    };
+    joined(&[b"start ", Decimal::of(u64::from(forge)).as_bytes(), suffix, b"\n"])
 }
 
 enum Reply {
     Step(u16, Step),
     Started(u16),
     Stopped(u16),
+    Removed(u16),
     Failed(u16, Box<[u8]>),
 }
 impl Reply {
     fn forge(&self) -> u16 {
         match self {
-            Self::Step(forge, _) | Self::Started(forge) | Self::Stopped(forge) | Self::Failed(forge, _) => *forge,
+            Self::Step(forge, _)
+            | Self::Started(forge)
+            | Self::Stopped(forge)
+            | Self::Removed(forge)
+            | Self::Failed(forge, _) => *forge,
         }
     }
     fn word(&self) -> &'static [u8] {
@@ -185,6 +230,7 @@ impl Reply {
             Self::Step(..) => b"step",
             Self::Started(_) => b"started",
             Self::Stopped(_) => b"stopped",
+            Self::Removed(_) => b"removed",
             Self::Failed(..) => b"failed",
         }
     }
@@ -197,7 +243,7 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     let forge = reply.forge();
     let matches = match (*asked, &reply) {
         (Some(Ask::Start(active)), Reply::Step(..) | Reply::Started(_) | Reply::Failed(..))
-        | (Some(Ask::Stop(active)), Reply::Stopped(_) | Reply::Failed(..)) => active == forge,
+        | (Some(Ask::End(End::Remove(active))), Reply::Removed(_) | Reply::Failed(..)) => active == forge,
         _ => false,
     };
     if !matches {
@@ -217,15 +263,21 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
             out.push(Out::Started { forge });
         }
         Reply::Stopped(_) => *asked = None,
+        Reply::Removed(_) => {
+            *asked = None;
+            out.push(Out::Removed { forge });
+        }
         Reply::Failed(_, why) => {
-            let stopping = match *asked {
-                Some(Ask::Stop(_)) => true,
-                Some(Ask::Start(_)) | None => false,
+            let ending = match *asked {
+                Some(Ask::End(end)) => Some(end),
+                Some(Ask::Start(_)) | None => None,
             };
             *asked = None;
-            if stopping {
+            if let Some(end) = ending {
                 out.push(Out::Named(joined(&[
-                    b"box link: stop failed for forge ",
+                    b"box link: ",
+                    end.word(),
+                    b" failed for forge ",
                     Decimal::of(u64::from(forge)).as_bytes(),
                     b": ",
                     &why,
@@ -243,6 +295,9 @@ fn decoded(line: &[u8]) -> Option<Reply> {
     }
     if let Some(digits) = line.strip_prefix(b"stopped ") {
         return Some(Reply::Stopped(number(digits)?));
+    }
+    if let Some(digits) = line.strip_prefix(b"removed ") {
+        return Some(Reply::Removed(number(digits)?));
     }
     let (word, rest) = if let Some(rest) = line.strip_prefix(b"step ") {
         (b"step".as_slice(), rest)
@@ -321,6 +376,9 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
             Out::Started { forge } => {
                 crate::setup::lifecycle::started(engine, forge);
             }
+            Out::Removed { forge } => engine.events.push(temper_engine_domain::Event::Forge(Box::new(
+                temper_engine_domain_forge::Event::BoxRemoved { forge },
+            ))),
             Out::Answered { forge, request, answer } => match answer {
                 Ok(()) => engine.events.push(temper_engine_domain::Event::Forge(Box::new(
                     temper_engine_domain_forge::Event::SetUpAnswered {

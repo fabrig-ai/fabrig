@@ -144,7 +144,10 @@ impl Domain {
             push,
             landing,
             holder,
-            credential: self.identities.get(&repository.provider.forge).copied(),
+            credential: match self.records.get(&repository.provider.forge) {
+                Some(record) => Some(u32::from(record.number)),
+                None => self.identities.get(&repository.provider.forge).copied(),
+            },
             bytes,
         })
     }

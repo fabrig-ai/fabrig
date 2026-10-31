@@ -499,6 +499,19 @@ impl skein_world::Referee<Proc> for Referee {
             }
             for write in &commit.writes {
                 match write {
+                    root::Write::DropTranscript { task } => {
+                        self.rows.retain(|key, _| {
+                            if let root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                                task: owner,
+                                ..
+                            })) = key
+                            {
+                                owner != task
+                            } else {
+                                true
+                            }
+                        });
+                    }
                     root::Write::Wires => {}
                     root::Write::CopySettingsRevision(number) => {
                         use jig_domain_core as core;

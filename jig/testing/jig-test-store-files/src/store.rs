@@ -477,6 +477,19 @@ impl Store {
                 let writes = self.inflight.remove(&number).expect("commit belongs to the root");
                 for write in &writes {
                     match write {
+                        root::Write::DropTranscript { task } => {
+                            self.rows.retain(|key, _| {
+                                if let root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                                    task: owner,
+                                    ..
+                                })) = key
+                                {
+                                    owner != task
+                                } else {
+                                    true
+                                }
+                            });
+                        }
                         root::Write::Wires => {}
                         root::Write::CopySettingsRevision(number) => {
                             use jig_domain_core as core;

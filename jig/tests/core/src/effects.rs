@@ -103,6 +103,7 @@ pub struct World {
     fixture_rows: Box<[root::Record]>,
     pub domain: root::Domain,
     pub store: Store,
+    internal_reads: std::collections::BTreeSet<Token>,
     pub systems: [System; 2],
     protocol: crate::protocol::Stand,
     pub host_calls: Vec<(Token, u64, u64, fleet::Call)>,
@@ -145,6 +146,10 @@ pub struct World {
     /// Project notification and the durable store mark at its release.
     pub project_made: Vec<(u64, u32)>,
     pub act_answers: Vec<(Token, people::Outcome)>,
+    /// Connector release requests observed across starts.
+    pub project_releases: Vec<(u16, u32)>,
+    /// Connectors whose project release answer the story withholds.
+    pub hold_project_releases: Vec<u16>,
     pub application_answers: Vec<(Token, u16, connector::ApplicationOutcome)>,
     /// Each carried value the core left unused, with how many answers
     /// (people's and applications') were delivered before it.
@@ -324,6 +329,7 @@ impl World {
     }
 
     pub fn drain(&mut self) {
+        self.domain.script_project_releases();
         self.drive(300, true, true);
     }
 
@@ -364,7 +370,12 @@ impl World {
                     if let Some(watches) = &mut self.watches {
                         watches.inbound(&event);
                     }
-                    if let Some(reads) = &mut self.reads {
+                    let internal_read = if let root::Event::Core(core::Event::ReadLoaded { load, .. }) = &event {
+                        self.internal_reads.remove(load)
+                    } else {
+                        false
+                    };
+                    if !internal_read && let Some(reads) = &mut self.reads {
                         reads.inbound(&event);
                     }
                 }
@@ -501,6 +512,12 @@ impl World {
             }
             if !self.hold_restart_reads && !self.restart_reads.is_empty() && self.domain.quiescent() {
                 self.answer_restart_reads();
+            }
+            while let Some((connector, project)) = self.domain.take_project_release() {
+                self.project_releases.push((connector, project));
+                if !self.hold_project_releases.contains(&connector) {
+                    self.events.push_back(root::Event::Core(core::Event::ProjectReleased { connector, project }));
+                }
             }
             if !self.stopped {
                 if tick {

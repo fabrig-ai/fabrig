@@ -102,7 +102,7 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
                     assert_eq!(key, core::Key::Core(core::CoreKey::Settings(settings::Key::Held(1))));
                     erased = true;
                 }
-                core::Write::Save(_) => panic!("unexpected release write"),
+                core::Write::Save(_) | core::Write::DropTranscript { .. } => panic!("unexpected release write"),
             }
         }
         let default = default.expect("changed default");

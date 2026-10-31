@@ -237,6 +237,7 @@ impl World {
             self.domain.configure_holds(&self.env(), connector, kinds);
         }
         self.events.clear();
+        self.internal_reads.clear();
         self.pending_reads.clear();
         self.pending_lost_reads.clear();
         self.pending_writes.clear();

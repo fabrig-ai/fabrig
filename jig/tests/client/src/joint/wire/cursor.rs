@@ -265,7 +265,7 @@ fn take_cursor(r: &mut Reader<'_>) -> Option<reads::Cursor> {
 
 fn put_scope(w: &mut Writer, value: &reads::Scope) -> Option<()> {
     match value {
-        reads::Scope::SettingsHistory { .. } => return None,
+        reads::Scope::EndedTasks | reads::Scope::TaskRows { .. } | reads::Scope::SettingsHistory { .. } => return None,
         reads::Scope::Task { task } => {
             w.byte(0)?;
             w.u64(*task)?;
@@ -705,7 +705,7 @@ fn take_projection_key(r: &mut Reader<'_>) -> Option<ProjectionKey> {
 
 fn put_people_key(w: &mut Writer, value: &people::Key) -> Option<()> {
     match value {
-        people::Key::Acted(_) => return None,
+        people::Key::Deletion(_) | people::Key::Acted(_) => return None,
         people::Key::Person(value) => {
             w.byte(0)?;
             w.u64(*value)?;

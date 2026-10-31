@@ -379,7 +379,7 @@ impl Person {
     pub(crate) fn sign_in(&mut self, link: &[u8]) {
         assert!(self.client.is_none(), "one printed link");
         self.printed_link = link.into();
-        if stories::needs_settings() || stories::held_change() {
+        if stories::needs_settings() || stories::held_change() || stories::first_start() {
             self.setup = Some(crate::ctl::Caller::new(self.root.expect("client parent"), link));
             return;
         }
@@ -662,7 +662,6 @@ pub(crate) fn service(inherited: &Inherited) -> Proc {
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     crate::m15::observer::root(crate::m15::observer::Role::Service, root, b"state");
     crate::m15::observer::root(crate::m15::observer::Role::Service, worker, b"worker");
-    let setup = stories::held_change().then(|| crate::restart_control::checked_setup(&fixtures::document()));
     let mut document: serde_json::Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
     if REFUSE_START.with(std::cell::Cell::get) {
         document["engine"]["projects"] = serde_json::json!([]);
@@ -682,7 +681,7 @@ pub(crate) fn service(inherited: &Inherited) -> Proc {
         None,
         Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into() }),
         fixtures::forges(),
-        setup.as_ref(),
+        None,
         None,
         &stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON")),
     )
@@ -894,9 +893,7 @@ pub(crate) fn peer() -> Peer {
         fixtures::SEED,
     )
     .expect("forge peer");
-    if stories::held_change() {
-        crate::restart_control::setup_peer(&mut peer);
-    }
+    crate::restart_control::setup_peer(&mut peer);
     peer
 }
 
@@ -1000,8 +997,11 @@ fn token_bytes(disk: &mut skein_fake_machine::Machine) -> Vec<u8> {
 }
 
 fn write_settings(disk: &mut skein_fake_machine::Machine) {
-    if stories::needs_settings() {
-        let root = disk.lay(&[skein_fake_machine::Item::file(b"settings.json", &stories::settings_file())]);
+    if stories::needs_settings() || stories::first_start() {
+        let root = disk.lay(&[
+            skein_fake_machine::Item::file(b"settings.json", &stories::settings_file()),
+            skein_fake_machine::Item::file(b"admin.token", crate::restart_control::ADMIN_TOKEN).mode(0o600),
+        ]);
         disk.close(root);
     }
 }

@@ -31,7 +31,12 @@ pub(super) fn compound_refused(
     out: &mut Queue<Request>,
 ) {
     let request = reply_to.into_token();
-    let Some(Flight::PersonTask { request, route: PersonTaskRoute::Compound { .. } }) = core.land(request) else {
+    let flight = core.land(request);
+    if let Some(Flight::Internal(Internal::Deletion { project })) = flight {
+        crate::deletion::compound_done(core, project);
+        return;
+    }
+    let Some(Flight::PersonTask { request, route: PersonTaskRoute::Compound { .. } }) = flight else {
         return;
     };
     let outcome = person_problem_refusal(core, problem);
@@ -161,6 +166,9 @@ fn refuse_flight(
                 }
             };
             call_decision(core, out, ReplyTo::new(request), key, part);
+        }
+        Flight::Internal(Internal::Deletion { project }) => {
+            crate::deletion::compound_done(core, project);
         }
         Flight::Internal(Internal::Repair) => {
             for &connector in core.connectors.as_ref() {

@@ -118,30 +118,31 @@ pub enum Served {
     OutOfDate,
 }
 
-/// The deployment's demo, kept across link gaps (client/README.md, 4.6 and 4.8).
+/// The group's reason rendered as text: each invalid byte may need a UTF-8 replacement.
+pub const PLAYGROUND_WHY_BYTES: u32 =
+    temper_client_protocol_wire::SET_UP_WHY_BYTES.checked_mul(3).expect("reason text fits");
+
+/// The first-password file path rendered as text: each invalid byte may need a UTF-8 replacement.
+pub const OWNED_PASSWORD_BYTES: u32 =
+    temper_client_protocol_wire::v1::CEILINGS.owned_forge_password.checked_mul(3).expect("password path text fits");
+
+/// The playground as the client reads it (temper/docs/design/draft/playground-reset.md, 6.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Demo {
-    pub state: super::demo::DemoState,
-    pub project: u32,
+pub struct Playground {
+    pub state: PlaygroundState,
     pub forge: u16,
+    pub project: Option<u32>,
     pub provider: u32,
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,
     pub cues: Box<[Box<[u8]>]>,
 }
-/// The longest owner or name a `Demo` holds: the wire's ceiling (client/README.md, 4.6).
-pub const DEMO_FIELD_BYTES: u32 = {
-    let ceilings = temper_client_protocol_wire::v1::CEILINGS;
-    if ceilings.demo_answer_owner > ceilings.demo_answer_name {
-        ceilings.demo_answer_owner
-    } else {
-        ceilings.demo_answer_name
-    }
-};
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlaygroundState {
+    Starting,
+    Running,
+    Resetting,
+}
 
-/// The group's reason rendered as text: each invalid byte may need a UTF-8 replacement.
-pub const DEMO_WHY_BYTES: u32 = temper_client_protocol_wire::SET_UP_WHY_BYTES.checked_mul(3).expect("reason text fits");
-
-/// The first-password file path rendered as text: each invalid byte may need a UTF-8 replacement.
-pub const OWNED_PASSWORD_BYTES: u32 =
-    temper_client_protocol_wire::v1::CEILINGS.owned_forge_password.checked_mul(3).expect("password path text fits");
+/// The wire bounds on playground repository names.
+pub const PLAYGROUND_FIELD_BYTES: u32 = temper_client_protocol_wire::v1::CEILINGS.playground_answer_owner;

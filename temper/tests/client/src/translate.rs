@@ -92,6 +92,7 @@ pub fn party(event: core::Event) -> engine::Event {
         core::Event::ProcedureHoldings { .. } => panic!("the client kit does not make ProcedureHoldings"),
         core::Event::ProcedureStep { .. } => panic!("the client kit does not make ProcedureStep"),
         core::Event::Brief(..) => panic!("the client kit does not make Brief"),
+        core::Event::ProjectReleased { .. } => panic!("the client kit does not make ProjectReleased"),
         core::Event::Holdings { .. } => panic!("the client kit does not make Holdings"),
         core::Event::Account(..) => panic!("the client kit does not make Account"),
         core::Event::View(..) => panic!("the client kit does not make View"),
@@ -104,7 +105,10 @@ fn unsupported_people(event: &people::Event) -> PartyInput {
         people::Event::MoveChat { .. } => panic!("the client kit does not make People::MoveChat"),
         people::Event::ChatState { .. } => panic!("the client kit does not make People::ChatState"),
         people::Event::ConversationSeen { .. } => panic!("the client kit does not make People::ConversationSeen"),
-        people::Event::Forget { .. } => panic!("the client kit does not make People::Forget"),
+        people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
+        | people::Event::Forget { .. } => panic!("the client kit does not make People::Forget"),
         people::Event::MakeService { .. } => panic!("the client kit does not make People::MakeService"),
         people::Event::Seed { .. } => panic!("the client kit does not make People::Seed"),
         people::Event::Waiting { .. } => panic!("the client kit does not make People::Waiting"),
@@ -232,14 +236,18 @@ pub fn incoming(
         | engine::Request::Worker(_)
         | engine::Request::Forge { .. }
         | engine::Request::Account(_)
-        | engine::Request::SetUpGroup { .. }
+        | engine::Request::ForgeKept(_)
+        | engine::Request::ForgeGone { .. }
+        | engine::Request::BoxGroup { .. }
+        | engine::Request::PlaygroundActs { .. }
+        | engine::Request::ResetAct { .. }
+        | engine::Request::BoxRemove { .. }
         | engine::Request::Connect { .. }
         | engine::Request::Manifest { .. }
         | engine::Request::Reachable { .. }
         | engine::Request::Install { .. }
         | engine::Request::Accept { .. }
         | engine::Request::EraseCarried { .. }
-        | engine::Request::StopGroup { .. }
         | engine::Request::SetUp { .. }
         | engine::Request::Bound { .. }
         | engine::Request::Return { .. }
@@ -310,8 +318,7 @@ fn delivery_packet(
             None
         }
         // Jig has no separate live requester Result; the task document carries it.
-        Delivery::DemoActed { .. }
-        | Delivery::DemoNote { .. }
+        Delivery::PlaygroundNote { .. }
         | Delivery::Application { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
@@ -321,6 +328,7 @@ fn delivery_packet(
         | Delivery::Host(_)
         | Delivery::Link { .. }
         | Delivery::ProjectMade { .. }
+        | Delivery::ProjectReleased { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::ForgeCall { .. }
         | Delivery::Bound { .. }

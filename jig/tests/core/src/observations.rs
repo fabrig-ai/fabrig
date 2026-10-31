@@ -4,6 +4,7 @@
 //! (`domain/testing.md`, 4, 6).
 pub mod acceptance;
 pub mod intents;
+pub mod naming;
 mod projects;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -245,7 +246,10 @@ impl SeenFence {
         let records = store.rows.values().chain(store.pending.iter().flat_map(|pending| {
             pending.writes.iter().filter_map(|write| match write {
                 root::Write::Save(record) => Some(record),
-                root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) => None,
+                root::Write::Wires
+                | root::Write::Erase(_)
+                | root::Write::CopySettingsRevision(_)
+                | root::Write::DropTranscript { .. } => None,
             })
         }));
         for record in records {
@@ -298,6 +302,7 @@ pub struct Observer {
     applied: u64,
     application_requests: bool,
     activity: BTreeMap<(u64, u64), tasks::ActivityLine>,
+    activity_erases: BTreeMap<u64, Vec<(u64, u64)>>,
     effects: [usize; 2],
     reads: [usize; 2],
     // Seen uses a commit fence instead of a new Answer receipt.
@@ -415,6 +420,7 @@ impl Observer {
             applied: 0,
             application_requests: false,
             activity: BTreeMap::new(),
+            activity_erases: BTreeMap::new(),
             effects: [0; 2],
             reads: [0; 2],
             requests: BTreeMap::new(),
@@ -674,6 +680,7 @@ impl Observer {
         // An uncommitted forget is lost with the old root. A start's mark may
         // reuse its number without forgetting the task.
         self.forgetting.retain(|commit, _| *commit <= store.applied);
+        self.activity_erases.retain(|commit, _| *commit <= store.applied);
         let receipts = store
             .rows
             .values()
@@ -763,6 +770,12 @@ impl Observer {
             }
             let mut tasks = Vec::new();
             for write in &pending.writes {
+                if let root::Write::Erase(root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task, position }))) =
+                    write
+                    && store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(*task))))
+                {
+                    self.activity_erases.entry(pending.number).or_default().push((*task, *position));
+                }
                 if let root::Write::Erase(root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))) = write {
                     for key in store.rows.keys() {
                         if matches!(key, root::Key::Core(core::Key::People(people::Key::ReadConversation { task: chat, .. })) if chat == task)
@@ -830,6 +843,26 @@ impl Observer {
         }
         self.discarded.clear();
         let mut snapshot = r::Snapshot::default();
+        for (key, row) in &store.rows {
+            if let Some(name) = naming::naming(key, row) {
+                if let root::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Account {
+                    uses: Some(uses),
+                    ..
+                })) = row
+                {
+                    for payer in uses {
+                        if let jig_domain_accounts::Use::Project(project) = payer {
+                            snapshot.naming.push(r::Naming { project: Some(*project), ..name.clone() });
+                        }
+                    }
+                } else {
+                    snapshot.naming.push(name);
+                }
+            }
+            if let root::Record::Core(core::Record::People(people::Stored::Deletion { project, .. })) = row {
+                snapshot.deleting.insert(*project);
+            }
+        }
         let mut decisions = Vec::new();
         let mut task_acceptances = Vec::new();
         let mut authority_acceptances = Vec::new();
@@ -1112,6 +1145,14 @@ impl Observer {
                 }
             }
         }
+        while let Some((&commit, _)) = self.activity_erases.first_key_value() {
+            if commit > number {
+                break;
+            }
+            for key in self.activity_erases.remove(&commit).expect("submitted activity erasure") {
+                self.activity.remove(&key);
+            }
+        }
         for ((task, position), kept) in &self.activity {
             let key = root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task: *task, position: *position }));
             assert!(
@@ -1136,6 +1177,7 @@ impl Observer {
     }
 
     /// A released output and the neighbours' receipt of its words or result.
+    #[expect(clippy::too_many_lines, reason = "one delivery translates its observed facts and receipt dependencies")]
     pub fn delivered(&mut self, now: u64, delivery: &mut root::Delivery) {
         if let root::Delivery::Core(core::Held::PeopleReply { to, reply }) = &mut *delivery {
             for observed in self.intents.reply(skein_lib::Token::new(destination(to)), reply) {
@@ -1192,6 +1234,14 @@ impl Observer {
             }
             root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
                 self.reply_receipts(to, reply, &mut requires);
+                if let people::Reply::Outcome(people::Outcome::ProjectRemoved { project }) = reply {
+                    self.observe(now, r::Observed::ProjectRemoved { project: *project });
+                }
+            }
+            root::Delivery::Core(core::Held::Acted {
+                outcome: people::Outcome::ProjectRemoved { project }, ..
+            }) => {
+                self.observe(now, r::Observed::ProjectRemoved { project: *project });
             }
             root::Delivery::Message { task: run, word, .. } => {
                 requires.push(r::Receipt::Word(*run, word.number));

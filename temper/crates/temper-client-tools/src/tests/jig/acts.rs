@@ -162,6 +162,24 @@ fn each_kept_request_prints_its_operation_without_keys() {
     }
 }
 #[test]
+fn a_kept_project_removal_prints_its_operation_and_outcome() {
+    for json in [false, true] {
+        let mut records = fixtures::restored_message(fixtures::PARTY);
+        records.get_mut(0).expect("one restored ask").request.request =
+            jig_client::Ask::Jig(Box::new(c::Ask::RemoveProject { project: 7 }));
+        let mut root = fixtures::started_with(records, fixtures::SEED, json);
+        root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
+        root.done(fixtures::EMPTY, c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: 7 }));
+        let expected = if json {
+            b"{\"operation\":\"remove-project\",\"outcome\":{\"done\":{\"owner\":{\"project_removed\":{\"project\":7}}}}}\n".as_slice()
+        } else {
+            b"kept: remove-project, done: remove-project\n".as_slice()
+        };
+        assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected)]);
+    }
+}
+
+#[test]
 fn kept_counts_only_this_partys_unanswered_requests() {
     let mut root = fixtures::started(fixtures::restored_message(fixtures::PARTY));
     root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));

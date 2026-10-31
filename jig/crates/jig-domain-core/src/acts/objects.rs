@@ -17,6 +17,9 @@ pub(super) fn admit(
     object: &documents::Subject,
     decision: skein_lib::Wall,
 ) -> Admission {
+    if act == Act::RemoveProject {
+        return Admission::Refused(people::Refusal::NotOffered);
+    }
     match object {
         documents::Subject::Task { task: number } => task::admit(core, limits, party, act, *number),
         documents::Subject::PersonTask { task: number } => allowed(person(core, party, act, *number, None)),
@@ -42,6 +45,7 @@ pub(super) fn admit(
             | Act::EditNote
             | Act::DeleteNote
             | Act::Adopt
+            | Act::RemoveProject
             | Act::Rename
             | Act::ChangePolicy
             | Act::SetRoles
@@ -86,9 +90,13 @@ fn project_admission(core: &Core, limits: &Limits, party: u64, act: Act, project
     }
     match act {
         Act::Reorder => allowed(core.reorder_allowed(project, held)),
-        Act::Adopt | Act::Rename | Act::ChangePolicy | Act::SetRoles | Act::MakeService | Act::SetPool => {
-            allowed(core.role_allowed_for(party, project, limits.tasks.tree_tasks, act))
-        }
+        Act::Adopt
+        | Act::RemoveProject
+        | Act::Rename
+        | Act::ChangePolicy
+        | Act::SetRoles
+        | Act::MakeService
+        | Act::SetPool => allowed(core.role_allowed_for(party, project, limits.tasks.tree_tasks, act)),
         Act::Seen => Admission::Allowed,
         Act::Message
         | Act::Answer

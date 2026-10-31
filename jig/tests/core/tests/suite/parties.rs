@@ -448,6 +448,28 @@ fn a_partys_batch_beyond_their_role_is_proposed_and_accepted() {
         inbox(&mut world, member_sign_in, jig_domain_core::reads::Group::Updates).contains(&proposal_object(proposal))
     );
 }
+
+#[test]
+fn deleting_a_project_cleans_accepted_party_batches_and_amendments() {
+    for amendment in [false, true] {
+        let mut world = batch_world(330);
+        let member = world.sign_in.expect("member signed in");
+        let owner = owner(&mut world);
+        world.sign_in = Some(member);
+        let proposal = if amendment {
+            create(&mut world, Box::new([people_member(b"work", 20)]));
+            propose_amendment(&mut world, member)
+        } else {
+            propose(&mut world, member, PROPOSE_REQUEST, Box::new([people_member(b"beyond role", 150)]))
+        };
+        decide(&mut world, owner, DECIDE_REQUEST, proposal, people::ProposalDecision::Accept);
+        ask_as(&mut world, owner, 71, people::Ask::RemoveProject { project: PROJECT });
+        super::deletion::finish(&mut world);
+        assert!(!world.store.rows.values().any(|row| matches!(row,
+            jig_test_domain::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::PersonProposal(row) | tasks::Stored::DecidedProposal(row)))
+            if row.project == PROJECT)));
+    }
+}
 #[test]
 fn another_partys_proposal_rejected_reaches_that_party() {
     let mut world = batch_world(331);

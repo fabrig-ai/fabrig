@@ -22,7 +22,7 @@ pub(super) fn route_notes(
 ) -> Queue<Request> {
     let mut child = Queue::uncapped();
     crate::routing::step::step_notes(core, env, event, &mut child);
-    tag_notes(core, work, child)
+    tag_notes(core, env, work, child)
 }
 
 pub(super) fn person_note_scope(project: u32, scope: people::NoteScope) -> notes::Scope {
@@ -61,10 +61,21 @@ pub(super) fn person_note_change(change: people::NoteChange) -> notes::Change {
     }
 }
 
-pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Work>, mut child: Queue<notes::Request>) -> Queue<Request> {
+pub(super) fn tag_notes(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    mut child: Queue<notes::Request>,
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("note output count") {
+            notes::Request::ProjectDropped { owner } => {
+                let mut requests = crate::deletion::notes_dropped(core, env, owner);
+                for _ in 0..requests.len() {
+                    out.push(requests.pop().expect("deletion output count"));
+                }
+            }
             notes::Request::Save { record } => out.push(Request::Write(Write::Save(Record::Notes(record)))),
             notes::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Notes(key)))),
             notes::Request::Load { owner, range } => {
@@ -145,7 +156,11 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Work>, mut child: Queu
                         work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
                     }
                 },
-                None => out.push(Request::Now(Box::new(Now::NotesRefused { owner, why }))),
+                None => {
+                    if !crate::deletion::notes_refused(core, owner) {
+                        out.push(Request::Now(Box::new(Now::NotesRefused { owner, why })));
+                    }
+                }
             },
         }
     }

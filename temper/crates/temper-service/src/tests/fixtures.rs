@@ -64,7 +64,8 @@ pub fn engine() -> settings::Engine {
     // This typed fixture reaches the core's start; policy 1 needs 3250 bytes.
 
     settings::Engine {
-        records_only: Box::new([]),
+        machine: machine(),
+        directories: jig_protocol_config::Directories::working(),
         jig,
         webhooks: None,
         sign_in: None,
@@ -74,19 +75,7 @@ pub fn engine() -> settings::Engine {
             public: None,
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
-        forges: forges(),
         demo: None,
-        setup: Box::new([]),
-        identities: Box::new([settings::Identity {
-            number: 1,
-            forge: 1,
-            token: Secret::new(Box::from(&b"forge-token-1234"[..])),
-            login: Box::from(&b"temper"[..]),
-            author: settings::Author {
-                name: Box::from(&b"temper"[..]),
-                email: Box::from(&b"temper@forge.example"[..]),
-            },
-        }]),
         landing: temper_engine_domain::LandingPolicy {
             deployment: Box::new([]),
             projects: skein_lib::Map::with_capacity(0),
@@ -127,7 +116,7 @@ pub fn forges() -> Box<[settings::Forge]> {
         mode: temper_engine_domain_forge::Mode::Connected,
         number: 1,
         kind: settings::Kind::Forgejo,
-        api: jig_protocol_config::Address::Host { name: Box::from(&b"forge.example"[..]), port: 443 },
+        api: jig_protocol_config::Address::Host { name: Box::from(&b"forge.example"[..]), port: 3000 },
         transport: settings::Transport::Plaintext,
         git: Box::from(&b"https://forge.example"[..]),
         git_program: None,
@@ -138,6 +127,33 @@ pub fn forges() -> Box<[settings::Forge]> {
         user: 42,
         identity: 1,
     }])
+}
+
+/// A runtime table carrying the document fixture's values.
+pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
+    let mut table = crate::forges::Forges::with_capacity(u32::try_from(forges.len()).unwrap());
+    for forge in forges {
+        assert!(table.insert(settings::Forge {
+            mode: forge.mode,
+            number: forge.number,
+            kind: forge.kind,
+            api: forge.api.clone(),
+            transport: match &forge.transport {
+                settings::Transport::Plaintext => settings::Transport::Plaintext,
+                settings::Transport::Tls { server_name, trust } =>
+                    settings::Transport::Tls { server_name: server_name.clone(), trust: trust.clone() },
+            },
+            git: forge.git.clone(),
+            git_program: forge.git_program.clone(),
+            web: forge.web.clone(),
+            app_read_only: forge.app_read_only,
+            api_token: forge.api_token.clone(),
+            webhook_secret: forge.webhook_secret.clone(),
+            user: forge.user,
+            identity: forge.identity,
+        }));
+    }
+    table
 }
 
 pub const OWNER: Token = Token::new(91);
@@ -272,6 +288,14 @@ pub fn records_store() -> crate::store::Store {
     });
     let Some(jig_protocol_store::Event::Opened { .. }) = store.above.pop() else { panic!("record store reopened") };
     mark_store(&mut store);
+    commit(
+        &mut store,
+        1,
+        Box::new([temper_engine_domain::Write::Save(temper_engine_domain::Record::Forge {
+            row: Box::new(temper_engine_domain_forge::Stored::Forge(forge_record(1))),
+        })]),
+    );
+    assert!(store.above.pop().is_some());
     store
 }
 pub(super) fn memory_store_for(
@@ -405,6 +429,7 @@ pub fn started_with_projects(projects: &[(u32, u64)]) -> crate::Service {
 pub fn start_with_store(projects: &[(u32, u64)], stored: Option<crate::store::Store>) -> crate::Service {
     start_with_worker(projects, stored, None, false, false)
 }
+#[expect(clippy::too_many_lines, reason = "the fixture joins the configured worker, store and kept forge records")]
 fn start_with_worker(
     projects: &[(u32, u64)],
     stored: Option<crate::store::Store>,
@@ -414,15 +439,19 @@ fn start_with_worker(
 ) -> crate::Service {
     let mut settings = engine();
     let mut runtime = forge_runtime();
+    let mut sources = forges();
     if two_forges {
         let mut second = forges().into_iter().next().unwrap();
         second.number = 2;
+        if let jig_protocol_config::Address::Host { port, .. } = &mut second.api {
+            *port = 3001;
+        }
         second.api_token =
             Some(Secret::new(Box::from(skein_lib::Decimal::of(skein_lib::Rng::new(104).next_u64()).as_bytes())));
-        let mut first = settings.forges.into_iter().next().unwrap();
+        let mut first = forges().into_iter().next().unwrap();
         first.api_token =
             Some(Secret::new(Box::from(skein_lib::Decimal::of(skein_lib::Rng::new(105).next_u64()).as_bytes())));
-        settings.forges = Box::new([first, second]);
+        sources = Box::new([first, second]);
         let first = runtime.into_boxed().into_iter().next().unwrap();
         let second = crate::ForgeRuntime {
             number: 2,
@@ -433,8 +462,16 @@ fn start_with_worker(
         runtime.push(first).unwrap();
         runtime.push(second).unwrap();
     }
-    if under_box {
-        settings.setup = Box::new([owned_setup(1), owned_setup(2)]);
+    if under_box && let temper_forge_setup::setup::Mode::Owned(owned) = owned_setup(1).entry.mode {
+        settings.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
+            listen: owned.listen,
+            remote: b"http://127.0.0.1:9".as_slice().into(),
+            person: owned.person,
+            public: owned.public,
+            fetch: owned.fetch,
+            forgejo: owned.forgejo,
+            runner: owned.runner,
+        });
     }
     settings.jig.limits.core.people.operations = 2;
     settings.jig.limits.core.tasks.tasks = 2;
@@ -494,7 +531,13 @@ fn start_with_worker(
     };
     let worker_io = if worker.is_some() { Some(worker_settings().jig.limits.io) } else { None };
     let io = crate::startup::checks::process_io(&settings.jig.limits.io, worker_io.as_ref()).unwrap();
-    let endpoints = crate::forge::prepare(&settings, runtime).unwrap();
+    let endpoints = crate::forge::settings(
+        &sources,
+        runtime,
+        settings.webhooks.clone(),
+        &mut jig_protocol_config::Problems::empty(),
+    )
+    .unwrap();
     let mut service = crate::Service::prepared(
         settings,
         &seeds(),
@@ -507,6 +550,22 @@ fn start_with_worker(
     .unwrap();
 
     service.engine.as_mut().expect("engine").store = store;
+    for source in sources {
+        let mut record = forge_record(source.number);
+        if under_box {
+            record.mode = temper_engine_domain_forge::Mode::Owned;
+            record.asked = true;
+        }
+        record.place.api.host = b"forge.example".as_slice().into();
+        record.place.api.port = if source.number == 1 { 3000 } else { 3001 };
+        if let Some(endpoint) = service.engine.as_ref().unwrap().forge.endpoints.get(&source.number)
+            && let skein_io::Addr::Ip(address) = endpoint.address
+        {
+            service.engine.as_mut().unwrap().forge.names.insert(record.place.api.host.clone(), address.ip()).unwrap();
+        }
+        keep_forge(&mut service, record);
+        seed_forge_rows(&mut service, &source);
+    }
     service
 }
 mod agent;
@@ -623,7 +682,7 @@ pub fn assignment_with_settings(
 pub fn values_with_identity(number: u32, token: &[u8]) -> crate::values::Values {
     let mut values = crate::values::Values::new(2, 4096);
     values.identities = crate::values::Identities::with_capacity(1);
-    let mut identity = engine().identities.into_iter().next().unwrap();
+    let mut identity = configured_engine().identities.into_iter().next().unwrap();
     identity.token = Secret::new(token.into());
     let value = crate::translate::identity(&identity, &wire_limits()).unwrap();
     values.identities.put(number, value);
@@ -676,8 +735,15 @@ pub fn workers() -> crate::workers::Workers {
     }
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
-    crate::workers::Workers::new(&settings.jig, &settings::Files { entries }, encoding, settings.forges, &limits)
-        .unwrap()
+    crate::workers::Workers::new(
+        &settings.jig,
+        &settings::Files { entries },
+        encoding,
+        forges(),
+        settings.limits.forge.forges,
+        &limits,
+    )
+    .unwrap()
 }
 
 pub fn settle_root(
@@ -718,8 +784,12 @@ pub fn settle_root(
                     crate::route::request(engine, request);
                 }
                 root::Request::Setup { .. }
-                | root::Request::StopGroup { .. }
-                | root::Request::SetUpGroup { .. }
+                | root::Request::ForgeKept(_)
+                | root::Request::ForgeGone { .. }
+                | root::Request::BoxGroup { .. }
+                | root::Request::PlaygroundActs { .. }
+                | root::Request::ResetAct { .. }
+                | root::Request::BoxRemove { .. }
                 | root::Request::Connect { .. }
                 | root::Request::Manifest { .. }
                 | root::Request::Reachable { .. }
@@ -1085,4 +1155,344 @@ pub fn marked_store() -> crate::store::Store {
 pub fn restarting_from(previous: crate::engine::Engine) -> crate::Service {
     let reopened = reopened_store(previous.store, &previous.env.limits);
     start_with_store(&[(1, 100)], Some(reopened))
+}
+
+/// The deployment's machine parts; forge records are kept separately.
+pub fn machine() -> temper_forge_setup::machine::Machine {
+    temper_forge_setup::machine::Machine { owned: None, fake: None, github: None }
+}
+/// Admit a runtime forge through the root's kept-record request.
+pub fn keep_forge(service: &mut crate::Service, record: temper_engine_domain_forge::ForgeRecord) {
+    let engine = service.engine.as_mut().expect("engine");
+    restore_forge(engine, record.clone());
+    crate::route::request(engine, temper_engine_domain::Request::ForgeKept(record));
+}
+pub fn restore_forge(engine: &mut crate::engine::Engine, record: temper_engine_domain_forge::ForgeRecord) {
+    temper_engine_domain::step(
+        &mut engine.domain,
+        &engine.env,
+        temper_engine_domain::Event::Restart { pending: engine.store.pending_generation },
+    );
+    temper_engine_domain::step(
+        &mut engine.domain,
+        &engine.env,
+        temper_engine_domain::Event::Forge(Box::new(temper_engine_domain_forge::Event::Restore {
+            record: temper_engine_domain_forge::Stored::Forge(record),
+        })),
+    );
+}
+/// A connected fixture forge, with no access in the document.
+pub fn forge_record(number: u16) -> temper_engine_domain_forge::ForgeRecord {
+    use temper_engine_domain_forge as forge;
+    forge::ForgeRecord {
+        number,
+        kind: forge::Kind::Forgejo,
+        mode: forge::Mode::Connected,
+        state: forge::ForgeState::Kept,
+        place: forge::Place {
+            api: forge::Address {
+                host: b"forge.example".as_slice().into(),
+                port: if number == 1 { 3000 } else { 3001 },
+                tls: None,
+            },
+            git: b"https://forge.example".as_slice().into(),
+            web: None,
+        },
+        bot: forge::Bot {
+            login: b"temper".as_slice().into(),
+            name: b"temper".as_slice().into(),
+            email: b"temper@forge.example".as_slice().into(),
+        },
+        read_only: false,
+        asked: false,
+        first: None,
+    }
+}
+
+/// Runtime fixture inputs, translated into kept records before the service is driven.
+#[derive(Debug)]
+pub struct ConfiguredEngine {
+    pub engine: settings::Engine,
+    pub forges: Box<[settings::Forge]>,
+    pub identities: Box<[settings::Identity]>,
+    pub setup: Box<[settings::Setup]>,
+    pub records_only: Box<[u16]>,
+}
+impl core::ops::Deref for ConfiguredEngine {
+    type Target = settings::Engine;
+    fn deref(&self) -> &Self::Target {
+        &self.engine
+    }
+}
+impl core::ops::DerefMut for ConfiguredEngine {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.engine
+    }
+}
+pub fn configured_engine() -> ConfiguredEngine {
+    ConfiguredEngine {
+        engine: engine(),
+        forges: forges(),
+        setup: Box::new([]),
+        records_only: Box::new([]),
+        identities: Box::new([settings::Identity {
+            number: 1,
+            forge: 1,
+            token: Secret::new(b"forge-token-1234".as_slice().into()),
+            login: b"temper".as_slice().into(),
+            author: settings::Author {
+                name: b"temper".as_slice().into(),
+                email: b"temper@forge.example".as_slice().into(),
+            },
+        }]),
+    }
+}
+pub fn configured_endpoints(
+    config: &ConfiguredEngine,
+    runtime: skein_lib::List<crate::ForgeRuntime>,
+) -> Result<skein_forge_connection::Settings, jig_protocol_config::Problems> {
+    let mut found = jig_protocol_config::Problems::empty();
+    crate::forge::settings(&config.forges, runtime, config.webhooks.clone(), &mut found).ok_or(found)
+}
+/// Make all fixture forges through `ForgeKept`; access lives in its secret rows.
+pub fn configured_service(
+    config: ConfiguredEngine,
+    seeds: &settings::Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    runtime: skein_lib::List<crate::ForgeRuntime>,
+) -> Result<crate::Service, jig_protocol_config::Problems> {
+    let endpoints = configured_endpoints(&config, runtime)?;
+    configured_prepared(config, seeds, accounts, endpoints, None, None)
+}
+#[expect(
+    clippy::too_many_lines,
+    reason = "the fixture keeps forge records and supplies both runtime owners' endpoint facts"
+)]
+pub fn configured_prepared(
+    mut config: ConfiguredEngine,
+    seeds: &settings::Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    endpoints: skein_forge_connection::Settings,
+    worker: Option<crate::Worker>,
+    box_bytes: Option<u32>,
+) -> Result<crate::Service, jig_protocol_config::Problems> {
+    use temper_engine_domain_forge as domain;
+    for setup in &config.setup {
+        match &setup.entry.mode {
+            temper_forge_setup::setup::Mode::Owned(owned) => {
+                config.engine.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
+                    listen: owned.listen,
+                    remote: b"http://127.0.0.1:9".as_slice().into(),
+                    person: owned.person.clone(),
+                    public: owned.public.clone(),
+                    fetch: owned.fetch.clone(),
+                    forgejo: owned.forgejo.clone(),
+                    runner: owned.runner.clone(),
+                });
+            }
+            temper_forge_setup::setup::Mode::Fake(fake) => {
+                config.engine.machine.fake = Some(temper_forge_setup::machine::FakeMachine {
+                    listen: fake.listen,
+                    remote: b"http://127.0.0.1:9".as_slice().into(),
+                    git: fake.git.clone(),
+                });
+            }
+            temper_forge_setup::setup::Mode::Managed { .. } => {}
+        }
+    }
+    let io = config.engine.jig.limits.io;
+    let empty = crate::forge::prepare(&config.engine, skein_lib::List::with_capacity(0))?;
+    let mut service = crate::Service::prepared(config.engine, seeds, accounts, empty, worker, io, box_bytes)?;
+    service.engine.as_mut().unwrap().store = records_store();
+    for endpoint in endpoints.forges.into_boxed() {
+        let engine = service.engine.as_mut().unwrap();
+        if let skein_io::Addr::Ip(address) = endpoint.address {
+            for source in &config.forges {
+                if source.number == endpoint.number
+                    && address != crate::forge::HELD_ADDRESS
+                    && let jig_protocol_config::Address::Host { name, .. } = &source.api
+                {
+                    engine.forge.names.insert(name.clone(), address.ip()).unwrap();
+                }
+            }
+            let transport = match &endpoint.transport {
+                skein_forge_connection::settings::Transport::Plaintext { name } => {
+                    skein_forge_connection::settings::Transport::Plaintext { name: name.clone() }
+                }
+                skein_forge_connection::settings::Transport::Tls { server_name, trust } => {
+                    skein_forge_connection::settings::Transport::Tls {
+                        server_name: server_name.clone(),
+                        trust: trust.clone(),
+                    }
+                }
+            };
+            engine.setup.resolved(crate::ForgeRuntime { number: endpoint.number, address, transport });
+        }
+        engine.forge.endpoints.insert(endpoint.number, endpoint).unwrap();
+    }
+    for source in config.forges {
+        let mut record = forge_record(source.number);
+        record.kind = match source.kind {
+            settings::Kind::Forgejo => domain::Kind::Forgejo,
+            settings::Kind::GitHub => domain::Kind::GitHub,
+        };
+        record.place = domain::Place {
+            api: match &source.api {
+                jig_protocol_config::Address::Host { name, port } => {
+                    domain::Address { host: name.clone(), port: *port, tls: None }
+                }
+                jig_protocol_config::Address::Addr(skein_io::Addr::Ip(address)) => {
+                    domain::Address { host: crate::system::socket_host(*address), port: address.port(), tls: None }
+                }
+                jig_protocol_config::Address::Addr(skein_io::Addr::InProcess(_)) => panic!("fixture IP"),
+            },
+            git: source.git.clone(),
+            web: source.web.clone(),
+        };
+        record.place.api.tls = match &source.transport {
+            settings::Transport::Plaintext => None,
+            settings::Transport::Tls { server_name, .. } => Some(server_name.clone()),
+        };
+        record.read_only = source.app_read_only;
+        for identity in &config.identities {
+            if identity.number != source.identity {
+                continue;
+            }
+            record.bot = domain::Bot {
+                login: identity.login.clone(),
+                name: identity.author.name.clone(),
+                email: identity.author.email.clone(),
+            };
+        }
+        if record.kind == domain::Kind::GitHub && record.bot.login.is_empty() {
+            record.bot = domain::Bot {
+                login: b"x-access-token".as_slice().into(),
+                name: b"app-fixture[bot]".as_slice().into(),
+                email: b"9+app-fixture[bot]@users.noreply.github.com".as_slice().into(),
+            };
+        }
+        for setup in &config.setup {
+            if setup.entry.forge == source.number {
+                record.mode = match setup.entry.mode {
+                    temper_forge_setup::setup::Mode::Owned(_) => domain::Mode::Owned,
+                    temper_forge_setup::setup::Mode::Fake(_) => domain::Mode::Fake,
+                    temper_forge_setup::setup::Mode::Managed { .. } => domain::Mode::Managed,
+                };
+                record.bot.login = setup.entry.bot.login.clone();
+                record.bot.email = setup.entry.bot.email.clone();
+                record.asked = setup.entry.asked;
+            }
+        }
+        let engine = service.engine.as_mut().unwrap();
+        commit(
+            &mut engine.store,
+            1,
+            Box::new([temper_engine_domain::Write::Save(temper_engine_domain::Record::Forge {
+                row: Box::new(domain::Stored::Forge(record.clone())),
+            })]),
+        );
+        assert!(engine.store.above.pop().is_some());
+        keep_forge(&mut service, record);
+        service.engine.as_mut().unwrap().setup.fixture_locals(&config.setup);
+        if source.api_token.is_some()
+            && !config.records_only.contains(&source.number)
+            && source.kind == settings::Kind::Forgejo
+        {
+            seed_forge_rows(&mut service, &source);
+            for item in [
+                temper_protocol_records::Item::Origin,
+                temper_protocol_records::Item::User,
+                temper_protocol_records::Item::ApiToken,
+                temper_protocol_records::Item::GitToken,
+            ] {
+                let engine = service.engine.as_mut().unwrap();
+                let bytes = engine.forge_records.rows.forge(source.number).unwrap().get(item).unwrap();
+                let value = Secret::new(temper_protocol_records::encode(item, bytes).unwrap().into_boxed_slice());
+                assert!(
+                    engine
+                        .store
+                        .secrets(
+                            Token::new(999),
+                            application_request(temper_protocol_records::number(source.number, item), value)
+                        )
+                        .is_none()
+                );
+                assert!(engine.store.above.pop().is_some());
+            }
+        }
+    }
+    Ok(service)
+}
+
+fn seed_forge_rows(service: &mut crate::Service, source: &settings::Forge) {
+    use temper_protocol_records as records;
+    let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &source.api).encode();
+    let api = source.api_token.as_ref().expect("fixture API token").expose();
+    for (item, value) in [
+        (records::Item::Origin, origin.as_ref()),
+        (records::Item::User, 42_u64.to_le_bytes().as_slice()),
+        (records::Item::ApiToken, api),
+        (records::Item::GitToken, b"forge-token-1234".as_slice()),
+    ] {
+        let engine = service.engine.as_mut().unwrap();
+        engine.forge_records.rows.push(
+            records::number(source.number, item),
+            Secret::new(records::encode(item, value).unwrap().into_boxed_slice()),
+            limits::profile(limits::Profile::Small).records.value_bytes,
+        );
+    }
+}
+
+/// Replace the fake durable store while retaining the fixture's kept forge records.
+pub fn replace_store(service: &mut crate::Service, mut store: crate::store::Store) {
+    let engine = service.engine.as_mut().unwrap();
+    let rows = load(&mut engine.store, temper_engine_domain::Range::Forge);
+    let target_rows = load(&mut store, temper_engine_domain::Range::Forge);
+    let mut writes = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for row in rows {
+        if let temper_engine_domain::Record::Forge { row } = row
+            && let temper_engine_domain_forge::Stored::Forge(record) = *row
+        {
+            let mut ended = false;
+            for target in &target_rows {
+                if let temper_engine_domain::Record::Forge { row } = target
+                    && let temper_engine_domain_forge::Stored::Forge(target) = row.as_ref()
+                    && target.number == record.number
+                    && target.state != temper_engine_domain_forge::ForgeState::Kept
+                {
+                    ended = true;
+                }
+            }
+            if ended {
+                continue;
+            }
+            writes
+                .push(temper_engine_domain::Write::Save(temper_engine_domain::Record::Forge {
+                    row: Box::new(temper_engine_domain_forge::Stored::Forge(record)),
+                }))
+                .unwrap();
+        }
+    }
+    if !writes.is_empty() {
+        commit(&mut store, 1, writes.into_boxed());
+        assert!(store.above.pop().is_some());
+    }
+    engine.store = store;
+}
+
+pub fn checked_endpoints(
+    config: &ConfiguredEngine,
+    runtime: skein_lib::List<crate::ForgeRuntime>,
+) -> Result<skein_forge_connection::Settings, jig_protocol_config::Problems> {
+    let settings = configured_endpoints(config, runtime)?;
+    if let Err(why) = skein_forge_connection::limits::check(
+        &config.limits.forge_component,
+        &crate::forge::shared(&config.limits, &config.jig.limits.io),
+        &settings,
+    ) {
+        let mut problems = jig_protocol_config::Problems::empty();
+        crate::forge::problems(crate::forge::indexed(why, &config.forges), &mut problems);
+        return Err(problems);
+    }
+    Ok(settings)
 }

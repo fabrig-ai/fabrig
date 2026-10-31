@@ -195,7 +195,7 @@ fn a_limited_candidate_does_not_hide_a_program_host_wait() {
     let (mut core, env) = serving_records(records);
     core.settings.models[0].program = Some(b"claude_code".as_slice().into());
     drop(step(&mut core, &env, Event::Account(accounts::Event::Limited { account: FIRST_SOURCE, reset: None })));
-    let coverage = core.account_coverage(tasks::Payer::Party(ALICE));
+    let coverage = core.account_coverage(tasks::Payer::Party(ALICE), None);
     assert_eq!(
         core.accounts.candidates(Use::Party(ALICE), PROVIDER, None, None, None, coverage.as_slice()).get(0),
         Some(&OWN)

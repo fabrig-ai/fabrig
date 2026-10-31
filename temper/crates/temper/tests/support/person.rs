@@ -58,6 +58,7 @@ enum Begin {
     Token,
     Link,
     Playground,
+    RunningPlayground,
 }
 /// The script is separate from the client's production composition.
 pub struct Script {
@@ -159,8 +160,10 @@ pub fn chatgpt_source_ready(heading: &[u8]) -> Step<Address> {
 pub fn demo_chat(task: u64, cue: &[u8], text: &[u8]) -> Script {
     use skein_ui::Role;
     Script {
-        begin: Begin::Link,
+        begin: Begin::RunningPlayground,
         steps: Box::new([
+            Step::See { find: Find::exactly_named(Role::Button, b"Playground"), within: START_WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Playground") },
             Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
             Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: START_WITHIN },
             Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },
@@ -201,7 +204,7 @@ pub fn demo_chat(task: u64, cue: &[u8], text: &[u8]) -> Script {
         ]),
     }
 }
-/// The first run delegates and lands without choosing a model or answering its wait.
+/// The first run chooses the scripted model, then delegates and lands without answering its wait.
 #[must_use]
 pub fn demo_change() -> Script {
     use skein_ui::Role;
@@ -251,8 +254,8 @@ fn playground_opening(conversation: impl Fn() -> Box<[Target; 1]>) -> [Step<Addr
         Step::Press { find: Find::exactly_named(Role::Button, b"Try the playground") },
         Step::See { find: Find::exactly_named(Role::Status, b"Starting"), within: START_WITHIN },
         Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },
-        Step::See { find: Find::exactly_named(Role::Paragraph, "Using Scripted model · Default".as_bytes()), within: START_WITHIN },
-        Step::See { find: Find::exactly_named(Role::Disclosure, b"Change model"), within: START_WITHIN },
+        Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+        Step::Press { find: Find::exactly_named(Role::Button, b"Scripted model") },
         // client/README.md, 4.8: a suggested request starts and opens its chat.
         Step::See { find: Find::named(Role::Button, b"Add CSV export to widget"), within: START_WITHIN },
         Step::Press { find: Find::named(Role::Button, b"Add CSV export to widget") },
@@ -448,7 +451,7 @@ impl Person {
             signing_retry: None,
             signing_backoff: SIGN_IN_FIRST,
             finished: false,
-            project: if script.begin == Begin::Playground {
+            project: if matches!(script.begin, Begin::Playground | Begin::RunningPlayground) {
                 ProjectSelection::Selected
             } else {
                 ProjectSelection::Pending
@@ -459,7 +462,7 @@ impl Person {
             directory: b"private".as_slice().into(),
             // Fresh demo clients must not reuse the same request names when
             // signing the same owner in again on the same deployment.
-            seed: if matches!(script.begin, Begin::Link | Begin::Playground) {
+            seed: if matches!(script.begin, Begin::Link | Begin::Playground | Begin::RunningPlayground) {
                 let seed = skein_shell::crypto_seed().expect("demo client's fresh seed");
                 u64::from_le_bytes(seed.expose()[..8].try_into().expect("eight seed bytes"))
             } else {
@@ -648,15 +651,6 @@ impl Person {
                 Next::Failed { step, why } => {
                     self.failed = Some(format!("native person step {step}: {why:?}"));
                 }
-            }
-            if self.begin == Begin::Playground && before == 3 && self.actor.at() == 4 {
-                let mut face = TreeFace::new(client.tree());
-                let Found::Node(cue) =
-                    face.find(&Find::exactly_named(skein_ui::Role::Button, b"Add CSV export to widget"))
-                else {
-                    panic!("starting playground has its suggested request");
-                };
-                assert!(!face.allows(cue, &skein_ui::Act::Press), "suggestions wait for the start's answer");
             }
             if self.actor.at() != before {
                 self.wake = Some(now);

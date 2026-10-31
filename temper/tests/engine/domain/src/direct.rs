@@ -48,11 +48,15 @@ impl Driver {
         self.store.crash(0);
         self.stopped = false;
         self.out.clear();
-        self.restart_config = crate::oracle::config::copy(&configuration);
-        self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
+        self.replace_root(configuration);
         self.events.clear();
         self.delivered.clear();
         self.send(engine::Event::Restart { pending: false });
+    }
+    /// Replace a root together with the configuration used by its restart oracle.
+    pub fn replace_root(&mut self, configuration: engine::Config) {
+        self.restart_config = crate::oracle::config::copy(&configuration);
+        self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
     }
     /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
     pub fn take_store(&mut self) -> Store {
@@ -233,8 +237,12 @@ impl Driver {
                 | engine::Request::Worker(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
-                | engine::Request::StopGroup { .. }
-                | engine::Request::SetUpGroup { .. }
+                | engine::Request::ForgeKept(_)
+                | engine::Request::ForgeGone { .. }
+                | engine::Request::BoxGroup { .. }
+                | engine::Request::PlaygroundActs { .. }
+                | engine::Request::ResetAct { .. }
+                | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }

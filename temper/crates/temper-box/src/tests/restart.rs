@@ -186,3 +186,102 @@ fn an_aborted_serve_restarts_after_early_reply_pipe_failure() {
 fn early_reply_pipe_failure_and_busy_logs_allow_restarting() {
     abort_endings(true, true);
 }
+
+#[test]
+fn a_group_file_with_its_record_starts_at_the_box_start() {
+    use skein_fake_machine::Item;
+    let items = [
+        Item::directory(b"box"),
+        Item::directory(b"box/groups"),
+        Item::directory(b"box/started"),
+        Item::file(b"box/groups/17", b"fake\n"),
+        Item::file(b"box/started/17", b""),
+    ];
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
+    h.run_until_idle();
+    assert_eq!(h.spawn_times(b"fake-forge").len(), 1);
+    assert_eq!(h.spawn_times(b"remove").len(), 0);
+    assert_eq!(h.spawn_times(b"serve").len(), 1);
+    let mut seen = false;
+    for launch in &h.launches {
+        if launch.name.as_ref() == b"fake-forge" {
+            assert_eq!(launch.args.get(1).unwrap().as_ref(), b"17");
+            seen = true;
+        }
+    }
+    assert!(seen);
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+#[test]
+fn a_group_file_without_its_record_stays_dormant() {
+    use skein_fake_machine::Item;
+    let items = [Item::directory(b"box"), Item::directory(b"box/groups"), Item::file(b"box/groups/17", b"fake\n")];
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
+    h.run_until_idle();
+    assert_eq!(h.spawn_times(b"fake-forge").len(), 0);
+    assert_eq!(h.spawn_times(b"remove").len(), 0);
+    assert_eq!(h.spawn_times(b"serve").len(), 1);
+    h.ask(b"remove 17\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"removed 17\n");
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+#[test]
+fn two_started_files_of_one_kind_start_the_higher_number_with_a_notice() {
+    use skein_fake_machine::Item;
+    let items = [
+        Item::directory(b"box"),
+        Item::directory(b"box/groups"),
+        Item::directory(b"box/started"),
+        Item::file(b"box/groups/3", b"fake\n"),
+        Item::file(b"box/started/3", b""),
+        Item::file(b"box/groups/17", b"fake\n"),
+        Item::file(b"box/started/17", b""),
+    ];
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
+    h.run_until_idle();
+    assert_eq!(h.spawn_times(b"fake-forge").len(), 1);
+    assert!(Harness::contains(&h.stderr(), b"box: forge 3: a second fake group is not started\n"));
+    for launch in &h.launches {
+        if launch.name.as_ref() == b"fake-forge" {
+            assert_eq!(launch.args.get(1).unwrap().as_ref(), b"17");
+        }
+    }
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+
+#[test]
+fn group_file_listing_is_refused_above_its_configured_bound() {
+    use skein_fake_machine::Item;
+    let items = [
+        Item::directory(b"box"),
+        Item::directory(b"box/groups"),
+        Item::file(b"box/groups/3", b"fake\n"),
+        Item::file(b"box/groups/17", b"fake\n"),
+    ];
+    for bound in [0, 1] {
+        let limits = crate::limits::Limits { groups: bound, ..crate::limits::small() };
+        let mut h =
+            Harness::configured(super::fixtures::kind_steps(), &items, true, skein_sim::Config::calm().buffer, &limits);
+        h.run_until_idle();
+        assert_eq!(h.spawn_times(b"fake-forge").len(), 0);
+        assert!(Harness::contains(&h.stderr(), b"box.groups"));
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        h.sim.assert_quiescent(h.pid);
+        h.sim.assert_no_open_fds(h.pid);
+        assert_eq!(h.machine.open_handles(), 0);
+    }
+}

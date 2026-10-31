@@ -35,8 +35,8 @@ fn the_project_chosen_is_the_first_of_me_at_start() {
     assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
 }
 #[test]
-fn the_running_demo_project_button_is_named_playground() {
-    let root = fixtures::demo_root(
+fn the_running_playground_project_button_is_named_playground() {
+    let root = fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
         fixtures::PROJECT,
         true,
@@ -44,7 +44,7 @@ fn the_running_demo_project_button_is_named_playground() {
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
-        let button = fixtures::find(view.tree(), Role::Button, b"Playground").expect("demo project");
+        let button = fixtures::find(view.tree(), Role::Button, b"Playground").expect("playground project");
         assert_eq!(
             crate::act(&mut view, button, Act::Press),
             Some(Action::Pages(pages::Act::Project { project: fixtures::PROJECT }))
@@ -847,15 +847,15 @@ fn accounts_navigation_uses_only_the_first_supplied_source_even_when_cut() {
 }
 
 #[test]
-fn accounts_navigation_ignores_the_demo_provider_and_other_holders() {
+fn accounts_navigation_ignores_the_playground_provider_and_other_holders() {
     use jig_client::contract as c;
-    let (mut root, _, _, _, watch) = fixtures::root_at_with_demo(
+    let (mut root, _, _, _, watch) = fixtures::root_at_with_playground(
         temper_client_domain::Address::Accounts,
         &fixtures::domain_limits(),
         b"Shop",
         Some((fixtures::PROJECT, true)),
     );
-    let provider = root.demo().unwrap().0.provider;
+    let provider = root.forge().playground().unwrap().provider;
     let mut doc = navigation_accounts(&[c::OwnerAccountState::SignInAgain; 3]);
     doc.accounts.get_mut(0).unwrap().provider = Some(provider);
     doc.accounts.get_mut(1).unwrap().holder = c::OwnerAccountHolder::Deployment;
@@ -973,52 +973,6 @@ fn signing_out_explains_each_forges_independent_sign_in() {
 }
 
 #[test]
-fn retired_navigation_omits_the_playground_project_after_reload() {
-    use jig_client::contract as c;
-    use temper_client_domain::{Address, Event};
-    use temper_client_protocol_wire::v1 as w;
-    for another in [false, true] {
-        let (mut root, watch, _, _, _, _) = fixtures::root_at_with_forges(
-            Address::Chats { filter: ChatsFilter::All, start: false },
-            &fixtures::domain_limits(),
-            b"Shop",
-            Some((fixtures::PROJECT, true, w::DemoState::Ended)),
-            None,
-            None,
-        );
-        let mut me = root.pages().me(root.client()).unwrap().clone();
-        let first = me.projects.get(0).unwrap().clone();
-        let mut other = first.clone();
-        other.project = fixtures::SECOND_PROJECT;
-        other.name = c::DocumentText::complete(c::Text::new(b"Other".as_slice().into(), 64).unwrap());
-        me.projects = skein_lib::List::with_capacity(2);
-        me.projects.push(first).unwrap();
-        if another {
-            me.projects.push(other).unwrap();
-        }
-        fixtures::root_event(
-            &mut root,
-            Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched {
-                        watch,
-                        event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
-                    },
-                },
-            },
-        );
-        for words in [fixtures::words(), fixtures::browser_words()] {
-            let mut view = fixtures::view_of(words);
-            let tree = fixtures::build(&mut view, &root);
-            assert!(fixtures::find(tree, Role::Button, b"Playground").is_none());
-            assert!(fixtures::find(tree, Role::Button, b"Shop").is_none());
-            assert_eq!(fixtures::find(tree, Role::Button, b"Other").is_some(), another);
-            assert_eq!(fixtures::find(tree, Role::Paragraph, b"No project yet").is_some(), !another);
-        }
-    }
-}
-
-#[test]
 fn the_brand_links_to_chats_with_its_accessible_label() {
     let root = fixtures::root_in_project(None);
     for words in [fixtures::words(), fixtures::browser_words()] {
@@ -1043,4 +997,63 @@ fn the_brand_links_to_chats_with_its_accessible_label() {
             }))
         );
     }
+}
+
+#[test]
+fn the_banner_is_one_line_with_its_set_up_link() {
+    use super::fixtures as f;
+    use temper_client_domain::{Address, Step};
+    for address in [
+        Address::Accounts,
+        Address::Forges,
+        Address::Welcome { step: Step::Welcome },
+        Address::Chats { filter: ChatsFilter::All, start: false },
+    ] {
+        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+        f::root_event(
+            &mut root,
+            temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(address) },
+        );
+        let view = f::page_view(&root);
+        let mut region = None;
+        for (index, node) in view.tree().nodes().iter().enumerate() {
+            if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") {
+                region = Some(index);
+            }
+        }
+        let region = region.expect("playground banner");
+        let end = region.checked_add(usize::try_from(view.tree().nodes().get(region).unwrap().size).unwrap()).unwrap();
+        let mut paragraphs = 0_u32;
+        let mut links = 0_u32;
+        for node in view.tree().nodes().get(region..end).unwrap() {
+            if node.role == Role::Paragraph {
+                paragraphs = paragraphs.checked_add(1).unwrap();
+            }
+            if node.role == Role::Link {
+                links = links.checked_add(1).unwrap();
+            }
+        }
+        assert_eq!(paragraphs, 1);
+        assert_eq!(links, 1);
+        let text = f::node_text(view.tree(), region);
+        assert_eq!(
+            text.as_ref(),
+            b"This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper"
+        );
+    }
+}
+#[test]
+fn the_link_sends_end_playground_and_shows_leaving() {
+    use super::fixtures as f;
+    use temper_client_domain::{Address, Event, forge};
+    let mut root = f::playground_root(Address::Forges, f::PROJECT, true);
+    let mut view = f::page_view(&root);
+    let link = f::find(view.tree(), Role::Link, b"set up temper").unwrap();
+    let action = crate::act(&mut view, link, Act::Press).unwrap();
+    assert_eq!(action, Action::Forge(forge::Act::EndPlayground));
+    f::root_event(&mut root, Event::Act { action });
+    let view = f::page_view(&root);
+    assert!(root.forge().leaving());
+    assert!(skein_lib::bytes::find(&f::text(view.tree()), "Leaving the playground…".as_bytes()).is_some());
+    assert!(f::find(view.tree(), Role::Link, b"set up temper").is_none());
 }
