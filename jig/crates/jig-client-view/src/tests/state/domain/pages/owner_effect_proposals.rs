@@ -72,7 +72,7 @@ fn native_proposal_page_reads_and_watches_keep_whole_facts_scope_and_identity_wi
         let read = named(&mut domain, watch, original.key);
         let event = ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(original.clone()))) };
         let output = drive(&mut domain, Time::ZERO, event.clone());
-        assert_eq!(crate::tests::fixtures::parts(&output, LIMITS.parts).as_ref(), &[supplied(0, u64::MAX)]);
+        assert_eq!(crate::tests::fixtures::parts(&output, LIMITS.client.parts).as_ref(), &[supplied(0, u64::MAX)]);
         exact(&domain, &original);
         let id = domain.objects().find(ObjectKey::Proposal(original.key)).unwrap();
         let mut changed = proposal(proposer, 0);
@@ -81,7 +81,7 @@ fn native_proposal_page_reads_and_watches_keep_whole_facts_scope_and_identity_wi
         let delivery =
             Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(changed.clone()))) };
         let output = drive(&mut domain, Time::ZERO, delivery.clone());
-        assert_eq!(crate::tests::fixtures::parts(&output, LIMITS.parts).as_ref(), &[supplied(0, 0)]);
+        assert_eq!(crate::tests::fixtures::parts(&output, LIMITS.client.parts).as_ref(), &[supplied(0, 0)]);
         assert_eq!(domain.objects().find(ObjectKey::Proposal(changed.key)), Some(id));
         exact(&domain, &changed);
         assert!(drive(&mut domain, Time::ZERO, event.clone()).is_empty());
@@ -99,13 +99,14 @@ fn native_proposal_page_reads_and_watches_keep_whole_facts_scope_and_identity_wi
 #[test]
 fn native_proposal_page_reads_and_watches_refuse_part_capacity_while_preserving_whole_offered_documents() {
     for watch_delivery in [false, true] {
-        let (mut domain, watch) = crate::tests::state::domain::objects::live();
+        let mut limits = LIMITS;
+        limits.client.parts = 0;
+        let (mut domain, watch) = crate::tests::state::domain::objects::live_with(&limits);
         let value = proposal(Proposer::Party(8), 17);
         let read = named(&mut domain, watch, value.key);
         let Page::Work { refused: None, .. } = domain.page() else {
             panic!("the named Inbox starts without a capacity refusal");
         };
-        domain.ui.limits.parts = 0;
         let output = if watch_delivery {
             drive(
                 &mut domain,
@@ -120,7 +121,7 @@ fn native_proposal_page_reads_and_watches_refuse_part_capacity_while_preserving_
             )
         };
         assert!(
-            crate::tests::fixtures::parts(&output, LIMITS.parts).is_empty(),
+            crate::tests::fixtures::parts(&output, LIMITS.client.parts).is_empty(),
             "full part capacity cannot emit a connector part"
         );
         exact(&domain, &value);

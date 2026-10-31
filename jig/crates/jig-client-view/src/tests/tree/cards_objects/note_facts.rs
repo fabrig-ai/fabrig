@@ -18,7 +18,7 @@ fn note_cards_name_the_whole_stored_attempt_and_only_render_supplied_times() {
             };
             let (domain, id) = note_loaded(note);
             let words = words();
-            let mut bindings = JigBindings::new(256, CLIENT.text);
+            let mut bindings = JigBindings::new(256, CLIENT.client.text);
             let mut builder = Builder::new(&limits());
             cards::card(&mut builder, &domain.view(), id, &cards::Place::Elsewhere, words, &mut bindings);
             let tree = builder.finish();
@@ -63,7 +63,7 @@ fn settled_note_answer(act: ActKind, cut: bool) {
     let expected_note = note.clone();
     let (mut domain, id) = note_loaded(note);
     let words = words();
-    let mut bindings = JigBindings::new(256, CLIENT.text);
+    let mut bindings = JigBindings::new(256, CLIENT.client.text);
     let tree = render(&domain, id, words, &mut bindings);
     assert!(!contains(&tree, b"Note edited"));
     assert!(tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Edit note")));
@@ -88,8 +88,8 @@ fn settled_note_answer(act: ActKind, cut: bool) {
         Some(crate::state::objects::Body::Note { document, .. }) => assert_eq!(document.as_ref(), &expected_note),
         other => panic!("the answer must preserve the supplied note: {other:?}"),
     }
-    let mut envelope = crate::sizes::limits::of_words(&CLIENT, words).unwrap();
-    envelope.nodes = crate::card_nodes(&CLIENT).unwrap();
+    let mut envelope = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, words).unwrap();
+    envelope.nodes = crate::card_nodes(&CLIENT, &(CLIENT).client).unwrap();
     let mut builder = Builder::new(&envelope);
     bindings.begin();
     assert!(cards::card(&mut builder, &domain.view(), id, &cards::Place::Elsewhere, words, &mut bindings));

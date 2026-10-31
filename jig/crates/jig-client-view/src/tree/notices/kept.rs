@@ -165,6 +165,6 @@ pub(crate) fn dismiss_first(domain: &mut Ui) {
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub(crate) fn valid(limits: &crate::Limits) -> bool {
+pub(crate) fn valid(limits: &crate::Config, _client: &jig_client::DomainLimits) -> bool {
     limits.notices.checked_mul(2).is_some()
 }

@@ -32,8 +32,8 @@ fn shown(value: &PolicyEdit) -> skein_ui::Tree {
         &mut b,
         value,
         words,
-        crate::tests::tree::cards::CLIENT.text,
-        crate::tests::tree::cards::CLIENT.rows,
+        crate::tests::tree::cards::CLIENT.client.text,
+        crate::tests::tree::cards::CLIENT.client.rows,
     );
     b.close();
     b.finish()

@@ -171,8 +171,11 @@ pub(in crate::tests) fn line() -> OwnerHistoryLine {
         at: None,
     }
 }
-pub(in crate::tests) fn client_limits() -> crate::Limits {
-    crate::Limits { rows: 3, text: 8, ..crate::tests::tree::cards::CLIENT }
+pub(in crate::tests) fn client_limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+        client: jig_client::DomainLimits { rows: 3, text: 8, ..(crate::tests::tree::cards::CLIENT).client },
+    }
 }
 pub(in crate::tests) fn words(selected: bool) -> Words {
     let mut english = crate::words::phrases::english::language();
@@ -234,7 +237,7 @@ fn build(value: &OwnerHistoryLine, words: &Words) -> (Tree, JigBindings) {
 
     let mut bindings = JigBindings::new(f.bindings, 8);
     let mut b = Builder::new(&limits);
-    view::render(&mut b, value, words, &mut bindings, client_limits().rows);
+    view::render(&mut b, value, words, &mut bindings, client_limits().client.rows);
     let tree = b.finish();
     assert!(tree.len() <= f.nodes);
     let mut total = 0_u64;

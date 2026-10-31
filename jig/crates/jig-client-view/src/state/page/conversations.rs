@@ -46,7 +46,7 @@ impl State {
 /// Starts a chat with only a project and the first words; a second press joins.
 pub fn start(
     domain: &mut Ui,
-    _env: &Env<crate::Limits>,
+    _env: &Env<crate::Config>,
     project: u32,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
@@ -93,7 +93,7 @@ pub fn start(
 /// Starts from a card, naming the thing by its committed title in the first words.
 pub fn about(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     key: ObjectKey,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
@@ -140,7 +140,7 @@ pub fn about(
 }
 pub(crate) fn answered(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     request_and_handle: (Token, Option<jig_client::Handle>),
     purpose: IntentPurpose,
     answer: Answer,
@@ -257,7 +257,7 @@ pub(crate) fn mark_results(domain: &mut Ui, out: &mut Queue<Request>, lent: &jig
 }
 pub(crate) fn open_chat(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     task: u64,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
@@ -435,14 +435,14 @@ pub const fn live(phase: contract::Phase) -> bool {
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub(crate) fn valid(limits: &crate::Limits) -> bool {
+pub(crate) fn valid(limits: &jig_client::DomainLimits) -> bool {
     limits.rows.checked_mul(3).is_some()
 }
 
 /// Receives the live snapshot at its reached end, preserving retained ended rows.
 pub(crate) fn delivered(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     source: Source,
     conversations: contract::Tasks,
     out: &mut Queue<Request>,

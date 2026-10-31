@@ -7,7 +7,7 @@ use crate::words::chip_words::ChipPhrase as P;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use crate::{Borrowed, Limits};
+use crate::{Borrowed, Config};
 use jig_client::contract::{
     ClosingStage, DocumentText, HoldCategory, HoldFailure, OwnerChipDetails, OwnerChipEnding, OwnerChipHold,
     OwnerChipObservation, OwnerChipWork, OwnerEscalationHolder, OwnerHoldEscalation, OwnerPersonWait, OwnerPriorPhase,
@@ -17,13 +17,13 @@ use skein_lib::Wall;
 
 /// Whole bounded metadata, including one terminal result with brief follow-up chips.
 #[must_use]
-pub fn max_nodes(limits: &Limits) -> Option<u32> {
+pub fn max_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
     120_u32
-        .checked_add(crate::tree::fragments::proposed_task::part_nodes(limits)?)?
-        .checked_add(limits.segments.checked_add(20)?.checked_mul(limits.rows)?)?
-        .checked_add(limits.segments.checked_add(6)?.checked_mul(2)?)?
-        .checked_add(limits.rows.checked_mul(6)?)?
-        .checked_add(crate::result_nodes(limits)?)
+        .checked_add(crate::tree::fragments::proposed_task::part_nodes(limits, client)?)?
+        .checked_add(client.segments.checked_add(20)?.checked_mul(client.rows)?)?
+        .checked_add(client.segments.checked_add(6)?.checked_mul(2)?)?
+        .checked_add(client.rows.checked_mul(6)?)?
+        .checked_add(crate::result_nodes(limits, client)?)
 }
 fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let saying =

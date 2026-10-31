@@ -345,7 +345,7 @@ fn owner_project_service_requires_explicit_role_before_name_without_emitting_an_
     assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::ProjectServiceRole { role } }).is_empty());
     assert_eq!(domain.project_page().settings.service_role, Some(role));
     assert!(domain.project_page().settings.review.is_none());
-    let chosen = Ask::MakeService { project: 0, name: Text::new(copy_of(b""), LIMITS.text).unwrap(), role };
+    let chosen = Ask::MakeService { project: 0, name: Text::new(copy_of(b""), LIMITS.client.text).unwrap(), role };
     assert!(drive(&mut domain, Time::ZERO, Event::Act { action: owner_form::action(chosen.clone()) }).is_empty());
     let sent = drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm });
     assert!(match &sent[..] {

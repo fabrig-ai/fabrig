@@ -26,76 +26,47 @@ pub struct Ops;
 #[must_use]
 pub fn limits() -> domain::Limits {
     domain::Limits {
-        jig: jig_client_view::Limits {
-            watches: 8,
+        jig: jig_client_view::Config {
             notices: 2,
             notice_life: Duration::from_secs(5),
             // A finite fixture keeps the same before/after-linger behavior at a short scale.
             linger: Duration::from_millis(25),
             save_delay: Duration::from_millis(10),
             intents: 2,
-            fields: 4,
 
             objects: 3,
             sources: 8,
-            reads: 8,
-            parts: 8,
-            delegates: 2,
-            document_bytes: 65536,
-            records: 2,
-            kept: 4,
+
             drafts: 1,
-            projects: 2,
+
             roles: 2,
-            text: 32,
-            rows: 2,
-            segments: 4,
-            accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+
             conversation_words: 2,
             navigation_entries: 8,
             updates_count: 99,
         },
-        observability: obs::Limits {
-            parts: 8,
-            objects: 12,
-            reads: 16,
-            watches: 16,
-            rows: 2,
-            segments: 4,
-            text: 32,
-            document_bytes: 65536,
-        },
-        infrastructure: infra::Limits {
-            parts: 8,
-            objects: 12,
-            reads: 16,
-            watches: 16,
-            requests: 4,
-            rows: 2,
-            segments: 4,
-            text: 32,
-            document_bytes: 65536,
-        },
+        observability: obs::Limits { objects: 12 },
+        infrastructure: infra::Limits { objects: 12 },
         client: client_limits(),
     }
 }
 type Books = (jig_client_view::words::Words, view::words::Words, view::words::Words);
-type BookCache = Mutex<BTreeMap<(u32, u32, u32), Books>>;
+type BookCache = Mutex<BTreeMap<u32, Books>>;
 fn phrasebooks(limits: &domain::Limits) -> Books {
     static BOOKS: OnceLock<BookCache> = OnceLock::new();
     let mut books = BOOKS.get_or_init(|| Mutex::new(BTreeMap::new())).lock().expect("fixture books lock");
     books
-        .entry((limits.jig.text, limits.observability.text, limits.infrastructure.text))
+        .entry(limits.client.domain.text)
         .or_insert_with(|| {
             (
                 jig_client_view::words::Words::new(
-                    jig_client_view::phrases::english::english(limits.jig.text).expect("English fits"),
+                    jig_client_view::phrases::english::english(limits.client.domain.text).expect("English fits"),
                     0,
                     0,
                 ),
-                view::words::Words::english(number(Connector::Observability), limits.observability.text)
+                view::words::Words::english(number(Connector::Observability), limits.client.domain.text)
                     .expect("incident English fits"),
-                view::words::Words::english(number(Connector::Infrastructure), limits.infrastructure.text)
+                view::words::Words::english(number(Connector::Infrastructure), limits.client.domain.text)
                     .expect("environment English fits"),
             )
         })

@@ -40,7 +40,7 @@ fn drive(root: &mut Domain, event: Event) -> Vec<Request> {
 }
 
 fn text(bytes: &[u8]) -> Text {
-    Text::new(bytes.into(), limits().jig.text).unwrap()
+    Text::new(bytes.into(), limits().client.domain.text).unwrap()
 }
 fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
     let rows: Vec<_> = rows.into_iter().collect();
@@ -122,7 +122,7 @@ fn ready() -> Domain {
 }
 fn words() -> &'static jig_client_view::words::Words {
     static WORDS: std::sync::OnceLock<jig_client_view::words::Words> = std::sync::OnceLock::new();
-    WORDS.get_or_init(|| crate::connector_values_words::english(limits().jig.text).unwrap())
+    WORDS.get_or_init(|| crate::connector_values_words::english(limits().client.domain.text).unwrap())
 }
 fn family_words() -> &'static words::Words {
     static WORDS: std::sync::OnceLock<words::Words> = std::sync::OnceLock::new();

@@ -31,14 +31,14 @@ pub(crate) fn sign_out_lost(domain: &mut Ui) {
     }
 }
 /// Ends the confirmed sign-in, preserving pending intents and kept records.
-pub(crate) fn signed_out(domain: &mut Ui, out: &mut Queue<Request>, _lent: &jig_client::Client) {
+pub(crate) fn signed_out(domain: &mut Ui, out: &mut Queue<Request>, lent: &jig_client::Client) {
     if domain.blocked {
         return;
     }
     crate::tree::notices::kept::clear_sign_out_lost(domain);
     let service = domain.signin.service;
     domain.signin.application = domain.page == Page::Elsewhere;
-    crate::state::page::routing::leave_page(domain, out);
+    crate::state::page::routing::leave_page(domain, out, lent);
     domain.confirmed = None;
     domain.page = if service { Page::Elsewhere } else { Page::SigningIn };
     domain.changed();

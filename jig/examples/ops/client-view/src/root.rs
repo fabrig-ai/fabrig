@@ -44,15 +44,15 @@ impl View {
         assert!(crate::valid(&words, &observability_words, &infrastructure_words), "view capacities are checked");
         Self {
             render: skein_ui::View::new(&limits.tree),
-            jig: JigBindings::new(limits.tree.bindings, domain.jig.text),
+            jig: JigBindings::new(limits.tree.bindings, domain.client.domain.text),
             observability: Bindings::new(
                 limits.tree.bindings,
-                domain.observability.text,
+                domain.client.domain.text,
                 jig_ops_domain_connectors::number(Connector::Observability),
             ),
             infrastructure: Bindings::new(
                 limits.tree.bindings,
-                domain.infrastructure.text,
+                domain.client.domain.text,
                 jig_ops_domain_connectors::number(Connector::Infrastructure),
             ),
             words,

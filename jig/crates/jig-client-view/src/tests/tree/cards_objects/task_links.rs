@@ -46,7 +46,7 @@ fn task_pages_keep_owner_requesters_and_live_retained_stored_links_without_filli
             crate::tests::tree::cards_access::check(&tree);
             assert!(contains(&tree, caption));
             assert!(contains(&tree, b"Some task lists are incomplete"));
-            assert!(tree.len() <= crate::task_nodes(&CLIENT, 0).unwrap());
+            assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
             let mut routes = 0_u32;
             for node in tree.nodes() {
                 if let Some(binding) = node.binding
@@ -87,7 +87,7 @@ fn aggregate_task_loss_prevents_partial_dependency_replacement_and_complete_link
         let (mut domain, id) = loaded(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
         drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
         let words = words();
-        let mut bindings = JigBindings::new(limits().bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words, &mut bindings);
         assert_eq!(contains(&tree, b"Some task lists are incomplete"), cut);
         let mut selected = Vec::new();

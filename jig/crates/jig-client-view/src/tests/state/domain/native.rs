@@ -19,7 +19,7 @@ use skein_lib::{List, Queue, Time, Wall};
 const ME: u64 = 7;
 const TASK: u64 = 8;
 const PROJECT: u32 = 1;
-pub(in crate::tests) fn ready(limits: &crate::Limits) -> (Fixture, Handle) {
+pub(in crate::tests) fn ready(limits: &crate::tests::fixtures::Profile) -> (Fixture, Handle) {
     let mut fixture = Fixture::new(limits);
     let handle = start(&mut fixture, List::with_capacity(0));
     delivered(&mut fixture, Time::ZERO, handle, frame(ME));
@@ -90,7 +90,10 @@ fn a_sign_out_that_did_not_reach_the_engine_is_offered_again() {
 }
 #[test]
 fn a_page_past_the_ui_s_handles_opens_what_fits_and_says_what_it_left_out() {
-    let (fixture, _) = ready(&crate::Limits { watches: 1, ..LIMITS });
+    let (fixture, _) = ready(&crate::tests::fixtures::Profile {
+        view: crate::Config { ..(LIMITS).view },
+        client: jig_client::DomainLimits { watches: 1, ..(LIMITS).client },
+    });
     assert_eq!(fixture.handles.watches.len(), 1);
     let Page::Work { refused, .. } = fixture.page() else { panic!("bounded work page") };
     assert_eq!(*refused, Some(Limit::Watches));

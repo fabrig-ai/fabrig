@@ -105,7 +105,7 @@ fn domain(value: OwnerDeployment) -> Fixture {
 }
 fn build(client: &Fixture, w: &Words, limits: skein_ui::Limits) -> Tree {
     let mut b = Builder::new(&limits);
-    let mut bindings = JigBindings::new(limits.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(limits.bindings, CLIENT.client.text);
     view::render(&mut b, &client.view(), client.deployment_page().owner.unwrap(), w, &mut bindings);
     b.finish()
 }
@@ -318,11 +318,15 @@ fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wro
         holes: 4,
         segments: crate::tests::english_phrase_segments(2),
         text_bytes: 100_000,
-        hole_bytes: CLIENT.text,
+        hole_bytes: CLIENT.client.text,
     };
     let words = Words::new(
-        Phrasebook::load(crate::words::phrases::jig::shapes(CLIENT.text), Box::new([english, second]), &phrase_limits)
-            .unwrap(),
+        Phrasebook::load(
+            crate::words::phrases::jig::shapes(CLIENT.client.text),
+            Box::new([english, second]),
+            &phrase_limits,
+        )
+        .unwrap(),
         1,
         0,
     );
@@ -342,7 +346,7 @@ fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wro
     let mut missing = crate::words::phrases::english::language();
     missing.phrases = missing.phrases.into_vec().into_iter().filter(|p| p.id != P::Hosts.id()).collect();
     assert_eq!(
-        Phrasebook::load(crate::words::phrases::jig::shapes(CLIENT.text), Box::new([missing]), &phrase_limits)
+        Phrasebook::load(crate::words::phrases::jig::shapes(CLIENT.client.text), Box::new([missing]), &phrase_limits)
             .unwrap_err(),
         Invalid::Missing { id: P::Hosts.id() }
     );
@@ -485,7 +489,20 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
             .expect_err("one-under storage refuses this entire tree");
     }
 
-    assert!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..CLIENT }).is_none());
+    assert!(
+        view::max_nodes(
+            &crate::tests::fixtures::Profile {
+                view: crate::Config { ..(CLIENT).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(CLIENT).client }
+            },
+            &(crate::tests::fixtures::Profile {
+                view: crate::Config { ..(CLIENT).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(CLIENT).client }
+            })
+            .client
+        )
+        .is_none()
+    );
     assert_eq!(client.deployment_page().owner, Some(&untouched));
 }
 fn genuine_owner_chip_fixture(number: u64) -> Chip {
@@ -748,7 +765,7 @@ fn store_words() -> Words {
         holes: 1,
         segments: 512,
         text_bytes: 16_384,
-        hole_bytes: CLIENT.text,
+        hole_bytes: CLIENT.client.text,
     };
     Words::new(
         Phrasebook::load(
@@ -795,7 +812,7 @@ fn identity_accounts() -> OwnerDeployment {
     value.cut = false;
     let account = value.accounts.get_mut(0).unwrap();
     account.provider = Some(2);
-    account.display = DocumentText { bytes: Text::new(copy_of(b"Personal"), CLIENT.text).unwrap(), cut: true };
+    account.display = DocumentText { bytes: Text::new(copy_of(b"Personal"), CLIENT.client.text).unwrap(), cut: true };
     account.holder = OwnerAccountHolder::Party(23);
     account.plan = true;
     account.uses = Some(list(vec![OwnerAccountUse::Party(23), OwnerAccountUse::Project(29)]));
@@ -869,7 +886,7 @@ fn deployment_terms() -> OwnerDeployment {
     let mut value = waiting_account(None);
     let account = value.accounts.get_mut(0).unwrap();
     account.provider_name =
-        Some(DocumentText { bytes: Text::new(copy_of(b"Arbitrary provider"), CLIENT.text).unwrap(), cut: true });
+        Some(DocumentText { bytes: Text::new(copy_of(b"Arbitrary provider"), CLIENT.client.text).unwrap(), cut: true });
     account.manage_usage = Some(copy_of(b"https://usage.example/account"));
     value
 }
@@ -915,10 +932,10 @@ fn catalogue() -> OwnerDeployment {
     value.providers = list(vec![ProviderOffer {
         provider: 37,
         key_bytes: 123,
-        name: DocumentText::complete(Text::new(b"Quasar Example".as_slice().into(), CLIENT.text).unwrap()),
+        name: DocumentText::complete(Text::new(b"Quasar Example".as_slice().into(), CLIENT.client.text).unwrap()),
         sign_in: true,
         key: true,
-        programs: list(vec![Text::new(b"arbitrary".as_slice().into(), CLIENT.text).unwrap()]),
+        programs: list(vec![Text::new(b"arbitrary".as_slice().into(), CLIENT.client.text).unwrap()]),
         programs_cut: true,
         none: false,
         signed_in_plan: true,
@@ -978,7 +995,7 @@ fn the_reusable_fragment_labels_payer_readiness() {
         let mut value = catalogue();
         value.readiness.get_mut(0).unwrap().readiness = ready;
         value.readiness.get_mut(0).unwrap().settled = settled;
-        let tree = fragment(&value, view::limits(&CLIENT, shared_words()).unwrap());
+        let tree = fragment(&value, view::limits(&CLIENT, &(CLIENT).client, shared_words()).unwrap());
         assert!(contains(&tree, words));
         assert!(contains(&tree, settlement));
         assert!(contains(&tree, b"Pays for project 91"));
@@ -988,9 +1005,9 @@ fn the_reusable_fragment_labels_payer_readiness() {
 #[test]
 fn catalogue_fragment_storage_holds_at_its_exact_size() {
     let value = catalogue();
-    let bounds = view::limits(&CLIENT, shared_words()).unwrap();
+    let bounds = view::limits(&CLIENT, &(CLIENT).client, shared_words()).unwrap();
     let tree = fragment(&value, bounds);
-    assert!(tree.len() <= crate::tree::fragments::account_catalogue::max_nodes(&CLIENT).unwrap() + 1);
+    assert!(tree.len() <= crate::tree::fragments::account_catalogue::max_nodes(&CLIENT, &(CLIENT).client).unwrap() + 1);
     let exact = skein_ui::Limits { nodes: tree.len(), ..bounds };
     assert_eq!(fragment(&value, exact).len(), tree.len());
     std::panic::catch_unwind(|| fragment(&value, skein_ui::Limits { nodes: exact.nodes - 1, ..exact }))
@@ -1112,13 +1129,13 @@ fn account_lists(accounts: u32, sources: u32) -> OwnerDeployment {
 }
 #[test]
 fn whole_account_lists_above_rows_fill_the_view_counts() {
-    let value = account_lists(CLIENT.accounts.accounts, CLIENT.accounts.sources);
+    let value = account_lists(CLIENT.client.accounts.accounts, CLIENT.client.accounts.sources);
     let client = domain(value.clone());
     let bounds = crate::tests::render_limits(&CLIENT, shared_words()).unwrap();
     let tree = build(&client, shared_words(), bounds);
     assert_eq!(
         tree.nodes().iter().filter(|node| node.key.is_some_and(|key| key.kind == 95)).count(),
-        usize::try_from(CLIENT.accounts.accounts).unwrap()
+        usize::try_from(CLIENT.client.accounts.accounts).unwrap()
     );
     assert!(tree.len() <= bounds.nodes);
     assert!(tree.nodes().iter().map(crate::tests::text_bytes).sum::<u32>() <= bounds.text_bytes);

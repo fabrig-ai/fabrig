@@ -122,6 +122,12 @@ pub struct Admission {
     pub deferred_reads: u32,
 }
 impl Client {
+    /// Receiving and retention bounds used by the client (client/domain/client.md, 14).
+    #[must_use]
+    pub const fn domain_limits(&self) -> &domain::Limits {
+        &self.limits.domain
+    }
+
     #[must_use]
     pub fn admission(&self) -> Admission {
         let attempts = match &self.link {

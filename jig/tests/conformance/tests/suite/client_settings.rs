@@ -222,17 +222,13 @@ fn an_owner_moves_running_work_through_the_client_and_hears_both_counts() {
         Driver::new(configuration, owner_limits, jig_core_world::peers::Peers::new(Vec::new(), Vec::new()), now, wall);
     let mut limits = jig_client_world::test::limits();
     // The real deployment's frame uses the joint world's document bounds.
-    limits.client.domain.rows = 32;
-    limits.client.domain.projects = 64;
-    limits.client.domain.text = 4096;
     limits.client.domain.turn_text = 4096;
     limits.client.domain.turn_bytes = 4096;
-    limits.client.domain.document_bytes = 1_048_576;
-    limits.jig.rows = 32;
-    limits.jig.projects = 64;
+    limits.client.domain.rows = 32;
+    limits.client.domain.projects = 64;
     limits.jig.roles = 64;
-    limits.jig.text = 4096;
-    limits.jig.document_bytes = 1_048_576;
+    limits.client.domain.text = 4096;
+    limits.client.domain.document_bytes = 1_048_576;
     let mut client = Client::unlinked(&limits.client, 8455).expect("public client");
     let codec =
         jig_protocol_transcript::Limits::new(1_048_576, c::TurnLimits { messages: 64, blocks: 16, text: 65_536 });

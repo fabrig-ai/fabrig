@@ -5,17 +5,17 @@ use crate::words::amendment_words::AmendmentPhrase as P;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use crate::Limits;
+use crate::Config;
 use jig_client::contract::{OwnerAmendmentState, PersonAddress};
 
 /// Finite whole-node envelope shared by standalone and enclosing page renderers.
 #[must_use]
-pub fn max_nodes(limits: &Limits) -> Option<u32> {
+pub fn max_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
     20_u32
-        .checked_add(skein_ui::markdown::max_nodes(limits.text)?)?
-        .checked_add(crate::tree::fragments::specification::nodes(limits)?)?
-        .checked_add(crate::tree::fragments::authority::document_nodes(limits.rows, limits.segments)?)?
-        .checked_add(limits.rows)
+        .checked_add(skein_ui::markdown::max_nodes(client.text)?)?
+        .checked_add(crate::tree::fragments::specification::nodes(limits, client)?)?
+        .checked_add(crate::tree::fragments::authority::document_nodes(client.rows, client.segments)?)?
+        .checked_add(client.rows)
 }
 fn saying(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let value =

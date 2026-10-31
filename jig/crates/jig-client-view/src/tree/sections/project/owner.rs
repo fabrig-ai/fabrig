@@ -8,7 +8,7 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
 use crate::{
-    Borrowed, Limits,
+    Borrowed, Config,
     state::{action::Act, page::project::owner_form},
 };
 use alloc::boxed::Box;
@@ -88,52 +88,52 @@ pub fn edit(before: &Ask, field: Field, bytes: Box<[u8]>, text: u32) -> Option<A
 /// Finite full-field envelope, derived from bounded rows and lower renderers.
 #[must_use]
 #[cfg(test)]
-pub fn max_nodes(l: &Limits) -> Option<u32> {
-    max_nodes_with_card(l, crate::card_nodes(l)?)
+pub fn max_nodes(l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    max_nodes_with_card(l, client, crate::card_nodes(l, client)?)
 }
-pub(crate) fn max_nodes_with_card(l: &Limits, card: u32) -> Option<u32> {
-    let chip = crate::chip_nodes(l)?.max(crate::tree::fragments::chip::max_nodes(l)?);
-    let authority = crate::tree::fragments::authority::document_nodes(l.rows, l.segments)?;
+pub(crate) fn max_nodes_with_card(l: &Config, client: &jig_client::DomainLimits, card: u32) -> Option<u32> {
+    let chip = crate::chip_nodes(l, client)?.max(crate::tree::fragments::chip::max_nodes(l, client)?);
+    let authority = crate::tree::fragments::authority::document_nodes(client.rows, client.segments)?;
     let policy = authority
         .checked_add(6)?
-        .checked_add(authority.checked_add(8)?.checked_mul(l.rows)?)?
-        .checked_add(l.segments.checked_add(12)?.checked_mul(l.rows)?.checked_mul(2)?)?;
-    let recurring = crate::sizes::sizes::proposed_task_nodes(l)?
-        .checked_mul(l.rows)?
+        .checked_add(authority.checked_add(8)?.checked_mul(client.rows)?)?
+        .checked_add(client.segments.checked_add(12)?.checked_mul(client.rows)?.checked_mul(2)?)?;
+    let recurring = crate::sizes::sizes::proposed_task_nodes(l, client)?
+        .checked_mul(client.rows)?
         .checked_add(chip)?
-        .checked_add(l.rows.checked_mul(2)?)?
+        .checked_add(client.rows.checked_mul(2)?)?
         .checked_add(18)?
-        .checked_mul(l.rows)?;
-    crate::tree::fragments::proposed_task::part_nodes(l)?
+        .checked_mul(client.rows)?;
+    crate::tree::fragments::proposed_task::part_nodes(l, client)?
         .checked_add(3)?
-        .checked_mul(l.rows)?
+        .checked_mul(client.rows)?
         .checked_add(policy.checked_mul(3)?)?
-        .checked_add(l.rows.checked_mul(34)?)?
-        .checked_add(chip.checked_add(10)?.checked_mul(l.rows)?)?
+        .checked_add(client.rows.checked_mul(34)?)?
+        .checked_add(chip.checked_add(10)?.checked_mul(client.rows)?)?
         .checked_add(recurring)?
-        .checked_add(l.rows.checked_mul(16)?)?
-        .checked_add(l.rows.checked_add(4)?.checked_mul(l.rows.checked_add(1)?)?.checked_mul(2)?)?
-        .checked_add(l.rows.checked_mul(10)?)?
-        .checked_add(l.rows.checked_mul(3)?)?
-        .checked_add(l.rows.checked_mul(l.rows)?.checked_mul(4)?)?
-        .checked_add(l.rows.checked_mul(6)?)?
-        .checked_add(crate::sizes::sizes::refusal_nodes(l)?.checked_mul(3)?)?
+        .checked_add(client.rows.checked_mul(16)?)?
+        .checked_add(client.rows.checked_add(4)?.checked_mul(client.rows.checked_add(1)?)?.checked_mul(2)?)?
+        .checked_add(client.rows.checked_mul(10)?)?
+        .checked_add(client.rows.checked_mul(3)?)?
+        .checked_add(client.rows.checked_mul(client.rows)?.checked_mul(4)?)?
+        .checked_add(client.rows.checked_mul(6)?)?
+        .checked_add(crate::sizes::sizes::refusal_nodes(l, client)?.checked_mul(3)?)?
         .checked_add(20)?
         .checked_add(128)?
-        .checked_add(historical_nodes(l, card)?)
+        .checked_add(historical_nodes(l, client, card)?)
 }
 // Earlier period rows include their task chips/cards and pool budgets. The
 // original cut and two edge controls cost ten nodes, independently of the
 // shared outer offered-action controls. Retained scalar funding adds its own
 // checked fragment exactly once.
-fn historical_nodes(l: &Limits, card: u32) -> Option<u32> {
-    card.checked_add(crate::chip_nodes(l)?)?
+fn historical_nodes(l: &Config, client: &jig_client::DomainLimits, card: u32) -> Option<u32> {
+    card.checked_add(crate::chip_nodes(l, client)?)?
         .checked_add(8)?
-        .checked_mul(l.rows)?
+        .checked_mul(client.rows)?
         .checked_add(8)?
-        .checked_mul(l.rows)?
+        .checked_mul(client.rows)?
         .checked_add(10)?
-        .checked_add(crate::tree::fragments::historical_pages::spend_nodes(l)?)
+        .checked_add(crate::tree::fragments::historical_pages::spend_nodes(l, client)?)
 }
 fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let text = words.book().say(words.language(), phrase.id(), holes).expect("checked project words").text;
@@ -306,7 +306,7 @@ fn policy_section(
     bindings: &mut JigBindings,
 ) {
     let text_limit = bindings.text_limit();
-    policy(b, &value.policy, words, text_limit, client.limits.rows);
+    policy(b, &value.policy, words, text_limit, client.client.domain_limits().rows);
 }
 fn members(b: &mut Builder, value: &OwnerProject, _client: &Borrowed<'_>, words: &Words, _bindings: &mut JigBindings) {
     b.open(Role::List);
@@ -377,7 +377,7 @@ fn whole_recurring(
     words.text(b, JigPhrase::RecurringKey, &[Hole::Number(u64::from(row.key))]);
     b.open(Role::List);
     for task in &row.batch {
-        cards::proposal::proposed_task(b, task, words, bindings, client.limits.rows);
+        cards::proposal::proposed_task(b, task, words, bindings, client.client.domain_limits().rows);
     }
     b.close();
     words.text(b, JigPhrase::Budget, &[Hole::Amount(row.budget)]);
@@ -949,7 +949,7 @@ fn review_form(
         region(b, words, P::Review, &[]);
         words.text(b, JigPhrase::Before, &[]);
         if let Some(before) = &state.before {
-            render_request(b, before, words, text_limit, client.limits.rows);
+            render_request(b, before, words, text_limit, client.client.domain_limits().rows);
         } else if pool_request(ask) {
             text(b, words, P::PoolAbsent, &[]);
         }
@@ -957,7 +957,7 @@ fn review_form(
             text(b, words, P::ConfiguredPeriod, &[Hole::Number(period)]);
         }
         words.text(b, JigPhrase::After, &[]);
-        render_request(b, ask, words, text_limit, client.limits.rows);
+        render_request(b, ask, words, text_limit, client.client.domain_limits().rows);
         crate::tree::frame::control(b, words, bindings, Role::Button, JigPhrase::Confirm, &[], Act::Confirm);
         crate::tree::frame::control(b, words, bindings, Role::Button, JigPhrase::Dismiss, &[], Act::Dismiss);
         b.close();

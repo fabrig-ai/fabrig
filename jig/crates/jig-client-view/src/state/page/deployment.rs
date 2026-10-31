@@ -20,7 +20,7 @@ impl DeploymentPage {
 /// Keep the whole owner value only for the admitted current deployment page.
 pub(crate) fn owner_document(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     doc: Box<OwnerDeployment>,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
@@ -28,7 +28,7 @@ pub(crate) fn owner_document(
     if !domain.shows(crate::state::page::Section::Deployment, lent) {
         return;
     }
-    let mut parts = List::with_capacity(env.limits.parts.saturating_add(1));
+    let mut parts = List::with_capacity(lent.domain_limits().parts.saturating_add(1));
     for connector in &doc.connectors {
         if parts.room() == 0 {
             break;
@@ -36,19 +36,19 @@ pub(crate) fn owner_document(
         parts.push(Part::Deployment { connector: *connector }).expect("configured reference fits");
     }
     domain.deployment_page.owner = Some(doc);
-    crate::state::page::project::show(domain, env, parts, out);
+    crate::state::page::project::show(domain, env, parts, out, lent);
     domain.changed();
 }
 
 /// Show the watched deployment's references without retaining its document.
 pub(crate) fn watched(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     out: &mut Queue<Request>,
     client: &jig_client::Client,
 ) {
     let projected = domain.borrow(client).deployment_page();
-    let mut parts = List::with_capacity(env.limits.parts.saturating_add(1));
+    let mut parts = List::with_capacity(client.domain_limits().parts.saturating_add(1));
     if let Some(owner) = projected.owner {
         for connector in &owner.connectors {
             if parts.push(Part::Deployment { connector: *connector }).is_err() {
@@ -56,6 +56,6 @@ pub(crate) fn watched(
             }
         }
     }
-    crate::state::page::project::show(domain, env, parts, out);
+    crate::state::page::project::show(domain, env, parts, out, client);
     domain.changed();
 }
