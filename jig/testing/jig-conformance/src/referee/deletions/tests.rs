@@ -201,3 +201,36 @@ fn draining_with_a_deletion_kept_fails() {
         }
     }
 }
+
+#[test]
+fn only_an_ended_task_in_a_kept_deletion_can_drop_its_read_position() {
+    for phase in [Phase::Active, Phase::Ended] {
+        for deleting in [false, true] {
+            let (_, mut before) = baseline();
+            before.tasks.get_mut(&TASK).expect("baseline task").phase = phase;
+            let mut after = before.clone();
+            after.read_positions.clear();
+            if deleting {
+                after.deleting.insert(PROJECT);
+            }
+            let result = super::super::positions::check(&before, &after);
+            assert_eq!(result.is_ok(), deleting && phase == Phase::Ended);
+        }
+    }
+}
+
+#[test]
+fn only_ended_deletions_retire_erased_turn_and_terminal_prerequisites() {
+    for phase in [Phase::Active, Phase::Ended] {
+        for deleting in [false, true] {
+            let (_, mut before) = baseline();
+            before.tasks.get_mut(&TASK).expect("baseline task").phase = phase;
+            if deleting {
+                before.deleting.insert(PROJECT);
+            }
+            let mut seen = BTreeSet::from([Receipt::Turn(TASK, 1, 1), Receipt::Terminal(TASK, 1)]);
+            super::Deletions::default().retire_receipts(&before, &before, &mut seen);
+            assert_eq!(seen.is_empty(), deleting && phase == Phase::Ended);
+        }
+    }
+}

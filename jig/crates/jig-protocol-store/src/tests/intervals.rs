@@ -14,7 +14,7 @@ fn key_bytes(key: &Key) -> Box<[u8]> {
 
 // Generated samples and explicit late-interval keys.
 const SAMPLES: u32 = 500;
-const BOUNDARY_KEYS: u32 = 4;
+const BOUNDARY_KEYS: u32 = 5;
 // A census and the combined core/tasks request, beside LIVE's single ranges.
 const EXTRA_REQUESTS: u32 = 2;
 fn samples() -> core::ops::Range<u32> {

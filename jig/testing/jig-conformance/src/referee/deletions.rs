@@ -1,5 +1,5 @@
 //! Project deletion ends whole (jig/docs/design/domain/people.md, 5.2 and 8).
-use super::{Promise, Snapshot, Violation, require};
+use super::{Promise, Receipt, Snapshot, Violation, require};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, Default)]
@@ -22,6 +22,30 @@ impl Deletions {
 
     pub(super) fn removed_project(&self, project: u32) -> bool {
         self.projects.get(&project).is_some_and(|project| project.removed)
+    }
+
+    /// A kept deletion erases ended owners' prerequisites a durable page at a time.
+    pub(super) fn retire_receipts(&self, before: &Snapshot, after: &Snapshot, seen: &mut BTreeSet<Receipt>) {
+        seen.retain(|receipt| {
+            let task = match receipt {
+                Receipt::Task(task) | Receipt::Turn(task, ..) | Receipt::Terminal(task, ..) | Receipt::Ended(task) => {
+                    *task
+                }
+                Receipt::Claim(..)
+                | Receipt::Call(..)
+                | Receipt::SignIn(_)
+                | Receipt::Party(..)
+                | Receipt::Outbox(..)
+                | Receipt::Word(..) => return true,
+            };
+            let erasing = before.tasks.get(&task).is_some_and(|row| {
+                row.closed()
+                    && (before.deleting.contains(&row.project)
+                        || after.deleting.contains(&row.project)
+                        || self.removed_project(row.project))
+            });
+            !erasing || after.receipts.contains(receipt)
+        });
     }
 
     pub(super) fn durable(&mut self, snapshot: &Snapshot) -> Result<(), Violation> {

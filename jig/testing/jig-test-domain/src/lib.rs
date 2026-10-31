@@ -1296,6 +1296,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
             | connector::Request::Document { .. }
             | connector::Request::ReadAnswered { .. }
             | connector::Request::Marked { .. }
+            | connector::Request::ProjectReleased { .. }
             | connector::Request::Closed { .. }
             | connector::Request::Verdict { .. }
             | connector::Request::Step { .. }

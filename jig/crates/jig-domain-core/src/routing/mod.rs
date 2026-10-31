@@ -533,9 +533,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::Tasks(event) => {
             let Requests::Out(mut out) = route_tasks(core, env, work, event);
-            if !core.deletions.in_route() {
-                crate::deletion::advance(core, env, &mut out);
-            }
+            crate::deletion::advance(core, env, &mut out);
             Requests::Out(out)
         }
         Event::StartRecurring { project, authority, template } => {
@@ -564,7 +562,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::Holdings { request, connector, holdings } => {
             route_holdings(core, env, work, request, connector, holdings)
         }
-        Event::Fleet(event) => route_fleet(core, env, work, event),
+        Event::Fleet(event) => {
+            let Requests::Out(mut out) = route_fleet(core, env, work, event);
+            crate::deletion::advance(core, env, &mut out);
+            Requests::Out(out)
+        }
         Event::TurnPayload { run, attempt, turn, body, read, cumulative, refused } => {
             route_turn_payload(core, work, run, attempt, turn, body, read, refused, cumulative)
         }
@@ -711,6 +713,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
             made_outputs(core, env, out)
         }
     };
+    crate::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
     Requests::Out(out)
 }

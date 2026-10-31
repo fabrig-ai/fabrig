@@ -225,6 +225,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::outbox::activate(domain);
             crate::outbox::fire(domain, env, out);
         }
+        Event::ReleaseProject { project } => release_project(domain, project, out),
         Event::Names { task, project, resources } => names(domain, env, task, project, resources, out),
         Event::Unnamed { task } => unnamed(domain, task, out),
         Event::Adopt { project, resource, role } => adopt(domain, env, project, resource, role, out),
@@ -596,4 +597,22 @@ fn report_adoption(domain: &Domain, project: u32, resource: &Path, out: &mut Que
     let Some(role) = domain.resource_role(project, resource) else { return };
     let Some(spec) = resource_spec(&domain.config, resource) else { return };
     out.push(Request::Resource { project, resource: Named { path: resource.clone(), role, hold: spec.hold } });
+}
+
+/// Release the connector's project rows (temper/docs/design/draft/playground-reset.md, 5).
+fn release_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    // At most the configured adoption capacity is visited and erased.
+    for _ in 0..domain.adoptions.len() {
+        let mut next = None;
+        for ((owner, path), _) in &domain.adoptions {
+            if *owner == project {
+                next = Some(path.clone());
+                break;
+            }
+        }
+        let Some(path) = next else { break };
+        domain.adoptions.remove(&(project, path.clone()));
+        out.push(Request::Erase { key: RecordKey::Adoption { project, path } });
+    }
+    out.push(Request::ProjectReleased { project });
 }
