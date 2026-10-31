@@ -45,7 +45,9 @@ pub fn root(
     limits.tasks.parameters = 8;
     limits.tasks.spec_bytes = 512;
     limits.tasks.executor_kinds = 2;
+    limits.documents.executors = limits.tasks.executor_kinds;
     limits.tasks.authority_grants = 10;
+    limits.documents.grants = limits.tasks.authority_grants;
     limits.journal.run_bytes = 8192;
     limits.tasks.authority_segments = 9;
     limits.tasks.authority_bytes = 512;

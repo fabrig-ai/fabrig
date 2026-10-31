@@ -20,7 +20,7 @@ fn parked_window(closed: bool) -> (Driver, engine::Assignment) {
     };
     proof.window.as_mut().expect("committed opening turn").closed = closed;
     driver.store.seed(Box::new([record]), Box::new([]));
-    let mut driver = Driver::new(driver.store);
+    let mut driver = Driver::new(driver.take_store());
     driver.hello(CHANNEL);
     driver.settle();
     driver.sign_in();

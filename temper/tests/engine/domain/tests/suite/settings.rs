@@ -174,9 +174,9 @@ fn saved_policy(bytes: u64, project: bool) -> Driver {
     driver
 }
 
-fn replay_policy(driver: Driver, limits: &engine::Limits) -> Driver {
+fn replay_policy(mut driver: Driver, limits: &engine::Limits) -> Driver {
     let mut store = Store::with_limits(limits);
-    for (index, writes) in driver.transactions.into_iter().enumerate() {
+    for (index, writes) in std::mem::take(&mut driver.transactions).into_iter().enumerate() {
         let number = u64::try_from(index).expect("transaction index fits u64") + 1;
         // Complete transactions include deployment counters, settings history,
         // keyed answers and project rows, just as the real root committed them.
@@ -487,7 +487,7 @@ fn a_stale_owner_change_names_the_newest_revision() {
 fn changed_settings_restore_before_accounts_and_survive_a_restart() {
     let mut driver = started(HISTORY);
     change(&mut driver, 1, 5, rules(2));
-    let mut restarted = Driver::cold(driver.store, walking::config(SEED), &walking::limits());
+    let mut restarted = Driver::cold(driver.take_store(), walking::config(SEED), &walking::limits());
     restarted.settle();
     restarted.sign_in();
     restarted.settle();
@@ -506,15 +506,15 @@ fn changed_settings_restore_before_accounts_and_survive_a_restart() {
 #[test]
 #[ignore = "needs core-inbox"]
 fn changed_release_defaults_record_a_revision_once() {
-    let driver = started(HISTORY);
+    let mut driver = started(HISTORY);
     let mut config = walking::config(SEED);
     config.core.defaults.rules.minimum_run_spend = 2;
-    let mut released = Driver::cold(driver.store, config, &walking::limits());
+    let mut released = Driver::cold(driver.take_store(), config, &walking::limits());
     released.settle();
     assert_eq!((head(&released).number, head(&released).by), (2, s::Decider::Release));
     let mut config = walking::config(SEED);
     config.core.defaults.rules.minimum_run_spend = 2;
-    let mut unchanged = Driver::cold(released.store, config, &walking::limits());
+    let mut unchanged = Driver::cold(released.take_store(), config, &walking::limits());
     unchanged.settle();
     assert_eq!((head(&unchanged).number, head(&unchanged).by), (2, s::Decider::Release));
     assert!(
@@ -564,7 +564,7 @@ fn a_stored_change_that_no_longer_checks_refuses_the_start() {
     );
     let mut limits = walking::limits();
     limits.tasks.grace = Duration::from_secs(3);
-    let mut restarted = Driver::cold(driver.store, walking::config(SEED), &limits);
+    let mut restarted = Driver::cold(driver.take_store(), walking::config(SEED), &limits);
     restarted.pump();
     assert!(restarted.stopped);
     assert_eq!(

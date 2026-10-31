@@ -821,15 +821,11 @@ pub fn crash(settings: Settings, cut: skein_world::Cut, draw: &mut skein_lib::Rn
     let length = end.checked_sub(start).expect("pending window ordering");
     assert!(length > 0, "pending window has a submission");
     let before = start + u32::try_from(draw.below(u64::from(length))).expect("bounded pending draw");
-    let outcome = run_phase(
-        settings,
-        Story::Adoption,
-        Phase::Fault { cut, before },
-        machine::fresh(),
-        Store::new(),
-        Rc::new(RefCell::new(referee::Run::default())),
-    )
-    .0;
+    crate::oracle::begin();
+    let run = Rc::new(RefCell::new(referee::Run::default()));
+    let (outcome, disk, store) =
+        run_phase(settings, Story::Adoption, Phase::Fault { cut, before }, machine::fresh(), Store::new(), run.clone());
+    crate::oracle::cold(settings, disk, store, run);
     (before, outcome)
 }
 pub(crate) fn saved_adoptions() -> std::collections::BTreeSet<[u8; 16]> {
@@ -888,7 +884,7 @@ pub(crate) fn share(transport: Option<temper_fake_git_hosted::Typed>) {
 fn transport() -> temper_fake_git_hosted::Typed {
     SHARED.with(|shared| shared.borrow().as_ref().expect("world's forge").clone())
 }
-fn peer() -> Peer {
+pub(crate) fn peer() -> Peer {
     let mut peer = Peer::new(
         fixtures::FORGE,
         fixtures::peer_limits(),
@@ -1100,6 +1096,10 @@ fn run_phase(
             );
             world.spawn_restartable(vec![], llm_peer);
             world.spawn_restartable(vec![], fake_forge);
+            world.spawn_restartable(
+                vec![skein_world::StartupRoot { name: b"oracle".as_slice().into(), path: b"client".as_slice().into() }],
+                crate::oracle::caller,
+            );
             world.cut(0, before, cut);
         }
         Phase::Restart | Phase::Refused => {

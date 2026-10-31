@@ -27,7 +27,7 @@ fn ended_conversation() -> Store {
         engine::Parts::none(),
     );
     driver.settle();
-    driver.store
+    driver.take_store()
 }
 
 #[test]

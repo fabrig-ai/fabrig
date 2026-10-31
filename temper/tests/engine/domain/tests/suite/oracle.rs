@@ -42,7 +42,7 @@ fn an_erased_forge_row_names_its_key() {
 fn a_deliberately_broken_fixture_skips_even_an_unsettled_root() {
     let mut driver = Driver::new(Store::new());
     let rows = driver.store.rows.clone();
-    driver.broken();
+    driver.broken("deliberately incomplete startup fixture exercises the opt-out");
     driver.close();
     assert_eq!(driver.store.rows, rows);
     assert!(!driver.root.ready());

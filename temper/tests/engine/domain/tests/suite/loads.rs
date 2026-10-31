@@ -487,6 +487,7 @@ fn first_restore_load() -> (temper_engine_domain_world::direct::Driver, Token) {
 #[test]
 fn a_failed_restore_load_retains_its_kind_and_store_failure() {
     let (mut driver, owner) = first_restore_load();
+    driver.broken("deliberate store load failure refuses startup");
     driver.send(root::Event::Store(root::StoreInput::Unloaded { owner }));
     driver.pump();
     assert!(driver.stopped);
@@ -501,6 +502,7 @@ fn a_failed_restore_load_retains_its_kind_and_store_failure() {
 fn startup_rows_bytes_and_soft_cuts_retain_range_and_failed_step_before_switch() {
     for shape in 0..3 {
         let (mut driver, owner) = first_restore_load();
+        driver.broken("malformed restore page deliberately refuses startup");
         let limits = driver.env.limits.loads;
         let (rows, failure): (Box<[Record]>, Failure) = match shape {
             0 => (

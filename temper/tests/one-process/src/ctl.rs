@@ -106,6 +106,12 @@ pub(crate) struct Caller {
     submissions: Queue<Submit>,
 }
 impl Caller {
+    pub(crate) fn restartable(inherited: &Inherited) -> Self {
+        let mut caller = Self::scripted(inherited.roots[0].1);
+        caller.submit(Op::Close { fd: inherited.signal });
+        caller
+    }
+
     pub(crate) fn owns(token: Token) -> bool {
         token.raw() & TAG == TAG
     }

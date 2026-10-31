@@ -1859,12 +1859,13 @@ impl World {
         self.store.crash(0);
         snapshot.compare_rows(&self.store.rows);
         let store = std::mem::take(&mut self.store);
-        let fresh =
+        let mut fresh =
             crate::direct::Driver::cold(store, crate::oracle::config::copy(&self.restart_config), &self.env.limits);
-        self.root = fresh.root;
-        self.out = fresh.out;
-        self.events = fresh.events;
-        self.store = fresh.store;
+        std::mem::swap(&mut self.root, &mut fresh.root);
+        std::mem::swap(&mut self.out, &mut fresh.out);
+        std::mem::swap(&mut self.events, &mut fresh.events);
+        std::mem::swap(&mut self.store, &mut fresh.store);
+        fresh.broken = crate::oracle::Fixture::Closed;
         self.drained = None;
         self.period = Some(1);
         self.events.push_back(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });

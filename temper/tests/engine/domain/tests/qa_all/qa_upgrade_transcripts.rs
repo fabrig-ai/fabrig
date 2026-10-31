@@ -66,7 +66,7 @@ fn waiting(closed: bool) -> (Driver, engine::Assignment, u64, engine::Event) {
     };
     proof.window.as_mut().expect("committed first turn opens a window").closed = closed;
     driver.store.seed(Box::new([row]), Box::new([]));
-    let mut driver = Driver::new(driver.store);
+    let mut driver = Driver::new(driver.take_store());
     driver.hello(CHANNEL);
     driver.settle();
     driver.send(say_ask(session, first.task, FIRST_WAKE));

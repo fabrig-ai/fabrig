@@ -338,6 +338,7 @@ impl skein_world::Referee<Proc> for Referee {
         if self.done.is_none()
             && (done || !matches!(self.phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }))
             && complete
+            && crate::oracle::readback(other)
         {
             for proc in other.iter_mut() {
                 if let Proc::Client(person) = proc {

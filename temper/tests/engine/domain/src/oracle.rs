@@ -2,6 +2,7 @@
 //! temper/docs/design/domain/testing.md, 2).
 pub(crate) enum Fixture {
     Checked,
+    Closed,
     Broken,
 }
 
@@ -128,7 +129,8 @@ impl Driver {
     }
 
     /// A deliberately broken fixture: `close` does nothing.
-    pub fn broken(&mut self) {
+    pub fn broken(&mut self, reason: &str) {
+        assert!(!reason.is_empty(), "a broken fixture names its reason");
         self.broken = Fixture::Broken;
     }
 
@@ -163,6 +165,7 @@ impl Driver {
         fresh.protocol = std::mem::take(&mut self.protocol);
         fresh.serial = self.serial;
         fresh.period_sent = true;
+        self.broken = Fixture::Broken;
         *self = fresh;
         self.oracle_settle();
         snapshot.compare_rows(&self.store.rows);
@@ -176,6 +179,7 @@ impl Driver {
             compare_forge(*project, *subject, before, after);
         }
         self.oracle_settle();
+        self.broken = Fixture::Closed;
     }
 
     fn oracle_settle(&mut self) {
@@ -315,6 +319,7 @@ pub fn close_world(
     std::mem::swap(&mut driver.root, root);
     std::mem::swap(&mut driver.store, store);
     std::mem::swap(&mut driver.protocol, protocol);
+    driver.broken = Fixture::Closed;
 }
 
 /// Public forge subjects are discovered from retained owners, including ended tasks.
@@ -392,5 +397,13 @@ pub fn compare_forges(before: temper_engine_domain_forge::Forges, after: temper_
             "restart oracle forge document forges, field {}",
             difference(&format!("{before:#?}"), &format!("{after:#?}"))
         );
+    }
+}
+
+impl Drop for Driver {
+    fn drop(&mut self) {
+        if !std::thread::panicking() && matches!(self.broken, Fixture::Checked) {
+            self.close();
+        }
     }
 }

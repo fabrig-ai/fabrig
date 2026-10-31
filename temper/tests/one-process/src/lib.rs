@@ -2,6 +2,7 @@
 mod box_listener;
 pub mod fixtures;
 mod machine;
+mod oracle;
 pub mod referee;
 mod restart_control;
 mod stories;
