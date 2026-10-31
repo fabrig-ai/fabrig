@@ -188,7 +188,6 @@ fn a_failed_mark_never_adopts_the_runs() {
 }
 
 #[test]
-#[ignore = "start: root routes stopping to the core before durable Wires"]
 fn stopping_before_the_mark_does_not_commit_it() {
     let mut world = at_switch(f::BEFORE);
     let before = world.store.applied;

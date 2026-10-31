@@ -5,7 +5,7 @@ pub(crate) mod projections;
 mod runs;
 mod script;
 mod settings;
-use crate::{Core, HeldLimit, Key, Wall, settings as core_settings};
+use crate::{Core, Key, Wall, settings as core_settings};
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -76,15 +76,15 @@ pub enum SweepInput {
     Finished,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum StartMode {
-    Default,
-    LoadAndLink,
+/// The held settings bound that prevents a cold start (engine.md, 17.7–17.8).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum HeldLimit {
+    Revisions,
+    Versions,
 }
 
 #[derive(Debug)]
 pub(crate) struct Script {
-    pub(crate) mode: StartMode,
     pub(crate) consumed: bool,
     pub(crate) phase: Option<Phase>,
     pub(crate) failure: Option<Failure>,
@@ -100,7 +100,6 @@ pub(crate) struct Script {
 impl Script {
     pub(crate) fn new() -> Self {
         Self {
-            mode: StartMode::Default,
             consumed: false,
             phase: None,
             failure: None,
@@ -157,13 +156,12 @@ impl Core {
 
     /// Choose the start interface once, capturing the expiry instant before loading.
     pub fn start_begin(&mut self, pending: bool, at: Wall) -> Action {
-        assert!(!self.start.consumed && self.start.mode == StartMode::Default, "start selected before input once");
+        assert!(!self.start.consumed, "start selected before input once");
         self.start_input();
         self.people.start_restore(at);
         self.tasks.start_restore();
         self.accounts.start_restore();
         self.authority.start_restore();
-        self.start.mode = StartMode::LoadAndLink;
         self.start.phase = Some(Phase::LoadCore);
         self.start.at = at;
         self.restart_pending = pending;

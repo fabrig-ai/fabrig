@@ -322,38 +322,19 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
         return Requests::Out(Queue::uncapped());
     }
     if let Some(phase) = core.start_phase() {
-        use crate::start::Phase;
-        match phase {
-            Phase::LoadCore
-            | Phase::LoadInbox
-            | Phase::RestoreConnector { .. }
-            | Phase::Link
-            | Phase::Sweep
-            | Phase::Switch
-            | Phase::Wires =>
-            {
-                #[expect(
-                    clippy::wildcard_enum_match_arm,
-                    reason = "the closed start gate accepts loading inputs; serving inputs require durable Wires"
-                )]
-                match &event {
-                    Event::Account(accounts::Event::Want) => return want_accounts(core, env),
-                    Event::Account(accounts::Event::Restore { .. })
-                    | Event::People(people::Event::Restore { .. })
-                    | Event::Tasks(tasks::Event::Restore { .. }) => {
-                        assert!(core.start_loading(), "rows load before Link and outside a seed commit");
-                    }
-                    Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
-                    Event::EffectConnector(crate::connector::Event::Resource { name, .. }) => {
-                        assert!(
-                            matches_restore_connector(phase, name.connector),
-                            "connector resources load before Link"
-                        );
-                    }
-                    _ => unreachable!("operational input requires durable Wires"),
-                }
+        #[expect(clippy::wildcard_enum_match_arm, reason = "only restore entrances need phase validation")]
+        match &event {
+            Event::Account(accounts::Event::Want) => return want_accounts(core, env),
+            Event::Account(accounts::Event::Restore { .. })
+            | Event::People(people::Event::Restore { .. })
+            | Event::Tasks(tasks::Event::Restore { .. }) => {
+                assert!(core.start_loading(), "rows load before Link and outside a seed commit");
             }
-            Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open => {}
+            Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
+            Event::EffectConnector(crate::connector::Event::Resource { name, .. }) => {
+                assert!(matches_restore_connector(phase, name.connector), "connector resources load before Link");
+            }
+            _ => {}
         }
     }
     let oldest = core.current.oldest;

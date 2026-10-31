@@ -21,7 +21,6 @@ pub struct Domain {
 
 #[derive(Debug, PartialEq, Eq)]
 enum Start {
-    Default,
     Loading,
     Linked,
 }
@@ -93,10 +92,11 @@ pub enum PolicyFact {
 }
 
 impl Domain {
-    /// Select load/fit/link before any restore or ordinary mutation (engine.md, 6).
+    /// Begin loading before any restore or ordinary mutation (engine.md, 6).
     pub fn start_restore(&mut self) {
-        assert!(self.start == Start::Default && !self.touched, "authority start selected once before input");
+        assert!(self.start == Start::Linked && !self.touched, "authority start begins once before input");
         self.start = Start::Loading;
+        self.touched = true;
     }
 
     /// Seal loading, preserving the first keyed fit failure (engine.md, 6).
@@ -122,7 +122,7 @@ impl Domain {
             rules,
             policies: Map::with_capacity(limits.projects),
             limits,
-            start: Start::Default,
+            start: Start::Linked,
             touched: false,
             failure: None,
         })
@@ -202,57 +202,53 @@ pub fn step(domain: &mut Domain, event: Event, out: &mut Queue<PolicyFact>) {
         Event::Rules(_) => {}
         Event::Restore { .. } | Event::Policy { .. } | Event::Dropped { .. } => domain.touched = true,
     }
-    if domain.start != Start::Default {
-        match &event {
-            Event::Restore { project, policy } => {
-                assert!(domain.start == Start::Loading, "authority restore after seal: project {project}");
-                if let Some((_, reason)) = domain.failure {
-                    out.push(PolicyFact::Refused { project: *project, reason });
-                    return;
-                }
-                assert!(!domain.policies.contains_key(project), "duplicate policy key: project {project}");
-                let reason = if !policy_fits(&domain.limits, policy) {
-                    Some(PolicyRefusal::Oversized)
-                } else if domain.policies.len() == domain.policies.capacity() {
-                    Some(PolicyRefusal::Full)
-                } else {
-                    None
-                };
-                if let Some(reason) = reason {
-                    domain.failure = Some((*project, reason));
-                    out.push(PolicyFact::Refused { project: *project, reason });
-                    return;
-                }
+    match &event {
+        Event::Restore { project, policy } => {
+            assert!(domain.start == Start::Loading, "authority restore after seal: project {project}");
+            if let Some((_, reason)) = domain.failure {
+                out.push(PolicyFact::Refused { project: *project, reason });
+                return;
             }
-            Event::Rules(_) => {
-                assert!(domain.failure.is_none(), "authority failed start cannot mutate configuration");
-            }
-            Event::Policy { .. } | Event::Dropped { .. } => {
-                assert!(
-                    domain.start == Start::Linked && domain.failure.is_none(),
-                    "authority mutation requires successful link"
-                );
+            assert!(!domain.policies.contains_key(project), "duplicate policy key: project {project}");
+            let reason = if !policy_fits(&domain.limits, policy) {
+                Some(PolicyRefusal::Oversized)
+            } else if domain.policies.len() == domain.policies.capacity() {
+                Some(PolicyRefusal::Full)
+            } else {
+                None
+            };
+            if let Some(reason) = reason {
+                domain.failure = Some((*project, reason));
+                out.push(PolicyFact::Refused { project: *project, reason });
+                return;
             }
         }
+        Event::Rules(_) => {
+            assert!(domain.failure.is_none(), "authority failed start cannot mutate configuration");
+        }
+        Event::Policy { project, policy } => {
+            assert!(
+                domain.start == Start::Linked && domain.failure.is_none(),
+                "authority mutation requires successful link"
+            );
+            if let Some(reason) = invalid(&domain.rules, &domain.limits, policy) {
+                out.push(PolicyFact::Refused { project: *project, reason });
+                return;
+            }
+        }
+        Event::Dropped { .. } => {
+            assert!(
+                domain.start == Start::Linked && domain.failure.is_none(),
+                "authority mutation requires successful link"
+            );
+        }
     }
-    let restoring = match &event {
-        Event::Restore { .. } => true,
-        Event::Rules(_) | Event::Policy { .. } | Event::Dropped { .. } => false,
-    };
     match event {
         Event::Rules(rules) => {
             assert!(valid_rules(&rules, &domain.limits), "replacement rules validated at admission");
             domain.rules = *rules;
         }
         Event::Policy { project, policy } | Event::Restore { project, policy } => {
-            if let Some(reason) = if restoring && domain.start != Start::Default {
-                None
-            } else {
-                invalid(&domain.rules, &domain.limits, &policy, restoring)
-            } {
-                out.push(PolicyFact::Refused { project, reason });
-                return;
-            }
             match domain.policies.insert(project, policy) {
                 Ok(previous) => match previous {
                     Some(previous) => {
@@ -279,7 +275,7 @@ pub fn step(domain: &mut Domain, event: Event, out: &mut Queue<PolicyFact>) {
 /// Check a policy before a settings value is admitted; allocates nothing.
 #[must_use]
 pub fn policy_refusal(rules: &Rules, limits: &Limits, policy: &Policy) -> Option<PolicyRefusal> {
-    invalid(rules, limits, policy, false)
+    invalid(rules, limits, policy)
 }
 /// The rules' bounded shape and consistent run ceilings.
 #[must_use]
@@ -290,7 +286,7 @@ pub fn valid_rules(rules: &Rules, limits: &Limits) -> bool {
         && rules.minimum_run_spend < rules.maximum_run_spend
         && rules.maximum_run_spend <= rules.ceiling.budget.spend
 }
-fn invalid(rules: &Rules, limits: &Limits, policy: &Policy, restoring: bool) -> Option<PolicyRefusal> {
+fn invalid(rules: &Rules, limits: &Limits, policy: &Policy) -> Option<PolicyRefusal> {
     if !within(policy.projections.len(), limits.grants)
         || !authority_within(&policy.ceiling, limits)
         || !within(policy.roles.len(), limits.roles)
@@ -298,9 +294,7 @@ fn invalid(rules: &Rules, limits: &Limits, policy: &Policy, restoring: bool) -> 
     {
         return Some(PolicyRefusal::Oversized);
     }
-    if !restoring
-        && (!at_most_but_models(&policy.ceiling, &rules.ceiling, &rules.implies)
-            || policy.period_spend > rules.period_spend)
+    if !at_most_but_models(&policy.ceiling, &rules.ceiling, &rules.implies) || policy.period_spend > rules.period_spend
     {
         return Some(PolicyRefusal::AboveRules);
     }
@@ -312,7 +306,7 @@ fn invalid(rules: &Rules, limits: &Limits, policy: &Policy, restoring: bool) -> 
         for ceiling in &policy.ceiling.grants {
             covered |= crate::grant_at_most(grant, ceiling, &rules.implies);
         }
-        if !restoring && !covered {
+        if !covered {
             return Some(PolicyRefusal::AboveRules);
         }
     }
@@ -320,7 +314,7 @@ fn invalid(rules: &Rules, limits: &Limits, policy: &Policy, restoring: bool) -> 
         if !authority_within(&role.authority, limits) {
             return Some(PolicyRefusal::Oversized);
         }
-        if (!restoring && !at_most_but_models(&role.authority, &policy.ceiling, &rules.implies))
+        if !at_most_but_models(&role.authority, &policy.ceiling, &rules.implies)
             || role.period_spend > policy.period_spend
             || role.requests.0 & !crate::Requests::ALL.0 != 0
             || role.decides.0 & !crate::Proposals::ALL.0 != 0
