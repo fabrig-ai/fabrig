@@ -27,7 +27,7 @@ fn words() -> &'static Words {
                 Box::new([language]),
                 &skein_ui::phrases::PhraseLimits {
                     languages: 1,
-                    phrases: crate::words::owner_words::phrase_count(),
+                    phrases: crate::words::document_words::phrase_count(),
                     holes: 4,
                     segments: crate::tests::english_phrase_segments(1),
                     text_bytes: 100_000,
@@ -62,7 +62,7 @@ fn selected() -> &'static Words {
                 Box::new([crate::words::phrases::english::language(), language]),
                 &skein_ui::phrases::PhraseLimits {
                     languages: 2,
-                    phrases: crate::words::owner_words::phrase_count(),
+                    phrases: crate::words::document_words::phrase_count(),
                     holes: 4,
                     segments: crate::tests::english_phrase_segments(2),
                     text_bytes: 100_000,
@@ -75,8 +75,8 @@ fn selected() -> &'static Words {
         )
     })
 }
-fn report(work: OwnerChipWork, started: Option<Wall>) -> OwnerChipObservation {
-    OwnerChipObservation {
+fn report(work: ChipWork, started: Option<Wall>) -> ChipObservation {
+    ChipObservation {
         channel: Token::new(u64::MAX),
         work,
         since: Wall::from_nanos(31),
@@ -84,16 +84,16 @@ fn report(work: OwnerChipWork, started: Option<Wall>) -> OwnerChipObservation {
         started,
     }
 }
-fn task(observation: Option<OwnerChipObservation>, context: bool) -> Task {
+fn task(observation: Option<ChipObservation>, context: bool) -> Task {
     let mut task = crate::tests::tree::cards_objects::task_doc(&[]);
-    task.chip.executor = Executor::Agent { charter: 1 };
+    task.chip.executor = ChipExecutor::Agent { charter: 1 };
     let mut details = crate::tests::tree::fragments::chip::details();
     details.project = task.project;
-    details.executor = OwnerExecutor::Agent { charter: 1 };
+    details.executor = Executor::Agent { charter: 1 };
     details.observation = observation;
     task.chip.phase = Phase::Running;
-    task.chip.details = Box::new(ChipPhase {
-        phase: OwnerChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
+    task.chip.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
         details: Box::new(details),
     });
     task.hold = None;
@@ -138,13 +138,13 @@ fn render(domain: &Fixture, words: &Words) -> Tree {
 fn owner_work_activity_without_synthetic_context_shows_all_seven_reports_and_independent_clocks() {
     let mut goldens = Goldens::new("state/conversation_work/owner_work_activity");
     for work in [
-        OwnerChipWork::Preparing,
-        OwnerChipWork::Starting,
-        OwnerChipWork::Active,
-        OwnerChipWork::Writing,
-        OwnerChipWork::Tool { call: copy_of(&[255, 0]), tool: copy_of(b"literal/tool") },
-        OwnerChipWork::Waiting,
-        OwnerChipWork::Ending,
+        ChipWork::Preparing,
+        ChipWork::Starting,
+        ChipWork::Active,
+        ChipWork::Writing,
+        ChipWork::Tool { call: copy_of(&[255, 0]), tool: copy_of(b"literal/tool") },
+        ChipWork::Waiting,
+        ChipWork::Ending,
     ] {
         for started in [None, Some(Wall::EPOCH), Some(Wall::from_nanos(u64::MAX))] {
             let source = report(work.clone(), started);
@@ -165,7 +165,7 @@ fn owner_work_activity_without_synthetic_context_shows_all_seven_reports_and_ind
 fn owner_work_absence_does_not_fabricate_report_and_preserves_independent_synthetic_runtime() {
     let mut goldens = Goldens::new("state/conversation_work/owner_work_absence");
     for context in [false, true] {
-        for observation in [None, Some(report(OwnerChipWork::Writing, None))] {
+        for observation in [None, Some(report(ChipWork::Writing, None))] {
             let (domain, _) = page(task(observation, context), TaskSection::Activity);
             let tree = render(&domain, words());
             goldens.check(&tree);
@@ -177,9 +177,9 @@ fn owner_work_absence_does_not_fabricate_report_and_preserves_independent_synthe
 fn selected_owner_work_activity_preserves_conversation_and_opaque_provisional_text() {
     let mut goldens = Goldens::new("state/conversation_work/selected_owner_work");
     for work in [
-        OwnerChipWork::Starting,
-        OwnerChipWork::Writing,
-        OwnerChipWork::Tool { call: copy_of(&[255, 0]), tool: copy_of(b"selected/tool") },
+        ChipWork::Starting,
+        ChipWork::Writing,
+        ChipWork::Tool { call: copy_of(&[255, 0]), tool: copy_of(b"selected/tool") },
     ] {
         let (mut domain, requests) = page(task(Some(report(work, None)), false), TaskSection::Activity);
         let run =
@@ -218,7 +218,7 @@ fn selected_owner_work_activity_preserves_conversation_and_opaque_provisional_te
 #[test]
 fn owner_work_overview_and_activity_keep_the_same_supplied_observation_without_full_metadata_in_activity() {
     let mut goldens = Goldens::new("state/conversation_work/owner_work_overview");
-    let value = task(Some(report(OwnerChipWork::Writing, None)), false);
+    let value = task(Some(report(ChipWork::Writing, None)), false);
     for section in [TaskSection::Overview, TaskSection::Activity] {
         let (domain, _) = page(value.clone(), section);
         let tree = render(&domain, words());

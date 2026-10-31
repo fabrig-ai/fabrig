@@ -73,15 +73,15 @@ pub mod words {
     pub(crate) mod budget_words;
     pub(crate) mod chip_words;
     pub(crate) mod deployment_words;
-    pub(crate) mod historical_pages_words;
-    pub(crate) mod historical_words;
+    pub mod document_words;
+    pub(crate) mod ended_pages_words;
+    pub(crate) mod ended_words;
     pub(crate) mod history_words;
     pub(crate) mod inbox_words;
     pub mod literal_segment;
     pub(crate) mod live_call_words;
     pub(crate) mod milestone_words;
     pub(crate) mod outcome_words;
-    pub mod owner_words;
     pub(crate) mod person_task_words;
     pub mod phrases;
     pub(crate) mod project_words;
@@ -120,15 +120,15 @@ pub use state::store;
 pub use state::ui::{Borrowed, Ui, fire, next_deadline, reclaim, step};
 pub use styles::JigStyle;
 pub use tree::cards;
-pub use tree::fragments::authority as owner_authority;
-pub use tree::fragments::budget as owner_budget;
+pub use tree::fragments::authority;
+pub use tree::fragments::budget;
 pub use tree::frame;
 pub use tree::pages;
 pub use tree::pages::{after_page, jig};
 pub use tree::sections;
 pub use tree::turns::conversation;
+pub use words::document_words;
 pub use words::literal_segment;
-pub use words::owner_words;
 pub use words::phrases;
 
 #[cfg(test)]

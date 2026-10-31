@@ -1,6 +1,6 @@
 //! Routing facts from retained outcomes (client/domain/contract.md, 4).
 //! Classification never rewrites the whole durable answer or joins missing facts.
-use jig_client::contract::{Made, Outcome, OwnerOutcome};
+use jig_client::contract::{DocumentOutcome, Made, Outcome};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Route {
@@ -11,48 +11,48 @@ pub(crate) enum Route {
 }
 pub(crate) fn route(outcome: &Outcome) -> Route {
     match outcome {
-        Outcome::Owner(value) => match value {
-            OwnerOutcome::Created { first, last, .. } => {
+        Outcome::Document(value) => match value {
+            DocumentOutcome::Created { first, last, .. } => {
                 if first == last {
                     Route::Created { task: *first }
                 } else {
                     Route::Other
                 }
             }
-            OwnerOutcome::Said { task, message, .. } => Route::Words { task: *task, message: *message },
-            OwnerOutcome::Proposed { .. } => Route::Proposed,
-            OwnerOutcome::Withdrawn { .. }
-            | OwnerOutcome::Compound { .. }
-            | OwnerOutcome::MarkedSeen { .. }
-            | OwnerOutcome::NoteEdited { .. }
-            | OwnerOutcome::ServiceMade { .. }
-            | OwnerOutcome::Adopted { .. }
-            | OwnerOutcome::Stopped { .. }
-            | OwnerOutcome::Cancelled { .. }
-            | OwnerOutcome::Lifted { .. }
-            | OwnerOutcome::Released { .. }
-            | OwnerOutcome::PersonTaken { .. }
-            | OwnerOutcome::PersonHandedBack { .. }
-            | OwnerOutcome::PersonAnswered { .. }
-            | OwnerOutcome::Moved { .. }
-            | OwnerOutcome::ProposalDecided { .. }
-            | OwnerOutcome::QuestionAnswered { .. }
-            | OwnerOutcome::Amended { .. }
-            | OwnerOutcome::RolesSet { .. }
-            | OwnerOutcome::PolicyChanged { .. }
-            | OwnerOutcome::AccountProgramDeclared { .. }
-            | OwnerOutcome::AccountKeyKept { .. }
-            | OwnerOutcome::AccountFinishing { .. }
-            | OwnerOutcome::AccountMovedIn { .. }
-            | OwnerOutcome::AccountChanged
-            | OwnerOutcome::AccountRemoved { .. }
-            | OwnerOutcome::AccountSignInStarted { .. }
-            | OwnerOutcome::AccountSignedOut { .. }
-            | OwnerOutcome::ProjectRemoved { .. }
-            | OwnerOutcome::Renamed { .. }
-            | OwnerOutcome::ProjectMade { .. }
-            | OwnerOutcome::PoolSet { .. }
-            | OwnerOutcome::EscalationDecided { .. } => Route::Other,
+            DocumentOutcome::Said { task, message, .. } => Route::Words { task: *task, message: *message },
+            DocumentOutcome::Proposed { .. } => Route::Proposed,
+            DocumentOutcome::Withdrawn { .. }
+            | DocumentOutcome::Compound { .. }
+            | DocumentOutcome::MarkedSeen { .. }
+            | DocumentOutcome::NoteEdited { .. }
+            | DocumentOutcome::ServiceMade { .. }
+            | DocumentOutcome::Adopted { .. }
+            | DocumentOutcome::Stopped { .. }
+            | DocumentOutcome::Cancelled { .. }
+            | DocumentOutcome::Lifted { .. }
+            | DocumentOutcome::Released { .. }
+            | DocumentOutcome::PersonTaken { .. }
+            | DocumentOutcome::PersonHandedBack { .. }
+            | DocumentOutcome::PersonAnswered { .. }
+            | DocumentOutcome::Moved { .. }
+            | DocumentOutcome::ProposalDecided { .. }
+            | DocumentOutcome::QuestionAnswered { .. }
+            | DocumentOutcome::Amended { .. }
+            | DocumentOutcome::RolesSet { .. }
+            | DocumentOutcome::PolicyChanged { .. }
+            | DocumentOutcome::AccountProgramDeclared { .. }
+            | DocumentOutcome::AccountKeyKept { .. }
+            | DocumentOutcome::AccountFinishing { .. }
+            | DocumentOutcome::AccountMovedIn { .. }
+            | DocumentOutcome::AccountChanged
+            | DocumentOutcome::AccountRemoved { .. }
+            | DocumentOutcome::AccountSignInStarted { .. }
+            | DocumentOutcome::AccountSignedOut { .. }
+            | DocumentOutcome::ProjectRemoved { .. }
+            | DocumentOutcome::Renamed { .. }
+            | DocumentOutcome::ProjectMade { .. }
+            | DocumentOutcome::PoolSet { .. }
+            | DocumentOutcome::EscalationDecided { .. } => Route::Other,
         },
         Outcome::Made { what } => match what {
             Made::Tasks { tasks } => {

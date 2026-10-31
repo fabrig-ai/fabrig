@@ -31,14 +31,14 @@ fn showing(domain: &Ui) -> bool {
             match &object.body {
                 Some(
                     Body::Task(_)
-                    | Body::OwnerProposal(_)
-                    | Body::OwnerEscalation(_)
+                    | Body::Proposal(_)
+                    | Body::Escalation(_)
                     | Body::Question(_)
-                    | Body::OwnerPersonTask(_)
+                    | Body::PersonTask(_)
                     | Body::Result(_)
                     | Body::Note { .. },
                 ) => return true,
-                Some(Body::Historical(_) | Body::Chip(_)) | None => {}
+                Some(Body::Ended(_) | Body::Chip(_)) | None => {}
             }
         }
     }

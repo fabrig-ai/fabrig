@@ -182,13 +182,13 @@ pub(crate) fn open(
             }
         }
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::OwnerProposal(_)
-            | Body::OwnerEscalation(_)
+            | Body::Proposal(_)
+            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_),
         )
         | None => None,
@@ -298,14 +298,14 @@ fn answer_field(open: &Confirmation, object: &Object) -> Result<Option<Purpose>,
     } else {
         match &object.body {
             Some(Body::Question(_)) => Some(Purpose::Answer),
-            Some(Body::OwnerPersonTask(_)) => None,
+            Some(Body::PersonTask(_)) => None,
 
             Some(
-                Body::Historical(_)
+                Body::Ended(_)
                 | Body::Chip(_)
                 | Body::Task(_)
-                | Body::OwnerProposal(_)
-                | Body::OwnerEscalation(_)
+                | Body::Proposal(_)
+                | Body::Escalation(_)
                 | Body::Result(_)
                 | Body::Note { .. },
             )
@@ -319,12 +319,12 @@ fn delegates_missing(open: &Confirmation, object: &Object) -> Option<Missing> {
     };
     let task = match body {
         Body::Task(task) => task,
-        Body::Historical(_)
+        Body::Ended(_)
         | Body::Chip(_)
-        | Body::OwnerProposal(_)
-        | Body::OwnerEscalation(_)
+        | Body::Proposal(_)
+        | Body::Escalation(_)
         | Body::Question(_)
-        | Body::OwnerPersonTask(_)
+        | Body::PersonTask(_)
         | Body::Result(_)
         | Body::Note { .. } => return Some(Missing::Refused { why: Refusal::NotOffered }),
     };
@@ -354,7 +354,7 @@ fn release_missing(open: &Confirmation, object: &Object) -> Option<Missing> {
             };
             Some(hold.uncertain())
         }
-        Some(Body::OwnerEscalation(document)) => {
+        Some(Body::Escalation(document)) => {
             let Some(hold) = &document.task.hold else {
                 return Some(Missing::Refused { why: Refusal::NotOffered });
             };
@@ -362,11 +362,11 @@ fn release_missing(open: &Confirmation, object: &Object) -> Option<Missing> {
         }
 
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -402,14 +402,14 @@ fn draft_admission(domain: &Ui, object: &Object, open: &Confirmation) -> Admissi
         ActKind::Amend => {
             let before = match &object.body {
                 Some(Body::Task(document)) => &document.authority,
-                Some(Body::OwnerEscalation(document)) => &document.task.authority,
+                Some(Body::Escalation(document)) => &document.task.authority,
 
                 Some(
-                    Body::Historical(_)
+                    Body::Ended(_)
                     | Body::Chip(_)
-                    | Body::OwnerProposal(_)
+                    | Body::Proposal(_)
                     | Body::Question(_)
-                    | Body::OwnerPersonTask(_)
+                    | Body::PersonTask(_)
                     | Body::Result(_)
                     | Body::Note { .. },
                 )
@@ -447,7 +447,7 @@ fn draft_admission(domain: &Ui, object: &Object, open: &Confirmation) -> Admissi
 fn owner_answer_missing(
     domain: &Ui,
     open: &Confirmation,
-    document: &jig_client::contract::OwnerPersonTask,
+    document: &jig_client::contract::PersonTask,
 ) -> Option<Missing> {
     if crate::state::objects::person_task::answer(document, open.choices.option, &domain.fields).is_some() {
         return None;
@@ -720,7 +720,7 @@ fn amendment_missing(domain: &Ui, open: &Confirmation) -> Option<Missing> {
 pub(crate) fn can_close(client: &crate::Borrowed<'_>, task: &jig_client::contract::Task) -> bool {
     let Some(me) = client.frame().document else { return false };
     if !task.flags.conversation
-        || task.requester != jig_client::contract::OwnerRequester::Person(me.party.number)
+        || task.requester != jig_client::contract::Requester::Person(me.party.number)
         || jig_client::shapes::template(me, task.project, jig_client::shapes::CHAT).is_none()
     {
         return false;

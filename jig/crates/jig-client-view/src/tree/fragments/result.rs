@@ -7,17 +7,17 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
 use crate::Borrowed;
-use jig_client::contract::{OwnerRequester, OwnerTaskLink, OwnerTaskStatus, Proposer, ResultDetails};
+use jig_client::contract::{Proposer, Requester, ResultDetails, TaskLink, TaskStatus};
 
 fn text(b: &mut Builder, words: &Words, phrase: ResultPhrase, holes: &[Hole]) {
     let saying = words.book().say(words.language(), phrase.id(), holes).expect("result words and typed holes checked");
     b.text(Run::Plain, &saying.text);
 }
-pub(crate) fn requester(b: &mut Builder, value: OwnerRequester, words: &Words) {
+pub(crate) fn requester(b: &mut Builder, value: Requester, words: &Words) {
     match value {
-        OwnerRequester::Task(number) => text(b, words, ResultPhrase::RequesterTask, &[Hole::Number(number)]),
-        OwnerRequester::Person(number) => text(b, words, ResultPhrase::RequesterPerson, &[Hole::Number(number)]),
-        OwnerRequester::Deployment { project } => {
+        Requester::Task(number) => text(b, words, ResultPhrase::RequesterTask, &[Hole::Number(number)]),
+        Requester::Person(number) => text(b, words, ResultPhrase::RequesterPerson, &[Hole::Number(number)]),
+        Requester::Deployment { project } => {
             text(b, words, ResultPhrase::RequesterDeployment, &[Hole::Number(u64::from(project))]);
         }
     }
@@ -25,16 +25,16 @@ pub(crate) fn requester(b: &mut Builder, value: OwnerRequester, words: &Words) {
 pub(crate) fn link(
     b: &mut Builder,
     client: &Borrowed<'_>,
-    value: &OwnerTaskLink,
+    value: &TaskLink,
     words: &Words,
     bindings: &mut JigBindings,
 ) {
     match value {
-        OwnerTaskLink::Live(chip) => {
+        TaskLink::Live(chip) => {
             text(b, words, ResultPhrase::Live, &[]);
             crate::tree::cards::chip::chip(b, client, chip, words, bindings);
         }
-        OwnerTaskLink::Retained { chip, at } => {
+        TaskLink::Retained { chip, at } => {
             text(b, words, ResultPhrase::Retained, &[]);
             crate::tree::cards::chip::chip(b, client, chip, words, bindings);
             match at {
@@ -42,12 +42,12 @@ pub(crate) fn link(
                 None => text(b, words, ResultPhrase::AtUnknown, &[]),
             }
         }
-        OwnerTaskLink::Stored { number, status } => {
+        TaskLink::Stored { number, status } => {
             text(b, words, ResultPhrase::Stored, &[Hole::Number(*number)]);
             let phrase = match status {
-                Some(OwnerTaskStatus::Done) => ResultPhrase::Done,
-                Some(OwnerTaskStatus::Failed) => ResultPhrase::Failed,
-                Some(OwnerTaskStatus::Cancelled) => ResultPhrase::Cancelled,
+                Some(TaskStatus::Done) => ResultPhrase::Done,
+                Some(TaskStatus::Failed) => ResultPhrase::Failed,
+                Some(TaskStatus::Cancelled) => ResultPhrase::Cancelled,
                 None => ResultPhrase::StatusUnknown,
             };
             text(b, words, phrase, &[]);

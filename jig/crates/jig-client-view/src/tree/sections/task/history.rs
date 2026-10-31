@@ -1,4 +1,4 @@
-//! Historical pages retain before/after facts and opaque edges (pages.md, 5.2).
+//! History pages retain before/after facts and opaque edges (pages.md, 5.2).
 use crate::JigBindings;
 use crate::words::Words;
 use crate::words::phrases::jig::JigPhrase;

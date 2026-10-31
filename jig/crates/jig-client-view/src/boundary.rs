@@ -6,7 +6,7 @@ use crate::state::{
     address::Place,
     store::{Record, StoreKey},
 };
-use jig_client::contract::Part;
+use jig_client::contract::ApplicationPart;
 use skein_lib::List;
 /// The person offset from universal time, in minutes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -57,7 +57,7 @@ pub enum Request {
     /// Erase this domain record.
     Erase { records: List<StoreKey> },
     /// Have the part owner show its value.
-    ShowPart { part: Part, scope: jig_client::contract::PartScope },
+    ShowPart { part: ApplicationPart, scope: jig_client::contract::PartScope },
     /// The old page no longer shows its parts.
     PartsLeft,
 }

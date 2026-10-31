@@ -68,7 +68,7 @@ impl<'a> Borrowed<'a> {
                 continue;
             };
             match document.latest {
-                Some(Latest::Jig(Delivery::OwnerInbox(value))) => inbox.owner(value.clone()),
+                Some(Latest::Jig(Delivery::Inbox(value))) => inbox.owner(value.clone()),
 
                 Some(Latest::Jig(_) | Latest::Family(_)) | None => {}
             }
@@ -101,7 +101,7 @@ impl<'a> Borrowed<'a> {
             }
             if let Some(document) = self.client.document(*handle) {
                 match document.latest {
-                    Some(Latest::Jig(Delivery::OwnerDeployment(value))) => {
+                    Some(Latest::Jig(Delivery::Deployment(value))) => {
                         page.owner = Some(value);
                     }
                     Some(Latest::Jig(_) | Latest::Family(_)) | None => {}
@@ -174,7 +174,7 @@ impl ObjectsBorrowed<'_> {
                 && let Some(Latest::Jig(value)) = document.latest
                 && let Some(body) = body(value, object.key)
             {
-                if let Delivery::OwnerTree(tree) = value
+                if let Delivery::Tree(tree) = value
                     && object.key == ObjectKey::Task(tree.root.task)
                     && let Some(Body::Task(_)) = object.body
                 {
@@ -189,7 +189,7 @@ impl ObjectsBorrowed<'_> {
         if let Some(Body::Task(task)) = &object.body {
             object.project = Some(task.project);
         }
-        if let Some(Body::OwnerProposal(proposal)) = &object.body {
+        if let Some(Body::Proposal(proposal)) = &object.body {
             object.project = Some(proposal.project);
         }
         Some(object)
@@ -198,8 +198,8 @@ impl ObjectsBorrowed<'_> {
 fn body(value: &Delivery, key: ObjectKey) -> Option<Body> {
     match (value, key) {
         (Delivery::Task(task), ObjectKey::Task(number)) if task.chip.task == number => Some(Body::Task(task.clone())),
-        (Delivery::OwnerProposal(value), ObjectKey::Proposal(key)) if value.key == key => {
-            Some(Body::OwnerProposal(value.clone()))
+        (Delivery::Proposal(value), ObjectKey::Proposal(key)) if value.key == key => {
+            Some(Body::Proposal(value.clone()))
         }
         (Delivery::Chips(rows), ObjectKey::Task(number)) => {
             for chip in rows {
@@ -210,7 +210,7 @@ fn body(value: &Delivery, key: ObjectKey) -> Option<Body> {
             None
         }
 
-        (Delivery::OwnerTree(tree), ObjectKey::Task(number)) => {
+        (Delivery::Tree(tree), ObjectKey::Task(number)) => {
             if tree.root.task == number {
                 return Some(Body::Chip(tree.root.clone()));
             }
@@ -235,5 +235,5 @@ fn body(value: &Delivery, key: ObjectKey) -> Option<Body> {
 
 #[derive(Debug)]
 pub struct Deployment<'a> {
-    pub owner: Option<&'a jig_client::contract::OwnerDeployment>,
+    pub owner: Option<&'a jig_client::contract::Deployment>,
 }

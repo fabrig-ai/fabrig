@@ -32,15 +32,15 @@ pub(crate) fn offers(object: &Object) -> Option<&List<Offered>> {
     let rows = match &object.body {
         Some(Body::Task(document)) => &document.acts,
 
-        Some(Body::OwnerProposal(document)) => &document.acts,
+        Some(Body::Proposal(document)) => &document.acts,
 
-        Some(Body::OwnerEscalation(document)) => &document.acts,
+        Some(Body::Escalation(document)) => &document.acts,
         Some(Body::Question(document)) => &document.acts,
 
-        Some(Body::OwnerPersonTask(document)) => &document.acts,
+        Some(Body::PersonTask(document)) => &document.acts,
         Some(Body::Result(document)) => &document.acts,
         Some(Body::Note { document, .. }) => &document.acts,
-        Some(Body::Historical(_) | Body::Chip(_)) | None => return None,
+        Some(Body::Ended(_) | Body::Chip(_)) | None => return None,
     };
     Some(rows)
 }
@@ -59,14 +59,14 @@ fn offer_in(rows: &List<Offered>, act: ActKind) -> Option<&Offered> {
 pub fn revision(object: &Object, act: ActKind) -> Option<Revision> {
     match act {
         ActKind::Release | ActKind::LeaveHeld | ActKind::PassUp => match &object.body {
-            Some(Body::OwnerEscalation(document)) => Some(document.task.hold.as_ref()?.revision()),
+            Some(Body::Escalation(document)) => Some(document.task.hold.as_ref()?.revision()),
             Some(Body::Task(document)) => Some(document.hold.as_ref()?.revision()),
             Some(
-                Body::Historical(_)
+                Body::Ended(_)
                 | Body::Chip(_)
-                | Body::OwnerProposal(_)
+                | Body::Proposal(_)
                 | Body::Question(_)
-                | Body::OwnerPersonTask(_)
+                | Body::PersonTask(_)
                 | Body::Result(_)
                 | Body::Note { .. },
             )
@@ -75,26 +75,26 @@ pub fn revision(object: &Object, act: ActKind) -> Option<Revision> {
         ActKind::Amend => match &object.body {
             Some(Body::Task(document)) => Some(document.spec_revision),
 
-            Some(Body::OwnerEscalation(document)) => Some(document.task.spec_revision),
+            Some(Body::Escalation(document)) => Some(document.task.spec_revision),
             Some(
-                Body::Historical(_)
+                Body::Ended(_)
                 | Body::Chip(_)
-                | Body::OwnerProposal(_)
+                | Body::Proposal(_)
                 | Body::Question(_)
-                | Body::OwnerPersonTask(_)
+                | Body::PersonTask(_)
                 | Body::Result(_)
                 | Body::Note { .. },
             )
             | None => None,
         },
         ActKind::Answer => match &object.body {
-            Some(Body::OwnerPersonTask(document)) => Some(document.revision),
+            Some(Body::PersonTask(document)) => Some(document.revision),
             Some(
-                Body::Historical(_)
+                Body::Ended(_)
                 | Body::Chip(_)
                 | Body::Task(_)
-                | Body::OwnerProposal(_)
-                | Body::OwnerEscalation(_)
+                | Body::Proposal(_)
+                | Body::Escalation(_)
                 | Body::Question(_)
                 | Body::Result(_)
                 | Body::Note { .. },
@@ -104,13 +104,13 @@ pub fn revision(object: &Object, act: ActKind) -> Option<Revision> {
         ActKind::EditNote | ActKind::DeleteNote => match &object.body {
             Some(Body::Note { document, .. }) => Some(document.revision),
             Some(
-                Body::Historical(_)
+                Body::Ended(_)
                 | Body::Chip(_)
                 | Body::Task(_)
-                | Body::OwnerProposal(_)
-                | Body::OwnerEscalation(_)
+                | Body::Proposal(_)
+                | Body::Escalation(_)
                 | Body::Question(_)
-                | Body::OwnerPersonTask(_)
+                | Body::PersonTask(_)
                 | Body::Result(_),
             )
             | None => None,
@@ -146,13 +146,13 @@ pub fn hold_revision(object: &Object) -> Option<Revision> {
             Some(hold.revision())
         }
 
-        Some(Body::OwnerEscalation(document)) => Some(document.task.hold.as_ref()?.revision()),
+        Some(Body::Escalation(document)) => Some(document.task.hold.as_ref()?.revision()),
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -164,13 +164,13 @@ pub(crate) fn words(fields: &Fields, purpose: Purpose) -> Option<Text> {
 }
 pub(crate) fn request_project(object: &Object) -> Option<u32> {
     match &object.body {
-        Some(Body::OwnerPersonTask(document)) => document.project(),
-        Some(Body::OwnerEscalation(document)) => Some(document.task.project),
+        Some(Body::PersonTask(document)) => document.project(),
+        Some(Body::Escalation(document)) => Some(document.task.project),
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -327,7 +327,7 @@ fn answer(object: &Object, confirmation: &Confirmation, fields: &Fields, project
             project,
             on: AnswerOn::Question { task, message: question.message, words: words(fields, Purpose::Answer)? },
         }),
-        Some(Body::OwnerPersonTask(document)) => {
+        Some(Body::PersonTask(document)) => {
             let answer = if choices.cannot {
                 PersonAnswer::Cannot { reason: words(fields, Purpose::Reason)? }
             } else {
@@ -337,11 +337,11 @@ fn answer(object: &Object, confirmation: &Confirmation, fields: &Fields, project
         }
 
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::OwnerProposal(_)
-            | Body::OwnerEscalation(_)
+            | Body::Proposal(_)
+            | Body::Escalation(_)
             | Body::Result(_)
             | Body::Note { .. },
         )

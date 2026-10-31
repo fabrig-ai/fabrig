@@ -220,7 +220,7 @@ impl Ui {
     pub const fn arrangement(&self) -> &Arrangement {
         &self.arrangement
     }
-    /// Inbox context, filters and historical cursors for its shared cards.
+    /// Inbox context, filters and page cursors for its shared cards.
     #[must_use]
     pub const fn inbox(&self) -> &crate::state::page::inbox::State {
         &self.inbox
@@ -263,12 +263,12 @@ impl Ui {
                     match &object.body {
                         Some(crate::state::objects::Body::Task(task)) => summary.project = Some(task.project),
                         Some(
-                            crate::state::objects::Body::Historical(_)
+                            crate::state::objects::Body::Ended(_)
                             | crate::state::objects::Body::Chip(_)
-                            | crate::state::objects::Body::OwnerProposal(_)
-                            | crate::state::objects::Body::OwnerEscalation(_)
+                            | crate::state::objects::Body::Proposal(_)
+                            | crate::state::objects::Body::Escalation(_)
                             | crate::state::objects::Body::Question(_)
-                            | crate::state::objects::Body::OwnerPersonTask(_)
+                            | crate::state::objects::Body::PersonTask(_)
                             | crate::state::objects::Body::Result(_)
                             | crate::state::objects::Body::Note { .. },
                         )

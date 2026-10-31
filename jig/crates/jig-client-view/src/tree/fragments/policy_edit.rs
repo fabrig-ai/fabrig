@@ -5,12 +5,12 @@ use crate::words::phrases::jig::JigPhrase;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use jig_client::contract::{OwnerPattern, OwnerPatternEnd, PolicyEdit, PolicyGuard};
+use jig_client::contract::{Pattern, PatternEnd, PolicyEdit, PolicyGuard};
 
-fn pattern(b: &mut Builder, value: &OwnerPattern, words: &Words, text_limit: u32) {
+fn pattern(b: &mut Builder, value: &Pattern, words: &Words, text_limit: u32) {
     let (phrase, bytes) = match &value.last {
-        OwnerPatternEnd::Exact(bytes) => (crate::words::authority_words::AuthorityPhrase::Exact, bytes),
-        OwnerPatternEnd::Open(bytes) => (crate::words::authority_words::AuthorityPhrase::Open, bytes),
+        PatternEnd::Exact(bytes) => (crate::words::authority_words::AuthorityPhrase::Exact, bytes),
+        PatternEnd::Open(bytes) => (crate::words::authority_words::AuthorityPhrase::Open, bytes),
     };
     let label = words.book().say(words.language(), phrase.id(), &[]).expect("checked terminal label").text;
     let reserved = u32::try_from(label.len())

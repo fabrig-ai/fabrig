@@ -5,22 +5,20 @@ use crate::tests::tree::cards_objects::*;
 #[test]
 fn task_pages_keep_owner_requesters_and_live_retained_stored_links_without_filling_missing_facts() {
     let mut goldens = Goldens::new("tree/cards_objects/task_links/task_pages_keep");
-    for requester in [
-        OwnerRequester::Task(u64::MAX),
-        OwnerRequester::Person(u64::MAX),
-        OwnerRequester::Deployment { project: u32::MAX },
-    ] {
+    for requester in
+        [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }]
+    {
         let mut supplied_chip = chip();
         supplied_chip.task = u64::MAX;
         supplied_chip.title = DocumentText::complete(text(b"Only supplied linked title"));
         for link in [
-            OwnerTaskLink::Live(supplied_chip.clone()),
-            OwnerTaskLink::Retained { chip: supplied_chip.clone(), at: None },
-            OwnerTaskLink::Retained { chip: supplied_chip.clone(), at: Some(Wall::from_nanos(120_000_000_000)) },
-            OwnerTaskLink::Stored { number: u64::MAX, status: None },
-            OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Done) },
-            OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Failed) },
-            OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Cancelled) },
+            TaskLink::Live(supplied_chip.clone()),
+            TaskLink::Retained { chip: supplied_chip.clone(), at: None },
+            TaskLink::Retained { chip: supplied_chip.clone(), at: Some(Wall::from_nanos(120_000_000_000)) },
+            TaskLink::Stored { number: u64::MAX, status: None },
+            TaskLink::Stored { number: u64::MAX, status: Some(TaskStatus::Done) },
+            TaskLink::Stored { number: u64::MAX, status: Some(TaskStatus::Failed) },
+            TaskLink::Stored { number: u64::MAX, status: Some(TaskStatus::Cancelled) },
         ] {
             let (mut domain, out) = crate::tests::tree::work_pages::entered(Address::task(8));
             let watch = out
@@ -69,10 +67,8 @@ fn aggregate_task_loss_prevents_partial_dependency_replacement_and_complete_link
     for cut in [false, true] {
         let mut row = task_doc(&[ActKind::Amend]);
         row.cut = cut;
-        row.dependencies = list([
-            OwnerTaskLink::Stored { number: u64::MAX, status: None },
-            OwnerTaskLink::Retained { chip: chip(), at: None },
-        ]);
+        row.dependencies =
+            list([TaskLink::Stored { number: u64::MAX, status: None }, TaskLink::Retained { chip: chip(), at: None }]);
         let (mut domain, id) = loaded(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
         drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
         let words = words();

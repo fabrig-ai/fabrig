@@ -8,11 +8,11 @@ fn owner_hold_confirmation_keeps_exact_prior_counts_loss_clock_presence_and_repe
     for uncertain in [false, true] {
         for wait in [None, Some(Wall::from_nanos(u64::MAX))] {
             for prior in [
-                OwnerPriorPhase::Waiting,
-                OwnerPriorPhase::Active(RunStage::Claimed { attempt: u64::MAX }),
-                OwnerPriorPhase::Closing(ClosingStage::Effects),
+                PriorPhase::Waiting,
+                PriorPhase::Active(RunStage::Claimed { attempt: u64::MAX }),
+                PriorPhase::Closing(ClosingStage::Effects),
             ] {
-                let held = OwnerChipHold {
+                let held = ChipHold {
                     words: None,
                     placed: None,
                     circle: None,
@@ -25,18 +25,11 @@ fn owner_hold_confirmation_keeps_exact_prior_counts_loss_clock_presence_and_repe
                     },
                     revision: u64::MAX,
                     before: prior,
-                    escalation: Some(OwnerHoldEscalation::Rejected {
+                    escalation: Some(HoldEscalation::Rejected {
                         by: u64::MAX,
                         reason: DocumentText { bytes: text(b"exact held rejection"), cut: true },
                     }),
-                    tries: OwnerFailureTries {
-                        transient: 1,
-                        permanent: 2,
-                        run: 3,
-                        agent: 4,
-                        lost: 5,
-                        invalid: u32::MAX,
-                    },
+                    tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX },
                     hold_wait_since: wait,
                 };
                 let mut row = task_doc(&[ActKind::Release]);
@@ -74,10 +67,10 @@ fn owner_hold_confirmation_keeps_exact_prior_counts_loss_clock_presence_and_repe
     }
 }
 
-fn held_reference() -> OwnerPart {
+fn held_reference() -> Part {
     let mut segments = List::with_capacity(CLIENT.client.rows);
     for _ in 0..CLIENT.client.rows {
         segments.push(Box::<[u8]>::from([255_u8; 32])).unwrap();
     }
-    OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(segments) }
+    Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Path(segments) }
 }

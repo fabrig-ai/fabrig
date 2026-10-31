@@ -12,7 +12,7 @@ use crate::{
     Borrowed,
     state::{action::Act, address::Address, objects::Body},
 };
-use jig_client::contract::{Chip, ChipPhase, FailureClass};
+use jig_client::contract::{Chip, ChipPhaseFacts, FailureClass};
 
 /// The task's named link and copied title, with its executor kind in words.
 pub fn head(b: &mut Builder, chip: &Chip, words: &Words, bindings: &mut JigBindings) {
@@ -29,7 +29,7 @@ pub fn head(b: &mut Builder, chip: &Chip, words: &Words, bindings: &mut JigBindi
         words.text(b, JigPhrase::ChipTitleCut, &[]);
     }
     {
-        let ChipPhase { details, .. } = chip.details.as_ref();
+        let ChipPhaseFacts { details, .. } = chip.details.as_ref();
         crate::tree::fragments::proposed_task::executor(b, details.executor, words);
     }
 }
@@ -56,11 +56,11 @@ fn kept(client: &Borrowed<'_>, task: u64) -> Option<Chip> {
         Some(Body::Chip(chip)) => Some(chip.clone()),
         Some(Body::Task(task)) => Some(task.chip.clone()),
         Some(
-            Body::Historical(_)
-            | Body::OwnerProposal(_)
-            | Body::OwnerEscalation(_)
+            Body::Ended(_)
+            | Body::Proposal(_)
+            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -97,14 +97,14 @@ pub fn failure(b: &mut Builder, class: FailureClass, words: &Words) {
 pub fn details(
     b: &mut Builder,
     client: &Borrowed<'_>,
-    phase: &ChipPhase,
+    phase: &ChipPhaseFacts,
     words: &Words,
     bindings: &mut JigBindings,
     pending: &mut skein_lib::Queue<u64>,
     seen: &mut skein_lib::Set<u64>,
 ) {
     {
-        let ChipPhase { phase, details } = phase;
+        let ChipPhaseFacts { phase, details } = phase;
         crate::tree::fragments::chip_phase::brief(b, phase, words);
         let mut kept = skein_lib::List::with_capacity(details.dependencies.len());
         for dependency in &details.dependencies {
@@ -124,7 +124,7 @@ pub fn details(
                 words.text(b, JigPhrase::TaskListsCut, &[]);
             }
         }
-        if let jig_client::contract::OwnerChipPhase::Waiting { dependencies, .. } = phase {
+        if let jig_client::contract::ChipPhase::Waiting { dependencies, .. } = phase {
             dependencies_list(b, client, dependencies, words, bindings, pending, seen);
         }
     }
@@ -162,9 +162,9 @@ fn dependencies_list(
 /// Dependency provenance uses the same words on a chip and its task page.
 pub(crate) fn dependency_words(b: &mut Builder, dependency: &jig_client::contract::Dependency, words: &Words) {
     let phrase = match dependency.status {
-        Some(jig_client::contract::OwnerTaskStatus::Failed) => JigPhrase::DependencyFailed,
-        Some(jig_client::contract::OwnerTaskStatus::Cancelled) => JigPhrase::DependencyCancelled,
-        None | Some(jig_client::contract::OwnerTaskStatus::Done) => {
+        Some(jig_client::contract::TaskStatus::Failed) => JigPhrase::DependencyFailed,
+        Some(jig_client::contract::TaskStatus::Cancelled) => JigPhrase::DependencyCancelled,
+        None | Some(jig_client::contract::TaskStatus::Done) => {
             if dependency.keeps && dependency.pending {
                 JigPhrase::KeptUntil
             } else if dependency.pending {
@@ -177,9 +177,9 @@ pub(crate) fn dependency_words(b: &mut Builder, dependency: &jig_client::contrac
     words.text(b, phrase, &[Hole::Number(dependency.number)]);
     if let Some(added) = dependency.added {
         let (phrase, number) = match added.by {
-            jig_client::contract::OwnerRequester::Task(task) => (JigPhrase::DependencyByTask, task),
-            jig_client::contract::OwnerRequester::Person(party) => (JigPhrase::DependencyByParty, party),
-            jig_client::contract::OwnerRequester::Deployment { project } => {
+            jig_client::contract::Requester::Task(task) => (JigPhrase::DependencyByTask, task),
+            jig_client::contract::Requester::Person(party) => (JigPhrase::DependencyByParty, party),
+            jig_client::contract::Requester::Deployment { project } => {
                 (JigPhrase::DependencyByDeployment, u64::from(project))
             }
         };
@@ -193,7 +193,7 @@ pub(crate) fn named(b: &mut Builder, client: &Borrowed<'_>, number: u64, words: 
         Some(chip) => {
             head(b, &chip, words, bindings);
             {
-                let ChipPhase { phase, .. } = chip.details.as_ref();
+                let ChipPhaseFacts { phase, .. } = chip.details.as_ref();
                 crate::tree::fragments::chip_phase::brief(b, phase, words);
             }
         }

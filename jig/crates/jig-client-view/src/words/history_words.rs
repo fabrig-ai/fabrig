@@ -265,7 +265,7 @@ impl HistoryPhrase {
             Self::At => b"History time: ",
             Self::AtAbsent => b"History time not supplied",
             Self::SnapshotsAbsent => b"Stored snapshots not supplied",
-            Self::Stored => b"Stored task overrides; historical effective instructions are not supplied",
+            Self::Stored => b"Stored task overrides; prior effective instructions are not supplied",
             Self::Before => b"Before",
             Self::After => b"After",
             Self::Proposal => b"Proposal: ",

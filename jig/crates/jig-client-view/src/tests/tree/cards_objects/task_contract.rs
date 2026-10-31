@@ -27,7 +27,7 @@ pub(in crate::tests) fn page(row: Task) -> (Tree, JigBindings) {
 #[test]
 fn task_contract_overview_preserves_opaque_approval_and_named_verdict_caps_without_option_labels() {
     let mut goldens = Goldens::new("tree/cards_objects/task_contract/task_contract_overview");
-    let reference = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Result, key: OwnerPartKey::Number(u64::MAX) };
+    let reference = Part { connector: u16::MAX, kind: PartKind::Result, key: PartKey::Number(u64::MAX) };
     let mut choices = List::with_capacity(2);
     let fields = crate::tests::kit::list_in(2, [FieldRule { name: Box::from(*b"field\xff/"), max: u32::MAX }]);
     choices.push(VerdictChoice { code: u32::MAX, words: u32::MAX, followups: u32::MAX, fields }).unwrap();
@@ -90,7 +90,7 @@ fn maximum_nested_task_contracts_fit_the_page_bound_and_preserve_every_raw_slot_
     for _ in 0..CLIENT.client.rows {
         segments.push(raw.clone()).unwrap();
     }
-    let reference = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(segments) };
+    let reference = Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Path(segments) };
     let mut fields = List::with_capacity(CLIENT.client.rows);
     for _ in 0..CLIENT.client.rows {
         fields.push(FieldRule { name: raw.clone(), max: u32::MAX }).unwrap();
@@ -145,19 +145,15 @@ fn refused_chat_header_shows_the_supplied_cause_and_receipt_time() {
     for cause in [
         TaskWaitRefused::Program(OpenProgram::Model),
         TaskWaitRefused::Program(OpenProgram::Source { account: 17, source: 23 }),
-        TaskWaitRefused::Hello {
-            kind: OwnerHostKind::Worker,
-            at: Wall::EPOCH,
-            why: OwnerHelloRefusal::Position { worker: 7 },
-        },
+        TaskWaitRefused::Hello { kind: HostKind::Worker, at: Wall::EPOCH, why: HelloRefusal::Position { worker: 7 } },
     ] {
         let mut row = task_doc(&[]);
         row.flags.conversation = true;
         row.waits_on = WaitsOn::Nothing;
         row.run_wait = Some(TaskRunWait::Refused(cause));
         row.chip.phase = Phase::Due;
-        row.chip.details = Box::new(ChipPhase {
-            phase: OwnerChipPhase::Active(RunStage::Due),
+        row.chip.details = Box::new(ChipPhaseFacts {
+            phase: ChipPhase::Active(RunStage::Due),
             details: Box::new(crate::tests::tree::fragments::chip::details()),
         });
         let (tree, _) = page(row);

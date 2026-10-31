@@ -44,6 +44,6 @@ pub(super) fn plan(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindin
 
 fn owner_ended(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
     if let Some(page) = &client.task_page().owner_ended {
-        crate::tree::fragments::historical_pages::ended_render(b, client, page, words, bindings);
+        crate::tree::fragments::ended_pages::ended_render(b, client, page, words, bindings);
     }
 }

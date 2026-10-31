@@ -7,7 +7,7 @@ Semantic history:
   Supplied reason
   reason
   History time not supplied
-  Stored task overrides; historical effective instructions are not supplied
+  Stored task overrides; prior effective instructions are not supplied
   Before
   Amendment state:
     Addressed party: 18446744073709551615

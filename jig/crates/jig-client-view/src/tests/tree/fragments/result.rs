@@ -7,14 +7,14 @@ use crate::tests::kit::Goldens;
 use crate::words::Words;
 use crate::words::{result_words, result_words::ResultPhrase};
 use crate::{JigBindings, tree::fragments::result as view};
-use jig_client::contract::{OwnerChipPhase, RunStage};
+use jig_client::contract::{ChipPhase, RunStage};
 use skein_ui::Limits;
 use skein_ui::phrases::{Invalid, Language, PhraseLimits, Phrasebook, Segment, WallFormat};
 use skein_ui::{Builder, Tree};
 
 use jig_client::contract::{
-    Chip, Executor, OwnerExecutor, OwnerPart, OwnerPartKey, OwnerPartKind, OwnerRequester, OwnerTaskLink,
-    OwnerTaskStatus, PersonAddress, Phase, ProposalKey, Proposer, ResultDetails, TaskContractDocument, Text,
+    Chip, ChipExecutor, Executor, Part, PartKey, PartKind, PersonAddress, Phase, ProposalKey, Proposer, Requester,
+    ResultDetails, TaskContractDocument, TaskLink, TaskStatus, Text,
 };
 use skein_lib::{List, Wall, bytes::copy_of};
 
@@ -37,7 +37,7 @@ fn phrase_limits(languages: &[Language]) -> PhraseLimits {
     }
     PhraseLimits {
         languages: 2,
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments,
         text_bytes: 100_000,
@@ -52,16 +52,16 @@ fn chip() -> Chip {
     Chip {
         task: u64::MAX,
         title: jig_client::contract::DocumentText::complete(Text::new(copy_of(b"supplied title"), 128).unwrap()),
-        executor: Executor::Agent { charter: u32::MAX },
+        executor: ChipExecutor::Agent { charter: u32::MAX },
         phase: Phase::Due,
-        details: Box::new(crate::tests::fixtures::chip_phase(OwnerChipPhase::Active(RunStage::Preparing))),
+        details: Box::new(crate::tests::fixtures::chip_phase(ChipPhase::Active(RunStage::Preparing))),
     }
 }
 fn details() -> ResultDetails {
     ResultDetails {
         contract: TaskContractDocument::Report { words: u32::MAX },
-        requester: OwnerRequester::Deployment { project: u32::MAX },
-        executor: OwnerExecutor::Person(PersonAddress::Role(u32::MAX)),
+        requester: Requester::Deployment { project: u32::MAX },
+        executor: Executor::Person(PersonAddress::Role(u32::MAX)),
         chosen_by: None,
         delegates: List::with_capacity(0),
         followups: None,
@@ -83,11 +83,9 @@ fn result_metadata_keeps_requester_variants_chooser_and_task_or_party_makers() {
     let mut goldens = Goldens::new("tree/fragments/result/result_metadata_keeps");
     let mut value = details();
     let words = words();
-    for requester in [
-        OwnerRequester::Task(u64::MAX),
-        OwnerRequester::Person(u64::MAX),
-        OwnerRequester::Deployment { project: u32::MAX },
-    ] {
+    for requester in
+        [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }]
+    {
         value.requester = requester;
         goldens.check(&build(&value, &words));
     }
@@ -106,13 +104,13 @@ fn result_task_links_keep_live_retained_stored_optional_times_and_all_statuses()
     let mut value = details();
     value.delegates = List::with_capacity(7);
     for link in [
-        OwnerTaskLink::Live(chip()),
-        OwnerTaskLink::Retained { chip: chip(), at: None },
-        OwnerTaskLink::Retained { chip: chip(), at: Some(Wall::from_nanos(120_000_000_000)) },
-        OwnerTaskLink::Stored { number: u64::MAX, status: None },
-        OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Done) },
-        OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Failed) },
-        OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Cancelled) },
+        TaskLink::Live(chip()),
+        TaskLink::Retained { chip: chip(), at: None },
+        TaskLink::Retained { chip: chip(), at: Some(Wall::from_nanos(120_000_000_000)) },
+        TaskLink::Stored { number: u64::MAX, status: None },
+        TaskLink::Stored { number: u64::MAX, status: Some(TaskStatus::Done) },
+        TaskLink::Stored { number: u64::MAX, status: Some(TaskStatus::Failed) },
+        TaskLink::Stored { number: u64::MAX, status: Some(TaskStatus::Cancelled) },
     ] {
         value.delegates.push(link).unwrap();
     }
@@ -123,7 +121,7 @@ fn result_task_links_keep_live_retained_stored_optional_times_and_all_statuses()
         3,
         "stored references acquire no fabricated chip link"
     );
-    assert_eq!(value.delegates.get(1), Some(&OwnerTaskLink::Retained { chip: chip(), at: None }));
+    assert_eq!(value.delegates.get(1), Some(&TaskLink::Retained { chip: chip(), at: None }));
 }
 #[test]
 fn result_followups_distinguish_absent_empty_nonempty_and_preserve_aggregate_cut() {
@@ -134,7 +132,7 @@ fn result_followups_distinguish_absent_empty_nonempty_and_preserve_aggregate_cut
     value.followups = Some(List::with_capacity(2));
     let empty = build(&value, &words);
     goldens.check(&empty);
-    value.followups.as_mut().unwrap().push(OwnerTaskLink::Stored { number: 42, status: None }).unwrap();
+    value.followups.as_mut().unwrap().push(TaskLink::Stored { number: 42, status: None }).unwrap();
     value.cut = true;
     let cut = build(&value, &words);
     goldens.check(&cut);
@@ -146,9 +144,9 @@ fn result_metadata_reuses_whole_contract_opaque_parts_and_owner_executor() {
     let segments = crate::tests::kit::list([copy_of(b"a/b"), copy_of(&[255, 0])]);
     value.contract = TaskContractDocument::Approval {
         state: copy_of(&[128, 0]),
-        part: OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Outbox, key: OwnerPartKey::Path(segments) },
+        part: Part { connector: u16::MAX, kind: PartKind::Outbox, key: PartKey::Path(segments) },
     };
-    value.executor = OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX };
+    value.executor = Executor::Procedure { connector: u16::MAX, code: u32::MAX };
     let tree = build(&value, &words());
     goldens.check(&tree);
     assert_eq!(tree.nodes().iter().filter(|n| n.slot.is_some()).count(), 1);

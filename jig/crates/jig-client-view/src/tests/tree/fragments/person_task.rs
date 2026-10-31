@@ -35,10 +35,10 @@ fn chip(task: u64) -> Chip {
     Chip {
         task,
         title: doc(b"source title"),
-        executor: Executor::Role { project: u32::MAX, role: u32::MAX },
+        executor: ChipExecutor::Role { project: u32::MAX, role: u32::MAX },
         phase: Phase::Active,
-        details: Box::new(ChipPhase {
-            phase: OwnerChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: None, since: None },
+        details: Box::new(ChipPhaseFacts {
+            phase: ChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: None, since: None },
             details: Box::new(crate::tests::tree::fragments::chip::details()),
         }),
     }
@@ -55,8 +55,8 @@ fn result(task: u64) -> Result {
         at: None,
         details: Some(Box::new(ResultDetails {
             contract: TaskContractDocument::Report { words: 3 },
-            requester: OwnerRequester::Person(u64::MAX),
-            executor: OwnerExecutor::Person(PersonAddress::Role(u32::MAX)),
+            requester: Requester::Person(u64::MAX),
+            executor: Executor::Person(PersonAddress::Role(u32::MAX)),
             chosen_by: None,
             delegates: List::with_capacity(3),
             followups: Some(List::with_capacity(3)),
@@ -66,11 +66,11 @@ fn result(task: u64) -> Result {
         acts: List::with_capacity(3),
     }
 }
-fn value() -> OwnerPersonTask {
-    OwnerPersonTask {
+fn value() -> PersonTask {
+    PersonTask {
         task: chip(8),
         revision: Revision { value: u64::MAX },
-        requester: OwnerRequester::Deployment { project: u32::MAX },
+        requester: Requester::Deployment { project: u32::MAX },
         spec: SpecificationDocument {
             specification: DocumentSpecification {
                 asks: false,
@@ -121,7 +121,7 @@ fn limits_for(client: &crate::tests::fixtures::Profile, words: &Words) -> Limits
         scene_bytes: 0,
     }
 }
-fn build(value: &OwnerPersonTask, words: &Words, cap: Limits) -> Tree {
+fn build(value: &PersonTask, words: &Words, cap: Limits) -> Tree {
     let d = Fixture::new(&client_limits());
     let mut b = Builder::new(&cap);
     let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
@@ -134,15 +134,15 @@ fn person_owner_view_retains_ordered_missing_links_full_results_and_independent_
     let mut goldens = Goldens::new("tree/fragments/person_task/person_owner_view");
     let mut value = value();
     value.results = rows([
-        OwnerShownResult { task: OwnerTaskLink::Live(chip(101)), result: None },
-        OwnerShownResult { task: OwnerTaskLink::Retained { chip: chip(102), at: None }, result: None },
-        OwnerShownResult {
-            task: OwnerTaskLink::Retained { chip: chip(103), at: Some(Wall::EPOCH) },
+        ShownResult { task: TaskLink::Live(chip(101)), result: None },
+        ShownResult { task: TaskLink::Retained { chip: chip(102), at: None }, result: None },
+        ShownResult {
+            task: TaskLink::Retained { chip: chip(103), at: Some(Wall::EPOCH) },
             result: Some(Box::new(result(103))),
         },
-        OwnerShownResult { task: OwnerTaskLink::Stored { number: 104, status: None }, result: None },
-        OwnerShownResult {
-            task: OwnerTaskLink::Stored { number: 105, status: Some(OwnerTaskStatus::Cancelled) },
+        ShownResult { task: TaskLink::Stored { number: 104, status: None }, result: None },
+        ShownResult {
+            task: TaskLink::Stored { number: 105, status: Some(TaskStatus::Cancelled) },
             result: Some(Box::new(result(105))),
         },
     ]);
@@ -173,10 +173,8 @@ fn person_owner_card_and_confirmation_show_numeric_rules_and_disable_field_beari
         ]),
         cut: true,
     };
-    let (mut d, id) = crate::tests::tree::cards_objects::loaded(
-        ObjectKey::PersonTask(8),
-        ReadValue::OwnerPersonTask(Box::new(value)),
-    );
+    let (mut d, id) =
+        crate::tests::tree::cards_objects::loaded(ObjectKey::PersonTask(8), ReadValue::PersonTask(Box::new(value)));
     drive(&mut d, Event::Act { action: Act::Intend { object: id.token(), act: ActKind::Answer } });
     let w = words();
     let mut cap = limits(w);
@@ -221,10 +219,10 @@ fn person_owner_approval_renders_opaque_parts_without_inventing_application_scop
     value.taken_by = Some(u64::MAX);
     value.contract = TaskContractDocument::Approval {
         state: copy_of(&[255, 0, 47]),
-        part: OwnerPart {
+        part: Part {
             connector: u16::MAX,
-            kind: OwnerPartKind::Outbox,
-            key: OwnerPartKey::Path(rows([copy_of(b"a/b"), copy_of(&[128, 0])])),
+            kind: PartKind::Outbox,
+            key: PartKey::Path(rows([copy_of(b"a/b"), copy_of(&[128, 0])])),
         },
     };
     let w = words();
@@ -245,7 +243,7 @@ fn person_owner_approval_renders_opaque_parts_without_inventing_application_scop
         }
     );
 }
-fn full_value(l: &crate::tests::fixtures::Profile) -> OwnerPersonTask {
+fn full_value(l: &crate::tests::fixtures::Profile) -> PersonTask {
     let mut value = value();
     value.task.title = doc(UTF8_TEXTS[1]);
     value.spec.specification.words = doc(UTF8_TEXTS[2]);
@@ -274,15 +272,11 @@ fn full_value(l: &crate::tests::fixtures::Profile) -> OwnerPersonTask {
         });
         let details = result.details.as_mut().unwrap();
         details.contract = contract.clone();
-        details.delegates = rows((0..l.client.rows).map(|task| OwnerTaskLink::Live(chip(u64::from(task)))));
-        details.followups = Some(rows(
-            (0..l.client.rows).map(|task| OwnerTaskLink::Retained { chip: chip(u64::from(task)), at: None }),
-        ));
+        details.delegates = rows((0..l.client.rows).map(|task| TaskLink::Live(chip(u64::from(task)))));
+        details.followups =
+            Some(rows((0..l.client.rows).map(|task| TaskLink::Retained { chip: chip(u64::from(task)), at: None })));
         result.acts = List::with_capacity(l.client.rows);
-        OwnerShownResult {
-            task: OwnerTaskLink::Retained { chip: chip(number), at: None },
-            result: Some(Box::new(result)),
-        }
+        ShownResult { task: TaskLink::Retained { chip: chip(number), at: None }, result: Some(Box::new(result)) }
     }));
     value.acts = List::with_capacity(l.client.rows);
     value
@@ -348,7 +342,7 @@ fn person_storage_dimension(selected_dimension: Option<usize>) {
         .expect("whole supplied languages fit their segment count");
     let phrase_limits = PhraseLimits {
         languages: 2,
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments,
         text_bytes: 100_000,
@@ -467,10 +461,8 @@ fn person_owner_view_admits_closed_offer_capacity_without_expanding_shown_result
     };
     let w = words();
     let mut value = value();
-    value.results = rows([OwnerShownResult {
-        task: OwnerTaskLink::Stored { number: 2, status: None },
-        result: Some(Box::new(result(2))),
-    }]);
+    value.results =
+        rows([ShownResult { task: TaskLink::Stored { number: 2, status: None }, result: Some(Box::new(result(2))) }]);
     value.acts = List::with_capacity(MAX_OFFERED_ACTS);
     for act in [ActKind::HandBack, ActKind::Answer, ActKind::Take] {
         value.acts.push(Offered { effect: None, act, admission: Admission::Allowed }).unwrap();
@@ -480,7 +472,7 @@ fn person_owner_view_admits_closed_offer_capacity_without_expanding_shown_result
 
     let (domain, id) = crate::tests::tree::cards_objects::loaded(
         ObjectKey::PersonTask(8),
-        ReadValue::OwnerPersonTask(Box::new(value.clone())),
+        ReadValue::PersonTask(Box::new(value.clone())),
     );
     // Price this single enclosing card with the shared card bound.
     let mut cap = limits(w);
@@ -514,12 +506,12 @@ const UTF8_TEXTS: [&[u8]; 4] = [b"~\0/", &[b'~'; 128], &[b'q'; 128], &[b'w'; 128
 fn a_kept_person_chip_names_its_dependency_and_who_added_it() {
     let mut goldens = Goldens::new("tree/fragments/person_task/a_kept_person_chip");
     let mut value = value();
-    let ChipPhase { details, .. } = value.task.details.as_mut();
+    let ChipPhaseFacts { details, .. } = value.task.details.as_mut();
     details.dependencies = rows([Dependency {
         number: 7,
         pending: true,
         keeps: true,
-        added: Some(DependencyAdded { at: Wall::EPOCH, by: OwnerRequester::Person(5) }),
+        added: Some(DependencyAdded { at: Wall::EPOCH, by: Requester::Person(5) }),
         status: None,
     }]);
     let tree = build(&value, words(), limits(words()));
@@ -530,12 +522,10 @@ fn a_kept_person_chip_names_its_dependency_and_who_added_it() {
 fn a_kept_person_card_keeps_take_but_hides_an_answer_offer() {
     let mut goldens = Goldens::new("tree/fragments/person_task/a_kept_person_card");
     let mut value = value();
-    let ChipPhase { details, .. } = value.task.details.as_mut();
+    let ChipPhaseFacts { details, .. } = value.task.details.as_mut();
     details.dependencies = rows([Dependency { number: 7, pending: true, keeps: true, added: None, status: None }]);
-    let (d, object) = crate::tests::tree::cards_objects::loaded(
-        ObjectKey::PersonTask(8),
-        ReadValue::OwnerPersonTask(Box::new(value)),
-    );
+    let (d, object) =
+        crate::tests::tree::cards_objects::loaded(ObjectKey::PersonTask(8), ReadValue::PersonTask(Box::new(value)));
     let w = words();
     let cap = limits(w);
     let mut b = Builder::new(&cap);

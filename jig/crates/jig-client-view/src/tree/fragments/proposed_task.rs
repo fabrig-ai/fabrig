@@ -8,26 +8,24 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, SlotRef};
 
 use crate::Config;
-use jig_client::contract::{
-    Funder, OwnerExecutor, OwnerPart, OwnerPartKey, OwnerPartKind, PersonAddress, TaskContractDocument,
-};
+use jig_client::contract::{Executor, Funder, Part, PartKey, PartKind, PersonAddress, TaskContractDocument};
 
 pub fn text(b: &mut Builder, words: &Words, phrase: ProposedPhrase, holes: &[Hole]) {
     let saying = words.book().say(words.language(), phrase.id(), holes).expect("exact member words were checked");
     b.text(skein_ui::Run::Plain, &saying.text);
 }
-pub fn executor(b: &mut Builder, value: OwnerExecutor, words: &Words) {
+pub fn executor(b: &mut Builder, value: Executor, words: &Words) {
     match value {
-        OwnerExecutor::Agent { charter } => {
+        Executor::Agent { charter } => {
             text(b, words, ProposedPhrase::ExecutorCharter, &[Hole::Number(u64::from(charter))]);
         }
-        OwnerExecutor::Procedure { connector, code } => text(
+        Executor::Procedure { connector, code } => text(
             b,
             words,
             ProposedPhrase::ExecutorProcedure,
             &[Hole::Number(u64::from(connector)), Hole::Number(u64::from(code))],
         ),
-        OwnerExecutor::Person(address) => match address {
+        Executor::Person(address) => match address {
             PersonAddress::Party(person) => text(b, words, ProposedPhrase::ExecutorParty, &[Hole::Number(person)]),
             PersonAddress::Role(role) => text(b, words, ProposedPhrase::ExecutorRole, &[Hole::Number(u64::from(role))]),
         },
@@ -57,24 +55,24 @@ pub fn funder(b: &mut Builder, value: Funder, words: &Words) {
 pub const fn funder_nodes() -> u32 {
     1
 }
-pub fn part(b: &mut Builder, value: &OwnerPart, words: &Words, bindings: &mut JigBindings) {
+pub fn part(b: &mut Builder, value: &Part, words: &Words, bindings: &mut JigBindings) {
     b.open(Role::Region);
     text(b, words, ProposedPhrase::PartConnector, &[Hole::Number(u64::from(value.connector))]);
     let kind = match value.kind {
-        OwnerPartKind::Resource => ProposedPhrase::PartResource,
-        OwnerPartKind::Pool => ProposedPhrase::PartPool,
-        OwnerPartKind::Result => ProposedPhrase::PartResult,
-        OwnerPartKind::Procedure => ProposedPhrase::PartProcedure,
-        OwnerPartKind::Effect => ProposedPhrase::PartEffect,
-        OwnerPartKind::Outbox => ProposedPhrase::PartOutbox,
-        OwnerPartKind::Hold => ProposedPhrase::PartHold,
+        PartKind::Resource => ProposedPhrase::PartResource,
+        PartKind::Pool => ProposedPhrase::PartPool,
+        PartKind::Result => ProposedPhrase::PartResult,
+        PartKind::Procedure => ProposedPhrase::PartProcedure,
+        PartKind::Effect => ProposedPhrase::PartEffect,
+        PartKind::Outbox => ProposedPhrase::PartOutbox,
+        PartKind::Hold => ProposedPhrase::PartHold,
     };
     let name = words.book().say(words.language(), kind.id(), &[]).expect("exact part kind words were checked");
     b.name(&name.text);
     text(b, words, kind, &[]);
     match &value.key {
-        OwnerPartKey::Number(number) => text(b, words, ProposedPhrase::PartNumber, &[Hole::Number(*number)]),
-        OwnerPartKey::Path(segments) => {
+        PartKey::Number(number) => text(b, words, ProposedPhrase::PartNumber, &[Hole::Number(*number)]),
+        PartKey::Path(segments) => {
             let reserved = u32::try_from(name.text.len()).expect("bounded resource words");
             crate::words::literal_segment::path(
                 b,
@@ -84,7 +82,7 @@ pub fn part(b: &mut Builder, value: &OwnerPart, words: &Words, bindings: &mut Ji
             );
         }
     }
-    let token = bindings.insert(JigMeaning::OwnerPart(value.clone())).token;
+    let token = bindings.insert(JigMeaning::Part(value.clone())).token;
     b.slot(
         SlotRef { owner: (Owner::Application { number: value.connector }).opaque(), token },
         &words.say(JigPhrase::LoadingPart, &[]),

@@ -11,7 +11,9 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::contract;
-use jig_client::contract::{Delivery, Limit, ObjectKey, Part, PartyKind, Read, ReadResult, ReadValue, Subject};
+use jig_client::contract::{
+    ApplicationPart, Delivery, Limit, ObjectKey, PartyKind, Read, ReadResult, ReadValue, Subject,
+};
 use jig_client::thread::window::{Edge, Edges, End};
 use skein_lib::{Env, List, Queue, Token};
 
@@ -248,11 +250,11 @@ pub(crate) fn names(
                 None | Some(Body::Chip(_)) => true,
                 Some(
                     Body::Task(_)
-                    | Body::Historical(_)
-                    | Body::OwnerProposal(_)
-                    | Body::OwnerEscalation(_)
+                    | Body::Ended(_)
+                    | Body::Proposal(_)
+                    | Body::Escalation(_)
                     | Body::Question(_)
-                    | Body::OwnerPersonTask(_)
+                    | Body::PersonTask(_)
                     | Body::Result(_)
                     | Body::Note { .. },
                 ) => false,
@@ -277,7 +279,7 @@ pub(crate) fn names(
 pub(crate) fn parts(
     domain: &mut Ui,
     _env: &Env<crate::Config>,
-    values: &[Part],
+    values: &[ApplicationPart],
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
@@ -331,20 +333,20 @@ pub(crate) fn delivery(
 ) {
     let source = Source::Watch(watch);
     match value {
-        Delivery::Me(_) | Delivery::OwnerProject(_) | Delivery::OwnerAccounts(_) | Delivery::Settings(_) => {}
+        Delivery::Me(_) | Delivery::Project(_) | Delivery::Accounts(_) | Delivery::Settings(_) => {}
         Delivery::Run(_) | Delivery::RunState(_) => {
             crate::state::activity::routing::text(domain, env, watch, out, lent);
         }
-        Delivery::OwnerProposal(proposal) => {
+        Delivery::Proposal(proposal) => {
             let key = ObjectKey::Proposal(proposal.key);
-            one(domain, env, source, key, Body::OwnerProposal(proposal), out, lent);
+            one(domain, env, source, key, Body::Proposal(proposal), out, lent);
         }
         Delivery::Task(task) => {
             crate::state::activity::routing::document(domain, &task, out, lent);
             crate::state::page::task::delivered(domain, source, task);
             crate::state::page::task::document(domain, env, out, lent);
         }
-        Delivery::OwnerTree(tree) => owner_tree_delivery(domain, env, watch, source, tree, out, lent),
+        Delivery::Tree(tree) => owner_tree_delivery(domain, env, watch, source, tree, out, lent),
         Delivery::Chips(chips) => {
             let mut keys = List::with_capacity(lent.domain_limits().rows);
             for chip in &chips {
@@ -356,7 +358,7 @@ pub(crate) fn delivery(
             names(domain, env, source, keys, out, lent);
             domain.changed();
         }
-        Delivery::OwnerInbox(_) => {
+        Delivery::Inbox(_) => {
             let projected = domain.borrow(lent).inbox();
             let timed = !projected.rows.is_empty();
             domain.inbox = projected.into_state();
@@ -378,7 +380,7 @@ pub(crate) fn delivery(
                 crate::state::page::project::task_rows(domain, env, source, *tasks, out, lent);
             }
         }
-        Delivery::OwnerDeployment(_) => {
+        Delivery::Deployment(_) => {
             crate::state::page::deployment::watched(domain, env, out, lent);
         }
     }
@@ -393,12 +395,12 @@ fn read_body(domain: &mut Ui, key: ObjectKey, body: Body) {
 fn owner_proposal_read(
     domain: &mut Ui,
     env: &Env<crate::Config>,
-    proposal: Box<contract::OwnerProposal>,
+    proposal: Box<contract::Proposal>,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
     let key = ObjectKey::Proposal(proposal.key);
-    if crate::state::application::put(domain, env, key, Body::OwnerProposal(proposal), out, lent, true) {
+    if crate::state::application::put(domain, env, key, Body::Proposal(proposal), out, lent, true) {
         domain.changed();
     }
 }
@@ -527,7 +529,7 @@ fn original_read_valid(
     owner_escalation_read_valid(domain, token, result, lent)
         && owner_project_read_valid(domain, token, result)
         && owner_inbox_read_valid(domain, env, token, result, lent)
-        && historical_read_valid(domain, env, token, result, lent)
+        && ended_read_valid(domain, env, token, result, lent)
 }
 
 fn read_value(
@@ -540,26 +542,26 @@ fn read_value(
 ) {
     match value {
         ReadValue::Me(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerEnded(_)
-        | ReadValue::OwnerSpend(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::EndedPage(_)
+        | ReadValue::Spend(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_) => {}
-        ReadValue::OwnerProject(value) => crate::state::page::project::owner_document(domain, value),
+        ReadValue::Project(value) => crate::state::page::project::owner_document(domain, value),
         ReadValue::Notes(page) => crate::state::page::project::notes::page(domain, source, *page),
         ReadValue::Task(task) => task_read(domain, env, task, out, lent),
-        ReadValue::Historical(value) => read_body(domain, value.key, Body::Historical(value)),
-        ReadValue::OwnerProposal(proposal) => owner_proposal_read(domain, env, proposal, out, lent),
-        ReadValue::OwnerEscalation(value) => owner_escalation_read(domain, value),
+        ReadValue::Ended(value) => read_body(domain, value.key, Body::Ended(value)),
+        ReadValue::Proposal(proposal) => owner_proposal_read(domain, env, proposal, out, lent),
+        ReadValue::Escalation(value) => owner_escalation_read(domain, value),
         ReadValue::Question(question) => {
             let key = ObjectKey::Question { task: question.task.task, message: question.message };
             read_body(domain, key, Body::Question(question));
         }
-        ReadValue::OwnerPersonTask(task) => {
+        ReadValue::PersonTask(task) => {
             let key = ObjectKey::PersonTask(task.task.task);
-            read_body(domain, key, Body::OwnerPersonTask(task));
+            read_body(domain, key, Body::PersonTask(task));
         }
         ReadValue::Result(result) => {
             let key = ObjectKey::Result(result.task.task);
@@ -584,15 +586,15 @@ fn read_value(
             domain.changed();
         }
         ReadValue::Turn(_) => unreachable!("reference pages never request a turn"),
-        ReadValue::OwnerDeployment(document) => {
+        ReadValue::Deployment(document) => {
             crate::state::page::deployment::owner_document(domain, env, document, out, lent);
         }
     }
 }
 
-fn owner_escalation_read(domain: &mut Ui, value: Box<contract::OwnerEscalation>) {
+fn owner_escalation_read(domain: &mut Ui, value: Box<contract::Escalation>) {
     let key = ObjectKey::Escalation(value.task.chip.task);
-    read_body(domain, key, Body::OwnerEscalation(value));
+    read_body(domain, key, Body::Escalation(value));
 }
 
 fn task_read(
@@ -612,28 +614,28 @@ fn task_read(
 fn owner_project_read_valid(domain: &Ui, token: Token, result: &ReadResult) -> bool {
     let value = match result {
         ReadResult::Value(value) => match value {
-            ReadValue::OwnerProject(value) => value,
+            ReadValue::Project(value) => value,
             ReadValue::Tasks(_)
             | ReadValue::Me(_)
-            | ReadValue::Historical(_)
+            | ReadValue::Ended(_)
             | ReadValue::Task(_)
-            | ReadValue::OwnerProposal(_)
-            | ReadValue::OwnerEscalation(_)
+            | ReadValue::Proposal(_)
+            | ReadValue::Escalation(_)
             | ReadValue::Question(_)
-            | ReadValue::OwnerPersonTask(_)
+            | ReadValue::PersonTask(_)
             | ReadValue::Result(_)
-            | ReadValue::OwnerEnded(_)
-            | ReadValue::OwnerSpend(_)
+            | ReadValue::EndedPage(_)
+            | ReadValue::Spend(_)
             | ReadValue::History(_)
             | ReadValue::Activity(_)
             | ReadValue::Turn(_)
-            | ReadValue::OwnerInbox(_)
+            | ReadValue::Inbox(_)
             | ReadValue::Notes(_)
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
-            | ReadValue::OwnerDeployment(_) => return true,
+            | ReadValue::Deployment(_) => return true,
         },
         ReadResult::None(_) => return true,
     };
@@ -675,28 +677,28 @@ fn owner_inbox_read_valid(
 ) -> bool {
     let page = match result {
         ReadResult::Value(value) => match value {
-            ReadValue::OwnerInbox(page) => page,
+            ReadValue::Inbox(page) => page,
             ReadValue::Tasks(_)
             | ReadValue::Me(_)
             | ReadValue::Task(_)
-            | ReadValue::Historical(_)
-            | ReadValue::OwnerProposal(_)
-            | ReadValue::OwnerEscalation(_)
+            | ReadValue::Ended(_)
+            | ReadValue::Proposal(_)
+            | ReadValue::Escalation(_)
             | ReadValue::Question(_)
-            | ReadValue::OwnerPersonTask(_)
+            | ReadValue::PersonTask(_)
             | ReadValue::Result(_)
             | ReadValue::History(_)
             | ReadValue::Activity(_)
             | ReadValue::Turn(_)
-            | ReadValue::OwnerEnded(_)
-            | ReadValue::OwnerSpend(_)
-            | ReadValue::OwnerProject(_)
+            | ReadValue::EndedPage(_)
+            | ReadValue::Spend(_)
+            | ReadValue::Project(_)
             | ReadValue::Notes(_)
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
-            | ReadValue::OwnerDeployment(_) => return true,
+            | ReadValue::Deployment(_) => return true,
         },
         ReadResult::None(_) => return true,
     };
@@ -759,9 +761,9 @@ fn received_value(
     lent: &jig_client::Client,
 ) {
     match value {
-        ReadValue::OwnerEnded(page) => super::task::owner_ended(domain, page),
-        ReadValue::OwnerSpend(page) => super::project::owner_spend(domain, page),
-        ReadValue::OwnerProject(value) => match query {
+        ReadValue::EndedPage(page) => super::task::owner_ended(domain, page),
+        ReadValue::Spend(page) => super::project::owner_spend(domain, page),
+        ReadValue::Project(value) => match query {
             Read::Project { project } => {
                 if project == value.number {
                     crate::state::page::project::owner_document(domain, value);
@@ -788,12 +790,12 @@ fn received_value(
             | Read::Revisions(_)
             | Read::Deployment => {}
         },
-        ReadValue::OwnerDeployment(page) => {
+        ReadValue::Deployment(page) => {
             if query == Read::Deployment {
                 crate::state::page::deployment::owner_document(domain, env, page, out, lent);
             }
         }
-        ReadValue::OwnerInbox(page) => {
+        ReadValue::Inbox(page) => {
             let group = match &query {
                 Read::Inbox { group, .. } => *group,
                 Read::Tasks { .. }
@@ -825,11 +827,11 @@ fn received_value(
         ReadValue::Tasks(_)
         | ReadValue::Me(_)
         | ReadValue::Task(_)
-        | ReadValue::Historical(_)
-        | ReadValue::OwnerProposal(_)
-        | ReadValue::OwnerEscalation(_)
+        | ReadValue::Ended(_)
+        | ReadValue::Proposal(_)
+        | ReadValue::Escalation(_)
         | ReadValue::Question(_)
-        | ReadValue::OwnerPersonTask(_)
+        | ReadValue::PersonTask(_)
         | ReadValue::Result(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
@@ -847,7 +849,7 @@ fn owner_tree_delivery(
     env: &Env<crate::Config>,
     watch: jig_client::Handle,
     source: Source,
-    tree: Box<contract::OwnerTree>,
+    tree: Box<contract::Tree>,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
@@ -891,7 +893,7 @@ fn owner_tree_delivery(
     domain.changed();
 }
 
-fn historical_funders_fit(page: &contract::OwnerSpendPage, project: u32) -> bool {
+fn ended_funders_fit(page: &contract::SpendPage, project: u32) -> bool {
     for row in &page.rows {
         match row.funder {
             contract::Funder::Period { project: owner, .. } => {
@@ -908,7 +910,7 @@ fn historical_funders_fit(page: &contract::OwnerSpendPage, project: u32) -> bool
 }
 
 /// Validate the retained original request before consuming its terminal.
-fn historical_read_valid(
+fn ended_read_valid(
     domain: &Ui,
     _env: &Env<crate::Config>,
     token: Token,
@@ -923,7 +925,7 @@ fn historical_read_valid(
         return true;
     };
     match value {
-        ReadValue::OwnerEnded(page) => {
+        ReadValue::EndedPage(page) => {
             let task = match &read.what {
                 Read::Ended { task, .. } => *task,
                 Read::Tasks { .. }
@@ -954,9 +956,9 @@ fn historical_read_valid(
             source
                 && domain.task_page.ended_task == Some(task)
                 && page.rows.capacity() <= lent.domain_limits().rows
-                && historical_edges_fit(page.before.as_ref(), page.after.as_ref(), lent.domain_limits().text)
+                && ended_edges_fit(page.before.as_ref(), page.after.as_ref(), lent.domain_limits().text)
         }
-        ReadValue::OwnerSpend(page) => {
+        ReadValue::Spend(page) => {
             let project = match &read.what {
                 Read::Spend { project, .. } => *project,
                 Read::Tasks { .. }
@@ -987,35 +989,35 @@ fn historical_read_valid(
             if !source
                 || super::project::number(domain) != Some(project)
                 || page.rows.capacity() > lent.domain_limits().rows
-                || !historical_edges_fit(page.before.as_ref(), page.after.as_ref(), lent.domain_limits().text)
+                || !ended_edges_fit(page.before.as_ref(), page.after.as_ref(), lent.domain_limits().text)
             {
                 return false;
             }
-            historical_funders_fit(page, project)
+            ended_funders_fit(page, project)
         }
         ReadValue::Tasks(_)
         | ReadValue::Me(_)
         | ReadValue::Task(_)
-        | ReadValue::Historical(_)
-        | ReadValue::OwnerProposal(_)
-        | ReadValue::OwnerEscalation(_)
+        | ReadValue::Ended(_)
+        | ReadValue::Proposal(_)
+        | ReadValue::Escalation(_)
         | ReadValue::Question(_)
-        | ReadValue::OwnerPersonTask(_)
+        | ReadValue::PersonTask(_)
         | ReadValue::Result(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerProject(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Project(_)
         | ReadValue::Notes(_)
-        | ReadValue::OwnerDeployment(_)
+        | ReadValue::Deployment(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_) => true,
     }
 }
-fn historical_edges_fit(before: Option<&contract::Cursor>, after: Option<&contract::Cursor>, text: u32) -> bool {
+fn ended_edges_fit(before: Option<&contract::Cursor>, after: Option<&contract::Cursor>, text: u32) -> bool {
     if let Some(cursor) = before
         && !cursor.value.fits(text)
     {
@@ -1032,29 +1034,29 @@ fn historical_edges_fit(before: Option<&contract::Cursor>, after: Option<&contra
 // Check the original read and supplied scope before consuming its one terminal.
 fn owner_escalation_read_valid(domain: &Ui, token: Token, result: &ReadResult, lent: &jig_client::Client) -> bool {
     let document = match result {
-        ReadResult::Value(ReadValue::OwnerEscalation(document)) => document,
+        ReadResult::Value(ReadValue::Escalation(document)) => document,
         ReadResult::Value(
             ReadValue::Tasks(_)
             | ReadValue::Me(_)
             | ReadValue::Task(_)
-            | ReadValue::Historical(_)
-            | ReadValue::OwnerProposal(_)
-            | ReadValue::OwnerProject(_)
+            | ReadValue::Ended(_)
+            | ReadValue::Proposal(_)
+            | ReadValue::Project(_)
             | ReadValue::Question(_)
-            | ReadValue::OwnerPersonTask(_)
+            | ReadValue::PersonTask(_)
             | ReadValue::Result(_)
-            | ReadValue::OwnerEnded(_)
+            | ReadValue::EndedPage(_)
             | ReadValue::History(_)
             | ReadValue::Activity(_)
             | ReadValue::Turn(_)
-            | ReadValue::OwnerInbox(_)
-            | ReadValue::OwnerSpend(_)
+            | ReadValue::Inbox(_)
+            | ReadValue::Spend(_)
             | ReadValue::Notes(_)
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
-            | ReadValue::OwnerDeployment(_),
+            | ReadValue::Deployment(_),
         )
         | ReadResult::None(_) => return true,
     };

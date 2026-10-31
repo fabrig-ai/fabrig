@@ -19,7 +19,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
-use jig_client::contract::{self, Executor, Limit, ObjectKey, Part, ProposalKey, Read, Task};
+use jig_client::contract::{self, ApplicationPart, ChipExecutor, Limit, ObjectKey, ProposalKey, Read, Task};
 use skein_lib::{Env, Id, List, Map, Queue, Token};
 /// Which plan rows a person has asked to see.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -53,7 +53,7 @@ pub struct TaskPage {
     pub proposals: List<ProposalKey>,
     proposal_activity: Option<u64>,
     /// Whole owner ended page under the selected original read.
-    pub owner_ended: Option<Box<contract::OwnerEndedPage>>,
+    pub owner_ended: Option<Box<contract::EndedPage>>,
     pub plan: Plan,
     pub subtree_history: bool,
     /// Loss reported by the current ended-delegate read window.
@@ -122,12 +122,12 @@ pub fn offers(task: &Task) -> Offered {
     let panels = panels
         || !task.resources.is_empty()
         || match task.chip.executor {
-            Executor::Procedure { .. } => true,
-            Executor::Agent { .. } | Executor::Party { .. } | Executor::Role { .. } => false,
+            ChipExecutor::Procedure { .. } => true,
+            ChipExecutor::Agent { .. } | ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => false,
         };
     let budget = match task.chip.executor {
-        Executor::Agent { .. } | Executor::Procedure { .. } => true,
-        Executor::Party { .. } | Executor::Role { .. } => {
+        ChipExecutor::Agent { .. } | ChipExecutor::Procedure { .. } => true,
+        ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {
             task.budget.numbers.budget > 0
                 || task.budget.numbers.spent > 0
                 || task.budget.numbers.spent_below > 0
@@ -165,7 +165,7 @@ pub fn offered(sections: &Offered, section: TaskSection) -> bool {
 }
 
 /// Moves the complete owner envelope; local choices do not alter source rows.
-pub(crate) fn owner_tree(domain: &mut Ui, tree: &contract::OwnerTree) {
+pub(crate) fn owner_tree(domain: &mut Ui, tree: &contract::Tree) {
     let plan = &mut domain.task_page.plan;
     let mut removed = List::with_capacity(plan.folds.len());
     for (task, _) in &plan.folds {
@@ -194,7 +194,7 @@ impl Plan {
 }
 /// Chooses only the part references named by the selected section.
 #[must_use]
-pub fn parts(task: &Task, section: TaskSection, limit: u32) -> List<Part> {
+pub fn parts(task: &Task, section: TaskSection, limit: u32) -> List<ApplicationPart> {
     let mut parts = List::with_capacity(limit);
     // The shared chip is shown in every task section.
     if let Some(part) = crate::state::application::owner_hold(&task.chip) {
@@ -205,12 +205,14 @@ pub fn parts(task: &Task, section: TaskSection, limit: u32) -> List<Part> {
             result(&mut parts, task);
         }
         TaskSection::Activity => match task.chip.executor {
-            Executor::Procedure { connector, .. } => push(&mut parts, Part::Panel { connector, task: task.chip.task }),
-            Executor::Agent { .. } | Executor::Party { .. } | Executor::Role { .. } => {}
+            ChipExecutor::Procedure { connector, .. } => {
+                push(&mut parts, ApplicationPart::Panel { connector, task: task.chip.task });
+            }
+            ChipExecutor::Agent { .. } | ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {}
         },
         TaskSection::Budget => {
             for grant in &task.authority.authority.grants {
-                push(&mut parts, Part::Kind { connector: grant.connector, kind: grant.kind });
+                push(&mut parts, ApplicationPart::Kind { connector: grant.connector, kind: grant.kind });
             }
         }
         TaskSection::Panels => {
@@ -219,28 +221,28 @@ pub fn parts(task: &Task, section: TaskSection, limit: u32) -> List<Part> {
                     && let Some(connectors) = &closing.connectors
                 {
                     for connector in connectors {
-                        push(&mut parts, Part::Panel { connector: *connector, task: task.chip.task });
+                        push(&mut parts, ApplicationPart::Panel { connector: *connector, task: task.chip.task });
                     }
                 }
                 append(&mut parts, &context.parts);
             }
             match task.chip.executor {
-                Executor::Procedure { connector, .. } => {
-                    push(&mut parts, Part::Panel { connector, task: task.chip.task });
+                ChipExecutor::Procedure { connector, .. } => {
+                    push(&mut parts, ApplicationPart::Panel { connector, task: task.chip.task });
                 }
-                Executor::Agent { .. } | Executor::Party { .. } | Executor::Role { .. } => {}
+                ChipExecutor::Agent { .. } | ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {}
             }
         }
         TaskSection::Plan | TaskSection::History => {}
     }
     parts
 }
-fn append(out: &mut List<Part>, values: &List<Part>) {
+fn append(out: &mut List<ApplicationPart>, values: &List<ApplicationPart>) {
     for part in values {
         push(out, part.clone());
     }
 }
-fn push(out: &mut List<Part>, part: Part) {
+fn push(out: &mut List<ApplicationPart>, part: ApplicationPart) {
     for kept in &*out {
         if *kept == part {
             return;
@@ -250,7 +252,7 @@ fn push(out: &mut List<Part>, part: Part) {
         out.push(part).expect("part fits its bounded list");
     }
 }
-fn result(out: &mut List<Part>, task: &Task) {
+fn result(out: &mut List<ApplicationPart>, task: &Task) {
     if let Some(result) = &task.result {
         match result {
             contract::TaskResult::Ending(_) => {}
@@ -360,12 +362,12 @@ pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Config>, out: &mut Queu
     let task = match &projected.body {
         Some(Body::Task(task)) => task,
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
-            | Body::OwnerEscalation(_)
+            | Body::Proposal(_)
+            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -419,7 +421,7 @@ pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Config>, out: &mut Queu
         return;
     }
     match executor {
-        Executor::Agent { .. } => {
+        ChipExecutor::Agent { .. } => {
             let subject = contract::Subject::Run { task: number, turn: None, offset: 0 };
             if open_once(domain, subject, out) {
                 read(
@@ -430,8 +432,8 @@ pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Config>, out: &mut Queu
                 );
             }
         }
-        Executor::Procedure { .. } => {}
-        Executor::Party { .. } | Executor::Role { .. } => {
+        ChipExecutor::Procedure { .. } => {}
+        ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {
             let key = ObjectKey::PersonTask(number);
             let source = Source::Window { number: PERSON_TASK_READ };
             if domain.objects.name(key, source).is_none() {
@@ -588,7 +590,7 @@ pub(crate) fn ended(domain: &mut Ui, before: Option<contract::Cursor>, after: Op
 }
 
 /// Install one admitted owner page without naming synthetic Result objects.
-pub(crate) fn owner_ended(domain: &mut Ui, page: Box<contract::OwnerEndedPage>) {
+pub(crate) fn owner_ended(domain: &mut Ui, page: Box<contract::EndedPage>) {
     domain.task_page.ended_cut = page.cut;
     ended(domain, page.before.clone(), page.after.clone());
     domain.task_page.owner_ended = Some(page);

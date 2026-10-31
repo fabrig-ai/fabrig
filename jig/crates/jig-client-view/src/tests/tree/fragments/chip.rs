@@ -13,20 +13,20 @@ use skein_lib::{Duration, List, Token, Wall, bytes::copy_of};
 fn doc(bytes: &[u8], cut: bool) -> DocumentText {
     DocumentText { bytes: Text::new(copy_of(bytes), 256).unwrap(), cut }
 }
-fn part() -> OwnerPart {
+fn part() -> Part {
     let path = crate::tests::kit::list([copy_of(b"a/b"), copy_of(&[255, 0])]);
-    OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(path) }
+    Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Path(path) }
 }
-pub(in crate::tests) fn details() -> OwnerChipDetails {
-    OwnerChipDetails {
+pub(in crate::tests) fn details() -> ChipDetails {
+    ChipDetails {
         dependencies: List::with_capacity(0),
         project: u32::MAX,
-        executor: OwnerExecutor::Agent { charter: u32::MAX },
+        executor: Executor::Agent { charter: u32::MAX },
         phase_since: Wall::from_nanos(10),
         run_since: Some(Wall::from_nanos(20)),
         attempt: Some(u64::MAX),
         retry: Some(RetryNotice::Refused { count: u32::MAX }),
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Never,
             notices: WakeRule::Immediate,
             news: WakeRule::Batch { count: u32::MAX, age: Duration::from_nanos(30) },
@@ -37,8 +37,8 @@ pub(in crate::tests) fn details() -> OwnerChipDetails {
         },
         person_wait: None,
         hold: None,
-        budget: OwnerBudget {
-            numbers: OwnerNumbers { budget: 100, spent: 2, spent_below: 3, reserved: 5 },
+        budget: Budget {
+            numbers: Numbers { budget: 100, spent: 2, spent_below: 3, reserved: 5 },
             left: 7,
             funder: Funder::Task(u64::MAX),
             deadline: None,
@@ -55,8 +55,8 @@ pub(in crate::tests) fn details() -> OwnerChipDetails {
         observation: None,
     }
 }
-fn hold() -> OwnerChipHold {
-    OwnerChipHold {
+fn hold() -> ChipHold {
+    ChipHold {
         words: None,
         placed: None,
         circle: None,
@@ -64,9 +64,9 @@ fn hold() -> OwnerChipHold {
         source: None,
         reason: HoldCategory::Budget,
         revision: u64::MAX,
-        before: OwnerPriorPhase::Waiting,
+        before: PriorPhase::Waiting,
         escalation: None,
-        tries: OwnerFailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX },
+        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX },
         hold_wait_since: Some(Wall::from_nanos(40)),
     }
 }
@@ -79,7 +79,7 @@ fn client_limits() -> crate::tests::fixtures::Profile {
 fn phrase_limits() -> PhraseLimits {
     PhraseLimits {
         languages: 2,
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments: crate::tests::english_phrase_segments(2),
         text_bytes: 100_000,
@@ -104,7 +104,7 @@ fn words() -> &'static Words {
         )
     })
 }
-fn build(value: &OwnerChipDetails, words: &Words) -> (Tree, JigBindings, Limits) {
+fn build(value: &ChipDetails, words: &Words) -> (Tree, JigBindings, Limits) {
     let client = Fixture::new(&client_limits());
     let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let capacity = Limits {
@@ -135,10 +135,10 @@ fn retained_chip_preserves_concrete_executor_project_and_full_width_owner_scalar
     let mut goldens = Goldens::new("tree/fragments/chip/retained_chip_preserves");
     let mut value = details();
     for executor in [
-        OwnerExecutor::Agent { charter: u32::MAX },
-        OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX },
-        OwnerExecutor::Person(PersonAddress::Party(u64::MAX)),
-        OwnerExecutor::Person(PersonAddress::Role(u32::MAX)),
+        Executor::Agent { charter: u32::MAX },
+        Executor::Procedure { connector: u16::MAX, code: u32::MAX },
+        Executor::Person(PersonAddress::Party(u64::MAX)),
+        Executor::Person(PersonAddress::Role(u32::MAX)),
     ] {
         value.executor = executor;
         let (tree, _, _) = build(&value, words());
@@ -153,9 +153,9 @@ fn placement_and_attempt_do_not_attest_unobserved_work_or_actual_start() {
     let mut value = details();
     let (tree, _, _) = build(&value, words());
     goldens.check(&tree);
-    let observation = OwnerChipObservation {
+    let observation = ChipObservation {
         channel: Token::new(u64::MAX),
-        work: OwnerChipWork::Tool { call: copy_of(&[255, 0]), tool: copy_of(b"opaque/tool") },
+        work: ChipWork::Tool { call: copy_of(&[255, 0]), tool: copy_of(b"opaque/tool") },
         since: Wall::from_nanos(50),
         reported_at: Wall::from_nanos(60),
         started: None,
@@ -167,12 +167,12 @@ fn placement_and_attempt_do_not_attest_unobserved_work_or_actual_start() {
     value.observation.as_mut().unwrap().started = Some(Wall::from_nanos(70));
     goldens.check(&build(&value, words()).0);
     for work in [
-        OwnerChipWork::Preparing,
-        OwnerChipWork::Starting,
-        OwnerChipWork::Active,
-        OwnerChipWork::Writing,
-        OwnerChipWork::Waiting,
-        OwnerChipWork::Ending,
+        ChipWork::Preparing,
+        ChipWork::Starting,
+        ChipWork::Active,
+        ChipWork::Writing,
+        ChipWork::Waiting,
+        ChipWork::Ending,
     ] {
         value.observation.as_mut().unwrap().work = work;
         goldens.check(&build(&value, words()).0);
@@ -188,7 +188,7 @@ fn closing_connector_absence_empty_and_terminal_clock_are_independent_owner_fact
     value.closing_connectors.as_mut().unwrap().push(u16::MAX).unwrap();
     let (tree, _, _) = build(&value, words());
     goldens.check(&tree);
-    value.ending = Some(OwnerChipEnding::Failed(doc(b"failed", false)));
+    value.ending = Some(ChipEnding::Failed(doc(b"failed", false)));
     goldens.check(&build(&value, words()).0);
     value.ended_at = Some(Wall::from_nanos(80));
     value.ending = None;
@@ -203,12 +203,12 @@ fn resource_rows_keep_raw_segmented_parts_and_independent_holder_writer_loss_obs
     value.resources = List::with_capacity(2);
     value
         .resources
-        .push(OwnerResourceLine {
+        .push(ResourceLine {
             part: reference.clone(),
             kind: u16::MAX,
             taken: false,
             holder: None,
-            writer: Some(OwnerResourceWriter::Effect { entry: u64::MAX }),
+            writer: Some(ResourceWriter::Effect { entry: u64::MAX }),
             writer_lost: true,
         })
         .unwrap();
@@ -222,7 +222,7 @@ fn resource_rows_keep_raw_segmented_parts_and_independent_holder_writer_loss_obs
     }
     let row = value.resources.get_mut(0).unwrap();
     row.holder = Some(u64::MAX);
-    row.writer = Some(OwnerResourceWriter::Run { task: u64::MAX, attempt: u64::MAX });
+    row.writer = Some(ResourceWriter::Run { task: u64::MAX, attempt: u64::MAX });
     row.taken = true;
     row.writer_lost = false;
     value.resources_observed = true;
@@ -278,38 +278,38 @@ fn held_prior_stages_have_no_invented_clocks_and_escalations_keep_holder_scope_a
     value.run_since = None;
     value.attempt = None;
     let priors = [
-        OwnerPriorPhase::Waiting,
-        OwnerPriorPhase::Active(RunStage::Idle),
-        OwnerPriorPhase::Active(RunStage::Due),
-        OwnerPriorPhase::Active(RunStage::Preparing),
-        OwnerPriorPhase::Active(RunStage::Claimed { attempt: u64::MAX }),
-        OwnerPriorPhase::Active(RunStage::Running { attempt: u64::MAX }),
-        OwnerPriorPhase::Active(RunStage::BackingOff { until: Wall::from_nanos(90) }),
-        OwnerPriorPhase::Closing(ClosingStage::Run { attempt: u64::MAX }),
-        OwnerPriorPhase::Closing(ClosingStage::Delegates),
-        OwnerPriorPhase::Closing(ClosingStage::Effects),
-        OwnerPriorPhase::Closing(ClosingStage::Releases),
-        OwnerPriorPhase::Closing(ClosingStage::Settled),
+        PriorPhase::Waiting,
+        PriorPhase::Active(RunStage::Idle),
+        PriorPhase::Active(RunStage::Due),
+        PriorPhase::Active(RunStage::Preparing),
+        PriorPhase::Active(RunStage::Claimed { attempt: u64::MAX }),
+        PriorPhase::Active(RunStage::Running { attempt: u64::MAX }),
+        PriorPhase::Active(RunStage::BackingOff { until: Wall::from_nanos(90) }),
+        PriorPhase::Closing(ClosingStage::Run { attempt: u64::MAX }),
+        PriorPhase::Closing(ClosingStage::Delegates),
+        PriorPhase::Closing(ClosingStage::Effects),
+        PriorPhase::Closing(ClosingStage::Releases),
+        PriorPhase::Closing(ClosingStage::Settled),
     ];
     for prior in priors {
         value.hold.as_mut().unwrap().before = prior;
         let tree = build(&value, words()).0;
         goldens.check(&tree);
     }
-    value.hold.as_mut().unwrap().escalation = Some(OwnerHoldEscalation::Routing);
+    value.hold.as_mut().unwrap().escalation = Some(HoldEscalation::Routing);
     goldens.check(&build(&value, words()).0);
     for holder in [
-        OwnerEscalationHolder::Task(u64::MAX),
-        OwnerEscalationHolder::Person(u64::MAX),
-        OwnerEscalationHolder::Role { project: u32::MAX, role: u32::MAX },
+        EscalationHolder::Task(u64::MAX),
+        EscalationHolder::Person(u64::MAX),
+        EscalationHolder::Role { project: u32::MAX, role: u32::MAX },
     ] {
         value.hold.as_mut().unwrap().escalation =
-            Some(OwnerHoldEscalation::Waiting { holder, entry: u64::MAX, since: Wall::from_nanos(100) });
+            Some(HoldEscalation::Waiting { holder, entry: u64::MAX, since: Wall::from_nanos(100) });
         let tree = build(&value, words()).0;
         goldens.check(&tree);
     }
     value.hold.as_mut().unwrap().escalation =
-        Some(OwnerHoldEscalation::Rejected { by: u64::MAX, reason: doc(UTF8_TEXTS[0], true) });
+        Some(HoldEscalation::Rejected { by: u64::MAX, reason: doc(UTF8_TEXTS[0], true) });
     let tree = build(&value, words()).0;
     goldens.check(&tree);
 }
@@ -317,11 +317,11 @@ fn held_prior_stages_have_no_invented_clocks_and_escalations_keep_holder_scope_a
 fn person_wait_notices_keep_full_message_activity_and_independent_owner_times() {
     let mut goldens = Goldens::new("tree/fragments/chip/person_wait_notices");
     let mut value = details();
-    value.person_wait = Some(OwnerPersonWait {
+    value.person_wait = Some(PersonWait {
         since: Wall::from_nanos(110),
         stall: Duration::from_nanos(120),
         deadline: Wall::from_nanos(130),
-        notice: Some(OwnerPersonStallNotice { message: u64::MAX, at: Wall::from_nanos(140), activity: u64::MAX }),
+        notice: Some(PersonStallNotice { message: u64::MAX, at: Wall::from_nanos(140), activity: u64::MAX }),
     });
     let tree = build(&value, words()).0;
     goldens.check(&tree);
@@ -330,15 +330,11 @@ fn person_wait_notices_keep_full_message_activity_and_independent_owner_times() 
 fn complete_chip_endings_keep_result_requester_and_each_independent_reason_loss() {
     let mut goldens = Goldens::new("tree/fragments/chip/complete_chip_endings");
     let mut value = details();
-    value.ending = Some(OwnerChipEnding::Done(ResultValue::Report(doc(b"whole result", true))));
+    value.ending = Some(ChipEnding::Done(ResultValue::Report(doc(b"whole result", true))));
     let tree = build(&value, words()).0;
     goldens.check(&tree);
-    for by in [
-        OwnerRequester::Task(u64::MAX),
-        OwnerRequester::Person(u64::MAX),
-        OwnerRequester::Deployment { project: u32::MAX },
-    ] {
-        value.ending = Some(OwnerChipEnding::Cancelled {
+    for by in [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }] {
+        value.ending = Some(ChipEnding::Cancelled {
             reason: doc(b"reason", true),
             result: Some(ResultValue::Words(doc(b"prior result", false))),
             by,
@@ -347,15 +343,15 @@ fn complete_chip_endings_keep_result_requester_and_each_independent_reason_loss(
         let tree = build(&value, words()).0;
         goldens.check(&tree);
     }
-    value.ending = Some(OwnerChipEnding::Failed(doc(b"terminal failure", false)));
+    value.ending = Some(ChipEnding::Failed(doc(b"terminal failure", false)));
     let tree = build(&value, words()).0;
     goldens.check(&tree);
-    value.ending = Some(OwnerChipEnding::Failed(doc(b"terminal failure", true)));
+    value.ending = Some(ChipEnding::Failed(doc(b"terminal failure", true)));
     goldens.check(&build(&value, words()).0);
-    value.ending = Some(OwnerChipEnding::Cancelled {
+    value.ending = Some(ChipEnding::Cancelled {
         reason: doc(b"reason", false),
         result: None,
-        by: OwnerRequester::Task(7),
+        by: Requester::Task(7),
         at: Wall::from_nanos(150),
     });
     let tree = build(&value, words()).0;
@@ -365,7 +361,7 @@ fn complete_chip_endings_keep_result_requester_and_each_independent_reason_loss(
         let supplied = explanation.is_some();
         let lost = explanation.as_ref().is_some_and(|value| value.cut);
         value.ending =
-            Some(OwnerChipEnding::Done(ResultValue::Approved { state: copy_of(&[255, 0, 254]), words: explanation }));
+            Some(ChipEnding::Done(ResultValue::Approved { state: copy_of(&[255, 0, 254]), words: explanation }));
         let tree = build(&value, words()).0;
         goldens.check(&tree);
         if supplied {
@@ -384,11 +380,8 @@ fn exact_owner_verdict_fits_chip_result_fragment_at_full_field_capacity_and_reje
         fields.push(ResultField { name: copy_of(&[255; 256]), value: copy_of(&[b'x'; 256]) }).unwrap();
     }
     let mut value = details();
-    value.ending = Some(OwnerChipEnding::Done(ResultValue::OwnerVerdict {
-        verdict: u32::MAX,
-        words: doc(&[b'w'; 256], true),
-        fields,
-    }));
+    value.ending =
+        Some(ChipEnding::Done(ResultValue::OwnerVerdict { verdict: u32::MAX, words: doc(&[b'w'; 256], true), fields }));
     let before = value.clone();
     let (tree, _, envelope) = build(&value, words());
     goldens.check(&tree);
@@ -411,12 +404,12 @@ fn maximum_chip_fragment_checks_selected_language_storage_raw_slots_loss_and_ari
     for _ in 0_u32..4 {
         value
             .resources
-            .push(OwnerResourceLine {
+            .push(ResourceLine {
                 part: part(),
                 kind: u16::MAX,
                 taken: true,
                 holder: Some(u64::MAX),
-                writer: Some(OwnerResourceWriter::Run { task: u64::MAX, attempt: u64::MAX }),
+                writer: Some(ResourceWriter::Run { task: u64::MAX, attempt: u64::MAX }),
                 writer_lost: true,
             })
             .unwrap();
@@ -427,18 +420,18 @@ fn maximum_chip_fragment_checks_selected_language_storage_raw_slots_loss_and_ari
         value.closing_connectors.as_mut().unwrap().push(u16::MAX).unwrap();
     }
     value.hold.as_mut().unwrap().escalation =
-        Some(OwnerHoldEscalation::Rejected { by: u64::MAX, reason: doc(UTF8_TEXTS[1], true) });
-    value.observation = Some(OwnerChipObservation {
+        Some(HoldEscalation::Rejected { by: u64::MAX, reason: doc(UTF8_TEXTS[1], true) });
+    value.observation = Some(ChipObservation {
         channel: Token::new(u64::MAX),
-        work: OwnerChipWork::Tool { call: copy_of(&[255; 256]), tool: copy_of(&[254; 256]) },
+        work: ChipWork::Tool { call: copy_of(&[255; 256]), tool: copy_of(&[254; 256]) },
         since: Wall::from_nanos(160),
         reported_at: Wall::from_nanos(170),
         started: Some(Wall::from_nanos(180)),
     });
-    value.ending = Some(OwnerChipEnding::Cancelled {
+    value.ending = Some(ChipEnding::Cancelled {
         reason: doc(UTF8_TEXTS[2], true),
         result: Some(ResultValue::Change { kind: u16::MAX, part: part(), words: doc(b"change", true) }),
-        by: OwnerRequester::Deployment { project: u32::MAX },
+        by: Requester::Deployment { project: u32::MAX },
         at: Wall::from_nanos(190),
     });
     value.ended_at = Some(Wall::from_nanos(200));
@@ -567,7 +560,7 @@ fn owner_retry_borrows_selected_checked_six_class_words_and_both_count_holes() {
 #[test]
 fn supplied_hold_account_and_origin_keep_distinct_public_slots_and_absence() {
     let mut goldens = Goldens::new("tree/fragments/chip/supplied_hold_account");
-    let account = OwnerPart { connector: 7, kind: OwnerPartKind::Hold, key: OwnerPartKey::Number(u64::MAX) };
+    let account = Part { connector: 7, kind: PartKind::Hold, key: PartKey::Number(u64::MAX) };
     let origin = part();
     for supplied in [None, Some(account.clone())] {
         for source in [None, Some(origin.clone())] {
@@ -601,7 +594,7 @@ const UTF8_TEXTS: [&[u8]; 3] = [b"~", &[b'~'; 256], &[b'?'; 256]];
 fn a_long_resource_path_shows_its_tail_and_keeps_the_whole_slot() {
     let mut goldens = Goldens::new("tree/fragments/chip/a_long_resource");
     let path = crate::tests::fixtures::long_resource_path::<256>();
-    let reference = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(path) };
+    let reference = Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Path(path) };
     let mut value = details();
     value.procedure = Some(reference.clone());
     let (tree, bindings, _) = build(&value, words());

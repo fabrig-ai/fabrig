@@ -17,12 +17,12 @@ use skein_lib::{List, Time, Wall};
 fn question_sender_closed_widths_and_absence_keep_whole_facts_and_original_answer_identity() {
     for from in [
         None,
-        Some(OwnerRequester::Task(0)),
-        Some(OwnerRequester::Task(u64::MAX)),
-        Some(OwnerRequester::Person(0)),
-        Some(OwnerRequester::Person(u64::MAX)),
-        Some(OwnerRequester::Deployment { project: 0 }),
-        Some(OwnerRequester::Deployment { project: u32::MAX }),
+        Some(Requester::Task(0)),
+        Some(Requester::Task(u64::MAX)),
+        Some(Requester::Person(0)),
+        Some(Requester::Person(u64::MAX)),
+        Some(Requester::Deployment { project: 0 }),
+        Some(Requester::Deployment { project: u32::MAX }),
     ] {
         let (mut domain, _) = live();
         let mut supplied = question();

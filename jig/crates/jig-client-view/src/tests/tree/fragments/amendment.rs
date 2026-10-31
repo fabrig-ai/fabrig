@@ -15,16 +15,16 @@ use skein_lib::{Duration, List, bytes::copy_of};
 fn doc(bytes: &[u8], cut: bool) -> DocumentText {
     DocumentText { bytes: Text::new(copy_of(bytes), 8).unwrap(), cut }
 }
-fn pattern(last: OwnerPatternEnd, capacity: u32) -> OwnerPattern {
+fn pattern(last: PatternEnd, capacity: u32) -> Pattern {
     let mut segments = List::with_capacity(capacity);
     if capacity != 0 {
         for bytes in [b"a/b".as_slice(), &[255, 0], b""] {
             segments.push(copy_of(bytes)).unwrap();
         }
     }
-    OwnerPattern { segments, last }
+    Pattern { segments, last }
 }
-fn fixture() -> OwnerAmendmentState {
+fn fixture() -> AmendmentState {
     let parameters = crate::tests::kit::list([
         ParameterDocument::Number { name: u32::MAX, value: u64::MAX },
         ParameterDocument::Bytes { name: 1, value: doc(b"bytes", false) },
@@ -33,26 +33,22 @@ fn fixture() -> OwnerAmendmentState {
     let inputs = crate::tests::kit::list_in(3, [9, u64::MAX]);
     let grants = crate::tests::kit::list_in(
         3,
-        [OwnerGrant {
-            connector: u16::MAX,
-            kind: u16::MAX,
-            pattern: pattern(OwnerPatternEnd::Exact(copy_of(b"tail")), 3),
-        }],
+        [Grant { connector: u16::MAX, kind: u16::MAX, pattern: pattern(PatternEnd::Exact(copy_of(b"tail")), 3) }],
     );
     let mut kinds = List::with_capacity(3);
     for kind in [
-        OwnerAuthorityExecutor::Charter(u32::MAX),
-        OwnerAuthorityExecutor::Procedure(u32::MAX),
-        OwnerAuthorityExecutor::Role(u32::MAX),
+        AuthorityExecutor::Charter(u32::MAX),
+        AuthorityExecutor::Procedure(u32::MAX),
+        AuthorityExecutor::Role(u32::MAX),
     ] {
         kinds.push(kind).unwrap();
     }
     let resources = crate::tests::kit::list_in(
         3,
-        [OwnerResourceScope { connector: 7, pattern: pattern(OwnerPatternEnd::Open(copy_of(b"*")), 0) }],
+        [ResourceScope { connector: 7, pattern: pattern(PatternEnd::Open(copy_of(b"*")), 0) }],
     );
     let dependencies = crate::tests::kit::list_in(3, [u64::MAX, 7]);
-    OwnerAmendmentState {
+    AmendmentState {
         addressed: Some(PersonAddress::Party(u64::MAX)),
         taken_by: Some(u64::MAX),
         instructions: Some(doc(b"live", false)),
@@ -60,12 +56,12 @@ fn fixture() -> OwnerAmendmentState {
             specification: DocumentSpecification { asks: false, words: doc(b"spec", false), parameters, inputs },
             cut: false,
         },
-        authority: OwnerAuthorityDocument {
-            authority: OwnerAuthority {
+        authority: AuthorityDocument {
+            authority: Authority {
                 models: None,
                 tools: u64::MAX,
                 grants,
-                delegation: OwnerDelegation { kinds, tasks: u32::MAX, depth: u32::MAX },
+                delegation: Delegation { kinds, tasks: u32::MAX, depth: u32::MAX },
                 spend: u64::MAX,
                 deadline: Some(skein_lib::Wall::from_nanos(u64::MAX)),
                 notes: u8::MAX,
@@ -73,7 +69,7 @@ fn fixture() -> OwnerAmendmentState {
             },
             cut: false,
         },
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Never,
             notices: WakeRule::Immediate,
             news: WakeRule::Batch { count: u32::MAX, age: Duration::from_nanos(u64::MAX) },
@@ -100,7 +96,7 @@ fn client_limits() -> crate::tests::fixtures::Profile {
 fn phrase_limits() -> PhraseLimits {
     PhraseLimits {
         languages: 2,
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments: crate::tests::english_phrase_segments(2),
         text_bytes: 100_000,
@@ -127,7 +123,7 @@ fn words(language: u16, selected: bool) -> Words {
         0,
     )
 }
-fn build(value: &OwnerAmendmentState, words: &Words) -> Tree {
+fn build(value: &AmendmentState, words: &Words) -> Tree {
     let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let limits = Limits {
         nodes: f.nodes,
@@ -166,7 +162,7 @@ fn owner_amendment_instruction_absence_empty_and_each_loss_keep_context_without_
     let mut states = List::with_capacity(5);
     let mut trees: List<Tree> = List::with_capacity(5);
     for instructions in variants {
-        let state = OwnerAmendmentState { instructions, ..fixture() };
+        let state = AmendmentState { instructions, ..fixture() };
         let tree = build(&state, normal_words());
         goldens.check(&tree);
         for previous in &states {
@@ -261,7 +257,7 @@ fn owner_amendment_address_taker_spec_wake_and_opaque_authority_keep_full_indepe
     assert_wake_fields(&mut value, words);
 }
 
-fn assert_wake_fields(value: &mut OwnerAmendmentState, words: &Words) {
+fn assert_wake_fields(value: &mut AmendmentState, words: &Words) {
     let mut goldens = Goldens::new("tree/fragments/amendment/assert_wake_fields");
     for results in [ResultsWake::Never, ResultsWake::Each, ResultsWake::LastOrFailure] {
         for switches in 0_u8..8 {

@@ -247,7 +247,9 @@ pub(crate) fn sent(
         return;
     };
     let message_task = match answer {
-        Answer::Done(jig_client::contract::Outcome::Owner(jig_client::contract::OwnerOutcome::Compound { .. })) => task,
+        Answer::Done(jig_client::contract::Outcome::Document(jig_client::contract::DocumentOutcome::Compound {
+            ..
+        })) => task,
         Answer::Done(outcome) => match crate::state::outcome::route(outcome) {
             crate::state::outcome::Route::Words { task, .. } => task,
             crate::state::outcome::Route::Created { .. }

@@ -21,19 +21,16 @@ use alloc::vec::Vec;
 use jig_client::contract::*;
 use skein_lib::{List, Time, Token, bytes::copy_of};
 
-fn pattern() -> OwnerPattern {
-    OwnerPattern {
-        segments: list(2, [copy_of(&[255, 0, b'/']), copy_of(b"")]),
-        last: OwnerPatternEnd::Open(copy_of(&[254, 0])),
-    }
+fn pattern() -> Pattern {
+    Pattern { segments: list(2, [copy_of(&[255, 0, b'/']), copy_of(b"")]), last: PatternEnd::Open(copy_of(&[254, 0])) }
 }
-pub(in crate::tests) fn source(number: u32) -> OwnerProject {
-    let authority = OwnerAuthorityDocument::complete(OwnerAuthority {
+pub(in crate::tests) fn source(number: u32) -> Project {
+    let authority = AuthorityDocument::complete(Authority {
         models: None,
         tools: u64::MAX,
-        grants: list(2, [OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern() }]),
-        delegation: OwnerDelegation {
-            kinds: list(2, [OwnerAuthorityExecutor::Role(u32::MAX)]),
+        grants: list(2, [Grant { connector: u16::MAX, kind: u16::MAX, pattern: pattern() }]),
+        delegation: Delegation {
+            kinds: list(2, [AuthorityExecutor::Role(u32::MAX)]),
             tasks: u32::MAX,
             depth: u32::MAX,
         },
@@ -42,20 +39,20 @@ pub(in crate::tests) fn source(number: u32) -> OwnerProject {
         notes: u8::MAX,
         note_resources: List::with_capacity(2),
     });
-    OwnerProject {
+    Project {
         number,
         name: DocumentText::complete(Text::new(copy_of(b"Tally"), 32).unwrap()),
         acts: list(2, [Offered { effect: None, act: ActKind::ChangePolicy, admission: Admission::Allowed }]),
         resources: List::with_capacity(2),
-        policy: OwnerProjectPolicy {
+        policy: ProjectPolicy {
             templates: List::with_capacity(0),
             ceiling: authority.clone(),
             period_spend: u64::MAX,
             escalation_role: Some(u32::MAX),
-            projections: list(2, [OwnerGrant { connector: 19, kind: 23, pattern: pattern() }]),
+            projections: list(2, [Grant { connector: 19, kind: 23, pattern: pattern() }]),
             roles: list(
                 2,
-                [OwnerProjectPolicyRole {
+                [ProjectPolicyRole {
                     number: u32::MAX,
                     authority,
                     period_spend: 17,
@@ -123,12 +120,8 @@ fn live(number: u32) -> (Fixture, jig_client::Handle) {
     let token = read(&entered);
     (domain, token)
 }
-fn install(domain: &mut Fixture, token: jig_client::Handle, value: OwnerProject) {
-    drive(
-        domain,
-        Time::ZERO,
-        ReadPage { read: token, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value))) },
-    );
+fn install(domain: &mut Fixture, token: jig_client::Handle, value: Project) {
+    drive(domain, Time::ZERO, ReadPage { read: token, result: ReadResult::Value(ReadValue::Project(Box::new(value))) });
 }
 #[test]
 fn owner_project_original_read_checks_full_identity_before_terminal_and_ignores_duplicate_late_and_reset_callbacks() {
@@ -197,7 +190,7 @@ fn owner_project_whole_role_review_keeps_raw_flags_authority_and_other_edited_ch
     drive(
         &mut domain,
         Time::ZERO,
-        AnsweredByEngine { request, answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })) },
+        AnsweredByEngine { request, answer: Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 })) },
     );
     assert!(domain.project_page().settings.pending.is_none());
     assert_eq!(domain.project_page().owner.as_deref(), Some(&value));
@@ -233,7 +226,7 @@ fn owner_project_policy_scalar_and_complete_lists_are_offered_without_inferred_p
 fn owner_project_configured_pool_review_keeps_zero_target_distinct_and_refuses_changed_period_or_cut_absence() {
     let mut value = source(0);
     value.acts = list(2, [Offered { effect: None, act: ActKind::SetPool, admission: Admission::Allowed }]);
-    let numbers = OwnerNumbers { budget: 11, spent: 2, spent_below: 3, reserved: 4 };
+    let numbers = Numbers { budget: 11, spent: 2, spent_below: 3, reserved: 4 };
     let observed = PoolLedger {
         source: Funder::Pool { project: 0, person: u64::MAX, period: 9 },
         parent: Some(Funder::Period { project: 0, period: 9 }),
@@ -249,7 +242,7 @@ fn owner_project_configured_pool_review_keeps_zero_target_distinct_and_refuses_c
         .push(PoolLedger {
             source: Funder::Pool { project: 0, person: u64::MAX, period: 0 },
             parent: Some(Funder::Period { project: 0, period: 0 }),
-            numbers: OwnerNumbers { budget: 71, ..numbers },
+            numbers: Numbers { budget: 71, ..numbers },
             closed: true,
             ..observed
         })
@@ -380,7 +373,10 @@ fn owner_project_settings_unknown_retires_only_matching_pending_and_late_answer_
         drive(
             &mut domain,
             Time::ZERO,
-            AnsweredByEngine { request, answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })) }
+            AnsweredByEngine {
+                request,
+                answer: Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 }))
+            }
         )
         .is_empty()
     );
@@ -391,10 +387,6 @@ fn owner_project_settings_unknown_retires_only_matching_pending_and_late_answer_
     assert_eq!(domain.project_page().owner.as_deref(), Some(&value));
 }
 
-fn install_late(domain: &mut Fixture, read: jig_client::Handle, value: OwnerProject) {
-    drive(
-        domain,
-        Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value))) }.late(),
-    );
+fn install_late(domain: &mut Fixture, read: jig_client::Handle, value: Project) {
+    drive(domain, Time::ZERO, ReadPage { read, result: ReadResult::Value(ReadValue::Project(Box::new(value))) }.late());
 }

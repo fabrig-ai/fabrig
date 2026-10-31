@@ -135,8 +135,8 @@ pub fn state(b: &mut Builder, card: &Card, object: Id<Object>, words: &Words, bi
                 Left::Looking => words.text(b, JigPhrase::Looking, &[]),
                 Left::Answered { outcome } => words.outcome(b, outcome),
                 Left::Ended { how } => words.ending(b, how),
-                Left::OwnerEnded { how } => crate::tree::fragments::chip::ending_summary(b, how, words),
-                Left::Historical { .. } => words.text(b, JigPhrase::Leaving, &[]),
+                Left::ChipEnded { how } => crate::tree::fragments::chip::ending_summary(b, how, words),
+                Left::DocumentEnded { .. } => words.text(b, JigPhrase::Leaving, &[]),
                 Left::Unknown => words.text(b, JigPhrase::GoneUnknown, &[]),
             }
             b.close();
@@ -173,15 +173,15 @@ pub fn card(
         return rendered;
     }
     match &facts.body {
-        Some(crate::state::objects::Body::Historical(_)) => return false,
-        Some(crate::state::objects::Body::OwnerProposal(_)) => {
+        Some(crate::state::objects::Body::Ended(_)) => return false,
+        Some(crate::state::objects::Body::Proposal(_)) => {
             proposal::owner_proposal(b, client, object, place, words, bindings);
         }
 
         Some(crate::state::objects::Body::Question(_)) => {
             question::question(b, client, object, place, words, bindings);
         }
-        Some(crate::state::objects::Body::OwnerPersonTask(_)) => {
+        Some(crate::state::objects::Body::PersonTask(_)) => {
             crate::tree::fragments::person_task::card(b, client, object, place, words, bindings);
         }
 
@@ -210,7 +210,7 @@ pub fn card(
                 task_footer(b, client, object, task, words, bindings);
             }
         }
-        Some(crate::state::objects::Body::OwnerEscalation(_)) => {
+        Some(crate::state::objects::Body::Escalation(_)) => {
             return owner_escalation::card(b, client, object, place, words, bindings);
         }
 
@@ -269,7 +269,7 @@ fn received_card(
     bindings: &mut JigBindings,
     reply: bool,
 ) -> Option<bool> {
-    if crate::tree::fragments::historical::card(b, client, object, place, words, bindings) {
+    if crate::tree::fragments::ended::card(b, client, object, place, words, bindings) {
         return Some(true);
     }
     if reply {

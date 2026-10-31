@@ -8,55 +8,55 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
 use jig_client::contract::{
-    OwnerEscalationChoice, OwnerOutcome, OwnerProposalChoice, ProposalKey, Proposer, Revision, SeenThrough,
+    DocumentOutcome, EscalationChoice, ProposalChoice, ProposalKey, Proposer, Revision, SeenThrough,
 };
 use skein_lib::Wall;
 
 // Region + named status + title + confirmation, then a reason and whole name per host.
 pub(crate) const MAX_NODES: u32 = 4 + 128 * 2;
 
-fn header(value: &OwnerOutcome) -> P {
+fn header(value: &DocumentOutcome) -> P {
     match value {
-        OwnerOutcome::Created { .. } => P::Created,
-        OwnerOutcome::Compound { .. } => P::Compound,
-        OwnerOutcome::MarkedSeen { .. } => P::MarkedSeen,
-        OwnerOutcome::NoteEdited { .. } => P::NoteEdited,
-        OwnerOutcome::ServiceMade { .. } => P::ServiceMade,
-        OwnerOutcome::Adopted { .. } => P::Adopted,
-        OwnerOutcome::Stopped { .. } => P::Stopped,
-        OwnerOutcome::Cancelled { .. } => P::Cancelled,
-        OwnerOutcome::Released { .. } | OwnerOutcome::Lifted { .. } => P::Released,
-        OwnerOutcome::PersonTaken { .. } => P::PersonTaken,
-        OwnerOutcome::PersonHandedBack { .. } => P::PersonHandedBack,
-        OwnerOutcome::PersonAnswered { .. } => P::PersonAnswered,
-        OwnerOutcome::Moved { .. } => P::Moved,
-        OwnerOutcome::ProposalDecided { .. } => P::ProposalDecided,
-        OwnerOutcome::Said { .. } => P::Said,
-        OwnerOutcome::QuestionAnswered { .. } => P::QuestionAnswered,
-        OwnerOutcome::Amended { .. } => P::Amended,
-        OwnerOutcome::Proposed { .. } => P::Proposed,
-        OwnerOutcome::Withdrawn { .. } => P::Withdrawn,
-        OwnerOutcome::RolesSet { .. } => P::RolesSet,
-        OwnerOutcome::ProjectRemoved { .. } => P::ProjectRemoved,
-        OwnerOutcome::Renamed { .. } => P::Renamed,
-        OwnerOutcome::ProjectMade { .. } => P::ProjectMade,
-        OwnerOutcome::PolicyChanged { .. } => P::PolicyChanged,
-        OwnerOutcome::AccountProgramDeclared { .. } => P::AccountProgramDeclared,
-        OwnerOutcome::AccountKeyKept { .. } => P::AccountKeyKept,
-        OwnerOutcome::AccountMovedIn { renewed, .. } => {
+        DocumentOutcome::Created { .. } => P::Created,
+        DocumentOutcome::Compound { .. } => P::Compound,
+        DocumentOutcome::MarkedSeen { .. } => P::MarkedSeen,
+        DocumentOutcome::NoteEdited { .. } => P::NoteEdited,
+        DocumentOutcome::ServiceMade { .. } => P::ServiceMade,
+        DocumentOutcome::Adopted { .. } => P::Adopted,
+        DocumentOutcome::Stopped { .. } => P::Stopped,
+        DocumentOutcome::Cancelled { .. } => P::Cancelled,
+        DocumentOutcome::Released { .. } | DocumentOutcome::Lifted { .. } => P::Released,
+        DocumentOutcome::PersonTaken { .. } => P::PersonTaken,
+        DocumentOutcome::PersonHandedBack { .. } => P::PersonHandedBack,
+        DocumentOutcome::PersonAnswered { .. } => P::PersonAnswered,
+        DocumentOutcome::Moved { .. } => P::Moved,
+        DocumentOutcome::ProposalDecided { .. } => P::ProposalDecided,
+        DocumentOutcome::Said { .. } => P::Said,
+        DocumentOutcome::QuestionAnswered { .. } => P::QuestionAnswered,
+        DocumentOutcome::Amended { .. } => P::Amended,
+        DocumentOutcome::Proposed { .. } => P::Proposed,
+        DocumentOutcome::Withdrawn { .. } => P::Withdrawn,
+        DocumentOutcome::RolesSet { .. } => P::RolesSet,
+        DocumentOutcome::ProjectRemoved { .. } => P::ProjectRemoved,
+        DocumentOutcome::Renamed { .. } => P::Renamed,
+        DocumentOutcome::ProjectMade { .. } => P::ProjectMade,
+        DocumentOutcome::PolicyChanged { .. } => P::PolicyChanged,
+        DocumentOutcome::AccountProgramDeclared { .. } => P::AccountProgramDeclared,
+        DocumentOutcome::AccountKeyKept { .. } => P::AccountKeyKept,
+        DocumentOutcome::AccountMovedIn { renewed, .. } => {
             if *renewed {
                 P::AccountRenewed
             } else {
                 P::AccountMovedIn
             }
         }
-        OwnerOutcome::AccountFinishing { .. } => P::AccountFinishing,
-        OwnerOutcome::AccountChanged => P::AccountChanged,
-        OwnerOutcome::AccountRemoved { .. } => P::AccountRemoved,
-        OwnerOutcome::AccountSignInStarted { .. } => P::AccountSignInStarted,
-        OwnerOutcome::AccountSignedOut { .. } => P::AccountSignedOut,
-        OwnerOutcome::PoolSet { .. } => P::PoolSet,
-        OwnerOutcome::EscalationDecided { .. } => P::EscalationDecided,
+        DocumentOutcome::AccountFinishing { .. } => P::AccountFinishing,
+        DocumentOutcome::AccountChanged => P::AccountChanged,
+        DocumentOutcome::AccountRemoved { .. } => P::AccountRemoved,
+        DocumentOutcome::AccountSignInStarted { .. } => P::AccountSignInStarted,
+        DocumentOutcome::AccountSignedOut { .. } => P::AccountSignedOut,
+        DocumentOutcome::PoolSet { .. } => P::PoolSet,
+        DocumentOutcome::EscalationDecided { .. } => P::EscalationDecided,
     }
 }
 fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
@@ -75,7 +75,7 @@ fn seen(b: &mut Builder, value: &SeenThrough, words: &Words) {
         }
     }
 }
-fn proposal(b: &mut Builder, key: &ProposalKey, by: u64, at: Wall, choice: OwnerProposalChoice, words: &Words) {
+fn proposal(b: &mut Builder, key: &ProposalKey, by: u64, at: Wall, choice: ProposalChoice, words: &Words) {
     match key.proposer {
         Proposer::Task(task) => number(b, words, P::TaskProposer, task),
         Proposer::Party(party) => number(b, words, P::PartyProposer, party),
@@ -84,11 +84,11 @@ fn proposal(b: &mut Builder, key: &ProposalKey, by: u64, at: Wall, choice: Owner
     number(b, words, P::By, by);
     text(b, words, P::At, &[Hole::Wall(words.adjusted_wall(at))]);
     let phrase = match choice {
-        OwnerProposalChoice::Accepted => P::Accepted,
-        OwnerProposalChoice::Rejected => P::Rejected,
-        OwnerProposalChoice::Passed => P::Passed,
-        OwnerProposalChoice::Withdrawn => P::Withdrawn,
-        OwnerProposalChoice::Stale => P::Stale,
+        ProposalChoice::Accepted => P::Accepted,
+        ProposalChoice::Rejected => P::Rejected,
+        ProposalChoice::Passed => P::Passed,
+        ProposalChoice::Withdrawn => P::Withdrawn,
+        ProposalChoice::Stale => P::Stale,
     };
     text(b, words, phrase, &[]);
 }
@@ -98,7 +98,7 @@ fn escalation(
     revision: Revision,
     by: u64,
     at: Wall,
-    choice: OwnerEscalationChoice,
+    choice: EscalationChoice,
     words: &Words,
 ) {
     number(b, words, P::Task, task);
@@ -106,26 +106,26 @@ fn escalation(
     number(b, words, P::By, by);
     text(b, words, P::At, &[Hole::Wall(words.adjusted_wall(at))]);
     let phrase = match choice {
-        OwnerEscalationChoice::Released => P::ReleaseChoice,
-        OwnerEscalationChoice::Rejected => P::Rejected,
-        OwnerEscalationChoice::Passed => P::Passed,
+        EscalationChoice::Released => P::ReleaseChoice,
+        EscalationChoice::Rejected => P::Rejected,
+        EscalationChoice::Passed => P::Passed,
     };
     text(b, words, phrase, &[]);
 }
-fn details(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
+fn details(b: &mut Builder, value: &DocumentOutcome, words: &Words) {
     match value {
-        OwnerOutcome::AccountKeyKept { .. }
-        | OwnerOutcome::AccountChanged
-        | OwnerOutcome::AccountSignInStarted { .. }
-        | OwnerOutcome::Lifted { .. } => {}
-        OwnerOutcome::AccountFinishing { source } => number(b, words, P::SourceNumber, u64::from(*source)),
-        OwnerOutcome::AccountMovedIn { account, .. } => number(b, words, P::AccountNumber, u64::from(*account)),
-        OwnerOutcome::AccountProgramDeclared { source, name } => {
+        DocumentOutcome::AccountKeyKept { .. }
+        | DocumentOutcome::AccountChanged
+        | DocumentOutcome::AccountSignInStarted { .. }
+        | DocumentOutcome::Lifted { .. } => {}
+        DocumentOutcome::AccountFinishing { source } => number(b, words, P::SourceNumber, u64::from(*source)),
+        DocumentOutcome::AccountMovedIn { account, .. } => number(b, words, P::AccountNumber, u64::from(*account)),
+        DocumentOutcome::AccountProgramDeclared { source, name } => {
             number(b, words, P::SourceNumber, u64::from(*source));
             b.text(Run::Plain, name);
         }
-        OwnerOutcome::AccountRemoved { confirmed, failed_hosts }
-        | OwnerOutcome::AccountSignedOut { confirmed, failed_hosts } => {
+        DocumentOutcome::AccountRemoved { confirmed, failed_hosts }
+        | DocumentOutcome::AccountSignedOut { confirmed, failed_hosts } => {
             let status = if *confirmed { P::SignOutConfirmed } else { P::SignOutUnconfirmed };
             text(b, words, status, &[]);
             for host in &**failed_hosts {
@@ -138,57 +138,57 @@ fn details(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
                 b.text(Run::Plain, &host.name);
             }
         }
-        OwnerOutcome::Created { first, last, given } => created(b, *first, *last, *given, words),
-        OwnerOutcome::MarkedSeen { seen: position } => seen(b, position, words),
-        OwnerOutcome::NoteEdited { name } => number(b, words, P::Note, *name),
-        OwnerOutcome::ServiceMade { person } => number(b, words, P::Person, *person),
-        OwnerOutcome::Adopted { project }
-        | OwnerOutcome::ProjectRemoved { project }
-        | OwnerOutcome::Renamed { project }
-        | OwnerOutcome::ProjectMade { project }
-        | OwnerOutcome::RolesSet { project }
-        | OwnerOutcome::PolicyChanged { project } => number(b, words, P::Project, u64::from(*project)),
-        OwnerOutcome::Stopped { task }
-        | OwnerOutcome::Cancelled { task }
-        | OwnerOutcome::Released { task }
-        | OwnerOutcome::PersonTaken { task }
-        | OwnerOutcome::PersonHandedBack { task }
-        | OwnerOutcome::PersonAnswered { task }
-        | OwnerOutcome::Moved { task } => number(b, words, P::Task, *task),
-        OwnerOutcome::ProposalDecided { proposal: key, by, at, choice, repeated: _ } => {
+        DocumentOutcome::Created { first, last, given } => created(b, *first, *last, *given, words),
+        DocumentOutcome::MarkedSeen { seen: position } => seen(b, position, words),
+        DocumentOutcome::NoteEdited { name } => number(b, words, P::Note, *name),
+        DocumentOutcome::ServiceMade { person } => number(b, words, P::Person, *person),
+        DocumentOutcome::Adopted { project }
+        | DocumentOutcome::ProjectRemoved { project }
+        | DocumentOutcome::Renamed { project }
+        | DocumentOutcome::ProjectMade { project }
+        | DocumentOutcome::RolesSet { project }
+        | DocumentOutcome::PolicyChanged { project } => number(b, words, P::Project, u64::from(*project)),
+        DocumentOutcome::Stopped { task }
+        | DocumentOutcome::Cancelled { task }
+        | DocumentOutcome::Released { task }
+        | DocumentOutcome::PersonTaken { task }
+        | DocumentOutcome::PersonHandedBack { task }
+        | DocumentOutcome::PersonAnswered { task }
+        | DocumentOutcome::Moved { task } => number(b, words, P::Task, *task),
+        DocumentOutcome::ProposalDecided { proposal: key, by, at, choice, repeated: _ } => {
             proposal(b, key, *by, *at, *choice, words);
         }
-        OwnerOutcome::Compound { project, operations, first_message } => {
+        DocumentOutcome::Compound { project, operations, first_message } => {
             number(b, words, P::Project, u64::from(*project));
             number(b, words, P::Operations, u64::from(*operations));
             number(b, words, P::Message, *first_message);
         }
-        OwnerOutcome::Said { task, message } => {
+        DocumentOutcome::Said { task, message } => {
             number(b, words, P::Task, *task);
             number(b, words, P::Message, *message);
         }
-        OwnerOutcome::QuestionAnswered { task, question, message } => {
+        DocumentOutcome::QuestionAnswered { task, question, message } => {
             number(b, words, P::Task, *task);
             number(b, words, P::Question, *question);
             number(b, words, P::Message, *message);
         }
-        OwnerOutcome::Amended { task } => {
+        DocumentOutcome::Amended { task } => {
             number(b, words, P::Task, *task);
         }
-        OwnerOutcome::Proposed { proposal, .. } | OwnerOutcome::Withdrawn { proposal } => {
+        DocumentOutcome::Proposed { proposal, .. } | DocumentOutcome::Withdrawn { proposal } => {
             number(b, words, P::ProposalNumber, *proposal);
         }
-        OwnerOutcome::PoolSet { project, person } => {
+        DocumentOutcome::PoolSet { project, person } => {
             number(b, words, P::Project, u64::from(*project));
             number(b, words, P::Person, *person);
         }
-        OwnerOutcome::EscalationDecided { task, revision, by, at, choice } => {
+        DocumentOutcome::EscalationDecided { task, revision, by, at, choice } => {
             escalation(b, *task, *revision, *by, *at, *choice, words);
         }
     }
 }
 /// Build one bounded fragment using only the committed value and selected Words.
-pub fn render(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
+pub fn render(b: &mut Builder, value: &DocumentOutcome, words: &Words) {
     b.open(Role::Region);
     let title = owner_outcome_words::say(words, header(value), &[]);
     b.name(&title);

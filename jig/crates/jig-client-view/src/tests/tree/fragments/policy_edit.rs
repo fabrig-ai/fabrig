@@ -4,9 +4,9 @@ use crate::tree::fragments::policy_edit;
 use jig_client::contract::*;
 use skein_lib::{Duration, List};
 use skein_ui::{Builder, Role};
-fn pattern(last: OwnerPatternEnd) -> OwnerPattern {
+fn pattern(last: PatternEnd) -> Pattern {
     let segments = crate::tests::kit::list([Box::from(b"literal/slash".as_slice()), Box::from(b"\xff".as_slice())]);
-    OwnerPattern { segments, last }
+    Pattern { segments, last }
 }
 fn shown(value: &PolicyEdit) -> skein_ui::Tree {
     let words = words();
@@ -42,9 +42,7 @@ fn policy_requirements_keep_guard_freshness_judge_and_segment_boundaries_in_the_
     for (guard, must_be_guarded) in
         [(PolicyGuard::Guarded, true), (PolicyGuard::Observed { freshness: Duration::from_nanos(u64::MAX) }, false)]
     {
-        for last in
-            [OwnerPatternEnd::Exact(Box::from(b"end".as_slice())), OwnerPatternEnd::Open(Box::from(b"end".as_slice()))]
-        {
+        for last in [PatternEnd::Exact(Box::from(b"end".as_slice())), PatternEnd::Open(Box::from(b"end".as_slice()))] {
             let requirements = crate::tests::kit::list([PolicyRequirement {
                 connector: u16::MAX,
                 kind: u16::MAX,
@@ -65,19 +63,19 @@ fn policy_role_projection_permission_and_empty_replacement_reviews_keep_every_su
         crate::tests::kit::list([PolicyPermission { connector: u16::MAX, permission: u16::MAX, role: u32::MAX }]);
     let tree = shown(&PolicyEdit::Permissions { mappings });
     goldens.check(&tree);
-    let grants = crate::tests::kit::list([OwnerGrant {
+    let grants = crate::tests::kit::list([Grant {
         connector: 7,
         kind: 9,
-        pattern: pattern(OwnerPatternEnd::Open(Box::from(b"end".as_slice()))),
+        pattern: pattern(PatternEnd::Open(Box::from(b"end".as_slice()))),
     }]);
     goldens.check(&shown(&PolicyEdit::Projections { grants }));
     let tree = shown(&PolicyEdit::Role(PolicyEditRole {
         number: u32::MAX,
-        authority: OwnerAuthority {
+        authority: Authority {
             models: None,
             tools: u64::MAX,
             grants: List::with_capacity(0),
-            delegation: OwnerDelegation { kinds: List::with_capacity(0), tasks: u32::MAX, depth: u32::MAX },
+            delegation: Delegation { kinds: List::with_capacity(0), tasks: u32::MAX, depth: u32::MAX },
             spend: u64::MAX,
             deadline: None,
             notes: u8::MAX,

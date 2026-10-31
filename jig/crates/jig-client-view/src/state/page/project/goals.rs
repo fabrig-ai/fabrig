@@ -19,13 +19,13 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
-use jig_client::contract::{Admission, Answer, Outcome, OwnerExecutor, Recipient, Refusal, Text};
+use jig_client::contract::{Admission, Answer, Executor, Outcome, Recipient, Refusal, Text};
 use skein_lib::{Env, Queue, Token, Wall};
 /// Goal options chosen from the project's offered executors and party pool.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct GoalForm {
     pub project: u32,
-    pub executor: OwnerExecutor,
+    pub executor: Executor,
     pub budget: u64,
     pub deadline: Option<Wall>,
     pub priority: u32,

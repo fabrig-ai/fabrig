@@ -4,14 +4,8 @@ use crate::words::Words;
 use skein_ui::Builder;
 
 use crate::Borrowed;
-use jig_client::contract::OwnerProject;
+use jig_client::contract::Project;
 
-pub(super) fn form(
-    b: &mut Builder,
-    client: &Borrowed<'_>,
-    doc: &OwnerProject,
-    words: &Words,
-    bindings: &mut JigBindings,
-) {
+pub(super) fn form(b: &mut Builder, client: &Borrowed<'_>, doc: &Project, words: &Words, bindings: &mut JigBindings) {
     super::goals::form(b, client, doc.number, words, bindings);
 }

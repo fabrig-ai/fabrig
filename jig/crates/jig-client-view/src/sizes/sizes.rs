@@ -191,7 +191,7 @@ pub fn card_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<
             .max(owner_escalation_nodes(limits, client)?)
             .max(
                 frame_of_card(limits, client)?
-                    .checked_add(crate::tree::fragments::historical::max_nodes(limits, client)?)?,
+                    .checked_add(crate::tree::fragments::ended::max_nodes(limits, client)?)?,
             )
             .max(refusal_nodes(limits, client)?)
             .max(

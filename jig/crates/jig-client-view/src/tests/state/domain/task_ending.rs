@@ -10,15 +10,15 @@ use skein_lib::{Queue, Time, Wall};
 #[test]
 fn terminal_task_reads_keep_whole_owner_endings_through_linger_without_result_documents() {
     for ending in [
-        OwnerChipEnding::Done(ResultValue::Approved { state: Box::from([255_u8, 0]), words: None }),
-        OwnerChipEnding::Failed(DocumentText { bytes: objects::text(b""), cut: true }),
-        OwnerChipEnding::Cancelled {
+        ChipEnding::Done(ResultValue::Approved { state: Box::from([255_u8, 0]), words: None }),
+        ChipEnding::Failed(DocumentText { bytes: objects::text(b""), cut: true }),
+        ChipEnding::Cancelled {
             reason: DocumentText { bytes: objects::text(b"cancelled"), cut: true },
             result: Some(ResultValue::Approved {
                 state: Box::from([255_u8, 0]),
                 words: Some(DocumentText::complete(objects::text(b""))),
             }),
-            by: OwnerRequester::Deployment { project: u32::MAX },
+            by: Requester::Deployment { project: u32::MAX },
             at: Wall::from_nanos(u64::MAX),
         },
     ] {
@@ -56,7 +56,7 @@ fn terminal_task_reads_keep_whole_owner_endings_through_linger_without_result_do
             assert_eq!(
                 object.card,
                 Card::Leaving {
-                    how: Left::OwnerEnded { how: Box::new(ending.clone()) },
+                    how: Left::ChipEnded { how: Box::new(ending.clone()) },
                     until: Time::from_nanos(5_000_000_030),
                 }
             );
@@ -68,7 +68,7 @@ fn terminal_task_reads_keep_whole_owner_endings_through_linger_without_result_do
             assert_eq!(
                 domain.objects().get(id).unwrap().card,
                 Card::Leaving {
-                    how: Left::OwnerEnded { how: Box::new(ending.clone()) },
+                    how: Left::ChipEnded { how: Box::new(ending.clone()) },
                     until: Time::from_nanos(5_000_000_030),
                 }
             );

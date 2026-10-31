@@ -14,20 +14,20 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{List, Queue, Time, Token};
 
-fn document(taken_by: Option<u64>, offered: &[ActKind]) -> OwnerPersonTask {
+fn document(taken_by: Option<u64>, offered: &[ActKind]) -> PersonTask {
     let mut task = chip(8);
-    task.details = Box::new(ChipPhase {
-        phase: OwnerChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by, since: None },
+    task.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by, since: None },
         details: Box::new(crate::tests::state::domain::chip_facts::details()),
     });
     let mut acts = List::with_capacity(3);
     for act in offered {
         acts.push(Offered { effect: None, act: *act, admission: Admission::Allowed }).unwrap();
     }
-    OwnerPersonTask {
+    PersonTask {
         task,
         revision: Revision { value: 91 },
-        requester: OwnerRequester::Task(u64::MAX),
+        requester: Requester::Task(u64::MAX),
         spec: crate::tests::state::domain::confirmation::task().spec,
         address: PersonAddress::Role(u32::MAX),
         taken_by,
@@ -59,15 +59,15 @@ fn person_take_and_hand_back_read_whole_current_facts_and_offers_after_the_durab
     for act in [ActKind::Take, ActKind::HandBack] {
         let (mut domain, _) = live();
         let original = document(if act == ActKind::Take { None } else { Some(u64::MAX) }, &[act]);
-        let id = install(&mut domain, Body::OwnerPersonTask(Box::new(original.clone())));
+        let id = install(&mut domain, Body::PersonTask(Box::new(original.clone())));
         let request = send(&mut domain, act);
-        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::OwnerPersonTask(Box::new(original))));
+        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::PersonTask(Box::new(original))));
         let outcome = if act == ActKind::Take {
-            OwnerOutcome::PersonTaken { task: 8 }
+            DocumentOutcome::PersonTaken { task: 8 }
         } else {
-            OwnerOutcome::PersonHandedBack { task: 8 }
+            DocumentOutcome::PersonHandedBack { task: 8 }
         };
-        let answer = Answer::Done(Outcome::Owner(outcome));
+        let answer = Answer::Done(Outcome::Document(outcome));
         let rows = answered(&mut domain, request, answer.clone());
         assert_eq!(rows.len(), 1);
         let Request::Client { asked: jig_client::Event::Read { read: jig_client::Readable::Jig(what), .. } } = &rows[0]
@@ -88,11 +88,11 @@ fn person_take_and_hand_back_read_whole_current_facts_and_offers_after_the_durab
             Time::ZERO,
             ReadPage {
                 read: read_token(&rows),
-                result: ReadResult::Value(ReadValue::OwnerPersonTask(Box::new(current.clone()))),
+                result: ReadResult::Value(ReadValue::PersonTask(Box::new(current.clone()))),
             },
         );
         let object = domain.objects().get(id).unwrap();
-        assert_eq!(object.body, Some(Body::OwnerPersonTask(Box::new(current.clone()))));
+        assert_eq!(object.body, Some(Body::PersonTask(Box::new(current.clone()))));
         assert_eq!(object.answer, Some(answer));
         assert_eq!(object.card, Card::Open);
         for (kind, offered) in [
@@ -110,11 +110,11 @@ fn person_take_and_hand_back_read_whole_current_facts_and_offers_after_the_durab
 fn person_take_abandons_older_matching_reads_without_discarding_other_obligations() {
     let (mut domain, _) = live();
     let original = document(None, &[ActKind::Take]);
-    let id = install(&mut domain, Body::OwnerPersonTask(Box::new(original.clone())));
+    let id = install(&mut domain, Body::PersonTask(Box::new(original.clone())));
     let older = domain.request_read(Source::Card(id), Read::PersonTask { task: 8 }).unwrap();
     let other = domain.request_read(Source::Card(id), Read::PersonTask { task: 9 }).unwrap();
     let request = send(&mut domain, ActKind::Take);
-    let rows = answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })));
+    let rows = answered(&mut domain, request, Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 })));
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0], Request::Client { asked: jig_client::Event::Unwatch { handle: older } });
     assert_ne!(read_token(&rows), older);
@@ -125,15 +125,15 @@ fn person_take_abandons_older_matching_reads_without_discarding_other_obligation
         Time::ZERO,
         ReadPage {
             read: read_token(&rows),
-            result: ReadResult::Value(ReadValue::OwnerPersonTask(Box::new(current.clone()))),
+            result: ReadResult::Value(ReadValue::PersonTask(Box::new(current.clone()))),
         },
     );
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read: older, result: ReadResult::Value(ReadValue::OwnerPersonTask(Box::new(original))) },
+        ReadPage { read: older, result: ReadResult::Value(ReadValue::PersonTask(Box::new(original))) },
     );
-    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::OwnerPersonTask(Box::new(current))));
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::PersonTask(Box::new(current))));
     assert!(domain.handles.pending(&Read::PersonTask { task: 9 }));
     assert!(domain.handles.reads.get(&other).is_some());
     assert!(domain.handles.reads.get(&older).is_none());
@@ -142,10 +142,10 @@ fn person_take_abandons_older_matching_reads_without_discarding_other_obligation
 #[test]
 fn person_take_hidden_cards_notify_without_refreshing_and_full_reads_refuse_without_resending() {
     let (mut domain, _) = live();
-    install(&mut domain, Body::OwnerPersonTask(Box::new(document(None, &[ActKind::Take]))));
+    install(&mut domain, Body::PersonTask(Box::new(document(None, &[ActKind::Take]))));
     let request = send(&mut domain, ActKind::Take);
     drive(&mut domain, Time::ZERO, Event::Went { place: crate::state::address::Place::Elsewhere });
-    let answer = Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 }));
+    let answer = Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 }));
     assert!(answered(&mut domain, request, answer.clone()).is_empty());
     assert!(domain.objects().find(ObjectKey::PersonTask(8)).is_none());
     let (notice, ()) = domain.notices().ids().iter().next().unwrap();
@@ -156,21 +156,22 @@ fn person_take_hidden_cards_notify_without_refreshing_and_full_reads_refuse_with
 
     let (mut domain, _) = live();
     let original = document(None, &[ActKind::Take]);
-    let id = install(&mut domain, Body::OwnerPersonTask(Box::new(original.clone())));
+    let id = install(&mut domain, Body::PersonTask(Box::new(original.clone())));
 
     for task in 1..=LIMITS.client.reads {
         let what = Read::Task { task: u64::from(task) };
         assert!(domain.request_read(Source::Card(id), what).is_some());
     }
     let request = send(&mut domain, ActKind::Take);
-    let rows = answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })));
+    let rows = answered(&mut domain, request, Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 })));
     assert_eq!(rows.as_ref(), &[]);
-    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::OwnerPersonTask(Box::new(original))));
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::PersonTask(Box::new(original))));
     assert_eq!(domain.objects().get(id).unwrap().card, Card::Open);
     assert!(!domain.handles.pending(&Read::PersonTask { task: 8 }));
     let (notice, ()) = domain.notices().ids().iter().next().unwrap();
     assert_eq!(domain.notices().get(*notice).unwrap().kind, crate::tree::notices::kept::Kind::Refused(Limit::Reads));
     assert!(
-        answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 }))).is_empty()
+        answered(&mut domain, request, Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 })))
+            .is_empty()
     );
 }

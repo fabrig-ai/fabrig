@@ -2,7 +2,7 @@
 //! List rows retain committed runtime, spend and unread facts; card objects are
 //! shared by key. No charter or budget is chosen here: the frame offers both.
 //! A pending start survives page navigation and opens its task only after a durable
-//! answer. Historical reads are bounded and use opaque cursors. See pages.md, 4.
+//! answer. Bounded reads are bounded and use opaque cursors. See pages.md, 4.
 //!
 //! | Form | Event | Next | Emits |
 //! |---|---|---|---|
@@ -106,17 +106,17 @@ pub fn about(
     };
     let (project, title) = match &object.body {
         Some(Body::Task(task)) => (Some(task.project), Some(task.chip.title.bytes.clone())),
-        Some(Body::OwnerEscalation(value)) => (Some(value.task.project), Some(value.task.chip.title.bytes.clone())),
+        Some(Body::Escalation(value)) => (Some(value.task.project), Some(value.task.chip.title.bytes.clone())),
         Some(Body::Chip(chip)) => (None, Some(chip.title.bytes.clone())),
 
         Some(Body::Question(value)) => (None, Some(value.task.title.bytes.clone())),
 
-        Some(Body::OwnerPersonTask(value)) => (value.project(), Some(value.task.title.bytes.clone())),
+        Some(Body::PersonTask(value)) => (value.project(), Some(value.task.title.bytes.clone())),
         Some(Body::Result(value)) => (None, Some(value.task.title.bytes.clone())),
 
-        Some(Body::OwnerProposal(value)) => (Some(value.project), Some(value.reason.bytes.clone())),
+        Some(Body::Proposal(value)) => (Some(value.project), Some(value.reason.bytes.clone())),
         Some(Body::Note { project, document }) => (Some(*project), Some(document.description.bytes.clone())),
-        Some(Body::Historical(_)) | None => (None, None),
+        Some(Body::Ended(_)) | None => (None, None),
     };
     let mut project = project.or(object.project);
     if project.is_none() {

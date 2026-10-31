@@ -4,7 +4,7 @@ use crate::words::wake_words::WakePhrase;
 use skein_ui::phrases::{Hole, Phrasebook};
 use skein_ui::{Builder, Role, Run};
 
-use jig_client::contract::{OwnerWakePolicy, ResultsWake, SubscriptionKind, Subscriptions, WakeRule};
+use jig_client::contract::{ResultsWake, SubscriptionKind, Subscriptions, WakePolicy, WakeRule};
 
 fn text(b: &mut Builder, book: &Phrasebook, language: u16, phrase: WakePhrase, holes: &[Hole]) {
     let saying = book.say(language, phrase.id(), holes).expect("wake phrases and typed holes were checked");
@@ -25,7 +25,7 @@ fn rule(b: &mut Builder, value: WakeRule, book: &Phrasebook, language: u16) {
     }
 }
 /// Render every channel choice, including channels that do not wake.
-pub fn policy(b: &mut Builder, value: &OwnerWakePolicy, book: &Phrasebook, language: u16) {
+pub fn policy(b: &mut Builder, value: &WakePolicy, book: &Phrasebook, language: u16) {
     region(b, book, language, WakePhrase::Policy);
     text(b, book, language, WakePhrase::Words, &[]);
     rule(b, value.words, book, language);

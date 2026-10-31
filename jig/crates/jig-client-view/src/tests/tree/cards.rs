@@ -71,7 +71,7 @@ pub(in crate::tests) fn document() -> Me {
             pool: Some(PoolLedger {
                 source: Funder::Pool { project: 4, person: 1, period: 1 },
                 parent: None,
-                numbers: OwnerNumbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
+                numbers: Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
                 left: 0,
                 closed: false,
                 began: None,
@@ -240,7 +240,7 @@ fn jig_phrasebook_requires_every_sentence_and_says_wall_times_in_person_offset()
             Box::new([language]),
             &PhraseLimits {
                 languages: 1,
-                phrases: crate::words::owner_words::phrase_count(),
+                phrases: crate::words::document_words::phrase_count(),
                 holes: 4,
                 segments: 1000,
                 text_bytes: 10000,

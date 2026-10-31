@@ -7,11 +7,11 @@ use jig_client::words::Word;
 use skein_ui::Builder;
 use skein_ui::phrases::Hole;
 
-use jig_client::contract::{ClosingStage, OwnerChipPhase, RunStage};
+use jig_client::contract::{ChipPhase, ClosingStage, RunStage};
 
-pub(crate) fn brief(b: &mut Builder, phase: &OwnerChipPhase, words: &Words) {
+pub(crate) fn brief(b: &mut Builder, phase: &ChipPhase, words: &Words) {
     match phase {
-        OwnerChipPhase::Waiting { more, holds, .. } => {
+        ChipPhase::Waiting { more, holds, .. } => {
             words.text(b, JigPhrase::Word(Word::Phase(Phase::Waiting)), &[]);
             if *more {
                 words.text(b, JigPhrase::ChipDependenciesCut, &[]);
@@ -20,7 +20,7 @@ pub(crate) fn brief(b: &mut Builder, phase: &OwnerChipPhase, words: &Words) {
                 words.text(b, JigPhrase::ChipWaitingHolds, &[]);
             }
         }
-        OwnerChipPhase::Active(stage) => match stage {
+        ChipPhase::Active(stage) => match stage {
             RunStage::Idle => words.text(b, JigPhrase::RunIdle, &[]),
             RunStage::Due => words.text(b, JigPhrase::RunDue, &[]),
             RunStage::Preparing => words.text(b, JigPhrase::RunPreparing, &[]),
@@ -30,12 +30,8 @@ pub(crate) fn brief(b: &mut Builder, phase: &OwnerChipPhase, words: &Words) {
                 words.text(b, JigPhrase::RunBackingOff, &[Hole::Wall(words.adjusted_wall(*until))]);
             }
         },
-        OwnerChipPhase::Person { address, taken_by, since } => {
-            crate::tree::fragments::proposed_task::executor(
-                b,
-                jig_client::contract::OwnerExecutor::Person(*address),
-                words,
-            );
+        ChipPhase::Person { address, taken_by, since } => {
+            crate::tree::fragments::proposed_task::executor(b, jig_client::contract::Executor::Person(*address), words);
             if let Some(party) = taken_by {
                 words.text(b, JigPhrase::TakenByNumber, &[Hole::Number(*party)]);
             }
@@ -43,7 +39,7 @@ pub(crate) fn brief(b: &mut Builder, phase: &OwnerChipPhase, words: &Words) {
                 words.text(b, JigPhrase::Since, &[Hole::Wall(words.adjusted_wall(*at))]);
             }
         }
-        OwnerChipPhase::Closing(stage) => {
+        ChipPhase::Closing(stage) => {
             words.text(b, JigPhrase::Word(Word::Phase(Phase::Closing)), &[]);
             match stage {
                 ClosingStage::Run { attempt } => words.text(b, JigPhrase::ClosingRun, &[Hole::Number(*attempt)]),
@@ -53,11 +49,11 @@ pub(crate) fn brief(b: &mut Builder, phase: &OwnerChipPhase, words: &Words) {
                 ClosingStage::Settled => words.text(b, JigPhrase::ClosingSettled, &[]),
             }
         }
-        OwnerChipPhase::Held { reason, revision } => {
+        ChipPhase::Held { reason, revision } => {
             words.text(b, JigPhrase::Word(Word::Phase(Phase::Held)), &[]);
             crate::tree::fragments::chip::reason(b, *reason, words);
             words.text(b, JigPhrase::Revision, &[Hole::Number(*revision)]);
         }
-        OwnerChipPhase::Ended => words.text(b, JigPhrase::Word(Word::Phase(Phase::Ended)), &[]),
+        ChipPhase::Ended => words.text(b, JigPhrase::Word(Word::Phase(Phase::Ended)), &[]),
     }
 }

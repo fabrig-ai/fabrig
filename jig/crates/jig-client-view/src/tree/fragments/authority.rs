@@ -5,9 +5,7 @@ use crate::words::authority_words::AuthorityPhrase;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use jig_client::contract::{
-    AuthorityModels, OwnerAuthority, OwnerAuthorityDocument, OwnerAuthorityExecutor, OwnerPattern, OwnerPatternEnd,
-};
+use jig_client::contract::{Authority, AuthorityDocument, AuthorityExecutor, AuthorityModels, Pattern, PatternEnd};
 
 fn model_phrase(value: Option<&AuthorityModels>) -> AuthorityPhrase {
     match value {
@@ -22,7 +20,7 @@ fn model_phrase(value: Option<&AuthorityModels>) -> AuthorityPhrase {
         }
     }
 }
-fn partial(value: &OwnerAuthority, rows: u32) -> bool {
+fn partial(value: &Authority, rows: u32) -> bool {
     let models = match &value.models {
         Some(AuthorityModels::Named(names)) => names.len() > rows,
         Some(AuthorityModels::All) | None => false,
@@ -36,10 +34,10 @@ fn text(b: &mut Builder, words: &Words, phrase: AuthorityPhrase, holes: &[Hole])
 fn number(b: &mut Builder, words: &Words, phrase: AuthorityPhrase, value: u64) {
     text(b, words, phrase, &[Hole::Number(value)]);
 }
-pub(crate) fn pattern(b: &mut Builder, words: &Words, value: &OwnerPattern, text_limit: u32) {
+pub(crate) fn pattern(b: &mut Builder, words: &Words, value: &Pattern, text_limit: u32) {
     text(b, words, AuthorityPhrase::Segments, &[]);
     let last = match &value.last {
-        OwnerPatternEnd::Exact(bytes) | OwnerPatternEnd::Open(bytes) => bytes,
+        PatternEnd::Exact(bytes) | PatternEnd::Open(bytes) => bytes,
     };
     let reserved = u32::try_from(
         words.book().say(words.language(), AuthorityPhrase::Segments.id(), &[]).expect("checked segments").text.len(),
@@ -54,17 +52,17 @@ pub(crate) fn pattern(b: &mut Builder, words: &Words, value: &OwnerPattern, text
         crate::words::literal_segment::PathDisplay { text: text_limit, reserved, keep_last: false },
     );
     match &value.last {
-        OwnerPatternEnd::Exact(bytes) => {
+        PatternEnd::Exact(bytes) => {
             text(b, words, AuthorityPhrase::Exact, &[]);
             crate::words::literal_segment::render(b, bytes);
         }
-        OwnerPatternEnd::Open(bytes) => {
+        PatternEnd::Open(bytes) => {
             text(b, words, AuthorityPhrase::Open, &[]);
             crate::words::literal_segment::render(b, bytes);
         }
     }
 }
-fn body(b: &mut Builder, value: &OwnerAuthority, words: &Words, text_limit: u32, rows: u32) {
+fn body(b: &mut Builder, value: &Authority, words: &Words, text_limit: u32, rows: u32) {
     number(b, words, AuthorityPhrase::Tools, value.tools);
     number(b, words, AuthorityPhrase::Tasks, u64::from(value.delegation.tasks));
     number(b, words, AuthorityPhrase::Depth, u64::from(value.delegation.depth));
@@ -88,9 +86,9 @@ fn body(b: &mut Builder, value: &OwnerAuthority, words: &Words, text_limit: u32,
     text(b, words, AuthorityPhrase::Delegation, &[]);
     for kind in value.delegation.kinds.iter().take(usize::try_from(rows).expect("rows fit")) {
         match kind {
-            OwnerAuthorityExecutor::Charter(code) => number(b, words, AuthorityPhrase::Charter, u64::from(*code)),
-            OwnerAuthorityExecutor::Procedure(code) => number(b, words, AuthorityPhrase::Procedure, u64::from(*code)),
-            OwnerAuthorityExecutor::Role(code) => number(b, words, AuthorityPhrase::Role, u64::from(*code)),
+            AuthorityExecutor::Charter(code) => number(b, words, AuthorityPhrase::Charter, u64::from(*code)),
+            AuthorityExecutor::Procedure(code) => number(b, words, AuthorityPhrase::Procedure, u64::from(*code)),
+            AuthorityExecutor::Role(code) => number(b, words, AuthorityPhrase::Role, u64::from(*code)),
         }
     }
     text(b, words, AuthorityPhrase::Resources, &[]);
@@ -103,13 +101,13 @@ fn body(b: &mut Builder, value: &OwnerAuthority, words: &Words, text_limit: u32,
     }
 }
 /// Render a whole admitted payload using a separately reserved fragment capacity.
-pub fn render_words(b: &mut Builder, value: &OwnerAuthority, words: &Words, text_limit: u32, rows: u32) {
+pub fn render_words(b: &mut Builder, value: &Authority, words: &Words, text_limit: u32, rows: u32) {
     b.open(Role::Description);
     body(b, value, words, text_limit, rows);
     b.close();
 }
 /// Render a document projection and its explicit cut metadata.
-pub fn document_words(b: &mut Builder, value: &OwnerAuthorityDocument, words: &Words, text_limit: u32, rows: u32) {
+pub fn document_words(b: &mut Builder, value: &AuthorityDocument, words: &Words, text_limit: u32, rows: u32) {
     b.open(Role::Description);
     body(b, &value.authority, words, text_limit, rows);
     if value.cut && !partial(&value.authority, rows) {

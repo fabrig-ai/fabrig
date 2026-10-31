@@ -29,28 +29,28 @@ fn limits() -> crate::tests::fixtures::Profile {
 fn doc(bytes: &[u8], cut: bool) -> DocumentText {
     DocumentText { bytes: Text::new(copy_of(bytes), 32).unwrap(), cut }
 }
-fn pattern() -> OwnerPattern {
-    OwnerPattern {
+fn pattern() -> Pattern {
+    Pattern {
         segments: list(4, [copy_of(&[255, 0, b'/']), copy_of(b"a/b"), copy_of(b"")]),
-        last: OwnerPatternEnd::Open(copy_of(&[254, 0, b'/'])),
+        last: PatternEnd::Open(copy_of(&[254, 0, b'/'])),
     }
 }
-fn part() -> OwnerPart {
-    OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Outbox, key: OwnerPartKey::Path(pattern().segments) }
+fn part() -> Part {
+    Part { connector: u16::MAX, kind: PartKind::Outbox, key: PartKey::Path(pattern().segments) }
 }
-fn authority(cut: bool) -> OwnerAuthorityDocument {
-    OwnerAuthorityDocument {
-        authority: OwnerAuthority {
+fn authority(cut: bool) -> AuthorityDocument {
+    AuthorityDocument {
+        authority: Authority {
             models: None,
             tools: u64::MAX,
-            grants: list(4, [OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern() }]),
-            delegation: OwnerDelegation {
+            grants: list(4, [Grant { connector: u16::MAX, kind: u16::MAX, pattern: pattern() }]),
+            delegation: Delegation {
                 kinds: list(
                     4,
                     [
-                        OwnerAuthorityExecutor::Charter(u32::MAX),
-                        OwnerAuthorityExecutor::Procedure(u32::MAX),
-                        OwnerAuthorityExecutor::Role(u32::MAX),
+                        AuthorityExecutor::Charter(u32::MAX),
+                        AuthorityExecutor::Procedure(u32::MAX),
+                        AuthorityExecutor::Role(u32::MAX),
                     ],
                 ),
                 tasks: u32::MAX,
@@ -59,13 +59,13 @@ fn authority(cut: bool) -> OwnerAuthorityDocument {
             spend: u64::MAX,
             deadline: Some(Wall::EPOCH),
             notes: u8::MAX,
-            note_resources: list(4, [OwnerResourceScope { connector: u16::MAX, pattern: pattern() }]),
+            note_resources: list(4, [ResourceScope { connector: u16::MAX, pattern: pattern() }]),
         },
         cut,
     }
 }
-fn numbers() -> OwnerNumbers {
-    OwnerNumbers { budget: 101, spent: 103, spent_below: 107, reserved: 109 }
+fn numbers() -> Numbers {
+    Numbers { budget: 101, spent: 103, spent_below: 107, reserved: 109 }
 }
 fn ledger(source: Funder) -> PoolLedger {
     PoolLedger {
@@ -82,10 +82,10 @@ fn chip(number: u64) -> Chip {
     Chip {
         task: number,
         title: doc(b"source chip", true),
-        executor: Executor::Role { project: u32::MAX, role: u32::MAX },
+        executor: ChipExecutor::Role { project: u32::MAX, role: u32::MAX },
         phase: Phase::Preparing,
-        details: Box::new(ChipPhase {
-            phase: OwnerChipPhase::Active(RunStage::Preparing),
+        details: Box::new(ChipPhaseFacts {
+            phase: ChipPhase::Active(RunStage::Preparing),
             details: Box::new(crate::tests::tree::fragments::chip::details()),
         }),
     }
@@ -103,14 +103,14 @@ fn template(number: u64) -> ProposedTask {
             },
             cut: true,
         },
-        executor: OwnerExecutor::Person(PersonAddress::Role(u32::MAX)),
+        executor: Executor::Person(PersonAddress::Role(u32::MAX)),
         contract: TaskContractDocument::Approval { state: copy_of(&[255, 0, 254]), part: part() },
         authority: authority(true),
         budget: u64::MAX,
         funder: Funder::Recurring { project: u32::MAX, task: u64::MAX, period: 0 },
         dependencies: list(4, [u64::MAX, 0]),
         resources: list(4, [part()]),
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Immediate,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -124,28 +124,28 @@ fn template(number: u64) -> ProposedTask {
     }
 }
 #[expect(clippy::too_many_lines, reason = "complete whole source fixture or ordered public journey proof")]
-fn source() -> OwnerProject {
+fn source() -> Project {
     let funders = [
         Funder::Task(u64::MAX),
         Funder::Pool { project: u32::MAX, person: u64::MAX, period: 0 },
         Funder::Recurring { project: 0, task: u64::MAX, period: u64::MAX },
         Funder::Period { project: u32::MAX, period: u64::MAX },
     ];
-    OwnerProject {
+    Project {
         number: u32::MAX,
         name: doc(b"Tally", false),
         acts: List::with_capacity(4),
         resources: list(
             4,
             [
-                OwnerProjectResourceRole::Owned,
-                OwnerProjectResourceRole::Participant,
-                OwnerProjectResourceRole::Unavailable,
-                OwnerProjectResourceRole::Context,
+                ProjectResourceRole::Owned,
+                ProjectResourceRole::Participant,
+                ProjectResourceRole::Unavailable,
+                ProjectResourceRole::Context,
             ]
-            .map(|role| OwnerProjectResource { part: part(), role }),
+            .map(|role| ProjectResource { part: part(), role }),
         ),
-        policy: OwnerProjectPolicy {
+        policy: ProjectPolicy {
             templates: List::with_capacity(0),
             ceiling: authority(true),
             period_spend: u64::MAX,
@@ -153,13 +153,13 @@ fn source() -> OwnerProject {
             projections: list(
                 4,
                 [
-                    OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern() },
-                    OwnerGrant { connector: 0, kind: 0, pattern: pattern() },
+                    Grant { connector: u16::MAX, kind: u16::MAX, pattern: pattern() },
+                    Grant { connector: 0, kind: 0, pattern: pattern() },
                 ],
             ),
             roles: list(
                 4,
-                [OwnerProjectPolicyRole {
+                [ProjectPolicyRole {
                     number: u32::MAX,
                     authority: authority(true),
                     period_spend: u64::MAX,
@@ -195,14 +195,14 @@ fn source() -> OwnerProject {
         members: list(
             4,
             [
-                OwnerProjectMember {
+                ProjectMember {
                     party: u64::MAX,
                     kind: PartyKind::Service,
                     role: HeldRole::Policy { role: u32::MAX },
                     login: doc(UTF8_TEXTS[3], true),
                     name: doc(b"", false),
                 },
-                OwnerProjectMember {
+                ProjectMember {
                     party: 0,
                     kind: PartyKind::Person,
                     role: HeldRole::Owner,
@@ -218,7 +218,7 @@ fn source() -> OwnerProject {
         configured_pools_cut: false,
         spend: list(
             4,
-            funders.into_iter().enumerate().map(|(index, funder)| OwnerProjectSpend {
+            funders.into_iter().enumerate().map(|(index, funder)| ProjectSpend {
                 chip: chip([9, 0, u64::MAX, 9][index]),
                 funder,
                 numbers: numbers(),
@@ -264,7 +264,7 @@ fn make_words(selected: bool) -> Words {
             Box::new([first, second]),
             &PhraseLimits {
                 languages: 2,
-                phrases: crate::words::owner_words::phrase_count(),
+                phrases: crate::words::document_words::phrase_count(),
                 holes: 4,
                 segments: 10000,
                 text_bytes: 200_000,
@@ -282,7 +282,7 @@ fn words(selected: bool) -> &'static Words {
     if selected { SELECTED.get_or_init(|| make_words(true)) } else { NORMAL.get_or_init(|| make_words(false)) }
 }
 
-fn build(value: &OwnerProject, w: &Words) -> (Tree, JigBindings) {
+fn build(value: &Project, w: &Words) -> (Tree, JigBindings) {
     let f = crate::tests::render_limits(&limits(), w).expect("whole finite admission");
     let mut b = Builder::new(&f);
     let mut bindings = JigBindings::new(f.bindings, 32);
@@ -330,7 +330,7 @@ fn owner_project_optional_ledger_distinguishes_none_supplied_empty_epoch_and_all
     let supplied = value.current_period.as_ref().unwrap();
     assert_eq!(supplied.began, Some(Wall::EPOCH));
     let mut empty = supplied.clone();
-    empty.numbers = OwnerNumbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 };
+    empty.numbers = Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 };
     empty.left = 0;
     value.current_period = Some(empty);
     let (empty_tree, _) = build(&value, words(false));
@@ -485,10 +485,7 @@ fn check_owner_project_real_page_decodes_whole_role_edits_preserves_prior_channe
     value.policy.ceiling.cut = false;
     value.policy.roles.get_mut(0).unwrap().authority.cut = false;
     value.acts.push(Offered { effect: None, act: ActKind::ChangePolicy, admission: Admission::Allowed }).unwrap();
-    native_drive(
-        &mut d,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value.clone()))) },
-    );
+    native_drive(&mut d, ReadPage { read, result: ReadResult::Value(ReadValue::Project(Box::new(value.clone()))) });
     let w = words(false);
     let f = crate::tests::render_limits(&limits(), w).unwrap();
     let mut bounds = f;
@@ -617,10 +614,10 @@ fn owner_project_public_whole_tree_accepts_exact_observed_nodes_and_text_and_ref
     assert!(std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| render(short))).is_err());
     assert_eq!(value.resources.capacity(), 4);
 }
-fn native_owner(value: OwnerProject) -> Fixture {
+fn native_owner(value: Project) -> Fixture {
     native_owner_at(value, crate::state::address::ProjectSection::Settings)
 }
-fn native_owner_at(value: OwnerProject, section: crate::state::address::ProjectSection) -> Fixture {
+fn native_owner_at(value: Project, section: crate::state::address::ProjectSection) -> Fixture {
     use crate::{Event, Request, state::address::Address};
     let mut domain = Fixture::new(&limits());
     let out = native_drive(
@@ -654,7 +651,7 @@ fn native_owner_at(value: OwnerProject, section: crate::state::address::ProjectS
             _ => None,
         })
         .unwrap();
-    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value))) });
+    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::Project(Box::new(value))) });
     domain
 }
 fn owner_page(domain: &Fixture) -> (Tree, JigBindings) {
@@ -812,7 +809,7 @@ fn owner_project_public_goal_form_decodes_whole_bounded_procedure_and_keeps_prop
     };
     let mut value = source();
     value.number = 4;
-    let executor = OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX };
+    let executor = Executor::Procedure { connector: u16::MAX, code: u32::MAX };
     let recipient = Recipient::Roles { project: 4, roles: list(4, [u32::MAX, 0, u32::MAX]) };
     value.acts = list(
         4,
@@ -952,13 +949,13 @@ fn owner_project_public_offers_preserve_twenty_five_in_order() {
     }
 }
 
-fn historical_project_tree(domain: &Fixture, w: &Words, bound: skein_ui::Limits) -> (Tree, JigBindings) {
+fn ended_project_tree(domain: &Fixture, w: &Words, bound: skein_ui::Limits) -> (Tree, JigBindings) {
     let mut b = Builder::new(&bound);
     let mut bindings = JigBindings::new(bound.bindings, 32);
     crate::tree::pages::main(&mut b, &domain.view(), w, &mut bindings);
     (b.finish(), bindings)
 }
-fn historical_project_bound(w: &Words) -> skein_ui::Limits {
+fn ended_project_bound(w: &Words) -> skein_ui::Limits {
     let mut bound = crate::tests::render_limits(&limits(), w).unwrap();
     bound.nodes = bound.nodes.checked_add(32).unwrap();
     bound.text_bytes = bound.text_bytes.checked_add(32_u32.checked_mul(bound.text_per_node).unwrap()).unwrap();
@@ -968,13 +965,13 @@ fn historical_project_bound(w: &Words) -> skein_ui::Limits {
 fn owner_project_spend_keeps_live_and_retained_funding_with_both_opaque_edges() {
     use crate::{Event, Request, state::action::Act};
     let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_spend");
-    let (mut domain, page) = native_historical_project();
+    let (mut domain, page) = native_ended_project();
     assert_eq!(domain.project_page().owner_spend.as_deref(), Some(&page));
     assert_eq!(domain.project_page().spend_before, page.before);
     assert_eq!(domain.project_page().spend_after, page.after);
     assert!(domain.project_page().spend_cut);
     let w = words(false);
-    let (tree, mut bindings) = historical_project_tree(&domain, w, historical_project_bound(w));
+    let (tree, mut bindings) = ended_project_tree(&domain, w, ended_project_bound(w));
     crate::tests::tree::cards_access::check(&tree);
     goldens.check(&tree);
     let position = |bytes: &[u8]| {
@@ -1015,30 +1012,30 @@ fn owner_project_spend_keeps_live_and_retained_funding_with_both_opaque_edges() 
 }
 #[test]
 #[expect(clippy::assertions_on_result_states, reason = "independent exact and one-under whole companion allocations")]
-fn owner_project_historical_companion_prices_whole_languages_and_refuses_one_under_nodes_or_text() {
-    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_historical");
-    let (domain, page) = native_historical_project();
+fn owner_project_ended_companion_prices_whole_languages_and_refuses_one_under_nodes_or_text() {
+    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_ended");
+    let (domain, page) = native_ended_project();
     for second in [false, true] {
         let w = words(second);
-        let bound = historical_project_bound(w);
-        let (tree, _) = historical_project_tree(&domain, w, bound);
+        let bound = ended_project_bound(w);
+        let (tree, _) = ended_project_tree(&domain, w, bound);
         assert!(tree.len() <= bound.nodes);
         let mut exact = bound;
         exact.nodes = tree.len();
         exact.text_bytes = tree.nodes().iter().map(crate::tests::text_bytes).sum();
-        let (rebuilt, _) = historical_project_tree(&domain, w, exact);
+        let (rebuilt, _) = ended_project_tree(&domain, w, exact);
         assert_eq!(rebuilt.nodes(), tree.nodes());
         for short in [
             skein_ui::Limits { nodes: exact.nodes - 1, ..exact },
             skein_ui::Limits { text_bytes: exact.text_bytes - 1, ..exact },
         ] {
             assert!(
-                std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| historical_project_tree(&domain, w, short)))
+                std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| ended_project_tree(&domain, w, short)))
                     .is_err()
             );
         }
-        let historical = crate::tests::render_limits(&limits(), w).unwrap();
-        assert!(historical.nodes <= view::max_nodes(&limits(), &(limits()).client).unwrap());
+        let ended = crate::tests::render_limits(&limits(), w).unwrap();
+        assert!(ended.nodes <= view::max_nodes(&limits(), &(limits()).client).unwrap());
         goldens.check(&tree);
     }
     assert!(
@@ -1060,15 +1057,15 @@ fn owner_project_historical_companion_prices_whole_languages_and_refuses_one_und
 
 const UTF8_TEXTS: [&[u8]; 6] = [b"~\0/!", b"~\0\x01", b"!\0\x02", b"~\0!", b"!\0~", &[b'~'; 32]];
 
-fn historical_spend_page(before: Cursor, after: Cursor) -> OwnerSpendPage {
-    OwnerSpendPage {
+fn ended_spend_page(before: Cursor, after: Cursor) -> SpendPage {
+    SpendPage {
         rows: list(
             4,
-            [OwnerFundingRecord {
-                period: Some(OwnerPeriodTimes { began: Wall::EPOCH, next: Some(Wall::from_nanos(u64::MAX)) }),
+            [FundingRecord {
+                period: Some(PeriodTimes { began: Wall::EPOCH, next: Some(Wall::from_nanos(u64::MAX)) }),
                 funder: Funder::Period { project: 4, period: 777 },
                 parent: None,
-                numbers: OwnerNumbers { budget: 977, spent: 979, spent_below: 981, reserved: 983 },
+                numbers: Numbers { budget: 977, spent: 979, spent_below: 981, reserved: 983 },
                 made: 985,
                 closed: true,
             }],
@@ -1087,7 +1084,7 @@ fn owner_project_header_and_tabs_show_the_supplied_name() {
     goldens.check(&tree);
 }
 
-fn native_historical_project() -> (Fixture, OwnerSpendPage) {
+fn native_ended_project() -> (Fixture, SpendPage) {
     use crate::{
         Event, Request,
         state::{
@@ -1134,7 +1131,7 @@ fn native_historical_project() -> (Fixture, OwnerSpendPage) {
                 _ => None,
             })
             .unwrap();
-    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value))) });
+    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::Project(Box::new(value))) });
     let read = ready
         .iter()
         .find_map(|request| match request {
@@ -1150,8 +1147,8 @@ fn native_historical_project() -> (Fixture, OwnerSpendPage) {
         .unwrap();
     let before = Cursor::new(copy_of(UTF8_TEXTS[1]), 32).unwrap();
     let after = Cursor::new(copy_of(UTF8_TEXTS[2]), 32).unwrap();
-    let first = historical_spend_page(before.clone(), after.clone());
-    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::OwnerSpend(Box::new(first))) });
+    let first = ended_spend_page(before.clone(), after.clone());
+    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::Spend(Box::new(first))) });
     let requests = native_drive(
         &mut domain,
         Event::Act {
@@ -1174,10 +1171,7 @@ fn native_historical_project() -> (Fixture, OwnerSpendPage) {
             _ => None,
         })
         .unwrap();
-    let page = historical_spend_page(before, after);
-    native_drive(
-        &mut domain,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerSpend(Box::new(page.clone()))) },
-    );
+    let page = ended_spend_page(before, after);
+    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::Spend(Box::new(page.clone()))) });
     (domain, page)
 }

@@ -26,23 +26,23 @@ fn chip() -> Chip {
     Chip {
         task: 8,
         title: DocumentText::complete(text(b"Review")),
-        executor: Executor::Party { party: 1 },
+        executor: ChipExecutor::Party { party: 1 },
         phase: Phase::Held,
         details: Box::new({
             let mut phase =
-                crate::tests::fixtures::chip_phase(OwnerChipPhase::Held { reason: HoldCategory::Budget, revision: 4 });
+                crate::tests::fixtures::chip_phase(ChipPhase::Held { reason: HoldCategory::Budget, revision: 4 });
             phase.details.hold = Some(crate::tests::fixtures::hold());
             phase
         }),
     }
 }
-pub(in crate::tests) fn owner_authority() -> OwnerAuthorityDocument {
-    OwnerAuthorityDocument {
-        authority: OwnerAuthority {
+pub(in crate::tests) fn owner_authority() -> AuthorityDocument {
+    AuthorityDocument {
+        authority: Authority {
             models: None,
             tools: 0,
             grants: List::with_capacity(0),
-            delegation: OwnerDelegation { kinds: List::with_capacity(0), tasks: 3, depth: 2 },
+            delegation: Delegation { kinds: List::with_capacity(0), tasks: 3, depth: 2 },
             spend: 10,
             deadline: None,
             notes: 0,
@@ -108,7 +108,7 @@ fn loaded_with_watch(key: ObjectKey, value: ReadValue) -> (Fixture, Id<Object>, 
         &mut d,
         Watched {
             watch: inbox,
-            event: WatchEvent::Delivered(Delivery::OwnerInbox(Box::new(crate::tests::fixtures::inbox(list([
+            event: WatchEvent::Delivered(Delivery::Inbox(Box::new(crate::tests::fixtures::inbox(list([
                 crate::tests::fixtures::inbox_entry(key),
             ]))))),
         },
@@ -141,7 +141,7 @@ fn press(tree: &Tree, label: &[u8], bindings: &mut JigBindings) -> Action {
     decode(bindings, token, Act::Press).unwrap()
 }
 
-fn result_value_payloads(words: &crate::words::Words, part: &Part) {
+fn result_value_payloads(words: &crate::words::Words, part: &ApplicationPart) {
     let mut goldens = Goldens::new("tree/cards_objects/result_value_payloads");
     let (d, _) = start();
     for value in [
@@ -177,7 +177,7 @@ fn result_value_payloads(words: &crate::words::Words, part: &Part) {
 
 fn impact() -> Impact {
     Impact {
-        tasks: PhaseCounts { ended: 0, waiting: 1, running: 2, held: 3, closing: 4, done: 5, failed: 6, cancelled: 7 },
+        tasks: ImpactCounts { ended: 0, waiting: 1, running: 2, held: 3, closing: 4, done: 5, failed: 6, cancelled: 7 },
         live_runs: 8,
         proposals: 9,
     }
@@ -211,14 +211,14 @@ pub(in crate::tests) fn task_doc(acts: &[ActKind]) -> Task {
         lineage_chips: list([]),
         inputs: list([]),
         project: 4,
-        requester: OwnerRequester::Person(1),
+        requester: Requester::Person(1),
         lineage: list([]),
         spec: specification(text(b"whole task specification")),
         spec_revision: Revision { value: 6 },
         person_revision: None,
         taken_by: None,
         instructions: Some(DocumentText::complete(text(b"whole task instructions"))),
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Immediate,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -233,8 +233,8 @@ pub(in crate::tests) fn task_doc(acts: &[ActKind]) -> Task {
         cut: false,
         references: list([]),
         resources: list([]),
-        budget: OwnerBudget {
-            numbers: OwnerNumbers { budget: 20, spent: 0, spent_below: 0, reserved: 0 },
+        budget: Budget {
+            numbers: Numbers { budget: 20, spent: 0, spent_below: 0, reserved: 0 },
             left: 20,
             funder: Funder::Pool { project: 4, person: 1, period: 3 },
             deadline: None,
@@ -271,7 +271,7 @@ fn notice_scenarios(words: &crate::words::Words) {
         Kind::Link(jig_client::Link::Live),
         Kind::Answer {
             object: ObjectKey::Task(8),
-            answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })),
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 })),
         },
         Kind::PageAnswer {
             answer: refusal_answer(Refusal::Authority {
@@ -354,7 +354,7 @@ fn closing_connectors_use_their_owners_words(words: &crate::words::Words) {
     assert_eq!(slots.len(), 2);
     for slot in &slots {
         let connector = match bindings.part(slot.reference.token).unwrap() {
-            Part::Connector { connector } => *connector,
+            ApplicationPart::Connector { connector } => *connector,
             _ => panic!("a name-only connector part"),
         };
         assert_eq!(slot.reference.owner, (crate::Owner::Application { number: connector }).opaque());
@@ -505,8 +505,8 @@ fn cut_specification_is_shown_and_cannot_be_reconstructed_by_the_words_editor() 
 #[test]
 fn retained_task_facts_keep_person_revision_taker_and_full_executor_identity_independent() {
     for (executor, person_revision, taken_by) in [
-        (Executor::Role { project: 4, role: u32::MAX }, Some(Revision { value: u64::MAX }), Some(u64::MAX - 1)),
-        (Executor::Procedure { connector: 2, kind: u32::MAX }, None, None),
+        (ChipExecutor::Role { project: 4, role: u32::MAX }, Some(Revision { value: u64::MAX }), Some(u64::MAX - 1)),
+        (ChipExecutor::Procedure { connector: 2, kind: u32::MAX }, None, None),
     ] {
         let mut value = task_doc(&[ActKind::Amend]);
         value.goal = None;
@@ -674,11 +674,11 @@ fn result_documents_keep_each_words_loss_fact_and_the_exact_change_kind_and_owne
     let mut goldens = Goldens::new("tree/cards_objects/result_documents_keep");
     let (domain, _) = start();
     let words = words();
-    let part = Part::Result { connector: 2, task: 8 };
-    let raw = OwnerPart {
+    let part = ApplicationPart::Result { connector: 2, task: 8 };
+    let raw = Part {
         connector: u16::MAX,
-        kind: OwnerPartKind::Resource,
-        key: OwnerPartKey::Path(list([b"a/b".as_slice().into(), b"c\xff".as_slice().into()])),
+        kind: PartKind::Resource,
+        key: PartKey::Path(list([b"a/b".as_slice().into(), b"c\xff".as_slice().into()])),
     };
     for cut in [false, true] {
         let explanation = DocumentText { bytes: text(b"supplied words"), cut };
@@ -730,12 +730,12 @@ fn result_cards_distinguish_an_absent_completion_wall_from_epoch_and_render_supp
         value.at = at;
         value.details = Some(Box::new(ResultDetails {
             contract: TaskContractDocument::Report { words: u32::MAX },
-            requester: OwnerRequester::Deployment { project: u32::MAX },
-            executor: OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX },
+            requester: Requester::Deployment { project: u32::MAX },
+            executor: Executor::Procedure { connector: u16::MAX, code: u32::MAX },
             chosen_by: None,
             delegates: list([
-                OwnerTaskLink::Retained { chip: chip(), at: None },
-                OwnerTaskLink::Stored { number: u64::MAX, status: None },
+                TaskLink::Retained { chip: chip(), at: None },
+                TaskLink::Stored { number: u64::MAX, status: None },
             ]),
             followups: Some(list([])),
             proposal: None,
@@ -766,11 +766,11 @@ fn exact_owner_verdict_renders_payload_and_stored_followups_without_inventing_ch
         });
         value.details = Some(Box::new(ResultDetails {
             contract: TaskContractDocument::Verdict { choices: list([]), cut: true },
-            requester: OwnerRequester::Person(1),
-            executor: OwnerExecutor::Person(PersonAddress::Role(u32::MAX)),
+            requester: Requester::Person(1),
+            executor: Executor::Person(PersonAddress::Role(u32::MAX)),
             chosen_by: None,
             delegates: list([]),
-            followups: Some(list([OwnerTaskLink::Stored { number: u64::MAX, status: None }])),
+            followups: Some(list([TaskLink::Stored { number: u64::MAX, status: None }])),
             proposal: Some(ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX }),
             cut: true,
         }));
@@ -815,7 +815,7 @@ fn connector_effect_slots_keep_raw_numbers_separate_from_jig_proposal_makers() {
     let words = words();
     let connector = u16::MAX;
     for proposal in [0, u64::MAX] {
-        let native = Part::OwnerEffect { connector, proposal };
+        let native = ApplicationPart::OwnerEffect { connector, proposal };
         let mut bindings = JigBindings::new(8, CLIENT.client.text);
         let mut builder = Builder::new(&limits());
         builder.open(Role::Page);
@@ -826,7 +826,8 @@ fn connector_effect_slots_keep_raw_numbers_separate_from_jig_proposal_makers() {
         assert_eq!(slot.owner, (crate::Owner::Application { number: connector }).opaque());
         assert_eq!(bindings.part(slot.token), Some(&native));
         for proposer in [Proposer::Task(proposal), Proposer::Party(proposal)] {
-            let maker_effect = Part::Effect { connector, proposal: ProposalKey { proposer, number: proposal } };
+            let maker_effect =
+                ApplicationPart::Effect { connector, proposal: ProposalKey { proposer, number: proposal } };
             let mut builder = Builder::new(&limits());
             builder.open(Role::Page);
             cards::common::part(&mut builder, &maker_effect, words, &mut bindings);
@@ -856,7 +857,7 @@ fn moved_effect_facts_say_the_supplied_connector_proposal_without_inventing_a_ma
                 now: Revision { value: u64::MAX },
                 what: Moved::Hold {
                     reason: Some(CurrentHold::Document(Box::new(HoldReason::EffectFailed {
-                        part: Part::OwnerEffect { connector: u16::MAX, proposal },
+                        part: ApplicationPart::OwnerEffect { connector: u16::MAX, proposal },
                     }))),
                 },
             },

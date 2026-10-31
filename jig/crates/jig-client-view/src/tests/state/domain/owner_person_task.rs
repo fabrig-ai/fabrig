@@ -28,17 +28,17 @@ fn values<T>(items: impl IntoIterator<Item = T>) -> List<T> {
     }
     rows
 }
-fn value(contract: TaskContractDocument) -> OwnerPersonTask {
+fn value(contract: TaskContractDocument) -> PersonTask {
     let mut task = chip(8);
-    task.details = Box::new(ChipPhase {
-        phase: OwnerChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: None, since: None },
+    task.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: None, since: None },
         details: Box::new(crate::tests::state::domain::chip_facts::details()),
     });
     task.phase = Phase::Active;
-    OwnerPersonTask {
+    PersonTask {
         task,
         revision: Revision { value: 91 },
-        requester: OwnerRequester::Task(u64::MAX),
+        requester: Requester::Task(u64::MAX),
         spec: crate::tests::state::domain::confirmation::task().spec,
         address: PersonAddress::Role(u32::MAX),
         taken_by: None,
@@ -55,11 +55,11 @@ fn value(contract: TaskContractDocument) -> OwnerPersonTask {
         ]),
     }
 }
-fn installed(doc: OwnerPersonTask) -> (Fixture, Id<Object>) {
+fn installed(doc: PersonTask) -> (Fixture, Id<Object>) {
     let (mut d, _) = live();
     let key = ObjectKey::PersonTask(doc.task.task);
     let id = d.objects.name(key, Source::Window { number: 4 }).unwrap();
-    assert!(d.objects.put(key, Body::OwnerPersonTask(Box::new(doc))));
+    assert!(d.objects.put(key, Body::PersonTask(Box::new(doc))));
     (d, id)
 }
 fn act(d: &mut Fixture, a: Act) -> Box<[Request]> {
@@ -78,18 +78,16 @@ fn one(rows: &[Request]) -> &Ask {
     };
     ask
 }
-fn reread(d: &mut Fixture, doc: OwnerPersonTask) {
+fn reread(d: &mut Fixture, doc: PersonTask) {
     let read = d.request_read(Source::Window { number: 4 }, Read::PersonTask { task: 8 }).unwrap();
-    drive(d, Time::ZERO, ReadPage { read, result: ReadResult::Value(ReadValue::OwnerPersonTask(Box::new(doc))) });
+    drive(d, Time::ZERO, ReadPage { read, result: ReadResult::Value(ReadValue::PersonTask(Box::new(doc))) });
 }
 #[test]
 fn person_owner_carrier_keeps_full_width_addresses_requesters_wait_options_and_independent_loss() {
     for address in [PersonAddress::Party(u64::MAX), PersonAddress::Role(u32::MAX)] {
-        for requester in [
-            OwnerRequester::Task(u64::MAX),
-            OwnerRequester::Person(u64::MAX),
-            OwnerRequester::Deployment { project: u32::MAX },
-        ] {
+        for requester in
+            [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }]
+        {
             for mask in 0_u8..16 {
                 let mut doc = value(TaskContractDocument::Verdict { choices: List::with_capacity(2), cut: true });
                 doc.task.task = u64::MAX;
@@ -127,11 +125,7 @@ fn person_owner_approval_copies_opaque_state_and_distinguishes_optional_empty_wo
         for words in [None, Some(b"".as_slice()), Some(b"why".as_slice())] {
             let doc = value(TaskContractDocument::Approval {
                 state: state.into(),
-                part: OwnerPart {
-                    connector: u16::MAX,
-                    kind: OwnerPartKind::Outbox,
-                    key: OwnerPartKey::Number(u64::MAX),
-                },
+                part: Part { connector: u16::MAX, kind: PartKind::Outbox, key: PartKey::Number(u64::MAX) },
             });
             let (mut d, id) = installed(doc);
             open(&mut d, id, ActKind::Answer);
@@ -315,8 +309,8 @@ fn person_owner_original_read_identity_and_late_answer_remain_separate_from_curr
     };
     let mut newer = doc.clone();
     newer.revision = Revision { value: 100 };
-    assert!(d.objects.put(ObjectKey::PersonTask(8), Body::OwnerPersonTask(Box::new(newer.clone()))));
-    let outcome = Outcome::Owner(OwnerOutcome::Released { task: 8 });
+    assert!(d.objects.put(ObjectKey::PersonTask(8), Body::PersonTask(Box::new(newer.clone()))));
+    let outcome = Outcome::Document(DocumentOutcome::Released { task: 8 });
     drive(&mut d, Time::ZERO, AnsweredByEngine { request, answer: Answer::Done(outcome.clone()) });
     assert_eq!(crate::state::objects::person_task::owner_facts(&d.objects().get(id).unwrap()), Some(&newer));
     assert_eq!(d.objects().get(id).unwrap().answer, Some(Answer::Done(outcome.clone())));

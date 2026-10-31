@@ -1,7 +1,7 @@
 //! Complete moved-hold facts without requiring an object slot; contract.md, 4.
 use super::{Words, name};
 use crate::words::phrases::jig::JigPhrase;
-use jig_client::contract::{HoldCategory, HoldFailure, HoldReason, Part};
+use jig_client::contract::{ApplicationPart, HoldCategory, HoldFailure, HoldReason};
 use jig_client::words::{HoldWord, Word};
 use skein_ui::Builder;
 use skein_ui::phrases::Hole;
@@ -120,25 +120,25 @@ impl Words {
             }
         }
     }
-    fn part_fact(&self, b: &mut Builder, part: &Part, text_limit: u32) {
+    fn part_fact(&self, b: &mut Builder, part: &ApplicationPart, text_limit: u32) {
         let connector = match part {
-            Part::Connector { connector }
-            | Part::Resource { connector, .. }
-            | Part::Kind { connector, .. }
-            | Part::Panel { connector, .. }
-            | Part::Result { connector, .. }
-            | Part::Effect { connector, .. }
-            | Part::OwnerEffect { connector, .. }
-            | Part::Outbox { connector, .. }
-            | Part::Hold { connector, .. }
-            | Part::Project { connector, .. }
-            | Part::Deployment { connector } => *connector,
+            ApplicationPart::Connector { connector }
+            | ApplicationPart::Resource { connector, .. }
+            | ApplicationPart::Kind { connector, .. }
+            | ApplicationPart::Panel { connector, .. }
+            | ApplicationPart::Result { connector, .. }
+            | ApplicationPart::Effect { connector, .. }
+            | ApplicationPart::OwnerEffect { connector, .. }
+            | ApplicationPart::Outbox { connector, .. }
+            | ApplicationPart::Hold { connector, .. }
+            | ApplicationPart::Project { connector, .. }
+            | ApplicationPart::Deployment { connector } => *connector,
         };
         self.text(b, JigPhrase::PartConnector, &[Hole::Number(u64::from(connector))]);
         match part {
-            Part::Connector { .. } => {}
-            Part::Deployment { .. } => self.text(b, JigPhrase::Deployment, &[]),
-            Part::Resource { path, .. } => {
+            ApplicationPart::Connector { .. } => {}
+            ApplicationPart::Deployment { .. } => self.text(b, JigPhrase::Deployment, &[]),
+            ApplicationPart::Resource { path, .. } => {
                 self.text(b, JigPhrase::ResourceSegments, &[]);
                 let reserved = u32::try_from(self.say(JigPhrase::ResourceSegments, &[]).len()).expect("bounded phrase");
                 crate::words::literal_segment::path(
@@ -148,20 +148,20 @@ impl Words {
                     crate::words::literal_segment::PathDisplay { text: text_limit, reserved, keep_last: true },
                 );
             }
-            Part::Kind { kind, .. } => self.text(b, JigPhrase::PartKind, &[Hole::Number(u64::from(*kind))]),
-            Part::Panel { task, .. } => {
+            ApplicationPart::Kind { kind, .. } => self.text(b, JigPhrase::PartKind, &[Hole::Number(u64::from(*kind))]),
+            ApplicationPart::Panel { task, .. } => {
                 self.text(b, JigPhrase::PanelPart, &[]);
                 self.text(b, JigPhrase::PartTask, &[Hole::Number(*task)]);
             }
-            Part::Result { task, .. } => {
+            ApplicationPart::Result { task, .. } => {
                 self.text(b, JigPhrase::ResultPart, &[]);
                 self.text(b, JigPhrase::PartTask, &[Hole::Number(*task)]);
             }
-            Part::Hold { task, .. } => {
+            ApplicationPart::Hold { task, .. } => {
                 self.text(b, JigPhrase::HoldPart, &[]);
                 self.text(b, JigPhrase::PartTask, &[Hole::Number(*task)]);
             }
-            Part::Outbox { scope, entry, .. } => {
+            ApplicationPart::Outbox { scope, entry, .. } => {
                 match scope {
                     jig_client::contract::PartScope::Project(project) => {
                         self.text(b, JigPhrase::PartProject, &[Hole::Number(u64::from(*project))]);
@@ -170,11 +170,13 @@ impl Words {
                 }
                 self.text(b, JigPhrase::OutboxEntry, &[Hole::Number(*entry)]);
             }
-            Part::Project { project, .. } => self.text(b, JigPhrase::PartProject, &[Hole::Number(u64::from(*project))]),
-            Part::OwnerEffect { proposal, .. } => {
+            ApplicationPart::Project { project, .. } => {
+                self.text(b, JigPhrase::PartProject, &[Hole::Number(u64::from(*project))]);
+            }
+            ApplicationPart::OwnerEffect { proposal, .. } => {
                 self.text(b, JigPhrase::PartOwnerProposal, &[Hole::Number(*proposal)]);
             }
-            Part::Effect { proposal, .. } => {
+            ApplicationPart::Effect { proposal, .. } => {
                 let (phrase, maker) = match proposal.proposer {
                     jig_client::contract::Proposer::Task(task) => (JigPhrase::PartProposalTask, task),
                     jig_client::contract::Proposer::Party(party) => (JigPhrase::PartProposalParty, party),

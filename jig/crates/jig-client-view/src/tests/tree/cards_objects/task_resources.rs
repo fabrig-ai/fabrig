@@ -6,18 +6,18 @@ fn task_resource_metadata_keeps_each_raw_slot_writer_presence_full_width_and_ind
     let mut goldens = Goldens::new("tree/cards_objects/task_resources/task_resource_metadata");
     let segments =
         crate::tests::kit::list_in(CLIENT.client.rows, [Box::<[u8]>::from(*b"a/b"), Box::<[u8]>::from([255_u8; 32])]);
-    let reference = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(segments) };
+    let reference = Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Path(segments) };
     for writer in [
         None,
-        Some(OwnerResourceWriter::Effect { entry: u64::MAX }),
-        Some(OwnerResourceWriter::Run { task: u64::MAX, attempt: u64::MAX }),
+        Some(ResourceWriter::Effect { entry: u64::MAX }),
+        Some(ResourceWriter::Run { task: u64::MAX, attempt: u64::MAX }),
     ] {
         for taken in [false, true] {
             let mut row = task_doc(&[]);
             row.resources = List::with_capacity(CLIENT.client.rows);
             for holder in [None, Some(u64::MAX)] {
                 row.resources
-                    .push(OwnerResourceLine {
+                    .push(ResourceLine {
                         part: reference.clone(),
                         kind: u16::MAX,
                         taken,

@@ -7,13 +7,13 @@ pub fn facts(object: &Object) -> Option<&jig_client::contract::Result> {
     match &object.body {
         Some(Body::Result(document)) => Some(document),
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::OwnerProposal(_)
-            | Body::OwnerEscalation(_)
+            | Body::Proposal(_)
+            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Note { .. },
         )
         | None => None,

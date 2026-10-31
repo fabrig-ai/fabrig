@@ -16,12 +16,12 @@ use skein_lib::{List, Time};
 #[test]
 fn whole_owner_task_resources_survive_reads_without_invented_scope() {
     let segments = crate::tests::kit::list([Box::<[u8]>::from(*b"a/b"), Box::<[u8]>::from([255_u8, 0])]);
-    let owner = OwnerResourceLine {
-        part: OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(segments) },
+    let owner = ResourceLine {
+        part: Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Path(segments) },
         kind: u16::MAX,
         taken: false,
         holder: Some(u64::MAX),
-        writer: Some(OwnerResourceWriter::Effect { entry: u64::MAX }),
+        writer: Some(ResourceWriter::Effect { entry: u64::MAX }),
         writer_lost: true,
     };
     {
