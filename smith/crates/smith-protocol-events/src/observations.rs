@@ -160,20 +160,17 @@ pub fn budget_record(
         run::Stage::WindDown => BudgetStage::WindDown,
     };
     Some(Record {
-        t_ms: fact.at.saturating_since(started_at).as_nanos() / 1_000_000,
+        t_ms: fact.at.saturating_since(started_at).as_millis(),
         event: Event::Budget(BudgetStanding {
             run: activation,
             call,
             stage,
             turns: Quantity { used: u64::from(standing.turns), limit: u64::from(standing.turns_limit) },
             spend: Quantity { used: standing.spend, limit: standing.spend_limit },
-            time_ms: Quantity {
-                used: standing.time.as_nanos() / 1_000_000,
-                limit: standing.time_limit.as_nanos() / 1_000_000,
-            },
+            time_ms: Quantity { used: standing.time.as_millis(), limit: standing.time_limit.as_millis() },
             reserve: Reserve {
                 turns: u64::from(standing.reserve.turns),
-                time_ms: standing.reserve.time.as_nanos() / 1_000_000,
+                time_ms: standing.reserve.time.as_millis(),
                 spend: standing.reserve_spend,
             },
         }),
@@ -212,7 +209,7 @@ pub fn child_share(kind: run::facts::Kind) -> Option<ChildShare> {
         },
         share: smith_events::Share {
             turns: u64::from(granted.turns),
-            time_ms: granted.time.as_nanos() / 1_000_000,
+            time_ms: granted.time.as_millis(),
             spend: granted.spend,
         },
         clamped,
@@ -241,7 +238,7 @@ pub fn child_completed(
         conversation,
         stop,
         turns: u64::from(used.turns),
-        time_ms: used.time.as_nanos() / 1_000_000,
+        time_ms: used.time.as_millis(),
         spent: used.spend,
         usage,
     }

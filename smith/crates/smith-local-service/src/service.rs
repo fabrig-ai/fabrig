@@ -241,20 +241,20 @@ impl Service {
         fd: kernel::Fd,
         now: Time,
         header: smith_events::SessionStarted,
-        delivery: agent_service::sinks::Delivery,
+        delivery: smith_protocol_events::sinks::Delivery,
     ) -> Result<(), kernel::Fd> {
         if let Some(stream) = &mut self.stream {
             let token = self.io.adopt_trace(fd, stream.write_deadline)?;
             stream
                 .producer
                 .sinks()
-                .add(agent_service::Destination::Trace, token, delivery)
+                .add(smith_protocol_events::Destination::Trace, token, delivery)
                 .expect("one configured product destination");
             stream.producer.started(now, header);
             return Ok(());
         }
         let Some(agent) = self.effects.as_mut() else { return Err(fd) };
-        agent.adopt_destination(fd, agent_service::Destination::Trace, delivery, true, self.io.io())?;
+        agent.adopt_destination(fd, smith_protocol_events::Destination::Trace, delivery, true, self.io.io())?;
         agent.start_session(now, header);
         Ok(())
     }
@@ -369,7 +369,7 @@ impl Service {
     }
 
     /// Take a typed live-view record from the same sink that owns the trace.
-    pub fn pop_front(&mut self) -> Option<agent_service::sinks::View> {
+    pub fn pop_front(&mut self) -> Option<smith_protocol_events::sinks::View> {
         match self.effects.as_mut() {
             Some(effects) => match effects.front_sinks() {
                 Some(sinks) => sinks.pop_front(),
@@ -452,7 +452,7 @@ impl Service {
     /// The next destination given up, with why, for the shell's one line on
     /// standard error (protocol/events.md, section 5.2).
     #[must_use]
-    pub fn pop_given_up(&mut self) -> Option<agent_service::GivenUp> {
+    pub fn pop_given_up(&mut self) -> Option<smith_protocol_events::GivenUp> {
         match self.effects.as_mut() {
             Some(effects) => match effects.front_sinks() {
                 Some(sinks) => sinks.pop_given_up(),

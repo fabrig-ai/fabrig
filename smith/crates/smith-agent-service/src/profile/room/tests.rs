@@ -1,9 +1,7 @@
 //! Independent arithmetic properties for declared model windows.
 
-#![allow(
-    clippy::disallowed_macros,
+#![expect(
     clippy::disallowed_methods,
-    clippy::disallowed_types,
     reason = "programming-model.md section10.2: deterministic test harnesses use ordinary Rust"
 )]
 

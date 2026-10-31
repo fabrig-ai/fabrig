@@ -20,6 +20,7 @@ skein-tls.workspace = true
 smith-domain.workspace = true
 smith-events.workspace = true
 smith-agent-service.workspace = true
+smith-protocol-events.workspace = true
 smith-local-domain.workspace = true
 smith-local-protocol.workspace = true
 smith-local-service.workspace = true

@@ -396,8 +396,8 @@ fn interactive_header(
     let destinations = u32::from(resolved.agent.trace.is_some());
     let trace = resolved.agent.trace.take().unwrap_or(smith_agent_shell::trace::TraceConfig {
         path: "stdout".into(),
-        capture: smith_agent_service::sinks::Capture::None,
-        delivery: smith_agent_service::sinks::Delivery::Complete,
+        capture: smith_protocol_events::sinks::Capture::None,
+        delivery: smith_protocol_events::sinks::Delivery::Complete,
     });
     crate::Local::prepare_header(
         &mut resolved.agent,

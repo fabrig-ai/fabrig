@@ -9,8 +9,11 @@ use alloc::boxed::Box;
 
 mod down;
 mod effects;
+mod face;
+mod readiness;
 mod request;
 mod routing;
+mod stages;
 mod up;
 
 #[cfg(test)]
@@ -19,23 +22,23 @@ pub(crate) mod tests;
 
 pub use effects::Effects;
 
-use down::{channel_takes, component_down, domain_down};
-use routing::{component_owner, io_down, io_event_owner};
-use up::{component_up, domain_up, io_up, lower_events};
+use readiness::{
+    channel_event_ready, channel_room, domain_entrance_ready, domain_request_credit, domain_requests_dispatched,
+    llm_events_ready, pending_message_ready, sinks_take, submissions_ready,
+};
+use routing::component_owner;
 
-#[path = "program.rs"]
 mod program;
 
 pub(crate) use program::bound;
 pub use program::{AdoptError, ProgramBackend, program_operations, program_valid};
-#[path = "teardown.rs"]
 pub mod teardown;
 
 use teardown::Teardown;
 
 use skein_channel::{Lower as ChannelLower, StreamMode};
 use skein_io::{self as io, file, file_layer, kernel};
-use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
+use skein_lib::{Duration, Env, List, Map, Queue, Slab, Time, Token, Wall};
 use smith_domain::{self as domain, run};
 use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
@@ -73,7 +76,7 @@ pub struct Limits {
     /// Declared process memory in bytes, carried without a startup fit check.
     pub memory: u64,
     /// Event ownership, absent for a host that has no process stream.
-    pub events: Option<crate::EventLimits>,
+    pub events: Option<smith_protocol_events::EventLimits>,
 }
 
 /// All startup inputs except the inherited descriptors, which the shell
@@ -136,18 +139,39 @@ enum Operation {
 /// The running agent and every bounded queue between its layers.
 #[derive(Debug)]
 pub struct Service {
+    pub(crate) stages: Stages,
+    frame: Frame,
+}
+
+/// The framed agent's concrete domain, host protocol and native IO.
+#[derive(Debug)]
+struct Frame {
+    domain: domain::Domain,
+    channel: channel::Component,
+    io: io::Io,
+}
+
+/// Lower construction and the inputs retained for framed composition.
+#[derive(Debug)]
+struct Parts {
+    stages: Stages,
+    domain: domain::Config,
+    channel_endpoints: channel::Endpoints,
+    stream_mode: StreamMode,
+}
+
+/// Shared lower components, routing queues and their ordered close state.
+#[derive(Debug)]
+pub(crate) struct Stages {
     limits: Limits,
-    events: Option<crate::events::Producer>,
+    events: Option<smith_protocol_events::events::Producer>,
     teardown: Teardown,
     product_exit: Option<u8>,
     usage_unread: bool,
-    domain: Option<domain::Domain>,
-    channel: Option<channel::Component>,
     live: crate::live::Live,
     llm: llm::Component,
     machine: machine::Component,
     program: Option<Box<program::Program>>,
-    io: Option<io::Io>,
     files: file_layer::FileIo,
     domain_env: Env<domain::Limits>,
     llm_env: Env<llm::ComponentLimits>,
@@ -195,13 +219,15 @@ pub struct Service {
     root_close_pending: bool,
 }
 
+const START_REPLY: Token = Token::new(1);
+const ROOT_CLOSE_OWNER: Token = Token::new(u64::MAX);
+
 const USAGE_OWNER: Token = Token::new(u64::MAX - 1);
 
 /// Whether the owned lower parts can be built (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn effects_valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
-    // FileIo's sum checked the four positive capacities; its constructor
-    // additionally requires a positive timeout. Do not probe its heap sum.
+    // FileIo requires four positive capacities and a positive timeout.
     limits.file_slots > 0
         && limits.file_read > 0
         && limits.file_entries > 0
@@ -210,7 +236,7 @@ pub fn effects_valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
         && limits.machine.processes.checked_mul(2).is_some()
         && llm::component_valid(&limits.llm, endpoints)
         && machine::valid(&limits.machine)
-        && crate::events::valid(limits)
+        && smith_protocol_events::events::valid(&crate::projection::sources(limits))
 }
 
 /// Whether all service parts and their IO composition fit (skein/docs/foundation/programming-model.md, 6.3).
@@ -264,129 +290,55 @@ impl Service {
         if !valid(&limits, &config.llm_endpoints) || !program_valid(&config) {
             return Err(ConfigError::Limits);
         }
-        Self::parts(config, Some(seed))
-    }
-
-    fn parts(config: Config, seed: Option<u64>) -> Result<Self, ConfigError> {
-        let events = crate::events::Producer::configured(&config);
-        let Config { mut limits, domain, channel_endpoints, llm_endpoints, environment, stream_mode, program } = config;
-        let program::Parts { program, files } = program::parts(program, &mut limits, &environment)?;
-        let (domain, channel, io, frames) = match seed {
-            Some(seed) => (
-                Some(domain::Domain::new(&limits.domain, domain, seed)),
-                Some(match channel::Component::new(&limits.channel, stream_mode, channel_endpoints) {
-                    Ok(channel) => channel,
-                    Err(why) => return Err(ConfigError::Channel(why)),
-                }),
-                Some(io::Io::new(&limits.io)),
-                limits.queue,
-            ),
-            None => (None, None, None, 0),
+        let Parts { stages, domain, channel_endpoints, stream_mode } = Stages::parts(config)?;
+        let limits = stages.limits;
+        let channel = match channel::Component::new(&limits.channel, stream_mode, channel_endpoints) {
+            Ok(channel) => channel,
+            Err(error) => return Err(ConfigError::Channel(error)),
         };
-        let llm = match llm::Component::new(&limits.llm, llm_endpoints) {
-            Ok(llm) => llm,
-            Err(error) => return Err(ConfigError::Llm(error)),
-        };
-        let machine = machine::Component::new(&limits.machine, environment);
-        Ok(Service {
-            limits,
-            events,
-            teardown: Teardown::Live,
-            product_exit: None,
-            usage_unread: false,
-            domain,
-            channel,
-            live: crate::live::Live::new(None, limits.live_interval),
-            llm,
-            machine,
-            program,
-            io,
-            files,
-            domain_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.domain },
-            llm_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.llm },
-            machine_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.machine },
-            io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.io },
-            channel_events: Queue::with_capacity(frames),
-            pending_messages: Queue::with_capacity(frames),
-            channel_below: Queue::with_capacity(frames),
-            llm_events: Queue::uncapped(),
-            llm_below: Queue::uncapped(),
-            machine_events: Queue::uncapped(),
-            machine_below: Queue::uncapped(),
-            domain_events: Queue::uncapped(),
-            domain_requests: Queue::uncapped(),
-            io_events: Queue::uncapped(),
-            io_requests: Queue::uncapped(),
-            file_events: Queue::uncapped(),
-            io_submissions: Queue::uncapped(),
-            file_submissions: Queue::uncapped(),
-            submissions: Queue::with_capacity(limits.queue),
-            completions: Queue::with_capacity(limits.queue),
-            owners: Slab::with_capacity(limits.routes),
-            operations: Map::with_capacity(limits.routes),
-            next_operation: 1,
-            next_send: 1,
-            input: None,
-            output: None,
-            signals: None,
-            admitted: None,
-            run_started: Time::ZERO,
-            cancel_pending: false,
-            failure: None,
-            final_answer_at: Time::ZERO,
-            final_failure: None,
-            final_refusal: None,
-            final_detail: Box::default(),
-            outcome: None,
-            delivery: None,
-            pending_start: None,
-            directories: List::with_capacity(limits.machine.roots),
-            root_index: 0,
-            pipe_routes: Map::with_capacity(limits.machine.processes.checked_mul(2).ok_or(ConfigError::Limits)?),
-            roots: List::with_capacity(limits.machine.roots),
-            root_close_next: 0,
-            root_close_pending: false,
-        })
+        let frame =
+            Frame { domain: domain::Domain::new(&limits.domain, domain, seed), channel, io: io::Io::new(&limits.io) };
+        Ok(Service { stages, frame })
     }
 
     /// Adopt the shell's opened append descriptor under its declared write deadline.
     pub fn adopt_destination(
         &mut self,
         fd: kernel::Fd,
-        destination: crate::sinks::Destination,
-        delivery: crate::sinks::Delivery,
+        destination: smith_protocol_events::sinks::Destination,
+        delivery: smith_protocol_events::sinks::Delivery,
         append: bool,
     ) -> Result<(), kernel::Fd> {
-        let Some(events) = &mut self.events else { return Err(fd) };
-        if !events.sinks.room_for_destination(destination) {
+        let Some(events) = &mut self.stages.events else { return Err(fd) };
+        if !events.sinks().room_for_destination(destination) {
             return Err(fd);
         }
-        let deadline = self.limits.events.expect("producer has configured ownership").write_deadline;
-        let io = self.io.as_mut().expect("standalone IO");
+        let deadline = self.stages.limits.events.expect("producer has configured ownership").write_deadline;
+        let io = &mut self.frame.io;
         let token = if append { io.adopt_append(fd, deadline)? } else { io.adopt_write_pipe(fd, Some(deadline))? };
-        events.sinks.add(destination, token, delivery).expect("destination room checked before descriptor adoption");
+        events.sinks().add(destination, token, delivery).expect("destination room checked before descriptor adoption");
         Ok(())
     }
 
     /// Record the shell's startup before any service pass.
     pub fn start_session(&mut self, now: Time, header: smith_events::SessionStarted) {
-        if let Some(events) = &mut self.events {
+        if let Some(events) = &mut self.stages.events {
             events.started(now, header);
         }
     }
 
     /// One destination IO gave up, and why, for the shell's operator line
     /// (smith/docs/design/protocol/events.md, section 5.2).
-    pub fn pop_given_up(&mut self) -> Option<crate::sinks::GivenUp> {
-        match &mut self.events {
-            Some(events) => events.sinks.pop_given_up(),
+    pub fn pop_given_up(&mut self) -> Option<smith_protocol_events::sinks::GivenUp> {
+        match &mut self.stages.events {
+            Some(events) => events.sinks().pop_given_up(),
             None => None,
         }
     }
 
     /// A typed run accounting failure for the shell operator, drained once.
     pub fn pop_accounting_overflow(&mut self) -> Option<run::Overflow> {
-        match &mut self.events {
+        match &mut self.stages.events {
             Some(events) => events.pop_overflow_notice(),
             None => None,
         }
@@ -394,29 +346,29 @@ impl Service {
 
     /// An unread process usage terminal, reported once without changing the answer.
     pub fn pop_usage_unread(&mut self) -> bool {
-        core::mem::replace(&mut self.usage_unread, false)
+        core::mem::replace(&mut self.stages.usage_unread, false)
     }
 
     /// Kernel completions arriving since the last iteration.
     pub const fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        &mut self.completions
+        &mut self.stages.completions
     }
 
     /// Submissions to hand to the kernel after an iteration.
     pub const fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        &mut self.submissions
+        &mut self.stages.submissions
     }
 
     /// Number of projected host facts dropped at the channel's output reserve.
     #[must_use]
     pub fn lost_channel_facts(&self) -> u64 {
-        self.channel.as_ref().expect("framed agent owns its channel").lost_facts()
+        self.frame.channel.lost_facts()
     }
 
     /// Live bytes omitted from the host channel.
     #[must_use]
     pub fn lost_live_bytes(&self) -> u64 {
-        self.channel.as_ref().expect("framed agent owns its channel").lost_live_bytes()
+        self.frame.channel.lost_live_bytes()
     }
 
     /// Give Skein IO the inherited channel and termination descriptors. The
@@ -427,21 +379,21 @@ impl Service {
         output: kernel::Fd,
         signals: kernel::Fd,
     ) -> Result<(), kernel::Fd> {
-        let input = self.io.as_mut().expect("standalone IO").adopt_read_pipe(input)?;
-        self.input = Some(input);
-        let output = self.io.as_mut().expect("standalone IO").adopt_write_pipe(output, None)?;
-        self.output = Some(output);
-        let signals = self.io.as_mut().expect("standalone IO").adopt_signals(signals)?;
-        self.signals = Some(signals);
+        let input = self.frame.io.adopt_read_pipe(input)?;
+        self.stages.input = Some(input);
+        let output = self.frame.io.adopt_write_pipe(output, None)?;
+        self.stages.output = Some(output);
+        let signals = self.frame.io.adopt_signals(signals)?;
+        self.stages.signals = Some(signals);
         Ok(())
     }
 
     /// The next host-supplied mount path that the shell must open as a root.
     #[must_use]
     pub fn root_to_open(&self) -> Option<&[u8]> {
-        let start = self.pending_start.as_ref()?;
+        let start = self.stages.pending_start.as_ref()?;
         let mounts = start.mounts.as_ref()?;
-        let index = usize::try_from(self.root_index).ok()?;
+        let index = usize::try_from(self.stages.root_index).ok()?;
         match mounts.get(index) {
             Some(mount) => Some(&mount.path),
             None => None,
@@ -451,22 +403,23 @@ impl Service {
     /// Receiving ceiling for absolute host metadata at root attachment.
     #[must_use]
     pub fn host_path_bytes(&self) -> u32 {
-        self.limits.domain.run.host_path_bytes
+        self.stages.limits.domain.run.host_path_bytes
     }
 
     /// Attach one opened mount in Start order, or refuse the Start if the
     /// shell could not open it. Absolute host metadata is retained for aliases.
     pub fn root_opened(&mut self, root: Result<kernel::Fd, ()>, host: Box<[u8]>) {
         match root {
-            Ok(fd) => match self.files.adopt_root(fd) {
+            Ok(fd) => match self.stages.files.adopt_root(fd) {
                 Some(token) => {
-                    self.roots.push(token).expect("root count was checked before opening");
-                    self.root_close_next = self.roots.len();
-                    let start = self.pending_start.as_ref().expect("a root belongs to a pending Start");
+                    self.stages.roots.push(token).expect("root count was checked before opening");
+                    self.stages.root_close_next = self.stages.roots.len();
+                    let start = self.stages.pending_start.as_ref().expect("a root belongs to a pending Start");
                     let mounts = start.mounts.as_ref().expect("a requested root belongs to a workspace");
-                    let index = usize::try_from(self.root_index).expect("root index fits usize");
+                    let index = usize::try_from(self.stages.root_index).expect("root index fits usize");
                     let mount = mounts.get(index).expect("one mount requested at a time");
-                    self.directories
+                    self.stages
+                        .directories
                         .push(run::Directory {
                             host,
                             name: mount.name.clone(),
@@ -476,101 +429,15 @@ impl Service {
                             conflicts: mount.conflicts.clone(),
                         })
                         .expect("root count was checked before opening");
-                    self.root_index = self.root_index.checked_add(1).expect("bounded mount count");
+                    self.stages.root_index = self.stages.root_index.checked_add(1).expect("bounded mount count");
                     if self.root_to_open().is_none() {
-                        self.start_ready();
+                        self.stages.start_ready(&mut self.frame);
                     }
                 }
-                None => self.refuse_start(run::Invalid::Workspace),
+                None => self.stages.refuse_start(&mut self.frame, run::Invalid::Workspace),
             },
-            Err(()) => self.refuse_start(run::Invalid::Workspace),
+            Err(()) => self.stages.refuse_start(&mut self.frame, run::Invalid::Workspace),
         }
-    }
-
-    fn next_send(&mut self) -> Token {
-        let token = Token::new(self.next_send);
-        self.next_send = self.next_send.checked_add(1).expect("one run does not exhaust send names");
-        token
-    }
-
-    fn mark_failed(&mut self, reason: Failure) {
-        if self.failure.is_none() {
-            self.failure = Some(reason);
-        }
-        teardown::failed(self, self.failure.expect("kept first failure"));
-    }
-
-    fn refuse_start(&mut self, reason: run::Invalid) {
-        self.pending_start = None;
-        let token = self.next_send();
-        let answer = run::Answer::Refused(run::Refusal::Invalid(reason));
-        crate::answers::remember(self, &answer, Box::default(), self.domain_env.now);
-        let read = None;
-        if let Some(events) = &mut self.events {
-            events.answer(self.domain_env.now, self.run_started, &answer, read);
-        }
-        if self
-            .channel
-            .as_mut()
-            .expect("framed agent owns its channel")
-            .send_answer(self.domain_env.now, answer, read, token, &mut self.channel_events, &mut self.channel_below)
-            .is_err()
-        {
-            self.mark_failed(Failure::Send);
-        }
-        teardown::answered(self);
-    }
-
-    fn start_ready(&mut self) {
-        let start = self.pending_start.take().expect("all roots opened for pending Start");
-        let workspace = match start.mounts {
-            Some(_) => Some(run::Workspace {
-                directories: core::mem::replace(&mut self.directories, List::with_capacity(self.limits.machine.roots))
-                    .into_boxed(),
-            }),
-            None => None,
-        };
-        if let Some(ref workspace) = workspace {
-            self.machine.workspace(workspace);
-        }
-        self.outcome = Some(start.charter.outcome.clone());
-        self.delivery.clone_from(&start.charter.outcome.change);
-        if self.llm.bind_grants(&start.charter).is_err() {
-            self.refuse_start(run::Invalid::Grants);
-            return;
-        }
-        let mut grants = List::with_capacity(u32::try_from(start.grants.len()).expect("bounded grant count"));
-        for grant in &start.grants {
-            let value = match self.channel.as_ref().expect("framed agent owns its channel").grant_value(grant.name) {
-                Some(value) => value.clone(),
-                None => {
-                    self.refuse_start(run::Invalid::Grants);
-                    return;
-                }
-            };
-            let lapses = self.domain_env.now.saturating_add(grant.valid);
-            if program::install(self, &start, grant.name, &value, lapses, workspace.as_ref()).is_err() {
-                self.refuse_start(run::Invalid::Grants);
-                return;
-            }
-            grants
-                .push(domain::Grant { name: grant.name, valid: grant.valid, renewable: grant.renewable })
-                .expect("grant count was checked at Start");
-        }
-        self.run_started = self.domain_env.now;
-        self.domain_events.push(domain::Event::Start {
-            messages: start.messages,
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
-            activation: start.activation,
-            identity: start.identity,
-            window: start.window,
-            charter: start.charter,
-            workspace,
-            transcript: start.transcript,
-            answered: start.answered,
-            grants: grants.into_boxed(),
-        });
     }
 }
 
@@ -596,201 +463,48 @@ fn credential(value: &channel::GrantValue) -> Option<skein_llm::Credential> {
 
 /// Advance io, the components, and the domain once at injected clocks.
 pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
-    clocks(service, now, wall);
-    io_up(service);
-    lower_events(service);
-    component_up(service);
-    domain_up(service);
-    domain_down(service);
-    component_down(service);
-    teardown::advance(service);
-    if let Some(events) = &mut service.events {
-        events.sinks.down(service.io_env.now, &mut service.io_requests);
+    let stages = &mut service.stages;
+    let frame = &mut service.frame;
+    stages::clocks(stages, now, wall);
+    up::io_up(stages, Some(frame));
+    up::lower_events(stages, Some(frame));
+    up::component_up(stages, Some(frame));
+    up::domain_up(stages, frame);
+    down::domain_down(stages, Some(frame));
+    down::component_down(stages);
+    teardown::advance(stages, Some(frame));
+    if let Some(events) = &mut stages.events {
+        events.sinks().down(stages.io_env.now, &mut stages.io_requests);
     }
-    io_down(service);
-    if let Some(io) = &mut service.io {
-        io.reclaim();
-    }
-    service.llm.reclaim();
-    service.domain.as_mut().expect("framed agent owns its domain").reclaim();
-    service.owners.reclaim();
+    routing::io_down(stages, Some(frame));
+    frame.io.reclaim();
+    stages.llm.reclaim();
+    frame.domain.reclaim();
+    stages.owners.reclaim();
 }
 
-fn clocks(service: &mut Service, now: Time, wall: Wall) {
-    service.domain_env.now = now;
-    service.domain_env.wall = wall;
-    service.llm_env.now = now;
-    service.llm_env.wall = wall;
-    service.machine_env.now = now;
-    service.machine_env.wall = wall;
-    service.io_env.now = now;
-    service.io_env.wall = wall;
-}
-
-/// Earliest active deadline over all child machines.
+/// Earliest active deadline over all composed children.
 #[must_use]
 pub fn next_deadline(service: &Service) -> Option<Time> {
-    let mut earliest = match &service.domain {
-        Some(domain) => domain.next_deadline(),
-        None => None,
-    };
-    for deadline in [
-        service.llm.next_deadline(),
-        program::deadline(service),
-        service.machine.next_deadline(),
-        match &service.io {
-            Some(io) => io.next_deadline(),
-            None => None,
-        },
-        service.files.next_deadline(),
-        service.live.deadline(),
-    ] {
-        earliest = match deadline {
-            Some(next) => match earliest {
-                Some(old) => Some(old.min(next)),
-                None => Some(next),
-            },
-            None => earliest,
-        };
-    }
-    earliest
+    stages::next_deadline(&service.stages, Some(&service.frame))
 }
-
-/// Earliest policy deadline: the domain's, the LLM's and the machine's,
-/// excluding io's and the files' (skein/docs/foundation/testing-strategy.md, section 6).
+/// Earliest policy deadline, excluding IO and file settlement.
 #[must_use]
 pub fn next_policy_deadline(service: &Service) -> Option<Time> {
-    let mut earliest = match &service.domain {
-        Some(domain) => domain.next_deadline(),
-        None => None,
-    };
-    for deadline in [
-        service.llm.next_deadline(),
-        program::policy_deadline(service),
-        service.machine.next_deadline(),
-        service.live.deadline(),
-    ] {
-        earliest = match deadline {
-            Some(next) => match earliest {
-                Some(old) => Some(old.min(next)),
-                None => Some(next),
-            },
-            None => earliest,
-        };
-    }
-    earliest
+    stages::next_policy_deadline(&service.stages, Some(&service.frame))
 }
-
-// Count internal handoffs, including the optional program's lower queue.
-pub(super) fn backlog(service: &Service) -> u64 {
-    let mut total = u64::from(program::backlog(service));
-    for entries in [
-        service.llm_events.len(),
-        service.llm_below.len(),
-        service.machine_events.len(),
-        service.machine_below.len(),
-        service.domain_events.len(),
-        service.domain_requests.len(),
-        service.io_events.len(),
-        service.io_requests.len(),
-        service.file_events.len(),
-        service.io_submissions.len(),
-        service.file_submissions.len(),
-    ] {
-        total = total.checked_add(u64::from(entries)).expect("bounded queue counts fit u64");
-    }
-    total
-}
-
-// Dispatch an entrance's effects before advancing the domain again. Its facts
-// must not overtake the preceding turn and channel notifications.
-fn domain_requests_dispatched(service: &Service) -> bool {
-    service.domain_requests.is_empty()
-}
-
-fn admits(service: &Service) -> bool {
-    backlog(service) < u64::from(service.limits.queue)
-}
-
-// The drain and shell readiness agree on both admission and the retained
-// pending-message edge credit before offering the head channel event.
-fn channel_event_ready(service: &Service) -> bool {
-    if service.admitted.is_none() && service.pending_messages.room() == 0 {
-        return false;
-    }
-    match service.channel_events.iter().next() {
-        Some(channel::OpenEvent::Start { .. } | channel::OpenEvent::Message { .. }) => admits(service),
-        Some(
-            channel::OpenEvent::Opened { .. }
-            | channel::OpenEvent::HostReturned { .. }
-            | channel::OpenEvent::Delivered { .. }
-            | channel::OpenEvent::DeliveryUnsent { .. }
-            | channel::OpenEvent::Acknowledged { .. }
-            | channel::OpenEvent::Grant { .. }
-            | channel::OpenEvent::Cancel
-            | channel::OpenEvent::WriteFailed
-            | channel::OpenEvent::Ended { .. },
-        ) => true,
-        None => false,
-    }
-}
-
-/// Whether another iteration can progress without waiting on the kernel.
+/// Whether another iteration can progress without waiting for the kernel.
 #[must_use]
 pub fn work_pending(service: &Service, now: Time) -> bool {
-    let takes = match &service.events {
-        Some(events) => events.sinks.takes(),
-        None => true,
-    };
-    let due = match next_deadline(service) {
-        Some(deadline) => deadline <= now,
-        None => false,
-    };
-    due || teardown::work_pending(service)
-        || match &service.io {
-            Some(io) => io.is_ready(),
-            None => false,
-        }
-        || (takes && (service.llm.has_work() || !service.llm.measures_drained()))
-        || match &service.events {
-            Some(events) => events.sinks.has_work(),
-            None => false,
-        }
-        || match &service.domain {
-            Some(domain) => takes && (domain.has_facts() || (domain_requests_dispatched(service) && domain.is_ready())),
-            None => false,
-        }
-        || !service.completions.is_empty()
-        || !service.io_events.is_empty()
-        || !service.file_events.is_empty()
-        || channel_event_ready(service)
-        || (!service.pending_messages.is_empty() && service.admitted.is_some() && admits(service))
-        || (takes && !service.llm_events.is_empty())
-        || !service.machine_events.is_empty()
-        || (takes && domain_requests_dispatched(service) && !service.domain_events.is_empty())
-        || (takes && !service.domain_requests.is_empty() && channel_takes(service) && program::requests_ready(service))
-        || !service.channel_below.is_empty()
-        || program::pending(service)
-        || !service.llm_below.is_empty()
-        || !service.machine_below.is_empty()
-        || !service.io_requests.is_empty()
-        || ((!service.io_submissions.is_empty() || !service.file_submissions.is_empty())
-            && service.submissions.room() > 0
-            && service.operations.len() < service.operations.capacity())
+    stages::work_pending(&service.stages, Some(&service.frame), now)
 }
-
-/// The channel has ended, every lower child has settled, and the final
-/// answer crossed the channel.
+/// Whether every composed child has closed and the answer crossed the channel.
 #[must_use]
 pub fn done(service: &Service) -> Option<bool> {
-    match service.teardown {
-        Teardown::Closed { answer, .. } => Some(answer.sent()),
-        Teardown::Live | Teardown::Answered { .. } | Teardown::Closing { .. } => None,
-    }
+    stages::done(&service.stages)
 }
-
-/// The first concrete failure, retained for the shell's final stderr line.
+/// The first failure retained for the shell's operator line.
 #[must_use]
 pub const fn failure(service: &Service) -> Option<Failure> {
-    service.failure
+    stages::failure(&service.stages)
 }

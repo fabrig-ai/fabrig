@@ -111,7 +111,7 @@ struct Story {
 }
 
 struct Recorder {
-    sink: smith_agent_service::sinks::Sinks,
+    sink: smith_protocol_events::sinks::Sinks,
     pending: VecDeque<Entrance>,
     order: Vec<Order>,
     captured: Vec<smith_protocol_llm::Measure>,
@@ -123,7 +123,7 @@ struct Recorder {
 
 impl Recorder {
     fn new(pressure: Pressure, seed: u64) -> Self {
-        use smith_agent_service::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
+        use smith_protocol_events::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
         let records = SINK_RECORDS;
         let mut bounds = SinkLimits {
             destinations: 1,

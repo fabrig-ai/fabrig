@@ -23,87 +23,12 @@ pub struct EventLimits {
     pub write_deadline: Duration,
 }
 
-impl EventLimits {
-    /// Derive receiving and destination ownership from the admitted source bounds.
-    /// `effort_bytes` is the charter codec’s reasoning effort bound.
-    /// `header` supplies the startup inventory's count and longest configured name.
-    #[must_use]
-    pub fn derive(
-        limits: &crate::Limits,
-        capture: Capture,
-        destinations: u32,
-        effort_bytes: u32,
-        header: &[smith_events::EffectiveLimit],
-        write_deadline: Duration,
-    ) -> Option<EventLimits> {
-        let charter = limits.channel.charter;
-        let mut header_string = 0;
-        for entry in header {
-            header_string = header_string.max(u32::try_from(entry.name.len()).ok()?);
-        }
-        let metadata_string = charter
-            .llm_endpoint
-            .max(charter.llm_model)
-            .max(charter.host_tool_name)
-            .max(charter.field_name)
-            .max(charter.run_result_label_some)
-            .max(effort_bytes)
-            .max(header_string)
-            .max(46);
-        let client = limits.llm.adapter.client;
-        let string = metadata_string.max(client.strings).max(limits.channel.bodies.message_label);
-        let answer_bytes = u32::try_from(limits.domain.run.outcome_bytes).ok()?;
-        let metadata_items =
-            charter.run_result_fields.max(limits.domain.run.host_tools).max(18).max(u32::try_from(header.len()).ok()?);
-        let content = answer_bytes
-            .max(client.answer)
-            .max(client.request)
-            .max(limits.channel.bodies.message_text)
-            .max(client.detail_bytes);
-        let items = metadata_items.max(client.output_items).max(client.history_items);
-        let records = smith_events::Limits { string, content, items };
-        let scalar_content = answer_bytes.max(client.detail_bytes);
-        let metadata = smith_events::Limits { string, content: scalar_content, items: metadata_items };
-        let scalar = crate::sinks::largest_line(&metadata, Capture::None, answer_bytes, metadata_string)?;
-        // One completion's blocks share the Client's answer bytes. A message
-        // receipt owns only that channel message's exact label and text.
-        let observed = client
-            .answer
-            .checked_mul(6)?
-            .checked_add(client.output_items.checked_mul(128)?)?
-            .max(limits.channel.bodies.message_text.checked_mul(6)?);
-        // The component validates this exact native body before copying a new
-        // part. Its payload is a subset of that body. At most history_items
-        // messages and blocks add 128 bytes of event framing per total block;
-        // tool names add only bounded array framing. No replay payload is copied.
-        let prompt = client
-            .request
-            .checked_add(client.history_items.checked_mul(128)?)?
-            .checked_add(client.tools.checked_mul(128)?)?
-            .checked_add(metadata_string.checked_mul(18)?)?
-            .checked_add(2048)?;
-        let observation_line = match capture {
-            Capture::None | Capture::Calls => scalar.checked_add(observed)?,
-            Capture::Everything => scalar.checked_add(observed)?.max(prompt),
-        };
-        let mut sinks = SinkLimits {
-            destinations,
-            output: 0,
-            records,
-            answer_bytes,
-            metadata_string,
-            metadata_items,
-            scalar_content,
-            observation_line,
-            fact_extra: observed,
-            conversations: limits.domain.run.conversations,
-        };
-        sinks.output = crate::sinks::output_bound(&sinks, capture)?;
-        if !crate::sinks::valid(&sinks, capture) {
-            return None;
-        }
-        Some(EventLimits { sinks, capture, front: false, write_deadline })
-    }
+/// Source capacities admitted by the composing service before projection starts.
+#[derive(Clone, Copy, Debug)]
+pub struct Sources {
+    pub session: domain::session::Limits,
+    pub output: u32,
+    pub events: Option<EventLimits>,
 }
 
 #[derive(Debug)]
@@ -142,6 +67,22 @@ impl Producer {
         &mut self.sinks
     }
 
+    /// Project one measured provider exchange in its source order.
+    pub fn measure(&mut self, measure: smith_protocol_llm::Measure) {
+        self.sinks.measure(self.origin(), measure);
+    }
+
+    /// Finish the next observation whose source facts have drained.
+    pub fn facts_drained(&mut self) -> bool {
+        self.sinks.facts_drained(self.origin())
+    }
+
+    /// Whether every destination has reported closed.
+    #[must_use]
+    pub fn closed(&self) -> bool {
+        self.sinks.closed()
+    }
+
     /// A typed live-view record awaits its product, independently of destination work.
     #[must_use]
     pub fn front_pending(&self) -> bool {
@@ -172,34 +113,15 @@ impl Producer {
         self.sinks.owns(owner)
     }
 
+    /// Build the joins and destinations from their admitted source bounds.
     #[must_use]
-    pub fn configured(config: &crate::Config) -> Option<Producer> {
-        match config.limits.events {
-            Some(_) => {
-                let mut producer = Producer::new(&config.limits, config.channel_endpoints.clone());
-                producer.programs = match crate::service::bound(config.program.as_ref()) {
-                    Some(program) => program.endpoints.clone(),
-                    None => Box::default(),
-                };
-                Some(producer)
-            }
-            None => None,
-        }
-    }
-
-    pub(crate) fn new(limits: &crate::Limits, names: channel::Endpoints) -> Producer {
+    pub fn new(limits: &Sources, names: channel::Endpoints, programs: Box<[u32]>) -> Producer {
         let events = limits.events.expect("event configuration exists");
         Producer {
-            sinks: Sinks::with_front(
-                &events.sinks,
-                events.capture,
-                limits.io.output,
-                events.write_deadline,
-                events.front,
-            ),
+            sinks: Sinks::with_front(&events.sinks, events.capture, limits.output, events.write_deadline, events.front),
             names,
-            programs: Box::default(),
-            calls: crate::calls::Book::new(&limits.domain.session, events.capture),
+            programs,
+            calls: crate::calls::Book::new(&limits.session, events.capture),
             messages: crate::messages::Book::new(events.capture),
             capture: events.capture,
             origin: None,
@@ -235,7 +157,7 @@ impl Producer {
         );
     }
 
-    pub(crate) fn message(&mut self, name: Token, label: &[u8], text: &[u8]) {
+    pub fn message(&mut self, name: Token, label: &[u8], text: &[u8]) {
         self.messages.received(name, label, text);
     }
 
@@ -288,10 +210,10 @@ impl Producer {
             budget: smith_events::Budget {
                 turns: u64::from(charter.budget.turns),
                 spend: charter.budget.spend,
-                time_ms: charter.budget.time.as_nanos() / 1_000_000,
+                time_ms: charter.budget.time.as_millis(),
                 reserve: smith_events::Reserve {
                     turns: u64::from(charter.reserve.turns),
-                    time_ms: charter.reserve.time.as_nanos() / 1_000_000,
+                    time_ms: charter.reserve.time.as_millis(),
                     spend: run::reserve_spend(charter.reserve, &charter.llm).unwrap_or(0),
                 },
             },
@@ -306,7 +228,7 @@ impl Producer {
         });
     }
 
-    pub(crate) fn pop_overflow_notice(&mut self) -> Option<run::Overflow> {
+    pub fn pop_overflow_notice(&mut self) -> Option<run::Overflow> {
         self.overflow_notice.take()
     }
 
@@ -321,7 +243,7 @@ impl Producer {
     }
 
     #[expect(clippy::too_many_lines, reason = "one exhaustive content-free root fact projection")]
-    pub(crate) fn fact(&mut self, fact: &domain::Fact) {
+    pub fn fact(&mut self, fact: &domain::Fact) {
         let origin = self.origin();
         let (fact, opening) = match fact {
             domain::Fact::Session { fact } => {
@@ -435,7 +357,7 @@ impl Producer {
                 self.check_at = Some(fact.at);
                 Event::CheckStarted(smith_events::CheckStarted {
                     run: self.activation(),
-                    deadline_ms: Some(deadline.saturating_since(fact.at).as_nanos() / 1_000_000),
+                    deadline_ms: Some(deadline.saturating_since(fact.at).as_millis()),
                 })
             }
             run::facts::FactKind::CheckFinished { run: _, exit } => {
@@ -444,15 +366,14 @@ impl Producer {
                     run: self.activation(),
                     passed,
                     exit,
-                    duration_ms: fact.at.saturating_since(self.check_at.take().expect("one check start")).as_nanos()
-                        / 1_000_000,
+                    duration_ms: fact.at.saturating_since(self.check_at.take().expect("one check start")).as_millis(),
                 })
             }
             run::facts::FactKind::MessageFence { .. }
             | run::facts::FactKind::Prepared { .. }
             | run::facts::FactKind::Answered { .. } => return,
         };
-        self.sinks.record(&Record { t_ms: fact.at.saturating_since(origin).as_nanos() / 1_000_000, event });
+        self.sinks.record(&Record { t_ms: fact.at.saturating_since(origin).as_millis(), event });
     }
 
     fn activation(&self) -> u64 {
@@ -470,12 +391,12 @@ impl Producer {
         crate::opening_model(model, name, model.effort.as_deref(), backend)
     }
 
-    pub(crate) fn received(&mut self, owner: Token, completion: &domain::llm::Completion) {
+    pub fn received(&mut self, owner: Token, completion: &domain::llm::Completion) {
         self.calls.child_received(owner, completion.usage);
         self.calls.received(owner, completion);
     }
 
-    pub(crate) fn request(
+    pub fn request(
         &mut self,
         now: Time,
         owner: Token,
@@ -499,7 +420,7 @@ impl Producer {
         })
     }
 
-    pub(crate) fn answer(&mut self, now: Time, started: Time, answer: &run::Answer, read: Option<Token>) {
+    pub fn answer(&mut self, now: Time, started: Time, answer: &run::Answer, read: Option<Token>) {
         self.messages.clear();
         assert!(self.answer_at.is_none(), "one answer per invocation");
         self.answer_at = Some(now);
@@ -538,7 +459,7 @@ impl Producer {
             run::Answer::Accepted { .. } | run::Answer::Parked { .. } | run::Answer::Refused(_) => None,
         };
         self.sinks.record(&Record {
-            t_ms: now.saturating_since(self.origin()).as_nanos() / 1_000_000,
+            t_ms: now.saturating_since(self.origin()).as_millis(),
             event: Event::RunCompleted(record),
         });
     }
@@ -566,11 +487,11 @@ impl Producer {
             read: answer.read,
             unread: self.unread,
             usage: self.sinks.reported(),
-            duration_ms: now.saturating_since(self.admitted_at.unwrap_or(started)).as_nanos() / 1_000_000,
+            duration_ms: now.saturating_since(self.admitted_at.unwrap_or(started)).as_millis(),
         };
         self.sinks.answer_failure(&mut record);
         self.sinks.record(&Record {
-            t_ms: now.saturating_since(self.origin()).as_nanos() / 1_000_000,
+            t_ms: now.saturating_since(self.origin()).as_millis(),
             event: Event::RunCompleted(record),
         });
     }
@@ -586,10 +507,8 @@ impl Producer {
             | smith_events::NoticeKind::TeardownAborted
             | smith_events::NoticeKind::Unknown(_) => self.admitted,
         };
-        self.sinks.record(&Record {
-            t_ms: now.saturating_since(self.origin()).as_nanos() / 1_000_000,
-            event: Event::Notice(notice),
-        });
+        self.sinks
+            .record(&Record { t_ms: now.saturating_since(self.origin()).as_millis(), event: Event::Notice(notice) });
     }
 }
 
@@ -604,181 +523,15 @@ fn message_refusal(reason: run::MessageRefusal) -> smith_events::MessageRefusal 
 
 /// Whether configured event sinks and joins fit (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
-pub fn valid(limits: &crate::Limits) -> bool {
+pub fn valid(limits: &Sources) -> bool {
     match limits.events {
-        Some(events) => {
-            crate::sinks::valid(&events.sinks, events.capture) && crate::calls::valid(&limits.domain.session)
-        }
+        Some(events) => crate::sinks::valid(&events.sinks, events.capture) && crate::calls::valid(&limits.session),
         None => true,
     }
 }
 
 #[cfg(test)]
-mod tests {
-    #![allow(
-        clippy::disallowed_macros,
-        clippy::disallowed_types,
-        clippy::disallowed_methods,
-        reason = "programming-model.md section10.2: bounded deterministic source fixtures use ordinary Rust"
-    )]
-
-    use super::*;
-    use crate::responses::tests::{at, fact, opened, prompt, seen_completion};
-    use crate::sinks::tests::{drain_ready, limits};
-    use smith_domain::session;
-
-    #[test]
-    fn invalid_limits_are_refused() {
-        let mut limits = crate::service::tests::configuration().limits;
-        assert!(valid(&limits));
-        limits.events = Some(EventLimits {
-            sinks: crate::sinks::tests::limits(1),
-            capture: Capture::Everything,
-            front: false,
-            write_deadline: Duration::from_secs(1),
-        });
-        assert!(valid(&limits));
-        let base = limits;
-        limits.events.as_mut().unwrap().sinks.output = 0;
-        assert!(!valid(&limits));
-        limits = base;
-        limits.domain.session.answer_bytes = u64::MAX;
-        assert!(!valid(&limits));
-        // Call joins exist even without content capture.
-        limits.events.as_mut().unwrap().capture = Capture::None;
-        assert!(!valid(&limits));
-        limits.events = None;
-        assert!(valid(&limits));
-    }
-
-    #[test]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "two independent raw-accounting terminal controls exercise the complete producer and wire"
-    )]
-    fn refused_raw_totals_and_overflow_reach_the_wire_answer_and_operator_once() {
-        for overflow in [false, true] {
-            let bounds = limits(1);
-            let destination = Token::new(400);
-            let owner = Token::new(11);
-            let mut producer = Producer {
-                sinks: Sinks::new(&bounds, Capture::Calls, bounds.output, crate::sinks::tests::DEADLINE),
-                names: channel::Endpoints::new(List::with_capacity(0)),
-                programs: Box::default(),
-                calls: crate::calls::Book::new(&smith_agent_world::LIMITS.session, Capture::Calls),
-                messages: crate::messages::Book::disabled(),
-                capture: Capture::Calls,
-                origin: Some(Time::ZERO),
-                start: None,
-                admitted: Some(7),
-                admitted_at: None,
-                activation: Some(7),
-                answer_at: None,
-                overflow_notice: None,
-                wind_down: false,
-                unread: 0,
-                check_at: None,
-            };
-            producer
-                .sinks
-                .add(crate::sinks::Destination::Trace, destination, crate::sinks::Delivery::Complete)
-                .unwrap();
-            producer.sinks.conversation(at(1), Time::ZERO, owner, opened(11, 0));
-            drop(drain_ready(&mut producer.sinks, destination));
-            for turn in 1..=if overflow { 2 } else { 1 } {
-                let mut completion = seen_completion();
-                if overflow {
-                    completion.usage.input_tokens = Some(if turn == 1 { u64::MAX - 1 } else { 2 });
-                }
-                producer.sinks.session(
-                    Time::ZERO,
-                    &fact(
-                        2,
-                        session::FactKind::CompletionStarted {
-                            window: 1,
-                            opener: owner,
-                            attempt: 0,
-                            messages: 0,
-                            max_tokens: 7,
-                            choice: session::Choice::Only,
-                        },
-                        turn,
-                        None,
-                    ),
-                );
-                producer.sinks.request(at(3), Time::ZERO, Token::new(99), &prompt(0));
-                drop(drain_ready(&mut producer.sinks, destination));
-                let seen_owner = producer.sinks.received(Token::new(99), &completion);
-                producer.received(seen_owner, &completion);
-                producer.sinks.session(
-                    Time::ZERO,
-                    &fact(
-                        5,
-                        session::FactKind::CompletionAnswered {
-                            opener: owner,
-                            stop: completion.stop,
-                            blocks: 2,
-                            calls: 2,
-                            invalid: 2,
-                        },
-                        turn,
-                        None,
-                    ),
-                );
-                let end = if overflow && turn == 1 {
-                    session::FactKind::Used { opener: owner, usage: completion.usage }
-                } else {
-                    session::FactKind::Ended {
-                        opener: owner,
-                        end: if overflow { session::End::UsageOverflow } else { session::End::PriceOverflow },
-                        turns: u32::from(overflow),
-                        usage: domain::llm::Usage::ZERO,
-                    }
-                };
-                producer
-                    .sinks
-                    .session(Time::ZERO, &fact(5, end, turn, if overflow && turn == 1 { Some(0) } else { None }));
-                let records = drain_ready(&mut producer.sinks, destination);
-                if !(overflow && turn == 1) {
-                    let Event::ConversationClosed(closed) = &records.last().unwrap().event else {
-                        panic!("conversation terminal")
-                    };
-                    assert_eq!(closed.usage.input_tokens, if overflow { None } else { Some(17) });
-                    assert_eq!(closed.usage.output_tokens, Some(if overflow { 38 } else { 19 }));
-                }
-            }
-            let cause = if overflow { run::Overflow::Usage } else { run::Overflow::Spend };
-            producer.answer(
-                at(7),
-                at(1),
-                &run::Answer::Failed {
-                    failure: run::Failure::Budget {
-                        exhausted: run::Exhausted::Overflow(cause),
-                        used: None,
-                        bound: None,
-                    },
-                    spent: run::Spend::ZERO,
-                    turns: u32::from(overflow),
-                },
-                None,
-            );
-            let records = drain_ready(&mut producer.sinks, destination);
-            let Event::RunCompleted(answer) = &records[0].event else { panic!("wire answer") };
-            assert_eq!(answer.usage.input_tokens, if overflow { None } else { Some(17) });
-            assert_eq!(answer.usage.output_tokens, Some(if overflow { 38 } else { 19 }));
-            assert_eq!(answer.usage.cache_read_tokens, None);
-            assert_eq!(answer.usage.cache_write_tokens, Some(0));
-            assert_eq!(answer.usage.reasoning_tokens, Some(if overflow { 6 } else { 3 }));
-            assert_eq!(
-                answer.failure.as_ref().unwrap().which.as_deref(),
-                Some(if overflow { b"usage_overflow".as_slice() } else { b"spend_overflow".as_slice() })
-            );
-            assert_eq!(producer.pop_overflow_notice(), Some(cause));
-            assert_eq!(producer.pop_overflow_notice(), None);
-        }
-    }
-}
+mod tests;
 
 #[cfg(test)]
-#[path = "tests/program.rs"]
 mod program_tests;

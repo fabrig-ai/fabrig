@@ -982,7 +982,7 @@ impl World {
     }
 
     /// Select the event destination's capture policy before spawning.
-    pub fn capture(&mut self, capture: smith_agent_service::sinks::Capture) {
+    pub fn capture(&mut self, capture: smith_protocol_events::sinks::Capture) {
         self.setup.capture = capture;
     }
 

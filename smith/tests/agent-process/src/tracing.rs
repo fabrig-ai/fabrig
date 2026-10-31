@@ -22,7 +22,7 @@ pub(super) struct Tracing {
     started: bool,
     pub(super) channel_loss: u64,
     pub(super) lost_live_bytes: u64,
-    capture: agent::sinks::Capture,
+    capture: smith_protocol_events::sinks::Capture,
     header: Option<List<smith_events::EffectiveLimit>>,
 }
 
@@ -30,13 +30,13 @@ impl Tracing {
     pub(super) fn new(
         mut configuration: agent::Config,
         inherited: &skein_world::Inherited,
-        capture: agent::sinks::Capture,
+        capture: smith_protocol_events::sinks::Capture,
     ) -> Self {
         for _ in 0..2 {
             let header =
                 effective_header(&configuration.limits, &configuration.channel_endpoints, &configuration.llm_endpoints);
             configuration.limits.events = Some(
-                agent::EventLimits::derive(
+                smith_agent_service::event_limits(
                     &configuration.limits,
                     capture,
                     1,
@@ -114,7 +114,12 @@ impl Host for Tracing {
             if complete.op.raw() == u64::MAX {
                 let Ok(kernel::Done::Fd(fd)) = complete.result else { panic!("trace file opens beneath its root") };
                 self.service
-                    .adopt_destination(fd, agent::Destination::Trace, agent::sinks::Delivery::Complete, true)
+                    .adopt_destination(
+                        fd,
+                        smith_protocol_events::Destination::Trace,
+                        smith_protocol_events::sinks::Delivery::Complete,
+                        true,
+                    )
                     .expect("trace adopted");
                 let root = self.opening.take().expect("one startup trace open");
                 self.close(root);
@@ -220,12 +225,12 @@ impl Host for Tracing {
 }
 
 /// Receiving bounds derived from the same producer configuration.
-pub(super) fn event_limits(limits: &agent::Limits) -> agent::EventLimits {
+pub(super) fn event_limits(limits: &agent::Limits) -> smith_protocol_events::EventLimits {
     let configuration = crate::configuration();
     let header = effective_header(limits, &configuration.channel_endpoints, &configuration.llm_endpoints);
-    agent::EventLimits::derive(
+    smith_agent_service::event_limits(
         limits,
-        agent::sinks::Capture::Everything,
+        smith_protocol_events::sinks::Capture::Everything,
         1,
         0,
         header.as_slice(),

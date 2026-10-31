@@ -2,7 +2,7 @@
 //! Keeps the selected endpoints and pipe routes; never reads source logins.
 //! The service calls these hooks at the same stages as its direct LLM component.
 
-use super::{Config, ConfigError, Failure, Limits, Owner, Service, component_owner, credential};
+use super::{Config, ConfigError, Failure, Limits, Owner, Service, Stages, component_owner, credential};
 use alloc::boxed::Box;
 use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::{Duration, Map, Queue, Secret, Token};
@@ -200,7 +200,7 @@ fn new(
     }))
 }
 
-/// Native construction shared with `Service::parts`; private roots need the UID first.
+/// Native construction shared with `Stages::parts`; private roots need the UID first.
 #[derive(Debug)]
 pub(super) struct Parts {
     pub program: Option<Box<Program>>,
@@ -243,15 +243,15 @@ pub(super) fn parts(
 impl Service {
     /// Adopt the shell's private programs root, closing it with the backend (5.1).
     pub fn adopt_program_root(&mut self, descriptor: kernel::Fd) -> Result<(), AdoptError> {
-        let program = self.program.as_mut().ok_or(AdoptError::Unconfigured)?;
-        let file = self.files.adopt_root(descriptor).ok_or(AdoptError::Full)?;
+        let program = self.stages.program.as_mut().ok_or(AdoptError::Unconfigured)?;
+        let file = self.stages.files.adopt_root(descriptor).ok_or(AdoptError::Full)?;
         program.backend.directory(backend::Root { file, descriptor });
         Ok(())
     }
 }
 
 pub(super) fn install(
-    service: &mut Service,
+    service: &mut Stages,
     start: &channel::DecodedStart,
     name: domain::GrantName,
     value: &channel::GrantValue,
@@ -305,7 +305,7 @@ pub(super) fn install(
     }
 }
 
-pub(super) fn renew(service: &mut Service, grant: domain::Grant, value: &channel::GrantValue) -> bool {
+pub(super) fn renew(service: &mut Stages, grant: domain::Grant, value: &channel::GrantValue) -> bool {
     let program = match &mut service.program {
         Some(program) if program.backend.holds(grant.name) => program,
         Some(_) | None => return false,
@@ -329,7 +329,7 @@ pub(super) fn renew(service: &mut Service, grant: domain::Grant, value: &channel
     true
 }
 
-pub(super) fn complete(service: &mut Service, request: llm::FromDomain) {
+pub(super) fn complete(service: &mut Stages, request: llm::FromDomain) {
     let use_program = match &request {
         llm::FromDomain::Complete { grant, prompt, .. } => {
             let main = match prompt.asker {
@@ -357,28 +357,28 @@ pub(super) fn complete(service: &mut Service, request: llm::FromDomain) {
     }
 }
 
-pub(super) fn pending_measures(service: &Service) -> u32 {
+pub(super) fn pending_measures(service: &Stages) -> u32 {
     match &service.program {
         Some(program) => program.backend.pending_measures(),
         None => 0,
     }
 }
 
-pub(super) fn pop_measure(service: &mut Service) -> Option<llm::Measure> {
+pub(super) fn pop_measure(service: &mut Stages) -> Option<llm::Measure> {
     match &mut service.program {
         Some(program) => program.backend.pop_measure(),
         None => None,
     }
 }
 
-pub(super) fn backlog(service: &Service) -> u32 {
+pub(super) fn backlog(service: &Stages) -> u32 {
     match &service.program {
         Some(program) => program.below.len(),
         None => 0,
     }
 }
 
-pub(super) fn fire(service: &mut Service) {
+pub(super) fn fire(service: &mut Stages) {
     if let Some(program) = &mut service.program {
         match service.teardown {
             super::Teardown::Live => {}
@@ -390,7 +390,7 @@ pub(super) fn fire(service: &mut Service) {
     }
 }
 
-pub(super) fn deadline(service: &Service) -> Option<skein_lib::Time> {
+pub(super) fn deadline(service: &Stages) -> Option<skein_lib::Time> {
     match &service.program {
         Some(program) => program.backend.next_deadline(),
         None => None,
@@ -399,7 +399,7 @@ pub(super) fn deadline(service: &Service) -> Option<skein_lib::Time> {
 
 // After the domain's terminal, program deadlines only settle owned I/O
 // (child close grace and MCP sockets); they do not await policy work.
-pub(super) fn policy_deadline(service: &Service) -> Option<skein_lib::Time> {
+pub(super) fn policy_deadline(service: &Stages) -> Option<skein_lib::Time> {
     match service.teardown {
         super::Teardown::Live if answer_head(service) => None,
         super::Teardown::Live => deadline(service),
@@ -407,21 +407,21 @@ pub(super) fn policy_deadline(service: &Service) -> Option<skein_lib::Time> {
     }
 }
 
-pub(super) fn closed(service: &Service) -> bool {
+pub(super) fn closed(service: &Stages) -> bool {
     match &service.program {
         Some(program) => program.backend.closed() && program.below.is_empty() && program.pipes.is_empty(),
         None => true,
     }
 }
 
-pub(super) fn pending(service: &Service) -> bool {
+pub(super) fn pending(service: &Stages) -> bool {
     match &service.program {
         Some(program) => !program.below.is_empty(),
         None => false,
     }
 }
 
-pub(super) fn file_event(service: &mut Service, event: file::Event) -> Option<file::Event> {
+pub(super) fn file_event(service: &mut Stages, event: file::Event) -> Option<file::Event> {
     let descriptor = match &event {
         file::Event::Opened { file, .. } => service.files.descriptor(*file),
         file::Event::Locked { .. }
@@ -459,28 +459,13 @@ pub(super) fn file_event(service: &mut Service, event: file::Event) -> Option<fi
     }
 }
 
-pub(super) fn pipe_event(service: &mut Service, event: io::Event) -> Option<io::Event> {
-    let owner = super::io_event_owner(&event)?;
+pub(super) fn pipe_event(service: &mut Stages, event: io::Event) -> Option<io::Event> {
+    let owner = event.owner()?;
     let program = match &mut service.program {
         Some(program) if program.pipes.contains_key(&owner) => program,
         Some(_) | None => return Some(event),
     };
-    let closed = match &event {
-        io::Event::Closed { .. } => true,
-        io::Event::Listening { .. }
-        | io::Event::Accepted { .. }
-        | io::Event::Connecting { .. }
-        | io::Event::Connected { .. }
-        | io::Event::Stream { .. }
-        | io::Event::Output { .. }
-        | io::Event::Spawned { .. }
-        | io::Event::Exited { .. }
-        | io::Event::Usage { .. }
-        | io::Event::Window { .. }
-        | io::Event::Failed { .. }
-        | io::Event::Resized
-        | io::Event::Shutdown { .. } => false,
-    };
+    let closed = event.is_closed();
     if closed {
         program.pipes.remove(&owner);
     }
@@ -493,7 +478,7 @@ pub(super) fn pipe_event(service: &mut Service, event: io::Event) -> Option<io::
     None
 }
 
-pub(super) fn io_event(service: &mut Service, event: io::Event) {
+pub(super) fn io_event(service: &mut Stages, event: io::Event) {
     let program = service.program.as_mut().expect("program route retains its backend");
     match &event {
         io::Event::Spawned { pipes, .. } => {
@@ -523,7 +508,7 @@ pub(super) fn io_event(service: &mut Service, event: io::Event) {
     );
 }
 
-pub(super) fn down(service: &mut Service) {
+pub(super) fn down(service: &mut Stages) {
     let Some(program) = &mut service.program else { return };
     for _ in 0..service.limits.queue {
         let waits_for_file = match program.below.iter().next() {
@@ -577,7 +562,7 @@ pub(super) fn down(service: &mut Service) {
 
 // The queued Answer already owns and prices its payload. Hold that request
 // until the program has acknowledged finish and settled its child/files.
-fn answer_head(service: &Service) -> bool {
+fn answer_head(service: &Stages) -> bool {
     match service.domain_requests.iter().next() {
         Some(domain::Request::Answer { .. }) => true,
         Some(
@@ -608,7 +593,7 @@ fn answer_head(service: &Service) -> bool {
     }
 }
 
-pub(super) fn requests_ready(service: &Service) -> bool {
+pub(super) fn requests_ready(service: &Stages) -> bool {
     if !answer_head(service) {
         return true;
     }
@@ -618,13 +603,13 @@ pub(super) fn requests_ready(service: &Service) -> bool {
     }
 }
 
-pub(super) fn settled(service: &mut Service, turn: &domain::Turn) {
+pub(super) fn settled(service: &mut Stages, turn: &domain::Turn) {
     if let Some(program) = &mut service.program {
         program.backend.settled(&turn.messages, &mut program.below);
     }
 }
 
-pub(super) fn wait_for_close(service: &mut Service) -> bool {
+pub(super) fn wait_for_close(service: &mut Stages) -> bool {
     if !answer_head(service) {
         return false;
     }
@@ -638,94 +623,7 @@ pub(super) fn wait_for_close(service: &mut Service) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn an_unbound_program_keeps_the_native_limits() {
-        let mut configuration = super::super::tests::configuration();
-        let limits = configuration.limits;
-        configuration.program = Some(ProgramBackend {
-            program: Programs { claude: b"/claude".as_slice().into(), directory: b"/programs".as_slice().into() },
-            endpoints: Box::default(),
-            relay: Box::default(),
-            entropy: Secret::new(Box::default()),
-            effective_user: 1000,
-        });
-        let service = Service::new(configuration, 1).expect("unbound declaration needs no backend settings");
-        assert!(service.program.is_none());
-        assert_eq!(service.limits.routes, limits.routes);
-        assert_eq!(service.limits.io, limits.io);
-        assert_eq!(service.limits.file_slots, limits.file_slots);
-    }
-
-    #[test]
-    fn program_close_reaches_io_with_pending_file_terminals() {
-        let mut configuration = super::super::tests::configuration();
-        configuration.program = Some(ProgramBackend {
-            program: Programs { claude: b"/claude".as_slice().into(), directory: b"/programs".as_slice().into() },
-            endpoints: Box::new([0]),
-            relay: b"/agent".as_slice().into(),
-            entropy: Secret::new(Box::new([7; 32])),
-            effective_user: 1000,
-        });
-        let mut service = Service::new(configuration, 1).expect("bounded program service");
-        let entity = Token::new(91);
-        service
-            .program
-            .as_mut()
-            .expect("configured program")
-            .below
-            .push(backend::Below::Io(io::Request::Close { entity }));
-        service.file_events.push(file::Event::Closed { owner: Token::new(92) });
-        assert_eq!(super::super::backlog(&service), 2, "program lower work counts toward admission");
-        down(&mut service);
-        let io::Request::Close { entity: received } = service.io_requests.pop().expect("program close progresses")
-        else {
-            unreachable!("only a close was queued")
-        };
-        assert_eq!(received, entity);
-        assert!(service.program.as_ref().expect("configured program").below.is_empty());
-        assert_eq!(service.file_events.len(), 1, "file terminals still await their consumer");
-    }
-}
+mod tests;
 
 #[cfg(test)]
-mod validity_tests {
-    use super::*;
-
-    fn configuration() -> Config {
-        let mut config = crate::service::tests::configuration();
-        config.program = Some(ProgramBackend {
-            program: Programs {
-                claude: Box::from(b"/claude".as_slice()),
-                directory: Box::from(b"/programs".as_slice()),
-            },
-            endpoints: Box::new([0]),
-            relay: Box::from(b"/agent".as_slice()),
-            entropy: Secret::new(Box::new([7; 32])),
-            effective_user: 1000,
-        });
-        config
-    }
-
-    #[test]
-    fn invalid_limits_are_refused() {
-        assert!(program_valid(&crate::service::tests::configuration()));
-        assert!(program_valid(&configuration()));
-        for case in 0_u8..7 {
-            let mut config = configuration();
-            match case {
-                0 => config.limits.llm.contract_bytes = u64::MAX,
-                1 => config.limits.io.sockets = u32::MAX,
-                2 => config.limits.file_slots = u32::MAX,
-                3 => config.limits.domain.session.tools.host_path_bytes = u32::MAX,
-                4 => config.limits.domain.run.conversations = u32::MAX,
-                5 => config.limits.io.receive += 1,
-                6 => config.limits.io.sockets = u32::MAX / 8 - 10,
-                _ => unreachable!(),
-            }
-            assert!(!program_valid(&config), "invalid program case {case}");
-        }
-    }
-}
+mod validity_tests;

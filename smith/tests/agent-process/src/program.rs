@@ -186,9 +186,9 @@ fn configuration(case: Case) -> smith_agent_service::Config {
             smith_agent_service::EventLimits::derive(
                 &config.limits,
                 if case == Case::Events {
-                    smith_agent_service::sinks::Capture::Everything
+                    smith_protocol_events::sinks::Capture::Everything
                 } else {
-                    smith_agent_service::sinks::Capture::None
+                    smith_protocol_events::sinks::Capture::None
                 },
                 1,
                 0,
@@ -219,11 +219,11 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
                 Some(smith_agent_shell::trace::TraceConfig {
                     path: "/home/events.jsonl".into(),
                     capture: if case == Case::Events {
-                        smith_agent_service::sinks::Capture::Everything
+                        smith_protocol_events::sinks::Capture::Everything
                     } else {
-                        smith_agent_service::sinks::Capture::None
+                        smith_protocol_events::sinks::Capture::None
                     },
-                    delivery: smith_agent_service::sinks::Delivery::Complete,
+                    delivery: smith_protocol_events::sinks::Delivery::Complete,
                 })
             } else {
                 None
@@ -661,9 +661,9 @@ fn run_scenario(
                 message: initial.as_ref(),
                 setup: Setup {
                     capture: if case == Case::Events {
-                        smith_agent_service::sinks::Capture::Everything
+                        smith_protocol_events::sinks::Capture::Everything
                     } else {
-                        smith_agent_service::sinks::Capture::None
+                        smith_protocol_events::sinks::Capture::None
                     },
                     ..Setup::default()
                 },

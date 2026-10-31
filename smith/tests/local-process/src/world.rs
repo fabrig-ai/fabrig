@@ -473,9 +473,9 @@ impl World {
         let bytes = machine.files.read(trace, 0, size).expect("trace bytes");
         machine.files.close(trace);
         let lower = process::lower_configuration();
-        let mut events = smith_agent_service::EventLimits::derive(
+        let mut events = smith_agent_service::event_limits(
             &lower.limits,
-            smith_agent_service::sinks::Capture::Everything,
+            smith_protocol_events::sinks::Capture::Everything,
             1,
             0,
             &[],

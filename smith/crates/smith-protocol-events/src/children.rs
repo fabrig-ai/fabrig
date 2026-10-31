@@ -127,7 +127,7 @@ impl Book {
         if let Some(child) = self.children.get_mut(&owner) {
             assert!(!child.ended, "one settled root terminal");
             child.ended = true;
-            child.time_ms = at.saturating_since(child.opened).as_nanos() / 1_000_000;
+            child.time_ms = at.saturating_since(child.opened).as_millis();
             child.stop = match end {
                 run::facts::EndKind::Closed => smith_events::ChildStop::Closed,
                 run::facts::EndKind::PriceOverflow
@@ -174,11 +174,7 @@ impl Book {
         if let Some(used) = used {
             assert_eq!(used.turns, child.turns, "session totals join settled root usage");
             assert_eq!(used.spend, child.spent, "child own charges join root own spend");
-            assert_eq!(
-                used.time.as_nanos() / 1_000_000,
-                child.time_ms,
-                "the root interval matches the opening and settled end"
-            );
+            assert_eq!(used.time.as_millis(), child.time_ms, "the root interval matches the opening and settled end");
         }
     }
 

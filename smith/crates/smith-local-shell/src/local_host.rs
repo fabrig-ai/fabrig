@@ -300,7 +300,7 @@ impl Local {
                 .adopt_output(
                     resources.output,
                     front.output_kind == skein_shell::OutputKind::Append,
-                    agent::sinks::Delivery::Complete,
+                    smith_protocol_events::sinks::Delivery::Complete,
                 )
                 .map_err(|_| host_failure("JSON output cannot be adopted".into()))?;
         }
@@ -323,7 +323,7 @@ impl Local {
         root: Option<kernel::Fd>,
         now: Time,
         header: smith_events::SessionStarted,
-        delivery: agent::sinks::Delivery,
+        delivery: smith_protocol_events::sinks::Delivery,
     ) -> Result<(), kernel::Fd> {
         self.service.adopt_trace(fd, now, header, delivery)?;
         if let Some(fd) = root {
@@ -353,7 +353,7 @@ impl Local {
     }
 
     /// Take one typed best-effort live-view record from the service's event sink.
-    pub fn pop_front(&mut self) -> Option<agent::sinks::View> {
+    pub fn pop_front(&mut self) -> Option<smith_protocol_events::sinks::View> {
         self.service.pop_front()
     }
 

@@ -2,7 +2,7 @@
 //! channel input independently (smith/docs/design/testing.md, sections 2 and 5).
 use super::TraceCase;
 use skein_io::kernel::Spawn;
-use smith_agent_service::sinks::Capture;
+use smith_protocol_events::sinks::Capture;
 
 #[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) enum Mode {

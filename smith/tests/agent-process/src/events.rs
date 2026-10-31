@@ -295,7 +295,7 @@ fn name(event: &Event) -> &'static [u8] {
 
 /// Decode the closed append file under its producer's receiving ceiling.
 #[must_use]
-pub fn read(bytes: &[u8], events: &smith_agent_service::EventLimits) -> Vec<Record> {
+pub fn read(bytes: &[u8], events: &smith_protocol_events::EventLimits) -> Vec<Record> {
     let ceiling = events.sinks.line_ceiling(events.capture).expect("producer line ceiling");
     let mut reader = smith_events::Reader::with_ceiling(&events.sinks.records, ceiling).expect("reader limits");
     let mut records = Vec::new();

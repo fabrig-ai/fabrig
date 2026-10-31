@@ -4,9 +4,9 @@
 
 #![expect(clippy::manual_map, reason = "the strict subset uses exhaustive matches without closures")]
 
-use smith_agent_service::{Answered, sinks::Capture};
 use smith_events::{AnswerClass, AnswerFailure, CompletionFailure, Evidence, FailureClass, Status};
 use smith_host_domain as host;
+use smith_protocol_events::{Answered, sinks::Capture};
 
 /// Parts of `run.completed` from the exact answer the local host meets.
 #[must_use]
@@ -16,7 +16,7 @@ pub fn answered(answer: &host::Answer, capture: Capture) -> Answered {
         host::RunResult::Refused { refusal } => (Status::Refused, Some(refused(*refusal)), None),
         host::RunResult::Failed { failure } => (Status::Failed, Some(failed(failure.clone())), None),
         host::RunResult::Accepted { outcome } => {
-            (Status::Accepted, None, Some(smith_agent_service::accepted(outcome.value(), capture)))
+            (Status::Accepted, None, Some(smith_protocol_events::accepted(outcome.value(), capture)))
         }
     };
     Answered {
@@ -283,7 +283,7 @@ const USAGE: skein_lib::Token = skein_lib::Token::new(u64::MAX - 1);
 /// The spawned product's producer takes parent answers, never channel facts.
 #[derive(Debug)]
 pub(crate) struct Spawned {
-    pub(crate) producer: smith_agent_service::events::Producer,
+    pub(crate) producer: smith_protocol_events::events::Producer,
     capture: Capture,
     /// Bounds each write to the adopted trace (protocol/events.md, section 5.2).
     pub(crate) write_deadline: skein_lib::Duration,
@@ -296,7 +296,7 @@ pub(crate) struct Spawned {
 
 impl Spawned {
     pub(crate) fn configured(config: &smith_agent_service::Config) -> Option<Self> {
-        let producer = smith_agent_service::events::Producer::configured(config)?;
+        let producer = smith_agent_service::event_producer(config)?;
         let events = config.limits.events?;
         Some(Self {
             producer,
@@ -403,7 +403,7 @@ impl Spawned {
                 self.producer.sinks().ended(
                     now,
                     origin,
-                    &smith_agent_service::sinks::Ended {
+                    &smith_protocol_events::sinks::Ended {
                         exit: self.exit.take().expect("product exited before usage"),
                         answered: self.answered,
                         aborted: self.close == smith_agent_service::Close::Aborted,

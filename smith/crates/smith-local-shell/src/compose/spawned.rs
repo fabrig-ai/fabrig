@@ -81,7 +81,7 @@ mod tests {
         assert_eq!(child.profile.policy.exit_grace, host.exit_grace);
         let trace = child.trace.unwrap();
         assert_eq!(trace.path, Path::new("product.jsonl.agent"));
-        assert!(trace.capture == smith_agent_service::sinks::Capture::Calls);
+        assert!(trace.capture == smith_protocol_events::sinks::Capture::Calls);
     }
 
     #[test]
