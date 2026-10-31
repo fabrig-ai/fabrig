@@ -419,15 +419,7 @@ impl Host for Web {
                 conn.deadline = Time::from_nanos(u64::MAX);
             }
         }
-        for _ in 0..QUEUE {
-            if self.submissions.room() < 4 {
-                break;
-            }
-            let Some(request) = self.requests.pop() else {
-                break;
-            };
-            io::down(&mut self.io, &self.io_env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &self.io_env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
@@ -439,8 +431,8 @@ impl Host for Web {
     fn work_pending(&self, now: Time) -> bool {
         self.io.is_ready() || self.io.is_due(now) || !self.completions.is_empty() || !self.requests.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.io.next_deadline().into_iter().chain(self.next_policy_deadline()).min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.connections.values().map(|conn| conn.deadline).min()
@@ -460,6 +452,25 @@ impl Host for Web {
         {
             eprintln!("skein-ui-example: listening at {address}");
             self.told = true;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn listening_waits_for_the_io_submission_bound() {
+        let short = io::MAX_OUT_DOWN.submissions.checked_sub(1).expect("down reserves submission room");
+        for (room, pending, submitted) in [(short, 1, 0), (io::MAX_OUT_DOWN.submissions, 0, 1)] {
+            let bundle = Bundle::new(Box::from([]), "0123456789abcdef".into(), BTreeMap::new())
+                .expect("empty fixture bundle fits");
+            let mut web = Web::new("127.0.0.1:0".parse().expect("loopback address"), bundle, Time::ZERO, Wall::EPOCH);
+            web.submissions = Queue::with_capacity(room);
+            web.iterate(Time::ZERO, Wall::EPOCH);
+            assert_eq!(web.requests.len(), pending, "queued requests with {room} submission slots");
+            assert_eq!(web.submissions.len(), submitted, "Listen submissions with {room} slots");
         }
     }
 }
