@@ -336,9 +336,6 @@ fn memory_env(limits: skein_kv::Limits) -> Env<skein_kv::Limits> {
 #[path = "generated/accounts_v2.rs"]
 pub mod accounts_v2;
 #[rustfmt::skip]
-#[path = "generated/component_v2.rs"]
-pub mod component_v2;
-#[rustfmt::skip]
 #[path = "generated/notes_v1.rs"]
 pub mod notes_v1;
 #[rustfmt::skip]
