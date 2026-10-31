@@ -367,10 +367,8 @@ fn no_secret_is_in_a_connections_debug() {
 fn hidden(debug: &str, secret: &[u8]) {
     assert!(bytes::find(debug.as_bytes(), secret).is_none());
     let mut hex = skein_lib::Writer::new(secret.len().checked_mul(2).unwrap());
-    let digits = b"0123456789abcdef";
     for byte in secret {
-        hex.put(&[*digits.get(usize::from(byte >> 4_u32)).unwrap(), *digits.get(usize::from(byte & 15)).unwrap()])
-            .unwrap();
+        hex.put(&[skein_lib::hex::lower(byte >> 4_u32), skein_lib::hex::lower(byte & 15)]).unwrap();
     }
     assert!(bytes::find(debug.as_bytes(), &hex.finish()).is_none());
     let list = format!("{secret:?}");

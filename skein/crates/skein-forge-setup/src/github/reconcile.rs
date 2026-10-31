@@ -16,7 +16,7 @@ use skein_forge::github::{
     document::{App, Document},
     request::Request,
 };
-use skein_lib::{Queue, Wall};
+use skein_lib::{Decimal, Queue, Wall};
 
 #[derive(Debug)]
 struct Checked {
@@ -93,13 +93,13 @@ impl Reconcile {
         let app = match document(event) {
             Ok(app) => app,
             Err(Why::KeyForm) => return self.stop(b"key", Why::KeyForm),
-            Err(why) => return self.stop(&app::decimal(kept.id()), why),
+            Err(why) => return self.stop(Decimal::of(kept.id()).as_bytes(), why),
         };
         if app.id != kept.id() {
-            return self.stop(&app::decimal(kept.id()), Why::OtherApp);
+            return self.stop(Decimal::of(kept.id()).as_bytes(), Why::OtherApp);
         }
         if item::app_slug(&app.slug, self.given.limits.name_bytes).is_none() {
-            return self.stop(&app::decimal(kept.id()), Why::Unexpected);
+            return self.stop(Decimal::of(kept.id()).as_bytes(), Why::Unexpected);
         }
         let lacking = checks::lacks(&app);
         let child = Hook::new(self.given.forge, kept.clone(), &app.slug, !self.given.read_only);
@@ -199,7 +199,7 @@ pub(crate) fn halt(machine: &mut Reconcile, why: Why, out: &mut Queue<Need>) {
         State::Begin | State::Id => machine.stop(b"id", why),
         State::Key(_) => machine.stop(b"key", why),
         State::Accepted(_) => machine.stop(b"accepted", why),
-        State::App { kept, .. } => machine.stop(&app::decimal(kept.id()), why),
+        State::App { kept, .. } => machine.stop(Decimal::of(kept.id()).as_bytes(), why),
         State::Hook { checked, .. } => machine.stop(&checked.slug, why),
         State::Sweep { .. } => app::stop(machine.given.forge, Stage::Installation, b"installations", why),
         State::Ended => return,
