@@ -172,7 +172,7 @@ impl Core {
         match continuation.phase {
             Phase::AdoptRuns => {
                 assert!(
-                    self.people.start_complete(&Env { now: env.now, wall: env.wall, limits: env.limits.people }),
+                    self.people.start_complete(&env.with(env.limits.people)),
                     "linked people complete after durable Wires"
                 );
                 let _adoption = self.start_ask(Phase::AdoptRuns);
@@ -264,12 +264,7 @@ impl Core {
             return;
         }
         let mut child = Queue::uncapped();
-        tasks::step(
-            &mut self.tasks,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-            tasks::Event::Check,
-            &mut child,
-        );
+        crate::routing::step::step_tasks(self, env, tasks::Event::Check, &mut child);
         self.start_collect_failure();
         if self.start.failure.is_some() {
             return;

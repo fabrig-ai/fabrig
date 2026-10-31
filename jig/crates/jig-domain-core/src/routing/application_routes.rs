@@ -163,12 +163,7 @@ pub(super) fn part(
     let Some(flight) = core.applications.get_mut(&request) else { return empty() };
     assert!(!flight.part, "one synchronous core part at a time");
     let connector = flight.connector;
-    let admitted = people::application_part(
-        &mut core.people,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-        request,
-        ask,
-    );
+    let admitted = people::application_part(&mut core.people, &env.with(env.limits.people), request, ask);
     match admitted {
         Ok(route) => {
             flight.part = true;

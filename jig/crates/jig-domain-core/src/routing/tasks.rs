@@ -59,12 +59,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                 let (event, stubs) = core.person_proposed(reply_to.into_token(), proposal);
                 for stub in stubs {
                     let mut follow = Queue::uncapped();
-                    tasks::step(
-                        &mut core.tasks,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                        tasks::Event::RememberStub { stub },
-                        &mut follow,
-                    );
+                    crate::routing::step::step_tasks(core, env, tasks::Event::RememberStub { stub }, &mut follow);
                     for _ in 0..follow.len() {
                         pending.push(follow.pop().expect("proposal input stub output"));
                     }
@@ -249,9 +244,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                 }
                 if numbers.len() == members {
                     let mut follow = Queue::uncapped();
-                    tasks::step(
-                        &mut core.tasks,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                    crate::routing::step::step_tasks(
+                        core,
+                        env,
                         tasks::Event::RecurringBatch { task, period, numbers: numbers.into_boxed() },
                         &mut follow,
                     );
@@ -294,12 +289,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                     core.restore_replaced_proof(task);
                     out.push(Request::Now(Box::new(Now::DropAssignment { task })));
                     let mut follow = Queue::uncapped();
-                    tasks::step(
-                        &mut core.tasks,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                        tasks::Event::PreparationFailed { task },
-                        &mut follow,
-                    );
+                    crate::routing::step::step_tasks(core, env, tasks::Event::PreparationFailed { task }, &mut follow);
                     for _ in 0..follow.len() {
                         pending.push(follow.pop().expect("writer wait output count"));
                     }
@@ -334,9 +324,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                     continue;
                 };
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                crate::routing::step::step_tasks(
+                    core,
+                    env,
                     tasks::Event::RoutedEscalation { task, revision, holder: next, entry },
                     &mut follow,
                 );
@@ -360,9 +350,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                 };
                 let revision = core.tasks.task(proposer).expect("pending proposer remains live").revision;
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                crate::routing::step::step_tasks(
+                    core,
+                    env,
                     tasks::Event::StalledProposal { proposer, proposal, from: holder, revision, holder: next },
                     &mut follow,
                 );
@@ -385,9 +375,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                 }
                 let revision = core.tasks.task(proposer).expect("pending proposer remains live").revision;
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                crate::routing::step::step_tasks(
+                    core,
+                    env,
                     tasks::Event::StalledProposal { proposer, proposal, from: current, revision, holder: next },
                     &mut follow,
                 );
@@ -428,12 +418,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                     crate::MadeRoute::Internal => {}
                     crate::MadeRoute::Tasks(event) => {
                         let mut follow = Queue::uncapped();
-                        tasks::step(
-                            &mut core.tasks,
-                            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                            *event,
-                            &mut follow,
-                        );
+                        crate::routing::step::step_tasks(core, env, *event, &mut follow);
                         for _ in 0..follow.len() {
                             pending.push(follow.pop().expect("made output count"));
                         }
@@ -441,9 +426,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                     crate::MadeRoute::Person { event, stubs } => {
                         for stub in stubs {
                             let mut follow = Queue::uncapped();
-                            tasks::step(
-                                &mut core.tasks,
-                                &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                            crate::routing::step::step_tasks(
+                                core,
+                                env,
                                 tasks::Event::RememberStub { stub },
                                 &mut follow,
                             );
@@ -456,9 +441,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                     crate::MadeRoute::Delegated { key, tasks, stubs, given } => {
                         for stub in stubs {
                             let mut follow = Queue::uncapped();
-                            tasks::step(
-                                &mut core.tasks,
-                                &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                            crate::routing::step::step_tasks(
+                                core,
+                                env,
                                 tasks::Event::RememberStub { stub },
                                 &mut follow,
                             );
@@ -734,9 +719,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                         drop(core.dependency_results.remove(&task.number));
                         drop(core.transcripts.remove(&task.number));
                         let mut abandoned = Queue::uncapped();
-                        brief::gather_step(
-                            &mut core.brief,
-                            &Env { now: env.now, wall: env.wall, limits: env.limits.brief },
+                        crate::routing::step::step_brief(
+                            core,
+                            env,
                             brief::GatherEvent::Abandon { brief: Token::new(task.number) },
                             &mut abandoned,
                         );
@@ -756,9 +741,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                         }
                         if task.phase == tasks::Phase::Active(tasks::Active::Preparing) {
                             let mut follow = Queue::uncapped();
-                            tasks::step(
-                                &mut core.tasks,
-                                &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                            crate::routing::step::step_tasks(
+                                core,
+                                env,
                                 tasks::Event::PreparationFailed { task: task.number },
                                 &mut follow,
                             );
@@ -929,9 +914,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                     tasks::Party::Task(parent) => {
                         let (kind, words) = result_notice(ending);
                         let mut follow = Queue::uncapped();
-                        tasks::step(
-                            &mut core.tasks,
-                            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                        crate::routing::step::step_tasks(
+                            core,
+                            env,
                             tasks::Event::DelegateResult {
                                 task: parent,
                                 word: tasks::Word {
@@ -977,9 +962,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                     core.restore_replaced_proof(token.raw());
                     out.push(Request::Now(Box::new(Now::DropAssignment { task: token.raw() })));
                     let mut follow = Queue::uncapped();
-                    tasks::step(
-                        &mut core.tasks,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                    crate::routing::step::step_tasks(
+                        core,
+                        env,
                         tasks::Event::PreparationFailed { task: token.raw() },
                         &mut follow,
                     );
@@ -994,9 +979,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                 let message =
                     crate::fresh(&mut core.counters, crate::Family::Message).expect("person stall number admitted");
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                crate::routing::step::step_tasks(
+                    core,
+                    env,
                     tasks::Event::PersonStallNotice { task, message },
                     &mut follow,
                 );
@@ -1009,9 +994,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                 let message = crate::fresh(&mut core.counters, crate::Family::Message)
                     .expect("question reminder number admitted");
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                crate::routing::step::step_tasks(
+                    core,
+                    env,
                     tasks::Event::QuestionOwedNotice { task, message },
                     &mut follow,
                 );
@@ -1028,9 +1013,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                     notices.push(tasks::QuestionNotice { question, message }).expect("bounded question batch");
                 }
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                crate::routing::step::step_tasks(
+                    core,
+                    env,
                     tasks::Event::QuestionEndedNotice { task, notices: notices.into_boxed() },
                     &mut follow,
                 );
@@ -1043,9 +1028,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                 let message =
                     crate::fresh(&mut core.counters, crate::Family::Message).expect("met notice number admitted");
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                crate::routing::step::step_tasks(
+                    core,
+                    env,
                     tasks::Event::MetNotice { task, dependency, removed, by, message },
                     &mut follow,
                 );
@@ -1057,12 +1042,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             tasks::Request::Notify { task, subscription, target, state, words } => {
                 let event = core.notice(task, subscription, target, state, words, env.wall);
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                    event,
-                    &mut follow,
-                );
+                crate::routing::step::step_tasks(core, env, event, &mut follow);
                 for _ in 0..follow.len() {
                     pending.push(follow.pop().expect("notice output count"));
                 }
@@ -1071,12 +1051,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             tasks::Request::Timer { task, subscription } => {
                 let event = core.notice_timer(task, subscription, env.wall);
                 let mut follow = Queue::uncapped();
-                tasks::step(
-                    &mut core.tasks,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                    event,
-                    &mut follow,
-                );
+                crate::routing::step::step_tasks(core, env, event, &mut follow);
                 for _ in 0..follow.len() {
                     pending.push(follow.pop().expect("timer output count"));
                 }
@@ -1100,9 +1075,9 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                 for &connector in core.connectors.as_ref() {
                     let Some(entry) = crate::fresh(&mut core.counters, crate::Family::ConnectorRow) else {
                         let mut follow = Queue::uncapped();
-                        tasks::step(
-                            &mut core.tasks,
-                            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                        crate::routing::step::step_tasks(
+                            core,
+                            env,
                             tasks::Event::Hold { task, why: tasks::Hold::Budget },
                             &mut follow,
                         );
@@ -1168,7 +1143,7 @@ fn route_proposal(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Qu
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
+    crate::routing::step::step_tasks(core, env, event, &mut out);
     tag_task_outputs(core, env, out)
 }
 
@@ -1312,7 +1287,7 @@ pub(super) fn route_tasks(
         event
     };
     let event = question_event(core, event);
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
+    crate::routing::step::step_tasks(core, env, event, &mut out);
     crate::resources::resume(core, work);
     tag_task_outputs(core, env, out)
 }
@@ -1394,7 +1369,7 @@ fn follow(core: &mut Core, env: &Env<Limits>, event: tasks::Event, pending: &mut
         (event, None)
     };
     let mut child = Queue::uncapped();
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
+    crate::routing::step::step_tasks(core, env, event, &mut child);
     for _ in 0..child.len() {
         let request = child.pop().expect("continuation output count");
         if let tasks::Request::ProcedureRefused { .. } = &request

@@ -250,9 +250,9 @@ impl Core {
         }
         self::role(self, &env.limits, project, name.clone(), role);
         let mut out = Queue::uncapped();
-        tasks::step(
-            &mut self.tasks,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        crate::routing::step::step_tasks(
+            self,
+            env,
             tasks::Event::ResourceAccess { project, name, access: task_access(role) },
             &mut out,
         );
