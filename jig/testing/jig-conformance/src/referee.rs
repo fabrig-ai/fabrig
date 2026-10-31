@@ -740,6 +740,7 @@ impl Referee {
                 }
             }
         }
+        self.deletions.retire_receipts(&self.last, &snapshot, &mut self.seen);
         positions::check(&self.last, &snapshot)?;
         self.commit = number;
         for compound in self.compounds.values_mut() {
