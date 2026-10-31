@@ -6,6 +6,7 @@ use skein_lib::List;
 /// A restored record's family, retained for compatibility diagnostics.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RecordKind {
+    Forge,
     Call,
     ProposedEffect,
     Repository,
