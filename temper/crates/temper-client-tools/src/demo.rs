@@ -16,7 +16,7 @@ use temper_client_domain::forge::{
 
 fn text(answer: &StartAnswer, kept: bool, limits: &Limits, out: &mut Text) {
     if kept {
-        out.put(b"kept: demo-start ");
+        out.put(b"kept: playground-start ");
     }
     match answer {
         StartAnswer::EntranceRefused(why) => {
@@ -45,7 +45,7 @@ fn json(answer: &StartAnswer, kept: bool, out: &mut Encoder) {
     if kept {
         out.object_start();
         out.key(b"operation");
-        out.string(b"demo-start");
+        out.string(b"playground-start");
         out.key(b"outcome");
     }
     out.object_start();
@@ -101,7 +101,7 @@ pub(crate) fn print(outcome: &Outcome, as_json: bool, kept: bool, limits: &Limit
         Outcome::Held | Outcome::Limit | Outcome::Unconfirmed | Outcome::NotKept | Outcome::Unsent | Outcome::Lost => {
             let mut operation =
                 render::outcome::Operation::of(&demo::ask(&limits.domain.forge).expect("checked limits"));
-            operation.word = b"demo-start";
+            operation.word = b"playground-start";
             if kept {
                 return jig::Printed {
                     file: jig::FileEnd::Keep,
