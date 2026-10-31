@@ -290,6 +290,18 @@ impl World {
         self.pass();
     }
 
+    /// Drive at most one hundred deadlines until this client has its answer.
+    pub fn run_until_answered(&mut self, client: Token) {
+        const ANSWER_STEPS: u32 = 100;
+        for _ in 0..ANSWER_STEPS {
+            if self.seen[&client].answer.is_some() {
+                return;
+            }
+            self.at(self.next_deadline().expect("provider or root alarm"));
+        }
+        assert!(self.seen[&client].answer.is_some(), "answer within the fixture's step bound");
+    }
+
     /// Advance to one clock point; queued inputs precede root alarms.
     pub fn at(&mut self, now: Time) {
         assert!(now >= self.stage.env.now);

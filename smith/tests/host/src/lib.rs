@@ -228,6 +228,12 @@ impl World {
         self.seen.owner.expect("tree learned Spawn")
     }
 
+    /// Settle a clean process exit and assert that every terminal was handed on.
+    pub fn clean_end(&mut self) {
+        self.cleanup(Some(host::Exit::Code(0)));
+        self.settled();
+    }
+
     /// Settle physical exit, empty tree and EOF in that order. Pending sends,
     /// signals, calls and turns deliberately remain owed to their owners.
     pub fn cleanup(&mut self, exit: Option<smith_host_domain::Exit>) {

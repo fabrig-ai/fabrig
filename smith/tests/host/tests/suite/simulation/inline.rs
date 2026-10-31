@@ -8,6 +8,8 @@ use smith_host_world::{
     inline::{self, World},
 };
 
+const CLIENT: Token = Token::new(1);
+
 fn spawn(world: &mut World, client: u64, job: Job) {
     world.event(parent::Event::Spawn { client: Token::new(client), start: inline::start(client, job) });
 }
@@ -17,14 +19,8 @@ fn an_inline_run_answers_and_its_slot_is_released_after_its_last_completion() {
     let mut world = World::new(311, inline::limits());
     world.auto_ack = false;
     spawn(&mut world, 1, Job::HostTools);
-    for _ in 0..100 {
-        if world.seen[&Token::new(1)].answer.is_some() {
-            break;
-        }
-        let next = world.next_deadline().expect("provider or root alarm");
-        world.at(next);
-    }
-    let seen = &world.seen[&Token::new(1)];
+    world.run_until_answered(CLIENT);
+    let seen = &world.seen[&CLIENT];
     assert!(
         matches!(seen.answer.as_ref().map(|answer| &answer.result), Some(RunResult::Accepted { .. })),
         "{:?}",
@@ -46,18 +42,13 @@ fn a_drop_after_an_answer_releases_held_turns_without_replacing_the_answer() {
     let mut inline = World::new(319, inline::limits());
     inline.auto_ack = false;
     spawn(&mut inline, 1, Job::HostTools);
-    for _ in 0..100 {
-        if inline.seen[&Token::new(1)].answer.is_some() {
-            break;
-        }
-        inline.at(inline.next_deadline().expect("provider or root alarm"));
-    }
-    assert!(inline.seen[&Token::new(1)].answer.is_some(), "native answer");
-    let answer = format!("{:?}", inline.seen[&Token::new(1)].answer);
-    assert!(!inline.seen[&Token::new(1)].turns.is_empty());
+    inline.run_until_answered(CLIENT);
+    assert!(inline.seen[&CLIENT].answer.is_some(), "native answer");
+    let answer = format!("{:?}", inline.seen[&CLIENT].answer);
+    assert!(!inline.seen[&CLIENT].turns.is_empty());
     inline.event(parent::Event::Drop { agent: inline.handle(Token::new(1)) });
-    assert_eq!(format!("{:?}", inline.seen[&Token::new(1)].answer), answer);
-    assert_eq!(inline.seen[&Token::new(1)].fault, None);
+    assert_eq!(format!("{:?}", inline.seen[&CLIENT].answer), answer);
+    assert_eq!(inline.seen[&CLIENT].fault, None);
     inline.settled();
 
     let mut spawned = Spawned::new(319, smith_host_world::limits());
@@ -90,8 +81,8 @@ fn a_late_drop_is_ignored_after_the_ordinary_answer_and_gone() {
         .schedule
         .send(skein_lib::Time::ZERO.saturating_add(skein_lib::Duration::from_secs(10)), parent::Event::Drop { agent });
     world.run();
-    assert!(world.seen[&Token::new(1)].answer.is_some());
-    assert!(world.seen[&Token::new(1)].fault.is_none());
+    assert!(world.seen[&CLIENT].answer.is_some());
+    assert!(world.seen[&CLIENT].fault.is_none());
     world.settled();
 }
 
@@ -101,10 +92,10 @@ fn a_drop_before_the_answer_waits_for_seen_lower_settlement() {
     spawn(&mut world, 1, Job::HostTools);
     assert!(!world.lower.is_empty());
     world.event(parent::Event::Drop { agent: world.handle(Token::new(1)) });
-    assert_eq!(world.seen[&Token::new(1)].fault, Some(host::Fault::Exited));
-    assert!(world.seen[&Token::new(1)].gone.is_none());
+    assert_eq!(world.seen[&CLIENT].fault, Some(host::Fault::Exited));
+    assert!(world.seen[&CLIENT].gone.is_none());
     world.run();
-    assert!(world.seen[&Token::new(1)].answer.is_none());
+    assert!(world.seen[&CLIENT].answer.is_none());
     world.settled();
 }
 
@@ -114,7 +105,7 @@ fn a_drop_asked_at_once_settles_completions_file_operations_and_command_trees() 
     provider.provider_latency(skein_lib::Duration::from_secs(20));
     spawn(&mut provider, 1, Job::HostTools);
     provider.event(parent::Event::Drop { agent: provider.handle(Token::new(1)) });
-    assert!(provider.seen[&Token::new(1)].gone.is_none());
+    assert!(provider.seen[&CLIENT].gone.is_none());
     provider.run();
     provider.settled();
 
@@ -125,22 +116,22 @@ fn a_drop_asked_at_once_settles_completions_file_operations_and_command_trees() 
         guide.pending_machine.iter().any(|(_, _, terminal)| matches!(terminal, smith_inline_agent::Below::Read { .. }))
     );
     guide.event(parent::Event::Drop { agent: guide.handle(Token::new(1)) });
-    assert!(guide.seen[&Token::new(1)].gone.is_none());
+    assert!(guide.seen[&CLIENT].gone.is_none());
     assert_eq!(guide.machine_trace.iter().filter(|request| request.starts_with("cancel")).count(), 1);
     guide.machine_replies();
     guide.run();
     guide.settled();
-    assert!(guide.seen[&Token::new(1)].answer.is_none());
+    assert!(guide.seen[&CLIENT].answer.is_none());
 
     let mut command = child_command_world(324);
     command.event(parent::Event::Drop { agent: command.handle(Token::new(1)) });
-    assert_eq!(command.seen[&Token::new(1)].fault, Some(host::Fault::Exited));
-    assert!(command.seen[&Token::new(1)].gone.is_none());
+    assert_eq!(command.seen[&CLIENT].fault, Some(host::Fault::Exited));
+    assert!(command.seen[&CLIENT].gone.is_none());
     command.tool_terminals = inline::ToolTerminals::Forward;
     command.machine_replies();
     command.run();
     command.settled();
-    assert!(command.seen[&Token::new(1)].answer.is_none());
+    assert!(command.seen[&CLIENT].answer.is_none());
 }
 
 #[test]
@@ -153,15 +144,15 @@ fn an_inline_run_that_ignores_its_cancel_is_dropped_at_its_grace_with_everything
     spawn(&mut world, 1, Job::HostTools);
     world.event(parent::Event::Stop { agent: world.handle(Token::new(1)) });
     world.at(Time::ZERO.saturating_add(Duration::from_secs(4)));
-    assert_eq!(world.seen[&Token::new(1)].fault, None);
+    assert_eq!(world.seen[&CLIENT].fault, None);
     world.at(Time::ZERO.saturating_add(Duration::from_secs(5)));
-    assert_eq!(world.seen[&Token::new(1)].fault, Some(host::Fault::Exited));
-    assert!(world.seen[&Token::new(1)].answer.is_none());
-    assert!(world.seen[&Token::new(1)].gone.is_none(), "provider terminal remains owed");
+    assert_eq!(world.seen[&CLIENT].fault, Some(host::Fault::Exited));
+    assert!(world.seen[&CLIENT].answer.is_none());
+    assert!(world.seen[&CLIENT].gone.is_none(), "provider terminal remains owed");
     assert!(!world.lower.is_empty());
     world.run();
     world.settled();
-    assert!(world.seen[&Token::new(1)].answer.is_none(), "dropped root hears no terminal");
+    assert!(world.seen[&CLIENT].answer.is_none(), "dropped root hears no terminal");
     assert_eq!(
         world
             .observations
@@ -179,9 +170,9 @@ fn an_inline_run_waits_parks_and_resumes_from_its_transcript() {
     world.run();
     world.settled();
     assert!(
-        matches!(world.seen[&Token::new(1)].answer.as_ref().expect("answer").result, RunResult::Parked),
+        matches!(world.seen[&CLIENT].answer.as_ref().expect("answer").result, RunResult::Parked),
         "{:?}",
-        world.seen[&Token::new(1)].answer
+        world.seen[&CLIENT].answer
     );
     let turns = world.history[&Token::new(1)].clone();
     assert!(!turns.is_empty());
@@ -217,11 +208,11 @@ fn an_inline_run_cancelled_mid_turn_answers_cancelled() {
     assert!(!world.lower.is_empty());
     let agent = world.handle(Token::new(1));
     world.event(parent::Event::Stop { agent });
-    assert!(world.seen[&Token::new(1)].gone.is_none(), "cancel still owes provider terminal");
+    assert!(world.seen[&CLIENT].gone.is_none(), "cancel still owes provider terminal");
     world.run();
     world.settled();
     assert!(matches!(
-        world.seen[&Token::new(1)].answer.as_ref().expect("answer").result,
+        world.seen[&CLIENT].answer.as_ref().expect("answer").result,
         RunResult::Failed { failure: RunFailure::Cancelled }
     ));
 }
@@ -241,7 +232,7 @@ fn a_message_past_the_runs_bound_is_refused_typed_by_either_kind() {
         text: vec![b'x'; 63].into(),
     });
     assert_eq!(
-        world.seen[&Token::new(1)].refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+        world.seen[&CLIENT].refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
         [host::MessageRefusal::TooLarge]
     );
     world.run();
@@ -368,7 +359,7 @@ fn two_inline_slots_route_each_roots_requests_to_its_own_slot_under_load() {
         let mut calls = 0;
         for (at, route) in &world.routes {
             match route {
-                Route::Completion { agent, owner, system } if system.windows(cue.len()).any(|part| part == cue) => {
+                Route::Completion { agent, owner, system } if skein_lib::bytes::find(&system, cue).is_some() => {
                     assert_eq!(*agent, handle, "provider right {owner:?} belongs to its script's slot");
                     completions.push(*at);
                 }
@@ -456,7 +447,7 @@ fn an_inline_run_checks_and_delivers_a_change_through_its_host() {
     world.run();
     assert!(
         matches!(
-            world.seen[&Token::new(1)].answer,
+            world.seen[&CLIENT].answer,
             Some(smith_host_domain::Answer { result: smith_host_domain::RunResult::Accepted { .. }, .. })
         ),
         "{}",
@@ -498,7 +489,7 @@ fn an_inline_cancel_waits_for_its_pending_machine_terminal() {
     assert_eq!(world.pending_machine.len(), 1);
     let handle = world.handle(Token::new(1));
     world.event(parent::Event::Stop { agent: handle });
-    assert!(world.seen[&Token::new(1)].gone.is_none());
+    assert!(world.seen[&CLIENT].gone.is_none());
     assert_eq!(world.agent.hosted(), 1);
     world.auto_machine = true;
     world.machine_replies();
@@ -559,8 +550,8 @@ fn an_inline_run_cancels_its_child_command_and_is_gone_once_it_settles() {
     let mut world = child_command_world(85);
     let handle = world.handle(Token::new(1));
     world.event(parent::Event::Stop { agent: handle });
-    assert!(world.seen[&Token::new(1)].answer.is_none(), "the native root also waits for its command terminal");
-    assert!(world.seen[&Token::new(1)].gone.is_none(), "the command's native terminal is held across cancellation");
+    assert!(world.seen[&CLIENT].answer.is_none(), "the native root also waits for its command terminal");
+    assert!(world.seen[&CLIENT].gone.is_none(), "the command's native terminal is held across cancellation");
     assert!(world.machine_trace.iter().any(|request| request.starts_with("cancel")));
     world.tool_terminals = inline::ToolTerminals::Forward;
     world.machine_replies();
@@ -618,7 +609,7 @@ fn an_inline_answer_keeps_its_typed_completion_failure() {
     world.run();
     world.settled();
     let RunResult::Failed { failure: RunFailure::Model(host::ModelFault::Completion { failure, evidence, .. }) } =
-        world.seen[&Token::new(1)].answer.as_ref().expect("answer").result
+        world.seen[&CLIENT].answer.as_ref().expect("answer").result
     else {
         panic!("typed model failure")
     };
@@ -643,7 +634,7 @@ fn an_inline_answer_keeps_its_account_failure() {
         world.run();
         world.settled();
         assert_eq!(
-            world.seen[&Token::new(1)].answer.as_ref().expect("answer").result,
+            world.seen[&CLIENT].answer.as_ref().expect("answer").result,
             RunResult::Failed { failure: RunFailure::Model(expected) },
             "{failure:?}"
         );
