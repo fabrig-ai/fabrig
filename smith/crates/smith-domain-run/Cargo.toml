@@ -12,7 +12,6 @@ fixture = []
 
 [dependencies]
 skein-lib.workspace = true
-smith-charter.workspace = true
 
 [dev-dependencies]
 smith-machine-world.workspace = true

@@ -5252,3 +5252,35 @@ fn a_child_overflow_cancels_run_alarms_while_main_closes() {
         assert!(!harness.domain.is_due(harness.env.now));
     }
 }
+
+#[test]
+fn main_effort_names_obey_the_receiving_bound() {
+    let mut selected = charter();
+    selected.llm.effort = Some(bytes(b"deep"));
+    assert!(matches!(
+        Harness::new(Limits { effort_bytes: 4, ..LIMITS }).start(1, selected)[0],
+        Request::Admitted { .. }
+    ));
+    let mut selected = charter();
+    selected.llm.effort = Some(bytes(b"deep"));
+    assert_eq!(
+        answered(Harness::new(Limits { effort_bytes: 3, ..LIMITS }).start(1, selected)),
+        (1, Answer::Refused(Refusal::Invalid(Invalid::Llm)))
+    );
+}
+
+#[test]
+fn child_effort_names_obey_the_receiving_bound() {
+    let mut selected = agents();
+    selected.models[0].effort = Some(bytes(b"deep"));
+    assert!(matches!(
+        Harness::new(Limits { effort_bytes: 4, ..LIMITS }).start(1, selected)[0],
+        Request::Admitted { .. }
+    ));
+    let mut selected = agents();
+    selected.models[0].effort = Some(bytes(b"deep"));
+    assert_eq!(
+        answered(Harness::new(Limits { effort_bytes: 3, ..LIMITS }).start(1, selected)),
+        (1, Answer::Refused(Refusal::Invalid(Invalid::Llm)))
+    );
+}

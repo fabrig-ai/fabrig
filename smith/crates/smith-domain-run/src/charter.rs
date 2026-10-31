@@ -247,7 +247,7 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
         Ok(()) => {}
         Err(rate) => return Err(Invalid::Price(rate)),
     }
-    if !valid_llm(llm) {
+    if !valid_llm(llm, limits.effort_bytes) {
         return Err(Invalid::Llm);
     }
     let checks = if outcome.change.is_some() || grants.deliver.is_some() { Some(limits.check_timeout) } else { None };
@@ -266,7 +266,7 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
             Ok(()) => {}
             Err(rate) => return Err(Invalid::Price(rate)),
         }
-        if !valid_llm(model) {
+        if !valid_llm(model, limits.effort_bytes) {
             return Err(Invalid::Llm);
         }
     }
@@ -467,9 +467,9 @@ pub(crate) fn cost(charter: &Charter) -> Option<u64> {
 }
 
 /// Whether an LLM declares positive quantities and a positive price unit.
-fn valid_llm(llm: &Llm) -> bool {
+fn valid_llm(llm: &Llm, effort_bytes: u32) -> bool {
     if let Some(effort) = &llm.effort
-        && effort.len() > usize::try_from(smith_charter::CEILINGS.llm_effort_some).expect("effort bound fits usize")
+        && effort.len() > usize::try_from(effort_bytes).expect("effort bound fits usize")
     {
         return false;
     }

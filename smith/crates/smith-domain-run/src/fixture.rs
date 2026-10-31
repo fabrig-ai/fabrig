@@ -15,6 +15,7 @@ pub const SMALL: Limits = Limits {
     room: 0,
     compaction_threshold: [4, 5],
     compaction_material: 0,
+    effort_bytes: 32,
     schema_costs: crate::SchemaCosts::NONE,
     directories: 2,
     directory_name_bytes: 256,

@@ -218,6 +218,7 @@ fn run(inventory: &mut Inventory, limits: &smith_domain::run::Limits) -> Option<
         compaction_threshold,
         compaction_material,
         schema_costs: _,
+        effort_bytes: _,
         directories,
         directory_name_bytes,
         host_path_bytes,
