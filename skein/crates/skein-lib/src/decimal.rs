@@ -1,5 +1,6 @@
 //! Counts written as text (programming-model.md, section 8): the decimal digits
 //! of a number, for a line a step writes into its own bytes without formatting.
+//! It reads counts from ASCII decimal digits too.
 
 /// The decimal digits of a `u64`, without leading zeros, `0` for zero: what a
 /// step puts into a [`Writer`](crate::Writer) to write a count, after
@@ -29,6 +30,23 @@ impl Decimal {
             rest = rest.checked_div(10).unwrap_or(0);
         }
         Decimal { digits, first }
+    }
+
+    /// `1*DIGIT` as a `u64`: `None` for empty input, a byte that is not an
+    /// ASCII digit, or a value past `u64::MAX`.
+    #[must_use]
+    pub fn parse(digits: &[u8]) -> Option<u64> {
+        if digits.is_empty() {
+            return None;
+        }
+        let mut value = 0_u64;
+        for &byte in digits {
+            if !byte.is_ascii_digit() {
+                return None;
+            }
+            value = value.checked_mul(10)?.checked_add(u64::from(byte.saturating_sub(b'0')))?;
+        }
+        Some(value)
     }
 
     /// The digits, most significant first.

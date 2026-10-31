@@ -1,6 +1,36 @@
 //! Time, deadlines and randomness (lib.md, 8).
 
-use crate::{Deadlines, Duration, Rng, Time, Wall};
+use crate::{Deadlines, Duration, Rng, Time, Wall, earliest};
+
+#[test]
+fn earliest_is_absent_when_both_deadlines_are_absent() {
+    assert_eq!(earliest(None, None), None);
+}
+
+#[test]
+fn earliest_keeps_the_only_left_deadline() {
+    assert_eq!(earliest(Some(at(10)), None), Some(at(10)));
+}
+
+#[test]
+fn earliest_keeps_the_only_right_deadline() {
+    assert_eq!(earliest(None, Some(at(10))), Some(at(10)));
+}
+
+#[test]
+fn earliest_selects_the_earlier_left_deadline() {
+    assert_eq!(earliest(Some(at(10)), Some(at(20))), Some(at(10)));
+}
+
+#[test]
+fn earliest_selects_the_earlier_right_deadline() {
+    assert_eq!(earliest(Some(at(20)), Some(at(10))), Some(at(10)));
+}
+
+#[test]
+fn earliest_keeps_equal_deadlines() {
+    assert_eq!(earliest(Some(at(10)), Some(at(10))), Some(at(10)));
+}
 
 #[test]
 fn arithmetic_is_checked_or_saturating() {

@@ -95,6 +95,11 @@ impl<T> Queue<T> {
         self.items.pop_front()
     }
 
+    /// Drops every item, keeping the storage it has grown.
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
     /// The items, oldest first.
     #[must_use]
     pub fn iter(&self) -> vec_deque::Iter<'_, T> {
