@@ -89,6 +89,16 @@ fn explicit_uses_replace_defaults_and_never_bypass_plan_rules() {
 }
 
 #[test]
+fn a_project_only_key_does_not_pay_for_a_persons_pool_in_that_project() {
+    let (core, _) = prepared(false, accounts::Holder::Deployment, Some(vec![Use::Project(PROJECT)]));
+    let pool = tasks::Funder::Pool { project: PROJECT, person: ALICE, period: 1 };
+    let payer = core.tasks.prospective_payer(pool, &[]).expect("a named pool has a financial payer");
+    assert_eq!(payer, tasks::Payer::Party(ALICE));
+    assert!(!serves(&core, crate::coverage::payer(payer)));
+    assert!(serves(&core, Use::Project(PROJECT)));
+}
+
+#[test]
 fn plan_coverage_rechecks_current_project_membership() {
     use accounts::{Holder, Use};
     let (mut core, env) = prepared(true, Holder::Party(ALICE), Some(vec![Use::Project(PROJECT), Use::Party(SERVICE)]));
