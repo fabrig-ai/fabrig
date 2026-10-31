@@ -294,7 +294,6 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
         domain::Ask::RemoveProject { project } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
@@ -514,7 +513,6 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
     })
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask, wire::Problem> {
     Ok(match value {
         wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject { project: value.project() },

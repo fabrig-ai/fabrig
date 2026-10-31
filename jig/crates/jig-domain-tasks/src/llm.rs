@@ -76,7 +76,7 @@ pub struct CharterModels {
 /// Whether `choice` has the shape a task keeps: its sub-agents at most `MODELS`.
 #[must_use]
 pub(crate) fn valid_shape(choice: &LlmChoice) -> bool {
-    choice.subagents.len() <= usize::try_from(MODELS).expect("u32 fits usize")
+    choice.subagents.len() <= skein_lib::length::usize_of(MODELS)
 }
 
 /// Whether `new`'s choice, if any, has the shape a task keeps; a recurrence checks the rest.

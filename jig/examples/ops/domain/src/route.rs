@@ -26,32 +26,21 @@ pub(crate) fn work(
     match item {
         Work::Event(event) => event_in(domain, env, decision, event, work),
         Work::Core(event) => {
-            let requests =
-                core::step(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core }, event);
+            let requests = core::step(&mut domain.core, &env.with(env.limits.core), event);
             core_out(domain, env, decision, requests, work);
         }
         Work::Effect { owner, origin, effect } => effect_start(domain, env, decision, owner, origin, effect, work),
         Work::Finish => {}
         Work::ResumeFleet => {
-            let requests =
-                core::resume_fleet(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core });
+            let requests = core::resume_fleet(&mut domain.core, &env.with(env.limits.core));
             core_out(domain, env, decision, requests, work);
             let mut hub_out = Queue::uncapped();
-            host::resume(
-                &mut domain.host,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.host },
-                &mut hub_out,
-            );
+            host::resume(&mut domain.host, &env.with(env.limits.host), &mut hub_out);
             crate::link::host_out(domain, env, decision, &mut hub_out, work);
         }
         Work::Infrastructure(event) => {
             let mut out = Queue::uncapped();
-            infrastructure::step(
-                &mut domain.infrastructure,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
-                event,
-                &mut out,
-            );
+            infrastructure::step(&mut domain.infrastructure, &env.with(env.limits.infrastructure), event, &mut out);
             for _ in 0..out.len() {
                 let request = out.pop().expect("connector output count");
                 connector_out(domain, env, decision, ConnectorRequest::Infrastructure(request), work);
@@ -59,12 +48,7 @@ pub(crate) fn work(
         }
         Work::Observability(event) => {
             let mut out = Queue::uncapped();
-            observability::step(
-                &mut domain.observability,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
-                event,
-                &mut out,
-            );
+            observability::step(&mut domain.observability, &env.with(env.limits.observability), event, &mut out);
             for _ in 0..out.len() {
                 let request = out.pop().expect("connector output count");
                 connector_out(domain, env, decision, ConnectorRequest::Observability(request), work);
@@ -72,12 +56,7 @@ pub(crate) fn work(
         }
         Work::Host(event) => {
             let mut out = Queue::uncapped();
-            host::step(
-                &mut domain.host,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.host },
-                event,
-                &mut out,
-            );
+            host::step(&mut domain.host, &env.with(env.limits.host), event, &mut out);
             crate::link::host_out(domain, env, decision, &mut out, work);
         }
         Work::Start(action) => crate::restart::route(domain, env, decision, action, work),
@@ -96,7 +75,7 @@ fn effect_start(
 ) {
     let mut requests = core::step(
         &mut domain.core,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+        &env.with(env.limits.core),
         core::Event::EffectStart {
             owner,
             connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
@@ -197,11 +176,7 @@ fn event_in(
                 if !domain.core.stopping() {
                     domain.start.waiting = false;
                     let mut out = Queue::uncapped();
-                    let action = domain.core.start_resume(
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                        continuation,
-                        &mut out,
-                    );
+                    let action = domain.core.start_resume(&env.with(env.limits.core), continuation, &mut out);
                     core_out(domain, env, decision, out, work);
                     work.push(Work::Start(action));
                 }
@@ -236,18 +211,13 @@ fn event_in(
             work.push(Work::Effect { owner, origin, effect });
         }
         Event::Timer(timer) => {
-            let requests =
-                core::fire(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core }, timer);
+            let requests = core::fire(&mut domain.core, &env.with(env.limits.core), timer);
             core_out(domain, env, decision, requests, work);
         }
         Event::TurnTimer => crate::link::fire(domain, env, decision, work),
         Event::InfrastructureTimer => {
             let mut out = Queue::uncapped();
-            infrastructure::fire(
-                &mut domain.infrastructure,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
-                &mut out,
-            );
+            infrastructure::fire(&mut domain.infrastructure, &env.with(env.limits.infrastructure), &mut out);
             for _ in 0..out.len() {
                 let request = out.pop().expect("connector output count");
                 connector_out(domain, env, decision, ConnectorRequest::Infrastructure(request), work);
@@ -255,11 +225,7 @@ fn event_in(
         }
         Event::ObservabilityTimer => {
             let mut out = Queue::uncapped();
-            observability::fire(
-                &mut domain.observability,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
-                &mut out,
-            );
+            observability::fire(&mut domain.observability, &env.with(env.limits.observability), &mut out);
             for _ in 0..out.len() {
                 let request = out.pop().expect("connector output count");
                 connector_out(domain, env, decision, ConnectorRequest::Observability(request), work);
@@ -710,7 +676,6 @@ fn core_ask(
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates this child boundary")]
-#[expect(clippy::manual_map, reason = "step code copies owner scope without closure-taking methods")]
 fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connector::Ask, work: &mut Queue<Work>) {
     let destination = jig_ops_domain_connectors::connector(number);
     match (destination, ask) {

@@ -282,7 +282,7 @@ pub(crate) fn named_propose(
     as_holder: bool,
     admitted: &mut Option<Token>,
 ) -> Queue<Request> {
-    if reason.len() > usize::try_from(env.limits.tasks.message_bytes).expect("u32 fits usize") {
+    if reason.len() > skein_lib::length::usize_of(env.limits.tasks.message_bytes) {
         return proposal_refused(core, to, key, tasks::Refusal::Read);
     }
     let Some(context) = core.tasks.delegation(key.task) else {

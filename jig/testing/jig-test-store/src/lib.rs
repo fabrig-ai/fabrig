@@ -1,6 +1,7 @@
 //! The test application's store family (protocol/store.md, 12 and 15).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
 use jig_test_connector as connector;

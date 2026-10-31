@@ -53,7 +53,7 @@ pub(super) fn valid_adoption(limits: &Limits, adoption: &crate::Adoption) -> boo
         let Some(next) = bytes.checked_add(option.len()) else { return false };
         bytes = next;
     }
-    !adoption.resource.path.is_empty() && bytes <= usize::try_from(limits.amendment_bytes).expect("u32 fits usize")
+    !adoption.resource.path.is_empty() && bytes <= skein_lib::length::usize_of(limits.amendment_bytes)
 }
 
 pub(super) fn note_pattern_bytes(pattern: &crate::Pattern) -> Option<usize> {
@@ -107,13 +107,13 @@ fn valid_note(limits: &Limits, name: u64, scope: &crate::NoteScope, change: &cra
         }
     };
     match scope_bytes.checked_add(change_bytes) {
-        Some(bytes) => bytes <= usize::try_from(limits.amendment_bytes).expect("u32 fits usize"),
+        Some(bytes) => bytes <= skein_lib::length::usize_of(limits.amendment_bytes),
         None => false,
     }
 }
 
 fn valid_person_result(limits: &Limits, result: &crate::PersonResult) -> bool {
-    let bound = usize::try_from(limits.words).expect("u32 fits usize");
+    let bound = skein_lib::length::usize_of(limits.words);
     match result {
         crate::PersonResult::Report { words } | crate::PersonResult::Verdict { words, .. } => words.len() <= bound,
         crate::PersonResult::Failure { reason } => reason.len() <= bound,
@@ -144,9 +144,9 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
             crate::program_name(name)
         }
         Ask::AccountChange { change: crate::AccountChange::SetUses { uses: Some(uses), .. }, .. } => {
-            uses.len() <= usize::try_from(crate::USES).expect("account uses fit usize")
+            uses.len() <= skein_lib::length::usize_of(crate::USES)
                 && match uses.len().checked_mul(size_of::<crate::Use>()) {
-                    Some(bytes) => bytes <= usize::try_from(limits.words).expect("word bound fits usize"),
+                    Some(bytes) => bytes <= skein_lib::length::usize_of(limits.words),
                     None => false,
                 }
         }
@@ -163,11 +163,11 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                 return false;
             };
             !name.is_empty()
-                && name.len() <= usize::try_from(limits.words).expect("u32 fits usize")
-                && bytes <= usize::try_from(limits.identity_bytes).expect("u32 fits usize")
+                && name.len() <= skein_lib::length::usize_of(limits.words)
+                && bytes <= skein_lib::length::usize_of(limits.identity_bytes)
         }
         Ask::Move { task, reason, .. } | Ask::Cancel { task, reason, .. } => {
-            *task != 0 && reason.len() <= usize::try_from(limits.words).expect("u32 fits usize")
+            *task != 0 && reason.len() <= skein_lib::length::usize_of(limits.words)
         }
         Ask::Lift { hold, .. } => *hold != 0,
         Ask::TakePerson { task, .. }
@@ -176,7 +176,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         | Ask::Release { task, .. } => *task != 0,
         Ask::AnswerPerson { task, result, .. } => *task != 0 && valid_person_result(limits, result),
         Ask::Adopt { adoption, .. } => valid_adoption(limits, adoption),
-        Ask::SetRoles { holdings, .. } => holdings.len() <= usize::try_from(limits.holdings).expect("u32 fits usize"),
+        Ask::SetRoles { holdings, .. } => holdings.len() <= skein_lib::length::usize_of(limits.holdings),
         Ask::Rename { name, .. } | Ask::MakeProject { name, .. } => name.len() <= crate::NAME_BYTES,
         Ask::ChangePolicy { change, .. } => match crate::policy_change_bytes(change) {
             Some(bytes) => bytes <= u64::from(limits.amendment_bytes),
@@ -185,25 +185,25 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         Ask::SetPool { person, .. } => *person != 0,
         Ask::Create { batch, .. } => crate::batch::valid(limits, batch),
         Ask::Propose { action: crate::Action::Batch(batch), reason, .. } => {
-            crate::batch::valid(limits, batch) && reason.len() <= usize::try_from(limits.words).expect("u32 fits usize")
+            crate::batch::valid(limits, batch) && reason.len() <= skein_lib::length::usize_of(limits.words)
         }
         Ask::Propose { action: crate::Action::Amend { task, amendment, .. }, reason, .. } => {
             *task != 0
-                && reason.len() <= usize::try_from(limits.words).expect("u32 fits usize")
+                && reason.len() <= skein_lib::length::usize_of(limits.words)
                 && crate::amendment::valid(limits, amendment)
         }
         Ask::Propose { project, action: crate::Action::Settings { .. }, reason } => {
-            *project == crate::DEPLOYMENT && reason.len() <= usize::try_from(limits.words).expect("u32 fits usize")
+            *project == crate::DEPLOYMENT && reason.len() <= skein_lib::length::usize_of(limits.words)
         }
         Ask::Withdraw { proposal, .. } => *proposal != 0,
         Ask::Say { task, words, .. } => {
-            *task != 0 && !words.is_empty() && words.len() <= usize::try_from(limits.words).expect("u32 fits usize")
+            *task != 0 && !words.is_empty() && words.len() <= skein_lib::length::usize_of(limits.words)
         }
         Ask::AnswerQuestion { task, question, words, .. } => {
             *task != 0
                 && *question != 0
                 && !words.is_empty()
-                && words.len() <= usize::try_from(limits.words).expect("u32 fits usize")
+                && words.len() <= skein_lib::length::usize_of(limits.words)
         }
         Ask::Amend { task, amendment, .. } => *task != 0 && crate::amendment::valid(limits, amendment),
         Ask::DecideEscalation { task, revision, decision, .. } => {
@@ -212,7 +212,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                 && match decision {
                     crate::EscalationDecision::Release | crate::EscalationDecision::Pass => true,
                     crate::EscalationDecision::Reject { reason } => {
-                        reason.len() <= usize::try_from(limits.words).expect("u32 fits usize")
+                        reason.len() <= skein_lib::length::usize_of(limits.words)
                     }
                 }
         }
@@ -223,7 +223,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                 && match decision {
                     crate::ProposalDecision::Accept | crate::ProposalDecision::Pass => true,
                     crate::ProposalDecision::Reject { reason } => {
-                        reason.len() <= usize::try_from(limits.words).expect("u32 fits usize")
+                        reason.len() <= skein_lib::length::usize_of(limits.words)
                     }
                 }
         }

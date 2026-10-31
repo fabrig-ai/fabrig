@@ -65,7 +65,6 @@ pub(super) fn funding(
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code uses exhaustive matches, without closures or function pointers")]
 pub(super) fn read_funding(value: wire::FundingRecord) -> domain::FundingRecord {
     let wire::FundingRecordParts { period, funder, parent, numbers, made, closed } = value.into_parts();
     let period = match period {
@@ -89,14 +88,12 @@ pub(super) fn read_funding(value: wire::FundingRecord) -> domain::FundingRecord 
         closed,
     }
 }
-#[expect(clippy::manual_map, reason = "step code uses exhaustive matches, without closures or function pointers")]
 pub(super) fn wall(value: Option<Wall>) -> Option<u64> {
     match value {
         Some(value) => Some(value.as_nanos()),
         None => None,
     }
 }
-#[expect(clippy::manual_map, reason = "step code uses exhaustive matches, without closures or function pointers")]
 pub(super) fn read_wall(value: Option<u64>) -> Option<Wall> {
     match value {
         Some(value) => Some(Wall::from_nanos(value)),
@@ -114,7 +111,7 @@ pub(super) fn name(value: &domain::Name, limits: &wire::Limits) -> Result<wire::
             return Err(name_problem());
         }
     }
-    if bytes > usize::try_from(limits.segment_bytes).expect("limit fits usize") {
+    if bytes > skein_lib::length::usize_of(limits.segment_bytes) {
         return Err(name_problem());
     }
     wire::Name::new(limits, wire::NameParts { connector: *connector, path: members })
@@ -128,7 +125,7 @@ pub(super) fn read_name(value: wire::Name, limits: &wire::Limits) -> Result<doma
         bytes = bytes.saturating_add(segment.len());
         members.push(segment).expect("same number of segments");
     }
-    if bytes > usize::try_from(limits.segment_bytes).expect("limit fits usize") {
+    if bytes > skein_lib::length::usize_of(limits.segment_bytes) {
         return Err(name_problem());
     }
     Ok(domain::Name { connector, path: members.into_boxed() })
@@ -391,7 +388,7 @@ pub fn spec(value: &domain::Spec, limits: &wire::Limits) -> Result<wire::Spec, w
             return Err(problem(wire::Path::SpecParameters));
         }
     }
-    if bytes > usize::try_from(limits.spec_words).expect("limit fits usize") {
+    if bytes > skein_lib::length::usize_of(limits.spec_words) {
         return Err(problem(wire::Path::SpecWords));
     }
     let mut references = List::with_capacity(limits.spec_inputs);
@@ -419,7 +416,7 @@ pub fn read_spec(value: wire::Spec, limits: &wire::Limits) -> Result<domain::Spe
         }
         members.push(item).expect("same number of parameters");
     }
-    if bytes > usize::try_from(limits.spec_words).expect("limit fits usize") {
+    if bytes > skein_lib::length::usize_of(limits.spec_words) {
         return Err(problem(wire::Path::SpecWords));
     }
     let mut references = List::with_capacity(inputs.len());
@@ -445,7 +442,7 @@ pub fn part(value: &domain::Part, limits: &wire::Limits) -> Result<wire::Part, w
                     return Err(problem(wire::Path::PartPathSegments));
                 }
             }
-            if bytes > usize::try_from(limits.part_segment_bytes).expect("limit fits usize") {
+            if bytes > skein_lib::length::usize_of(limits.part_segment_bytes) {
                 return Err(problem(wire::Path::PartPathSegments));
             }
             wire::PartKey::Path(wire::PartPath::new(limits, wire::PartPathParts { segments: members })?)
@@ -467,7 +464,7 @@ pub fn read_part(value: wire::Part, limits: &wire::Limits) -> Result<domain::Par
                 bytes = bytes.saturating_add(segment.len());
                 members.push(segment).expect("same number of segments");
             }
-            if bytes > usize::try_from(limits.part_segment_bytes).expect("limit fits usize") {
+            if bytes > skein_lib::length::usize_of(limits.part_segment_bytes) {
                 return Err(problem(wire::Path::PartPathSegments));
             }
             domain::PartKey::Path(members)
@@ -709,7 +706,7 @@ fn check_authority(value: &domain::Authority, limits: &wire::Limits) -> Result<(
     for scope in &value.note_resources {
         bytes = bytes.saturating_add(pattern_bytes(&scope.pattern));
     }
-    if bytes > usize::try_from(limits.authority_segment_bytes).expect("limit fits usize") {
+    if bytes > skein_lib::length::usize_of(limits.authority_segment_bytes) {
         return Err(problem(wire::Path::AuthorityGrants));
     }
     Ok(())
@@ -725,25 +722,24 @@ fn pattern_bytes(value: &domain::Pattern) -> usize {
 }
 
 fn check_contract(value: &domain::Contract, limits: &wire::Limits) -> Result<(), wire::Problem> {
-    let bound = usize::try_from(limits.field_rule_name).expect("limit fits usize");
+    let bound = skein_lib::length::usize_of(limits.field_rule_name);
     match value {
         domain::Contract::Report { words } => {
-            if usize::try_from(*words).expect("u32 fits usize") > bound {
+            if skein_lib::length::usize_of(*words) > bound {
                 return Err(problem(wire::Path::ReportWords));
             }
         }
         domain::Contract::Change { words, .. } => {
-            if usize::try_from(*words).expect("u32 fits usize") > bound {
+            if skein_lib::length::usize_of(*words) > bound {
                 return Err(problem(wire::Path::ChangeContractWords));
             }
         }
         domain::Contract::Verdict { choices } => {
             for choice in choices {
-                let mut bytes = usize::try_from(choice.words).expect("u32 fits usize");
+                let mut bytes = skein_lib::length::usize_of(choice.words);
                 for field in &choice.fields {
-                    bytes = bytes
-                        .saturating_add(field.name.len())
-                        .saturating_add(usize::try_from(field.max).expect("u32 fits usize"));
+                    bytes =
+                        bytes.saturating_add(field.name.len()).saturating_add(skein_lib::length::usize_of(field.max));
                 }
                 if bytes > bound {
                     return Err(problem(wire::Path::VerdictFields));

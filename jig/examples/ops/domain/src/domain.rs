@@ -83,7 +83,7 @@ impl Domain {
         assert!(limits.routes > 0, "nonempty route");
         assert!(limits.host.slots == limits.core.fleet.engine_slots, "engine slot agreement");
         assert!(
-            config.charter_endpoints.len() <= usize::try_from(limits.endpoints).expect("endpoint count"),
+            config.charter_endpoints.len() <= skein_lib::length::usize_of(limits.endpoints),
             "bounded codec endpoints"
         );
         for endpoint in &config.charter_endpoints {
@@ -228,11 +228,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::Store(Store::Committed { number, fill }) => {
             domain.journal.committed(number);
             if domain.ready() {
-                let _filled = core::step(
-                    &mut domain.core,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                    core::Event::Fill { bytes: fill },
-                );
+                let _filled =
+                    core::step(&mut domain.core, &env.with(env.limits.core), core::Event::Fill { bytes: fill });
             } else {
                 domain.start.fill = Some(fill);
             }
@@ -293,10 +290,7 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     break;
                 }
                 // Coalesce projections only after ordinary hand-offs quiesce.
-                let requests = core::finish_decision(
-                    &mut domain.core,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                );
+                let requests = core::finish_decision(&mut domain.core, &env.with(env.limits.core));
                 crate::route::core_out(domain, env, &mut decision, requests, &mut work);
                 let Some(next) = work.pop() else { break };
                 next

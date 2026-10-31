@@ -139,7 +139,7 @@ fn a_fit_refusal_names_the_stored_projection_key() {
     let mut row = goal(Box::new([]));
     let core::ProjectionRecord::Goal { goal, .. } = &mut row else { unreachable!() };
     let limit = h.env.limits.tasks.spec_bytes;
-    goal.words = vec![b'x'; usize::try_from(limit + 1).expect("fixture bytes")].into_boxed_slice();
+    goal.words = vec![b'x'; skein_lib::length::usize_of(limit + 1)].into_boxed_slice();
     let key = core::Key::Core(core::CoreKey::Projection(row.key()));
     assert_eq!(h.core.restore(&h.env, core::Record::Core(core::CoreRecord::Projection(row))), core::Restore::Refused);
     let expected = core::start::Failure::LiveSet {

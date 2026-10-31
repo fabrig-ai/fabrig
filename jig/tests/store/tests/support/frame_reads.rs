@@ -188,7 +188,7 @@ pub(crate) fn decode(
             }
             file::Request::ReadAt { owner, offset, max, .. } => {
                 let start = usize::try_from(offset).expect("offset");
-                let end = start.saturating_add(usize::try_from(max).expect("max")).min(raw.len());
+                let end = start.saturating_add(skein_lib::length::usize_of(max)).min(raw.len());
                 file::Event::Read { owner, bytes: raw.get(start..end).unwrap_or_default().into() }
             }
             other @ (file::Request::Lock { .. }

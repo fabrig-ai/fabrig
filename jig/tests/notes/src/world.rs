@@ -141,7 +141,7 @@ impl World {
             }
             if !writes.is_empty() {
                 if let Intent::DropProject { .. } = intent {
-                    assert!(writes.len() <= usize::try_from(self.limits.load_rows).expect("page bound fits"));
+                    assert!(writes.len() <= skein_lib::length::usize_of(self.limits.load_rows));
                 }
                 self.referee.before_commit(&self.store, &writes, &intent);
                 for write in writes {
@@ -301,9 +301,7 @@ pub fn task_entry(name: u64, scope: Scope, description: &[u8], body: &[u8], task
 /// A single scope in a bounded list.
 #[must_use]
 pub fn one_scope(scope: Scope) -> List<Scope> {
-    let mut scopes = List::with_capacity(1);
-    scopes.push(scope).expect("one scope fits");
-    scopes
+    List::from_boxed(Box::new([scope]))
 }
 
 /// A party's correction at the revision seen.

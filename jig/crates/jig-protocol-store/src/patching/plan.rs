@@ -80,7 +80,7 @@ pub(crate) fn set(sets: &PatchSets, owner: Owner) -> Option<&PatchSet> {
 }
 pub(crate) fn text(set: &PatchSet, patch: u32) -> Result<&'static str, Unplanned> {
     let ix = patch.checked_sub(1).ok_or(Unplanned { owner: set.owner, patch })?;
-    match set.patches.get(usize::try_from(ix).expect("u32 fits usize")) {
+    match set.patches.get(skein_lib::length::usize_of(ix)) {
         Some(text) => Ok(text),
         None => Err(Unplanned { owner: set.owner, patch }),
     }
@@ -91,8 +91,8 @@ fn read(set: &PatchSet, patch: u32) -> Result<Header, Unplanned> {
         return Err(Unplanned { owner: set.owner, patch });
     };
     let span = head.owner();
-    let start = usize::try_from(span.start).expect("text span fits usize");
-    let end = usize::try_from(span.end).expect("text span fits usize");
+    let start = skein_lib::length::usize_of(span.start);
+    let end = skein_lib::length::usize_of(span.end);
     if text.get(start..end) != Some(set.name.as_bytes()) || head.level() != patch {
         return Err(Unplanned { owner: set.owner, patch });
     }
@@ -103,7 +103,7 @@ fn read(set: &PatchSet, patch: u32) -> Result<Header, Unplanned> {
 /// refused as patch 0. Judged before the plan and before a first start writes.
 pub(crate) fn bounds(sets: &PatchSets) -> Result<(), Unplanned> {
     let ceilings = &crate::component_v3::CEILINGS;
-    let name = usize::try_from(ceilings.count_family).expect("family name ceiling fits usize");
+    let name = skein_lib::length::usize_of(ceilings.count_family);
     let mut families = 0_u32;
     for (index, set) in sets.sets.iter().enumerate() {
         for previous in sets.sets.get(..index).expect("earlier sets") {

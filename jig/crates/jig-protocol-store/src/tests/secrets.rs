@@ -727,7 +727,7 @@ fn a_credential_replace_states_the_original_payloads_digest() {
             value: SecretValue::Digest { expiry: EXPIRY, digest: DIGEST },
         },
     );
-    let mut original = skein_lib::Writer::new(usize::try_from(DIGEST_ROW_BYTES - 2).expect("former payload"));
+    let mut original = skein_lib::Writer::new(skein_lib::length::usize_of(DIGEST_ROW_BYTES - 2));
     original.put(&EXPIRY.to_be_bytes()).expect("expiry");
     original.put(&DIGEST).expect("digest");
     let replaces = skein_lib::sha256::digest(&original.finish());

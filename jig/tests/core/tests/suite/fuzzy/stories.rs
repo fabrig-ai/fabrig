@@ -95,16 +95,16 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
                 };
                 children.push(numbers[0].task);
             }
-            assert_eq!(world.assignments.len(), 1 + usize::try_from(initial).expect("small pool"));
+            assert_eq!(world.assignments.len(), 1 + skein_lib::length::usize_of(initial));
             pool(&mut world, 0);
-            for child in children.iter().take(usize::try_from(initial).expect("small pool")) {
+            for child in children.iter().take(skein_lib::length::usize_of(initial)) {
                 world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
                 finish(&mut world, *child);
-                assert_eq!(world.assignments.len(), 1 + usize::try_from(initial).expect("small pool"));
+                assert_eq!(world.assignments.len(), 1 + skein_lib::length::usize_of(initial));
                 world.release_commits();
             }
             pool(&mut world, 1);
-            for child in children.iter().skip(usize::try_from(initial).expect("small pool")) {
+            for child in children.iter().skip(skein_lib::length::usize_of(initial)) {
                 finish(&mut world, *child);
             }
             finish(&mut world, parent.0);

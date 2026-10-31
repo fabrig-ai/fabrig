@@ -104,7 +104,7 @@ fn stored_people_bytes_keep_the_outer_key_and_bound() {
         identity: people::Identity {
             key: people::IdentityKey {
                 provider: 0,
-                subject: vec![b'x'; usize::try_from(held).expect("identity fixture fits usize")].into_boxed_slice(),
+                subject: vec![b'x'; skein_lib::length::usize_of(held)].into_boxed_slice(),
             },
             login: Box::new([]),
             name: Box::new([]),

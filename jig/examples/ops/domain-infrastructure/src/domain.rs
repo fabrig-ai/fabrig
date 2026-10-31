@@ -449,8 +449,6 @@ fn make(domain: &mut Domain, env: &Env<Limits>, key: Key, out: &mut Queue<Reques
         out.push(Request::System(SystemRequest::Apply { key, attempt: entry.attempt, effect: entry.effect.clone() }));
     }
 }
-
-#[expect(clippy::manual_map, reason = "step code uses no closure-taking methods")]
 fn settled(domain: &mut Domain, key: Key, outcome: Outcome, out: &mut Queue<Request>) {
     let Some(entry) = domain.effects.remove(&key) else {
         return;
@@ -1114,7 +1112,6 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 /// Earliest absolute retry or procedure deadline in the world's clock domain.
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code uses no closure-taking methods")]
 pub fn next_deadline(domain: &Domain) -> Option<Time> {
     if domain.restoring {
         return None;

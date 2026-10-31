@@ -379,13 +379,12 @@ fn control(world: &mut World, task: u64, control: Control) {
 
 fn compound(world: &mut World, operations: Vec<jig_domain_tasks::Operation>, seen: &mut BTreeSet<Reached>) {
     let mut amended = false;
-    let mut staged = skein_lib::List::with_capacity(u32::try_from(operations.len()).expect("small draw"));
-    for operation in operations {
+    for operation in &operations {
         if matches!(operation, jig_domain_tasks::Operation::Amend { .. }) {
             amended = true;
         }
-        staged.push(operation).expect("drawn compound bound");
     }
+    let staged = skein_lib::List::from_boxed(operations.into_boxed_slice());
     let reply_to = world.to();
     let call = reply_to.into_token();
     world.send(Event::Compound {

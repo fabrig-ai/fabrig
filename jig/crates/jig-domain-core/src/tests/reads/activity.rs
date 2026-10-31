@@ -101,7 +101,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
     let mut words_out = Queue::uncapped();
     tasks::step(
         &mut core.tasks,
-        &Env { now: env.now, wall: env.wall, limits: limits.tasks },
+        &env.with(limits.tasks),
         tasks::Event::Message { reply_to: to(), project: 1, task: 1, word: word.clone() },
         &mut words_out,
     );

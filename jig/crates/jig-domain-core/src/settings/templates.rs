@@ -84,9 +84,7 @@ pub fn valid_executor(
         }
     };
     let Some(choice) = &template.llm else { return true };
-    if choice.subagents.len() > usize::try_from(jig_domain_tasks::MODELS).expect("model count")
-        || !takes(models, choice.main)
-    {
+    if choice.subagents.len() > skein_lib::length::usize_of(jig_domain_tasks::MODELS) || !takes(models, choice.main) {
         return false;
     }
     for chosen in &choice.subagents {
@@ -168,7 +166,7 @@ pub(crate) fn valid_current_executor(
         },
     };
     let Some(choice) = &template.llm else { return true };
-    if choice.subagents.len() > usize::try_from(jig_domain_tasks::MODELS).expect("models bound")
+    if choice.subagents.len() > skein_lib::length::usize_of(jig_domain_tasks::MODELS)
         || !takes(&settings.models, choice.main)
     {
         return false;

@@ -17,7 +17,7 @@ pub(crate) fn wires(wires: &[crate::Wire]) -> Box<[u8]> {
         values.push(value).expect("Store::wires validated the count");
     }
     let row = wire::Wires::new(&wire::CEILINGS, wire::WiresParts { wires: values }).expect("validated wires");
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("bounded wires row"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).expect("measured wires row");
     writer.finish()
 }
@@ -77,7 +77,7 @@ impl Format {
                 levels: self.levels.encoded(),
             },
         )?;
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded row fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         Ok(writer.finish())
     }
@@ -147,7 +147,7 @@ impl Manifest {
             },
         )
         .expect("manifest counts fit the checked sets");
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded manifest fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured manifest room");
         writer.finish()
     }
@@ -179,7 +179,7 @@ impl Transcript {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
         let row =
             wire::Transcript::new(&wire::CEILINGS, wire::TranscriptParts { length: self.length, window: self.window })?;
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded row fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         Ok(writer.finish())
     }
@@ -202,7 +202,7 @@ impl Attempt {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
         let row = wire::Attempt::new(&wire::CEILINGS, wire::AttemptParts { first: self.first })?;
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded row fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         Ok(writer.finish())
     }
@@ -250,7 +250,7 @@ impl Layouts {
             },
         )
         .expect("layouts have no bounded fields");
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded row fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         writer.finish()
     }

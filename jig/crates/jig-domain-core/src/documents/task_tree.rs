@@ -4,8 +4,6 @@
 //! phase counts; held counts cover the whole subtree. Goal progress uses retained
 //! goal projections, including ended rows. Nothing here mutates a task or policy.
 
-#![expect(clippy::manual_map, reason = "step code uses explicit matches instead of closures")]
-
 use crate::{
     Core, Limits,
     documents::{Chip, Cursor, Missing, Proposer, Text, Window},
@@ -363,12 +361,12 @@ pub(super) fn part_path(limits: &Limits, connector: u16, kind: PartKind, bytes: 
 }
 
 pub(super) fn path(limits: &Limits, bytes: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, Missing> {
-    if bytes.len() > usize::try_from(limits.documents.segments).expect("segment count fits") {
+    if bytes.len() > skein_lib::length::usize_of(limits.documents.segments) {
         return Err(Missing::TooLarge);
     }
     let mut result = List::with_capacity(limits.documents.segments);
     for segment in bytes {
-        if segment.len() > usize::try_from(limits.documents.text_bytes).expect("text bound fits") {
+        if segment.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
             return Err(Missing::TooLarge);
         }
         result.push(skein_lib::bytes::copy_of(segment)).expect("validated path length");
@@ -380,7 +378,7 @@ pub(super) fn pattern(limits: &Limits, value: &authority::Pattern) -> Result<Pat
     let bytes = match &value.last {
         authority::Last::Exact(bytes) | authority::Last::Open(bytes) => bytes,
     };
-    if bytes.len() > usize::try_from(limits.documents.text_bytes).expect("text bound fits") {
+    if bytes.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
         return Err(Missing::TooLarge);
     }
     Ok(match &value.last {
@@ -437,7 +435,7 @@ pub(super) fn authority(limits: &Limits, value: &authority::Authority) -> Result
 pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<ContractLine, Missing> {
     Ok(match value {
         tasks::Contract::Approval { state, part } => {
-            if state.len() > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+            if state.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
                 return Err(Missing::TooLarge);
             }
             match &part.key {
@@ -447,7 +445,7 @@ pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<Contr
                         return Err(Missing::TooLarge);
                     }
                     for segment in segments {
-                        if segment.len() > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+                        if segment.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
                             return Err(Missing::TooLarge);
                         }
                     }
@@ -469,7 +467,7 @@ pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<Contr
                 for field in &choice.fields {
                     names = names.checked_add(field.name.len()).ok_or(Missing::TooLarge)?;
                 }
-                if names > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+                if names > skein_lib::length::usize_of(limits.documents.text_bytes) {
                     return Err(Missing::TooLarge);
                 }
                 result.push(choice.clone()).expect("bounded form choices");
@@ -482,7 +480,7 @@ pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<Contr
 pub(super) fn result_value(limits: &Limits, value: &tasks::TaskResult) -> Result<ResultValue, Missing> {
     Ok(match value {
         tasks::TaskResult::Approved { state, words } => {
-            if state.len() > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+            if state.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
                 return Err(Missing::TooLarge);
             }
             ResultValue::Approved {
@@ -508,7 +506,7 @@ pub(super) fn result_value(limits: &Limits, value: &tasks::TaskResult) -> Result
                     .checked_add(field.value.len())
                     .ok_or(Missing::TooLarge)?;
             }
-            if total > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+            if total > skein_lib::length::usize_of(limits.documents.text_bytes) {
                 return Err(Missing::TooLarge);
             }
             ResultValue::Verdict {
@@ -666,7 +664,7 @@ pub(super) fn hold_for(
 
 pub(super) fn placed(core: &Core, limits: &Limits, party: u64, task: u64) -> Result<Option<PlacedLine>, Missing> {
     let Some(hold) = core.tasks.placed_on(task) else { return Ok(None) };
-    if hold.reason.len() > usize::try_from(limits.documents.text_bytes).expect("text bound fits") {
+    if hold.reason.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
         return Err(Missing::TooLarge);
     }
     Ok(Some(PlacedLine {
@@ -699,7 +697,7 @@ fn bound(limits: &Limits) -> usize {
     size(limits.documents.lines)
 }
 fn size(value: u32) -> usize {
-    usize::try_from(value).expect("bounded count fits usize")
+    skein_lib::length::usize_of(value)
 }
 
 pub(super) fn link(core: &Core, limits: &Limits, party: u64, number: u64) -> Result<TaskLink, Missing> {

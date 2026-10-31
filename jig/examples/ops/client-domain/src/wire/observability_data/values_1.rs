@@ -86,7 +86,6 @@ pub(crate) fn point_encode(value: &d::Point) -> Result<w::ObservabilityPoint, In
     let Ok(value) = w::ObservabilityPoint::new(&w::CEILINGS, parts) else { return Err(Invalid) };
     Ok(value)
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn point_decode(value: w::ObservabilityPoint) -> d::Point {
     let value = value.into_parts();
     d::Point {
@@ -97,8 +96,6 @@ pub(crate) fn point_decode(value: w::ObservabilityPoint) -> d::Point {
         },
     }
 }
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn incident_encode(value: &d::Incident) -> Result<w::ObservabilityIncident, Invalid> {
     let parts = w::ObservabilityIncidentParts {
         project: (value.project),
@@ -140,7 +137,6 @@ pub(crate) fn incident_encode(value: &d::Incident) -> Result<w::ObservabilityInc
     let Ok(value) = w::ObservabilityIncident::new(&w::CEILINGS, parts) else { return Err(Invalid) };
     Ok(value)
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn incident_decode(value: w::ObservabilityIncident) -> d::Incident {
     let value = value.into_parts();
     d::Incident {
@@ -188,7 +184,6 @@ pub(crate) fn service_state_encode(value: &d::ServiceState) -> Result<w::Observa
     let Ok(value) = w::ObservabilityServiceState::new(&w::CEILINGS, parts) else { return Err(Invalid) };
     Ok(value)
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn service_state_decode(value: w::ObservabilityServiceState) -> d::ServiceState {
     let value = value.into_parts();
     d::ServiceState {
@@ -308,8 +303,6 @@ pub(crate) fn phase_decode(value: w::ObservabilityPhase) -> d::Phase {
         w::ObservabilityPhase::Held => d::Phase::Held,
     }
 }
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn entry_encode(value: &d::Entry) -> Result<w::ObservabilityEntry, Invalid> {
     let parts = w::ObservabilityEntryParts {
         project: match &(value.project) {
@@ -326,7 +319,6 @@ pub(crate) fn entry_encode(value: &d::Entry) -> Result<w::ObservabilityEntry, In
     let Ok(value) = w::ObservabilityEntry::new(&w::CEILINGS, parts) else { return Err(Invalid) };
     Ok(value)
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn entry_decode(value: w::ObservabilityEntry) -> d::Entry {
     let value = value.into_parts();
     d::Entry {

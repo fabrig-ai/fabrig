@@ -577,7 +577,7 @@ fn valid_runtime(task: &TaskRecord) -> bool {
 }
 
 fn valid_positions(task: &TaskRecord, bound: u32) -> bool {
-    let bound = usize::try_from(bound).expect("u32 fits usize");
+    let bound = skein_lib::length::usize_of(bound);
     if task.hold > task.milestone || task.question_lines.len() > bound || task.proposal_rows.len() > bound {
         return false;
     }

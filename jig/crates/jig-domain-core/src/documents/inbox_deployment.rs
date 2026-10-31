@@ -52,7 +52,7 @@ pub struct Inbox {
 }
 
 pub(super) fn line_bound(limits: &Limits) -> usize {
-    usize::try_from(limits.documents.lines).expect("line bound fits")
+    skein_lib::length::usize_of(limits.documents.lines)
 }
 fn object(core: &Core, task: u64, kind: people::EntryKind) -> InboxObject {
     match kind {

@@ -455,7 +455,7 @@ fn adopt_value(
     submit(store, env, ops, Pending::Adopt { owner, key: target, holds, carried }, above, below);
 }
 fn too_large(store: &Store, value: &Secret) -> bool {
-    value.len() > usize::try_from(store.limits.secrets.value).expect("secret limit fits usize")
+    value.len() > skein_lib::length::usize_of(store.limits.secrets.value)
 }
 struct Encoded {
     value: Box<[u8]>,
@@ -463,7 +463,7 @@ struct Encoded {
 }
 fn encode(store: &Store, value: SecretValue) -> Option<Box<[u8]>> {
     let bytes = codec::encode(value, store.limits.secrets.value)?;
-    if bytes.len() > usize::try_from(store.limits.secrets.value).expect("secret limit fits usize") {
+    if bytes.len() > skein_lib::length::usize_of(store.limits.secrets.value) {
         return None;
     }
     Some(bytes)
@@ -676,7 +676,6 @@ fn hold(store: &mut Store, owner: Token, value: Secret, above: &mut Queue<Event>
     above.push(Event::Carried { owner, number });
 }
 
-#[expect(clippy::manual_map, reason = "step code translates optional payloads without closures")]
 fn get(
     store: &mut Store,
     env: &Env<Limits>,

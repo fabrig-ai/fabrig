@@ -34,7 +34,7 @@ fn retained_runs_survive_followers_and_release_on_end() {
                         run: Token::new(u64::from(run)),
                         turn: TurnName { attempt: 1, turn: 1, retry: 0 },
                         offset,
-                        text: vec![1; usize::try_from(LIMITS.text_bytes).expect("text bound")].into_boxed_slice(),
+                        text: vec![1; skein_lib::length::usize_of(LIMITS.text_bytes)].into_boxed_slice(),
                         call: Some(Call {
                             identity: jig_domain_views::CallIdentity {
                                 owner: Token::new(1),

@@ -155,7 +155,7 @@ pub(crate) fn agent_content(
     match content {
         crate::AgentContent::Text { turn, retry, mut offset, text } => {
             // The stream adapter splits at the receiving views' byte bound.
-            let bound = usize::try_from(env.limits.core.views.text_bytes).expect("stream byte limit");
+            let bound = skein_lib::length::usize_of(env.limits.core.views.text_bytes);
             if text.is_empty() {
                 route(
                     domain,

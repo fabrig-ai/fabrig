@@ -54,12 +54,12 @@ impl Harness {
             wall: Wall::from_nanos(if recovery == 3 { 1_000 } else { 10 }),
             limits: limits.core,
         };
-        let connector_env = Env { now: env.now, wall: env.wall, limits: limits.connector };
+        let connector_env = env.with(limits.connector);
         let mut core = core::Core::new(configuration.core, &limits.core).expect("configured direct core");
         let mut configured = Queue::uncapped();
         tasks::step(
             &mut core.tasks,
-            &Env { now: env.now, wall: env.wall, limits: limits.core.tasks },
+            &env.with(limits.core.tasks),
             tasks::Event::Kinds {
                 connector: 1,
                 kinds: Box::new([tasks::Kind {
@@ -462,7 +462,7 @@ fn restored_access_controls_workspace_writers_during_start() {
                 hits: 1,
                 eligible: true,
             };
-            let env = Env { now: h.env.now, wall: h.env.wall, limits: h.env.limits.tasks };
+            let env = h.env.with(h.env.limits.tasks);
             tasks::step(
                 &mut h.core.tasks,
                 &env,
@@ -553,7 +553,7 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
             recurring: None,
             tracked: None,
         };
-        let env = Env { now: h.env.now, wall: h.env.wall, limits: h.env.limits.tasks };
+        let env = h.env.with(h.env.limits.tasks);
         let mut out = Queue::uncapped();
         tasks::step(
             &mut h.core.tasks,

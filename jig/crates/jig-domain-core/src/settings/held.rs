@@ -174,7 +174,6 @@ impl Held {
     }
 
     /// Commit a preflighted selection, moving existing values only once.
-    #[expect(clippy::manual_map, reason = "step code keeps charter ownership explicit without a closure")]
     pub(crate) fn retain(&mut self, current: &Current, plan: &Plan, out: &mut Queue<Request>) -> bool {
         let mut changed = false;
         for (&key, ()) in &plan.candidates {

@@ -342,7 +342,7 @@ fn retained_byte_and_encoded_row_limits_cut_exclusively() {
     assert_eq!(page.rows.len(), 1);
     assert!(page.next.is_some());
     let after = skein_lib::bytes::zeroed(
-        usize::try_from(fixtures::KEY_LIMIT).expect("key bound").checked_add(1).expect("overlong cursor"),
+        skein_lib::length::usize_of(fixtures::KEY_LIMIT).checked_add(1).expect("overlong cursor"),
     );
     assert_eq!(
         store.retained_page(Some(&after), ROWS, BYTES).expect_err("cursor too long"),

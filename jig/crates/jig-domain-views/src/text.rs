@@ -118,8 +118,8 @@ pub(crate) fn written(
     }
     // Duplicates may overlap retained bytes; inconsistent overlap is fenced.
     for position in offset.max(run.from)..end.min(run.to) {
-        let kept = usize::try_from(position.checked_sub(run.from).expect("retained offset")).expect("byte index");
-        let incoming = usize::try_from(position.checked_sub(offset).expect("incoming offset")).expect("byte index");
+        let kept = skein_lib::length::usize_of(position.checked_sub(run.from).expect("retained offset"));
+        let incoming = skein_lib::length::usize_of(position.checked_sub(offset).expect("incoming offset"));
         if run.text.get(kept) != text.get(incoming) {
             return;
         }
@@ -135,11 +135,11 @@ pub(crate) fn written(
         let from = run.from.max(end.saturating_sub(limits.text_bytes));
         let mut suffix = List::with_capacity(limits.text_bytes);
         for position in from..run.to {
-            let index = usize::try_from(position.checked_sub(run.from).expect("retained offset")).expect("byte index");
+            let index = skein_lib::length::usize_of(position.checked_sub(run.from).expect("retained offset"));
             suffix.push(*run.text.get(index).expect("retained byte")).expect("bounded suffix");
         }
         for position in from.max(run.to)..end {
-            let index = usize::try_from(position.checked_sub(offset).expect("incoming offset")).expect("byte index");
+            let index = skein_lib::length::usize_of(position.checked_sub(offset).expect("incoming offset"));
             suffix.push(*text.get(index).expect("incoming byte")).expect("bounded suffix");
         }
         run.cut = run.cut || from > run.from;
@@ -162,7 +162,7 @@ pub(crate) fn written(
 fn fits(call: &Call, capacity: u32) -> bool {
     let Some(bytes) = call.identity.id.len().checked_add(call.tool.len()) else { return false };
     let Some(bytes) = bytes.checked_add(call.input.len()) else { return false };
-    bytes <= usize::try_from(capacity).expect("byte capacity")
+    bytes <= skein_lib::length::usize_of(capacity)
 }
 fn timed(mut call: Call, previous: Option<&Call>, wall: Wall) -> Call {
     call.began = match previous {
@@ -259,7 +259,7 @@ pub(crate) fn committed(domain: &mut Domain, token: Token, attempt: u64, turn: u
 
 fn bounded_call(call: Option<Call>, capacity: u32) -> Option<Call> {
     let mut call = call?;
-    let bound = usize::try_from(capacity).expect("byte capacity");
+    let bound = skein_lib::length::usize_of(capacity);
     let bound = bound.checked_sub(call.identity.id.len())?;
     let tool_length = call.tool.len().min(bound);
     let input_bound = bound.checked_sub(tool_length).expect("bounded tool");
@@ -299,7 +299,7 @@ fn offer(watch: &mut Watcher, run: &RetainedRun, out: &mut Queue<Request>) {
     let offset =
         if follow.turn == Some(turn) && (run.from..=run.to).contains(&follow.offset) { follow.offset } else { 0 };
     let from = offset.max(run.from);
-    let index = usize::try_from(from.checked_sub(run.from).expect("retained offset")).expect("byte index");
+    let index = skein_lib::length::usize_of(from.checked_sub(run.from).expect("retained offset"));
     watch.flight = Some(Flight { turn, to: run.to, revision: run.revision });
     out.push(Request::Stream {
         watcher: watch.token,
@@ -355,7 +355,7 @@ pub fn writing(domain: &Domain, token: Token, capacity: u32) -> Option<crate::Wr
     }
     let turn = run.turn?;
     let from = run.from.max(run.to.saturating_sub(capacity));
-    let index = usize::try_from(from.checked_sub(run.from).expect("bounded writing offset")).expect("byte index");
+    let index = skein_lib::length::usize_of(from.checked_sub(run.from).expect("bounded writing offset"));
     Some(crate::Writing {
         turn,
         from,
@@ -498,11 +498,11 @@ pub(crate) fn input(
         let from = call.from.max(end.saturating_sub(capacity));
         let mut suffix = List::with_capacity(capacity);
         for position in from..call.through {
-            let index = usize::try_from(position.checked_sub(call.from).expect("input offset")).expect("input index");
+            let index = skein_lib::length::usize_of(position.checked_sub(call.from).expect("input offset"));
             suffix.push(*call.input.get(index).expect("retained input")).expect("bounded input");
         }
         for position in from.max(call.through)..end {
-            let index = usize::try_from(position.checked_sub(offset).expect("input offset")).expect("input index");
+            let index = skein_lib::length::usize_of(position.checked_sub(offset).expect("input offset"));
             suffix.push(*input.get(index).expect("incoming input")).expect("bounded input");
         }
         call.cut = call.cut || from > call.from;

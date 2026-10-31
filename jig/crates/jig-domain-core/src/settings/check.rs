@@ -203,12 +203,12 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
             None => false,
         },
         Value::Template(value) => {
-            value.name.len() <= usize::try_from(limits.documents.text_bytes).expect("text bound")
+            value.name.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
                 && contract_fits(&value.contract, &limits.tasks)
         }
         Value::Policy(value) => {
-            value.permissions.len() <= usize::try_from(limits.settings.permissions).expect("permission bound")
-                && value.templates.len() <= usize::try_from(limits.templates).expect("template override bound")
+            value.permissions.len() <= skein_lib::length::usize_of(limits.settings.permissions)
+                && value.templates.len() <= skein_lib::length::usize_of(limits.templates)
                 && match crate::admission::policy::snapshot(&value.policy, &value.permissions, &value.templates) {
                     Some(value) => match people::policy_bytes(&value) {
                         Some(bytes) => bytes <= limits.policy_bytes,
@@ -219,10 +219,10 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
         }
         Value::Rules(value) => {
             let bound = &limits.authority;
-            value.ceiling.grants.len() <= usize::try_from(bound.grants).expect("grant bound")
-                && value.ceiling.note_resources.len() <= usize::try_from(bound.grants).expect("scope bound")
-                && value.ceiling.delegation.kinds.len() <= usize::try_from(bound.executors).expect("executor bound")
-                && value.requirements.len() <= usize::try_from(bound.requirements).expect("requirement bound")
+            value.ceiling.grants.len() <= skein_lib::length::usize_of(bound.grants)
+                && value.ceiling.note_resources.len() <= skein_lib::length::usize_of(bound.grants)
+                && value.ceiling.delegation.kinds.len() <= skein_lib::length::usize_of(bound.executors)
+                && value.requirements.len() <= skein_lib::length::usize_of(bound.requirements)
                 && value.implies.len() <= bound.implications
                 && rules_patterns_fit(value, bound)
         }
@@ -250,10 +250,10 @@ fn rules_patterns_fit(value: &authority::Rules, limits: &authority::Limits) -> b
 }
 
 fn pattern_fits(value: &authority::Pattern, limits: &authority::Limits) -> bool {
-    if value.segments.len() > usize::try_from(limits.segments).expect("segment bound") {
+    if value.segments.len() > skein_lib::length::usize_of(limits.segments) {
         return false;
     }
-    let bound = usize::try_from(limits.segment_bytes).expect("segment byte bound");
+    let bound = skein_lib::length::usize_of(limits.segment_bytes);
     for segment in &value.segments {
         if segment.len() > bound {
             return false;
@@ -268,7 +268,7 @@ fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
     match value {
         tasks::Contract::Report { words } | tasks::Contract::Change { words, .. } => *words <= limits.result_bytes,
         tasks::Contract::Approval { state, part } => {
-            if state.len() > usize::try_from(limits.result_bytes).expect("result bound") {
+            if state.len() > skein_lib::length::usize_of(limits.result_bytes) {
                 return false;
             }
             match &part.key {
@@ -284,16 +284,16 @@ fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
                         };
                         bytes = total;
                     }
-                    bytes <= usize::try_from(limits.hold_bytes).expect("hold byte bound")
+                    bytes <= skein_lib::length::usize_of(limits.hold_bytes)
                 }
             }
         }
         tasks::Contract::Verdict { choices } => {
-            if choices.len() > usize::try_from(limits.contract_choices).expect("choice bound") {
+            if choices.len() > skein_lib::length::usize_of(limits.contract_choices) {
                 return false;
             }
             for choice in choices {
-                if choice.fields.len() > usize::try_from(limits.result_bytes).expect("field bound")
+                if choice.fields.len() > skein_lib::length::usize_of(limits.result_bytes)
                     || choice.followups > limits.batch
                 {
                     return false;
@@ -331,9 +331,7 @@ fn charter_fault(charter: &crate::Charter, settings: &Settings, limits: &Limits)
             }
         }
     }
-    if policy.alternatives.len()
-        > usize::try_from(limits.settings.alternatives.min(tasks::MODELS)).expect("models bound")
-    {
+    if policy.alternatives.len() > skein_lib::length::usize_of(limits.settings.alternatives.min(tasks::MODELS)) {
         return Some(Fault::Count);
     }
     if policy.turns <= policy.reserve_turns || policy.time <= policy.reserve_time {
@@ -420,7 +418,7 @@ fn template_fault(
     None
 }
 fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
-    if choice.subagents.len() > usize::try_from(tasks::MODELS).expect("model bound") {
+    if choice.subagents.len() > skein_lib::length::usize_of(tasks::MODELS) {
         return false;
     }
     if !effort_valid(models, choice.main) {
