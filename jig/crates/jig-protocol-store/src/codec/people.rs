@@ -150,7 +150,11 @@ fn derive_verdicts(amendment_bytes: u32, limits: &mut wire::Limits) -> Option<()
 
 /// Encode a people row; `names` are the configured models' names in configuration's order, which
 /// a policy row keeps beside its roles' models (protocol/store.md, 5.1).
-pub fn encode(row: &domain::Stored, limits: &wire::Limits, names: &[Box<[u8]>]) -> Result<Box<[u8]>, wire::Problem> {
+pub fn encode(
+    row: &domain::Stored,
+    limits: &wire::Limits,
+    names: &[core::settings::ModelName],
+) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
         domain::Stored::Person { number, identity } => wire::Value::Person(wire::StoredPerson::new(
             limits,
@@ -184,7 +188,7 @@ pub fn encode(row: &domain::Stored, limits: &wire::Limits, names: &[Box<[u8]>]) 
                 project: *project,
                 name: Box::from(name.as_bytes()),
                 value: encode_policy_value(value, limits)?,
-                models: encode_model_names(names, limits)?,
+                models: encode_configured_names(names, limits)?,
             },
         )?),
         domain::Stored::Acted { key, act, outcome, at } => wire::Value::Acted(wire::StoredActed::new(
@@ -215,7 +219,11 @@ pub fn encode(row: &domain::Stored, limits: &wire::Limits, names: &[Box<[u8]>]) 
 /// Decode a people row; a policy row's roles' models move to today's `names`, and a name no
 /// longer configured drops out (protocol/store.md, 5.1).
 #[expect(clippy::disallowed_methods, reason = "store protocol converts validated UTF-8 into the domain name")]
-pub fn decode(bytes: &[u8], limits: &wire::Limits, names: &[Box<[u8]>]) -> Result<domain::Stored, wire::Problem> {
+pub fn decode(
+    bytes: &[u8],
+    limits: &wire::Limits,
+    names: &[core::settings::ModelName],
+) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let row = match value {
         wire::Value::Person(value) => {
@@ -281,6 +289,17 @@ pub fn decode(bytes: &[u8], limits: &wire::Limits, names: &[Box<[u8]>]) -> Resul
     Ok(row)
 }
 
+fn encode_configured_names(
+    names: &[core::settings::ModelName],
+    limits: &wire::Limits,
+) -> Result<List<wire::ModelName>, wire::Problem> {
+    let mut result = List::with_capacity(count(names.len())?);
+    for name in names {
+        let name = wire::ModelName::new(limits, wire::ModelNameParts { name: name.name.clone() })?;
+        result.push(name).expect("same number of names");
+    }
+    Ok(result)
+}
 fn encode_model_names(names: &[Box<[u8]>], limits: &wire::Limits) -> Result<List<wire::ModelName>, wire::Problem> {
     let mut result = List::with_capacity(count(names.len())?);
     for name in names {
@@ -290,11 +309,11 @@ fn encode_model_names(names: &[Box<[u8]>], limits: &wire::Limits) -> Result<List
     Ok(result)
 }
 /// For each name the row kept, the bit of today's model of that name, or none.
-fn model_moves(kept: &List<wire::ModelName>, names: &[Box<[u8]>]) -> [u64; 64] {
+fn model_moves(kept: &List<wire::ModelName>, names: &[core::settings::ModelName]) -> [u64; 64] {
     let mut moved = [0; 64];
     for (bit, name) in kept.iter().enumerate() {
         for (today, configured) in names.iter().enumerate() {
-            if configured.as_ref() == name.name() {
+            if configured.name.as_ref() == name.name() {
                 if let (Some(slot), Ok(today)) = (moved.get_mut(bit), u32::try_from(today)) {
                     *slot = 1_u64.checked_shl(today).unwrap_or(0);
                 }

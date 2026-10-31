@@ -1,12 +1,11 @@
 //! Effective retained authorities follow configured names; original requests belong to people.
 use super::{domain as d, wire as w};
-use alloc::boxed::Box;
 use skein_lib::List;
 
 /// Only names this row references, sorted independently of configuration order.
 pub(super) fn encode(
     row: &d::Stored,
-    names: &[Box<[u8]>],
+    names: &[jig_domain_core::settings::ModelName],
     limits: &w::Limits,
 ) -> Result<(List<w::ModelName>, [u64; 64]), w::Problem> {
     let bits = referenced(row);
@@ -14,13 +13,13 @@ pub(super) fn encode(
     let mut result = List::with_capacity(bits.count_ones());
     // Pick the next referenced name by byte order without a second owned name list.
     for bit in 0..bits.count_ones() {
-        let mut next = None;
+        let mut next: Option<usize> = None;
         for (at, name) in names.iter().enumerate() {
             let selected = bits & 1_u64.checked_shl(u32::try_from(at).expect("configured index")).unwrap_or(0) != 0;
             if selected && *moved.get(at).expect("selected bit fits") == 0 {
                 match next {
                     Some(previous) => {
-                        if name < names.get(previous).expect("configured name") {
+                        if name.name < names.get(previous).expect("configured name").name {
                             next = Some(at);
                         }
                     }
@@ -35,7 +34,7 @@ pub(super) fn encode(
         result
             .push(w::ModelName::new(
                 limits,
-                w::ModelNameParts { value: names.get(at).expect("selected name").clone() },
+                w::ModelNameParts { value: names.get(at).expect("selected name").name.clone() },
             )?)
             .expect("same selected count");
     }
@@ -136,11 +135,11 @@ fn referenced(row: &d::Stored) -> u64 {
         | d::Stored::Pool(_) => 0,
     }
 }
-pub(super) fn moves(kept: &List<w::ModelName>, names: &[Box<[u8]>]) -> [u64; 64] {
+pub(super) fn moves(kept: &List<w::ModelName>, names: &[jig_domain_core::settings::ModelName]) -> [u64; 64] {
     let mut moved = [0; 64];
     for (old, name) in kept.iter().enumerate() {
         for (at, today) in names.iter().enumerate() {
-            if name.value() == today.as_ref() {
+            if name.value() == today.name.as_ref() {
                 *moved.get_mut(old).expect("bounded names") =
                     1_u64.checked_shl(u32::try_from(at).expect("bounded model index")).unwrap_or(0);
                 break;

@@ -1,7 +1,7 @@
 //! Durable people refusal facts (protocol/store.md, 5.1).
 use super::{domain, wire};
 use skein_lib::Wall;
-pub(super) fn encode_again(value: domain::Again, _limits: &wire::Limits) -> wire::Again {
+pub(super) fn encode_again(value: domain::Again) -> wire::Again {
     match value {
         domain::Again::Busy => wire::Again::Busy,
         // Admission-only facts are never retained in the store.
@@ -15,7 +15,7 @@ pub(super) fn decode_again(value: wire::Again) -> domain::Again {
         wire::Again::NotReady => domain::Again::NotReady,
     }
 }
-pub(super) fn encode_failure_class(value: domain::FailureClass, _limits: &wire::Limits) -> wire::FailureClass {
+pub(super) fn encode_failure_class(value: domain::FailureClass) -> wire::FailureClass {
     match value {
         domain::FailureClass::Transient => wire::FailureClass::Transient,
         domain::FailureClass::Permanent => wire::FailureClass::Permanent,
@@ -59,7 +59,7 @@ pub(super) fn encode_hold_reason(
         )?),
         domain::HoldReason::Failures { class } => wire::HoldReason::Failures(wire::HoldReasonFailures::new(
             limits,
-            wire::HoldReasonFailuresParts { class: encode_failure_class(*class, limits) },
+            wire::HoldReasonFailuresParts { class: encode_failure_class(*class) },
         )?),
         domain::HoldReason::Stalled => wire::HoldReason::Stalled,
         domain::HoldReason::Dependency { task } => wire::HoldReason::Dependency(wire::HoldReasonDependency::new(
@@ -357,7 +357,7 @@ pub(super) fn decode_lack(value: wire::Lack) -> domain::Lack {
         }
     }
 }
-pub(super) fn encode_limit_kind(value: domain::LimitKind, _limits: &wire::Limits) -> wire::LimitKind {
+pub(super) fn encode_limit_kind(value: domain::LimitKind) -> wire::LimitKind {
     match value {
         domain::LimitKind::Projects => wire::LimitKind::Projects,
         domain::LimitKind::Words => wire::LimitKind::Words,
@@ -529,7 +529,7 @@ pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> 
         )?),
         domain::Refusal::Limit { which } => wire::Refusal::Limit(wire::RefusalLimit::new(
             limits,
-            wire::RefusalLimitParts { which: encode_limit_kind(*which, limits) },
+            wire::RefusalLimitParts { which: encode_limit_kind(*which) },
         )?),
         domain::Refusal::Moved { now } => wire::Refusal::Moved(wire::RefusalMoved::new(
             limits,
@@ -707,7 +707,7 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
         }
     }
 }
-pub(super) fn encode_proposal_choice(value: domain::ProposalChoice, _limits: &wire::Limits) -> wire::ProposalChoice {
+pub(super) fn encode_proposal_choice(value: domain::ProposalChoice) -> wire::ProposalChoice {
     match value {
         domain::ProposalChoice::Accepted => wire::ProposalChoice::Accepted,
         domain::ProposalChoice::Rejected => wire::ProposalChoice::Rejected,
@@ -725,10 +725,7 @@ pub(super) fn decode_proposal_choice(value: wire::ProposalChoice) -> domain::Pro
         wire::ProposalChoice::Stale => domain::ProposalChoice::Stale,
     }
 }
-pub(super) fn encode_escalation_choice(
-    value: domain::EscalationChoice,
-    _limits: &wire::Limits,
-) -> wire::EscalationChoice {
+pub(super) fn encode_escalation_choice(value: domain::EscalationChoice) -> wire::EscalationChoice {
     match value {
         domain::EscalationChoice::Released => wire::EscalationChoice::Released,
         domain::EscalationChoice::Rejected => wire::EscalationChoice::Rejected,

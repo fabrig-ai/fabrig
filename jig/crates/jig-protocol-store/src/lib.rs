@@ -284,7 +284,7 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
     match request {
         Request::Switch { owner } => patching::switch::ask(store, env, owner, above, below),
         Request::Open { owner, root, installation } => {
-            directory::open(store, env, owner, root, installation, above, below);
+            directory::open(store, owner, root, installation, above, below);
         }
         Request::Site { owner, patcher, result } => match store.phase {
             Phase::Ready { .. } => transcripts::read::site(store, env, owner, patcher, result, above, below),

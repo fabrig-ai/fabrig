@@ -126,7 +126,6 @@ pub(crate) fn env(store: &Store, env: &Env<Limits>, secret: bool) -> Env<skein_k
 }
 pub(crate) fn open(
     store: &mut Store,
-    _env: &Env<Limits>,
     owner: Token,
     root: Root,
     installation: [u8; 16],

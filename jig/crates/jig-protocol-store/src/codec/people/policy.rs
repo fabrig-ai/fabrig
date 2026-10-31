@@ -587,7 +587,7 @@ pub(super) fn decode_wake_rule(value: wire::WakeRule) -> domain::WakeRule {
     }
 }
 
-pub(super) fn encode_results_wake(value: domain::ResultsWake, _limits: &wire::Limits) -> wire::ResultsWake {
+pub(super) fn encode_results_wake(value: domain::ResultsWake) -> wire::ResultsWake {
     match value {
         domain::ResultsWake::Never => wire::ResultsWake::Never,
         domain::ResultsWake::Each => wire::ResultsWake::Each,
@@ -613,7 +613,7 @@ pub(super) fn encode_wake_policy(
             words: encode_wake_rule(words, limits)?,
             notices: encode_wake_rule(notices, limits)?,
             news: encode_wake_rule(news, limits)?,
-            results: encode_results_wake(*results, limits),
+            results: encode_results_wake(*results),
             questions: *questions,
             answers: *answers,
             timers: *timers,

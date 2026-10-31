@@ -53,7 +53,7 @@ pub fn stub(source: &domain::Stub, limits: &wire::Limits) -> Result<wire::Stub, 
     wire::Stub::new(limits, wire::StubParts { task: *task, phase: status(*phase), result: result.raw() })
 }
 /// Read `Stub` from its durable record.
-pub fn read_stub(source: wire::Stub, _limits: &wire::Limits) -> Result<domain::Stub, wire::Problem> {
+pub fn read_stub(source: wire::Stub) -> Result<domain::Stub, wire::Problem> {
     let wire::StubParts { task, phase, result } = source.into_parts();
     Ok(domain::Stub { task, phase: read_status(phase), result: Token::new(result) })
 }
@@ -73,7 +73,7 @@ pub fn reply_hint(source: &domain::ReplyHint, limits: &wire::Limits) -> Result<w
     )
 }
 /// Read `ReplyHint` from its durable record.
-pub fn read_reply_hint(source: wire::ReplyHint, _limits: &wire::Limits) -> Result<domain::ReplyHint, wire::Problem> {
+pub fn read_reply_hint(source: wire::ReplyHint) -> Result<domain::ReplyHint, wire::Problem> {
     let wire::ReplyHintParts { number, activity, attempt, turn, at } = source.into_parts();
     Ok(domain::ReplyHint { number, activity, attempt, turn, at: Wall::from_nanos(at) })
 }
@@ -98,10 +98,7 @@ pub fn escalation_holder(
     })
 }
 /// Read `EscalationHolder` from its durable value.
-pub fn read_escalation_holder(
-    source: wire::EscalationHolder,
-    _limits: &wire::Limits,
-) -> Result<domain::EscalationHolder, wire::Problem> {
+pub fn read_escalation_holder(source: wire::EscalationHolder) -> Result<domain::EscalationHolder, wire::Problem> {
     Ok(match source {
         wire::EscalationHolder::Task(source) => {
             let wire::EscalationTaskParts { task } = source.into_parts();
@@ -149,7 +146,7 @@ pub fn escalation(source: &domain::Escalation, limits: &wire::Limits) -> Result<
     })
 }
 /// Read `Escalation` from its durable value.
-pub fn read_escalation(source: wire::Escalation, limits: &wire::Limits) -> Result<domain::Escalation, wire::Problem> {
+pub fn read_escalation(source: wire::Escalation) -> Result<domain::Escalation, wire::Problem> {
     Ok(match source {
         wire::Escalation::Unheld(source) => {
             let wire::UnheldEscalationParts { revision } = source.into_parts();
@@ -163,7 +160,7 @@ pub fn read_escalation(source: wire::Escalation, limits: &wire::Limits) -> Resul
             let wire::WaitingEscalationParts { revision, holder, entry, since } = source.into_parts();
             domain::Escalation::Waiting {
                 revision,
-                holder: read_escalation_holder(holder, limits)?,
+                holder: read_escalation_holder(holder)?,
                 entry,
                 since: Wall::from_nanos(since),
             }
@@ -184,10 +181,7 @@ pub fn person_answer(
     wire::PersonAnswer::new(limits, wire::PersonAnswerParts { by: *by, at: at.as_nanos() })
 }
 /// Read `PersonAnswer` from its durable record.
-pub fn read_person_answer(
-    source: wire::PersonAnswer,
-    _limits: &wire::Limits,
-) -> Result<domain::PersonAnswer, wire::Problem> {
+pub fn read_person_answer(source: wire::PersonAnswer) -> Result<domain::PersonAnswer, wire::Problem> {
     let wire::PersonAnswerParts { by, at } = source.into_parts();
     Ok(domain::PersonAnswer { by, at: Wall::from_nanos(at) })
 }
@@ -204,10 +198,7 @@ pub fn person_stall_notice(
     )
 }
 /// Read `PersonStallNotice` from its durable record.
-pub fn read_person_stall_notice(
-    source: wire::PersonStallNotice,
-    _limits: &wire::Limits,
-) -> Result<domain::PersonStallNotice, wire::Problem> {
+pub fn read_person_stall_notice(source: wire::PersonStallNotice) -> Result<domain::PersonStallNotice, wire::Problem> {
     let wire::PersonStallNoticeParts { message, at, activity } = source.into_parts();
     Ok(domain::PersonStallNotice { message, at: Wall::from_nanos(at), activity })
 }
@@ -226,13 +217,13 @@ pub fn person_wait(source: &domain::PersonWait, limits: &wire::Limits) -> Result
     )
 }
 /// Read `PersonWait` from its durable record.
-pub fn read_person_wait(source: wire::PersonWait, limits: &wire::Limits) -> Result<domain::PersonWait, wire::Problem> {
+pub fn read_person_wait(source: wire::PersonWait) -> Result<domain::PersonWait, wire::Problem> {
     let wire::PersonWaitParts { since, stall, deadline, notice } = source.into_parts();
     Ok(domain::PersonWait {
         since: Wall::from_nanos(since),
         stall,
         deadline: Wall::from_nanos(deadline),
-        notice: read_optional_notice(notice, limits)?,
+        notice: read_optional_notice(notice)?,
     })
 }
 
@@ -289,10 +280,7 @@ pub fn question_credit(
     )
 }
 /// Read `QuestionCredit` from its durable record.
-pub fn read_question_credit(
-    source: wire::QuestionCredit,
-    _limits: &wire::Limits,
-) -> Result<domain::QuestionCredit, wire::Problem> {
+pub fn read_question_credit(source: wire::QuestionCredit) -> Result<domain::QuestionCredit, wire::Problem> {
     let wire::QuestionCreditParts { number, answerer, asked, line } = source.into_parts();
     Ok(domain::QuestionCredit {
         number,
@@ -321,10 +309,7 @@ pub fn subscription_kind(
     })
 }
 /// Read `SubscriptionKind` from its durable value.
-pub fn read_subscription_kind(
-    source: wire::SubscriptionKind,
-    _limits: &wire::Limits,
-) -> Result<domain::SubscriptionKind, wire::Problem> {
+pub fn read_subscription_kind(source: wire::SubscriptionKind) -> Result<domain::SubscriptionKind, wire::Problem> {
     Ok(match source {
         wire::SubscriptionKind::Task(source) => {
             let wire::TaskInterestParts { target, held, result } = source.into_parts();
@@ -347,12 +332,9 @@ pub fn subscription(source: &domain::Subscription, limits: &wire::Limits) -> Res
     wire::Subscription::new(limits, wire::SubscriptionParts { number: *number, kind: subscription_kind(kind, limits)? })
 }
 /// Read `Subscription` from its durable record.
-pub fn read_subscription(
-    source: wire::Subscription,
-    limits: &wire::Limits,
-) -> Result<domain::Subscription, wire::Problem> {
+pub fn read_subscription(source: wire::Subscription) -> Result<domain::Subscription, wire::Problem> {
     let wire::SubscriptionParts { number, kind } = source.into_parts();
-    Ok(domain::Subscription { number, kind: read_subscription_kind(kind, limits)? })
+    Ok(domain::Subscription { number, kind: read_subscription_kind(kind)? })
 }
 
 /// Translate `SavedResource` to its durable record.
@@ -367,10 +349,7 @@ pub fn saved_resource(
     )
 }
 /// Read `SavedResource` from its durable record.
-pub fn read_saved_resource(
-    source: wire::SavedResource,
-    _limits: &wire::Limits,
-) -> Result<domain::SavedResource, wire::Problem> {
+pub fn read_saved_resource(source: wire::SavedResource) -> Result<domain::SavedResource, wire::Problem> {
     let wire::SavedResourceParts { connector, path } = source.into_parts();
     Ok(domain::SavedResource { connector, path: read_saved_path(path) })
 }
@@ -386,10 +365,9 @@ fn optional_notice(
 }
 fn read_optional_notice(
     source: Option<wire::PersonStallNotice>,
-    limits: &wire::Limits,
 ) -> Result<Option<domain::PersonStallNotice>, wire::Problem> {
     match source {
-        Some(source) => Ok(Some(read_person_stall_notice(source, limits)?)),
+        Some(source) => Ok(Some(read_person_stall_notice(source)?)),
         None => Ok(None),
     }
 }

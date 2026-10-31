@@ -19,14 +19,14 @@ pub(super) fn encode_settled_answer(
             wire::SettledAnswer::Delivery(wire::SettledAnswerDelivery::new(
                 &limits.core,
                 wire::SettledAnswerDeliveryParts {
-                    outcome: encode_delivery_outcome(outcome, limits),
+                    outcome: encode_delivery_outcome(outcome),
                     evidence: evidence.clone(),
                 },
             )?)
         }
     })
 }
-pub(super) fn decode_settled_answer(value: wire::SettledAnswer, limits: &Limits) -> domain::SettledAnswer {
+pub(super) fn decode_settled_answer(value: wire::SettledAnswer) -> domain::SettledAnswer {
     match value {
         wire::SettledAnswer::Host(value) => {
             let wire::SettledAnswerHostParts { error, body } = value.into_parts();
@@ -34,7 +34,7 @@ pub(super) fn decode_settled_answer(value: wire::SettledAnswer, limits: &Limits)
         }
         wire::SettledAnswer::Delivery(value) => {
             let wire::SettledAnswerDeliveryParts { outcome, evidence } = value.into_parts();
-            domain::SettledAnswer::Delivery { outcome: decode_delivery_outcome(outcome, limits), evidence }
+            domain::SettledAnswer::Delivery { outcome: decode_delivery_outcome(outcome), evidence }
         }
     }
 }
@@ -49,9 +49,9 @@ pub(super) fn encode_settled_call(
         wire::SettledCallParts { serial: *serial, tool: tool.clone(), answer: encode_settled_answer(answer, limits)? },
     )
 }
-pub(super) fn decode_settled_call(value: wire::SettledCall, limits: &Limits) -> domain::SettledCall {
+pub(super) fn decode_settled_call(value: wire::SettledCall) -> domain::SettledCall {
     let wire::SettledCallParts { serial, tool, answer } = value.into_parts();
-    domain::SettledCall { serial, tool, answer: decode_settled_answer(answer, limits) }
+    domain::SettledCall { serial, tool, answer: decode_settled_answer(answer) }
 }
 
 pub(super) fn encode_call_key(value: &domain::CallKey, limits: &Limits) -> Result<wire::CallKey, wire::Problem> {
@@ -61,7 +61,7 @@ pub(super) fn encode_call_key(value: &domain::CallKey, limits: &Limits) -> Resul
         wire::CallKeyParts { task: *task, attempt: *attempt, completion: *completion, position: *position },
     )
 }
-pub(super) fn decode_call_key(value: wire::CallKey, _limits: &Limits) -> domain::CallKey {
+pub(super) fn decode_call_key(value: wire::CallKey) -> domain::CallKey {
     let wire::CallKeyParts { task, attempt, completion, position } = value.into_parts();
     domain::CallKey { task, attempt, completion, position }
 }
@@ -121,7 +121,7 @@ pub(super) fn encode_call_part(value: &domain::CallPart, limits: &Limits) -> Res
         )?),
         domain::CallPart::ControlDenied { answer } => wire::CallPart::ControlDenied(wire::CallPartControlDenied::new(
             &limits.core,
-            wire::CallPartControlDeniedParts { answer: encode_answer(answer, limits) },
+            wire::CallPartControlDeniedParts { answer: encode_answer(answer) },
         )?),
         domain::CallPart::Sent { message } => {
             wire::CallPart::Sent(wire::CallPartSent::new(&limits.core, wire::CallPartSentParts { message: *message })?)
@@ -170,7 +170,7 @@ pub(super) fn encode_call_part(value: &domain::CallPart, limits: &Limits) -> Res
 pub(super) fn decode_call_part(value: wire::CallPart, limits: &Limits) -> Result<domain::CallPart, wire::Problem> {
     Ok(match value {
         wire::CallPart::SettingsRefused(value) => decode_settings_refusal(value)?,
-        wire::CallPart::Effect(value) => decode_part_effect(value, limits),
+        wire::CallPart::Effect(value) => decode_part_effect(value),
         wire::CallPart::Connector(value) => {
             let wire::CallPartConnectorParts { connector } = value.into_parts();
             domain::CallPart::Connector { connector }
@@ -178,8 +178,8 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &Limits) -> Result
         wire::CallPart::EffectDenied(value) => {
             let wire::CallPartEffectDeniedParts { answer, findings } = value.into_parts();
             domain::CallPart::EffectDenied {
-                answer: decode_answer(answer, limits),
-                findings: decode_call_part_effect_denied_findings(findings, limits),
+                answer: decode_answer(answer),
+                findings: decode_call_part_effect_denied_findings(findings),
             }
         }
         wire::CallPart::EffectRefused(value) => {
@@ -189,13 +189,13 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &Limits) -> Result
         wire::CallPart::ToolDenied(value) => {
             let wire::CallPartToolDeniedParts { answer, findings } = value.into_parts();
             domain::CallPart::ToolDenied {
-                answer: decode_answer(answer, limits),
-                findings: decode_call_part_tool_denied_findings(findings, limits),
+                answer: decode_answer(answer),
+                findings: decode_call_part_tool_denied_findings(findings),
             }
         }
         wire::CallPart::EscalationDecided(value) => {
             let wire::CallPartEscalationDecidedParts { task, revision, outcome } = value.into_parts();
-            domain::CallPart::EscalationDecided { task, revision, outcome: decode_escalation_outcome(outcome, limits) }
+            domain::CallPart::EscalationDecided { task, revision, outcome: decode_escalation_outcome(outcome) }
         }
         wire::CallPart::EscalationRefused(value) => {
             let wire::CallPartEscalationRefusedParts { value } = value.into_parts();
@@ -203,11 +203,11 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &Limits) -> Result
         }
         wire::CallPart::Proposed(value) => {
             let wire::CallPartProposedParts { proposal, holder } = value.into_parts();
-            domain::CallPart::Proposed { proposal, holder: decode_holder(holder, limits) }
+            domain::CallPart::Proposed { proposal, holder: decode_holder(holder) }
         }
         wire::CallPart::ProposalDecided(value) => {
             let wire::CallPartProposalDecidedParts { proposal, outcome } = value.into_parts();
-            domain::CallPart::ProposalDecided { proposal, outcome: decode_proposal_outcome(outcome, limits) }
+            domain::CallPart::ProposalDecided { proposal, outcome: decode_proposal_outcome(outcome) }
         }
         wire::CallPart::ProposalRefused(value) => {
             let wire::CallPartProposalRefusedParts { value } = value.into_parts();
@@ -228,7 +228,7 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &Limits) -> Result
         }
         wire::CallPart::ControlDenied(value) => {
             let wire::CallPartControlDeniedParts { answer } = value.into_parts();
-            domain::CallPart::ControlDenied { answer: decode_answer(answer, limits) }
+            domain::CallPart::ControlDenied { answer: decode_answer(answer) }
         }
         wire::CallPart::Sent(value) => {
             let wire::CallPartSentParts { message } = value.into_parts();
@@ -250,13 +250,13 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &Limits) -> Result
         }
         wire::CallPart::Delegated(value) => {
             let wire::CallPartDelegatedParts { value } = value.into_parts();
-            domain::CallPart::Delegated(decode_call_part_delegated_value(value, limits))
+            domain::CallPart::Delegated(decode_call_part_delegated_value(value))
         }
         wire::CallPart::DelegationDenied(value) => {
             let wire::CallPartDelegationDeniedParts { answer, findings } = value.into_parts();
             domain::CallPart::DelegationDenied {
-                answer: decode_answer(answer, limits),
-                findings: decode_call_part_delegation_denied_findings(findings, limits),
+                answer: decode_answer(answer),
+                findings: decode_call_part_delegation_denied_findings(findings),
             }
         }
         wire::CallPart::DelegationRefused(value) => {
@@ -273,7 +273,7 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &Limits) -> Result
         }
         wire::CallPart::NoteRefused(value) => {
             let wire::CallPartNoteRefusedParts { value } = value.into_parts();
-            domain::CallPart::NoteRefused(decode_note_refusal(value, limits))
+            domain::CallPart::NoteRefused(decode_note_refusal(value))
         }
         wire::CallPart::Unavailable => domain::CallPart::Unavailable,
     })
@@ -303,10 +303,10 @@ pub(super) fn decode_call_record(
 ) -> Result<domain::CallRecord, wire::Problem> {
     let wire::CallRecordParts { key, part, settled } = value.into_parts();
     Ok(domain::CallRecord {
-        key: decode_call_key(key, limits),
+        key: decode_call_key(key),
         part: decode_call_part(part, limits)?,
         settled: match settled {
-            Some(value) => Some(decode_settled_call(value, limits)),
+            Some(value) => Some(decode_settled_call(value)),
             None => None,
         },
     })
@@ -325,10 +325,10 @@ fn encode_call_part_effect_denied_findings(
     }
     Ok(result)
 }
-fn decode_call_part_effect_denied_findings(values: List<wire::Finding>, limits: &Limits) -> Box<[authority::Finding]> {
+fn decode_call_part_effect_denied_findings(values: List<wire::Finding>) -> Box<[authority::Finding]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
-        result.push(decode_finding(value, limits)).expect("same number of members");
+        result.push(decode_finding(value)).expect("same number of members");
     }
     result.into_boxed()
 }
@@ -346,10 +346,10 @@ fn encode_call_part_tool_denied_findings(
     }
     Ok(result)
 }
-fn decode_call_part_tool_denied_findings(values: List<wire::Finding>, limits: &Limits) -> Box<[authority::Finding]> {
+fn decode_call_part_tool_denied_findings(values: List<wire::Finding>) -> Box<[authority::Finding]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
-        result.push(decode_finding(value, limits)).expect("same number of members");
+        result.push(decode_finding(value)).expect("same number of members");
     }
     result.into_boxed()
 }
@@ -372,7 +372,7 @@ fn encode_call_part_delegated_value(
     }
     Ok(result)
 }
-fn decode_call_part_delegated_value(values: List<wire::Made>, _limits: &Limits) -> Box<[domain::Made]> {
+fn decode_call_part_delegated_value(values: List<wire::Made>) -> Box<[domain::Made]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
         let wire::MadeParts { task, revision, given } = value.into_parts();
@@ -394,13 +394,10 @@ fn encode_call_part_delegation_denied_findings(
     }
     Ok(result)
 }
-fn decode_call_part_delegation_denied_findings(
-    values: List<wire::Finding>,
-    limits: &Limits,
-) -> Box<[authority::Finding]> {
+fn decode_call_part_delegation_denied_findings(values: List<wire::Finding>) -> Box<[authority::Finding]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
-        result.push(decode_finding(value, limits)).expect("same number of members");
+        result.push(decode_finding(value)).expect("same number of members");
     }
     result.into_boxed()
 }
@@ -462,7 +459,7 @@ pub(super) fn encode_note_refusal(value: notes::Refusal, limits: &Limits) -> Res
         notes::Refusal::RevisionExhausted => wire::NoteRefusal::RevisionExhausted,
     })
 }
-pub(super) fn decode_note_refusal(value: wire::NoteRefusal, _limits: &Limits) -> notes::Refusal {
+pub(super) fn decode_note_refusal(value: wire::NoteRefusal) -> notes::Refusal {
     match value {
         wire::NoteRefusal::Busy => notes::Refusal::Busy,
         wire::NoteRefusal::Oversized => notes::Refusal::Oversized,
@@ -520,7 +517,7 @@ fn encode_part_effect_denied(
     Ok(wire::CallPart::EffectDenied(wire::CallPartEffectDenied::new(
         &limits.core,
         wire::CallPartEffectDeniedParts {
-            answer: encode_answer(&answer, limits),
+            answer: encode_answer(&answer),
             findings: encode_call_part_effect_denied_findings(findings, limits)?,
         },
     )?))
@@ -534,7 +531,7 @@ fn encode_part_tool_denied(
     Ok(wire::CallPart::ToolDenied(wire::CallPartToolDenied::new(
         &limits.core,
         wire::CallPartToolDeniedParts {
-            answer: encode_answer(&answer, limits),
+            answer: encode_answer(&answer),
             findings: encode_call_part_tool_denied_findings(findings, limits)?,
         },
     )?))
@@ -548,7 +545,7 @@ fn encode_part_delegation_denied(
     Ok(wire::CallPart::DelegationDenied(wire::CallPartDelegationDenied::new(
         &limits.core,
         wire::CallPartDelegationDeniedParts {
-            answer: encode_answer(&answer, limits),
+            answer: encode_answer(&answer),
             findings: encode_call_part_delegation_denied_findings(findings, limits)?,
         },
     )?))
@@ -584,19 +581,19 @@ fn encode_part_proposal_decided(
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::ProposalDecided(wire::CallPartProposalDecided::new(
         &limits.core,
-        wire::CallPartProposalDecidedParts { proposal, outcome: encode_proposal_outcome(&outcome, limits) },
+        wire::CallPartProposalDecidedParts { proposal, outcome: encode_proposal_outcome(&outcome) },
     )?))
 }
 
 #[expect(clippy::manual_map, reason = "step code uses concrete matches (programming-model.md, 10)")]
-fn decode_part_effect(value: wire::CallPartEffect, limits: &Limits) -> domain::CallPart {
+fn decode_part_effect(value: wire::CallPartEffect) -> domain::CallPart {
     let wire::CallPartEffectParts { connector, entry, deadline, outcome } = value.into_parts();
     domain::CallPart::Effect {
         connector,
         entry,
         deadline: Wall::from_nanos(deadline),
         outcome: match outcome {
-            Some(value) => Some(decode_outbox_outcome(value, limits)),
+            Some(value) => Some(decode_outbox_outcome(value)),
             None => None,
         },
     }
@@ -636,17 +633,17 @@ fn encode_holder(value: &tasks::ProposalHolder, limits: &Limits) -> Result<wire:
         }
         tasks::ProposalHolder::Policy { project, kind } => wire::ProposalHolder::Policy(wire::PolicyHolder::new(
             &limits.core,
-            wire::PolicyHolderParts { project: *project, kind: super::encode_proposal_kind(kind, limits) },
+            wire::PolicyHolderParts { project: *project, kind: super::encode_proposal_kind(kind) },
         )?),
     })
 }
-fn decode_holder(value: wire::ProposalHolder, limits: &Limits) -> tasks::ProposalHolder {
+fn decode_holder(value: wire::ProposalHolder) -> tasks::ProposalHolder {
     match value {
         wire::ProposalHolder::Task(value) => tasks::ProposalHolder::Task(value.into_parts().value),
         wire::ProposalHolder::Person(value) => tasks::ProposalHolder::Person(value.into_parts().value),
         wire::ProposalHolder::Policy(value) => {
             let wire::PolicyHolderParts { project, kind } = value.into_parts();
-            tasks::ProposalHolder::Policy { project, kind: super::decode_proposal_kind(kind, limits) }
+            tasks::ProposalHolder::Policy { project, kind: super::decode_proposal_kind(kind) }
         }
     }
 }
