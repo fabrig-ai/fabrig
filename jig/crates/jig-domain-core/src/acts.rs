@@ -22,7 +22,7 @@ pub(crate) use standing::role;
 /// An act in the client's closed order, translated between vocabularies by the wire.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Act {
-    /// Delete the project (temper/docs/design/draft/playground-reset.md, 5).
+    /// Delete the project (jig/docs/design/domain/people.md, 5.2).
     RemoveProject,
     /// Write to an agent.
     Message,

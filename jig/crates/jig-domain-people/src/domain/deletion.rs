@@ -1,4 +1,4 @@
-//! Project closure and retained deletion progress (temper/docs/design/draft/playground-reset.md, 5).
+//! Project closure and retained deletion progress (jig/docs/design/domain/people.md, 5.2).
 use super::Domain;
 use crate::{Act, Ask, DeletionStep, Key, Outcome, Request, Stored};
 use skein_lib::{List, Queue};

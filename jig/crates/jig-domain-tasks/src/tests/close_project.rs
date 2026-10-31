@@ -1,4 +1,4 @@
-//! Project-close preconditions and output ordering (temper/docs/design/draft/playground-reset.md, 5).
+//! Project-close preconditions and output ordering (jig/docs/design/domain/tasks.md, 7).
 use super::revisions::{Harness, to};
 use crate::{Event, Funder, Key, Mode, Owner, PlacedHold, Request, Scope, Stored};
 

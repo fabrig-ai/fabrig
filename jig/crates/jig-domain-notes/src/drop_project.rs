@@ -1,5 +1,5 @@
 //! Project index lines are erased a bounded page at a time
-//! (temper/docs/design/draft/playground-reset.md, 5). Globally named entries
+//! (jig/docs/design/domain/engine.md, 10). Globally named entries
 //! remain; they may also be indexed outside the project. The parent commits
 //! each page before its next load, and completion follows an empty page.
 

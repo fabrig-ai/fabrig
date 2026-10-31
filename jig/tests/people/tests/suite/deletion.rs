@@ -1,4 +1,4 @@
-//! Deletion progress and retained project keys (temper/docs/design/draft/playground-reset.md, 5).
+//! Deletion progress and retained project keys (jig/docs/design/domain/people.md, 5.2).
 use jig_domain_people::{
     self as p, Act, ActGrant, ActKey, ActKind, Ask, DeletionStep, Domain, Event, Holding, Key, Outcome, Refusal, Reply,
     Request, RequestKey, Role, Stored,

@@ -506,8 +506,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Adopted { source, kept } if domain.wanted() => {
             crate::signing::adopted(domain, env, source, kept, out);
         }
-        Event::ForgetProject { .. }
-        | Event::Withdrawn { .. }
+        Event::Withdrawn { .. }
         | Event::Opened { .. }
         | Event::NotOurs { .. }
         | Event::Adopted { .. } => {}

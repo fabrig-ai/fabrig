@@ -1,4 +1,4 @@
-//! Whole-task erasure reads (temper/docs/design/draft/playground-reset.md, 5;
+//! Whole-task erasure reads (jig/docs/design/protocol/store.md, 11.1;
 //! jig/docs/design/protocol/store.md, 4.3, 7.3 and 11.1).
 use super::fixtures;
 use crate::{Event, Request, Store, Write, codec, keys};

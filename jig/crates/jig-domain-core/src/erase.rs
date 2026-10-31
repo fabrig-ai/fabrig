@@ -1,4 +1,4 @@
-//! Whole-task erasure (temper/docs/design/draft/playground-reset.md, 5;
+//! Whole-task erasure (jig/docs/design/protocol/store.md, 11.1;
 //! jig/docs/design/protocol/store.md, 7.4, 8.5, 11.1).
 use crate::{Core, Key, Limits, Request, Requests, Write, reads};
 use alloc::boxed::Box;

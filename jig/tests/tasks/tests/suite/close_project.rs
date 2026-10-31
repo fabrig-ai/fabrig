@@ -1,4 +1,4 @@
-//! Project deletion retains financial history (temper/docs/design/draft/playground-reset.md, 5).
+//! Project deletion retains financial history (jig/docs/design/domain/tasks.md, 7).
 use jig_domain_tasks::{
     self as tasks, Cause, Event, Funder, Key, Mode, Owner, Party, PlacedHold, RecurringOverlap, Scope, Stored,
 };

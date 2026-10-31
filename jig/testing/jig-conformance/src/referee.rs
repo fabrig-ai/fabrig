@@ -273,7 +273,7 @@ pub struct Snapshot {
     pub naming: Vec<Naming>,
 }
 
-/// One durable row's names (temper/docs/design/draft/playground-reset.md, 5).
+/// One durable row's names (jig/docs/design/domain/people.md, 5.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Naming {
     /// The row's key, printed, for the violation's words.
@@ -284,7 +284,7 @@ pub struct Naming {
     pub outlives: Option<Outlives>,
 }
 
-/// What outlives a deleted project (temper/docs/design/draft/playground-reset.md, 5).
+/// What outlives a deleted project (jig/docs/design/domain/people.md, 5.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Outlives {
     /// A closed period's ledger: the project's spend in the period's totals.

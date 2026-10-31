@@ -1,5 +1,5 @@
 //! Project funding closes after its last live task, preserving spend in history
-//! (temper/docs/design/draft/playground-reset.md, 5).
+//! (jig/docs/design/domain/tasks.md, 7).
 use crate::{Domain, Funder, Key, Request, Scope};
 use skein_lib::{List, Queue};
 

@@ -17,7 +17,7 @@ pub(crate) struct Removing {
 }
 
 /// A deleted project's explicit use leaves shared lists in order
-/// (temper/docs/design/draft/playground-reset.md, 5; jig/docs/design/domain/accounts.md, 4.2).
+/// (jig/docs/design/domain/accounts.md, 4.2; jig/docs/design/domain/accounts.md, 4.2).
 /// A sole use stays: its number is never reused, and an empty list would cover every payer.
 pub(crate) fn forget_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let payer = Use::Project(project);

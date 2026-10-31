@@ -155,7 +155,7 @@ pub struct Domain {
 }
 
 impl Domain {
-    /// Kept deletions, restored at start (temper/docs/design/draft/playground-reset.md, 5).
+    /// Kept deletions, restored at start (jig/docs/design/domain/people.md, 5.2).
     #[must_use]
     pub fn deletions(&self) -> &Map<u32, crate::DeletionStep> {
         &self.deletions

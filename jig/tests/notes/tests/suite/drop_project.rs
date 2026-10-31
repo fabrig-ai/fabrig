@@ -1,5 +1,5 @@
 //! Project deletion retains globally named entries and pages the project's
-//! index lines (temper/docs/design/draft/playground-reset.md, 5).
+//! index lines (jig/docs/design/domain/engine.md, 10).
 
 use jig_domain_notes::{Event, Key, Last, Line, Pattern, Recall, Record, Scope};
 use jig_notes_world::{Answer, World, one_scope, task_entry};
