@@ -486,7 +486,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     domain.consume_restore();
     domain.now = env.now;
     match event {
-        Event::ForgetProject { project } => forget_project(domain, project),
+        Event::ForgetProject { project } => crate::changes::forget_project(domain, project, out),
         Event::Restore { record } => restore(domain, env, record),
         Event::Want => want(domain, env, out),
         Event::ProgramTargets { source, hosts } => crate::programs::targets(domain, source, hosts, out),
@@ -1194,6 +1194,3 @@ pub(crate) fn moving(domain: &mut Domain, env: &Env<Limits>, source: u32, out: &
     entry.state = State::Asking;
     changed(domain, env, source, before, out);
 }
-
-/// Project account-use erasure (temper/docs/design/draft/playground-reset.md, 5).
-fn forget_project(_domain: &mut Domain, _project: u32) {}
