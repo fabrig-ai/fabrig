@@ -1598,8 +1598,8 @@ fn a_fresh_init_s_first_chat_reads_its_forge() {
     scratch.remove();
 }
 
-#[test]
 /// temper/docs/design/draft/playground-reset.md, 6.1–6.2 and 8.
+#[test]
 fn a_first_run_plays_the_playground_and_leaves_it_by_its_reset() {
     playground_reset(false);
 }
@@ -2103,7 +2103,7 @@ fn playground_reset(kill: bool) {
             let _bot = demo_bot(&paths[0], &client);
             demo_landed(&paths[0], &client);
             if kill {
-                support::playground::interrupt_reset(binary, &paths[0], &client);
+                let _parent = support::playground::interrupt_reset(binary, &paths[0], &client);
             } else {
                 support::playground::end_and_check(&paths[0], &paths[1], &client);
             }
@@ -2113,7 +2113,7 @@ fn playground_reset(kill: bool) {
     assert!(ended.finished && ended.dormant_checked, "the person chose the dormant playground: {stderr}");
     if kill {
         assert_eq!(ended.exit, Some(Exit::Signal(9)), "box killed during reset: {stderr}");
-        let resumed = support::boxed::run_ctl(
+        let resumed = support::boxed::run_ctl_resuming_playground(
             scratch.path(),
             flags,
             &client,

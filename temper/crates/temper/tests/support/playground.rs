@@ -33,13 +33,18 @@ impl Referee<NativeClient> for Judge {
             }
             Page::Forge
                 if named(client, Role::Heading { level: 1 }, b"Connect a forge")
-                    && named(client, Role::Button, b"Run on this machine") =>
+                    && named(client, Role::Link, b"Forgejo on this machine") =>
             {
                 assert!(!named(client, Role::Button, b"Try the playground"));
                 client.close();
                 self.page = Page::Done;
             }
-            Page::Leaving if named(client, Role::Status, "Leaving the playground…".as_bytes()) => {
+            Page::Leaving
+                if client.tree().nodes().iter().any(|node| {
+                    node.text.iter().flat_map(|run| run.text.iter().copied()).collect::<Vec<_>>()
+                        == "Leaving the playground…".as_bytes()
+                }) =>
+            {
                 client.close();
                 self.page = Page::Done;
             }
@@ -149,7 +154,8 @@ impl Referee<Process> for ResetJudge {
 }
 /// Hold the box's acknowledgement while the engine deletes the project, then abandon the waiting caller.
 /// The enclosing box world kills the supervised tree after this check returns.
-pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) {
+#[must_use]
+pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) -> u32 {
     let program = std::fs::canonicalize(skein_scratch::paths::binary("temper")).expect("temper binary");
     let parent = binary
         .tree_status()
@@ -185,8 +191,9 @@ pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) {
     let ended = world.run(&clock, super::WITHIN);
     let Process::Calls(calls) = &ended.procs[0] else { panic!("reset calls") };
     let [reset, me] = calls.ends() else { panic!("reset and project read") };
-    assert_ne!(reset.exit, Some(skein_io::kernel::Exit::Code(0)), "reset still waits for the box");
+    assert_eq!(reset.exit, Some(skein_io::kernel::Exit::Code(143)), "reset still waits for the box");
     assert!(reset.stdout.is_empty(), "reset has not answered");
     assert_eq!(ctl::json(me)["projects"], serde_json::json!([]), "project removal committed");
     reload(config, client, b"private", true);
+    *parent
 }

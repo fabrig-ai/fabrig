@@ -472,6 +472,7 @@ pub struct CtlOutcome<T> {
     pub visits: Vec<Vec<super::sign_in_browser::Hop>>,
 }
 struct CtlJudge<'a, F, T> {
+    resuming_playground: Option<[PathBuf; 2]>,
     fail_on_panic: Option<()>,
     expected_exits: Vec<(usize, u8)>,
     release_answers: Option<usize>,
@@ -576,6 +577,19 @@ fn restart_engine(
     }
 }
 impl<F, T> CtlJudge<'_, F, T> {
+    fn resume_playground(&mut self, binary: &Binary) {
+        if skein_lib::bytes::find(binary.stderr(), b"Starting serve\n").is_some()
+            && let Some([config, client]) = self.resuming_playground.take()
+        {
+            let parent = super::playground::interrupt_reset(binary, &config, &client);
+            let continued = std::process::Command::new("/usr/bin/kill")
+                .args(["-CONT", &parent.to_string()])
+                .status()
+                .expect("resume box parent");
+            assert!(continued.success());
+        }
+    }
+
     fn bound(&mut self, calls: &super::ctl::Calls, binary: &Binary, failed: bool) {
         if !self.stopping
             && !calls.idle()
@@ -593,6 +607,8 @@ impl<F, T> CtlJudge<'_, F, T> {
 }
 impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
+        let Process::Binary(binary) = &procs[0] else { panic!("box") };
+        self.resume_playground(binary);
         let Process::Calls(calls) = &procs[1] else { panic!("ctl") };
         let failed = calls.ends().iter().enumerate().any(|(index, call)| {
             let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
@@ -666,6 +682,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                 eprintln!("pending scripted release: {:?}", calls.llm_release());
             }
             if calls.idle() && !failed && binary.exit_status().is_none() {
+                assert!(self.resuming_playground.is_none(), "the kept reset was observed after restart");
                 self.checked.set(Some(self.check.take().expect("one live check")(binary)));
             }
             // A held batch keeps its root open for the reply referee. Release
@@ -737,6 +754,29 @@ pub fn run_ctl<T>(
     )
     .0
 }
+/// Observe the kept reset while the restarted box's acknowledgement is held.
+#[must_use]
+pub fn run_ctl_resuming_playground<T>(
+    directory: &Path,
+    flags: Vec<String>,
+    client_root: &Path,
+    steps: Vec<super::ctl::Step>,
+    deadline: Duration,
+    check: impl FnOnce(&Binary) -> T,
+) -> CtlOutcome<T> {
+    let config = flags.windows(2).find(|pair| pair[0] == "--config").expect("explicit configuration");
+    let paths = [PathBuf::from(&config[1]), client_root.into()];
+    run_ctl_peers(
+        directory,
+        flags,
+        client_root,
+        steps,
+        deadline,
+        check,
+        CtlPeers { expected_exits: Vec::new(), model: CtlModel::ResumingPlayground(paths) },
+    )
+    .0
+}
 /// Continues through the exact expected nonzero calls, keeping the normal early-stop rule otherwise.
 #[must_use]
 pub fn run_ctl_with_exits<T>(
@@ -770,6 +810,7 @@ struct CtlPeers {
     model: CtlModel,
 }
 enum CtlModel {
+    ResumingPlayground([PathBuf; 2]),
     None,
     Llm(Box<CtlLlm>),
     Face(Box<super::forge_land::CtlFace>),
@@ -884,6 +925,13 @@ fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String]) {
     }
 }
 
+fn resuming_playground(model: &CtlModel) -> Option<[PathBuf; 2]> {
+    match model {
+        CtlModel::ResumingPlayground(paths) => Some(paths.clone()),
+        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) | CtlModel::Account(_) => None,
+    }
+}
+
 fn run_ctl_peers<T>(
     directory: &Path,
     flags: Vec<String>,
@@ -893,10 +941,11 @@ fn run_ctl_peers<T>(
     check: impl FnOnce(&Binary) -> T,
     peers: CtlPeers,
 ) -> (CtlOutcome<T>, Option<super::forge_land::Seen>) {
+    let resuming_playground = resuming_playground(&peers.model);
     let account_probe = matches!(&peers.model, CtlModel::Account(_));
     let cut = match &peers.model {
         CtlModel::Account(probe) => probe.cut_after_listening.clone(),
-        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) => None,
+        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) | CtlModel::ResumingPlayground(_) => None,
     };
     let fail_on_panic = account_probe.then_some(());
     let (peer, on_link, face, reply) = match peers.model {
@@ -904,7 +953,7 @@ fn run_ctl_peers<T>(
         CtlModel::Face(story) => {
             (None, None, Some(story.face), Some(super::forge_land::Reply::new(story.first, story.reply)))
         }
-        CtlModel::None => (None, None, None, None),
+        CtlModel::None | CtlModel::ResumingPlayground(_) => (None, None, None, None),
         CtlModel::Account(probe) => (None, None, Some(probe.face), None),
     };
     configure_face(face.as_ref(), &flags);
@@ -939,6 +988,7 @@ fn run_ctl_peers<T>(
     let visits = Cell::new(Vec::new());
     let follow_reply = reply.is_some();
     let mut world = real::World::new(CtlJudge {
+        resuming_playground,
         fail_on_panic,
         expected_exits: peers.expected_exits,
         release_answers: None,
