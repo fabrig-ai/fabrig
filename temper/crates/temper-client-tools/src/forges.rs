@@ -1,4 +1,4 @@
-//! The deployment's forge tools (client/tools.md, 5.4 and 5.5, area 6).
+//! The deployment's forge tools (temper/docs/design/draft/playground-reset.md, 3, 4 and 6).
 use crate::jig::table::{
     Keyed, Kind,
     Occurs::{Optional, Required},
@@ -42,7 +42,7 @@ pub const SET_UP: Tool = Tool {
     prints: b"`setting up`, then, once Forgejo runs, the adoption of its first repository",
     result: b"forge-setup",
     forms: &[&[
-        positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Required, b"The owned Forgejo's forge number"),
+        positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Optional, b"A kept owned Forgejo; a new one when absent"),
         flag(b"org", b"ORG", Kind::Literal, Optional, b"The organization; work when absent"),
         flag(b"repository", b"REPOSITORY", Kind::Literal, Optional, b"The first repository; hello when absent"),
         flag(
@@ -111,6 +111,49 @@ pub const CONNECT: Tool = Tool {
             ),
             flag(b"label", b"LABEL", Kind::Literal, Optional, b"The runner's label; docker when absent"),
         ],
+        &[
+            positional(
+                b"way",
+                b"github-app",
+                Kind::Word { set: &[b"github-app"] },
+                Required,
+                b"An App of your own, or one another owns",
+            ),
+            positional(b"id", b"APP", Kind::NumberRange { min: 1, max: u64::MAX }, Required, b"The App's id"),
+            positional(b"file", b"FILE", Kind::File, Required, b"The private file of the App's PEM key"),
+        ],
+        &[
+            positional(
+                b"way",
+                b"github",
+                Kind::Word { set: &[b"github"] },
+                Required,
+                b"temper's App, made in a browser from its manifest",
+            ),
+        ],
+        &[
+            positional(
+                b"way",
+                b"forgejo-admin",
+                Kind::Word { set: &[b"forgejo-admin"] },
+                Required,
+                b"As the Forgejo's site admin",
+            ),
+            positional(b"file", b"FILE", Kind::File, Required, b"The private file of the admin's token"),
+            flag(b"first", b"ORG/REPOSITORY", Kind::Literal, Optional, b"Make this first repository, ORG/NAME"),
+            flag(
+                b"project",
+                b"PROJECT",
+                Kind::Project { empty: false },
+                Optional,
+                b"Adopt it into this project; a new one named after it when absent",
+            ),
+            flag(b"label", b"LABEL", Kind::Literal, Optional, b"The runner's label; docker when absent"),
+            flag(b"api", b"HOST:PORT", Kind::Literal, Required, b"The Forgejo API host and port"),
+            flag(b"tls", b"NAME", Kind::Literal, Optional, b"The TLS server name; plaintext when absent"),
+            flag(b"git", b"URL", Kind::Literal, Required, b"The git address"),
+            flag(b"web", b"URL", Kind::Literal, Optional, b"The web address"),
+        ],
     ],
     keyed: Keyed::Required,
     area: 6,
@@ -178,6 +221,34 @@ pub const DEMO_START: Tool = Tool {
     notes: b"It returns once the playground runs. A failed start names its step,\nthe fakes, the account, the adoption or the forge, and the same\ncall again finishes it. `refused: not offered` (exit 2): this\ndeployment has no playground.\n",
 };
 
+pub const REMOVE: Tool = Tool {
+    name: b"forge remove",
+    line: b"Remove a forge from the deployment",
+    prints: b"`removed`, or `refused: WHY` (exit 2)",
+    result: b"forge-remove",
+    forms: &[&[positional(
+        b"forge",
+        b"FORGE",
+        Kind::NumberRange { min: 1, max: 65535 },
+        Required,
+        b"The forge's number",
+    )]],
+    keyed: Keyed::Optional,
+    area: 6,
+    notes: b"",
+};
+pub const PLAYGROUND_END: Tool = Tool {
+    name: b"playground end",
+    line: b"End the playground and set up temper",
+    prints: b"`reset`, or `refused: not offered` (exit 2)",
+    result: b"playground-end",
+    forms: &[&[]],
+    keyed: Keyed::Optional,
+    area: 6,
+    notes: b"",
+};
+mod lifecycle;
+
 use crate::{
     jig::{
         self,
@@ -213,6 +284,7 @@ pub(crate) struct Forges {
     json: bool,
     connections: BTreeMap<Key, connection::Pending>,
     pages: BTreeMap<Key, repositories::Pending>,
+    lifecycle: BTreeMap<Key, lifecycle::Pending>,
 }
 #[derive(Debug)]
 struct Intent {
@@ -257,11 +329,14 @@ impl Forges {
             json: false,
             connections: BTreeMap::new(),
             pages: BTreeMap::new(),
+            lifecycle: BTreeMap::new(),
         }
     }
     pub(crate) fn calls(&self) -> usize {
         self.connections
             .len()
+            .checked_add(self.lifecycle.len())
+            .expect("bounded calls")
             .checked_add(self.pages.len())
             .expect("bounded calls")
             .checked_add(self.waiting.len())
@@ -296,6 +371,8 @@ pub(crate) fn owns(call: &jig::call::Call) -> bool {
     name == READ.name
         || name == SET_UP.name
         || name == DEMO_START.name
+        || name == REMOVE.name
+        || name == PLAYGROUND_END.name
         || name == CONNECT.name
         || name == INSTALL.name
         || name == ACCEPT.name
@@ -327,6 +404,10 @@ pub(crate) fn ready(state: &mut Forges, client: &Client, env: &Env<Limits>, out:
 }
 #[expect(clippy::manual_map, reason = "the domain matches without closures")]
 fn send(state: &mut Forges, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
+    if lifecycle::owns(&called.call) {
+        lifecycle::send(state, env, called, out);
+        return;
+    }
     if repositories::owns(&called.call) {
         repositories::send(state, env, called, out);
         return;
@@ -352,21 +433,14 @@ fn send(state: &mut Forges, client: &Client, env: &Env<Limits>, called: Called, 
     }
     if name == SET_UP.name || name == DEMO_START.name {
         let intent = if name == SET_UP.name {
-            let forge = u16::try_from(number_arg(&called.call)).expect("checked forge number");
+            let forge = u16::try_from(jig::call::number(&called.call, 0).unwrap_or(0)).expect("checked forge number");
             Some(intent(forge, &called.call, client))
         } else {
             None
         };
         let request = match &intent {
-            Some(intent) => domain::ask(
-                intent.forge,
-                intent.org.clone(),
-                intent.repository.clone(),
-                intent.project.clone(),
-                intent.playground,
-                &env.limits.domain.forge,
-            ),
-            None => temper_client_domain::forge::demo::ask(&env.limits.domain.forge),
+            Some(intent) => setup_ask(intent, &env.limits),
+            None => lifecycle::ask(temper_client_protocol_wire::v1::Request::StartPlayground, &env.limits),
         };
         let Some(request) = request else {
             let printed = render::failure(b"set up encoding failed", called.json, 1);
@@ -409,6 +483,9 @@ fn finish(called: Called, printed: jig::Printed, out: &mut Queue<Out>) {
     out.push(Out::Printed { number: called.number, printed });
 }
 pub(crate) fn told(state: &mut Forges, client: &Client, env: &Env<Limits>, told: &Told, out: &mut Queue<Out>) {
+    if lifecycle::told(state, env, told, out) {
+        return;
+    }
     if repositories::told(state, env, told, out) {
         return;
     }
@@ -503,7 +580,7 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
             let request = request.into_parts();
             Some(Intent {
                 playground: request.playground,
-                forge: request.forge,
+                forge: making_number(&request.forge),
                 org: request.org,
                 repository: request.repository,
                 project: match request.project {
@@ -516,8 +593,11 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
                 },
             })
         }
-        temper_client_protocol_wire::v1::Request::StartDemo => None,
-        temper_client_protocol_wire::v1::Request::Reachable(_)
+        temper_client_protocol_wire::v1::Request::StartDemo
+        | temper_client_protocol_wire::v1::Request::StartPlayground => None,
+        temper_client_protocol_wire::v1::Request::RemoveForge(_)
+        | temper_client_protocol_wire::v1::Request::EndPlayground
+        | temper_client_protocol_wire::v1::Request::Reachable(_)
         | temper_client_protocol_wire::v1::Request::Adopt(_)
         | temper_client_protocol_wire::v1::Request::Return(_)
         | temper_client_protocol_wire::v1::Request::Connect(_)
@@ -938,7 +1018,7 @@ fn setup_text(forge: u16, answer: &SetUpAnswer, kept: bool, limits: &Limits, out
             out.put(b"refused: ");
             out.put(words::set_up_refusal(*why));
             out.put(b"\n");
-            if *why == SetUpRefusal::NotUnderTheBox {
+            if *why == SetUpRefusal::NotUnderTheBox && forge != 0 {
                 out.put(&words::set_up_commands(forge));
                 out.put(b"\n");
             }
@@ -976,7 +1056,7 @@ fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
                 SetUpRefusal::Invalid => b"invalid",
             });
             out.object_end();
-            if *why == SetUpRefusal::NotUnderTheBox {
+            if *why == SetUpRefusal::NotUnderTheBox && forge != 0 {
                 out.key(b"next");
                 out.string(&words::set_up_commands(forge));
             }
@@ -1176,8 +1256,21 @@ fn setup_changed(
     rows: &[Row],
     out: &mut Queue<Out>,
 ) {
-    let watch = state.watches.get(&handle).expect("active setup watch");
-    let intent = watch.setup.as_ref().expect("setup intent");
+    let watch = state.watches.get_mut(&handle).expect("active setup watch");
+    let intent = watch.setup.as_mut().expect("setup intent");
+    if intent.forge == 0 {
+        for row in rows.iter().rev() {
+            if let Some(first) = &row.first
+                && first.org == intent.org
+                && first.repository == intent.repository
+                && first.project == intent.project
+                && first.playground == intent.playground
+            {
+                intent.forge = row.number;
+                break;
+            }
+        }
+    }
     for row in rows {
         if row.number != intent.forge {
             continue;
@@ -1327,4 +1420,43 @@ fn first_json(first: &First, out: &mut Encoder) {
         }
     }
     out.object_end();
+}
+
+fn making_number(making: &temper_client_protocol_wire::v1::Making) -> u16 {
+    use temper_client_protocol_wire::v1::Making;
+    match making {
+        Making::Kept(kept) => kept.forge(),
+        Making::New(_) => 0,
+    }
+}
+fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
+    use temper_client_protocol_wire::v1 as w;
+    let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge)?;
+    let forge = if intent.forge == 0 {
+        w::Making::New(w::NewForge::new(&bounds, w::NewForgeParts { forge: w::ForgeAsk::Owned }).ok()?)
+    } else {
+        w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge: intent.forge }).ok()?)
+    };
+    let project = match &intent.project {
+        SetUpProject::Existing(project) => w::SetUpProject::Existing(
+            w::ExistingProject::new(&bounds, w::ExistingProjectParts { project: *project }).ok()?,
+        ),
+        SetUpProject::New(name) => {
+            w::SetUpProject::New(w::NewProject::new(&bounds, w::NewProjectParts { name: name.clone() }).ok()?)
+        }
+    };
+    let request = w::Request::SetUp(
+        w::SetUp::new(
+            &bounds,
+            w::SetUpParts {
+                forge,
+                org: intent.org.clone(),
+                repository: intent.repository.clone(),
+                project,
+                playground: intent.playground,
+            },
+        )
+        .ok()?,
+    );
+    lifecycle::ask(request, limits)
 }

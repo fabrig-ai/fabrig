@@ -75,6 +75,7 @@ fn deliver(root: &mut f::Harness, record: client::Family) {
 fn forge_calls_round_trip_through_argv_json_and_help() {
     for argv in [
         &["forge", "list"][..],
+        &["forge", "setup"],
         &["forge", "setup", "3"],
         &["forge", "setup", "3", "--key", "setup"],
         &["forge", "setup", "3", "--org", "team", "--repository", "widget", "--project", "shop"],
@@ -91,8 +92,7 @@ fn forge_calls_round_trip_through_argv_json_and_help() {
         assert!(skein_lib::bytes::find(&help, argv[0].as_bytes()).is_some());
     }
     for argv in [
-        &["forge", "setup"][..],
-        &["forge", "setup", "oops"],
+        &["forge", "setup", "oops"][..],
         &["forge", "setup", "65536"],
         &["forge", "setup", "0"],
         &["forge", "list", "--until", "busy"],
@@ -291,7 +291,7 @@ fn setup_answers_print_their_words_json_and_status() {
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
             let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits).unwrap().into_parts().request else { panic!("set up"); };
-            assert_eq!(request.forge(), 3);
+            assert_eq!(request.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()));
             root.adoption_answer(call, outcome.clone());
             if status == 0 {
                 assert!(root.answer(call).is_none());
@@ -706,7 +706,7 @@ fn demo_start_answers_print_their_words_json_and_status() {
             let call = root.submit_prepared(f::call(&["playground", "start", "--key", "playground"]), json, None);
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
-            assert_eq!(wire::decode_requesting(&record.bytes, l).unwrap().request(), &w::Request::StartDemo);
+            assert_eq!(wire::decode_requesting(&record.bytes, l).unwrap().request(), &w::Request::StartPlayground);
             root.adoption_answer(call, outcome.clone());
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, status);
@@ -1194,4 +1194,130 @@ fn changed_with_since_waits_for_a_forge_change_after_the_baseline() {
     }
     deliver(&mut root, record(w::Connection::NotSetUp));
     assert_eq!(root.answer(call).unwrap().status, 0);
+}
+
+#[test]
+fn forge_setup_without_a_number_sends_a_new_owned_forge() {
+    for words in [
+        &["forge", "setup"][..],
+        &["forge", "setup", "--playground"],
+        &["forge", "setup", "--org", "team", "--repository", "widget", "--project", "3"],
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(words);
+        let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
+        assert_eq!(*scope, c::Scope::Deployment);
+        let w::Request::SetUp(request) =
+            wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+        else {
+            panic!("setup")
+        };
+        let w::Making::New(new) = request.forge() else { panic!("new forge") };
+        assert_eq!(new.forge(), &w::ForgeAsk::Owned);
+        assert_eq!(request.playground(), words.contains(&"--playground"));
+        if words.contains(&"--org") {
+            assert_eq!(request.org(), b"team");
+            assert_eq!(request.repository(), b"widget");
+        } else if request.playground() {
+            assert_eq!(request.org(), b"playground");
+            assert_eq!(request.repository(), b"widget");
+        } else {
+            assert_eq!(request.org(), b"work");
+            assert_eq!(request.repository(), b"hello");
+        }
+    }
+}
+
+#[test]
+fn forge_remove_prints_removed_and_its_refusal() {
+    lifecycle_answers(
+        &["forge", "remove", "3"],
+        &[
+            (w::Outcome::Removed, b"removed\n", br#"{"removed":{}}"#, 0),
+            (
+                w::Outcome::RemoveRefused(
+                    w::RemoveRefused::new(&w::CEILINGS, w::RemoveRefusedParts { why: w::ForgeRefusal::NoSuchForge })
+                        .unwrap(),
+                ),
+                b"refused: no such forge\n",
+                br#"{"remove_refused":{"why":"no_such_forge"}}"#,
+                2,
+            ),
+            (
+                w::Outcome::RemoveRefused(
+                    w::RemoveRefused::new(&w::CEILINGS, w::RemoveRefusedParts { why: w::ForgeRefusal::Busy }).unwrap(),
+                ),
+                b"refused: busy\n",
+                br#"{"remove_refused":{"why":"busy"}}"#,
+                2,
+            ),
+        ],
+    );
+}
+#[test]
+fn playground_end_prints_reset_and_not_offered() {
+    lifecycle_answers(
+        &["playground", "end"],
+        &[
+            (w::Outcome::Reset, b"reset\n", br#"{"reset":{}}"#, 0),
+            (
+                w::Outcome::EndRefused(
+                    w::EndRefused::new(&w::CEILINGS, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).unwrap(),
+                ),
+                b"refused: not offered\n",
+                br#"{"end_refused":{"why":"not_offered"}}"#,
+                2,
+            ),
+        ],
+    );
+}
+fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)]) {
+    for (outcome, text, json_text, status) in answers {
+        for json in [false, true] {
+            let mut root = f::signed_in(f::PARTY);
+            let call = root.submit_prepared(f::call(words), json, None);
+            let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
+            assert_eq!(*scope, c::Scope::Deployment);
+            match wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() {
+                w::Request::EndPlayground => assert_eq!(words, &["playground", "end"]),
+                w::Request::RemoveForge(value) => {
+                    assert_eq!(words, &["forge", "remove", "3"]);
+                    assert_eq!(value.forge(), 3);
+                }
+                other => panic!("unexpected {other:?}"),
+            }
+            root.adoption_answer(call, outcome.clone());
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, *status);
+            let bytes = if *status == 0 { &printed.stdout } else { &printed.stderr };
+            assert_eq!(bytes.as_ref(), if json { *json_text } else { *text });
+        }
+    }
+}
+
+#[test]
+fn lifecycle_requests_recover_with_their_operation_names() {
+    for (words, outcome, operation, word) in [
+        (&["forge", "remove", "3"][..], w::Outcome::Removed, "forge-remove", "removed"),
+        (&["playground", "end"][..], w::Outcome::Reset, "playground-end", "reset"),
+    ] {
+        for json in [false, true] {
+            let mut root = f::signed_in(f::PARTY);
+            let call = root.submit(words);
+            assert!(root.saved.contains_key(&call));
+            let mut records = f::restored_adoption(f::PARTY);
+            let record = records.get_mut(0).unwrap();
+            record.key = root.sent_name(call).unwrap();
+            record.request.request = root.adoption_bytes(call).clone();
+            let mut root = f::started_with(records, f::SEED, json);
+            root.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
+            root.adoption_answer(0, outcome.clone());
+            let expected = if json {
+                format!("{{\"operation\":\"{operation}\",\"outcome\":{{\"{word}\":{{}}}}}}\n")
+            } else {
+                format!("kept: {operation} {word}\n")
+            };
+            assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected.as_bytes())]);
+        }
+    }
 }
