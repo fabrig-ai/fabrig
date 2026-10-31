@@ -3,8 +3,8 @@
 //! iteration, as a service's loop drives its layers (programming-model.md,
 //! section 2; simulator.md, 3), and checking as it goes:
 //!
-//! - **contracts:** each entry point within its `MAX_OUT`; io's contract with
-//!   the owner, in the [`Ledger`];
+//! - **contracts:** submission room checked before each entry point; io's
+//!   contract with the owner, in the [`Ledger`];
 //! - **the scenario's expectations,** in the [`Referee`];
 //! - **invariants once settled:** every slab empty and nothing in flight in
 //!   io, nothing in flight in the simulator and every descriptor closed, every
@@ -16,7 +16,7 @@ use std::collections::VecDeque;
 use std::fmt::Write;
 
 use skein_io::kernel::{Complete, Op, Submit};
-use skein_io::{Event, Io, Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, Request};
+use skein_io::{Event, Io, Limits, MAX_OUT_DOWN, MaxOut, Request, stage};
 use skein_lib::{Env, Queue, Time, Wall};
 use skein_sim::{Config, Entry, Pid, Sim};
 
@@ -72,25 +72,7 @@ impl Proc {
     pub fn iterate(&mut self, now: Time, wall: Wall, directory: &mut Directory) {
         self.env.now = now;
         self.env.wall = wall;
-        // io's stage: the ready list first, then completions, then deadlines.
-        while self.io.is_ready() && self.room(MAX_OUT_RESUME) {
-            let mark = self.marks();
-            skein_io::resume(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-            self.within(mark, MAX_OUT_RESUME, "resume");
-        }
-        if !self.io.is_ready() {
-            while !self.completions.is_empty() && self.room(MAX_OUT_UP) {
-                let complete = self.completions.pop().expect("not empty");
-                let mark = self.marks();
-                skein_io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.subs);
-                self.within(mark, MAX_OUT_UP, "up");
-            }
-        }
-        while self.io.is_due(now) && self.room(MAX_OUT_FIRE) {
-            let mark = self.marks();
-            skein_io::fire(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-            self.within(mark, MAX_OUT_FIRE, "fire");
-        }
+        stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.subs);
         // The owner's stage.
         while let Some(event) = self.events.pop() {
             self.ledger.event(&event);
@@ -98,7 +80,8 @@ impl Proc {
             self.owner.on(now, event, directory, &mut self.requests);
         }
         self.owner.tick(now, directory, &mut self.requests);
-        // io's down stage.
+        // The ledger observes each request only when io takes it; the shared
+        // down stage has no per-request observation hook.
         while self.io.takes() && self.room(MAX_OUT_DOWN) {
             let Some(request) = self.requests.pop_front() else {
                 break;
