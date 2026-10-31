@@ -6,6 +6,7 @@ use skein_lib::Duration;
 use smith_domain::run::{self, charter::Endpoint, outcome};
 
 /// Small local limits with one inline child using the supplied native receiving profile.
+#[must_use]
 pub fn small(smith: smith_domain::Limits) -> Limits {
     Limits {
         smith,
@@ -23,6 +24,7 @@ pub fn small(smith: smith_domain::Limits) -> Limits {
 }
 
 /// A chat with one priced model and one requested account.
+#[must_use]
 pub fn config() -> Config {
     Config {
         reserve: run::charter::Reserve { turns: 0, time: Duration::ZERO },

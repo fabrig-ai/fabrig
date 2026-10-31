@@ -932,7 +932,10 @@ fn invalid_limits_are_refused() {
 
 /// An activation whose metadata is saved while its account request is outstanding.
 pub(crate) fn awaiting_credential(config: Config) -> (Domain, Env<Limits>, Queue<Request>) {
-    let headless = matches!(config.mode, crate::Mode::Headless { .. });
+    let headless = match config.mode {
+        crate::Mode::Headless { .. } => true,
+        crate::Mode::Chat { .. } => false,
+    };
     let (mut domain, env, mut out) = idle_config(config, 71);
     if !headless {
         crate::step(&mut domain, &env, Event::Line { text: b"work".as_slice().into() }, &mut out);

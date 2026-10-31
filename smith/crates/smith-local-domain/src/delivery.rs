@@ -5,87 +5,14 @@
 //! write, then saves the answer before returning it to the child.
 
 use alloc::boxed::Box;
-use skein_lib::{List, Map, Time, Token};
+use skein_lib::{List, Map};
 use smith_domain::run::{self, outcome};
 
-use crate::{DeliveryRecord, IntentDirectory};
+use crate::DeliveryRecord;
 
 /// Return the first durable answer for a repeated call name.
 pub(crate) fn cached(records: &Map<run::CallName, DeliveryRecord>, name: run::CallName) -> Option<run::Delivery> {
     records.get(&name)?.answer(name)
-}
-
-/// Operation awaited from the caller, or the durable store.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Step {
-    Plain,
-    Status,
-    Markers,
-    Commit,
-    Inspect,
-    InspectPush,
-    Push,
-}
-
-/// Survey reads every writable directory before a commit; execution uses that snapshot.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Stage {
-    Survey,
-    Execute,
-}
-
-/// One child delivery call and the directories already made durable.
-#[derive(Debug)]
-pub(crate) struct InPlace {
-    pub(crate) name: run::CallName,
-    pub(crate) owner: Token,
-    pub(crate) deadline: Time,
-    pub(crate) next: u32,
-    pub(crate) receipts: List<run::Receipt>,
-    pub(crate) message: Box<[u8]>,
-    pub(crate) step: Step,
-    pub(crate) stage: Stage,
-    pub(crate) directories: List<IntentDirectory>,
-    pub(crate) uncertainty: Option<(run::DeliveryReason, run::Diagnostic)>,
-    pub(crate) marker_head: Option<Box<[u8]>>,
-}
-
-impl InPlace {
-    pub(crate) fn new(name: run::CallName, owner: Token, deadline: Time, message: Box<[u8]>) -> Self {
-        Self {
-            name,
-            owner,
-            deadline,
-            next: 0,
-            receipts: List::with_capacity(run::MAX_DIRECTORIES),
-            message,
-            step: Step::Status,
-            stage: Stage::Survey,
-            directories: List::with_capacity(run::MAX_DIRECTORIES),
-            marker_head: None,
-            uncertainty: None,
-        }
-    }
-
-    pub(crate) fn receipt(&mut self, directory: u32, text: Box<[u8]>) {
-        let receipt = run::Receipt::new(directory, text).expect("bounded host receipt");
-        self.receipts.push(receipt).expect("admitted directory count fits receipts");
-    }
-
-    pub(crate) fn directory(&mut self, directory: u32, changed: bool, head: Option<Box<[u8]>>) {
-        self.directories
-            .push(IntentDirectory { directory, changed, head, push: None })
-            .expect("admitted directory count");
-    }
-
-    pub(crate) fn result(self) -> run::Delivery {
-        let receipts = self.receipts.into_boxed();
-        if receipts.is_empty() {
-            run::Delivery::Nothing
-        } else {
-            run::Delivery::Delivered(run::Delivered::new(receipts).expect("ordered unique writable directories"))
-        }
-    }
 }
 
 /// Render the host's configured title first, then all other declared fields
