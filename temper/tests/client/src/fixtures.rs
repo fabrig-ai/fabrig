@@ -22,8 +22,9 @@ pub fn forge_settings() -> temper_service::forges::Forges {
     use temper_service::settings::{Forge, Kind, Transport};
     let mut base = b"http://".to_vec();
     base.extend_from_slice(FORGE_HOST);
-    temper_service::forges::Forges::from_document(
-        Box::new([Forge {
+    {
+        let mut table = temper_service::forges::Forges::with_capacity(1);
+        assert!(table.insert(Forge {
             mode: temper_engine_domain_forge::Mode::Connected,
             number: 1,
             kind: Kind::Forgejo,
@@ -37,9 +38,9 @@ pub fn forge_settings() -> temper_service::forges::Forges {
             webhook_secret: None,
             user: 1,
             identity: 1,
-        }]),
-        1,
-    )
+        }));
+        table
+    }
 }
 pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acme", b"second", 8)];
 pub const PARTY: u64 = 1;

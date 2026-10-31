@@ -480,34 +480,27 @@ pub(crate) fn indexed(
 
 pub(crate) fn prepare(
     config: &settings::Engine,
-    runtime: List<ForgeRuntime>,
+    _runtime: List<ForgeRuntime>,
 ) -> Result<skein_forge_connection::settings::Settings, Problems> {
     let mut found = Problems::empty();
-    let prepared = settings(&config.forges, runtime, config.webhooks.clone(), &mut found).ok_or(found)?;
+    let prepared = settings(&[], List::with_capacity(0), config.webhooks.clone(), &mut found).ok_or(found)?;
     if let Err(why) = skein_forge_connection::limits::check(
         &config.limits.forge_component,
         &shared(&config.limits, &config.jig.limits.io),
         &prepared,
     ) {
         let mut found = Problems::empty();
-        problems(indexed(why, &config.forges), &mut found);
+        problems(indexed(why, &[]), &mut found);
         return Err(found);
     }
     Ok(prepared)
 }
 
 pub(crate) fn config(
-    settings: &settings::Engine,
+    _settings: &settings::Engine,
     deployment: [u8; 16],
 ) -> (skein_forge_client::Config, Box<[forge::GitIdentity]>) {
-    let count = u32::try_from(settings.forges.len()).expect("configured forges");
-    let mut identities = List::with_capacity(count);
-    for forge in &settings.forges {
-        identities
-            .push(forge::GitIdentity { forge: forge.number, credential: forge.identity })
-            .expect("forge identities");
-    }
-    (skein_forge_client::Config { namespace: Box::new(deployment), writers: Box::new([]) }, identities.into_boxed())
+    (skein_forge_client::Config { namespace: Box::new(deployment), writers: Box::new([]) }, Box::new([]))
 }
 
 /// What a forge connect starts from.
@@ -530,6 +523,9 @@ pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16, start: Re
     }
     match start {
         Ok(Start::Restored(start)) => {
+            if let Some(forge) = engine.workers.forges.get_mut(number) {
+                forge.user = start.access.user;
+            }
             engine.forge.down(skein_forge_connection::Request::Connect { forge: number, access: start.access });
             if start.slug.is_some() {
                 for installation in &start.accepted {
@@ -547,6 +543,9 @@ pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16, start: Re
             }
         }
         Ok(Start::Adopted(access)) => {
+            if let Some(forge) = engine.workers.forges.get_mut(number) {
+                forge.user = access.user;
+            }
             engine.forge.down(skein_forge_connection::Request::Connect { forge: number, access });
         }
         Err(why) => engine.notes.push(crate::Note::ForgeNotConnected { number, why }),
