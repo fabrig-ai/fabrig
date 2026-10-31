@@ -79,7 +79,6 @@ fn generated() -> (engine::Config, engine::Limits) {
     let demo = settings.demo.as_ref().map(|demo| demo.domain(&settings.forges, settings.limits.setup.deadline));
     (
         engine::Config {
-            machine: None,
             period_span: crate::stock::PERIOD_SPAN,
             core,
             forge,
