@@ -78,6 +78,32 @@ struct Held {
 }
 
 impl Layer {
+    pub(crate) fn serves(&self, forge: u16) -> bool {
+        self.served.contains_key(&forge)
+    }
+    pub(crate) fn git_program(&self, mode: temper_engine_domain_forge::Mode) -> Option<Box<[u8]>> {
+        match &self.runtime {
+            Some(runtime) => runtime.git_program(mode),
+            None => None,
+        }
+    }
+    #[cfg(test)]
+    pub(crate) fn fixture_locals(&mut self, entries: &[crate::settings::Setup]) {
+        for setup in entries {
+            if let Some(local) = self.lifecycle.local_mut(setup.entry.forge) {
+                local.path =
+                    temper_forge_setup::place::Place { directory: setup.entry.directory.clone(), user: Box::new([]) }
+                        .path(temper_forge_setup::place::File::AdminToken);
+                local.handover = setup.handover.clone();
+                if let temper_forge_setup::setup::Mode::Fake(_) = setup.entry.mode {
+                    local.trigger = lifecycle::Trigger::Start;
+                }
+                if let temper_forge_setup::setup::Mode::Fake(fake) = &setup.entry.mode {
+                    local.repositories = u64::try_from(fake.repositories.len()).expect("fixture repositories");
+                }
+            }
+        }
+    }
     /// Keep the shell-resolved endpoint before the forge joins setup (draft/playground-reset.md, 3).
     pub(crate) fn resolved(&mut self, endpoint: crate::ForgeRuntime) {
         if let Some(runtime) = &mut self.runtime {

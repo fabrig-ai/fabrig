@@ -7,12 +7,11 @@ use temper_engine_domain_forge::{self as domain, ForgeRecord};
 use temper_forge_setup::{machine, setup};
 
 pub(super) struct Runtime {
-    machine: Option<machine::Machine>,
+    machine: machine::Machine,
     directories: jig_protocol_config::Directories,
     limits: crate::limits::Limits,
     url: Option<Box<[u8]>>,
     webhooks: Option<core::net::SocketAddr>,
-    entries: List<setup::Entry>,
     endpoints: Map<u16, host::Forge>,
     resolved: Map<u16, Endpoint>,
     pub(super) initial: List<ForgeRecord>,
@@ -28,14 +27,7 @@ impl Runtime {
         for forge in &settings.forges {
             endpoints.insert(forge.number(), forge.clone()).expect("document setup endpoints");
         }
-        let mut entries = List::with_capacity(config.limits.forge.forges);
-        for setup in &config.setup {
-            entries.push(setup.entry.clone()).expect("document setup entries");
-        }
-        let mut initial = List::with_capacity(config.limits.forge.forges);
-        for source in &config.forges {
-            initial.push(document_record(config, source)).expect("document forge records");
-        }
+        let initial = List::with_capacity(config.limits.forge.forges);
         Self {
             machine: config.machine.clone(),
             directories: config.directories.clone(),
@@ -51,10 +43,19 @@ impl Runtime {
                 },
                 None => None,
             },
-            entries,
             endpoints,
             resolved: Map::with_capacity(config.limits.forge.forges),
             initial,
+        }
+    }
+    #[expect(clippy::manual_map, reason = "the configuration boundary uses explicit matches")]
+    pub(super) fn git_program(&self, mode: domain::Mode) -> Option<Box<[u8]>> {
+        match mode {
+            domain::Mode::Fake => match &self.machine.fake {
+                Some(fake) => Some(fake.git.clone()),
+                None => None,
+            },
+            domain::Mode::Connected | domain::Mode::Managed | domain::Mode::Owned => None,
         }
     }
     pub(super) fn resolved(&mut self, endpoint: crate::ForgeRuntime) {
@@ -102,19 +103,7 @@ impl Runtime {
             domain::Mode::Owned | domain::Mode::Fake => {
                 let kind =
                     if record.mode == domain::Mode::Owned { machine::BoxKind::Owned } else { machine::BoxKind::Fake };
-                let mut entry = match &self.machine {
-                    Some(machine) => machine::entry(machine, record.number, kind, &self.directories),
-                    None => None,
-                };
-                if entry.is_none() {
-                    for configured in &self.entries {
-                        if configured.forge == record.number {
-                            entry = Some(configured.clone());
-                            break;
-                        }
-                    }
-                }
-                entry?
+                machine::entry(&self.machine, record.number, kind, &self.directories)?
             }
             domain::Mode::Managed => setup::Entry {
                 forge: record.number,
@@ -279,6 +268,12 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, record: &ForgeRecord) {
     };
     if !engine.setup.served.contains_key(&record.number) {
         if let Some((settings, _)) = &mut engine.setup.pending {
+            if let host::Kind::Forgejo(given) = &forge.kind
+                && let Some(listener) = given.listener
+                && listener.port() == 0
+            {
+                engine.setup.waiting_for_webhooks = true;
+            }
             settings.forges.push(forge).expect("admitted setup forge");
             if let Some(runtime) = &mut engine.setup.runtime {
                 runtime.initial.push(record.clone()).expect("pending kept forges");
@@ -305,68 +300,5 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, record: &ForgeRecord) {
             None => return,
         };
         engine.setup.lifecycle.reconcile.insert(record.number, pending).expect("one lifecycle per forge");
-    }
-}
-
-#[expect(clippy::disallowed_macros, reason = "document settings render an already checked numeric address")]
-fn document_record(config: &crate::settings::Engine, source: &crate::settings::Forge) -> ForgeRecord {
-    let mut mode = source.mode;
-    let mut identity = None;
-    for configured in &config.identities {
-        if configured.number == source.identity {
-            identity = Some(configured);
-            break;
-        }
-    }
-    let identity = identity.expect("configured identity");
-    let mut bot = domain::Bot {
-        login: identity.login.clone(),
-        name: identity.author.name.clone(),
-        email: identity.author.email.clone(),
-    };
-    let mut asked = false;
-    for setup in &config.setup {
-        if setup.entry.forge == source.number {
-            bot.login.clone_from(&setup.entry.bot.login);
-            bot.email.clone_from(&setup.entry.bot.email);
-            asked = setup.entry.asked;
-            mode = match setup.entry.mode {
-                setup::Mode::Owned(_) => domain::Mode::Owned,
-                setup::Mode::Fake(_) => domain::Mode::Fake,
-                setup::Mode::Managed { .. } => domain::Mode::Managed,
-            };
-        }
-    }
-    let (host, port) = match &source.api {
-        jig_protocol_config::Address::Host { name, port } => (name.clone(), *port),
-        jig_protocol_config::Address::Addr(skein_io::Addr::Ip(address)) => {
-            (alloc::format!("{}", address.ip()).into_bytes().into_boxed_slice(), address.port())
-        }
-        jig_protocol_config::Address::Addr(skein_io::Addr::InProcess(_)) => (skein_lib::bytes::copy_of(b""), 0),
-    };
-    ForgeRecord {
-        number: source.number,
-        kind: match source.kind {
-            crate::settings::Kind::Forgejo => domain::Kind::Forgejo,
-            crate::settings::Kind::GitHub => domain::Kind::GitHub,
-        },
-        mode,
-        state: domain::ForgeState::Kept,
-        place: domain::Place {
-            api: domain::Address {
-                host,
-                port,
-                tls: match &source.transport {
-                    crate::settings::Transport::Plaintext => None,
-                    crate::settings::Transport::Tls { server_name, .. } => Some(server_name.clone()),
-                },
-            },
-            git: source.git.clone(),
-            web: source.web.clone(),
-        },
-        read_only: source.app_read_only,
-        bot,
-        asked,
-        first: None,
     }
 }

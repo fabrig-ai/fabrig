@@ -999,18 +999,7 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
     agent.programs[0].path = path.as_bytes().into();
     agent.programs[0].directory = path.as_bytes().into();
     let setup = checked_setup(&document, &named);
-    let mut named_files = named.files.into_vec();
-    named_files.extend(temper_service::startup::setup_files(&setup));
-    for read in temper_service::startup::handover_reads(&document, &jig_protocol_config::Directories::working(), &setup)
-        .expect("bounded handover declarations")
-    {
-        named_files.push(jig_protocol_config::File {
-            at: jig_protocol_config::Path::root(),
-            path: read.path,
-            max: read.max,
-            private: true,
-        });
-    }
+    let named_files = named.files.into_vec();
     let mut entries = List::with_capacity(u32::try_from(named_files.len()).expect("file count"));
     let token_bytes =
         temper_service::limits::profile(temper_service::limits::Profile::Small).forge_component.token_bytes;
