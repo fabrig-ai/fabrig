@@ -1,0 +1,45 @@
+ready = false
+
+draft = "component-kit-4"
+repo = "fabrig"
+sources = [
+  "skein/docs/design/draft/component-kit.md",
+  "skein/docs/plan/component-kit-4/inputs/kickoff.md",
+  "skein/docs/plan/component-kit-4/inputs/skein-quality-review.md",
+  "skein/docs/plan/component-kit-4/inputs/brief.md",
+  "skein/docs/plan/component-kit-4/inputs/README.md",
+  "AGENTS.md",
+]
+
+[[part]]
+id = "kit-contract"
+title = "lib's missing primitives, the io stage and the run's counts, landed before any call site moves"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.1"
+
+[[part]]
+id = "world-surfaces"
+title = "Referee defaults, a provided Host::next_deadline and a forwarding Host, then the worlds on them"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.5"
+
+[[part]]
+id = "abort"
+title = "Abort in skein-forge-connection and skein-forge-setup's host"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.6"
+
+[[slice]]
+id = 1
+story = "the kit's surface is on the trunk: lib's primitives, skein_io::stage and the counts"
+parts = ["kit-contract"]
+walk = false
+
+[[slice]]
+id = 3
+story = "every world on the referee defaults and the forwarding Host; both forge components take Abort"
+parts = ["world-surfaces", "abort"]
+walk = false
