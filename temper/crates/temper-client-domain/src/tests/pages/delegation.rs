@@ -112,7 +112,7 @@ fn a_running_change_has_no_steps_done() {
 #[test]
 fn a_held_change_is_held() {
     let mut task = f::change();
-    f::phase(&mut task, c::OwnerChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 });
+    f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 });
     let facts = delegation::facts(&task);
     assert_eq!(facts.state, State::Held);
     assert_eq!(facts.steps, Some(0));
@@ -121,7 +121,7 @@ fn a_held_change_is_held() {
 #[test]
 fn a_landed_change_says_its_merge_commit() {
     let mut task = f::change();
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(f::change_value(MERGE)))));
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(f::change_value(MERGE)))));
     let facts = delegation::facts(&task);
     assert_eq!(facts.state, State::Landed);
     assert_eq!(facts.said, Some(Said::Merge(b"abcdef0")));
@@ -130,7 +130,7 @@ fn a_landed_change_says_its_merge_commit() {
 #[test]
 fn a_failed_change_says_its_reason() {
     let mut task = f::change();
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Failed(f::document_text(b"CI failed")))));
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Failed(f::document_text(b"CI failed")))));
     let facts = delegation::facts(&task);
     assert_eq!(facts.state, State::Failed);
     assert_eq!(facts.said, Some(Said::Words(b"CI failed")));
@@ -139,10 +139,10 @@ fn a_failed_change_says_its_reason() {
 #[test]
 fn a_cancelled_task_is_cancelled() {
     let mut task = f::change();
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Cancelled {
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Cancelled {
         reason: f::document_text(b"No longer needed"),
         result: None,
-        by: c::OwnerRequester::Person(fixtures::PARTY),
+        by: c::Requester::Person(fixtures::PARTY),
         at: Wall::EPOCH,
     })));
     let facts = delegation::facts(&task);
@@ -169,16 +169,16 @@ fn a_done_report_says_its_words() {
 fn a_landed_change_without_a_commit_id_says_its_words() {
     for words in [b"Landed".as_slice(), b"ABCDEF0123456789", b"This change landed"] {
         let mut task = f::change();
-        task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(f::change_value(words)))));
+        task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(f::change_value(words)))));
         assert_eq!(delegation::facts(&task).said, Some(Said::Words(words)));
     }
 }
 #[test]
 fn the_tasks_result_precedes_its_chip_ending_and_hold() {
     let mut task = f::change();
-    f::phase(&mut task, c::OwnerChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 });
-    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
-    details.ending = Some(c::OwnerChipEnding::Failed(f::document_text(b"Old failure")));
+    f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 });
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
+    details.ending = Some(c::ChipEnding::Failed(f::document_text(b"Old failure")));
     task.result =
         Some(c::TaskResult::Document(Box::new(f::result(&task, c::Ending::Done, Some(f::change_value(MERGE))))));
     assert_eq!(delegation::facts(&task).state, State::Landed);
@@ -187,18 +187,18 @@ fn the_tasks_result_precedes_its_chip_ending_and_hold() {
 #[test]
 fn a_chips_owner_ending_supplies_the_result() {
     let mut task = f::change();
-    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
-    details.ending = Some(c::OwnerChipEnding::Done(f::change_value(MERGE)));
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
+    details.ending = Some(c::ChipEnding::Done(f::change_value(MERGE)));
     assert_eq!(delegation::facts(&task).state, State::Landed);
 }
 #[test]
 fn an_ended_chip_supplies_its_state_and_reason() {
     for (ending, state, words) in [
-        (c::OwnerChipEnding::Done(c::ResultValue::Report(f::document_text(b"Done"))), State::Done, b"Done".as_slice()),
-        (c::OwnerChipEnding::Failed(f::document_text(b"Failed")), State::Failed, b"Failed".as_slice()),
+        (c::ChipEnding::Done(c::ResultValue::Report(f::document_text(b"Done"))), State::Done, b"Done".as_slice()),
+        (c::ChipEnding::Failed(f::document_text(b"Failed")), State::Failed, b"Failed".as_slice()),
         (
-            c::OwnerChipEnding::Cancelled {
-                by: c::OwnerRequester::Person(fixtures::PARTY),
+            c::ChipEnding::Cancelled {
+                by: c::Requester::Person(fixtures::PARTY),
                 reason: f::document_text(b"Cancelled"),
                 result: None,
                 at: Wall::EPOCH,
@@ -208,7 +208,7 @@ fn an_ended_chip_supplies_its_state_and_reason() {
         ),
     ] {
         let mut task = f::change();
-        task.chip.details.phase = c::OwnerChipPhase::Ended;
+        task.chip.details.phase = c::ChipPhase::Ended;
         task.chip.details.details.ending = Some(ending);
         let facts = delegation::facts(&task);
         assert_eq!(facts.state, state);
@@ -243,7 +243,7 @@ fn a_push_result_keeps_its_words_and_never_becomes_a_landed_card() {
     let mut value = f::change_value(MERGE);
     let c::ResultValue::Change { kind, .. } = &mut value else { panic!("change result") };
     *kind = 2;
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(value))));
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(value))));
     let facts = delegation::facts(&task);
     assert_eq!(facts.state, State::Done);
     assert_eq!(facts.said, Some(Said::Words(MERGE)));

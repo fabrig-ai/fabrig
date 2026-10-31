@@ -126,15 +126,15 @@ fn a_playground_page_replaces_the_last_answer_or_clears_it() {
         assert_eq!(forge::shown(&side) != shown, !present, "{row}: redraw only on change");
     }
 }
-pub(super) fn accounts(provider: Option<u32>, usable: bool, cut: bool) -> c::OwnerAccounts {
+pub(super) fn accounts(provider: Option<u32>, usable: bool, cut: bool) -> c::Accounts {
     let mut sources = List::with_capacity(1);
     sources
-        .push(c::OwnerAccountSource {
+        .push(c::AccountSource {
             name: None,
             number: 1,
             place: 1,
-            kind: c::OwnerAccountKind::Key,
-            state: c::OwnerAccountState::Granted,
+            kind: c::AccountKind::Key,
+            state: c::AccountState::Granted,
             usable,
             expiring: false,
             attention: false,
@@ -143,7 +143,7 @@ pub(super) fn accounts(provider: Option<u32>, usable: bool, cut: bool) -> c::Own
         .unwrap();
     let mut accounts = List::with_capacity(1);
     accounts
-        .push(c::OwnerAccountLine {
+        .push(c::AccountLine {
             number: 1,
             place: 1,
             uses: None,
@@ -152,12 +152,12 @@ pub(super) fn accounts(provider: Option<u32>, usable: bool, cut: bool) -> c::Own
             provider_name: None,
             manage_usage: None,
             display: c::DocumentText::complete(f::acts::text(b"Model")),
-            holder: c::OwnerAccountHolder::Party(f::PARTY),
+            holder: c::AccountHolder::Party(f::PARTY),
             sources,
             cut,
         })
         .unwrap();
-    c::OwnerAccounts {
+    c::Accounts {
         program_hosts: List::with_capacity(0),
         readiness: List::with_capacity(0),
         readiness_cut: false,
@@ -182,7 +182,7 @@ fn opened(cue: &[u8]) -> (crate::Domain, skein_lib::Token) {
     let (me, account) = f::start_accounts(&mut root, List::with_capacity(0));
     for (watch, delivery) in [
         (me, c::Delivery::Me(Box::new(f::chats::me()))),
-        (account, c::Delivery::OwnerAccounts(Box::new(accounts(Some(PROVIDER), true, false)))),
+        (account, c::Delivery::Accounts(Box::new(accounts(Some(PROVIDER), true, false)))),
     ] {
         event(
             &mut root,
@@ -235,7 +235,7 @@ fn a_suggestion_starts_one_chat_with_its_cue_and_preserves_the_draft() {
                     event: jig_client::Event::Up {
                         up: jig_client::Up::Watched {
                             watch: account,
-                            event: c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(Box::new(accounts(
+                            event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(accounts(
                                 Some(PROVIDER + 1),
                                 true,
                                 false,
@@ -299,12 +299,10 @@ fn the_first_playground_read_answer_counts_even_when_it_has_no_record() {
     }
 }
 
-pub(super) type DeploymentAccount = (Option<u32>, bool, bool, c::OwnerAccountHolder);
-pub(super) const PLAYGROUND_ACCOUNT: DeploymentAccount =
-    (Some(PROVIDER), true, false, c::OwnerAccountHolder::Deployment);
-pub(super) const OTHER_ACCOUNT: DeploymentAccount =
-    (Some(PROVIDER + 1), true, false, c::OwnerAccountHolder::Deployment);
-pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::OwnerDeployment {
+pub(super) type DeploymentAccount = (Option<u32>, bool, bool, c::AccountHolder);
+pub(super) const PLAYGROUND_ACCOUNT: DeploymentAccount = (Some(PROVIDER), true, false, c::AccountHolder::Deployment);
+pub(super) const OTHER_ACCOUNT: DeploymentAccount = (Some(PROVIDER + 1), true, false, c::AccountHolder::Deployment);
+pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::Deployment {
     let bounds = jig_client_protocol_link::Limits::new(f::limits().client.domain, 8).unwrap();
     let mut document = jig_client_protocol_link::translate::documents::owner_deployment(
         jig_client_test_records::owner_deployment_record(),
@@ -317,7 +315,7 @@ pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::OwnerDeployment {
         let line = personal.accounts.get(0).unwrap();
         document
             .accounts
-            .push(c::OwnerAccount {
+            .push(c::Account {
                 number: if *provider == Some(PROVIDER) { 42 } else { 43 },
                 place: 0,
                 provider: *provider,
@@ -329,7 +327,7 @@ pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::OwnerDeployment {
                 plan: false,
                 sources: line.sources.clone(),
                 generation: None,
-                state: c::OwnerAccountState::Granted,
+                state: c::AccountState::Granted,
                 usable: *usable,
                 expiring: false,
                 attention: false,
@@ -345,7 +343,7 @@ pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::OwnerDeployment {
 pub(super) fn deliver_deployment(
     root: &mut crate::Domain,
     watch: skein_lib::Token,
-    document: c::OwnerDeployment,
+    document: c::Deployment,
 ) -> Queue<crate::Request> {
     event(
         root,
@@ -353,7 +351,7 @@ pub(super) fn deliver_deployment(
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::OwnerDeployment(Box::new(document))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Deployment(Box::new(document))),
                 },
             },
         },
@@ -405,7 +403,7 @@ pub(super) fn removed(out: &mut Queue<crate::Request>) -> List<skein_lib::Token>
             assert_eq!(
                 *ask,
                 c::Ask::AccountChange {
-                    holder: c::AccountHolder::Deployment,
+                    holder: c::AskAccountHolder::Deployment,
                     change: c::AccountChange::Remove { account: 42 }
                 }
             );

@@ -54,7 +54,7 @@ fn an_export_writes_the_record_private_and_synced_before_written() {
     assert_eq!(f.stdout(), b"moved out: account 7 to /linked-parent/record\n");
     assert_eq!(f.stderr(), b"");
     let (holder, w::AccountChange::Written(written)) = &f.move_requests[1] else { panic!("written") };
-    assert_eq!(*holder, w::AccountHolder::Own);
+    assert_eq!(*holder, w::AskAccountHolder::Own);
     assert_eq!(written.number(), NUMBER);
     assert_ne!(f.act_keys()[0], f.act_keys()[1]);
 }
@@ -153,7 +153,7 @@ fn an_import_sends_malformed_short_current_or_older_forms_whole() {
         let f = importing(bytes, []);
         assert_eq!(f.carried_keys.len(), 1);
         assert_eq!(f.carried_keys[0].expose(), bytes);
-        assert_eq!(f.move_requests[0].0, w::AccountHolder::Own);
+        assert_eq!(f.move_requests[0].0, w::AskAccountHolder::Own);
         f.no_record_leaked();
     }
 }

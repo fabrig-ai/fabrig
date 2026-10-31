@@ -71,8 +71,8 @@ impl MakeProject {
         while let Some(request) = self.out.pop() {
             if let client::Request::Told { told: client::Told::Answered { key, outcome } } = &request {
                 assert_eq!(*key, KEY, "project setup key");
-                let client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                    c::OwnerOutcome::ProjectMade { project },
+                let client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                    c::DocumentOutcome::ProjectMade { project },
                 )))) = outcome
                 else {
                     panic!("MakeProject refused: {outcome:?}")

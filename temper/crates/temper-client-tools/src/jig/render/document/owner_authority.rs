@@ -1,7 +1,7 @@
 //! Concrete integer JSON for the client contract (contract.md, 5).
 use skein_json::writer::Encoder;
 pub(super) fn encode_owner_authority_document(
-    value: &jig_client::contract::OwnerAuthorityDocument,
+    value: &jig_client::contract::AuthorityDocument,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -14,25 +14,25 @@ pub(super) fn encode_owner_authority_document(
 }
 
 pub(super) fn encode_owner_authority_executor(
-    value: jig_client::contract::OwnerAuthorityExecutor,
+    value: jig_client::contract::AuthorityExecutor,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     let value = &value;
     match value {
-        jig_client::contract::OwnerAuthorityExecutor::Charter(field_0) => {
+        jig_client::contract::AuthorityExecutor::Charter(field_0) => {
             out.object_start();
             out.key(b"charter");
             out.unsigned(u64::from(*(field_0)));
             out.object_end();
         }
-        jig_client::contract::OwnerAuthorityExecutor::Procedure(field_0) => {
+        jig_client::contract::AuthorityExecutor::Procedure(field_0) => {
             out.object_start();
             out.key(b"procedure");
             out.unsigned(u64::from(*(field_0)));
             out.object_end();
         }
-        jig_client::contract::OwnerAuthorityExecutor::Role(field_0) => {
+        jig_client::contract::AuthorityExecutor::Role(field_0) => {
             out.object_start();
             out.key(b"role");
             out.unsigned(u64::from(*(field_0)));
@@ -41,11 +41,7 @@ pub(super) fn encode_owner_authority_executor(
     }
 }
 
-pub(super) fn encode_owner_budget(
-    value: &jig_client::contract::OwnerBudget,
-    out: &mut Encoder,
-    budget: &mut super::Cut,
-) {
+pub(super) fn encode_owner_budget(value: &jig_client::contract::Budget, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"numbers");
     super::encode_owner_numbers(&value.numbers, out, budget);
@@ -64,7 +60,7 @@ pub(super) fn encode_owner_budget(
 }
 
 pub(super) fn encode_owner_chip_details(
-    value: &jig_client::contract::OwnerChipDetails,
+    value: &jig_client::contract::ChipDetails,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -75,7 +71,7 @@ pub(super) fn encode_owner_chip_details(
 }
 
 fn encode_owner_chip_details_from_project(
-    value: &jig_client::contract::OwnerChipDetails,
+    value: &jig_client::contract::ChipDetails,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -136,7 +132,7 @@ fn encode_owner_chip_details_from_project(
     out.boolean(value.resources_cut);
 }
 fn encode_owner_chip_details_from_resources_observed(
-    value: &jig_client::contract::OwnerChipDetails,
+    value: &jig_client::contract::ChipDetails,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -186,24 +182,24 @@ fn encode_owner_chip_details_from_resources_observed(
 }
 
 pub(super) fn encode_owner_chip_ending(
-    value: &jig_client::contract::OwnerChipEnding,
+    value: &jig_client::contract::ChipEnding,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerChipEnding::Done(field_0) => {
+        jig_client::contract::ChipEnding::Done(field_0) => {
             out.object_start();
             out.key(b"done");
             super::encode_result_value(field_0, out, budget);
             out.object_end();
         }
-        jig_client::contract::OwnerChipEnding::Failed(field_0) => {
+        jig_client::contract::ChipEnding::Failed(field_0) => {
             out.object_start();
             out.key(b"failed");
             super::encode_document_text(field_0, out, budget);
             out.object_end();
         }
-        jig_client::contract::OwnerChipEnding::Cancelled { reason, result, by, at } => {
+        jig_client::contract::ChipEnding::Cancelled { reason, result, by, at } => {
             out.object_start();
             out.key(b"cancelled");
             out.object_start();
@@ -227,7 +223,7 @@ pub(super) fn encode_owner_chip_ending(
 }
 
 pub(super) fn encode_owner_chip_hold(
-    value: &jig_client::contract::OwnerChipHold,
+    value: &jig_client::contract::ChipHold,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -282,7 +278,7 @@ pub(super) fn encode_owner_chip_hold(
 }
 
 pub(super) fn encode_owner_chip_observation(
-    value: &jig_client::contract::OwnerChipObservation,
+    value: &jig_client::contract::ChipObservation,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {

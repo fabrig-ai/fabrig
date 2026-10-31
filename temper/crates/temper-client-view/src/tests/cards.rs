@@ -65,7 +65,7 @@ fn dependency_refusals_use_jigs_words() {
             b"These tasks would wait for one another".as_slice(),
         ),
         (
-            c::Refusal::Dependency { dependency: OTHER_TASK, how: c::OwnerTaskStatus::Failed },
+            c::Refusal::Dependency { dependency: OTHER_TASK, how: c::TaskStatus::Failed },
             b"The added dependency has ended",
         ),
         (
@@ -88,17 +88,10 @@ pub(super) fn batch_proposal() -> c::ReadValue {
         c::DocumentText::complete(c::Text::new(Box::from(*b"Ship update\nDetails"), 32).unwrap());
     let mut resources = skein_lib::List::with_capacity(1);
     resources
-        .push(c::OwnerPart {
+        .push(c::Part {
             connector: fixtures::FORGE,
-            kind: c::OwnerPartKind::Resource,
-            key: c::OwnerPartKey::Path(fixtures::path(&[
-                b"forge",
-                b"github.com",
-                b"robin",
-                b"tally",
-                b"branch",
-                b"main",
-            ])),
+            kind: c::PartKind::Resource,
+            key: c::PartKey::Path(fixtures::path(&[b"forge", b"github.com", b"robin", b"tally", b"branch", b"main"])),
         })
         .unwrap();
     let mut tasks = skein_lib::List::with_capacity(1);
@@ -106,7 +99,7 @@ pub(super) fn batch_proposal() -> c::ReadValue {
         .push(c::ProposedTask {
             number: 1,
             spec: task.spec,
-            executor: c::OwnerExecutor::Agent { charter: 2 },
+            executor: c::Executor::Agent { charter: 2 },
             contract: task.result_contract,
             authority: task.authority,
             deadline: c::NewDeadline::Named,
@@ -128,12 +121,12 @@ pub(super) fn batch_proposal() -> c::ReadValue {
         }
     }
     let mut page = page.unwrap();
-    let c::ReadValue::OwnerProposal(proposal) = &mut page else { panic!("proposal") };
-    proposal.action = c::OwnerProposalAction::Batch(tasks);
+    let c::ReadValue::Proposal(proposal) = &mut page else { panic!("proposal") };
+    proposal.action = c::ProposalAction::Batch(tasks);
     proposal.funding = skein_lib::List::with_capacity(1);
     proposal
         .funding
-        .push(c::OwnerFundingOffer {
+        .push(c::FundingOffer {
             source: c::Funder::Pool { project: fixtures::PROJECT, person: 73, period: 1 },
             needed: FUNDS,
             left: Some(LEFT),
@@ -174,26 +167,23 @@ fn a_proposals_title_and_labelled_facts_follow_the_mockup() {
 
 fn document_proposal() -> c::ReadValue {
     let key = fixtures::chat::PROPOSAL;
-    c::ReadValue::OwnerProposal(Box::new({
+    c::ReadValue::Proposal(Box::new({
         let mut funding = skein_lib::List::with_capacity(1);
         funding
-            .push(c::OwnerFundingOffer {
+            .push(c::FundingOffer {
                 source: c::Funder::Pool { project: fixtures::PROJECT, person: 73, period: 1 },
                 needed: FUNDS,
                 left: Some(LEFT),
                 after: Some((LEFT).saturating_sub(FUNDS)),
             })
             .expect("one funding source");
-        c::OwnerProposal {
+        c::Proposal {
             key,
             project: fixtures::PROJECT,
             reason: c::DocumentText::complete(fixtures::first_run::text(b"It touches sign-in.")),
-            action: c::OwnerProposalAction::Batch(skein_lib::List::with_capacity(0)),
+            action: c::ProposalAction::Batch(skein_lib::List::with_capacity(0)),
             as_holder: true,
-            waiting: c::OwnerProposalWaiting {
-                holder: c::OwnerHistoryHolder::Person(73),
-                since: skein_lib::Wall::EPOCH,
-            },
+            waiting: c::ProposalWaiting { holder: c::HistoryHolder::Person(73), since: skein_lib::Wall::EPOCH },
             funding,
             acts: skein_lib::List::with_capacity(0),
         }
@@ -310,14 +300,14 @@ fn proposal_facts_are_labelled_joined_and_contained_in_their_rows() {
     use skein_ui::Role;
     let owner = batch_proposal();
     let mut document = document_proposal();
-    let c::ReadValue::OwnerProposal(source) = &owner else { panic!("owner proposal") };
-    let c::OwnerProposalAction::Batch(tasks) = &source.action else { panic!("batch") };
-    let c::ReadValue::OwnerProposal(target) = &mut document else { panic!("document proposal") };
+    let c::ReadValue::Proposal(source) = &owner else { panic!("owner proposal") };
+    let c::ProposalAction::Batch(tasks) = &source.action else { panic!("batch") };
+    let c::ReadValue::Proposal(target) = &mut document else { panic!("document proposal") };
     let mut tasks = tasks.clone();
     let task = tasks.get_mut(0).unwrap();
     task.authority.authority.delegation.tasks = 0;
     task.authority.authority.delegation.depth = 0;
-    target.action = c::OwnerProposalAction::Batch(tasks);
+    target.action = c::ProposalAction::Batch(tasks);
     for (page, _delegation, budget) in [
         (
             owner,
@@ -363,9 +353,8 @@ fn proposal_facts_are_labelled_joined_and_contained_in_their_rows() {
 #[test]
 fn a_non_batch_proposal_keeps_its_deciding_facts() {
     let mut page = batch_proposal();
-    let c::ReadValue::OwnerProposal(proposal) = &mut page else { panic!("owner proposal") };
-    proposal.action =
-        c::OwnerProposalAction::Release { task: c::OwnerTaskLink::Stored { number: 9, status: None }, hold: None };
+    let c::ReadValue::Proposal(proposal) = &mut page else { panic!("owner proposal") };
+    proposal.action = c::ProposalAction::Release { task: c::TaskLink::Stored { number: 9, status: None }, hold: None };
     let mut builder = Builder::new(&fixtures::tree_limits());
     crate::cards::proposal(&mut builder, &page, &fixtures::words(), 4);
     let tree = builder.finish();
@@ -378,7 +367,7 @@ fn a_non_batch_proposal_keeps_its_deciding_facts() {
 fn a_budget_held_card_names_the_task_to_amend_and_explains_release() {
     let mut task = fixtures::task::document();
     task.chip.task = OTHER_TASK;
-    task.hold = Some(Box::new(c::OwnerChipHold {
+    task.hold = Some(Box::new(c::ChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -386,9 +375,9 @@ fn a_budget_held_card_names_the_task_to_amend_and_explains_release() {
         source: None,
         reason: c::HoldCategory::Budget,
         revision: 1,
-        before: c::OwnerPriorPhase::Active(c::RunStage::Idle),
+        before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
     }));
     let mut builder = Builder::new(&fixtures::tree_limits());

@@ -23,29 +23,29 @@ pub fn offers(page: &ReadValue) -> &[Offered] {
     match page {
         ReadValue::Task(v) => v.acts.as_slice(),
 
-        ReadValue::OwnerProposal(v) => v.acts.as_slice(),
+        ReadValue::Proposal(v) => v.acts.as_slice(),
         ReadValue::Question(v) => v.acts.as_slice(),
 
-        ReadValue::OwnerEscalation(v) => v.acts.as_slice(),
+        ReadValue::Escalation(v) => v.acts.as_slice(),
 
-        ReadValue::OwnerPersonTask(v) => v.acts.as_slice(),
+        ReadValue::PersonTask(v) => v.acts.as_slice(),
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
-        | ReadValue::OwnerProject(_)
-        | ReadValue::Historical(_)
+        | ReadValue::Project(_)
+        | ReadValue::Ended(_)
         | ReadValue::Me(_)
         | ReadValue::Result(_)
-        | ReadValue::OwnerEnded(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::History(_)
         | ReadValue::Turn(_)
         | ReadValue::Activity(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerSpend(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
         | ReadValue::Notes(_)
-        | ReadValue::OwnerDeployment(_) => &[],
+        | ReadValue::Deployment(_) => &[],
     }
 }
 #[must_use]
@@ -57,30 +57,30 @@ pub fn revision(page: &ReadValue) -> Option<contract::Revision> {
             None => None,
         },
 
-        ReadValue::OwnerEscalation(v) => match &v.task.hold {
+        ReadValue::Escalation(v) => match &v.task.hold {
             Some(hold) => Some(hold.revision()),
             None => None,
         },
 
-        ReadValue::OwnerPersonTask(v) => Some(v.revision),
+        ReadValue::PersonTask(v) => Some(v.revision),
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
-        | ReadValue::OwnerProject(_)
-        | ReadValue::Historical(_)
+        | ReadValue::Project(_)
+        | ReadValue::Ended(_)
         | ReadValue::Me(_)
         | ReadValue::Result(_)
-        | ReadValue::OwnerEnded(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::History(_)
         | ReadValue::Turn(_)
         | ReadValue::Activity(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerSpend(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
         | ReadValue::Notes(_)
-        | ReadValue::OwnerDeployment(_)
-        | ReadValue::OwnerProposal(_)
+        | ReadValue::Deployment(_)
+        | ReadValue::Proposal(_)
         | ReadValue::Question(_) => None,
     }
 }

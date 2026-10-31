@@ -16,7 +16,7 @@ pub fn held_pages() -> crate::pages::Pages {
         pages::Event::Went { address: Address::Task { task: chat::TASK, filter: PlanFilter::All } },
         &mut Queue::with_capacity(OUTPUTS),
     );
-    let c::ReadValue::OwnerEscalation(held) = acts::held(c::ActKind::Release) else { panic!("hold") };
+    let c::ReadValue::Escalation(held) = acts::held(c::ActKind::Release) else { panic!("hold") };
     let mut task = chat::task();
     task.chip.task = HELD;
     task.hold = Some(held.task.hold.expect("owner hold"));

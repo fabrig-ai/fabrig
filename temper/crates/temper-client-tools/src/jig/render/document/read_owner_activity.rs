@@ -2,12 +2,12 @@
 use skein_json::writer::Encoder;
 #[expect(clippy::too_many_lines, reason = "one exhaustive encoding of jig's owner activity vocabulary")]
 pub(super) fn encode_owner_activity(
-    value: &jig_client::contract::OwnerActivity,
+    value: &jig_client::contract::Activity,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerActivity::Words { message, by, kind, words } => {
+        jig_client::contract::Activity::Words { message, by, kind, words } => {
             out.object_start();
             out.key(b"words");
             out.object_start();
@@ -22,13 +22,13 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerActivity::Heard(field_0) => {
+        jig_client::contract::Activity::Heard(field_0) => {
             out.object_start();
             out.key(b"heard");
             encode_owner_word(field_0, out, budget);
             out.object_end();
         }
-        jig_client::contract::OwnerActivity::Notified { recipient, word } => {
+        jig_client::contract::Activity::Notified { recipient, word } => {
             out.object_start();
             out.key(b"notified");
             out.object_start();
@@ -39,7 +39,7 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerActivity::RunBegan { attempt, why, resumed } => {
+        jig_client::contract::Activity::RunBegan { attempt, why, resumed } => {
             out.object_start();
             out.key(b"run_began");
             out.object_start();
@@ -52,7 +52,7 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerActivity::RunEnded { attempt, end, spent } => {
+        jig_client::contract::Activity::RunEnded { attempt, end, spent } => {
             out.object_start();
             out.key(b"run_ended");
             out.object_start();
@@ -65,7 +65,7 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerActivity::Turn { reply, attempt, turn, read } => {
+        jig_client::contract::Activity::Turn { reply, attempt, turn, read } => {
             out.object_start();
             out.key(b"turn");
             out.object_start();
@@ -85,7 +85,7 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerActivity::Decided { revision } => {
+        jig_client::contract::Activity::Decided { revision } => {
             out.object_start();
             out.key(b"decided");
             out.object_start();
@@ -94,7 +94,7 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerActivity::Kept { attempt, pending, .. } => {
+        jig_client::contract::Activity::Kept { attempt, pending, .. } => {
             out.object_start();
             out.key(b"kept");
             out.object_start();
@@ -109,7 +109,7 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerActivity::Milestone { position } => {
+        jig_client::contract::Activity::Milestone { position } => {
             out.object_start();
             out.key(b"milestone");
             out.object_start();
@@ -122,7 +122,7 @@ pub(super) fn encode_owner_activity(
 }
 
 pub(super) fn encode_owner_activity_line(
-    value: &jig_client::contract::OwnerActivityLine,
+    value: &jig_client::contract::ActivityLine,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -138,17 +138,13 @@ pub(super) fn encode_owner_activity_line(
     out.object_end();
 }
 
-pub(super) fn encode_owner_run_end(
-    value: jig_client::contract::OwnerRunEnd,
-    out: &mut Encoder,
-    budget: &mut super::Cut,
-) {
+pub(super) fn encode_owner_run_end(value: jig_client::contract::RunEnd, out: &mut Encoder, budget: &mut super::Cut) {
     let value = &value;
     match value {
-        jig_client::contract::OwnerRunEnd::Parked => out.string(b"parked"),
-        jig_client::contract::OwnerRunEnd::Finished => out.string(b"finished"),
-        jig_client::contract::OwnerRunEnd::Cancelled => out.string(b"cancelled"),
-        jig_client::contract::OwnerRunEnd::Failed { class } => {
+        jig_client::contract::RunEnd::Parked => out.string(b"parked"),
+        jig_client::contract::RunEnd::Finished => out.string(b"finished"),
+        jig_client::contract::RunEnd::Cancelled => out.string(b"cancelled"),
+        jig_client::contract::RunEnd::Failed { class } => {
             out.object_start();
             out.key(b"failed");
             out.object_start();
@@ -157,19 +153,15 @@ pub(super) fn encode_owner_run_end(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerRunEnd::Refused => out.string(b"refused"),
+        jig_client::contract::RunEnd::Refused => out.string(b"refused"),
     }
 }
 
-pub(super) fn encode_owner_run_why(
-    value: &jig_client::contract::OwnerRunWhy,
-    out: &mut Encoder,
-    budget: &mut super::Cut,
-) {
+pub(super) fn encode_owner_run_why(value: &jig_client::contract::RunWhy, out: &mut Encoder, budget: &mut super::Cut) {
     match value {
-        jig_client::contract::OwnerRunWhy::Made => out.string(b"made"),
-        jig_client::contract::OwnerRunWhy::Ready => out.string(b"ready"),
-        jig_client::contract::OwnerRunWhy::Message { message } => {
+        jig_client::contract::RunWhy::Made => out.string(b"made"),
+        jig_client::contract::RunWhy::Ready => out.string(b"ready"),
+        jig_client::contract::RunWhy::Message { message } => {
             out.object_start();
             out.key(b"message");
             out.object_start();
@@ -178,8 +170,8 @@ pub(super) fn encode_owner_run_why(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerRunWhy::Released => out.string(b"released"),
-        jig_client::contract::OwnerRunWhy::Retry { tries } => {
+        jig_client::contract::RunWhy::Released => out.string(b"released"),
+        jig_client::contract::RunWhy::Retry { tries } => {
             out.object_start();
             out.key(b"retry");
             out.object_start();
@@ -188,12 +180,12 @@ pub(super) fn encode_owner_run_why(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerRunWhy::Narrowed => out.string(b"narrowed"),
-        jig_client::contract::OwnerRunWhy::Changed => out.string(b"changed"),
+        jig_client::contract::RunWhy::Narrowed => out.string(b"narrowed"),
+        jig_client::contract::RunWhy::Changed => out.string(b"changed"),
     }
 }
 
-pub(super) fn encode_owner_word(value: &jig_client::contract::OwnerWord, out: &mut Encoder, budget: &mut super::Cut) {
+pub(super) fn encode_owner_word(value: &jig_client::contract::Word, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"number");
     out.unsigned(value.number);

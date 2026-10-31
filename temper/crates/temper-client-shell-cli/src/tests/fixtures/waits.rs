@@ -98,9 +98,9 @@ impl Frame {
     }
     pub fn engine_stopping(&mut self) {
         let event = w::StreamEvent::Ended(
-            w::Ended::new(
+            w::WatchEnded::new(
                 &w::CEILINGS,
-                w::EndedParts { watch: self.wait_task.expect("wait watch"), why: w::WatchEnd::Stopping },
+                w::WatchEndedParts { watch: self.wait_task.expect("wait watch"), why: w::WatchEnd::Stopping },
             )
             .expect("ended"),
         );
@@ -116,9 +116,9 @@ impl Frame {
     }
     pub fn refuse_wait(&mut self) {
         let event = w::StreamEvent::Ended(
-            w::Ended::new(
+            w::WatchEnded::new(
                 &w::CEILINGS,
-                w::EndedParts { watch: self.wait_task.expect("wait watch"), why: w::WatchEnd::NotAllowed },
+                w::WatchEndedParts { watch: self.wait_task.expect("wait watch"), why: w::WatchEnd::NotAllowed },
             )
             .expect("ended"),
         );

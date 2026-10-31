@@ -136,13 +136,11 @@ fn ending(how: &c::Ending) -> (State, Option<&c::ResultValue>, Option<&[u8]>) {
         c::Ending::Decided { .. } | c::Ending::Deleted => (State::Ended, None, None),
     }
 }
-fn owner_ending(how: &c::OwnerChipEnding) -> (State, Option<&c::ResultValue>, Option<&[u8]>) {
+fn owner_ending(how: &c::ChipEnding) -> (State, Option<&c::ResultValue>, Option<&[u8]>) {
     match how {
-        c::OwnerChipEnding::Done(value) => (State::Done, Some(value), None),
-        c::OwnerChipEnding::Failed(reason) => (State::Failed, None, Some(reason.bytes())),
-        c::OwnerChipEnding::Cancelled { reason, result, .. } => {
-            (State::Cancelled, result.as_ref(), Some(reason.bytes()))
-        }
+        c::ChipEnding::Done(value) => (State::Done, Some(value), None),
+        c::ChipEnding::Failed(reason) => (State::Failed, None, Some(reason.bytes())),
+        c::ChipEnding::Cancelled { reason, result, .. } => (State::Cancelled, result.as_ref(), Some(reason.bytes())),
     }
 }
 /// The tasks a delegate call made (temper-engine-smith answers.rs `CallAnswer::Delegated`): none
@@ -209,13 +207,8 @@ pub fn results(summary: &[u8], into: &mut List<u64>) {
 }
 /// The task whose result a chat heard (jig's owner activity `Heard`, a result from a task).
 #[must_use]
-pub fn heard(line: &c::OwnerActivity) -> Option<u64> {
-    if let c::OwnerActivity::Heard(c::OwnerWord {
-        from: c::OwnerRequester::Task(task),
-        kind: c::OwnerMessageKind::Result(_),
-        ..
-    }) = line
-    {
+pub fn heard(line: &c::Activity) -> Option<u64> {
+    if let c::Activity::Heard(c::Word { from: c::Requester::Task(task), kind: c::MessageKind::Result(_), .. }) = line {
         Some(*task)
     } else {
         None

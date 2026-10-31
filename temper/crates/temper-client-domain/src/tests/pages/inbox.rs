@@ -34,7 +34,7 @@ const CASES: [(ObjectKey, InboxGroup, Read); 6] = [
     (ObjectKey::Result(TASK), InboxGroup::Results, Read::Result { task: TASK }),
     (ObjectKey::Task(TASK), InboxGroup::Replies, Read::Task { task: TASK }),
 ];
-fn rows(object: ObjectKey, group: InboxGroup, project: u32) -> List<contract::OwnerInboxEntry> {
+fn rows(object: ObjectKey, group: InboxGroup, project: u32) -> List<contract::InboxEntry> {
     let mut rows = List::with_capacity(2);
     rows.push(fixtures::inbox_entry(object, group, project, POSITION)).expect("one row");
     rows
@@ -150,7 +150,7 @@ fn a_filter_by_goal_shows_only_entries_below_it() {
     );
     assert_eq!(root.pages().inbox().expect("home").cards.len(), 0, "owner membership comes from the filtered query");
     let handle = root.pages().inbox().expect("home").queries[0];
-    let page = contract::OwnerInboxPage {
+    let page = contract::InboxPage {
         cut: false,
         rows: rows(ObjectKey::PersonTask(BELOW_TASK), InboxGroup::PersonTasks, PROJECT),
         before: None,
@@ -162,9 +162,7 @@ fn a_filter_by_goal_shows_only_entries_below_it() {
         &fixtures::env(&fixtures::limits()),
         jig_client::Told::Page {
             handle,
-            page: jig_client::Readout::Jig(contract::ReadResult::Value(contract::ReadValue::OwnerInbox(Box::new(
-                page,
-            )))),
+            page: jig_client::Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Inbox(Box::new(page)))),
         },
         &mut out,
     );
@@ -210,8 +208,8 @@ fn answer_seen(pages: &mut crate::pages::Pages, key: jig_client::Key, outcome: j
     assert!(out.is_empty(), "Seen answers draw and send nothing");
 }
 fn answered() -> jig_client::Outcome {
-    jig_client::Outcome::Answered(jig_client::Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-        contract::OwnerOutcome::Amended { task: 9 },
+    jig_client::Outcome::Answered(jig_client::Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+        contract::DocumentOutcome::Amended { task: 9 },
     ))))
 }
 #[test]
@@ -310,14 +308,14 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
         let (mut root, watch) = fixtures::inbox_home(Filter::ALL);
         let mut entries = rows(ObjectKey::Task(TASK), InboxGroup::Replies, PROJECT);
         entries.get_mut(0).unwrap().reply = Some(Box::new(line.clone()));
-        let object = contract::OwnerInboxObject::Reply { message: MESSAGE };
-        let cursor = contract::OwnerInboxCursor::Inbox { task: TASK, object, at: None };
+        let object = contract::InboxObject::Reply { message: MESSAGE };
+        let cursor = contract::InboxCursor::Inbox { task: TASK, object, at: None };
         let delivery = if owner {
             let mut updates = List::with_capacity(1);
             updates
-                .push(contract::OwnerInboxEntry {
+                .push(contract::InboxEntry {
                     reply: Some(Box::new(line.clone())),
-                    task: contract::OwnerTaskLink::Live(line.chip.clone()),
+                    task: contract::TaskLink::Live(line.chip.clone()),
                     project: Some(PROJECT),
                     object,
                     activity: None,
@@ -326,7 +324,7 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
                     cursor,
                 })
                 .unwrap();
-            contract::Delivery::OwnerInbox(Box::new(contract::OwnerInbox {
+            contract::Delivery::Inbox(Box::new(contract::Inbox {
                 party: fixtures::PARTY,
                 needs: List::with_capacity(0),
                 updates,
@@ -338,7 +336,7 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
                 selection: None,
             }))
         } else {
-            contract::Delivery::OwnerInbox(Box::new({
+            contract::Delivery::Inbox(Box::new({
                 let counts = contract::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 };
                 crate::tests::documents::inbox(
                     entries,
@@ -378,7 +376,7 @@ fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
         let handles = root.pages().inbox().unwrap().queries;
         for (index, handle) in handles.into_iter().enumerate() {
             let page = if owner {
-                contract::ReadValue::OwnerInbox(Box::new(contract::OwnerInboxPage {
+                contract::ReadValue::Inbox(Box::new(contract::InboxPage {
                     selection: None,
                     cut: index == 1,
                     rows: List::with_capacity(0),
@@ -386,7 +384,7 @@ fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
                     after: None,
                 }))
             } else {
-                contract::ReadValue::OwnerInbox(Box::new(contract::OwnerInboxPage {
+                contract::ReadValue::Inbox(Box::new(contract::InboxPage {
                     cut: index == 1,
                     rows: List::with_capacity(0),
                     before: None,

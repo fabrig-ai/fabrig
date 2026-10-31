@@ -58,9 +58,9 @@ impl Frame {
     pub fn change_task_not_ready(&mut self) {
         self.read_unreachable = true;
         let event = w::StreamEvent::Ended(
-            w::Ended::new(
+            w::WatchEnded::new(
                 &w::CEILINGS,
-                w::EndedParts { watch: self.wait_task.expect("change watch"), why: w::WatchEnd::Unknown },
+                w::WatchEndedParts { watch: self.wait_task.expect("change watch"), why: w::WatchEnd::Unknown },
             )
             .expect("ended"),
         );

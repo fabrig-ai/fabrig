@@ -10,8 +10,8 @@ pub fn document() -> c::Task {
     let record = w::Task::new(&w::CEILINGS, record).expect("checked fixture");
     let link = jig_client_protocol_link::Limits::new(limits().client.domain, EXCHANGES).expect("link");
     let mut task = jig_client_protocol_link::translate::documents::task(record, &link).expect("task");
-    let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
-    *phase = c::OwnerChipPhase::Active(c::RunStage::Idle);
+    let c::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
+    *phase = c::ChipPhase::Active(c::RunStage::Idle);
     task.budget.numbers.spent = SPENT;
     task.budget.numbers.spent_below = BELOW;
     task
@@ -21,7 +21,7 @@ const EMPTY: u32 = 0;
 const NO_TIME: Time = Time::ZERO;
 const AT_EPOCH: Wall = Wall::EPOCH;
 pub fn tree() -> c::Delivery {
-    c::Delivery::OwnerTree(Box::new(c::OwnerTree {
+    c::Delivery::Tree(Box::new(c::Tree {
         root: {
             let mut chip = document().chip;
             chip.task = TASK;
@@ -33,13 +33,13 @@ pub fn tree() -> c::Delivery {
         next: None,
     }))
 }
-pub fn root(executor: c::Executor, priority: Option<u32>) -> temper_client_domain::Domain {
+pub fn root(executor: c::ChipExecutor, priority: Option<u32>) -> temper_client_domain::Domain {
     root_with_hold(executor, priority, false)
 }
 pub fn held_root() -> temper_client_domain::Domain {
-    root_with_hold(c::Executor::Agent { charter: 1 }, Some(1), true)
+    root_with_hold(c::ChipExecutor::Agent { charter: 1 }, Some(1), true)
 }
-fn root_with_hold(executor: c::Executor, priority: Option<u32>, held: bool) -> temper_client_domain::Domain {
+fn root_with_hold(executor: c::ChipExecutor, priority: Option<u32>, held: bool) -> temper_client_domain::Domain {
     let mut document = document();
     document.chip.task = TASK;
     document.chip.executor = executor;
@@ -47,12 +47,12 @@ fn root_with_hold(executor: c::Executor, priority: Option<u32>, held: bool) -> t
     if held {
         phase(
             &mut document,
-            c::OwnerChipPhase::Held {
+            c::ChipPhase::Held {
                 reason: c::HoldCategory::Failures { class: c::HoldFailure::Run },
                 revision: HOLD_REVISION.value,
             },
         );
-        document.hold = Some(Box::new(c::OwnerChipHold {
+        document.hold = Some(Box::new(c::ChipHold {
             placed: None,
             words: None,
             circle: None,
@@ -60,9 +60,9 @@ fn root_with_hold(executor: c::Executor, priority: Option<u32>, held: bool) -> t
             source: None,
             reason: c::HoldCategory::Failures { class: c::HoldFailure::Run },
             revision: HOLD_REVISION.value,
-            before: c::OwnerPriorPhase::Active(c::RunStage::Idle),
+            before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
             hold_wait_since: None,
         }));
         document.acts = List::with_capacity(ONE_OFFER);
@@ -79,7 +79,7 @@ fn root_with_hold(executor: c::Executor, priority: Option<u32>, held: bool) -> t
 }
 pub fn root_with(mut document: c::Task) -> temper_client_domain::Domain {
     document.chip.task = TASK;
-    document.chip.executor = c::Executor::Agent { charter: 1 };
+    document.chip.executor = c::ChipExecutor::Agent { charter: 1 };
     document.priority = Some(1);
     supplied_root(document, false)
 }
@@ -95,10 +95,10 @@ pub fn supplied_root_watching(document: c::Task, held: bool) -> (temper_client_d
     );
     let card = document.clone();
     let mut tree = tree();
-    if let c::Delivery::OwnerTree(value) = &mut tree {
+    if let c::Delivery::Tree(value) = &mut tree {
         value.root.task = document.chip.task;
     }
-    if held && let c::Delivery::OwnerTree(value) = &mut tree {
+    if held && let c::Delivery::Tree(value) = &mut tree {
         value.root.phase = c::Phase::Held;
     }
     let mut out = Queue::uncapped();
@@ -163,10 +163,10 @@ pub const RUN_SINCE: Wall = Wall::from_nanos(1_792_640_880_000_000_000);
 pub fn delegate() -> c::Task {
     let mut task = document();
     task.chip.task = TASK;
-    task.chip.executor = c::Executor::Agent { charter: 1 };
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
     task.chip.title = document_words(b"Refresh token handling");
     task.priority = None;
-    task.requester = c::OwnerRequester::Task(12);
+    task.requester = c::Requester::Task(12);
     task.lineage_chips = List::with_capacity(2);
     let mut ancestor = task.chip.clone();
     ancestor.task = 3;
@@ -182,14 +182,14 @@ pub fn delegate() -> c::Task {
     task.result = None;
     task.dependencies = List::with_capacity(0);
     task.activity = 1;
-    phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Running { attempt: RUN_ATTEMPT }));
-    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
+    phase(&mut task, c::ChipPhase::Active(c::RunStage::Running { attempt: RUN_ATTEMPT }));
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
     details.attempt = Some(RUN_ATTEMPT);
     details.run_since = Some(RUN_SINCE);
     details.ending = None;
-    details.observation = Some(c::OwnerChipObservation {
+    details.observation = Some(c::ChipObservation {
         channel: Token::new(1),
-        work: c::OwnerChipWork::Writing,
+        work: c::ChipWork::Writing,
         since: RUN_SINCE,
         reported_at: RUN_SINCE,
         started: None,
@@ -199,9 +199,9 @@ pub fn delegate() -> c::Task {
 pub fn document_words(bytes: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(Box::from(bytes), 32).expect("document words"))
 }
-pub fn phase(task: &mut c::Task, phase: c::OwnerChipPhase) {
+pub fn phase(task: &mut c::Task, phase: c::ChipPhase) {
     task.chip.phase = phase.compact();
-    let c::ChipPhase { phase: old, .. } = task.chip.details.as_mut();
+    let c::ChipPhaseFacts { phase: old, .. } = task.chip.details.as_mut();
     *old = phase;
 }
 pub fn agent_root(document: c::Task, tree: Option<c::Delivery>, conversation: bool) -> temper_client_domain::Domain {
@@ -332,12 +332,12 @@ pub fn activity(conversation: bool) -> c::ActivityPage {
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
 
-pub fn added_dependency(number: u64, by: c::OwnerRequester, keeps: bool) -> c::Dependency {
+pub fn added_dependency(number: u64, by: c::Requester, keeps: bool) -> c::Dependency {
     c::Dependency { number, pending: keeps, added: Some(c::DependencyAdded { at: RUN_SINCE, by }), keeps, status: None }
 }
 pub fn amended_dependency_facts() -> List<c::Dependency> {
-    let added_by_viewer = added_dependency(17, c::OwnerRequester::Person(73), true);
-    let added_by_task = added_dependency(23, c::OwnerRequester::Task(7), false);
+    let added_by_viewer = added_dependency(17, c::Requester::Person(73), true);
+    let added_by_task = added_dependency(23, c::Requester::Task(7), false);
     let original = c::Dependency { number: 13, pending: true, added: None, keeps: true, status: None };
     let mut facts = List::with_capacity(3);
     for fact in [added_by_task, original, added_by_viewer] {

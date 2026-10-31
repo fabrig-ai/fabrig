@@ -9,7 +9,7 @@ use jig_client::{Client, contract as c};
 use skein_lib::{Queue, RequestKey};
 #[derive(Debug)]
 pub struct ConnectModel {
-    pub holder: c::AccountHolder,
+    pub holder: c::AskAccountHolder,
     pub program: Option<Box<[u8]>>,
     pub request: Request,
     /// Whether the scripted model was serving when this connection was sent.
@@ -18,7 +18,7 @@ pub struct ConnectModel {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
-    Holder { holder: c::AccountHolder },
+    Holder { holder: c::AskAccountHolder },
     SignIn { name: RequestKey, way: Way },
     SignInElsewhere { name: RequestKey, way: Way },
     Finish { name: RequestKey },
@@ -163,7 +163,7 @@ impl ConnectModel {
         let Some(me) = accounts::current_me(client) else { return };
         match act {
             Act::Holder { holder } => {
-                if holder == c::AccountHolder::Deployment && me.deployment_role != Some(c::HeldRole::Owner) {
+                if holder == c::AskAccountHolder::Deployment && me.deployment_role != Some(c::HeldRole::Owner) {
                     return;
                 }
                 self.request.cancel();
@@ -190,7 +190,7 @@ impl ConnectModel {
                 self.elsewhere = elsewhere;
                 self.request.send(
                     name,
-                    c::Ask::SignIn { holder: c::AccountHolder::Own, provider: way.provider() },
+                    c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: way.provider() },
                     false,
                     serial,
                     out,
@@ -272,7 +272,7 @@ pub(crate) fn program_default(person: &[u8]) -> Box<[u8]> {
 impl Default for ConnectModel {
     fn default() -> Self {
         Self {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             program: None,
             request: Request::default(),
             playground: false,

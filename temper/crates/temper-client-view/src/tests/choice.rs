@@ -26,7 +26,7 @@ fn banner(usable: Option<bool>) -> (d::Domain, Token) {
         delivered(
             &mut root,
             watch,
-            c::Delivery::OwnerAccounts(Box::new(c::OwnerAccounts {
+            c::Delivery::Accounts(Box::new(c::Accounts {
                 program_hosts: List::with_capacity(0),
                 accounts: List::with_capacity(0),
                 signing: List::with_capacity(0),
@@ -95,7 +95,7 @@ fn task_root() -> d::Domain {
 fn account_readiness(ready: Option<c::PayerReadiness>) -> d::Domain {
     account_facts(ready, List::with_capacity(0))
 }
-fn account_facts(ready: Option<c::PayerReadiness>, accounts: List<c::OwnerAccountLine>) -> d::Domain {
+fn account_facts(ready: Option<c::PayerReadiness>, accounts: List<c::AccountLine>) -> d::Domain {
     line_facts(ready, accounts, Some(3), Some(7), None, true)
 }
 pub(super) fn line_models(task_page: bool) -> List<c::MeModel> {
@@ -138,7 +138,7 @@ pub(super) fn line_models(task_page: bool) -> List<c::MeModel> {
 }
 fn line_facts(
     ready: Option<c::PayerReadiness>,
-    accounts: List<c::OwnerAccountLine>,
+    accounts: List<c::AccountLine>,
     preference: Option<u32>,
     kept: Option<u32>,
     effort: Option<&[u8]>,
@@ -148,7 +148,7 @@ fn line_facts(
 }
 fn line_fixture(
     ready: Option<c::PayerReadiness>,
-    accounts: List<c::OwnerAccountLine>,
+    accounts: List<c::AccountLine>,
     preference: Option<u32>,
     kept: Option<u32>,
     effort: Option<&[u8]>,
@@ -197,7 +197,7 @@ fn line_fixture(
     delivered(
         &mut root,
         accounts_watch.unwrap(),
-        c::Delivery::OwnerAccounts(Box::new(c::OwnerAccounts {
+        c::Delivery::Accounts(Box::new(c::Accounts {
             program_hosts: List::with_capacity(0),
             accounts,
             signing: List::with_capacity(0),
@@ -212,7 +212,7 @@ fn line_fixture(
     let mut task = fixtures::task::document();
     task.chip.task = 9;
     task.project = fixtures::PROJECT;
-    task.chip.executor = c::Executor::Agent { charter: 1 };
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
     task.budget.funder = c::Funder::Pool { project: fixtures::PROJECT, person: 73, period: 1 };
     task.acts = List::with_capacity(2);
     for act in [c::ActKind::Message, c::ActKind::Amend] {
@@ -463,7 +463,7 @@ fn an_invalid_draft_withholds_start() {
 }
 
 fn readiness(state: c::Readiness) -> c::PayerReadiness {
-    c::PayerReadiness { provider: 17, payer: c::OwnerAccountUse::Party(73), readiness: state, settled: Some(true) }
+    c::PayerReadiness { provider: 17, payer: c::AccountUse::Party(73), readiness: state, settled: Some(true) }
 }
 #[test]
 fn an_unavailable_provider_needs_an_account() {
@@ -484,7 +484,7 @@ fn missing_provider_readiness_stays_unknown() {
 #[test]
 fn another_payers_readiness_does_not_decide_this_payers() {
     let mut row = readiness(c::Readiness::Unavailable);
-    row.payer = c::OwnerAccountUse::Project(fixtures::PROJECT);
+    row.payer = c::AccountUse::Project(fixtures::PROJECT);
     assert!(!text(&account_readiness(Some(row))).contains("needs an account"));
 }
 #[test]
@@ -540,7 +540,7 @@ fn named_account() -> d::Domain {
 fn one_account(number: u32, plan: bool) -> d::Domain {
     let mut accounts = List::with_capacity(1);
     accounts
-        .push(c::OwnerAccountLine {
+        .push(c::AccountLine {
             number,
             place: 1,
             uses: None,
@@ -549,7 +549,7 @@ fn one_account(number: u32, plan: bool) -> d::Domain {
             provider_name: None,
             manage_usage: None,
             display: c::DocumentText::complete(c::Text::new(Box::from(*b"Personal"), 32).unwrap()),
-            holder: c::OwnerAccountHolder::Party(73),
+            holder: c::AccountHolder::Party(73),
             sources: List::with_capacity(0),
             cut: false,
         })
@@ -611,7 +611,7 @@ fn a_task_waiting_on_a_moving_account_says_why() {
 
 #[test]
 fn a_refused_next_run_says_why() {
-    use c::{OpenProgram as P, OwnerHelloRefusal as F, OwnerHostKind as H, TaskWaitRefused as R};
+    use c::{HelloRefusal as F, HostKind as H, OpenProgram as P, TaskWaitRefused as R};
     for (name, refusal, expected) in [
         (
             "model",
@@ -655,8 +655,8 @@ fn a_refused_next_run_says_why() {
         let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
         task.flags.ended_by = c::EndedBy::Requester;
         task.run_wait = Some(c::TaskRunWait::Refused(refusal));
-        let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
-        *phase = c::OwnerChipPhase::Active(c::RunStage::Due);
+        let c::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
+        *phase = c::ChipPhase::Active(c::RunStage::Due);
         let (mut root, _, watch) =
             fixtures::root_at(Address::Chat { task: fixtures::chat::TASK }, &fixtures::domain_limits());
         delivered(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(task)));
@@ -671,7 +671,7 @@ fn a_refused_next_run_says_why() {
 
 #[test]
 fn every_hello_refusal_keeps_its_cause_and_numbers() {
-    use c::{OwnerAgentShortfall as S, OwnerHelloRefusal as F};
+    use c::{AgentShortfall as S, HelloRefusal as F};
     for (why, cause) in [
         (F::Workers { limit: 7 }, "No room for another worker. Limit: 7."),
         (
@@ -701,7 +701,7 @@ fn every_hello_refusal_keeps_its_cause_and_numbers() {
             &mut builder,
             &task_root(),
             Some(c::TaskRunWait::Refused(c::TaskWaitRefused::Hello {
-                kind: c::OwnerHostKind::Worker,
+                kind: c::HostKind::Worker,
                 at: fixtures::NOW,
                 why,
             })),
@@ -714,38 +714,38 @@ fn every_hello_refusal_keeps_its_cause_and_numbers() {
     }
 }
 
-fn source(kind: c::OwnerAccountKind, usable: bool) -> c::OwnerAccountSource {
-    c::OwnerAccountSource {
+fn source(kind: c::AccountKind, usable: bool) -> c::AccountSource {
+    c::AccountSource {
         name: Some(Box::from(b"Claude Code".as_slice())),
         place: 1,
         number: 1,
         kind,
-        state: c::OwnerAccountState::Granted,
+        state: c::AccountState::Granted,
         usable,
         expiring: false,
         attention: false,
         spent_until: None,
     }
 }
-fn account(number: u32, kind: c::OwnerAccountKind, address: Option<&[u8]>) -> c::OwnerAccountLine {
+fn account(number: u32, kind: c::AccountKind, address: Option<&[u8]>) -> c::AccountLine {
     let mut sources = List::with_capacity(2);
-    sources.push(source(c::OwnerAccountKind::Program, false)).unwrap();
+    sources.push(source(c::AccountKind::Program, false)).unwrap();
     sources.push(source(kind, true)).unwrap();
-    c::OwnerAccountLine {
+    c::AccountLine {
         number,
         place: number,
         uses: None,
-        plan: kind == c::OwnerAccountKind::SignIn,
+        plan: kind == c::AccountKind::SignIn,
         provider: Some(17),
         provider_name: None,
         manage_usage: address.map(Box::from),
         display: c::DocumentText::complete(c::Text::new(Box::from(b"Personal".as_slice()), 32).unwrap()),
-        holder: c::OwnerAccountHolder::Party(73),
+        holder: c::AccountHolder::Party(73),
         sources,
         cut: false,
     }
 }
-fn accounts(rows: &[c::OwnerAccountLine]) -> List<c::OwnerAccountLine> {
+fn accounts(rows: &[c::AccountLine]) -> List<c::AccountLine> {
     let mut accounts = List::with_capacity(u32::try_from(rows.len()).unwrap());
     for row in rows {
         accounts.push(row.clone()).unwrap();
@@ -761,7 +761,7 @@ fn using_text(root: &d::Domain) -> String {
 fn a_keys_line_uses_the_configured_provider_name_and_appends_effort() {
     let root = line_facts(
         Some(readiness(c::Readiness::Usable)),
-        accounts(&[account(3, c::OwnerAccountKind::Key, None)]),
+        accounts(&[account(3, c::AccountKind::Key, None)]),
         Some(3),
         Some(7),
         Some(b"high"),
@@ -779,7 +779,7 @@ fn a_plan_has_a_manage_usage_link_only_for_a_safe_address() {
     ] {
         let root = line_facts(
             Some(readiness(c::Readiness::Usable)),
-            accounts(&[account(3, c::OwnerAccountKind::SignIn, address)]),
+            accounts(&[account(3, c::AccountKind::SignIn, address)]),
             Some(3),
             None,
             None,
@@ -807,7 +807,7 @@ fn a_plan_has_a_manage_usage_link_only_for_a_safe_address() {
 fn a_program_line_uses_its_first_usable_sources_name() {
     let (mut root, me_watch, task_watch, _) = line_fixture(
         Some(readiness(c::Readiness::Usable)),
-        accounts(&[account(3, c::OwnerAccountKind::Program, None)]),
+        accounts(&[account(3, c::AccountKind::Program, None)]),
         Some(3),
         None,
         Some(b"high"),
@@ -834,9 +834,9 @@ fn a_program_line_uses_its_first_usable_sources_name() {
 #[test]
 fn preference_then_kept_then_the_first_usable_account_decides_the_line() {
     let rows = accounts(&[
-        account(1, c::OwnerAccountKind::Key, None),
-        account(7, c::OwnerAccountKind::SignIn, None),
-        account(3, c::OwnerAccountKind::Key, None),
+        account(1, c::AccountKind::Key, None),
+        account(7, c::AccountKind::SignIn, None),
+        account(3, c::AccountKind::Key, None),
     ]);
     for (preference, kept, expected) in [
         (Some(3), Some(7), "Using your Supplied Provider API key · chosen"),
@@ -849,22 +849,21 @@ fn preference_then_kept_then_the_first_usable_account_decides_the_line() {
 }
 #[test]
 fn automatic_accounts_skip_other_providers_payers_and_unusable_sources() {
-    let mut other_provider = account(1, c::OwnerAccountKind::SignIn, None);
+    let mut other_provider = account(1, c::AccountKind::SignIn, None);
     other_provider.provider = Some(18);
-    let mut other_payer = account(2, c::OwnerAccountKind::Program, None);
+    let mut other_payer = account(2, c::AccountKind::Program, None);
     other_payer.uses = Some(List::with_capacity(0));
-    let mut unusable = account(3, c::OwnerAccountKind::SignIn, None);
+    let mut unusable = account(3, c::AccountKind::SignIn, None);
     unusable.sources.get_mut(1).unwrap().usable = false;
-    let rows = accounts(&[other_provider, other_payer, unusable, account(4, c::OwnerAccountKind::Key, None)]);
+    let rows = accounts(&[other_provider, other_payer, unusable, account(4, c::AccountKind::Key, None)]);
     let root = line_facts(Some(readiness(c::Readiness::Usable)), rows, None, None, None, true);
     assert_eq!(using_text(&root), "Using your Supplied Provider API key · chosen");
 }
 #[test]
 fn a_new_chats_default_is_the_first_model_usable_for_its_payer() {
     let mut ready = readiness(c::Readiness::Usable);
-    ready.payer = c::OwnerAccountUse::Party(73);
-    let root =
-        line_facts(Some(ready), accounts(&[account(3, c::OwnerAccountKind::Key, None)]), None, None, None, false);
+    ready.payer = c::AccountUse::Party(73);
+    let root = line_facts(Some(ready), accounts(&[account(3, c::AccountKind::Key, None)]), None, None, None, false);
     assert_eq!(using_text(&root), "Using your OpenAI API key · gpt-6-luna");
 }
 #[test]
@@ -969,8 +968,8 @@ fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
                 up: jig_client::Up::Answer {
                     attempt,
                     envelope: skein_lib::RequestEnvelope::Final,
-                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                        c::OwnerOutcome::Amended { task: 9 },
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                        c::DocumentOutcome::Amended { task: 9 },
                     )))),
                     why: None,
                 },
@@ -990,8 +989,8 @@ fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
 #[test]
 fn own_key_and_plan_of_openai_follow_place_order() {
     for (first, second, expected) in [
-        (c::OwnerAccountKind::Key, c::OwnerAccountKind::SignIn, "Using your OpenAI API key · chosen"),
-        (c::OwnerAccountKind::SignIn, c::OwnerAccountKind::Key, "Using ChatGPT plan · chosen"),
+        (c::AccountKind::Key, c::AccountKind::SignIn, "Using your OpenAI API key · chosen"),
+        (c::AccountKind::SignIn, c::AccountKind::Key, "Using ChatGPT plan · chosen"),
     ] {
         let mut rows = accounts(&[account(9, first, None), account(3, second, None)]);
         rows.get_mut(0).unwrap().place = 1;
@@ -1013,7 +1012,7 @@ fn another_members_chat_and_project_work_never_name_the_viewers_plan() {
     ] {
         let (mut root, _, task_watch, accounts_watch) = line_fixture(
             Some(readiness(c::Readiness::Usable)),
-            accounts(&[account(3, c::OwnerAccountKind::SignIn, None)]),
+            accounts(&[account(3, c::AccountKind::SignIn, None)]),
             Some(3),
             Some(3),
             None,
@@ -1023,12 +1022,12 @@ fn another_members_chat_and_project_work_never_name_the_viewers_plan() {
         task.budget.funder = funder;
         let mut doc = d::pages::accounts::document(root.client()).unwrap().clone();
         doc.readiness.get_mut(0).unwrap().payer = match funder {
-            c::Funder::Pool { person, .. } => c::OwnerAccountUse::Party(person),
-            c::Funder::Period { project, .. } => c::OwnerAccountUse::Project(project),
+            c::Funder::Pool { person, .. } => c::AccountUse::Party(person),
+            c::Funder::Period { project, .. } => c::AccountUse::Project(project),
             c::Funder::Recurring { .. } | c::Funder::Task(_) => unreachable!("fixture funder"),
         };
         delivered(&mut root, task_watch.unwrap(), c::Delivery::Task(Box::new(task)));
-        delivered(&mut root, accounts_watch, c::Delivery::OwnerAccounts(Box::new(doc)));
+        delivered(&mut root, accounts_watch, c::Delivery::Accounts(Box::new(doc)));
         let line = using_text(&root);
         assert_eq!(line, "Using chosen");
         assert!(!line.contains("plan") && !line.contains("API key"));
@@ -1037,23 +1036,23 @@ fn another_members_chat_and_project_work_never_name_the_viewers_plan() {
 #[test]
 fn a_held_pin_stays_pinned_while_fresh_selection_passes_to_the_next_account() {
     for state in [
-        c::OwnerAccountState::Later { until: None },
-        c::OwnerAccountState::SignInAgain,
-        c::OwnerAccountState::Misconfigured,
-        c::OwnerAccountState::Unloaded { at: c::OwnerAccountPlace::File, why: c::OwnerAccountUnread::Unreadable },
-        c::OwnerAccountState::Cancelled,
-        c::OwnerAccountState::Closing,
+        c::AccountState::Later { until: None },
+        c::AccountState::SignInAgain,
+        c::AccountState::Misconfigured,
+        c::AccountState::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Unreadable },
+        c::AccountState::Cancelled,
+        c::AccountState::Closing,
     ] {
-        let mut held = account(3, c::OwnerAccountKind::SignIn, None);
+        let mut held = account(3, c::AccountKind::SignIn, None);
         held.sources.get_mut(1).unwrap().state = state;
-        if let c::OwnerAccountState::Later { .. } = state {
+        if let c::AccountState::Later { .. } = state {
             // An unusable Later source waits in both possible underlying states.
             held.sources.get_mut(1).unwrap().usable = false;
         } else {
             // Even contradictory usable evidence cannot override a held deciding source.
             assert!(held.sources.get(1).unwrap().usable);
         }
-        let rows = accounts(&[held, account(7, c::OwnerAccountKind::Key, None)]);
+        let rows = accounts(&[held, account(7, c::AccountKind::Key, None)]);
         for (pin, expected) in
             [(Some(3), "chosen · needs an account"), (None, "Using your Supplied Provider API key · chosen")]
         {
@@ -1064,10 +1063,10 @@ fn a_held_pin_stays_pinned_while_fresh_selection_passes_to_the_next_account() {
 }
 #[test]
 fn a_moving_source_is_held_even_if_supplied_as_usable() {
-    let mut moving = account(3, c::OwnerAccountKind::SignIn, None);
-    moving.sources.get_mut(1).unwrap().state = c::OwnerAccountState::Moving;
+    let mut moving = account(3, c::AccountKind::SignIn, None);
+    moving.sources.get_mut(1).unwrap().state = c::AccountState::Moving;
     assert!(moving.sources.get(1).unwrap().usable);
-    let rows = accounts(&[moving, account(7, c::OwnerAccountKind::Key, None)]);
+    let rows = accounts(&[moving, account(7, c::AccountKind::Key, None)]);
     for (pin, expected) in
         [(Some(3), "chosen · needs an account"), (None, "Using your Supplied Provider API key · chosen")]
     {
@@ -1077,9 +1076,9 @@ fn a_moving_source_is_held_even_if_supplied_as_usable() {
 }
 #[test]
 fn a_waiting_direct_source_does_not_jump_to_a_later_direct_source() {
-    let mut waiting = account(3, c::OwnerAccountKind::Key, None);
-    waiting.sources.get_mut(0).unwrap().kind = c::OwnerAccountKind::SignIn;
-    let rows = accounts(&[waiting, account(7, c::OwnerAccountKind::SignIn, None)]);
+    let mut waiting = account(3, c::AccountKind::Key, None);
+    waiting.sources.get_mut(0).unwrap().kind = c::AccountKind::SignIn;
+    let rows = accounts(&[waiting, account(7, c::AccountKind::SignIn, None)]);
     for (pin, expected) in [(Some(3), "chosen · needs an account"), (None, "Using Supplied Provider plan · chosen")] {
         let root = line_facts(Some(readiness(c::Readiness::Usable)), rows.clone(), pin, None, None, true);
         assert_eq!(using_text(&root), expected);
@@ -1087,11 +1086,11 @@ fn a_waiting_direct_source_does_not_jump_to_a_later_direct_source() {
 }
 #[test]
 fn ineligible_preference_passes_to_the_kept_account() {
-    let mut wrong = account(3, c::OwnerAccountKind::Key, None);
+    let mut wrong = account(3, c::AccountKind::Key, None);
     wrong.uses = Some(List::with_capacity(0));
     let root = line_facts(
         Some(readiness(c::Readiness::Usable)),
-        accounts(&[wrong, account(7, c::OwnerAccountKind::SignIn, None)]),
+        accounts(&[wrong, account(7, c::AccountKind::SignIn, None)]),
         Some(3),
         Some(7),
         None,
@@ -1104,7 +1103,7 @@ fn truncated_documents_and_accounts_name_only_the_model() {
     for cut_document in [true, false] {
         let (mut root, _, _, watch) = line_fixture(
             Some(readiness(c::Readiness::Usable)),
-            accounts(&[account(3, c::OwnerAccountKind::Key, None)]),
+            accounts(&[account(3, c::AccountKind::Key, None)]),
             Some(3),
             None,
             None,
@@ -1116,7 +1115,7 @@ fn truncated_documents_and_accounts_name_only_the_model() {
         } else {
             doc.accounts.get_mut(0).unwrap().cut = true;
         }
-        delivered(&mut root, watch, c::Delivery::OwnerAccounts(Box::new(doc)));
+        delivered(&mut root, watch, c::Delivery::Accounts(Box::new(doc)));
         assert_eq!(using_text(&root), "Using chosen");
     }
 }
@@ -1125,7 +1124,7 @@ fn readiness_cross_checks_the_translated_account_across_expiry() {
     for ready in [c::Readiness::Unknown, c::Readiness::Unavailable] {
         let root = line_facts(
             Some(readiness(ready)),
-            accounts(&[account(3, c::OwnerAccountKind::Key, None)]),
+            accounts(&[account(3, c::AccountKind::Key, None)]),
             Some(3),
             None,
             None,
@@ -1140,7 +1139,7 @@ fn mixed_or_cut_program_offers_do_not_guess_a_models_endpoint() {
     for cut in [false, true] {
         let (mut root, me_watch, _, _) = line_fixture(
             Some(readiness(c::Readiness::Usable)),
-            accounts(&[account(3, c::OwnerAccountKind::Key, None)]),
+            accounts(&[account(3, c::AccountKind::Key, None)]),
             Some(3),
             None,
             None,
@@ -1164,9 +1163,9 @@ fn a_usable_later_source_names_no_account() {
         (c::Readiness::Usable, Some(3)),
         (c::Readiness::Unavailable, Some(3)),
     ] {
-        let mut first = account(3, c::OwnerAccountKind::Key, None);
-        first.sources.get_mut(1).unwrap().state = c::OwnerAccountState::Later { until: None };
-        let rows = accounts(&[first, account(7, c::OwnerAccountKind::SignIn, None)]);
+        let mut first = account(3, c::AccountKind::Key, None);
+        first.sources.get_mut(1).unwrap().state = c::AccountState::Later { until: None };
+        let rows = accounts(&[first, account(7, c::AccountKind::SignIn, None)]);
         let (mut root, me_watch, _, _) = line_fixture(Some(readiness(ready)), rows, pin, None, None, true);
         let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
         me.providers.get_mut(0).unwrap().name =
@@ -1188,10 +1187,10 @@ fn an_unusable_later_program_source_names_no_account_when_a_program_source_after
         (c::Readiness::Usable, None, false),
     ] {
         // jig's Later goes on to the account's next program source; its Limited waits.
-        let mut first = account(3, c::OwnerAccountKind::Program, None);
-        first.sources.get_mut(0).unwrap().state = c::OwnerAccountState::Later { until: None };
+        let mut first = account(3, c::AccountKind::Program, None);
+        first.sources.get_mut(0).unwrap().state = c::AccountState::Later { until: None };
         first.sources.get_mut(1).unwrap().usable = after_usable;
-        let rows = accounts(&[first, account(7, c::OwnerAccountKind::Program, None)]);
+        let rows = accounts(&[first, account(7, c::AccountKind::Program, None)]);
         let (mut root, me_watch, _, _) = line_fixture(Some(readiness(ready)), rows, pin, None, None, true);
         let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
         let offer = me.providers.get_mut(0).unwrap();
@@ -1216,11 +1215,11 @@ fn ready_pairs_the_default_model_with_its_selected_account() {
     let root = line_facts(
         Some(c::PayerReadiness {
             provider: 17,
-            payer: c::OwnerAccountUse::Party(73),
+            payer: c::AccountUse::Party(73),
             readiness: c::Readiness::Usable,
             settled: Some(true),
         }),
-        accounts(&[account(3, c::OwnerAccountKind::SignIn, None)]),
+        accounts(&[account(3, c::AccountKind::SignIn, None)]),
         None,
         None,
         None,
@@ -1233,12 +1232,12 @@ fn ready_pairs_the_default_model_with_its_selected_account() {
 }
 #[test]
 fn ready_does_not_pair_another_providers_account_with_the_model() {
-    let mut other = account(3, c::OwnerAccountKind::SignIn, None);
+    let mut other = account(3, c::AccountKind::SignIn, None);
     other.provider = Some(18);
     let root = line_facts(
         Some(c::PayerReadiness {
             provider: 17,
-            payer: c::OwnerAccountUse::Party(73),
+            payer: c::AccountUse::Party(73),
             readiness: c::Readiness::Usable,
             settled: Some(true),
         }),
@@ -1284,7 +1283,7 @@ pub(super) fn playground_offers_root(address: Address, playground: bool) -> (d::
     delivered(
         &mut root,
         accounts.unwrap(),
-        c::Delivery::OwnerAccounts(Box::new(c::OwnerAccounts {
+        c::Delivery::Accounts(Box::new(c::Accounts {
             program_hosts: List::with_capacity(0),
             accounts: List::with_capacity(0),
             signing: List::with_capacity(0),
@@ -1337,7 +1336,7 @@ pub(super) fn no_model_root(task_page: bool) -> d::Domain {
     delivered(
         &mut root,
         watch,
-        c::Delivery::OwnerAccounts(Box::new(c::OwnerAccounts {
+        c::Delivery::Accounts(Box::new(c::Accounts {
             program_hosts: List::with_capacity(0),
             accounts: List::with_capacity(0),
             signing: List::with_capacity(0),
@@ -1354,21 +1353,16 @@ pub(super) fn no_model_root(task_page: bool) -> d::Domain {
 #[test]
 fn configured_provider_words_name_the_whole_composer_line() {
     for (provider, kind, address, expected) in [
-        (b"openai".as_slice(), c::OwnerAccountKind::Key, None, "Using your OpenAI API key · chosen"),
-        (b"openai", c::OwnerAccountKind::SignIn, None, "Using ChatGPT plan · chosen"),
+        (b"openai".as_slice(), c::AccountKind::Key, None, "Using your OpenAI API key · chosen"),
+        (b"openai", c::AccountKind::SignIn, None, "Using ChatGPT plan · chosen"),
         (
             b"openai",
-            c::OwnerAccountKind::SignIn,
+            c::AccountKind::SignIn,
             Some(b"https://provider.example/usage".as_slice()),
             "Using ChatGPT plan · chosen · Manage usage",
         ),
-        (
-            b"anthropic",
-            c::OwnerAccountKind::Program,
-            None,
-            "Using your Claude subscription, through Claude Code · chosen",
-        ),
-        (b"local", c::OwnerAccountKind::Key, None, "Using your local API key · chosen"),
+        (b"anthropic", c::AccountKind::Program, None, "Using your Claude subscription, through Claude Code · chosen"),
+        (b"local", c::AccountKind::Key, None, "Using your local API key · chosen"),
     ] {
         let mut row = account(3, kind, address);
         row.sources.clear();
@@ -1380,7 +1374,7 @@ fn configured_provider_words_name_the_whole_composer_line() {
         let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
         let offer = me.providers.get_mut(0).unwrap();
         offer.name = c::DocumentText::complete(c::Text::new(Box::from(provider), 32).unwrap());
-        if kind == c::OwnerAccountKind::Program {
+        if kind == c::AccountKind::Program {
             offer.key = false;
             offer.sign_in = false;
             offer.programs = List::with_capacity(1);
@@ -1396,7 +1390,7 @@ fn chooser_groups_use_the_providers_words() {
     for (configured, shown) in [(b"openai".as_slice(), b"OpenAI".as_slice()), (b"anthropic", b"Anthropic")] {
         let (mut root, me_watch, _, _) = line_fixture(
             Some(readiness(c::Readiness::Usable)),
-            accounts(&[account(3, c::OwnerAccountKind::Key, None)]),
+            accounts(&[account(3, c::AccountKind::Key, None)]),
             Some(3),
             None,
             None,

@@ -408,12 +408,12 @@ pub fn domain(sample: &Sample) -> Domain {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
         doc.signing = skein_lib::List::with_capacity(1);
         doc.signing
-            .push(c::OwnerAccountSignIn { source: 43, provider: 18, holder: c::OwnerAccountHolder::Party(73) })
+            .push(c::AccountSignIn { source: 43, provider: 18, holder: c::AccountHolder::Party(73) })
             .expect("one signing");
         crate::driver::deliver(
             &mut root,
             accounts_watch.expect("paste sample accounts watch"),
-            c::Delivery::OwnerAccounts(Box::new(doc.clone())),
+            c::Delivery::Accounts(Box::new(doc.clone())),
             &mut out,
         );
         doc.signing.clear();
@@ -421,7 +421,7 @@ pub fn domain(sample: &Sample) -> Domain {
         crate::driver::deliver(
             &mut root,
             accounts_watch.expect("paste sample accounts watch"),
-            c::Delivery::OwnerAccounts(Box::new(doc)),
+            c::Delivery::Accounts(Box::new(doc)),
             &mut out,
         );
     }
@@ -525,14 +525,16 @@ fn account(root: &mut Domain, then: Then, out: &mut Queue<Request>) {
     let answer = if refused {
         None
     } else if key {
-        Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountKeyKept {
+        Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountKeyKept {
             source: 3,
         }))))
     } else {
-        Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignInStarted {
-            source: 43,
-            address: Box::from(b"https://issuer.example/visit/gallery-sign-in".as_slice()),
-        }))))
+        Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::AccountSignInStarted {
+                source: 43,
+                address: Box::from(b"https://issuer.example/visit/gallery-sign-in".as_slice()),
+            },
+        ))))
     };
     step(
         root,
@@ -617,11 +619,9 @@ fn paste(root: &mut Domain, frame: PasteFrame, out: &mut Queue<Request>) {
         | F::Expired => skein_lib::RequestEnvelope::Final,
     };
     let answer = match frame {
-        F::Finishing => {
-            Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountFinishing {
-                source: 43,
-            }))))
-        }
+        F::Finishing => Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::AccountFinishing { source: 43 },
+        )))),
         F::Address | F::State | F::TooMany | F::Ended => {
             let why = match frame {
                 F::Address => c::SignInRedirectWhy::Address,

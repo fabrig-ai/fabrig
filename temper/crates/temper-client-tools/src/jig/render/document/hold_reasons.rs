@@ -93,7 +93,7 @@ fn encode_hold_reason_dependency(
     out.object_end();
 }
 
-fn encode_hold_reason_drift(part: &jig_client::contract::Part, out: &mut Encoder, budget: &mut super::Cut) {
+fn encode_hold_reason_drift(part: &jig_client::contract::ApplicationPart, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"drift");
     out.object_start();
@@ -103,7 +103,11 @@ fn encode_hold_reason_drift(part: &jig_client::contract::Part, out: &mut Encoder
     out.object_end();
 }
 
-fn encode_hold_reason_effect_failed(part: &jig_client::contract::Part, out: &mut Encoder, budget: &mut super::Cut) {
+fn encode_hold_reason_effect_failed(
+    part: &jig_client::contract::ApplicationPart,
+    out: &mut Encoder,
+    budget: &mut super::Cut,
+) {
     out.object_start();
     out.key(b"effect_failed");
     out.object_start();
@@ -113,7 +117,11 @@ fn encode_hold_reason_effect_failed(part: &jig_client::contract::Part, out: &mut
     out.object_end();
 }
 
-fn encode_hold_reason_effect_uncertain(part: &jig_client::contract::Part, out: &mut Encoder, budget: &mut super::Cut) {
+fn encode_hold_reason_effect_uncertain(
+    part: &jig_client::contract::ApplicationPart,
+    out: &mut Encoder,
+    budget: &mut super::Cut,
+) {
     out.object_start();
     out.key(b"effect_uncertain");
     out.object_start();
@@ -163,7 +171,7 @@ fn encode_hold_reason_stopped(
 }
 
 fn encode_hold_reason_resource(
-    resource: &jig_client::contract::Part,
+    resource: &jig_client::contract::ApplicationPart,
     holder: &jig_client::contract::Actor,
     out: &mut Encoder,
     budget: &mut super::Cut,
@@ -179,7 +187,7 @@ fn encode_hold_reason_resource(
     out.object_end();
 }
 
-fn encode_hold_reason_pool(part: &jig_client::contract::Part, out: &mut Encoder, budget: &mut super::Cut) {
+fn encode_hold_reason_pool(part: &jig_client::contract::ApplicationPart, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"pool");
     out.object_start();
@@ -189,7 +197,11 @@ fn encode_hold_reason_pool(part: &jig_client::contract::Part, out: &mut Encoder,
     out.object_end();
 }
 
-fn encode_hold_reason_procedure(part: &jig_client::contract::Part, out: &mut Encoder, budget: &mut super::Cut) {
+fn encode_hold_reason_procedure(
+    part: &jig_client::contract::ApplicationPart,
+    out: &mut Encoder,
+    budget: &mut super::Cut,
+) {
     out.object_start();
     out.key(b"procedure");
     out.object_start();

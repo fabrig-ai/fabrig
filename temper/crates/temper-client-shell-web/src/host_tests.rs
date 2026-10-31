@@ -208,8 +208,8 @@ fn the_external_href_is_the_supplied_sign_in_address() {
         up: jig_client::Up::Answer {
             attempt,
             envelope: skein_lib::RequestEnvelope::Final,
-            answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountSignInStarted { source: 43, address: Box::from(ADDRESS) },
+            answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountSignInStarted { source: 43, address: Box::from(ADDRESS) },
             )))),
             why: None,
         },
@@ -365,18 +365,17 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
             .expect("task delivery"),
         ),
     );
-    let event = w::OwnerActivity::RunBegan(
-        w::OwnerActivityRunBegan::new(
+    let event = w::Activity::RunBegan(
+        w::ActivityRunBegan::new(
             &w::CEILINGS,
-            w::OwnerActivityRunBeganParts { attempt: RUN, why: w::OwnerRunWhy::Made, resumed: true },
+            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true },
         )
         .expect("run marker"),
     );
-    let source =
-        w::OwnerActivityLine::new(&w::CEILINGS, w::OwnerActivityLineParts { task: 7, position: 1, at: 1, line: event })
-            .expect("source row");
-    let line =
-        w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { source, decoded: None }).expect("activity row");
+    let source = w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { task: 7, position: 1, at: 1, line: event })
+        .expect("source row");
+    let line = w::DecodedActivityLine::new(&w::CEILINGS, w::DecodedActivityLineParts { source, decoded: None })
+        .expect("activity row");
     let page = jig_client_test_records::activity_rows(&[line]);
     let value = w::ReadValue::Activity(page);
     let answer = w::ReadAnswer::Value(owned(encoded(value.measure(), |writer| value.encode(writer))));

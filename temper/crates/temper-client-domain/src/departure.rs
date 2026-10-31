@@ -32,10 +32,9 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut 
         return false;
     }
     let c::Ask::SignIn { provider, .. } = pending.ask else { return false };
-    let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignInStarted {
-        source,
-        address,
-    })))) = outcome
+    let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::AccountSignInStarted { source, address },
+    )))) = outcome
     else {
         return false;
     };

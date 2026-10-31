@@ -237,7 +237,7 @@ fn the_accounts_watch_reaches_the_root_and_returns_whole_cut_facts() {
             else {
                 continue;
             };
-            let wire::DeliveryValue::OwnerAccounts(value) =
+            let wire::DeliveryValue::Accounts(value) =
                 wire::DeliveryValue::decode(&stand.env.limits.wire, &mut Reader::new(value.document().record()))
                     .unwrap()
             else {
@@ -248,7 +248,7 @@ fn the_accounts_watch_reaches_the_root_and_returns_whole_cut_facts() {
             assert!(value.cut());
             let mut pieces = Reader::new(value.accounts());
             let bytes = skein_codec::piece::split(&mut pieces).unwrap().expect("account piece");
-            let line = wire::OwnerAccountLine::decode(&stand.env.limits.wire, &mut Reader::new(&bytes)).unwrap();
+            let line = wire::AccountLine::decode(&stand.env.limits.wire, &mut Reader::new(&bytes)).unwrap();
             assert_eq!(line.number(), 7);
             assert!(line.cut());
             assert_eq!(line.provider(), &Some(3));

@@ -22,12 +22,12 @@ pub fn task() -> c::Task {
     task.activity = POSITION;
     task.acts = List::with_capacity(ONE);
     task.acts.push(c::Offered { act: c::ActKind::Stop, admission: c::Admission::Allowed, effect: None }).expect("stop");
-    phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Running { attempt: ATTEMPT }));
+    phase(&mut task, c::ChipPhase::Active(c::RunStage::Running { attempt: ATTEMPT }));
     task
 }
-pub fn phase(task: &mut c::Task, phase: c::OwnerChipPhase) {
+pub fn phase(task: &mut c::Task, phase: c::ChipPhase) {
     task.chip.phase = phase.compact();
-    let c::ChipPhase { phase: target, .. } = task.chip.details.as_mut();
+    let c::ChipPhaseFacts { phase: target, .. } = task.chip.details.as_mut();
     *target = phase;
 }
 pub struct Fixture {
@@ -183,14 +183,14 @@ pub fn change() -> c::Task {
     task.hold = None;
     task.result = None;
     task.result_contract = c::TaskContractDocument::Change { connector: FORGE, kind: 1, words: 64 };
-    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
     details.ending = None;
     task
 }
 pub fn change_value(words: &[u8]) -> c::ResultValue {
     c::ResultValue::Change {
         kind: 1,
-        part: c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Result, key: c::OwnerPartKey::Number(TASK) },
+        part: c::Part { connector: FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(TASK) },
         words: document_text(words),
     }
 }

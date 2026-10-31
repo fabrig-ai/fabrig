@@ -309,8 +309,8 @@ fn an_admin_first_adoption_advances_only_the_welcome() {
                     up: Up::Answer {
                         attempt: project_attempt.expect("the admin's first repository needs its project"),
                         envelope: skein_lib::RequestEnvelope::Final,
-                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                            c::OwnerOutcome::ProjectMade { project: 7 },
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::ProjectMade { project: 7 },
                         )))),
                         why: None,
                     },

@@ -44,7 +44,7 @@ fn encode_runtime_active(field_0: &jig_client::contract::ActiveRun, out: &mut En
 
 fn encode_runtime_waiting(
     dependencies: &skein_lib::List<u64>,
-    hold: Option<&jig_client::contract::Part>,
+    hold: Option<&jig_client::contract::ApplicationPart>,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -131,7 +131,7 @@ fn encode_runtime_backing_off(
     out.object_end();
 }
 
-fn encode_runtime_procedure(panel: &jig_client::contract::Part, out: &mut Encoder, budget: &mut super::Cut) {
+fn encode_runtime_procedure(panel: &jig_client::contract::ApplicationPart, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"procedure");
     out.object_start();

@@ -32,20 +32,20 @@ pub fn offered(act: ActKind, admission: Admission) -> List<Offered> {
     offers
 }
 pub fn proposal(act: ActKind, admission: Admission) -> ReadValue {
-    ReadValue::OwnerProposal(Box::new(OwnerProposal {
+    ReadValue::Proposal(Box::new(Proposal {
         key: PROPOSAL,
         project: PROJECT,
         reason: DocumentText::complete(text(b"Make a goal")),
-        action: OwnerProposalAction::Batch(List::with_capacity(EMPTY_LIST)),
+        action: ProposalAction::Batch(List::with_capacity(EMPTY_LIST)),
         as_holder: true,
-        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(PARTY), since: Wall::EPOCH },
+        waiting: ProposalWaiting { holder: HistoryHolder::Person(PARTY), since: Wall::EPOCH },
         funding: List::with_capacity(EMPTY_LIST),
         acts: offered(act, admission),
     }))
 }
 pub fn chip() -> Chip {
     let mut chip = chat::task().chip;
-    chip.executor = Executor::Party { party: PARTY };
+    chip.executor = ChipExecutor::Party { party: PARTY };
     chip.phase = Phase::Held;
     chip
 }
@@ -69,10 +69,10 @@ pub fn question() -> ReadValue {
     }))
 }
 pub fn person(act: ActKind) -> ReadValue {
-    ReadValue::OwnerPersonTask(Box::new(OwnerPersonTask {
+    ReadValue::PersonTask(Box::new(PersonTask {
         task: chip(),
         revision: REVISION,
-        requester: OwnerRequester::Person(PARTY),
+        requester: Requester::Person(PARTY),
         spec: spec(),
         address: PersonAddress::Party(PARTY),
         taken_by: None,
@@ -87,7 +87,7 @@ pub fn person(act: ActKind) -> ReadValue {
 }
 pub fn held(act: ActKind) -> ReadValue {
     let mut task = chat::task();
-    task.hold = Some(Box::new(OwnerChipHold {
+    task.hold = Some(Box::new(ChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -95,15 +95,12 @@ pub fn held(act: ActKind) -> ReadValue {
         source: None,
         reason: HoldCategory::Failures { class: HoldFailure::Agent },
         revision: NEW_REVISION.value,
-        before: OwnerPriorPhase::Active(RunStage::Running { attempt: 1 }),
+        before: PriorPhase::Active(RunStage::Running { attempt: 1 }),
         escalation: None,
-        tries: OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
     }));
-    ReadValue::OwnerEscalation(Box::new(OwnerEscalation {
-        task: Box::new(task),
-        acts: offered(act, Admission::Allowed),
-    }))
+    ReadValue::Escalation(Box::new(Escalation { task: Box::new(task), acts: offered(act, Admission::Allowed) }))
 }
 pub fn pages(object: ObjectKey, page: ReadValue) -> Pages {
     let limits = limits();

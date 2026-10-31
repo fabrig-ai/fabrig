@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 pub(super) fn encode_owner_wake_policy(
-    value: &jig_client::contract::OwnerWakePolicy,
+    value: &jig_client::contract::WakePolicy,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -68,39 +68,39 @@ pub(super) fn encode_parameter_document(
     }
 }
 
-pub(super) fn encode_part(value: &jig_client::contract::Part, out: &mut Encoder, budget: &mut super::Cut) {
+pub(super) fn encode_part(value: &jig_client::contract::ApplicationPart, out: &mut Encoder, budget: &mut super::Cut) {
     match value {
-        jig_client::contract::Part::Connector { connector } => {
+        jig_client::contract::ApplicationPart::Connector { connector } => {
             encode_part_connector(*connector, out, budget);
         }
-        jig_client::contract::Part::Resource { connector, path } => {
+        jig_client::contract::ApplicationPart::Resource { connector, path } => {
             encode_part_resource(*connector, path, out, budget);
         }
-        jig_client::contract::Part::Kind { connector, kind } => {
+        jig_client::contract::ApplicationPart::Kind { connector, kind } => {
             encode_part_kind(*connector, *kind, out, budget);
         }
-        jig_client::contract::Part::Panel { connector, task } => {
+        jig_client::contract::ApplicationPart::Panel { connector, task } => {
             encode_part_panel(*connector, *task, out, budget);
         }
-        jig_client::contract::Part::Result { connector, task } => {
+        jig_client::contract::ApplicationPart::Result { connector, task } => {
             encode_part_result(*connector, *task, out, budget);
         }
-        jig_client::contract::Part::Effect { connector, proposal } => {
+        jig_client::contract::ApplicationPart::Effect { connector, proposal } => {
             encode_part_effect(*connector, proposal, out, budget);
         }
-        jig_client::contract::Part::OwnerEffect { connector, proposal } => {
+        jig_client::contract::ApplicationPart::OwnerEffect { connector, proposal } => {
             encode_part_owner_effect(*connector, *proposal, out, budget);
         }
-        jig_client::contract::Part::Outbox { connector, scope, entry } => {
+        jig_client::contract::ApplicationPart::Outbox { connector, scope, entry } => {
             encode_part_outbox(*connector, *scope, *entry, out, budget);
         }
-        jig_client::contract::Part::Hold { connector, task } => {
+        jig_client::contract::ApplicationPart::Hold { connector, task } => {
             encode_part_hold(*connector, *task, out, budget);
         }
-        jig_client::contract::Part::Project { connector, project } => {
+        jig_client::contract::ApplicationPart::Project { connector, project } => {
             encode_part_project(*connector, *project, out, budget);
         }
-        jig_client::contract::Part::Deployment { connector } => {
+        jig_client::contract::ApplicationPart::Deployment { connector } => {
             encode_part_deployment(*connector, out, budget);
         }
     }

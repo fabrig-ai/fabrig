@@ -18,28 +18,28 @@ fn delegate() -> c::Task {
     task.goal = None;
     task.priority = None;
     task.result_contract = contract(FORGE, 1);
-    task.requester = c::OwnerRequester::Task(1);
+    task.requester = c::Requester::Task(1);
     task.spec.specification.words = f::document_text(b"Export widget's table as CSV");
     task.budget.numbers.spent = 0;
     task.budget.numbers.budget = 10;
     task.acts = List::with_capacity(0);
     task
 }
-fn part() -> c::OwnerPart {
+fn part() -> c::Part {
     let mut path = List::with_capacity(BRANCH_SEGMENTS);
     for segment in [&1_u16.to_be_bytes()[..], &1_u32.to_be_bytes(), b"temper/1/c2"] {
         path.push(Box::from(segment)).expect("three segments");
     }
-    c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Path(path) }
+    c::Part { connector: FORGE, kind: c::PartKind::Resource, key: c::PartKey::Path(path) }
 }
 fn ended(mut task: c::Task, ending: c::Ending, value: Option<c::ResultValue>) -> c::ReadResult {
     task.chip.phase = c::Phase::Ended;
     let result =
         c::Result { task: task.chip.clone(), ending, value, at: None, details: None, acts: List::with_capacity(0) };
     task.result = Some(c::TaskResult::Document(Box::new(result.clone())));
-    c::ReadResult::Value(c::ReadValue::Historical(Box::new(c::OwnerHistorical {
+    c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Task(task.chip.task),
-        value: c::OwnerHistoricalValue::Task { document: Box::new(task), result: Box::new(result) },
+        value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result) },
         at: None,
         by: None,
     })))
@@ -135,7 +135,7 @@ fn a_landed_delegate_names_the_pull_before_the_whole_merge_commit() {
     let branch = part();
     task.resources = List::with_capacity(1);
     task.resources
-        .push(c::OwnerResourceLine {
+        .push(c::ResourceLine {
             part: branch.clone(),
             kind: 1,
             taken: false,
@@ -146,12 +146,12 @@ fn a_landed_delegate_names_the_pull_before_the_whole_merge_commit() {
         .expect("branch resource");
     let result = ended(
         task,
-        c::Ending::Task(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Change {
+        c::Ending::Task(Box::new(c::ChipEnding::Done(c::ResultValue::Change {
             kind: 1,
-            part: c::OwnerPart {
+            part: c::Part {
                 connector: FORGE,
-                kind: c::OwnerPartKind::Resource,
-                key: c::OwnerPartKey::Path({
+                kind: c::PartKind::Resource,
+                key: c::PartKey::Path({
                     let mut path = List::with_capacity(6);
                     for segment in [b"forge".as_slice(), b"localhost:3000", b"qa", b"pilot-20261026", b"pull", b"1"] {
                         path.push(Box::from(segment)).unwrap();
@@ -180,11 +180,7 @@ fn a_landed_delegate_omits_a_pull_address_when_its_document_words_are_cut() {
             c::Ending::Done,
             Some(c::ResultValue::Change {
                 kind: 1,
-                part: c::OwnerPart {
-                    connector: FORGE,
-                    kind: c::OwnerPartKind::Resource,
-                    key: c::OwnerPartKey::Number(1),
-                },
+                part: c::Part { connector: FORGE, kind: c::PartKind::Resource, key: c::PartKey::Number(1) },
                 words,
             }),
             b"result: Landed \xc2\xb7 pull request #1 \xc2\xb7 merge commit 1d0b14e4db018fed000000000000000300000000\n",
@@ -238,7 +234,7 @@ fn a_landed_result_keeps_its_checks_when_the_pull_line_did_not_fit() {
         c::Ending::Done,
         Some(c::ResultValue::Change {
             kind: 1,
-            part: c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Number(1) },
+            part: c::Part { connector: FORGE, kind: c::PartKind::Resource, key: c::PartKey::Number(1) },
             words: f::document_text(&words),
         }),
         b"result: Landed \xc2\xb7 pull request #1 \xc2\xb7 merge commit 1d0b14e4db018fed000000000000000300000000\nchecks at abc1234: / check (pull_request): passed\nrepairs: 1: CI failed\nreviews: approved\n",
@@ -253,7 +249,7 @@ fn a_landed_delegate_prints_its_evidence_after_its_whole_address() {
             c::Ending::Done,
             Some(c::ResultValue::Change {
                 kind: 1,
-                part: c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Number(1) },
+                part: c::Part { connector: FORGE, kind: c::PartKind::Resource, key: c::PartKey::Number(1) },
                 words,
             }),
             b"result: Landed \xc2\xb7 pull request #1 \xc2\xb7 merge commit 1d0b14e4db018fed000000000000000300000000\npull request: https://forge.example/work/hello/pulls/1\nchecks at abc1234: / check (pull_request): passed\nrepairs: 1: CI failed\nreviews: approved\n",
@@ -263,7 +259,7 @@ fn a_landed_delegate_prints_its_evidence_after_its_whole_address() {
 #[test]
 fn a_landed_delegates_address_prints_only_when_it_fits_whole() {
     let words = f::document_text(&landing_words(PULL));
-    let resource = c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Number(1) };
+    let resource = c::Part { connector: FORGE, kind: c::PartKind::Resource, key: c::PartKey::Number(1) };
     for (room, shown) in [(MERGE.len() + ADDRESS.len() - 1, false), (MERGE.len() + ADDRESS.len(), true)] {
         let mut measure = crate::jig::render::Text::with_room(room);
         crate::forge::change(1, &resource, &words, &mut measure);
@@ -278,7 +274,7 @@ fn a_landed_delegates_address_prints_only_when_it_fits_whole() {
 #[test]
 fn a_landed_delegates_evidence_is_cut_and_marked_within_ctls_text_budget() {
     let words = f::document_text(&landing_words(PULL));
-    let resource = c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Number(1) };
+    let resource = c::Part { connector: FORGE, kind: c::PartKind::Resource, key: c::PartKey::Number(1) };
     let room = MERGE.len() + ADDRESS.len() + 1 + EVIDENCE.len() - 1;
     let mut measure = crate::jig::render::Text::with_room(room);
     crate::forge::change(1, &resource, &words, &mut measure);
@@ -352,22 +348,22 @@ fn dependency_text(task: c::Task, expected: &[u8]) {
 fn stored_dependencies_use_only_their_supplied_status() {
     for (status, expected) in [
         (None, b"dependencies:\n  task 43".as_slice()),
-        (Some(c::OwnerTaskStatus::Done), "dependencies:\n  task 43 · Completed".as_bytes()),
-        (Some(c::OwnerTaskStatus::Failed), "dependencies:\n  task 43 · Failed".as_bytes()),
-        (Some(c::OwnerTaskStatus::Cancelled), "dependencies:\n  task 43 · Cancelled".as_bytes()),
+        (Some(c::TaskStatus::Done), "dependencies:\n  task 43 · Completed".as_bytes()),
+        (Some(c::TaskStatus::Failed), "dependencies:\n  task 43 · Failed".as_bytes()),
+        (Some(c::TaskStatus::Cancelled), "dependencies:\n  task 43 · Cancelled".as_bytes()),
     ] {
         let mut task = f::goal_with_dependencies();
         task.dependencies = List::with_capacity(1);
-        task.dependencies.push(c::OwnerTaskLink::Stored { number: 43, status }).expect("stored dependency");
+        task.dependencies.push(c::TaskLink::Stored { number: 43, status }).expect("stored dependency");
         dependency_text(task, expected);
     }
 }
 #[test]
 fn added_dependencies_use_requester_words() {
     for (by, expected) in [
-        (c::OwnerRequester::Person(3), "dependencies:\n  task 45 · Waiting · added by party 3 at 2026-10-22 05:10 UTC"),
+        (c::Requester::Person(3), "dependencies:\n  task 45 · Waiting · added by party 3 at 2026-10-22 05:10 UTC"),
         (
-            c::OwnerRequester::Deployment { project: 1 },
+            c::Requester::Deployment { project: 1 },
             "dependencies:\n  task 45 · Waiting · added by deployment 1 at 2026-10-22 05:10 UTC",
         ),
     ] {
@@ -425,20 +421,20 @@ fn dependency_lines_share_the_tasks_text_budget() {
 fn report_activity_names_phase_changes_without_history_positions() {
     let mut rows = List::with_capacity(ACTIVITY_ROWS);
     for (position, line) in [
-        (3, c::OwnerActivity::Milestone { position: 15 }),
+        (3, c::Activity::Milestone { position: 15 }),
         (
             2,
-            c::OwnerActivity::Words {
+            c::Activity::Words {
                 message: 1,
-                by: c::OwnerRequester::Task(1),
-                kind: c::OwnerMessageKind::Words,
+                by: c::Requester::Task(1),
+                kind: c::MessageKind::Words,
                 words: f::document_text(b"widget --csv prints the table").bytes,
             },
         ),
-        (1, c::OwnerActivity::Milestone { position: 1 }),
+        (1, c::Activity::Milestone { position: 1 }),
     ] {
-        rows.push(jig_client::contract::ActivityLine {
-            source: Box::new(c::OwnerActivityLine { task: DELEGATE, position, at: Wall::EPOCH, line }),
+        rows.push(jig_client::contract::DecodedActivityLine {
+            source: Box::new(c::ActivityLine { task: DELEGATE, position, at: Wall::EPOCH, line }),
             decoded: None,
         })
         .expect("three activity rows");
@@ -508,12 +504,12 @@ fn completed_results_print_each_values_words() {
 }
 #[test]
 fn connector_results_use_the_shared_part_words() {
-    let c::OwnerPartKey::Path(path) = part().key else { panic!("branch path") };
+    let c::PartKey::Path(path) = part().key else { panic!("branch path") };
     result_text(
         c::Ending::Done,
         Some(c::ResultValue::Connector {
             summary: f::document_text(b"ready"),
-            part: c::Part::Resource { connector: FORGE, path },
+            part: c::ApplicationPart::Resource { connector: FORGE, path },
         }),
         b"result: Completed \xc2\xb7 ready \xc2\xb7 branch temper/1/c2 of repository 1 on forge 1\n",
     );
@@ -554,18 +550,18 @@ fn endings_print_their_states_and_supplied_reasons() {
             b"result: Ended \xc2\xb7 rejected \xc2\xb7 too large\n",
         ),
         (
-            c::Ending::Task(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Report(f::document_text(b"ready"))))),
+            c::Ending::Task(Box::new(c::ChipEnding::Done(c::ResultValue::Report(f::document_text(b"ready"))))),
             b"result: Completed \xc2\xb7 ready\n",
         ),
         (
-            c::Ending::Task(Box::new(c::OwnerChipEnding::Failed(f::document_text(b"broken")))),
+            c::Ending::Task(Box::new(c::ChipEnding::Failed(f::document_text(b"broken")))),
             b"result: Failed \xc2\xb7 broken\n",
         ),
         (
-            c::Ending::Task(Box::new(c::OwnerChipEnding::Cancelled {
+            c::Ending::Task(Box::new(c::ChipEnding::Cancelled {
                 reason: f::document_text(b"stopped"),
                 result: None,
-                by: c::OwnerRequester::Task(1),
+                by: c::Requester::Task(1),
                 at: Wall::EPOCH,
             })),
             b"result: Cancelled \xc2\xb7 stopped\n",

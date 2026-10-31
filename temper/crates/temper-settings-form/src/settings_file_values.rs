@@ -458,12 +458,12 @@ fn llm_choice(d: &Decoder, at: u32) -> Result<c::LlmChoice, Error> {
         },
     })
 }
-fn owner_authority(d: &Decoder, at: u32) -> Result<c::OwnerAuthority, Error> {
+fn owner_authority(d: &Decoder, at: u32) -> Result<c::Authority, Error> {
     let fields = d.object(
         at,
         &[b"models", b"tools", b"grants", b"delegation", b"spend", b"deadline", b"notes", b"note_resources"],
     )?;
-    Ok(c::OwnerAuthority {
+    Ok(c::Authority {
         models: if d.kind(field(&fields, b"models")?)? == Kind::Null {
             None
         } else {
@@ -471,8 +471,7 @@ fn owner_authority(d: &Decoder, at: u32) -> Result<c::OwnerAuthority, Error> {
         },
         tools: d.number(field(&fields, b"tools")?)?,
         grants: {
-            let positions =
-                d.array(field(&fields, b"grants")?, d.limits.owner_authority_grants, b"owner_authority_grants")?;
+            let positions = d.array(field(&fields, b"grants")?, d.limits.authority_grants, b"authority_grants")?;
             let mut values = List::with_capacity(positions.len());
             for at in &positions {
                 values.push(owner_grant(d, *at)?).expect("checked list length");
@@ -491,8 +490,8 @@ fn owner_authority(d: &Decoder, at: u32) -> Result<c::OwnerAuthority, Error> {
         note_resources: {
             let positions = d.array(
                 field(&fields, b"note_resources")?,
-                d.limits.owner_authority_note_resources,
-                b"owner_authority_note_resources",
+                d.limits.authority_note_resources,
+                b"authority_note_resources",
             )?;
             let mut values = List::with_capacity(positions.len());
             for at in &positions {
@@ -502,9 +501,9 @@ fn owner_authority(d: &Decoder, at: u32) -> Result<c::OwnerAuthority, Error> {
         },
     })
 }
-fn owner_grant(d: &Decoder, at: u32) -> Result<c::OwnerGrant, Error> {
+fn owner_grant(d: &Decoder, at: u32) -> Result<c::Grant, Error> {
     let fields = d.object(at, &[b"connector", b"kind", b"pattern"])?;
-    Ok(c::OwnerGrant {
+    Ok(c::Grant {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
             .or(Err(error(b"owner_grant_connector", b"integer bound")))?,
         kind: u16::try_from(d.number(field(&fields, b"kind")?)?)
@@ -579,9 +578,9 @@ fn template_override(d: &Decoder, at: u32) -> Result<c::TemplateOverride, Error>
         },
     })
 }
-fn owner_kind_implication(d: &Decoder, at: u32) -> Result<c::OwnerKindImplication, Error> {
+fn owner_kind_implication(d: &Decoder, at: u32) -> Result<c::KindImplication, Error> {
     let fields = d.object(at, &[b"connector", b"kind", b"implies"])?;
-    Ok(c::OwnerKindImplication {
+    Ok(c::KindImplication {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
             .or(Err(error(b"owner_kind_implication_connector", b"integer bound")))?,
         kind: u16::try_from(d.number(field(&fields, b"kind")?)?)
@@ -590,9 +589,9 @@ fn owner_kind_implication(d: &Decoder, at: u32) -> Result<c::OwnerKindImplicatio
             .or(Err(error(b"owner_kind_implication_implies", b"integer bound")))?,
     })
 }
-fn owner_part(d: &Decoder, at: u32) -> Result<c::OwnerPart, Error> {
+fn owner_part(d: &Decoder, at: u32) -> Result<c::Part, Error> {
     let fields = d.object(at, &[b"connector", b"kind", b"key"])?;
-    Ok(c::OwnerPart {
+    Ok(c::Part {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
             .or(Err(error(b"owner_part_connector", b"integer bound")))?,
         kind: owner_part_kind(d, field(&fields, b"kind")?)?,
@@ -675,12 +674,11 @@ fn authority_models(d: &Decoder, at: u32) -> Result<c::AuthorityModels, Error> {
     }
     Err(error(b"authority_models", b"unknown variant"))
 }
-fn owner_delegation(d: &Decoder, at: u32) -> Result<c::OwnerDelegation, Error> {
+fn owner_delegation(d: &Decoder, at: u32) -> Result<c::Delegation, Error> {
     let fields = d.object(at, &[b"kinds", b"tasks", b"depth"])?;
-    Ok(c::OwnerDelegation {
+    Ok(c::Delegation {
         kinds: {
-            let positions =
-                d.array(field(&fields, b"kinds")?, d.limits.owner_delegation_kinds, b"owner_delegation_kinds")?;
+            let positions = d.array(field(&fields, b"kinds")?, d.limits.delegation_kinds, b"delegation_kinds")?;
             let mut values = List::with_capacity(positions.len());
             for at in &positions {
                 values.push(owner_authority_executor(d, *at)?).expect("checked list length");
@@ -693,24 +691,23 @@ fn owner_delegation(d: &Decoder, at: u32) -> Result<c::OwnerDelegation, Error> {
             .or(Err(error(b"owner_delegation_depth", b"integer bound")))?,
     })
 }
-fn owner_resource_scope(d: &Decoder, at: u32) -> Result<c::OwnerResourceScope, Error> {
+fn owner_resource_scope(d: &Decoder, at: u32) -> Result<c::ResourceScope, Error> {
     let fields = d.object(at, &[b"connector", b"pattern"])?;
-    Ok(c::OwnerResourceScope {
+    Ok(c::ResourceScope {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
             .or(Err(error(b"owner_resource_scope_connector", b"integer bound")))?,
         pattern: owner_pattern(d, field(&fields, b"pattern")?)?,
     })
 }
-fn owner_pattern(d: &Decoder, at: u32) -> Result<c::OwnerPattern, Error> {
+fn owner_pattern(d: &Decoder, at: u32) -> Result<c::Pattern, Error> {
     let fields = d.object(at, &[b"segments", b"last"])?;
-    Ok(c::OwnerPattern {
+    Ok(c::Pattern {
         segments: {
-            let positions =
-                d.array(field(&fields, b"segments")?, d.limits.owner_pattern_segments, b"owner_pattern_segments")?;
+            let positions = d.array(field(&fields, b"segments")?, d.limits.pattern_segments, b"pattern_segments")?;
             let mut values = List::with_capacity(positions.len());
             for at in &positions {
                 values
-                    .push(d.hex(*at, d.limits.owner_pattern_segments_item, b"owner_pattern_segments_item")?)
+                    .push(d.hex(*at, d.limits.pattern_segments_item, b"pattern_segments_item")?)
                     .expect("checked list length");
             }
             values
@@ -748,40 +745,40 @@ fn policy_guard(d: &Decoder, at: u32) -> Result<c::PolicyGuard, Error> {
     }
     Err(error(b"policy_guard", b"unknown variant"))
 }
-fn owner_part_kind(d: &Decoder, at: u32) -> Result<c::OwnerPartKind, Error> {
+fn owner_part_kind(d: &Decoder, at: u32) -> Result<c::PartKind, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
-            b"resource" => Ok(c::OwnerPartKind::Resource),
-            b"pool" => Ok(c::OwnerPartKind::Pool),
-            b"result" => Ok(c::OwnerPartKind::Result),
-            b"procedure" => Ok(c::OwnerPartKind::Procedure),
-            b"effect" => Ok(c::OwnerPartKind::Effect),
-            b"outbox" => Ok(c::OwnerPartKind::Outbox),
-            b"hold" => Ok(c::OwnerPartKind::Hold),
+            b"resource" => Ok(c::PartKind::Resource),
+            b"pool" => Ok(c::PartKind::Pool),
+            b"result" => Ok(c::PartKind::Result),
+            b"procedure" => Ok(c::PartKind::Procedure),
+            b"effect" => Ok(c::PartKind::Effect),
+            b"outbox" => Ok(c::PartKind::Outbox),
+            b"hold" => Ok(c::PartKind::Hold),
             _ => Err(error(b"owner_part_kind", b"unknown word")),
         };
     }
     Err(error(b"owner_part_kind", b"expected word"))
 }
-fn owner_part_key(d: &Decoder, at: u32) -> Result<c::OwnerPartKey, Error> {
+fn owner_part_key(d: &Decoder, at: u32) -> Result<c::PartKey, Error> {
     let fields = d.object(at, &[b"path", b"number"])?;
     if fields.len() != 1 {
         return Err(error(b"owner_part_key", b"one variant required"));
     }
     if let Some(at) = optional(&fields, b"path") {
-        return Ok(c::OwnerPartKey::Path({
-            let positions = d.array(at, d.limits.owner_part_key_path_value, b"owner_part_key_path_value")?;
+        return Ok(c::PartKey::Path({
+            let positions = d.array(at, d.limits.part_key_path_value, b"part_key_path_value")?;
             let mut values = List::with_capacity(positions.len());
             for at in &positions {
                 values
-                    .push(d.hex(*at, d.limits.owner_part_key_path_value_item, b"owner_part_key_path_value_item")?)
+                    .push(d.hex(*at, d.limits.part_key_path_value_item, b"part_key_path_value_item")?)
                     .expect("checked list length");
             }
             values
         }));
     }
     if let Some(at) = optional(&fields, b"number") {
-        return Ok(c::OwnerPartKey::Number(d.number(at)?));
+        return Ok(c::PartKey::Number(d.number(at)?));
     }
     Err(error(b"owner_part_key", b"unknown variant"))
 }
@@ -792,46 +789,38 @@ fn field_rule(d: &Decoder, at: u32) -> Result<c::FieldRule, Error> {
         max: u32::try_from(d.number(field(&fields, b"max")?)?).or(Err(error(b"field_rule_max", b"integer bound")))?,
     })
 }
-fn owner_authority_executor(d: &Decoder, at: u32) -> Result<c::OwnerAuthorityExecutor, Error> {
+fn owner_authority_executor(d: &Decoder, at: u32) -> Result<c::AuthorityExecutor, Error> {
     let fields = d.object(at, &[b"charter", b"procedure", b"role"])?;
     if fields.len() != 1 {
         return Err(error(b"owner_authority_executor", b"one variant required"));
     }
     if let Some(at) = optional(&fields, b"charter") {
-        return Ok(c::OwnerAuthorityExecutor::Charter(
+        return Ok(c::AuthorityExecutor::Charter(
             u32::try_from(d.number(at)?).or(Err(error(b"owner_authority_executor_charter", b"integer bound")))?,
         ));
     }
     if let Some(at) = optional(&fields, b"procedure") {
-        return Ok(c::OwnerAuthorityExecutor::Procedure(
+        return Ok(c::AuthorityExecutor::Procedure(
             u32::try_from(d.number(at)?).or(Err(error(b"owner_authority_executor_procedure", b"integer bound")))?,
         ));
     }
     if let Some(at) = optional(&fields, b"role") {
-        return Ok(c::OwnerAuthorityExecutor::Role(
+        return Ok(c::AuthorityExecutor::Role(
             u32::try_from(d.number(at)?).or(Err(error(b"owner_authority_executor_role", b"integer bound")))?,
         ));
     }
     Err(error(b"owner_authority_executor", b"unknown variant"))
 }
-fn owner_pattern_end(d: &Decoder, at: u32) -> Result<c::OwnerPatternEnd, Error> {
+fn owner_pattern_end(d: &Decoder, at: u32) -> Result<c::PatternEnd, Error> {
     let fields = d.object(at, &[b"exact", b"open"])?;
     if fields.len() != 1 {
         return Err(error(b"owner_pattern_end", b"one variant required"));
     }
     if let Some(at) = optional(&fields, b"exact") {
-        return Ok(c::OwnerPatternEnd::Exact(d.hex(
-            at,
-            d.limits.owner_pattern_end_exact_value,
-            b"owner_pattern_end_exact_value",
-        )?));
+        return Ok(c::PatternEnd::Exact(d.hex(at, d.limits.pattern_end_exact_value, b"pattern_end_exact_value")?));
     }
     if let Some(at) = optional(&fields, b"open") {
-        return Ok(c::OwnerPatternEnd::Open(d.hex(
-            at,
-            d.limits.owner_pattern_end_open_value,
-            b"owner_pattern_end_open_value",
-        )?));
+        return Ok(c::PatternEnd::Open(d.hex(at, d.limits.pattern_end_open_value, b"pattern_end_open_value")?));
     }
     Err(error(b"owner_pattern_end", b"unknown variant"))
 }

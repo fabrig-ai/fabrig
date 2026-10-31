@@ -75,7 +75,7 @@ fn a_tool_only_turn_leaves_no_provisional_text() {
         id: b"wait-1".as_slice().into(),
         name: b"wait".as_slice().into(),
         input: b"{}".as_slice().into(),
-        call: Decoded::Historical,
+        call: Decoded::Ended,
         replay: None,
     }]);
     let body = smith_protocol_channel::encode_turn(

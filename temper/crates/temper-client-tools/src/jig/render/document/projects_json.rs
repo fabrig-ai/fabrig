@@ -7,7 +7,7 @@ use crate::jig::{
 use jig_client::contract as c;
 use skein_json::writer::Encoder;
 
-pub(super) fn encode(project: &c::OwnerProject, call: &Call, out: &mut Encoder, budget: &mut Cut) {
+pub(super) fn encode(project: &c::Project, call: &Call, out: &mut Encoder, budget: &mut Cut) {
     if call.tool == rows::PROJECT_FUND_AT {
         out.object_start();
         out.key(b"answer");
@@ -28,7 +28,7 @@ pub(super) fn encode(project: &c::OwnerProject, call: &Call, out: &mut Encoder, 
         out.object_end();
     }
 }
-fn snapshot(project: &c::OwnerProject, call: &Call, out: &mut Encoder, budget: &mut Cut) {
+fn snapshot(project: &c::Project, call: &Call, out: &mut Encoder, budget: &mut Cut) {
     out.object_start();
     out.key(b"number");
     out.unsigned(u64::from(project.number));
@@ -58,7 +58,7 @@ fn snapshot(project: &c::OwnerProject, call: &Call, out: &mut Encoder, budget: &
     out.boolean(project.configured_pools_cut);
     super::subject_end(budget.digest.take(), out);
 }
-fn facts(project: &c::OwnerProject, out: &mut Encoder, budget: &mut Cut) {
+fn facts(project: &c::Project, out: &mut Encoder, budget: &mut Cut) {
     out.key(b"name");
     super::encode_document_text(&project.name, out, budget);
     out.key(b"resources");
@@ -69,10 +69,10 @@ fn facts(project: &c::OwnerProject, out: &mut Encoder, budget: &mut Cut) {
         super::encode_owner_part(&resource.part, out, budget);
         out.key(b"role");
         out.string(match resource.role {
-            c::OwnerProjectResourceRole::Owned => b"owned",
-            c::OwnerProjectResourceRole::Participant => b"participant",
-            c::OwnerProjectResourceRole::Unavailable => b"unavailable",
-            c::OwnerProjectResourceRole::Context => b"context",
+            c::ProjectResourceRole::Owned => b"owned",
+            c::ProjectResourceRole::Participant => b"participant",
+            c::ProjectResourceRole::Unavailable => b"unavailable",
+            c::ProjectResourceRole::Context => b"context",
         });
         out.object_end();
     }
@@ -97,7 +97,7 @@ fn facts(project: &c::OwnerProject, out: &mut Encoder, budget: &mut Cut) {
     }
     out.array_end();
 }
-fn policy(policy: &c::OwnerProjectPolicy, out: &mut Encoder, budget: &mut Cut) {
+fn policy(policy: &c::ProjectPolicy, out: &mut Encoder, budget: &mut Cut) {
     out.object_start();
     out.key(b"period_spend");
     out.unsigned(policy.period_spend);
@@ -124,7 +124,7 @@ fn policy(policy: &c::OwnerProjectPolicy, out: &mut Encoder, budget: &mut Cut) {
 }
 
 pub(super) fn digest(
-    project: &c::OwnerProject,
+    project: &c::Project,
     call: &Call,
     limits: &crate::jig::Limits,
 ) -> Option<crate::jig::digest::Digest> {

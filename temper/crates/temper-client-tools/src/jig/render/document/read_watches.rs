@@ -57,7 +57,7 @@ pub(super) fn encode_object_key(value: &jig_client::contract::ObjectKey, out: &m
     }
 }
 
-pub(super) fn encode_owner_tree(value: &jig_client::contract::OwnerTree, out: &mut Encoder, budget: &mut super::Cut) {
+pub(super) fn encode_owner_tree(value: &jig_client::contract::Tree, out: &mut Encoder, budget: &mut super::Cut) {
     let digest = budget.digest.take();
     out.object_start();
     out.key(b"root");
@@ -90,7 +90,7 @@ pub(super) fn encode_owner_tree(value: &jig_client::contract::OwnerTree, out: &m
 }
 
 pub(super) fn encode_owner_tree_fold(
-    value: &jig_client::contract::OwnerTreeFold,
+    value: &jig_client::contract::TreeFold,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -104,11 +104,7 @@ pub(super) fn encode_owner_tree_fold(
     out.object_end();
 }
 
-pub(super) fn encode_owner_tree_row(
-    value: &jig_client::contract::OwnerTreeRow,
-    out: &mut Encoder,
-    budget: &mut super::Cut,
-) {
+pub(super) fn encode_owner_tree_row(value: &jig_client::contract::TreeRow, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"chip");
     super::encode_chip(&value.chip, out, budget);

@@ -152,9 +152,9 @@ pub(super) fn encode_outcome(value: &jig_client::contract::Outcome, out: &mut En
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::Outcome::Owner(field_0) => {
+        jig_client::contract::Outcome::Document(field_0) => {
             out.object_start();
-            out.key(b"owner");
+            out.key(b"document");
             encode_owner_outcome(field_0, out, budget);
             out.object_end();
         }
@@ -171,28 +171,28 @@ pub(super) fn encode_outcome(value: &jig_client::contract::Outcome, out: &mut En
 }
 
 pub(super) fn encode_owner_escalation_choice(
-    value: jig_client::contract::OwnerEscalationChoice,
+    value: jig_client::contract::EscalationChoice,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerEscalationChoice::Released => out.string(b"released"),
-        jig_client::contract::OwnerEscalationChoice::Rejected => out.string(b"rejected"),
-        jig_client::contract::OwnerEscalationChoice::Passed => out.string(b"passed"),
+        jig_client::contract::EscalationChoice::Released => out.string(b"released"),
+        jig_client::contract::EscalationChoice::Rejected => out.string(b"rejected"),
+        jig_client::contract::EscalationChoice::Passed => out.string(b"passed"),
     }
 }
 
 pub(super) fn encode_owner_outcome(
-    value: &jig_client::contract::OwnerOutcome,
+    value: &jig_client::contract::DocumentOutcome,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerOutcome::Lifted { hold, released } => encode_lifted(*hold, *released, out),
-        jig_client::contract::OwnerOutcome::AccountMovedIn { account, renewed } => {
+        jig_client::contract::DocumentOutcome::Lifted { hold, released } => encode_lifted(*hold, *released, out),
+        jig_client::contract::DocumentOutcome::AccountMovedIn { account, renewed } => {
             encode_moved_in(*account, *renewed, out);
         }
-        jig_client::contract::OwnerOutcome::AccountKeyKept { source } => {
+        jig_client::contract::DocumentOutcome::AccountKeyKept { source } => {
             out.object_start();
             out.key(b"account_key_kept");
             out.object_start();
@@ -201,8 +201,8 @@ pub(super) fn encode_owner_outcome(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerOutcome::AccountFinishing { source } => encode_account_finishing(*source, out),
-        jig_client::contract::OwnerOutcome::AccountProgramDeclared { source, name } => {
+        jig_client::contract::DocumentOutcome::AccountFinishing { source } => encode_account_finishing(*source, out),
+        jig_client::contract::DocumentOutcome::AccountProgramDeclared { source, name } => {
             out.object_start();
             out.key(b"account_program_declared");
             out.object_start();
@@ -213,13 +213,15 @@ pub(super) fn encode_owner_outcome(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerOutcome::ProjectMade { project } => encode_project(b"project_made", *project, out),
-        jig_client::contract::OwnerOutcome::Renamed { project } => encode_project(b"renamed", *project, out),
-        jig_client::contract::OwnerOutcome::ProjectRemoved { project } => {
+        jig_client::contract::DocumentOutcome::ProjectMade { project } => {
+            encode_project(b"project_made", *project, out)
+        }
+        jig_client::contract::DocumentOutcome::Renamed { project } => encode_project(b"renamed", *project, out),
+        jig_client::contract::DocumentOutcome::ProjectRemoved { project } => {
             encode_project(b"project_removed", *project, out);
         }
-        jig_client::contract::OwnerOutcome::AccountChanged => out.string(b"account_changed"),
-        jig_client::contract::OwnerOutcome::AccountRemoved { confirmed, failed_hosts } => {
+        jig_client::contract::DocumentOutcome::AccountChanged => out.string(b"account_changed"),
+        jig_client::contract::DocumentOutcome::AccountRemoved { confirmed, failed_hosts } => {
             out.object_start();
             out.key(b"account_removed");
             out.object_start();
@@ -229,7 +231,7 @@ pub(super) fn encode_owner_outcome(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerOutcome::AccountSignInStarted { source, address } => {
+        jig_client::contract::DocumentOutcome::AccountSignInStarted { source, address } => {
             out.object_start();
             out.key(b"account_sign_in_started");
             out.object_start();
@@ -240,7 +242,7 @@ pub(super) fn encode_owner_outcome(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerOutcome::AccountSignedOut { confirmed, failed_hosts } => {
+        jig_client::contract::DocumentOutcome::AccountSignedOut { confirmed, failed_hosts } => {
             out.object_start();
             out.key(b"account_signed_out");
             out.object_start();
@@ -250,29 +252,29 @@ pub(super) fn encode_owner_outcome(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerOutcome::Created { .. } => owner_created(value, out, budget),
-        jig_client::contract::OwnerOutcome::Compound { .. } => owner_compound(value, out, budget),
-        jig_client::contract::OwnerOutcome::MarkedSeen { .. } => owner_marked_seen(value, out, budget),
-        jig_client::contract::OwnerOutcome::NoteEdited { .. } => owner_note_edited(value, out, budget),
-        jig_client::contract::OwnerOutcome::ServiceMade { .. } => owner_service_made(value, out, budget),
-        jig_client::contract::OwnerOutcome::Adopted { .. } => owner_adopted(value, out, budget),
-        jig_client::contract::OwnerOutcome::Stopped { .. } => owner_stopped(value, out, budget),
-        jig_client::contract::OwnerOutcome::Cancelled { .. } => owner_cancelled(value, out, budget),
-        jig_client::contract::OwnerOutcome::Released { .. } => owner_released(value, out, budget),
-        jig_client::contract::OwnerOutcome::PersonTaken { .. } => owner_person_taken(value, out, budget),
-        jig_client::contract::OwnerOutcome::PersonHandedBack { .. } => owner_person_handed_back(value, out, budget),
-        jig_client::contract::OwnerOutcome::PersonAnswered { .. } => owner_person_answered(value, out, budget),
-        jig_client::contract::OwnerOutcome::Moved { .. } => owner_moved(value, out, budget),
-        jig_client::contract::OwnerOutcome::ProposalDecided { .. } => owner_proposal_decided(value, out, budget),
-        jig_client::contract::OwnerOutcome::Said { .. } => owner_said(value, out, budget),
-        jig_client::contract::OwnerOutcome::QuestionAnswered { .. } => owner_question_answered(value, out, budget),
-        jig_client::contract::OwnerOutcome::Amended { .. } => owner_amended(value, out, budget),
-        jig_client::contract::OwnerOutcome::Proposed { .. } => owner_proposed(value, out, budget),
-        jig_client::contract::OwnerOutcome::Withdrawn { .. } => owner_withdrawn(value, out, budget),
-        jig_client::contract::OwnerOutcome::RolesSet { .. } => owner_roles_set(value, out, budget),
-        jig_client::contract::OwnerOutcome::PolicyChanged { .. } => owner_policy_changed(value, out, budget),
-        jig_client::contract::OwnerOutcome::PoolSet { .. } => owner_pool_set(value, out, budget),
-        jig_client::contract::OwnerOutcome::EscalationDecided { .. } => owner_escalation_decided(value, out, budget),
+        jig_client::contract::DocumentOutcome::Created { .. } => owner_created(value, out, budget),
+        jig_client::contract::DocumentOutcome::Compound { .. } => owner_compound(value, out, budget),
+        jig_client::contract::DocumentOutcome::MarkedSeen { .. } => owner_marked_seen(value, out, budget),
+        jig_client::contract::DocumentOutcome::NoteEdited { .. } => owner_note_edited(value, out, budget),
+        jig_client::contract::DocumentOutcome::ServiceMade { .. } => owner_service_made(value, out, budget),
+        jig_client::contract::DocumentOutcome::Adopted { .. } => owner_adopted(value, out, budget),
+        jig_client::contract::DocumentOutcome::Stopped { .. } => owner_stopped(value, out, budget),
+        jig_client::contract::DocumentOutcome::Cancelled { .. } => owner_cancelled(value, out, budget),
+        jig_client::contract::DocumentOutcome::Released { .. } => owner_released(value, out, budget),
+        jig_client::contract::DocumentOutcome::PersonTaken { .. } => owner_person_taken(value, out, budget),
+        jig_client::contract::DocumentOutcome::PersonHandedBack { .. } => owner_person_handed_back(value, out, budget),
+        jig_client::contract::DocumentOutcome::PersonAnswered { .. } => owner_person_answered(value, out, budget),
+        jig_client::contract::DocumentOutcome::Moved { .. } => owner_moved(value, out, budget),
+        jig_client::contract::DocumentOutcome::ProposalDecided { .. } => owner_proposal_decided(value, out, budget),
+        jig_client::contract::DocumentOutcome::Said { .. } => owner_said(value, out, budget),
+        jig_client::contract::DocumentOutcome::QuestionAnswered { .. } => owner_question_answered(value, out, budget),
+        jig_client::contract::DocumentOutcome::Amended { .. } => owner_amended(value, out, budget),
+        jig_client::contract::DocumentOutcome::Proposed { .. } => owner_proposed(value, out, budget),
+        jig_client::contract::DocumentOutcome::Withdrawn { .. } => owner_withdrawn(value, out, budget),
+        jig_client::contract::DocumentOutcome::RolesSet { .. } => owner_roles_set(value, out, budget),
+        jig_client::contract::DocumentOutcome::PolicyChanged { .. } => owner_policy_changed(value, out, budget),
+        jig_client::contract::DocumentOutcome::PoolSet { .. } => owner_pool_set(value, out, budget),
+        jig_client::contract::DocumentOutcome::EscalationDecided { .. } => owner_escalation_decided(value, out, budget),
     }
 }
 fn encode_lifted(hold: u64, released: u32, out: &mut Encoder) {
@@ -295,8 +297,8 @@ fn encode_account_finishing(source: u32, out: &mut Encoder) {
     out.object_end();
     out.object_end();
 }
-fn owner_created(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Created { first, last, given } = value else {
+fn owner_created(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Created { first, last, given } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -317,8 +319,8 @@ fn owner_created(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, 
     out.object_end();
     out.object_end();
 }
-fn owner_compound(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Compound { project, operations, first_message } = value else {
+fn owner_compound(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Compound { project, operations, first_message } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -334,8 +336,8 @@ fn owner_compound(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder,
     out.object_end();
     out.object_end();
 }
-fn owner_marked_seen(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::MarkedSeen { seen } = value else { unreachable!("dispatched outcome") };
+fn owner_marked_seen(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::MarkedSeen { seen } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"marked_seen");
@@ -345,8 +347,8 @@ fn owner_marked_seen(value: &jig_client::contract::OwnerOutcome, out: &mut Encod
     out.object_end();
     out.object_end();
 }
-fn owner_note_edited(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::NoteEdited { name } = value else { unreachable!("dispatched outcome") };
+fn owner_note_edited(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::NoteEdited { name } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"note_edited");
@@ -356,8 +358,10 @@ fn owner_note_edited(value: &jig_client::contract::OwnerOutcome, out: &mut Encod
     out.object_end();
     out.object_end();
 }
-fn owner_service_made(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::ServiceMade { person } = value else { unreachable!("dispatched outcome") };
+fn owner_service_made(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::ServiceMade { person } = value else {
+        unreachable!("dispatched outcome")
+    };
 
     out.object_start();
     out.key(b"service_made");
@@ -367,8 +371,8 @@ fn owner_service_made(value: &jig_client::contract::OwnerOutcome, out: &mut Enco
     out.object_end();
     out.object_end();
 }
-fn owner_adopted(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Adopted { project } = value else { unreachable!("dispatched outcome") };
+fn owner_adopted(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Adopted { project } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"adopted");
@@ -378,8 +382,8 @@ fn owner_adopted(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, 
     out.object_end();
     out.object_end();
 }
-fn owner_stopped(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Stopped { task } = value else { unreachable!("dispatched outcome") };
+fn owner_stopped(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Stopped { task } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"stopped");
@@ -389,8 +393,8 @@ fn owner_stopped(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, 
     out.object_end();
     out.object_end();
 }
-fn owner_cancelled(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Cancelled { task } = value else { unreachable!("dispatched outcome") };
+fn owner_cancelled(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Cancelled { task } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"cancelled");
@@ -400,8 +404,8 @@ fn owner_cancelled(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder
     out.object_end();
     out.object_end();
 }
-fn owner_released(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Released { task } = value else { unreachable!("dispatched outcome") };
+fn owner_released(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Released { task } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"released");
@@ -411,8 +415,8 @@ fn owner_released(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder,
     out.object_end();
     out.object_end();
 }
-fn owner_person_taken(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::PersonTaken { task } = value else { unreachable!("dispatched outcome") };
+fn owner_person_taken(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::PersonTaken { task } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"person_taken");
@@ -422,8 +426,12 @@ fn owner_person_taken(value: &jig_client::contract::OwnerOutcome, out: &mut Enco
     out.object_end();
     out.object_end();
 }
-fn owner_person_handed_back(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::PersonHandedBack { task } = value else {
+fn owner_person_handed_back(
+    value: &jig_client::contract::DocumentOutcome,
+    out: &mut Encoder,
+    _budget: &mut super::Cut,
+) {
+    let jig_client::contract::DocumentOutcome::PersonHandedBack { task } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -435,8 +443,10 @@ fn owner_person_handed_back(value: &jig_client::contract::OwnerOutcome, out: &mu
     out.object_end();
     out.object_end();
 }
-fn owner_person_answered(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::PersonAnswered { task } = value else { unreachable!("dispatched outcome") };
+fn owner_person_answered(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::PersonAnswered { task } = value else {
+        unreachable!("dispatched outcome")
+    };
 
     out.object_start();
     out.key(b"person_answered");
@@ -446,8 +456,8 @@ fn owner_person_answered(value: &jig_client::contract::OwnerOutcome, out: &mut E
     out.object_end();
     out.object_end();
 }
-fn owner_moved(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Moved { task } = value else { unreachable!("dispatched outcome") };
+fn owner_moved(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Moved { task } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"moved");
@@ -457,8 +467,8 @@ fn owner_moved(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _b
     out.object_end();
     out.object_end();
 }
-fn owner_proposal_decided(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::ProposalDecided { proposal, by, at, choice, repeated } = value else {
+fn owner_proposal_decided(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::ProposalDecided { proposal, by, at, choice, repeated } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -478,8 +488,10 @@ fn owner_proposal_decided(value: &jig_client::contract::OwnerOutcome, out: &mut 
     out.object_end();
     out.object_end();
 }
-fn owner_said(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Said { task, message } = value else { unreachable!("dispatched outcome") };
+fn owner_said(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Said { task, message } = value else {
+        unreachable!("dispatched outcome")
+    };
 
     out.object_start();
     out.key(b"said");
@@ -491,8 +503,8 @@ fn owner_said(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _bu
     out.object_end();
     out.object_end();
 }
-fn owner_question_answered(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::QuestionAnswered { task, question, message } = value else {
+fn owner_question_answered(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::QuestionAnswered { task, question, message } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -508,8 +520,8 @@ fn owner_question_answered(value: &jig_client::contract::OwnerOutcome, out: &mut
     out.object_end();
     out.object_end();
 }
-fn owner_amended(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Amended { task } = value else { unreachable!("dispatched outcome") };
+fn owner_amended(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Amended { task } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"amended");
@@ -519,8 +531,8 @@ fn owner_amended(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, 
     out.object_end();
     out.object_end();
 }
-fn owner_proposed(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Proposed { proposal, to } = value else {
+fn owner_proposed(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Proposed { proposal, to } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -534,8 +546,10 @@ fn owner_proposed(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder,
     out.object_end();
     out.object_end();
 }
-fn owner_withdrawn(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::Withdrawn { proposal } = value else { unreachable!("dispatched outcome") };
+fn owner_withdrawn(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::Withdrawn { proposal } = value else {
+        unreachable!("dispatched outcome")
+    };
 
     out.object_start();
     out.key(b"withdrawn");
@@ -545,8 +559,8 @@ fn owner_withdrawn(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder
     out.object_end();
     out.object_end();
 }
-fn owner_roles_set(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::RolesSet { project } = value else { unreachable!("dispatched outcome") };
+fn owner_roles_set(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::RolesSet { project } = value else { unreachable!("dispatched outcome") };
 
     out.object_start();
     out.key(b"roles_set");
@@ -556,8 +570,8 @@ fn owner_roles_set(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder
     out.object_end();
     out.object_end();
 }
-fn owner_policy_changed(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::PolicyChanged { project } = value else {
+fn owner_policy_changed(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::PolicyChanged { project } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -569,8 +583,8 @@ fn owner_policy_changed(value: &jig_client::contract::OwnerOutcome, out: &mut En
     out.object_end();
     out.object_end();
 }
-fn owner_pool_set(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::PoolSet { project, person } = value else {
+fn owner_pool_set(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, _budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::PoolSet { project, person } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -584,8 +598,8 @@ fn owner_pool_set(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder,
     out.object_end();
     out.object_end();
 }
-fn owner_escalation_decided(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::EscalationDecided { task, revision, by, at, choice } = value else {
+fn owner_escalation_decided(value: &jig_client::contract::DocumentOutcome, out: &mut Encoder, budget: &mut super::Cut) {
+    let jig_client::contract::DocumentOutcome::EscalationDecided { task, revision, by, at, choice } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -606,16 +620,16 @@ fn owner_escalation_decided(value: &jig_client::contract::OwnerOutcome, out: &mu
     out.object_end();
 }
 pub(super) fn encode_owner_proposal_choice(
-    value: jig_client::contract::OwnerProposalChoice,
+    value: jig_client::contract::ProposalChoice,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerProposalChoice::Accepted => out.string(b"accepted"),
-        jig_client::contract::OwnerProposalChoice::Rejected => out.string(b"rejected"),
-        jig_client::contract::OwnerProposalChoice::Passed => out.string(b"passed"),
-        jig_client::contract::OwnerProposalChoice::Withdrawn => out.string(b"withdrawn"),
-        jig_client::contract::OwnerProposalChoice::Stale => out.string(b"stale"),
+        jig_client::contract::ProposalChoice::Accepted => out.string(b"accepted"),
+        jig_client::contract::ProposalChoice::Rejected => out.string(b"rejected"),
+        jig_client::contract::ProposalChoice::Passed => out.string(b"passed"),
+        jig_client::contract::ProposalChoice::Withdrawn => out.string(b"withdrawn"),
+        jig_client::contract::ProposalChoice::Stale => out.string(b"stale"),
     }
 }
 

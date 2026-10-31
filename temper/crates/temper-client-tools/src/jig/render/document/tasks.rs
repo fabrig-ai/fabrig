@@ -75,7 +75,7 @@ pub(super) fn encode_task(value: &jig_client::contract::Task, out: &mut Encoder,
     super::subject_end(digest, out);
 }
 
-pub(super) fn encode_historical_task(
+pub(super) fn encode_ended_task(
     value: &jig_client::contract::Task,
     result: &jig_client::contract::Result,
     out: &mut Encoder,

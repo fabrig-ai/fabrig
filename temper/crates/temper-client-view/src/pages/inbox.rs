@@ -5,7 +5,7 @@ use crate::{
     words::{TimeForm, Times, Word, Words},
 };
 use alloc::boxed::Box;
-use jig_client::contract::{InboxGroup, ObjectKey, OwnerHistoricalValue, Proposer, ReadValue, ResultValue};
+use jig_client::contract::{EndedValue, InboxGroup, ObjectKey, Proposer, ReadValue, ResultValue};
 use skein_lib::Decimal;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::PlanFilter;
@@ -363,11 +363,11 @@ fn task_title(page: &ReadValue) -> Option<&[u8]> {
         return Some(question.task.title.bytes());
     }
 
-    if let ReadValue::OwnerEscalation(held) = page {
+    if let ReadValue::Escalation(held) = page {
         return Some(held.task.chip.title.bytes());
     }
 
-    if let ReadValue::OwnerPersonTask(task) = page {
+    if let ReadValue::PersonTask(task) = page {
         return Some(task.task.title.bytes());
     }
     if let ReadValue::Task(task) = page {
@@ -413,28 +413,28 @@ pub(crate) fn card_name(root: &Domain, object: ObjectKey, kind: Word, words: &Wo
 }
 fn has_facts(page: &ReadValue) -> bool {
     let proposal = match page {
-        ReadValue::OwnerProposal(_) => true,
+        ReadValue::Proposal(_) => true,
         ReadValue::Task(task) => task.hold.is_some(),
-        ReadValue::OwnerEscalation(held) => held.task.hold.is_some(),
+        ReadValue::Escalation(held) => held.task.hold.is_some(),
         ReadValue::Question(_)
-        | ReadValue::OwnerPersonTask(_)
+        | ReadValue::PersonTask(_)
         | ReadValue::Result(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
-        | ReadValue::OwnerProject(_)
-        | ReadValue::Historical(_)
+        | ReadValue::Project(_)
+        | ReadValue::Ended(_)
         | ReadValue::Me(_)
-        | ReadValue::OwnerEnded(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::History(_)
         | ReadValue::Turn(_)
         | ReadValue::Activity(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerSpend(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
         | ReadValue::Notes(_)
-        | ReadValue::OwnerDeployment(_) => false,
+        | ReadValue::Deployment(_) => false,
     };
     let decision = jig_client::facts::decision(Some(page), jig_client::contract::ActKind::Accept);
     proposal || decision.dangerous || decision.effect.is_some() || !decision.funding.is_empty()
@@ -455,12 +455,12 @@ fn body(b: &mut Builder, page: &ReadValue, words: &Words) {
             }
         }
 
-        ReadValue::OwnerEscalation(held) => {
+        ReadValue::Escalation(held) => {
             title(b, held.task.chip.title.bytes());
             crate::cards::specification(b, &held.task.spec, words);
         }
 
-        ReadValue::OwnerPersonTask(task) => {
+        ReadValue::PersonTask(task) => {
             title(b, task.task.title.bytes());
             crate::cards::specification(b, &task.spec, words);
         }
@@ -468,24 +468,24 @@ fn body(b: &mut Builder, page: &ReadValue, words: &Words) {
             title(b, task.chip.title.bytes());
             crate::cards::specification(b, &task.spec, words);
         }
-        ReadValue::Historical(_)
+        ReadValue::Ended(_)
         | ReadValue::Result(_)
-        | ReadValue::OwnerProposal(_)
+        | ReadValue::Proposal(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
-        | ReadValue::OwnerProject(_)
+        | ReadValue::Project(_)
         | ReadValue::Me(_)
-        | ReadValue::OwnerEnded(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::History(_)
         | ReadValue::Turn(_)
         | ReadValue::Activity(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerSpend(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
         | ReadValue::Notes(_)
-        | ReadValue::OwnerDeployment(_) => {}
+        | ReadValue::Deployment(_) => {}
     }
 }
 
@@ -508,34 +508,34 @@ pub(crate) fn card_key(object: ObjectKey) -> skein_ui::Key {
 /// Only the inbox and chat call this; task-page decision facts carry no wait.
 pub(crate) fn waiting_since(page: &ReadValue) -> Option<skein_lib::Wall> {
     match page {
-        ReadValue::OwnerProposal(proposal) => Some(proposal.waiting.since),
+        ReadValue::Proposal(proposal) => Some(proposal.waiting.since),
 
         ReadValue::Question(question) => Some(question.since),
 
-        ReadValue::OwnerEscalation(escalation) => match escalation.task.hold.as_ref() {
+        ReadValue::Escalation(escalation) => match escalation.task.hold.as_ref() {
             Some(hold) => hold.hold_wait_since,
             None => None,
         },
 
-        ReadValue::OwnerPersonTask(task) => task.since,
+        ReadValue::PersonTask(task) => task.since,
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
-        | ReadValue::OwnerProject(_)
-        | ReadValue::Historical(_)
+        | ReadValue::Project(_)
+        | ReadValue::Ended(_)
         | ReadValue::Me(_)
         | ReadValue::Turn(_)
         | ReadValue::Task(_)
         | ReadValue::Result(_)
-        | ReadValue::OwnerEnded(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerSpend(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
         | ReadValue::Notes(_)
-        | ReadValue::OwnerDeployment(_) => None,
+        | ReadValue::Deployment(_) => None,
     }
 }
 fn card_time(b: &mut Builder, card: &Card, words: &Words, times: &mut Times) {
@@ -583,45 +583,45 @@ fn arrival(page: &ReadValue, reply: bool) -> Option<skein_lib::Wall> {
                 None
             }
         }
-        ReadValue::Historical(history) => match &history.value {
-            OwnerHistoricalValue::Task { document, result } => {
+        ReadValue::Ended(history) => match &history.value {
+            EndedValue::Task { document, result } => {
                 if reply {
                     Some(document.last_activity)
                 } else {
                     result.at
                 }
             }
-            OwnerHistoricalValue::PersonTask { result, .. } => {
+            EndedValue::PersonTask { result, .. } => {
                 if reply {
                     None
                 } else {
                     result.at
                 }
             }
-            OwnerHistoricalValue::Proposal(_)
-            | OwnerHistoricalValue::PersonProposal { .. }
-            | OwnerHistoricalValue::Escalation { .. }
-            | OwnerHistoricalValue::Question { .. } => None,
+            EndedValue::Proposal(_)
+            | EndedValue::PersonProposal { .. }
+            | EndedValue::Escalation { .. }
+            | EndedValue::Question { .. } => None,
         },
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
-        | ReadValue::OwnerProject(_)
+        | ReadValue::Project(_)
         | ReadValue::Me(_)
         | ReadValue::Turn(_)
-        | ReadValue::OwnerProposal(_)
-        | ReadValue::OwnerEscalation(_)
+        | ReadValue::Proposal(_)
+        | ReadValue::Escalation(_)
         | ReadValue::Question(_)
-        | ReadValue::OwnerPersonTask(_)
-        | ReadValue::OwnerEnded(_)
+        | ReadValue::PersonTask(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerSpend(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
         | ReadValue::Notes(_)
-        | ReadValue::OwnerDeployment(_) => None,
+        | ReadValue::Deployment(_) => None,
     }
 }
 
@@ -641,33 +641,33 @@ fn update_body(b: &mut Builder, card: &Card, page: &ReadValue, words: &Words, bi
     let (chip, result) = match page {
         ReadValue::Task(task) => (&task.chip, None),
         ReadValue::Result(result) => (&result.task, Some(result.as_ref())),
-        ReadValue::Historical(history) => match &history.value {
-            OwnerHistoricalValue::Task { document, result } => (&document.chip, Some(result.as_ref())),
-            OwnerHistoricalValue::PersonTask { result, .. } => (&result.task, Some(result.as_ref())),
-            OwnerHistoricalValue::Proposal(_)
-            | OwnerHistoricalValue::PersonProposal { .. }
-            | OwnerHistoricalValue::Escalation { .. }
-            | OwnerHistoricalValue::Question { .. } => return,
+        ReadValue::Ended(history) => match &history.value {
+            EndedValue::Task { document, result } => (&document.chip, Some(result.as_ref())),
+            EndedValue::PersonTask { result, .. } => (&result.task, Some(result.as_ref())),
+            EndedValue::Proposal(_)
+            | EndedValue::PersonProposal { .. }
+            | EndedValue::Escalation { .. }
+            | EndedValue::Question { .. } => return,
         },
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
-        | ReadValue::OwnerProject(_)
+        | ReadValue::Project(_)
         | ReadValue::Me(_)
         | ReadValue::Turn(_)
-        | ReadValue::OwnerProposal(_)
-        | ReadValue::OwnerEscalation(_)
+        | ReadValue::Proposal(_)
+        | ReadValue::Escalation(_)
         | ReadValue::Question(_)
-        | ReadValue::OwnerPersonTask(_)
-        | ReadValue::OwnerEnded(_)
+        | ReadValue::PersonTask(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerSpend(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
         | ReadValue::Notes(_)
-        | ReadValue::OwnerDeployment(_) => return,
+        | ReadValue::Deployment(_) => return,
     };
     let word = if reply {
         Word::UpdateReplied
@@ -694,15 +694,15 @@ fn update_body(b: &mut Builder, card: &Card, page: &ReadValue, words: &Words, bi
     };
     let embedded = match &result.ending {
         jig_client::contract::Ending::Task(ending) => match ending.as_ref() {
-            jig_client::contract::OwnerChipEnding::Done(value) => {
+            jig_client::contract::ChipEnding::Done(value) => {
                 words.status(b, crate::cards::P::Done, &[]);
                 Some(value)
             }
-            jig_client::contract::OwnerChipEnding::Failed(_) => {
+            jig_client::contract::ChipEnding::Failed(_) => {
                 words.status(b, crate::cards::P::Failed, &[]);
                 None
             }
-            jig_client::contract::OwnerChipEnding::Cancelled { result, .. } => {
+            jig_client::contract::ChipEnding::Cancelled { result, .. } => {
                 words.status(b, crate::cards::P::Cancelled, &[]);
                 result.as_ref()
             }
@@ -753,9 +753,8 @@ fn is_done(ending: &jig_client::contract::Ending) -> bool {
     match ending {
         jig_client::contract::Ending::Done => true,
         jig_client::contract::Ending::Task(ending) => match ending.as_ref() {
-            jig_client::contract::OwnerChipEnding::Done(_) => true,
-            jig_client::contract::OwnerChipEnding::Failed(_)
-            | jig_client::contract::OwnerChipEnding::Cancelled { .. } => false,
+            jig_client::contract::ChipEnding::Done(_) => true,
+            jig_client::contract::ChipEnding::Failed(_) | jig_client::contract::ChipEnding::Cancelled { .. } => false,
         },
         jig_client::contract::Ending::Failed { .. }
         | jig_client::contract::Ending::Cancelled { .. }

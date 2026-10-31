@@ -135,10 +135,10 @@ pub(super) fn read_on(task: u64, turn: c::TurnName, part: u64, from: u64) -> Box
     continuation(task, turn, part, from, &mut out);
     out.finish()
 }
-pub(super) fn reference_text(part: &c::Part, out: &mut Text) {
+pub(super) fn reference_text(part: &c::ApplicationPart, out: &mut Text) {
     out.put(b"part: ");
     match part {
-        c::Part::Resource { connector, path } => {
+        c::ApplicationPart::Resource { connector, path } => {
             out.number(u64::from(*connector));
             out.put(b":");
             for (at, segment) in path.iter().enumerate() {
@@ -148,16 +148,16 @@ pub(super) fn reference_text(part: &c::Part, out: &mut Text) {
                 out.put(segment);
             }
         }
-        c::Part::Connector { .. }
-        | c::Part::Kind { .. }
-        | c::Part::Panel { .. }
-        | c::Part::Result { .. }
-        | c::Part::Effect { .. }
-        | c::Part::OwnerEffect { .. }
-        | c::Part::Outbox { .. }
-        | c::Part::Hold { .. }
-        | c::Part::Project { .. }
-        | c::Part::Deployment { .. } => super::document::part(part, out),
+        c::ApplicationPart::Connector { .. }
+        | c::ApplicationPart::Kind { .. }
+        | c::ApplicationPart::Panel { .. }
+        | c::ApplicationPart::Result { .. }
+        | c::ApplicationPart::Effect { .. }
+        | c::ApplicationPart::OwnerEffect { .. }
+        | c::ApplicationPart::Outbox { .. }
+        | c::ApplicationPart::Hold { .. }
+        | c::ApplicationPart::Project { .. }
+        | c::ApplicationPart::Deployment { .. } => super::document::part(part, out),
     }
     out.put(b"\n");
 }

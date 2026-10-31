@@ -608,7 +608,7 @@ fn the_client_that_set_up_adopts_the_made_repository_once_on_another_page() {
     let out = project_reply(
         &mut root,
         attempt,
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project: 7 })),
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 7 })),
     );
     let (_, key, w::Request::Adopt(adoption)) = sent(out) else { panic!("adoption") };
     assert_eq!(key, forge::first_repository_key(HERE, false));
@@ -636,7 +636,7 @@ fn the_adoption_is_keyed_as_ctls_and_retried_once_without_home() {
     let out = project_reply(
         &mut root,
         attempt,
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project: 7 })),
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 7 })),
     );
     let (attempt, _, _) = sent(out);
     let refused = w::Outcome::ForgeRefused(
@@ -769,7 +769,7 @@ fn name_taken_keeps_jigs_refusal_and_a_new_name_uses_a_new_key_before_adopting()
     let out = project_reply(
         &mut root,
         attempt,
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project: 8 })),
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 8 })),
     );
     let (_, key, w::Request::Adopt(adoption)) = sent(out) else { panic!("Adopt after ProjectMade") };
     assert_eq!(key, forge::first_repository_key(HERE, false));
@@ -888,7 +888,7 @@ fn ready_makes_a_project_then_adopts_into_it_and_reload_dedup_checks_its_banner_
         let out = project_reply(
             &mut root,
             attempt,
-            c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project: 7 })),
+            c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 7 })),
         );
         let mut out = out;
         while let Some(request) = out.pop() {
@@ -1170,7 +1170,7 @@ fn github_adoption_advances_only_the_welcome() {
         project_reply(
             &mut root,
             attempt,
-            c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project: 7 })),
+            c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 7 })),
         );
         let (attempt, _, _) = sent(banner_project(&mut root, me, b"first"));
         let outcome = w::Outcome::Adopted(

@@ -580,9 +580,9 @@ fn adopted_json(a: &forge::Adopted, out: &mut Encoder) {
     out.object_end();
     out.object_end();
 }
-pub(crate) fn part(part: &c::OwnerPart, out: &mut Text) {
+pub(crate) fn part(part: &c::Part, out: &mut Text) {
     let (word, holes): (_, Box<[Hole]>) = match (&part.kind, &part.key) {
-        (c::OwnerPartKind::Resource, c::OwnerPartKey::Path(path)) => {
+        (c::PartKind::Resource, c::PartKey::Path(path)) => {
             let mut bound = path.len();
             for segment in path {
                 bound = bound
@@ -618,7 +618,7 @@ pub(crate) fn change_kind(connector: u16, kind: u16, out: &mut Text) {
         out.number(u64::from(kind));
     }
 }
-pub(crate) fn change(kind: u16, resource: &c::OwnerPart, words: &c::DocumentText, out: &mut Text) {
+pub(crate) fn change(kind: u16, resource: &c::Part, words: &c::DocumentText, out: &mut Text) {
     if kind != 1 {
         out.put(if kind == 2 { b"Pushed" } else { b"Completed" });
         out.result_words(words.bytes());
@@ -630,7 +630,7 @@ pub(crate) fn change(kind: u16, resource: &c::OwnerPart, words: &c::DocumentText
         // A core Change result names its settled pull by number. Resource paths,
         // when supplied, additionally name its repository and host (client/README.md, 4.1).
         if kind == 1
-            && let c::OwnerPartKey::Number(number) = resource.key
+            && let c::PartKey::Number(number) = resource.key
         {
             out.put(b"pull request #");
             out.number(number);
@@ -686,18 +686,16 @@ pub(crate) fn landing_lines(words: &[u8], cut: bool) -> (Option<&[u8]>, &[u8]) {
         evidence,
     )
 }
-pub(crate) fn result_part(value: &c::Part, out: &mut Text) {
+pub(crate) fn result_part(value: &c::ApplicationPart, out: &mut Text) {
     match value {
-        c::Part::Resource { connector, path } => part(
-            &c::OwnerPart {
-                connector: *connector,
-                kind: c::OwnerPartKind::Resource,
-                key: c::OwnerPartKey::Path(path.clone()),
-            },
+        c::ApplicationPart::Resource { connector, path } => part(
+            &c::Part { connector: *connector, kind: c::PartKind::Resource, key: c::PartKey::Path(path.clone()) },
             out,
         ),
-        c::Part::Connector { .. } => literals_text(words::resource_english(words::ResourceWord::Connector).0, &[], out),
-        c::Part::Kind { kind, .. } => match words::kind(*kind) {
+        c::ApplicationPart::Connector { .. } => {
+            literals_text(words::resource_english(words::ResourceWord::Connector).0, &[], out)
+        }
+        c::ApplicationPart::Kind { kind, .. } => match words::kind(*kind) {
             Some(word) => literals_text(words::resource_english(word).0, &[], out),
             None => literals_text(
                 words::resource_english(words::ResourceWord::OtherKind).0,
@@ -705,14 +703,16 @@ pub(crate) fn result_part(value: &c::Part, out: &mut Text) {
                 out,
             ),
         },
-        c::Part::Panel { .. }
-        | c::Part::Result { .. }
-        | c::Part::Effect { .. }
-        | c::Part::OwnerEffect { .. }
-        | c::Part::Outbox { .. }
-        | c::Part::Hold { .. }
-        | c::Part::Project { .. }
-        | c::Part::Deployment { .. } => literals_text(words::resource_english(words::ResourceWord::Shown).0, &[], out),
+        c::ApplicationPart::Panel { .. }
+        | c::ApplicationPart::Result { .. }
+        | c::ApplicationPart::Effect { .. }
+        | c::ApplicationPart::OwnerEffect { .. }
+        | c::ApplicationPart::Outbox { .. }
+        | c::ApplicationPart::Hold { .. }
+        | c::ApplicationPart::Project { .. }
+        | c::ApplicationPart::Deployment { .. } => {
+            literals_text(words::resource_english(words::ResourceWord::Shown).0, &[], out)
+        }
     }
 }
 

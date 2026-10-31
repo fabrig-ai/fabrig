@@ -121,19 +121,16 @@ mod tests {
         let mut task = jig_client_protocol_link::translate::documents::task(record, &link).expect("translated task");
         task.chip.task = TASK;
         task.project = 1;
-        task.chip.executor = c::Executor::Procedure { connector: FORGE, kind: 2 };
+        task.chip.executor = c::ChipExecutor::Procedure { connector: FORGE, kind: 2 };
         task.priority = None;
         task.goal = None;
         task.chip.phase = c::Phase::Active;
-        let c::ChipPhase { phase, details, .. } = task.chip.details.as_mut();
-        *phase = c::OwnerChipPhase::Active(c::RunStage::Idle);
+        let c::ChipPhaseFacts { phase, details, .. } = task.chip.details.as_mut();
+        *phase = c::ChipPhase::Active(c::RunStage::Idle);
         details.project = 1;
-        details.executor = c::OwnerExecutor::Procedure { connector: FORGE, code: 2 };
-        details.procedure = Some(c::OwnerPart {
-            connector: FORGE,
-            kind: c::OwnerPartKind::Procedure,
-            key: c::OwnerPartKey::Number(TASK),
-        });
+        details.executor = c::Executor::Procedure { connector: FORGE, code: 2 };
+        details.procedure =
+            Some(c::Part { connector: FORGE, kind: c::PartKind::Procedure, key: c::PartKey::Number(TASK) });
         details.observation = None;
         details.ending = None;
         details.live_delegates = 0;
@@ -212,7 +209,7 @@ mod tests {
         Some(*watch)
     }
     fn tree(document: &c::Task) -> c::Delivery {
-        c::Delivery::OwnerTree(Box::new(c::OwnerTree {
+        c::Delivery::Tree(Box::new(c::Tree {
             root: document.chip.clone(),
             rows: List::with_capacity(0),
             folded: List::with_capacity(0),
@@ -799,10 +796,10 @@ mod tests {
     }
     fn end(task: &mut c::Task) {
         task.chip.phase = c::Phase::Ended;
-        let c::ChipPhase { phase, details, .. } = task.chip.details.as_mut();
-        *phase = c::OwnerChipPhase::Ended;
+        let c::ChipPhaseFacts { phase, details, .. } = task.chip.details.as_mut();
+        *phase = c::ChipPhase::Ended;
         details.ended_at = Some(Wall::EPOCH);
-        details.ending = Some(c::OwnerChipEnding::Failed(c::DocumentText::complete(
+        details.ending = Some(c::ChipEnding::Failed(c::DocumentText::complete(
             c::Text::new(b"ended".as_slice().into(), 32).expect("reason"),
         )));
     }
@@ -837,14 +834,14 @@ mod tests {
         task.chip.title = c::DocumentText::complete(
             c::Text::new(format!("ended child {number}").into_bytes().into(), 32).expect("title"),
         );
-        task.chip.executor = c::Executor::Agent { charter: 1 };
-        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
-        details.executor = c::OwnerExecutor::Agent { charter: 1 };
+        task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
+        details.executor = c::Executor::Agent { charter: 1 };
         details.procedure = None;
         c::TaskLine {
             chip: task.chip,
             project: 1,
-            requester: c::OwnerRequester::Task(parent),
+            requester: c::Requester::Task(parent),
             tracked: None,
             label: task.label,
             flags: task.flags,
@@ -853,7 +850,7 @@ mod tests {
             ended_at: Some(Wall::EPOCH),
             budget: task.budget,
             waits_on: c::WaitsOn::Nothing,
-            phases: c::OwnerPhaseCounts::ZERO,
+            phases: c::PhaseCounts::ZERO,
             held_below: 0,
             conversation: None,
         }

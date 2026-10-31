@@ -79,11 +79,11 @@ pub(super) fn readiness(
         out.key(b"payer");
         out.object_start();
         match row.payer {
-            c::OwnerAccountUse::Party(n) => {
+            c::AccountUse::Party(n) => {
                 out.key(b"party");
                 out.unsigned(n);
             }
-            c::OwnerAccountUse::Project(n) => {
+            c::AccountUse::Project(n) => {
                 out.key(b"project");
                 out.unsigned(u64::from(n));
             }

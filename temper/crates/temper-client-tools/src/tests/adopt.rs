@@ -223,7 +223,7 @@ fn a_task_reads_forge_resource_in_its_words() {
 fn an_unserved_forge_part_prints_shown_on_the_forge() {
     let (mut root, call, mut task) = fixtures::part_read();
     let resource = task.resources.get_mut(fixtures::EMPTY).expect("one resource");
-    resource.part.kind = c::OwnerPartKind::Effect;
+    resource.part.kind = c::PartKind::Effect;
     root.serve(call, fixtures::task_result(task));
     let printed = root.answer(call).expect("task answered");
     assert!(skein_lib::bytes::find(&printed.stdout, b"Shown on the forge.").is_some());

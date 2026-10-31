@@ -260,7 +260,7 @@ fn complete(
     if met
         && wait.name == b"inbox"
         && !wait.called.json
-        && let Some(c::Delivery::OwnerInbox(_)) = delivery
+        && let Some(c::Delivery::Inbox(_)) = delivery
     {
         runner::reads::met_inbox(runner, client, env, wait.called, printed, out);
     } else {
@@ -461,7 +461,7 @@ fn accounts<'a>(wait: &Wait, client: &'a Client) -> render::document::accounts::
         current: false,
     };
     if let Some(document) = client.document(wait.handle)
-        && let Some(Latest::Jig(c::Delivery::OwnerAccounts(party))) = document.latest
+        && let Some(Latest::Jig(c::Delivery::Accounts(party))) = document.latest
     {
         value.party = Some(party);
         value.current = document.state == State::Live;
@@ -475,7 +475,7 @@ fn accounts<'a>(wait: &Wait, client: &'a Client) -> render::document::accounts::
             Some(document) => {
                 value.current &= document.state == State::Live;
                 match document.latest {
-                    Some(Latest::Jig(c::Delivery::OwnerDeployment(deployment))) => value.deployment = Some(deployment),
+                    Some(Latest::Jig(c::Delivery::Deployment(deployment))) => value.deployment = Some(deployment),
                     _ => value.current = false,
                 }
             }

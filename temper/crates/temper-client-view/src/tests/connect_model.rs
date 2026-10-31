@@ -139,7 +139,7 @@ fn the_deployment_holder_offers_keys_only() {
     providers.push(offer(PROVIDER, b"openai", true, false)).unwrap();
     providers.push(offer(PROVIDER + 1, b"anthropic", false, true)).unwrap();
     let mut root = ways_root(providers, false);
-    model_action(&mut root, M::Holder { holder: c::AccountHolder::Deployment });
+    model_action(&mut root, M::Holder { holder: c::AskAccountHolder::Deployment });
     let names = control_names(&root);
     assert!(names.contains(&b"Use your accounts".to_vec()));
     assert!(names.contains(&b"Use deployment accounts".to_vec()));
@@ -206,7 +206,7 @@ fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
         })
         .expect("flow sends one request")
 }
-fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: c::OwnerOutcome) {
+fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: c::DocumentOutcome) {
     fixtures::root_event(
         root,
         d::Event::Client {
@@ -214,7 +214,7 @@ fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: c::OwnerOutc
                 up: jig_client::Up::Answer {
                     attempt,
                     envelope: skein_lib::RequestEnvelope::Final,
-                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(outcome)))),
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(outcome)))),
                     why: None,
                 },
             },
@@ -224,7 +224,7 @@ fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: c::OwnerOutc
 fn words(root: &d::Domain) -> String {
     String::from_utf8(fixtures::text(fixtures::page_view(root).tree()).into_vec()).unwrap()
 }
-pub(super) fn ending(end: c::OwnerAccountEnd, display: &[u8]) -> d::Domain {
+pub(super) fn ending(end: c::AccountEnd, display: &[u8]) -> d::Domain {
     let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
     let attempt = sent(
         &mut root,
@@ -233,15 +233,15 @@ pub(super) fn ending(end: c::OwnerAccountEnd, display: &[u8]) -> d::Domain {
     answer(
         &mut root,
         attempt,
-        c::OwnerOutcome::AccountSignInStarted {
+        c::DocumentOutcome::AccountSignInStarted {
             source: 43,
             address: Box::from(b"https://issuer.example/visit".as_slice()),
         },
     );
-    let mut doc = super::accounts::card_document(b"openai", display, c::OwnerAccountKind::SignIn);
+    let mut doc = super::accounts::card_document(b"openai", display, c::AccountKind::SignIn);
     doc.accounts.get_mut(0).unwrap().manage_usage = Some(Box::from(b"https://provider.example/usage".as_slice()));
     doc.signing.clear();
-    doc.last_end = Some(c::OwnerAccountLastEnd { source: 43, end });
+    doc.last_end = Some(c::AccountLastEnd { source: 43, end });
     super::accounts::deliver(&mut root, watch, doc);
     root
 }
@@ -258,7 +258,7 @@ fn a_key_has_details_then_ready_with_its_account_and_chat_link() {
         Act::Input { value: Box::from(b"private-once".as_slice()) },
     );
     let attempt = sent(&mut root, M::Submit { name: [1; 16] });
-    answer(&mut root, attempt, c::OwnerOutcome::AccountKeyKept { source: 43 });
+    answer(&mut root, attempt, c::DocumentOutcome::AccountKeyKept { source: 43 });
     let text = words(&root);
     for expected in
         ["Ready", "Added your OpenAI API key", "temper’s agents now run on it.", "Account", "Pays for", "Your own work"]
@@ -305,7 +305,7 @@ fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
     answer(
         &mut root,
         attempt,
-        c::OwnerOutcome::AccountProgramDeclared { source: 43, name: Box::from(b"claude-alice".as_slice()) },
+        c::DocumentOutcome::AccountProgramDeclared { source: 43, name: Box::from(b"claude-alice".as_slice()) },
     );
     let text = words(&root);
     for expected in [
@@ -327,7 +327,7 @@ fn a_sign_in_address_without_a_request_offers_its_button() {
 }
 #[test]
 fn a_completed_sign_in_is_ready_and_can_be_started_again() {
-    let root = ending(c::OwnerAccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
+    let root = ending(c::AccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
     let text = words(&root);
     for expected in [
         "Signed in to ChatGPT as alice@example.com",
@@ -355,14 +355,12 @@ fn a_completed_sign_in_is_ready_and_can_be_started_again() {
 }
 #[test]
 fn a_completed_sign_in_without_a_display_names_the_plan() {
-    assert!(
-        words(&ending(c::OwnerAccountEnd::Made { account: 1, declined: false }, b"")).contains("Signed in to ChatGPT")
-    );
+    assert!(words(&ending(c::AccountEnd::Made { account: 1, declined: false }, b"")).contains("Signed in to ChatGPT"));
 }
 #[test]
 fn renewed_sign_ins_explain_how_to_add_another_account() {
     for display in [b"alice@example.com".as_slice(), b""] {
-        let root = ending(c::OwnerAccountEnd::Renewed { account: 1, declined: false }, display);
+        let root = ending(c::AccountEnd::Renewed { account: 1, declined: false }, display);
         let text = words(&root);
         assert!(text.contains(if display.is_empty() {
             "That’s your ChatGPT account again."
@@ -375,10 +373,9 @@ fn renewed_sign_ins_explain_how_to_add_another_account() {
 }
 #[test]
 fn declined_plan_usage_offers_sign_in_again_and_a_key_link() {
-    for end in [
-        c::OwnerAccountEnd::Made { account: 1, declined: true },
-        c::OwnerAccountEnd::Renewed { account: 1, declined: true },
-    ] {
+    for end in
+        [c::AccountEnd::Made { account: 1, declined: true }, c::AccountEnd::Renewed { account: 1, declined: true }]
+    {
         let root = ending(end, b"alice@example.com");
         assert!(words(&root).contains("You signed in without plan usage."));
         let mut view = fixtures::page_view(&root);
@@ -394,7 +391,7 @@ fn declined_plan_usage_offers_sign_in_again_and_a_key_link() {
 }
 #[test]
 fn other_sign_in_endings_keep_their_words_and_offer_another_sign_in() {
-    use c::{OwnerAccountEnd as E, OwnerAccountFailure as F, OwnerAccountRefusal as R};
+    use c::{AccountEnd as E, AccountFailure as F, AccountRefusal as R};
     for (end, expected) in [
         (E::Refused { refusal: R::Held { provider: PROVIDER } }, "Another person here holds that ChatGPT account."),
         (
@@ -403,7 +400,7 @@ fn other_sign_in_endings_keep_their_words_and_offer_another_sign_in() {
         ),
         (E::Failed { failure: F::SignInAgain }, "Needs sign-in"),
         (E::Failed { failure: F::MissingScope { scope: 19 } }, "Missing required scope 19"),
-        (E::Refused { refusal: R::Limit { bound: c::OwnerAccountBound::Sources } }, "Source limit reached."),
+        (E::Refused { refusal: R::Limit { bound: c::AccountBound::Sources } }, "Source limit reached."),
     ] {
         let root = ending(end, b"");
         assert!(words(&root).contains(expected), "missing {expected}");
@@ -459,8 +456,8 @@ fn adding_a_real_model_keeps_the_playground_running() {
         d::Event::AccountKey { value: skein_lib::Secret::new(b"private-once".as_slice().into()) },
     );
     let attempt = sent(&mut root, M::Submit { name: [1; 16] });
-    answer(&mut root, attempt, c::OwnerOutcome::AccountKeyKept { source: 43 });
-    let mut doc = super::accounts::card_document(b"openai", b"", c::OwnerAccountKind::Key);
+    answer(&mut root, attempt, c::DocumentOutcome::AccountKeyKept { source: 43 });
+    let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::Key);
     doc.accounts.get_mut(0).unwrap().provider = Some(provider);
     doc.cut = false;
     super::accounts::deliver(&mut root, accounts_watch, doc);
@@ -497,10 +494,9 @@ fn a_returned_source_draws_the_same_ending_words_as_an_own_sign_in() {
             }),
         },
     );
-    let mut doc = super::accounts::card_document(b"openai", b"alice@example.com", c::OwnerAccountKind::SignIn);
+    let mut doc = super::accounts::card_document(b"openai", b"alice@example.com", c::AccountKind::SignIn);
     doc.signing.clear();
-    doc.last_end =
-        Some(c::OwnerAccountLastEnd { source: 43, end: c::OwnerAccountEnd::Made { account: 1, declined: true } });
+    doc.last_end = Some(c::AccountLastEnd { source: 43, end: c::AccountEnd::Made { account: 1, declined: true } });
     super::accounts::deliver(&mut root, watch, doc);
     assert!(words(&root).contains("You signed in without plan usage."));
     assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Button, b"Continue with ChatGPT").is_some());
@@ -517,7 +513,7 @@ fn a_returned_source_still_signing_offers_the_paste_unfolded() {
             }),
         },
     );
-    let mut doc = super::accounts::card_document(b"openai", b"", c::OwnerAccountKind::SignIn);
+    let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
     doc.signing.get_mut(0).unwrap().source = 43;
     super::accounts::deliver(&mut root, watch, doc);
     let shown = words(&root);
@@ -537,7 +533,7 @@ pub(super) fn pasting(elsewhere: bool) -> (d::Domain, skein_lib::Token) {
     answer(
         &mut root,
         attempt,
-        c::OwnerOutcome::AccountSignInStarted {
+        c::DocumentOutcome::AccountSignInStarted {
             source: 43,
             address: Box::from(b"https://issuer.example/visit".as_slice()),
         },
@@ -577,7 +573,7 @@ fn paste_case(case: usize) -> d::Domain {
         paste_input(&mut root, b"fixture");
         let attempt = sent(&mut root, M::Finish { name: [2; 16] });
         if case == 4 {
-            answer(&mut root, attempt, c::OwnerOutcome::AccountFinishing { source: 43 });
+            answer(&mut root, attempt, c::DocumentOutcome::AccountFinishing { source: 43 });
         }
         if (5..=8).contains(&case) {
             let why = [R::Address, R::State, R::TooMany, R::NotWaiting]
@@ -616,11 +612,9 @@ fn paste_case(case: usize) -> d::Domain {
         }
     }
     if case == 10 {
-        let mut doc = super::accounts::card_document(b"openai", b"fixture", c::OwnerAccountKind::SignIn);
+        let mut doc = super::accounts::card_document(b"openai", b"fixture", c::AccountKind::SignIn);
         doc.signing.clear();
-        doc.signing
-            .push(c::OwnerAccountSignIn { source: 43, provider: 17, holder: c::OwnerAccountHolder::Party(73) })
-            .unwrap();
+        doc.signing.push(c::AccountSignIn { source: 43, provider: 17, holder: c::AccountHolder::Party(73) }).unwrap();
         super::accounts::deliver(&mut root, watch, doc.clone());
         doc.signing.clear();
         doc.cut = false;
@@ -751,7 +745,7 @@ fn signing_in_elsewhere_draws_the_sign_ins_link_and_the_paste_unfolded() {
 
 #[test]
 fn the_connected_model_offers_accounts_as_a_terminal_command() {
-    let mut root = ending(c::OwnerAccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
+    let mut root = ending(c::AccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
     fixtures::root_event(
         &mut root,
         d::Event::Went {

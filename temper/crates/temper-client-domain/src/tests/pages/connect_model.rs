@@ -38,20 +38,20 @@ fn a_sign_in_way_sends_one_own_sign_in_request() {
     let sent = sends(act(&mut root, Act::SignIn { name: NAME, way })).pop().unwrap();
     assert_eq!(
         sent.2,
-        jig_client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AccountHolder::Own, provider: PROVIDER }))
+        jig_client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: PROVIDER }))
     );
     assert!(sends(act(&mut root, Act::SignIn { name: NAME, way })).is_empty());
 }
 #[test]
 fn a_key_way_adds_a_new_account_with_the_value_privately_once() {
     let (mut root, _, _) = root(Way::Key { provider: PROVIDER });
-    act(&mut root, Act::Holder { holder: c::AccountHolder::Deployment });
+    act(&mut root, Act::Holder { holder: c::AskAccountHolder::Deployment });
     key(&mut root, b"private-once");
     let sent = sends(act(&mut root, Act::Submit { name: NAME })).pop().unwrap();
     assert_eq!(
         sent.2,
         jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Deployment,
+            holder: c::AskAccountHolder::Deployment,
             change: c::AccountChange::AddKey {
                 provider: PROVIDER,
                 join: None,
@@ -71,7 +71,7 @@ fn a_program_way_declares_the_default_name_for_the_person() {
     assert_eq!(
         sent.2,
         jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::DeclareProgram {
                 provider: PROVIDER,
                 join: None,
@@ -124,7 +124,7 @@ fn a_key_at_capacity_can_create_a_standalone_account() {
 fn the_model_draft_is_kept_between_steps_and_dropped_on_leaving() {
     let way = Way::Key { provider: PROVIDER };
     let (mut root, _, _) = root(way);
-    act(&mut root, Act::Holder { holder: c::AccountHolder::Deployment });
+    act(&mut root, Act::Holder { holder: c::AskAccountHolder::Deployment });
     key(&mut root, b"private-draft");
     for address in
         [Address::ConnectModel { way: None }, Address::ConnectModel { way: Some(connect_model::model_way(way)) }]
@@ -132,13 +132,13 @@ fn the_model_draft_is_kept_between_steps_and_dropped_on_leaving() {
         event(&mut root, Event::Went { place: crate::Place::Address(address) });
         let page = root.pages().connect_model().unwrap();
         assert!(page.request.has_key());
-        assert_eq!(page.holder, c::AccountHolder::Deployment);
+        assert_eq!(page.holder, c::AskAccountHolder::Deployment);
     }
     event(&mut root, Event::Went { place: crate::Place::Address(Address::Accounts) });
     assert!(root.pages().connect_model().is_none());
     go(&mut root, Some(way));
     assert!(!root.pages().connect_model().unwrap().request.has_key());
-    assert_eq!(root.pages().connect_model().unwrap().holder, c::AccountHolder::Own);
+    assert_eq!(root.pages().connect_model().unwrap().holder, c::AskAccountHolder::Own);
 }
 #[test]
 fn unavailable_and_playground_ways_resolve_to_choose() {
@@ -151,7 +151,7 @@ fn unavailable_and_playground_ways_resolve_to_choose() {
 #[test]
 fn deployment_offers_neither_sign_in_nor_program() {
     let (mut root, _, _) = root(Way::SignIn { provider: PROVIDER, plan: true });
-    act(&mut root, Act::Holder { holder: c::AccountHolder::Deployment });
+    act(&mut root, Act::Holder { holder: c::AskAccountHolder::Deployment });
     assert_eq!(connect_model::way(root.pages(), root.client()), None);
     assert!(
         sends(act(&mut root, Act::SignIn { name: NAME, way: Way::SignIn { provider: PROVIDER, plan: true } }))
@@ -186,9 +186,9 @@ fn a_sign_in_starts_then_ends_only_from_the_accounts_watch() {
 #[test]
 fn creation_kept_work_belongs_to_the_open_model_flow() {
     for ask in [
-        c::Ask::SignIn { holder: c::AccountHolder::Own, provider: PROVIDER },
+        c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: PROVIDER },
         c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::DeclareProgram {
                 provider: PROVIDER,
                 join: None,
@@ -196,7 +196,7 @@ fn creation_kept_work_belongs_to_the_open_model_flow() {
             },
         },
         c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::AddKey { provider: PROVIDER, join: None, digest: [0; 32] },
         },
     ] {
@@ -238,23 +238,24 @@ fn a_choose_sign_in_shows_the_way_in_the_same_flow() {
 fn a_member_cannot_choose_deployment_accounts() {
     let (mut root, _, _) = opened(c::HeldRole::Member);
     go(&mut root, None);
-    act(&mut root, Act::Holder { holder: c::AccountHolder::Deployment });
-    assert_eq!(root.pages().connect_model().unwrap().holder, c::AccountHolder::Own);
+    act(&mut root, Act::Holder { holder: c::AskAccountHolder::Deployment });
+    assert_eq!(root.pages().connect_model().unwrap().holder, c::AskAccountHolder::Own);
 }
 #[test]
 fn losing_the_owner_role_clears_a_deployment_key_draft() {
     let (mut root, me, _) = root(Way::Key { provider: PROVIDER });
-    act(&mut root, Act::Holder { holder: c::AccountHolder::Deployment });
+    act(&mut root, Act::Holder { holder: c::AskAccountHolder::Deployment });
     key(&mut root, b"private-draft");
     deliver(&mut root, me, frame(c::HeldRole::Member, fixtures::PARTY));
     let page = root.pages().connect_model().unwrap();
     assert!(!page.request.has_key());
-    assert_eq!(page.holder, c::AccountHolder::Own);
+    assert_eq!(page.holder, c::AskAccountHolder::Own);
 }
 #[test]
 fn other_accounts_kept_work_belongs_to_management_while_the_flow_is_open() {
     let (mut root, _, _) = root(Way::Key { provider: PROVIDER });
-    let ask = c::Ask::AccountChange { holder: c::AccountHolder::Own, change: c::AccountChange::Resume { source: 43 } };
+    let ask =
+        c::Ask::AccountChange { holder: c::AskAccountHolder::Own, change: c::AccountChange::Resume { source: 43 } };
     crate::route::told(
         &mut root,
         &fixtures::env(&fixtures::limits()),
@@ -291,7 +292,7 @@ fn a_restored_sign_in_address_is_live_only_while_the_watch_names_its_source() {
         jig_client::Told::Kept {
             key: pending,
             request: jig_client::Ask::Jig(Box::new(c::Ask::SignIn {
-                holder: c::AccountHolder::Own,
+                holder: c::AskAccountHolder::Own,
                 provider: PROVIDER,
             })),
         },
@@ -302,9 +303,9 @@ fn a_restored_sign_in_address_is_live_only_while_the_watch_names_its_source() {
     let page = root.pages().connect_model().unwrap();
     assert_eq!(page.request.sign_in_state(root.client()), SignInState::Signing { source: 43 });
     assert_eq!(page.request.sign_in_address(root.client()), Some(b"https://issuer/visit".as_slice()));
-    let c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(mut cut)) = document(false) else { unreachable!() };
+    let c::WatchEvent::Delivered(c::Delivery::Accounts(mut cut)) = document(false) else { unreachable!() };
     cut.cut = true;
-    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(cut)));
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(cut)));
     assert_eq!(root.pages().connect_model().unwrap().request.sign_in_state(root.client()), SignInState::Unknown);
     deliver(&mut root, watch, document(false));
     let page = root.pages().connect_model().unwrap();
@@ -321,13 +322,13 @@ fn a_restored_sign_in_address_is_live_only_while_the_watch_names_its_source() {
 #[test]
 fn entering_welcome_discards_the_hidden_deployment_holder_and_key() {
     let (mut root, _, _) = root(Way::Key { provider: PROVIDER });
-    act(&mut root, Act::Holder { holder: c::AccountHolder::Deployment });
+    act(&mut root, Act::Holder { holder: c::AskAccountHolder::Deployment });
     key(&mut root, b"private-draft");
     event(
         &mut root,
         Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
     );
     let page = root.pages().connect_model().unwrap();
-    assert_eq!(page.holder, c::AccountHolder::Own);
+    assert_eq!(page.holder, c::AskAccountHolder::Own);
     assert!(!page.request.has_key());
 }

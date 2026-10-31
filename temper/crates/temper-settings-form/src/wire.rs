@@ -194,7 +194,7 @@ pub(crate) fn settings_restore_rules(value: &w::Rules, limits: &Limits) -> Resul
     let mut implies = List::with_capacity(value.implies().len());
     for item in value.implies() {
         implies
-            .push(c::OwnerKindImplication { connector: item.connector(), kind: item.kind(), implies: item.implies() })
+            .push(c::KindImplication { connector: item.connector(), kind: item.kind(), implies: item.implies() })
             .expect("same capacity");
     }
     let mut requirements = List::with_capacity(value.requirements().len());
@@ -212,11 +212,11 @@ pub(crate) fn settings_restore_rules(value: &w::Rules, limits: &Limits) -> Resul
 }
 
 pub(crate) fn documents_owner_authority_fields(
-    value: &w::OwnerAuthority,
+    value: &w::Authority,
     limits: &Limits,
-) -> Result<c::OwnerAuthority, w::Problem> {
+) -> Result<c::Authority, w::Problem> {
     let opt0 = optional_wall(value.deadline().as_ref());
-    Ok(c::OwnerAuthority {
+    Ok(c::Authority {
         models: model_sets_decode(value.models().as_ref())?,
         tools: value.tools(),
         grants: documents_owner_grant_piece(value.grants(), limits, limits.authority)?,
@@ -232,7 +232,7 @@ pub(crate) fn documents_owner_resource_scope_piece(
     bytes: &[u8],
     limits: &Limits,
     bound: u32,
-) -> Result<List<c::OwnerResourceScope>, w::Problem> {
+) -> Result<List<c::ResourceScope>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -252,7 +252,7 @@ pub(crate) fn documents_owner_resource_scope_piece(
         if sum > limits.ask_bytes {
             return Err(root_too_large());
         }
-        let row = w::OwnerResourceScope::decode(&limits.settings, &mut Reader::new(&item))?;
+        let row = w::ResourceScope::decode(&limits.settings, &mut Reader::new(&item))?;
         let row = documents_owner_resource_scope_fields(&row, limits);
         if rows.push(row).is_err() {
             return Err(root_too_large());
@@ -261,25 +261,22 @@ pub(crate) fn documents_owner_resource_scope_piece(
     Err(root_too_large())
 }
 
-pub(crate) fn documents_owner_resource_scope_fields(
-    value: &w::OwnerResourceScope,
-    limits: &Limits,
-) -> c::OwnerResourceScope {
-    c::OwnerResourceScope { connector: value.connector(), pattern: answers_owner_pattern(value.pattern(), limits) }
+pub(crate) fn documents_owner_resource_scope_fields(value: &w::ResourceScope, limits: &Limits) -> c::ResourceScope {
+    c::ResourceScope { connector: value.connector(), pattern: answers_owner_pattern(value.pattern(), limits) }
 }
 
-pub(crate) fn answers_owner_pattern(value: &w::OwnerPattern, limits: &Limits) -> c::OwnerPattern {
+pub(crate) fn answers_owner_pattern(value: &w::Pattern, limits: &Limits) -> c::Pattern {
     let mut list0 = List::with_capacity(value.segments().len());
     for item in value.segments() {
         list0.push(bytes::copy_of(item)).expect("reserved supplied list");
     }
-    c::OwnerPattern { segments: list0, last: answers_owner_pattern_end(value.last(), limits) }
+    c::Pattern { segments: list0, last: answers_owner_pattern_end(value.last(), limits) }
 }
 
-pub(crate) fn answers_owner_pattern_end(value: &w::OwnerPatternEnd, _limits: &Limits) -> c::OwnerPatternEnd {
+pub(crate) fn answers_owner_pattern_end(value: &w::PatternEnd, _limits: &Limits) -> c::PatternEnd {
     match value {
-        w::OwnerPatternEnd::Exact(row) => c::OwnerPatternEnd::Exact(bytes::copy_of(row.value())),
-        w::OwnerPatternEnd::Open(row) => c::OwnerPatternEnd::Open(bytes::copy_of(row.value())),
+        w::PatternEnd::Exact(row) => c::PatternEnd::Exact(bytes::copy_of(row.value())),
+        w::PatternEnd::Open(row) => c::PatternEnd::Open(bytes::copy_of(row.value())),
     }
 }
 
@@ -288,9 +285,9 @@ pub(crate) fn root_piece_problem(reason: skein_codec::Reason) -> w::Problem {
 }
 
 pub(crate) fn documents_owner_delegation_fields(
-    value: &w::OwnerDelegation,
+    value: &w::Delegation,
     limits: &Limits,
-) -> Result<c::OwnerDelegation, w::Problem> {
+) -> Result<c::Delegation, w::Problem> {
     if value.kinds().len() > limits.authority {
         return Err(root_too_large());
     }
@@ -298,17 +295,17 @@ pub(crate) fn documents_owner_delegation_fields(
     for item in value.kinds() {
         list0.push(documents_owner_authority_executor_fields(item, limits)).expect("reserved supplied list");
     }
-    Ok(c::OwnerDelegation { kinds: list0, tasks: value.tasks(), depth: value.depth() })
+    Ok(c::Delegation { kinds: list0, tasks: value.tasks(), depth: value.depth() })
 }
 
 pub(crate) fn documents_owner_authority_executor_fields(
-    value: &w::OwnerAuthorityExecutor,
+    value: &w::AuthorityExecutor,
     _limits: &Limits,
-) -> c::OwnerAuthorityExecutor {
+) -> c::AuthorityExecutor {
     match value {
-        w::OwnerAuthorityExecutor::Charter(row) => c::OwnerAuthorityExecutor::Charter(row.value()),
-        w::OwnerAuthorityExecutor::Procedure(row) => c::OwnerAuthorityExecutor::Procedure(row.value()),
-        w::OwnerAuthorityExecutor::Role(row) => c::OwnerAuthorityExecutor::Role(row.value()),
+        w::AuthorityExecutor::Charter(row) => c::AuthorityExecutor::Charter(row.value()),
+        w::AuthorityExecutor::Procedure(row) => c::AuthorityExecutor::Procedure(row.value()),
+        w::AuthorityExecutor::Role(row) => c::AuthorityExecutor::Role(row.value()),
     }
 }
 
@@ -316,7 +313,7 @@ pub(crate) fn documents_owner_grant_piece(
     bytes: &[u8],
     limits: &Limits,
     bound: u32,
-) -> Result<List<c::OwnerGrant>, w::Problem> {
+) -> Result<List<c::Grant>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -336,7 +333,7 @@ pub(crate) fn documents_owner_grant_piece(
         if sum > limits.ask_bytes {
             return Err(root_too_large());
         }
-        let row = w::OwnerGrant::decode(&limits.settings, &mut Reader::new(&item))?;
+        let row = w::Grant::decode(&limits.settings, &mut Reader::new(&item))?;
         let row = documents_owner_grant_fields(&row, limits);
         if rows.push(row).is_err() {
             return Err(root_too_large());
@@ -345,8 +342,8 @@ pub(crate) fn documents_owner_grant_piece(
     Err(root_too_large())
 }
 
-pub(crate) fn documents_owner_grant_fields(value: &w::OwnerGrant, limits: &Limits) -> c::OwnerGrant {
-    c::OwnerGrant {
+pub(crate) fn documents_owner_grant_fields(value: &w::Grant, limits: &Limits) -> c::Grant {
+    c::Grant {
         connector: value.connector(),
         kind: value.kind(),
         pattern: answers_owner_pattern(value.pattern(), limits),
@@ -630,36 +627,36 @@ pub(crate) fn documents_raw(value: &[u8], limits: &Limits) -> Result<Box<[u8]>, 
     Ok(bytes::copy_of(value))
 }
 
-pub(crate) fn facts_owner_part(value: &w::OwnerPart, limits: &Limits) -> c::OwnerPart {
-    c::OwnerPart {
+pub(crate) fn facts_owner_part(value: &w::Part, limits: &Limits) -> c::Part {
+    c::Part {
         connector: value.connector(),
         kind: facts_owner_part_kind(value.kind(), limits),
         key: facts_owner_part_key(value.key(), limits),
     }
 }
 
-pub(crate) fn facts_owner_part_key(value: &w::OwnerPartKey, _limits: &Limits) -> c::OwnerPartKey {
+pub(crate) fn facts_owner_part_key(value: &w::PartKey, _limits: &Limits) -> c::PartKey {
     match value {
-        w::OwnerPartKey::Path(row) => {
+        w::PartKey::Path(row) => {
             let mut list0 = List::with_capacity(row.value().len());
             for item in row.value() {
                 list0.push(bytes::copy_of(item)).expect("reserved supplied list");
             }
-            c::OwnerPartKey::Path(list0)
+            c::PartKey::Path(list0)
         }
-        w::OwnerPartKey::Number(row) => c::OwnerPartKey::Number(row.value()),
+        w::PartKey::Number(row) => c::PartKey::Number(row.value()),
     }
 }
 
-pub(crate) fn facts_owner_part_kind(value: &w::OwnerPartKind, _limits: &Limits) -> c::OwnerPartKind {
+pub(crate) fn facts_owner_part_kind(value: &w::PartKind, _limits: &Limits) -> c::PartKind {
     match value {
-        w::OwnerPartKind::Resource => c::OwnerPartKind::Resource,
-        w::OwnerPartKind::Pool => c::OwnerPartKind::Pool,
-        w::OwnerPartKind::Result => c::OwnerPartKind::Result,
-        w::OwnerPartKind::Procedure => c::OwnerPartKind::Procedure,
-        w::OwnerPartKind::Effect => c::OwnerPartKind::Effect,
-        w::OwnerPartKind::Outbox => c::OwnerPartKind::Outbox,
-        w::OwnerPartKind::Hold => c::OwnerPartKind::Hold,
+        w::PartKind::Resource => c::PartKind::Resource,
+        w::PartKind::Pool => c::PartKind::Pool,
+        w::PartKind::Result => c::PartKind::Result,
+        w::PartKind::Procedure => c::PartKind::Procedure,
+        w::PartKind::Effect => c::PartKind::Effect,
+        w::PartKind::Outbox => c::PartKind::Outbox,
+        w::PartKind::Hold => c::PartKind::Hold,
     }
 }
 
@@ -909,9 +906,9 @@ pub(crate) fn settings_wire_rules(value: &c::Rules, limits: &w::Limits) -> Resul
     let mut implies = List::with_capacity(value.implies.len());
     for item in &value.implies {
         implies
-            .push(w::OwnerKindImplication::new(
+            .push(w::KindImplication::new(
                 limits,
-                w::OwnerKindImplicationParts { connector: item.connector, kind: item.kind, implies: item.implies },
+                w::KindImplicationParts { connector: item.connector, kind: item.kind, implies: item.implies },
             )?)
             .expect("same capacity");
     }
@@ -932,10 +929,7 @@ pub(crate) fn settings_wire_rules(value: &c::Rules, limits: &w::Limits) -> Resul
     )
 }
 
-pub(crate) fn asks_wire_owner_authority(
-    value: &c::OwnerAuthority,
-    limits: &w::Limits,
-) -> Result<w::OwnerAuthority, w::Problem> {
+pub(crate) fn asks_wire_owner_authority(value: &c::Authority, limits: &w::Limits) -> Result<w::Authority, w::Problem> {
     let mut list0 = List::with_capacity(value.grants.len());
     for item in &value.grants {
         list0.push(asks_wire_owner_grant(item, limits)?).expect("reserved supplied list");
@@ -945,9 +939,9 @@ pub(crate) fn asks_wire_owner_authority(
     for item in &value.note_resources {
         list2.push(asks_wire_owner_resource_scope(item, limits)?).expect("reserved supplied list");
     }
-    w::OwnerAuthority::new(
+    w::Authority::new(
         limits,
-        w::OwnerAuthorityParts {
+        w::AuthorityParts {
             models: model_sets_encode(value.models.as_ref(), limits)?,
             tools: value.tools,
             grants: asks_wire_owner_grant_piece(&list0, limits)?,
@@ -961,7 +955,7 @@ pub(crate) fn asks_wire_owner_authority(
 }
 
 pub(crate) fn asks_wire_owner_resource_scope_piece(
-    rows: &List<w::OwnerResourceScope>,
+    rows: &List<w::ResourceScope>,
     limits: &w::Limits,
 ) -> Result<Box<[u8]>, w::Problem> {
     let mut length = 0_u32;
@@ -983,38 +977,36 @@ pub(crate) fn asks_wire_owner_resource_scope_piece(
 }
 
 pub(crate) fn asks_wire_owner_delegation(
-    value: &c::OwnerDelegation,
+    value: &c::Delegation,
     limits: &w::Limits,
-) -> Result<w::OwnerDelegation, w::Problem> {
+) -> Result<w::Delegation, w::Problem> {
     let mut list0 = List::with_capacity(value.kinds.len());
     for item in &value.kinds {
         list0.push(asks_wire_owner_authority_executor(*item, limits)?).expect("reserved supplied list");
     }
-    w::OwnerDelegation::new(limits, w::OwnerDelegationParts { kinds: list0, tasks: value.tasks, depth: value.depth })
+    w::Delegation::new(limits, w::DelegationParts { kinds: list0, tasks: value.tasks, depth: value.depth })
 }
 
 pub(crate) fn asks_wire_owner_authority_executor(
-    value: c::OwnerAuthorityExecutor,
+    value: c::AuthorityExecutor,
     limits: &w::Limits,
-) -> Result<w::OwnerAuthorityExecutor, w::Problem> {
+) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
-        c::OwnerAuthorityExecutor::Charter(value) => w::OwnerAuthorityExecutor::Charter(
-            w::OwnerAuthorityExecutorCharter::new(limits, w::OwnerAuthorityExecutorCharterParts { value })?,
-        ),
-        c::OwnerAuthorityExecutor::Procedure(value) => w::OwnerAuthorityExecutor::Procedure(
-            w::OwnerAuthorityExecutorProcedure::new(limits, w::OwnerAuthorityExecutorProcedureParts { value })?,
-        ),
-        c::OwnerAuthorityExecutor::Role(value) => w::OwnerAuthorityExecutor::Role(w::OwnerAuthorityExecutorRole::new(
+        c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
-            w::OwnerAuthorityExecutorRoleParts { value },
+            w::AuthorityExecutorCharterParts { value },
         )?),
+        c::AuthorityExecutor::Procedure(value) => w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure::new(
+            limits,
+            w::AuthorityExecutorProcedureParts { value },
+        )?),
+        c::AuthorityExecutor::Role(value) => {
+            w::AuthorityExecutor::Role(w::AuthorityExecutorRole::new(limits, w::AuthorityExecutorRoleParts { value })?)
+        }
     })
 }
 
-pub(crate) fn asks_wire_owner_grant_piece(
-    rows: &List<w::OwnerGrant>,
-    limits: &w::Limits,
-) -> Result<Box<[u8]>, w::Problem> {
+pub(crate) fn asks_wire_owner_grant_piece(rows: &List<w::Grant>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut length = 0_u32;
     for row in rows {
         length = length.checked_add(row.measure()).ok_or(root_too_large())?;
@@ -1048,52 +1040,46 @@ pub(crate) fn model_sets_encode(
 }
 
 pub(crate) fn asks_wire_owner_resource_scope(
-    value: &c::OwnerResourceScope,
+    value: &c::ResourceScope,
     limits: &w::Limits,
-) -> Result<w::OwnerResourceScope, w::Problem> {
-    w::OwnerResourceScope::new(
+) -> Result<w::ResourceScope, w::Problem> {
+    w::ResourceScope::new(
         limits,
-        w::OwnerResourceScopeParts {
-            connector: value.connector,
-            pattern: asks_wire_owner_pattern(&value.pattern, limits)?,
-        },
+        w::ResourceScopeParts { connector: value.connector, pattern: asks_wire_owner_pattern(&value.pattern, limits)? },
     )
 }
 
-pub(crate) fn asks_wire_owner_pattern(
-    value: &c::OwnerPattern,
-    limits: &w::Limits,
-) -> Result<w::OwnerPattern, w::Problem> {
+pub(crate) fn asks_wire_owner_pattern(value: &c::Pattern, limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
     let mut list0 = List::with_capacity(value.segments.len());
     for item in &value.segments {
         list0.push(bytes::copy_of(item)).expect("reserved supplied list");
     }
-    w::OwnerPattern::new(
+    w::Pattern::new(
         limits,
-        w::OwnerPatternParts { segments: list0, last: asks_wire_owner_pattern_end(&value.last, limits)? },
+        w::PatternParts { segments: list0, last: asks_wire_owner_pattern_end(&value.last, limits)? },
     )
 }
 
 pub(crate) fn asks_wire_owner_pattern_end(
-    value: &c::OwnerPatternEnd,
+    value: &c::PatternEnd,
     limits: &w::Limits,
-) -> Result<w::OwnerPatternEnd, w::Problem> {
+) -> Result<w::PatternEnd, w::Problem> {
     Ok(match value {
-        c::OwnerPatternEnd::Exact(value) => w::OwnerPatternEnd::Exact(w::OwnerPatternEndExact::new(
+        c::PatternEnd::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact::new(
             limits,
-            w::OwnerPatternEndExactParts { value: bytes::copy_of(value) },
+            w::PatternEndExactParts { value: bytes::copy_of(value) },
         )?),
-        c::OwnerPatternEnd::Open(value) => w::OwnerPatternEnd::Open(w::OwnerPatternEndOpen::new(
+        c::PatternEnd::Open(value) => w::PatternEnd::Open(w::PatternEndOpen::new(
             limits,
-            w::OwnerPatternEndOpenParts { value: bytes::copy_of(value) },
+            w::PatternEndOpenParts { value: bytes::copy_of(value) },
         )?),
     })
 }
 
-pub(crate) fn asks_wire_owner_grant(value: &c::OwnerGrant, limits: &w::Limits) -> Result<w::OwnerGrant, w::Problem> {
-    w::OwnerGrant::new(
+pub(crate) fn asks_wire_owner_grant(value: &c::Grant, limits: &w::Limits) -> Result<w::Grant, w::Problem> {
+    w::Grant::new(
         limits,
-        w::OwnerGrantParts {
+        w::GrantParts {
             connector: value.connector,
             kind: value.kind,
             pattern: asks_wire_owner_pattern(&value.pattern, limits)?,
@@ -1392,29 +1378,29 @@ pub(crate) fn settings_wire_task_contract(
     })
 }
 
-pub(crate) fn settings_wire_owner_part(value: &c::OwnerPart, limits: &w::Limits) -> Result<w::OwnerPart, w::Problem> {
+pub(crate) fn settings_wire_owner_part(value: &c::Part, limits: &w::Limits) -> Result<w::Part, w::Problem> {
     let kind = match value.kind {
-        c::OwnerPartKind::Resource => w::OwnerPartKind::Resource,
-        c::OwnerPartKind::Pool => w::OwnerPartKind::Pool,
-        c::OwnerPartKind::Result => w::OwnerPartKind::Result,
-        c::OwnerPartKind::Procedure => w::OwnerPartKind::Procedure,
-        c::OwnerPartKind::Effect => w::OwnerPartKind::Effect,
-        c::OwnerPartKind::Outbox => w::OwnerPartKind::Outbox,
-        c::OwnerPartKind::Hold => w::OwnerPartKind::Hold,
+        c::PartKind::Resource => w::PartKind::Resource,
+        c::PartKind::Pool => w::PartKind::Pool,
+        c::PartKind::Result => w::PartKind::Result,
+        c::PartKind::Procedure => w::PartKind::Procedure,
+        c::PartKind::Effect => w::PartKind::Effect,
+        c::PartKind::Outbox => w::PartKind::Outbox,
+        c::PartKind::Hold => w::PartKind::Hold,
     };
     let key = match &value.key {
-        c::OwnerPartKey::Number(value) => {
-            w::OwnerPartKey::Number(w::OwnerPartKeyNumber::new(limits, w::OwnerPartKeyNumberParts { value: *value })?)
+        c::PartKey::Number(value) => {
+            w::PartKey::Number(w::PartKeyNumber::new(limits, w::PartKeyNumberParts { value: *value })?)
         }
-        c::OwnerPartKey::Path(values) => {
+        c::PartKey::Path(values) => {
             let mut rows = List::with_capacity(values.len());
             for value in values {
                 rows.push(bytes::copy_of(value)).expect("same capacity");
             }
-            w::OwnerPartKey::Path(w::OwnerPartKeyPath::new(limits, w::OwnerPartKeyPathParts { value: rows })?)
+            w::PartKey::Path(w::PartKeyPath::new(limits, w::PartKeyPathParts { value: rows })?)
         }
     };
-    w::OwnerPart::new(limits, w::OwnerPartParts { connector: value.connector, kind, key })
+    w::Part::new(limits, w::PartParts { connector: value.connector, kind, key })
 }
 
 pub(crate) fn settings_wire_document_text(

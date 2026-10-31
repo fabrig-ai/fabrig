@@ -56,7 +56,7 @@ pub(crate) fn main(
     {
         b.open(Role::Slot);
         b.style(look::PAGEBAR);
-        if let c::OwnerRequester::Task(number) = task.requester {
+        if let c::Requester::Task(number) = task.requester {
             task_link(b, number, words, bindings);
         }
         text(b, Role::Paragraph, &words.say(Word::Task, &[Hole::Number(task.chip.task)]));
@@ -326,7 +326,7 @@ pub(crate) fn header(
     } else if let Some(part) = &task.chip.details.details.procedure {
         crate::forge::owner_part(b, part, words);
     }
-    if let c::Executor::Procedure { .. } = task.chip.executor
+    if let c::ChipExecutor::Procedure { .. } = task.chip.executor
         && let Some(goal) = task.goal
         && goal != task.chip.task
     {
@@ -348,17 +348,17 @@ pub(crate) fn header(
     b.close();
 }
 
-pub(crate) fn executor(b: &mut Builder, executor: c::Executor, words: &Words) {
+pub(crate) fn executor(b: &mut Builder, executor: c::ChipExecutor, words: &Words) {
     let word = match executor {
-        c::Executor::Agent { .. } => Word::Agent,
-        c::Executor::Procedure { .. } => Word::Procedure,
-        c::Executor::Party { .. } | c::Executor::Role { .. } => Word::PersonTask,
+        c::ChipExecutor::Agent { .. } => Word::Agent,
+        c::ChipExecutor::Procedure { .. } => Word::Procedure,
+        c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => Word::PersonTask,
     };
     text(b, Role::Paragraph, &words.say(word, &[]));
 }
-pub(crate) fn requester(b: &mut Builder, by: c::OwnerRequester, me: Option<&c::Me>, words: &Words) {
+pub(crate) fn requester(b: &mut Builder, by: c::Requester, me: Option<&c::Me>, words: &Words) {
     let (word, number) = match by {
-        c::OwnerRequester::Person(number) => {
+        c::Requester::Person(number) => {
             if let Some(me) = me
                 && me.party.number == number
             {
@@ -367,8 +367,8 @@ pub(crate) fn requester(b: &mut Builder, by: c::OwnerRequester, me: Option<&c::M
             }
             (Word::AskedByPerson, number)
         }
-        c::OwnerRequester::Task(number) => (Word::AskedByTask, number),
-        c::OwnerRequester::Deployment { project } => (Word::AskedByDeployment, u64::from(project)),
+        c::Requester::Task(number) => (Word::AskedByTask, number),
+        c::Requester::Deployment { project } => (Word::AskedByDeployment, u64::from(project)),
     };
     text(b, Role::Paragraph, &words.say(word, &[Hole::Number(number)]));
 }
@@ -401,9 +401,9 @@ pub(crate) fn state(b: &mut Builder, state: State, words: &Words) {
         State::Tool(tool) => (words.say(Word::RunningTool, &[Hole::Name(tool)]), look::STATUS_ACTIVE),
         State::Ended(status) => {
             let phase = match status {
-                c::OwnerTaskStatus::Done => c::Phase::Done,
-                c::OwnerTaskStatus::Failed => c::Phase::Failed,
-                c::OwnerTaskStatus::Cancelled => c::Phase::Cancelled,
+                c::TaskStatus::Done => c::Phase::Done,
+                c::TaskStatus::Failed => c::Phase::Failed,
+                c::TaskStatus::Cancelled => c::Phase::Cancelled,
             };
             (words.say_word(jig_client::words::Word::Phase(phase), &[]), phase_token(phase))
         }
@@ -594,7 +594,7 @@ fn chip(b: &mut Builder, chip: &c::Chip, words: &Words, bindings: &mut Bindings)
     executor(b, chip.executor, words);
     state(b, task::row_state(chip), words);
     {
-        let c::ChipPhase { details, .. } = chip.details.as_ref();
+        let c::ChipPhaseFacts { details, .. } = chip.details.as_ref();
         b.open(Role::Paragraph);
         b.style(look::PLAN_SPEND);
         let name = words.say(Word::RowSpent, &[Hole::Number(details.budget.numbers.spent)]);
@@ -734,8 +734,8 @@ pub(crate) struct Plan<'a> {
 impl<'a> Plan<'a> {
     fn of(page: &'a task::Task, task: &c::Task) -> Self {
         let word = match task.chip.executor {
-            c::Executor::Procedure { .. } => Word::ItsTasks,
-            c::Executor::Agent { .. } | c::Executor::Party { .. } | c::Executor::Role { .. } => Word::Plan,
+            c::ChipExecutor::Procedure { .. } => Word::ItsTasks,
+            c::ChipExecutor::Agent { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => Word::Plan,
         };
         let ended = match &page.ended {
             Some(task::Ended { page: Some(page), .. }) => Some((
@@ -796,17 +796,10 @@ impl<'a> Plan<'a> {
         }
     }
 }
-fn owner_plan_row(
-    b: &mut Builder,
-    row: &c::OwnerTreeRow,
-    root: &Domain,
-    words: &Words,
-    bindings: &mut Bindings,
-    rows: u32,
-) {
+fn owner_plan_row(b: &mut Builder, row: &c::TreeRow, root: &Domain, words: &Words, bindings: &mut Bindings, rows: u32) {
     chip(b, &row.chip, words, bindings);
     let facts = {
-        let c::ChipPhase { details, .. } = row.chip.details.as_ref();
+        let c::ChipPhaseFacts { details, .. } = row.chip.details.as_ref();
         details.dependencies.as_slice()
     };
     dependencies(b, row.chip.task, &row.dependencies, facts, row.cut, root.pages().me(root.client()), words, bindings);
@@ -833,7 +826,7 @@ pub(crate) fn plan(
     b.name(&words.say(word, &[]));
     let mut has_tree_content = false;
     match tree {
-        Some(c::Delivery::OwnerTree(tree)) => {
+        Some(c::Delivery::Tree(tree)) => {
             has_tree_content = !tree.rows.is_empty();
             let mut stack = List::with_capacity(tree.rows.len());
             has_tree_content |= owner_folds(b, tree, tree.root.task, words);
@@ -859,17 +852,17 @@ pub(crate) fn plan(
 
         Some(
             c::Delivery::Settings(_)
-            | c::Delivery::OwnerProject(_)
+            | c::Delivery::Project(_)
             | c::Delivery::Me(_)
             | c::Delivery::Task(_)
-            | c::Delivery::OwnerProposal(_)
+            | c::Delivery::Proposal(_)
             | c::Delivery::Chips(_)
-            | c::Delivery::OwnerInbox(_)
+            | c::Delivery::Inbox(_)
             | c::Delivery::Tasks(_)
             | c::Delivery::RunState(_)
             | c::Delivery::Run(_)
-            | c::Delivery::OwnerDeployment(_)
-            | c::Delivery::OwnerAccounts(_),
+            | c::Delivery::Deployment(_)
+            | c::Delivery::Accounts(_),
         )
         | None => {}
     }
@@ -910,7 +903,7 @@ impl<'a> EndedRows<'a> {
             result.shown.push(false).expect("page matches fit");
         }
         match tree {
-            Some(c::Delivery::OwnerTree(tree)) => {
+            Some(c::Delivery::Tree(tree)) => {
                 for row in &tree.rows {
                     result.mark(row.chip.task);
                 }
@@ -918,17 +911,17 @@ impl<'a> EndedRows<'a> {
 
             Some(
                 c::Delivery::Settings(_)
-                | c::Delivery::OwnerProject(_)
+                | c::Delivery::Project(_)
                 | c::Delivery::Me(_)
                 | c::Delivery::Task(_)
-                | c::Delivery::OwnerProposal(_)
+                | c::Delivery::Proposal(_)
                 | c::Delivery::Chips(_)
-                | c::Delivery::OwnerInbox(_)
+                | c::Delivery::Inbox(_)
                 | c::Delivery::Tasks(_)
                 | c::Delivery::RunState(_)
                 | c::Delivery::Run(_)
-                | c::Delivery::OwnerDeployment(_)
-                | c::Delivery::OwnerAccounts(_),
+                | c::Delivery::Deployment(_)
+                | c::Delivery::Accounts(_),
             )
             | None => {}
         }
@@ -997,7 +990,7 @@ impl<'a> EndedRows<'a> {
 pub(crate) fn dependencies(
     b: &mut Builder,
     task: u64,
-    links: &List<c::OwnerTaskLink>,
+    links: &List<c::TaskLink>,
     facts: &[c::Dependency],
     cut: bool,
     me: Option<&c::Me>,
@@ -1035,7 +1028,7 @@ pub(crate) fn dependencies(
 fn dependency_mark(b: &mut Builder, task: u64, fact: &c::Dependency, me: Option<&c::Me>, words: &Words) {
     let Some(added) = fact.added else { return };
     let name = match added.by {
-        c::OwnerRequester::Person(number) => {
+        c::Requester::Person(number) => {
             if let Some(me) = me
                 && me.party.number == number
             {
@@ -1044,8 +1037,8 @@ fn dependency_mark(b: &mut Builder, task: u64, fact: &c::Dependency, me: Option<
                 words.say(Word::DependencyAddedByPerson, &[Hole::Number(number)])
             }
         }
-        c::OwnerRequester::Task(number) => words.say(Word::DependencyAddedByTask, &[Hole::Number(number)]),
-        c::OwnerRequester::Deployment { .. } => words.say(Word::DependencyAddedByDeployment, &[]),
+        c::Requester::Task(number) => words.say(Word::DependencyAddedByTask, &[Hole::Number(number)]),
+        c::Requester::Deployment { .. } => words.say(Word::DependencyAddedByDeployment, &[]),
     };
     let name =
         if fact.keeps { words.say(Word::DependencyKeeps, &[Hole::Name(name), Hole::Number(task)]) } else { name };
@@ -1073,7 +1066,7 @@ pub(crate) fn controls(
         }
     }
 }
-fn owner_folds(b: &mut Builder, tree: &c::OwnerTree, parent: u64, words: &Words) -> bool {
+fn owner_folds(b: &mut Builder, tree: &c::Tree, parent: u64, words: &Words) -> bool {
     use jig_client::contract::Phase as P;
     let mut shown = false;
     for fold in &tree.folded {
@@ -1121,7 +1114,7 @@ pub(crate) fn latest(b: &mut Builder, page: Option<&c::ActivityPage>, words: &Wo
     }
     b.close();
 }
-fn activity(b: &mut Builder, event: &c::ActivityLine, words: &Words, bindings: &mut Bindings) {
+fn activity(b: &mut Builder, event: &c::DecodedActivityLine, words: &Words, bindings: &mut Bindings) {
     if let Some((_, text)) = event.word_message() {
         text_node(b, text.bytes());
         return;
@@ -1148,11 +1141,8 @@ fn activity(b: &mut Builder, event: &c::ActivityLine, words: &Words, bindings: &
     }
     let source = &event.source;
 
-    if let c::OwnerActivity::Heard(c::OwnerWord {
-        from: c::OwnerRequester::Task(task),
-        kind: c::OwnerMessageKind::Result(_),
-        ..
-    }) = &source.line
+    if let c::Activity::Heard(c::Word { from: c::Requester::Task(task), kind: c::MessageKind::Result(_), .. }) =
+        &source.line
     {
         task_link(b, *task, words, bindings);
     }
@@ -1161,15 +1151,15 @@ fn activity(b: &mut Builder, event: &c::ActivityLine, words: &Words, bindings: &
 fn text_node(b: &mut Builder, value: &[u8]) {
     skein_ui::markdown::read(value, 3, b);
 }
-pub(crate) fn owner_activity(b: &mut Builder, event: &c::OwnerActivity, words: &Words) {
+pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words) {
     match event {
-        c::OwnerActivity::Words { words, .. } => text_node(b, words.bytes()),
-        c::OwnerActivity::Heard(word) | c::OwnerActivity::Notified { word, .. } => text_node(b, word.words.bytes()),
-        c::OwnerActivity::RunBegan { attempt, .. } => words.text(b, Word::RunBegan, &[Hole::Number(*attempt)]),
-        c::OwnerActivity::RunEnded { attempt, .. } => words.text(b, Word::RunEnded, &[Hole::Number(*attempt)]),
-        c::OwnerActivity::Decided { .. } => words.text(b, Word::DecisionMade, &[]),
-        c::OwnerActivity::Turn { .. } => words.text(b, Word::UnreadTurn, &[]),
-        c::OwnerActivity::Kept { .. } => words.text(b, Word::DependencyParked, &[]),
-        c::OwnerActivity::Milestone { position } => words.text(b, Word::Milestone, &[Hole::Number(*position)]),
+        c::Activity::Words { words, .. } => text_node(b, words.bytes()),
+        c::Activity::Heard(word) | c::Activity::Notified { word, .. } => text_node(b, word.words.bytes()),
+        c::Activity::RunBegan { attempt, .. } => words.text(b, Word::RunBegan, &[Hole::Number(*attempt)]),
+        c::Activity::RunEnded { attempt, .. } => words.text(b, Word::RunEnded, &[Hole::Number(*attempt)]),
+        c::Activity::Decided { .. } => words.text(b, Word::DecisionMade, &[]),
+        c::Activity::Turn { .. } => words.text(b, Word::UnreadTurn, &[]),
+        c::Activity::Kept { .. } => words.text(b, Word::DependencyParked, &[]),
+        c::Activity::Milestone { position } => words.text(b, Word::Milestone, &[Hole::Number(*position)]),
     }
 }
