@@ -299,7 +299,7 @@ pub struct StoryOutcome<T> {
 }
 struct StoryJudge<'a, F, T> {
     check: Option<F>,
-    kill: bool,
+    ending: Signal,
     checked: &'a Cell<Option<T>>,
     dormant_checked: &'a Cell<bool>,
     logs: PathBuf,
@@ -315,7 +315,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
         let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
         if !self.stopping && finished {
             self.checked.set(Some(self.check.take().expect("one check before stopping")(binary)));
-            if self.kill {
+            if self.ending == Signal::Kill {
                 binary.signal_tree(Signal::Kill);
                 self.cleanup = true;
             } else {
@@ -358,7 +358,9 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
         assert!(person.failed.is_none(), "{:?}; temper box stderr: {stderr}", person.failed);
         assert!(binary.exit_status().is_none() || self.stopping, "temper box ended before the person: {stderr}");
         assert!(
-            binary.exit_status().is_none_or(|exit| exit == if self.kill { Exit::Signal(9) } else { Exit::Code(0) }),
+            binary
+                .exit_status()
+                .is_none_or(|exit| exit == if self.ending == Signal::Kill { Exit::Signal(9) } else { Exit::Code(0) }),
             "temper box failed: {stderr}"
         );
         assert!(!binary.stderr_overflowed(), "temper box overflowed stderr: {stderr}");
@@ -434,7 +436,7 @@ pub fn run_story_with_box<T>(
         check: Some(check),
         checked: &checked,
         dormant_checked: &dormant_checked,
-        kill,
+        ending: if kill { Signal::Kill } else { Signal::Terminate },
         logs,
         stopping: false,
         cleanup: false,

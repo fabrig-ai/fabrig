@@ -1970,15 +1970,12 @@ fn two_first_runs_one_after_the_other_choose_their_own_ports() {
             serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("written configuration"))
                 .expect("configuration JSON");
         let application = &document["application"];
-        let setup = application["setup"].as_array().expect("forge setup");
-        let fake = setup.iter().find(|entry| entry["forge"] == 1).expect("fake forge 1");
-        let owned = setup.iter().find(|entry| entry["forge"] == 3).expect("owned forge 3");
         [
             &application["clients"]["listener"]["socket"],
-            &fake["mode"]["fake"]["listen"]["socket"],
+            &application["machine"]["fake"]["listen"]["socket"],
             &application["demo"]["llm"]["listen"]["socket"],
             &application["webhooks"]["listener"]["socket"],
-            &owned["mode"]["owned"]["listen"]["socket"],
+            &application["machine"]["owned"]["listen"]["socket"],
         ]
         .map(|value| {
             value.as_str().expect("listener socket").parse::<std::net::SocketAddr>().expect("socket address").port()
@@ -2120,7 +2117,7 @@ fn playground_reset(kill: bool) {
             scratch.path(),
             flags,
             &client,
-            vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["playground", "end"]))],
+            vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["playground", "end", "--key", "playground-reset"]))],
             BOX_DEADLINE,
             |_| support::playground::check_empty(&paths[0], &paths[1], &client),
         );

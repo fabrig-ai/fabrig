@@ -31,7 +31,10 @@ impl Referee<NativeClient> for Judge {
                 client.go(Address::Welcome { step: Step::Forge { forge: None } });
                 self.page = if self.leaving { Page::Leaving } else { Page::Forge };
             }
-            Page::Forge if named(client, Role::Button, b"Set up a Forgejo here") => {
+            Page::Forge
+                if named(client, Role::Heading { level: 1 }, b"Connect a forge")
+                    && named(client, Role::Button, b"Run on this machine") =>
+            {
                 assert!(!named(client, Role::Button, b"Try the playground"));
                 client.close();
                 self.page = Page::Done;
@@ -65,7 +68,7 @@ impl Referee<NativeClient> for Judge {
 }
 
 pub fn retired_reload(config: &Path, client: &Path) {
-    reload(config, client, b"client", false);
+    reload(config, client, b"private", false);
 }
 fn reload(config: &Path, client: &Path, directory: &[u8], leaving: bool) {
     let document: serde_json::Value =
@@ -125,7 +128,7 @@ pub fn check_empty(config: &Path, data: &Path, client: &Path) {
     for name in ["playground-1", "box/groups/1", "box/started/1"] {
         assert!(!data.join(name).exists(), "reset removes {name}");
     }
-    reload(config, client, b"private", false);
+    retired_reload(config, client);
 }
 struct ResetJudge {
     until: Time,
@@ -171,7 +174,7 @@ pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) {
         Process::Calls(Box::new(ctl::Calls::new(
             root,
             vec![
-                ctl::Step::Start(call(client, &["playground", "end"])),
+                ctl::Step::Start(call(client, &["playground", "end", "--key", "playground-reset"])),
                 ctl::Step::Until(call(client, &["me", "--json"]), b"\"projects\":[]"),
                 ctl::Step::Cut,
             ],
