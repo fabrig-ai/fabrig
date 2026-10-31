@@ -34,7 +34,7 @@ pub fn encode(word: &[u8], key: &[u8], text: &[u8], limit: u32) -> Option<Box<[u
     out.put(word).ok()?;
     out.put(b":key ").ok()?;
     for byte in key {
-        out.put(&[hex(byte / 16), hex(byte % 16)]).ok()?;
+        out.put(&[skein_lib::hex::digit(byte / 16), skein_lib::hex::digit(byte % 16)]).ok()?;
     }
     out.put(TAIL).ok()?;
     out.put(text).ok()?;
@@ -63,7 +63,4 @@ fn digit(byte: u8) -> Option<u8> {
         b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
         _ => None,
     }
-}
-pub(crate) fn hex(byte: u8) -> u8 {
-    *b"0123456789abcdef".get(usize::from(byte)).expect("one hexadecimal digit")
 }

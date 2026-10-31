@@ -56,15 +56,8 @@ pub fn write(id: &ObjectId) -> Box<[u8]> {
     let mut out = Writer::new(size.saturating_mul(2));
     for byte in id.bytes.iter().take(size) {
         for value in [byte / 16, byte % 16] {
-            out.put(&[hex(value)]).expect("two digits per byte");
+            out.put(&[skein_lib::hex::digit(value)]).expect("two digits per byte");
         }
     }
     out.finish()
-}
-pub(crate) fn hex(value: u8) -> u8 {
-    if value < 10 {
-        b'0'.checked_add(value).expect("one digit")
-    } else {
-        b'a'.checked_add(value.saturating_sub(10)).expect("hex digit")
-    }
 }
