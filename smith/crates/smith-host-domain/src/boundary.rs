@@ -50,18 +50,7 @@ pub enum Fault {
     WallTime,
 }
 
-/// Parent message admission refusal.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum MessageRefusal {
-    /// Payload exceeded bytes.
-    TooLarge,
-    /// Bounded queued or unread messages full.
-    Full,
-    /// Agent is ending and refuses messages.
-    Ending,
-    /// Outstanding name or current read watermark reused.
-    NameInUse,
-}
+pub use smith_domain::run::MessageRefusal;
 
 /// Start refused before process resources or payload copying.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

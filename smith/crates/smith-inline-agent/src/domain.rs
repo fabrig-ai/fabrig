@@ -203,7 +203,7 @@ pub(crate) fn root_step(
     slot.facts_drained = false;
     slot.content_drained = false;
     smith::step(&mut slot.root, &child_env(env), event, &mut agent.lower);
-    translate::route(agent, env, id, out);
+    crate::route::route(agent, env, id, out);
 }
 
 fn refused(agent: &mut Domain, now: Time, client: Token, end: host::End, out: &mut Queue<Output>) {
@@ -408,7 +408,7 @@ pub fn fire(agent: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
             slot.facts_drained = false;
             slot.content_drained = false;
             smith::fire(&mut slot.root, &child_env(env), &mut agent.lower);
-            translate::route(agent, env, id, out);
+            crate::route::route(agent, env, id, out);
         }
         Stage::Settling(_) | Stage::Gone => unreachable!("settling slots have no alarms"),
     }
@@ -434,7 +434,7 @@ pub fn resume(agent: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
         slot.facts_drained = false;
         slot.content_drained = false;
         smith::resume(&mut slot.root, &child_env(env), &mut agent.lower);
-        translate::route(agent, env, id, out);
+        crate::route::route(agent, env, id, out);
     }
 }
 
