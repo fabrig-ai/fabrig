@@ -10,6 +10,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();
     }
+    #[expect(clippy::match_same_arms, reason = "each request's arm is filled by its own task")]
     match request {
         root::Request::PlaygroundActs { .. }
         | root::Request::ResetAct { .. }
