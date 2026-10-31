@@ -206,7 +206,7 @@ pub enum Event {
     /// The host finished the requested phase, with pages handed in through
     /// `start_record`/`start_missing`, or the store switched at `Switch`.
     StartDone(core::start::Phase),
-    /// A decoded row from the selected start phase.
+    /// A decoded row from the start phase.
     StartRecord(Record),
     /// A page's source row names an absent owner.
     StartMissing { record: core::Key, target: core::Key },
@@ -509,7 +509,7 @@ impl Domain {
 
     #[must_use]
     pub fn ready(&self) -> bool {
-        self.start_opened || self.starting().is_none()
+        self.start_opened
     }
 
     /// The client's current held-task context, admitted by the core's visibility rule.
@@ -545,7 +545,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::StartMissing { record, target } => start_missing(domain, record, target),
         Event::StartPageRefused { failure } => {
             if !domain.start_stopped() {
-                let phase = domain.core.start_phase().expect("page belongs to a selected start phase");
+                let phase = domain.core.start_phase().expect("page belongs to the start phase");
                 domain.start_page_failure = Some((phase, failure));
             }
         }
@@ -682,9 +682,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     }
                     StartInput::Done(phase) => domain.core.start_done(&core_env, phase, &mut out),
                     StartInput::Resume(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
-                    StartInput::Sweep(row) => {
-                        domain.core.start_sweep(&core_env, core::start::SweepInput::Record(row), &mut out)
-                    }
+                    StartInput::Sweep => domain.core.start_sweep(&core_env, core::start::SweepInput::Next, &mut out),
                 };
                 route_core(domain, env, &mut decision, out, &mut work);
                 let mut next = start_action(domain, env, &mut decision, action);
@@ -840,12 +838,11 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
 
 /// Inputs routed inside the root's decision (jig/docs/design/domain/engine.md, 6).
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "the sweep moves one decoded people row")]
 enum StartInput {
     Begin { pending: bool },
     Done(core::start::Phase),
     Resume(core::start::Continuation),
-    Sweep(jig_domain_people::Stored),
+    Sweep,
 }
 
 fn start_action(
@@ -864,10 +861,6 @@ fn start_action(
             }
             Phase::Link | Phase::Wires | Phase::Open => work.push(Work::Start(StartInput::Done(phase))),
             Phase::AdoptRuns => {
-                for _ in 0..domain.core.adopted.len() {
-                    work.push(Work::Core(core::Event::Fleet(domain.core.adopted.pop().expect("restored claim count"))));
-                }
-                work.push(Work::Core(core::Event::Fleet(fleet::Event::Loaded)));
                 work.push(Work::Start(StartInput::Done(phase)));
             }
             Phase::ReadAfresh { connector: number } => {
@@ -1147,50 +1140,19 @@ pub use census::inbox_census;
 
 fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
     match record {
-        Record::Core(core::Record::Core(row)) => match domain.core.restore_core(row, &env.limits.core) {
-            core::Restored::Deployment { commits } => {
-                domain.journal = Journal::uncapped(env.limits.journal.release, commits);
-                true
+        Record::Core(row) => {
+            match domain.core.restore(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, row) {
+                core::Restore::Deployment { commits } => {
+                    domain.journal = Journal::uncapped(env.limits.journal.release, commits);
+                    true
+                }
+                core::Restore::Kept => true,
+                core::Restore::Refused => false,
+                core::Restore::Swept => {
+                    decide(domain, env, Work::Start(StartInput::Sweep));
+                    true
+                }
             }
-            core::Restored::Live | core::Restored::Archive => true,
-            core::Restored::Rejected => false,
-        },
-        Record::Core(core::Record::Tasks(row)) => {
-            if !domain.core.restore_task_row(&row) {
-                return false;
-            }
-            let mut out = Queue::uncapped();
-            tasks::step(
-                &mut domain.core.tasks,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
-                tasks::Event::Restore { record: row },
-                &mut out,
-            );
-            out.is_empty()
-        }
-        Record::Core(core::Record::People(jig_domain_people::Stored::Policy { project, name, value })) => {
-            domain.core.restore_policy(&env.limits.core, project, name, value)
-        }
-        Record::Core(core::Record::People(row)) => {
-            let mut out = Queue::uncapped();
-            jig_domain_people::step(
-                &mut domain.core.people,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
-                jig_domain_people::Event::Restore { record: row },
-                &mut out,
-            );
-            out.is_empty()
-        }
-        Record::Core(core::Record::Notes(_)) => true,
-        Record::Core(core::Record::Accounts(record)) => {
-            let mut out = Queue::uncapped();
-            jig_domain_accounts::step(
-                &mut domain.core.accounts,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts },
-                jig_domain_accounts::Event::Restore { record },
-                &mut out,
-            );
-            out.is_empty()
         }
         Record::Connector { number, record } => restore_connector(domain, env, number, record),
     }
@@ -1202,17 +1164,10 @@ pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
     if domain.start_stopped() {
         return;
     }
-    let fits = match domain.core.start_phase().expect("row belongs to a selected start phase") {
-        Phase::Sweep => {
-            let Record::Core(core::Record::People(row)) = record else { unreachable!("sweep pages only people") };
-            decide(domain, env, Work::Start(StartInput::Sweep(row)));
-            return;
+    let fits = match domain.core.start_phase().expect("row belongs to the start phase") {
+        Phase::Sweep | Phase::LoadInbox | Phase::LoadCore | Phase::RestoreConnector { .. } => {
+            restore_row(domain, env, record)
         }
-        Phase::LoadInbox => {
-            let Record::Core(row) = record else { unreachable!("inbox pages only core rows") };
-            domain.core.restore_inbox_row(&env.limits.core, &row)
-        }
-        Phase::LoadCore | Phase::RestoreConnector { .. } => restore_row(domain, env, record),
         Phase::Link
         | Phase::Switch
         | Phase::Wires
@@ -1221,7 +1176,7 @@ pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
         | Phase::SettleOutbox { .. }
         | Phase::Open => unreachable!("phase loads no rows"),
     };
-    assert!(fits || domain.start_failure().is_some(), "a selected row entrance refuses with a start failure");
+    assert!(fits || domain.start_failure().is_some(), "the start's row entrance refuses with a start failure");
 }
 
 /// A store page's missing owner.
@@ -1324,7 +1279,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     true
 }
 
-/// Settings rows accompanying a deployment header in an explicitly seeded test store.
+/// Settings rows accompanying a deployment header in a seeded test store.
 #[must_use]
 pub fn initial_settings(defaults: &core::settings::Defaults) -> Box<[core::Record]> {
     use core::settings as s;

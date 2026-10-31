@@ -1,4 +1,4 @@
-//! Direct selected Core over settings rows from the reference root's real seed
+//! Direct Core over settings rows from the reference root's real seed
 //! (jig/docs/design/domain/engine.md, 6, 17.7).
 use crate::settings_support as support;
 use jig_domain_core::{
@@ -32,7 +32,7 @@ impl Harness {
             if let root::Record::Core(core::Record::Core(row)) = row {
                 match row {
                     core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_) => {
-                        assert_ne!(h.core.restore_core(row.clone(), &h.env.limits), core::Restored::Rejected);
+                        assert_ne!(h.core.restore(&h.env, core::Record::Core(row.clone())), core::Restore::Refused);
                     }
                     core::CoreRecord::Projection(_)
                     | core::CoreRecord::Call(_)
@@ -147,14 +147,14 @@ fn stored_settings_whole_fit_refuses_at_load_core_without_root_completion() {
     let mut charter = h.core.current.charter(1).expect("seed charter").clone();
     charter.policy.model.name = Box::from(b"unconfigured".as_slice());
     assert_eq!(
-        h.core.restore_core(
-            core::CoreRecord::Settings(settings::Record::Changed {
+        h.core.restore(
+            &h.env,
+            core::Record::Core(core::CoreRecord::Settings(settings::Record::Changed {
                 setting: settings::Setting::Charter(1),
                 changed: settings::Changed { revision: 1, value: Some(settings::Value::Charter(Box::new(charter))) },
-            }),
-            &h.env.limits
+            }))
         ),
-        core::Restored::Live
+        core::Restore::Kept
     );
     let expected = Failure::Settings {
         failure: settings::Failure { setting: settings::Setting::Charter(1), fault: settings::Fault::Reference },
@@ -180,8 +180,9 @@ fn stored_proposals_require_their_links_at_link() {
     };
     drop(core::step(&mut h.core, &h.env, core::Event::People(people::Event::Restore { record })));
     assert_eq!(
-        h.core.restore_core(
-            core::CoreRecord::Settings(settings::Record::Proposal {
+        h.core.restore(
+            &h.env,
+            core::Record::Core(core::CoreRecord::Settings(settings::Record::Proposal {
                 proposer: jig_domain_people::Proposer::Party(1),
                 proposal: 1,
                 value: settings::Proposal {
@@ -191,10 +192,9 @@ fn stored_proposals_require_their_links_at_link() {
                         edit: settings::Edit::Reset,
                     }])
                 },
-            }),
-            &h.env.limits
+            }))
         ),
-        core::Restored::Live
+        core::Restore::Kept
     );
     let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| h.link()))
         .expect_err("a proposal requires its retained links");

@@ -1,4 +1,4 @@
-//! Store adapters for the core-selected restart script (jig's domain/root.md, 8).
+//! Store adapters for the core's restart script (jig's domain/root.md, 8).
 use crate::archive::{
     Waiting, goal_failed, goal_loaded, input_failed, input_loaded, note_failed, note_loaded, transcript_failed,
     transcript_loaded, transcript_unread, waiting,
@@ -10,8 +10,6 @@ use crate::route::{route_core_requests, route_into};
 use crate::{Decision, Delivery, Key, Range, Record, loads};
 use alloc::boxed::Box;
 use jig_domain_core::start::{Action, Phase, SweepInput};
-use jig_domain_people as people;
-use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Token};
 use temper_engine_domain_forge as forge;
 
@@ -341,10 +339,6 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                     if let Some(bytes) = domain.startup_fill.take() {
                         domain.work.push(Work::Core(jig_domain_core::Event::Fill { bytes }));
                     }
-                    for _ in 0..domain.core.adopted.len() {
-                        domain.work.push(Work::Fleet(domain.core.adopted.pop().expect("restored claims")));
-                    }
-                    domain.work.push(Work::Fleet(jig_domain_fleet::Event::Loaded));
                     domain.work.push(Work::StartDone(phase));
                 }
                 Phase::ReadAfresh { connector } => {
@@ -395,9 +389,9 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
         return;
     }
     while let Some(row) = domain.sweep_rows.pop() {
-        let Record::Core(jig_domain_core::Record::People(row)) = row else { unreachable!("sweep loads people's rows") };
+        restore_page_row(domain, env, row);
         let mut output = Queue::uncapped();
-        let action = domain.core.start_sweep(&environment_core(env), SweepInput::Record(row), &mut output);
+        let action = domain.core.start_sweep(&environment_core(env), SweepInput::Next, &mut output);
         route_core_requests(domain, env, decision, output);
         match action {
             Action::Idle => {}
@@ -464,86 +458,24 @@ fn stop_load(domain: &mut Domain, failure: loads::Failure) {
 /// (temper/docs/design/domain/root.md, 9.1). Archive history stays outside the live map.
 pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Record) {
     match row {
-        Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(row))) => {
-            if domain.core.restore_core(jig_domain_core::CoreRecord::Settings(row), &core_limits(&env.limits))
-                != jig_domain_core::Restored::Live
+        Record::Core(row) => {
+            // The forge binds its own deployment identity; the core restores the header.
+            if let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(deployment)) = &row
+                && !domain.forge.bind_deployment(deployment.id, &env.limits.forge)
             {
-                domain.stop_core();
-            }
-        }
-        Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(record))) => {
-            if domain.core.restore_core(jig_domain_core::CoreRecord::Call(record), &core_limits(&env.limits))
-                != jig_domain_core::Restored::Live
-            {
-                domain.stop_core();
-            }
-        }
-        Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(deployment))) => {
-            if !domain.forge.bind_deployment(deployment.id, &env.limits.forge) {
                 domain.stop_start(crate::StartStop::Binding);
                 return;
             }
-            match domain
-                .core
-                .restore_core(jig_domain_core::CoreRecord::Deployment(deployment), &core_limits(&env.limits))
-            {
-                jig_domain_core::Restored::Deployment { commits } => {
+            match domain.core.restore(&environment_core(env), row) {
+                jig_domain_core::Restore::Deployment { commits } => {
                     domain.core_header_loaded = true;
                     domain.restored_commits = Some(commits);
                 }
-                jig_domain_core::Restored::Live
-                | jig_domain_core::Restored::Archive
-                | jig_domain_core::Restored::Rejected => {
-                    unreachable!("deployment restore result")
-                }
+                jig_domain_core::Restore::Kept | jig_domain_core::Restore::Swept => {}
+                jig_domain_core::Restore::Refused => domain.stop_core(),
             }
         }
-        Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Projection(row))) => {
-            if domain.core.restore_core(jig_domain_core::CoreRecord::Projection(row), &core_limits(&env.limits))
-                == jig_domain_core::Restored::Rejected
-            {
-                domain.stop_core();
-            }
-        }
-        Record::Core(jig_domain_core::Record::People(people::Stored::Policy { project, name, value })) => {
-            if !domain.core.restore_policy(&core_limits(&domain.limits), project, name, value) {
-                domain.stop_core();
-            }
-        }
-        Record::Core(jig_domain_core::Record::People(record)) => {
-            domain.work.push(Work::People(people::Event::Restore { record }));
-        }
-        Record::Core(jig_domain_core::Record::Accounts(record)) => {
-            domain
-                .work
-                .push(Work::Core(jig_domain_core::Event::Account(jig_domain_accounts::Event::Restore { record })));
-        }
-        Record::Forge { row } => {
-            domain.work.push(Work::Forge(forge::Event::Restore { record: *row }));
-        }
-        Record::Core(jig_domain_core::Record::Tasks(record)) => {
-            if !domain.core.restore_task_row(&record) {
-                domain.stop_core();
-                return;
-            }
-            domain.work.push(Work::Tasks(tasks::Event::Restore { record }));
-        }
-        Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof))) => {
-            if domain.core.restore_core(jig_domain_core::CoreRecord::RunProof(proof), &core_limits(&env.limits))
-                != jig_domain_core::Restored::Live
-            {
-                domain.stop_core();
-            }
-        }
-        Record::Core(jig_domain_core::Record::Notes(_)) => unreachable!("notes are loaded on demand, outside startup"),
-        Record::Core(jig_domain_core::Record::Core(
-            jig_domain_core::CoreRecord::Turn(_)
-            | jig_domain_core::CoreRecord::Terminal(_)
-            | jig_domain_core::CoreRecord::EscalationDecision(_)
-            | jig_domain_core::CoreRecord::ProposalDecision(_),
-        )) => {
-            unreachable!("startup excludes archive families")
-        }
+        Record::Forge { row } => domain.work.push(Work::Forge(forge::Event::Restore { record: *row })),
     }
 }
 
@@ -559,7 +491,7 @@ fn census_page(
 ) {
     for row in rows {
         let restored = match row {
-            Record::Core(row) => domain.core.restore_inbox_row(&core_limits(&env.limits), &row),
+            Record::Core(row) => domain.core.restore(&environment_core(env), row) == jig_domain_core::Restore::Kept,
             Record::Forge { .. } => false,
         };
         if !restored {

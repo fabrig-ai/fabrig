@@ -41,7 +41,7 @@ fn restore_person(core: &mut Core, env: &Env<crate::Limits>, record: people::Sto
         if let Request::Now(now) = request
             && let crate::Now::RestoreRefused = *now
         {
-            panic!("selected start emits no RestoreRefused");
+            panic!("the start emits no RestoreRefused");
         }
     }
 }
@@ -53,7 +53,7 @@ fn restore_task(core: &mut Core, env: &Env<crate::Limits>, record: tasks::Stored
         if let Request::Now(now) = request
             && let crate::Now::RestoreRefused = *now
         {
-            panic!("selected start emits no RestoreRefused");
+            panic!("the start emits no RestoreRefused");
         }
     }
 }
