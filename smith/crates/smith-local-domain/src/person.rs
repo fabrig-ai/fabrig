@@ -360,7 +360,7 @@ pub(crate) fn show_dropped(lines: &mut Lines, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
-    if !domain.child.is_gone() || domain.chat.state_pending {
+    if !domain.child.is_gone() || domain.chat.state_pending || !domain.turns.unsaved.is_empty() {
         return;
     }
     let state = core::mem::replace(&mut domain.chat.phase, State::Done);

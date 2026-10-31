@@ -802,3 +802,50 @@ mod older {
         }
     }
 }
+
+#[test]
+fn a_late_metadata_save_cannot_show_an_answer_before_its_turn_is_durable() {
+    let (mut domain, env, mut out) = running(crate::tests::config());
+    crate::step(&mut domain, &env, Event::Line { text: b"follow-up".as_slice().into() }, &mut out);
+    let turn = crate::fixture::turn();
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Turn {
+            client: Token::new(1),
+            turn: host::Turn {
+                opens_window: true,
+                number: 1,
+                read: None,
+                spent: 0,
+                body: host::TurnValue::new(turn, crate::tests::host_limits().turn_bytes).expect("bounded native turn"),
+            },
+        },
+        &mut out,
+    );
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Answered {
+            client: Token::new(1),
+            answer: host::Answer { read: None, turns: 1, spent: 0, result: host::RunResult::Parked },
+            detail: Box::default(),
+        },
+        &mut out,
+    );
+    parent_request(&mut domain, &env, crate::fixture::gone(host::End::Settled, Box::default()), &mut out);
+    drop(crate::tests::drain_requests(&mut out));
+    crate::step(&mut domain, &env, Event::StateSaved, &mut out);
+    assert!(out.is_empty());
+    assert!(domain.chat.phase.is_answered());
+    crate::step(&mut domain, &env, Event::TurnSaved { number: 1 }, &mut out);
+    let requests = crate::tests::drain_requests(&mut out);
+    let mut answered = 0_u32;
+    for request in requests {
+        if let Request::Answered { .. } = request {
+            answered += 1;
+        }
+    }
+    assert_eq!(answered, 1);
+    assert!(domain.chat.phase.is_loading());
+}

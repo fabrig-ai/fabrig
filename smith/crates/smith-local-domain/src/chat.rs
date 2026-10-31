@@ -46,6 +46,7 @@ pub(crate) struct Live {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum HeadSurvey {
     NotStarted,
+    Ready(u32),
     Reading(u32),
     Complete,
 }

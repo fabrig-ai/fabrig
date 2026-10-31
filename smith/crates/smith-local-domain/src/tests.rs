@@ -913,3 +913,25 @@ pub(crate) fn awaiting_credential(config: Config) -> (Domain, Env<Limits>, Queue
     drop(drain_requests(&mut out));
     (domain, env, out)
 }
+
+#[test]
+fn interrupting_a_pending_start_head_does_not_submit_a_second_read() {
+    let (mut domain, env, mut out) = a_headless_start_reading_its_repository_head();
+    crate::step(&mut domain, &env, Event::Interrupt, &mut out);
+    assert!(out.is_empty());
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Git { owner: Token::new(0), result: crate::GitResult::Head { head: b"known".as_slice().into() } },
+        &mut out,
+    );
+    let Some(Request::Notice { notice: crate::Notice::NotDelivered { why: crate::Undelivered::Dropped, .. } }) =
+        out.pop()
+    else {
+        panic!("the cancelled startup drops its queued prompt")
+    };
+    let Some(Request::Exit { status: crate::ExitStatus::Interrupted }) = out.pop() else {
+        panic!("the cancelled startup exits once")
+    };
+    assert!(out.is_empty(), "startup submits no second read or child");
+}

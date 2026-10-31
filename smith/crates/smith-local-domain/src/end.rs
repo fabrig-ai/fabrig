@@ -141,7 +141,9 @@ impl End {
             Self::Cancelling { cause, requested } => {
                 Self::Cancelling { cause: Some(gone_cause(cause, ended)), requested }
             }
-            Self::StoreFailed { cause, requested } => Self::StoreFailed { cause, requested },
+            Self::StoreFailed { cause, requested } => {
+                Self::StoreFailed { cause: Some(gone_cause(cause, ended)), requested }
+            }
         };
     }
 }
@@ -150,5 +152,20 @@ fn gone_cause(cause: Option<EndCause>, ended: Option<smith_host_domain::Exit>) -
     match cause {
         Some(EndCause::Agent { .. }) | None => EndCause::Agent { ended },
         Some(cause @ (EndCause::Cancelled | EndCause::Host { .. })) => cause,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{End, EndCause};
+
+    #[test]
+    fn an_agent_cause_gains_exit_evidence_after_an_intervening_store_failure() {
+        let mut end = End::new();
+        end.record(EndCause::Agent { ended: None });
+        end.fail_store();
+        end.gone(Some(smith_host_domain::Exit::Signal(9)));
+        assert_eq!(end.cause(), Some(EndCause::Agent { ended: Some(smith_host_domain::Exit::Signal(9)) }));
+        assert!(end.store_failed());
     }
 }
