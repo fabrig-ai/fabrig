@@ -254,7 +254,7 @@ fn route(engine: &mut Engine, call: Token, head: Call) {
         page(&mut engine.clients, call, 404, b"Forge not found", b"Start again from temper.", b"/forges");
         return;
     };
-    let configured = match engine.workers.forges.get(forge) {
+    let configured = match engine.forges.get(forge) {
         Some(config) => config.kind == crate::settings::Kind::GitHub,
         None => false,
     };
@@ -411,7 +411,7 @@ fn manifest_visit(engine: &mut Engine, call: Token, forge: u16, route: Route, by
             ended(engine, call, forge);
             return;
         };
-        let web = match engine.workers.forges.get(forge) {
+        let web = match engine.forges.get(forge) {
             Some(config) => config.web.as_deref().unwrap_or(b"https://github.com"),
             None => b"https://github.com",
         };
