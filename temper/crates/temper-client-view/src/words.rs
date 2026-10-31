@@ -110,11 +110,6 @@ pub enum Word {
     ForgePlaygroundHeading,
     ForgeDotAmber,
     ForgeDotRed,
-    Setup,
-    SetupBoth,
-    SetupForge,
-    SetupModel,
-    SetupContinue,
 
     ForgeSetupUrl,
     SetupOrganization,
@@ -428,35 +423,32 @@ pub enum Word {
     ChatDelegates,
     ChatHint,
     ChatSendHint,
-    DemoBoth,
-    DemoForge,
     ConnectForge,
     ChatTitle,
-    DemoModelName,
-    DemoUsing,
+    PlaygroundModelName,
+    PlaygroundUsing,
     Default,
-    DemoRepository,
+    PlaygroundRepository,
     SignedDeploymentOwner,
     SignedProjectOwner,
     SignedName,
     NewChat,
     NewChatLink,
     Ready,
-    Demo,
-    DemoModel,
+    Playground,
     ConnectModel,
-    DemoHeading,
-    DemoStarting,
-    DemoNotStarted,
-    DemoGroupFailed,
-    DemoAccountFailed,
-    DemoAdoptionFailed,
-    DemoNotConnected,
-    DemoTryAgain,
+    PlaygroundHeading,
+    PlaygroundStarting,
+    PlaygroundNotStarted,
+    PlaygroundGroupFailed,
+    PlaygroundAccountFailed,
+    PlaygroundAdoptionFailed,
+    PlaygroundNotConnected,
+    PlaygroundTryAgain,
 
-    DemoRequest,
+    PlaygroundRequest,
     SuggestedRequests,
-    DemoScript,
+    PlaygroundScript,
     DelegationChange,
     DelegationReport,
     DelegationVerdict,
@@ -579,8 +571,8 @@ pub enum Word {
     Dependencies,
     DependenciesCut,
     WaitingForYourWords,
-    DemoContextProject,
-    DemoRepositoryForge,
+    PlaygroundContextProject,
+    PlaygroundRepositoryForge,
     WaitingForDelegates,
     WaitingForYou,
     WaitingForPerson,
@@ -670,7 +662,7 @@ pub enum Word {
 // Thirty-one model-flow phrases (client/README.md, 5.5).
 // The account rows' nineteen literal and two shaped phrases (client/README.md, 5.5).
 // The setup fields and first repository add eleven phrases.
-// Seven demo start status, failure and retry phrases (5.6).
+// Seven playground start status, failure and retry phrases (5.6).
 // The Model step adds four forge phrases and twenty-two segments.
 // The browser sign-in heading and Google link add two phrases.
 // GitHub's Ready picker and adopted card add sixteen phrases (client/forge.md, 5.4).
@@ -684,9 +676,10 @@ pub enum Word {
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
-const PHRASES: u32 = 1197;
-const SEGMENTS: u32 = 2096;
-const ALL: [Word; 616] = [
+pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
+const PHRASES: u32 = 1189;
+const SEGMENTS: u32 = 2088;
+const ALL: [Word; 608] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::PlaygroundLeaving,
@@ -783,11 +776,6 @@ const ALL: [Word; 616] = [
     Word::ForgePlaygroundHeading,
     Word::ForgeDotAmber,
     Word::ForgeDotRed,
-    Word::Setup,
-    Word::SetupBoth,
-    Word::SetupForge,
-    Word::SetupModel,
-    Word::SetupContinue,
     Word::ForgeSetupUrl,
     Word::SetupOrganization,
     Word::SetupRepository,
@@ -1093,34 +1081,31 @@ const ALL: [Word; 616] = [
     Word::ChatDelegates,
     Word::ChatHint,
     Word::ChatSendHint,
-    Word::DemoBoth,
-    Word::DemoForge,
     Word::ConnectForge,
     Word::ChatTitle,
-    Word::DemoModelName,
-    Word::DemoUsing,
+    Word::PlaygroundModelName,
+    Word::PlaygroundUsing,
     Word::Default,
-    Word::DemoRepository,
+    Word::PlaygroundRepository,
     Word::SignedDeploymentOwner,
     Word::SignedProjectOwner,
     Word::SignedName,
     Word::NewChat,
     Word::NewChatLink,
     Word::Ready,
-    Word::Demo,
-    Word::DemoModel,
+    Word::Playground,
     Word::ConnectModel,
-    Word::DemoHeading,
-    Word::DemoStarting,
-    Word::DemoNotStarted,
-    Word::DemoGroupFailed,
-    Word::DemoAccountFailed,
-    Word::DemoAdoptionFailed,
-    Word::DemoNotConnected,
-    Word::DemoTryAgain,
-    Word::DemoRequest,
+    Word::PlaygroundHeading,
+    Word::PlaygroundStarting,
+    Word::PlaygroundNotStarted,
+    Word::PlaygroundGroupFailed,
+    Word::PlaygroundAccountFailed,
+    Word::PlaygroundAdoptionFailed,
+    Word::PlaygroundNotConnected,
+    Word::PlaygroundTryAgain,
+    Word::PlaygroundRequest,
     Word::SuggestedRequests,
-    Word::DemoScript,
+    Word::PlaygroundScript,
     Word::DelegationChange,
     Word::DelegationReport,
     Word::DelegationVerdict,
@@ -1238,8 +1223,8 @@ const ALL: [Word; 616] = [
     Word::Dependencies,
     Word::DependenciesCut,
     Word::WaitingForYourWords,
-    Word::DemoContextProject,
-    Word::DemoRepositoryForge,
+    Word::PlaygroundContextProject,
+    Word::PlaygroundRepositoryForge,
     Word::WaitingForDelegates,
     Word::WaitingForYou,
     Word::WaitingForPerson,
@@ -1368,11 +1353,6 @@ impl Word {
             Self::ForgePlaygroundHeading => 1810,
             Self::ForgeDotAmber => 1811,
             Self::ForgeDotRed => 1812,
-            Self::Setup => 1813,
-            Self::SetupBoth => 1814,
-            Self::SetupForge => 1815,
-            Self::SetupModel => 1816,
-            Self::SetupContinue => 1817,
             Self::ForgeSetupUrl => 1700,
             Self::SetupOrganization => 1820,
             Self::SetupRepository => 1821,
@@ -1744,35 +1724,32 @@ impl Word {
             Self::ChatDelegates => 145,
             Self::ChatHint => 185,
             Self::ChatSendHint => 186,
-            Self::DemoBoth => 273,
-            Self::DemoForge => 274,
             Self::ConnectForge => 275,
             Self::ChatTitle => 276,
-            Self::DemoModelName => 277,
-            Self::DemoUsing => 278,
+            Self::PlaygroundModelName => 277,
+            Self::PlaygroundUsing => 278,
             Self::Default => 279,
-            Self::DemoRepository => 282,
+            Self::PlaygroundRepository => 282,
             Self::SignedDeploymentOwner => 283,
             Self::SignedProjectOwner => 284,
             Self::SignedName => 285,
             Self::NewChat => 286,
             Self::NewChatLink => 1258,
             Self::Ready => 287,
-            Self::Demo => 187,
-            Self::DemoModel => 188,
+            Self::Playground => 187,
             Self::ConnectModel => 189,
-            Self::DemoHeading => 190,
-            Self::DemoStarting => 1900,
-            Self::DemoNotStarted => 1901,
-            Self::DemoGroupFailed => 1902,
-            Self::DemoAccountFailed => 1903,
-            Self::DemoAdoptionFailed => 1904,
-            Self::DemoNotConnected => 1905,
-            Self::DemoTryAgain => 1906,
+            Self::PlaygroundHeading => 190,
+            Self::PlaygroundStarting => 1900,
+            Self::PlaygroundNotStarted => 1901,
+            Self::PlaygroundGroupFailed => 1902,
+            Self::PlaygroundAccountFailed => 1903,
+            Self::PlaygroundAdoptionFailed => 1904,
+            Self::PlaygroundNotConnected => 1905,
+            Self::PlaygroundTryAgain => 1906,
 
-            Self::DemoRequest => 191,
+            Self::PlaygroundRequest => 191,
             Self::SuggestedRequests => 192,
-            Self::DemoScript => 193,
+            Self::PlaygroundScript => 193,
             // 194 is DeadlineMoment; 200..=267 and 280..=281 are card words.
             Self::DelegationChange => 195,
             Self::DelegationReport => 196,
@@ -1873,8 +1850,8 @@ impl Word {
             Self::Dependencies => 293,
             Self::DependenciesCut => 294,
             Self::WaitingForYourWords => 344,
-            Self::DemoContextProject => 345,
-            Self::DemoRepositoryForge => 346,
+            Self::PlaygroundContextProject => 345,
+            Self::PlaygroundRepositoryForge => 346,
             Self::WaitingForDelegates => 295,
             Self::WaitingForYou => 296,
             Self::WaitingForPerson => 297,
@@ -1981,18 +1958,18 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     {
         return Ok(SET_UP_FAILURE_BYTES);
     }
-    if word == Word::DemoGroupFailed {
-        return Ok(temper_client_domain::forge::DEMO_WHY_BYTES);
+    if word == Word::PlaygroundGroupFailed {
+        return Ok(temper_client_domain::forge::PLAYGROUND_WHY_BYTES);
     }
     if kind == HoleKind::Name && (word == Word::RefusalSentences || word == Word::WaitRefused) {
         return Ok(REFUSAL_BYTES);
     }
-    if word == Word::DemoRequest
-        || word == Word::DemoRepository
+    if word == Word::PlaygroundRequest
+        || word == Word::PlaygroundRepository
         || word == Word::ForgePlaygroundSummary
-        || word == Word::DemoAdoptionFailed
+        || word == Word::PlaygroundAdoptionFailed
     {
-        return Ok(temper_client_domain::forge::DEMO_FIELD_BYTES);
+        return Ok(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES);
     }
     let model_name = joined.min(crate::choice::MODEL_SHOWN);
     if word == Word::ModelEffort {
@@ -2109,7 +2086,7 @@ pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 2] {
 impl Words {
     /// The configured playground model's identifier has its own display name (client/README.md, 5.6).
     pub(crate) fn model_name(&self, name: &[u8]) -> Box<[u8]> {
-        if name == b"demo" { self.say(Word::DemoModelName, &[]) } else { copy_of(name) }
+        if name == SCRIPTED_MODEL { self.say(Word::PlaygroundModelName, &[]) } else { copy_of(name) }
     }
 
     pub fn english(connector: u16, text: u32, shell: Shell) -> Result<Words, Invalid> {
@@ -2125,13 +2102,13 @@ impl Words {
             languages: 1,
             phrases: PHRASES,
             holes: 4,
-            // Setup fields and first repository need 28 more segments; the demo's start 15.
+            // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             text_bytes: 32768,
-            // Whole demo requests keep their supplied bound.
+            // Whole playground requests keep their supplied bound.
             hole_bytes: joined
-                .max(temper_client_domain::forge::DEMO_FIELD_BYTES)
-                .max(temper_client_domain::forge::DEMO_WHY_BYTES)
+                .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
+                .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
                 .max(SET_UP_FAILURE_BYTES)
                 .max(temper_client_domain::forge::change::ADDRESS_BYTES),
@@ -2187,7 +2164,8 @@ impl Words {
         Some(most.max(crate::forge::words::capacity(self)?).max(crate::accounts::words::capacity(self)?))
     }
 }
-const DEMO_REQUEST: &[&[u8]] = &[b"Try a request in ", b"/", b". Follow the task from its branch to a landed change."];
+const PLAYGROUND_REQUEST: &[&[u8]] =
+    &[b"Try a request in ", b"/", b". Follow the task from its branch to a landed change."];
 #[expect(clippy::too_many_lines, reason = "one exhaustive table of the client's English words")]
 #[expect(clippy::match_same_arms, reason = "welcome phrases stay independent of the other pages in translations")]
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
@@ -2270,11 +2248,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgePlaygroundHeading => (&[b"The playground"], &[]),
         Word::ForgeDotAmber => (&[b"a forge is setting up"], &[]),
         Word::ForgeDotRed => (&[b"a forge needs you"], &[]),
-        Word::Setup => (&[b"Setup"], &[]),
-        Word::SetupBoth => (&[b"temper has no forge and no model yet."], &[]),
-        Word::SetupForge => (&[b"temper has no forge yet."], &[]),
-        Word::SetupModel => (&[b"temper has no model yet."], &[]),
-        Word::SetupContinue => (&[b"Continue setting up"], &[]),
         Word::ForgeSetupUrl => (&[b"On GitHub, set the App\xe2\x80\x99s setup URL to temper\xe2\x80\x99s address followed by /forges/", b"/github/setup, and give it the permissions and events temper\xe2\x80\x99s guide lists."], &[Number]),
         Word::SetupOrganization => (&[b"Organization"], &[]),
         Word::SetupRepository => (&[b"Repository"], &[]),
@@ -2634,16 +2607,14 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
         Word::ChoiceProvider => (&[b"", b""], &[Name]),
         Word::ChatSendHint => (&[b"Enter to send \xc2\xb7 Shift+Enter for newline"], &[]),
-        Word::DemoBoth => (&[b"This is the playground: a scripted model and a playground forge."], &[]),
-        Word::DemoForge => (&[b"This is the playground: a playground forge."], &[]),
         Word::ConnectForge => (&[b"Connect a forge"], &[]),
         Word::ChatTitle => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
-        Word::DemoModelName => (&[b"Scripted model"], &[]),
-        Word::DemoUsing => (&[b"Using Scripted model \xc2\xb7 ", b""], &[Name]),
+        Word::PlaygroundModelName => (&[b"Scripted model"], &[]),
+        Word::PlaygroundUsing => (&[b"Using Scripted model \xc2\xb7 ", b""], &[Name]),
         Word::Default => (&[b"Default"], &[]),
-        Word::DemoContextProject => (&[b"", b" \xc2\xb7 "], &[Name]),
-        Word::DemoRepository => (&[b"", b"/", b""], &[Name, Name]),
-        Word::DemoRepositoryForge => (&[b" on Playground forge"], &[]),
+        Word::PlaygroundContextProject => (&[b"", b" \xc2\xb7 "], &[Name]),
+        Word::PlaygroundRepository => (&[b"", b"/", b""], &[Name, Name]),
+        Word::PlaygroundRepositoryForge => (&[b" on Playground forge"], &[]),
         Word::WaitingForYourWords => (&[b"waiting on your words"], &[]),
         Word::SignedDeploymentOwner => (&[b"Signed in as the deployment\xe2\x80\x99s owner"], &[]),
         Word::SignedProjectOwner => (&[b"Signed in as the project\xe2\x80\x99s owner"], &[]),
@@ -2651,20 +2622,19 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NewChat => (&[b"New chat"], &[]),
         Word::NewChatLink => (&[b"+ New chat"], &[]),
         Word::Ready => (&[b"Ready"], &[]),
-        Word::Demo => (&[b"Playground"], &[]),
-        Word::DemoModel => (&[b"This is the playground: a scripted model."], &[]),
+        Word::Playground => (&[b"Playground"], &[]),
         Word::ConnectModel => (&[b"Connect a model"], &[]),
-        Word::DemoStarting => (&[b"Starting"], &[]),
-        Word::DemoNotStarted => (&[b"Not started"], &[]),
-        Word::DemoGroupFailed => (&[b"The playground did not start: its fakes did not start (", b")."], &[Name]),
-        Word::DemoAccountFailed => (&[b"The playground did not start: the scripted model's account was refused."], &[]),
-        Word::DemoAdoptionFailed => (&[b"The playground did not start: ", b"/", b" was not adopted."], &[Name, Name]),
-        Word::DemoNotConnected => (&[b"The playground did not start: Playground forge did not connect."], &[]),
-        Word::DemoTryAgain => (&[b"Try again"], &[]),
-        Word::DemoHeading => (&[b"What shall we change?"], &[]),
-        Word::DemoRequest => (DEMO_REQUEST, &[Name, Name]),
+        Word::PlaygroundStarting => (&[b"Starting"], &[]),
+        Word::PlaygroundNotStarted => (&[b"Not started"], &[]),
+        Word::PlaygroundGroupFailed => (&[b"The playground did not start: its fakes did not start (", b")."], &[Name]),
+        Word::PlaygroundAccountFailed => (&[b"The playground did not start: the scripted model's account was refused."], &[]),
+        Word::PlaygroundAdoptionFailed => (&[b"The playground did not start: ", b"/", b" was not adopted."], &[Name, Name]),
+        Word::PlaygroundNotConnected => (&[b"The playground did not start: Playground forge did not connect."], &[]),
+        Word::PlaygroundTryAgain => (&[b"Try again"], &[]),
+        Word::PlaygroundHeading => (&[b"What shall we change?"], &[]),
+        Word::PlaygroundRequest => (PLAYGROUND_REQUEST, &[Name, Name]),
         Word::SuggestedRequests => (&[b"Suggested requests"], &[]),
-        Word::DemoScript => (&[b"The scripted model plays these requests from its script."], &[]),
+        Word::PlaygroundScript => (&[b"The scripted model plays these requests from its script."], &[]),
         Word::ChatHint => (&[b"temper \xc2\xb7 Enter to start \xc2\xb7 Shift+Enter for newline"], &[]),
         Word::Accept => (&[b"Accept"], &[]),
         Word::RejectProposal => (&[b"Reject"], &[]),

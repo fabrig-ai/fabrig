@@ -37,6 +37,11 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 // it has no static destination until the forge answers.
                 assert_eq!(sample.name, "github-picker");
                 assert_eq!(forge, 2);
+            } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::EndPlayground)) =
+                temper_client_view::act(&mut view, node, skein_ui::Act::Press)
+            {
+                let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
+                assert_eq!(reset.name.as_deref(), Some(b"set up temper".as_slice()));
             } else {
                 panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
             }

@@ -157,8 +157,7 @@ pub fn request(
         | v1::Request::StartPlayground
         | v1::Request::EndPlayground
         | v1::Request::Accept(_)
-        | v1::Request::Reachable(_)
-        | v1::Request::StartDemo => {
+        | v1::Request::Reachable(_) => {
             panic!("client sends no demo start yet")
         }
         v1::Request::Connect(connect) => {

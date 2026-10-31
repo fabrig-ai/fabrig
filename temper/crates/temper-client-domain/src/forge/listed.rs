@@ -1,6 +1,6 @@
 //! Kept forges and their navigation dot (temper/docs/design/draft/playground-reset.md, 3, 6.1).
 use super::{
-    Demo, connect,
+    Playground, connect,
     forges::{Connection, Mode, Row, State},
 };
 use crate::{
@@ -58,15 +58,12 @@ pub fn dot(state: &State, playground: Option<u16>) -> Dot {
     dot
 }
 #[must_use]
-pub fn playground(root: &Domain) -> Option<(&Demo, &Row)> {
-    let (demo, halves) = root.demo()?;
-    if !halves.forge {
-        return None;
-    }
+pub fn playground(root: &Domain) -> Option<(&Playground, &Row)> {
+    let playground = root.forge().playground()?;
     if let State::Rows(rows) = root.forges() {
         for row in rows {
-            if row.number == demo.forge {
-                return Some((demo, row));
+            if row.number == playground.forge {
+                return Some((playground, row));
             }
         }
     }
@@ -81,8 +78,8 @@ pub struct Setup {
 }
 #[must_use]
 pub fn setup(root: &Domain) -> Option<Setup> {
-    if !root.demo_answered()
-        || root.forge().demo_running()
+    if !root.forge().playground_answered()
+        || root.forge().playground_running()
         || match welcome::decision(root) {
             Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) => false,
             Some(welcome::FirstRun::Whole) | None => true,
@@ -111,7 +108,7 @@ pub fn setup(root: &Domain) -> Option<Setup> {
         Step::Ready
     };
     Some(Setup {
-        playground: !personal_connected && root.forge().demo().is_some(),
+        playground: !personal_connected && root.forge().playground().is_some(),
         forge: owner && !connected,
         model,
         step,

@@ -11,9 +11,7 @@ Menu:
   * Pat
   [8] Sign out
 Playground:
-  This is the playground: a scripted model and a playground forge.
-  [9] Connect a model
-  [10] Connect a forge
+  This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
 T1 · Add CSV export to widget:
   * waiting on your words
   0 spent · of 1
@@ -37,7 +35,7 @@ Conversation:
       - Pull request opened (completed)
       - CI passed (completed)
       - Landed (completed)
-    [11] Task 2 ↗
+    [9] Task 2 ↗
   1 tool call: wait
     wait
   Temper
@@ -46,6 +44,6 @@ Conversation:
   1 tool call: wait
     wait
 Using Scripted model · Default
-[12] Message: (empty) (enter sends)
+[10] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[13] Send
+[11] Send

@@ -267,7 +267,7 @@ fn first_run_ready(root: &mut Domain, w: World, forge_watch: Option<Token>, out:
         adopt_owned_sample(root, forge_watch.expect("owned forge watch"), out);
     }
     if matches!(w, FirstRun { step: 1..=4 }) {
-        assert!(root.demo().expect("answered demo").1.model);
+        assert!(root.forge().playground_running());
     }
 }
 fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
@@ -535,22 +535,16 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
 }
 fn demo(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};
-    let record = if matches_demo(w) {
+    let record = if matches_demo(w) && !matches!(w, FirstRun { step: 0 | 7 }) {
         let mut cues = List::with_capacity(3);
         for cue in ["Add CSV export to widget", "Add a dark theme to widget", "Fix widget’s empty search state"] {
             cues.push(Box::from(cue.as_bytes())).expect("cue");
         }
-        let value = v1::DemoAnswer::new(
+        let value = v1::PlaygroundAnswer::new(
             &v1::CEILINGS,
-            v1::DemoAnswerParts {
-                state: if matches!(w, FirstRun { step: 0 }) {
-                    v1::DemoState::NotStarted
-                } else if w == (FirstRun { step: 7 }) {
-                    v1::DemoState::Ended
-                } else {
-                    v1::DemoState::Running
-                },
-                project: PROJECT,
+            v1::PlaygroundAnswerParts {
+                state: v1::PlaygroundState::Running,
+                project: Some(PROJECT),
                 forge: 1,
                 provider: 17,
                 owner: Box::from(b"playground".as_slice()),
@@ -559,7 +553,7 @@ fn demo(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
             },
         )
         .expect("checked demo");
-        Some(wire::demo_answer(&value))
+        Some(wire::playground_answer(&value))
     } else {
         None
     };

@@ -218,7 +218,7 @@ pub(crate) fn send_new(side: &mut Side, limits: Limits, place: forges::Managed, 
     if !forges::can_make(side)
         || !place.valid()
         || busy(side)
-        || side.demo_running()
+        || side.playground_running()
         || side.party.is_none()
         || side.served == Served::OutOfDate
     {
