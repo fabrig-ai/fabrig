@@ -59,8 +59,8 @@ fn completing_absent_application_part_prevents_late_selection() {
 }
 
 #[test]
-#[should_panic(expected = "people start selected once before input")]
-fn resolving_absent_ended_conversation_prevents_late_selection() {
+#[should_panic(expected = "people projections require start_project before open")]
+fn resolving_ended_conversation_before_open_requires_start_project() {
     let (mut domain, _) = fresh();
     domain.restore_ended_conversation(1);
     assert!(domain.read_conversations().is_empty());
@@ -315,14 +315,13 @@ fn explicit_start_phases_reject_repeated_late_and_mixed_calls() {
                 load(&mut domain, &env, person(1), &mut out);
             }
             if bad == 1 {
-                step(&mut domain, &env, Event::Restored, &mut out);
+                domain.start_sweep();
             }
             domain.start_restore(env.wall);
             match bad {
                 0..=2 => domain.start_restore(env.wall),
-                3 => step(&mut domain, &env, Event::Restored, &mut out),
                 4 => domain.start_sweep(),
-                5 => {
+                3 | 5 => {
                     domain.start_complete(&env);
                 }
                 6 => {
@@ -704,7 +703,7 @@ fn selected_ended_witness_preserves_missing_person_until_link() {
 }
 
 #[test]
-fn selected_projection_phase_and_default_doors_assert() {
+fn projection_phase_and_operational_doors_assert() {
     for bad in 0_u8..9 {
         let env = env();
         let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
@@ -767,40 +766,16 @@ fn selected_projection_phase_and_default_doors_assert() {
 }
 
 #[test]
-fn default_and_successful_starts_retain_no_fit_detail() {
+fn successful_start_retains_no_fit_detail() {
     let env = env();
-    for selected in [false, true] {
-        let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
-        let mut out = Queue::uncapped();
-        if selected {
-            domain.start_restore(env.wall);
-        }
-        load(&mut domain, &env, person(1), &mut out);
-        assert_eq!(domain.restore_failure(), None);
-        if selected {
-            assert!(domain.start_link(&env));
-            domain.start_sweep();
-            assert!(domain.start_complete(&env));
-        } else {
-            step(&mut domain, &env, Event::Restored, &mut out);
-        }
-        assert_eq!(domain.restore_failure(), None);
-    }
     let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
     let mut out = Queue::uncapped();
-    load(
-        &mut domain,
-        &env,
-        answer(1, Ask::Say { project: 1, task: 1, words: skein_lib::bytes::zeroed(9) }, Outcome::SignedOut),
-        &mut out,
-    );
-    assert_eq!(
-        out.pop(),
-        Some(Request::RestoreRefused {
-            key: Key::Answer(RequestKey { person: 1, key: [1; 16] }),
-            refusal: Refusal::Limit { which: LimitKind::Restore },
-        })
-    );
+    domain.start_restore(env.wall);
+    load(&mut domain, &env, person(1), &mut out);
+    assert_eq!(domain.restore_failure(), None);
+    assert!(domain.start_link(&env));
+    domain.start_sweep();
+    assert!(domain.start_complete(&env));
     assert_eq!(domain.restore_failure(), None);
 }
 
