@@ -10,6 +10,9 @@
 
 extern crate alloc;
 
+mod removal;
+pub use removal::{ProjectRemoval, RemovalStage};
+
 mod live;
 pub use live::LiveAsk;
 
@@ -367,6 +370,7 @@ pub struct Core {
     pub(crate) restore_failure: Option<RestartRequest>,
     /// Names seeded or restored with the project policies (core.md, 6.1).
     pub(crate) names: Map<u32, Box<str>>,
+    pub(crate) removals: Map<u32, ProjectRemoval>,
     /// Mutable connector permission mappings approved by policy edits.
     pub permission_roles: Map<u32, Box<[people::PermissionRole]>>,
     /// Template overrides retained with each project policy.
@@ -738,6 +742,7 @@ impl Core {
             projects: List::with_capacity(limits.authority.projects),
 
             names: Map::with_capacity(limits.authority.projects),
+            removals: Map::with_capacity(limits.authority.projects),
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
             connectors: config.connectors,

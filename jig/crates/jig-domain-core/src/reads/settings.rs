@@ -398,6 +398,7 @@ pub fn record_revision(value: &Record) -> Option<&settings::Revision> {
                 | settings::Record::Extent { .. },
             )
             | CoreRecord::Deployment(_)
+            | CoreRecord::Removal(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Call(_)
             | CoreRecord::Terminal(_)
@@ -483,6 +484,7 @@ pub(super) fn from_store(
                     | settings::Record::Extent { .. },
                 )
                 | CoreRecord::Deployment(_)
+                | CoreRecord::Removal(_)
                 | CoreRecord::RunProof(_)
                 | CoreRecord::Call(_)
                 | CoreRecord::Terminal(_)

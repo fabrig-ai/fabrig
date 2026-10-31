@@ -27,6 +27,11 @@ fn a_claim_before_its_first_turn_reads_back() {
     run.terminal = None;
     core_round_trip(core::CoreRecord::RunProof(run));
 }
+fn each_removal_stage_reads_back() {
+    for row in fixtures::removals() {
+        core_round_trip(core::CoreRecord::Removal(row));
+    }
+}
 fn a_terminal_archive_reads_back_with_its_end() {
     core_round_trip(core::CoreRecord::Terminal(fixtures::terminal()));
 }
@@ -133,6 +138,7 @@ fn core_rows_read_back_as_written() {
             "the_deployment_header_reads_back_with_its_id_and_projects_mark",
             the_deployment_header_reads_back_with_its_id_and_projects_mark,
         ),
+        ("each_removal_stage_reads_back", each_removal_stage_reads_back),
         ("a_terminal_archive_reads_back_with_its_end", a_terminal_archive_reads_back_with_its_end),
         ("a_goal_projection_reads_back_with_its_phase", a_goal_projection_reads_back_with_its_phase),
         ("a_projection_task_reads_back_with_each_requester", a_projection_task_reads_back_with_each_requester),

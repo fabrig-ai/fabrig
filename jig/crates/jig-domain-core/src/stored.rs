@@ -247,6 +247,8 @@ pub struct CallRecord {
 /// its own child-family variant (domain/engine.md, 5.4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum CoreRecord {
+    /// A project deletion kept until whole.
+    Removal(crate::ProjectRemoval),
     /// Settings have their own independently versioned store family.
     Settings(crate::settings::Record),
     /// Bounded goal feed metadata, plan row or pending milestone.
@@ -272,6 +274,7 @@ impl CoreRecord {
     #[must_use]
     pub fn key(&self) -> CoreKey {
         match self {
+            Self::Removal(row) => CoreKey::Removal(row.project),
             Self::Settings(row) => CoreKey::Settings(row.key()),
             Self::Deployment(_) => CoreKey::Deployment,
             Self::Projection(row) => CoreKey::Projection(row.key()),
@@ -306,6 +309,8 @@ pub enum CoreKey {
     EscalationDecision { task: u64, revision: u64 },
     /// The settings live family and its on-demand history.
     Settings(crate::settings::Key),
+    /// A project deletion kept until whole.
+    Removal(u32),
 }
 
 impl CoreKey {
@@ -313,7 +318,7 @@ impl CoreKey {
     #[must_use]
     pub const fn live(&self) -> bool {
         match self {
-            Self::Projection(_) | Self::RunProof(_) | Self::Call(_) => true,
+            Self::Projection(_) | Self::RunProof(_) | Self::Call(_) | Self::Removal(_) => true,
             Self::Settings(_)
             | Self::Deployment
             | Self::Turn { .. }
@@ -575,6 +580,13 @@ impl Core {
             }
         }
         match record {
+            CoreRecord::Removal(row) => {
+                if self.removals.contains_key(&row.project) || self.removals.insert(row.project, row).is_err() {
+                    Restored::Rejected
+                } else {
+                    Restored::Live
+                }
+            }
             CoreRecord::Settings(record) => {
                 if self.restore_setting(record, limits) {
                     Restored::Live
