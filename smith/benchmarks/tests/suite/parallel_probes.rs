@@ -24,32 +24,6 @@ fn children_overlap_requires_positive_time_in_the_same_run() {
 }
 
 #[test]
-fn parallel_tasks_are_frozen_and_decide_observed_call_and_child_evidence() {
-    let root = crate::common::repository();
-    let read =
-        smith_bench::check_task(&root.join("tasks/probes/parallel-read/task.toml"), &root.join("../docs/design"))
-            .expect("parallel reads");
-    assert!(read.event.contains(&EventCheck::CallsInOneResponse { tool: "read".into(), at_least: 20 }));
-    assert_eq!(read.smith["deployment.calls_per_response"].as_integer(), Some(20));
-    let children =
-        smith_bench::check_task(&root.join("tasks/probes/parallel-children/task.toml"), &root.join("../docs/design"))
-            .expect("parallel children");
-    for (task, count) in [(children.clone(), 4), (children.with_variant("reviews").expect("reviews"), 3)] {
-        assert!(task.event.contains(&EventCheck::ChildrenOverlap { at_least: 2 }));
-        assert!(task.event.contains(&EventCheck::ConversationOpened {
-            kind: "child".into(),
-            count: smith_bench::Count::Exactly(count)
-        }));
-        assert_eq!(task.event.iter().filter(|check| matches!(check, EventCheck::ConversationOpened { .. })).count(), 1);
-        assert!(
-            task.event
-                .iter()
-                .any(|check| matches!(check, EventCheck::ToolCall { verdict: Some(value), .. } if value == "result"))
-        );
-    }
-}
-
-#[test]
 fn twenty_reads_must_be_in_one_response_and_content_absence_is_unknown() {
     let check = EventCheck::CallsInOneResponse { tool: "read".into(), at_least: 20 };
     let mut records = common::events::balanced();

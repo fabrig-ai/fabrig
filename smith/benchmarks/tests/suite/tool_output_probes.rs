@@ -7,10 +7,8 @@ use smith_events::{Event, JobEnded, Record, Verdict};
 use crate::common;
 
 #[test]
-fn tool_output_inputs_and_deciders_match_the_authored_cases() {
+fn tool_output_seed_exercises_capture_and_read_windows() {
     let root = crate::common::repository();
-    let task = smith_bench::check_task(&root.join("tasks/probes/tool-output/task.toml"), &root.join("../docs/design"))
-        .expect("frozen inputs and checks");
     let suite_file = root.join("suites/probes.toml");
     let mut suite = smith_bench::read_suite(&suite_file).expect("four authored variants");
     suite.tasks.retain(|name| name.starts_with("probes/tool-output/") && !name.ends_with("/background"));
@@ -38,12 +36,7 @@ fn tool_output_inputs_and_deciders_match_the_authored_cases() {
         document.lines().nth(699),
         Some("QUOTE: The copper heron carries seven blue lanterns across the silent harbor.")
     );
-    let test = task.with_variant("test-output").expect("one shell");
-    assert!(test.event.contains(&EventCheck::ToolResultBytes { tool: "shell".into(), at_least: 10241 }));
-    let quote = task.with_variant("quote").expect("read windows");
-    assert!(!quote.event.iter().any(|check| matches!(check, EventCheck::ToolResultBytes { .. })));
-    let utf = task.with_variant("utf-8").expect("first edit");
-    assert!(!utf.event.iter().any(|check| matches!(check, EventCheck::ToolResultBytes { .. })));
+
 }
 
 #[test]

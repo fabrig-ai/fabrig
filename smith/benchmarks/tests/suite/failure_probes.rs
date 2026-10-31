@@ -9,9 +9,7 @@ use crate::common::observe;
 
 #[test]
 fn failure_variants_keep_their_class_codes_and_do_not_invent_startup_terminals() {
-    let root = crate::common::repository();
-    let task = smith_bench::check_task(&root.join("tasks/probes/failures/task.toml"), &root.join("../docs/design"))
-        .expect("authored task and unchanged seed");
+    let task = crate::common::task("probes/failures");
     for name in ["unknown-model", "one-turn"] {
         let variant = task.with_variant(name).expect("interactive failure variant");
         assert!(!variant.deciding.iter().any(|name| name == "exit-code" || name == "last-line"));

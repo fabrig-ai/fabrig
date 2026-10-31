@@ -10,8 +10,7 @@ const COMMAND: &str = "sh -c 'sleep 600 & wait'";
 #[test]
 fn nested_process_task_freezes_the_command_profile_and_tree_criterion() {
     let root = crate::common::repository();
-    let task = smith_bench::check_task(&root.join("tasks/probes/process-tree/task.toml"), &root.join("../docs/design"))
-        .expect("frozen seed and task");
+    let task = crate::common::task("probes/process-tree");
     assert_eq!(task.version, 2);
     assert!(task.prompt.contains(COMMAND));
     assert!(task.deciding.iter().any(|name| name == "tree-ended"));
