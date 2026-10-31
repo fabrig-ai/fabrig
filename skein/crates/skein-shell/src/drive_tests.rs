@@ -95,19 +95,19 @@ impl Delegate for Process {
     }
 }
 
-fn at(nanos: u64) -> Option<Time> {
-    Some(Time::from_nanos(nanos))
+fn at(nanos: u64) -> Time {
+    Time::from_nanos(nanos)
 }
 
 #[test]
 fn the_next_deadline_is_the_earlier_of_the_mechanism_and_the_policy_deadlines() {
     for (mechanism, policy, next) in [
         (None, None, None),
-        (at(5), None, at(5)),
-        (None, at(3), at(3)),
-        (at(5), at(3), at(3)),
-        (at(2), at(3), at(2)),
-        (at(4), at(4), at(4)),
+        (Some(at(5)), None, Some(at(5))),
+        (None, Some(at(3)), Some(at(3))),
+        (Some(at(5)), Some(at(3)), Some(at(3))),
+        (Some(at(2)), Some(at(3)), Some(at(2))),
+        (Some(at(4)), Some(at(4)), Some(at(4))),
     ] {
         assert_eq!(Fixed::new(mechanism, policy).next_deadline(), next, "{mechanism:?} and {policy:?}");
     }
@@ -115,13 +115,13 @@ fn the_next_deadline_is_the_earlier_of_the_mechanism_and_the_policy_deadlines() 
 
 #[test]
 fn a_delegate_is_the_host_it_lends_in_every_method() {
-    let mut service = Fixed::new(at(7), at(9));
+    let mut service = Fixed::new(Some(at(7)), Some(at(9)));
     service.digest = Some([1; 32]);
     service.exit = Some(Exit::Code(3));
     service.empty = true;
     service.pending = true;
     service.operations = 12;
-    let mut processes = [Process::Service(Box::new(service)), Process::Fake(Fixed::new(None, at(2)))];
+    let mut processes = [Process::Service(Box::new(service)), Process::Fake(Fixed::new(None, Some(at(2))))];
     for process in &mut processes {
         process.iterate(Time::ZERO, Wall::EPOCH);
         process.drain();
@@ -138,14 +138,18 @@ fn a_delegate_is_the_host_it_lends_in_every_method() {
     let [service, fake] = &processes;
     assert_eq!(service.state_digest(), Some([1; 32]), "the host's digest");
     assert!(service.work_pending(Time::ZERO), "the service's pending work");
-    assert_eq!((service.next_mechanism_deadline(), service.next_policy_deadline()), (at(7), at(9)), "both deadlines");
-    assert_eq!(service.next_deadline(), at(7), "the earlier");
+    assert_eq!(
+        (service.next_mechanism_deadline(), service.next_policy_deadline()),
+        (Some(at(7)), Some(at(9))),
+        "both deadlines"
+    );
+    assert_eq!(service.next_deadline(), Some(at(7)), "the earlier");
     assert!(service.is_empty(), "the service is empty");
     assert_eq!(service.exit(), Some(Exit::Code(3)), "the host's exit, not the empty host's default");
     assert_eq!(service.operations(), 12, "its ring");
     assert_eq!(fake.state_digest(), None, "no digest");
     assert!(!fake.work_pending(Time::ZERO), "the fake has none");
-    assert_eq!(fake.next_deadline(), at(2), "its policy deadline alone");
+    assert_eq!(fake.next_deadline(), Some(at(2)), "its policy deadline alone");
     assert!(!fake.is_empty(), "the fake holds something");
     assert_eq!(fake.exit(), None, "not yet ended");
     assert_eq!(fake.operations(), 1, "its ring");
