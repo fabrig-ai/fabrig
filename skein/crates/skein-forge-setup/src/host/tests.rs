@@ -2,6 +2,160 @@ use super::*;
 use crate::tests::fixtures;
 use skein_lib::Wall;
 
+// Two forges give each held run its own connection within the fixture's limits.
+const ABORT_PARTIES: [(Token, u16, Token); 2] =
+    [(Token::new(11), 1, Token::new(101)), (Token::new(12), 2, Token::new(102))];
+
+struct AbortHost {
+    host: Host,
+    env: Env<Limits>,
+    up: Queue<Event>,
+    io: Queue<skein_io::Request>,
+    bindings: List<(Token, Token)>,
+}
+impl AbortHost {
+    fn empty() -> Self {
+        let limits = crate::tests::host::limits();
+        Self {
+            host: Host::new(&limits, crate::tests::host::settings(&[1, 2]), crate::tests::host::crypto())
+                .expect("host fixtures"),
+            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            up: Queue::uncapped(),
+            io: Queue::uncapped(),
+            bindings: List::with_capacity(limits.runs),
+        }
+    }
+    fn new() -> Self {
+        let mut world = Self::empty();
+        for (run, forge, socket) in ABORT_PARTIES {
+            world.down(Request::Run { run, plan: Plan::Reconcile { forge, adopted: Box::new([]) } });
+            let _read = world.up.pop().expect("owner read");
+            world.down(Request::Answer { run, answer: Answer::Read(Some(fixtures::secret(fixtures::ADMIN))) });
+            let Some(skein_io::Request::Connect { owner, .. }) = world.io.pop() else {
+                panic!("run opens its connection");
+            };
+            world.bindings.push((owner, socket)).expect("one connection per run");
+        }
+        world
+    }
+    fn down(&mut self, request: Request) {
+        self.host.down(&self.env, request, &mut self.up, &mut self.io);
+    }
+    fn event(&mut self, event: skein_io::Event) {
+        self.host.up(&self.env, event, &mut self.up, &mut self.io);
+    }
+    fn bind_all(&mut self) {
+        for index in 0..self.bindings.len() {
+            let (owner, socket) = *self.bindings.get(index).expect("fixture binding");
+            self.event(skein_io::Event::Connecting { owner, socket });
+        }
+    }
+    fn take_aborts(&mut self) {
+        for (_, socket) in &self.bindings {
+            assert_eq!(self.io.pop(), Some(skein_io::Request::Abort { entity: *socket }));
+        }
+        assert!(self.io.is_empty());
+    }
+    fn fire(&mut self) {
+        self.host.fire(&self.env, &mut self.up, &mut self.io);
+    }
+}
+
+#[test]
+fn an_abort_aborts_each_connection_and_ends_each_run() {
+    let mut world = AbortHost::new();
+    world.bind_all();
+    let (owner, _) = *world.bindings.get(0).expect("first connection");
+    world.host.connections.get_mut(&owner).expect("held connection").fail();
+
+    world.down(Request::Abort);
+
+    world.take_aborts();
+    assert!(world.host.runs.is_empty());
+    // Failure has no cancelled reason: abort ends runs unheard, as Close does.
+    assert!(world.up.is_empty());
+    assert_eq!(world.host.next_deadline(), None);
+    for (run, _, _) in ABORT_PARTIES {
+        world.down(Request::Answer { run, answer: Answer::Read(None) });
+    }
+    world.fire();
+    assert!(world.up.is_empty() && world.io.is_empty());
+}
+
+#[test]
+fn an_abort_after_a_close_changes_only_what_still_closes() {
+    let mut world = AbortHost::new();
+    let (settled, socket) = *world.bindings.get(0).expect("first connection");
+    let (pending, late_socket) = *world.bindings.get(1).expect("second connection");
+    world.event(skein_io::Event::Connecting { owner: settled, socket });
+
+    world.down(Request::Close);
+    assert_eq!(world.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    world.event(skein_io::Event::Closed { owner: settled });
+    world.down(Request::Abort);
+    assert!(world.up.is_empty() && world.io.is_empty());
+    // Close already aborts connections; only the late binding still needs io.
+    world.event(skein_io::Event::Connecting { owner: pending, socket: late_socket });
+    assert_eq!(world.io.pop(), Some(skein_io::Request::Abort { entity: late_socket }));
+    assert!(world.io.is_empty());
+    assert!(world.host.connections.get(&settled).is_none());
+    world.event(skein_io::Event::Closed { owner: pending });
+    assert_eq!(world.up.pop(), Some(Event::Closed));
+    assert!(world.up.is_empty());
+}
+
+#[test]
+fn a_close_after_an_abort_changes_nothing() {
+    let mut world = AbortHost::new();
+    world.down(Request::Abort);
+
+    world.down(Request::Close);
+
+    assert!(world.up.is_empty() && world.io.is_empty());
+    world.bind_all();
+    world.take_aborts();
+    assert!(world.up.is_empty());
+    assert!(world.host.runs.is_empty());
+    assert_eq!(world.host.next_deadline(), None);
+}
+
+#[test]
+fn closed_follows_an_abort_once() {
+    let mut world = AbortHost::new();
+    world.bind_all();
+    world.down(Request::Abort);
+    world.take_aborts();
+
+    world.down(Request::Abort);
+    assert!(world.up.is_empty() && world.io.is_empty());
+    let (first, _) = *world.bindings.get(0).expect("first connection");
+    let (last, _) = *world.bindings.get(1).expect("last connection");
+    world.event(skein_io::Event::Closed { owner: first });
+    assert!(world.up.is_empty());
+    world.event(skein_io::Event::Closed { owner: last });
+    assert_eq!(world.up.pop(), Some(Event::Closed));
+    world.event(skein_io::Event::Closed { owner: last });
+    world.down(Request::Abort);
+    world.down(Request::Close);
+    world.fire();
+    assert!(world.up.is_empty() && world.io.is_empty());
+    assert!(world.host.connections.is_empty());
+    assert_eq!(world.host.next_deadline(), None);
+}
+
+#[test]
+fn an_empty_host_aborts_once_without_waiting() {
+    let mut world = AbortHost::empty();
+
+    world.down(Request::Abort);
+
+    assert_eq!(world.up.pop(), Some(Event::Closed));
+    world.down(Request::Abort);
+    world.fire();
+    assert!(world.up.is_empty() && world.io.is_empty());
+    assert_eq!(world.host.next_deadline(), None);
+}
+
 #[test]
 fn abort_upgrades_a_graceful_close_already_sent_to_io() {
     use crate::host::connection::Connection;

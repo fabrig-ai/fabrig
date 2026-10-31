@@ -109,9 +109,17 @@ pub(super) enum Dialect {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Request {
-    Run { run: Token, plan: Plan },
-    Answer { run: Token, answer: Answer },
+    Run {
+        run: Token,
+        plan: Plan,
+    },
+    Answer {
+        run: Token,
+        answer: Answer,
+    },
     Close,
+    /// Ends the held runs and aborts every connection without waiting.
+    Abort,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Answer {
