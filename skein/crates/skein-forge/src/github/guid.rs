@@ -1,4 +1,5 @@
 //! A delivery's UUID text (forge-github.md, 9.2).
+use skein_lib::hex;
 
 /// Reads exactly 8-4-4-4-12 hexadecimal digits, in either case.
 #[must_use]
@@ -39,7 +40,7 @@ pub fn write(guid: &[u8; 16]) -> [u8; 36] {
         }
         let byte = guid.get(digits.checked_div(2).expect("divisor is two")).expect("32 UUID digits");
         let value = if digits.is_multiple_of(2) { byte >> 4_u32 } else { byte & 15 };
-        *target = *b"0123456789abcdef".get(usize::from(value)).expect("a hexadecimal digit");
+        *target = hex::lower(value);
         digits = digits.checked_add(1).expect("32 UUID digits");
     }
     text
