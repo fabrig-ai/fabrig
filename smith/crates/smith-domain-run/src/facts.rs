@@ -452,8 +452,6 @@ fn answered(answer: &Answer) -> Answered {
 
 #[cfg(test)]
 mod carrier_tests {
-    #![expect(clippy::disallowed_macros, reason = "test modules are ordinary Rust: programming-model.md 10.2")]
-
     use super::*;
     use crate::boundary::Stop;
     use crate::budget::Budget;
