@@ -805,7 +805,7 @@ fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_c
     let turn = smith_transcript::Turn::new(&smith_transcript::CEILINGS, turn).expect("opening turn");
     let mut bytes = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("turn length"));
     turn.encode(&mut bytes).expect("turn body");
-    start.transcript = smith_protocol_channel::transcript_piece(&[bytes.finish()]).expect("transcript piece");
+    start.transcript = smith_protocol_translate::transcript_piece(&[bytes.finish()]).expect("transcript piece");
     let start = smith_channel::Start::new(&smith_channel::CEILINGS, start).expect("start with history");
     let mut bytes = skein_lib::Writer::new(usize::try_from(start.measure()).expect("start bytes"));
     start.encode(&mut bytes).expect("start body");

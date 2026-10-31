@@ -803,7 +803,7 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
             wire::GrantParts { account: 7, generation: 2, valid: Duration::from_secs(3600), value },
         )
         .expect("bounded wire grant");
-        let refresh = crate::translate::refreshed_grant(&grant);
+        let refresh = smith_protocol_translate::refreshed_grant(&grant);
         assert_eq!(
             refresh,
             smith_domain::Grant {

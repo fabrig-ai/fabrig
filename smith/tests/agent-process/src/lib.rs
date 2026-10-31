@@ -199,7 +199,9 @@ fn configuration_for(provider: skein_llm::Provider) -> agent::Config {
 
 fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limits) -> agent::Config {
     let mut endpoints = List::with_capacity(1);
-    endpoints.push(channel::Endpoint { name: Box::default(), number: 0, dialect: 1 }).expect("one endpoint");
+    endpoints
+        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 0, dialect: 1 })
+        .expect("one endpoint");
     let llm_endpoints = llm::Endpoints::new(
         Box::new([llm::ConfiguredEndpoint {
             connect: skein_lib::Duration::from_secs(1),
@@ -254,7 +256,7 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
                 idle: Duration::from_secs(3),
             }]),
         },
-        channel_endpoints: channel::Endpoints::new(endpoints),
+        channel_endpoints: smith_protocol_translate::Endpoints::new(endpoints),
         llm_endpoints,
         environment: smith_protocol_machine::Environment::encode(&[], &limits.machine).expect("empty environment fits"),
         stream_mode: StreamMode::Two,

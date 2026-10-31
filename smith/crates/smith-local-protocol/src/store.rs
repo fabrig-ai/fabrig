@@ -18,7 +18,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Reader, Token, Writer};
 use smith_domain::Transcript;
 use smith_local_domain::ChatState;
-use smith_protocol_channel::{self as channel, Endpoints};
+use smith_protocol_translate::{self as channel, Endpoints};
 use smith_transcript as transcript;
 
 /// One file replacement; the service acknowledges it only after a durable store terminal.
@@ -112,7 +112,9 @@ pub fn save_turn(
     if place == 0 || place != turn.sequence {
         return Err(StoreError::Malformed);
     }
-    let Ok(bytes) = channel::encode_turn(turn, limits, endpoints) else { return Err(StoreError::Turn) };
+    let Ok(bytes) = smith_protocol_translate::encode_turn(turn, limits, endpoints) else {
+        return Err(StoreError::Turn);
+    };
     let read = match read {
         Some(read) => Some(read.raw()),
         None => None,
@@ -181,11 +183,11 @@ pub(super) fn decode_turns_bounded(
         bodies.push(record.body).expect("bounded turn count");
     }
     let count = bodies.len();
-    let piece = channel::transcript_piece(bodies.as_slice()).ok_or(StoreError::Malformed)?;
+    let piece = smith_protocol_translate::transcript_piece(bodies.as_slice()).ok_or(StoreError::Malformed)?;
     // The aggregate piece now owns the bodies' bytes. Release those copies
     // before typed transcript decoding; whole-envelope reads have their own copy.
     drop(bodies);
-    match channel::decode_transcript(&piece, count, u32::MAX, limits, endpoints) {
+    match smith_protocol_translate::decode_transcript(&piece, count, u32::MAX, limits, endpoints) {
         Ok(transcript) => Ok((transcript, last_read)),
         Err(_) => Err(StoreError::Malformed),
     }
@@ -226,7 +228,9 @@ pub(crate) mod tests {
 
     pub(crate) fn fixture() -> (Endpoints, smith_domain::Turn) {
         let mut entries = List::with_capacity(1);
-        entries.push(channel::Endpoint { name: Box::from(&b"main"[..]), number: 2, dialect: 1 }).expect("one endpoint");
+        entries
+            .push(smith_protocol_translate::Endpoint { name: Box::from(&b"main"[..]), number: 2, dialect: 1 })
+            .expect("one endpoint");
         let endpoints = Endpoints::new(entries);
         let turn = smith_domain::Turn {
             model: b"model".as_slice().into(),

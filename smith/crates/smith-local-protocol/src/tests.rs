@@ -303,7 +303,7 @@ fn invalid_limits_are_refused() {
             root,
             skein_io::kernel::Fd::new(3),
             limits,
-            smith_protocol_channel::Endpoints::new(skein_lib::List::with_capacity(0)),
+            smith_protocol_translate::Endpoints::new(skein_lib::List::with_capacity(0)),
         )
     };
     assert!(crate::Store::valid(&store));

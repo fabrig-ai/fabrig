@@ -82,7 +82,7 @@ pub struct Limits {
 pub struct Config {
     pub limits: Limits,
     pub domain: domain::Config,
-    pub channel_endpoints: channel::Endpoints,
+    pub channel_endpoints: smith_protocol_translate::Endpoints,
     pub llm_endpoints: llm::Endpoints,
     pub environment: machine::Environment,
     pub stream_mode: StreamMode,
@@ -186,7 +186,7 @@ pub struct Service {
     pub(crate) final_detail: Box<[u8]>,
     outcome: Option<run::outcome::OutcomeSpec>,
     delivery: Option<run::outcome::ChangeSpec>,
-    pending_start: Option<Box<channel::DecodedStart>>,
+    pending_start: Option<Box<smith_protocol_translate::DecodedStart>>,
     directories: List<run::Directory>,
     root_index: u32,
     pipe_routes: Map<Token, Token>,
@@ -575,18 +575,18 @@ impl Service {
 }
 
 /// Install only credential forms; accounts-sources supplies the program backend.
-fn credential(value: &channel::GrantValue) -> Option<skein_llm::Credential> {
+fn credential(value: &smith_protocol_translate::GrantValue) -> Option<skein_llm::Credential> {
     let credential = match value {
-        channel::GrantValue::Bearer(value) => skein_llm::Credential::bearer(value.clone()),
-        channel::GrantValue::Key(value) => skein_llm::Credential::key(value.clone()),
-        channel::GrantValue::Withdrawn { account_id, bearer } => {
+        smith_protocol_translate::GrantValue::Bearer(value) => skein_llm::Credential::bearer(value.clone()),
+        smith_protocol_translate::GrantValue::Key(value) => skein_llm::Credential::key(value.clone()),
+        smith_protocol_translate::GrantValue::Withdrawn { account_id, bearer } => {
             if account_id.is_empty() {
                 skein_llm::Credential::bearer(bearer.clone())
             } else {
                 skein_llm::Credential::codex(bearer.clone(), account_id.clone())
             }
         }
-        channel::GrantValue::Program(_) => return None,
+        smith_protocol_translate::GrantValue::Program(_) => return None,
     };
     if credential.value.is_empty() {
         return None;

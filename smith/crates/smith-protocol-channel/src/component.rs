@@ -9,13 +9,13 @@ use crate::calls;
 use crate::credentials::Credentials;
 use crate::facts;
 use crate::limits::{Error, Limits};
-use crate::transcript::decode_transcript;
-use crate::translate::{
-    DecodedStart, Endpoints, answer_record, decode_charter, invalid_start, saved_delivery, start_context,
-};
-use crate::turn::encode_turn;
 use smith_domain::run;
 use smith_domain_session::record;
+use smith_protocol_translate::decode_transcript;
+use smith_protocol_translate::encode_turn;
+use smith_protocol_translate::{
+    DecodedStart, Endpoints, answer_record, decode_charter, invalid_start, saved_delivery, start_context,
+};
 
 mod notices;
 
@@ -810,8 +810,9 @@ impl Component {
                             };
                             match kept {
                                 Ok(()) => {
-                                    to_service
-                                        .push(OpenEvent::Grant { grant: crate::translate::refreshed_grant(grant) });
+                                    to_service.push(OpenEvent::Grant {
+                                        grant: smith_protocol_translate::refreshed_grant(grant),
+                                    });
                                     self.machine.down(Request::Read, &mut self.events, below);
                                 }
                                 Err(_) => self.refuse_rules(below),

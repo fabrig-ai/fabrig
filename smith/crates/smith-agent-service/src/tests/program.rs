@@ -76,10 +76,14 @@ fn a_program_run_withholds_sub_agents() {
             let bounds = limits(1);
             let mut producer = Producer {
                 sinks: Sinks::new(&bounds, Capture::Calls, bounds.output, crate::sinks::tests::DEADLINE),
-                names: channel::Endpoints::new({
+                names: smith_protocol_translate::Endpoints::new({
                     let mut names = List::with_capacity(1);
                     names
-                        .push(channel::Endpoint { name: b"endpoint".as_slice().into(), number: 1, dialect: 1 })
+                        .push(smith_protocol_translate::Endpoint {
+                            name: b"endpoint".as_slice().into(),
+                            number: 1,
+                            dialect: 1,
+                        })
                         .unwrap();
                     names
                 }),

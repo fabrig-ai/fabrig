@@ -60,7 +60,7 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
     };
     let values = crate::Values {
         paths: Box::from([Box::from(*b"/tmp/src")]),
-        credentials: Box::from([smith_protocol_channel::GrantValue::Bearer(Box::from(&b"secret"[..]))]),
+        credentials: Box::from([smith_protocol_translate::GrantValue::Bearer(Box::from(&b"secret"[..]))]),
     };
     let frame = crate::encode_start(
         start,
@@ -78,11 +78,12 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
     assert_eq!(start.activation(), 3);
     assert_eq!(start.identity(), &Some(*b"stable-chat-name"));
     assert_eq!(
-        smith_protocol_channel::decode_charter(start.charter(), &limits.charter, &endpoints()).expect("typed charter"),
+        smith_protocol_translate::decode_charter(start.charter(), &limits.charter, &endpoints())
+            .expect("typed charter"),
         smith_host_world::charter_value(7).into_value()
     );
     assert_eq!(
-        smith_protocol_channel::decode_transcript(start.transcript(), 64, u32::MAX, &limits.transcript, &endpoints())
+        smith_protocol_translate::decode_transcript(start.transcript(), 64, u32::MAX, &limits.transcript, &endpoints())
             .expect("typed transcript")
             .expect("history"),
         smith_host_world::transcript_value(512).into_value()
@@ -322,10 +323,10 @@ fn host_stop_signals_keep_the_child_identity() {
     assert_eq!(below.pop(), Some(IoRequest::Signal { child, to: kernel::Target::Child, signal: kernel::Signal::Kill }));
 }
 
-pub(super) fn endpoints() -> smith_protocol_channel::Endpoints {
+pub(super) fn endpoints() -> smith_protocol_translate::Endpoints {
     let mut names = skein_lib::List::with_capacity(1);
-    names.push(smith_protocol_channel::Endpoint { name: Box::new([]), number: 0, dialect: 0 }).expect("one endpoint");
-    smith_protocol_channel::Endpoints::new(names)
+    names.push(smith_protocol_translate::Endpoint { name: Box::new([]), number: 0, dialect: 0 }).expect("one endpoint");
+    smith_protocol_translate::Endpoints::new(names)
 }
 
 #[test]
@@ -424,7 +425,7 @@ fn invalid_start_round_trip_keeps_every_budget_reason_and_price_rate() {
         (run::Invalid::Price(run::Rate::Output), host::RunInvalid::Price(host::Rate::Output)),
     ];
     for (reason, expected) in reasons {
-        let record = smith_protocol_channel::answer_record(
+        let record = smith_protocol_translate::answer_record(
             skein_lib::Time::ZERO,
             run::Answer::Refused(run::Refusal::Invalid(reason)),
             None,
@@ -482,7 +483,7 @@ fn the_answer_carries_the_exhausted_account_and_its_remaining_wait() {
             spent: run::Spend::ZERO,
             turns: 0,
         };
-        let record = smith_protocol_channel::answer_record(
+        let record = smith_protocol_translate::answer_record(
             Time::from_nanos(20_000_000),
             answer,
             None,
@@ -515,7 +516,7 @@ fn the_answer_carries_budget_usage_and_bound_in_the_runs_unit() {
             spent: run::Spend::ZERO,
             turns: 0,
         };
-        let record = smith_protocol_channel::answer_record(
+        let record = smith_protocol_translate::answer_record(
             Time::ZERO,
             answer,
             None,

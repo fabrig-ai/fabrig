@@ -71,7 +71,12 @@ impl Effects {
     }
 
     /// Install a grant's tagged value before supplying the grant to the domain.
-    pub fn grant(&mut self, grant: domain::Grant, value: &channel::GrantValue, now: Time) -> Result<(), Failure> {
+    pub fn grant(
+        &mut self,
+        grant: domain::Grant,
+        value: &smith_protocol_translate::GrantValue,
+        now: Time,
+    ) -> Result<(), Failure> {
         if self.installed.get(&grant.name.account) == Some(&grant.name) {
             return Ok(());
         }

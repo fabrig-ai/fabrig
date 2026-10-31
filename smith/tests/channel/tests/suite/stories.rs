@@ -99,21 +99,21 @@ fn a_start_record_that_does_not_decode_breaks_the_channel_rules() {
 fn the_agent_resolves_the_charters_endpoint_before_admission() {
     let mut entries = skein_lib::List::with_capacity(1);
     entries
-        .push(smith_protocol_channel::Endpoint { name: Box::default(), number: 17, dialect: 23 })
+        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 17, dialect: 23 })
         .expect("one endpoint");
-    let endpoints = smith_protocol_channel::Endpoints::new(entries);
+    let endpoints = smith_protocol_translate::Endpoints::new(entries);
     let bytes = include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");
     let charter =
-        smith_protocol_channel::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints).expect("v4 charter");
+        smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints).expect("v4 charter");
     assert_eq!(charter.llm.endpoint.0, 17);
     assert_eq!(charter.llm.dialect, 23);
     assert_eq!(charter.llm.account, None);
     assert!(charter.brief.sections.is_empty());
     assert!(charter.models.is_empty());
-    let unknown = smith_protocol_channel::decode_charter(
+    let unknown = smith_protocol_translate::decode_charter(
         bytes,
         &smith_charter::CEILINGS,
-        &smith_protocol_channel::Endpoints::new(skein_lib::List::with_capacity(0)),
+        &smith_protocol_translate::Endpoints::new(skein_lib::List::with_capacity(0)),
     );
     assert!(matches!(unknown, Err(smith_domain::run::Invalid::Endpoint)));
 }
@@ -125,17 +125,17 @@ fn the_full_charter_keeps_contracts_tools_and_model_prices() {
         .expect("full charter");
     let mut entries = skein_lib::List::with_capacity(1 + wire.models().len());
     entries
-        .push(smith_protocol_channel::Endpoint { name: Box::from(wire.main().endpoint()), number: 17, dialect: 23 })
+        .push(smith_protocol_translate::Endpoint { name: Box::from(wire.main().endpoint()), number: 17, dialect: 23 })
         .expect("main endpoint");
     for model in wire.models() {
         entries
-            .push(smith_protocol_channel::Endpoint { name: Box::from(model.endpoint()), number: 17, dialect: 23 })
+            .push(smith_protocol_translate::Endpoint { name: Box::from(model.endpoint()), number: 17, dialect: 23 })
             .expect("model endpoint");
     }
-    let charter = smith_protocol_channel::decode_charter(
+    let charter = smith_protocol_translate::decode_charter(
         bytes,
         &smith_charter::CEILINGS,
-        &smith_protocol_channel::Endpoints::new(entries),
+        &smith_protocol_translate::Endpoints::new(entries),
     )
     .expect("translated charter");
     assert_eq!(charter.instructions.as_ref(), wire.instructions());
@@ -164,7 +164,7 @@ fn an_accepted_report_keeps_its_fields_in_the_charter() {
             value: Box::from(*b"agent"),
         }]),
     });
-    let bytes = smith_protocol_channel::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
+    let bytes = smith_protocol_translate::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
     let record = smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("result decodes");
     assert!(matches!(record.form(), smith_charter::Form::Report));
@@ -187,7 +187,7 @@ fn an_accepted_verdict_keeps_its_label_and_items() {
             }]),
         }]),
     });
-    let bytes = smith_protocol_channel::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
+    let bytes = smith_protocol_translate::encode_result(&result, &smith_charter::CEILINGS).expect("bounded result");
     let record = smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("result decodes");
     assert!(matches!(record.form(), smith_charter::Form::Verdict));
@@ -236,9 +236,14 @@ fn a_model_failure_keeps_transport_evidence_and_cooldown() {
         spent: smith_domain::run::Spend::ZERO,
         turns: 2,
     };
-    let record =
-        smith_protocol_channel::answer_record(skein_lib::Time::ZERO, answer, None, &CEILINGS, &smith_charter::CEILINGS)
-            .expect("bounded failure");
+    let record = smith_protocol_translate::answer_record(
+        skein_lib::Time::ZERO,
+        answer,
+        None,
+        &CEILINGS,
+        &smith_charter::CEILINGS,
+    )
+    .expect("bounded failure");
     assert_eq!(record.turns(), 2);
     let smith_channel::RunResult::Failed(failed) = record.result() else {
         panic!("expected failure");
@@ -738,14 +743,14 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
         .expect("one forwarded turn");
     let mut endpoints = skein_lib::List::with_capacity(1);
     endpoints
-        .push(smith_protocol_channel::Endpoint { name: Box::default(), number: 0, dialect: 0 })
+        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 0, dialect: 0 })
         .expect("one endpoint");
-    let transcript = smith_protocol_channel::decode_transcript(
-        &smith_protocol_channel::transcript_piece(&[body]).expect("fixture piece"),
+    let transcript = smith_protocol_translate::decode_transcript(
+        &smith_protocol_translate::transcript_piece(&[body]).expect("fixture piece"),
         1,
         u32::MAX,
         &smith_transcript::CEILINGS,
-        &smith_protocol_channel::Endpoints::new(endpoints),
+        &smith_protocol_translate::Endpoints::new(endpoints),
     )
     .expect("decoded turn")
     .expect("one turn");
@@ -1246,7 +1251,7 @@ fn a_fact_projects_its_emission_time_relative_to_the_activation_start() {
 #[cfg(test)]
 mod charter_round_trip {
     use skein_lib::{List, Reader};
-    use smith_protocol_channel::{Endpoints, encode_charter};
+    use smith_protocol_translate::{Endpoints, encode_charter};
 
     #[test]
     fn complete_charter_policy_round_trips_without_local_contract_assumptions() {
@@ -1255,21 +1260,24 @@ mod charter_round_trip {
             smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(bytes)).expect("full golden");
         let mut names = List::with_capacity(16);
         names
-            .push(smith_protocol_channel::Endpoint { name: Box::from(wire.main().endpoint()), number: 0, dialect: 0 })
+            .push(smith_protocol_translate::Endpoint { name: Box::from(wire.main().endpoint()), number: 0, dialect: 0 })
             .expect("main endpoint");
         for model in wire.models() {
             if model.endpoint() != wire.main().endpoint() {
                 let number = names.len();
                 names
-                    .push(smith_protocol_channel::Endpoint { name: Box::from(model.endpoint()), number, dialect: 0 })
+                    .push(smith_protocol_translate::Endpoint { name: Box::from(model.endpoint()), number, dialect: 0 })
                     .expect("child endpoint");
             }
         }
         let endpoints = Endpoints::new(names);
-        let policy = smith_protocol_channel::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints)
+        let policy = smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints)
             .expect("typed full policy");
         let encoded = encode_charter(&policy, &smith_charter::CEILINGS, &endpoints).expect("full policy encodes");
-        assert_eq!(smith_protocol_channel::decode_charter(&encoded, &smith_charter::CEILINGS, &endpoints), Ok(policy));
+        assert_eq!(
+            smith_protocol_translate::decode_charter(&encoded, &smith_charter::CEILINGS, &endpoints),
+            Ok(policy)
+        );
     }
 }
 
@@ -1410,7 +1418,7 @@ fn account_fault_record(fault: smith_domain::run::Fault) -> smith_channel::Answe
         spent: smith_domain::run::Spend::ZERO,
         turns: 0,
     };
-    smith_protocol_channel::answer_record(
+    smith_protocol_translate::answer_record(
         skein_lib::Time::from_nanos(20_000_000),
         answer,
         None,
@@ -1450,8 +1458,8 @@ fn a_refused_account_is_written_with_its_code() {
     }
 }
 
-fn grant_shape(value: Option<smith_protocol_channel::GrantValue>) -> Option<(&'static str, usize, usize)> {
-    use smith_protocol_channel::GrantValue;
+fn grant_shape(value: Option<smith_protocol_translate::GrantValue>) -> Option<(&'static str, usize, usize)> {
+    use smith_protocol_translate::GrantValue;
     value.map(|value| match value {
         GrantValue::Bearer(bytes) => ("bearer", bytes.len(), 0),
         GrantValue::Key(bytes) => ("key", bytes.len(), 0),
@@ -1462,7 +1470,7 @@ fn grant_shape(value: Option<smith_protocol_channel::GrantValue>) -> Option<(&'s
 
 #[test]
 fn each_grant_form_reaches_the_table_by_its_tag() {
-    use smith_protocol_channel::GrantValue;
+    use smith_protocol_translate::GrantValue;
     // Sizes follow the fixture words below.
     const VALUE_BYTES: usize = 5;
     const SOURCE_BYTES: usize = 6;
@@ -1487,7 +1495,7 @@ fn each_grant_form_reaches_the_table_by_its_tag() {
 
 #[test]
 fn a_grant_values_debug_shows_no_bytes() {
-    use smith_protocol_channel::GrantValue;
+    use smith_protocol_translate::GrantValue;
     const HIDDEN: &str = "[redacted grant value]";
     let rows = [
         (GrantValue::Bearer(Box::from(&b"secret"[..])), HIDDEN),

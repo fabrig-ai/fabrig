@@ -162,8 +162,8 @@ impl Host for Tracing {
         agent::iterate(&mut self.service, now, wall);
         while self.service.root_to_open().is_some() {
             let path = self.service.root_to_open().expect("pending root");
-            let host =
-                smith_protocol_channel::host_path(path, self.service.host_path_bytes()).expect("absolute fixture path");
+            let host = smith_protocol_translate::host_path(path, self.service.host_path_bytes())
+                .expect("absolute fixture path");
             self.service.root_opened(self.roots.next().ok_or(()), host);
         }
         self.channel_loss = self.service.lost_channel_facts();
@@ -236,7 +236,7 @@ pub(super) fn event_limits(limits: &agent::Limits) -> agent::EventLimits {
 
 fn effective_header(
     limits: &agent::Limits,
-    names: &smith_protocol_channel::Endpoints,
+    names: &smith_protocol_translate::Endpoints,
     endpoints: &smith_protocol_llm::Endpoints,
 ) -> List<smith_events::EffectiveLimit> {
     let configuration = crate::declarations(limits.machine.env_bytes);

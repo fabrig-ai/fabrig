@@ -93,18 +93,18 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         let turn = final_world.turns.last().expect("the actual final completion produces a durable turn");
         let mut names = skein_lib::List::with_capacity(1);
         names
-            .push(smith_protocol_channel::Endpoint {
+            .push(smith_protocol_translate::Endpoint {
                 name: b"model-endpoint".as_slice().into(),
                 number: turn.endpoint.expect("named endpoint").0,
                 dialect: turn.dialect,
             })
             .expect("one declared endpoint");
-        let names = smith_protocol_channel::Endpoints::new(names);
-        smith_protocol_channel::encode_turn(turn, &limits.channel.transcript, &names)
+        let names = smith_protocol_translate::Endpoints::new(names);
+        smith_protocol_translate::encode_turn(turn, &limits.channel.transcript, &names)
             .expect("derived transcript receiving holds opening, final note, assistant and settled results");
         let mut short = limits.channel.transcript;
         short.turn_messages = u32::try_from(turn.messages.len()).expect("bounded turn") - 1;
-        assert!(smith_protocol_channel::encode_turn(turn, &short, &names).is_err(), "one missing message refuses");
+        assert!(smith_protocol_translate::encode_turn(turn, &short, &names).is_err(), "one missing message refuses");
         final_world.close();
     }
 }

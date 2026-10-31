@@ -85,7 +85,7 @@ impl Process {
         agent: Token,
         limits: &Limits,
         detail_bytes: u32,
-        endpoints: smith_protocol_channel::Endpoints,
+        endpoints: smith_protocol_translate::Endpoints,
     ) -> Result<Process, Error> {
         assert!(agent.raw() < (1_u64 << 63_u32), "domain owner fits the process-owner namespace");
         Ok(Process {
@@ -208,7 +208,7 @@ impl Process {
     pub fn send_grant(
         &mut self,
         grant: channel::Grant,
-        credential: smith_protocol_channel::GrantValue,
+        credential: smith_protocol_translate::GrantValue,
         token: Token,
         above: &mut Queue<ProcessEvent>,
         below: &mut Queue<IoRequest>,

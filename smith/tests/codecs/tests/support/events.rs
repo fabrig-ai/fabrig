@@ -1981,7 +1981,7 @@ fn end_samples() -> Vec<(&'static str, Record, Capture)> {
         ));
     }
     let mut aborted = value_session_ended();
-    aborted.aborted = Some(true);
+    aborted.aborted = true;
     samples.push((
         "session_ended_aborted",
         Record { t_ms: u64::MAX, event: Event::SessionEnded(aborted) },

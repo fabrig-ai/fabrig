@@ -146,7 +146,7 @@ fn start(live: Option<host::channel::LiveAsk>) -> host::Start {
         activation: 1,
         workspace: None,
         charter: host::Charter::new(
-            smith_protocol_channel::decode_charter(
+            smith_protocol_translate::decode_charter(
                 &agent_fixture::charter(),
                 &smith_charter::CEILINGS,
                 &agent_fixture::configuration().channel_endpoints,
@@ -506,7 +506,7 @@ impl HostService {
                 window,
                 protocol::Values {
                     paths: Box::new([]),
-                    credentials: Box::new([smith_protocol_channel::GrantValue::Withdrawn {
+                    credentials: Box::new([smith_protocol_translate::GrantValue::Withdrawn {
                         account_id: Box::from(&b"acc"[..]),
                         bearer: Box::from(&b"token"[..]),
                     }]),
@@ -529,7 +529,7 @@ impl HostService {
             }
             host::Down::Grant { grant } => process.send_grant(
                 grant,
-                smith_protocol_channel::GrantValue::Withdrawn {
+                smith_protocol_translate::GrantValue::Withdrawn {
                     account_id: Box::from(&b"acc"[..]),
                     bearer: Box::from(&b"token"[..]),
                 },

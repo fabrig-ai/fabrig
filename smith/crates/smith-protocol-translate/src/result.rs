@@ -11,9 +11,6 @@ pub fn decode_declared(bytes: &[u8], limits: &smith_charter::v4::Limits) -> Resu
     let Ok(record) = smith_charter::RunResult::decode(limits, &mut reader) else {
         return Err(Error::InvalidResult);
     };
-    if reader.remaining() != 0 {
-        return Err(Error::InvalidResult);
-    }
     let fields = decode_fields(record.fields())?;
     let declared = match record.form() {
         smith_charter::Form::Change => {

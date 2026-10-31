@@ -11,7 +11,7 @@ use smith_events::{EffectiveLimit, LimitValue};
 #[must_use]
 pub fn header(
     limits: &[Limit],
-    names: &smith_protocol_channel::Endpoints,
+    names: &smith_protocol_translate::Endpoints,
     configuration: &Configuration,
 ) -> Option<List<EffectiveLimit>> {
     let mut result = List::with_capacity(u32::try_from(limits.len()).ok()?);
@@ -38,7 +38,7 @@ pub fn header(
 
 fn name(
     limit: &LimitName,
-    names: &smith_protocol_channel::Endpoints,
+    names: &smith_protocol_translate::Endpoints,
     configuration: &Configuration,
 ) -> Option<Box<[u8]>> {
     let mut parts: [&[u8]; 8] = [limit.layer.name().as_bytes(), b".", limit.field.as_bytes(), b"", b"", b"", b"", b""];

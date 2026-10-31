@@ -252,14 +252,14 @@ impl Service {
 
 pub(super) fn install(
     service: &mut Service,
-    start: &channel::DecodedStart,
+    start: &smith_protocol_translate::DecodedStart,
     name: domain::GrantName,
-    value: &channel::GrantValue,
+    value: &smith_protocol_translate::GrantValue,
     lapses: skein_lib::Time,
     workspace: Option<&domain::run::Workspace>,
 ) -> Result<(), ()> {
     match value {
-        channel::GrantValue::Program(source) => {
+        smith_protocol_translate::GrantValue::Program(source) => {
             let program = service.program.as_mut().ok_or(())?;
             if start.charter.llm.account != Some(name.account)
                 || !program.endpoints.contains(&start.charter.llm.endpoint.0)
@@ -292,7 +292,9 @@ pub(super) fn install(
             program.backend.run_time(start.charter.budget.time);
             program.backend.grant(backend::Grant { name, source: source.clone(), lapses }).or(Err(()))
         }
-        channel::GrantValue::Bearer(_) | channel::GrantValue::Key(_) | channel::GrantValue::Withdrawn { .. } => {
+        smith_protocol_translate::GrantValue::Bearer(_)
+        | smith_protocol_translate::GrantValue::Key(_)
+        | smith_protocol_translate::GrantValue::Withdrawn { .. } => {
             if let Some(program) = &service.program {
                 for model in core::iter::once(&start.charter.llm).chain(start.charter.models.iter()) {
                     if model.account == Some(name.account) && program.endpoints.contains(&model.endpoint.0) {
@@ -305,13 +307,13 @@ pub(super) fn install(
     }
 }
 
-pub(super) fn renew(service: &mut Service, grant: domain::Grant, value: &channel::GrantValue) -> bool {
+pub(super) fn renew(service: &mut Service, grant: domain::Grant, value: &smith_protocol_translate::GrantValue) -> bool {
     let program = match &mut service.program {
         Some(program) if program.backend.holds(grant.name) => program,
         Some(_) | None => return false,
     };
     let accepted = match value {
-        channel::GrantValue::Program(source) => program
+        smith_protocol_translate::GrantValue::Program(source) => program
             .backend
             .grant(backend::Grant {
                 name: grant.name,
@@ -319,7 +321,9 @@ pub(super) fn renew(service: &mut Service, grant: domain::Grant, value: &channel
                 lapses: service.domain_env.now.saturating_add(grant.valid),
             })
             .is_ok(),
-        channel::GrantValue::Bearer(_) | channel::GrantValue::Key(_) | channel::GrantValue::Withdrawn { .. } => false,
+        smith_protocol_translate::GrantValue::Bearer(_)
+        | smith_protocol_translate::GrantValue::Key(_)
+        | smith_protocol_translate::GrantValue::Withdrawn { .. } => false,
     };
     if accepted {
         service.domain_events.push(domain::Event::Grant { grant });

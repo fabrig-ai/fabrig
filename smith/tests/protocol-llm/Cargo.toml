@@ -52,4 +52,5 @@ disallowed_methods = "deny"
 [dev-dependencies]
 smith-domain-session.workspace = true
 smith-protocol-channel.workspace = true
+smith-protocol-translate.workspace = true
 smith-transcript.workspace = true

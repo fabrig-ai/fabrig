@@ -21,29 +21,21 @@
 extern crate alloc;
 
 mod calls;
-mod charter;
 mod component;
 mod credentials;
 mod facts;
 mod limits;
 mod live;
-mod result;
-mod transcript;
-mod translate;
-mod turn;
 
 #[cfg(test)]
 mod tests;
 
-pub use charter::encode_charter;
 pub use component::{Component, OpenEvent};
-pub use credentials::{GrantValue, program_name};
 pub use limits::{EdgeRoom, Error, Limits, edge_room, schema, schema_for_start, valid};
 pub use live::{Piece, PieceKind};
-pub use result::decode_declared;
-pub use transcript::{decode_transcript, decode_turn, transcript_piece};
-pub use translate::{
-    DecodedStart, Endpoint, Endpoints, Grant, Mount, answer_record, decode_charter, encode_result, host_path,
-    start_context,
+
+pub use smith_protocol_translate::{
+    DecodedStart, Endpoint, Endpoints, Grant, GrantValue, Mount, answer_record, decode_charter, decode_declared,
+    decode_transcript, decode_turn, encode_charter, encode_result, encode_turn, host_path, program_name, start_context,
+    transcript_piece,
 };
-pub use turn::encode_turn;

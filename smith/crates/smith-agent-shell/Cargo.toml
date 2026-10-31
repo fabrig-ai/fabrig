@@ -20,6 +20,7 @@ smith-domain.workspace = true
 smith-events.workspace = true
 smith-agent-service.workspace = true
 smith-protocol-channel.workspace = true
+smith-protocol-translate.workspace = true
 smith-protocol-llm.workspace = true
 smith-protocol-machine.workspace = true
 smith-channel.workspace = true

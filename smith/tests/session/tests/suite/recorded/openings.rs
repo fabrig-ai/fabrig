@@ -70,16 +70,16 @@ fn each_compactions_window_turn_names_the_charters_llm() {
 fn round_trip(turn: &record::Turn) -> record::Turn {
     let mut configured = skein_lib::List::with_capacity(1);
     configured
-        .push(smith_protocol_channel::Endpoint {
+        .push(smith_protocol_translate::Endpoint {
             name: b"provider".as_slice().into(),
             number: turn.endpoint.expect("named endpoint").0,
             dialect: turn.dialect,
         })
         .expect("endpoint");
-    let endpoints = smith_protocol_channel::Endpoints::new(configured);
+    let endpoints = smith_protocol_translate::Endpoints::new(configured);
     let bytes =
-        smith_protocol_channel::encode_turn(turn, &smith_transcript::CEILINGS, &endpoints).expect("encode turn");
-    smith_protocol_channel::decode_turn(&bytes, turn.sequence, &smith_transcript::CEILINGS, &endpoints)
+        smith_protocol_translate::encode_turn(turn, &smith_transcript::CEILINGS, &endpoints).expect("encode turn");
+    smith_protocol_translate::decode_turn(&bytes, turn.sequence, &smith_transcript::CEILINGS, &endpoints)
         .expect("decode turn")
 }
 

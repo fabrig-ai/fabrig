@@ -119,7 +119,7 @@ struct Start {
 #[derive(Debug)]
 pub struct Producer {
     pub(crate) sinks: Sinks,
-    names: channel::Endpoints,
+    names: smith_protocol_translate::Endpoints,
     programs: Box<[u32]>,
     calls: crate::calls::Book,
     messages: crate::messages::Book,
@@ -187,7 +187,7 @@ impl Producer {
         }
     }
 
-    pub(crate) fn new(limits: &crate::Limits, names: channel::Endpoints) -> Producer {
+    pub(crate) fn new(limits: &crate::Limits, names: smith_protocol_translate::Endpoints) -> Producer {
         let events = limits.events.expect("event configuration exists");
         Producer {
             sinks: Sinks::with_front(
@@ -663,7 +663,7 @@ mod tests {
             let owner = Token::new(11);
             let mut producer = Producer {
                 sinks: Sinks::new(&bounds, Capture::Calls, bounds.output, crate::sinks::tests::DEADLINE),
-                names: channel::Endpoints::new(List::with_capacity(0)),
+                names: smith_protocol_translate::Endpoints::new(List::with_capacity(0)),
                 programs: Box::default(),
                 calls: crate::calls::Book::new(&smith_agent_world::LIMITS.session, Capture::Calls),
                 messages: crate::messages::Book::disabled(),

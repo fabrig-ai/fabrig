@@ -38,6 +38,7 @@ smith-domain.workspace = true
 smith-events.workspace = true
 smith-domain-run.workspace = true
 smith-protocol-channel.workspace = true
+smith-protocol-translate.workspace = true
 smith-protocol-llm.workspace = true
 smith-protocol-machine.workspace = true
 smith-protocol-program.workspace = true

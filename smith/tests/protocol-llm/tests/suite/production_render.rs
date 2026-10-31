@@ -505,9 +505,9 @@ fn saved_outside_choice(choice: Option<Box<[Box<[u8]>]>>) -> llm::NotRun {
     use smith_domain_session::{llm as session, record};
     let mut endpoints = skein_lib::List::with_capacity(1);
     endpoints
-        .push(smith_protocol_channel::Endpoint { name: b"endpoint".as_slice().into(), number: 1, dialect: 0 })
+        .push(smith_protocol_translate::Endpoint { name: b"endpoint".as_slice().into(), number: 1, dialect: 0 })
         .expect("one endpoint");
-    let endpoints = smith_protocol_channel::Endpoints::new(endpoints);
+    let endpoints = smith_protocol_translate::Endpoints::new(endpoints);
     let turn = record::Turn {
         version: record::VERSION,
         kind: record::Kind::First(Box::new(record::Opener {
@@ -532,9 +532,9 @@ fn saved_outside_choice(choice: Option<Box<[Box<[u8]>]>>) -> llm::NotRun {
         }]),
     };
     let bytes =
-        smith_protocol_channel::encode_turn(&turn, &smith_transcript::CEILINGS, &endpoints).expect("saved turn");
-    let resumed =
-        smith_protocol_channel::decode_turn(&bytes, 1, &smith_transcript::CEILINGS, &endpoints).expect("resumed turn");
+        smith_protocol_translate::encode_turn(&turn, &smith_transcript::CEILINGS, &endpoints).expect("saved turn");
+    let resumed = smith_protocol_translate::decode_turn(&bytes, 1, &smith_transcript::CEILINGS, &endpoints)
+        .expect("resumed turn");
     let session::Block::ToolResult {
         result: session::Returned::NotRun { why: session::NotRun::OutsideChoice { choice } },
         ..

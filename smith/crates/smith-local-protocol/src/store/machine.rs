@@ -18,7 +18,7 @@ use skein_io::{
 };
 use skein_lib::{Duration, List, Map, Queue, Time, Token};
 use smith_local_domain::{self as local, ChatState, DeliveryRecord};
-use smith_protocol_channel::Endpoints;
+use smith_protocol_translate::Endpoints;
 
 #[derive(Debug)]
 enum Phase {

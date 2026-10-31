@@ -11,7 +11,7 @@ use smith_channel as channel;
 use smith_charter as wire;
 use smith_domain::run;
 
-use crate::Error;
+use crate::{Endpoints, Error};
 
 /// One directory whose root path the agent service attaches to io.
 #[derive(Debug)]
@@ -153,7 +153,8 @@ fn saved_answers(source: &[channel::AnsweredCall]) -> Result<Box<[smith_domain::
     Ok(answered.into_boxed())
 }
 
-pub(crate) fn saved_delivery(source: &channel::Delivery) -> Result<run::Delivery, Error> {
+/// Decode a settled delivery into its bounded domain value.
+pub fn saved_delivery(source: &channel::Delivery) -> Result<run::Delivery, Error> {
     let delivery = match source {
         channel::Delivery::Delivered(delivered) => {
             let mut receipts = List::with_capacity(delivered.receipts().len());
@@ -201,86 +202,6 @@ pub(crate) fn saved_delivery(source: &channel::Delivery) -> Result<run::Delivery
         channel::Delivery::Stale => run::Delivery::Stale,
     };
     Ok(delivery)
-}
-
-/// One configured endpoint name and its domain-visible identities.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Endpoint {
-    /// Byte name carried by charters and transcripts.
-    pub name: Box<[u8]>,
-    /// Domain-visible endpoint identity.
-    pub number: u32,
-    /// Opaque replay dialect identity.
-    pub dialect: u32,
-}
-
-/// Bounded endpoint names resolved before an agent starts.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Endpoints {
-    entries: List<Endpoint>,
-}
-
-impl Endpoints {
-    /// Retain the checked startup endpoint table.
-    #[must_use]
-    pub fn new(entries: List<Endpoint>) -> Endpoints {
-        Endpoints { entries }
-    }
-
-    /// Number of names retained by the agent.
-    #[must_use]
-    pub(crate) fn len(&self) -> u32 {
-        self.entries.len()
-    }
-
-    /// Whether the configured names fit the channel's endpoint allowance.
-    #[must_use]
-    pub fn fits(&self, count: u32, name_bytes: u32) -> bool {
-        if self.len() > count {
-            return false;
-        }
-        for endpoint in &self.entries {
-            match u32::try_from(endpoint.name.len()) {
-                Ok(length) if length <= name_bytes => {}
-                Ok(_) | Err(_) => return false,
-            }
-        }
-        true
-    }
-
-    /// Find a charter name without exposing endpoint addresses.
-    #[must_use]
-    #[expect(clippy::manual_find, reason = "production steps do not use closures")]
-    pub fn resolve(&self, name: &[u8]) -> Option<&Endpoint> {
-        for endpoint in &self.entries {
-            if endpoint.name.as_ref() == name {
-                return Some(endpoint);
-            }
-        }
-        None
-    }
-
-    /// Find the startup wire name by its unique configured endpoint number.
-    #[must_use]
-    pub fn name_for(&self, number: u32) -> Option<&[u8]> {
-        for endpoint in &self.entries {
-            if endpoint.number == number {
-                return Some(&endpoint.name);
-            }
-        }
-        None
-    }
-
-    /// Find the configured wire name for one domain endpoint and dialect.
-    #[must_use]
-    pub fn name_of(&self, number: u32, dialect: u32) -> Option<&[u8]> {
-        for endpoint in &self.entries {
-            if endpoint.number == number && endpoint.dialect == dialect {
-                return Some(&endpoint.name);
-            }
-        }
-        None
-    }
 }
 
 /// Decode one charter and resolve all LLM endpoint names before admission.
@@ -542,7 +463,8 @@ pub fn answer_record(
     Ok(channel::Answer::new(bodies, channel::AnswerParts { turns, spent, last_read, result })?)
 }
 
-pub(crate) fn invalid_start(invalid: run::Invalid, limits: &channel::Limits) -> Result<channel::InvalidStart, Error> {
+/// Translate a refused charter into the channel refusal vocabulary.
+pub fn invalid_start(invalid: run::Invalid, limits: &channel::Limits) -> Result<channel::InvalidStart, Error> {
     Ok(match invalid {
         run::Invalid::CharterVersion => channel::InvalidStart::CharterVersion,
         run::Invalid::MalformedCharter => channel::InvalidStart::MalformedCharter,
@@ -904,7 +826,8 @@ pub(crate) fn renewable(value: &channel::GrantValue) -> bool {
 }
 
 /// Refresh conversion used after the channel retains the value (protocol/channel.md, section 6).
-pub(crate) fn refreshed_grant(value: &channel::Grant) -> smith_domain::Grant {
+/// Expose only a refreshed grant name and validity to the domain.
+pub fn refreshed_grant(value: &channel::Grant) -> smith_domain::Grant {
     smith_domain::Grant {
         name: smith_domain::GrantName { account: value.account(), generation: value.generation() },
         valid: value.valid(),

@@ -240,7 +240,7 @@ fn open_root(path: &[u8], maximum: u32) -> (Result<Fd, ()>, Box<[u8]>) {
     let host = std::str::from_utf8(path)
         .ok()
         .and_then(|path| std::path::absolute(Path::new(path)).ok())
-        .and_then(|path| smith_protocol_channel::host_path(path.as_os_str().as_encoded_bytes(), maximum));
+        .and_then(|path| smith_protocol_translate::host_path(path.as_os_str().as_encoded_bytes(), maximum));
     let Some(host) = host else {
         return (Err(()), Box::new([]));
     };
@@ -408,7 +408,7 @@ impl Host for Agent {
         while let Some(path) = self.service.root_to_open() {
             let (root, host) = match &mut self.roots {
                 Some(roots) => {
-                    let Some(host) = smith_protocol_channel::host_path(path, self.service.host_path_bytes()) else {
+                    let Some(host) = smith_protocol_translate::host_path(path, self.service.host_path_bytes()) else {
                         self.service.root_opened(Err(()), Box::new([]));
                         continue;
                     };

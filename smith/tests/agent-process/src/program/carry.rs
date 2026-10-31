@@ -27,7 +27,7 @@ pub fn start_with_window(
     let mut start = smith_channel::Start::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.bytes()[8..]))
         .expect("start")
         .into_parts();
-    start.transcript = smith_protocol_channel::transcript_piece(turns).expect("saved window");
+    start.transcript = smith_protocol_translate::transcript_piece(turns).expect("saved window");
     let start = smith_channel::Start::new(&smith_channel::CEILINGS, start).expect("restored start");
     let mut body = Writer::new(start.measure() as usize);
     start.encode(&mut body).expect("start body");
