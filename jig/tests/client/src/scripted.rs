@@ -153,11 +153,27 @@ impl Scripted {
             },
             cut: false,
         };
+        task.acts = crate::test::list([
+            jig_client_domain::contract::Offered {
+                effect: None,
+                act: jig_client_domain::contract::ActKind::Message,
+                admission: jig_client_domain::contract::Admission::Allowed,
+            },
+            jig_client_domain::contract::Offered {
+                effect: None,
+                act: jig_client_domain::contract::ActKind::Cancel,
+                admission: jig_client_domain::contract::Admission::Allowed,
+            },
+        ]);
         task
     }
 
-    fn script_chat(&mut self, party: u64, ask: &jig_client_domain::contract::Ask) {
+    fn script_chat(&mut self, party: u64, wall: Wall, ask: &jig_client_domain::contract::Ask) {
         use jig_client_domain::contract::{Answer, Made, Outcome};
+        if self.chat_projects.iter().any(|(owner, _)| *owner == party) {
+            crate::stories::shared::b_scripted::propose(self, party, ask);
+            crate::stories::shared::b_scripted::cancel(self, party, wall, ask);
+        }
         let jig_client_domain::contract::Ask::Create { project, tasks } = ask else { return };
         if !self.chat_projects.contains(&(party, *project)) || tasks.len() != 1 {
             return;
@@ -169,6 +185,8 @@ impl Scripted {
         let mut task = self.seed_chat(party, *project, member.spec.words.bytes());
         task.flags = member.flags;
         task.label = member.label;
+        task.last_activity = wall;
+        task.changed = wall;
         self.engine
             .script(engine::Rule {
                 party: Some(party),
@@ -325,6 +343,7 @@ impl Front<Test> for Scripted {
     fn seed(&mut self, seed: crate::harness::Seed) {
         use crate::harness::Seed;
         match seed {
+            Seed::Project(facts) => crate::stories::shared::b_seed::scripted(self, facts),
             Seed::ChatProject { party, project } => {
                 assert_eq!(project, 1, "the scripted frame's project");
                 self.chat_projects.insert((party, project));
@@ -364,7 +383,9 @@ impl Front<Test> for Scripted {
                 Event::First(first::Event::Compose { address: *address, composition: composition.clone() })
             })
             .collect();
-        events.push(crate::test::up(jig_client::Up::SignedIn));
+        if self.engine.truth().sign_ins.contains_key(&self.parties[&client]) {
+            events.push(crate::test::up(jig_client::Up::SignedIn));
+        }
         events
     }
     fn wire(&mut self, client: ClientId, now: Time, wall: Wall, request: Request) {
@@ -379,7 +400,7 @@ impl Front<Test> for Scripted {
                 self.last_attempt = Some(attempt);
                 match ask {
                     Ask::Jig(ask) => {
-                        self.script_chat(party, &ask);
+                        self.script_chat(party, wall, &ask);
                         self.engine.send(now, wall, party, key, attempt, *ask).expect("jig send fits");
                     }
                     Ask::Family { scope, record } => {
@@ -617,10 +638,6 @@ impl Front<Test> for Scripted {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the observation table classifies every scripted change without inspecting client state"
-)]
 fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>) {
     match change {
         engine::Change::Source(source) => {
