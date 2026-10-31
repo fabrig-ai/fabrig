@@ -1,6 +1,6 @@
 # The engine's and the worker's services
 
-Provisional, 2026-10-10, revised 2026-10-19. What an application writes
+Provisional, 2026-10-10, revised 2026-10-31. What an application writes
 around its roots to make running processes: the protocol layer that
 composes jig's components with its own, `iterate`, which carries every
 event between io, the components and the root, and `main`, which reads
@@ -208,7 +208,9 @@ down:  released and door outputs → components → io submissions
   watches (skein's `shell.md`, section 12, `next_policy_deadline`): a
   service's `iterate` reports there its root's and its components'
   deadlines, as it reports them for its loop; in one process (section
-  10), over every root and protocol layer it owns.
+  10), over every root and protocol layer it owns. io's own it reports
+  apart, as its mechanism deadline (`next_mechanism_deadline`), and
+  `Host` waits until the earlier of the two.
 
 ## 5. Ending
 

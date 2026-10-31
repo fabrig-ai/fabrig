@@ -713,7 +713,7 @@ fn queued_completions_are_taken_before_a_due_io_timer() {
     let Op::Accept { fd: listener } = accept.kind else { panic!("accept") };
     service.completions.push(Complete { op: accept.op, kind: accept.kind, result: Err(Error::TooManyOpenFiles) });
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    let due = service.next_deadline().expect("the listener retries its exhausted descriptor budget");
+    let due = service.next_mechanism_deadline().expect("the listener retries its exhausted descriptor budget");
     assert!(service.pending(due).io_due, "the retry is an IO timer");
     let read = read.expect("signal read");
     // A one-entry shell completion queue makes this one completion a full reap batch.

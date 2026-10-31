@@ -196,7 +196,7 @@ impl Host for Owner {
         !self.completions.is_empty()
             || (self.io.takes() && !matches!(self.phase, Phase::Waiting | Phase::SignalPending | Phase::Settled))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 
@@ -318,12 +318,6 @@ impl Referee<Owner> for Judge {
                 assert!(bytes.as_ref() == OLD || bytes.as_ref() == NEW);
             }
         }
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         true

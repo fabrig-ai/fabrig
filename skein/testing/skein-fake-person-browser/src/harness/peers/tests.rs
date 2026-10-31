@@ -127,7 +127,7 @@ impl Host for Peer {
             || !self.requests.is_empty()
             || self.stopping && self.listener.is_some()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

@@ -401,7 +401,7 @@ impl Host for Browser {
                 && self.exchange.as_ref().is_some_and(Exchange::has_work)
                 && (self.stage != 5 || self.story != Story::PasteThenListener || self.callback_permitted))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 

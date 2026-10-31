@@ -386,7 +386,7 @@ impl skein_shell::Host for Peer {
             || self.io.is_due(now)
             || self.heartbeat.is_some_and(|at| now >= at)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         if self.started {
             [self.io.next_deadline(), self.heartbeat.filter(|_| !self.closing)].into_iter().flatten().min()
         } else {

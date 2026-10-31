@@ -2,9 +2,8 @@
 use crate::{fixtures, owner::Owner, referee::Judge, visitor::Visitor};
 use skein_fake_oauth as fake;
 use skein_fake_peers::{Transport, oauth as peer};
-use skein_io::kernel;
-use skein_lib::{Queue, Time, Wall, bytes};
-use skein_world::{Host, Memory, Outcome, World};
+use skein_lib::{Wall, bytes};
+use skein_world::{Delegate, Host, Memory, Outcome, World};
 use std::net::Ipv4Addr;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -45,7 +44,7 @@ pub enum Process {
     Issuer(Box<peer::Peer>),
     Visitor(Box<Visitor>),
 }
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Owner(owner) => owner.as_ref(),
@@ -59,32 +58,6 @@ impl Process {
             Self::Issuer(peer) => peer.as_mut(),
             Self::Visitor(visitor) => visitor.as_mut(),
         }
-    }
-}
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 pub(crate) fn issuer(story: Story) -> Process {

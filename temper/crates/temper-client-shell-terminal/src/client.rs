@@ -433,11 +433,13 @@ impl NativeClient {
         }
     }
 }
-fn deadline(policy: Option<Time>, next: Option<Wall>, now: Time, wall: Wall) -> Option<Time> {
+/// The earlier of the shell's deadline and the view's next change, a wall
+/// time, put on the monotonic clock.
+fn deadline(shell: Option<Time>, next: Option<Wall>, now: Time, wall: Wall) -> Option<Time> {
     let view = next.map(|next| {
         now.saturating_add(skein_lib::Duration::from_nanos(next.as_nanos().saturating_sub(wall.as_nanos())))
     });
-    [policy, view].into_iter().flatten().min()
+    [shell, view].into_iter().flatten().min()
 }
 impl Host for NativeClient {
     fn iterate(&mut self, now: Time, wall: Wall) {
@@ -496,10 +498,9 @@ impl Host for NativeClient {
             || !self.out.is_empty()
             || (!matches!(self.phase, Phase::Closing { .. }) && self.started() && self.dirty)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        let policy = [self.shell.next_deadline(), self.next_policy_deadline()].into_iter().flatten().min();
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         let next = if matches!(self.phase, Phase::Closing { .. }) { None } else { self.view.next_change() };
-        deadline(policy, next, self.env.now, self.env.wall)
+        deadline(self.shell.next_deadline(), next, self.env.now, self.env.wall)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         if matches!(self.phase, Phase::Closing { .. }) { None } else { domain::next_deadline(&self.root) }

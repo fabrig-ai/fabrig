@@ -1,6 +1,6 @@
 # The shell kit
 
-Provisional, 2026-10-03, revised 2026-10-23. The design of
+Provisional, 2026-10-03, revised 2026-10-31. The design of
 `skein-shell`: what a service's `main` runs its loop on. The kernel (the
 io_uring backend of the kernel boundary, kernel.md, and the readiness
 backend for hosts without it, macOS among them), the clock and the
@@ -1015,12 +1015,16 @@ every service's `main`.
   `iterate`:
   - `iterate(now, wall)`: one turn, both passes and the reclaim point;
   - its completion and submission queues;
-  - `work_pending(now)`, and `next_deadline()`, its earliest over every
-    layer;
-  - `next_policy_deadline()`, its earliest deadline other than io's own,
-    the mechanics' (io.md, 2): its close and retry deadlines, and the
-    stall deadlines owners state for files. It is the one the teardown
-    invariant watches (testing-strategy.md, 6);
+  - `work_pending(now)`;
+  - `next_mechanism_deadline()`, its earliest of io's own deadlines, the
+    mechanics' (io.md, 2): its close and retry deadlines, and the stall
+    deadlines owners state for files;
+  - `next_policy_deadline()`, its earliest deadline other than io's own:
+    the one the teardown invariant watches (testing-strategy.md, 6).
+    Every host states both; neither has a default, so no host leaves a
+    deadline out by omission;
+  - `next_deadline()`, its earliest over every layer, the earlier of the
+    two. It is provided, so no host merges them by hand;
   - `is_empty()`, when it holds nothing, and `exit()`, its exit status
     once it does;
   - `operations()`, the size of its ring;
@@ -1031,6 +1035,13 @@ every service's `main`.
     (testing.md, 5); `drive` never calls it.
   `Host` is portable: it builds for `wasm32-unknown-unknown`, where a
   world hosts a service with everything handed to it (section 14).
+- **`Delegate`** makes a process that is one of several hosts a host
+  itself: a world's enum of its service and its fakes lends the host each
+  variant holds (`host()`, `host_mut()`), and is that host in every
+  method of `Host`, `state_digest`, `drain` and `exit` among them. Its
+  referee still matches on the variants. A process that adds to its
+  host's behaviour (pauses it, holds a release, counts what passes)
+  implements `Host` itself instead.
 - **A host declares no heap ceiling or worst case.** The simulated
   and real worlds meter each host independently of this interface.
   A scenario may check its measured peak under a named ceiling with

@@ -12,7 +12,7 @@ use skein_lib::{
     Duration, Env, Queue, Time, Token, Wall,
     stream::{Down, Read, Up},
 };
-use skein_shell::Host;
+use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Machine, Referee};
 use smith_fake_claude::{Fake, Story};
 use smith_protocol_program::mcp::{self, Answer, Server, Tool, Verdict};
@@ -290,8 +290,8 @@ impl Host for Agent {
     fn work_pending(&self, _now: Time) -> bool {
         self.io.is_ready() || !self.completions.is_empty() || !self.events.is_empty() || !self.requests.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.io.next_deadline().into_iter().chain(self.server.next_deadline()).min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.server.next_deadline()
@@ -321,68 +321,19 @@ pub enum Process {
     Relay(Box<smith_agent_shell::relay::Process>),
 }
 
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
+impl Delegate for Process {
+    fn host(&self) -> &dyn Host {
         match self {
-            Self::Agent(p) => p.iterate(now, wall),
-            Self::Fake(p) => p.iterate(now, wall),
-            Self::Relay(p) => p.iterate(now, wall),
+            Self::Agent(p) => p.as_ref(),
+            Self::Fake(p) => p.as_ref(),
+            Self::Relay(p) => p.as_ref(),
         }
     }
-    fn completions(&mut self) -> &mut Queue<Complete> {
+    fn host_mut(&mut self) -> &mut dyn Host {
         match self {
-            Self::Agent(p) => p.completions(),
-            Self::Fake(p) => p.completions(),
-            Self::Relay(p) => p.completions(),
-        }
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        match self {
-            Self::Agent(p) => p.submissions(),
-            Self::Fake(p) => p.submissions(),
-            Self::Relay(p) => p.submissions(),
-        }
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        match self {
-            Self::Agent(p) => p.work_pending(now),
-            Self::Fake(p) => p.work_pending(now),
-            Self::Relay(p) => p.work_pending(now),
-        }
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        match self {
-            Self::Agent(p) => p.next_deadline(),
-            Self::Fake(p) => p.next_deadline(),
-            Self::Relay(p) => p.next_deadline(),
-        }
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        match self {
-            Self::Agent(p) => p.next_policy_deadline(),
-            Self::Fake(p) => p.next_policy_deadline(),
-            Self::Relay(p) => p.next_policy_deadline(),
-        }
-    }
-    fn is_empty(&self) -> bool {
-        match self {
-            Self::Agent(p) => p.is_empty(),
-            Self::Fake(p) => p.is_empty(),
-            Self::Relay(p) => p.is_empty(),
-        }
-    }
-    fn exit(&self) -> Option<Exit> {
-        match self {
-            Self::Agent(p) => p.exit(),
-            Self::Fake(p) => p.exit(),
-            Self::Relay(p) => p.exit(),
-        }
-    }
-    fn operations(&self) -> u32 {
-        match self {
-            Self::Agent(p) => p.operations(),
-            Self::Fake(p) => p.operations(),
-            Self::Relay(p) => p.operations(),
+            Self::Agent(p) => p.as_mut(),
+            Self::Fake(p) => p.as_mut(),
+            Self::Relay(p) => p.as_mut(),
         }
     }
 }
@@ -392,7 +343,6 @@ struct Judge {
 }
 
 impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
     fn observe(&mut self, _now: Time, procs: &[Process]) {
         if procs.get(1).is_some_and(|process| process.exit().is_some()) {
             assert_eq!(
@@ -407,17 +357,8 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
-    }
-    fn last_word(&self) -> skein_world::LastWord {
-        skein_world::LastWord::LastExpectation
     }
 }
 

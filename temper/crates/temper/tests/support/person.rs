@@ -742,8 +742,8 @@ impl Host for Person {
             || self.wake.is_some_and(|at| at <= now)
             || self.client.as_ref().is_some_and(|client| client.work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [self.client.as_ref().and_then(Host::next_deadline), self.wake].into_iter().flatten().min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        [self.client.as_ref().and_then(Host::next_mechanism_deadline), self.wake].into_iter().flatten().min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         [self.client.as_ref().and_then(Host::next_policy_deadline), self.wake].into_iter().flatten().min()

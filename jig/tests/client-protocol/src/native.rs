@@ -386,15 +386,11 @@ impl Host for NativeClient {
             || !self.out.is_empty()
             || (!self.closing && self.started && self.wake.is_some_and(|at| at <= now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [
-            self.shell.next_deadline(),
-            self.next_policy_deadline(),
-            self.terminal.as_ref().and_then(skein_ui_text::Terminal::next_deadline),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        [self.shell.next_deadline(), self.terminal.as_ref().and_then(skein_ui_text::Terminal::next_deadline)]
+            .into_iter()
+            .flatten()
+            .min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         if self.closing {

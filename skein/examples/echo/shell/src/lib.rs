@@ -39,8 +39,8 @@ impl Host for Echo {
     fn work_pending(&self, now: Time) -> bool {
         self.svc.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.svc.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.svc.next_mechanism_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {

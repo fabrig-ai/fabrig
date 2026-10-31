@@ -198,8 +198,8 @@ impl Host for Tracing {
             || !self.submissions.is_empty()
     }
 
-    fn next_deadline(&self) -> Option<Time> {
-        if self.result.is_none() { agent::next_deadline(&self.service) } else { None }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        if self.result.is_none() { agent::next_mechanism_deadline(&self.service) } else { None }
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {

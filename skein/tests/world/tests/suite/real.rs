@@ -76,14 +76,7 @@ fn parent_interrupt_arrives_on_the_hosted_child_signal_pipe() {
 struct PlainJudge;
 
 impl skein_world::Referee<skein_world::end_to_end::Binary> for PlainJudge {
-    fn act(&mut self, _now: skein_lib::Time, _procs: &mut [skein_world::end_to_end::Binary]) {}
     fn observe(&mut self, _now: skein_lib::Time, _procs: &[skein_world::end_to_end::Binary]) {}
-    fn next_deadline(&self) -> Option<skein_lib::Time> {
-        None
-    }
-    fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }
@@ -144,12 +137,6 @@ impl skein_world::Referee<Script> for SignalJudge {
             self.control.signal(1, skein_io::kernel::ServiceSignal::Interrupt);
             self.sent = true;
         }
-    }
-    fn next_deadline(&self) -> Option<skein_lib::Time> {
-        None
-    }
-    fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         self.sent
@@ -264,7 +251,7 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
         fn work_pending(&self, _now: Time) -> bool {
             false
         }
-        fn next_deadline(&self) -> Option<Time> {
+        fn next_mechanism_deadline(&self) -> Option<Time> {
             None
         }
         fn next_policy_deadline(&self) -> Option<Time> {
@@ -279,7 +266,6 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     }
     struct StarvedJudge(Option<Starved>);
     impl Referee<DroppedHost> for StarvedJudge {
-        fn act(&mut self, _now: Time, _procs: &mut [DroppedHost]) {}
         fn observe(&mut self, _now: Time, _procs: &[DroppedHost]) {
             let deadline = Deadline::arm("the referee's own answer", Duration::ZERO);
             let starved = match deadline.expired() {
@@ -288,12 +274,6 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
             };
             EXPECTED.set(format!("skein-world: starved: {}", starved.figures())).expect("one observation");
             self.0 = Some(starved);
-        }
-        fn next_deadline(&self) -> Option<Time> {
-            None
-        }
-        fn overdue(&self, _now: Time) -> Option<String> {
-            None
         }
         fn passed(&self) -> bool {
             true

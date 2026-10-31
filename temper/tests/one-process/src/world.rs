@@ -111,7 +111,8 @@ impl Host for ServiceHost {
         assert!(
             self.service.is_empty()
                 || self.service.work_pending(self.now)
-                || self.service.next_deadline().is_some()
+                || self.service.next_mechanism_deadline().is_some()
+                || self.service.next_policy_deadline().is_some()
                 || !self.in_flight.is_empty(),
             "service would wait forever with nothing in flight: end={:?}; state={:?}; pending={:?}",
             self.service.end(),
@@ -172,8 +173,8 @@ impl Host for ServiceHost {
             None => self.service.work_pending(now),
         }
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.service.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.service.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.service.next_policy_deadline()
@@ -260,8 +261,8 @@ impl Host for Proc {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()
@@ -606,8 +607,8 @@ impl Host for Person {
             || self.client.as_ref().is_some_and(|client| client.work_pending(now))
             || self.setup.as_ref().is_some_and(|setup| setup.work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [self.client.as_ref().and_then(Host::next_deadline), self.wake].into_iter().flatten().min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        [self.client.as_ref().and_then(Host::next_mechanism_deadline), self.wake].into_iter().flatten().min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         [self.client.as_ref().and_then(Host::next_policy_deadline), self.wake].into_iter().flatten().min()

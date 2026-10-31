@@ -243,7 +243,7 @@ impl Host for Process {
             |shell| shell.work_pending(now),
         )
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.shell.as_ref().map_or_else(|| self.io.next_deadline(), Shell::next_deadline)
     }
     fn next_policy_deadline(&self) -> Option<Time> {

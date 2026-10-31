@@ -1,11 +1,11 @@
 # The simulated world
 
-Provisional, 2026-10-26. The design of `skein-sim-world`: a service's
-processes hosted over the simulator and run a step at a time, as a
-product a playground ships, and the two loops that run it, the world
-harness's and a playground's. The harness (`skein-world`) is
-examples.md, section 6 and testing.md, section 5; the simulator is
-simulator.md; a world run in a browser is playground.md.
+Provisional, 2026-10-26, revised 2026-10-31. The design of
+`skein-sim-world`: a service's processes hosted over the simulator and
+run a step at a time, as a product a playground ships, and the two loops
+that run it, the world harness's and a playground's. The harness
+(`skein-world`) is examples.md, section 6 and testing.md, section 5; the
+simulator is simulator.md; a world run in a browser is playground.md.
 
 ## 1. In one page
 
@@ -63,7 +63,8 @@ simulator.md; a world run in a browser is playground.md.
   its exports, re-exporting what moved, so every world in smith, jig and
   temper builds as it did. A product crate names `skein-sim-world`; a
   test may name either.
-- **Depends on** lib, io, sim and shell, the shell for `Host` alone.
+- **Depends on** lib, io, sim and shell, the shell for `Host` and
+  `Delegate` alone.
 - **The heap meter wraps each process's turn and every harness
   operation on its containers,** so a turn is an operation of the
   world's own, which the harness's loop calls inside that process's
@@ -95,7 +96,9 @@ simulator.md; a world run in a browser is playground.md.
 - **What a loop asks of it,** between steps: whether it is busy (a
   process has work pending, or the simulator something to deliver
   now); its next due instant, the earlier of the simulator's and the
-  processes' `next_deadline()`, or none; whether it has settled (every
+  processes' `next_deadline()`, each the earlier of a process's
+  mechanism and policy deadlines (shell.md, 12), or none; whether it
+  has settled (every
   process empty, nothing in flight, every descriptor closed); its
   clock; a process, lent to the loop to give it input (section 5); and
   a cut, planned before a submission or made now (simulator.md, 3.3).
@@ -115,6 +118,12 @@ simulator.md; a world run in a browser is playground.md.
   the world is idle it checks the teardown invariant up to the next due
   instant and advances there; it ends once the referee passed and the
   world settled, then checks every process empty.
+- **A referee states what it watches and when it has passed**
+  (`Referee`'s `observe` and `passed`). The rest defaults to nothing: no
+  injection (`act`), no deadline to wake for (`next_deadline`), nothing
+  overdue (`overdue`), no starved verdict (`starved`, testing.md, 5),
+  and its last expectation met as the last word (`last_word`). A
+  referee writes only the ones its scenario uses.
 
 ## 4. The clock
 

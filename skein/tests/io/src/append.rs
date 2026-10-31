@@ -209,7 +209,7 @@ impl Host for Writer {
             || !self.completions.is_empty()
             || matches!(self.phase, Phase::Asking | Phase::Granted)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 
@@ -276,15 +276,8 @@ impl Machine for AppendFiles {
 pub struct Judge;
 
 impl Referee<Writer> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Writer]) {}
     fn observe(&mut self, _now: Time, procs: &[Writer]) {
         assert!(procs[0].failures() <= 1);
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         true

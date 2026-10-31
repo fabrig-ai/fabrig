@@ -8,8 +8,9 @@
 //! The shell reaps completions into [`Service::completions`], reads the
 //! clock, calls [`iterate`], and submits [`Service::submissions`], waiting
 //! only when [`Service::work_pending`] says there is nothing to do, until
-//! [`Service::next_deadline`]. `iterate` runs both passes and the reclaim
-//! point:
+//! the earlier of [`Service::next_mechanism_deadline`] and
+//! [`Service::next_policy_deadline`]. `iterate` runs both passes and the
+//! reclaim point:
 //!
 //! ```text
 //! completions -> io -> protocol -> domain      (up pass)
@@ -220,21 +221,15 @@ impl Service {
             || !self.answers.is_empty()
     }
 
-    /// The earliest deadline over every layer: io's and the protocol layer's
-    /// (programming-model.md, 9). The domain keeps none.
+    /// io's own deadlines, its close and retry deadlines: the mechanism's
+    /// (programming-model.md, 9).
     #[must_use]
-    pub fn next_deadline(&self) -> Option<Time> {
-        let protocol = self.protocol.next_deadline();
-        match self.io.next_deadline() {
-            Some(io) => match protocol {
-                Some(protocol) => Some(io.min(protocol)),
-                None => Some(io),
-            },
-            None => protocol,
-        }
+    pub fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
 
     /// The protocol layer's idle and listen-backoff deadlines, excluding io.
+    /// The domain keeps none.
     #[must_use]
     pub fn next_policy_deadline(&self) -> Option<Time> {
         self.protocol.next_deadline()

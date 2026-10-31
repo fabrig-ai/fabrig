@@ -41,12 +41,14 @@ impl LastWord {
     }
 }
 
-/// A scenario's referee, over its processes `P`.
+/// A scenario's referee, over its processes `P`. It states what it watches
+/// and when it has passed; what it injects, wakes for and finds overdue
+/// defaults to nothing, as do a starved verdict and a later last word.
 pub trait Referee<P> {
     /// Injects what belongs to no process, before they run in an iteration.
     /// It changes only what a process lets be changed between iterations (a
     /// flag it acts on in its next one), and allocates nothing of theirs.
-    fn act(&mut self, now: Time, procs: &mut [P]);
+    fn act(&mut self, _now: Time, _procs: &mut [P]) {}
 
     /// Watches every process, after one of them iterated: a broken safety
     /// expectation panics, naming the seed.
@@ -54,10 +56,14 @@ pub trait Referee<P> {
 
     /// The earliest of its expectations' deadlines and of what it will act
     /// on, for the world to wake at.
-    fn next_deadline(&self) -> Option<Time>;
+    fn next_deadline(&self) -> Option<Time> {
+        None
+    }
 
     /// What is overdue at `now`, if anything: the test fails with it.
-    fn overdue(&self, now: Time) -> Option<String>;
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
+    }
 
     /// Whether every expectation is met.
     fn passed(&self) -> bool;

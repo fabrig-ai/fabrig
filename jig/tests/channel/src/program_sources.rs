@@ -148,17 +148,11 @@ impl skein_world::Referee<Proc> for Judge {
     }
 
     fn observe(&mut self, _now: Time, _procs: &[Proc]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
     fn overdue(&self, now: Time) -> Option<String> {
         (now > Time::ZERO.saturating_add(Duration::from_secs(30))).then(|| "source exchange settles".into())
     }
     fn passed(&self) -> bool {
         self.phase == Phase::Done
-    }
-    fn last_word(&self) -> skein_world::LastWord {
-        skein_world::LastWord::LastExpectation
     }
 }
 impl Judge {
@@ -452,7 +446,7 @@ impl Host for Login {
             || self.io.is_ready()
             || self.io.is_due(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         [self.io.next_deadline(), self.command.as_ref().and_then(smith_protocol_program::Command::next_deadline)]
             .into_iter()
             .flatten()

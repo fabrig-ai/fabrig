@@ -103,7 +103,8 @@ impl Service {
         assert!(
             self.is_empty()
                 || self.work_pending(now)
-                || self.next_deadline().is_some()
+                || self.next_mechanism_deadline().is_some()
+                || self.next_policy_deadline().is_some()
                 || self.kernel.has_operations()
                 || !self.submissions.is_empty(),
             "service would wait forever with nothing in flight: end={:?}; state={:?}; pending={:?}",
@@ -555,10 +556,11 @@ impl Service {
             None => self.worker.as_mut().expect("worker alone").notes(),
         }
     }
-    /// Root, component and I/O deadlines on the injected clock.
+    /// I/O's own deadlines on the injected clock, apart from the policy
+    /// deadline (skein's shell.md, 12).
     #[must_use]
-    pub fn next_deadline(&self) -> Option<Time> {
-        accounts::earliest(self.next_policy_deadline(), self.io.next_deadline())
+    pub fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     /// Maximum simultaneous kernel operations, for the shell's ring.
     #[must_use]

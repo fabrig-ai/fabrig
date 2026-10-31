@@ -666,6 +666,27 @@ pub fn next_deadline(service: &Service) -> Option<Time> {
     earliest
 }
 
+/// Earliest mechanism deadline: io's, the files' and the program's, which
+/// after the domain's terminal only settles owned I/O and before it is a
+/// policy deadline too (skein's shell.md, section 12).
+#[must_use]
+pub fn next_mechanism_deadline(service: &Service) -> Option<Time> {
+    let mut earliest = match &service.io {
+        Some(io) => io.next_deadline(),
+        None => None,
+    };
+    for deadline in [service.files.next_deadline(), program::deadline(service)] {
+        earliest = match deadline {
+            Some(next) => match earliest {
+                Some(old) => Some(old.min(next)),
+                None => Some(next),
+            },
+            None => earliest,
+        };
+    }
+    earliest
+}
+
 /// Earliest policy deadline: the domain's, the LLM's and the machine's,
 /// excluding io's and the files' (skein's testing-strategy.md, section 6).
 #[must_use]

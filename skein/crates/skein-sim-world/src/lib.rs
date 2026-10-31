@@ -14,7 +14,7 @@ pub use printer::{PRINTED_BYTES, Printed, Printer, Stream};
 pub use program::{
     HostedProgram, Inherited, Machine, NoMachine, StartupAppend, StartupAppends, StartupRoot, StartupRoots,
 };
-pub use skein_shell::Host;
+pub use skein_shell::{Delegate, Host};
 pub use world::{Cut, Digests, Killed, StateDigests, World};
 pub use writer_pipe::{PipeCapture, PipeHost, PipeWriter};
 

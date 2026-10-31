@@ -118,8 +118,8 @@ impl Host for Process {
             || self.inner.view().work_pending(now)
             || (self.inner.view().is_empty() && self.signal_state == Signal::Held)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.inner.view().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.inner.view().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.inner.view().next_policy_deadline()

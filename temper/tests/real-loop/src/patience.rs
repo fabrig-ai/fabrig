@@ -241,7 +241,7 @@ mod tests {
         fn work_pending(&self, now: Time) -> bool {
             self.service.work_pending(now)
         }
-        fn next_deadline(&self) -> Option<Time> {
+        fn next_mechanism_deadline(&self) -> Option<Time> {
             None
         }
         fn next_policy_deadline(&self) -> Option<Time> {
