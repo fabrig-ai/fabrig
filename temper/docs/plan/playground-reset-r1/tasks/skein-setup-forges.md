@@ -3,7 +3,7 @@ id = "skein-setup-forges"
 part = "runtime-forges"
 kind = "interface"
 needs = []
-files = ["skein/crates/skein-forge-setup/**"]
+files = ["skein/crates/skein-forge-setup/**", "skein/tests/forge/setup/src/host.rs", "skein/tests/forge/setup/src/memory.rs"]
 effort = "high"
 minutes = 60
 +++
@@ -60,6 +60,10 @@ Acceptance:
   `Removed` are logged as an unexpected stop is today. temper's use of them
   is a later task's. Check with `heavy cargo check -p temper-service
   --tests` and `heavy cargo check -p temper --tests`.
+- Readers in skein's setup world: `skein/tests/forge/setup/src/host.rs`
+  matches `host::Event` and `memory.rs` matches `host::Request`. Add the
+  new arms there, call sites only, as for temper-service: no new world
+  case. Check with `heavy cargo check -p skein-forge-setup-world --tests`.
 - `skein/docs/design/` is not yours: report what 6.3 and 6.5 should say.
 
 ## Steps
@@ -92,3 +96,16 @@ Acceptance:
 ## Report
 
 As the implementer text says, and what the design should now say.
+
+## Answers
+
+2026-10-31. May this task update the exhaustive matches in
+`skein/tests/forge/setup/src/host.rs` (`Event::Refused`, `Event::Removed`)
+and `memory.rs` (`Request::Add`, `Request::Remove`)? Yes: they are call
+sites of the interface this task changes, like temper-service's, and the
+crate's branch does not build without them. Add the arms only, in the
+world's existing idiom for an unexpected event or request; no new world
+case, nothing else in `skein/tests/forge/`, which is
+`skein-connection-forges`'s. Both files are now in `files` and under
+"Owns and may change". Then finish the remaining checks of Steps 3,
+including `heavy cargo check -p skein-forge-setup-world --tests`.
