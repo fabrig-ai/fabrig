@@ -11,21 +11,6 @@ use temper_client_domain::{self as d, Address, Step, pages};
 use temper_client_protocol_wire::v1 as w;
 
 const HERE: u16 = 3;
-/// The fake box's Forgejo elsewhere (temper-fake's `managed()`):
-/// configured as its admin, not connected, with no `web`.
-const ADMIN: u16 = 4;
-fn rows_with_an_admin_forgejo() -> skein_lib::List<w::ForgeRow> {
-    let mut rows = skein_lib::List::with_capacity(3);
-    for row in &forge::rows(w::Connection::NotSetUp, w::Offer::Offered) {
-        rows.push(row.clone()).unwrap();
-    }
-    let mut parts =
-        forge::row(ADMIN, w::Kind::Forgejo, w::Mode::Managed, w::Connection::NotConnected, w::Offer::NotOffered)
-            .into_parts();
-    parts.admin = true;
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-    rows
-}
 fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
     let choices = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICES)).unwrap();
     tree.nodes()
@@ -36,20 +21,15 @@ fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
 }
 
 #[test]
-fn the_welcome_leaves_other_forgejos_to_connect_a_forge() {
-    for (address, cards) in [
-        (Address::Welcome { step: Step::Forge { forge: None } }, ["GitHub", "Forgejo"].as_slice()),
-        (
-            Address::ConnectForge { forge: None },
-            ["GitHub", "Forgejo on this machine", "Forgejo at forge 4", "A Forgejo elsewhere"].as_slice(),
-        ),
-    ] {
-        let view = f::page_view(&f::forge_root(address.clone(), rows_with_an_admin_forgejo()));
-        assert_eq!(
-            choice_cards(view.tree()),
-            cards.iter().map(|name| name.as_bytes()).collect::<Vec<_>>(),
-            "{address:?}"
-        );
+fn the_forge_step_shows_choices_after_reset() {
+    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, skein_lib::List::with_capacity(0));
+    assert!(root.forge().playground().is_none());
+    assert_eq!(d::address::print(root.pages().address()).as_ref(), b"/welcome?at=forge");
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(choice_cards(view.tree()), [b"GitHub".as_slice(), b"Forgejo on this machine", b"Your Forgejo"]);
+        node(view.tree(), Role::Button, "Connect GitHub");
+        node(view.tree(), Role::Link, "Forgejo on this machine");
+        node(view.tree(), Role::Link, "Your Forgejo");
     }
 }
 
@@ -1080,71 +1060,6 @@ fn ready_offers_connect_a_model_as_a_terminal_command() {
         crate::act(&mut view, node, first),
         Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: None } } }))
     );
-}
-
-#[test]
-fn welcome_forgejo_card_runs_under_the_box_and_links_to_details_elsewhere() {
-    for (offer, time) in
-        [(w::Offer::Offered, "Here · about a minute"), (w::Offer::NotUnderTheBox, "Needs four commands and a restart")]
-    {
-        let root = f::forge_root(
-            Address::Welcome { step: Step::Forge { forge: None } },
-            forge::rows(w::Connection::NotSetUp, offer.clone()),
-        );
-        let mut view = f::browser_page_view(&root);
-        node(view.tree(), Role::Region, "Forgejo");
-        node(
-            view.tree(),
-            Role::Paragraph,
-            "A forge of your own. temper can start it and manage it, or you can connect your own deployment.",
-        );
-        let time = node(view.tree(), Role::Paragraph, time);
-        assert!(
-            view.tree()
-                .nodes()
-                .iter()
-                .find(|n| n.id == time)
-                .unwrap()
-                .styles
-                .as_slice()
-                .contains(&crate::look::FLOW_MUTED)
-        );
-        let role = if offer == w::Offer::Offered { Role::Button } else { Role::Link };
-        let run = node(view.tree(), role, "Run on this machine");
-        assert!(
-            view.tree()
-                .nodes()
-                .iter()
-                .find(|n| n.id == run)
-                .unwrap()
-                .styles
-                .as_slice()
-                .contains(&crate::look::FLOW_SECONDARY)
-        );
-        if offer == w::Offer::Offered {
-            assert_eq!(
-                crate::act(&mut view, run, Act::Press),
-                Some(d::Action::Forge(d::forge::Act::SetUpAtOnce { forge: HERE }))
-            );
-        } else {
-            assert_eq!(crate::href(&mut view, run).as_deref(), Some(b"/welcome?at=forge&forge=3".as_slice()));
-        }
-        let deployment = node(view.tree(), Role::Link, "Or connect your deployment");
-        assert!(
-            view.tree()
-                .nodes()
-                .iter()
-                .find(|n| n.id == deployment)
-                .unwrap()
-                .styles
-                .as_slice()
-                .contains(&crate::look::FLOW_QUIET)
-        );
-        assert_eq!(
-            crate::href(&mut view, deployment).as_deref(),
-            Some(b"https://github.com/fabrig-ai/temper/blob/main/docs/help/server.md".as_slice())
-        );
-    }
 }
 
 fn first_run_destination(root: &mut d::Domain) -> Address {
