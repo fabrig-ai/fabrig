@@ -33,3 +33,11 @@ Draft, 3.3.
 - `io_resume` falls by six, less named sites.
 - `heavy cargo nextest run -p <each world's package>`, default then
   fuzzy, with counts.
+
+## Answers
+
+2026-10-31. May the run skip `python3 -I tools/slots/trim <slot>`, which
+this tree does not have? Yes: skip it and continue. This task gives no trim
+command; fab prepares the slot before the run, and heavy waits for disk by
+itself (exit 75 is `Infra: disk`, reported, never worked around). Free disk
+only in your own `target/`.
