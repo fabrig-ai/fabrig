@@ -449,7 +449,7 @@ fn move_tasks(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, from
     let mut child = Queue::uncapped();
     tasks::step(
         &mut core.tasks,
-        &Env { now: env.now, wall: env.wall, limits: s::task_limits(&env.limits) },
+        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
         tasks::Event::MoveToNewest { from },
         &mut child,
     );

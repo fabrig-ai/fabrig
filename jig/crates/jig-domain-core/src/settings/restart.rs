@@ -298,7 +298,7 @@ impl Core {
             let mut tasks_out = Queue::uncapped();
             tasks::step(
                 &mut self.tasks,
-                &Env { now: env.now, wall: env.wall, limits: super::task_limits(&env.limits) },
+                &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
                 tasks::Event::Charters {
                     newest: self.current.newest(),
                     charters,
@@ -315,7 +315,7 @@ impl Core {
         let mut fleet_out = Queue::uncapped();
         fleet::step(
             &mut self.fleet,
-            &Env { now: env.now, wall: env.wall, limits: super::fleet_limits(&env.limits) },
+            &Env { now: env.now, wall: env.wall, limits: env.limits.fleet },
             fleet::Event::Needs(needs),
             &mut fleet_out,
         );
