@@ -29,7 +29,6 @@ impl Core {
             }
             Phase::LoadInbox => {
                 self.start_inbox_done();
-                assert!(self.census_position.is_none(), "census pair complete before Link");
                 match self.connectors.first() {
                     Some(&connector) => Phase::RestoreConnector { connector },
                     None => Phase::Link,
@@ -218,15 +217,8 @@ impl Core {
                 crate::RestartRequest::HeldPastLimit { which, held, limit } => {
                     Some(Failure::HeldPastLimit { which, held, limit })
                 }
-                crate::RestartRequest::UnheldRevision { task, revision } => {
-                    assert!(
-                        self.held(revision),
-                        "{:?} links missing settings revision {revision}",
-                        Key::Tasks(tasks::Key::Live(task))
-                    );
-                    None
-                }
-                crate::RestartRequest::Unresolved { .. }
+                crate::RestartRequest::UnheldRevision { .. }
+                | crate::RestartRequest::Unresolved { .. }
                 | crate::RestartRequest::Step(_)
                 | crate::RestartRequest::Idle
                 | crate::RestartRequest::Refused { .. } => None,
@@ -243,6 +235,14 @@ impl Core {
     }
 
     fn start_link(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) {
+        if let Some((task, party, _)) = self.census_position {
+            assert!(
+                self.census_position.is_none(),
+                "{:?} links missing {:?}",
+                Key::People(people::Key::EndedRead { task, party }),
+                Key::Tasks(tasks::Key::Ended(task))
+            );
+        }
         if let Some((record, target)) = &self.start.missing {
             assert!(self.start.missing.is_none(), "{record:?} links missing {target:?}");
         }
@@ -282,6 +282,7 @@ impl Core {
                 reason = "Check links and publishes derived wait state without activation"
             )]
             match request {
+                tasks::Request::RestoreRefused { .. } => unreachable!("start refusal collected before task outputs"),
                 tasks::Request::Save { record } => out.push(Request::Write(Write::Save(crate::Record::Tasks(record)))),
                 tasks::Request::Released { revision } => self.release_revision(env, revision, out),
                 request => self.start.waiting_tasks.push(request),
