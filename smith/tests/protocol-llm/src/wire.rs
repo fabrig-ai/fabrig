@@ -140,6 +140,7 @@ pub struct Binding {
 /// Generic transport, peer progress and all clocks remain in shared Exchange.
 /// Active logical callbacks are separate from retained physical bindings.
 pub struct Composition {
+    seed: u64,
     referee: skein_world::domain::Referee<crate::referee::Meeting>,
     configuration: Configuration,
     limits: Limits,
@@ -179,9 +180,11 @@ impl Composition {
         configuration: Configuration,
         limits: Limits,
         scripts: Box<[skein_fake_llm_domain::api::Script]>,
+        seed: u64,
     ) -> Self {
         let config = provider::Config { calls: 256, cache_entries: 256, ..skein_llm_world::fake::config() };
         Self {
+            seed,
             provider: provider::Domain::try_scripted(&config, 3, scripts.clone()).expect("bounded composition scripts"),
             provider_stage: Stage::uncapped(config),
             provider_routes: BTreeMap::new(),
@@ -562,7 +565,7 @@ impl smith_agent_world::backend::Backend for Composition {
         for (owner, request) in progress.requests {
             self.referee.observe(now, crate::referee::Seen::Request { owner, request }, &mut Vec::new());
         }
-        self.referee.assert_holding(0);
+        self.referee.assert_holding(self.seed);
         smith_agent_world::backend::Progress {
             queries: progress.queries,
             terminals: progress.terminals,
@@ -585,6 +588,6 @@ impl smith_agent_world::backend::Backend for Composition {
     }
     fn assert_settled(&self) {
         assert!(self.is_settled());
-        self.referee.assert_passed(0);
+        self.referee.assert_passed(self.seed);
     }
 }

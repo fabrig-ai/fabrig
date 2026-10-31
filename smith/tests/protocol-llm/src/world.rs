@@ -46,7 +46,7 @@ impl World {
             &settings,
             transcript,
             Box::default(),
-            wire::Composition::new(configuration, limits, scripts),
+            wire::Composition::new(configuration, limits, scripts, settings.seed),
         ))
     }
 
@@ -65,7 +65,7 @@ impl World {
             &settings,
             transcript,
             answered,
-            wire::Composition::new(configuration, limits, scripts),
+            wire::Composition::new(configuration, limits, scripts, settings.seed),
         ))
     }
 
@@ -88,7 +88,7 @@ impl World {
             Box::default(),
             workspace,
             disk,
-            wire::Composition::new(configuration, limits, scripts),
+            wire::Composition::new(configuration, limits, scripts, settings.seed),
             None,
             None,
         ))
@@ -116,7 +116,7 @@ impl World {
             Box::default(),
             workspace,
             disk,
-            wire::Composition::new(configuration, limits, scripts),
+            wire::Composition::new(configuration, limits, scripts, settings.seed),
             Some(charter),
             None,
         ))
