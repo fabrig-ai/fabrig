@@ -679,5 +679,4 @@ pub fn execute_script(
 }
 
 #[cfg(test)]
-#[path = "process/lower_tests.rs"]
 mod lower_tests;

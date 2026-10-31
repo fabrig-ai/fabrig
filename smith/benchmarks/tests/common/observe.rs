@@ -1,7 +1,7 @@
 //! Codec entry points for synthetic benchmark observations.
 
+use super::events::{LIMITS, bytes};
 use smith_events::{Capture, Limits, Record};
-use super::events::{bytes, LIMITS};
 
 #[must_use]
 pub fn observe(records: &[Record]) -> smith_bench::agent::smith::events::Observer {
@@ -13,7 +13,8 @@ pub fn observe(records: &[Record]) -> smith_bench::agent::smith::events::Observe
 
 #[must_use]
 pub fn observe_bytes(bytes: &[u8], limits: &Limits, ceiling: u32) -> smith_bench::agent::smith::events::Observer {
-    let mut observer = smith_bench::agent::smith::events::Observer::with_ceiling(limits, ceiling).expect("receiving bounds");
+    let mut observer =
+        smith_bench::agent::smith::events::Observer::with_ceiling(limits, ceiling).expect("receiving bounds");
     observer.feed(bytes).expect("fixture codec records");
     observer.finish().expect("complete fixture framing");
     observer

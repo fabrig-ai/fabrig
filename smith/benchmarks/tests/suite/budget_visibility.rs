@@ -165,22 +165,16 @@ fn a_return_without_the_join_stays_unavailable() {
         writing_budget(&mut values);
         match field {
             "call" => {
-                {
-                    let value = crate::common::edit::budget(&mut values[5]);
-                    value.call = Some(b"foreign".as_slice().into());
-                }
+                let value = crate::common::edit::budget(&mut values[5]);
+                value.call = Some(b"foreign".as_slice().into());
             }
             "run" => {
-                {
-                    let value = crate::common::edit::budget(&mut values[5]);
-                    value.run = 1;
-                }
+                let value = crate::common::edit::budget(&mut values[5]);
+                value.run = 1;
             }
             "prompt" => {
-                {
-                    let value = crate::common::edit::response_started(&mut values[8]);
-                    value.prompt = None;
-                }
+                let value = crate::common::edit::response_started(&mut values[8]);
+                value.prompt = None;
             }
             "usage" => told_text(&mut values, 6, "unknown"),
             _ => unreachable!("fixture selector"),
@@ -210,17 +204,13 @@ fn writing_step_absence_stale_and_coincident_snapshots_cannot_prove_smith_told_v
         match change {
             "same-rounded" | "same-time" => {}
             "stale" => {
-                {
-                    let value = crate::common::edit::budget(&mut values[5]);
-                    value.time_ms.used = 1499;
-                }
+                let value = crate::common::edit::budget(&mut values[5]);
+                value.time_ms.used = 1499;
             }
             "absent" => values.retain(|record| !matches!(record.event, Event::Budget(_))),
             "wrong-run" => {
-                {
-                    let value = crate::common::edit::budget(&mut values[5]);
-                    value.run = 1;
-                }
+                let value = crate::common::edit::budget(&mut values[5]);
+                value.run = 1;
             }
             "later" => {
                 let budget = values.remove(5);

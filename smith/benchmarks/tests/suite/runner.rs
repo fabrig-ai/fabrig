@@ -58,13 +58,13 @@ fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard)
     identity.binary_sha256 = smith_bench::arm::binary_digest(&program).expect("replay digest");
     identity.run = "repository-replay".into();
     smith_bench::run::Prepared {
-program,
-teardown_ms: 100,
-setup_deadline_seconds: 3,
-max_stdout_bytes: 16384,
-disk_estimate_bytes: 1,
-..crate::common::request(manifest, identity)
-}
+        program,
+        teardown_ms: 100,
+        setup_deadline_seconds: 3,
+        max_stdout_bytes: 16384,
+        disk_estimate_bytes: 1,
+        ..crate::common::request(manifest, identity)
+    }
 }
 
 #[test]

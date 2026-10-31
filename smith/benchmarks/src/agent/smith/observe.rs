@@ -33,15 +33,16 @@ fn rejected_responses(sessions: &[super::events::Session], expected: u64) -> boo
         for record in &session.records {
             match &record.event {
                 Event::ResponseStarted(value)
-                    if !started.insert((index, value.run, value.conversation, value.response)) => {
-                        return false;
-                    }
+                    if !started.insert((index, value.run, value.conversation, value.response)) =>
+                {
+                    return false;
+                }
                 Event::ResponseCompleted(value)
                     if (!response_rejected(value)
-                        || !rejected.insert((index, value.run, value.conversation, value.response)))
-                    => {
-                        return false;
-                    }
+                        || !rejected.insert((index, value.run, value.conversation, value.response))) =>
+                {
+                    return false;
+                }
                 Event::TextDelta(_) => return false,
                 _ => {}
             }

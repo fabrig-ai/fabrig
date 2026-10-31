@@ -1,8 +1,7 @@
 //! Offline cache triplets retain repetitions, pooled misses and real evidence gaps.
 
-
 use smith_bench::{CacheObservation, CheckVerdict, End, EventCheck, Judgment, Measure};
-use smith_events::{Block};
+use smith_events::Block;
 
 use crate::common;
 use crate::common::observe;
@@ -152,7 +151,6 @@ fn one_read_each_rejects_batched_calls_and_retains_missing_capture() {
     }
     assert!(matches!(observe(&records).check(&check, "task").passed, Measure::Unavailable { .. }));
 }
-
 
 #[test]
 fn sequential_children_wait_for_the_parent_return_and_require_both_returns() {

@@ -516,7 +516,6 @@ fn the_change_command_refuses_a_section_that_disagrees() {
     let code = parity::change::command(&file);
     assert_eq!(code, 3);
     assert_eq!(parity::change::verify(&summary), Err("committed change section disagrees with rows or inputs".into()));
-
 }
 
 #[test]
@@ -537,7 +536,6 @@ fn the_change_command_agrees_with_a_stopped_section() {
     let code = parity::change::command(&file);
     assert_eq!(code, 0);
     assert_eq!(summary.change.expect("section").stop, Some(parity::change::Stop::Moved { criterion: "FT".into() }));
-
 }
 
 #[test]
@@ -549,7 +547,6 @@ fn a_change_command_refuses_an_input_whose_hash_differs() {
     std::fs::write(directory.join("baseline.json"), b"changed input").expect("changed baseline");
     let code = parity::change::command(&file);
     assert_eq!(code, 3);
-
 }
 
 #[test]
@@ -561,5 +558,4 @@ fn a_change_command_refuses_a_missing_input() {
     std::fs::remove_file(directory.join("baseline.json")).expect("remove baseline");
     let code = parity::change::command(&file);
     assert_eq!(code, 3);
-
 }

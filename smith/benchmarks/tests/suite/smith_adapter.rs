@@ -154,7 +154,6 @@ fn the_selected_event_face_observes_the_answer_and_drains_its_native_boundaries(
     let spend = native.spend(&native.tokens().expect("exact response usage")).expect("reported notional spend");
     assert_eq!(spend.basis, smith_bench::SpendBasis::Notional);
     assert_eq!(spend.usd, Measure::Observed { value: 0.000_003 });
-
 }
 
 #[test]
@@ -184,7 +183,6 @@ fn a_terminal_person_closes_after_main_acceptance_and_drains_the_final_file_reco
     assert!(String::from_utf8_lossy(&result.trace).contains("session.ended"));
     assert_eq!(result.observing.expect("paired observer").classify(result.exit, result.forced).end, End::Completed);
     assert!(result.tree.live_pids.is_empty());
-
 }
 
 #[test]
@@ -207,7 +205,6 @@ fn an_incomplete_file_record_faults_after_observed_tree_settlement_and_retains_i
     assert!(result.error.as_ref().is_some_and(|error| error.contains("partial record")));
     assert_eq!(result.trace, b"{\"type\":");
     assert!(result.tree.live_pids.is_empty());
-
 }
 
 #[test]

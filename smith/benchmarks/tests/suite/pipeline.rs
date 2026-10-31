@@ -25,11 +25,10 @@ fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Prepared) {
         fs::OpenOptions::new().append(true).open(task.join("task.toml")).expect("append neutral checks")
             .write_all(b"\n[[outcome]]\ncheck='end'\nend='completed'\n[[outcome]]\ncheck='exit-code'\ncode=0\n[[outcome]]\ncheck='answer'\npattern='bounded saturating arithmetic'\n[[outcome]]\ncheck='last-line'\npattern='^settled replay$'\n").expect("neutral task checks");
     }
-    let mut identity = smith_bench::read_result(
-        &crate::common::repository().join("tests/recorded/results/attempt.json"),
-    )
-    .expect("template")
-    .identity;
+    let mut identity =
+        smith_bench::read_result(&crate::common::repository().join("tests/recorded/results/attempt.json"))
+            .expect("template")
+            .identity;
     identity.run = story.into();
     identity.attempt = "one".into();
     identity.task = "probes/recorded".into();
@@ -136,7 +135,6 @@ fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
     .expect("settled crashed grader");
     assert!(matches!(judgment.end, smith_bench::grade::GradeEnd::Fault { .. }));
     assert_eq!(judgment.stdout, b"crash-evidence");
-
 }
 
 #[test]
@@ -173,7 +171,6 @@ fn login_shells_keep_machine_path_in_setup_agent_and_grading() {
     assert_eq!(recorded.result.outcome.end, End::Completed, "{:?}", recorded.result.outcome);
     assert_eq!(recorded.result.outcome.grade, Some(Measure::Observed { value: true }));
     assert!(!scratch_root(&root.join("state"), &prepared).expect("scratch").exists());
-
 }
 
 #[test]
@@ -192,7 +189,6 @@ fn an_existing_scratch_root_is_refused_and_never_deleted() {
     assert!(matches!(recorded.result.outcome.end, End::Refused { .. }));
     assert_eq!(recorded.incomplete, smith_bench::run::Incomplete::Setup(smith_bench::isolate::SetupStep::Scratch));
     assert_eq!(fs::read_to_string(scratch.join("sentinel")).expect("retained original"), "keep");
-
 }
 
 fn check_replay_judgments(result: &smith_bench::AttemptResult) {

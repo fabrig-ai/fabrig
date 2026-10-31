@@ -84,7 +84,6 @@ impl Fixture {
         render(&context, &serde_json::to_value(base).expect("layer"), build.directory.join("smith"), registry, serial)
             .expect("render admitted inputs")
     }
-
 }
 
 #[test]

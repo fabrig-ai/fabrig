@@ -143,7 +143,6 @@ fn an_exec_arm_refused_by_check_is_a_setup_refusal() {
     assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration);
     assert!(refusal.reason.contains("Code(2)"));
     assert!(!fixture.private.root.join("smith/tokens").exists());
-
 }
 
 #[test]
@@ -185,8 +184,7 @@ fn an_exec_arm_classifies_exit_5_as_needs_input() {
     assert!(matches!(observer.classify(smith_bench::Exit::Code(0), Forced::No).end, End::HarnessError { .. }));
 }
 
-impl ExecFixture {
-}
+impl ExecFixture {}
 
 #[test]
 fn the_credentials_lead_reaches_the_native_policy_boundary() {

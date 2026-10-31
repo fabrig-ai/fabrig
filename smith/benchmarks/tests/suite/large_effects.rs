@@ -1,6 +1,5 @@
 //! Repository range claims preserve measurement gaps (benchmarks.md, 3.1 and 9).
 
-
 use smith_bench::{Agent, Design, LargeEffect, Measure, RunSummary, large_effect, summarise};
 
 fn repository_summary(candidate: [Measure<u64>; 3], design: Design) -> RunSummary {

@@ -228,24 +228,25 @@ impl Observer {
                 if !session.records.iter().any(|previous| {
                     matches!(&previous.event,
                     Event::ResponseCompleted(value) if value.run == response.run && value.response == response.response)
-                }) => {
-                    seen.push(Seen::Response);
-                }
+                }) =>
+            {
+                seen.push(Seen::Response);
+            }
             Event::ToolStarted(tool) => {
                 seen.push(Seen::ToolCall { tool: String::from_utf8_lossy(&tool.tool).into_owned() });
             }
-            Event::ConversationOpened(conversation)
-                if conversation.kind == smith_events::ConversationKind::Child => {
-                    seen.push(Seen::Child);
-                }
+            Event::ConversationOpened(conversation) if conversation.kind == smith_events::ConversationKind::Child => {
+                seen.push(Seen::Child);
+            }
             // A terminal, including a failure, lets the scripted person close.
             Event::RunCompleted(run)
                 if !session.records.iter().any(|previous| {
                     matches!(&previous.event,
                     Event::RunCompleted(value) if value.run == run.run)
-                }) => {
-                    seen.push(Seen::Answer);
-                }
+                }) =>
+            {
+                seen.push(Seen::Answer);
+            }
             _ => {}
         }
         session.records.push(record);

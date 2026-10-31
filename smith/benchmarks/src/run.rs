@@ -1230,6 +1230,5 @@ mod tests {
         assert!(!snapshot.contains_key(Path::new("bundle.toml")));
         fs::write(private.workspace.join("Cargo.toml"), "setup-created").expect("setup edit");
         assert!(!snapshot.contains_key(Path::new("Cargo.toml")));
-
     }
 }

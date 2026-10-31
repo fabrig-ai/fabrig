@@ -83,7 +83,6 @@ fn a_reference_that_changes_a_protected_path_fails_validation() {
     std::fs::write(root.join("task.toml"), manifest).expect("manifest");
     let error = smith_bench::validate::validate(&root, &[]).expect_err("changed protection refuses");
     assert!(error.contains("reference changes Cargo.toml"), "{error}");
-
 }
 
 fn comparison_document(name: &str) -> (skein_scratch::Scratch, PathBuf, String) {
@@ -106,7 +105,6 @@ fn a_comparison_task_with_a_budget_is_refused() {
             assert_eq!(error.reason, "comparison task must not name a budget", "{kind}: {budget}");
         }
     }
-
 }
 
 #[test]
@@ -120,7 +118,6 @@ fn a_comparison_variant_with_a_budget_is_refused() {
         assert_eq!(error.key, "variant[0].budget", "{kind}");
         assert_eq!(error.reason, "comparison task must not name a budget", "{kind}");
     }
-
 }
 
 #[test]
@@ -140,7 +137,6 @@ fn a_comparison_deadline_at_the_run_defaults_is_refused() {
             );
         }
     }
-
 }
 
 #[test]
@@ -281,7 +277,6 @@ fn a_summary_and_baseline_from_recorded_results_round_trip_offline() {
     assert_eq!(smith_bench::read_summary(&summary_file).expect("round-trip"), summary);
     assert_eq!(smith_bench::read_baseline(&baseline_file).expect("round-trip"), baseline);
     assert!(smith_bench::write_summary(&summary_file, &summary).is_err(), "committed evidence is not overwritten");
-
 }
 
 // Related offline assertions share a test process to keep startup overhead

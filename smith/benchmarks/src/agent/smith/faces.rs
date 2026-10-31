@@ -68,8 +68,7 @@ pub fn read(path: &Path) -> Result<Vec<FaceSince>, Setup> {
             return Err("Smith face registry has an invalid inventory".into());
         }
         for entry in &registry.face {
-            if !crate::formats::lowercase_hex(&entry.commit, 40)
-            {
+            if !crate::formats::lowercase_hex(&entry.commit, 40) {
                 return Err("Smith face registry requires full source commits".into());
             }
         }

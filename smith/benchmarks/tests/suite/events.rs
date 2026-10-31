@@ -1320,31 +1320,23 @@ fn headroom_preserves_known_violations_and_missing_scope_uncertainty() {
         let mut values = visible_budget();
         match mutation {
             0 => {
-                {
-                    let value = crate::common::edit::response_completed(&mut values[4]);
-                    value.usage.cache_write_tokens = None;
-                }
+                let value = crate::common::edit::response_completed(&mut values[4]);
+                value.usage.cache_write_tokens = None;
             }
             1 => {
-                {
-                    let value = crate::common::edit::response_completed(&mut values[4]);
-                    value.conversation = 99;
-                }
+                let value = crate::common::edit::response_completed(&mut values[4]);
+                value.conversation = 99;
             }
             2 => {
-                {
-                    let value = crate::common::edit::response_started(&mut values[3]);
-                    value.model.window_tokens += 1;
-                }
+                let value = crate::common::edit::response_started(&mut values[3]);
+                value.model.window_tokens += 1;
             }
             3 => {
                 values.remove(4);
             }
             4 => {
-                {
-                    let value = crate::common::edit::conversation_opened(&mut values[2]);
-                    value.model.window_tokens = 0;
-                }
+                let value = crate::common::edit::conversation_opened(&mut values[2]);
+                value.model.window_tokens = 0;
             }
             5 => {
                 values.remove(3);
@@ -1598,12 +1590,11 @@ fn expected_entrance_refusal_requires_captured_reason_and_no_request() {
 #[test]
 fn the_resolved_window_comes_from_each_agents_stream() {
     use smith_bench::agent::codex::{RolloutFile, Rollouts};
-    let mut identity = smith_bench::read_result(
-        &crate::common::repository().join("tests/recorded/results/attempt.json"),
-    )
-    .expect("recorded identity")
-    .identity
-    .model;
+    let mut identity =
+        smith_bench::read_result(&crate::common::repository().join("tests/recorded/results/attempt.json"))
+            .expect("recorded identity")
+            .identity
+            .model;
     observe(&balanced()).resolve_model(&mut identity);
     assert_eq!(identity.resolved_model, Measure::Observed { value: "model".into() });
     assert_eq!(identity.resolved_window, Measure::Observed { value: 10_000 });

@@ -187,7 +187,6 @@ mod tests {
         std::os::unix::fs::symlink(&external, state.join("smith"))
             .expect("tool alias installed after guard construction");
         assert!(guard.write_path(&external.join("new")).is_err(), "tool links are resolved on each write check");
-
     }
 
     #[test]
@@ -216,7 +215,6 @@ mod tests {
             assert!(guard.write_path(&alias.canonicalize().expect("synthetic alias target")).is_err());
             std::fs::remove_file(&alias).expect("remove only the synthetic alias");
         }
-
     }
 
     #[test]

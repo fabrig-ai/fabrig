@@ -3,10 +3,8 @@
 use smith_bench::{Agent, AttemptResult, Design, Measure, PeakScope, RunSummary};
 
 fn result() -> AttemptResult {
-    smith_bench::read_result(
-        &crate::common::repository().join("tests/recorded/results/attempt.json"),
-    )
-    .expect("recorded attempt")
+    smith_bench::read_result(&crate::common::repository().join("tests/recorded/results/attempt.json"))
+        .expect("recorded attempt")
 }
 
 fn summary(result: AttemptResult) -> RunSummary {

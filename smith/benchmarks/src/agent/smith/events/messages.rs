@@ -15,18 +15,15 @@ pub(super) fn terminals(session: &Session, require_read: bool) -> Vec<String> {
     let mut problems = final_fences(session);
     for record in &session.records {
         match &record.event {
-            Event::MessageReceived(value)
-                if value.refused.is_none() && !active.insert((value.run, value.name)) => {
-                    problems.push(format!("duplicate admitted message {}/{}", value.run, value.name));
-                }
-            Event::MessageRead(value)
-                if !active.remove(&(value.run, value.name)) => {
-                    problems.push(format!("read without one admission {}/{}", value.run, value.name));
-                }
-            Event::MessageUnread(value)
-                if (!active.remove(&(value.run, value.name)) || require_read) => {
-                    problems.push(format!("unread message {}/{}", value.run, value.name));
-                }
+            Event::MessageReceived(value) if value.refused.is_none() && !active.insert((value.run, value.name)) => {
+                problems.push(format!("duplicate admitted message {}/{}", value.run, value.name));
+            }
+            Event::MessageRead(value) if !active.remove(&(value.run, value.name)) => {
+                problems.push(format!("read without one admission {}/{}", value.run, value.name));
+            }
+            Event::MessageUnread(value) if (!active.remove(&(value.run, value.name)) || require_read) => {
+                problems.push(format!("unread message {}/{}", value.run, value.name));
+            }
             _ => {}
         }
     }
@@ -126,12 +123,13 @@ pub(super) fn per_exchange(observer: &Observer) -> Measure<bool> {
                 Event::ConversationOpened(value) if value.kind == smith_events::ConversationKind::Main => {
                     main.insert((index, value.run, value.conversation));
                 }
-                Event::ResponseCompleted(value) if value.outcome == smith_events::Outcome::Completed
-                    && main.contains(&(index, value.run, value.conversation))
-                        && completed.insert((index, value.run, value.response))
-                    => {
-                        *completions.entry((index, value.run)).or_default() += 1;
-                    }
+                Event::ResponseCompleted(value)
+                    if value.outcome == smith_events::Outcome::Completed
+                        && main.contains(&(index, value.run, value.conversation))
+                        && completed.insert((index, value.run, value.response)) =>
+                {
+                    *completions.entry((index, value.run)).or_default() += 1;
+                }
                 _ => {}
             }
         }

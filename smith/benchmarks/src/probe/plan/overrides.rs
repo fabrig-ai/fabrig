@@ -1,3 +1,4 @@
+use super::super::command::{settle_change, small_summary, suite_attempts};
 use super::*;
 
 fn fixture() -> (PathBuf, crate::CatalogueTask, Suite, ArmRef) {
@@ -328,7 +329,6 @@ fn a_suite_run_below_its_attempts_is_summarised_as_small() {
     assert_eq!(small_summary(&batch, &suite, 17, &directory).expect("small summary"), Judgment::Incomplete);
     let summary = crate::read_summary(&directory.join("summary.json")).expect("run-local summary");
     assert_eq!(summary.parity.expect("section").verdict, crate::parity::Verdict::Incomplete);
-
 }
 
 #[test]
@@ -367,5 +367,4 @@ fn a_change_run_below_its_attempts_exits_two_whatever_its_stop() {
         assert_eq!(settle_change(recorded.clone(), &run, &inputs, true).expect("small run"), Judgment::Incomplete);
         assert_eq!(crate::read_summary(&run.join("summary.json")).expect("run-local summary").suite, "parity-change");
     }
-
 }

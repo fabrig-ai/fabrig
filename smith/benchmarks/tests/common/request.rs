@@ -1,7 +1,7 @@
 //! Prepared replay requests retain explicit task and identity inputs.
 
-use std::path::PathBuf;
 use super::bench::{Identity, run};
+use std::path::PathBuf;
 
 pub fn request(task: PathBuf, identity: Identity) -> run::Prepared {
     run::Prepared {

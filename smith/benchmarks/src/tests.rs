@@ -1,4 +1,3 @@
-#[path = "tests/comparison.rs"]
 mod comparison;
 
 use std::path::{Path, PathBuf};
@@ -237,7 +236,6 @@ fn a_seed_digest_freezes_names_content_and_executable_permissions() {
     std::fs::set_permissions(&original, std::fs::Permissions::from_mode(0o600)).expect("restored mode");
     std::fs::rename(&original, root.join("b.txt")).expect("changed name");
     assert_ne!(seed_digest(&root).expect("renamed digest"), baseline);
-
 }
 
 fn a_seed_symlink_cannot_reach_hidden_inputs() {
@@ -247,7 +245,6 @@ fn a_seed_symlink_cannot_reach_hidden_inputs() {
     std::os::unix::fs::symlink("../grader", root.join("hidden")).expect("seed symlink");
     let error = seed_digest(&root).expect_err("seed must not follow symlinks");
     assert!(error.reason.contains("symlinks"), "{error}");
-
 }
 
 fn sample_suite() -> crate::Suite {

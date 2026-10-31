@@ -1,6 +1,5 @@
 //! Failure probes inspect outside terminals; synthetic records are not live proof.
 
-
 use smith_bench::agent::smith::events::Observer;
 use smith_bench::{End, EventCheck, Exit, Forced, Measure, OutcomeCheck};
 use smith_events::{AnswerClass, AnswerFailure, Status};
@@ -186,7 +185,6 @@ fn set_completion_failure(records: &mut [smith_events::Record], completion: &smi
         session.exit = 1;
     }
 }
-
 
 // The fixture envelope admits a deliberate 1025-byte defect. The authored
 // predicate still enforces the independently derived native 1024-byte cap.

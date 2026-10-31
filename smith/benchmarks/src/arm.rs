@@ -375,7 +375,6 @@ mod tests {
         owner.unlock().expect("first build ends");
         contender.try_lock().expect("second build can now start");
         contender.unlock().expect("second build ends");
-
     }
 
     #[test]
@@ -417,6 +416,5 @@ mod tests {
         fs::write(root.join("dirty"), "synthetic untracked change").expect("dirty source");
         assert!(resolve_commit(&root, "HEAD").expect_err("dirty source").contains("dirty"));
         assert!(outside_repositories(&root.join("private/arms")).is_err());
-
     }
 }

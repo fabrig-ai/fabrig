@@ -84,7 +84,6 @@ fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
     records = original;
     fs::write(directory.join("payload.txt"), "altered").expect("saved file mismatch");
     assert_eq!(checked(&records), Measure::Observed { value: false });
-
 }
 
 #[test]
@@ -183,7 +182,6 @@ fn protocol_only_oversized_write_records_identity_and_elided_path() {
         observe(&records).oversized_write(std::path::Path::new("payload.txt"), 10, Some(13848), &directory).passed,
         Measure::Unavailable { reason } if reason.starts_with("not exercised")
     ));
-
 }
 
 #[test]
@@ -236,7 +234,6 @@ fn saved_write_checks_content_size_pairing_and_capture_not_seed() {
     assert!(matches!(checked(&records, 1), Measure::Unavailable { .. }));
     std::fs::write(directory.join("payload.txt"), "altered").expect("tampered saved file");
     assert_eq!(checked(&original, 1), Measure::Observed { value: false });
-
 }
 
 #[test]
@@ -317,7 +314,6 @@ fn oversized_pieces_replay_successful_edits_and_keep_failed_edit_measurement() {
     assert_eq!(checked(&records), Measure::Observed { value: false });
     std::fs::write(directory.join("payload.txt"), "different pieces").expect("tampered saved file");
     assert_eq!(checked(&original), Measure::Observed { value: false });
-
 }
 
 fn piece(records: &mut Vec<smith_events::Record>, tool: &str, call: &str, input: &serde_json::Value, verdict: Verdict) {
@@ -354,7 +350,6 @@ fn piece(records: &mut Vec<smith_events::Record>, tool: &str, call: &str, input:
     records.insert(at, started);
     records.insert(at + 1, completed);
 }
-
 
 #[test]
 fn payload_too_large_write_then_observed_pieces_is_a_valid_oversized_refusal() {
@@ -465,7 +460,6 @@ fn native_oversized_refusal_rejects_wrong_pairs_small_content_loss_and_absent_ca
         observe(&original).check(&EventCheck::Blocks { oversized: Some(Count::Exactly(0)), cut: None }, "task").passed,
         Measure::Observed { value: true }
     );
-
 }
 
 #[test]

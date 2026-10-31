@@ -69,7 +69,6 @@ fn a_replay_arm_runs_through_the_probe_command_and_prints_one_line() {
     };
     assert_eq!(output.status.code(), Some(verdict));
     assert!(login.join("tokens/chatgpt").is_file());
-
 }
 
 fn replay_arm(directory: &Path) -> PathBuf {
@@ -131,7 +130,6 @@ fn a_calibration_block_names_its_summary_and_failing_control() {
     let summary = smith_bench::read_summary(&directory.join("benchmarks").join(&block.summary)).expect("summary");
     assert_eq!(summary.groups[0].attempts.len(), 10);
     assert!(task.calibrated().expect("current inputs"));
-
 }
 
 #[test]
@@ -153,7 +151,6 @@ fn a_variant_carries_its_own_calibration() {
     let variant = task.with_variant("child").expect("child");
     assert_eq!(variant.calibration, Some(block));
     assert!(variant.calibrated().expect("current inputs"));
-
 }
 
 #[test]
@@ -324,5 +321,4 @@ fn a_missing_smoke_login_refuses_before_calibration() {
             directory.join("state/smith-bench/logins/smith/config").display()
         )
     );
-
 }

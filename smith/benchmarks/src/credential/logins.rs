@@ -121,7 +121,6 @@ mod tests {
         drop(first);
         second.try_lock().expect("next program attempt after settlement");
         drop(second);
-
     }
 
     #[test]
@@ -162,13 +161,11 @@ mod tests {
                     directory.join("config").display()
                 )
             );
-
         }
         let directory = root.join("codex");
         assert_eq!(
             codex(&directory).expect_err("missing Codex").reason,
             format!("no Codex login for the harness: run `CODEX_HOME={} codex login`", directory.display())
         );
-
     }
 }

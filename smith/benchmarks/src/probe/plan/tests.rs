@@ -62,7 +62,6 @@ impl Fixture {
         write_requests(&self.guard, &self.directory, &requests).expect("persist requests");
         requests
     }
-
 }
 
 #[test]

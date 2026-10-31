@@ -67,7 +67,6 @@ fn a_task_without_deciding_checks_is_refused() {
             .expect_err("every task names deciding checks");
     assert_eq!(error.key, "deciding");
     assert_eq!(error.reason, "task requires deciding checks");
-
 }
 
 fn checks(ended: &Ended, checks: &[OutcomeCheck]) -> Vec<smith_bench::CheckVerdict> {
