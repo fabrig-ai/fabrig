@@ -5,6 +5,7 @@
 pub mod acceptance;
 pub mod intents;
 mod projects;
+pub mod naming;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -762,6 +763,22 @@ impl Observer {
             }
         }
         let mut snapshot = r::Snapshot::default();
+        for (key, row) in &store.rows {
+            if let Some(name) = naming::naming(key, row) {
+                if let root::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Account { uses: Some(uses), .. })) = row {
+                    for payer in uses {
+                        if let jig_domain_accounts::Use::Project(project) = payer {
+                            snapshot.naming.push(r::Naming { project: Some(*project), ..name.clone() });
+                        }
+                    }
+                } else {
+                    snapshot.naming.push(name);
+                }
+            }
+            if let root::Record::Core(core::Record::People(people::Stored::Deletion { project, .. })) = row {
+                snapshot.deleting.insert(*project);
+            }
+        }
         let mut decisions = Vec::new();
         let mut task_acceptances = Vec::new();
         let mut authority_acceptances = Vec::new();
@@ -1052,6 +1069,9 @@ impl Observer {
                 }
             }
         }
+        for tasks in self.forgetting.range(..=number).map(|(_, tasks)| tasks) {
+            self.activity.retain(|(task, _), _| !tasks.contains(task));
+        }
         for ((task, position), kept) in &self.activity {
             let key = root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task: *task, position: *position }));
             assert!(
@@ -1128,6 +1148,12 @@ impl Observer {
             }
             root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
                 self.reply_receipts(to, reply, &mut requires);
+                if let people::Reply::Outcome(people::Outcome::ProjectRemoved { project }) = reply {
+                    self.observe(now, r::Observed::ProjectRemoved { project: *project });
+                }
+            }
+            root::Delivery::Core(core::Held::Acted { outcome: people::Outcome::ProjectRemoved { project }, .. }) => {
+                self.observe(now, r::Observed::ProjectRemoved { project: *project });
             }
             root::Delivery::Message { task: run, word, .. } => {
                 requires.push(r::Receipt::Word(*run, word.number));

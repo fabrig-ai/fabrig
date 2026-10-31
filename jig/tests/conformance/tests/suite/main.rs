@@ -7,6 +7,7 @@ mod application;
 mod client_settings;
 mod client_settings_proposals;
 mod faults;
+mod deletion;
 mod memory;
 mod referee;
 mod restart;
@@ -17,6 +18,7 @@ mod trace;
 
 mod fuzzy {
     mod cuts;
+    mod deletion;
     mod scenarios;
     mod snapshot;
 }

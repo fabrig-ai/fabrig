@@ -525,6 +525,8 @@ pub enum SystemEvent {
 /// What the root tells the connector for this part of its contract.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// Release project adoptions (temper/docs/design/draft/playground-reset.md, 5).
+    ReleaseProject { project: u32 },
     /// Retain this root-minted name in the application's own vocabulary.
     DocumentPrepare {
         token: Token,
@@ -830,6 +832,8 @@ impl Record {
 /// What the connector asks its root to route or commit.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// Project adoptions are erased in this decision; the root holds its effects until commit.
+    ProjectReleased { project: u32 },
     /// An offered topic names every read resource.
     Topic { token: Token, resources: Box<[Path]> },
     /// This topic is not offered to agents.
