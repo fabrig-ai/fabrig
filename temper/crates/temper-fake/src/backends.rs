@@ -465,7 +465,7 @@ fn forge(d: &Document, application: u32, github: &[u8], edits: &mut Edits, ap: &
     let value = read::joined(&[
         b"{\"api\":",
         &address(github)?,
-        b",\"tls\":false,\"remote\":",
+        b",\"transport\":\"plaintext\",\"remote\":",
         &origin,
         b",\"web\":",
         &origin,

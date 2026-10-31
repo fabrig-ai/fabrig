@@ -126,7 +126,22 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     assert_eq!(forge["api"], json!({"socket":"127.0.0.1:9101"}));
     assert_eq!(forge["remote"], "http://127.0.0.1:9101");
     assert_eq!(forge["web"], "http://127.0.0.1:9101");
-    assert_eq!(forge["tls"], false);
+    assert_eq!(forge["transport"], "plaintext");
+    let document = crate::read::document(&docs.temper).expect("effective document");
+    let app = super::member(&document, 0, b"application", &jig_protocol_config::Path::root()).expect("application");
+    let at = super::member(&document, app, b"machine", &jig_protocol_config::Path::root()).expect("machine");
+    let mut problems = temper_forge_setup::problem::Problems::empty();
+    let machine = temper_forge_setup::machine::read(
+        &document,
+        at,
+        &temper_forge_setup::limits::small(),
+        &jig_protocol_config::Directories::working(),
+        &mut problems,
+    )
+    .expect("ordinary machine format");
+    assert!(problems.is_empty());
+    assert!(!machine.github.expect("fake GitHub").tls);
+
     let sign_in = &effective["engine"]["llm"]["providers"][0]["sources"]["sign_in"];
     for (name, expected) in [
         ("issuer", "http://127.0.0.1:9102"),
