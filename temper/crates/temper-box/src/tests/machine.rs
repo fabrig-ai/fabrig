@@ -685,6 +685,7 @@ fn check_link_placement(steps: &[crate::layout::Placed]) {
 #[should_panic(expected = "a link is not first")]
 fn a_link_cannot_be_first() {
     check_link_placement(&[crate::layout::Placed {
+        role: crate::layout::Role::Always,
         label: None,
         step: super::fixtures::step(b"seed", Kind::Link),
         asked: None,
@@ -695,8 +696,14 @@ fn a_link_cannot_be_first() {
 fn a_link_cannot_belong_to_a_group() {
     use crate::layout::{Asked, Placed};
     check_link_placement(&[
-        Placed { label: None, step: super::fixtures::step(b"serve", Kind::Long), asked: None },
         Placed {
+            role: crate::layout::Role::Always,
+            label: None,
+            step: super::fixtures::step(b"serve", Kind::Long),
+            asked: None,
+        },
+        Placed {
+            role: crate::layout::Role::Group,
             label: None,
             step: super::fixtures::step(b"seed", Kind::Link),
             asked: Some(Asked { recorded: true, forge: 3, stage: temper_forge_setup::Stage::Run }),
@@ -708,8 +715,18 @@ fn a_link_cannot_belong_to_a_group() {
 fn a_link_cannot_follow_a_once_step() {
     use crate::layout::Placed;
     check_link_placement(&[
-        Placed { label: None, step: super::fixtures::step(b"prepare", Kind::Once), asked: None },
-        Placed { label: None, step: super::fixtures::step(b"seed", Kind::Link), asked: None },
+        Placed {
+            role: crate::layout::Role::Always,
+            label: None,
+            step: super::fixtures::step(b"prepare", Kind::Once),
+            asked: None,
+        },
+        Placed {
+            role: crate::layout::Role::Always,
+            label: None,
+            step: super::fixtures::step(b"seed", Kind::Link),
+            asked: None,
+        },
     ]);
 }
 #[test]
@@ -718,11 +735,17 @@ fn a_link_cannot_follow_a_group_step() {
     use crate::layout::{Asked, Placed};
     check_link_placement(&[
         Placed {
+            role: crate::layout::Role::Group,
             label: None,
             step: super::fixtures::step(b"serve", Kind::Long),
             asked: Some(Asked { recorded: true, forge: 3, stage: temper_forge_setup::Stage::Run }),
         },
-        Placed { label: None, step: super::fixtures::step(b"seed", Kind::Link), asked: None },
+        Placed {
+            role: crate::layout::Role::Always,
+            label: None,
+            step: super::fixtures::step(b"seed", Kind::Link),
+            asked: None,
+        },
     ]);
 }
 
@@ -1666,4 +1689,488 @@ fn a_box_stop_does_not_withdraw_a_group_stops_spawn_twice() {
     assert_eq!(&*rig.effects(), &[Order::Withdraw { step: 1 }]);
     rig.terminate();
     assert_eq!(&*rig.effects(), &[Order::Signal { step: 3 }]);
+}
+
+fn runtime_group(forge: u16, recorded: bool) -> temper_forge_setup::Group {
+    use super::fixtures::step;
+    use temper_forge_setup::{Group, Stage};
+    Group {
+        forge,
+        recorded,
+        before: u32::MAX,
+        label: skein_lib::bytes::copy_of(b"Runtime forge"),
+        steps: Box::new([
+            (Stage::Prepare, step(b"prepare", Kind::Once)),
+            (Stage::Run, step(b"forge", Kind::Long)),
+            (Stage::Run, step(b"runner", Kind::Long)),
+        ]),
+    }
+}
+fn install(
+    machine: &mut crate::machine::Machine,
+    placed: &mut [crate::layout::Placed],
+    slots: &crate::layout::Slots,
+    slot: u32,
+    group: temper_forge_setup::Group,
+    remove: temper_forge_setup::Step,
+) {
+    crate::layout::fill(placed, slots, slot, group, remove);
+    machine.install(slot, placed);
+}
+struct Runtime {
+    machine: crate::machine::Machine,
+    placed: Box<[crate::layout::Placed]>,
+    slots: crate::layout::Slots,
+    out: skein_lib::Queue<Order>,
+}
+impl Runtime {
+    fn new(groups: Box<[(temper_forge_setup::Group, temper_forge_setup::Step)]>, count: u32) -> Self {
+        use super::fixtures::step;
+        let (placed, slots) = crate::layout::slotted(
+            temper_forge_setup::Steps {
+                always: Box::new([step(b"always", Kind::Once), step(b"serve", Kind::Long)]),
+                asked: Box::new([]),
+            },
+            groups,
+            count,
+            5,
+        );
+        let machine = crate::machine::Machine::with_slots(&limits::small(), &placed, slots).unwrap();
+        Self { machine, placed, slots, out: skein_lib::Queue::with_capacity(64) }
+    }
+    fn held() -> Self {
+        Self::new(Box::new([(runtime_group(7, false), super::fixtures::step(b"removal", Kind::Once))]), 2)
+    }
+    fn input(&mut self, input: Input) {
+        self.machine.input(skein_lib::Time::ZERO, input, &mut self.out);
+    }
+    fn effects(&mut self) -> Box<[Order]> {
+        take_effects(&mut self.out)
+    }
+    fn completed(&mut self, step: usize, exit: Exit) {
+        self.input(Input::Started { step });
+        self.input(Input::Exited { step, exit });
+        self.input(Input::Closed { step });
+    }
+    fn start_group(&mut self) {
+        self.input(Input::Ask { forge: 7 });
+        self.completed(1, Exit::Code(0));
+        self.input(Input::Started { step: 2 });
+        self.input(Input::Started { step: 3 });
+        self.effects();
+    }
+}
+#[test]
+fn slots_sit_before_serve_and_recorded_groups_join_the_start_chain() {
+    let mut rig = Runtime::new(Box::new([(runtime_group(7, true), super::fixtures::step(b"removal", Kind::Once))]), 2);
+    assert_eq!(rig.slots.first, 1);
+    assert_eq!(rig.machine.slot(7), Some(0));
+    assert_eq!(rig.machine.vacant(), Some(1));
+    assert_eq!(rig.slots.slot(0), None);
+    assert_eq!(rig.slots.slot(1), Some(0));
+    assert_eq!(rig.slots.slot(5), Some(0));
+    assert_eq!(rig.slots.slot(6), Some(1));
+    assert_eq!(rig.slots.slot(11), None);
+    rig.machine.start(skein_lib::Time::ZERO, &[7], &mut rig.out);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 0 }]);
+    rig.completed(0, Exit::Code(0));
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 0 }, Order::Spawn { step: 1 }]);
+    rig.completed(1, Exit::Code(0));
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 1 }, Order::Spawn { step: 2 }]);
+    rig.input(Input::Started { step: 2 });
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 3 }]);
+    rig.input(Input::Started { step: 3 });
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 11 }]);
+}
+#[test]
+fn start_of_a_group_not_held_loads_it_then_starts_it() {
+    let mut rig = Runtime::new(Box::new([]), 2);
+    rig.input(Input::Ask { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Load { forge: 7 }]);
+    let slot = rig.machine.vacant().unwrap();
+    install(
+        &mut rig.machine,
+        &mut rig.placed,
+        &rig.slots,
+        slot,
+        runtime_group(7, false),
+        super::fixtures::step(b"removal", Kind::Once),
+    );
+    rig.input(Input::Loaded { forge: 7 });
+    assert_eq!(
+        &*rig.effects(),
+        &[Order::Spawn { step: 1 }, Order::Say { said: crate::machine::Said::Step { step: 1 } }]
+    );
+    rig.completed(1, Exit::Code(0));
+    assert_eq!(
+        &*rig.effects(),
+        &[
+            Order::Close { step: 1 },
+            Order::Spawn { step: 2 },
+            Order::Say { said: crate::machine::Said::Step { step: 2 } }
+        ]
+    );
+    rig.input(Input::Started { step: 2 });
+    assert_eq!(
+        &*rig.effects(),
+        &[Order::Spawn { step: 3 }, Order::Say { said: crate::machine::Said::Step { step: 3 } }]
+    );
+    rig.input(Input::Started { step: 3 });
+    assert_eq!(&*rig.effects(), &[Order::Say { said: crate::machine::Said::Started { forge: 7 } }]);
+}
+#[test]
+fn start_of_a_group_whose_file_is_missing_is_not_asked() {
+    use crate::machine::{Said, Why};
+    let mut rig = Runtime::new(Box::new([]), 1);
+    for (missing, why) in [(true, Why::NotAsked), (false, Why::Unreadable)] {
+        rig.input(Input::Ask { forge: 7 });
+        assert_eq!(&*rig.effects(), &[Order::Load { forge: 7 }]);
+        rig.input(Input::NotLoaded { forge: 7, missing });
+        assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Failed { forge: 7, why } }]);
+        assert_eq!(rig.machine.vacant(), Some(0));
+        assert_eq!(rig.machine.slot(7), None);
+    }
+}
+#[test]
+fn a_start_with_every_slot_held_is_refused_full() {
+    let mut rig = Runtime::new(Box::new([(runtime_group(7, false), super::fixtures::step(b"removal", Kind::Once))]), 1);
+    rig.input(Input::Ask { forge: 8 });
+    assert_eq!(
+        &*rig.effects(),
+        &[Order::Say { said: crate::machine::Said::Failed { forge: 8, why: crate::machine::Why::Full } }]
+    );
+}
+#[test]
+fn a_second_load_while_one_is_pending_is_busy() {
+    let mut rig = Runtime::new(Box::new([]), 2);
+    rig.input(Input::Ask { forge: 7 });
+    rig.effects();
+    for input in [Input::Ask { forge: 8 }, Input::Remove { forge: 8 }, Input::Ask { forge: 7 }] {
+        rig.input(input);
+        let forge = if input == (Input::Ask { forge: 7 }) { 7 } else { 8 };
+        assert_eq!(
+            &*rig.effects(),
+            &[Order::Say { said: crate::machine::Said::Failed { forge, why: crate::machine::Why::Busy } }]
+        );
+    }
+}
+#[test]
+fn remove_of_a_started_group_stops_it_runs_its_removal_then_unrecords() {
+    use crate::{machine::Said, terminal::Fact};
+    let mut rig = Runtime::held();
+    rig.start_group();
+    rig.input(Input::Remove { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 3 }]);
+    for (step, next) in [(3, Order::Signal { step: 2 }), (2, Order::Spawn { step: 5 })] {
+        rig.input(Input::Exited { step, exit: Exit::Code(0) });
+        assert_eq!(&*rig.effects(), &[Order::Close { step }]);
+        rig.input(Input::Closed { step });
+        assert_eq!(&*rig.effects(), &[next]);
+    }
+    rig.completed(5, Exit::Code(0));
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 5 }, Order::Unrecord { forge: 7 }]);
+    rig.input(Input::Unrecorded { forge: 7 });
+    assert_eq!(rig.out.pop(), Some(Order::Terminal { fact: Fact::GroupRemoved { forge: 7 } }));
+    assert_eq!(&*rig.effects(), &[Order::Vacate { slot: 0 }, Order::Say { said: Said::Removed { forge: 7 } }]);
+    assert_eq!(rig.machine.vacant(), Some(0));
+    assert_eq!(rig.machine.slot(7), None);
+    crate::layout::clear(&mut rig.placed, &rig.slots, 0);
+    for placed in &rig.placed[1..6] {
+        assert_eq!(placed.role, crate::layout::Role::Vacant);
+        assert!(placed.step.name().is_empty());
+        assert_eq!(placed.asked, None);
+        assert_eq!(placed.label, None);
+    }
+    rig.input(Input::Ask { forge: 8 });
+    assert_eq!(&*rig.effects(), &[Order::Load { forge: 8 }]);
+    install(
+        &mut rig.machine,
+        &mut rig.placed,
+        &rig.slots,
+        0,
+        runtime_group(8, false),
+        super::fixtures::step(b"removal", Kind::Once),
+    );
+    rig.input(Input::Loaded { forge: 8 });
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 1 }, Order::Say { said: Said::Step { step: 1 } }]);
+}
+#[test]
+fn remove_of_a_dormant_group_runs_only_its_removal() {
+    let mut rig = Runtime::held();
+    rig.input(Input::Remove { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 5 }]);
+}
+#[test]
+fn remove_of_a_group_not_held_loads_it_first() {
+    use crate::machine::Said;
+    let mut rig = Runtime::new(Box::new([]), 1);
+    rig.input(Input::Remove { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Load { forge: 7 }]);
+    install(
+        &mut rig.machine,
+        &mut rig.placed,
+        &rig.slots,
+        0,
+        runtime_group(7, false),
+        super::fixtures::step(b"removal", Kind::Once),
+    );
+    rig.input(Input::Loaded { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 5 }]);
+    let mut missing = Runtime::new(Box::new([]), 1);
+    for _ in 0..2_u32 {
+        missing.input(Input::Remove { forge: 7 });
+        assert_eq!(&*missing.effects(), &[Order::Load { forge: 7 }]);
+        missing.input(Input::NotLoaded { forge: 7, missing: true });
+        assert_eq!(&*missing.effects(), &[Order::Unrecord { forge: 7 }]);
+        missing.input(Input::Unrecorded { forge: 7 });
+        assert_eq!(&*missing.effects(), &[Order::Say { said: Said::Removed { forge: 7 } }]);
+        assert_eq!(missing.machine.vacant(), Some(0));
+    }
+    missing.input(Input::Remove { forge: 7 });
+    missing.effects();
+    missing.input(Input::NotLoaded { forge: 7, missing: false });
+    assert_eq!(
+        &*missing.effects(),
+        &[Order::Say { said: Said::Failed { forge: 7, why: crate::machine::Why::Unreadable } }]
+    );
+}
+#[test]
+fn a_removal_step_that_fails_answers_failed_and_keeps_the_group() {
+    use crate::machine::{Said, Why};
+    for exit in [Exit::Code(1), Exit::Signal(9)] {
+        let mut rig = Runtime::held();
+        for _ in 0..2_u32 {
+            rig.input(Input::Remove { forge: 7 });
+            assert_eq!(&*rig.effects(), &[Order::Spawn { step: 5 }]);
+            rig.completed(5, exit);
+            assert_eq!(
+                &*rig.effects(),
+                &[
+                    Order::Close { step: 5 },
+                    Order::Say { said: Said::Failed { forge: 7, why: Why::Removal { step: 5, exit } } }
+                ]
+            );
+            assert_eq!(rig.machine.slot(7), Some(0));
+            assert_eq!(rig.machine.outcome(), None);
+            assert!(rig.machine.is_idle());
+        }
+    }
+}
+#[test]
+fn remove_while_another_group_starts_is_busy() {
+    use crate::machine::{Said, Why};
+    let mut rig = Runtime::held();
+    rig.input(Input::Ask { forge: 7 });
+    rig.effects();
+    for forge in [7, 8] {
+        rig.input(Input::Remove { forge });
+        assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Failed { forge, why: Why::Busy } }]);
+    }
+    rig.input(Input::Terminate);
+    rig.effects();
+    rig.input(Input::Remove { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Failed { forge: 7, why: Why::Stopping } }]);
+}
+#[test]
+fn not_unrecorded_answers_failed_and_keeps_the_group() {
+    use crate::machine::{Said, Why};
+    let mut rig = Runtime::held();
+    rig.input(Input::Remove { forge: 7 });
+    rig.effects();
+    rig.completed(5, Exit::Code(0));
+    rig.effects();
+    rig.input(Input::NotUnrecorded { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Failed { forge: 7, why: Why::NotRemoved } }]);
+    assert_eq!(rig.machine.slot(7), Some(0));
+    rig.input(Input::Remove { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 5 }]);
+}
+#[test]
+fn the_removal_step_never_joins_a_start_chain() {
+    let mut rig = Runtime::held();
+    rig.machine.start(skein_lib::Time::ZERO, &[], &mut rig.out);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 0 }]);
+    rig.completed(0, Exit::Code(0));
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 0 }, Order::Spawn { step: 11 }]);
+    rig.input(Input::Started { step: 11 });
+    rig.start_group();
+    rig.input(Input::Terminate);
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 11 }]);
+    for (step, next) in [(11, Some(3_usize)), (3, Some(2)), (2, None)] {
+        rig.input(Input::Exited { step, exit: Exit::Code(0) });
+        assert_eq!(&*rig.effects(), &[Order::Close { step }]);
+        rig.input(Input::Closed { step });
+        let expected: &[Order] = match next {
+            Some(3) => &[Order::Signal { step: 3 }],
+            Some(2) => &[Order::Signal { step: 2 }],
+            None => &[],
+            _ => unreachable!(),
+        };
+        assert_eq!(&*rig.effects(), expected);
+    }
+    assert!(rig.machine.is_idle());
+}
+
+#[test]
+fn a_removal_spawn_refusal_keeps_the_group_dormant_for_retry() {
+    use crate::machine::{Said, Why};
+    let mut rig = Runtime::held();
+    for _ in 0..2_u32 {
+        rig.input(Input::Remove { forge: 7 });
+        assert_eq!(&*rig.effects(), &[Order::Spawn { step: 5 }]);
+        rig.input(Input::NotStarted { step: 5 });
+        assert_eq!(
+            &*rig.effects(),
+            &[Order::Say { said: Said::Failed { forge: 7, why: Why::NotStarted { step: 5 } } }]
+        );
+        assert_eq!(rig.machine.slot(7), Some(0));
+        assert_eq!(rig.machine.outcome(), None);
+        assert!(rig.machine.is_idle());
+    }
+    rig.start_group();
+}
+#[test]
+fn remove_refuses_a_recording_or_failing_group_as_busy() {
+    use crate::machine::{Said, Why};
+    let mut rig = Runtime::new(Box::new([(runtime_group(7, true), super::fixtures::step(b"removal", Kind::Once))]), 2);
+    rig.input(Input::Ask { forge: 7 });
+    rig.completed(1, Exit::Code(0));
+    rig.input(Input::Started { step: 2 });
+    rig.input(Input::Started { step: 3 });
+    assert_eq!(rig.effects().last(), Some(&Order::Record { forge: 7 }));
+    for input in [Input::Remove { forge: 7 }, Input::Remove { forge: 8 }] {
+        rig.input(input);
+        let forge = if input == (Input::Remove { forge: 7 }) { 7 } else { 8 };
+        assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Failed { forge, why: Why::Busy } }]);
+    }
+    rig.input(Input::NotWritten { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 2 }, Order::Close { step: 3 }]);
+    for forge in [7, 8] {
+        rig.input(Input::Remove { forge });
+        assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Failed { forge, why: Why::Busy } }]);
+    }
+    rig.input(Input::Closed { step: 2 });
+    rig.input(Input::Closed { step: 3 });
+    assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Failed { forge: 7, why: Why::NotWritten } }]);
+    rig.input(Input::Remove { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 5 }]);
+}
+#[test]
+fn removal_disarms_backoff_and_withdraws_a_restart_preparation() {
+    use skein_lib::Time;
+    for restarting in [false, true] {
+        let mut rig = Runtime::held();
+        rig.start_group();
+        rig.input(Input::Exited { step: 2, exit: Exit::Code(1) });
+        rig.input(Input::Closed { step: 2 });
+        rig.effects();
+        if restarting {
+            rig.machine.fire(Time::ZERO.saturating_add(Duration::from_millis(500)), &mut rig.out);
+            assert_eq!(&*rig.effects(), &[Order::Spawn { step: 1 }]);
+        }
+        rig.input(Input::Remove { forge: 7 });
+        let expected: &[Order] = if restarting {
+            &[Order::Withdraw { step: 1 }, Order::Signal { step: 3 }]
+        } else {
+            &[Order::Signal { step: 3 }]
+        };
+        assert_eq!(&*rig.effects(), expected);
+        rig.input(Input::Exited { step: 3, exit: Exit::Code(0) });
+        assert_eq!(&*rig.effects(), &[Order::Close { step: 3 }]);
+        rig.input(Input::Closed { step: 3 });
+        if restarting {
+            assert!(rig.effects().is_empty());
+            rig.input(Input::Withdrawn { step: 1 });
+        }
+        assert_eq!(&*rig.effects(), &[Order::Spawn { step: 5 }]);
+        assert_eq!(rig.machine.next_deadline(), None);
+        rig.machine.fire(Time::ZERO.saturating_add(Duration::from_secs(300)), &mut rig.out);
+        assert!(rig.effects().is_empty());
+    }
+}
+#[test]
+fn removal_stop_uses_grace_then_runs_cleanup_after_the_last_close() {
+    use skein_lib::Time;
+    let mut rig = Runtime::held();
+    rig.start_group();
+    rig.input(Input::Remove { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 3 }]);
+    rig.machine.fire(Time::ZERO.saturating_add(Duration::from_secs(10)), &mut rig.out);
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 3 }]);
+    rig.machine.fire(Time::ZERO.saturating_add(Duration::from_secs(20)), &mut rig.out);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 3 }]);
+    rig.input(Input::Closed { step: 3 });
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 2 }]);
+    rig.input(Input::Exited { step: 2, exit: Exit::Signal(15) });
+    rig.input(Input::Closed { step: 2 });
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 2 }, Order::Spawn { step: 5 }]);
+}
+#[test]
+fn box_stop_closes_a_live_removal_without_unrecording_or_replying() {
+    for admitted in [false, true] {
+        let mut rig = Runtime::held();
+        rig.input(Input::Remove { forge: 7 });
+        rig.effects();
+        if admitted {
+            rig.input(Input::Started { step: 5 });
+        }
+        rig.input(Input::Terminate);
+        let expected: &[Order] = if admitted { &[Order::Signal { step: 5 }] } else { &[Order::Withdraw { step: 5 }] };
+        assert_eq!(&*rig.effects(), expected);
+        if !admitted {
+            rig.input(Input::Started { step: 5 });
+            assert_eq!(&*rig.effects(), &[Order::Signal { step: 5 }]);
+        }
+        rig.input(Input::Exited { step: 5, exit: Exit::Code(0) });
+        rig.input(Input::Closed { step: 5 });
+        assert_eq!(&*rig.effects(), &[Order::Close { step: 5 }]);
+        assert_eq!(rig.machine.outcome(), Some(Outcome::Stopped));
+        assert!(rig.machine.is_idle());
+        assert_eq!(rig.machine.slot(7), Some(0));
+    }
+}
+#[test]
+fn late_load_and_unrecord_answers_do_not_resume_a_stopping_box() {
+    for remove in [false, true] {
+        let mut rig = Runtime::new(Box::new([]), 1);
+        rig.input(if remove { Input::Remove { forge: 7 } } else { Input::Ask { forge: 7 } });
+        rig.effects();
+        rig.input(Input::Loaded { forge: 8 });
+        rig.input(Input::NotLoaded { forge: 8, missing: true });
+        assert!(rig.effects().is_empty());
+        rig.input(Input::Terminate);
+        rig.effects();
+        install(
+            &mut rig.machine,
+            &mut rig.placed,
+            &rig.slots,
+            0,
+            runtime_group(7, false),
+            super::fixtures::step(b"removal", Kind::Once),
+        );
+        rig.input(Input::Loaded { forge: 7 });
+        assert!(rig.effects().is_empty());
+        assert!(rig.machine.is_idle());
+    }
+    let mut rig = Runtime::held();
+    rig.input(Input::Remove { forge: 7 });
+    rig.completed(5, Exit::Code(0));
+    rig.effects();
+    rig.input(Input::Unrecorded { forge: 8 });
+    assert!(rig.effects().is_empty());
+    rig.input(Input::Terminate);
+    rig.effects();
+    rig.input(Input::Unrecorded { forge: 7 });
+    assert!(rig.effects().is_empty());
+    assert_eq!(rig.machine.slot(7), Some(0));
+}
+#[test]
+fn an_empty_runtime_group_starts_without_spawning_a_placeholder() {
+    let mut group = runtime_group(7, false);
+    group.steps = Box::new([]);
+    let mut rig = Runtime::new(Box::new([(group, super::fixtures::step(b"removal", Kind::Once))]), 1);
+    rig.input(Input::Ask { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Say { said: crate::machine::Said::Started { forge: 7 } }]);
+    rig.input(Input::Remove { forge: 7 });
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 5 }]);
 }

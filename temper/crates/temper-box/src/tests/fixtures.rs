@@ -806,6 +806,9 @@ fn is_effect(order: &Order) -> bool {
         | Order::Wait { .. }
         | Order::Signal { .. }
         | Order::Close { .. }
+        | Order::Load { .. }
+        | Order::Unrecord { .. }
+        | Order::Vacate { .. }
         | Order::Record { .. }
         | Order::Say { .. } => true,
     }

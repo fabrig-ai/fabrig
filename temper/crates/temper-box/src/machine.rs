@@ -1,5 +1,6 @@
 //! Steps, exits and timers in; process orders out (protocol/setup.md, 7.2).
-use crate::layout::Placed;
+//! Runtime groups and removal: temper/docs/design/draft/playground-reset.md, 3, 4.
+use crate::layout::{Placed, Role, Slots};
 use crate::limits::{Limits, Unfit, check};
 use crate::terminal::Fact;
 use alloc::boxed::Box;
@@ -20,6 +21,11 @@ pub enum Input {
     Terminate,
     Ask { forge: u16 },
     Stop { forge: u16 },
+    Remove { forge: u16 },
+    Loaded { forge: u16 },
+    NotLoaded { forge: u16, missing: bool },
+    Unrecorded { forge: u16 },
+    NotUnrecorded { forge: u16 },
     Written { forge: u16 },
     NotWritten { forge: u16 },
 }
@@ -33,6 +39,9 @@ pub enum Order {
     Signal { step: usize },
     Close { step: usize },
     Record { forge: u16 },
+    Load { forge: u16 },
+    Unrecord { forge: u16 },
+    Vacate { slot: u32 },
     Say { said: Said },
     Terminal { fact: Fact },
 }
@@ -42,10 +51,15 @@ pub enum Said {
     Step { step: usize },
     Started { forge: u16 },
     Stopped { forge: u16 },
+    Removed { forge: u16 },
     Failed { forge: u16, why: Why },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Why {
+    Full,
+    Unreadable,
+    Removal { step: usize, exit: Exit },
+    NotRemoved,
     Busy,
     NotAsked,
     Stopping,
@@ -65,6 +79,8 @@ enum Status {
 }
 #[derive(Debug)]
 pub(crate) struct GroupState {
+    held: bool,
+    slot: Option<u32>,
     forge: u16,
     recorded: bool,
     first: usize,
@@ -91,6 +107,7 @@ enum Phase {
 }
 #[derive(Debug)]
 pub(crate) struct State {
+    role: Role,
     kind: Kind,
     ready: bool,
     notice: Option<Fact>,
@@ -107,9 +124,30 @@ enum StopNotice {
     Requested,
     Reported,
 }
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct Loading {
+    forge: u16,
+    slot: u32,
+    remove: bool,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum RemovalPhase {
+    Stopping,
+    Running,
+    Unrecording,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct Removal {
+    forge: u16,
+    slot: Option<u32>,
+    phase: RemovalPhase,
+}
 /// The box's policy, independent of process handles and step names.
 #[derive(Debug)]
 pub struct Machine {
+    slots: Slots,
+    loading: Option<Loading>,
+    removal: Option<Removal>,
     states: Box<[State]>,
     groups: Box<[GroupState]>,
     limits: Limits,
@@ -121,6 +159,10 @@ pub struct Machine {
 impl Machine {
     /// Checks limits and allocates each step's bounded exit history.
     pub fn new(limits: &Limits, steps: &[Placed]) -> Result<Self, Unfit> {
+        Self::with_slots(limits, steps, Slots::NONE)
+    }
+    /// Checks limits and initializes held groups and vacant runtime slots.
+    pub fn with_slots(limits: &Limits, steps: &[Placed], slots: Slots) -> Result<Self, Unfit> {
         check(limits)?;
         let mut states = List::with_capacity(u32::try_from(steps.len()).expect("steps fit u32"));
         let mut groups = List::with_capacity(u32::try_from(steps.len()).expect("bounded groups"));
@@ -132,7 +174,7 @@ impl Machine {
                 assert!(previous.step.kind() == Kind::Long, "a link follows a long step");
                 assert!(previous.asked.is_none(), "a link's long step is outside groups");
             }
-            let group = match step.asked {
+            let group = match if step.role == Role::Removal { None } else { step.asked } {
                 Some(asked) => {
                     let last = groups.len().checked_sub(1);
                     let mut found = None;
@@ -149,6 +191,8 @@ impl Machine {
                             let group = usize::try_from(groups.len()).expect("group index");
                             groups
                                 .push(GroupState {
+                                    held: true,
+                                    slot: slots.slot(index),
                                     forge: asked.forge,
                                     recorded: asked.recorded,
                                     first: index,
@@ -165,6 +209,7 @@ impl Machine {
             };
             states
                 .push(State {
+                    role: step.role,
                     kind: step.step.kind(),
                     ready: step.step.ready().is_some(),
                     notice: (!step.step.started_notice().is_empty()).then_some(Fact::Started { step: index }),
@@ -177,7 +222,34 @@ impl Machine {
                 })
                 .expect("one state per step");
         }
-        Ok(Self {
+        for slot in 0..slots.count {
+            let mut held = false;
+            for group in &groups {
+                if group.slot == Some(slot) {
+                    held = true;
+                    break;
+                }
+            }
+            if !held {
+                let range = slots.range(slot);
+                groups
+                    .push(GroupState {
+                        held: false,
+                        slot: Some(slot),
+                        forge: 0,
+                        recorded: false,
+                        first: range.start,
+                        end: range.start,
+                        chained: false,
+                        status: Status::Dormant,
+                    })
+                    .expect("slot capacity");
+            }
+        }
+        let mut machine = Self {
+            slots,
+            loading: None,
+            removal: None,
             states: states.into_boxed(),
             groups: groups.into_boxed(),
             limits: *limits,
@@ -185,20 +257,85 @@ impl Machine {
             forced: false,
             begun: false,
             stop_notice: StopNotice::Unrequested,
-        })
+        };
+        for slot in 0..slots.count {
+            machine.install(slot, steps);
+        }
+        Ok(machine)
+    }
+    /// A vacant slot, including the slot reserved for the host's pending load.
+    #[must_use]
+    pub fn vacant(&self) -> Option<u32> {
+        for group in &self.groups {
+            if !group.held {
+                return group.slot;
+            }
+        }
+        None
+    }
+    /// The runtime slot holding this forge.
+    #[must_use]
+    pub fn slot(&self, forge: u16) -> Option<u32> {
+        self.groups.get(self.group(forge)?).expect("group").slot
+    }
+    /// Takes the host's filled slot, resetting lifecycle state and exit history.
+    pub fn install(&mut self, slot: u32, steps: &[Placed]) {
+        let range = self.slots.range(slot);
+        let mut index = None;
+        for (at, group) in self.groups.iter().enumerate() {
+            if group.slot == Some(slot) {
+                index = Some(at);
+                break;
+            }
+        }
+        let index = index.expect("slot group state");
+        let group = self.groups.get_mut(index).expect("slot group");
+        group.held = false;
+        group.first = range.start;
+        group.end = range.start;
+        group.chained = false;
+        group.status = Status::Dormant;
+        for position in range {
+            let placed = steps.get(position).expect("placed slot");
+            let state = self.states.get_mut(position).expect("slot state");
+            state.role = placed.role;
+            state.kind = placed.step.kind();
+            state.ready = placed.step.ready().is_some();
+            state.notice = (!placed.step.started_notice().is_empty()).then_some(Fact::Started { step: position });
+            state.group = (placed.role == Role::Group).then_some(index);
+            state.phase = Phase::Dormant;
+            state.waiting = false;
+            state.withdraw = false;
+            state.why = None;
+            state.exits.clear();
+            if let Some(asked) = placed.asked {
+                group.held = true;
+                group.forge = asked.forge;
+                group.recorded = asked.recorded;
+                if placed.role == Role::Group {
+                    group.end = position.checked_add(1).expect("group end");
+                }
+            }
+        }
+    }
+    fn in_chain(&self, step: usize) -> bool {
+        match self.states.get(step).expect("step").role {
+            Role::Always | Role::Group => true,
+            Role::Removal | Role::Vacant => false,
+        }
     }
     /// Starts the first step once.
     pub fn start(&mut self, _now: Time, recorded: &[u16], orders: &mut Queue<Order>) {
         if !self.begun && self.outcome.is_none() {
             self.begun = true;
             for group in &mut self.groups {
-                if group.recorded && recorded.contains(&group.forge) {
+                if group.held && group.recorded && recorded.contains(&group.forge) {
                     group.chained = true;
                     group.status = Status::Started;
                 }
             }
             for first in 0..self.states.len() {
-                if self.chain(first).is_none() {
+                if self.in_chain(first) && self.chain(first).is_none() {
                     self.spawn(first, self.successor(first), orders);
                     break;
                 }
@@ -212,7 +349,7 @@ impl Machine {
     #[expect(clippy::manual_find, reason = "the programming model uses explicit loops rather than closures")]
     fn successor(&self, step: usize) -> Option<usize> {
         for next in step.saturating_add(1)..self.states.len() {
-            if self.chain(step) == self.chain(next) {
+            if self.in_chain(next) && self.chain(step) == self.chain(next) {
                 return Some(next);
             }
         }
@@ -264,6 +401,11 @@ impl Machine {
             Input::Terminate => self.stop(now, orders),
             Input::Ask { forge } => self.ask(forge, orders),
             Input::Stop { forge } => self.stop_group(now, forge, orders),
+            Input::Remove { forge } => self.remove(now, forge, orders),
+            Input::Loaded { forge } => self.loaded(now, forge, orders),
+            Input::NotLoaded { forge, missing } => self.not_loaded(forge, missing, orders),
+            Input::Unrecorded { forge } => self.unrecorded(forge, true, orders),
+            Input::NotUnrecorded { forge } => self.unrecorded(forge, false, orders),
             Input::Written { forge } => self.written(forge, orders),
             Input::NotWritten { forge } => {
                 if self.outcome.is_none()
@@ -298,35 +440,7 @@ impl Machine {
                     }
                 }
             }
-            Input::NotStarted { step } => {
-                if self.outcome.is_some() || self.group_stopping(step) || self.group_failing(step) {
-                    self.ended_start(now, step, orders);
-                } else {
-                    if self.outcome.is_none()
-                        && let Some(group) = self.starting_group(step)
-                    {
-                        self.states.get_mut(step).expect("step").phase = Phase::Stopped;
-                        self.fail(group, Why::NotStarted { step }, orders);
-                        self.failed_if_closed(group, orders);
-                        return;
-                    }
-                    if let Some(state) = self.states.get_mut(step) {
-                        let next = match state.phase {
-                            Phase::Starting { next } => next,
-                            Phase::Dormant
-                            | Phase::Waiting { .. }
-                            | Phase::Live { .. }
-                            | Phase::Closing { .. }
-                            | Phase::Backoff { .. }
-                            | Phase::Grace { .. }
-                            | Phase::Stopped => return,
-                        };
-                        state.phase = Phase::Closing { next, success: false };
-                        state.why = Some(Why::NotStarted { step });
-                    }
-                    self.closed(now, step, orders);
-                }
-            }
+            Input::NotStarted { step } => self.not_started(now, step, orders),
             Input::Exited { step, exit } => {
                 if self.outcome.is_none()
                     && let Some(group) = self.starting_group(step)
@@ -342,6 +456,52 @@ impl Machine {
         if self.stop_notice == StopNotice::Requested && self.is_idle() {
             self.stop_notice = StopNotice::Reported;
             orders.push(Order::Terminal { fact: Fact::Stopped });
+        }
+    }
+    fn not_started(&mut self, now: Time, step: usize, orders: &mut Queue<Order>) {
+        if self.outcome.is_none()
+            && self.removal_step() == Some(step)
+            && match self.states.get(step).expect("removal").phase {
+                Phase::Starting { .. } => true,
+                Phase::Dormant
+                | Phase::Waiting { .. }
+                | Phase::Live { .. }
+                | Phase::Closing { .. }
+                | Phase::Backoff { .. }
+                | Phase::Grace { .. }
+                | Phase::Stopped => false,
+            }
+        {
+            self.states.get_mut(step).expect("removal").phase = Phase::Dormant;
+            self.removal_failed(Why::NotStarted { step }, orders);
+            return;
+        }
+        if self.outcome.is_some() || self.group_stopping(step) || self.group_failing(step) {
+            self.ended_start(now, step, orders);
+        } else {
+            if self.outcome.is_none()
+                && let Some(group) = self.starting_group(step)
+            {
+                self.states.get_mut(step).expect("step").phase = Phase::Stopped;
+                self.fail(group, Why::NotStarted { step }, orders);
+                self.failed_if_closed(group, orders);
+                return;
+            }
+            if let Some(state) = self.states.get_mut(step) {
+                let next = match state.phase {
+                    Phase::Starting { next } => next,
+                    Phase::Dormant
+                    | Phase::Waiting { .. }
+                    | Phase::Live { .. }
+                    | Phase::Closing { .. }
+                    | Phase::Backoff { .. }
+                    | Phase::Grace { .. }
+                    | Phase::Stopped => return,
+                };
+                state.phase = Phase::Closing { next, success: false };
+                state.why = Some(Why::NotStarted { step });
+            }
+            self.closed(now, step, orders);
         }
     }
     // A withdrawal or late spawn failure is a teardown end, with no failure cause.
@@ -481,17 +641,18 @@ impl Machine {
         self.spawn(link, self.continuation(link), orders);
     }
     fn exited(&mut self, step: usize, exit: Exit, orders: &mut Queue<Order>) {
+        let removal = self.removal_step() == Some(step);
         let Some(state) = self.states.get_mut(step) else {
             return;
         };
         match state.phase {
             Phase::Starting { next } | Phase::Live { next } => {
-                state.why = Some(Why::Exited { step, exit });
+                state.why = Some(if removal { Why::Removal { step, exit } } else { Why::Exited { step, exit } });
                 state.phase = Phase::Closing { next, success: exit == Exit::Code(0) };
                 orders.push(Order::Close { step });
             }
             Phase::Grace { .. } => {
-                state.why = Some(Why::Exited { step, exit });
+                state.why = Some(if removal { Why::Removal { step, exit } } else { Why::Exited { step, exit } });
                 state.phase = Phase::Closing { next: None, success: exit == Exit::Code(0) };
                 orders.push(Order::Close { step });
             }
@@ -509,6 +670,16 @@ impl Machine {
             Phase::Closing { next, success } => {
                 if self.outcome.is_some() {
                     self.stop_next(now, orders);
+                } else if self.removal_step() == Some(step) {
+                    self.states.get_mut(step).expect("removal").phase = Phase::Dormant;
+                    if success {
+                        let removal = self.removal.as_mut().expect("removal");
+                        removal.phase = RemovalPhase::Unrecording;
+                        orders.push(Order::Unrecord { forge: removal.forge });
+                    } else {
+                        let why = self.states.get(step).expect("removal").why.expect("removal exit");
+                        self.removal_failed(why, orders);
+                    }
                 } else if let Some(group) = group
                     && self.groups.get(group).expect("group").status == Status::Stopping
                 {
@@ -545,13 +716,16 @@ impl Machine {
     }
     fn group(&self, forge: u16) -> Option<usize> {
         for (index, group) in self.groups.iter().enumerate() {
-            if group.forge == forge {
+            if group.held && group.forge == forge {
                 return Some(index);
             }
         }
         None
     }
     fn group_starting(&self, group: usize) -> bool {
+        if !self.groups.get(group).expect("group").held {
+            return false;
+        }
         match self.groups.get(group).expect("group").status {
             Status::Starting | Status::Recording { .. } | Status::Failing { .. } => true,
             Status::Dormant | Status::Started | Status::Stopping => false,
@@ -572,8 +746,13 @@ impl Machine {
         let mut why = None;
         if self.outcome.is_some() {
             why = Some(Why::Stopping);
+        } else if self.loading.is_some() || self.removal.is_some() {
+            why = Some(Why::Busy);
         } else {
             for group in &self.groups {
+                if !group.held {
+                    continue;
+                }
                 let busy = match group.status {
                     Status::Stopping => true,
                     Status::Failing { .. } => stop || group.forge != forge,
@@ -584,7 +763,7 @@ impl Machine {
                     break;
                 }
             }
-            if why.is_none() && self.group(forge).is_none() {
+            if why.is_none() && stop && self.group(forge).is_none() {
                 why = Some(Why::NotAsked);
             }
         }
@@ -599,7 +778,10 @@ impl Machine {
         if self.refused(forge, false, orders) {
             return;
         }
-        let index = self.group(forge).expect("checked group");
+        let Some(index) = self.group(forge) else {
+            self.load(forge, false, orders);
+            return;
+        };
         if self.groups.get(index).expect("group").status == Status::Started {
             orders.push(Order::Say { said: Said::Started { forge } });
             return;
@@ -615,9 +797,9 @@ impl Machine {
         }
         let group = self.groups.get_mut(index).expect("group");
         group.status = Status::Starting;
-        let first = group.first;
+        let first = (group.first < group.end).then_some(group.first);
         orders.push(Order::Terminal { fact: Fact::GroupStarting { forge } });
-        self.advance_group(index, Some(first), orders);
+        self.advance_group(index, first, orders);
     }
     fn stop_group(&mut self, now: Time, forge: u16, orders: &mut Queue<Order>) {
         if self.refused(forge, true, orders) {
@@ -630,8 +812,12 @@ impl Machine {
             }
         }
         let index = self.group(forge).expect("checked group");
+        self.begin_group_stop(now, index, orders);
+    }
+    fn begin_group_stop(&mut self, now: Time, index: usize, orders: &mut Queue<Order>) {
         let group = self.groups.get_mut(index).expect("group");
-        if group.status == Status::Dormant {
+        let forge = group.forge;
+        if group.status == Status::Dormant && self.removal.is_none() {
             orders.push(Order::Say { said: Said::Stopped { forge } });
             return;
         }
@@ -659,12 +845,132 @@ impl Machine {
             let state = self.states.get_mut(step).expect("group step");
             state.phase = Phase::Dormant;
             state.waiting = false;
-            while state.exits.pop().is_some() {}
+            state.exits.clear();
         }
         let group = self.groups.get_mut(index).expect("group");
         group.status = Status::Dormant;
+        if self.removal.is_some() {
+            let step = self.removal_step_position().expect("held removal step");
+            self.removal.as_mut().expect("removal").phase = RemovalPhase::Running;
+            self.spawn(step, None, orders);
+            return;
+        }
         orders.push(Order::Terminal { fact: Fact::GroupStopped { forge: group.forge } });
         orders.push(Order::Say { said: Said::Stopped { forge: group.forge } });
+    }
+    fn load(&mut self, forge: u16, remove: bool, orders: &mut Queue<Order>) {
+        let Some(slot) = self.vacant() else {
+            let why = if self.slots.count == 0 { Why::NotAsked } else { Why::Full };
+            orders.push(Order::Say { said: Said::Failed { forge, why } });
+            return;
+        };
+        self.loading = Some(Loading { forge, slot, remove });
+        orders.push(Order::Load { forge });
+    }
+    fn loaded(&mut self, now: Time, forge: u16, orders: &mut Queue<Order>) {
+        let Some(loading) = self.loading else { return };
+        if loading.forge != forge {
+            return;
+        }
+        assert_eq!(self.slot(forge), Some(loading.slot), "host installed loaded group");
+        self.loading = None;
+        if self.outcome.is_some() {
+            return;
+        }
+        if loading.remove {
+            self.remove(now, forge, orders);
+        } else {
+            self.ask(forge, orders);
+        }
+    }
+    fn not_loaded(&mut self, forge: u16, missing: bool, orders: &mut Queue<Order>) {
+        let Some(loading) = self.loading else { return };
+        if loading.forge != forge {
+            return;
+        }
+        self.loading = None;
+        if self.outcome.is_some() {
+            return;
+        }
+        if missing && loading.remove {
+            self.removal = Some(Removal { forge, slot: None, phase: RemovalPhase::Unrecording });
+            orders.push(Order::Unrecord { forge });
+        } else {
+            orders.push(Order::Say {
+                said: Said::Failed { forge, why: if missing { Why::NotAsked } else { Why::Unreadable } },
+            });
+        }
+    }
+    fn remove(&mut self, now: Time, forge: u16, orders: &mut Queue<Order>) {
+        if self.refused(forge, false, orders) {
+            return;
+        }
+        for group in 0..self.groups.len() {
+            if self.group_starting(group) {
+                orders.push(Order::Say { said: Said::Failed { forge, why: Why::Busy } });
+                return;
+            }
+        }
+        let Some(index) = self.group(forge) else {
+            self.load(forge, true, orders);
+            return;
+        };
+        let Some(slot) = self.groups.get(index).expect("group").slot else {
+            orders.push(Order::Say { said: Said::Failed { forge, why: Why::NotAsked } });
+            return;
+        };
+        self.removal = Some(Removal { forge, slot: Some(slot), phase: RemovalPhase::Stopping });
+        self.begin_group_stop(now, index, orders);
+    }
+    fn removal_step_position(&self) -> Option<usize> {
+        let slot = self.removal?.slot?;
+        self.slots.range(slot).end.checked_sub(1)
+    }
+    fn removal_step(&self) -> Option<usize> {
+        if self.removal?.phase != RemovalPhase::Running {
+            return None;
+        }
+        self.removal_step_position()
+    }
+    fn removal_failed(&mut self, why: Why, orders: &mut Queue<Order>) {
+        let removal = self.removal.take().expect("pending removal");
+        orders.push(Order::Terminal { fact: Fact::GroupFailed { forge: removal.forge, why } });
+        orders.push(Order::Say { said: Said::Failed { forge: removal.forge, why } });
+    }
+    fn unrecorded(&mut self, forge: u16, success: bool, orders: &mut Queue<Order>) {
+        let Some(removal) = self.removal else { return };
+        if removal.forge != forge || removal.phase != RemovalPhase::Unrecording {
+            return;
+        }
+        self.removal = None;
+        if self.outcome.is_some() {
+            return;
+        }
+        if !success {
+            orders.push(Order::Say { said: Said::Failed { forge, why: Why::NotRemoved } });
+            return;
+        }
+        if let Some(slot) = removal.slot {
+            let index = self.group(forge).expect("held group");
+            let group = self.groups.get_mut(index).expect("group");
+            group.held = false;
+            group.chained = false;
+            group.status = Status::Dormant;
+            for position in self.slots.range(slot) {
+                let state = self.states.get_mut(position).expect("slot state");
+                state.phase = Phase::Dormant;
+                state.role = Role::Vacant;
+                state.group = None;
+                state.waiting = false;
+                state.withdraw = false;
+                state.why = None;
+                state.exits.clear();
+            }
+            // The terminal uses the group's label before the host clears it.
+            orders.push(Order::Terminal { fact: Fact::GroupRemoved { forge } });
+            orders.push(Order::Vacate { slot });
+        }
+        orders.push(Order::Say { said: Said::Removed { forge } });
     }
     fn advance_group(&mut self, index: usize, next: Option<usize>, orders: &mut Queue<Order>) {
         // The record means the whole group stands (setup.md, 6.6/7.1):
@@ -864,7 +1170,7 @@ impl Machine {
                 Phase::Backoff { at, next: following } if at <= now => {
                     let mut first = step;
                     for before in (0..step).rev() {
-                        if self.chain(before) != self.chain(step) {
+                        if !self.in_chain(before) || self.chain(before) != self.chain(step) {
                             continue;
                         }
                         if self.states.get(before).expect("bounded step").kind != Kind::Once {
