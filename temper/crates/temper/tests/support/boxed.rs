@@ -1128,6 +1128,7 @@ pub fn run_ctl_with_cut(
             release_answers: None,
             next_release: None,
             restart_at: None,
+            resuming_playground: None,
             face: None,
             visit: Visit::AwaitingAddress,
             tab: None,
