@@ -432,11 +432,7 @@ fn nonexpired_adopted_history_still_asserts_its_missing_repository() {
     restore(&mut d, Stored::Application { token: 1, until: Wall::from_nanos(101), outcome: adopted_outcome() });
     assert_eq!(
         d.missing_link(&reconcile::empty_tasks()),
-        Some(MissingLink {
-            kind: RecordKind::Application,
-            key: Some(Key::Application(1)),
-            need: Need::Repository(REPO)
-        })
+        Some(MissingLink { kind: RecordKind::Application, key: Key::Application(1), need: Need::Repository(REPO) })
     );
 }
 #[test]
@@ -447,7 +443,7 @@ fn a_fitting_zero_call_still_asserts_its_missing_task_link() {
         d.missing_link(&reconcile::empty_tasks()),
         Some(MissingLink {
             kind: RecordKind::Call,
-            key: Some(Key::Call(NamedCall { task: 0, attempt: 1, completion: 1, position: 1 })),
+            key: Key::Call(NamedCall { task: 0, attempt: 1, completion: 1, position: 1 }),
             need: Need::Task { task: 0, retired: None }
         })
     );
@@ -636,40 +632,40 @@ fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
 }
 
 #[test]
-fn missing_links_keep_their_source_key_across_lower_insertions_and_replacements() {
+fn missing_links_scan_retained_keys_after_lower_insertions_and_replacements() {
     use RecordKind as K;
     const FIRST: u32 = 2;
     const LOWER: u32 = 1;
-    for kind in [
-        K::Call,
-        K::ProposedEffect,
-        K::Repository,
-        K::Hold,
-        K::Names,
-        K::Subscription,
-        K::BranchHead,
-        K::PullState,
-        K::Ci,
-        K::Entry,
-        K::Change,
-        K::Issue,
-        K::Release,
-        K::Application,
-        K::Landing,
-        K::Receipt,
-        K::Flight,
-        K::Writer,
-        K::Demo,
+    for (kind, expected_row) in [
+        (K::Call, FIRST),
+        (K::ProposedEffect, LOWER),
+        (K::Repository, LOWER),
+        (K::Hold, LOWER),
+        (K::Names, FIRST),
+        (K::Subscription, LOWER),
+        (K::BranchHead, LOWER),
+        (K::PullState, LOWER),
+        (K::Ci, FIRST),
+        (K::Entry, LOWER),
+        (K::Change, LOWER),
+        (K::Issue, LOWER),
+        (K::Release, FIRST),
+        (K::Application, LOWER),
+        (K::Landing, LOWER),
+        (K::Receipt, LOWER),
+        (K::Flight, FIRST),
+        (K::Writer, FIRST),
+        (K::Demo, FIRST),
     ] {
         let mut d = domain();
         let first = unlinked_row(kind, FIRST);
-        let expected = stored_key(&first);
+        let expected = stored_key(&unlinked_row(kind, expected_row));
         restore(&mut d, first);
         restore(&mut d, unlinked_row(kind, LOWER));
         restore(&mut d, unlinked_row(kind, LOWER));
         assert_eq!(d.restore_fit_failure(), None, "{kind:?}");
         let missing = d.missing_link(&reconcile::empty_tasks()).expect("first row has an unmade link");
         assert_eq!(missing.kind, kind);
-        assert_eq!(missing.key, Some(expected));
+        assert_eq!(missing.key, expected);
     }
 }
