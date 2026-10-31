@@ -326,7 +326,7 @@ impl Application for Ops {
                                 jig_fake_store::Write::Save { key: row.key(), row }
                             }
                             root::Write::DropTranscript { .. } => {
-                                unreachable!("this scripted ops world has no transcript store")
+                                unreachable!("this scripted ops world does not issue transcript drops")
                             }
                             root::Write::CopySettingsRevision(_) => {
                                 unreachable!("this scripted ops world restarts with identical defaults")

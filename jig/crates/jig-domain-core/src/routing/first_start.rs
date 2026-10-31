@@ -32,7 +32,7 @@ pub(super) fn seed(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>) 
                 people::Event::Roles { project: *project, holdings: holdings.clone() },
                 &mut child,
             ),
-            people::Stored::Deletion { .. } | people::Stored::Policy { .. } => {}
+            people::Stored::Policy { .. } => {}
             _ => unreachable!("seed row family"),
         }
         if let people::Stored::Roles { .. } = &record {
@@ -107,7 +107,7 @@ pub(crate) fn start_seed(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Req
     let mut rows = people_rows(core, env);
     for _ in 0..rows.len() {
         let record = rows.pop().expect("configured seed row");
-        if let people::Stored::Deletion { .. } | people::Stored::Policy { .. } = &record {
+        if let people::Stored::Policy { .. } = &record {
             // The authority restore already owns this policy.
         } else {
             let mut child = Queue::uncapped();
