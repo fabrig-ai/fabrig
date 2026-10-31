@@ -72,7 +72,7 @@ impl Scripted {
         for mut source in self.engine.truth().sources.clone() {
             if let engine::Rows::Inbox(rows) = &mut source.rows {
                 let before = rows.len();
-                rows.retain(|row| row.object != key);
+                rows.retain(|row| row.card_key() != key);
                 if rows.len() != before {
                     self.engine.act(now, wall, engine::Change::Source(source)).expect("owner listing removal");
                 }
@@ -521,9 +521,9 @@ fn source_facts(source: &engine::Source, commit: u64, out: &mut Vec<Observed>) {
     if let (Read::Activity { task, .. }, engine::Rows::Activity(rows)) = (&source.read, &source.rows) {
         let mut messages = vec![];
         for row in rows {
-            if let Activity::Words { message, words, .. } = &row.event {
-                messages.push(*message);
-                out.push(Observed::Kept { task: *task, message: *message, words: words.bytes().to_vec(), commit });
+            if let Some((message, words)) = row.event.word_message() {
+                messages.push(message);
+                out.push(Observed::Kept { task: *task, message, words: words.bytes().to_vec(), commit });
             }
         }
         out.push(Observed::Retained { task: *task, messages, commit });
@@ -535,6 +535,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
         engine::Change::Forget { key } => out.push(Observed::Stopped { card: observe::key(*key), commit }),
         engine::Change::Object { key, value, .. } => {
             let terminal = match value {
+                ReadValue::Historical(value) => value.is_terminal(),
                 ReadValue::Task(task) => task.result.is_some(),
                 ReadValue::Result(_) => true,
                 ReadValue::Proposal(row) => row.ending.is_some(),
@@ -546,7 +547,6 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 | ReadValue::Ended(_)
                 | ReadValue::OwnerEnded(_)
                 | ReadValue::History(_)
-                | ReadValue::Historical(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
                 | ReadValue::Inbox(_)
@@ -577,6 +577,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
+                | ReadValue::Historical(_)
                 | ReadValue::Proposal(_)
                 | ReadValue::Escalation(_)
                 | ReadValue::Question(_)
@@ -584,7 +585,6 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 | ReadValue::Ended(_)
                 | ReadValue::OwnerEnded(_)
                 | ReadValue::History(_)
-                | ReadValue::Historical(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
                 | ReadValue::Inbox(_)
@@ -614,11 +614,9 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
         | engine::Change::SignIn { .. }
         | engine::Change::SignedOut { .. }
         | engine::Change::OwnerProject(_)
-        | engine::Change::Project(_)
         | engine::Change::Note(_)
         | engine::Change::DeleteNote { .. }
         | engine::Change::OwnerDeployment(_)
-        | engine::Change::Deployment(_)
         | engine::Change::Tree(_)
         | engine::Change::Seen { .. } => {}
     }
