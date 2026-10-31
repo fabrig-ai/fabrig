@@ -552,6 +552,7 @@ impl World {
         while let Some(request) = out.pop() {
             self.trace.push(format!("output {request:?}"));
             match request {
+                root::Request::Start { .. } => unreachable!("the start driver is not selected here"),
                 root::Request::Commit { number, mut writes } => {
                     let mut rows = Vec::new();
                     while let Some(write) = writes.pop() {

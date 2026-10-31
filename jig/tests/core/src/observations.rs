@@ -423,6 +423,9 @@ impl Observer {
             self.observe(now, observed);
         }
         match event {
+            root::Event::StartBegin { .. } | root::Event::StartDone(_) => {
+                unreachable!("the start driver is not selected here")
+            }
             root::Event::Core(core::Event::People(people::Event::Ask { models: _, reply_to, sign_in, key, ask })) => {
                 let person = store.rows.values().find_map(|row| match row {
                     root::Record::Core(core::Record::People(people::Stored::SignIn { number, person, .. }))
@@ -1081,6 +1084,7 @@ impl Observer {
         }
         let mut requires = Vec::new();
         match delivery {
+            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::Assigned { assignment, .. } => {
                 self.observe(
                     now,

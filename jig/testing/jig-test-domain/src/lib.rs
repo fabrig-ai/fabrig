@@ -144,7 +144,8 @@ pub enum Request {
     Busy { event: Box<Event> },
     /// First cold load, before the deployment counter is known.
     Restart(core::RestartStep),
-    /// Load this phase's records or switch the store.
+    /// Load records for `LoadCore`, `LoadInbox` (with census),
+    /// `RestoreConnector` or `Sweep`, or switch the store at `Switch`.
     Start { phase: core::start::Phase, census: Option<core::Census> },
     /// Apply one numbered transaction as a whole.
     Commit { number: u64, writes: Queue<Write> },
@@ -223,7 +224,8 @@ pub enum Event {
     StartBegin {
         pending: bool,
     },
-    /// The host finished the phase requested with `Request::Start`.
+    /// The host finished the requested phase, with pages handed in through
+    /// `start_record`/`start_missing`, or the store switched at `Switch`.
     StartDone(core::start::Phase),
     /// Drive one due child timer through the same decision barrier.
     Timer(core::Timer),
@@ -388,6 +390,10 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 
 /// The root's live components and one commit barrier.
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "opening, restart selection, decision writes and stop reporting are independent"
+)]
 pub struct Domain {
     pieces_dropped: u64,
     core: core::Core,
@@ -413,6 +419,7 @@ pub struct Domain {
     decision_wrote: bool,
     stopped_reported: bool,
     restart_active: bool,
+    start_opened: bool,
     restart_load: Option<core::RestartStep>,
 }
 
@@ -442,8 +449,12 @@ impl Domain {
     }
     /// The start's refusal with the phase it refused at.
     #[must_use]
+    #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
     pub fn start_failure(&self) -> Option<(Option<core::start::Phase>, core::start::Failure)> {
-        self.core.start_failure().map(|failure| (self.core.start_phase(), failure))
+        match self.core.start_failure() {
+            Some(failure) => Some((self.core.start_phase(), failure)),
+            None => None,
+        }
     }
 
     /// Project each child's original elapsed deadline and the saved people
@@ -540,13 +551,14 @@ impl Domain {
             decision_wrote: false,
             stopped_reported: false,
             restart_active: false,
+            start_opened: false,
             restart_load: None,
         }
     }
 
     #[must_use]
     pub fn ready(&self) -> bool {
-        !self.restart_active || self.core.restart_ready()
+        self.start_opened || (self.starting().is_none() && (!self.restart_active || self.core.restart_ready()))
     }
 
     /// The client's current held-task context, admitted by the core's visibility rule.
@@ -578,7 +590,8 @@ use link::Work;
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     let Ok(event) = stopping::defer(domain, event) else { return };
     match event {
-        Event::StartBegin { .. } | Event::StartDone(_) => unreachable!("start driver requires its phase dispatcher"),
+        Event::StartBegin { pending } => decide(domain, env, Work::Start(StartInput::Begin { pending })),
+        Event::StartDone(phase) => decide(domain, env, Work::Start(StartInput::Done(phase))),
         Event::Link { channel, link } => decide(domain, env, Work::Link { channel, link }),
         Event::ResultRead { payload, end } => link::read(domain, env, payload, end),
         Event::Stop => decide(domain, env, Work::Core(core::Event::Stopping)),
@@ -617,11 +630,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::TranscriptLoaded { task, rows, done } => transcript_loaded(domain, env, task, rows, done),
         Event::Committed { number, fill } => {
             domain.journal.committed(number);
-            let _filled = core::step(
-                &mut domain.core,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                core::Event::Fill { bytes: fill },
-            );
+            domain.core.fill = fill;
         }
         Event::Failed { number } => domain.journal.failed(number),
         Event::ProjectionEffect { goal, number, effect } => {
@@ -698,8 +707,8 @@ fn transcript_loaded(domain: &mut Domain, env: &Env<Limits>, task: u64, rows: Bo
 
 #[expect(clippy::too_many_lines, reason = "one bounded decision routes the complete root work vocabulary")]
 fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
-    // A failed restart leaves its decision unaccepted; the root takes no other.
-    if domain.journal.stopped() || domain.core.restart_failure().is_some() {
+    // A refused start leaves its decision unaccepted; the root takes no other.
+    if domain.journal.stopped() || domain.start_stopped() {
         return;
     }
     let mut decision = domain.journal.decide();
@@ -709,6 +718,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     work.push(first);
     for _ in 0..env.limits.routes {
         let Some(next) = work.pop() else {
+            if !domain.ready() {
+                break;
+            }
             let requests =
                 core::finish_decision(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core });
             let core::Requests::Out(ref out) = requests;
@@ -720,6 +732,38 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             continue;
         };
         match next {
+            Work::ConnectorRestartDone { number } => match domain.core.start_phase() {
+                Some(phase @ core::start::Phase::SettleOutbox { connector }) => {
+                    assert_eq!(connector, number, "the selected connector settles");
+                    work.push(Work::Start(StartInput::Done(phase)));
+                }
+                Some(_) => unreachable!("connector completion belongs to SettleOutbox"),
+                None => {
+                    let request = domain.core.restart_done(core::RestartStep::SettleOutbox { connector: number });
+                    work.push(Work::Restart(request));
+                }
+            },
+            Work::Start(input) => {
+                let mut out = Queue::uncapped();
+                let core_env = Env { now: env.now, wall: env.wall, limits: env.limits.core };
+                let action = match input {
+                    StartInput::Begin { pending } => domain.core.start_begin(pending, env.wall),
+                    StartInput::Done(core::start::Phase::Sweep) => {
+                        domain.core.start_sweep(&core_env, core::start::SweepInput::Finished, &mut out)
+                    }
+                    StartInput::Done(phase) => domain.core.start_done(&core_env, phase, &mut out),
+                    StartInput::Resume(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
+                    StartInput::Sweep(row) => {
+                        domain.core.start_sweep(&core_env, core::start::SweepInput::Record(row), &mut out)
+                    }
+                };
+                route_core(domain, env, &mut decision, core::Requests::Out(out), &mut work);
+                let mut next = start_action(domain, env, &mut decision, action);
+                for _ in 0..next.len() {
+                    work.push(next.pop().expect("start phase work"));
+                }
+            }
+
             Work::Link { channel, link } => link::receive(domain, channel, link, &mut work),
             Work::WatchApplication { watcher, sign_in, scope, number, subject, window } => {
                 let token = Token::new(domain.next_payload);
@@ -924,8 +968,105 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))),
         );
     }
-    if domain.core.restart_failure().is_none() {
+    if !domain.start_stopped() {
         domain.journal.accept(decision);
+    }
+}
+
+/// Inputs routed inside the root's decision (jig/docs/design/domain/engine.md, 6).
+#[derive(Debug)]
+#[expect(clippy::large_enum_variant, reason = "the sweep moves one decoded people row")]
+enum StartInput {
+    Begin { pending: bool },
+    Done(core::start::Phase),
+    Resume(core::start::Continuation),
+    Sweep(jig_domain_people::Stored),
+}
+
+fn start_action(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision<Write, Delivery>,
+    action: core::start::Action,
+) -> Queue<Work> {
+    use core::start::{Action, Phase};
+    let mut work = Queue::uncapped();
+    match action {
+        Action::Step(phase) => match phase {
+            Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Sweep | Phase::Switch => {
+                let census = if phase == Phase::LoadInbox { Some(domain.core.census(&env.limits.core)) } else { None };
+                domain.now.push(Request::Start { phase, census });
+            }
+            Phase::Link | Phase::Wires | Phase::Open => work.push(Work::Start(StartInput::Done(phase))),
+            Phase::AdoptRuns => {
+                for _ in 0..domain.core.adopted.len() {
+                    work.push(Work::Core(core::Event::Fleet(domain.core.adopted.pop().expect("restored claim count"))));
+                }
+                work.push(Work::Core(core::Event::Fleet(fleet::Event::Loaded)));
+                work.push(Work::Start(StartInput::Done(phase)));
+            }
+            Phase::ReadAfresh { connector: number } => {
+                let mut reads = false;
+                for resource in 1..=env.limits.connector.resources {
+                    let Some(spec) = numbered(domain, number).specification_resource(u64::from(resource)) else {
+                        break;
+                    };
+                    let resource_path = spec.path.clone();
+                    work.push(Work::Connector {
+                        number,
+                        event: connector::Event::Restart(connector::RestartStep::FreshRead { resource: resource_path }),
+                    });
+                    reads = true;
+                }
+                if !reads {
+                    work.push(Work::Start(StartInput::Done(phase)));
+                }
+            }
+            Phase::SettleOutbox { connector: number } => work.push(Work::Connector {
+                number,
+                event: connector::Event::Restart(connector::RestartStep::SettleOutbox),
+            }),
+        },
+        Action::Commit(continuation) => {
+            if domain.core.start_phase() == Some(Phase::Wires) {
+                write(domain, decision, Write::Wires);
+            }
+            hold(decision, Delivery::Start(continuation));
+        }
+        Action::Refused(_) => domain.stopped_reported = false,
+        Action::Idle => {
+            if domain.core.start_phase().is_none() {
+                domain.start_opened = true;
+            }
+        }
+    }
+    work
+}
+
+impl Domain {
+    #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
+    fn starting(&self) -> Option<core::start::Phase> {
+        use core::start::Phase;
+        if let Some(phase) = self.core.start_phase() {
+            return Some(phase);
+        }
+        match self.core.restart_step() {
+            Some(step) => Some(match step {
+                core::RestartStep::LoadCore => Phase::LoadCore,
+                core::RestartStep::LoadInbox => Phase::LoadInbox,
+                core::RestartStep::RestoreConnector { connector } => Phase::RestoreConnector { connector },
+                core::RestartStep::Switch => Phase::Switch,
+                core::RestartStep::AdoptRuns => Phase::AdoptRuns,
+                core::RestartStep::ReadAfresh { connector } => Phase::ReadAfresh { connector },
+                core::RestartStep::SettleOutbox { connector } => Phase::SettleOutbox { connector },
+                core::RestartStep::Open => Phase::Open,
+            }),
+            None => None,
+        }
+    }
+
+    fn start_stopped(&self) -> bool {
+        self.core.restart_failure().is_some() || self.core.start_failure().is_some()
     }
 }
 
@@ -959,7 +1100,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         out.push(Request::Restart(step));
         return;
     }
-    if domain.journal.stopped() || domain.core.restart_failure().is_some() {
+    if domain.journal.stopped() || domain.start_stopped() {
         if !domain.stopped_reported {
             domain.stopped_reported = true;
             out.push(Request::Stop);
@@ -974,7 +1115,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     for _ in 0..ready.len() {
         let delivery = ready.pop().expect("release count");
         match delivery {
-            Delivery::Start(_) => unreachable!("start driver requires its phase dispatcher"),
+            Delivery::Start(continuation) => decide(domain, env, Work::Start(StartInput::Resume(continuation))),
             Delivery::Core(core::Held::MakeEffect { connector, entry }) => {
                 step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
             }
@@ -1053,7 +1194,7 @@ fn continue_ready(domain: &mut Domain, env: &Env<Limits>) {
     if resume_restart_outbox(domain, env) {
         return;
     }
-    if domain.journal.idle() && (!domain.restart_active || domain.core.restart_ready()) {
+    if domain.journal.idle() && domain.ready() {
         if let Some(number) = closing_connector(domain) {
             decide(domain, env, Work::ConnectorResume { number });
             return;
@@ -1108,16 +1249,19 @@ fn resume_restart_outbox(domain: &mut Domain, env: &Env<Limits>) -> bool {
     if !domain.journal.idle() {
         return false;
     }
-    let number = match domain.core.restart_step() {
-        Some(core::RestartStep::SettleOutbox { connector }) => connector,
+    let number = match domain.starting() {
+        Some(core::start::Phase::SettleOutbox { connector }) => connector,
         Some(
-            core::RestartStep::LoadCore
-            | core::RestartStep::LoadInbox
-            | core::RestartStep::RestoreConnector { .. }
-            | core::RestartStep::Switch
-            | core::RestartStep::AdoptRuns
-            | core::RestartStep::ReadAfresh { .. }
-            | core::RestartStep::Open,
+            core::start::Phase::LoadCore
+            | core::start::Phase::LoadInbox
+            | core::start::Phase::RestoreConnector { .. }
+            | core::start::Phase::Link
+            | core::start::Phase::Sweep
+            | core::start::Phase::Switch
+            | core::start::Phase::Wires
+            | core::start::Phase::AdoptRuns
+            | core::start::Phase::ReadAfresh { .. }
+            | core::start::Phase::Open,
         )
         | None => return false,
     };
@@ -1245,7 +1389,30 @@ fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
 
 /// One row of the phase being loaded, or a people row for the sweep.
 pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
-    assert!(restore_row(domain, env, record), "start row fits its selected entrance");
+    use core::start::Phase;
+    if domain.start_stopped() {
+        return;
+    }
+    let fits = match domain.core.start_phase().expect("row belongs to a selected start phase") {
+        Phase::Sweep => {
+            let Record::Core(core::Record::People(row)) = record else { unreachable!("sweep pages only people") };
+            decide(domain, env, Work::Start(StartInput::Sweep(row)));
+            return;
+        }
+        Phase::LoadInbox => {
+            let Record::Core(row) = record else { unreachable!("inbox pages only core rows") };
+            domain.core.restore_inbox_row(&env.limits.core, &row)
+        }
+        Phase::LoadCore | Phase::RestoreConnector { .. } => restore_row(domain, env, record),
+        Phase::Link
+        | Phase::Switch
+        | Phase::Wires
+        | Phase::AdoptRuns
+        | Phase::ReadAfresh { .. }
+        | Phase::SettleOutbox { .. }
+        | Phase::Open => unreachable!("phase loads no rows"),
+    };
+    assert!(fits || domain.start_failure().is_some(), "a selected row entrance refuses with a start failure");
 }
 
 /// A store page's missing owner.

@@ -479,7 +479,6 @@ impl Application for Testing {
         let delivery = negative::delivery(peers.fault, delivery);
         let Delivery::Held(mut delivery) = delivery else {
             return match delivery {
-                root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
                 Delivery::Now(core::Now::Call { to, run, attempt, call }) => {
                     peers.peers.opaque_answer(to, run, attempt, &call).into_iter().map(Input::Event).collect()
                 }
@@ -545,6 +544,7 @@ impl Application for Testing {
         peers.observer.delivered(clock.now, &mut delivery);
         peers.peers.delivered(&delivery);
         match delivery {
+            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::Projection { connector, feed } => {
                 if feed.closing {
                     vec![Input::Event(root::Event::Core(core::Event::ProjectionSettled {

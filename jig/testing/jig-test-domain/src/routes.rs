@@ -551,7 +551,7 @@ fn route_now(
             work.push(Work::Core(core::Event::RefusedPayload { request, problem, payload }));
         }
         core::Now::RestoreRefused => {
-            assert!(domain.core.restart_failure().is_some(), "a refused restore has stopped the core");
+            assert!(domain.start_stopped(), "a refused restore has stopped the core");
         }
 
         other @ (core::Now::SeenConversation { .. }
@@ -639,11 +639,7 @@ pub(super) fn route_connector(
                     })));
                 }
             }
-            connector::Request::RestartDone => {
-                let step = core::RestartStep::SettleOutbox { connector: number };
-                let request = domain.core.restart_done(step);
-                work.push(Work::Restart(request));
-            }
+            connector::Request::RestartDone => work.push(Work::ConnectorRestartDone { number }),
             connector::Request::Save { record } => {
                 match &record {
                     connector::Record::Outbox(row) => {

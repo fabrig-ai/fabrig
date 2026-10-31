@@ -298,6 +298,7 @@ fn submit_delayed_turn(world: &mut World, task: u64, attempt: u64) {
     root::release(&mut world.domain, &env, &mut out);
     while let Some(request) = out.pop() {
         match request {
+            root::Request::Start { .. } => unreachable!("the start driver is not selected here"),
             root::Request::Commit { number, mut writes } => {
                 let mut rows = Vec::new();
                 while let Some(row) = writes.pop() {
