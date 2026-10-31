@@ -258,60 +258,57 @@ fn permanent(outcome: &Outcome) -> bool {
     }
 }
 
-fn valid_removed(project: u32, outcome: &Outcome) -> bool {
-    match outcome {
-        Outcome::ProjectRemoved { project: answered } => *answered == project,
-        Outcome::Compound { .. }
-        | Outcome::CompoundRefused { .. }
-        | Outcome::Again(_)
-        | Outcome::SignedOut
-        | Outcome::MarkedSeen { .. }
-        | Outcome::Applied { .. }
-        | Outcome::NoteEdited { .. }
-        | Outcome::ServiceMade { .. }
-        | Outcome::Adopted { .. }
-        | Outcome::RolesSet { .. }
-        | Outcome::PolicyChanged { .. }
-        | Outcome::Renamed { .. }
-        | Outcome::ProjectMade { .. }
-        | Outcome::SettingsChanged { .. }
-        | Outcome::MovedToNewest { .. }
-        | Outcome::PoolSet { .. }
-        | Outcome::Said { .. }
-        | Outcome::QuestionAnswered { .. }
-        | Outcome::Amended { .. }
-        | Outcome::Moved { .. }
-        | Outcome::Stopped { .. }
-        | Outcome::Cancelled { .. }
-        | Outcome::Lifted { .. }
-        | Outcome::Released { .. }
-        | Outcome::Created { .. }
-        | Outcome::Proposed { .. }
-        | Outcome::Withdrawn { .. }
-        | Outcome::PersonTaken { .. }
-        | Outcome::PersonHandedBack { .. }
-        | Outcome::PersonAnswered { .. }
-        | Outcome::EscalationDecided { .. }
-        | Outcome::ProposalDecided { .. }
-        | Outcome::AccountSignInStarted { .. }
-        | Outcome::AccountProgramDeclared { .. }
-        | Outcome::AccountKeyKept { .. }
-        | Outcome::AccountMovingOut { .. }
-        | Outcome::AccountFinishing { .. }
-        | Outcome::AccountMovedIn { .. }
-        | Outcome::AccountChanged
-        | Outcome::AccountRemoved { .. }
-        | Outcome::AccountSignedOut { .. }
-        | Outcome::Refused(_) => false,
-    }
-}
-
+#[expect(clippy::too_many_lines, reason = "one exhaustive deployment act and outcome shape table")]
 pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bool {
     if let Outcome::Refused(_) = outcome {
         return true;
     }
     match act {
-        Act::RemoveProject { project } => valid_removed(*project, outcome),
+        Act::RemoveProject { project } => match outcome {
+            Outcome::ProjectRemoved { project: answered } => answered == project,
+            Outcome::Compound { .. }
+            | Outcome::CompoundRefused { .. }
+            | Outcome::Again(_)
+            | Outcome::SignedOut
+            | Outcome::MarkedSeen { .. }
+            | Outcome::Applied { .. }
+            | Outcome::NoteEdited { .. }
+            | Outcome::ServiceMade { .. }
+            | Outcome::Adopted { .. }
+            | Outcome::RolesSet { .. }
+            | Outcome::PolicyChanged { .. }
+            | Outcome::Renamed { .. }
+            | Outcome::ProjectMade { .. }
+            | Outcome::SettingsChanged { .. }
+            | Outcome::MovedToNewest { .. }
+            | Outcome::PoolSet { .. }
+            | Outcome::Said { .. }
+            | Outcome::QuestionAnswered { .. }
+            | Outcome::Amended { .. }
+            | Outcome::Moved { .. }
+            | Outcome::Stopped { .. }
+            | Outcome::Cancelled { .. }
+            | Outcome::Lifted { .. }
+            | Outcome::Released { .. }
+            | Outcome::Created { .. }
+            | Outcome::Proposed { .. }
+            | Outcome::Withdrawn { .. }
+            | Outcome::PersonTaken { .. }
+            | Outcome::PersonHandedBack { .. }
+            | Outcome::PersonAnswered { .. }
+            | Outcome::EscalationDecided { .. }
+            | Outcome::ProposalDecided { .. }
+            | Outcome::AccountSignInStarted { .. }
+            | Outcome::AccountProgramDeclared { .. }
+            | Outcome::AccountKeyKept { .. }
+            | Outcome::AccountMovingOut { .. }
+            | Outcome::AccountFinishing { .. }
+            | Outcome::AccountMovedIn { .. }
+            | Outcome::AccountChanged
+            | Outcome::AccountRemoved { .. }
+            | Outcome::AccountSignedOut { .. }
+            | Outcome::Refused(_) => false,
+        },
         Act::Close { project, .. } => match outcome {
             Outcome::Compound { project: answered, operations, first_message } => {
                 answered == project && *operations != 0 && *operations <= limits.operations && *first_message != 0

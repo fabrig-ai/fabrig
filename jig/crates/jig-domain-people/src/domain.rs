@@ -1670,6 +1670,44 @@ fn role(domain: &Domain, person: u64, project: u32) -> Option<Role> {
     None
 }
 
+fn request_offered(ask: &Ask) -> bool {
+    match ask {
+        Ask::RemoveProject { .. } => false,
+        Ask::ChangeSettings { .. }
+        | Ask::MoveToNewest { .. }
+        | Ask::Compound { .. }
+        | Ask::Create { .. }
+        | Ask::MarkSeen { .. }
+        | Ask::Application { .. }
+        | Ask::EditNote { .. }
+        | Ask::MakeService { .. }
+        | Ask::Adopt { .. }
+        | Ask::Propose { .. }
+        | Ask::Withdraw { .. }
+        | Ask::Stop { .. }
+        | Ask::Cancel { .. }
+        | Ask::Release { .. }
+        | Ask::Lift { .. }
+        | Ask::TakePerson { .. }
+        | Ask::HandBackPerson { .. }
+        | Ask::AnswerPerson { .. }
+        | Ask::Move { .. }
+        | Ask::DecideProposal { .. }
+        | Ask::Say { .. }
+        | Ask::AnswerQuestion { .. }
+        | Ask::Amend { .. }
+        | Ask::SetRoles { .. }
+        | Ask::ChangePolicy { .. }
+        | Ask::Rename { .. }
+        | Ask::MakeProject { .. }
+        | Ask::SetPool { .. }
+        | Ask::DecideEscalation { .. }
+        | Ask::AccountSignIn { .. }
+        | Ask::AccountSignOut { .. }
+        | Ask::AccountChange { .. } => true,
+    }
+}
+
 #[expect(clippy::too_many_arguments, reason = "one keyed request includes its canonical original model context")]
 fn admit_ask(
     domain: &mut Domain,
@@ -1690,7 +1728,7 @@ fn admit_ask(
     if session.expires <= env.wall || session.due <= env.now {
         return signed_out(to, out);
     }
-    if ask == (Ask::RemoveProject { project: project(&ask) }) {
+    if !request_offered(&ask) {
         return refused(to, Refusal::NotOffered, out);
     }
     let key = RequestKey { person: session.person, key: bytes };
@@ -2014,8 +2052,16 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Que
     }
 }
 
-fn valid_restore_default(domain: &Domain, env: &Env<Limits>, record: &Stored) -> bool {
-    match record {
+fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
+    match domain.phase {
+        Phase::Ready => {
+            return restore_failed(domain, record.key(), Refusal::Limit { which: LimitKind::Restore }, out);
+        }
+        Phase::Failed => return,
+        Phase::Restoring => {}
+    }
+    let key = record.key();
+    let valid = match &record {
         Stored::Acted { key, act, outcome, at } => {
             acts::valid(&env.limits, act).is_ok()
                 && valid_program_outcome(&env.limits, outcome)
@@ -2049,7 +2095,7 @@ fn valid_restore_default(domain: &Domain, env: &Env<Limits>, record: &Stored) ->
         Stored::Roles { project, holdings } => {
             valid_roles(domain, &env.limits, *project, holdings).is_ok() && !domain.roles.contains_key(project)
         }
-        Stored::Deletion { .. } => true,
+        Stored::Deletion { .. } => return,
         Stored::Policy { .. } | Stored::EndedRead { .. } => false,
         Stored::Answer { key, ask, models, outcome, at } => {
             valid_ask(&env.limits, ask)
@@ -2061,19 +2107,8 @@ fn valid_restore_default(domain: &Domain, env: &Env<Limits>, record: &Stored) ->
                 && (answer_expiry(*at, &env.limits) <= env.wall
                     || domain.answers.len().saturating_add(domain.acted.len()) < env.limits.requests)
         }
-    }
-}
-
-fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
-    match domain.phase {
-        Phase::Ready => {
-            return restore_failed(domain, record.key(), Refusal::Limit { which: LimitKind::Restore }, out);
-        }
-        Phase::Failed => return,
-        Phase::Restoring => {}
-    }
-    let key = record.key();
-    if !valid_restore_default(domain, env, &record) {
+    };
+    if !valid {
         return restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
@@ -2103,8 +2138,7 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
             let saved = domain.roles.insert(project, holdings);
             assert!(saved.is_ok(), "restored roles admitted");
         }
-        Stored::Deletion { .. } => {}
-        Stored::Policy { .. } | Stored::EndedRead { .. } => {
+        Stored::Deletion { .. } | Stored::Policy { .. } | Stored::EndedRead { .. } => {
             unreachable!("root does not restore on-demand records into people")
         }
         Stored::Answer { key, ask, models, outcome, at } => {

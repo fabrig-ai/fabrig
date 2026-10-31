@@ -485,6 +485,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     domain.consume_restore();
     domain.now = env.now;
     match event {
+        Event::ForgetProject { project } => forget_project(domain, project),
         Event::Restore { record } => restore(domain, env, record),
         Event::Want => want(domain, env, out),
         Event::ProgramTargets { source, hosts } => crate::programs::targets(domain, source, hosts, out),
@@ -504,13 +505,21 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Adopted { source, kept } if domain.wanted() => {
             crate::signing::adopted(domain, env, source, kept, out);
         }
-        Event::ForgetProject { .. }
-        | Event::Withdrawn { .. }
-        | Event::Opened { .. }
-        | Event::NotOurs { .. }
-        | Event::Adopted { .. } => {}
+        Event::Withdrawn { .. } | Event::Opened { .. } | Event::NotOurs { .. } | Event::Adopted { .. } => {}
         Event::Close => close(domain, env, out),
-        Event::Component(FromComponent::Closed) => component_closed(domain, env, out),
+        Event::Component(FromComponent::Closed) => {
+            if domain.phase != Phase::Closing {
+                return;
+            }
+            domain.phase = Phase::Closed;
+            domain.accounts = Map::with_capacity(env.limits.accounts);
+            domain.sources = Map::with_capacity(domain.sources.capacity());
+            domain.issued = Map::with_capacity(env.limits.program_names);
+            domain.programs = Map::with_capacity(env.limits.program_names);
+            domain.signing = Map::with_capacity(env.limits.sign_ins);
+            domain.signing_out = Map::with_capacity(domain.sources.capacity());
+            out.push(Request::Closed);
+        }
         Event::Component(event) => {
             if domain.phase != Phase::Wanted {
                 return;
@@ -572,20 +581,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
     }
 }
-fn component_closed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if domain.phase != Phase::Closing {
-        return;
-    }
-    domain.phase = Phase::Closed;
-    domain.accounts = Map::with_capacity(env.limits.accounts);
-    domain.sources = Map::with_capacity(domain.sources.capacity());
-    domain.issued = Map::with_capacity(env.limits.program_names);
-    domain.programs = Map::with_capacity(env.limits.program_names);
-    domain.signing = Map::with_capacity(env.limits.sign_ins);
-    domain.signing_out = Map::with_capacity(domain.sources.capacity());
-    out.push(Request::Closed);
-}
-
 fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
     if domain.phase != Phase::New {
         return;
@@ -1194,3 +1189,6 @@ pub(crate) fn moving(domain: &mut Domain, env: &Env<Limits>, source: u32, out: &
     entry.state = State::Asking;
     changed(domain, env, source, before, out);
 }
+
+/// Project account-use erasure (temper/docs/design/draft/playground-reset.md, 5).
+fn forget_project(_domain: &mut Domain, _project: u32) {}
