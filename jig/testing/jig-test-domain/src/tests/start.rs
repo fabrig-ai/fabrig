@@ -43,6 +43,7 @@ impl Host {
     }
 
     fn begin(&mut self) {
+        assert!(!self.domain.ready(), "the root must start before accepting work");
         crate::step(&mut self.domain, &self.env, Event::StartBegin { pending: false });
         assert!(!self.domain.ready());
     }
@@ -176,6 +177,33 @@ fn seeded_rows() -> Vec<Record> {
     let commit = host.domain.journal.commit().expect("seed commits before inbox loading");
     host.apply(commit.number, commit.writes);
     host.rows
+}
+
+/// A runtime watch fixture takes the same start as the application.
+pub(super) fn with_sign_in(expiry: skein_lib::Wall) -> (Domain, Env<crate::Limits>) {
+    let mut rows = seeded_rows();
+    for row in &mut rows {
+        if let Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = row {
+            header.people = 1;
+            header.sign_ins = 1;
+        }
+    }
+    rows.extend([
+        Record::Core(core::Record::People(people::Stored::Person {
+            number: 1,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 0, subject: Box::new([1]) },
+                login: b"owner".as_slice().into(),
+                name: b"Owner".as_slice().into(),
+            },
+        })),
+        Record::Core(core::Record::People(people::Stored::SignIn { number: 1, person: 1, expires: expiry })),
+    ]);
+    let mut host = Host::new(rows);
+    host.begin();
+    host.drive();
+    assert!(host.domain.ready());
+    (host.domain, host.env)
 }
 
 #[test]

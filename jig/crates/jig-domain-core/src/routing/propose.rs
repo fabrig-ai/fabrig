@@ -1,5 +1,6 @@
 //! Explicit party proposals and withdrawals (domain/people.md, section 5.1).
 use super::{create, party_inputs, refusals::pool_refused};
+use crate::routing::Work;
 use crate::{Core, Event, GoalRoute, Limits, Now, Request};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -11,7 +12,7 @@ pub(super) fn propose_request(
     core: &mut Core,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut creation: create::Creation,
     reason: Box<[u8]>,
 ) {
@@ -105,18 +106,15 @@ pub(super) struct Proposal {
     pub batch: Box<[tasks::New]>,
     pub stubs: Box<[tasks::Stub]>,
 }
-pub(super) fn keep(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, value: Proposal) {
+pub(super) fn keep(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, value: Proposal) {
     let Proposal { request, person, reason, to, batch, stubs } = value;
     let Some(number) = crate::fresh(&mut core.counters, crate::Family::Message) else {
         pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
         return;
     };
     let project = batch.first().expect("nonempty proposed batch").project;
-    assert!(
-        core.goal_routes.insert(request, GoalRoute::Offering { proposal: number, to, stubs }).is_ok(),
-        "one proposal flight"
-    );
-    work.push(Event::Tasks(tasks::Event::ProposePerson {
+    let request = core.fly_goal(request, GoalRoute::Offering { proposal: number, to, stubs });
+    work.push(Work::Event(Event::Tasks(tasks::Event::ProposePerson {
         reply_to: ReplyTo::new(request),
         proposal: tasks::PersonProposal {
             number,
@@ -126,7 +124,7 @@ pub(super) fn keep(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, 
             reason,
             state: tasks::PersonProposalState::Pending { since: env.wall },
         },
-    }));
+    })));
 }
 pub(super) struct Withdrawal {
     pub request: Token,
@@ -134,24 +132,19 @@ pub(super) struct Withdrawal {
     pub project: u32,
     pub proposal: u64,
 }
-pub(super) fn withdraw_request(core: &mut Core, work: &mut Queue<Event>, out: &mut Queue<Request>, value: Withdrawal) {
+pub(super) fn withdraw_request(core: &mut Core, work: &mut Queue<Work>, out: &mut Queue<Request>, value: Withdrawal) {
     let Withdrawal { request, person, project, proposal } = value;
     if let Some(row) = core.tasks.person_proposal(person, proposal) {
         if row.project != project {
             pool_refused(work, request, people::Refusal::Unknown);
             return;
         }
-        assert!(
-            core.goal_routes
-                .insert(request, GoalRoute::Withdrawing { proposer: person, proposal, moved: None })
-                .is_ok(),
-            "one withdrawal flight"
-        );
-        work.push(Event::Tasks(tasks::Event::WithdrawPersonProposal {
+        let request = core.fly_goal(request, GoalRoute::Withdrawing { proposer: person, proposal, moved: None });
+        work.push(Work::Event(Event::Tasks(tasks::Event::WithdrawPersonProposal {
             reply_to: Some(ReplyTo::new(request)),
             proposer: person,
             proposal,
-        }));
+        })));
     } else {
         out.push(Request::Now(Box::new(Now::HistoricalProposal {
             request,
@@ -173,7 +166,7 @@ pub(super) struct Edit {
     pub amendment: people::Amendment,
     pub reason: Box<[u8]>,
 }
-pub(super) fn amend_request(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, value: Edit) {
+pub(super) fn amend_request(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, value: Edit) {
     let request = value.request;
     if let Err(why) = offer_amendment(core, env, work, value) {
         pool_refused(work, request, why);
@@ -182,7 +175,7 @@ pub(super) fn amend_request(core: &mut Core, env: &Env<Limits>, work: &mut Queue
 fn offer_amendment(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     value: Edit,
 ) -> Result<(), people::Refusal> {
     let Edit { request, person, project, role, task, revision, amendment, reason } = value;
@@ -194,7 +187,7 @@ fn offer_amendment(
     }
     core.party_amend_revision(task, revision, &amendment)?;
     let row = core.tasks.task(task).ok_or(people::Refusal::Unknown)?;
-    let action = authority::Action::Amend(crate::translate::authority_value(
+    let action = authority::Action::Amend(crate::translate::tasks_authority(
         amendment.authority.as_ref().unwrap_or(&row.authority),
     ));
     allowed_action(core, project, &action)?;
@@ -206,11 +199,8 @@ fn offer_amendment(
     let to = *roles.iter().min().expect("nonempty recipient roles");
     let number = crate::fresh(&mut core.counters, crate::Family::Message)
         .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
-    assert!(
-        core.goal_routes.insert(request, GoalRoute::Offering { proposal: number, to, stubs: Box::new([]) }).is_ok(),
-        "one amendment proposal"
-    );
-    work.push(Event::Tasks(tasks::Event::ProposePerson {
+    let request = core.fly_goal(request, GoalRoute::Offering { proposal: number, to, stubs: Box::new([]) });
+    work.push(Work::Event(Event::Tasks(tasks::Event::ProposePerson {
         reply_to: ReplyTo::new(request),
         proposal: tasks::PersonProposal {
             number,
@@ -220,6 +210,6 @@ fn offer_amendment(
             reason,
             state: tasks::PersonProposalState::Pending { since: env.wall },
         },
-    }));
+    })));
     Ok(())
 }

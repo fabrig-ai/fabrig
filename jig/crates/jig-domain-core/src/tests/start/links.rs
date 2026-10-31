@@ -36,24 +36,24 @@ fn loaded() -> (Core, Env<crate::Limits>) {
 }
 
 fn restore_person(core: &mut Core, env: &Env<crate::Limits>, record: people::Stored) {
-    let crate::Requests::Out(mut out) = crate::step(core, env, Event::People(people::Event::Restore { record }));
+    let mut out = crate::step(core, env, Event::People(people::Event::Restore { record }));
     while let Some(request) = out.pop() {
         if let Request::Now(now) = request
             && let crate::Now::RestoreRefused = *now
         {
-            panic!("selected start emits no RestoreRefused");
+            panic!("the start emits no RestoreRefused");
         }
     }
 }
 
 fn restore_task(core: &mut Core, env: &Env<crate::Limits>, record: tasks::Stored) {
     assert!(core.restore_task_row(&record));
-    let crate::Requests::Out(mut out) = crate::step(core, env, Event::Tasks(tasks::Event::Restore { record }));
+    let mut out = crate::step(core, env, Event::Tasks(tasks::Event::Restore { record }));
     while let Some(request) = out.pop() {
         if let Request::Now(now) = request
             && let crate::Now::RestoreRefused = *now
         {
-            panic!("selected start emits no RestoreRefused");
+            panic!("the start emits no RestoreRefused");
         }
     }
 }

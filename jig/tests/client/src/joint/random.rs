@@ -265,6 +265,18 @@ pub fn world(seed: u64) -> (Outcome, Reach) {
 mod tests {
     use super::*;
     #[test]
+    fn held_double_press_keeps_waiting_cards() {
+        let (outcome, _) = world(4539);
+        assert_eq!(outcome.verdict, Verdict::Passed);
+    }
+
+    #[test]
+    fn crash_slow_recovers_the_stream() {
+        let (outcome, _) = world(4535);
+        assert_eq!(outcome.verdict, Verdict::Passed);
+    }
+
+    #[test]
     fn random_people_and_both_actual_fault_doors_keep_the_store_and_protocol_referees() {
         // Seed 4505 found a lost-answer schedule without genuine connection recovery.
         let (outcome, reach) = world(4505);

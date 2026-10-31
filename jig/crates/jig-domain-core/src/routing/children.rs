@@ -2,8 +2,9 @@
 //! (`domain/engine.md`, section 4.4).
 
 use super::people_routes::tag_people;
-use super::task_routes::tag_tasks;
-use crate::{Ask, Core, CoreRecord, Event, Held, Key, Limits, Now, Record, Request, Requests, Write};
+use super::task_routes::tag_task_outputs;
+use crate::routing::Work;
+use crate::{Ask, Core, CoreRecord, Event, Held, Key, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
@@ -17,41 +18,25 @@ pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
     let mut child = Queue::uncapped();
     people::step(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, event, &mut child);
     let mut work = Queue::uncapped();
-    let Requests::Out(mut routed) = tag_people(core, env, child, &mut work);
+    let mut routed = tag_people(core, env, child, &mut work);
     assert!(work.is_empty(), "a keyed party terminal does not start a task route");
     for _ in 0..routed.len() {
-        match routed.pop().expect("party route count") {
-            Request::Decided => {}
-            request @ (Request::ProjectMade { .. }
-            | Request::Write(_)
-            | Request::Ask { .. }
-            | Request::Held(_)
-            | Request::Now(_)) => {
-                out.push(request);
-            }
-        }
+        let request = routed.pop().expect("party route count");
+        out.push(request);
     }
 }
 
 pub(super) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
-    let Requests::Out(mut routed) = tag_tasks(core, env, child, false, false, false);
+    let mut routed = tag_task_outputs(core, env, child);
     for _ in 0..routed.len() {
-        match routed.pop().expect("task route count") {
-            Request::Decided => {}
-            request @ (Request::ProjectMade { .. }
-            | Request::Write(_)
-            | Request::Ask { .. }
-            | Request::Held(_)
-            | Request::Now(_)) => {
-                out.push(request);
-            }
-        }
+        let request = routed.pop().expect("task route count");
+        out.push(request);
     }
 }
 
-pub(super) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<brief::GatherRequest>) -> Requests {
+pub(super) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<brief::GatherRequest>) -> Queue<Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         let request = match child.pop().expect("brief output count") {
@@ -96,17 +81,16 @@ pub(super) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
         };
         out.push(request);
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive host vocabulary routes its bounded child decision")]
 pub(super) fn tag_fleet(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut child: Queue<fleet::Request>,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
@@ -116,7 +100,7 @@ pub(super) fn tag_fleet(
         let Some(next) = pending.pop() else { break };
         let request = match next {
             fleet::Request::ProgramTargets { source, workers } => {
-                work.push(Event::Account(accounts::Event::ProgramTargets { source, hosts: workers }));
+                work.push(Work::Event(Event::Account(accounts::Event::ProgramTargets { source, hosts: workers })));
                 continue;
             }
             fleet::Request::ProgramSignedOut { source, worker, result } => {
@@ -126,7 +110,11 @@ pub(super) fn tag_fleet(
                     fleet::ProgramResult::Lost => accounts::ProgramResult::Lost,
                     fleet::ProgramResult::Failed => accounts::ProgramResult::Failed,
                 };
-                work.push(Event::Account(accounts::Event::ProgramSignedOut { source, host: worker, result }));
+                work.push(Work::Event(Event::Account(accounts::Event::ProgramSignedOut {
+                    source,
+                    host: worker,
+                    result,
+                })));
                 continue;
             }
             fleet::Request::Sources { channel, sources } => Request::Held(Box::new(Held::Sources { channel, sources })),
@@ -186,11 +174,12 @@ pub(super) fn tag_fleet(
                 let _answered = to.into_token();
                 core.remember_unpriced_terminal(run, attempt, tasks::End::Recheck);
                 out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
+                let token = core.internal(crate::flight::Internal::Acknowledge);
                 append_tasks(
                     core,
                     env,
                     tasks::Event::Activation {
-                        reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                        reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
                         cause: tasks::Cause::Unpriced,
@@ -213,11 +202,12 @@ pub(super) fn tag_fleet(
                 let _: Option<u64> = core.unreported_restored.remove(&run.raw());
                 core.remember_unpriced_terminal(run, attempt, tasks::End::Refused);
                 out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
+                let token = core.internal(crate::flight::Internal::Acknowledge);
                 append_tasks(
                     core,
                     env,
                     tasks::Event::Activation {
-                        reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                        reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
                         end: tasks::End::Refused,
@@ -247,11 +237,12 @@ pub(super) fn tag_fleet(
                     tasks::End::Failed(tasks::Class::Lost)
                 };
                 core.remember_unpriced_terminal(run, attempt, end.clone());
+                let token = core.internal(crate::flight::Internal::Acknowledge);
                 append_tasks(
                     core,
                     env,
                     tasks::Event::Activation {
-                        reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                        reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
                         end,
@@ -270,11 +261,12 @@ pub(super) fn tag_fleet(
                 }
                 if !core.claim_bindings_usable(run.raw(), attempt.raw()) {
                     core.remember_unpriced_terminal(run, attempt, tasks::End::Recheck);
+                    let token = core.internal(crate::flight::Internal::Acknowledge);
                     append_tasks(
                         core,
                         env,
                         tasks::Event::Activation {
-                            reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                            reply_to: ReplyTo::new(token),
                             task: run.raw(),
                             attempt: attempt.raw(),
                             cause: tasks::Cause::Unpriced,
@@ -422,8 +414,7 @@ pub(super) fn tag_fleet(
         out.push(request);
     }
     assert!(pending.is_empty(), "fleet_routes_drained");
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 /// A worker's limit reset, a span from its notice, as a time on the
@@ -448,28 +439,20 @@ fn run_failed(now: Time, turned: fleet::Turned) -> accounts::Event {
 
 fn append_account(core: &mut Core, env: &Env<Limits>, event: accounts::Event, out: &mut Queue<Request>) {
     let mut work = Queue::uncapped();
-    let Requests::Out(mut routed) = route_account(core, env, &mut work, event);
+    let mut routed = route_account(core, env, &mut work, event);
     assert!(work.is_empty(), "a run's account turn answers no party");
     for _ in 0..routed.len() {
-        match routed.pop().expect("account route count") {
-            Request::Decided => {}
-            request @ (Request::ProjectMade { .. }
-            | Request::Write(_)
-            | Request::Ask { .. }
-            | Request::Held(_)
-            | Request::Now(_)) => {
-                out.push(request);
-            }
-        }
+        let request = routed.pop().expect("account route count");
+        out.push(request);
     }
 }
 
 pub(super) fn tag_account(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut child: Queue<accounts::Request>,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("account output count") {
@@ -493,23 +476,15 @@ pub(super) fn tag_account(
                 append_fleet(core, env, work, fleet::Event::SignOutProgram { source, name }, &mut out);
             }
             accounts::Request::Granted { grant } => {
-                let Requests::Out(mut routed) = route_fleet(
+                let mut routed = route_fleet(
                     core,
                     env,
                     work,
                     fleet::Event::Grant { grant: crate::sibling_routes::fleet_grant(grant) },
                 );
                 for _ in 0..routed.len() {
-                    match routed.pop().expect("grant output count") {
-                        Request::Decided => {}
-                        request @ (Request::ProjectMade { .. }
-                        | Request::Write(_)
-                        | Request::Ask { .. }
-                        | Request::Held(_)
-                        | Request::Now(_)) => {
-                            out.push(request);
-                        }
-                    }
+                    let request = routed.pop().expect("grant output count");
+                    out.push(request);
                 }
             }
             // The accounts' component starts a party's sign-in and revokes a signed-out
@@ -532,12 +507,11 @@ pub(super) fn tag_account(
             // People keeps the answer under the party's key, and replies once it is durable.
             accounts::Request::Answer { request, answer } => {
                 let outcome = super::account_requests::outcome(core, answer);
-                work.push(Event::People(people::Event::Decided { request, outcome }));
+                work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
             }
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn remember_due(core: &mut Core, context: Box<tasks::RunContext>) {
@@ -593,9 +567,9 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
 pub(super) fn route_account(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: accounts::Event,
-) -> Requests {
+) -> Queue<Request> {
     let party = account_party(core, &event);
     let mut out = Queue::uncapped();
     accounts::step(
@@ -610,7 +584,7 @@ pub(super) fn route_account(
     tag_account(core, env, work, out)
 }
 
-pub(super) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::GatherEvent) -> Requests {
+pub(super) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::GatherEvent) -> Queue<Request> {
     let mut out = Queue::uncapped();
     brief::gather_step(
         &mut core.brief,
@@ -624,19 +598,20 @@ pub(super) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::Gath
 pub(super) fn route_fleet(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut event: fleet::Event,
-) -> Requests {
+) -> Queue<Request> {
     if let fleet::Event::Start { run, attempt, placement: Some(placement), .. } = &event
         && !core.fleet.placement_available(*placement)
     {
         let mut out = Queue::uncapped();
         core.remember_unpriced_terminal(*run, *attempt, tasks::End::Recheck);
+        let token = core.internal(crate::flight::Internal::Acknowledge);
         append_tasks(
             core,
             env,
             tasks::Event::Activation {
-                reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                reply_to: ReplyTo::new(token),
                 task: run.raw(),
                 attempt: attempt.raw(),
                 cause: tasks::Cause::Unpriced,
@@ -646,8 +621,7 @@ pub(super) fn route_fleet(
             &mut out,
         );
         out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if let fleet::Event::Start { grants, .. } = &mut event {
         for grant in &mut **grants {
@@ -710,11 +684,10 @@ pub(super) fn route_fleet(
     tag_fleet(core, env, work, out)
 }
 
-pub(super) fn route_projection_settled(core: &mut Core, goal: u64, connector: u16) -> Requests {
+pub(super) fn route_projection_settled(core: &mut Core, goal: u64, connector: u16) -> Queue<Request> {
     let mut out = Queue::uncapped();
     crate::projections::settled(core, goal, connector, &mut out);
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 /// Fleet authenticates the worker; the core authenticates the recorded source binding too.
@@ -799,21 +772,13 @@ fn draining_hosts(core: &Core) -> u32 {
 fn append_fleet(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: fleet::Event,
     out: &mut Queue<Request>,
 ) {
-    let Requests::Out(mut routed) = route_fleet(core, env, work, event);
+    let mut routed = route_fleet(core, env, work, event);
     for _ in 0..routed.len() {
-        match routed.pop().expect("fleet output count") {
-            Request::Decided => {}
-            request @ (Request::ProjectMade { .. }
-            | Request::Write(_)
-            | Request::Ask { .. }
-            | Request::Held(_)
-            | Request::Now(_)) => {
-                out.push(request);
-            }
-        }
+        let request = routed.pop().expect("fleet output count");
+        out.push(request);
     }
 }

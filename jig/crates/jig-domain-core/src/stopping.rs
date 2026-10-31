@@ -1,5 +1,5 @@
 //! Admission while the engine drains (domain/engine.md, 6.1).
-use crate::{Core, Event, Held, Now, Request, Requests, Timer};
+use crate::{Core, Event, Held, Now, Request, Timer};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -14,37 +14,36 @@ impl Core {
     }
 }
 
-pub(crate) fn start(core: &mut Core) -> Requests {
+pub(crate) fn start(core: &mut Core) -> Queue<Request> {
     core.stopping = true;
     core.draining = Some(true);
     empty()
 }
 
-pub(crate) fn empty() -> Requests {
+pub(crate) fn empty() -> Queue<Request> {
     answer(None)
 }
-fn answer(value: Option<Request>) -> Requests {
+fn answer(value: Option<Request>) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if let Some(value) = value {
         out.push(value);
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
-fn party(to: ReplyTo) -> Requests {
+fn party(to: ReplyTo) -> Queue<Request> {
     answer(Some(Request::Held(Box::new(Held::PeopleReply {
         to,
         reply: people::Reply::Again(people::Again::NotReady),
     }))))
 }
-fn watch(watcher: Token) -> Requests {
+fn watch(watcher: Token) -> Queue<Request> {
     answer(Some(Request::Held(Box::new(Held::WatchEnded { watcher, why: views::End::Stopping }))))
 }
-fn call(to: ReplyTo) -> Requests {
+fn call(to: ReplyTo) -> Queue<Request> {
     answer(Some(Request::Now(Box::new(Now::CallBusy { to }))))
 }
 
-pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Requests> {
+pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request>> {
     if !core.stopping {
         return Ok(event);
     }
@@ -64,11 +63,11 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Requests> {
         }
         Event::Application { reply_to, connector, owner, carried, .. } => {
             let unused = crate::routing::application_routes::number(carried);
-            let Requests::Out(mut out) = crate::routing::application_routes::first(unused, party(reply_to));
+            let mut out = crate::routing::application_routes::first(unused, party(reply_to));
             if core.connectors.contains(&connector) {
                 out.push(Request::Ask { connector, ask: crate::Ask::DropApplication { owner } });
             }
-            Err(Requests::Out(out))
+            Err(out)
         }
         Event::People(event) => people_gate(event),
         Event::Watch { watcher, .. } | Event::WatchRun { watcher, .. } => Err(watch(watcher)),
@@ -84,14 +83,11 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Requests> {
         Event::Stopping
         | Event::Activate { .. }
         | Event::PreparedAgent { .. }
-        | Event::StartBrief { .. }
-        | Event::BriefNotes { .. }
         | Event::BriefAssembled { .. }
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
-        | Event::PreparationFailed { .. }
-        | Event::TranscriptUnread { .. }
+        | Event::TranscriptLoaded { .. }
         | Event::ProcedureStep { .. }
         | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
@@ -115,14 +111,10 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Requests> {
         | Event::RunText { .. }
         | Event::Tasks(_)
         | Event::ConnectorRepair { .. }
-        | Event::PersonProposal(_)
-        | Event::PersonEscalation(_)
-        | Event::TaskEscalation(_)
         | Event::TurnPayload { .. }
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }
         | Event::RefusedPayload { .. }
-        | Event::Forget { .. }
         | Event::EndedReadLoaded { .. }
         | Event::SeenConversationLoaded { .. }
         | Event::HistoricalProposal { .. }
@@ -140,7 +132,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Requests> {
         | Event::SettingsCommit { .. }) => Ok(event),
     }
 }
-fn people_gate(event: people::Event) -> Result<Event, Requests> {
+fn people_gate(event: people::Event) -> Result<Event, Queue<Request>> {
     match event {
         people::Event::Act { reply_to, .. } => Err(answer(Some(Request::Held(Box::new(Held::Acted {
             to: reply_to,
@@ -174,7 +166,7 @@ impl Timer {
 pub(crate) fn waits(timer: Timer) -> bool {
     match timer {
         Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief => true,
-        Timer::Account | Timer::View => false,
+        Timer::Account => false,
     }
 }
 

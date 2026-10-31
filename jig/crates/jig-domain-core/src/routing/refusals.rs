@@ -2,6 +2,7 @@
 //! (client/domain/contract.md, section 4; domain/people.md, section 5.1).
 //! The core reads the current live record for an ending; no historical archive
 //! is retained here. Unknown names disclose no object. Retry answers are unsaved.
+use crate::routing::Work;
 use crate::{Core, Event};
 use alloc::boxed::Box;
 use jig_domain_notes as notes;
@@ -186,12 +187,12 @@ fn party(by: tasks::Party) -> people::Party {
     }
 }
 
-pub(super) fn pool_refused(work: &mut Queue<Event>, request: Token, why: people::Refusal) {
-    work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+pub(super) fn pool_refused(work: &mut Queue<Work>, request: Token, why: people::Refusal) {
+    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) })));
 }
 
-pub(super) fn pool_again(work: &mut Queue<Event>, request: Token, why: people::Again) {
-    work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Again(why) }));
+pub(super) fn pool_again(work: &mut Queue<Work>, request: Token, why: people::Again) {
+    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome: people::Outcome::Again(why) })));
 }
 
 pub(super) fn note_person_refusal(why: notes::Refusal) -> people::Outcome {

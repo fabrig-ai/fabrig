@@ -1,11 +1,11 @@
 //! Whole-set checks precede replay (domain/engine.md, 6; tasks.md, 6.7).
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "entry-point fixtures are ordinary Rust (programming-model.md, 10.2)"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::revisions::{Harness, LIMITS, task};
 use crate::{

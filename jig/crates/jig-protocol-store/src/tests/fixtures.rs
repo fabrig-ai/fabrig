@@ -409,6 +409,16 @@ pub fn model_names(names: &[&[u8]]) -> Box<[Box<[u8]>]> {
     result.into_boxed()
 }
 
+pub fn configured_model_names(names: &[&[u8]]) -> Box<[jig_domain_core::settings::ModelName]> {
+    let mut result = skein_lib::List::with_capacity(u64::BITS);
+    for name in names {
+        result
+            .push(jig_domain_core::settings::ModelName { name: Box::from(*name), efforts: Box::new([]) })
+            .expect("at most one name per model bit");
+    }
+    result.into_boxed()
+}
+
 pub fn people_policy() -> people::PolicyValue {
     people::PolicyValue {
         ceiling: people_authority(),

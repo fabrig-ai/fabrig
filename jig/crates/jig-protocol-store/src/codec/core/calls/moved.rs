@@ -1,7 +1,7 @@
 //! Revision facts kept in the core family (protocol/store.md, 5.1).
 use crate::core_v6 as wire;
 use jig_domain_people as domain;
-pub(super) fn encode_failure_class(value: domain::FailureClass, _limits: &wire::Limits) -> wire::FailureClass {
+pub(super) fn encode_failure_class(value: domain::FailureClass) -> wire::FailureClass {
     match value {
         domain::FailureClass::Transient => wire::FailureClass::Transient,
         domain::FailureClass::Permanent => wire::FailureClass::Permanent,
@@ -45,7 +45,7 @@ pub(super) fn encode_hold_reason(
         )?),
         domain::HoldReason::Failures { class } => wire::HoldReason::Failures(wire::HoldReasonFailures::new(
             limits,
-            wire::HoldReasonFailuresParts { class: encode_failure_class(*class, limits) },
+            wire::HoldReasonFailuresParts { class: encode_failure_class(*class) },
         )?),
         domain::HoldReason::Stalled => wire::HoldReason::Stalled,
         domain::HoldReason::Dependency { task } => wire::HoldReason::Dependency(wire::HoldReasonDependency::new(

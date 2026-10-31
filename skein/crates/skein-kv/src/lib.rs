@@ -22,6 +22,8 @@ mod store;
 mod tests;
 
 pub use boundary::{Event, Failure, Op, Page, Range, Refusal, Request, Row};
+pub use frame::{FRAME_BYTES, erase_bytes, put_bytes};
 pub use key::{KeyReader, KeyWriter};
 pub use limits::Limits;
+pub use snapshot::chunk_bytes;
 pub use store::{Store, down, fire, is_ready, up};

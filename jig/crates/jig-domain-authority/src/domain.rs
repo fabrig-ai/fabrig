@@ -15,12 +15,12 @@ pub struct Domain {
     policies: Map<u32, Policy>,
     limits: Limits,
     start: Start,
-    touched: bool,
     failure: Option<(u32, PolicyRefusal)>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 enum Start {
+    NotStarted,
     Loading,
     Linked,
 }
@@ -94,9 +94,8 @@ pub enum PolicyFact {
 impl Domain {
     /// Begin loading before any restore or ordinary mutation (engine.md, 6).
     pub fn start_restore(&mut self) {
-        assert!(self.start == Start::Linked && !self.touched, "authority start begins once before input");
+        assert!(self.start == Start::NotStarted, "authority start begins once before input");
         self.start = Start::Loading;
-        self.touched = true;
     }
 
     /// Seal loading, preserving the first keyed fit failure (engine.md, 6).
@@ -122,8 +121,7 @@ impl Domain {
             rules,
             policies: Map::with_capacity(limits.projects),
             limits,
-            start: Start::Linked,
-            touched: false,
+            start: Start::NotStarted,
             failure: None,
         })
     }
@@ -199,8 +197,12 @@ impl Domain {
 pub fn step(domain: &mut Domain, event: Event, out: &mut Queue<PolicyFact>) {
     // Rules are startup configuration as well as an ordinary replacement; neither loads a policy.
     match &event {
-        Event::Rules(_) => {}
-        Event::Restore { .. } | Event::Policy { .. } | Event::Dropped { .. } => domain.touched = true,
+        Event::Rules(_) | Event::Restore { .. } => {}
+        Event::Policy { .. } | Event::Dropped { .. } => {
+            if domain.start == Start::NotStarted {
+                domain.start = Start::Linked;
+            }
+        }
     }
     match &event {
         Event::Restore { project, policy } => {

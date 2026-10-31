@@ -24,23 +24,31 @@ pub fn decode(bytes: &[u8], limits: &d::Limits) -> Result<d::Record, Undecodable
 }
 
 fn encode_key(value: &d::Key) -> w::Key {
-    let d::Key { attempt, completion, position, deployment, task, purpose } = value;
+    let origin = match value.origin {
+        d::Purpose::Procedure => w::Purpose::Procedure,
+        d::Purpose::Projection => w::Purpose::Projection,
+        d::Purpose::Call { attempt, completion, position } => w::Purpose::Call(
+            w::CallPurpose::new(&w::CEILINGS, w::CallPurposeParts { attempt, completion, position })
+                .expect("call identity fits schema"),
+        ),
+    };
     w::Key::new(
         &w::CEILINGS,
-        w::KeyParts {
-            attempt: *attempt,
-            completion: *completion,
-            position: *position,
-            deployment: *deployment,
-            task: *task,
-            purpose: *purpose,
-        },
+        w::KeyParts { origin, deployment: value.deployment, task: value.task, purpose: value.purpose },
     )
     .expect("admitted fields fit schema")
 }
 fn decode_key(value: w::Key) -> d::Key {
-    let w::KeyParts { attempt, completion, position, deployment, task, purpose } = value.into_parts();
-    d::Key { attempt, completion, position, deployment, task, purpose }
+    let w::KeyParts { origin, deployment, task, purpose } = value.into_parts();
+    let origin = match origin {
+        w::Purpose::Procedure => d::Purpose::Procedure,
+        w::Purpose::Projection => d::Purpose::Projection,
+        w::Purpose::Call(call) => {
+            let w::CallPurposeParts { attempt, completion, position } = call.into_parts();
+            d::Purpose::Call { attempt, completion, position }
+        }
+    };
+    d::Key { origin, deployment, task, purpose }
 }
 fn encode_effect(value: &d::Effect) -> w::Effect {
     let d::Effect { kind, resources, purpose, condition, target, state } = value;

@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::{Cut, World},
     fixtures::live_row,
@@ -37,7 +38,7 @@ fn configuration(seed: u64) -> (root::Config, root::Limits) {
 }
 fn world(seed: u64) -> World {
     let (config, limits) = configuration(seed);
-    World::configured(seed, false, config, limits)
+    World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() })
 }
 fn close(task: u64, project: u32, grace: Option<Duration>) -> people::Act {
     people::Act::Close { project, task, grace, reason: REASON.into() }
@@ -180,7 +181,7 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
     // This story scripts the root at the core boundary: it answers the routed Ask::Adopt.
     let (mut core, env) = adoption_core(1804);
     let adoption = adoption();
-    let core::Requests::Out(mut out) = core::step(
+    let mut out = core::step(
         &mut core,
         &env,
         core::Event::Act {
@@ -202,7 +203,7 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
             routed = Some(request);
         }
     }
-    let core::Requests::Out(mut out) = core::step(
+    let mut out = core::step(
         &mut core,
         &env,
         core::Event::People(people::Event::Decided {
@@ -228,8 +229,7 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
             | core::Request::Ask { .. }
             | core::Request::Held(_)
             | core::Request::Now(_)
-            | core::Request::ProjectMade { .. }
-            | core::Request::Decided => {}
+            | core::Request::ProjectMade { .. } => {}
         }
     }
     assert!(answered);
@@ -279,7 +279,13 @@ fn an_act_is_refused_without_its_grant_or_an_owner_at_the_core() {
         if !owner {
             config.core.owners = Box::new([]);
         }
-        let mut world = World::configured_unassigned(1806, false, config, limits);
+        let mut world = World::new(Setup {
+            seed: 1806,
+            configuration: Some(config),
+            limits,
+            require_assignment: false,
+            ..Setup::default()
+        });
         act(&mut world, KEY, close(1, PROJECT, None));
         assert_eq!(answered(&world), &people::Outcome::Refused(why));
         assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::People(people::Key::Acted(
@@ -345,7 +351,7 @@ fn adoption() -> people::Adoption {
 #[test]
 fn a_deployment_adoption_of_an_unknown_project_is_refused() {
     let (mut core, env) = adoption_core(1810);
-    let core::Requests::Out(mut out) = core::step(
+    let mut out = core::step(
         &mut core,
         &env,
         core::Event::Act {
@@ -371,8 +377,7 @@ fn a_deployment_adoption_of_an_unknown_project_is_refused() {
             core::Request::Write(_)
             | core::Request::Held(_)
             | core::Request::Now(_)
-            | core::Request::ProjectMade { .. }
-            | core::Request::Decided => {}
+            | core::Request::ProjectMade { .. } => {}
         }
     }
     assert!(answered);
@@ -408,7 +413,13 @@ fn project_world(granted: bool) -> World {
         )
         .expect("one configured policy");
     jig_core_world::peers::journal(&mut limits);
-    World::first_start(config, limits)
+    World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    })
 }
 fn make_project(maker: u64) -> people::Act {
     people::Act::MakeProject { maker, name: "Tally".into(), policy: 1 }

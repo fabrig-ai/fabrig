@@ -18,7 +18,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decision, Env, Journal, List, Map, Queue, ReplyTo, Set, Time, Token, Wall};
+use skein_lib::{Decision, Env, Journal, List, Map, Queue, ReplyTo, Set, Token, Wall};
 
 /// A store address owned by the core or one numbered connector.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -206,7 +206,7 @@ pub enum Event {
     /// The host finished the requested phase, with pages handed in through
     /// `start_record`/`start_missing`, or the store switched at `Switch`.
     StartDone(core::start::Phase),
-    /// A decoded row from the selected start phase.
+    /// A decoded row from the start phase.
     StartRecord(Record),
     /// A page's source row names an absent owner.
     StartMissing { record: core::Key, target: core::Key },
@@ -324,12 +324,12 @@ struct OutboxOwner {
 
 fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntry) -> bool {
     let key = &row.key;
-    let projection = (key.attempt, key.completion, key.position) == (0, 0, 1);
+    let projection = key.origin == connector::Purpose::Projection;
     let owner = OutboxOwner { task: row.task, projection };
     if domain.outbox_owners.insert(row.number, owner).is_err() {
         return false;
     }
-    if (key.attempt, key.completion, key.position) == (0, 0, 0) {
+    if key.origin == connector::Purpose::Procedure {
         if domain.outbox_procedures.insert(row.number, number).is_err() {
             return false;
         }
@@ -370,6 +370,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The composed core, including its child timer queries.
+    #[must_use]
+    pub const fn core(&self) -> &core::Core {
+        &self.core
+    }
+
     /// Configure the composed core before the testing application's first step.
     pub fn core_mut(&mut self) -> &mut core::Core {
         &mut self.core
@@ -407,32 +413,6 @@ impl Domain {
     #[must_use]
     pub fn start_page_failure(&self) -> Option<&(core::start::Phase, jig_protocol_store::restore::Failure)> {
         self.start_page_failure.as_ref()
-    }
-
-    /// Project each child's original elapsed deadline and the saved people
-    /// wall expiry at the supplied clocks. The loop sends the owner's Timer.
-    #[must_use]
-    pub fn core_deadlines(&self, now: Time, wall: Wall) -> [(core::Timer, Option<Time>); 6] {
-        let elapsed = self.core.people.next_deadline();
-        let saved = match self.core.people.next_wall_expiry() {
-            Some(expiry) if self.core.people.ready() => Some(
-                now.saturating_add(skein_lib::Duration::from_nanos(expiry.as_nanos().saturating_sub(wall.as_nanos()))),
-            ),
-            Some(_) | None => None,
-        };
-        let people = match (elapsed, saved) {
-            (Some(left), Some(right)) => Some(left.min(right)),
-            (Some(at), None) | (None, Some(at)) => Some(at),
-            (None, None) => None,
-        };
-        [
-            (core::Timer::People, people),
-            (core::Timer::Tasks, self.core.tasks.next_deadline()),
-            (core::Timer::Fleet, self.core.fleet.next_deadline()),
-            (core::Timer::Brief, self.core.brief.next_deadline()),
-            (core::Timer::Account, self.core.accounts.next_deadline()),
-            (core::Timer::View, self.core.views.next_deadline()),
-        ]
     }
 
     /// Project the two connector owners' existing absolute deadlines unchanged.
@@ -509,7 +489,7 @@ impl Domain {
 
     #[must_use]
     pub fn ready(&self) -> bool {
-        self.start_opened || self.starting().is_none()
+        self.start_opened
     }
 
     /// The client's current held-task context, admitted by the core's visibility rule.
@@ -545,7 +525,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::StartMissing { record, target } => start_missing(domain, record, target),
         Event::StartPageRefused { failure } => {
             if !domain.start_stopped() {
-                let phase = domain.core.start_phase().expect("page belongs to a selected start phase");
+                let phase = domain.core.start_phase().expect("page belongs to the start phase");
                 domain.start_page_failure = Some((phase, failure));
             }
         }
@@ -617,26 +597,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 }
 
 fn transcript_loaded(domain: &mut Domain, env: &Env<Limits>, task: u64, rows: Box<[core::TranscriptRow]>, done: bool) {
-    if !domain.core.transcripts.contains_key(&task) {
-        return;
-    }
-    if rows.len() > usize::try_from(env.limits.core.resume_bytes).expect("u32 fits usize") {
-        return;
-    }
-    for (row, text) in rows {
-        if !domain.core.append_transcript(task, row, text) {
-            decide(domain, env, Work::Core(core::Event::PreparationFailed { task }));
-            return;
-        }
-    }
-    if done {
-        let event = if domain.core.transcript_readable(task) {
-            core::Event::StartBrief { task }
-        } else {
-            core::Event::TranscriptUnread { task }
-        };
-        decide(domain, env, Work::Core(event));
-    }
+    decide(
+        domain,
+        env,
+        Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Page { rows, done } }),
+    );
 }
 
 #[expect(clippy::too_many_lines, reason = "one bounded decision routes the complete root work vocabulary")]
@@ -657,8 +622,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             }
             let requests =
                 core::finish_decision(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core });
-            let core::Requests::Out(ref out) = requests;
-            let done = out.len() == 1;
+            let done = requests.is_empty();
             route_core(domain, env, &mut decision, requests, &mut work);
             if done && work.is_empty() {
                 break;
@@ -683,11 +647,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     }
                     StartInput::Done(phase) => domain.core.start_done(&core_env, phase, &mut out),
                     StartInput::Resume(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
-                    StartInput::Sweep(row) => {
-                        domain.core.start_sweep(&core_env, core::start::SweepInput::Record(row), &mut out)
-                    }
+                    StartInput::Sweep => domain.core.start_sweep(&core_env, core::start::SweepInput::Next, &mut out),
                 };
-                route_core(domain, env, &mut decision, core::Requests::Out(out), &mut work);
+                route_core(domain, env, &mut decision, out, &mut work);
                 let mut next = start_action(domain, env, &mut decision, action);
                 for _ in 0..next.len() {
                     work.push(next.pop().expect("start phase work"));
@@ -826,13 +788,12 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     if finish_only {
         assert!(!domain.decision_wrote && !domain.core.counters.dirty(), "stopping continuation makes no commit");
     }
-    if domain.decision_wrote || domain.core.counters.dirty() {
-        let header = domain.core.counters.next_commit();
-        write(
-            domain,
-            &mut decision,
-            Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))),
-        );
+    let header = if domain.decision_wrote { Some(domain.core.commit_header()) } else { domain.core.cold_header() };
+    if let Some(header) = header {
+        let core::Write::Save(header) = header else {
+            unreachable!("a deployment header is a save");
+        };
+        write(domain, &mut decision, Write::Save(Record::Core(header)));
     }
     if !domain.start_stopped() {
         domain.journal.accept(decision);
@@ -841,12 +802,11 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
 
 /// Inputs routed inside the root's decision (jig/docs/design/domain/engine.md, 6).
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "the sweep moves one decoded people row")]
 enum StartInput {
     Begin { pending: bool },
     Done(core::start::Phase),
     Resume(core::start::Continuation),
-    Sweep(jig_domain_people::Stored),
+    Sweep,
 }
 
 fn start_action(
@@ -865,10 +825,6 @@ fn start_action(
             }
             Phase::Link | Phase::Wires | Phase::Open => work.push(Work::Start(StartInput::Done(phase))),
             Phase::AdoptRuns => {
-                for _ in 0..domain.core.adopted.len() {
-                    work.push(Work::Core(core::Event::Fleet(domain.core.adopted.pop().expect("restored claim count"))));
-                }
-                work.push(Work::Core(core::Event::Fleet(fleet::Event::Loaded)));
                 work.push(Work::Start(StartInput::Done(phase)));
             }
             Phase::ReadAfresh { connector: number } => {
@@ -1055,12 +1011,8 @@ fn wall_due(env: &Env<Limits>, expiry: Wall) -> bool {
 }
 
 fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
-    for (_, due) in domain.core_deadlines(env.now, env.wall) {
-        if let Some(due) = due
-            && due <= env.now
-        {
-            return true;
-        }
+    if domain.core.due(env.now, env.wall).is_some() {
+        return true;
     }
     for (_, due) in domain.connector_deadlines() {
         if let Some(due) = due
@@ -1148,50 +1100,19 @@ pub use census::inbox_census;
 
 fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
     match record {
-        Record::Core(core::Record::Core(row)) => match domain.core.restore_core(row, &env.limits.core) {
-            core::Restored::Deployment { commits } => {
-                domain.journal = Journal::uncapped(env.limits.journal.release, commits);
-                true
+        Record::Core(row) => {
+            match domain.core.restore(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, row) {
+                core::Restore::Deployment { commits } => {
+                    domain.journal = Journal::uncapped(env.limits.journal.release, commits);
+                    true
+                }
+                core::Restore::Kept => true,
+                core::Restore::Refused => false,
+                core::Restore::Swept => {
+                    decide(domain, env, Work::Start(StartInput::Sweep));
+                    true
+                }
             }
-            core::Restored::Live | core::Restored::Archive => true,
-            core::Restored::Rejected => false,
-        },
-        Record::Core(core::Record::Tasks(row)) => {
-            if !domain.core.restore_task_row(&row) {
-                return false;
-            }
-            let mut out = Queue::uncapped();
-            tasks::step(
-                &mut domain.core.tasks,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
-                tasks::Event::Restore { record: row },
-                &mut out,
-            );
-            out.is_empty()
-        }
-        Record::Core(core::Record::People(jig_domain_people::Stored::Policy { project, name, value })) => {
-            domain.core.restore_policy(&env.limits.core, project, name, value)
-        }
-        Record::Core(core::Record::People(row)) => {
-            let mut out = Queue::uncapped();
-            jig_domain_people::step(
-                &mut domain.core.people,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
-                jig_domain_people::Event::Restore { record: row },
-                &mut out,
-            );
-            out.is_empty()
-        }
-        Record::Core(core::Record::Notes(_)) => true,
-        Record::Core(core::Record::Accounts(record)) => {
-            let mut out = Queue::uncapped();
-            jig_domain_accounts::step(
-                &mut domain.core.accounts,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts },
-                jig_domain_accounts::Event::Restore { record },
-                &mut out,
-            );
-            out.is_empty()
         }
         Record::Connector { number, record } => restore_connector(domain, env, number, record),
     }
@@ -1203,17 +1124,10 @@ pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
     if domain.start_stopped() {
         return;
     }
-    let fits = match domain.core.start_phase().expect("row belongs to a selected start phase") {
-        Phase::Sweep => {
-            let Record::Core(core::Record::People(row)) = record else { unreachable!("sweep pages only people") };
-            decide(domain, env, Work::Start(StartInput::Sweep(row)));
-            return;
+    let fits = match domain.core.start_phase().expect("row belongs to the start phase") {
+        Phase::Sweep | Phase::LoadInbox | Phase::LoadCore | Phase::RestoreConnector { .. } => {
+            restore_row(domain, env, record)
         }
-        Phase::LoadInbox => {
-            let Record::Core(row) = record else { unreachable!("inbox pages only core rows") };
-            domain.core.restore_inbox_row(&env.limits.core, &row)
-        }
-        Phase::LoadCore | Phase::RestoreConnector { .. } => restore_row(domain, env, record),
         Phase::Link
         | Phase::Switch
         | Phase::Wires
@@ -1222,7 +1136,7 @@ pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
         | Phase::SettleOutbox { .. }
         | Phase::Open => unreachable!("phase loads no rows"),
     };
-    assert!(fits || domain.start_failure().is_some(), "a selected row entrance refuses with a start failure");
+    assert!(fits || domain.start_failure().is_some(), "the start's row entrance refuses with a start failure");
 }
 
 /// A store page's missing owner.
@@ -1325,7 +1239,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     true
 }
 
-/// Settings rows accompanying a deployment header in an explicitly seeded test store.
+/// Settings rows accompanying a deployment header in a seeded test store.
 #[must_use]
 pub fn initial_settings(defaults: &core::settings::Defaults) -> Box<[core::Record]> {
     use core::settings as s;

@@ -60,11 +60,11 @@ impl Component {
         self.provider.sweep(env.now);
         let mut reader = Reader::new(body);
         let Ok(record) = w::Authorize::decode(&env.limits.wire, &mut reader) else {
-            connection.respond(Reply::NotARecord, &env.limits);
+            connection.respond(Reply::NotARecord);
             return false;
         };
         if !reader.is_empty() {
-            connection.respond(Reply::NotARecord, &env.limits);
+            connection.respond(Reply::NotARecord);
             return false;
         }
         let answer = match &self.settings.provider {
@@ -78,7 +78,7 @@ impl Component {
             },
         };
         if let Some(answer) = answer {
-            connection.respond(Reply::Record(routes::authorize_answer(answer)), &env.limits);
+            connection.respond(Reply::Record(routes::authorize_answer(answer)));
             return false;
         }
         true
@@ -92,7 +92,7 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         if self.stopping() {
-            self.respond(env, exchange, routes::authorize_answer(w::AuthorizeAnswer::NotReady));
+            self.respond(exchange, routes::authorize_answer(w::AuthorizeAnswer::NotReady));
             return;
         }
         let issuer = self.settings.provider.as_ref().expect("provider query checked");
@@ -121,7 +121,7 @@ impl Component {
             | people::Reply::Again(_)
             | people::Reply::Refused(_) => w::AuthorizeAnswer::NotReady,
         };
-        self.respond(env, exchange, routes::authorize_answer(answer));
+        self.respond(exchange, routes::authorize_answer(answer));
     }
     fn authorize_person(
         &mut self,

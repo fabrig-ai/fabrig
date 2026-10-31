@@ -1,159 +1,13 @@
-//! Total translations between party policy values and the authority child.
+//! Party policy edits and snapshots (jig/docs/design/domain/authority.md, 6).
 
+use crate::translate::{
+    authority_to_people, grant_to_authority, grant_to_people, people_authority, requirement_to_authority,
+    requirement_to_people,
+};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use skein_lib::List;
-
-pub(crate) fn pattern_to_authority(value: people::Pattern) -> authority::Pattern {
-    authority::Pattern {
-        segments: value.segments,
-        last: match value.last {
-            people::Last::Exact(word) => authority::Last::Exact(word),
-            people::Last::Open(word) => authority::Last::Open(word),
-        },
-    }
-}
-
-/// Copy an authority pattern into the party vocabulary.
-#[must_use]
-pub fn pattern_to_people(value: &authority::Pattern) -> people::Pattern {
-    people::Pattern {
-        segments: value.segments.clone(),
-        last: match &value.last {
-            authority::Last::Exact(word) => people::Last::Exact(word.clone()),
-            authority::Last::Open(word) => people::Last::Open(word.clone()),
-        },
-    }
-}
-
-#[must_use]
-pub fn authority_to_authority(value: people::Authority) -> Option<authority::Authority> {
-    let mut grants = List::with_capacity(u32::try_from(value.grants.len()).ok()?);
-    for grant in value.grants {
-        grants
-            .push(authority::Grant {
-                connector: grant.connector,
-                kind: grant.kind,
-                pattern: pattern_to_authority(grant.pattern),
-            })
-            .ok()?;
-    }
-    let mut note_resources = List::with_capacity(u32::try_from(value.note_resources.len()).ok()?);
-    for scope in value.note_resources {
-        note_resources
-            .push(authority::ResourceScope { connector: scope.connector, pattern: pattern_to_authority(scope.pattern) })
-            .ok()?;
-    }
-    let mut kinds = List::with_capacity(u32::try_from(value.delegation.kinds.len()).ok()?);
-    for kind in value.delegation.kinds {
-        kinds
-            .push(match kind {
-                people::Executor::Charter(number) => authority::Executor::Charter(number),
-                people::Executor::Procedure(number) => authority::Executor::Procedure(number),
-                people::Executor::Role(number) => authority::Executor::Role(number),
-            })
-            .ok()?;
-    }
-    Some(authority::Authority {
-        tools: authority::Tools(value.tools),
-        models: match value.models {
-            Some(models) => authority::Models::from_parts(models.bits(), models.is_all()),
-            None => authority::Models::NONE,
-        },
-        grants: grants.into_boxed(),
-        delegation: authority::Delegation {
-            kinds: kinds.into_boxed(),
-            tasks: value.delegation.tasks,
-            depth: value.delegation.depth,
-        },
-        budget: authority::Budget { spend: value.spend, deadline: value.deadline },
-        notes: authority::Scopes(value.notes),
-        note_resources: note_resources.into_boxed(),
-    })
-}
-
-/// Copy bounded authority into the party vocabulary.
-#[must_use]
-pub fn authority_to_people(value: &authority::Authority) -> Option<people::Authority> {
-    let mut grants = List::with_capacity(u32::try_from(value.grants.len()).ok()?);
-    for grant in &value.grants {
-        grants
-            .push(people::Grant {
-                connector: grant.connector,
-                kind: grant.kind,
-                pattern: pattern_to_people(&grant.pattern),
-            })
-            .ok()?;
-    }
-    let mut note_resources = List::with_capacity(u32::try_from(value.note_resources.len()).ok()?);
-    for scope in &value.note_resources {
-        note_resources
-            .push(people::ResourceScope { connector: scope.connector, pattern: pattern_to_people(&scope.pattern) })
-            .ok()?;
-    }
-    let mut kinds = List::with_capacity(u32::try_from(value.delegation.kinds.len()).ok()?);
-    for kind in &value.delegation.kinds {
-        kinds
-            .push(match kind {
-                authority::Executor::Charter(number) => people::Executor::Charter(*number),
-                authority::Executor::Procedure(number) => people::Executor::Procedure(*number),
-                authority::Executor::Role(number) => people::Executor::Role(*number),
-            })
-            .ok()?;
-    }
-    Some(people::Authority {
-        tools: value.tools.0,
-        models: Some(people::Models::from_parts(value.models.bits(), value.models.is_all())),
-        grants: grants.into_boxed(),
-        delegation: people::Delegation {
-            kinds: kinds.into_boxed(),
-            tasks: value.delegation.tasks,
-            depth: value.delegation.depth,
-        },
-        spend: value.budget.spend,
-        deadline: value.budget.deadline,
-        notes: value.notes.0,
-        note_resources: note_resources.into_boxed(),
-    })
-}
-
-#[must_use]
-pub fn requirement_to_authority(value: people::Requirement) -> authority::Requirement {
-    authority::Requirement {
-        connector: value.connector,
-        kind: value.kind,
-        pattern: pattern_to_authority(value.pattern),
-        judge: authority::Judge {
-            connector: value.judge.connector,
-            requirement: value.judge.requirement,
-            parameters: value.judge.parameters,
-        },
-        guard: match value.guard {
-            people::Guard::Guarded => authority::Guard::Guarded,
-            people::Guard::Observed { freshness } => authority::Guard::Observed { freshness },
-        },
-        must_be_guarded: value.must_be_guarded,
-    }
-}
-
-fn requirement_to_people(value: &authority::Requirement) -> people::Requirement {
-    people::Requirement {
-        connector: value.connector,
-        kind: value.kind,
-        pattern: pattern_to_people(&value.pattern),
-        judge: people::Judge {
-            connector: value.judge.connector,
-            requirement: value.judge.requirement,
-            parameters: value.judge.parameters,
-        },
-        guard: match value.guard {
-            authority::Guard::Guarded => people::Guard::Guarded,
-            authority::Guard::Observed { freshness } => people::Guard::Observed { freshness },
-        },
-        must_be_guarded: value.must_be_guarded,
-    }
-}
 
 fn role_exists(policy: &authority::Policy, number: u32) -> bool {
     for role in &policy.roles {
@@ -217,7 +71,7 @@ pub(crate) fn apply(
             if given.models.is_none() {
                 given.models = Some(people::Models::from_parts(inherited.bits(), inherited.is_all()));
             }
-            let value = authority_to_authority(given)?;
+            let value = people_authority(given)?;
             let mut found = false;
             for role in &mut policy.roles {
                 if role.number == edit.number {
@@ -305,7 +159,7 @@ fn restore_value(
     value: people::PolicyValue,
     limit: u32,
 ) -> Option<()> {
-    policy.ceiling = authority_to_authority(value.ceiling)?;
+    policy.ceiling = people_authority(value.ceiling)?;
     policy.escalation_role = value.escalation_role;
     policy.period_spend = value.period_spend;
     policy.projections = grants_to_authority(value.projections)?;
@@ -314,7 +168,7 @@ fn restore_value(
         roles
             .push(authority::Role {
                 number: role.number,
-                authority: authority_to_authority(role.authority)?,
+                authority: people_authority(role.authority)?,
                 period_spend: role.period_spend,
                 requests: authority::Requests(role.requests),
                 decides: authority::Proposals(role.decides),
@@ -445,7 +299,7 @@ impl Core {
     }
 
     /// Add a project from its committed row alone before admitting party requests.
-    pub fn restore_policy(
+    pub(crate) fn restore_policy(
         &mut self,
         limits: &Limits,
         project: u32,
@@ -465,7 +319,7 @@ impl Core {
                 return false;
             }
         }
-        let Some(ceiling) = authority_to_authority(value.ceiling.clone()) else {
+        let Some(ceiling) = people_authority(value.ceiling.clone()) else {
             {
                 self.refuse_restore(crate::start::Failure::ProjectPolicy { project });
             }
@@ -546,26 +400,14 @@ impl Core {
 pub fn grants_to_authority(grants: Box<[people::Grant]>) -> Option<Box<[authority::Grant]>> {
     let mut result = List::with_capacity(u32::try_from(grants.len()).ok()?);
     for grant in grants {
-        result
-            .push(authority::Grant {
-                connector: grant.connector,
-                kind: grant.kind,
-                pattern: pattern_to_authority(grant.pattern),
-            })
-            .ok()?;
+        result.push(grant_to_authority(grant)).ok()?;
     }
     Some(result.into_boxed())
 }
 fn grants_to_people(grants: &[authority::Grant]) -> Option<Box<[people::Grant]>> {
     let mut result = List::with_capacity(u32::try_from(grants.len()).ok()?);
     for grant in grants {
-        result
-            .push(people::Grant {
-                connector: grant.connector,
-                kind: grant.kind,
-                pattern: pattern_to_people(&grant.pattern),
-            })
-            .ok()?;
+        result.push(grant_to_people(grant)).ok()?;
     }
     Some(result.into_boxed())
 }

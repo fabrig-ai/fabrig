@@ -3,16 +3,16 @@ use super::{Limits, List, Reader, Wall, c, piece_problem, too_large, w};
 pub(crate) fn frame_party_fields(value: &w::MeParty, limits: &Limits) -> Result<c::MeParty, w::Problem> {
     Ok(c::MeParty {
         number: value.number(),
-        kind: crate::translate::answers::party_kind(value.kind(), limits),
+        kind: crate::translate::answers::party_kind(value.kind()),
         login: crate::translate::facts::document_text(value.login(), limits)?,
         name: crate::translate::facts::document_text(value.name(), limits)?,
     })
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn pool_ledger_fields(value: &w::PoolLedger, limits: &Limits) -> c::PoolLedger {
+pub(crate) fn pool_ledger_fields(value: &w::PoolLedger) -> c::PoolLedger {
     let opt0 = match value.parent() {
-        Some(item) => Some(crate::translate::facts::funder(item, limits)),
+        Some(item) => Some(crate::translate::facts::funder(item)),
         None => None,
     };
     let opt1 = match value.began() {
@@ -24,9 +24,9 @@ pub(crate) fn pool_ledger_fields(value: &w::PoolLedger, limits: &Limits) -> c::P
         None => None,
     };
     c::PoolLedger {
-        source: crate::translate::facts::funder(value.source(), limits),
+        source: crate::translate::facts::funder(value.source()),
         parent: opt0,
-        numbers: crate::translate::facts::owner_numbers(value.numbers(), limits),
+        numbers: crate::translate::facts::owner_numbers(value.numbers()),
         left: value.left(),
         closed: value.closed(),
         began: opt1,
@@ -37,13 +37,13 @@ pub(crate) fn pool_ledger_fields(value: &w::PoolLedger, limits: &Limits) -> c::P
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn project_role_fields(value: &w::MeProject, limits: &Limits) -> Result<c::MeProject, w::Problem> {
     let opt1 = match value.pool() {
-        Some(item) => Some(pool_ledger_fields(item, limits)),
+        Some(item) => Some(pool_ledger_fields(item)),
         None => None,
     };
     Ok(c::MeProject {
         project: value.project(),
         name: crate::translate::facts::document_text(value.name(), limits)?,
-        role: crate::translate::answers::held_role(value.role(), limits),
+        role: crate::translate::answers::held_role(value.role()),
         pool: opt1,
         templates: super::me::templates(value.templates(), limits)?,
         creating: match value.creating() {
@@ -60,7 +60,7 @@ pub(crate) fn project_role_fields(value: &w::MeProject, limits: &Limits) -> Resu
     })
 }
 
-pub(crate) fn needs_fields(value: &w::Needs, _limits: &Limits) -> c::Needs {
+pub(crate) fn needs_fields(value: &w::Needs) -> c::Needs {
     c::Needs {
         questions: value.questions(),
         proposals: value.proposals(),
@@ -69,7 +69,7 @@ pub(crate) fn needs_fields(value: &w::Needs, _limits: &Limits) -> c::Needs {
     }
 }
 
-pub(crate) fn count_fields(value: &w::Count, _limits: &Limits) -> c::Count {
+pub(crate) fn count_fields(value: &w::Count) -> c::Count {
     c::Count { value: value.value(), limited: value.limited() }
 }
 
@@ -77,7 +77,7 @@ pub(crate) fn count_fields(value: &w::Count, _limits: &Limits) -> c::Count {
 pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::Problem> {
     let list0 = super::me::projects(value.projects(), limits)?;
     let opt1 = match value.deployment_role() {
-        Some(item) => Some(crate::translate::answers::held_role(item, limits)),
+        Some(item) => Some(crate::translate::answers::held_role(item)),
         None => None,
     };
     if value.key_bytes() > limits.wire.keyed_value_some || value.redirect_bytes() > limits.wire.keyed_value_some {
@@ -90,9 +90,9 @@ pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::P
         redirect_bytes: value.redirect_bytes(),
         party: frame_party_fields(value.party(), limits)?,
         projects: list0,
-        needs: needs_fields(value.needs(), limits),
+        needs: needs_fields(value.needs()),
         needs_total: value.needs_total(),
-        updates: count_fields(value.updates(), limits),
+        updates: count_fields(value.updates()),
         results_seen: value.results_seen(),
         cut: value.cut(),
         retention: value.retention(),
@@ -143,7 +143,7 @@ pub(crate) fn chip_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<Li
     Err(too_large())
 }
 
-pub(crate) fn owner_task_status_fields(value: &w::OwnerTaskStatus, _limits: &Limits) -> c::OwnerTaskStatus {
+pub(crate) fn owner_task_status_fields(value: &w::OwnerTaskStatus) -> c::OwnerTaskStatus {
     match value {
         w::OwnerTaskStatus::Done => c::OwnerTaskStatus::Done,
         w::OwnerTaskStatus::Failed => c::OwnerTaskStatus::Failed,
@@ -167,7 +167,7 @@ pub(crate) fn owner_task_link_fields(
         }
         w::OwnerTaskLink::Stored(row) => {
             let opt0 = match row.status() {
-                Some(item) => Some(owner_task_status_fields(item, limits)),
+                Some(item) => Some(owner_task_status_fields(item)),
                 None => None,
             };
             c::OwnerTaskLink::Stored { number: row.number(), status: opt0 }
@@ -261,7 +261,7 @@ pub(crate) fn specification_document_fields(
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn subscription_kind_fields(value: &w::SubscriptionKind, _limits: &Limits) -> c::SubscriptionKind {
+pub(crate) fn subscription_kind_fields(value: &w::SubscriptionKind) -> c::SubscriptionKind {
     match value {
         w::SubscriptionKind::Task(row) => {
             c::SubscriptionKind::Task { target: row.target(), held: row.held(), result: row.result() }

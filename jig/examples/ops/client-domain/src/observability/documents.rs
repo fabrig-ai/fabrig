@@ -2,8 +2,8 @@
 //! Replace: incident/service vocabulary and the application objects its pages name.
 //! Observability owns incident history and health (examples.md, 3 and 8).
 use alloc::boxed::Box;
-use jig_client::contract::{ObjectKey, Part, ProposalKey, Revision};
-use skein_lib::{List, Wall};
+use jig_client::contract::{ObjectKey, Part, ProposalKey};
+use skein_lib::List;
 /// Scope supplied with every read and watch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Scope {
@@ -35,147 +35,45 @@ pub struct Service {
     pub environment: Box<[u8]>,
     pub name: Box<[u8]>,
 }
-/// The owner's observations, without an inferred health threshold.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Health {
-    pub observed: Wall,
-    pub healthy_replicas: u32,
-    pub errors: u32,
-    pub error_rate_percent: u8,
-}
-/// A retained incident observation; absent health denotes the alert arrival.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Point {
-    pub at: Wall,
-    pub health: Option<Health>,
-}
 /// The incident's committed lifecycle.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
     Alerting,
     Resolved,
 }
-/// An incident, with the supplied lead identity and its bounded history.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Incident {
-    pub project: u32,
-    pub number: u64,
-    pub revision: Revision,
-    pub watch: u64,
-    pub raised: Wall,
-    pub service: Service,
-    pub severity: u8,
-    pub state: State,
-    pub timeline: List<Point>,
-    pub cut: bool,
-    pub health: Option<Health>,
-    /// The watch is not the lead; absence stays unknown.
-    pub lead: Option<u64>,
-    pub proposals: List<ProposalKey>,
-}
-/// A qualified service and only the health its owner supplied.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ServiceState {
-    pub service: Service,
-    pub health: Option<Health>,
-}
-/// Current connector facts in a jig slot.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PartDocument {
-    pub subject: Subject,
-    pub revision: Revision,
-    pub service: Option<Service>,
-    pub health: Option<Health>,
-    pub incident: Option<Incident>,
-    pub incidents: List<Incident>,
-    pub services: List<ServiceState>,
-    pub effects: List<Effect>,
-    pub watches: Option<u32>,
-    pub read_limit: Option<u32>,
-    pub incident_limit: Option<u32>,
-}
-/// Recovery state of an observed silence effect.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EffectState {
-    Kept,
-    Sent,
-    Uncertain,
-    Held,
-}
-/// A retained outbox entry with its source and supplied attribution.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Effect {
-    pub entry: u64,
-    pub task: u64,
-    pub project: Option<u32>,
-    pub alert: u64,
-    pub until: Wall,
-    pub state: EffectState,
-    pub attempt: u32,
-    pub deadline: Wall,
-    pub origin: crate::infrastructure::documents::Creation,
-}
 /// One authoritative document for a family page or connector part.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Document {
-    Incidents {
-        subject: Subject,
-        revision: Revision,
-        incidents: List<Incident>,
-    },
-    Incident(Incident),
-    Part(Box<PartDocument>),
-    /// Whole genuine connector facts, with no artificial owner revision.
-    Native(Box<super::native::Document>),
+    Value(Box<super::values::Document>),
 }
 impl Document {
     /// The identity echoed by this whole document.
     #[must_use]
     pub fn subject(&self) -> Subject {
-        match self {
-            Self::Incidents { subject, .. } => *subject,
-            Self::Incident(incident) => {
-                Subject { scope: Scope::Project(incident.project), kind: Kind::Incident(incident.number) }
-            }
-            Self::Part(part) => part.subject,
-            Self::Native(document) => document.subject,
-        }
-    }
-    /// The owner's current document revision.
-    #[must_use]
-    pub fn revision(&self) -> Option<Revision> {
-        match self {
-            Self::Incidents { revision, .. } => Some(*revision),
-            Self::Incident(incident) => Some(incident.revision),
-            Self::Part(part) => Some(part.revision),
-            Self::Native(_) => None,
-        }
+        let Self::Value(document) = self;
+        document.subject
     }
     /// Whole-value admission against the configured text, row and byte bounds.
     #[must_use]
     pub fn fits(&self, limits: &super::Limits) -> bool {
-        match price(self, limits) {
-            Some(bytes) => match bytes.checked_add(u64::try_from(size_of::<Document>()).expect("document layout")) {
-                Some(bytes) => bytes <= limits.document_bytes,
-                None => false,
-            },
+        let Self::Value(document) = self;
+        let Some(bytes) = super::values::price(document, limits) else { return false };
+        match bytes.checked_add(u64::try_from(size_of::<Document>()).expect("document layout")) {
+            Some(bytes) => bytes <= limits.document_bytes,
             None => false,
         }
     }
     /// The incident's lead's plan, as jig's whole section (examples.md, 8).
     #[must_use]
     pub fn sections(&self) -> List<jig_client_view::page::Section> {
-        let lead = match self {
-            Self::Incident(incident) => incident.lead,
-            Self::Native(document) => match &document.value {
-                super::native::Value::Incident { incident, .. } => incident.lead,
-                super::native::Value::Service { .. }
-                | super::native::Value::Alert { .. }
-                | super::native::Value::Outbox { .. }
-                | super::native::Value::Deployment { .. }
-                | super::native::Value::Project { .. } => None,
-            },
-            Self::Incidents { .. } | Self::Part(_) => None,
+        let Self::Value(document) = self;
+        let lead = match &document.value {
+            super::values::Value::Incident { incident, .. } => incident.lead,
+            super::values::Value::Service { .. }
+            | super::values::Value::Alert { .. }
+            | super::values::Value::Outbox { .. }
+            | super::values::Value::Deployment { .. }
+            | super::values::Value::Project { .. } => None,
         };
         let mut sections = List::with_capacity(1);
         if let Some(task) = lead {
@@ -192,101 +90,26 @@ impl Document {
     #[must_use]
     pub fn objects(&self, rows: u32) -> List<ObjectKey> {
         let mut objects = List::with_capacity(rows.checked_add(1).expect("incident object bound"));
-        match self {
-            Self::Incident(incident) => {
+        let Self::Value(document) = self;
+        match &document.value {
+            super::values::Value::Incident { incident, .. } => {
                 if let Some(lead) = incident.lead {
                     objects.push(ObjectKey::Task(lead)).expect("lead capacity");
                 }
-                for proposal in &incident.proposals {
-                    objects.push(ObjectKey::Proposal(*proposal)).expect("admitted proposal capacity");
-                }
             }
-            Self::Incidents { incidents, .. } => {
+            super::values::Value::Service { .. }
+            | super::values::Value::Alert { .. }
+            | super::values::Value::Outbox { .. }
+            | super::values::Value::Deployment { .. } => {}
+            super::values::Value::Project { incidents, .. } => {
                 for incident in incidents {
                     if let Some(lead) = incident.lead {
                         objects.push(ObjectKey::Task(lead)).expect("incident lead capacity");
                     }
                 }
             }
-            Self::Native(document) => match &document.value {
-                super::native::Value::Incident { incident, .. } => {
-                    if let Some(lead) = incident.lead {
-                        objects.push(ObjectKey::Task(lead)).expect("lead capacity");
-                    }
-                }
-                super::native::Value::Service { .. }
-                | super::native::Value::Alert { .. }
-                | super::native::Value::Outbox { .. }
-                | super::native::Value::Deployment { .. } => {}
-                super::native::Value::Project { incidents, .. } => {
-                    for incident in incidents {
-                        if let Some(lead) = incident.lead {
-                            objects.push(ObjectKey::Task(lead)).expect("incident lead capacity");
-                        }
-                    }
-                }
-            },
-            Self::Part(_) => {}
         }
         objects
-    }
-}
-fn incident_price(incident: &Incident, limits: &super::Limits) -> Option<u64> {
-    if incident.timeline.capacity() > limits.rows || incident.proposals.capacity() > limits.rows {
-        return None;
-    }
-    let mut bytes = service_price(&incident.service, limits)?;
-    bytes = bytes.checked_add(List::<Point>::price(incident.timeline.capacity())?)?;
-    bytes.checked_add(List::<ProposalKey>::price(incident.proposals.capacity())?)
-}
-fn service_price(service: &Service, limits: &super::Limits) -> Option<u64> {
-    if service.environment.len() > usize::try_from(limits.text).ok()?
-        || service.name.len() > usize::try_from(limits.text).ok()?
-    {
-        return None;
-    }
-    u64::try_from(service.environment.len()).ok()?.checked_add(u64::try_from(service.name.len()).ok()?)
-}
-fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
-    match document {
-        Document::Incident(incident) => incident_price(incident, limits),
-        Document::Incidents { incidents, .. } => {
-            if incidents.capacity() > limits.rows {
-                return None;
-            }
-            let mut bytes = List::<Incident>::price(incidents.capacity())?;
-            for incident in incidents {
-                bytes = bytes.checked_add(incident_price(incident, limits)?)?;
-            }
-            Some(bytes)
-        }
-        Document::Native(document) => super::native::price(document, limits),
-        Document::Part(part) => {
-            if part.effects.capacity() > limits.rows
-                || part.incidents.capacity() > limits.rows
-                || part.services.capacity() > limits.rows
-            {
-                return None;
-            }
-            let mut bytes = u64::try_from(size_of::<PartDocument>())
-                .ok()?
-                .checked_add(List::<Effect>::price(part.effects.capacity())?)?
-                .checked_add(List::<Incident>::price(part.incidents.capacity())?)?
-                .checked_add(List::<ServiceState>::price(part.services.capacity())?)?;
-            for incident in &part.incidents {
-                bytes = bytes.checked_add(incident_price(incident, limits)?)?;
-            }
-            for service in &part.services {
-                bytes = bytes.checked_add(service_price(&service.service, limits)?)?;
-            }
-            if let Some(service) = &part.service {
-                bytes = bytes.checked_add(service_price(service, limits)?)?;
-            }
-            if let Some(incident) = &part.incident {
-                bytes = bytes.checked_add(incident_price(incident, limits)?)?;
-            }
-            Some(bytes)
-        }
     }
 }
 /// A scoped whole-read terminal.
@@ -301,8 +124,6 @@ pub enum ReadResult {
 /// A level-triggered watch callback.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WatchEvent {
-    Opened,
-    Alive,
     Delivered(Box<Document>),
 }
 /// One terminal for every opened watch.
@@ -310,10 +131,7 @@ pub enum WatchEvent {
 pub enum WatchEnd {
     NotAllowed,
     SubjectEnded,
-    Stopping,
-    Busy,
     Closed,
-    Dropped,
     Unknown,
     SignedOut,
 }
@@ -336,7 +154,7 @@ pub fn subject(part: &Part, scope: Scope) -> Option<Subject> {
             return Some(Subject { scope: Scope::Project(*project), kind: Kind::Project(*project) });
         }
         Part::Deployment { .. } => return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment }),
-        // Native connector proposal numbers do not name this side's typed maker effects.
+        // Connector proposal numbers do not name this side's typed maker effects.
         Part::OwnerEffect { .. } | Part::Connector { .. } | Part::Resource { .. } | Part::Kind { .. } => return None,
     };
     Some(Subject { scope, kind })

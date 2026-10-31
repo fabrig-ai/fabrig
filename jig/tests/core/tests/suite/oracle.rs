@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::World;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
@@ -5,7 +6,7 @@ use jig_test_domain as root;
 
 #[test]
 fn a_parked_conversation_keeps_its_documents_and_transcript() {
-    let mut world = World::new(1901, false);
+    let mut world = World::new(Setup { seed: 1901, ..Setup::default() });
     world.turn(1, 1, None, b"durable answer");
     world.end(tasks::End::Parked, 1);
     world.close();
@@ -14,7 +15,7 @@ fn a_parked_conversation_keeps_its_documents_and_transcript() {
 #[test]
 #[should_panic(expected = "restart oracle document Task 1 field chip")]
 fn a_writer_forgetting_a_durable_task_field_names_its_document() {
-    let mut world = World::new(1902, false);
+    let mut world = World::new(Setup { seed: 1902, ..Setup::default() });
     world.end(tasks::End::Parked, 0);
     let task = world.assigned.as_ref().expect("assigned task").task;
     let key = root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)));
@@ -28,7 +29,7 @@ fn a_writer_forgetting_a_durable_task_field_names_its_document() {
 
 #[test]
 fn a_deliberately_broken_fixture_skips_the_oracle() {
-    let mut world = World::new(1903, false);
+    let mut world = World::new(Setup { seed: 1903, ..Setup::default() });
     world.stopped = true;
     // The fixture deliberately leaves the engine stopped.
     world.broken();
@@ -39,7 +40,7 @@ fn a_deliberately_broken_fixture_skips_the_oracle() {
 fn a_dead_hosts_runtime_observation_is_rebuilt() {
     use jig_domain_fleet as fleet;
     use skein_lib::Token;
-    let mut world = World::new(1904, false);
+    let mut world = World::new(Setup { seed: 1904, ..Setup::default() });
     let assigned = world.assigned.as_ref().expect("assigned task");
     let (run, attempt) = (Token::new(assigned.task), Token::new(assigned.attempt));
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Observe {
@@ -61,7 +62,7 @@ fn a_dead_hosts_runtime_observation_is_rebuilt() {
 #[test]
 fn the_restart_sweep_erases_only_the_expired_sign_in() {
     use jig_domain_people as people;
-    let mut world = World::new(1905, false);
+    let mut world = World::new(Setup { seed: 1905, ..Setup::default() });
     let key = root::Key::Core(core::Key::Core(core::CoreKey::Deployment));
     let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(mut header))) =
         world.store.rows[&key].clone()
@@ -89,7 +90,7 @@ fn the_restart_sweep_erases_only_the_expired_sign_in() {
 
 #[test]
 fn close_settles_a_commit_held_before_the_component() {
-    let mut world = World::new(1906, false);
+    let mut world = World::new(Setup { seed: 1906, ..Setup::default() });
     world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
     world.turn(1, 1, None, b"held answer");
     assert!(!world.store.held.is_empty());
@@ -101,7 +102,7 @@ fn close_settles_a_commit_held_before_the_component() {
 #[test]
 #[should_panic(expected = "restart oracle document Task 1 field chip")]
 fn dropping_a_world_runs_the_restart_oracle() {
-    let mut world = World::new(1907, false);
+    let mut world = World::new(Setup { seed: 1907, ..Setup::default() });
     world.end(tasks::End::Parked, 0);
     let task = world.assigned.as_ref().expect("assigned task").task;
     let key = root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)));
@@ -115,14 +116,14 @@ fn dropping_a_world_runs_the_restart_oracle() {
 #[test]
 #[should_panic(expected = "the story's own assertion")]
 fn unwinding_preserves_the_storys_failure_without_a_second_panic() {
-    let mut world = World::new(1908, false);
+    let mut world = World::new(Setup { seed: 1908, ..Setup::default() });
     world.stopped = true;
     panic!("the story's own assertion");
 }
 
 #[test]
 fn an_explicit_close_runs_only_one_cold_restart() {
-    let mut world = World::new(1909, false);
+    let mut world = World::new(Setup { seed: 1909, ..Setup::default() });
     world.close();
     let applied = world.store.applied;
     world.close();

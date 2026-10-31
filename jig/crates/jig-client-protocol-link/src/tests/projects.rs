@@ -44,9 +44,9 @@ fn project_outcomes_round_trip_the_supplied_project_number() {
 #[test]
 fn project_refusals_keep_each_name_rule_and_the_deployment_limit() {
     let limits = fixtures::limits();
-    assert_eq!(translate::documents::act_kind_fields(&w::ActKind::Rename, &limits), c::ActKind::Rename);
+    assert_eq!(translate::documents::act_kind_fields(&w::ActKind::Rename), c::ActKind::Rename);
     assert_eq!(answers::refusal(&w::Refusal::NameTaken, &limits), Ok(c::Refusal::NameTaken));
-    assert_eq!(answers::admission_limit(&w::AdmissionLimit::Projects, &limits), c::AdmissionLimit::Projects);
+    assert_eq!(answers::admission_limit(&w::AdmissionLimit::Projects), c::AdmissionLimit::Projects);
     for (wire, expected) in [
         (w::NameRule::Empty, c::NameRule::Empty),
         (w::NameRule::Long, c::NameRule::Long),

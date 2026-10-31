@@ -1,5 +1,6 @@
 //! The start's switch and mark follow durable restores (engine.md, 6).
 
+use jig_core_world::effects::Setup;
 use jig_core_world::{effects::World, world};
 use jig_domain_core as core;
 use jig_protocol_store::{Wire, codec, component_v3};
@@ -21,7 +22,7 @@ const RESTORES: &[core::start::Phase] = &[
 ];
 
 fn before() -> World {
-    let mut world = World::with_patch_sets(f::SEED, false, f::BEFORE);
+    let mut world = World::new(Setup { seed: f::SEED, patch_sets: f::BEFORE, ..Setup::default() });
     // Establish the recovered source bytes before comparing generations: a
     // normal open may trim a log's unused tail during recovery (store.md, 10.1).
     world.store.crash(f::SEED);
@@ -117,7 +118,13 @@ fn a_start_with_nothing_pending_takes_the_switch_step_and_commits_its_wires() {
 
 #[test]
 fn a_first_start_takes_the_switch_step() {
-    let mut world = World::first_start(world::config(f::SEED), world::limits());
+    let mut world = World::new(Setup {
+        configuration: Some(world::config(f::SEED)),
+        limits: world::limits(),
+        boot: jig_core_world::effects::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     let restores = &world.restart_steps[..RESTORES.len()];
     assert_eq!(restores, RESTORES);
     assert_eq!(world.store.switch_requests, 0);

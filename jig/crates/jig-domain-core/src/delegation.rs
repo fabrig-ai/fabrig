@@ -320,7 +320,7 @@ pub fn resolved_delegate_authority(
 ) -> Option<tasks::Authority> {
     let symbols = symbolic_grants(symbolic, limits.grants)?;
     let resolved = authority::resolve_task_grants(&symbols, task, limits)?;
-    let mut authority = translate::authority_value(base);
+    let mut authority = translate::tasks_authority(base);
     let mut grants = List::with_capacity(limits.grants);
     for grant in &authority.grants {
         grants.push(grant.clone()).ok()?;

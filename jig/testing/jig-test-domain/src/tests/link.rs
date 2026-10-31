@@ -19,7 +19,7 @@ fn a_worker_s_hello_reaches_the_fleet_with_its_bounds() {
     assert_eq!(hello.workstreams.as_ref(), [4, 5]);
     assert_eq!(
         hello.hosting.as_ref(),
-        [fleet::Hosted { run: fixtures::RUN, attempt: fixtures::ATTEMPT, phase: fleet::Phase::Waiting }]
+        [fleet::Hosting { run: fixtures::RUN, attempt: fixtures::ATTEMPT, phase: fleet::Phase::Waiting }]
     );
     assert_eq!(
         hello.bounds,
@@ -68,7 +68,7 @@ fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
         activation: 3,
         assignment: fleet::Assignment { turns: Token::new(10), answered: Token::new(11) },
     })));
-    crate::routes::route_core(&mut domain, &env, &mut decision, core::Requests::Out(out), &mut fixtures::work());
+    crate::routes::route_core(&mut domain, &env, &mut decision, out, &mut fixtures::work());
     domain.journal.accept(decision);
     let mut released = Queue::uncapped();
     crate::release(&mut domain, &env, &mut released);
@@ -162,10 +162,10 @@ fn a_start_refusal_reaches_the_core_as_invalid_without_reading_a_result() {
     }
 }
 
-fn core_request(request: core::Request) -> core::Requests {
+fn core_request(request: core::Request) -> Queue<core::Request> {
     let mut out = Queue::uncapped();
     out.push(request);
-    core::Requests::Out(out)
+    out
 }
 fn gather_brief(
     domain: &mut crate::Domain,
@@ -283,12 +283,80 @@ fn an_assignment_carries_its_brief_s_sections_in_order() {
 }
 
 #[test]
+fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
+    use jig_domain_accounts as accounts;
+    let mut domain = fixtures::domain();
+    domain.links.insert(fixtures::CHANNEL).expect("connected worker");
+    let env = fixtures::env();
+    let env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts };
+    let mut out = Queue::uncapped();
+    let holder = accounts::Holder::Party(7);
+    for record in [
+        accounts::Stored::Account {
+            number: 0,
+            provider: 1,
+            holder,
+            place: 0,
+            uses: None,
+            subject: Box::new([]),
+            display: Box::new([]),
+        },
+        accounts::Stored::Source {
+            account: 0,
+            number: 1,
+            place: 0,
+            kind: accounts::Kind::Program,
+            name: b"Bad_Name".as_slice().into(),
+            held: None,
+        },
+        accounts::Stored::Issued { number: 1, holder, name: b"Bad_Name".as_slice().into(), signed_out: true },
+        accounts::Stored::Next { number: 2 },
+    ] {
+        accounts::step(&mut domain.core.accounts, &env, accounts::Event::Restore { record }, &mut out);
+    }
+    accounts::step(&mut domain.core.accounts, &env, accounts::Event::Want, &mut out);
+    out.clear();
+    accounts::step(
+        &mut domain.core.accounts,
+        &env,
+        accounts::Event::Change {
+            request: Token::new(44),
+            holder,
+            change: accounts::Change::CheckProgram { source: 1 },
+        },
+        &mut out,
+    );
+    let mut delivered = false;
+    while let Some(request) = out.pop() {
+        if let accounts::Request::Granted { grant } = request {
+            let delivery = link::down(
+                &mut domain,
+                Delivery::Core(core::Held::Grant {
+                    channel: fixtures::CHANNEL,
+                    run: fixtures::RUN,
+                    attempt: fixtures::ATTEMPT,
+                    grant,
+                }),
+            );
+            let Delivery::Link { down: host::LinkDown::Grant { grant: carried, .. }, .. } = delivery else {
+                panic!("grant reaches the host");
+            };
+            assert_eq!(carried, grant);
+            let host::Form::Program(name) = carried.form else { panic!("program grant") };
+            assert_eq!(name.as_bytes(), b"Bad_Name");
+            delivered = true;
+        }
+    }
+    assert!(delivered, "signing in grants the restored source");
+}
+
+#[test]
 fn program_source_lifecycle_routes_without_run_payloads() {
     use jig_domain_host::{LinkDown, LinkUp, Login, LoginState, SignOutResult, SourceName};
     let mut domain = fixtures::domain();
     domain.links.insert(fixtures::CHANNEL).expect("one connected worker");
     let name = SourceName::new(b"alice").expect("source name");
-    let fleet_name = fleet::SourceName::new(b"alice").expect("source name");
+    let fleet_name = name;
     for (held, expected) in [
         (
             core::Held::Sources { channel: fixtures::CHANNEL, sources: Box::new([fleet_name]) },
@@ -313,7 +381,7 @@ fn program_source_lifecycle_routes_without_run_payloads() {
         panic!("typed fleet inventory")
     };
     assert_eq!(channel, fixtures::CHANNEL);
-    assert_eq!(logins.as_ref(), [fleet::Login { name: fleet_name, state: fleet::LoginState::Usable }]);
+    assert_eq!(logins.as_ref(), [Login { name: fleet_name, state: LoginState::Usable }]);
     let result = link::up(&mut domain, fixtures::CHANNEL, LinkUp::SignedOut { name, result: SignOutResult::SignedOut });
     let core::Event::Fleet(fleet::Event::SignedOut { channel, name: actual, result }) =
         result.expect("routed sign-out")
@@ -322,7 +390,7 @@ fn program_source_lifecycle_routes_without_run_payloads() {
     };
     assert_eq!(channel, fixtures::CHANNEL);
     assert_eq!(actual, fleet_name);
-    assert_eq!(result, fleet::SignOutResult::SignedOut);
+    assert_eq!(result, SignOutResult::SignedOut);
     assert_eq!(domain.payloads.len(), before);
 }
 
@@ -407,7 +475,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     }
     assert!(work.is_empty(), "ordinary handoffs finish before the projection pass");
     let requests = core::finish_decision(&mut domain.core, &core_env);
-    let core::Requests::Out(ref outputs) = requests;
+    let outputs = &requests;
     let mut feeds = 0_u32;
     for request in outputs {
         if let core::Request::Ask { ask: core::Ask::ProjectGoal { .. }, .. } = request {
@@ -460,29 +528,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
 }
 
 fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::Env<crate::Limits>, Token) {
-    use jig_domain_people as people;
-    use skein_lib::Env;
-    let mut domain = fixtures::domain();
-    let env = fixtures::env();
-    domain.core.people.start_restore(env.wall);
-    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
-    let mut ignored = Queue::uncapped();
-    for record in [
-        people::Stored::Person {
-            number: 1,
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: Box::new([1]) },
-                login: b"owner".as_slice().into(),
-                name: b"Owner".as_slice().into(),
-            },
-        },
-        people::Stored::SignIn { number: 1, person: 1, expires: expiry },
-    ] {
-        people::step(&mut domain.core.people, &people_env, people::Event::Restore { record }, &mut ignored);
-    }
-    assert!(domain.core.people.start_link(&people_env));
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&people_env));
+    let (mut domain, env) = super::start::with_sign_in(expiry);
     let watcher = Token::new(901);
     crate::step(
         &mut domain,
@@ -532,11 +578,6 @@ fn direct_resume_observes_wall_expiry_without_firing_or_reordering_the_people_ti
     crate::step(&mut domain, &env, crate::Event::Timer(core::Timer::People));
     assert_eq!(domain.core.people.sign_in_person(1), None);
     assert_eq!(domain.core.counters.deployment().commits, commits.checked_add(1).expect("one timer commit"));
-}
-
-#[test]
-fn the_hosts_endpoint_cap_is_the_fleets() {
-    assert_eq!(host::PROGRAM_ENDPOINTS, fleet::PROGRAM_ENDPOINTS);
 }
 
 #[test]

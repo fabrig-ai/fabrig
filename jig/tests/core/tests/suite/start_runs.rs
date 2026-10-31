@@ -7,18 +7,13 @@ use jig_domain_core::{
 use jig_domain_fleet as fleet;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
-fn selected_to_open(core: &mut core::Core, env: &Env<core::Limits>) {
+fn start_to_open(core: &mut core::Core, env: &Env<core::Limits>) {
     let mut out = Queue::uncapped();
     let mut action = core.start_begin(false, env.wall);
     for _ in 0..32 {
         action = match action {
             Action::Step(Phase::Open) => return,
             Action::Step(Phase::Sweep) => core.start_sweep(env, SweepInput::Finished, &mut out),
-            Action::Step(Phase::AdoptRuns) => {
-                assert!(core.adopted.is_empty());
-                drop(core::step(core, env, core::Event::Fleet(fleet::Event::Loaded)));
-                core.start_done(env, Phase::AdoptRuns, &mut out)
-            }
             Action::Step(phase) => core.start_done(env, phase, &mut out),
             Action::Commit(token) => core.start_resume(env, token, &mut out),
             Action::Idle | Action::Refused(_) => panic!("start reaches Open"),
@@ -32,7 +27,7 @@ fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(
     let channel = Token::new(7 + u64::from(worker));
     let run = Token::new(41 + u64::from(worker));
     let attempt = Token::new(11);
-    let core::Requests::Out(mut out) = core::step(
+    let mut out = core::step(
         core,
         env,
         core::Event::Fleet(fleet::Event::Hello {
@@ -43,7 +38,7 @@ fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(
                 stop_bound: Duration::ZERO,
                 slots: 1,
                 workstreams: Box::new([]),
-                hosting: Box::new([fleet::Hosted { run, attempt, phase: fleet::Phase::Active }]),
+                hosting: Box::new([fleet::Hosting { run, attempt, phase: fleet::Phase::Active }]),
             },
         }),
     );
@@ -68,7 +63,7 @@ fn stale_worker_listings_cancel_only_after_either_start_opens() {
         let mut core = core::Core::new(configured, &limits).expect("configured core");
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         {
-            selected_to_open(&mut core, &env);
+            start_to_open(&mut core, &env);
         }
         assert!(!core.start_opened());
         assert!(!core.start_opened());

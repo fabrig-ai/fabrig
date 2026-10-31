@@ -20,10 +20,10 @@ pub(super) fn route_core(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Delivery>,
-    requests: core::Requests,
+    requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    let core::Requests::Out(mut requests) = requests;
+    let mut requests = requests;
     for _ in 0..requests.len() {
         match requests.pop().expect("core request count") {
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
@@ -107,7 +107,6 @@ pub(super) fn route_core(
             core::Request::Now(now) => route_now(domain, env, decision, *now, work),
             core::Request::Ask { connector, ask } => route_ask(domain, env, decision, connector, ask, work),
             core::Request::ProjectMade { project } => hold(decision, Delivery::ProjectMade { project }),
-            core::Request::Decided => {}
         }
     }
 }
@@ -385,22 +384,11 @@ fn route_now(
         core::Now::Activate { context } => {
             work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
-        core::Now::PrepareAgent { context } => {
-            let transcript_waiter = if context.ever_turned { Some(Token::new(context.task)) } else { None };
+        core::Now::PrepareAgent { context, load_transcript } => {
+            let transcript_waiter = if load_transcript { Some(Token::new(context.task)) } else { None };
             work.push(Work::Core(core::Event::PreparedAgent { context, transcript_waiter, busy: false }));
         }
-        core::Now::StartPreparation { task, from: None, .. } => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::Prepare {
-                reply_to: ReplyTo::new(Token::new(task)),
-                task,
-            })));
-            work.push(Work::Core(core::Event::StartBrief { task }));
-        }
-        value @ core::Now::StartPreparation { task, from: Some(_), .. } => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::Prepare {
-                reply_to: ReplyTo::new(Token::new(task)),
-                task,
-            })));
+        value @ core::Now::StartPreparation { .. } => {
             domain.now.push(crate::Request::Now(value));
         }
         core::Now::BriefCorePlanned { task, sections, .. } => brief::plan(env, task, sections, work),
@@ -794,23 +782,18 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::connector::Ask,
         core::connector::Ask::DropProposal { proposal } => connector::Event::DropProposal { number: proposal },
         core::connector::Ask::Keep { owner, entry, task, key } => {
             domain.effect_procedures.remove(&owner);
-            let (attempt, completion, position) = match key.origin {
-                core::EffectPurpose::Call { attempt, completion, position } => (attempt, completion, position),
-                core::EffectPurpose::Procedure { .. } => (0, 0, 0),
-                core::EffectPurpose::Projection { .. } => (0, 0, 1),
+            let origin = match key.origin {
+                core::EffectPurpose::Call { attempt, completion, position } => {
+                    connector::Purpose::Call { attempt, completion, position }
+                }
+                core::EffectPurpose::Procedure { .. } => connector::Purpose::Procedure,
+                core::EffectPurpose::Projection { .. } => connector::Purpose::Projection,
             };
             connector::Event::Keep {
                 token: owner,
                 entry,
                 task,
-                key: connector::Key {
-                    deployment: key.deployment,
-                    task: key.task,
-                    purpose: key.purpose,
-                    attempt,
-                    completion,
-                    position,
-                },
+                key: connector::Key { deployment: key.deployment, task: key.task, purpose: key.purpose, origin },
             }
         }
         core::connector::Ask::Drop { owner, .. } => {

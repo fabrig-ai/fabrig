@@ -1,4 +1,4 @@
-//! Inbox projections use the selected people entrance (domain/engine.md, 6, 11.4).
+//! Inbox projections use the start's people entrance (domain/engine.md, 6, 11.4).
 use crate::{Core, Limits, people};
 use skein_lib::Map;
 

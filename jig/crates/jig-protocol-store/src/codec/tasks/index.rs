@@ -11,7 +11,7 @@ pub fn answer_line(source: &domain::AnswerLine, limits: &wire::Limits) -> Result
     wire::AnswerLine::new(limits, wire::AnswerLineParts { task: *task, position: *position })
 }
 /// Read `AnswerLine` from its durable record.
-pub fn read_answer_line(source: wire::AnswerLine, _limits: &wire::Limits) -> Result<domain::AnswerLine, wire::Problem> {
+pub fn read_answer_line(source: wire::AnswerLine) -> Result<domain::AnswerLine, wire::Problem> {
     let wire::AnswerLineParts { task, position } = source.into_parts();
     Ok(domain::AnswerLine { task, position })
 }
@@ -28,12 +28,9 @@ pub fn question_line(
     )
 }
 /// Read `QuestionLine` from its durable record.
-pub fn read_question_line(
-    source: wire::QuestionLine,
-    limits: &wire::Limits,
-) -> Result<domain::QuestionLine, wire::Problem> {
+pub fn read_question_line(source: wire::QuestionLine) -> Result<domain::QuestionLine, wire::Problem> {
     let wire::QuestionLineParts { message, line, answer } = source.into_parts();
-    Ok(domain::QuestionLine { message, line, answer: read_optional_answer(answer, limits)? })
+    Ok(domain::QuestionLine { message, line, answer: read_optional_answer(answer)? })
 }
 
 /// Translate `ProposalRow` to its durable record.
@@ -42,10 +39,7 @@ pub fn proposal_row(source: &domain::ProposalRow, limits: &wire::Limits) -> Resu
     wire::ProposalRow::new(limits, wire::ProposalRowParts { proposal: *proposal, revision: *revision })
 }
 /// Read `ProposalRow` from its durable record.
-pub fn read_proposal_row(
-    source: wire::ProposalRow,
-    _limits: &wire::Limits,
-) -> Result<domain::ProposalRow, wire::Problem> {
+pub fn read_proposal_row(source: wire::ProposalRow) -> Result<domain::ProposalRow, wire::Problem> {
     let wire::ProposalRowParts { proposal, revision } = source.into_parts();
     Ok(domain::ProposalRow { proposal, revision })
 }
@@ -56,7 +50,7 @@ pub fn endings(source: &domain::Endings, limits: &wire::Limits) -> Result<wire::
     wire::Endings::new(limits, wire::EndingsParts { done: *done, failed: *failed, cancelled: *cancelled })
 }
 /// Read `Endings` from its durable record.
-pub fn read_endings(source: wire::Endings, _limits: &wire::Limits) -> Result<domain::Endings, wire::Problem> {
+pub fn read_endings(source: wire::Endings) -> Result<domain::Endings, wire::Problem> {
     let wire::EndingsParts { done, failed, cancelled } = source.into_parts();
     Ok(domain::Endings { done, failed, cancelled })
 }
@@ -79,10 +73,7 @@ pub fn update_object(
     })
 }
 /// Read `UpdateObject` from its durable value.
-pub fn read_update_object(
-    source: wire::UpdateObject,
-    _limits: &wire::Limits,
-) -> Result<domain::UpdateObject, wire::Problem> {
+pub fn read_update_object(source: wire::UpdateObject) -> Result<domain::UpdateObject, wire::Problem> {
     Ok(match source {
         wire::UpdateObject::Proposal(value) => {
             domain::UpdateObject::Proposal { proposal: domain::Newest::of(value.into_parts().proposal) }
@@ -104,9 +95,9 @@ pub fn update(source: &domain::Update, limits: &wire::Limits) -> Result<wire::Up
     )
 }
 /// Read `Update` from its durable record.
-pub fn read_update(source: wire::Update, limits: &wire::Limits) -> Result<domain::Update, wire::Problem> {
+pub fn read_update(source: wire::Update) -> Result<domain::Update, wire::Problem> {
     let wire::UpdateParts { party, at, task, object } = source.into_parts();
-    Ok(domain::Update { party, at: Wall::from_nanos(at), task, object: read_update_object(object, limits)? })
+    Ok(domain::Update { party, at: Wall::from_nanos(at), task, object: read_update_object(object)? })
 }
 
 /// Translate `ResultRow` to its durable record.
@@ -115,7 +106,7 @@ pub fn result_row(source: &domain::ResultRow, limits: &wire::Limits) -> Result<w
     wire::ResultRow::new(limits, wire::ResultRowParts { party: *party, position: *position, task: *task })
 }
 /// Read `ResultRow` from its durable record.
-pub fn read_result_row(source: wire::ResultRow, _limits: &wire::Limits) -> Result<domain::ResultRow, wire::Problem> {
+pub fn read_result_row(source: wire::ResultRow) -> Result<domain::ResultRow, wire::Problem> {
     let wire::ResultRowParts { party, position, task } = source.into_parts();
     Ok(domain::ResultRow { party, position, task })
 }
@@ -126,7 +117,7 @@ pub fn edge(source: &domain::Edge, limits: &wire::Limits) -> Result<wire::Edge, 
     wire::Edge::new(limits, wire::EdgeParts { requester: *requester, task: *task })
 }
 /// Read `Edge` from its durable record.
-pub fn read_edge(source: wire::Edge, _limits: &wire::Limits) -> Result<domain::Edge, wire::Problem> {
+pub fn read_edge(source: wire::Edge) -> Result<domain::Edge, wire::Problem> {
     let wire::EdgeParts { requester, task } = source.into_parts();
     Ok(domain::Edge { requester, task })
 }
@@ -140,12 +131,9 @@ fn optional_answer(
         None => Ok(None),
     }
 }
-fn read_optional_answer(
-    source: Option<wire::AnswerLine>,
-    limits: &wire::Limits,
-) -> Result<Option<domain::AnswerLine>, wire::Problem> {
+fn read_optional_answer(source: Option<wire::AnswerLine>) -> Result<Option<domain::AnswerLine>, wire::Problem> {
     match source {
-        Some(source) => Ok(Some(read_answer_line(source, limits)?)),
+        Some(source) => Ok(Some(read_answer_line(source)?)),
         None => Ok(None),
     }
 }

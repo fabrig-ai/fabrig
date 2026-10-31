@@ -1,21 +1,13 @@
-//! Explicit load/fit/link and a borrowed second expiry walk (jig/docs/design/domain/engine.md, 6).
+//! The start: load, then link, and a borrowed second expiry walk (jig/docs/design/domain/engine.md, 6).
 mod fit;
-use super::{Answered, Domain, Phase as State, SignIn, answer_expiry, deadline};
+use super::{Answered, Domain, SignIn, Start, answer_expiry, deadline};
 use crate::{
     Key, LimitKind, Limits, Outcome, Refusal, Request, RestoreBound, RestoreFailure, RestoreProjection, Stored,
 };
 use skein_lib::{Env, Queue, Time, Wall};
 
-#[derive(Debug, PartialEq, Eq)]
-pub(super) enum Phase {
-    Loading,
-    Linked,
-    Sweeping,
-    Complete,
-}
-
 impl Domain {
-    /// The first selected-start fit failure, retained independently of output consumption.
+    /// The start's first fit failure, retained independently of output consumption.
     #[must_use]
     pub fn restore_failure(&self) -> Option<RestoreFailure> {
         self.restore_failure.clone()
@@ -28,8 +20,8 @@ impl Domain {
     /// Rebuild a bounded volatile census projection while loading, without clocks or effects.
     #[must_use]
     pub fn start_project(&mut self, limits: &Limits, input: RestoreProjection) -> bool {
-        assert!(self.start == Phase::Loading && self.start_at.is_some(), "people projections require loading");
-        if self.phase == State::Failed {
+        assert!(self.start == Start::Loading || self.start == Start::Failed, "people projections require loading");
+        if self.start == Start::Failed {
             return false;
         }
         match input {
@@ -51,25 +43,25 @@ impl Domain {
 
     /// Begin restoration once before any input, capturing the start's expiry instant.
     pub fn start_restore(&mut self, at: Wall) {
-        assert!(
-            self.start_at.is_none() && !self.touched && self.phase == State::Restoring,
-            "people start selected once before input"
-        );
-        self.start = Phase::Loading;
+        assert!(self.start == Start::NotStarted, "people start begins once before input");
+        self.start = Start::Loading;
         self.start_at = Some(at);
     }
 
     pub(super) fn start_lookup(&self) -> bool {
-        self.start_at.is_some() && self.phase != State::Failed
+        match self.start {
+            Start::Loading | Start::Linked | Start::Sweeping => true,
+            Start::NotStarted | Start::Open | Start::Failed => false,
+        }
     }
 
     /// Seal loading and assert required retained references. Does not open admission or erase.
     pub fn start_link(&mut self, _env: &Env<Limits>) -> bool {
-        assert!(self.start == Phase::Loading && self.start_at.is_some(), "people link follows loading once");
-        self.start = Phase::Linked;
-        if self.phase == State::Failed {
+        assert!(self.start == Start::Loading || self.start == Start::Failed, "people link follows loading once");
+        if self.start == Start::Failed {
             return false;
         }
+        self.start = Start::Linked;
         for (number, row) in &self.sign_ins {
             link(self, Key::SignIn(*number), row.person);
         }
@@ -145,13 +137,13 @@ impl Domain {
 
     /// Enter the second walk after local linking; the caller owns the global link barrier.
     pub fn start_sweep(&mut self) {
-        assert!(self.start == Phase::Linked && self.phase != State::Failed, "people sweep requires successful link");
-        self.start = Phase::Sweeping;
+        assert!(self.start == Start::Linked, "people sweep requires successful link");
+        self.start = Start::Sweeping;
     }
 
     /// Erase only borrowed rows expired at the captured start time, retaining no row or key.
     pub fn start_sweep_row(&mut self, env: &Env<Limits>, record: &Stored, out: &mut Queue<Request>) {
-        assert!(self.start == Phase::Sweeping && self.phase != State::Failed, "people sweep row requires sweep");
+        assert!(self.start == Start::Sweeping, "people sweep row requires sweep");
         if expired(self, &env.limits, record) {
             out.push(Request::Erase { key: record.key() });
         }
@@ -159,11 +151,7 @@ impl Domain {
 
     /// Open after sweep EOF and durable release, projecting live deadlines without erasure.
     pub fn start_complete(&mut self, env: &Env<Limits>) -> bool {
-        assert!(self.start == Phase::Sweeping, "people completion follows sweep");
-        self.start = Phase::Complete;
-        if self.phase == State::Failed {
-            return false;
-        }
+        assert!(self.start == Start::Sweeping, "people completion follows sweep");
         // Snapshot only bounded live keys; no expired row survives its first-walk call.
         let mut sign_ins = skein_lib::List::with_capacity(self.sign_ins.len());
         for (key, _) in &self.sign_ins {
@@ -191,7 +179,7 @@ impl Domain {
             let due = self.acted.get_mut(&key).expect("loaded act").project_deadline(env);
             self.act_alarms.arm(key, due).expect("one alarm per fitted act");
         }
-        self.phase = State::Ready;
+        self.start = Start::Open;
         true
     }
 }
@@ -214,11 +202,11 @@ fn expired(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
 
 pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
     assert!(
-        domain.start == Phase::Loading && domain.start_at.is_some(),
+        domain.start == Start::Loading || domain.start == Start::Failed,
         "people restore after seal: {:?}",
         record.key()
     );
-    if domain.phase == State::Failed {
+    if domain.start == Start::Failed {
         return;
     }
     // Expired decoded rows leave with their page, before any live fit or judgment.
@@ -231,7 +219,7 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         if domain.restore_failure.is_none() {
             domain.restore_failure = Some(RestoreFailure { key, cause });
         }
-        return super::restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
+        return restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
         Stored::Person { number, identity } => {
@@ -355,5 +343,37 @@ fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate
             fit::occupancy(&key, RestoreBound::Requests, domain.answers.len(), domain.acted.len(), env.limits.requests)
         }
         Stored::Policy { .. } | Stored::EndedRead { .. } => unreachable!("wrong people family: {key:?}"),
+    }
+}
+
+fn restore_failed(domain: &mut Domain, key: Key, refusal: Refusal, out: &mut Queue<Request>) {
+    domain.start = Start::Failed;
+    out.push(Request::RestoreRefused { key, refusal });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::boxed::Box;
+
+    #[test]
+    fn readiness_and_lookup_follow_the_start_in_every_state() {
+        for (start, ready, lookup) in [
+            (Start::NotStarted, true, false),
+            (Start::Loading, false, true),
+            (Start::Linked, false, true),
+            (Start::Sweeping, false, true),
+            (Start::Open, true, false),
+            (Start::Failed, false, false),
+        ] {
+            let mut domain = Domain::new(&crate::tests::LIMITS, Box::new([]), 1, Box::new([]));
+            domain.start = start;
+            assert_eq!(domain.ready(), ready, "{start:?}");
+            assert_eq!(domain.start_lookup(), lookup, "{start:?}");
+            let projection = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+                domain.assert_projection_event();
+            }));
+            assert_eq!(projection.is_ok(), ready, "{start:?}");
+        }
     }
 }

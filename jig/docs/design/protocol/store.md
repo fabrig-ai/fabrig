@@ -405,8 +405,7 @@ follow from the limits that bound each kind (5.4).
   and from the generated ones with small total functions, exhaustive both
   ways, so a domain change to a durable field breaks a translation's
   build the day it happens.
-Open's ending authority is carried in tasks v7 and people v7. Core's
-schema remains v4. These are the versions the format row requires.
+Open's ending authority is carried in tasks v9 and people v13. Core's schema is v6; the format row requires these versions.
 
 - **Each record carries its family's version,** as every generated record
   does (skein's `codec.md`, section 5), which is what an upgrade will
@@ -2235,7 +2234,8 @@ Each within jig's suites' budgets.
   world, whose store closes the window by the walk itself: smith's
   fixture turn kept at one text, and a patch marked fresh that changes
   no family. The independent testing of each change is an independent tester's from this
-  design, committed as `qa_*` tests the gate skips.
+  design, committed in `jig-store-world`'s `edges` binary, excluded from the
+  gate's default and fuzzy profiles and selected by the `qa-jig` profile.
 - **Step tests:** each key encoder against the derived order; each
   range's intervals against its predicate; each codec both ways, with
   golden bytes; refusals at open (format, deployment, sizes, numbers).

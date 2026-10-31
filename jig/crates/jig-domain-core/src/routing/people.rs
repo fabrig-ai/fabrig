@@ -11,7 +11,8 @@ use super::party_controls::{
     say_request, stop_request,
 };
 use super::party_decisions::{escalation_request, proposal_request};
-use crate::{Core, Event, Held, Key, Limits, Now, Record, Request, Requests, Write};
+use crate::routing::Work;
+use crate::{Core, Event, Held, Key, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
@@ -20,9 +21,9 @@ use skein_lib::{Env, Queue, ReplyTo};
 pub(super) fn route_people(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     event: people::Event,
-) -> Requests {
+) -> Queue<Request> {
     if let people::Event::Forget { task, .. } = &event {
         drop(core.archived_chats.remove(task));
     }
@@ -77,11 +78,11 @@ pub(super) fn route_people(
 pub(super) fn sign_in(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     reply_to: ReplyTo,
     identity: people::Identity,
     held: Option<u64>,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if !core.people.ready() {
         out.push(Request::Held(Box::new(Held::PeopleReply {
@@ -101,18 +102,24 @@ pub(super) fn sign_in(
         } else {
             people::Kind::Person
         };
-        work.push(Event::People(people::Event::SignedIn { reply_to, person, sign_in, identity, kind, held }));
+        work.push(Work::Event(Event::People(people::Event::SignedIn {
+            reply_to,
+            person,
+            sign_in,
+            identity,
+            kind,
+            held,
+        })));
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive party vocabulary routes its bounded child decision")]
 pub(super) fn tag_people(
     core: &mut Core,
     env: &Env<Limits>,
     mut child: Queue<people::Request>,
-    work: &mut Queue<Event>,
-) -> Requests {
+    work: &mut Queue<Work>,
+) -> Queue<Request> {
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
         pending.push(child.pop().expect("party output count"));
@@ -132,7 +139,7 @@ pub(super) fn tag_people(
                 Request::Held(Box::new(Held::Acted { to, outcome }))
             }
             people::Request::ServiceMade { request, outcome } => {
-                work.push(Event::People(people::Event::Decided { request, outcome }));
+                work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
                 continue;
             }
             people::Request::Save { record } => {
@@ -219,17 +226,17 @@ pub(super) fn tag_people(
             }
             people::Request::Route { request, person, project, role, mut ask, models } => {
                 if !crate::model_names::resolve(&mut ask, &models, &core.settings.models) {
-                    work.push(Event::People(people::Event::Decided {
+                    work.push(Work::Event(Event::People(people::Event::Decided {
                         request,
                         outcome: people::Outcome::Refused(people::Refusal::Unknown),
-                    }));
+                    })));
                     continue;
                 }
                 if let Err(why) = crate::acts::request(core, &env.limits, person, project, role, &ask, env.wall) {
-                    work.push(Event::People(people::Event::Decided {
+                    work.push(Work::Event(Event::People(people::Event::Decided {
                         request,
                         outcome: people::Outcome::Refused(why),
-                    }));
+                    })));
                     continue;
                 }
                 match *ask {
@@ -312,7 +319,7 @@ pub(super) fn tag_people(
                             },
                             Err(why) => people::Outcome::Refused(why),
                         };
-                        work.push(Event::People(people::Event::Decided { request, outcome }));
+                        work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
                     }
                     people::Ask::ChangeSettings { against, .. } => {
                         super::settings::admitted(core, env, work, &mut out, request, person, against);
@@ -371,21 +378,30 @@ pub(super) fn tag_people(
                         let holder = super::account_requests::holder(holder, person);
                         match super::key_routes::admitted(core, request, holder, Some(person), change) {
                             Ok(change) => {
-                                work.push(Event::Account(accounts::Event::Change { request, holder, change }));
+                                work.push(Work::Event(Event::Account(accounts::Event::Change {
+                                    request,
+                                    holder,
+                                    change,
+                                })));
                             }
-                            Err(why) => work.push(Event::People(people::Event::Decided {
+                            Err(why) => work.push(Work::Event(Event::People(people::Event::Decided {
                                 request,
                                 outcome: people::Outcome::Refused(why),
-                            })),
+                            }))),
                         }
                     }
                     people::Ask::AccountSignIn { holder, provider } => {
                         let holder = super::account_requests::holder(holder, person);
-                        work.push(Event::Account(accounts::Event::SignIn { request, holder, by: person, provider }));
+                        work.push(Work::Event(Event::Account(accounts::Event::SignIn {
+                            request,
+                            holder,
+                            by: person,
+                            provider,
+                        })));
                     }
                     people::Ask::AccountSignOut { holder, source } => {
                         let holder = super::account_requests::holder(holder, person);
-                        work.push(Event::Account(accounts::Event::SignOut { request, holder, source }));
+                        work.push(Work::Event(Event::Account(accounts::Event::SignOut { request, holder, source })));
                     }
                     people::Ask::Withdraw { proposal, .. } => super::propose::withdraw_request(
                         core,
@@ -402,16 +418,16 @@ pub(super) fn tag_people(
                                     && core.people.conversation_mark_loading(result.task, request);
                             }
                             if loading {
-                                work.push(Event::People(people::Event::Decided {
+                                work.push(Work::Event(Event::People(people::Event::Decided {
                                     request,
                                     outcome: people::Outcome::Again(people::Again::Busy),
-                                }));
+                                })));
                                 continue;
                             }
-                            work.push(Event::People(people::Event::Decided {
+                            work.push(Work::Event(Event::People(people::Event::Decided {
                                 request,
                                 outcome: people::Outcome::MarkedSeen { seen },
-                            }));
+                            })));
                             for result in core.people.cached_results(person).unwrap_or(&[]) {
                                 if result.position <= through
                                     && core.tasks.task(result.task).is_none()
@@ -432,7 +448,7 @@ pub(super) fn tag_people(
                                     )
                                     .is_some()
                                     {
-                                        work.push(Event::Forget { owner });
+                                        work.push(Work::Forget { owner });
                                     }
                                 }
                             }
@@ -440,28 +456,28 @@ pub(super) fn tag_people(
                         people::Seen::Conversation { task, .. }
                             if core.people.conversation_mark_loading(task, request) =>
                         {
-                            work.push(Event::People(people::Event::Decided {
+                            work.push(Work::Event(Event::People(people::Event::Decided {
                                 request,
                                 outcome: people::Outcome::Again(people::Again::Busy),
-                            }));
+                            })));
                         }
                         people::Seen::Conversation { task, .. } => match core.tasks.task(task) {
                             Some(row) => {
                                 if core.conversation_requester(row) == Some(person)
                                     && core.people.role(person, row.project).is_some()
                                 {
-                                    work.push(Event::People(people::Event::ConversationSeen {
+                                    work.push(Work::Event(Event::People(people::Event::ConversationSeen {
                                         project: row.project,
                                         request,
                                         last_reply: row.last_reply,
-                                    }));
+                                    })));
                                 } else {
-                                    work.push(Event::People(people::Event::Decided {
+                                    work.push(Work::Event(Event::People(people::Event::Decided {
                                         request,
                                         outcome: people::Outcome::Refused(people::Refusal::Role {
                                             held: core.people.role(person, row.project),
                                         }),
-                                    }));
+                                    })));
                                 }
                             }
                             None => {
@@ -488,6 +504,5 @@ pub(super) fn tag_people(
         out.push(request);
     }
     assert!(pending.is_empty(), "party_routes_drained");
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }

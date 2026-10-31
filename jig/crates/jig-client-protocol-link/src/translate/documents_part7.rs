@@ -29,7 +29,7 @@ pub(crate) fn owner_project_resource_piece(
             return Err(too_large());
         }
         let row = w::OwnerProjectResource::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = owner_project_resource_fields(&row, limits);
+        let row = owner_project_resource_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -83,24 +83,24 @@ pub(crate) fn owner_project_policy_role_piece(
     Err(too_large())
 }
 
-pub(crate) fn policy_judge_fields(value: &w::PolicyJudge, _limits: &Limits) -> c::PolicyJudge {
+pub(crate) fn policy_judge_fields(value: &w::PolicyJudge) -> c::PolicyJudge {
     c::PolicyJudge { connector: value.connector(), requirement: value.requirement(), parameters: value.parameters() }
 }
 
-pub(crate) fn policy_guard_fields(value: &w::PolicyGuard, _limits: &Limits) -> c::PolicyGuard {
+pub(crate) fn policy_guard_fields(value: &w::PolicyGuard) -> c::PolicyGuard {
     match value {
         w::PolicyGuard::Guarded => c::PolicyGuard::Guarded,
         w::PolicyGuard::Observed(row) => c::PolicyGuard::Observed { freshness: row.freshness() },
     }
 }
 
-pub(crate) fn policy_requirement_fields(value: &w::PolicyRequirement, limits: &Limits) -> c::PolicyRequirement {
+pub(crate) fn policy_requirement_fields(value: &w::PolicyRequirement) -> c::PolicyRequirement {
     c::PolicyRequirement {
         connector: value.connector(),
         kind: value.kind(),
-        pattern: crate::translate::answers::owner_pattern(value.pattern(), limits),
-        judge: policy_judge_fields(value.judge(), limits),
-        guard: policy_guard_fields(value.guard(), limits),
+        pattern: crate::translate::answers::owner_pattern(value.pattern()),
+        judge: policy_judge_fields(value.judge()),
+        guard: policy_guard_fields(value.guard()),
         must_be_guarded: value.must_be_guarded(),
     }
 }
@@ -130,7 +130,7 @@ pub(crate) fn policy_requirement_piece(
             return Err(too_large());
         }
         let row = w::PolicyRequirement::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = policy_requirement_fields(&row, limits);
+        let row = policy_requirement_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -138,7 +138,7 @@ pub(crate) fn policy_requirement_piece(
     Err(too_large())
 }
 
-pub(crate) fn policy_permission_fields(value: &w::PolicyPermission, _limits: &Limits) -> c::PolicyPermission {
+pub(crate) fn policy_permission_fields(value: &w::PolicyPermission) -> c::PolicyPermission {
     c::PolicyPermission { connector: value.connector(), permission: value.permission(), role: value.role() }
 }
 
@@ -158,7 +158,7 @@ pub(crate) fn owner_project_policy_fields(
             }
             let mut list0 = List::with_capacity((item).len());
             for item in item {
-                list0.push(policy_permission_fields(item, limits)).expect("reserved supplied list");
+                list0.push(policy_permission_fields(item)).expect("reserved supplied list");
             }
             Some(list0)
         }
@@ -184,8 +184,8 @@ pub(crate) fn owner_project_member_fields(
 ) -> Result<c::OwnerProjectMember, w::Problem> {
     Ok(c::OwnerProjectMember {
         party: value.party(),
-        kind: crate::translate::answers::party_kind(value.kind(), limits),
-        role: crate::translate::answers::held_role(value.role(), limits),
+        kind: crate::translate::answers::party_kind(value.kind()),
+        role: crate::translate::answers::held_role(value.role()),
         login: crate::translate::facts::document_text(value.login(), limits)?,
         name: crate::translate::facts::document_text(value.name(), limits)?,
     })
@@ -197,8 +197,8 @@ pub(crate) fn owner_project_spend_fields(
 ) -> Result<c::OwnerProjectSpend, w::Problem> {
     Ok(c::OwnerProjectSpend {
         chip: chip_fields(value.chip(), limits)?,
-        funder: crate::translate::facts::funder(value.funder(), limits),
-        numbers: crate::translate::facts::owner_numbers(value.numbers(), limits),
+        funder: crate::translate::facts::funder(value.funder()),
+        numbers: crate::translate::facts::owner_numbers(value.numbers()),
     })
 }
 
@@ -256,7 +256,7 @@ pub(crate) fn owner_part_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Res
             return Err(too_large());
         }
         let row = w::OwnerPart::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = crate::translate::facts::owner_part(&row, limits);
+        let row = crate::translate::facts::owner_part(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -284,14 +284,14 @@ pub(crate) fn proposed_task_fields(value: &w::ProposedTask, limits: &Limits) -> 
         },
         number: value.number(),
         spec: specification_document_fields(value.spec(), limits)?,
-        executor: crate::translate::facts::owner_executor(value.executor(), limits),
+        executor: crate::translate::facts::owner_executor(value.executor()),
         contract: task_contract_document_fields(value.contract(), limits)?,
         authority: owner_authority_document_fields(value.authority(), limits)?,
         budget: value.budget(),
-        funder: crate::translate::facts::funder(value.funder(), limits),
+        funder: crate::translate::facts::funder(value.funder()),
         dependencies: list0,
         resources: owner_part_piece(value.resources(), limits, limits.client.rows)?,
-        wake: crate::translate::facts::owner_wake_policy(value.wake(), limits),
+        wake: crate::translate::facts::owner_wake_policy(value.wake()),
         priority: opt1,
         cut: value.cut(),
     })
@@ -330,7 +330,7 @@ pub(crate) fn proposed_task_piece(
     Err(too_large())
 }
 
-pub(crate) fn recurring_overlap_fields(value: &w::RecurringOverlap, _limits: &Limits) -> c::RecurringOverlap {
+pub(crate) fn recurring_overlap_fields(value: &w::RecurringOverlap) -> c::RecurringOverlap {
     match value {
         w::RecurringOverlap::Skip => c::RecurringOverlap::Skip,
         w::RecurringOverlap::Wait => c::RecurringOverlap::Wait,
@@ -363,7 +363,7 @@ pub(crate) fn recurring_fields(value: &w::Recurring, limits: &Limits) -> Result<
         key: value.key(),
         batch: proposed_task_piece(value.batch(), limits, limits.client.rows)?,
         budget: value.budget(),
-        overlap: recurring_overlap_fields(value.overlap(), limits),
+        overlap: recurring_overlap_fields(value.overlap()),
         current_period: value.current_period(),
         began: opt0,
         next: opt1,

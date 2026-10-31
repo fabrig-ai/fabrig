@@ -1,4 +1,5 @@
 //! Settings travel through the real restart, store and commit barrier (engine.md, 17.7).
+use jig_core_world::effects::Setup;
 use jig_core_world::{client_peer::ClientPeer, effects::World, fixtures, peers, world};
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_people as people;
@@ -50,7 +51,12 @@ fn auxiliary_roles(policy: &mut jig_domain_authority::Policy) {
 pub(super) fn start(history: u32) -> World {
     let (config, mut limits) = configuration();
     limits.core.settings.history = history;
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     assert!(world.domain.ready());
     world
@@ -374,7 +380,12 @@ pub(super) fn settings_run(settings_family: bool, history: Option<u32>) -> (Worl
     if let Some(history) = history {
         limits.core.settings.history = history;
     }
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));

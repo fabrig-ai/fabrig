@@ -107,7 +107,6 @@ pub(crate) fn owner_account_uses(value: Option<&List<w::OwnerAccountUse>>) -> Op
 }
 pub(crate) fn owner_account_source(
     value: &w::OwnerAccountSource,
-    limits: &Limits,
     room: &mut u64,
 ) -> Result<c::OwnerAccountSource, w::Problem> {
     let name = match value.name() {
@@ -125,7 +124,7 @@ pub(crate) fn owner_account_source(
         place: value.place(),
         number: value.number(),
         kind: owner_account_kind(value.kind()),
-        state: super::owner_account_state_fields(value.state(), limits),
+        state: super::owner_account_state_fields(value.state()),
         usable: value.usable(),
         expiring: value.expiring(),
         attention: value.attention(),
@@ -248,7 +247,7 @@ pub(crate) fn owner_account_source_piece(
     for _ in 0..count {
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
         let row = w::OwnerAccountSource::decode(&limits.wire, &mut Reader::new(&item))?;
-        rows.push(owner_account_source(&row, limits, room)?).expect("counted pieces fit");
+        rows.push(owner_account_source(&row, room)?).expect("counted pieces fit");
     }
     Ok(rows)
 }

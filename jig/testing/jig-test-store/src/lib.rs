@@ -28,7 +28,7 @@ pub fn application(limits: &connector::Limits) -> jig_protocol_store::sizes::App
         limits.path_segments.saturating_mul(limits.segment_bytes.saturating_mul(2).saturating_add(3)).saturating_add(1);
     jig_protocol_store::sizes::Application {
         version: STORE_VERSION,
-        key: path.saturating_add(17).max(83),
+        key: path.saturating_add(17).max(84),
         value: u32::try_from(v2::Row::encoded_bound(&bounds).expect("checked codec bounds"))
             .expect("row fits store length"),
     }

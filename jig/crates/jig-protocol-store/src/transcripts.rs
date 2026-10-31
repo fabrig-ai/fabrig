@@ -82,7 +82,7 @@ impl State {
             reading: None,
             machines: patches::Machines::new(),
             cut: cut::State::new(),
-            drop: drop::State::new(limits),
+            drop: drop::State::new(),
         }
     }
 }

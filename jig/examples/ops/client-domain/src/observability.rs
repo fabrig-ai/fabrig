@@ -2,21 +2,21 @@
 //! Replace: the connector vocabulary, its families, words and revision-naming acts.
 //! State is a bounded subject registry, page/part demand, scoped reads and watches.
 //! New subjects begin Loading; Unknown never supplies an absent owner fact.
-//! Entry points: step handles one event; fire retries dropped watches; reclaim frees terminals.
+//! Entry points: step retains values and demand; reclaim frees terminals.
+//! jig-client owns watch reopening and retry deadlines.
 //! | Event | State change | Requests |
 //! | Went/Show | acquire scoped demand | Read, Open |
-//! | Read/Delivered | validate whole document, retain newest revision | `Named` |
+//! | Read/Delivered | validate and retain whole owner document | `Named` |
 //! | Left/PartsLeft | release demand, retain close obligation | Close |
-//! | Dropped | schedule bounded retry | later Open |
 //! | Closed/Unknown | retire watch; unknown hides supplied facts | replacement Read/Open |
 //! | Confirmed/Link | restrict lifetimes to confirmed party and live link | reacquire or hide |
 pub mod documents;
-pub mod native;
+pub mod values;
 use alloc::boxed::Box;
 pub use documents::{Document, Kind, ReadResult, Scope, Subject, WatchEnd, WatchEvent};
 use jig_client::Link;
 use jig_client::contract::Part;
-use skein_lib::{Env, Id, List, Map, Queue, Slab, Time, Token};
+use skein_lib::{Env, Id, List, Map, Queue, Slab, Token};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Address {
     Incidents { project: u32, open: bool },
@@ -91,7 +91,6 @@ pub struct Limits {
     pub rows: u32,
     pub segments: u32,
     pub text: u32,
-    pub retry: skein_lib::Duration,
     pub document_bytes: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -124,17 +123,10 @@ struct Reading {
     subject: Subject,
     party: u64,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Following {
-    Live,
-    Waiting,
-    Dropped { again: Time },
-    Closing,
-}
 #[derive(Debug)]
 struct Watching {
     subject: Subject,
-    state: Following,
+    closing: bool,
 }
 #[derive(Debug)]
 pub struct Side {
@@ -154,7 +146,7 @@ pub struct Side {
 }
 impl Side {
     #[must_use]
-    pub fn new(limits: &Limits, _seed: u64) -> Self {
+    pub fn new(limits: &Limits) -> Self {
         Self {
             parts: List::with_capacity(limits.parts),
             objects: Slab::with_capacity(limits.objects.checked_mul(2).expect("object retirement room fits")),
@@ -244,7 +236,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 return;
             }
             if let Some(subject) = subject {
-                hold(side, env, subject, out);
+                hold(side, subject, out);
             }
             side.changed();
         }
@@ -258,7 +250,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             side.generation = side.generation.checked_add(1).expect("page generation fits");
             prune(side, out);
             side.changed();
-            hold(side, env, address.subject(), out);
+            hold(side, address.subject(), out);
             save(side, out);
         }
         Event::Left => {
@@ -272,7 +264,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
         },
         Event::Read { read, result } => read_result(side, env, read, result, out),
         Event::Watch { watch, event } => watched(side, env, watch, event, out),
-        Event::Ended { watch, end } => ended(side, env, Id::from_token(watch), end, out),
+        Event::Ended { watch, end } => ended(side, Id::from_token(watch), end, out),
         Event::Restore { record } => match record {
             Record::Place { version, party, address } => {
                 if version == 1 {
@@ -292,7 +284,7 @@ fn save(side: &mut Side, out: &mut Queue<Request>) {
         out.push(Request::Save { record });
     }
 }
-fn hold(side: &mut Side, env: &Env<Limits>, subject: Subject, out: &mut Queue<Request>) {
+fn hold(side: &mut Side, subject: Subject, out: &mut Queue<Request>) {
     if side.find(subject).is_none() {
         if side.names.len() == side.names.capacity() {
             full(out);
@@ -305,9 +297,9 @@ fn hold(side: &mut Side, env: &Env<Limits>, subject: Subject, out: &mut Queue<Re
         };
         assert!(side.names.insert(subject, id).is_ok(), "names mirror object capacity");
     }
-    acquire(side, env, subject, out);
+    acquire(side, subject, out);
 }
-fn acquire(side: &mut Side, _env: &Env<Limits>, subject: Subject, out: &mut Queue<Request>) {
+fn acquire(side: &mut Side, subject: Subject, out: &mut Queue<Request>) {
     if side.party.is_none() || side.link != Link::Live {
         return;
     }
@@ -333,7 +325,7 @@ fn acquire(side: &mut Side, _env: &Env<Limits>, subject: Subject, out: &mut Queu
         }
     }
     if object.watch.is_none() {
-        match side.watches.insert(Watching { subject, state: Following::Waiting }) {
+        match side.watches.insert(Watching { subject, closing: false }) {
             Ok(watch) => {
                 assert!(side.watch_ids.insert(watch, ()).is_ok(), "watch index mirrors slab");
                 object.watch = Some(watch);
@@ -358,17 +350,6 @@ fn received(side: &mut Side, env: &Env<Limits>, subject: Subject, document: Docu
         return;
     };
     let object = side.objects.get_mut(id).expect("named object exists");
-    match &object.value {
-        Value::Known(current) => {
-            if let Some(current) = current.revision()
-                && let Some(incoming) = document.revision()
-                && current.value > incoming.value
-            {
-                return;
-            }
-        }
-        Value::Loading | Value::Unknown => {}
-    }
     object.value = Value::Known(Box::new(document));
     if side.page() == Some(id) {
         let object = side.objects.get(id).expect("page object exists");
@@ -418,15 +399,11 @@ fn prune(side: &mut Side, out: &mut Queue<Request>) {
     }
 }
 fn close(side: &mut Side, id: Id<Watching>, out: &mut Queue<Request>) {
-    if let Some(watch) = side.watches.get_mut(id) {
-        match watch.state {
-            Following::Closing => {}
-            Following::Dropped { .. } => retire_watch(side, id),
-            Following::Live | Following::Waiting => {
-                watch.state = Following::Closing;
-                out.push(Request::Out(Out::Close { watch: id.token() }));
-            }
-        }
+    if let Some(watch) = side.watches.get_mut(id)
+        && !watch.closing
+    {
+        watch.closing = true;
+        out.push(Request::Out(Out::Close { watch: id.token() }));
     }
 }
 fn retire_watch(side: &mut Side, id: Id<Watching>) {
@@ -454,102 +431,40 @@ fn hide(side: &mut Side, out: &mut Queue<Request>) {
         object.value = Value::Loading;
     }
 }
-fn sync(side: &mut Side, env: &Env<Limits>, out: &mut Queue<Request>) {
+fn sync(side: &mut Side, out: &mut Queue<Request>) {
     let mut subjects = List::with_capacity(side.names.capacity());
     for (subject, _) in &side.names {
         assert!(subjects.push(*subject).is_ok(), "subjects fit registry");
     }
     for subject in subjects.into_boxed() {
-        acquire(side, env, subject, out);
+        acquire(side, subject, out);
     }
     if side.link != Link::Live {
         hide(side, out);
     }
 }
-fn ended(side: &mut Side, env: &Env<Limits>, id: Id<Watching>, end: WatchEnd, out: &mut Queue<Request>) {
-    if side.watch_ids.get(&id).is_none() {
-        return;
-    }
-    let Some(watch) = side.watches.get(id) else {
-        return;
-    };
+fn ended(side: &mut Side, id: Id<Watching>, end: WatchEnd, out: &mut Queue<Request>) {
+    let Some(watch) = side.watches.get(id) else { return };
     let subject = watch.subject;
-    let closing = watch.state == Following::Closing;
-    if closing {
-        retire_watch(side, id);
-    } else {
+    let closing = watch.closing;
+    retire_watch(side, id);
+    if !closing {
         match end {
-            WatchEnd::Dropped => {
-                side.watches.get_mut(id).expect("watch exists").state =
-                    Following::Dropped { again: env.now.saturating_add(env.limits.retry) }
-            }
-            WatchEnd::NotAllowed | WatchEnd::SubjectEnded | WatchEnd::Stopping => {
-                retire_watch(side, id);
+            WatchEnd::NotAllowed | WatchEnd::SubjectEnded => {
                 unknown(side, subject);
                 out.push(Request::Out(Out::Fact { fact: Fact::WatchTerminal { end } }));
             }
-            WatchEnd::Busy => {
-                side.watches.get_mut(id).expect("watch exists").state =
-                    Following::Dropped { again: env.now.saturating_add(env.limits.retry) };
-                out.push(Request::Out(Out::Fact { fact: Fact::WatchTerminal { end } }));
-            }
-            WatchEnd::Unknown => {
-                retire_watch(side, id);
-                unknown(side, subject);
-            }
-            WatchEnd::SignedOut => {
-                retire_watch(side, id);
-                out.push(Request::Out(Out::Fact { fact: Fact::SignedOut }));
-            }
-            WatchEnd::Closed => retire_watch(side, id),
+            WatchEnd::Unknown => unknown(side, subject),
+            WatchEnd::SignedOut => out.push(Request::Out(Out::Fact { fact: Fact::SignedOut })),
+            WatchEnd::Closed => {}
         }
     }
-    if closing || end != WatchEnd::Dropped && end != WatchEnd::Busy {
-        if let Some(object) = side.find(subject) {
-            let object = side.objects.get_mut(object).expect("named object exists");
-            if object.watch == Some(id) {
-                object.watch = None;
-            }
-        }
-        acquire(side, env, subject, out);
-    }
+    acquire(side, subject, out);
     side.changed();
 }
+
 fn full(out: &mut Queue<Request>) {
     out.push(Request::Out(Out::Fact { fact: Fact::Full }));
-}
-pub fn fire(side: &mut Side, env: &Env<Limits>, out: &mut Queue<Request>) {
-    for (id, ()) in &side.watch_ids {
-        let watch = side.watches.get_mut(*id).expect("watch exists");
-        match watch.state {
-            Following::Dropped { again } => {
-                if again <= env.now && side.link == Link::Live && side.party.is_some() {
-                    watch.state = Following::Waiting;
-                    out.push(Request::Out(Out::Open { watch: id.token(), subject: watch.subject }));
-                }
-            }
-            Following::Waiting | Following::Live | Following::Closing => {}
-        }
-    }
-}
-#[must_use]
-pub fn next_deadline(side: &Side) -> Option<Time> {
-    let mut next: Option<Time> = None;
-    for (id, ()) in &side.watch_ids {
-        let watch = side.watches.get(*id).expect("watch exists");
-        match watch.state {
-            Following::Dropped { again } => {
-                if side.link == Link::Live && side.party.is_some() {
-                    next = Some(match next {
-                        Some(old) => old.min(again),
-                        None => again,
-                    });
-                }
-            }
-            Following::Waiting | Following::Live | Following::Closing => {}
-        }
-    }
-    next
 }
 pub fn reclaim(side: &mut Side) {
     side.objects.reclaim();
@@ -560,10 +475,7 @@ pub fn reclaim(side: &mut Side) {
 /// Whether the connector's receiving limits and derived capacities are usable.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    limits.retry != skein_lib::Duration::ZERO
-        && limits.document_bytes != 0
-        && limits.objects.checked_mul(2).is_some()
-        && limits.rows.checked_add(1).is_some()
+    limits.document_bytes != 0 && limits.objects.checked_mul(2).is_some() && limits.rows.checked_add(1).is_some()
 }
 
 fn read_result(side: &mut Side, env: &Env<Limits>, read: Token, result: ReadResult, out: &mut Queue<Request>) {
@@ -587,7 +499,7 @@ fn read_result(side: &mut Side, env: &Env<Limits>, read: Token, result: ReadResu
     }
     object.read = None;
     if side.party != Some(party) {
-        acquire(side, env, subject, out);
+        acquire(side, subject, out);
         return;
     }
     match result {
@@ -610,13 +522,11 @@ fn watched(side: &mut Side, env: &Env<Limits>, watch: Token, event: WatchEvent, 
     let Some(watching) = side.watches.get_mut(id) else {
         return;
     };
-    if watching.state == Following::Closing {
+    if watching.closing {
         return;
     }
     let subject = watching.subject;
-    watching.state = Following::Live;
     match event {
-        WatchEvent::Opened | WatchEvent::Alive => {}
         WatchEvent::Delivered(document) => received(side, env, subject, *document, out),
     }
 }
@@ -640,7 +550,6 @@ fn part_fits(part: &Part, segments: u32, text: u32) -> bool {
 /// Read this side's party from its own client handle.
 pub(crate) fn me_told(
     side: &mut Side,
-    env: &Env<Limits>,
     client: &jig_client::Client,
     told: &jig_client::Told,
     out: &mut Queue<Request>,
@@ -656,22 +565,22 @@ pub(crate) fn me_told(
         crate::me::Change::Link(link) => {
             side.link = link;
             if link == Link::SignedOut || link == Link::OutOfDate {
-                party(side, env, None, out);
+                party(side, None, out);
             }
-            sync(side, env, out);
+            sync(side, out);
             side.changed();
         }
-        crate::me::Change::Party(value) => party(side, env, value, out),
+        crate::me::Change::Party(value) => party(side, value, out),
         crate::me::Change::Unchanged => {}
     }
     true
 }
-fn party(side: &mut Side, env: &Env<Limits>, party: Option<u64>, out: &mut Queue<Request>) {
+fn party(side: &mut Side, party: Option<u64>, out: &mut Queue<Request>) {
     if side.party != party {
         hide(side, out);
     }
     side.party = party;
-    sync(side, env, out);
+    sync(side, out);
     save(side, out);
     side.changed();
 }

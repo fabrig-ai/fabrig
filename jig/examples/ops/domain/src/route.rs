@@ -149,7 +149,7 @@ fn event_in(
                         continuation,
                         &mut out,
                     );
-                    core_out(domain, env, decision, core::Requests::Out(out), work);
+                    core_out(domain, env, decision, out, work);
                     work.push(Work::Start(action));
                 }
             }
@@ -219,10 +219,10 @@ pub(crate) fn core_out(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Output>,
-    requests: core::Requests,
+    requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    let core::Requests::Out(mut out) = requests;
+    let mut out = requests;
     for _ in 0..out.len() {
         match out.pop().expect("core request count") {
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
@@ -236,7 +236,6 @@ pub(crate) fn core_out(
             core::Request::Now(value) => core_now(domain, env, *value, work),
             core::Request::Ask { connector, ask } => core_ask(domain, env, decision, connector, ask, work),
             core::Request::ProjectMade { project } => held(decision, Output::ProjectMade { project }),
-            core::Request::Decided => {}
         }
     }
 }
@@ -348,14 +347,7 @@ fn core_held(
         }
         core::Held::Grant { channel, run, attempt, grant } => {
             assert!(channel == Token::new(0), "ops engine's permanent link");
-            child(
-                decision,
-                Released::Host(host::Event::Down(host::LinkDown::Grant {
-                    run,
-                    attempt,
-                    grant: crate::assemble::host_grant(grant),
-                })),
-            );
+            child(decision, Released::Host(host::Event::Down(host::LinkDown::Grant { run, attempt, grant })));
         }
         core::Held::Relayed { run, attempt, call, answer, .. } => {
             if let Some(released) = crate::assemble::relayed(domain, run, attempt, call, answer) {
@@ -376,7 +368,7 @@ fn core_held(
                     run,
                     attempt,
                     name: message.name,
-                    sender: crate::assemble::sender(message_word.from),
+                    sender: jig_protocol_charter::sender(message_word.from),
                     finish_requested: message_word.finish_requested(),
                     words: jig_protocol_tools::words(&message_word),
                 })),
@@ -558,76 +550,82 @@ fn core_ask(
                     }
                     child(decision, Released::Procedure { task, step, connector: number, code });
                 }
-                Some(Connector::Observability) => match translate::spec_service(&context.spec) {
-                    Some(service) => {
-                        work.push(Work::Observability(observability::Event::StartWatch {
-                            task,
-                            project: context.project,
-                            services: Box::new([observability::Service::new(service.environment, service.name)]),
-                            template: u16::try_from(translate::spec_number(&context.spec, 3).unwrap_or(1))
-                                .expect("watch template"),
-                        }));
-                        if let Some(row) = domain.core.tasks.task(task) {
-                            for subscription in &row.subscriptions {
-                                match subscription.kind {
-                                    tasks::SubscriptionKind::Topic { connector, topic } => {
-                                        if connector == number && topic == task {
-                                            work.push(Work::Observability(observability::Event::LinkWatch {
-                                                task,
-                                                subscription: subscription.number,
-                                            }));
+                Some(Connector::Observability) => {
+                    let template = match translate::spec_number(&context.spec, 3) {
+                        Some(value) => u16::try_from(value).ok(),
+                        None => None,
+                    };
+                    match (translate::spec_service(&context.spec), template) {
+                        (Some(service), Some(template)) => {
+                            work.push(Work::Observability(observability::Event::StartWatch {
+                                task,
+                                project: context.project,
+                                services: Box::new([observability::Service::new(service.environment, service.name)]),
+                                template,
+                            }));
+                            if let Some(row) = domain.core.tasks.task(task) {
+                                for subscription in &row.subscriptions {
+                                    match subscription.kind {
+                                        tasks::SubscriptionKind::Topic { connector, topic } => {
+                                            if connector == number && topic == task {
+                                                work.push(Work::Observability(observability::Event::LinkWatch {
+                                                    task,
+                                                    subscription: subscription.number,
+                                                }));
+                                            }
                                         }
+                                        tasks::SubscriptionKind::Task { .. }
+                                        | tasks::SubscriptionKind::Timer { .. } => {}
                                     }
-                                    tasks::SubscriptionKind::Task { .. } | tasks::SubscriptionKind::Timer { .. } => {}
                                 }
                             }
-                        }
-                        let mut messages = List::with_capacity(env.limits.core.tasks.inbox_messages);
-                        for word in &context.inbox {
-                            match &word.kind {
-                                tasks::MessageKind::News { .. } => {
-                                    messages.push(observability::WatchMessage::News).expect("offered inbox bound");
+                            let mut messages = List::with_capacity(env.limits.core.tasks.inbox_messages);
+                            for word in &context.inbox {
+                                match &word.kind {
+                                    tasks::MessageKind::News { .. } => {
+                                        messages.push(observability::WatchMessage::News).expect("offered inbox bound");
+                                    }
+                                    tasks::MessageKind::Result(result) => match word.from {
+                                        tasks::Party::Task(child) => messages
+                                            .push(translate::watch_result(child, result, &env.limits.observability))
+                                            .expect("offered inbox bound"),
+                                        tasks::Party::Person(_) | tasks::Party::Deployment { .. } => {}
+                                    },
+                                    tasks::MessageKind::Escalation { .. }
+                                    | tasks::MessageKind::Proposal { .. }
+                                    | tasks::MessageKind::SettingsDecision { .. }
+                                    | tasks::MessageKind::ProposalDecision { .. }
+                                    | tasks::MessageKind::EffectNotMade { .. }
+                                    | tasks::MessageKind::Words
+                                    | tasks::MessageKind::Met { .. }
+                                    | tasks::MessageKind::FinishRequested { .. }
+                                    | tasks::MessageKind::Amendment { .. }
+                                    | tasks::MessageKind::Question
+                                    | tasks::MessageKind::Answer { .. }
+                                    | tasks::MessageKind::Notice { .. }
+                                    | tasks::MessageKind::QuestionAnswered { .. }
+                                    | tasks::MessageKind::QuestionOwed
+                                    | tasks::MessageKind::QuestionEnded { .. }
+                                    | tasks::MessageKind::Timer { .. }
+                                    | tasks::MessageKind::PersonStalled { .. } => {}
                                 }
-                                tasks::MessageKind::Result(result) => match word.from {
-                                    tasks::Party::Task(child) => messages
-                                        .push(translate::watch_result(child, result, &env.limits.observability))
-                                        .expect("offered inbox bound"),
-                                    tasks::Party::Person(_) | tasks::Party::Deployment { .. } => {}
-                                },
-                                tasks::MessageKind::Escalation { .. }
-                                | tasks::MessageKind::Proposal { .. }
-                                | tasks::MessageKind::SettingsDecision { .. }
-                                | tasks::MessageKind::ProposalDecision { .. }
-                                | tasks::MessageKind::EffectNotMade { .. }
-                                | tasks::MessageKind::Words
-                                | tasks::MessageKind::Met { .. }
-                                | tasks::MessageKind::FinishRequested { .. }
-                                | tasks::MessageKind::Amendment { .. }
-                                | tasks::MessageKind::Question
-                                | tasks::MessageKind::Answer { .. }
-                                | tasks::MessageKind::Notice { .. }
-                                | tasks::MessageKind::QuestionAnswered { .. }
-                                | tasks::MessageKind::QuestionOwed
-                                | tasks::MessageKind::QuestionEnded { .. }
-                                | tasks::MessageKind::Timer { .. }
-                                | tasks::MessageKind::PersonStalled { .. } => {}
                             }
+                            work.push(Work::Observability(observability::Event::WatchStep {
+                                task,
+                                step,
+                                batch: context.last_message,
+                                messages: messages.into_boxed(),
+                            }));
                         }
-                        work.push(Work::Observability(observability::Event::WatchStep {
+                        (None, _) | (_, None) => work.push(Work::Core(core::Event::ProcedureStep {
                             task,
                             step,
-                            batch: context.last_message,
-                            messages: messages.into_boxed(),
-                        }));
+                            connector: number,
+                            code,
+                            decision: core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
+                        })),
                     }
-                    None => work.push(Work::Core(core::Event::ProcedureStep {
-                        task,
-                        step,
-                        connector: number,
-                        code,
-                        decision: core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
-                    })),
-                },
+                }
                 None => {}
             }
         }
@@ -1359,22 +1357,11 @@ fn core_now(domain: &mut Domain, env: &Env<Limits>, value: core::Now, work: &mut
         core::Now::Activate { context } => {
             work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
-        core::Now::PrepareAgent { context } => {
-            let transcript_waiter = if context.ever_turned { Some(Token::new(context.task)) } else { None };
+        core::Now::PrepareAgent { context, load_transcript } => {
+            let transcript_waiter = if load_transcript { Some(Token::new(context.task)) } else { None };
             work.push(Work::Core(core::Event::PreparedAgent { context, transcript_waiter, busy: false }));
         }
-        core::Now::StartPreparation { task, from: None, .. } => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::Prepare {
-                reply_to: ReplyTo::new(Token::new(task)),
-                task,
-            })));
-            work.push(Work::Core(core::Event::StartBrief { task }));
-        }
-        value @ core::Now::StartPreparation { task, from: Some(_), .. } => {
-            work.push(Work::Core(core::Event::Tasks(tasks::Event::Prepare {
-                reply_to: ReplyTo::new(Token::new(task)),
-                task,
-            })));
+        value @ core::Now::StartPreparation { .. } => {
             now(domain, Output::CoreLoad(value));
         }
         core::Now::BriefCorePlanned { task, sections, .. } => {
@@ -1422,7 +1409,7 @@ fn core_now(domain: &mut Domain, env: &Env<Limits>, value: core::Now, work: &mut
                         .expect("core-selected assignment");
                     work.push(Work::Core(core::Event::ClaimPrepared { task, attempt, budget, writes: Box::new([]) }));
                 }
-                None => work.push(Work::Core(core::Event::PreparationFailed { task })),
+                None => work.push(Work::Core(core::Event::ClaimRefused { task })),
             }
         }
         core::Now::RunPreparationFailed { task } | core::Now::DropAssignment { task } => {

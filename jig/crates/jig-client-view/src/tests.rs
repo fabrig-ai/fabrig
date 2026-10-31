@@ -1,71 +1,13 @@
-mod binding;
+pub(crate) mod binding;
+pub(crate) mod bridge;
 pub(crate) mod fixtures;
-mod owner;
-mod phrases;
-mod records;
-mod regions;
-
-pub(crate) mod cards;
-mod cards_objects;
-
-mod cards_access;
-
-mod pages;
-
-mod proposed_task;
-mod recurring;
-mod work_pages;
-
-mod turns;
-
-mod page_capacity;
-
-mod owner_wake;
-mod refusal_facts;
-
-mod owner_authority;
-mod owner_budget;
-
-mod frame_facts;
-mod owner_outcome;
-mod owner_result;
-mod policy_edit;
-mod runtime_facts;
-
-mod owner_chip;
-
-mod chip_facts;
-mod owner_activity;
-mod owner_amendment;
-mod resource_facts;
-
-mod owner_history;
-mod page_loss;
-
-mod history_pages;
-mod owner_milestone;
-
-mod owner_inbox;
-mod owner_tree;
-mod question_sender;
-
-mod owner_person_task;
-mod owner_proposal;
-
-mod conversation_work;
-mod conversations;
-mod historical_pages;
-mod offered;
-mod owner_deployment;
-mod owner_project;
-
-mod historical_objects;
-
-mod task_proposals;
-
-mod turn_read;
-
-mod limits;
+pub(crate) mod owner;
+pub(crate) mod regions;
+pub(crate) mod shapes;
+pub(crate) mod sizes;
+pub(crate) mod state;
+pub(crate) mod tree;
+pub(crate) mod words;
 
 fn text_bytes(node: &skein_ui::Node) -> u32 {
     let mut bytes = 0_u32;
@@ -84,20 +26,10 @@ fn text_bytes(node: &skein_ui::Node) -> u32 {
     bytes
 }
 
-mod domain;
-
-mod bridge;
-
-mod handles;
-
-mod shapes;
-
-mod address;
-
 // Match production English's checked segment sum, once per loaded language.
 // These selected-language fixtures change literal bytes, retaining the segment shapes.
 fn english_phrase_segments(languages: u32) -> u32 {
-    let language = crate::phrases::english::language();
+    let language = crate::words::phrases::english::language();
     let mut segments = 0_u32;
     for phrase in &language.phrases {
         for form in &phrase.forms {
@@ -107,4 +39,45 @@ fn english_phrase_segments(languages: u32) -> u32 {
         }
     }
     segments.checked_mul(languages).expect("loaded fixture languages fit u32")
+}
+
+fn checked_words(
+    languages: Box<[skein_ui::phrases::Language]>,
+    language: u16,
+    offset_minutes: i32,
+) -> crate::words::Words {
+    let limits = skein_ui::phrases::PhraseLimits {
+        languages: u16::try_from(languages.len()).unwrap(),
+        phrases: crate::words::owner_words::phrase_count(),
+        holes: 4,
+        segments: 20_000,
+        text_bytes: 200_000,
+        hole_bytes: 4096,
+    };
+    let book =
+        skein_ui::phrases::Phrasebook::load(crate::words::phrases::jig::shapes(4096), languages, &limits).unwrap();
+    crate::words::Words::new(book, language, offset_minutes)
+}
+fn english_words() -> crate::words::Words {
+    let mut english = crate::words::phrases::english::language();
+    english.wall = skein_ui::phrases::WallFormat::Nanos;
+    english.span_unit = skein_ui::phrases::SpanUnit::Nanos;
+    checked_words(Box::new([english]), 0, 0)
+}
+
+// These rendering fixtures reserve their storage, as an application's world does.
+fn render_limits(client: &crate::Limits, words: &crate::words::Words) -> Option<skein_ui::Limits> {
+    let mut limits = crate::sizes::limits::envelope(
+        client,
+        words.jig_capacity()?,
+        &crate::state::page::Arrangement::none(),
+        0,
+        0,
+        0,
+    )?;
+    limits.nodes = 16_384;
+    limits.text_bytes = 16_777_216;
+    limits.bindings = 16_384;
+    limits.slots = 16_384;
+    Some(limits)
 }

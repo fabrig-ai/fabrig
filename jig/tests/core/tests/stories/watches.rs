@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::Cut,
     watches::{latest, open, world},
@@ -56,7 +57,12 @@ fn a_tree_window_past_the_rows_is_clamped_and_cut() {
     let (configuration, mut limits) = jig_core_world::faults::plan_fixture_with_document_rows(seed, 2);
     limits.core.tasks.delegates = 4;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = jig_core_world::effects::World::configured(seed, false, configuration, limits);
+    let mut world = jig_core_world::effects::World::new(Setup {
+        seed,
+        configuration: Some(configuration),
+        limits,
+        ..Setup::default()
+    });
     let parent = world.assignments[0];
     let mut delegates = Vec::new();
     for completion in 1..=4 {
@@ -194,7 +200,8 @@ fn inbox_across_projects_stories() {
     limits.core.people.amendment_bytes = 256;
     limits.core.people.inbox_recipients = 16;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = jig_core_world::effects::World::configured(788, false, config, limits);
+    let mut world =
+        jig_core_world::effects::World::new(Setup { configuration: Some(config), limits, ..Setup::default() });
     world.watches = Some(Parties::new(788, world.store.applied, true, world.sign_in.expect("signed in")));
     open(&mut world, 1, Watched::Frame);
     open(&mut world, 4, Watched::Inbox);

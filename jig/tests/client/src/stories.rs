@@ -1,5 +1,8 @@
 //! Starting truth and person's scripts shared by focused and random worlds.
-#![allow(clippy::wildcard_imports, reason = "world adapters translate the complete owner vocabulary")]
+#![cfg_attr(
+    not(test),
+    expect(clippy::wildcard_imports, reason = "story fixtures share the complete client vocabulary")
+)]
 use crate::{Scripted, Settings, Test, World, scripted::Family, test::list};
 use jig_client_domain::contract::*;
 use jig_client_scripted_engine::{Bounds, Script, Truth};

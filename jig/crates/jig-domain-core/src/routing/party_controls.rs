@@ -2,6 +2,7 @@
 //! under current authority (`domain/people.md`, section 5.1).
 
 use super::refusals::pool_refused;
+use crate::routing::Work;
 use crate::{Core, Event, Limits, Now, PersonTaskRoute, Request};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -12,7 +13,7 @@ use skein_lib::{Env, Queue, ReplyTo, Token};
 pub(super) fn amend_route(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     person: u64,
@@ -90,11 +91,8 @@ pub(super) fn amend_route(
         tasks::Phase::Held { .. } => release.is_some(),
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
     };
-    assert!(
-        core.person_tasks.insert(request, PersonTaskRoute::Amended { task, released }) == Ok(None),
-        "one person amendment"
-    );
-    work.push(Event::Tasks(tasks::Event::Amend {
+    let request = core.fly_person_task(request, PersonTaskRoute::Amended { task, released });
+    work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
         places: evidence.places.into_boxed(),
         funder: None,
         reply_to: ReplyTo::new(request),
@@ -103,13 +101,13 @@ pub(super) fn amend_route(
         message,
         stop_run,
         amendment,
-    }));
+    })));
 }
 
 #[expect(clippy::too_many_arguments, reason = "one authenticated person-task route carries its output queue")]
 pub(super) fn person_task_request(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     person: u64,
@@ -123,9 +121,12 @@ pub(super) fn person_task_request(
         return;
     }
     match core.person_task(request, person, project, role, ask) {
-        Ok(event) => work.push(Event::Tasks(event)),
+        Ok(event) => work.push(Work::Event(Event::Tasks(event))),
         Err(why) => {
-            work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+            work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
         }
     }
 }
@@ -134,7 +135,7 @@ pub(super) fn person_task_request(
 pub(super) fn stop_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -144,17 +145,14 @@ pub(super) fn stop_request(
     match core.control_admit(&ask, person, project, role, &env.limits.tasks) {
         Ok(task) => {
             let Some(number) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-                work.push(Event::People(people::Event::Decided {
+                work.push(Work::Event(Event::People(people::Event::Decided {
                     request,
                     outcome: people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Arithmetic }),
-                }));
+                })));
                 return;
             };
-            assert!(
-                core.person_tasks.insert(request, PersonTaskRoute::Stop(task)) == Ok(None),
-                "one stop continuation"
-            );
-            work.push(Event::Tasks(tasks::Event::Place {
+            let request = core.fly_person_task(request, PersonTaskRoute::Stop(task));
+            work.push(Work::Event(Event::Tasks(tasks::Event::Place {
                 reply_to: ReplyTo::new(request),
                 hold: tasks::PlacedHold {
                     number,
@@ -168,10 +166,13 @@ pub(super) fn stop_request(
                     exempt: Box::new([]),
                     lifted: false,
                 },
-            }));
+            })));
         }
         Err(why) => {
-            work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+            work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
         }
     }
 }
@@ -180,7 +181,7 @@ pub(super) fn stop_request(
 pub(super) fn cancel_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -233,16 +234,19 @@ pub(super) fn cancel_request(
             } else {
                 None
             };
-            assert!(core.person_tasks.insert(request, PersonTaskRoute::Cancel(task)) == Ok(None), "one cancel route");
-            work.push(Event::Tasks(tasks::Event::Control {
+            let request = core.fly_person_task(request, PersonTaskRoute::Cancel(task));
+            work.push(Work::Event(Event::Tasks(tasks::Event::Control {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
                 task,
                 control: tasks::Control::Cancel { reason, grace, message },
-            }));
+            })));
         }
         Err(why) => {
-            work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+            work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
         }
     }
 }
@@ -251,7 +255,7 @@ pub(super) fn cancel_request(
 pub(super) fn release_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -301,16 +305,19 @@ pub(super) fn release_request(
                     return;
                 }
             };
-            assert!(core.person_tasks.insert(request, PersonTaskRoute::Release(task)) == Ok(None), "one release route");
-            work.push(Event::Tasks(tasks::Event::Control {
+            let request = core.fly_person_task(request, PersonTaskRoute::Release(task));
+            work.push(Work::Event(Event::Tasks(tasks::Event::Control {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
                 task,
                 control: tasks::Control::Release { again, message },
-            }));
+            })));
         }
         Err(why) => {
-            work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+            work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
         }
     }
 }
@@ -319,7 +326,7 @@ pub(super) fn release_request(
 pub(super) fn say_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -330,9 +337,12 @@ pub(super) fn say_request(
         &env.limits,
         crate::PersonMessage { request, person, project, task, question: None, words, at: env.wall },
     ) {
-        Ok(event) => work.push(Event::Tasks(event)),
+        Ok(event) => work.push(Work::Event(Event::Tasks(event))),
         Err(why) => {
-            work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+            work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
         }
     }
 }
@@ -341,7 +351,7 @@ pub(super) fn say_request(
 pub(super) fn answer_question_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -353,9 +363,12 @@ pub(super) fn answer_question_request(
         &env.limits,
         crate::PersonMessage { request, person, project, task, question: Some(question), words, at: env.wall },
     ) {
-        Ok(event) => work.push(Event::Tasks(event)),
+        Ok(event) => work.push(Work::Event(Event::Tasks(event))),
         Err(why) => {
-            work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+            work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
         }
     }
 }
@@ -364,7 +377,7 @@ pub(super) fn answer_question_request(
 pub(super) fn move_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -374,26 +387,29 @@ pub(super) fn move_request(
 ) {
     match core.move_admit(person, role, project, task, env.limits.tasks.tree_tasks, env.limits.tasks.depth) {
         Ok(()) => {
-            assert!(core.moving.insert(request, task) == Ok(None), "one move flight per keyed request");
-            work.push(Event::Tasks(tasks::Event::Move {
-                reply_to: ReplyTo::new(request),
+            let token = core.fly(crate::flight::Flight::Moving { request, task });
+            work.push(Work::Event(Event::Tasks(tasks::Event::Move {
+                reply_to: ReplyTo::new(token),
                 task,
                 person,
                 period: core.period(project),
                 pool_budget: core.pool_budget(project, person),
                 period_budget: core.period_budget(project),
                 reason,
-            }));
+            })));
         }
         Err(why) => {
-            work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+            work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
         }
     }
 }
 
 pub(super) fn lift_request(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     hold: u64,
@@ -403,14 +419,14 @@ pub(super) fn lift_request(
     let admission = lift_admit(core, person, hold, revision);
     match admission {
         Ok(()) => {
-            assert!(core.person_tasks.insert(request, PersonTaskRoute::Lift(hold)) == Ok(None), "one lift route");
-            work.push(Event::Tasks(tasks::Event::Lift {
+            let request = core.fly_person_task(request, PersonTaskRoute::Lift(hold));
+            work.push(Work::Event(Event::Tasks(tasks::Event::Lift {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
                 hold,
                 revision,
                 with_tasks,
-            }));
+            })));
         }
         Err(why) => pool_refused(work, request, why),
     }

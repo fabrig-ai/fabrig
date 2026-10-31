@@ -50,18 +50,13 @@ macro_rules! side {
                         watch,
                         record: family($number, d::wire::$wire::document(&value).expect("whole family delivery")),
                     },
-                    $d::WatchEvent::Opened => Up::Watched { watch, event: jig_client::contract::WatchEvent::Opened },
-                    $d::WatchEvent::Alive => Up::Watched { watch, event: jig_client::contract::WatchEvent::Alive },
                 },
                 $d::Event::Ended { watch, end } => Up::WatchEnded {
                     watch,
                     end: match end {
                         $d::WatchEnd::NotAllowed => jig_client::contract::WatchEnd::NotAllowed,
                         $d::WatchEnd::SubjectEnded => jig_client::contract::WatchEnd::SubjectEnded,
-                        $d::WatchEnd::Stopping => jig_client::contract::WatchEnd::Stopping,
-                        $d::WatchEnd::Busy => jig_client::contract::WatchEnd::Busy,
                         $d::WatchEnd::Closed => jig_client::contract::WatchEnd::Closed,
-                        $d::WatchEnd::Dropped => jig_client::contract::WatchEnd::Dropped,
                         $d::WatchEnd::Unknown => jig_client::contract::WatchEnd::Unknown,
                         $d::WatchEnd::SignedOut => jig_client::contract::WatchEnd::SignedOut,
                     },

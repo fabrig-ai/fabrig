@@ -16,10 +16,53 @@ pub use settings::SettingsRevision;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use jig_test_system::{Observed as EffectObserved, SystemKey};
+/// The source of a stable effect, independent of connector vocabulary.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum EffectOrigin {
+    Procedure,
+    Projection,
+    Call { attempt: u64, completion: u32, position: u32 },
+}
+
+/// Deployment-scoped identity of an effect (`jig/docs/design/domain/testing.md`, 5).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct EffectKey {
+    pub deployment: [u8; 16],
+    pub task: u64,
+    pub purpose: u64,
+    pub origin: EffectOrigin,
+}
+
+/// Which delivery of an effect reached a system.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Copy {
+    First,
+    Late,
+    Retried,
+}
+
+/// A resource's state and owner immediately before an effect arrived.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ValueObserved {
+    pub state: Option<u64>,
+    pub owner: Option<EffectKey>,
+}
+
+/// An effect observed outside the application root.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct EffectObserved {
+    pub kind: u16,
+    pub key: EffectKey,
+    pub resources: Vec<Name>,
+    pub condition: Option<u64>,
+    pub target: u64,
+    pub before: Vec<ValueObserved>,
+    pub applied: bool,
+    pub copy: Copy,
+}
 
 /// An externally meaningful resource address.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Name {
     pub connector: u16,
     pub path: Vec<Vec<u8>>,
@@ -167,7 +210,7 @@ pub enum Receipt {
     /// Saved keyed party outcome.
     Party(u64, [u8; 16]),
     /// Saved effect attempt before sending it.
-    Outbox(u16, SystemKey, u32),
+    Outbox(u16, EffectKey, u32),
     /// Closed result before announcing it.
     Ended(u64),
     /// Durable inbox word before relaying it.
@@ -213,7 +256,7 @@ pub struct Decision {
     /// This effect projects a tracked goal under project policy.
     pub projection: bool,
     pub connector: u16,
-    pub key: SystemKey,
+    pub key: EffectKey,
     pub kind: u16,
     pub resources: Vec<Name>,
     pub condition: Option<u64>,
@@ -252,15 +295,15 @@ pub struct Snapshot {
     pub pools: BTreeMap<Name, u32>,
     pub decisions: Vec<Decision>,
     /// Last attempt number and absolute retry deadline for each durable key.
-    pub attempts: BTreeMap<(u16, SystemKey), (u32, u64)>,
-    pub acceptances: BTreeMap<(u16, SystemKey), Acceptance>,
+    pub attempts: BTreeMap<(u16, EffectKey), (u32, u64)>,
+    pub acceptances: BTreeMap<(u16, EffectKey), Acceptance>,
     /// Last durable covered-holder acceptance setting each task's authority:
     /// its batch's acceptance, or a later amendment's or widening's acceptance.
     pub accepted_tasks: BTreeMap<u64, Acceptance>,
     /// Pending party proposal numbers and the parties that proposed them.
     pub party_proposals: BTreeMap<u64, u64>,
-    pub held_effects: BTreeSet<(u16, SystemKey)>,
-    pub settled_effects: BTreeSet<(u16, SystemKey)>,
+    pub held_effects: BTreeSet<(u16, EffectKey)>,
+    pub settled_effects: BTreeSet<(u16, EffectKey)>,
     pub batches: Vec<Vec<u64>>,
     /// The person's maximum effect spend is charged here on holder acceptance.
     pub person_spend: BTreeMap<u64, u64>,
@@ -325,9 +368,9 @@ pub enum Observed {
     /// A system received an effect copy, including its pre-write state.
     Effect { connector: u16, effect: EffectObserved },
     /// A possibly applied attempt has not yet been recovered or held.
-    Uncertain { connector: u16, key: SystemKey },
+    Uncertain { connector: u16, key: EffectKey },
     /// A person explicitly permits the next attempt of an uncertain write.
-    RetryDecided { connector: u16, key: SystemKey },
+    RetryDecided { connector: u16, key: EffectKey },
     /// One result reached its observed recipient.
     Result { task: u64, to: Source },
     /// One result reached its requester or one word reached its task.
@@ -395,9 +438,9 @@ pub struct Referee {
     drained_receipts: Option<BTreeSet<Receipt>>,
     first: BTreeMap<u64, u64>,
     made: BTreeMap<(u64, u64), u32>,
-    decisions: BTreeMap<(u16, SystemKey), Decision>,
-    copies: BTreeMap<(u16, SystemKey), (u32, u64)>,
-    sent: BTreeMap<(u16, SystemKey), u32>,
+    decisions: BTreeMap<(u16, EffectKey), Decision>,
+    copies: BTreeMap<(u16, EffectKey), (u32, u64)>,
+    sent: BTreeMap<(u16, EffectKey), u32>,
     reads: BTreeMap<Name, (Option<u64>, u64)>,
     assigned: BTreeMap<(u64, u64), u64>,
     conversations: BTreeMap<u64, u64>,
@@ -405,8 +448,8 @@ pub struct Referee {
     waiting: BTreeMap<Receipt, u64>,
     reached: BTreeSet<Receipt>,
     seen: BTreeSet<Receipt>,
-    uncertain: BTreeMap<(u16, SystemKey), u64>,
-    retry: BTreeSet<(u16, SystemKey)>,
+    uncertain: BTreeMap<(u16, EffectKey), u64>,
+    retry: BTreeSet<(u16, EffectKey)>,
     steps: u64,
     restart_position: u32,
 }
@@ -846,10 +889,10 @@ impl Referee {
         let decision = self.decisions.get(&key);
         require(decision.is_some(), Promise::Commit, "system received an effect without a durable decision")?;
         let decision = decision.expect("durable decision");
-        let names: Vec<_> = effect.resources.iter().map(|name| Name { connector, path: name.0.clone() }).collect();
+        let names = &effect.resources;
         require(
             effect.kind == decision.kind
-                && names == decision.resources
+                && *names == decision.resources
                 && effect.target == decision.target
                 && effect.condition == decision.condition,
             Promise::Authority,
@@ -1152,7 +1195,7 @@ pub enum Obligation {
     /// Words or a result must reach their recipient.
     Delivery(Receipt),
     /// An uncertain effect must settle or become visibly held.
-    Uncertainty(u16, SystemKey),
+    Uncertainty(u16, EffectKey),
 }
 
 impl Referee {
@@ -1194,3 +1237,6 @@ impl skein_world::domain::Expectations for Referee {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

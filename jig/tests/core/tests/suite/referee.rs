@@ -8,8 +8,8 @@ mod settings;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use jig_conformance::referee::{EffectKey as SystemKey, EffectObserved as Effect};
 use jig_core_world::referee::*;
-use jig_test_system::{Copy, Name as SystemName, Observed as Effect, SystemKey, ValueObserved};
 
 const PROPOSER: u64 = 1;
 
@@ -69,7 +69,7 @@ fn authority_checks_policy_at_the_effects_decision_and_the_admitted_payload() {
         let mut copy = effect();
         match variant {
             0 => copy.kind = 6,
-            1 => copy.resources[0].0[0] = b"foreign".to_vec(),
+            1 => copy.resources[0].path[0] = b"foreign".to_vec(),
             2 => copy.target = 14,
             3 => copy.condition = Some(7),
             _ => unreachable!(),
@@ -577,87 +577,88 @@ fn a_changed_watch_missing_its_last_delivery_is_caught() {
     fence.finish().expect("last state reached the party");
 }
 
-// Each helper above still constructs its own outside peer and checks every
-// original contradiction. Grouping keeps process startup within the world budget.
+// Fixed referee observations draw no randomness and use replay seed zero.
 
-fn authority_referee_cases() {
-    authority_rejects_task_creation_beyond_each_source_ceiling();
-    authority_rejects_grants_tools_note_scopes_and_delegation_outside_policy();
-    authority_checks_policy_at_the_effects_decision_and_the_admitted_payload();
-    authority_requires_a_met_observation_within_freshness_when_decided();
-    authority_requires_guarded_requirements_to_be_checked_by_the_system();
-    authority_catches_lifetime_delegate_exhaustion_even_after_children_end();
-    authority_catches_claiming_a_holder_exception_without_durable_acceptance();
-    projections_need_project_grants_and_a_tracked_goal_and_charge_no_task();
-    an_accepted_batch_uses_the_persons_authority_and_keeps_the_proposer_as_requester();
-    a_batch_member_without_its_covered_acceptance_is_rejected();
+fn authority_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, authority_rejects_task_creation_beyond_each_source_ceiling);
+    crate::bundle::case!(bundle, 0, authority_rejects_grants_tools_note_scopes_and_delegation_outside_policy);
+    crate::bundle::case!(bundle, 0, authority_checks_policy_at_the_effects_decision_and_the_admitted_payload);
+    crate::bundle::case!(bundle, 0, authority_requires_a_met_observation_within_freshness_when_decided);
+    crate::bundle::case!(bundle, 0, authority_requires_guarded_requirements_to_be_checked_by_the_system);
+    crate::bundle::case!(bundle, 0, authority_catches_lifetime_delegate_exhaustion_even_after_children_end);
+    crate::bundle::case!(bundle, 0, authority_catches_claiming_a_holder_exception_without_durable_acceptance);
+    crate::bundle::case!(bundle, 0, projections_need_project_grants_and_a_tracked_goal_and_charge_no_task);
+    crate::bundle::case!(bundle, 0, an_accepted_batch_uses_the_persons_authority_and_keeps_the_proposer_as_requester);
+    crate::bundle::case!(bundle, 0, a_batch_member_without_its_covered_acceptance_is_rejected);
 }
 
-fn spend_referee_cases() {
-    spend_rejects_overdrawn_direct_below_and_reserved_balances();
-    spend_requires_the_maximum_effect_price_in_the_deciding_commit();
-    spend_requires_a_reservation_before_assignment_and_each_completion();
-    spend_allows_only_the_lost_unacknowledged_turn_bound_beyond_budget();
-    spend_aggregates_all_effect_maxima_in_one_atomic_commit();
+fn spend_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, spend_rejects_overdrawn_direct_below_and_reserved_balances);
+    crate::bundle::case!(bundle, 0, spend_requires_the_maximum_effect_price_in_the_deciding_commit);
+    crate::bundle::case!(bundle, 0, spend_requires_a_reservation_before_assignment_and_each_completion);
+    crate::bundle::case!(bundle, 0, spend_allows_only_the_lost_unacknowledged_turn_bound_beyond_budget);
+    crate::bundle::case!(bundle, 0, spend_aggregates_all_effect_maxima_in_one_atomic_commit);
 }
 
-fn once_referee_cases() {
-    once_catches_two_applied_keyed_or_conditional_copies_across_restart();
-    once_catches_a_repeated_idempotent_set_with_a_different_target();
-    once_catches_unrecoverable_repetition_without_a_person_and_accepts_the_decision();
-    once_catches_partial_and_split_task_batches();
+fn once_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, once_catches_two_applied_keyed_or_conditional_copies_across_restart);
+    crate::bundle::case!(bundle, 0, once_catches_a_repeated_idempotent_set_with_a_different_target);
+    crate::bundle::case!(bundle, 0, once_catches_unrecoverable_repetition_without_a_person_and_accepts_the_decision);
+    crate::bundle::case!(bundle, 0, once_catches_partial_and_split_task_batches);
 }
 
-fn commit_referee_cases() {
-    commit_catches_every_class_of_delivery_before_its_durable_prerequisite();
-    commit_catches_a_store_that_loses_a_previously_observed_receipt();
-    commit_catches_a_cold_store_that_lost_something_a_host_already_saw();
+fn commit_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, commit_catches_every_class_of_delivery_before_its_durable_prerequisite);
+    crate::bundle::case!(bundle, 0, commit_catches_a_store_that_loses_a_previously_observed_receipt);
+    crate::bundle::case!(bundle, 0, commit_catches_a_cold_store_that_lost_something_a_host_already_saw);
 }
 
-fn order_referee_cases() {
-    order_catches_starting_before_dependencies_are_done_and_closed();
-    order_catches_two_writer_slots_for_the_same_resource();
-    order_catches_pool_over_admission_and_admission_while_shrinking();
-    order_catches_applying_a_condition_to_a_different_prior_state();
-    order_catches_a_parent_ending_before_its_delegate();
+fn order_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, order_catches_starting_before_dependencies_are_done_and_closed);
+    crate::bundle::case!(bundle, 0, order_catches_two_writer_slots_for_the_same_resource);
+    crate::bundle::case!(bundle, 0, order_catches_pool_over_admission_and_admission_while_shrinking);
+    crate::bundle::case!(bundle, 0, order_catches_applying_a_condition_to_a_different_prior_state);
+    crate::bundle::case!(bundle, 0, order_catches_a_parent_ending_before_its_delegate);
 }
 
-fn nothing_lost_referee_cases() {
-    nothing_lost_catches_words_and_results_missing_their_deadlines();
-    nothing_lost_catches_a_proposal_hidden_from_every_live_holder();
-    nothing_lost_catches_uncertainty_that_restarts_keep_postponing();
-    nothing_lost_catches_a_result_sent_to_the_wrong_requester();
-    durable_words_reach_the_task_even_while_its_requester_keeps_execution_held();
+fn nothing_lost_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, nothing_lost_catches_words_and_results_missing_their_deadlines);
+    crate::bundle::case!(bundle, 0, nothing_lost_catches_a_proposal_hidden_from_every_live_holder);
+    crate::bundle::case!(bundle, 0, nothing_lost_catches_uncertainty_that_restarts_keep_postponing);
+    crate::bundle::case!(bundle, 0, nothing_lost_catches_a_result_sent_to_the_wrong_requester);
+    crate::bundle::case!(bundle, 0, durable_words_reach_the_task_even_while_its_requester_keeps_execution_held);
 }
 
-fn ownership_referee_cases() {
-    ownership_catches_writes_outside_the_owned_namespace();
-    ownership_catches_overwriting_another_hands_unchecked_change();
+fn ownership_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, ownership_catches_writes_outside_the_owned_namespace);
+    crate::bundle::case!(bundle, 0, ownership_catches_overwriting_another_hands_unchecked_change);
 }
 
-fn bounded_referee_cases() {
-    bounded_catches_heap_growth_and_a_story_that_never_ends();
+fn bounded_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, bounded_catches_heap_growth_and_a_story_that_never_ends);
 }
 
-fn valid_referee_cases() {
-    legitimate_repeated_sets_visible_proposals_and_delivered_words_remain_valid();
-    skeins_referee_drives_the_same_observations_and_keeps_deadlines_across_restart();
+fn valid_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, legitimate_repeated_sets_visible_proposals_and_delivered_words_remain_valid);
+    crate::bundle::case!(bundle, 0, skeins_referee_drives_the_same_observations_and_keeps_deadlines_across_restart);
 }
 
 // Each named scenario preserves its own fixture and original assertions.
 #[test]
 fn referee_scenario_family() {
-    proposals::proposals_referee_cases();
-    revisions::revisions_referee_cases();
-    authority_referee_cases();
-    spend_referee_cases();
-    once_referee_cases();
-    commit_referee_cases();
-    order_referee_cases();
-    nothing_lost_referee_cases();
-    ownership_referee_cases();
-    bounded_referee_cases();
-    valid_referee_cases();
+    let mut bundle = super::bundle::Bundle::default();
+    proposals::proposals_referee_cases(&mut bundle);
+    revisions::revisions_referee_cases(&mut bundle);
+    authority_referee_cases(&mut bundle);
+    spend_referee_cases(&mut bundle);
+    once_referee_cases(&mut bundle);
+    commit_referee_cases(&mut bundle);
+    order_referee_cases(&mut bundle);
+    nothing_lost_referee_cases(&mut bundle);
+    ownership_referee_cases(&mut bundle);
+    bounded_referee_cases(&mut bundle);
+    valid_referee_cases(&mut bundle);
+    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }
 
 #[test]

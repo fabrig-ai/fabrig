@@ -43,29 +43,20 @@ impl Component {
             Route::Watch => match w::Open::decode(&env.limits.wire, &mut reader) {
                 Ok(value) if reader.is_empty() => self.open_watch(env, exchange, sign_in, value, out),
                 Ok(_) | Err(_) => {
-                    self.connections
-                        .get_mut(&owner)
-                        .expect("exchange owner")
-                        .respond(crate::Reply::NotARecord, &env.limits);
+                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
                 }
             },
             Route::Unwatch => {
                 let Ok(value) = w::WatchClose::decode(&env.limits.wire, &mut reader) else {
-                    self.connections
-                        .get_mut(&owner)
-                        .expect("exchange owner")
-                        .respond(crate::Reply::NotARecord, &env.limits);
+                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
                     return;
                 };
                 if !reader.is_empty() {
-                    self.connections
-                        .get_mut(&owner)
-                        .expect("exchange owner")
-                        .respond(crate::Reply::NotARecord, &env.limits);
+                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
                     return;
                 }
                 let Some(owner) = self.stream_owner(value.stream(), sign_in) else {
-                    self.respond(env, exchange, routes::close_answer(false));
+                    self.respond(exchange, routes::close_answer(false));
                     return;
                 };
                 let stream = self.streams.get_mut(&owner).expect("selected stream");
@@ -82,11 +73,11 @@ impl Component {
                         self.connections
                             .get_mut(&self.owner(exchange).expect("exchange owner"))
                             .expect("connection")
-                            .respond(crate::Reply::Conflict, &env.limits);
+                            .respond(crate::Reply::Conflict);
                         return;
                     }
                     if watch.end.is_some() {
-                        self.respond(env, exchange, routes::close_answer(false));
+                        self.respond(exchange, routes::close_answer(false));
                         return;
                     }
                     watch.closing = Some(exchange);
@@ -99,7 +90,7 @@ impl Component {
                         .insert(exchange, Waiting::Watch { sign_in, watcher, opening: false })
                         .expect("admitted close");
                 } else {
-                    self.respond(env, exchange, routes::close_answer(false));
+                    self.respond(exchange, routes::close_answer(false));
                 }
             }
             Route::Gone => match w::Gone::decode(&env.limits.wire, &mut reader) {
@@ -107,13 +98,10 @@ impl Component {
                     if let Some(owner) = self.stream_owner(value.stream(), sign_in) {
                         self.streams.get_mut(&owner).expect("selected stream").phase = stream::Phase::Closing;
                     }
-                    self.respond(env, exchange, Box::new([]));
+                    self.respond(exchange, Box::new([]));
                 }
                 Ok(_) | Err(_) => {
-                    self.connections
-                        .get_mut(&owner)
-                        .expect("exchange owner")
-                        .respond(crate::Reply::NotARecord, &env.limits);
+                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
                 }
             },
             Route::Stream
@@ -123,27 +111,24 @@ impl Component {
             | Route::SignOut
             | Route::Read
             | Route::Request => {
-                self.connections
-                    .get_mut(&owner)
-                    .expect("exchange owner")
-                    .respond(crate::Reply::NotARecord, &env.limits);
+                self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
             }
         }
     }
     fn stream_open(&mut self, env: &Env<Limits>, owner: Token, sign_in: u64) {
         if self.streams.len() == self.streams.capacity() {
-            self.connections.get_mut(&owner).expect("stream owner").respond(crate::Reply::Conflict, &env.limits);
+            self.connections.get_mut(&owner).expect("stream owner").respond(crate::Reply::Conflict);
             return;
         }
         let mut name = [0; 16];
         self.rng.fill(&mut name);
         let hello = translate::hello(name, &self.settings, &env.limits.wire);
         let Ok(hello) = hello else {
-            self.connections.get_mut(&owner).expect("stream owner").respond(crate::Reply::NotARecord, &env.limits);
+            self.connections.get_mut(&owner).expect("stream owner").respond(crate::Reply::NotARecord);
             return;
         };
         let mut stream = Stream::new(name, sign_in, env);
-        stream.write(env, stream::packet(hello, Taken::None));
+        stream.write(stream::packet(hello, Taken::None));
         self.streams.insert(owner, stream).expect("admitted stream");
         let connection = self.connections.get_mut(&owner).expect("stream owner");
         connection.stream = true;
@@ -158,7 +143,7 @@ impl Component {
     ) {
         let open = open.into_parts();
         let Some(owner) = self.stream_owner(&open.stream, sign_in) else {
-            self.respond(env, exchange, routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire));
+            self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire));
             return;
         };
         let stream = self.streams.get(&owner).expect("named stream");
@@ -173,7 +158,7 @@ impl Component {
             || self.admitted() >= env.limits.exchanges
             || self.active(sign_in) >= env.limits.exchanges_per_client
         {
-            self.respond(env, exchange, routes::open_answer(Some(core::WatchRefusal::Busy), &env.limits.wire));
+            self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Busy), &env.limits.wire));
             return;
         }
         let subject = open.subject.into_parts();
@@ -184,14 +169,14 @@ impl Component {
         if !self.serves(family, subject.version) {
             let answer =
                 w::OpenAnswer::NotServed(crate::served::not_served(&self.settings, subject.owner, &env.limits.wire));
-            self.respond(env, exchange, routes::encoded_open(&answer));
+            self.respond(exchange, routes::encoded_open(&answer));
             return;
         }
         let watcher = self.name();
         let version = subject.version;
         let Some(opening) = crate::served::watch(subject, watcher, sign_in, self.settings.rows, &env.limits.wire)
         else {
-            self.respond(env, exchange, routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire));
+            self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire));
             return;
         };
         self.streams
@@ -279,7 +264,7 @@ impl Component {
             && *wanted == watcher
         {
             self.pending.exchanges.remove(&exchange);
-            self.respond(env, exchange, routes::open_answer(why, &env.limits.wire));
+            self.respond(exchange, routes::open_answer(why, &env.limits.wire));
         }
         if why.is_some() {
             self.streams.get_mut(&owner).expect("watch stream").watches.remove(&watcher);
@@ -369,7 +354,7 @@ impl Component {
             && *wanted == watcher
         {
             self.pending.exchanges.remove(&exchange);
-            self.respond(env, exchange, routes::close_answer(why == jig_domain_views::End::SignedOut));
+            self.respond(exchange, routes::close_answer(why == jig_domain_views::End::SignedOut));
         }
         self.queue_packet(
             env,
@@ -443,12 +428,11 @@ impl Component {
                     let watch = stream.watches.remove(&watcher).expect("ended watch");
                     if let Some(exchange) = watch.closing {
                         self.pending.exchanges.remove(&exchange);
-                        self.respond(env, exchange, routes::close_answer(false));
+                        self.respond(exchange, routes::close_answer(false));
                     }
                     if let Some(exchange) = watch.opening {
                         self.pending.exchanges.remove(&exchange);
                         self.respond(
-                            env,
                             exchange,
                             routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire),
                         );
@@ -460,7 +444,7 @@ impl Component {
         } else if let Some(message) = stream.message.take() {
             out.push(Request::Transport(crate::ToTransport::Streamed { stream: owner, message }));
         } else if let Some(packet) = stream.next() {
-            stream.write(env, packet);
+            stream.write(packet);
         }
         self.streams.insert(owner, stream).expect("same stream slot");
         true

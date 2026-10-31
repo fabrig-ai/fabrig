@@ -75,16 +75,16 @@ fn a_procedure_step_proposing_what_nobody_may_accept_is_refused() {
         unreachable!("the proposal is refused to its connector")
     };
     assert_eq!(owner, Token::new(121));
-    let Some(Event::Tasks(tasks::Event::Procedure {
+    let Some(Work::Event(Event::Tasks(tasks::Event::Procedure {
         task: 1,
         step: 1,
         decision: tasks::ProcedureDecision { end: tasks::ProcedureEnd::Wait, .. },
         ..
-    })) = work.pop()
+    }))) = work.pop()
     else {
         unreachable!("the refused procedure step waits");
     };
-    assert!(core.procedure_proposals.is_empty());
+    assert!(core.procedure_proposal_flights() == 0);
 }
 
 #[test]

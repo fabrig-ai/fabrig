@@ -11,7 +11,7 @@ use jig_ops_client_domain::{
     Action,
     observability::{
         self, Value,
-        documents::{Document, Incident, Kind, Scope, State, Subject},
+        documents::{Document, Kind, Scope, State, Subject},
     },
 };
 use skein_ui::phrases::Hole;
@@ -71,157 +71,13 @@ fn jig_slot(builder: &mut Builder, key: ObjectKey, words: &Words, bindings: &mut
     let binding = bindings.insert(Meaning::Object(key));
     builder.slot(SlotRef { owner: Owner::Jig.opaque(), token: binding.token }, &words.say(Word::Loading, &[]));
 }
-pub fn show_incident(builder: &mut Builder, incident: &Incident, words: &Words, bindings: &mut Bindings, slots: bool) {
-    builder.open(Role::Region);
-    builder.name(&words.say(Word::Incident, &[Hole::Number(incident.number)]));
-    builder.open(Role::Heading { level: 2 });
-    words.text(builder, Word::Incident, &[Hole::Number(incident.number)]);
-    builder.close();
-    show_service(builder, &incident.service, words);
-    words.status(
-        builder,
-        match incident.state {
-            State::Alerting => Word::Open,
-            State::Resolved => Word::Resolved,
-        },
-        &[],
-    );
-    words.text(builder, Word::Severity, &[Hole::Number(u64::from(incident.severity))]);
-    words.text(builder, Word::Raised, &[Hole::Wall(incident.raised)]);
-    drawing::rate(builder, words, incident);
-    match incident.lead {
-        Some(lead) => {
-            words.text(builder, Word::Lead, &[Hole::Number(lead)]);
-            if slots {
-                jig_slot(builder, ObjectKey::Task(lead), words, bindings);
-                plan_slot(builder, lead, words, bindings);
-            }
-        }
-        None => words.status(builder, Word::NoLead, &[]),
-    }
-    if slots {
-        for proposal in &incident.proposals {
-            jig_slot(builder, ObjectKey::Proposal(*proposal), words, bindings);
-        }
-    }
-    builder.open(Role::List);
-    builder.name(&words.say(Word::Timeline, &[]));
-    for point in &incident.timeline {
-        builder.open(Role::Item);
-        words.text(builder, Word::At, &[Hole::Wall(point.at)]);
-        if let Some(health) = point.health {
-            health_view(builder, health, words);
-        }
-        builder.close();
-    }
-    if incident.cut {
-        words.status(builder, Word::Cut, &[]);
-    }
-    builder.close();
-    builder.close();
-}
 fn show_service(builder: &mut Builder, service: &observability::documents::Service, words: &Words) {
-    words.text(builder, Word::Service, &[Hole::Name(skein_lib::bytes::copy_of(&service.name))]);
-    words.text(builder, Word::InEnvironment, &[Hole::Name(skein_lib::bytes::copy_of(&service.environment))]);
-}
-fn health_view(builder: &mut Builder, health: observability::documents::Health, words: &Words) {
-    words.text(builder, Word::Healthy, &[Hole::Number(u64::from(health.healthy_replicas))]);
-    words.text(builder, Word::Errors, &[Hole::Number(u64::from(health.errors))]);
-    words.text(builder, Word::Rate, &[Hole::Number(u64::from(health.error_rate_percent))]);
-    builder.text(Run::Plain, b" %");
-    words.text(builder, Word::Observed, &[Hole::Wall(health.observed)]);
-}
-// Deferred connector facts are shown only after receiving its actual Deployment document.
-fn deployment_diagnostics(builder: &mut Builder, subject: Subject, words: &Words) {
-    match subject.kind {
-        Kind::Deployment => {
-            words.text(builder, Word::SystemRequestBudgetNotKept, &[]);
-            words.text(builder, Word::LastSystemResponseNotKept, &[]);
-        }
-        Kind::Incidents { .. }
-        | Kind::Incident(_)
-        | Kind::Panel(_)
-        | Kind::Result(_)
-        | Kind::Effect(_)
-        | Kind::Outbox(_)
-        | Kind::Hold(_)
-        | Kind::Project(_) => {}
-    }
+    words.text(builder, Word::Service, &[Hole::Name(service.name.clone())]);
+    words.text(builder, Word::InEnvironment, &[Hole::Name(service.environment.clone())]);
 }
 fn document_view(builder: &mut Builder, document: &Document, words: &Words, bindings: &mut Bindings) {
-    match document {
-        Document::Incident(incident) => show_incident(builder, incident, words, bindings, true),
-        Document::Native(document) => native_document(builder, document, words, bindings),
-        Document::Incidents { incidents, .. } => {
-            builder.open(Role::List);
-            for incident in incidents {
-                builder.open(Role::Item);
-                builder.key(key(&Subject {
-                    scope: Scope::Project(incident.project),
-                    kind: Kind::Incident(incident.number),
-                }));
-                link(
-                    builder,
-                    Word::Incident,
-                    &[Hole::Number(incident.number)],
-                    observability::Address::Incident { project: incident.project, incident: incident.number },
-                    words,
-                    bindings,
-                );
-                show_incident(builder, incident, words, bindings, false);
-                builder.close();
-            }
-            builder.close();
-        }
-        Document::Part(part) => {
-            deployment_diagnostics(builder, part.subject, words);
-            if let Some(service) = &part.service {
-                show_service(builder, service, words);
-            }
-            if let Some(health) = part.health {
-                health_view(builder, health, words);
-            }
-            if let Some(incident) = &part.incident {
-                show_incident(builder, incident, words, bindings, false);
-            }
-            for incident in &part.incidents {
-                show_incident(builder, incident, words, bindings, false);
-            }
-            for service in &part.services {
-                show_service(builder, &service.service, words);
-                if let Some(health) = service.health {
-                    health_view(builder, health, words);
-                }
-            }
-            for entry in &part.effects {
-                words.text(builder, Word::Entry, &[Hole::Number(entry.entry)]);
-                words.text(builder, Word::Task, &[Hole::Number(entry.task)]);
-                words.text(builder, Word::Silence, &[Hole::Number(entry.alert)]);
-                words.text(builder, Word::End, &[Hole::Wall(entry.until)]);
-                words.text(builder, Word::Attempt, &[Hole::Number(u64::from(entry.attempt))]);
-                words.text(builder, Word::Deadline, &[Hole::Wall(entry.deadline)]);
-                words.status(
-                    builder,
-                    match entry.state {
-                        observability::documents::EffectState::Kept => Word::Kept,
-                        observability::documents::EffectState::Sent => Word::Sent,
-                        observability::documents::EffectState::Uncertain => Word::Uncertain,
-                        observability::documents::EffectState::Held => Word::Held,
-                    },
-                    &[],
-                );
-            }
-            if let Some(view) = part.watches {
-                words.text(builder, Word::Watches, &[Hole::Number(u64::from(view))]);
-            }
-            if let Some(view) = part.read_limit {
-                words.text(builder, Word::ReadLimit, &[Hole::Number(u64::from(view))]);
-            }
-            if let Some(view) = part.incident_limit {
-                words.text(builder, Word::IncidentLimit, &[Hole::Number(u64::from(view))]);
-            }
-        }
-    }
+    let Document::Value(document) = document;
+    show_document(builder, document, words, bindings);
 }
 pub fn part(builder: &mut Builder, side: &observability::Side, part: &Part, words: &Words, bindings: &mut Bindings) {
     if !side.contains(part) {
@@ -289,18 +145,18 @@ pub fn key(service: &Subject) -> Key {
     Key { owner: NAV.owner, kind, a: value, b: builder }
 }
 
-fn native_document(
+fn show_document(
     builder: &mut Builder,
-    document: &observability::native::Document,
+    document: &observability::values::Document,
     words: &Words,
     bindings: &mut Bindings,
 ) {
     match &document.value {
-        observability::native::Value::Service { service, fact } => {
+        observability::values::Value::Service { service, fact } => {
             show_service(builder, service, words);
-            native_fact(builder, fact, words);
+            show_fact(builder, fact, words);
         }
-        observability::native::Value::Alert { alert, raised, state, fact } => {
+        observability::values::Value::Alert { alert, raised, state, fact } => {
             show_service(builder, &alert.service, words);
             words.text(builder, Word::Severity, &[Hole::Number(u64::from(alert.severity))]);
             words.text(builder, Word::Raised, &[Hole::Wall(*raised)]);
@@ -313,10 +169,10 @@ fn native_document(
                 &[],
             );
             if let Some(fact) = fact {
-                native_fact(builder, fact, words);
+                show_fact(builder, fact, words);
             }
         }
-        observability::native::Value::Outbox { entry } => {
+        observability::values::Value::Outbox { entry } => {
             words.text(builder, Word::Entry, &[Hole::Number(entry.number)]);
             words.text(builder, Word::Task, &[Hole::Number(entry.key.task)]);
             words.text(builder, Word::Name, &[Hole::Name(entry.effect.rule.clone())]);
@@ -326,7 +182,7 @@ fn native_document(
                 &[Hole::Wall(skein_lib::Wall::from_nanos(entry.effect.until.saturating_mul(1_000_000_000)))],
             );
         }
-        observability::native::Value::Deployment { watches, effects, read_limit, incident_limit } => {
+        observability::values::Value::Deployment { watches, effects, read_limit, incident_limit } => {
             words.text(builder, Word::Watches, &[Hole::Number(u64::from(*watches))]);
             words.text(builder, Word::ReadLimit, &[Hole::Number(u64::from(*read_limit))]);
             words.text(builder, Word::IncidentLimit, &[Hole::Number(u64::from(*incident_limit))]);
@@ -335,14 +191,14 @@ fn native_document(
                 words.text(builder, Word::Name, &[Hole::Name(entry.effect.rule.clone())]);
             }
         }
-        observability::native::Value::Incident { incident, fact } => {
-            native_incident(builder, incident, words, bindings, true);
+        observability::values::Value::Incident { incident, fact } => {
+            show_incident(builder, incident, words, bindings, true);
             if let Some(fact) = fact {
-                drawing::native_rate(builder, words, incident, fact);
-                native_fact(builder, fact, words);
+                drawing::rate(builder, words, incident, fact);
+                show_fact(builder, fact, words);
             }
         }
-        observability::native::Value::Project { incidents, services, .. } => {
+        observability::values::Value::Project { incidents, services, .. } => {
             builder.open(Role::List);
             for incident in incidents {
                 let visible = match document.subject.kind {
@@ -366,7 +222,7 @@ fn native_document(
                         words,
                         bindings,
                     );
-                    native_incident(builder, incident, words, bindings, false);
+                    show_incident(builder, incident, words, bindings, false);
                     builder.close();
                 }
             }
@@ -376,7 +232,7 @@ fn native_document(
                     for service in services {
                         show_service(builder, &service.service, words);
                         if let Some(fact) = &service.fact {
-                            native_fact(builder, fact, words);
+                            show_fact(builder, fact, words);
                         }
                     }
                 }
@@ -392,7 +248,7 @@ fn native_document(
         }
     }
 }
-fn native_fact(builder: &mut Builder, fact: &observability::native::Fact, words: &Words) {
+fn show_fact(builder: &mut Builder, fact: &observability::values::Fact, words: &Words) {
     words.text(builder, Word::Healthy, &[Hole::Number(u64::from(fact.healthy_replicas))]);
     words.text(builder, Word::Errors, &[Hole::Number(u64::from(fact.errors))]);
     words.text(builder, Word::Rate, &[Hole::Number(u64::from(fact.error_rate_percent))]);
@@ -403,9 +259,9 @@ fn native_fact(builder: &mut Builder, fact: &observability::native::Fact, words:
         &[Hole::Wall(skein_lib::Wall::from_nanos(fact.observed.saturating_mul(1_000_000_000)))],
     );
 }
-fn native_incident(
+fn show_incident(
     builder: &mut Builder,
-    incident: &observability::native::Incident,
+    incident: &observability::values::Incident,
     words: &Words,
     bindings: &mut Bindings,
     slots: bool,

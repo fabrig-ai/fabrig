@@ -23,6 +23,7 @@ mod brief_text;
 mod compound;
 pub use brief_text::{BriefPart, BriefTextLimits, note_index_text, read_brief_part};
 pub mod connector;
+mod deadlines;
 mod delegation;
 pub use amendments::TaskAmendDenied;
 pub use delegation::{
@@ -36,6 +37,7 @@ pub mod waits;
 pub use effects::{EffectKey, EffectOrigin, EffectPurpose};
 
 mod ended_marks;
+mod flight;
 pub mod forget;
 mod funding;
 mod goal_of;
@@ -55,10 +57,7 @@ mod numbers;
 mod person_task;
 mod policy;
 mod projects;
-pub use policy::{
-    authority_to_authority, authority_to_people, grants_to_authority, pattern_to_people, requirement_to_authority,
-    snapshot as policy_snapshot,
-};
+pub use policy::{grants_to_authority, snapshot as policy_snapshot};
 mod projections;
 pub use projections::{
     MilestoneId, Projection, ProjectionFeed, ProjectionGoal, ProjectionKey, ProjectionMilestone, ProjectionRecord,
@@ -70,11 +69,10 @@ pub mod reads;
 pub use reads::{SettingsAnswer, SettingsRead};
 mod relays;
 mod resources;
-mod restart;
 pub mod start;
 mod stopping;
-pub use restart::{Census, ReadResults, RestoreRange, restore_cursor};
 pub use start::HeldLimit;
+pub use start::{Census, ReadResults, Restore, RestoreRange, restore_cursor};
 mod host_rule;
 mod revisions;
 mod roles;
@@ -89,8 +87,8 @@ mod sibling_routes;
 pub use numbers::{Counters, Deployment, Family, fresh};
 pub use routing::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
-    ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet, step,
-    want_accounts,
+    ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write, fire, resume_fleet,
+    step, want_accounts,
 };
 pub use sibling_routes::{MadeRoute, PersonMessage, SentRoute};
 mod conversation;
@@ -111,7 +109,9 @@ pub use stored::{
     CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key, Made,
     ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
 };
-pub use translate::task_authority;
+pub use translate::{
+    authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority,
+};
 
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -312,7 +312,7 @@ pub struct Core {
     pub(crate) settings_holders: u32,
     pub(crate) applications: Map<Token, routing::application_routes::Flight>,
     pub(crate) opened: bool,
-    pub(crate) restart_pending: bool,
+    pub(crate) start_pending: bool,
     pub(crate) restart_attempts: u32,
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
@@ -323,24 +323,15 @@ pub struct Core {
     pub(crate) reads: skein_lib::Slab<reads::Pending>,
     /// Historical dependency results held for preparation.
     pub(crate) dependency_results: Map<u64, Box<[HistoricalResult]>>,
-    /// Numbered task creation flights.
-    pub(crate) made: Map<Token, routing::Made>,
-    /// Goal proposal decisions in flight.
-    pub goal_routes: Map<Token, GoalRoute>,
     /// Delegations awaiting input checks.
     pub delegating: Map<Token, Delegating>,
-    /// Person proposal decisions in flight.
-    pub routing_people_proposals: Map<Token, PersonProposalRoute>,
     /// Ended result positions waiting to be delivered.
     pub ending_positions: Map<u64, u64>,
     /// Person messages awaiting task admission.
     pub saying: Map<Token, (u64, Option<u64>)>,
-    /// Person task moves awaiting their answer.
-    pub moving: Map<Token, u64>,
-    /// Person task request routes in flight.
-    pub person_tasks: Map<Token, PersonTaskRoute>,
-    /// Authenticated person escalation choices awaiting task semantics.
-    pub(crate) person_escalations: Map<Token, routing::PersonEscalation>,
+    /// Child requests awaiting their typed continuation.
+    pub(crate) flights: skein_lib::Slab<flight::Flight>,
+    pub(crate) person_task_capacity: u32,
     /// Ended results waiting on the store for one core-owned read.
     pub(crate) result_reads: Map<Token, routing::result_reads::ResultRead>,
     pub(crate) next_result_request: u64,
@@ -381,8 +372,6 @@ pub struct Core {
     pub call_parts: Map<CallKey, CallPart>,
     /// Settled host answers and opaque delivery evidence under the same retained names.
     pub call_settled: Map<CallKey, SettledCall>,
-    /// Calls routed among the core children.
-    pub routing_calls: Map<Token, RoutedCall>,
     /// Synchronous connector descriptions and verdicts in this decision.
     pub(crate) effect_flights: Map<Token, Box<effects::Flight>>,
     /// Live reply rights waiting for a committed effect or its answer deadline.
@@ -390,9 +379,6 @@ pub struct Core {
     /// Connectors whose outboxes must finish before a task closes.
     pub(crate) closing_connectors: Map<(u64, u16), ()>,
     pub(crate) projections: Map<u64, Box<Projection>>,
-    /// Connector payloads awaiting the task hub's proposal admission.
-    pub(crate) proposing_effects: Map<Token, (u16, Token)>,
-    pub(crate) procedure_proposals: Map<Token, effects::ProcedureProposal>,
     /// Correlations while the notes child loads a page for a caller.
     pub(crate) note_routes: Map<Token, routing::NoteRoute>,
     /// Preparations waiting for notes, or deferring their next activation for load room.
@@ -421,7 +407,7 @@ pub struct Core {
     /// Child work due to activation.
     pub due: Queue<Box<tasks::RunContext>>,
     /// Host adoption events held through startup.
-    pub adopted: Queue<fleet::Event>,
+    pub(crate) adopted: Queue<fleet::Event>,
     /// The task hub.
     pub tasks: tasks::Domain,
     /// Policy and authority.
@@ -518,7 +504,7 @@ impl Core {
     /// Restore one live named call only after its current task proof was
     /// restored. The connector's separately owned answer is validated by the
     /// application before it asks the core to retain this part.
-    pub fn restore_call(&mut self, key: CallKey, part: CallPart) -> bool {
+    pub(crate) fn restore_call(&mut self, key: CallKey, part: CallPart) -> bool {
         self.start_input();
         {
             assert!(self.start_loading(), "calls load before Link");
@@ -689,7 +675,7 @@ impl Core {
             applications: Map::with_capacity(limits.people.pending),
             start: start::Script::new(),
             opened: false,
-            restart_pending: false,
+            start_pending: false,
             restart_attempts: limits.fleet.attempts,
             counters: Counters::bootstrap(config.deployment),
             seed_owners: config.owners.clone(),
@@ -699,15 +685,11 @@ impl Core {
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
             reads: skein_lib::Slab::with_capacity(limits.load_slots),
             dependency_results: Map::with_capacity(limits.tasks.tasks),
-            made: Map::with_capacity(limits.people.pending),
-            goal_routes: Map::with_capacity(limits.people.pending),
             delegating: Map::with_capacity(limits.fleet.calls),
-            routing_people_proposals: Map::with_capacity(limits.people.pending),
             ending_positions: Map::with_capacity(limits.tasks.tasks),
             saying: Map::with_capacity(limits.people.pending),
-            moving: Map::with_capacity(limits.people.pending),
-            person_tasks: Map::with_capacity(limits.people.pending),
-            person_escalations: Map::with_capacity(limits.people.pending),
+            flights: skein_lib::Slab::with_capacity(u32::MAX),
+            person_task_capacity: limits.people.pending,
             result_reads: Map::with_capacity(limits.tasks.tasks),
             next_result_request: 1,
             creating_inputs: Map::with_capacity(limits.people.pending),
@@ -727,7 +709,6 @@ impl Core {
             pending_calls: Map::with_capacity(limits.call_records),
             call_parts: Map::with_capacity(limits.call_records),
             call_settled: Map::with_capacity(limits.call_records),
-            routing_calls: Map::with_capacity(limits.fleet.calls),
             effect_flights: Map::with_capacity(
                 limits
                     .call_records
@@ -741,8 +722,6 @@ impl Core {
                 limits.tasks.tasks.checked_mul(limits.connectors).expect("bounded closing connectors"),
             ),
             projections: Map::with_capacity(limits.tasks.tasks),
-            proposing_effects: Map::with_capacity(limits.call_records),
-            procedure_proposals: Map::with_capacity(limits.tasks.tasks),
             note_routes: Map::with_capacity(2),
             pending_note_briefs: Map::with_capacity(limits.brief.briefs),
             next_note_owner: 1,
@@ -760,7 +739,7 @@ impl Core {
             due: Queue::uncapped(),
             adopted: Queue::uncapped(),
             tasks: tasks::Domain::new(
-                &settings::task_limits(limits),
+                &limits.tasks,
                 config.seed,
                 current.newest(),
                 charters::models(&current, &config.settings, limits),
@@ -779,7 +758,7 @@ impl Core {
                 config.grants,
             ),
             fleet: {
-                let mut fleet = fleet::Domain::new(&settings::fleet_limits(limits), fleet_needs, {
+                let mut fleet = fleet::Domain::new(&limits.fleet, fleet_needs, {
                     let mut names = List::with_capacity(tasks::MODELS);
                     for model in &config.settings.models {
                         names.push(model.name.clone()).expect("catalogue bound");
@@ -850,21 +829,14 @@ impl Core {
             && self.result_reads.is_empty()
             && self.pending_calls.is_empty()
             && self.effect_flights.is_empty()
-            && self.proposing_effects.is_empty()
-            && self.procedure_proposals.is_empty()
-            && self.routing_calls.is_empty()
             && self.note_routes.is_empty()
             && self.pending_note_briefs.is_empty()
-            && self.routing_people_proposals.is_empty()
             && self.awaiting_resources.is_empty()
-            && self.made.is_empty()
             && self.creating_inputs.is_empty()
-            && self.goal_routes.is_empty()
             && self.delegating.is_empty()
             && self.ending_positions.is_empty()
             && self.saying.is_empty()
-            && self.moving.is_empty()
-            && self.person_tasks.is_empty()
+            && self.flights.is_empty()
             && self.relaying.is_empty()
             && self.adopted.is_empty()
             && self.due.is_empty()
@@ -886,7 +858,7 @@ impl Core {
 
     /// Restore one current claim only when it matches the live task's
     /// transient correlation. An archive row can never enter this live map.
-    pub fn restore_proof(&mut self, proof: RunProof, result_bytes: u32) -> bool {
+    pub(crate) fn restore_proof(&mut self, proof: RunProof, result_bytes: u32) -> bool {
         self.start_input();
         {
             assert!(self.start_loading(), "proofs load before Link");

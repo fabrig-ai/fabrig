@@ -1,7 +1,9 @@
 family test-connector 2
 record Segment { bytes: bytes 256 }
 record ResourcePath { segments: list 32 Segment }
-record Key { attempt: u64 completion: u32 position: u32 deployment: fixed 16 task: u64 purpose: u64 }
+record CallPurpose { attempt: u64 completion: u32 position: u32 }
+enum Purpose { procedure, projection, call: CallPurpose }
+record Key { origin: Purpose deployment: fixed 16 task: u64 purpose: u64 }
 record Effect { kind: u16 resources: list 64 ResourcePath purpose: u64 condition: option u64 target: u64 state: u64 }
 record Attempt { number: u32 sent: u64 deadline: u64 }
 record ProcedureState { project: u32 task: u64 number: u16 resource: ResourcePath index: u16 steps: u16 awaiting: bool deadline: option u64 delegate: option u64 revision: u64 }

@@ -126,7 +126,7 @@ fn document(core: &Core, env: &Env<Limits>, party: u64) -> Accounts {
 }
 fn ask(core: &mut Core, env: &Env<Limits>, by: u64, key: u8, holder: people::AccountHolder) -> u32 {
     let sign_in = if by == ALICE { ALICE_SIGN_IN } else { BOB_SIGN_IN };
-    let Requests::Out(out) = step(
+    let out = step(
         core,
         env,
         Event::People(people::Event::Ask {

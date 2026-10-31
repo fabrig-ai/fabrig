@@ -1,6 +1,7 @@
 //! The public linked client, native client wire, real core and applied store.
 use jig_client::{self as client, contract as c};
 use jig_client_protocol_wire::v19 as w;
+use jig_core_world::effects::Setup;
 use jig_core_world::{effects::World, fixtures, reads};
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -207,7 +208,7 @@ fn a_client_reads_a_stopped_goals_hold_and_only_its_owner_lifts_it() {
     limits.core.tasks.inbox_bytes = 512;
     limits.core.people.inbox_recipients = 24;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = World::configured(960, false, config, limits);
+    let mut world = World::new(Setup { seed: 960, configuration: Some(config), limits, ..Setup::default() });
     world.reads = Some(reads::Parties::new(world.store.applied));
     let owner_sign_in = world.sign_in.expect("owner");
     let coordinator = world.assignments[0];

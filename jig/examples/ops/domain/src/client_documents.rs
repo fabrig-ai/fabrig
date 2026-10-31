@@ -104,7 +104,7 @@ pub(crate) fn document(
         Ok(document) => (views::Made::Ready, Some(document)),
         Err(why) => (views::Made::Gone { why }, None),
     };
-    let core::Requests::Out(mut requests) = core::step(
+    let mut requests = core::step(
         &mut domain.core,
         &Env { now: env.now, wall: env.wall, limits: env.limits.core },
         core::Event::View(views::Event::Made { watcher, outcome }),
@@ -162,8 +162,7 @@ pub(crate) fn document(
             request @ (core::Request::Now(_)
             | core::Request::Write(_)
             | core::Request::Ask { .. }
-            | core::Request::ProjectMade { .. }
-            | core::Request::Decided) => forward(domain, env, decision, request, work),
+            | core::Request::ProjectMade { .. }) => forward(domain, env, decision, request, work),
         }
     }
     assert!(value.is_none(), "the core paced every ready document");
@@ -177,7 +176,7 @@ fn forward(
 ) {
     let mut requests = Queue::uncapped();
     requests.push(request);
-    core_out(domain, env, decision, core::Requests::Out(requests), work);
+    core_out(domain, env, decision, requests, work);
 }
 
 #[expect(clippy::too_many_arguments, reason = "the root owns the admitted reply only during this synchronous handoff")]

@@ -1,4 +1,5 @@
 //! Starting facts shared by the delivered-offer stories.
+use crate::effects::Setup;
 use crate::effects::{World, fixture};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -99,7 +100,7 @@ pub fn world_with_policy(
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connectors");
     limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("writes"));
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     let person = world
         .people_answers
         .iter()

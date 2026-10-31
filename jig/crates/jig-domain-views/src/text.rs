@@ -1,5 +1,5 @@
-//! Provisional writing, bounded per live run (`client/domain/contract.md`, 7.3;
-//! `QUESTIONS.md`, item 41). Retention starts with a report and ends with the run,
+//! Provisional writing, bounded per live run (`jig/docs/design/client/domain/contract.md`, 7.3).
+//! Retention starts with a report and ends with the run,
 //! independently of its followers. Opening resumes a matching retained position
 //! or starts at the current retained beginning.
 //! Only the current turn's suffix and call remain in memory. Each watch keeps a

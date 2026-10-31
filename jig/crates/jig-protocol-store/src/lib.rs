@@ -44,6 +44,14 @@ pub struct Limits {
     pub orphan_erases: u32,
 }
 
+impl Limits {
+    /// The generated families' bounds, derived from the component's source (store.md, 13).
+    #[must_use]
+    pub fn codec_view(&self) -> Option<codec::View> {
+        codec::limits(&self.core)
+    }
+}
+
 /// Stores made by the caller, kept across a world's crash (store.md, 14).
 #[derive(Debug)]
 pub struct Stores {
@@ -63,7 +71,7 @@ pub enum Phase {
 pub struct Store {
     limits: Limits,
     application: sizes::Application,
-    codec: codec::Limits,
+    codec_limits: codec::View,
     layouts: codec::component::Layouts,
     /// The configured models' names, which the people family keeps a role's models by.
     names: Box<[jig_domain_core::settings::ModelName]>,
@@ -141,21 +149,12 @@ impl Store {
         models: &[jig_domain_core::Model],
         stores: Stores,
     ) -> Store {
-        assert!(limits.store.is_usable() && limits.secrets.is_usable(), "both stores' limits are usable");
-        assert!(
-            limits.queue > 0 && limits.queue <= limits.store.queued && limits.files > 0,
-            "transcript bounds fit the store queue"
-        );
-        assert!(
-            limits.reads >= limits.core.load_slots.checked_add(limits.core.tasks.tasks).expect("bounded readers"),
-            "transcript readers fit party loads and all live task preparations"
-        );
-        assert!(limits.orphan_erases > 0, "orphan cleanup makes progress");
-        let codec = codec::limits(&limits.core).expect("the domain limits fit their families' ceilings");
+        assert!(valid(limits), "the store's limits are valid");
+        let codec_limits = limits.codec_view().expect("valid limits fit their families' ceilings");
         Store {
             limits: *limits,
             application,
-            codec,
+            codec_limits,
             layouts: format::layouts(),
             names: codec::names(models),
             stores,
@@ -246,7 +245,11 @@ impl Store {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    limits.store.is_usable()
+    limits.queue > 0
+        && limits.queue <= limits.store.queued
+        && limits.files > 0
+        && limits.orphan_erases > 0
+        && limits.store.is_usable()
         && limits.secrets.is_usable()
         && decoded_records_bound(limits).is_some()
         && frame_bound(limits).is_some()
@@ -254,17 +257,20 @@ pub fn valid(limits: &Limits) -> bool {
         && commits::most_ops(limits.commits.writes, limits.orphan_erases).is_some()
         && limits.commits.writes.checked_add(1).is_some()
         && limits.core.tasks.tasks.checked_mul(limits.core.tasks.inbox_messages).is_some()
-        && limits.core.load_slots.checked_add(limits.core.tasks.tasks).is_some()
+        && match limits.core.load_slots.checked_add(limits.core.tasks.tasks) {
+            Some(readers) => limits.reads >= readers,
+            None => false,
+        }
 }
 
 fn frame_bound(limits: &Limits) -> Option<u64> {
-    let codec = codec::limits(&limits.core)?;
-    core_v6::TurnRecord::encoded_bound(&codec.core)?.checked_add(12)
+    let codec = limits.codec_view()?;
+    core_v6::TurnRecord::encoded_bound(&codec.core)?.checked_add(u64::from(transcripts::frame::WRAPPER_BYTES))
 }
 
 // Bound for two decoded records, including their wire values and the census's joined task.
 pub(crate) fn decoded_records_bound(limits: &Limits) -> Option<u64> {
-    let codec = codec::limits(&limits.core)?;
+    let codec = limits.codec_view()?;
     core_v6::Row::decoded_bound(&codec.core)?
         .checked_add(tasks_v9::Row::decoded_bound(&codec.tasks)?)?
         .checked_add(people_v13::Row::decoded_bound(&codec.people)?)?
@@ -284,7 +290,7 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
     match request {
         Request::Switch { owner } => patching::switch::ask(store, env, owner, above, below),
         Request::Open { owner, root, installation } => {
-            directory::open(store, env, owner, root, installation, above, below);
+            directory::open(store, owner, root, installation, above, below);
         }
         Request::Site { owner, patcher, result } => match store.phase {
             Phase::Ready { .. } => transcripts::read::site(store, env, owner, patcher, result, above, below),
@@ -335,9 +341,6 @@ fn memory_env(limits: skein_kv::Limits) -> Env<skein_kv::Limits> {
 #[rustfmt::skip]
 #[path = "generated/accounts_v2.rs"]
 pub mod accounts_v2;
-#[rustfmt::skip]
-#[path = "generated/component_v2.rs"]
-pub mod component_v2;
 #[rustfmt::skip]
 #[path = "generated/notes_v1.rs"]
 pub mod notes_v1;

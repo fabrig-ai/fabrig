@@ -303,7 +303,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
         let key = [u8::try_from(index).unwrap(); 16];
         let outcome = people::Outcome::Refused(expected.clone());
         for replay in [false, true] {
-            let Requests::Out(out) = step(
+            let out = step(
                 &mut core,
                 &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
                 Event::People(people::Event::Ask {
@@ -328,11 +328,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
                         saved += 1;
                     }
                     Request::Write(Write::Save(Record::Tasks(_))) => panic!("refused act wrote a task"),
-                    Request::ProjectMade { .. }
-                    | Request::Write(_)
-                    | Request::Ask { .. }
-                    | Request::Now(_)
-                    | Request::Decided => {}
+                    Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } | Request::Now(_) => {}
                 }
             }
             assert!(replied, "index {index}, replay {replay}: {out:?}");
@@ -399,7 +395,7 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
         .person_task(Token::new(81), 1, 1, Some(people::Role::Owner), people::Ask::TakePerson { project: 1, task: 5 })
         .unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(81)), Some(PersonTaskRoute::Take(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(81)), Some(PersonTaskRoute::Take(5)));
     assert_eq!(core.tasks.task(5).unwrap().taken_by, Some(1));
     assert_eq!(
         offers::admit(&core, &limits, 1, Act::Take, &subject, Wall::EPOCH),
@@ -417,7 +413,7 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
         )
         .unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(82)), Some(PersonTaskRoute::HandBack(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(82)), Some(PersonTaskRoute::HandBack(5)));
     assert_eq!(core.tasks.task(5).unwrap().taken_by, None);
     holding(&mut core, &limits, people::Role::Owner);
     let why = people::Refusal::NotWaiting;
@@ -433,11 +429,11 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
         .person_task(Token::new(84), 1, 1, Some(people::Role::Owner), people::Ask::TakePerson { project: 1, task: 5 })
         .unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(84)), Some(PersonTaskRoute::Take(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(84)), Some(PersonTaskRoute::Take(5)));
     assert_eq!(offers::admit(&core, &limits, 1, Act::Answer, &subject, Wall::EPOCH), Admission::Allowed);
     let event = core.person_task(Token::new(85), 1, 1, Some(people::Role::Owner), answer).unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(85)), Some(PersonTaskRoute::Answer(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(85)), Some(PersonTaskRoute::Answer(5)));
     let actor = core.tasks.task(5).unwrap().person_answer.unwrap();
     assert_eq!(actor.by, 1);
     assert_eq!(
@@ -480,7 +476,7 @@ fn a_named_person_can_answer_without_project_membership() {
     };
     let event = core.person_task(Token::new(87), 1, 1, None, answer).unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(87)), Some(PersonTaskRoute::Answer(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(87)), Some(PersonTaskRoute::Answer(5)));
     assert_eq!(core.tasks.task(5).unwrap().person_answer.unwrap().by, 1);
 }
 
@@ -577,7 +573,7 @@ fn sign_in(core: &mut Core, limits: &Limits) {
 }
 
 fn ask_now(core: &mut Core, limits: &Limits, key: u8, ask: people::Ask) -> people::Outcome {
-    let Requests::Out(out) = step(
+    let out = step(
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
         Event::People(people::Event::Ask {
@@ -815,7 +811,7 @@ fn procedure_goal_bounds_refuse_an_incomplete_executor_list() {
 }
 
 fn keyed_proposal(core: &mut Core, limits: &Limits, key: u8, proposer: Proposer) -> Queue<Request> {
-    let Requests::Out(out) = step(
+    step(
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
         Event::People(people::Event::Ask {
@@ -831,8 +827,7 @@ fn keyed_proposal(core: &mut Core, limits: &Limits, key: u8, proposer: Proposer)
                 running: None,
             },
         }),
-    );
-    out
+    )
 }
 
 fn proposal_answer(out: &Queue<Request>) -> people::Outcome {
@@ -985,7 +980,7 @@ fn a_historical_proposal_decision_requires_the_exact_maker() {
                 choice: people::ProposalChoice::Rejected,
                 created: None,
             };
-            let Requests::Out(out) = step(
+            let out = step(
                 &mut core,
                 &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
                 Event::HistoricalProposal {
@@ -1055,4 +1050,18 @@ fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps
     assert_eq!(revisions::release_run(&procedure, Some(false)), Ok(()));
     procedure.executor = tasks::Executor::Agent { charter: 1 };
     assert_eq!(revisions::release_run(&procedure, Some(true)), Ok(()));
+}
+
+fn person_task_flight(core: &mut Core, token: Token) -> Option<PersonTaskRoute> {
+    let mut found = None;
+    for (id, flight) in &core.flights {
+        if let crate::flight::Flight::PersonTask { request, .. } = flight
+            && *request == token
+        {
+            found = Some(id);
+            break;
+        }
+    }
+    let crate::flight::Flight::PersonTask { route, .. } = core.land(found?.token())? else { return None };
+    Some(route)
 }

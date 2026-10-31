@@ -387,7 +387,7 @@ name = "jig-accounts-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
- "jig-domain-workers",
+ "jig-domain-link",
  "skein-lib",
  "skein-world",
 ]
@@ -778,7 +778,6 @@ name = "jig-conformance"
 version = "0.0.0"
 dependencies = [
  "jig-fake-store",
- "jig-test-system",
  "skein-lib",
  "skein-world",
 ]
@@ -859,7 +858,7 @@ dependencies = [
 name = "jig-domain-accounts"
 version = "0.0.0"
 dependencies = [
- "jig-domain-workers",
+ "jig-domain-link",
  "skein-lib",
 ]
 
@@ -896,12 +895,20 @@ dependencies = [
 name = "jig-domain-fleet"
 version = "0.0.0"
 dependencies = [
- "jig-domain-workers",
+ "jig-domain-link",
  "skein-lib",
 ]
 
 [[package]]
 name = "jig-domain-host"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-link",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-domain-link"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
@@ -934,10 +941,6 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
 ]
-
-[[package]]
-name = "jig-domain-workers"
-version = "0.0.0"
 
 [[package]]
 name = "jig-engine-clients-world"
@@ -1210,7 +1213,6 @@ dependencies = [
  "jig-protocol-transcript",
  "jig-test-domain",
  "jig-test-service",
- "jig-test-system",
  "sha2",
  "skein-fake-person",
  "skein-http",
@@ -1239,6 +1241,7 @@ name = "jig-protocol-accounts"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
+ "jig-protocol-store",
  "skein-codec",
  "skein-http",
  "skein-io",
@@ -1277,7 +1280,9 @@ dependencies = [
 name = "jig-protocol-charter"
 version = "0.0.0"
 dependencies = [
- "sha2",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-tasks",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -1693,6 +1698,7 @@ dependencies = [
 name = "jig-test-system"
 version = "0.0.0"
 dependencies = [
+ "jig-conformance",
  "jig-test-connector",
  "skein-lib",
 ]
@@ -4260,7 +4266,6 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-fake-workers",
- "jig-test-system",
  "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",
@@ -4455,6 +4460,7 @@ dependencies = [
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-charter",
  "jig-protocol-engine-clients",
  "skein-forge",
  "skein-forge-client",

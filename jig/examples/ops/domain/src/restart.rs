@@ -1,11 +1,8 @@
-//! Copy the core-selected script. A connector reports when it has completed
+//! Copy the core's script. A connector reports when it has completed
 //! reads or settlement; the root never advances it by guessing (domain/root.md, 8).
 use crate::domain::{Work, held};
 use crate::{Domain, Limits, Output, Range, Record, Store, Write};
-use jig_domain_accounts as accounts;
 use jig_domain_core as core;
-use jig_domain_notes as notes;
-use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
@@ -59,12 +56,6 @@ pub(crate) fn route(
                 }
                 Phase::Switch => held(decision, Output::Switch),
                 Phase::AdoptRuns => {
-                    for _ in 0..domain.core.adopted.len() {
-                        work.push(Work::Core(core::Event::Fleet(
-                            domain.core.adopted.pop().expect("loaded claim count"),
-                        )));
-                    }
-                    work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::Loaded)));
                     work.push(Work::StartDone(phase));
                 }
                 Phase::ReadAfresh { connector } => match jig_ops_domain_connectors::connector(connector) {
@@ -112,7 +103,7 @@ pub(crate) fn done(
     {
         work.push(Work::Core(core::Event::Fill { bytes }));
     }
-    crate::route::core_out(domain, env, decision, core::Requests::Out(out), work);
+    crate::route::core_out(domain, env, decision, out, work);
     work.push(Work::Start(action));
 }
 
@@ -126,7 +117,7 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision<Write, 
         let mut out = Queue::uncapped();
         let action =
             domain.core.start_sweep(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, input, &mut out);
-        crate::route::core_out(domain, env, decision, core::Requests::Out(out), work);
+        crate::route::core_out(domain, env, decision, out, work);
         match action {
             core::start::Action::Idle => {}
             action @ (core::start::Action::Step(_)
@@ -144,10 +135,6 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision<Write, 
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the store adapter preserves the core restart order across each store terminal"
-)]
 pub(crate) fn store(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -173,101 +160,41 @@ pub(crate) fn store(
             }
         }
         Store::Transcript { task, rows, done } => {
-            // A message can invalidate preparation while this store read is
-            // in flight. Its old answer belongs to no current preparation.
-            if !domain.core.transcripts.contains_key(&task) {
-                return;
-            }
-            for (row, text) in rows {
-                if !domain.core.append_transcript(task, row, text) {
-                    work.push(Work::Core(core::Event::PreparationFailed { task }));
-                    return;
-                }
-            }
-            if done {
-                let event = if domain.core.transcript_readable(task) {
-                    core::Event::StartBrief { task }
-                } else {
-                    core::Event::TranscriptUnread { task }
-                };
-                work.push(Work::Core(event));
-            }
+            work.push(Work::Core(core::Event::TranscriptLoaded {
+                task,
+                load: core::TranscriptLoad::Page { rows, done },
+            }));
         }
         Store::Restore(record) => {
             if domain.start.state == crate::domain::StartState::Stopped || domain.core.start_failure().is_some() {
                 return;
             }
-            if domain.core.start_phase() == Some(core::start::Phase::Sweep) {
-                match record {
-                    Record::Core(core::Record::People(row)) => {
-                        domain.start.sweep.push(core::start::SweepInput::Record(row));
-                    }
-                    Record::Core(_) | Record::Infrastructure(_) | Record::Observability(_) => {
-                        unreachable!("people sweep range")
-                    }
-                }
-                sweep(domain, env, decision, work);
-                return;
-            }
-            let valid = if domain.core.start_phase() == Some(core::start::Phase::LoadInbox) {
-                if let Record::Core(row) = record {
-                    domain.core.restore_inbox_row(&env.limits.core, &row)
-                } else {
-                    false
-                }
-            } else {
-                match record {
-                    Record::Core(core::Record::Core(row)) => match domain.core.restore_core(row, &env.limits.core) {
-                        core::Restored::Deployment { commits } => {
+            let valid = match record {
+                Record::Core(row) => {
+                    match domain.core.restore(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, row) {
+                        core::Restore::Deployment { commits } => {
                             domain.restored_commits = Some(commits);
                             true
                         }
-                        core::Restored::Live | core::Restored::Archive => true,
-                        core::Restored::Rejected => false,
-                    },
-                    Record::Core(core::Record::Tasks(row)) => {
-                        if domain.core.restore_task_row(&row) {
-                            let mut out = Queue::uncapped();
-                            tasks::step(
-                                &mut domain.core.tasks,
-                                &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
-                                tasks::Event::Restore { record: row },
-                                &mut out,
-                            );
-                            out.is_empty()
-                        } else {
-                            false
+                        core::Restore::Kept => true,
+                        core::Restore::Refused => false,
+                        core::Restore::Swept => {
+                            domain.start.sweep.push(core::start::SweepInput::Next);
+                            sweep(domain, env, decision, work);
+                            true
                         }
                     }
-                    Record::Core(core::Record::People(people::Stored::Policy { project, name, value })) => {
-                        domain.core.restore_policy(&env.limits.core, project, name, value)
+                }
+                Record::Infrastructure(record) => {
+                    let valid = restore_roles(domain, env, &record);
+                    if valid {
+                        work.push(Work::Infrastructure(infrastructure::Event::Restore { record }));
                     }
-                    Record::Core(core::Record::People(row)) => {
-                        let mut out = Queue::uncapped();
-                        people::step(
-                            &mut domain.core.people,
-                            &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
-                            people::Event::Restore { record: row },
-                            &mut out,
-                        );
-                        out.is_empty()
-                    }
-                    Record::Core(core::Record::Notes(row)) => {
-                        work.push(Work::Core(core::Event::Notes(notes::Event::Restore { record: row })));
-                        true
-                    }
-                    Record::Core(core::Record::Accounts(record)) => restore_accounts(domain, env, record),
-                    Record::Infrastructure(record) => {
-                        let valid = restore_roles(domain, env, &record);
-                        if valid {
-                            work.push(Work::Infrastructure(infrastructure::Event::Restore { record }));
-                        }
-                        valid
-                    }
-                    Record::Observability(record) => {
-                        work.push(Work::Observability(observability::Event::Restore { record }));
-                        true
-                    }
+                    valid
+                }
+                Record::Observability(record) => {
+                    work.push(Work::Observability(observability::Event::Restore { record }));
+                    true
                 }
             };
             if !valid {
@@ -275,19 +202,6 @@ pub(crate) fn store(
             }
         }
     }
-}
-
-/// A record breaking the accounts child's rules is counted there and dropped;
-/// it never refuses the start.
-fn restore_accounts(domain: &mut Domain, env: &Env<Limits>, record: accounts::Stored) -> bool {
-    let mut out = Queue::uncapped();
-    accounts::step(
-        &mut domain.core.accounts,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts },
-        accounts::Event::Restore { record },
-        &mut out,
-    );
-    out.is_empty()
 }
 
 /// Preserve connector-owned project adoption before the core admits live claims.

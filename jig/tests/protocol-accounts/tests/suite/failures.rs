@@ -41,7 +41,10 @@ fn a_refused_refresh_token_fails_as_sign_in_again() {
     let restarted = world::run_from(2, Story::NoRecord, snapshot.as_deref());
     assert_eq!(
         world::owner(&restarted).child_heard(),
-        [Heard::Failed { account: ACCOUNT_CHAT, failure: accounts::Failure::SignInAgain },]
+        [Heard::Failed {
+            account: ACCOUNT_CHAT,
+            failure: accounts::Failure::Unloaded { at: accounts::Place::File, why: accounts::Unread::Unreadable }
+        },]
     );
     assert!(world::issuer_saw(&restarted).is_empty(), "a restart cannot resend the dead refresh token");
 }

@@ -236,7 +236,7 @@ fn the_transcript_queue_refuses_before_a_later_commit_is_submitted() {
 fn a_frame_exactly_the_page_bound_commits_and_reads_back() {
     let (mut store, _) = fixtures::opened_with_transcripts();
     let turn = fixtures::turn(LIVE, 1, 1, b"one");
-    let encoded = crate::transcripts::frame::encode(&turn, &store.codec).expect("tiny frame");
+    let encoded = crate::transcripts::frame::encode(&turn, &store.codec_limits).expect("tiny frame");
     store.limits.store.page.bytes = u32::try_from(encoded.len()).expect("bounded tiny frame fixture");
     let (events, below) = submit(&mut store, 2, core::slice::from_ref(&turn));
     assert!(events.is_empty());
@@ -254,7 +254,7 @@ fn a_frame_one_past_the_page_bound_refuses_before_any_data_io() {
     let (mut store, _) = fixtures::opened_with_transcripts();
     let turn = fixtures::turn(LIVE, 1, 1, b"one");
     let bytes = u32::try_from(
-        crate::transcripts::frame::encode(&turn, &store.codec).expect("bounded tiny frame fixture").len(),
+        crate::transcripts::frame::encode(&turn, &store.codec_limits).expect("bounded tiny frame fixture").len(),
     )
     .expect("bounded tiny frame fixture");
     let limit = bytes.checked_sub(1).expect("bounded tiny frame fixture");
@@ -293,11 +293,11 @@ fn an_oversized_later_turn_refuses_the_whole_batch_and_prior_data_survives_crash
     let first = fixtures::turn(LIVE, 1, 2, b"new");
     let oversized = fixtures::turn(23, 1, 1, b"long");
     let limit = u32::try_from(
-        crate::transcripts::frame::encode(&first, &store.codec).expect("bounded tiny frame fixture").len(),
+        crate::transcripts::frame::encode(&first, &store.codec_limits).expect("bounded tiny frame fixture").len(),
     )
     .expect("bounded tiny frame fixture");
     let bytes = u32::try_from(
-        crate::transcripts::frame::encode(&oversized, &store.codec).expect("bounded tiny frame fixture").len(),
+        crate::transcripts::frame::encode(&oversized, &store.codec_limits).expect("bounded tiny frame fixture").len(),
     )
     .expect("bounded tiny frame fixture");
     assert_eq!(bytes, limit.checked_add(1).expect("bounded tiny frame fixture"));
@@ -350,7 +350,7 @@ fn a_named_frame_refusal_precedes_failures_of_earlier_pending_commits() {
     assert!(submit(&mut store, 3, &[]).0.is_empty());
     let turn = fixtures::turn(LIVE, 1, 2, b"long");
     let bytes = u32::try_from(
-        crate::transcripts::frame::encode(&turn, &store.codec).expect("bounded tiny frame fixture").len(),
+        crate::transcripts::frame::encode(&turn, &store.codec_limits).expect("bounded tiny frame fixture").len(),
     )
     .expect("bounded tiny frame fixture");
     let limit = bytes.checked_sub(1).expect("bounded tiny frame fixture");
@@ -993,7 +993,7 @@ fn cut_open(length: Option<u64>, claimed: bool) -> (Store, Box<[Event]>, Below) 
         let record = fixtures::run_proof(LIVE);
         ops.push(skein_kv::Op::Put {
             key: crate::keys::encode(&record.key(), fixtures::KEY_LIMIT).expect("proof key"),
-            value: crate::codec::encode(&record, &store.codec, &store.names).expect("proof"),
+            value: crate::codec::encode(&record, &store.codec_limits, &store.names).expect("proof"),
         })
         .expect("proof slot");
     }

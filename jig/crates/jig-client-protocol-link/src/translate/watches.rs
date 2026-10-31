@@ -90,7 +90,7 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
     let receiving = receiving(limits)?;
     let value = match w::DeliveryValue::decode(&receiving.wire, &mut Reader::new(bytes)) {
         Ok(value) => value,
-        Err(problem) => return Err(documents::classify(problem)),
+        Err(problem) => return Err(super::classify(problem)),
     };
     Ok(match value {
         w::DeliveryValue::OwnerProject(value) => {
@@ -99,13 +99,13 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
         w::DeliveryValue::OwnerAccounts(value) => {
             c::Delivery::OwnerAccounts(Box::new(match documents::owner_accounts(value, &receiving) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::DeliveryValue::Settings(value) => {
             c::Delivery::Settings(Box::new(match super::settings::restore_settings_document(&value, &receiving) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::DeliveryValue::Me(value) => c::Delivery::Me(Box::new(documents::frame(value, limits)?)),
@@ -127,7 +127,7 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
         w::DeliveryValue::Chips(value) => {
             c::Delivery::Chips(match documents::chip_piece(value.rows(), &receiving, limits.client.rows) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             })
         }
     })
@@ -145,7 +145,7 @@ fn receiving(limits: &Limits) -> Result<Limits, Undecodable> {
     checked.wire.owner_inbox_selection_some = bytes;
     match w::check_limits(&checked.wire) {
         Ok(value) => value,
-        Err(problem) => return Err(documents::classify(problem)),
+        Err(problem) => return Err(super::classify(problem)),
     }
     Ok(checked)
 }
@@ -154,21 +154,21 @@ fn owner_inbox(record: w::OwnerInbox, limits: &Limits) -> Result<c::OwnerInbox, 
     let checked = receiving(limits)?;
     let needs = match pages::owner_inbox_entry_piece(record.needs(), &checked, limits.client.rows) {
         Ok(value) => value,
-        Err(problem) => return Err(documents::classify(problem)),
+        Err(problem) => return Err(super::classify(problem)),
     };
     let updates = match pages::owner_inbox_entry_piece(record.updates(), &checked, limits.client.rows) {
         Ok(value) => value,
-        Err(problem) => return Err(documents::classify(problem)),
+        Err(problem) => return Err(super::classify(problem)),
     };
     let selection = match record.selection() {
         Some(value) => Some(match pages::owner_inbox_selection_piece(value, &checked, limits.client.rows) {
             Ok(value) => value,
-            Err(problem) => return Err(documents::classify(problem)),
+            Err(problem) => return Err(super::classify(problem)),
         }),
         None => None,
     };
     let next = match record.next() {
-        Some(value) => Some(pages::owner_inbox_cursor_fields(value, &checked)),
+        Some(value) => Some(pages::owner_inbox_cursor_fields(value)),
         None => None,
     };
     Ok(c::OwnerInbox {
@@ -177,7 +177,7 @@ fn owner_inbox(record: w::OwnerInbox, limits: &Limits) -> Result<c::OwnerInbox, 
         updates,
         next,
         cached_needs: record.cached_needs(),
-        cached_updates: documents::count_fields(record.cached_updates(), &checked),
+        cached_updates: documents::count_fields(record.cached_updates()),
         results_seen: record.results_seen(),
         updates_time_complete: record.updates_time_complete(),
         selection,
@@ -187,18 +187,18 @@ fn owner_tree(record: w::OwnerTree, limits: &Limits) -> Result<c::OwnerTree, Und
     let checked = receiving(limits)?;
     let root = match documents::chip_fields(record.root(), &checked) {
         Ok(value) => value,
-        Err(problem) => return Err(documents::classify(problem)),
+        Err(problem) => return Err(super::classify(problem)),
     };
     let rows = match tree_rows(record.rows(), &checked) {
         Ok(value) => value,
-        Err(problem) => return Err(documents::classify(problem)),
+        Err(problem) => return Err(super::classify(problem)),
     };
     let mut folded = List::with_capacity(record.folded().len());
     for value in record.folded() {
         folded
             .push(c::OwnerTreeFold {
                 parent: value.parent(),
-                phases: documents::owner_phase_counts_fields(value.phases(), &checked),
+                phases: documents::owner_phase_counts_fields(value.phases()),
                 held_below: value.held_below(),
             })
             .expect("bounded folds");
@@ -206,7 +206,7 @@ fn owner_tree(record: w::OwnerTree, limits: &Limits) -> Result<c::OwnerTree, Und
     let next = match record.next() {
         Some(value) => Some(match documents::cursor_fields(value, &checked) {
             Ok(value) => value,
-            Err(problem) => return Err(documents::classify(problem)),
+            Err(problem) => return Err(super::classify(problem)),
         }),
         None => None,
     };
@@ -235,7 +235,7 @@ fn tree_rows(bytes: &[u8], limits: &Limits) -> Result<List<c::OwnerTreeRow>, w::
         let row = w::OwnerTreeRow::decode(&limits.wire, &mut Reader::new(&item))?;
         let mut proposals = List::with_capacity(row.proposals().len());
         for key in row.proposals() {
-            proposals.push(super::facts::proposal_key(key, limits)).expect("bounded proposals");
+            proposals.push(super::facts::proposal_key(key)).expect("bounded proposals");
         }
         let row = c::OwnerTreeRow {
             chip: documents::chip_fields(row.chip(), limits)?,

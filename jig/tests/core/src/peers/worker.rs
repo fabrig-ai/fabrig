@@ -22,7 +22,7 @@ impl Peers {
                         workstreams: Box::new([]),
                         hosting: hosting
                             .into_iter()
-                            .map(|(task, attempt, answered)| fleet::Hosted {
+                            .map(|(task, attempt, answered)| fleet::Hosting {
                                 run: Token::new(task),
                                 attempt: Token::new(attempt),
                                 phase: if answered { fleet::Phase::Answered } else { fleet::Phase::Active },

@@ -1,10 +1,11 @@
 //! An amendment waits without deciding, then repeats admission on current state
 //! (`domain/engine.md`, 5.3; `domain/tasks.md`, section 7).
+use crate::routing::Work;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
-use crate::{CallKey, CallPart, Core, Event, Limits, Request, Requests};
+use crate::{CallKey, CallPart, Core, Limits, Request};
 
 #[derive(Debug)]
 pub(crate) enum Replay {
@@ -150,7 +151,7 @@ pub(super) fn current(core: &Core, replay: &Replay) -> bool {
     }
 }
 
-pub(super) fn busy(core: &mut Core, work: &mut Queue<Event>, out: &mut Queue<Request>, replay: Replay) {
+pub(super) fn busy(core: &mut Core, work: &mut Queue<Work>, out: &mut Queue<Request>, replay: Replay) {
     match replay {
         Replay::Agent { token, key, target, .. } => super::runs::call_decision(
             core,
@@ -163,7 +164,12 @@ pub(super) fn busy(core: &mut Core, work: &mut Queue<Event>, out: &mut Queue<Req
     }
 }
 
-pub(super) fn resume(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, read: AmendmentRead) -> Requests {
+pub(super) fn resume(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    read: AmendmentRead,
+) -> Queue<Request> {
     match read.replay {
         Replay::Agent { token, key, target, revision, amendment } => {
             super::runs::named_amend(core, env, work, token, key, target, revision, amendment, read.evidence)
@@ -186,8 +192,7 @@ pub(super) fn resume(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>
                 release,
                 read.evidence,
             );
-            out.push(Request::Decided);
-            Requests::Out(out)
+            out
         }
     }
 }

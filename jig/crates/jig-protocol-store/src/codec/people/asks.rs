@@ -113,7 +113,7 @@ pub(super) fn decode_note_change(
     })
 }
 
-pub(super) fn encode_resource_role(value: domain::ResourceRole, _limits: &wire::Limits) -> wire::ResourceRole {
+pub(super) fn encode_resource_role(value: domain::ResourceRole) -> wire::ResourceRole {
     match value {
         domain::ResourceRole::Owned => wire::ResourceRole::Owned,
         domain::ResourceRole::Fork => wire::ResourceRole::Fork,
@@ -158,7 +158,7 @@ pub(super) fn encode_adoption(
         limits,
         wire::AdoptionParts {
             resource: encode_resource_name(resource, limits)?,
-            role: encode_resource_role(*role, limits),
+            role: encode_resource_role(*role),
             options: encode_segments(options, limits, limits.parameter_bytes_value, limits.adoption_options)?,
         },
     )

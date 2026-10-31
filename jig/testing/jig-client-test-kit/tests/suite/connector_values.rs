@@ -43,9 +43,7 @@ fn entry() -> OutboxEntry {
         number: u64::MAX,
         task: u64::MAX,
         key: Key {
-            attempt: u64::MAX,
-            completion: u32::MAX,
-            position: u32::MAX,
+            origin: Purpose::Call { attempt: u64::MAX, completion: u32::MAX, position: u32::MAX },
             deployment: [u8::MAX; 16],
             task: u64::MAX,
             purpose: u64::MAX,

@@ -1,6 +1,7 @@
 //! Party roots checked whole, then made together (domain/people.md, 5.1).
 use super::{party_inputs, refusals::pool_refused};
-use crate::{Core, Event, Limits, Request};
+use crate::routing::Work;
+use crate::{Core, Limits, Request};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -18,7 +19,7 @@ pub(super) fn create_request(
     core: &mut Core,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut creation: Creation,
 ) {
     let request = creation.request;

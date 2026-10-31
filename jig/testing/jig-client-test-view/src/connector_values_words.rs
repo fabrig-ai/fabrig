@@ -82,6 +82,7 @@ pub enum Word {
     Repeat,
     Held,
     Procedure,
+    Projection,
     Resources,
     Effects,
     Request,
@@ -108,7 +109,7 @@ pub enum Word {
     SystemRequestBudgetNotKept,
     LastSystemResponseNotKept,
 }
-pub const ALL: [Word; 97] = [
+pub const ALL: [Word; 98] = [
     Word::ScopeProject,
     Word::ScopeDeployment,
     Word::Object,
@@ -181,6 +182,7 @@ pub const ALL: [Word; 97] = [
     Word::Repeat,
     Word::Held,
     Word::Procedure,
+    Word::Projection,
     Word::Resources,
     Word::Effects,
     Word::Request,
@@ -209,6 +211,7 @@ pub const ALL: [Word; 97] = [
 ];
 impl Word {
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one exhaustive mapping assigns stable phrase identifiers")]
     pub const fn id(self) -> PhraseId {
         let number = match self {
             Self::ScopeProject => 6600,
@@ -283,6 +286,7 @@ impl Word {
             Self::Repeat => 6669,
             Self::Held => 6670,
             Self::Procedure => 6671,
+            Self::Projection => 6697,
             Self::Resources => 6672,
             Self::Effects => 6673,
             Self::Request => 6674,
@@ -385,6 +389,7 @@ impl Word {
             Self::Repeat => (b"Effect repeat", None),
             Self::Held => (b"Effect held", None),
             Self::Procedure => (b"Procedure", None),
+            Self::Projection => (b"Projection", None),
             Self::Resources => (b"Resources", None),
             Self::Effects => (b"Effects", None),
             Self::Request => (b"Effect request", None),
@@ -425,8 +430,10 @@ impl Word {
 /// Append these shapes to a caller's normal checked jig shapes.
 #[must_use]
 pub fn shapes(normal: Box<[PhraseShape]>) -> Box<[PhraseShape]> {
-    let capacity =
-        u32::try_from(normal.len()).expect("normal shape count fits").checked_add(97).expect("owner shapes fit");
+    let capacity = u32::try_from(normal.len())
+        .expect("normal shape count fits")
+        .checked_add(u32::try_from(ALL.len()).expect("owner phrase count fits"))
+        .expect("owner shapes fit");
     let mut result = List::with_capacity(capacity);
     for shape in normal {
         result.push(shape).expect("normal shapes fit");
@@ -441,7 +448,7 @@ pub fn shapes(normal: Box<[PhraseShape]>) -> Box<[PhraseShape]> {
 pub fn language(normal: Language) -> Language {
     let capacity = u32::try_from(normal.phrases.len())
         .expect("normal phrase count fits")
-        .checked_add(97)
+        .checked_add(u32::try_from(ALL.len()).expect("owner phrase count fits"))
         .expect("owner phrases fit");
     let mut result = List::with_capacity(capacity);
     for phrase in normal.phrases {

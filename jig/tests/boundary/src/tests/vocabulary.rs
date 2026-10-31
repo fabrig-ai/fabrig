@@ -154,7 +154,7 @@ fn the_workspace_share_keeps_the_kit_vocabulary() {
 #[test]
 fn workspace_fixture_omits_only_dependency_sources() {
     let word = ["g", "it"].concat();
-    let url = format!("https://{word}.ekanayaka.io/ai/skein.{word}");
+    let url = format!("https://{word}.example.org/ai/skein.{word}");
     let manifest = format!("[workspace]\n[workspace.dependencies]\nskein-lib = {{ {word} = \"{url}\" }}\n");
     let source = workspace_vocabulary(&manifest);
     assert_eq!(source, "[workspace]\n[workspace.dependencies]\nskein-lib = {  }\n");

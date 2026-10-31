@@ -2116,6 +2116,7 @@ fn box_profile() -> jig_protocol_config::Limits {
     let engine = root.member(&document, b"engine").expect("engine member");
     let mut engine = config::read::Object::new(&document, engine).expect("engine object");
     let at = engine.member(&document, b"limits").expect("engine limits");
-    config::overrides::parse(&document, at, &config::Path::root().member(b"engine").member(b"limits"))
-        .expect("init limits")
+    let parsed = config::overrides::parse(&document, at, &config::Path::root().member(b"engine").member(b"limits"));
+    assert!(parsed.problems.is_empty(), "init limits: {:?}", parsed.problems);
+    parsed.limits
 }

@@ -1,5 +1,6 @@
 //! Connector values through the real root and independently observed store.
 
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::{Cut, World},
     reads, watches,
@@ -21,7 +22,7 @@ const DEPLOYMENT_WATCHER: u64 = 57;
 const UNKNOWN_SUBJECT: u64 = 900;
 
 fn world(seed: u64) -> World {
-    let mut world = World::new(seed, false);
+    let mut world = World::new(Setup { seed, ..Setup::default() });
     world.watches = Some(watches::Parties::new(seed, world.store.applied, false, world.sign_in.expect("signed in")));
     world.reads = Some(reads::Parties::new(world.store.applied));
     world.send(root::Event::Connector {

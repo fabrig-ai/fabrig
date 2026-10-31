@@ -746,7 +746,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
         grants: Box::new([]),
     })));
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    crate::route::route_core_requests(&mut domain, &env, &mut decision, core::Requests::Out(requests));
+    crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
     let assignment = domain.assignments.get(&fixture.task).expect("prepared assignment");
     assert!(assignment.live.text);
     assert!(!assignment.live.reasoning);

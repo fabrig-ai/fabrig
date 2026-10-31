@@ -1,5 +1,5 @@
 //! Whole procedure-step admission and the connector's same-decision outcome.
-use crate::{Ask, Core, Limits, ProcedureStep, Request, Requests, StepEnd, StepRefusal};
+use crate::{Ask, Core, Limits, ProcedureStep, Request, StepEnd, StepRefusal};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue};
@@ -8,15 +8,14 @@ pub(crate) fn problem(task: u64, why: tasks::Refusal) -> StepRefusal {
     StepRefusal::Refused(tasks::Problem { task: Some(task), why, blocked_by: None, capacity: None })
 }
 
-pub(super) fn refused(core: &Core, task: u64, step: u64, why: StepRefusal) -> Requests {
+pub(super) fn refused(core: &Core, task: u64, step: u64, why: StepRefusal) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if let Some(row) = core.tasks.task(task)
         && let tasks::Executor::Procedure { connector, .. } = row.executor
     {
         out.push(Request::Ask { connector, ask: Ask::StepRefused { task, step, why } });
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 #[expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")]
@@ -96,8 +95,11 @@ pub(super) fn parts(
     })
 }
 
-pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, event: tasks::Event) -> Requests {
-    let tasks::Event::Procedure { decision, .. } = &event else { unreachable!("procedure event") };
+pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, event: tasks::Event) -> Queue<Request> {
+    let tasks::Event::Procedure { reply_to, task: named, step: named_step, read, decision } = event else {
+        unreachable!("procedure event")
+    };
+    let token = reply_to.into_token();
     let mut revised = List::with_capacity(env.limits.tasks.batch.checked_mul(2).expect("step revision room"));
     let mut first = None;
     for member in &decision.batch {
@@ -112,7 +114,18 @@ pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, ev
         }
     }
     let mut child = Queue::uncapped();
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
+    tasks::step(
+        &mut core.tasks,
+        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        tasks::Event::Procedure {
+            reply_to: skein_lib::ReplyTo::new(token),
+            task: named,
+            step: named_step,
+            read,
+            decision,
+        },
+        &mut child,
+    );
     let mut kept = Queue::uncapped();
     let mut refusal = None;
     for _ in 0..child.len() {
@@ -124,15 +137,13 @@ pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, ev
         }
     }
     if let Some(why) = refusal {
+        drop(core.land(token));
         return refused(core, task, step, why);
     }
-    let Requests::Out(mut routed) = super::task_routes::tag_tasks(core, env, kept, false, false, false);
+    let mut routed = super::task_routes::tag_task_outputs(core, env, kept);
     let mut out = Queue::uncapped();
     for _ in 0..routed.len() {
         let request = routed.pop().expect("routed step count");
-        if let Request::Decided = &request {
-            continue;
-        }
         out.push(request);
     }
     let mut revisions = List::with_capacity(revised.capacity());
@@ -149,12 +160,11 @@ pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, ev
             ask: Ask::StepMade { task, step, first, revisions: revisions.into_boxed() },
         });
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(crate) fn append_problem(core: &Core, task: u64, step: u64, problem: tasks::Problem, out: &mut Queue<Request>) {
-    let Requests::Out(mut requests) = refused(core, task, step, StepRefusal::Refused(problem));
+    let mut requests = refused(core, task, step, StepRefusal::Refused(problem));
     for _ in 0..requests.len() {
         if let Some(Request::Ask { connector, ask }) = requests.pop() {
             out.push(Request::Ask { connector, ask });

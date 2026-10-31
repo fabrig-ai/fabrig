@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::world;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
@@ -63,11 +64,17 @@ fn invalid_limits_are_refused() {
     assert!(!core::valid(&core::Limits { tasks: tasks::Limits { tasks: u32::MAX, ..limits.tasks }, ..limits }));
 }
 
-fn both_worlds_check_the_counted_heap_at_every_iteration() {
-    let mut walking = world::World::goal(190);
-    walking.run_goal();
+fn walking_and_effect_scripts_check_the_counted_heap_at_every_iteration() {
+    let mut walking = jig_core_world::effects::World::new(Setup {
+        seed: 190,
+        configuration: Some(world::config(190)),
+        limits: world::limits(),
+        walking: Some(jig_core_world::effects::Scenario::Goal),
+        ..Setup::default()
+    });
+    walking.drain();
     drop(walking);
-    let mut effects = jig_core_world::effects::World::new(191, false);
+    let mut effects = jig_core_world::effects::World::new(Setup { seed: 191, ..Setup::default() });
     effects.delegate();
     effects.call(2, 9000);
     effects.restart(191, false);
@@ -81,7 +88,7 @@ const SCENARIO_FAMILY_HEAP_CEILING: u64 = 18_000;
 fn memory_scenario_family() {
     core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceiling();
     invalid_limits_are_refused();
-    both_worlds_check_the_counted_heap_at_every_iteration();
+    walking_and_effect_scripts_check_the_counted_heap_at_every_iteration();
 }
 
 /// Empty closure: 992 measured additional bytes plus a quarter, rounded up
@@ -92,7 +99,7 @@ const EMPTY_CLOSURE_HEAP_CEILING: u64 = 1_300;
 const FINISHING_QUERIES_HEAP_CEILING: u64 = 5_400;
 
 #[test]
-fn settled_finishing_queries_allocate_nothing_and_empty_closure_holds_one_output() {
+fn settled_finishing_queries_allocate_nothing_and_empty_closure_stays_under_its_heap_ceiling() {
     let limits = world::limits().core;
     let meter = Meter::new();
     meter.start();
@@ -110,11 +117,10 @@ fn settled_finishing_queries_allocate_nothing_and_empty_closure_holds_one_output
     assert_eq!((queries.held(), queries.peak()), (held, held));
     meter.check(queries, bound, &limits);
     meter.start();
-    let core::Requests::Out(mut out) =
-        core::finish_decision(&mut domain, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
+    let out = core::finish_decision(&mut domain, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
     let closed = meter.end();
-    assert!(matches!(out.pop(), Some(core::Request::Decided)));
     assert!(out.is_empty());
+
     assert!(closed.peak() - held <= EMPTY_CLOSURE_HEAP_CEILING, "empty closure stays under its heap ceiling");
     drop(out);
     meter.check(closed, bound, &limits);
@@ -155,7 +161,12 @@ fn populated_projection_and_call_owner_routes_restore_under_the_counted_heap_bou
     configuration.core.seed_projects[0].policy.policy = policy.clone();
     let mut restart = jig_core_world::effects::fixture(193, false).0;
     restart.core.seed_projects[0].policy.policy = policy;
-    let mut world = jig_core_world::effects::World::configured(193, false, configuration, limits);
+    let mut world = jig_core_world::effects::World::new(Setup {
+        seed: 193,
+        configuration: Some(configuration),
+        limits,
+        ..Setup::default()
+    });
     world.hold_writes = true;
     world.call(1, 230);
     let request = jig_core_world::fixtures::goal(

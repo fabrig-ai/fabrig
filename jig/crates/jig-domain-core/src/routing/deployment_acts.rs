@@ -1,5 +1,6 @@
 //! Deployment acts retain the same child decisions as party requests (people.md, 5.3).
-use crate::{Ask, Carried, Core, Event, Held, Limits, PersonTaskRoute, Request, Requests};
+use crate::routing::Work;
+use crate::{Ask, Carried, Core, Event, Held, Limits, PersonTaskRoute, Request};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
@@ -10,13 +11,13 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 pub(super) fn start(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     reply_to: ReplyTo,
     connector: u16,
     key: [u8; 16],
     act: Box<people::Act>,
     carried: Option<Carried>,
-) -> Requests {
+) -> Queue<Request> {
     let digest = match &*act {
         people::Act::AddKey { digest, .. } => Some(*digest),
         people::Act::MakeProject { .. }
@@ -34,8 +35,8 @@ pub(super) fn start(
             to: reply_to,
             outcome: people::Outcome::Refused(people::Refusal::NotOffered),
         })));
-        out.push(Request::Decided);
-        return super::application_routes::first(super::application_routes::number(carried), Requests::Out(out));
+
+        return super::application_routes::first(super::application_routes::number(carried), out);
     }
     assert!(core.key_input.is_none(), "one key admission at a time");
     core.key_input = carried;
@@ -48,7 +49,7 @@ pub(super) fn start(
 pub(super) fn route(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     act: people::Act,
@@ -82,19 +83,19 @@ pub(super) fn route(
         }
     }
 }
-fn account(core: &mut Core, work: &mut Queue<Event>, request: Token, change: people::AccountChange) {
+fn account(core: &mut Core, work: &mut Queue<Work>, request: Token, change: people::AccountChange) {
     let holder = accounts::Holder::Deployment;
     match super::key_routes::admitted(core, request, holder, None, change) {
-        Ok(change) => work.push(Event::Account(accounts::Event::Change { request, holder, change })),
+        Ok(change) => work.push(Work::Event(Event::Account(accounts::Event::Change { request, holder, change }))),
         Err(why) => refused(work, request, why),
     }
 }
-fn refused(work: &mut Queue<Event>, request: Token, why: people::Refusal) {
-    work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+fn refused(work: &mut Queue<Work>, request: Token, why: people::Refusal) {
+    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) })));
 }
 fn close(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     project: u32,
     task: u64,
@@ -117,7 +118,7 @@ fn close(
         tasks::Party::Person(_) => {}
         tasks::Party::Task(_) | tasks::Party::Deployment { .. } => return Err(people::Refusal::NotOffered),
     }
-    if core.person_tasks.len() == core.person_tasks.capacity() {
+    if core.person_task_flights() == core.person_task_capacity {
         return Err(people::Refusal::Limit { which: people::LimitKind::LiveTasks });
     }
     let mut operations = List::with_capacity(
@@ -143,13 +144,9 @@ fn close(
             *message = Some(number);
         }
     }
-    assert!(
-        core.person_tasks
-            .insert(request, PersonTaskRoute::Compound { project, operations: operations.len(), first_message })
-            == Ok(None),
-        "one compound continuation"
-    );
-    work.push(Event::Tasks(tasks::Event::Compound {
+    let request = core
+        .fly_person_task(request, PersonTaskRoute::Compound { project, operations: operations.len(), first_message });
+    work.push(Work::Event(Event::Tasks(tasks::Event::Compound {
         reply_to: ReplyTo::new(request),
         by: tasks::Party::Deployment { project },
         project,
@@ -157,6 +154,6 @@ fn close(
         period: core.period(project),
         pool_budget: 0,
         period_budget: core.period_budget(project),
-    }));
+    })));
     Ok(())
 }

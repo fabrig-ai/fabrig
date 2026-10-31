@@ -70,7 +70,7 @@ impl Limits {
         tree.text_per_node = tree.text_per_node.max(text);
         tree.drawing_bytes = drawing::BYTES;
         let limits = Self { tree };
-        if !valid(&limits, domain, jig, observability, infrastructure) {
+        if !valid(jig, observability, infrastructure) {
             return None;
         }
         Some(limits)
@@ -78,13 +78,7 @@ impl Limits {
 }
 /// Whether the composed phrase capacities are representable.
 #[must_use]
-pub fn valid(
-    _limits: &Limits,
-    _domain: &jig_ops_client_domain::Limits,
-    jig: &jig_client_view::words::Words,
-    observability: &Words,
-    infrastructure: &Words,
-) -> bool {
+pub fn valid(jig: &jig_client_view::words::Words, observability: &Words, infrastructure: &Words) -> bool {
     jig.book().capacity(jig_client_view::phrases::jig::JigPhrase::LoadingPart.id()).is_some()
         && observability.capacity().is_some()
         && infrastructure.capacity().is_some()

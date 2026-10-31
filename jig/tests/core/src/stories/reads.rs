@@ -1,4 +1,5 @@
 //! Fixtures for durable document and owner-page reads.
+use crate::effects::Setup;
 use crate::{
     effects::World,
     reads::{Parties, ask, latest},
@@ -121,8 +122,15 @@ fn read_world(seed: u64, reply_bound: Option<u32>, rows: u32, initial: Option<pe
     limits.watermark = root::default_watermark(&limits.journal);
     limits.journal.writes = room + connectors;
     let mut world = match initial {
-        Some(initial) => World::configured_with(seed, false, configuration, limits, initial),
-        None => World::configured(seed, false, configuration, limits),
+        Some(initial) => World::new(Setup {
+            seed,
+            configuration: Some(configuration),
+            limits,
+            require_assignment: false,
+            initial: Some(initial),
+            ..Setup::default()
+        }),
+        None => World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() }),
     };
     world.reads = Some(Parties::new(world.store.applied));
     world

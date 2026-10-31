@@ -294,15 +294,13 @@ impl Core {
         true
     }
 
-    /// Coalesce extent changes after all sibling routes, before the decision's mark.
+    /// Coalesce extent changes after all sibling routes.
     pub(crate) fn finish_extent(&self, previous: u32, out: &mut Queue<Request>) {
         if previous == self.current.oldest {
             return;
         }
-        let mut decided = false;
         for _ in 0..out.len() {
             match out.pop().expect("extent output count") {
-                Request::Decided => decided = true,
                 Request::Write(Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { .. })))) => {}
                 request @ (Request::ProjectMade { .. }
                 | Request::Write(_)
@@ -314,9 +312,6 @@ impl Core {
         out.push(Request::Write(Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent {
             oldest: self.current.oldest,
         })))));
-        if decided {
-            out.push(Request::Decided);
-        }
     }
 }
 

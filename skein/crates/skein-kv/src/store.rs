@@ -400,7 +400,10 @@ impl Store {
         }
         let mut at: usize = 0;
         while at < bytes.len() {
-            let Some(head_end) = at.checked_add(frame::HEADER) else { return Ok(false) };
+            let Some(head_end) = at.checked_add(usize::try_from(frame::HEADER).expect("frame header fits usize"))
+            else {
+                return Ok(false);
+            };
             let Some(head) = bytes.get(at..head_end) else {
                 return Ok(false);
             };

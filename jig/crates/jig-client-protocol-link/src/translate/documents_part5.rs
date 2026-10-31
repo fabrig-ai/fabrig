@@ -96,7 +96,7 @@ pub(crate) fn account_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn capacity_fields(value: &w::Capacity, _limits: &Limits) -> c::Capacity {
+pub(crate) fn capacity_fields(value: &w::Capacity) -> c::Capacity {
     let opt0 = match value.project() {
         Some(item) => Some(*item),
         None => None,
@@ -139,7 +139,7 @@ pub(crate) fn deployment_fields(value: &w::Deployment, limits: &Limits) -> Resul
     }
     let mut list0 = List::with_capacity(value.capacity().len());
     for item in value.capacity() {
-        list0.push(capacity_fields(item, limits)).expect("reserved supplied list");
+        list0.push(capacity_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Deployment {
         hosts: host_piece(value.hosts(), limits, limits.client.rows)?,
@@ -151,18 +151,18 @@ pub(crate) fn deployment_fields(value: &w::Deployment, limits: &Limits) -> Resul
     })
 }
 
-pub(crate) fn store_fill_fields(value: &w::StoreFill, _limits: &Limits) -> c::StoreFill {
+pub(crate) fn store_fill_fields(value: &w::StoreFill) -> c::StoreFill {
     c::StoreFill { bytes: value.bytes(), mark: value.mark() }
 }
 
-pub(crate) fn owner_host_kind_fields(value: &w::OwnerHostKind, _limits: &Limits) -> c::OwnerHostKind {
+pub(crate) fn owner_host_kind_fields(value: &w::OwnerHostKind) -> c::OwnerHostKind {
     match value {
         w::OwnerHostKind::Worker => c::OwnerHostKind::Worker,
         w::OwnerHostKind::Engine => c::OwnerHostKind::Engine,
     }
 }
 
-pub(crate) fn owner_attempt_state_fields(value: &w::OwnerAttemptState, _limits: &Limits) -> c::OwnerAttemptState {
+pub(crate) fn owner_attempt_state_fields(value: &w::OwnerAttemptState) -> c::OwnerAttemptState {
     match value {
         w::OwnerAttemptState::Waiting => c::OwnerAttemptState::Waiting,
         w::OwnerAttemptState::Adopted => c::OwnerAttemptState::Adopted,
@@ -178,11 +178,11 @@ pub(crate) fn owner_attempt_state_fields(value: &w::OwnerAttemptState, _limits: 
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_run_location_fields(value: &w::OwnerRunLocation, limits: &Limits) -> c::OwnerRunLocation {
+pub(crate) fn owner_run_location_fields(value: &w::OwnerRunLocation) -> c::OwnerRunLocation {
     match value {
         w::OwnerRunLocation::None => c::OwnerRunLocation::None,
         w::OwnerRunLocation::Connected(row) => {
-            c::OwnerRunLocation::Connected { channel: row.channel(), kind: owner_host_kind_fields(row.kind(), limits) }
+            c::OwnerRunLocation::Connected { channel: row.channel(), kind: owner_host_kind_fields(row.kind()) }
         }
         w::OwnerRunLocation::Adrift(row) => {
             let opt0 = match row.channel() {
@@ -213,8 +213,8 @@ pub(crate) fn owner_host_run_fields(value: &w::OwnerHostRun, limits: &Limits) ->
         attempt: value.attempt(),
         kept: value.kept(),
         listed: value.listed(),
-        state: owner_attempt_state_fields(value.state(), limits),
-        location: owner_run_location_fields(value.location(), limits),
+        state: owner_attempt_state_fields(value.state()),
+        location: owner_run_location_fields(value.location()),
         grace_until: opt0,
     })
 }
@@ -281,7 +281,7 @@ pub(crate) fn owner_host_fields(
         },
         programs: crate::translate::programs::logins(value.programs(), limits, room)?,
         channel: value.channel(),
-        kind: owner_host_kind_fields(value.kind(), limits),
+        kind: owner_host_kind_fields(value.kind()),
         slots: value.slots(),
         used: value.used(),
         free: value.free(),
@@ -317,14 +317,14 @@ pub(crate) fn owner_host_piece(
     Ok(rows)
 }
 
-pub(crate) fn owner_account_place_fields(value: &w::OwnerAccountPlace, _limits: &Limits) -> c::OwnerAccountPlace {
+pub(crate) fn owner_account_place_fields(value: &w::OwnerAccountPlace) -> c::OwnerAccountPlace {
     match value {
         w::OwnerAccountPlace::Directory => c::OwnerAccountPlace::Directory,
         w::OwnerAccountPlace::File => c::OwnerAccountPlace::File,
     }
 }
 
-pub(crate) fn owner_account_unread_fields(value: &w::OwnerAccountUnread, _limits: &Limits) -> c::OwnerAccountUnread {
+pub(crate) fn owner_account_unread_fields(value: &w::OwnerAccountUnread) -> c::OwnerAccountUnread {
     match value {
         w::OwnerAccountUnread::Unreadable => c::OwnerAccountUnread::Unreadable,
         w::OwnerAccountUnread::Refused => c::OwnerAccountUnread::Refused,
@@ -335,7 +335,7 @@ pub(crate) fn owner_account_unread_fields(value: &w::OwnerAccountUnread, _limits
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_account_state_fields(value: &w::OwnerAccountState, limits: &Limits) -> c::OwnerAccountState {
+pub(crate) fn owner_account_state_fields(value: &w::OwnerAccountState) -> c::OwnerAccountState {
     match value {
         w::OwnerAccountState::Asking => c::OwnerAccountState::Asking,
         w::OwnerAccountState::Granted => c::OwnerAccountState::Granted,
@@ -349,8 +349,8 @@ pub(crate) fn owner_account_state_fields(value: &w::OwnerAccountState, limits: &
         w::OwnerAccountState::SignInAgain => c::OwnerAccountState::SignInAgain,
         w::OwnerAccountState::Misconfigured => c::OwnerAccountState::Misconfigured,
         w::OwnerAccountState::Unloaded(row) => c::OwnerAccountState::Unloaded {
-            at: owner_account_place_fields(row.at(), limits),
-            why: owner_account_unread_fields(row.why(), limits),
+            at: owner_account_place_fields(row.at()),
+            why: owner_account_unread_fields(row.why()),
         },
         w::OwnerAccountState::Cancelled => c::OwnerAccountState::Cancelled,
         w::OwnerAccountState::Closing => c::OwnerAccountState::Closing,

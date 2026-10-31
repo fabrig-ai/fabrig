@@ -167,7 +167,6 @@ fn the_service_ends_once_io_holds_nothing() {
 
 #[test]
 fn a_paused_core_timer_does_not_pin_the_service_while_stopping() {
-    use jig_domain_core as core;
     use skein_lib::{Duration, Secret, Time, Wall};
     const EXPIRE_VALUES: Time = Time::from_nanos(u64::MAX);
     const LIVE_GAP: Duration = Duration::from_secs(1);
@@ -176,14 +175,7 @@ fn a_paused_core_timer_does_not_pin_the_service_while_stopping() {
     let mut driven = fixtures::Driven::started(&fixtures::engine_document());
     let engine = fixtures::engine(&mut driven.service);
     engine.values.accounts.expire(EXPIRE_VALUES);
-    let timers = engine.domain.core_deadlines(engine.env.now, engine.env.wall);
-    let mut people = None;
-    for (timer, deadline) in timers {
-        if timer == core::Timer::People {
-            people = deadline;
-        }
-    }
-    let due = people.expect("sign-in timer");
+    let due = engine.domain.core().next_deadline(engine.env.now, engine.env.wall).expect("sign-in timer");
     let live = due.saturating_add(LIVE_GAP);
     let value = jig_protocol_accounts::table::Value {
         token: Secret::new(fixtures::TOKEN.into()),
@@ -195,11 +187,7 @@ fn a_paused_core_timer_does_not_pin_the_service_while_stopping() {
     assert_eq!(engine.next_deadline(), Some(due));
     engine.step(root::Event::Stop);
     assert!(engine.domain.stopping());
-    assert_eq!(
-        engine.domain.core_deadlines(engine.env.now, engine.env.wall),
-        timers,
-        "paused timers keep their values"
-    );
+    assert_eq!(engine.domain.core().people.next_deadline(), Some(due), "paused timers keep their values");
     assert_eq!(engine.next_deadline(), Some(live), "only a live timer asks the service to fire");
 }
 
@@ -224,14 +212,7 @@ fn the_service_fires_wall_expiry_before_the_original_elapsed_alarm() {
     driven.party(core::Event::Delivered { watcher: WATCHER });
     driven.commit_all();
     let engine = fixtures::engine(&mut driven.service);
-    let original = engine.domain.core_deadlines(engine.env.now, engine.env.wall);
-    let mut original_people = None;
-    for (timer, deadline) in original {
-        if timer == core::Timer::People {
-            original_people = deadline;
-        }
-    }
-    assert!(original_people.expect("armed sign-in") > ELAPSED);
+    assert!(engine.domain.core().next_deadline(engine.env.now, engine.env.wall).expect("armed sign-in") > ELAPSED);
     engine.env.now = ELAPSED;
     engine.env.wall = expires;
     assert_eq!(engine.next_deadline(), Some(ELAPSED), "the service resamples saved wall expiry");
@@ -251,7 +232,7 @@ fn the_service_fires_wall_expiry_before_the_original_elapsed_alarm() {
     assert_eq!(endings, 1, "one terminal through the ordinary service timer route");
     let engine = fixtures::engine(&mut driven.service);
     assert!(
-        engine.domain.core_deadlines(engine.env.now, engine.env.wall).contains(&(core::Timer::People, None)),
+        engine.domain.core().people.next_deadline().is_none(),
         "the timer removed the sign-in, rather than only closing its watch during Resume"
     );
 }

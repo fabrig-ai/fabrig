@@ -1,11 +1,11 @@
-//! A turn scenario world beside the unchanged first-version world. Its fake
-//! worker owns numbered opaque turns until acknowledged; the fake parent
-//! commits them in order, refuses under pressure, and restores its durable
-//! prefix after restart. The referee sees only their boundary observations.
+//! A turn scenario world whose fake worker owns numbered opaque turns until
+//! acknowledged; the fake parent commits them in order, refuses under pressure,
+//! and restores its durable prefix after restart. The referee sees only their
+//! boundary observations.
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Hello, Hosted, Limits, Phase, Request};
+use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Hello, Hosting, Limits, Phase, Request};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
 use skein_world::domain::{Expectations, Judge, Referee};
 
@@ -207,7 +207,7 @@ impl World {
             self.report.trace.push(format!("{} {request:?}", self.tick));
             match request {
                 Request::Sources { channel, sources } => {
-                    assert!(sources.is_empty(), "legacy turn fixture has no program sources");
+                    assert!(sources.is_empty(), "turn fixture has no program sources");
                     fleet::step(
                         &mut self.domain,
                         &self.env,
@@ -307,7 +307,7 @@ impl World {
             stop_bound: self.settings.stop_bound,
             slots: 1,
             workstreams: Box::default(),
-            hosting: Box::from([Hosted { run: RUN, attempt: ATTEMPT, phase: Phase::Active }]),
+            hosting: Box::from([Hosting { run: RUN, attempt: ATTEMPT, phase: Phase::Active }]),
         };
         self.see(Seen::Hello { bound: self.settings.stop_bound, grace: self.env.limits.grace });
         self.step(Event::Hello { worker: 0, channel, hello });

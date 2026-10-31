@@ -1,5 +1,6 @@
 //! Held loads serialize marks over one ended conversation (people.md, 6).
-use crate::{Core, Event, Limits, Request, Requests};
+use crate::routing::Work;
+use crate::{Core, Event, Limits, Request};
 use jig_domain_people as people;
 use skein_lib::{Env, Queue, Token};
 
@@ -12,23 +13,21 @@ pub(crate) struct Loaded {
     pub owner: Option<crate::forget::Owner>,
 }
 
-pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, answer: Answer) -> Requests {
+pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, answer: Answer) -> Queue<Request> {
     let Answer { request, task, party, through, busy } = answer;
-    let Some(mark) = core.ended_marks.remove(&request) else { return Requests::Out(Queue::uncapped()) };
+    let Some(mark) = core.ended_marks.remove(&request) else { return Queue::uncapped() };
     let Some((person, people::Seen::Conversation { task: number, through: wanted })) =
         core.people.seen_context(request)
     else {
-        return Requests::Out(Queue::uncapped());
+        return Queue::uncapped();
     };
     assert!(person == party && number == task && mark.task == task && mark.party == party, "correlated ended position");
     if busy {
-        work.push(Event::People(people::Event::Decided {
+        work.push(Work::Event(Event::People(people::Event::Decided {
             request,
             outcome: people::Outcome::Again(people::Again::Busy),
-        }));
-        let mut out = Queue::uncapped();
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        })));
+        return Queue::uncapped();
     }
     let mut child = Queue::uncapped();
     core.people.mark_ended(
@@ -48,13 +47,13 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>
         )
         .is_some()
     {
-        let Requests::Out(mut erase) = crate::forget::forget(core, env, work, &owner);
+        let mut erase = crate::forget::forget(core, env, work, &owner);
         // Route the mark first, then its erase, in this decision.
-        let Requests::Out(mut out) = crate::routing::tag_ended_mark(core, env, child, work);
+        let mut out = crate::routing::tag_ended_mark(core, env, child, work);
         while let Some(request) = erase.pop() {
             out.push(request);
         }
-        return Requests::Out(out);
+        return out;
     }
     crate::routing::tag_ended_mark(core, env, child, work)
 }

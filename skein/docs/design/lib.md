@@ -78,11 +78,16 @@ them (testing.md, section 6).
   `#[must_use]`: replying consumes it, so a second reply does not
   compile. A missing one is the simulator's to catch.
 
+`Name<N>` is a name of at most `N` bytes held inline, checked once when it is made, against its maker's grammar, and copied freely after: a source's or a method's name, never text a person reads.
+
+A token's top four bits may tag its namespace (`Token::tagged`, `tag`, `untagged`), for a root that hands tokens to several children.
+
 ## 5. Containers
 
 | Container | What | Over |
 |---|---|---|
 | `Queue<T>` | the records between stages, first in first out | a ring buffer grown as it fills |
+| `Lossy<T>` | facts a reader may miss: kept up to a cap, the rest dropped and counted | a capped `Queue` and a count |
 | `List<T>` | a sequence a step appends to | a buffer costing what it holds |
 | `Map<K, V>` | a table keyed by value, ordered by key | a B-tree, priced in tree nodes |
 | `Set<K>` | a `Map` without values | a B-tree, priced in tree nodes |
@@ -96,6 +101,8 @@ exactly and never past the cap. A B-tree allocates as it fills, so its
 `price(capacity)` counts its nodes at capacity, not its entries.
 `List`, `Queue`, `Intake`, `Map`, `Set`, `Stack` and `Buffer` give this
 allocation price through `price(capacity)`.
+
+`List::from_boxed` makes a list of owned items, its capacity their count.
 
 **`Queue::uncapped()`, `Map::uncapped()` and `List::uncapped()`**
 start empty and grow, with `u32::MAX` as their capacity. They hold the
@@ -164,7 +171,9 @@ where it holds it.
   `bytes::copy_of` copies one, for data a domain keeps and also sends;
   `bytes::zeroed` makes one for the side below to fill, a receive buffer.
   The byte search (`bytes::find`, `find_from`, `count`) runs in linear
-  time and allocates nothing.
+  time and allocates nothing. `bytes::is_utf8` says whether bytes are UTF-8,
+  and `bytes::utf8_prefix` cuts valid UTF-8 at a character boundary at or
+  below a byte count: the one place skein and its users check text.
 - **`Reader`** reads a delivery without trusting any length in it: every
   read (`u8`, `u16`, `u32`, `u64`, `bytes`, `skip`) returns an `Option`,
   and a short one is a framing error for the caller, never a panic.
@@ -190,6 +199,7 @@ where it holds it.
   Its owner reads the bytes with `expose`, which makes each use visible in
   review. Clone, equality and `Hash` are over its bytes, as a record's
   derives need; it neither zeroes nor locks memory (io.md, 5.3).
+- **Widening:** `length::usize_of` widens a `u32` count to an index and `length::len_u64` a length to a count, so no step writes `try_from` for either.
 
 ### 6.1 Base64
 
@@ -486,6 +496,7 @@ cannot manufacture independent room.
 
 **`Env<L>`** is what a step reads besides its own state: `now`, `wall`,
 and its layer's `limits: L`. A step gets it behind a shared borrow.
+`env.with(limits)` hands a child step the same clocks with its own limits.
 
 ## 10. Testing
 

@@ -154,7 +154,7 @@ pub enum Delivery {
     Now(core::Now),
     /// A connector retains this event until a later engine can take it.
     Busy(Box<root::Event>),
-    /// A core-selected start phase and its optional inbox range.
+    /// A phase of the core's start and its optional inbox range.
     Start { phase: core::start::Phase, census: Option<core::Census> },
 }
 
@@ -210,7 +210,11 @@ impl Neighbours {
                 }
                 root::Record::Connector { number, record: connector::Record::Outbox(row) } => {
                     if let Some(attempt) = row.attempt {
-                        receipts.insert(Receipt::Outbox(*number, row.key.into(), attempt.number));
+                        receipts.insert(Receipt::Outbox(
+                            *number,
+                            jig_core_world::observations::effect_key(row.key),
+                            attempt.number,
+                        ));
                     }
                 }
                 root::Record::Core(_) | root::Record::Connector { .. } => {}
@@ -540,11 +544,8 @@ impl Application for Testing {
                         accounts::FromComponent::Closed,
                     ))))]
                 }
-                Delivery::Now(core::Now::StartPreparation { task, from: None, .. }) => {
-                    vec![Input::Event(root::Event::TranscriptLoaded { task, rows: Box::new([]), done: true })]
-                }
                 Delivery::Now(
-                    now @ (core::Now::StartPreparation { from: Some(_), .. }
+                    now @ (core::Now::StartPreparation { .. }
                     | core::Now::SeenConversation { .. }
                     | core::Now::LoadEndedRead { .. }
                     | core::Now::HistoricalPersonTask { .. }

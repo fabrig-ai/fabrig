@@ -110,7 +110,7 @@ fn accept_restart(seed: u64, ceiling: u64) {
             see(b"Accepted"),
             Step::Go { address: Address::Jig(JigAddress::Task { task: 10, section: TaskSection::Panels }) },
             see(b"Restart service"),
-            see(b"Waiting for condition"),
+            see(b"Waiting for healthy"),
         ],
     );
     world.person(
@@ -186,19 +186,28 @@ fn q_asks_for_an_environment_in_a_chat_and_accepts_what_it_costs() {
             .documents
             .get(&jig_ops_world::client::Subject::Infrastructure(jig_ops_client_domain::infrastructure::Subject {
                 scope: jig_ops_client_domain::infrastructure::Scope::Project(1),
-                kind: jig_ops_client_domain::infrastructure::Kind::Environment(7),
+                kind: jig_ops_client_domain::infrastructure::Kind::Environment(stories::environment_name()),
             }))
             .expect("original owner environment retained");
-        let jig_ops_world::client::Document::Infrastructure(
-            jig_ops_client_domain::infrastructure::Document::Environment(after),
-        ) = doc
+        let jig_ops_world::client::Document::Infrastructure(jig_ops_client_domain::infrastructure::Document::Value(
+            after,
+        )) = doc
         else {
             unreachable!()
         };
-        assert_eq!(after.end.expect("owner desired end").revision.value, 6);
-        assert_eq!(after.end.expect("owner desired end").until.as_secs(), 900);
-        assert_eq!(after.observed_until, subject.observed_until);
-        assert_eq!(after.created_by, subject.created_by);
+        let jig_ops_client_domain::infrastructure::values::Value::Environment { end, fact, end_revision, .. } =
+            &after.value
+        else {
+            unreachable!()
+        };
+        let jig_ops_client_domain::infrastructure::values::Value::Environment { fact: before, .. } = &subject.value
+        else {
+            unreachable!()
+        };
+        assert_eq!(*end_revision, 6);
+        assert_eq!(end.expect("owner desired end").revision, 6);
+        assert_eq!(end.expect("owner desired end").until, 900);
+        assert_eq!(fact, before);
         assert_eq!(world.front().engine.commits().iter().filter(|c| c.key.is_some()).count(), 3);
     }
 }

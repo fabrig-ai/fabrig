@@ -353,7 +353,6 @@ fn sign_out_button() -> Find {
 }
 #[test]
 fn a_person_signs_out_and_a_later_request_is_answered_signed_out() {
-    use crate::joint::transport::{KeyedOwner, Reply};
     let (mut world, client) = signed_in_at_the_frame();
     let sign_in = session_sign_in(&world.front().session, client).expect("real sign-in");
     world.person(
@@ -369,18 +368,23 @@ fn a_person_signs_out_and_a_later_request_is_answered_signed_out() {
     let key = [99; 16];
     let session = &mut world.front().session;
     assert_eq!(session_sign_in(session, client), None);
-    let reply_to = session.driver.transport.reply_to(Reply::Keyed { client, attempt, key, owner: KeyedOwner::Jig });
-    session.driver.send(
-        now,
-        super::clock(now),
-        jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Ask {
-            models: Box::new([]),
-            reply_to,
-            sign_in,
-            key,
-            ask: people::Ask::Stop { project: 1, task: u64::MAX },
-        })),
-    );
+    session
+        .send(
+            client,
+            now,
+            super::clock(now),
+            jig_client_test_domain::Request::Client {
+                request: jig_client::Request::Down {
+                    down: jig_client::Down::Send {
+                        attempt,
+                        key,
+                        request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                        value: None,
+                    },
+                },
+            },
+        )
+        .expect("the request crosses the component with no credential");
     let callbacks = session.poll(now, super::clock(now)).expect("actual engine terminal");
     assert!(callbacks.iter().any(|(owner, event)| *owner == client && matches!(event,
         jig_client_test_domain::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer { attempt: actual, envelope: skein_lib::RequestEnvelope::SignedOut, answer: None, why: None } } } if *actual == attempt)));

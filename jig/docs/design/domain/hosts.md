@@ -395,10 +395,11 @@ than one per shape, buys:
   in the engine: the hello as one value, which a worker's root assembles
   from the hub, its workspace, its agent capability's bounds and its
   link's graces; notices relayed from the agent; facts as outputs, best
-  effort, as well as by query. The engine's root translates its own
-  hub's link as it translates a worker's (`../protocol/channel.md`,
-  section 1), its hello stating the bounds of its `smith-inline-agent`'s
-  configuration.
+  effort, as well as by query. The values are one crate's, `jig-domain-link`, which
+  the hub and the core's fleet share, so the engine's root passes its own
+  hub's link to the fleet unchanged, as a worker's protocol layer decodes a
+  worker's into the same values (`../protocol/channel.md`, section 1); its
+  hello states the bounds of its `smith-inline-agent`'s configuration.
 - **The link vocabulary names only what crosses.** It names a run and an
   attempt by their numbers, and a call, a message or a turn by the name
   or number the run or the engine gave it, which mean the same on both
@@ -802,6 +803,8 @@ translation into smith's charter (smith's `domain/run.md`, 3.1; smith's
 engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
 host tools' calls (6.8).
+
+Its `assignment` builds that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants. A root calls it and decides none of it.
 
 - **Instructions and brief:** the charter's instructions, and the brief's
   sections rendered as smith's titled sections, in order, the

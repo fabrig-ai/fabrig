@@ -1,5 +1,4 @@
 //! Bounded task messages and atomic turn reads (domain/tasks.md, section 8.2).
-#![expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")]
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{Limits, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Word};
 use alloc::boxed::Box;
@@ -177,7 +176,7 @@ pub(crate) fn room_staged(
             continue;
         }
         delegates = delegates.checked_add(1).expect("delegate bound");
-        if crate::person::credit(crate::domain::record(domain, *child).expect("live delegate")) {
+        if staged.delegate_credit(domain, *child) {
             stall_credits = stall_credits.checked_add(1).expect("bounded person delegates");
         }
     }
@@ -189,7 +188,7 @@ pub(crate) fn room_staged(
     }
     let owed_credit = record.spec.asks && !record.asked_requester && !reminder;
     let Some(reserved) = reserved.checked_add(usize::from(owed_credit)) else { return false };
-    let received = received_credits(record.requester, &record.question_lines, &record.questions, record.inbox);
+    let received = received_credits(record.requester, &record.question_lines, &record.questions);
     let Some(reserved) = reserved.checked_add(received) else { return false };
     let Some(reserved) = reserved.checked_add(usize::from(record.proposal.is_some())) else { return false };
     let Some((subscription_count, subscription_bytes)) = crate::subscriptions::credit(&record, limits) else {
@@ -500,7 +499,14 @@ pub(crate) fn check_message(
                 }));
             }
         };
-        if !room(domain, &env.limits, source, 1, usize::try_from(env.limits.message_bytes).expect("u32 fits usize")) {
+        if !room_staged(
+            domain,
+            staged,
+            &env.limits,
+            source,
+            1,
+            usize::try_from(env.limits.message_bytes).expect("u32 fits usize"),
+        ) {
             return Err(Box::new(crate::Problem {
                 task: Some(source),
                 why: Refusal::Busy,
@@ -725,51 +731,7 @@ pub(crate) fn finish_word(task: &crate::TaskRecord, message: u64) -> bool {
     }
 }
 
-/// Project inbox admission and answer credits without publishing a step part.
-pub(crate) fn preview_message(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    project: u32,
-    number: u64,
-    word: Word,
-) -> Result<(), crate::Problem> {
-    let checked = match check_message(
-        domain,
-        &crate::compound::Staged::new(0),
-        env,
-        Message { project, number, word, authorized: false },
-    ) {
-        Ok(plan) => plan,
-        Err(problem) => return Err(*problem),
-    };
-    let row = &mut task_mut(domain, number).expect("message checked").record;
-    row.last_message = checked.prepared.word.number;
-    row.inbox = checked.prepared.inbox;
-    if let Some(question) = checked.answer {
-        let mut credits = List::with_capacity(env.limits.inbox_messages);
-        for credit in &row.questions {
-            if credit.number != question {
-                credits.push(credit.clone()).expect("credit subset");
-            }
-        }
-        row.questions = credits.into_boxed();
-    }
-    if checked.prepared.word.kind == MessageKind::Question {
-        let Party::Task(source) = checked.prepared.word.from else { unreachable!("question source checked") };
-        let credit = question_credit(domain, number, &checked.prepared.word);
-        let row = &mut task_mut(domain, source).expect("referenced source").record;
-        row.asked_requester |= row.requester == Party::Task(number);
-        let mut credits = List::with_capacity(env.limits.inbox_messages);
-        for credit in &row.questions {
-            credits.push(credit.clone()).expect("bounded credits");
-        }
-        credits.push(credit).expect("question checked");
-        row.questions = credits.into_boxed();
-    }
-    Ok(())
-}
-
-fn question_credit(domain: &Domain, asked: u64, word: &Word) -> QuestionCredit {
+pub(crate) fn question_credit(domain: &Domain, asked: u64, word: &Word) -> QuestionCredit {
     let answerer = Party::Task(asked);
     QuestionCredit {
         number: word.number,
@@ -786,12 +748,7 @@ fn question_credit(domain: &Domain, asked: u64, word: &Word) -> QuestionCredit {
 
 /// Received question positions and original outgoing credits share the core
 /// history cache admission. A carried direct question uses its existing credit.
-pub(crate) fn received_credits(
-    requester: Party,
-    lines: &[crate::QuestionLine],
-    credits: &[QuestionCredit],
-    _inbox: &[Word],
-) -> usize {
+pub(crate) fn received_credits(requester: Party, lines: &[crate::QuestionLine], credits: &[QuestionCredit]) -> usize {
     let Party::Person(_) = requester else {
         return 0;
     };

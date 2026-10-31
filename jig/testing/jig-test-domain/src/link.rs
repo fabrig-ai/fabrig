@@ -28,51 +28,9 @@ pub enum Event {
 /// Translate a worker's complete admission report.
 #[must_use]
 pub fn hello(channel: Token, worker: u32, hello: host::Hello) -> core::Event {
-    let mut models = List::with_capacity(u32::try_from(hello.bounds.models.len()).expect("bounded models"));
-    for model in hello.bounds.models {
-        models
-            .push(fleet::ModelBound { name: model.name, window: model.window, output: model.output })
-            .expect("one slot per model");
-    }
-    let mut hosting = List::with_capacity(u32::try_from(hello.hosting.len()).expect("bounded hosted runs"));
-    for run in hello.hosting {
-        hosting
-            .push(fleet::Hosted { run: run.run, attempt: run.attempt, phase: phase(run.phase) })
-            .expect("one slot per hosted run");
-    }
-    core::Event::Fleet(fleet::Event::Hello {
-        channel,
-        worker,
-        hello: fleet::Hello {
-            slots: hello.slots,
-            stop_bound: hello.stop_bound,
-            workstreams: hello.workstreams,
-            hosting: hosting.into_boxed(),
-            bounds: fleet::Bounds {
-                program_endpoints: hello.bounds.program_endpoints,
-                models: models.into_boxed(),
-                turns: hello.bounds.turns,
-                spend: hello.bounds.spend,
-                time: hello.bounds.time,
-                waiting: hello.bounds.waiting,
-                checks: hello.bounds.checks,
-                message_bytes: hello.bounds.message_bytes,
-                inbox: hello.bounds.inbox,
-                unacknowledged: hello.bounds.unacknowledged,
-            },
-        },
-    })
+    core::Event::Fleet(fleet::Event::Hello { channel, worker, hello })
 }
-fn phase(phase: host::Phase) -> fleet::Phase {
-    match phase {
-        host::Phase::Preparing => fleet::Phase::Preparing,
-        host::Phase::Starting => fleet::Phase::Starting,
-        host::Phase::Active => fleet::Phase::Active,
-        host::Phase::Waiting => fleet::Phase::Waiting,
-        host::Phase::Ending => fleet::Phase::Ending,
-        host::Phase::Answered => fleet::Phase::Answered,
-    }
-}
+
 /// A channel loss goes through the fleet's grace and fences.
 #[must_use]
 pub fn lost(channel: Token) -> core::Event {
@@ -83,24 +41,8 @@ pub fn lost(channel: Token) -> core::Event {
 pub fn up(domain: &mut Domain, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
         host::LinkUp::Piece { run, attempt, piece } => return live_piece(domain, run, attempt, piece),
-        host::LinkUp::Logins { logins } => {
-            let mut rows = List::with_capacity(u32::try_from(logins.len()).expect("bounded source rows"));
-            for login in logins {
-                rows.push(fleet::Login { name: source_name(login.name), state: source_login(login.state) })
-                    .expect("one source row per input");
-            }
-            fleet::Event::Logins { channel, logins: rows.into_boxed() }
-        }
-        host::LinkUp::SignedOut { name, result } => fleet::Event::SignedOut {
-            channel,
-            name: source_name(name),
-            result: match result {
-                host::SignOutResult::SignedOut => fleet::SignOutResult::SignedOut,
-                host::SignOutResult::Failed { reason, detail } => {
-                    fleet::SignOutResult::Failed { reason: source_failure(reason), detail }
-                }
-            },
-        },
+        host::LinkUp::Logins { logins } => fleet::Event::Logins { channel, logins },
+        host::LinkUp::SignedOut { name, result } => fleet::Event::SignedOut { channel, name, result },
         host::LinkUp::Turn { run, attempt, turn } => {
             let number = turn.turn;
             let body = crate::payload(
@@ -215,17 +157,13 @@ pub(super) fn receive(domain: &mut Domain, channel: Token, link: Event, work: &m
 pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
     let (channel, down) = match delivery {
         Delivery::Core(core::Held::Sources { channel, sources }) if domain.links.contains(&channel) => {
-            let mut names = List::with_capacity(u32::try_from(sources.len()).expect("bounded source names"));
-            for name in sources {
-                names.push(host_source_name(name)).expect("one name per input");
-            }
-            (channel, host::LinkDown::Sources { sources: names.into_boxed() })
+            (channel, host::LinkDown::Sources { sources })
         }
         Delivery::Core(core::Held::CheckSource { channel, name }) if domain.links.contains(&channel) => {
-            (channel, host::LinkDown::Check { name: host_source_name(name) })
+            (channel, host::LinkDown::Check { name })
         }
         Delivery::Core(core::Held::SignOutSource { channel, name }) if domain.links.contains(&channel) => {
-            (channel, host::LinkDown::SignOut { name: host_source_name(name) })
+            (channel, host::LinkDown::SignOut { name })
         }
         Delivery::Message { channel, task, attempt, word } if domain.links.contains(&channel) => (
             channel,
@@ -274,19 +212,9 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
         Delivery::Core(core::Held::Cancel { channel, run, attempt }) if domain.links.contains(&channel) => {
             (channel, host::LinkDown::Cancel { run, attempt })
         }
-        Delivery::Core(core::Held::Grant { channel, run, attempt, grant }) if domain.links.contains(&channel) => (
-            channel,
-            host::LinkDown::Grant {
-                run,
-                attempt,
-                grant: host::Grant {
-                    form: host_form(grant.form),
-                    account: grant.account,
-                    generation: grant.generation,
-                    valid: grant.valid,
-                },
-            },
-        ),
+        Delivery::Core(core::Held::Grant { channel, run, attempt, grant }) if domain.links.contains(&channel) => {
+            (channel, host::LinkDown::Grant { run, attempt, grant })
+        }
         Delivery::Core(core::Held::Refuse { channel }) => {
             let _removed = domain.links.remove(&channel);
             return Delivery::Core(core::Held::Refuse { channel });
@@ -397,31 +325,9 @@ fn report(activity: host::Activity) -> fleet::Report {
             host::Phase::Waiting => fleet::Activity::Waiting,
             host::Phase::Ending | host::Phase::Answered => fleet::Activity::Ending,
         }),
-        host::Activity::Long { operation, span } => fleet::Report::Activity(fleet::Activity::Long {
-            operation: match operation {
-                host::Operation::Checks => fleet::Operation::Checks,
-                host::Operation::Completion => fleet::Operation::Completion,
-                host::Operation::Command => fleet::Operation::Command,
-            },
-            span,
-        }),
+        host::Activity::Long { operation, span } => fleet::Report::Activity(fleet::Activity::Long { operation, span }),
         host::Activity::LongDone => fleet::Report::Activity(fleet::Activity::Active),
-        host::Activity::Count { kind, elapsed, count } => fleet::Report::Count {
-            kind: match kind {
-                host::CountKind::Admitted => fleet::CountKind::Admitted,
-                host::CountKind::Ended => fleet::CountKind::Ended,
-                host::CountKind::LlmStarted => fleet::CountKind::LlmStarted,
-                host::CountKind::LlmRetried => fleet::CountKind::LlmRetried,
-                host::CountKind::LlmFinished => fleet::CountKind::LlmFinished,
-                host::CountKind::ToolStarted => fleet::CountKind::ToolStarted,
-                host::CountKind::ToolFinished => fleet::CountKind::ToolFinished,
-                host::CountKind::CheckStarted => fleet::CountKind::CheckStarted,
-                host::CountKind::CheckFinished => fleet::CountKind::CheckFinished,
-                host::CountKind::TextArrived => fleet::CountKind::TextArrived,
-            },
-            elapsed,
-            count,
-        },
+        host::Activity::Count { kind, elapsed, count } => fleet::Report::Count { kind, elapsed, count },
     }
 }
 
@@ -531,49 +437,6 @@ pub(super) enum Work {
         read: Option<u64>,
         refused: Box<[u64]>,
     },
-}
-
-fn host_form(form: fleet::Form) -> host::Form {
-    match form {
-        fleet::Form::Credential(scheme) => host::Form::Credential(match scheme {
-            fleet::Scheme::Bearer => host::Scheme::Bearer,
-            fleet::Scheme::Key => host::Scheme::Key,
-        }),
-        fleet::Form::Application => host::Form::Application,
-        fleet::Form::Program(name) => {
-            host::Form::Program(host::SourceName::new(name.as_bytes()).expect("source name follows the same rules"))
-        }
-    }
-}
-
-fn source_name(name: host::SourceName) -> fleet::SourceName {
-    fleet::SourceName::new(name.as_bytes()).expect("same source name grammar")
-}
-fn host_source_name(name: fleet::SourceName) -> host::SourceName {
-    host::SourceName::new(name.as_bytes()).expect("same source name grammar")
-}
-fn source_login(state: host::LoginState) -> fleet::LoginState {
-    match state {
-        host::LoginState::Usable => fleet::LoginState::Usable,
-        host::LoginState::NotSignedIn => fleet::LoginState::NotSignedIn,
-        host::LoginState::SignedInOtherwise(method) => fleet::LoginState::SignedInOtherwise(
-            fleet::LoginMethod::new(method.as_bytes()).expect("same printable method grammar"),
-        ),
-        host::LoginState::Failed { reason, detail } => {
-            fleet::LoginState::Failed { reason: source_failure(reason), detail }
-        }
-    }
-}
-const fn source_failure(reason: host::SourceFailure) -> fleet::SourceFailure {
-    match reason {
-        host::SourceFailure::Missing => fleet::SourceFailure::Missing,
-        host::SourceFailure::Deadline => fleet::SourceFailure::Deadline,
-        host::SourceFailure::Unreadable => fleet::SourceFailure::Unreadable,
-        host::SourceFailure::Exited => fleet::SourceFailure::Exited,
-        host::SourceFailure::Unconfigured => fleet::SourceFailure::Unconfigured,
-        host::SourceFailure::Unknown => fleet::SourceFailure::Unknown,
-        host::SourceFailure::Closed => fleet::SourceFailure::Closed,
-    }
 }
 
 fn live_piece(domain: &mut Domain, run: Token, attempt: Token, piece: host::Piece) -> Option<core::Event> {

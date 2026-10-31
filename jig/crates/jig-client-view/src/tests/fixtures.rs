@@ -1,5 +1,5 @@
-use crate::address::Address;
-use crate::records::{RECORDS_VERSION, Record};
+use crate::state::address::Address;
+use crate::state::records::{RECORDS_VERSION, Record};
 use jig_client::contract::Text;
 pub const PARTY: u64 = u64::MAX;
 pub const TASK: u64 = u64::MAX;
@@ -16,7 +16,7 @@ pub fn draft() -> Record {
     }
 }
 pub fn places() -> skein_lib::List<Record> {
-    use crate::address::{Address, ProjectSection, TaskSection};
+    use crate::state::address::{Address, ProjectSection, TaskSection};
     let mut addresses = skein_lib::List::with_capacity(21);
     for address in [
         Address::Inbox { project: None },
@@ -79,7 +79,7 @@ pub(crate) fn parts(output: &[crate::Request], capacity: u32) -> Box<[crate::Req
     parts.into_boxed()
 }
 
-mod client;
+pub(crate) mod client;
 pub(crate) use client::MOST;
 pub(crate) use client::{
     AnsweredByEngine, CardAsk, Ended, FireClient, Fixture, Input, ReadPage, Reported, SendIntent, Served, Tick,
@@ -223,7 +223,7 @@ pub(crate) fn creating() -> jig_client::contract::Creating {
     charters.push(2).unwrap();
     Creating {
         within: CreateBounds {
-            authority: Box::new(super::cards_objects::owner_authority()),
+            authority: Box::new(crate::tests::tree::cards_objects::owner_authority()),
             pool_left: 20,
             charters,
             procedures: skein_lib::List::with_capacity(0),
@@ -265,7 +265,7 @@ pub(crate) fn set_creating(fixture: &mut Fixture, project: u32, offer: &jig_clie
 }
 pub(crate) fn chat_request(project: u32, words: Text) -> jig_client::contract::Ask {
     use jig_client::contract::*;
-    let mut authority = super::cards_objects::owner_authority().authority;
+    let mut authority = crate::tests::tree::cards_objects::owner_authority().authority;
     authority.spend = 0;
     let mut tasks = skein_lib::List::with_capacity(1);
     tasks
@@ -297,9 +297,12 @@ pub(crate) fn chat_request(project: u32, words: Text) -> jig_client::contract::A
         .unwrap();
     Ask::Create { project, tasks }
 }
-pub(crate) fn goal_request(form: crate::page::project::goals::GoalForm, words: Text) -> jig_client::contract::Ask {
+pub(crate) fn goal_request(
+    form: crate::state::page::project::goals::GoalForm,
+    words: Text,
+) -> jig_client::contract::Ask {
     use jig_client::contract::*;
-    let mut authority = super::cards_objects::owner_authority().authority;
+    let mut authority = crate::tests::tree::cards_objects::owner_authority().authority;
     authority.spend = form.budget;
     authority.deadline = form.deadline;
     let mut tasks = skein_lib::List::with_capacity(1);
@@ -339,8 +342,8 @@ pub(crate) fn goal_request(form: crate::page::project::goals::GoalForm, words: T
 
 /// Shape stories start from the same delivered membership document.
 pub(crate) fn shape_fixture(me: jig_client::contract::Me) -> Fixture {
-    let (mut fixture, watch) = super::cards::start();
-    super::cards::drive(
+    let (mut fixture, watch) = crate::tests::tree::cards::start();
+    crate::tests::tree::cards::drive(
         &mut fixture,
         Watched {
             watch,
@@ -351,19 +354,19 @@ pub(crate) fn shape_fixture(me: jig_client::contract::Me) -> Fixture {
 }
 /// A chat with its creating offer withdrawn, ready to press Begin.
 pub(crate) fn unoffered_chat() -> Fixture {
-    let mut me = super::cards::document();
+    let mut me = crate::tests::tree::cards::document();
     me.projects.get_mut(0).unwrap().creating = None;
     let mut fixture = shape_fixture(me);
-    super::cards::drive(
+    crate::tests::tree::cards::drive(
         &mut fixture,
-        crate::Event::Went { place: crate::address::Place::Jig(Address::Conversations { project: Some(4) }) },
+        crate::Event::Went { place: crate::state::address::Place::Jig(Address::Conversations { project: Some(4) }) },
     );
-    super::cards::drive(
+    crate::tests::tree::cards::drive(
         &mut fixture,
         crate::Event::Act {
-            action: crate::action::Act::Edit {
-                field: crate::fields::Purpose::NewChat,
-                text: super::cards::text(b"not offered"),
+            action: crate::state::action::Act::Edit {
+                field: crate::state::fields::Purpose::NewChat,
+                text: crate::tests::tree::cards::text(b"not offered"),
             },
         },
     );
@@ -374,12 +377,12 @@ pub(crate) fn unoffered_chat() -> Fixture {
 pub(crate) fn shape_goal_fixture(me: jig_client::contract::Me) -> Fixture {
     use jig_client::contract::{Read, ReadResult, ReadValue};
     let mut fixture = shape_fixture(me);
-    let out = super::cards::drive(
+    let out = crate::tests::tree::cards::drive(
         &mut fixture,
         crate::Event::Went {
-            place: crate::address::Place::Jig(Address::Project {
+            place: crate::state::address::Place::Jig(Address::Project {
                 project: 4,
-                section: crate::address::ProjectSection::Goals,
+                section: crate::state::address::ProjectSection::Goals,
             }),
         },
     );
@@ -388,11 +391,13 @@ pub(crate) fn shape_goal_fixture(me: jig_client::contract::Me) -> Fixture {
             asked: jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(Read::Project { .. }) },
         } = request
         {
-            super::cards::drive(
+            crate::tests::tree::cards::drive(
                 &mut fixture,
                 ReadPage {
                     read,
-                    result: ReadResult::Value(ReadValue::Project(Box::new(super::work_pages::project_doc()))),
+                    result: ReadResult::Value(ReadValue::Project(Box::new(
+                        crate::tests::tree::work_pages::project_doc(),
+                    ))),
                 },
             );
             return fixture;

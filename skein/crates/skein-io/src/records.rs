@@ -62,6 +62,48 @@ pub enum Request {
     Abort { entity: Token },
 }
 
+/// Routing queries (skein/docs/design/io.md, 3.1).
+impl Request {
+    /// The owner named by this request, absent when it names only an io entity.
+    #[must_use]
+    pub const fn owner(&self) -> Option<Token> {
+        match self {
+            Self::Listen { owner, .. }
+            | Self::Connect { owner, .. }
+            | Self::Bind { owner, .. }
+            | Self::Spawn { owner, .. }
+            | Self::Usage { owner }
+            | Self::Window { owner, .. } => Some(*owner),
+            Self::Reject { .. }
+            | Self::Stream { .. }
+            | Self::Output { .. }
+            | Self::Signal { .. }
+            | Self::Close { .. }
+            | Self::Abort { .. } => None,
+        }
+    }
+
+    /// Re-addresses an owned request; entity-only requests keep their payload.
+    #[must_use]
+    pub fn with_owner(mut self, owner: Token) -> Self {
+        match &mut self {
+            Self::Listen { owner: destination, .. }
+            | Self::Connect { owner: destination, .. }
+            | Self::Bind { owner: destination, .. }
+            | Self::Spawn { owner: destination, .. }
+            | Self::Usage { owner: destination }
+            | Self::Window { owner: destination, .. } => *destination = owner,
+            Self::Reject { .. }
+            | Self::Stream { .. }
+            | Self::Output { .. }
+            | Self::Signal { .. }
+            | Self::Close { .. }
+            | Self::Abort { .. } => {}
+        }
+        self
+    }
+}
+
 /// What io tells the layer above. Every event names first the owner it is
 /// for, by the owner's own token (programming-model.md, 4.2).
 #[derive(PartialEq, Eq, Hash, Debug)]

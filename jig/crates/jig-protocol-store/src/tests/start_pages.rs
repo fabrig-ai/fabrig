@@ -54,7 +54,7 @@ fn records(items: Box<[Item]>) -> Box<[Record]> {
 }
 
 #[test]
-fn load_core_pages_equal_the_unselected_walk_with_the_same_cursors() {
+fn load_core_pages_equal_the_direct_page_walk_with_the_same_cursors() {
     let mut selected = open();
     let mut default = open();
     for store in [&mut selected, &mut default] {
@@ -84,7 +84,7 @@ fn load_core_pages_equal_the_unselected_walk_with_the_same_cursors() {
 }
 
 #[test]
-fn census_pairs_and_result_joins_equal_the_unselected_walk() {
+fn census_pairs_and_result_joins_equal_the_direct_page_walk() {
     let position = Record::People(jig_domain_people::Stored::EndedRead { task: ENDED, party: ALICE, through: 1 });
     let mut selected = open();
     let mut default = open();

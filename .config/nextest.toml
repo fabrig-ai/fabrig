@@ -46,6 +46,7 @@ default-filter = """
   & not (kind(test) & test(/^fuzzy::/))
   & (not binary(/^(process|live)$/) | (binary(=live) & test(=the_live_configurations_are_ones_jig_test_reads)))
   & not binary(/^browser_/) & not binary(/^qa_/)
+  & not (package(=jig-store-world) & binary(=edges))
 ) | (
   (package(/^temper(-|$)/) | package(=git-transcripts))
   & not test(/^tests::sign_in::fuzzy_/) & not (kind(test) & test(/^fuzzy::/))
@@ -89,6 +90,7 @@ default-filter = """
   package(/^jig(-|$)/)
   & (kind(test) & test(/^fuzzy::/)) & not binary(/^(process|live)$/)
   & not binary(/^browser_/) & not binary(/^qa_/)
+  & not (package(=jig-store-world) & binary(=edges))
 ) | (
   (package(/^temper(-|$)/) | package(=git-transcripts))
   & ((kind(test) & test(/^fuzzy::/)) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
@@ -151,7 +153,7 @@ global-timeout = "120s"
 slow-timeout = { period = "6s" }
 
 [profile.qa-jig]
-default-filter = "binary(/^qa_/) & package(/^jig(-|$)/)"
+default-filter = "(binary(/^qa_/) | (package(=jig-store-world) & binary(=edges))) & package(/^jig(-|$)/)"
 global-timeout = "120s"
 slow-timeout = { period = "10s" }
 

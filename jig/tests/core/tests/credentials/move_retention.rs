@@ -1,5 +1,6 @@
 //! A move's completion must remain possible at the retained-answer boundary.
 use super::*;
+use jig_core_world::effects::Setup;
 
 const SEED: u64 = 211;
 // The fixture's chat, the account sign-in, and its move out each retain one answer.
@@ -22,7 +23,7 @@ fn signed(requests: u32) -> (World, u32, u32) {
     limits.core.people.requests = requests;
     limits.core.people.pending = TRANSFER_PENDING;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = World::configured(SEED, false, config, limits);
+    let mut world = World::new(Setup { seed: SEED, configuration: Some(config), limits, ..Setup::default() });
     let (account, source) = signed_in(&mut world);
     world.announce_grant(source, 1, accounts::Form::Credential(accounts::Scheme::Bearer));
     (world, account, source)
@@ -61,12 +62,7 @@ fn pass_time(world: &mut World, duration: Duration) {
     world.fire_due(now.saturating_add(duration), Wall::from_nanos(wall.as_nanos() + duration.as_nanos()));
     // People expires one retained answer per turn; drain each due turn before asking again.
     let (now, wall) = world.clocks();
-    while world
-        .domain
-        .core_deadlines(now, wall)
-        .into_iter()
-        .any(|(timer, due)| timer == core::Timer::People && due.is_some_and(|due| due <= now))
-    {
+    while world.domain.core().due(now, wall) == Some(core::Timer::People) {
         world.send(root::Event::Timer(core::Timer::People));
     }
     fresh_session(world);

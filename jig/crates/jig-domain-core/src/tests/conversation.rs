@@ -22,7 +22,7 @@ fn a_settlement_refusal_preserves_its_opaque_live_reply_address() {
     let (mut core, limits) = make_tree();
     let key = CallKey { task: 1, attempt: 2, completion: 3, position: 4 };
     let to = ReplyTo::new(Token::new(5));
-    let Requests::Out(mut out) = crate::conversation::settle(
+    let mut out = crate::conversation::settle(
         &mut core,
         &limits,
         to,
@@ -38,6 +38,5 @@ fn a_settlement_refusal_preserves_its_opaque_live_reply_address() {
         (reply.into_token(), refused_key, name.as_ref(), tool.as_ref()),
         (Token::new(5), key, b"opaque address".as_slice(), b"tool".as_slice())
     );
-    let Some(Request::Decided) = out.pop() else { panic!("the decision closes") };
     assert!(out.is_empty());
 }

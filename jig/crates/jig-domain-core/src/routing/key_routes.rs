@@ -1,5 +1,6 @@
 //! LLM keys and moved records travel by carried number only (domain/accounts.md, section 5).
-use crate::{Carried, Core, Event, Held, Limits, Request, Requests};
+use crate::routing::Work;
+use crate::{Carried, Core, Held, Limits, Request};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
@@ -9,13 +10,13 @@ use skein_lib::{Env, Queue, ReplyTo, Token};
 pub(super) fn start(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     reply_to: ReplyTo,
     sign_in: u64,
     key: [u8; 16],
     ask: people::Ask,
     carried: Carried,
-) -> Requests {
+) -> Queue<Request> {
     let digest = if let people::Ask::AccountChange {
         change:
             people::AccountChange::AddKey { digest, .. }
@@ -35,8 +36,8 @@ pub(super) fn start(
             to: reply_to,
             reply: people::Reply::Refused(people::Refusal::NotOffered),
         })));
-        out.push(Request::Decided);
-        return super::application_routes::first(Some(carried.number), Requests::Out(out));
+
+        return super::application_routes::first(Some(carried.number), out);
     }
     assert!(core.key_input.is_none(), "one LLM key admission at a time");
     core.key_input = Some(carried);

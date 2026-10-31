@@ -1,4 +1,5 @@
 //! Reading releases tasks of the forgotten-once-read retention class (people.md, 6).
+use crate::routing::Work;
 use crate::{Core, Limits};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -88,18 +89,18 @@ pub fn forgets(owner: &Owner, reading: Reading) -> Option<u64> {
 pub(crate) fn forget(
     core: &mut Core,
     _env: &Env<Limits>,
-    work: &mut Queue<crate::Event>,
+    work: &mut Queue<Work>,
     owner: &Owner,
-) -> crate::Requests {
+) -> Queue<crate::Request> {
     let mut out = Queue::uncapped();
     if core.people.ready() && owner.result_position <= core.counters.deployment().messages {
         let party = owner.party;
-        work.push(crate::Event::People(people::Event::Forget {
+        work.push(Work::Event(crate::Event::People(people::Event::Forget {
             project: owner.project,
             task: owner.task,
             party: Some(party),
             last_reply: owner.last_reply.unwrap_or(0),
-        }));
+        })));
         let ended_at = owner.ended_at;
         let update = tasks::Update { party, at: ended_at, task: owner.task, object: tasks::UpdateObject::Result };
         let index = tasks::EndedByParty { party, label: owner.label, ended_at, task: owner.task };
@@ -117,6 +118,5 @@ pub(crate) fn forget(
             out.push(crate::Request::Write(crate::Write::Erase(crate::Key::Tasks(index.key()))));
         }
     }
-    out.push(crate::Request::Decided);
-    crate::Requests::Out(out)
+    out
 }

@@ -195,7 +195,7 @@ fn an_account_sign_in_address_reads_back_at_its_bounds() {
 fn an_account_sign_in_address_over_its_bound_is_an_encode_error() {
     let address = skein_lib::bytes::zeroed(usize::try_from(domain::ADDRESS).expect("small bound") + 1);
     let row = values::answered(domain::Outcome::AccountSignInStarted { source: 2, address });
-    let result = crate::codec::people::encode(&row, &super::people_limits(), &fixtures::model_names(&[]));
+    let result = crate::codec::people::encode(&row, &super::people_limits(), &fixtures::configured_model_names(&[]));
     assert_eq!(
         result,
         Err(crate::people_v13::Problem {

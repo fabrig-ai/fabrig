@@ -15,6 +15,7 @@ use alloc::vec::Vec;
 
 use crate::Overflow;
 use crate::growth::grown;
+use crate::length::usize_of;
 use crate::stream::{Delimiter, Read};
 
 /// The bytes a stream has received and the side above has not yet demanded,
@@ -105,12 +106,12 @@ impl Intake {
     /// Appends received bytes, or refuses them whole when they do not fit,
     /// appending nothing.
     pub fn append(&mut self, bytes: &[u8]) -> Result<(), Overflow> {
-        if bytes.len() > index(self.room()) {
+        if bytes.len() > usize_of(self.room()) {
             return Err(Overflow);
         }
         let needed = self.bytes.len().checked_add(bytes.len()).expect("within the cap");
         if needed > self.bytes.capacity() {
-            let target = grown(self.bytes.capacity(), needed, index(self.capacity));
+            let target = grown(self.bytes.capacity(), needed, usize_of(self.capacity));
             let additional = target.checked_sub(self.bytes.len()).expect("room for the received bytes");
             self.bytes.reserve_exact(additional);
         }
@@ -150,7 +151,7 @@ impl Intake {
             Read::Line { max } => (Until::LineEnd, max),
         };
         assert!(max <= self.capacity, "a scan past the intake's cap would never be met");
-        assert!(index(max) >= until.len(), "a scan holds its delimiter");
+        assert!(usize_of(max) >= until.len(), "a scan holds its delimiter");
         let n = self.scan(until, max)?;
         Some(self.take(n))
     }
@@ -183,8 +184,8 @@ impl Intake {
         }
         let end = self.len().min(max);
         // The last position at which a delimiter can begin and end by `end`.
-        let last = index(end).checked_sub(len)?;
-        let first = index(self.searched.clear);
+        let last = usize_of(end).checked_sub(len)?;
+        let first = usize_of(self.searched.clear);
         // Bounded by `max`: each position is searched once per delimiter, as
         // `clear` moves past it.
         for at in first..=last {
@@ -222,7 +223,7 @@ impl Intake {
     /// The first `n` bytes buffered, which there are, moved into a box of
     /// exactly their length.
     fn take(&mut self, n: u32) -> Box<[u8]> {
-        let len = index(n);
+        let len = usize_of(n);
         let (front, back) = self.bytes.as_slices();
         let from_front = front.len().min(len);
         let from_back = len.checked_sub(from_front).expect("no more than the front holds");
@@ -233,10 +234,6 @@ impl Intake {
         self.searched.clear = self.searched.clear.saturating_sub(n);
         taken.into_boxed_slice()
     }
-}
-
-fn index(n: u32) -> usize {
-    usize::try_from(n).expect("a u32 fits in a usize")
 }
 
 fn count(n: usize) -> u32 {

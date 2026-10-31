@@ -1,4 +1,5 @@
 use jig_core_world::Fault;
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     client_peer::ClientPeer,
     effects::World,
@@ -12,11 +13,12 @@ use skein_lib::{ReplyTo, Token};
 
 fn client_world() -> (World, u64) {
     let (configuration, limits) = fixture(451, 0);
-    let mut world = World::scripted(
-        configuration,
+    let mut world = World::new(Setup {
+        configuration: Some(configuration),
         limits,
-        Peers::new(vec![Worker::new(7, 1, vec![Box::new([Script::Wait, Script::Wait])])], vec![]),
-    );
+        peers: Some(Peers::new(vec![Worker::new(7, 1, vec![Box::new([Script::Wait, Script::Wait])])], vec![])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     world.send(root::Event::Core(core::Event::SignIn {
         held: None,

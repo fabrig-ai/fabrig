@@ -192,8 +192,8 @@ impl Core {
             | people::Ask::AccountSignOut { .. }
             | people::Ask::AccountChange { .. } => unreachable!("person-task route owns its ask"),
         };
-        assert!(self.person_tasks.insert(request, route) == Ok(None), "one routed person task per keyed flight");
-        Ok(event)
+        let request = self.fly_person_task(request, route);
+        Ok(crate::flight::bind(event, request))
     }
 }
 

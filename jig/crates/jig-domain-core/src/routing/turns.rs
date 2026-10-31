@@ -1,5 +1,5 @@
 //! Turns and their current windows commit together (domain/engine.md, 7.2).
-use crate::{Core, CoreKey, CoreRecord, Held, Key, Limits, Record, Request, Requests, Write};
+use crate::{Core, CoreKey, CoreRecord, Held, Key, Limits, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue};
@@ -16,7 +16,7 @@ pub(super) fn route_accepted_turn(
     read: Option<u64>,
     transcript: Box<[u8]>,
     opens_window: bool,
-) -> Requests {
+) -> Queue<Request> {
     let refused = &core.tasks.task(task).expect("accepted turn task live").refused;
     let proof = core.proofs.get_mut(&task).expect("turn proof reserved before child mutation");
     assert!(proof.attempt == attempt, "turn callback retains its claim");
@@ -56,6 +56,5 @@ pub(super) fn route_accepted_turn(
     if let Some(relay) = crate::relays::next(core, task, env.limits.tasks.run_inbox) {
         out.push(Request::Held(Box::new(relay)));
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }

@@ -1,5 +1,6 @@
 //! Settings travel through the real restart, store and commit barrier (engine.md, 17.7).
 
+use jig_core_world::effects::Setup;
 use jig_core_world::{client_peer::ClientPeer, effects::World, fixtures, peers};
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_fleet as fleet;
@@ -359,7 +360,12 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
     config.core.settings.models[0].efforts = Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]);
     config.core.settings.models[0].effort = Some(Box::from(b"low".as_slice()));
     config.core.defaults.charters[0].policy.model = config.core.settings.models[0].clone();
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     let mut charter = world.domain.settings().charter(1).expect("settings fixture").clone();
@@ -568,7 +574,12 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
     config.core.defaults.charters[0].policy.alternatives = Box::new([other.clone()]);
     limits.core.tasks.circle = 1;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -663,7 +674,12 @@ fn released_history() -> World {
     limits.core.settings.history = 2;
     limits.core.documents.rows = 2;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     for grace in 6..=10 {
         let mut config = configuration().0;
@@ -867,7 +883,12 @@ fn a_removed_setting_keeps_its_inventory_line_and_reads_unknown() {
 fn revision_item_previews_state_how_many_were_cut() {
     let (config, mut limits) = configuration();
     limits.core.documents.lines = 1;
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let mut config = configuration().0;
     for template in &mut config.core.defaults.templates {
@@ -914,7 +935,12 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     const ENCODED_TEMPLATE_BYTES: u64 = 4142;
     let (config, mut limits) = configuration();
     limits.core.load_bytes = SINGLE_READ_BYTES;
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let mut config = configuration().0;
     config.core.defaults.templates[0].name = vec![b'x'; NAME_BYTES].into_boxed_slice();
@@ -956,7 +982,12 @@ fn held_run_with_history(history: u32) -> (World, u64, u64) {
     let (mut config, mut limits) = configuration();
     limits.core.settings.history = history;
     config.core.defaults.rules.maximum_run_spend = 20;
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1112,7 +1143,12 @@ fn held_revisions_past_their_limit_refuse_the_change_naming_the_oldest_and_its_t
     let (config, mut limits) = configuration();
     limits.core.settings.revisions = 1;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1167,7 +1203,12 @@ fn held_versions_past_their_limit_refuse_the_change_without_writing_settings() {
     let (config, mut limits) = configuration();
     limits.core.settings.versions = 1;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1317,7 +1358,12 @@ fn a_move_uses_the_room_freed_by_its_tasks_for_heads_and_versions() {
     limits.core.settings.versions = 1;
     config.core.defaults.rules.maximum_run_spend = 20;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1416,7 +1462,12 @@ fn held_revisions_past_a_lowered_limit_refuse_the_start_naming_the_limit() {
     let (config, mut limits) = configuration();
     limits.core.settings.revisions = 2;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1546,7 +1597,12 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
     config.core.defaults.rules.maximum_run_spend = 20;
     limits.core.fleet.engine_slots = 1;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1625,7 +1681,12 @@ fn the_bound_reached_its_named_tasks_moved_and_the_change_then_made() {
     limits.core.settings.revisions = 1;
     config.core.defaults.rules.maximum_run_spend = 20;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1681,7 +1742,7 @@ fn a_restart_adopts_a_live_run_on_its_old_version() {
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
-            hosting: Box::new([fleet::Hosted {
+            hosting: Box::new([fleet::Hosting {
                 run: Token::new(goal),
                 attempt: Token::new(attempt),
                 phase: fleet::Phase::Active,
@@ -1733,7 +1794,12 @@ fn two_story_charters() -> (root::Config, root::Limits) {
 #[test]
 fn a_delegation_to_a_removed_charter_is_refused_while_its_version_serves_its_task() {
     let (config, limits) = two_story_charters();
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1802,7 +1868,12 @@ fn remove_second_charter(world: &World, first: settings::Item) -> Box<[settings:
 #[test]
 fn a_conversation_moves_at_its_next_turn_and_one_whose_charter_is_removed_stays() {
     let (config, limits) = two_story_charters();
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));

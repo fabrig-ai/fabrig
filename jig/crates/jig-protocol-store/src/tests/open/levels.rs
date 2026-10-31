@@ -20,7 +20,7 @@ const ZERO: Levels = Levels { skein: Some(0), smith: Some(0), jig: Some(0), appl
 
 fn store(found: Levels, sets: PatchSets) -> Store {
     let (key, mut row) = fixture_format();
-    row.levels = format::recorded(found);
+    row.levels = found;
     let mut store = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format fits") });
     store.patch_sets(sets);
     store.limits.store.value = ROOM.bytes;
@@ -80,7 +80,7 @@ fn any_unleveled_owner_refuses_even_when_jig_is_leveled() {
 #[test]
 fn levels_refuse_before_versions_and_layouts_are_considered() {
     let (key, mut row) = fixture_format();
-    row.levels = format::recorded(Levels { jig: Some(3), ..format::NONE });
+    row.levels = Levels { jig: Some(3), ..format::NONE };
     row.tasks = 1;
     let mut store = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
     store.patch_sets(SETS);
@@ -119,7 +119,7 @@ fn equal_levels_still_check_every_version_and_layout() {
         let sets = if found == format::NONE { PatchSets::NONE } else { BASE };
         assert_opened(&open(&mut store(found, sets)), 1);
         let (key, mut row) = fixture_format();
-        row.levels = format::recorded(found);
+        row.levels = found;
         row.application = 2;
         let mut changed = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
         changed.patch_sets(sets);
@@ -132,7 +132,7 @@ fn equal_levels_still_check_every_version_and_layout() {
 #[test]
 fn behind_plans_before_ready_and_ignores_only_the_application_version() {
     let (key, mut row) = fixture_format();
-    row.levels = format::recorded(levels(0, 0));
+    row.levels = levels(0, 0);
     row.application = 0;
     let mut store = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
     store.patch_sets(SETS);
@@ -154,7 +154,7 @@ fn behind_plans_before_ready_and_ignores_only_the_application_version() {
 #[test]
 fn behind_keeps_jigs_versions_layouts_deployment_and_numbers_checks() {
     let (key, mut row) = fixture_format();
-    row.levels = format::recorded(levels(0, 0));
+    row.levels = levels(0, 0);
     row.core = 5;
     let mut changed = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
     changed.patch_sets(SETS);

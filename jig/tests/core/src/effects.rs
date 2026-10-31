@@ -15,10 +15,60 @@ use jig_test_store::{StoreOut, Up};
 use jig_test_system::{Fault, System};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::VecDeque;
+mod admission;
 mod constructors;
+mod walking;
+pub use walking::{Scenario, Walking};
 mod deliveries;
 mod store;
 pub use constructors::fixture;
+
+/// Startup of the core world (`jig/docs/design/domain/engine.md`, section 15).
+#[derive(Debug)]
+pub struct Setup {
+    pub seed: u64,
+    pub requirement: bool,
+    pub configuration: Option<root::Config>,
+    pub limits: root::Limits,
+    pub initial: Option<people::Ask>,
+    pub rows: Option<Box<[root::Record]>>,
+    pub startup: Option<fn(&mut root::Domain)>,
+    pub patch_sets: jig_protocol_store::PatchSets,
+    pub peers: Option<crate::peers::Peers>,
+    pub cut: Option<Cut>,
+    pub clock: Option<(Time, Wall)>,
+    pub boot: Boot,
+    pub require_assignment: bool,
+    pub walking: Option<Scenario>,
+}
+
+/// Whether startup also signs in a caller and creates its initial task.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Boot {
+    Empty,
+    Caller,
+}
+
+impl Default for Setup {
+    fn default() -> Self {
+        Self {
+            seed: 0,
+            requirement: false,
+            configuration: None,
+            limits: constructors::limits(),
+            initial: None,
+            rows: None,
+            startup: None,
+            patch_sets: jig_protocol_store::PatchSets::NONE,
+            peers: None,
+            cut: None,
+            clock: None,
+            boot: Boot::Caller,
+            require_assignment: true,
+            walking: None,
+        }
+    }
+}
 
 /// A scenario's cut around one store transaction, before application or reply.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,6 +90,12 @@ pub struct AssignedTranscript {
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independently held peer traffic and crash cuts")]
 pub struct World {
+    /// Explicit admission tests retain outputs and control each store completion.
+    pub manual: bool,
+    pub returned: u64,
+    pub released: Vec<root::Request>,
+    serial: u64,
+    pub walking: Option<Walking>,
     pub(crate) broken: bool,
     pub(crate) oracle_closed: bool,
     pub(crate) restart_config: (root::Config, root::Limits),
@@ -142,7 +198,7 @@ pub struct World {
     heap: crate::observations::Heap,
     restoring: Option<(core::start::Phase, usize)>,
     restart_reads: std::collections::BTreeMap<u16, core::start::Phase>,
-    events: VecDeque<root::Event>,
+    pub events: VecDeque<root::Event>,
     limits: root::Limits,
     /// Pause at a selected transaction boundary, with its traffic retained.
     pub cut: Option<Cut>,
@@ -181,12 +237,7 @@ impl World {
     #[must_use]
     pub fn next_due(&self) -> Option<Time> {
         let (now, wall) = self.clocks();
-        let mut next = None;
-        for (_, deadline) in self.domain.core_deadlines(now, wall) {
-            if let Some(deadline) = deadline {
-                next = Some(next.map_or(deadline, |prior: Time| prior.min(deadline)));
-            }
-        }
+        let mut next = self.domain.core().next_deadline(now, wall);
         for deadline in self
             .domain
             .connector_deadlines()
@@ -206,12 +257,17 @@ impl World {
     /// The caller supplies clocks; neither draining nor timer delivery advances them.
     pub fn fire_due(&mut self, now: Time, wall: Wall) {
         self.set_clock(now, wall);
-        let mut events = Vec::new();
-        for (timer, deadline) in self.domain.core_deadlines(now, wall) {
-            if deadline.is_some_and(|deadline| deadline <= now) {
-                events.push(root::Event::Timer(timer));
+        while let Some(timer) = self.domain.core().due(now, wall) {
+            if !self.domain.ready() || self.stopped {
+                break;
+            }
+            let refused = self.busy_events.len();
+            self.send(root::Event::Timer(timer));
+            if self.busy_events.len() != refused {
+                break;
             }
         }
+        let mut events = Vec::new();
         for (number, deadline) in self.domain.connector_deadlines() {
             if deadline.is_some_and(|deadline| deadline <= wall) {
                 events.push(root::Event::ConnectorTimer { number });
@@ -242,7 +298,8 @@ impl World {
         self.wall_lag = self.wall_lag.checked_add(by.as_nanos()).expect("wall correction fits");
     }
 
-    fn env(&self) -> Env<root::Limits> {
+    #[must_use]
+    pub fn env(&self) -> Env<root::Limits> {
         Env {
             now: Time::from_nanos(self.wall),
             wall: self.supplied_wall.unwrap_or_else(|| Wall::from_nanos(self.wall.saturating_sub(self.wall_lag))),
@@ -266,12 +323,13 @@ impl World {
         self.tracing = true;
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one iteration keeps commit application, peer observations and root outputs in order"
-    )]
     pub fn drain(&mut self) {
-        for _ in 0..300 {
+        self.drive(300, true, true);
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one loop routes root, store and peer work in order")]
+    fn drive(&mut self, steps: usize, tick: bool, consume: bool) {
+        for _ in 0..steps {
             if self.stopped {
                 return;
             }
@@ -286,7 +344,10 @@ impl World {
                 && self.events.front().is_some_and(|event| {
                     matches!(event, root::Event::StartRecord(_) | root::Event::StartDone(core::start::Phase::Sweep))
                 });
-            if !sweep_waits && let Some(mut event) = self.events.pop_front() {
+            if consume
+                && !sweep_waits
+                && let Some(mut event) = self.events.pop_front()
+            {
                 self.start_input(&event);
                 if !matches!(
                     event,
@@ -310,7 +371,14 @@ impl World {
                 if self.tracing {
                     self.trace.push(format!("input {event:?}"));
                 }
-                root::step(&mut self.domain, &env, event);
+                if self.manual {
+                    if let Err(event) = root::try_step(&mut self.domain, &env, event) {
+                        self.returned += 1;
+                        self.events.push_front(event);
+                    }
+                } else {
+                    root::step(&mut self.domain, &env, event);
+                }
             }
             let mut out = Queue::with_capacity(128);
             root::release(&mut self.domain, &env, &mut out);
@@ -349,9 +417,26 @@ impl World {
                             return;
                         }
                     }
-                    root::Request::Deliver(delivery) => self.delivered(delivery),
+                    root::Request::Deliver(delivery) => {
+                        if self.manual {
+                            self.capture(delivery);
+                        } else {
+                            self.delivered(delivery);
+                        }
+                    }
                     root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
                     root::Request::Now(now @ core::Now::StartPreparation { .. }) => self.transcript_loaded(now),
+                    root::Request::Now(
+                        now @ (core::Now::SeenConversation { .. }
+                        | core::Now::LoadEndedRead { .. }
+                        | core::Now::HistoricalPersonTask { .. }
+                        | core::Now::EndedTask { .. }
+                        | core::Now::PartyInputs { .. }
+                        | core::Now::HistoricalProposal { .. }
+                        | core::Now::DecidedProposal { .. }
+                        | core::Now::HistoricalEscalation { .. }),
+                    ) => self.store.ask(StoreOut::Now(now)),
+                    root::Request::Now(now) if self.manual => self.released.push(root::Request::Now(now)),
                     root::Request::Now(core::Now::Call { to, run, attempt, call }) => {
                         let token = to.into_token();
                         if self.peers.is_none()
@@ -394,16 +479,6 @@ impl World {
                     root::Request::Now(core::Now::Account(accounts::Request::Signing(signing))) => {
                         self.account_signing(signing);
                     }
-                    root::Request::Now(
-                        now @ (core::Now::SeenConversation { .. }
-                        | core::Now::LoadEndedRead { .. }
-                        | core::Now::HistoricalPersonTask { .. }
-                        | core::Now::EndedTask { .. }
-                        | core::Now::PartyInputs { .. }
-                        | core::Now::HistoricalProposal { .. }
-                        | core::Now::DecidedProposal { .. }
-                        | core::Now::HistoricalEscalation { .. }),
-                    ) => self.store.ask(StoreOut::Now(now)),
                     root::Request::Now(now) => {
                         if let Some(peer) = &mut self.client_peer
                             && crate::client_peer::ClientPeer::immediate(&now)
@@ -416,19 +491,21 @@ impl World {
                         }
                     }
                     root::Request::Busy { event } => self.busy_events.push(*event),
-                    root::Request::Stop => self.stopped = true,
+                    root::Request::Stop => {
+                        self.stopped = true;
+                        if self.manual {
+                            self.released.push(root::Request::Stop);
+                        }
+                    }
                 }
             }
             if !self.hold_restart_reads && !self.restart_reads.is_empty() && self.domain.quiescent() {
                 self.answer_restart_reads();
             }
             if !self.stopped {
-                match self.store.tick(false) {
-                    Ok(Some(number)) => self.events.push_front(root::Event::Committed { number, fill: self.fill }),
-                    Ok(None) => {}
-                    Err(number) => self.events.push_front(root::Event::Failed { number }),
+                if tick {
+                    self.tick_store();
                 }
-                self.observer.durable(self.wall, &self.store);
                 if let Some(peer) = &mut self.store_peer {
                     peer.capture(Time::from_nanos(self.wall), &self.store);
                 }
@@ -460,8 +537,15 @@ impl World {
             if let Some(peers) = &self.peers {
                 self.observer.workers(self.wall, &peers.workers);
             }
+            if let Some(mut walking) = self.walking.take() {
+                walking.tick(self);
+                self.walking = Some(walking);
+            }
             self.domain.reclaim();
             self.observer.observe(self.wall, self.heap.observed());
+            if steps == 1 {
+                return;
+            }
             let held_restore = self.hold_restore_pages && self.restoring.is_some() && self.store.loading();
             if empty
                 && self.events.is_empty()

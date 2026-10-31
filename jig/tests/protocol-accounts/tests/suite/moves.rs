@@ -149,7 +149,7 @@ fn adoption_preserves_the_stored_record_and_expires_only_the_drivers_copy() {
 }
 
 #[test]
-fn the_small_profile_file_bound_covers_the_old_magic() {
+fn the_small_profile_file_bound_covers_the_envelope_allowance() {
     // protocol/llm.md, 5.6: 30 fixed bytes, outer caps totaling 2,686,
     // and the small profile's 65,536-byte record allowance.
     const FILE_BYTES: u64 = 68_252;

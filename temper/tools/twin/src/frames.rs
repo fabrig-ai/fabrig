@@ -8,8 +8,8 @@ use std::{
     path::Path,
 };
 
-fn limits() -> codec::Limits {
-    codec::Limits {
+fn limits() -> codec::View {
+    codec::View {
         settings: store::settings_v1::CEILINGS,
         core: store::core_v6::CEILINGS,
         tasks: store::tasks_v9::CEILINGS,
@@ -69,7 +69,7 @@ pub(crate) fn read(data: &Path, task: u64) -> Result<Vec<smith::Turn>, Refusal> 
     Ok(turns)
 }
 
-fn decode(bytes: &[u8], limits: &codec::Limits, task: u64, at: u64) -> Result<smith::Turn, Refusal> {
+fn decode(bytes: &[u8], limits: &codec::View, task: u64, at: u64) -> Result<smith::Turn, Refusal> {
     let end = bytes.len();
     let checksum = u32::from_be_bytes(bytes[end - 8..end - 4].try_into().expect("four checksum bytes"));
     if bytes[end - 4..] != bytes[..4] || frame::crc32c(&bytes[4..end - 8]) != checksum {

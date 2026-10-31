@@ -6,7 +6,7 @@ use jig_client_test_domain::{
     connector_values::{
         ApplicationObject, ApplicationOutcome, ClientDocument, ClientResource, ConnectorAnswer, ConnectorDocument,
         ConnectorLimits, Description, DiagnosticAvailability, Effect, EffectPhase, Form, Hold, HoldMode, OutboxEntry,
-        Path, ProcedureState, Recovery, ResourceRole, application_core,
+        Path, ProcedureState, Purpose, Recovery, ResourceRole, application_core,
     },
     family::Scope,
 };
@@ -91,9 +91,15 @@ fn entry(b: &mut Builder, words: &Words, value: &OutboxEntry) {
     number(b, words, Word::Entry, value.number);
     number(b, words, Word::Task, value.task);
     region(b, words, Word::Key);
-    number(b, words, Word::KeyAttempt, value.key.attempt);
-    number(b, words, Word::Completion, u64::from(value.key.completion));
-    number(b, words, Word::Position, u64::from(value.key.position));
+    match value.key.origin {
+        Purpose::Procedure => text(b, words, Word::Procedure, &[]),
+        Purpose::Projection => text(b, words, Word::Projection, &[]),
+        Purpose::Call { attempt, completion, position } => {
+            number(b, words, Word::KeyAttempt, attempt);
+            number(b, words, Word::Completion, u64::from(completion));
+            number(b, words, Word::Position, u64::from(position));
+        }
+    }
     number(b, words, Word::KeyTask, value.key.task);
     number(b, words, Word::KeyPurpose, value.key.purpose);
     // Separate literal positions preserve the entire deployment identity.

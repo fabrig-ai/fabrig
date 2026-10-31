@@ -12,38 +12,14 @@ use jig_domain_host as host;
 pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, held: core::Held) {
     match held {
         core::Held::Sources { channel, sources } => {
-            let mut names = skein_lib::List::with_capacity(u32::try_from(sources.len()).expect("bounded sources"));
-            for name in sources {
-                names
-                    .push(host::SourceName::new(name.as_bytes()).expect("same source grammar"))
-                    .expect("one name per source");
-            }
-            emit(
-                decision,
-                &env.limits,
-                Delivery::Link { channel, down: host::LinkDown::Sources { sources: names.into_boxed() } },
-            );
+            emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Sources { sources } });
         }
-        core::Held::CheckSource { channel, name } => emit(
-            decision,
-            &env.limits,
-            Delivery::Link {
-                channel,
-                down: host::LinkDown::Check {
-                    name: host::SourceName::new(name.as_bytes()).expect("same source grammar"),
-                },
-            },
-        ),
-        core::Held::SignOutSource { channel, name } => emit(
-            decision,
-            &env.limits,
-            Delivery::Link {
-                channel,
-                down: host::LinkDown::SignOut {
-                    name: host::SourceName::new(name.as_bytes()).expect("same source grammar"),
-                },
-            },
-        ),
+        core::Held::CheckSource { channel, name } => {
+            emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Check { name } });
+        }
+        core::Held::SignOutSource { channel, name } => {
+            emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::SignOut { name } });
+        }
         core::Held::SourceSignedOut { to, channel, name, result } => {
             emit(decision, &env.limits, Delivery::SourceSignedOut { to, channel, name, result });
         }
@@ -101,21 +77,6 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             emit(decision, &env.limits, Delivery::Assigned { channel, assignment });
         }
         core::Held::Grant { channel, run, attempt, grant } => {
-            let grant = host::Grant {
-                form: match grant.form {
-                    fleet::Form::Credential(scheme) => host::Form::Credential(match scheme {
-                        fleet::Scheme::Bearer => host::Scheme::Bearer,
-                        fleet::Scheme::Key => host::Scheme::Key,
-                    }),
-                    fleet::Form::Application => host::Form::Application,
-                    fleet::Form::Program(name) => {
-                        host::Form::Program(host::SourceName::new(name.as_bytes()).expect("same source name grammar"))
-                    }
-                },
-                account: grant.account,
-                generation: grant.generation,
-                valid: grant.valid,
-            };
             emit(
                 decision,
                 &env.limits,

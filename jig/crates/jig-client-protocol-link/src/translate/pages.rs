@@ -1,7 +1,8 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
+use super::classify;
 use super::documents::{
-    budget_fields, chip_fields, classify, cursor_fields, ending_fields, field_rule_fields, hold_fields,
-    inbox_entry_piece, object_key_fields, offered_piece, owner_authority_document_fields, owner_authority_fields,
+    budget_fields, chip_fields, cursor_fields, ending_fields, field_rule_fields, hold_fields, inbox_entry_piece,
+    object_key_fields, offered_piece, owner_authority_document_fields, owner_authority_fields,
     owner_chip_ending_fields, owner_task_link_fields, part_piece, passed_piece, proposed_task_piece, recurring_piece,
     result_fields, specification_document_fields, task_contract_document_fields, task_fields,
 };

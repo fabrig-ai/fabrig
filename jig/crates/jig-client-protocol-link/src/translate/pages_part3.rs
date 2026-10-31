@@ -4,8 +4,8 @@ use super::{
     result_fields, too_large, w,
 };
 
-pub(crate) fn pool_fields(value: &w::Pool, limits: &Limits) -> c::Pool {
-    c::Pool { party: value.party(), period: value.period(), budget: budget_fields(value.budget(), limits) }
+pub(crate) fn pool_fields(value: &w::Pool) -> c::Pool {
+    c::Pool { party: value.party(), period: value.period(), budget: budget_fields(value.budget()) }
 }
 
 pub(crate) fn task_spend_fields(value: &w::TaskSpend, limits: &Limits) -> Result<c::TaskSpend, w::Problem> {
@@ -47,11 +47,11 @@ pub(crate) fn spend_period_fields(value: &w::SpendPeriod, limits: &Limits) -> Re
     }
     let mut list0 = List::with_capacity(value.pools().len());
     for item in value.pools() {
-        list0.push(pool_fields(item, limits)).expect("reserved supplied list");
+        list0.push(pool_fields(item)).expect("reserved supplied list");
     }
     Ok(c::SpendPeriod {
         period: value.period(),
-        budget: budget_fields(value.budget(), limits),
+        budget: budget_fields(value.budget()),
         pools: list0,
         tasks: task_spend_piece(value.tasks(), limits, limits.client.rows)?,
     })
@@ -107,7 +107,7 @@ pub(crate) fn spend_page_fields(value: &w::SpendPage, limits: &Limits) -> Result
     })
 }
 
-pub(crate) fn note_author_fields(value: &w::NoteAuthor, _limits: &Limits) -> c::NoteAuthor {
+pub(crate) fn note_author_fields(value: &w::NoteAuthor) -> c::NoteAuthor {
     match value {
         w::NoteAuthor::Party(row) => c::NoteAuthor::Party { party: row.party() },
         w::NoteAuthor::Task(row) => c::NoteAuthor::Task { task: row.task(), attempt: row.attempt() },
@@ -129,11 +129,11 @@ pub(crate) fn note_fields(value: &w::Note, limits: &Limits) -> Result<c::Note, w
     };
     Ok(c::Note {
         number: value.number(),
-        revision: crate::translate::answers::revision(value.revision(), limits),
-        scope: crate::translate::answers::note_scope(value.scope(), limits),
+        revision: crate::translate::answers::revision(value.revision()),
+        scope: crate::translate::answers::note_scope(value.scope()),
         description: crate::translate::facts::document_text(value.description(), limits)?,
         body: crate::translate::facts::document_text(value.body(), limits)?,
-        writer: note_author_fields(value.writer(), limits),
+        writer: note_author_fields(value.writer()),
         tasks: list0,
         changed: opt1,
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,

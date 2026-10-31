@@ -1,9 +1,9 @@
 //! Settings heads share the party proposal lifecycle (tasks.md, section 9).
 #![expect(clippy::disallowed_methods, reason = "step tests are ordinary Rust (programming-model.md, 10.2)")]
-#![allow(
+#![expect(
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "step tests inspect selected boundary records (programming-model.md, 10.2)"
+    reason = "unit tests inspect selected boundary records"
 )]
 use super::revisions::{Harness, LIMITS, to};
 use crate::*;

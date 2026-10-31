@@ -2,7 +2,13 @@ use crate::v1 as w;
 use skein_lib::List;
 
 pub const PROJECT: u32 = 7;
-pub const ENVIRONMENT: u64 = 17;
+pub fn environment() -> w::InfrastructureEnvironment {
+    w::InfrastructureEnvironment::new(
+        &w::CEILINGS,
+        w::InfrastructureEnvironmentParts { pool: b"Q.pool".as_slice().into(), name: b"preview".as_slice().into() },
+    )
+    .expect("environment")
+}
 pub const REVISION: u64 = 3;
 pub const UNTIL: u64 = 81;
 const INCIDENT: u64 = 13;
@@ -15,7 +21,8 @@ pub fn request() -> w::InfrastructureAskRecord {
         &w::CEILINGS,
         w::InfrastructureAskMoveEndParts {
             project: PROJECT,
-            environment: ENVIRONMENT,
+            object: 17,
+            environment: environment(),
             revision: REVISION,
             until: UNTIL,
         },
@@ -45,7 +52,6 @@ pub fn incident() -> w::ObservabilityIncident {
         w::ObservabilityIncidentParts {
             project: PROJECT,
             number: INCIDENT,
-            revision: REVISION,
             watch: WATCH,
             raised: RAISED,
             service: w::ObservabilityService::new(
@@ -60,9 +66,8 @@ pub fn incident() -> w::ObservabilityIncident {
             state: w::ObservabilityState::Alerting,
             timeline: List::with_capacity(0),
             cut: true,
-            health: None,
             lead: Some(LEAD),
-            proposals: List::with_capacity(0),
+            alerts: List::with_capacity(0),
         },
     )
     .expect("incident")

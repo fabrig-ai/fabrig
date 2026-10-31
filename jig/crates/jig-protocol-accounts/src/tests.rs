@@ -1,5 +1,5 @@
 mod finishes;
-mod fixtures;
+pub(crate) mod fixtures;
 mod installation;
 mod party;
 mod records;

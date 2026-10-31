@@ -1,4 +1,5 @@
 mod binding;
+mod date;
 mod diff;
 pub(crate) mod fixtures;
 mod look;

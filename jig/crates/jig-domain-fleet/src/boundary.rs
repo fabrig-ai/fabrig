@@ -49,6 +49,7 @@
 //! families may be equal.
 
 use alloc::boxed::Box;
+pub(crate) use jig_domain_link::{Grant, GrantTable, Hello, Hosting, Phase};
 
 use skein_lib::{Duration, ReplyTo, Token};
 
@@ -88,55 +89,6 @@ impl Kinds {
             Kinds::Both => true,
         }
     }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Grant {
-    pub form: Form,
-    pub account: u32,
-    pub generation: u64,
-    pub valid: Duration,
-}
-
-/// The form in which a grant lends its value (protocol/channel.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Form {
-    /// A credential with the scheme its provider takes.
-    Credential(Scheme),
-    /// An application's credential, held in its own table.
-    Application,
-    /// A program source lent by its configuration-directory name.
-    Program(crate::SourceName),
-}
-
-/// A credential's scheme (protocol/channel.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Scheme {
-    /// A bearer credential.
-    Bearer,
-    /// A key credential.
-    Key,
-}
-
-impl Form {
-    /// The protocol table that holds this form's value.
-    #[must_use]
-    pub const fn table(self) -> GrantTable {
-        match self {
-            Self::Credential(_) => GrantTable::Accounts,
-            Self::Application => GrantTable::Application,
-            Self::Program(_) => GrantTable::Name,
-        }
-    }
-}
-
-/// The protocol layer's table that holds a credential (channel.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum GrantTable {
-    Accounts,
-    Application,
-    /// The value is the form's name; no table entry is held.
-    Name,
 }
 
 /// A credential's name, independent of its current generation.
@@ -369,8 +321,6 @@ pub enum Event {
         attempt: Token,
         turn: u32,
     },
-    /// From a worker: an inbound event for the attempt `attempt` of the run
-    /// `run` was not passed on, for `bounce`.
     /// Best-effort typed activity from the current hosting channel.
     Observe {
         channel: Token,
@@ -594,8 +544,6 @@ pub enum Request {
         attempt: Token,
         refusal: Refusal,
     },
-    /// To the parent: an inbound event its worker did not pass on, for
-    /// `bounce`.
     /// A message reached no live host; all its values remain the parent's.
     Undelivered {
         run: Token,
@@ -609,44 +557,6 @@ pub enum Request {
     Drop {
         payload: Token,
     },
-}
-
-/// What a worker says first on every channel (domain/engine.md, section 8).
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub struct Hello {
-    pub bounds: crate::Bounds,
-    /// The worker's longest stop time after losing contact. It must be
-    /// strictly below the engine's grace.
-    pub stop_bound: Duration,
-    /// How many runs it hosts at once: none once it is shutting down.
-    pub slots: u32,
-    pub workstreams: Box<[u64]>,
-    /// The runs it hosts, and those whose answers it holds.
-    pub hosting: Box<[Hosted]>,
-}
-
-/// A run a worker hosts, or whose answer it holds.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Hosted {
-    pub run: Token,
-    pub attempt: Token,
-    pub phase: Phase,
-}
-
-/// Where a hosted run is in its lifecycle (domain/hosts.md, 4.2), as a hello
-/// says.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Phase {
-    Preparing,
-    Starting,
-    /// Its agent is at work.
-    Active,
-    /// It yielded, and waits for its next inbound event.
-    Waiting,
-    /// How it ends is decided, and it answers next.
-    Ending,
-    /// It answered while there was no channel: the answer follows the hello.
-    Answered,
 }
 
 /// How a run's attempt was answered (domain/hosts.md, 4.3): what the fleet
@@ -757,29 +667,6 @@ pub struct AttemptView {
     pub state: AttemptState,
     pub placement: Placement,
     pub until: Option<skein_lib::Time>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Form, GrantTable, Scheme};
-
-    #[test]
-    fn a_form_names_its_table() {
-        for (form, table) in [
-            (Form::Credential(Scheme::Bearer), GrantTable::Accounts),
-            (Form::Credential(Scheme::Key), GrantTable::Accounts),
-            (Form::Application, GrantTable::Application),
-            (Form::Program(crate::SourceName::new(b"claude").expect("source name")), GrantTable::Name),
-        ] {
-            assert_eq!(form.table(), table);
-        }
-    }
-
-    #[test]
-    fn a_form_takes_34_bytes() {
-        // tag 1 + length 1 + 32 name bytes.
-        assert_eq!(size_of::<Form>(), 34);
-    }
 }
 
 /// A checked channel identity. A queued or busy attempt cannot move to another host.

@@ -1,4 +1,4 @@
-//! The settings proposal vocabulary meets at wire 19; task E supplies its domain producers.
+//! Settings proposal documents cross the client wire contract.
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
 use jig_client_protocol_wire::v19 as w;
@@ -78,10 +78,7 @@ fn settings_proposals_and_running_decisions_keep_the_client_contract() {
         );
         let w::Ask::Decide(wire) = wire_ask else { panic!("decide") };
         let w::DecideOn::Proposal(wire) = wire.on() else { panic!("proposal decision") };
-        assert_eq!(
-            translate::settings::restore_running(wire.running().as_ref().expect("running choice"), &limits),
-            Ok(running)
-        );
+        assert_eq!(translate::settings::restore_running(wire.running().as_ref().expect("running choice")), Ok(running));
     }
 }
 #[test]

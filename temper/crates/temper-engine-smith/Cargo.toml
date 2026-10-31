@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-protocol-charter.workspace = true
 settings-form.workspace = true
 jig-domain-core.workspace = true
 jig-client-protocol-wire.workspace = true

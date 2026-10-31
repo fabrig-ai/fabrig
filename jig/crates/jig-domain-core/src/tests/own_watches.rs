@@ -28,8 +28,7 @@ fn sign_in(core: &mut Core, limits: &Limits, party: u8) -> (u64, Box<[Record]>) 
             Request::Write(Write::Erase(_) | Write::CopySettingsRevision(_))
             | Request::Ask { .. }
             | Request::Now(_)
-            | Request::ProjectMade { .. }
-            | Request::Decided => {}
+            | Request::ProjectMade { .. } => {}
         }
     }
     (sign_in.expect("live sign-in reply"), records.into_boxed())
@@ -94,7 +93,7 @@ fn an_own_subject_names_the_sign_ins_party() {
     ] {
         let out = open(&mut core, &limits, sign_in, 30, subject);
         assert_eq!(named(&core, 30), &expected, "{label}");
-        assert_eq!(out.len(), 2, "{label}");
+        assert_eq!(out.len(), 1, "{label}");
         drop(watch_outputs(&mut core, &limits, Event::Unwatch { watcher: Token::new(30) }));
         drop(watch_outputs(&mut core, &limits, Event::Delivered { watcher: Token::new(30) }));
     }
@@ -280,7 +279,7 @@ fn an_attempt_acknowledgement_leaves_an_accounts_watch_unmarked() {
 fn listed_host() -> fleet::Event {
     let fleet::Event::Hello { channel, worker, mut hello } = hello() else { panic!("hello fixture") };
     hello.hosting =
-        Box::new([fleet::Hosted { run: Token::new(90), attempt: Token::new(92), phase: fleet::Phase::Active }]);
+        Box::new([fleet::Hosting { run: Token::new(90), attempt: Token::new(92), phase: fleet::Phase::Active }]);
     fleet::Event::Hello { channel, worker, hello }
 }
 
@@ -334,7 +333,7 @@ fn whose_routes_a_read_and_its_whole_reply_and_refuses_it_while_stopping() {
                 }
             }
             Request::Write(_) => panic!("Whose writes nothing"),
-            Request::Ask { .. } | Request::Now(_) | Request::ProjectMade { .. } | Request::Decided => {}
+            Request::Ask { .. } | Request::Now(_) | Request::ProjectMade { .. } => {}
         }
     }
     assert_eq!(replies, 1);
@@ -352,7 +351,7 @@ fn whose_routes_a_read_and_its_whole_reply_and_refuses_it_while_stopping() {
                 }
             }
             Request::Write(_) => panic!("Whose writes nothing while stopping"),
-            Request::Ask { .. } | Request::Now(_) | Request::ProjectMade { .. } | Request::Decided => {}
+            Request::Ask { .. } | Request::Now(_) | Request::ProjectMade { .. } => {}
         }
     }
     assert!(answered);

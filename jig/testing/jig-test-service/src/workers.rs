@@ -8,8 +8,6 @@ use jig_test_domain as root;
 use skein_channel::{Lower, LowerEvent};
 use skein_io::{self as io};
 use skein_lib::{List, Map, Queue, Time, Token, stream};
-const LISTENERS: u64 = 1_u64 << 60;
-const CONNECTIONS: u64 = 2_u64 << 60;
 #[derive(Debug)]
 pub(super) struct Workers {
     pub(super) component: kit::Component,
@@ -55,9 +53,8 @@ impl Workers {
             let config::Address::Addr(address) = address else {
                 return Err(invalid(What::Form));
             };
-            let owner = Token::new(
-                LISTENERS.checked_add(u64::try_from(index).expect("listener count")).expect("listener owner"),
-            );
+            let owner =
+                crate::tokens::token(crate::tokens::WORKER_LISTENERS, u64::try_from(index).expect("listener count"));
             io.push(io::Request::Listen { owner, addr: *address });
             listeners.push((owner, None)).expect("listener count");
         }
@@ -150,7 +147,7 @@ impl Workers {
         self.down(now, delivery(now, channel, down, values), events);
     }
     pub fn up(&mut self, now: Time, event: io::Event, events: &mut Queue<root::Event>) -> bool {
-        let Some(owner) = owner(&event) else {
+        let Some(owner) = event.owner() else {
             return false;
         };
         match event {
@@ -165,7 +162,7 @@ impl Workers {
                 self.late_listener(listener);
             }
             io::Event::Accepted { socket, .. } => {
-                let connection = Token::new(CONNECTIONS.checked_add(self.next).expect("connection owner"));
+                let connection = crate::tokens::token(crate::tokens::WORKER_CONNECTIONS, self.next);
                 self.next = self.next.checked_add(1).expect("connection owner sequence");
                 if self.sockets.insert(connection, socket).is_err() {
                     self.io.push(io::Request::Reject { socket });
@@ -266,23 +263,6 @@ fn listeners_open(listeners: &List<(Token, Option<Token>)>) -> bool {
         }
     }
     true
-}
-pub(super) fn owner(event: &io::Event) -> Option<Token> {
-    match event {
-        io::Event::Listening { owner, .. }
-        | io::Event::Accepted { owner, .. }
-        | io::Event::Connecting { owner, .. }
-        | io::Event::Connected { owner }
-        | io::Event::Stream { owner, .. }
-        | io::Event::Output { owner, .. }
-        | io::Event::Spawned { owner, .. }
-        | io::Event::Exited { owner, .. }
-        | io::Event::Usage { owner, .. }
-        | io::Event::Window { owner, .. }
-        | io::Event::Failed { owner, .. }
-        | io::Event::Closed { owner } => Some(*owner),
-        io::Event::Resized | io::Event::Shutdown { .. } => None,
-    }
 }
 
 fn delivery(now: Time, channel: Token, down: host::LinkDown, values: &Values) -> kit::Event {

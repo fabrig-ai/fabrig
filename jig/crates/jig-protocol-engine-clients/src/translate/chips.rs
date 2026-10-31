@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use jig_domain_core::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
-pub fn class(value: t::Class, _limits: &w::Limits) -> Result<w::HoldFailure, w::Problem> {
+pub fn class(value: t::Class) -> Result<w::HoldFailure, w::Problem> {
     Ok(match value {
         t::Class::Transient => w::HoldFailure::Transient,
         t::Class::Permanent => w::HoldFailure::Permanent,
@@ -21,7 +21,7 @@ pub fn retry(value: t::RetryNotice, limits: &w::Limits) -> Result<w::RetryNotice
         t::RetryNotice::Failed { class: value, count, allowance } => {
             w::RetryNotice::OwnerFailed(w::RetryNoticeOwnerFailed::new(
                 limits,
-                w::RetryNoticeOwnerFailedParts { class: class(value, limits)?, count, allowance },
+                w::RetryNoticeOwnerFailedParts { class: class(value)?, count, allowance },
             )?)
         }
         t::RetryNotice::Refused { count } => {
@@ -50,7 +50,7 @@ pub fn hold(value: t::Hold, limits: &w::Limits) -> Result<w::HoldCategory, w::Pr
         )?),
         t::Hold::Failures(value) => w::HoldCategory::Failures(w::HoldCategoryFailures::new(
             limits,
-            w::HoldCategoryFailuresParts { class: class(value, limits)? },
+            w::HoldCategoryFailuresParts { class: class(value)? },
         )?),
         t::Hold::Dependency(task) => w::HoldCategory::Dependency(w::HoldCategoryDependency::new(
             limits,
