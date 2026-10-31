@@ -3,6 +3,92 @@ use crate::tests::fixtures;
 use skein_lib::Wall;
 
 #[test]
+fn abort_cancels_a_buffered_github_done_and_forgets_issued_states() {
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::tests::host::limits() };
+    let mut host =
+        Host::new(&env.limits, crate::tests::host::github_settings(), crate::tests::host::crypto()).expect("host");
+    let forge = configured(&host.settings, 4);
+    let mut run = Run::new(
+        forge,
+        Plan::Install { forge: 4 },
+        bounds(&env.limits, forge),
+        &env,
+        &mut host.crypto,
+        &mut host.states,
+        &mut host.plan_out,
+    )
+    .expect("install");
+    let (purpose, state) = run.issued_state.clone().expect("install state");
+    assert_eq!(run.pending.take(), Some(reconcile::Need::Read(crate::item::Item::AppSlug)));
+    let _need = run.owner_need(Need::Read(crate::item::Item::AppSlug));
+    run.answer(Answer::Read(Some(fixtures::secret(b"kit-app"))), &mut host.plan_out);
+    let Some(reconcile::Need::Done(reconcile::Outcome::Install { .. })) = &run.pending else {
+        panic!("install completion buffered before host routing");
+    };
+    assert!(host.runs.insert(Token::new(1), run).expect("run slot").is_none());
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
+    host.down(&env, Request::Abort, &mut up, &mut io);
+    assert_eq!(
+        up.pop(),
+        Some(Event::Stop {
+            run: Token::new(1),
+            failure: Failure { forge: 4, step: Stage::App, subject: b"install".as_slice().into(), why: Why::Down },
+        })
+    );
+    assert_eq!(up.pop(), Some(Event::Closed));
+    assert!(up.is_empty());
+    assert!(io.is_empty());
+    assert_eq!(host.next_deadline(), None);
+    assert_eq!(host.states.take(4, purpose, &state, env.now).expect_err("abort forgets state").why, Why::Unknown);
+}
+
+#[test]
+fn abort_changes_a_buffered_failure_to_down_at_its_step() {
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::tests::host::limits() };
+    let mut host =
+        Host::new(&env.limits, crate::tests::host::settings(&[1]), crate::tests::host::crypto()).expect("host");
+    let forge = configured(&host.settings, 1);
+    let mut run = Run::new(
+        forge,
+        Plan::Check { forge: 1 },
+        bounds(&env.limits, forge),
+        &env,
+        &mut host.crypto,
+        &mut host.states,
+        &mut host.plan_out,
+    )
+    .expect("check");
+    assert_eq!(run.pending.take(), Some(reconcile::Need::Read(crate::item::Item::ApiToken)));
+    let _need = run.owner_need(Need::Read(crate::item::Item::ApiToken));
+    run.answer(Answer::Read(None), &mut host.plan_out);
+    assert_eq!(
+        run.pending,
+        Some(reconcile::Need::Stop(Failure {
+            forge: 1,
+            step: Stage::Token,
+            subject: b"api".as_slice().into(),
+            why: Why::Missing,
+        }))
+    );
+    assert!(host.runs.insert(Token::new(1), run).expect("run slot").is_none());
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
+    host.down(&env, Request::Abort, &mut up, &mut io);
+    assert_eq!(
+        up.pop(),
+        Some(Event::Stop {
+            run: Token::new(1),
+            failure: Failure { forge: 1, step: Stage::Token, subject: b"api".as_slice().into(), why: Why::Down },
+        })
+    );
+    assert_eq!(up.pop(), Some(Event::Closed));
+    assert!(up.is_empty());
+    assert!(io.is_empty());
+    assert_eq!(host.next_deadline(), None);
+}
+
+#[test]
 fn abort_upgrades_a_graceful_close_already_sent_to_io() {
     use crate::host::connection::Connection;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::tests::host::limits() };

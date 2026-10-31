@@ -311,6 +311,182 @@ fn close_says_closed_only_once_io_has_closed_every_connection() {
     assert_eq!(w.io.len(), 0);
     assert_eq!(w.host.next_deadline(), None);
 }
+
+#[test]
+fn abort_ends_an_in_flight_run_once_before_closed_and_aborts_a_late_socket() {
+    let mut w = World::new();
+    w.send();
+    let owner = w.connect();
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)));
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+    w.fire(120_000);
+    assert!(w.up.is_empty());
+    let socket = Token::new(100);
+    w.event(skein_io::Event::Connecting { owner, socket });
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    w.event(skein_io::Event::Connected { owner });
+    w.event(skein_io::Event::Failed { owner, error: skein_io::Error::Refused });
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.event(skein_io::Event::Closed { owner });
+    w.fire(240_000);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+
+#[test]
+fn abort_after_close_upgrades_a_remaining_graceful_socket_close() {
+    let mut w = World::new();
+    w.send();
+    let owner = w.connect();
+    let socket = Token::new(100);
+    w.event(skein_io::Event::Connecting { owner, socket });
+    w.event(skein_io::Event::Failed { owner, error: skein_io::Error::Refused });
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Close { entity: socket }));
+    w.down(Request::Close);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    w.down(Request::Abort);
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    assert!(w.up.is_empty());
+}
+
+fn aborted_connection_waiting_for_io() -> (World, Token) {
+    let mut w = World::new();
+    w.send();
+    let owner = w.connect();
+    w.event(skein_io::Event::Connecting { owner, socket: owner });
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)));
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: owner }));
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    (w, owner)
+}
+
+#[test]
+fn close_after_abort_changes_nothing() {
+    let (mut w, owner) = aborted_connection_waiting_for_io();
+    w.down(Request::Close);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+}
+
+#[test]
+fn a_second_abort_changes_nothing() {
+    let (mut w, owner) = aborted_connection_waiting_for_io();
+    w.down(Request::Abort);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+}
+
+#[test]
+fn a_run_after_abort_is_ignored_as_after_close() {
+    let (mut w, owner) = aborted_connection_waiting_for_io();
+    w.run(2, 1);
+    w.answer(1, Answer::Read(Some(fixtures::secret(fixtures::ADMIN))));
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.run(3, 1);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+}
+
+#[test]
+fn abort_ends_every_held_run_and_waits_for_every_socket() {
+    let mut w = paired();
+    let mut owners = List::with_capacity(2);
+    for run in [1, 2] {
+        w.answer(run, Answer::Read(Some(fixtures::secret(fixtures::ADMIN))));
+        let owner = w.connect();
+        w.event(skein_io::Event::Connecting { owner, socket: owner });
+        owners.push(owner).unwrap();
+    }
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)));
+    assert_eq!(w.up.pop(), Some(stop(2, 1, Why::Down)));
+    assert!(w.up.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+    for owner in &owners {
+        assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: *owner }));
+    }
+    assert!(w.io.is_empty());
+    for owner in &owners {
+        assert!(w.up.is_empty());
+        w.event(skein_io::Event::Closed { owner: *owner });
+    }
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+}
+
+#[test]
+fn abort_cancels_a_run_waiting_for_its_owner_without_waiting_for_its_deadline() {
+    let mut w = World::new();
+    w.read_admin();
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)));
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.answer(1, Answer::Read(None));
+    w.fire(120_000);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+
+#[test]
+fn abort_cancels_a_retry_wait_without_waiting_for_its_backoff() {
+    let mut w = World::new();
+    w.send();
+    w.refused();
+    assert_eq!(w.host.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_millis(100))));
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)));
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.fire(100);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+
+#[test]
+fn an_empty_host_aborts_once_and_ignores_later_requests() {
+    let mut w = World::new();
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.down(Request::Abort);
+    w.down(Request::Close);
+    w.run(1, 1);
+    w.fire(120_000);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the redaction test inspects the host's Debug rendering")]
 fn the_hosts_debug_shows_no_token_in_flight() {

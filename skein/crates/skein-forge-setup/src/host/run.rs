@@ -160,6 +160,7 @@ pub(super) struct Run {
     pub bounds: Bounds,
     pub issued_state: Option<(Purpose, Box<[u8]>)>,
     pub forge: u16,
+    pub name: Box<[u8]>,
     pub writes: bool,
     pub machine: Machine,
     pub deadline: Time,
@@ -185,6 +186,7 @@ impl Run {
     ) -> Result<Self, Failure> {
         let now = env.now;
         let writes = plan.writes();
+        let name = plan.name().into();
         let mut issued_state = None;
         let machine = match &forge.kind {
             Kind::Forgejo(given) => forgejo_machine(forge, given, plan, &bounds)?,
@@ -256,6 +258,7 @@ impl Run {
             bounds,
             issued_state,
             forge: forge.number(),
+            name,
             writes,
             machine,
             deadline: now.saturating_add(times.deadline),
@@ -288,6 +291,30 @@ impl Run {
         self.send = None;
         self.retry_at = None;
         self.retry = false;
+    }
+    /// Cancellation uses the unfinished run's Stop/Down (forge-setup.md, 4.4 and 6.3).
+    pub fn cancel(mut self, forge: &Forge, out: &mut Queue<reconcile::Need>) -> Failure {
+        self.halt(Why::Down, out);
+        let mut failure = match self.pending.take() {
+            Some(reconcile::Need::Stop(failure)) => failure,
+            // A terminal may be buffered when the routing pass yields. The owner
+            // has not heard it, so abort still answers that held run as cancelled.
+            Some(
+                reconcile::Need::Done(_)
+                | reconcile::Need::Read(_)
+                | reconcile::Need::Write { .. }
+                | reconcile::Need::Send { .. }
+                | reconcile::Need::Draw(_),
+            )
+            | None => match &forge.kind {
+                Kind::Forgejo(given) => {
+                    Failure { forge: self.forge, step: Stage::Admin, subject: given.admin_name.clone(), why: Why::Down }
+                }
+                Kind::GitHub(_) => Failure { forge: self.forge, step: Stage::App, subject: self.name, why: Why::Down },
+            },
+        };
+        failure.why = Why::Down;
+        failure
     }
     pub fn answer(&mut self, answer: Answer, out: &mut Queue<reconcile::Need>) {
         let Some(owner) = self.owner.take() else {
