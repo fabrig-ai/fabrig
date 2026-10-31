@@ -140,7 +140,7 @@ pub static PAGES: [Page; 53] = [
         name: "forge",
         kind: Kind::Concept,
         title: "Forges",
-        summary: "A forge is where repositories live, GitHub or Forgejo, numbered in the configuration; temper connects to one or runs its own, and works only in the repositories adopted from it.",
+        summary: "A forge is where repositories live, GitHub or Forgejo, numbered when it is set up or connected; temper connects to one or runs its own, and works only in the repositories adopted from it.",
         text: include_str!("../../../docs/help/forge.md"),
     },
     Page {
