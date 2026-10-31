@@ -57,6 +57,7 @@ fn a_persons_answer_is_refused_while_kept_and_taken_after_met() {
         Some(&people::Reply::Outcome(people::Outcome::PersonAnswered { task: choice }))
     );
     ended(&world, choice, b"answered");
+    world.close();
 }
 
 #[test]
@@ -103,6 +104,7 @@ fn a_dependency_reorders_write_hold_grants_and_both_waiters_end_in_that_order() 
     }
     assert_eq!(grants, [*second, *first]);
     assert_eq!(ends, [*second, *first]);
+    world.close();
 }
 
 fn kept_pair(seed: u64) -> (World, u64, u64, (u64, u64)) {
@@ -127,6 +129,7 @@ fn a_party_reads_the_kept_agents_activity_naming_its_pending_dependency() {
     assert!(page.rows.iter().any(|row| matches!(row,
         core::reads::PageRow::Activity { line, .. }
             if line.task == kept && line.line == tasks::Line::Kept { attempt: run.1, pending: Box::new([dependency]), question: None })));
+    world.close();
 }
 
 #[test]
@@ -181,6 +184,7 @@ fn a_kept_delegate_restarts_then_wakes_and_finishes_after_its_dependency_is_done
     );
     finish(&mut world, resumed, b"resumed report");
     ended(&world, kept, b"resumed report");
+    world.close();
 }
 
 #[test]
@@ -223,6 +227,7 @@ fn an_idle_kept_agents_inbox_waits_without_waking_then_delivers_after_met() {
     assert_eq!(assignment.task, kept);
     assert_eq!(assignment.messages.iter().filter(|word| word.number == message.number).count(), 1);
     assert!(assignment.messages.iter().any(|word| word.kind == tasks::MessageKind::Met { dependency, removed: false }));
+    world.close();
 }
 
 #[test]
@@ -273,4 +278,5 @@ fn a_requester_question_parks_the_run_then_its_answer_resumes_it() {
     );
     finish(&mut world, resumed, b"resumed question report");
     ended(&world, child, b"resumed question report");
+    world.close();
 }
