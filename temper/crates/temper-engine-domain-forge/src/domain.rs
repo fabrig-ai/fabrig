@@ -232,7 +232,7 @@ impl Domain {
         }
         false
     }
-    /// Create's stopped step is volatile, like its setup intent.
+    /// Create's stopped step is volatile; the first repository's intent is kept.
     pub fn first_failed(&mut self, forge: u16, step: crate::CreateStep) -> bool {
         if let Some(first) = self.first.get_mut(&forge) {
             first.state = crate::FirstState::Failed { step };

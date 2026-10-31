@@ -44,10 +44,7 @@ pub(crate) fn start(
     let ask = match resolve(d, ask, role, carried, out) {
         Ok(ask) => ask,
         Err(why) => {
-            if let Some(value) = carried {
-                out.push(Request::CarriedUnused { number: value.number });
-            }
-            d.connect.answer(request, token, Answered::Connect(ConnectAnswer::Refused(why)), out);
+            refused(d, request, token, Answered::Connect(ConnectAnswer::Refused(why)), carried, out);
             return;
         }
     };
@@ -64,10 +61,7 @@ pub(crate) fn start(
         | Ask::Reachable { .. } => None,
     };
     if let Some(answer) = answer {
-        if let Some(value) = carried {
-            out.push(Request::CarriedUnused { number: value.number });
-        }
-        d.connect.answer(request, token, answer, out);
+        refused(d, request, token, answer, carried, out);
         return;
     }
     if let Ask::Reachable { forge, installation, page } = ask {
@@ -144,6 +138,19 @@ pub(crate) fn start(
     }
     d.connect.pending.insert(request, token).expect("room checked");
     send(d, request, forge, ask, carried, out);
+}
+fn refused(
+    d: &mut Domain,
+    request: Token,
+    token: Token,
+    answer: Answered,
+    carried: Option<Carried>,
+    out: &mut Queue<Request>,
+) {
+    if let Some(value) = carried {
+        out.push(Request::CarriedUnused { number: value.number });
+    }
+    d.connect.answer(request, token, answer, out);
 }
 fn resolve(
     d: &mut Domain,
