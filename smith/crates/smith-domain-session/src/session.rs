@@ -21,7 +21,7 @@
 //! The session retains exact own and inclusive activation spend separately.
 //! A charge that cannot fit ends the session before the completion's calls or
 //! turn. An unsent root `BudgetDenied` releases the current
-//! Calling reservation without inventing a provider lease or cancellation
+//! Completing reservation without inventing a provider lease or cancellation
 //! (smith/docs/design/domain/session.md, section 6; smith/docs/design/domain/run.md, section 9).
 //!
 //! A session ends once, and only once nothing it asked for is in flight and
@@ -36,33 +36,33 @@
 //!
 //! ```text
 //! state     event or alarm             next      requests
-//! (none)    open, admitted, kit opened Calling   opened, complete
+//! (none)    open, admitted, kit opened Completing   opened, complete
 //!           open, busy or invalid, or  (none)    ended: busy, invalid
 //!             its kit refused
-//! Calling   completed, tool use        Tooling   used, the first batch's runs
+//! Completing   completed, tool use        Tooling   used, the first batch's runs
 //!           ... all answered at once   Resting   used (on the ready list)
-//!           ... and no calls after it  Calling   used, complete
+//!           ... and no calls after it  Completing   used, complete
 //!           ... time up                Closing   used (its kit closes)
-//!           completed, only invalid    Calling   used, complete
+//!           completed, only invalid    Completing   used, complete
 //!           completed, no calls        Yielded   used, yielded (malformed)
 //!           completed, otherwise       Yielded   used, yielded
 //!           completed, does not fit    Closing   used (its kit closes)
 //!           failed, transient          Backoff
 //!           failed, otherwise          Closing   (its kit closes)
 //!           close, expiry              Closing   cancel
-//! Backoff   retry                      Calling   complete
+//! Backoff   retry                      Completing   complete
 //!           close, expiry              Closing   (its kit closes)
 //! Tooling   a run done, batch running  Tooling
 //!           a run done, more calls     Tooling   the next batch's runs
 //!           ... all answered at once   Resting   (on the ready list)
-//!           ... and no calls after it  Calling   complete
+//!           ... and no calls after it  Completing   complete
 //!           ... time up                Closing   (its kit closes)
-//!           a run done, no more        Calling   complete
+//!           a run done, no more        Completing   complete
 //!           a result that does not fit Closing   a withdraw per delegated run
 //!           close, expiry              Closing   a withdraw per delegated run
 //! Resting   resume                     as from a run done, more calls
 //!           close, expiry              Closing   (its kit closes)
-//! Yielded   continue                   Calling   complete
+//! Yielded   continue                   Completing   complete
 //!           continue, does not fit     Closing   (its kit closes)
 //!           close, expiry              Closing   (its kit closes)
 //! Closing   its kit closed, nothing    Closed    ended
@@ -218,7 +218,8 @@ struct Conversation {
     /// Its kit in the tools it owns, as the tools name it. A session is
     /// inserted Closed, holding nothing, and given its kit as it opens.
     kit: Token,
-    recording: Recording,
+    spending: Spending,
+    cursor: Cursor,
     jobs: jobs::Jobs,
     builtin: builtin::Owed,
     /// Last failure text, bounded by `Limits::failure_bytes` and kept outside history.
@@ -226,25 +227,30 @@ struct Conversation {
 }
 
 #[derive(Debug)]
-struct Recording {
-    dialect: u32,
+struct Spending {
     prices: crate::record::Prices,
-    budget: u64,
-    spent: u64,
-    own_spent: u64,
-    sequence: u32,
-    told: u32,
-    pending: Option<Usage>,
+    limit: u64,
+    total: u64,
+    own: u64,
     /// Maximum spend accepted by the parent before sending this attempt.
     reservation: Option<u64>,
     /// Charge of the most recently accepted completion, for its fact.
     last_charge: u64,
 }
 
+/// Position and pending usage of the next concrete transcript turn.
+#[derive(Debug)]
+struct Cursor {
+    dialect: u32,
+    sequence: u32,
+    told: u32,
+    pending: Option<Usage>,
+}
+
 #[derive(Debug)]
 enum State {
     /// A call is in flight, after `attempt` retries.
-    Calling { attempt: u32 },
+    Completing { attempt: u32 },
     /// The last call failed transiently: calling again at `until`.
     Backoff { attempt: u32, until: Time },
     /// Running the tool calls of the last assistant message.
@@ -267,7 +273,7 @@ enum State {
 /// each of its tool runs still `runs`, and its kit's close.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 struct Waiting {
-    call: bool,
+    completion: bool,
     runs: u32,
     kit: Kit,
 }
@@ -283,10 +289,10 @@ enum Kit {
 
 /// What a session waits for once nothing it asked for is in flight but its
 /// kit, which it closes.
-const KIT: Waiting = Waiting { call: false, runs: 0, kit: Kit::Open };
+const KIT_ONLY: Waiting = Waiting { completion: false, runs: 0, kit: Kit::Open };
 
 /// A closing session that waits for nothing: it has ended.
-const SETTLED: Waiting = Waiting { call: false, runs: 0, kit: Kit::Closed };
+const SETTLED: Waiting = Waiting { completion: false, runs: 0, kit: Kit::Closed };
 
 /// The tool calls of the last assistant message, run in batches: adjacent
 /// calls that read, up to `Limits::parallel_tools` of them, run together, and
@@ -341,7 +347,7 @@ enum By {
 /// What runs the sessions' tool calls: the runs, the tools child domain, which
 /// the session owns (skein/docs/foundation/programming-model.md, section 4.5), and room for what the tools emit in a step.
 #[derive(Debug)]
-pub(crate) struct Calls {
+pub(crate) struct ToolCalls {
     pub(crate) runs: Slab<Run>,
     pub(crate) tools: tools::Domain,
     pub(crate) out: Queue<tools::Request>,
@@ -428,7 +434,7 @@ fn open_admitted(
         Some(News::Opened { kit }) => {
             session.conversation.kit = kit;
             out.push(Request::Opened { opener, session: id.token() });
-            session.state = call(&mut session.conversation, id, 0, env, out);
+            session.state = ask(&mut session.conversation, id, 0, env, out);
         }
         // Refused at the tools' entrance: the session never opened.
         Some(News::Refused { refusal }) => {
@@ -466,7 +472,7 @@ pub(crate) fn continued(
     let conversation = &mut session.conversation;
     session.state = match state {
         State::Yielded { .. } => resumed(conversation, id, content, env, out),
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -484,7 +490,7 @@ pub(crate) fn yield_completion(domain: &Domain, session: Token, out: &mut Queue<
         return;
     };
     match domain.sessions.get(id).expect("addressed session").state {
-        State::Calling { .. } => out.push(Request::Yield { owner: id.token() }),
+        State::Completing { .. } => out.push(Request::Yield { owner: id.token() }),
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -502,9 +508,9 @@ pub(crate) fn close(domain: &mut Domain, env: &Env<Limits>, session: Token, out:
     let session = domain.sessions.get_mut(id).expect("addressed above");
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Calling { attempt: _ } => cancel_call(id, End::Closed, out),
+        State::Completing { attempt: _ } => cancel_completion(id, End::Closed, out),
         State::Resting { tools } => finish_batch(End::Closed, tools),
-        State::Yielded { tools } => State::Closing { end: End::Closed, waiting: KIT, tools },
+        State::Yielded { tools } => State::Closing { end: End::Closed, waiting: KIT_ONLY, tools },
         State::Backoff { .. } => finish(End::Closed),
         State::Tooling { tools } => cancel_tools(&domain.calls.runs, tools, End::Closed, out),
         // It is already ending, with the end it had first.
@@ -552,8 +558,8 @@ pub(crate) fn completed(
     let state = mem::replace(&mut session.state, State::Closed);
     let conversation = &mut session.conversation;
     session.state = match state {
-        State::Calling { attempt: _ } => answered(conversation, id, &mut domain.calls, completion, env, out),
-        State::Closing { end, waiting: waiting @ Waiting { call: true, .. }, tools } => {
+        State::Completing { attempt: _ } => answered(conversation, id, &mut domain.calls, completion, env, out),
+        State::Closing { end, waiting: waiting @ Waiting { completion: true, .. }, tools } => {
             assert!(tools.is_none(), "a completion and a tool batch never run together");
             answered_late(conversation, id, &mut domain.calls, end, waiting, completion, &env.limits, out)
         }
@@ -561,7 +567,7 @@ pub(crate) fn completed(
         | State::Tooling { .. }
         | State::Resting { .. }
         | State::Yielded { .. }
-        | State::Closing { waiting: Waiting { call: false, .. }, .. }
+        | State::Closing { waiting: Waiting { completion: false, .. }, .. }
         | State::Closed => unreachable!("a completion ends a call in flight"),
     };
     conclude(domain, env, id, out, mark);
@@ -572,9 +578,9 @@ pub(crate) fn completed(
 pub fn preview_completion(domain: &Domain, owner: Token, usage: Usage) -> Result<u64, End> {
     let session = domain.sessions.get(Id::from_token(owner)).expect("completion retains its session");
     let conversation = &session.conversation;
-    let price = completion_price(&conversation.recording, usage).ok_or(End::PriceOverflow)?;
-    conversation.recording.own_spent.checked_add(price).ok_or(End::PriceOverflow)?;
-    conversation.recording.spent.checked_add(price).ok_or(End::PriceOverflow)?;
+    let price = completion_price(&conversation.spending, usage).ok_or(End::PriceOverflow)?;
+    conversation.spending.own.checked_add(price).ok_or(End::PriceOverflow)?;
+    conversation.spending.total.checked_add(price).ok_or(End::PriceOverflow)?;
     checked_usage(conversation.usage, usage)?;
     checked_reported(conversation.reported, usage).ok_or(End::UsageOverflow)?;
     conversation.turns.checked_add(1).ok_or(End::UsageOverflow)?;
@@ -605,31 +611,31 @@ pub fn reserve_completion(
 ) -> Option<u64> {
     let session = domain.sessions.get_mut(Id::from_token(owner)).expect("completion retains its session");
     let most = reservation(&session.conversation, input_bytes, allowance, max_tokens)?;
-    session.conversation.recording.reservation = Some(most);
+    session.conversation.spending.reservation = Some(most);
     Some(most)
 }
 
 fn reservation(conversation: &Conversation, input_bytes: u64, allowance: u64, max_tokens: u32) -> Option<u64> {
     let input_tokens = input_bytes.checked_add(allowance)?;
-    let prices = conversation.recording.prices;
+    let prices = conversation.spending.prices;
     let prices = crate::record::Prices { input: prices.reserved_input(), ..prices };
     let most = prices.price(Usage {
         input_tokens: Some(input_tokens),
         output_tokens: Some(u64::from(max_tokens)),
         ..Usage::ZERO
     })?;
-    let total = conversation.recording.spent.checked_add(most)?;
-    if total > conversation.recording.budget {
+    let total = conversation.spending.total.checked_add(most)?;
+    if total > conversation.spending.limit {
         return None;
     }
     Some(most)
 }
 
-fn completion_price(recording: &Recording, usage: Usage) -> Option<u64> {
+fn completion_price(spending: &Spending, usage: Usage) -> Option<u64> {
     if usage.input_tokens.is_none() || usage.output_tokens.is_none() {
-        return recording.reservation;
+        return spending.reservation;
     }
-    recording.prices.price(usage)
+    spending.prices.price(usage)
 }
 
 /// Settle a provider completion rejected by the parent's run-wide arithmetic
@@ -651,15 +657,15 @@ pub(crate) fn overflowed(domain: &mut Domain, env: &Env<Limits>, owner: Token, e
     release_provider(&mut session.conversation);
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Calling { .. } => finish(end),
-        State::Closing { waiting: Waiting { call: true, runs, kit }, tools, .. } => {
-            State::Closing { end, waiting: Waiting { call: false, runs, kit }, tools }
+        State::Completing { .. } => finish(end),
+        State::Closing { waiting: Waiting { completion: true, runs, kit }, tools, .. } => {
+            State::Closing { end, waiting: Waiting { completion: false, runs, kit }, tools }
         }
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
         | State::Yielded { .. }
-        | State::Closing { waiting: Waiting { call: false, .. }, .. }
+        | State::Closing { waiting: Waiting { completion: false, .. }, .. }
         | State::Closed => {
             unreachable!("only an in-flight provider completion can overflow")
         }
@@ -686,7 +692,7 @@ pub(crate) fn budget_denied(
 }
 
 /// The enclosing run closed before publishing this requested completion.
-/// Only its current Calling reservation settles Closed; no provider lease,
+/// Only its current Completing reservation settles Closed; no provider lease,
 /// cancel or completion evidence is fabricated. Closing calls still
 /// require their terminal.
 pub(crate) fn unsent_closed(domain: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
@@ -708,7 +714,7 @@ pub(crate) fn narrowed(
     };
     let session = domain.sessions.get_mut(id).expect("addressed above");
     match session.state {
-        State::Calling { .. } => {}
+        State::Completing { .. } => {}
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -743,14 +749,14 @@ pub(crate) fn narrowed(
         conversation.choice_names = names;
         match history::hold_note(conversation, note, &env.limits) {
             Some(end) => finish(end),
-            None => call(conversation, id, 0, env, out),
+            None => ask(conversation, id, 0, env, out),
         }
     } else {
         conversation.choice = choice;
         conversation.choice_names = names;
         let content = Box::new([Block::Text { text: note, replay: None }]);
         conversation.transcript.push(Message { role: Role::User, content }).expect("note slot checked");
-        call(conversation, id, 0, env, out)
+        ask(conversation, id, 0, env, out)
     };
     conclude(domain, env, id, out, mark);
 }
@@ -808,7 +814,7 @@ fn unsent_finished(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: En
     };
     let session = domain.sessions.get_mut(id).expect("addressed above");
     match &session.state {
-        State::Calling { .. } => {}
+        State::Completing { .. } => {}
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -855,11 +861,11 @@ pub(crate) fn failed(
     );
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Calling { attempt } => {
+        State::Completing { attempt } => {
             if failure == Failure::SessionGone {
                 match compaction::session_gone(&mut session.conversation) {
                     Some(end) => finish(end),
-                    None => call(&mut session.conversation, id, 0, env, out),
+                    None => ask(&mut session.conversation, id, 0, env, out),
                 }
             } else if compaction::context_failure(failure) {
                 match compaction::start(
@@ -869,20 +875,20 @@ pub(crate) fn failed(
                     attempt.checked_add(1).expect("a completion has a one-based attempt"),
                 ) {
                     Some(end) => finish(end),
-                    None => call(&mut session.conversation, id, 0, env, out),
+                    None => ask(&mut session.conversation, id, 0, env, out),
                 }
             } else {
-                call_failed(attempt, failure, evidence, retry_ok, &session.conversation, &mut domain.rng, env)
+                completion_failed(attempt, failure, evidence, retry_ok, &session.conversation, &mut domain.rng, env)
             }
         }
-        State::Closing { end, waiting: waiting @ Waiting { call: true, .. }, tools } => {
-            State::Closing { end, waiting: Waiting { call: false, ..waiting }, tools }
+        State::Closing { end, waiting: waiting @ Waiting { completion: true, .. }, tools } => {
+            State::Closing { end, waiting: Waiting { completion: false, ..waiting }, tools }
         }
         State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
         | State::Yielded { .. }
-        | State::Closing { waiting: Waiting { call: false, .. }, .. }
+        | State::Closing { waiting: Waiting { completion: false, .. }, .. }
         | State::Closed => unreachable!("a failure ends a call in flight"),
     };
     // A retry is told with its wait: no request goes out until then.
@@ -895,7 +901,7 @@ pub(crate) fn failed(
                 None,
             );
         }
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
         | State::Yielded { .. }
@@ -917,15 +923,15 @@ pub(crate) fn cancelled(domain: &mut Domain, env: &Env<Limits>, owner: Token, ou
     );
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Closing { end, waiting: waiting @ Waiting { call: true, .. }, tools } => {
-            State::Closing { end, waiting: Waiting { call: false, ..waiting }, tools }
+        State::Closing { end, waiting: waiting @ Waiting { completion: true, .. }, tools } => {
+            State::Closing { end, waiting: Waiting { completion: false, ..waiting }, tools }
         }
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
         | State::Yielded { .. }
-        | State::Closing { waiting: Waiting { call: false, .. }, .. }
+        | State::Closing { waiting: Waiting { completion: false, .. }, .. }
         | State::Closed => unreachable!("a cancellation answers the cancel of a call, sent on the way to Closing"),
     };
     conclude(domain, env, id, out, mark);
@@ -991,7 +997,7 @@ fn owned_answered(
                 keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits).unwrap_or(end);
             settled(end, waiting, tools)
         }
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Resting { .. }
         | State::Yielded { .. }
@@ -1010,7 +1016,7 @@ fn kit_closed(sessions: &mut Slab<Session>, id: Id<Session>) {
         State::Closing { end, waiting: waiting @ Waiting { kit: Kit::Closing, .. }, tools } => {
             State::Closing { end, waiting: Waiting { kit: Kit::Closed, ..waiting }, tools }
         }
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -1025,13 +1031,13 @@ pub(crate) fn expire(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, ou
     let session = domain.sessions.get_mut(id).expect("an alarm is cancelled before its session closes");
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Calling { attempt: _ } => cancel_call(id, OUT_OF_TIME, out),
+        State::Completing { attempt: _ } => cancel_completion(id, OUT_OF_TIME, out),
         State::Resting { tools } => finish_batch(OUT_OF_TIME, tools),
-        State::Yielded { tools } => State::Closing { end: OUT_OF_TIME, waiting: KIT, tools },
+        State::Yielded { tools } => State::Closing { end: OUT_OF_TIME, waiting: KIT_ONLY, tools },
         State::Backoff { .. } => finish(OUT_OF_TIME),
         State::Tooling { tools } => cancel_tools(&domain.calls.runs, tools, OUT_OF_TIME, out),
         State::Closing { .. } | State::Closed => {
-            unreachable!("the expiry alarm runs only in Calling, Backoff, Tooling, Resting and Yielded")
+            unreachable!("the expiry alarm runs only in Completing, Backoff, Tooling, Resting and Yielded")
         }
     };
     conclude(domain, env, id, out, mark);
@@ -1042,8 +1048,8 @@ pub(crate) fn retry(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out
     let session = domain.sessions.get_mut(id).expect("an alarm is cancelled before its session closes");
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Backoff { attempt, until: _ } => call(&mut session.conversation, id, attempt, env, out),
-        State::Calling { .. }
+        State::Backoff { attempt, until: _ } => ask(&mut session.conversation, id, attempt, env, out),
+        State::Completing { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
         | State::Yielded { .. }
@@ -1062,7 +1068,7 @@ pub(crate) fn rested(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, ou
     let conversation = &mut session.conversation;
     session.state = match state {
         State::Resting { tools } => advance(conversation, id, &mut domain.calls, tools, env, out),
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Yielded { .. }
@@ -1169,7 +1175,7 @@ pub(crate) fn read_version(
 /// cancels; what is for the session comes back. One step of the tools answers
 /// at most one call: an open, a close or an operation's end concerns one kit,
 /// and a call is answered at the entrance or later.
-fn tools_step(calls: &mut Calls, env: &Env<Limits>, event: tools::Event, out: &mut Queue<Request>) -> Heard {
+fn tools_step(calls: &mut ToolCalls, env: &Env<Limits>, event: tools::Event, out: &mut Queue<Request>) -> Heard {
     let tools_env = Env { now: env.now, wall: env.wall, limits: env.limits.tools };
     tools::step(&mut calls.tools, &tools_env, event, &mut calls.out);
     let mut heard = Heard { answer: None, kit: None, cancelled: None };
@@ -1210,7 +1216,7 @@ fn tools_step(calls: &mut Calls, env: &Env<Limits>, event: tools::Event, out: &m
 fn addressed(sessions: &Slab<Session>, session: Token) -> Option<Id<Session>> {
     let id = Id::from_token(session);
     match &sessions.get(id)?.state {
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -1228,7 +1234,7 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
     let session = domain.sessions.get_mut(id).expect("the transition's session lives");
     match session.state {
         State::Closing { .. } => builtin::forget(&mut session.conversation),
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -1237,10 +1243,10 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
     }
     builtin::follow(&mut session.conversation, &mut domain.facts);
     match session.state {
-        State::Closing { waiting: Waiting { call: false, runs: 0, .. }, .. } | State::Yielded { .. } => {
+        State::Closing { waiting: Waiting { completion: false, runs: 0, .. }, .. } | State::Yielded { .. } => {
             let tools = match &mut session.state {
                 State::Closing { tools, .. } | State::Yielded { tools } => tools.take(),
-                State::Calling { .. }
+                State::Completing { .. }
                 | State::Backoff { .. }
                 | State::Tooling { .. }
                 | State::Resting { .. }
@@ -1254,7 +1260,7 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
                 match &mut session.state {
                     State::Closing { end: current, .. } => *current = end,
                     State::Yielded { .. } => session.state = finish(end),
-                    State::Calling { .. }
+                    State::Completing { .. }
                     | State::Backoff { .. }
                     | State::Tooling { .. }
                     | State::Resting { .. }
@@ -1263,7 +1269,7 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
             }
         }
         State::Closing { .. }
-        | State::Calling { .. }
+        | State::Completing { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -1282,7 +1288,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Que
     let session = domain.sessions.get_mut(id).expect("a session lives until it is retired");
     let (end, waiting) = match &session.state {
         State::Closing { end, waiting, .. } => (end.clone(), *waiting),
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -1329,7 +1335,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Que
     } else {
         session.state = match mem::replace(&mut session.state, State::Closed) {
             State::Closing { tools, .. } => State::Closing { end, waiting, tools },
-            State::Calling { .. }
+            State::Completing { .. }
             | State::Backoff { .. }
             | State::Tooling { .. }
             | State::Resting { .. }
@@ -1404,7 +1410,7 @@ fn tell(facts: &mut Facts, runs: &Slab<Run>, session: &mut Session, out: &Queue<
             }
             Request::Complete { .. } => facts.push_response(fact, next_response(&session.conversation), None),
             Request::Used { .. } => {
-                let spent = session.conversation.recording.last_charge;
+                let spent = session.conversation.spending.last_charge;
                 facts.push_response(fact, u64::from(session.conversation.turns), Some(spent));
             }
             Request::Opened { .. } | Request::Yielded { .. } | Request::Ended { .. } => facts.push(fact),
@@ -1427,7 +1433,7 @@ fn follow(sessions: &mut Slab<Session>, alarms: &mut Deadlines<Alarm>, ready: &m
     let session = sessions.get(id).expect("a session lives until it is retired");
     let expires = session.conversation.expires;
     let (expiry, retry, resting, closed) = match &session.state {
-        State::Calling { .. } | State::Tooling { .. } | State::Yielded { .. } => (Some(expires), None, false, false),
+        State::Completing { .. } | State::Tooling { .. } | State::Yielded { .. } => (Some(expires), None, false, false),
         State::Backoff { until, .. } => (Some(expires), Some(*until), false, false),
         State::Resting { .. } => (Some(expires), None, true, false),
         State::Closing { .. } => (None, None, false, false),
@@ -1452,17 +1458,17 @@ fn set(alarms: &mut Deadlines<Alarm>, alarm: Alarm, at: Option<Time>) {
 // Cell handlers: each takes the source state's data by value and returns the
 // target state.
 
-/// Calling, completed: the LLM produced its next message.
+/// Completing, completed: the LLM produced its next message.
 fn answered(
     conversation: &mut Conversation,
     id: Id<Session>,
-    calls: &mut Calls,
+    calls: &mut ToolCalls,
     completion: Completion,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
 ) -> State {
     let origin_fits = {
-        let Recording { sequence, .. } = conversation.recording;
+        let Cursor { sequence, .. } = conversation.cursor;
         sequence.checked_add(1).is_some()
     } && u32::try_from(completion.content.len()).is_ok();
     if let Err(end) = used(conversation, completion.usage, out) {
@@ -1513,7 +1519,7 @@ fn answered(
 fn answered_late(
     conversation: &mut Conversation,
     id: Id<Session>,
-    issuer: &mut Calls,
+    issuer: &mut ToolCalls,
     end: End,
     waiting: Waiting,
     completion: Completion,
@@ -1522,18 +1528,18 @@ fn answered_late(
 ) -> State {
     if let Err(overflow) = used(conversation, completion.usage, out) {
         release_provider(conversation);
-        return State::Closing { end: overflow, waiting: Waiting { call: false, ..waiting }, tools: None };
+        return State::Closing { end: overflow, waiting: Waiting { completion: false, ..waiting }, tools: None };
     }
     if conversation.compaction.asking() {
         let end = compaction::accept(conversation, completion, limits, out).unwrap_or(end);
-        return State::Closing { end, waiting: Waiting { call: false, ..waiting }, tools: None };
+        return State::Closing { end, waiting: Waiting { completion: false, ..waiting }, tools: None };
     }
     assert!(conversation.transcript.room() > 0, "reserved assistant message");
     if !receive_completion(conversation, &completion.content, tally(&completion.content).0, limits) {
         clear_pending(conversation);
         return State::Closing {
             end: history::completion_limit(conversation, &completion.content, limits),
-            waiting: Waiting { call: false, ..waiting },
+            waiting: Waiting { completion: false, ..waiting },
             tools: None,
         };
     }
@@ -1543,15 +1549,15 @@ fn answered_late(
         .push(Message { role: Role::Assistant, content: completion.content })
         .expect("reserved assistant slot");
     let tools = if calls > 0 { Some(builtin::late(conversation, id, issuer, calls, limits)) } else { None };
-    State::Closing { end, waiting: Waiting { call: false, ..waiting }, tools }
+    State::Closing { end, waiting: Waiting { completion: false, ..waiting }, tools }
 }
 
-/// Calling, completed with tool use: record the message and go through its
+/// Completing, completed with tool use: record the message and go through its
 /// calls.
 fn use_tools(
     conversation: &mut Conversation,
     id: Id<Session>,
-    calls: &mut Calls,
+    calls: &mut ToolCalls,
     content: Box<[Block]>,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
@@ -1593,7 +1599,7 @@ fn use_tools(
 fn advance(
     conversation: &mut Conversation,
     id: Id<Session>,
-    calls: &mut Calls,
+    calls: &mut ToolCalls,
     mut tools: Tools,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
@@ -1733,7 +1739,7 @@ fn finish_tools(
         return final_answer(conversation, text, out);
     }
     match tools.after {
-        After::Complete => call(conversation, id, 0, env, out),
+        After::Complete => ask(conversation, id, 0, env, out),
         After::Yield => {
             if let Some(end) = tell_turn(conversation, out) {
                 return finish(end);
@@ -1758,7 +1764,7 @@ const fn joins(batch: Option<Effect>, effect: Effect, started: u32, parallel: u3
     }
 }
 
-/// Calling, completed without tools to run: record the message, and yield to
+/// Completing, completed without tools to run: record the message, and yield to
 /// the opener with its text.
 fn pause(
     conversation: &mut Conversation,
@@ -1812,7 +1818,7 @@ fn resumed(
     }
     let content = unrun(conversation, text, &mut [], false);
     conversation.transcript.push(Message { role: Role::User, content }).expect("checked for room above");
-    call(conversation, id, 0, env, out)
+    ask(conversation, id, 0, env, out)
 }
 
 /// The opener's message after one result per call of the saved assistant tail.
@@ -1859,7 +1865,7 @@ fn unrun(
 fn tool_ran(
     conversation: &mut Conversation,
     id: Id<Session>,
-    calls: &mut Calls,
+    calls: &mut ToolCalls,
     mut tools: Tools,
     slot: u32,
     block: u32,
@@ -1890,9 +1896,9 @@ fn settled(end: End, waiting: Waiting, tools: Option<Tools>) -> State {
     State::Closing { end, waiting: Waiting { runs, ..waiting }, tools }
 }
 
-/// Calling, failed: wait and call again if the failure is transient and
+/// Completing, failed: wait and call again if the failure is transient and
 /// retries remain; end otherwise.
-fn call_failed(
+fn completion_failed(
     attempt: u32,
     failure: Failure,
     evidence: crate::llm::Evidence,
@@ -1941,7 +1947,7 @@ fn call_failed(
 
 /// Ask for an ordinary answer or compact before the next answer crosses its
 /// history or window bound. A fresh window names its limit; budgets end first.
-fn call(
+fn ask(
     conversation: &mut Conversation,
     id: Id<Session>,
     attempt: u32,
@@ -1976,7 +1982,7 @@ fn call(
         }
     }
     {
-        let Recording { sequence, .. } = conversation.recording;
+        let Cursor { sequence, .. } = conversation.cursor;
 
         if sequence.checked_add(1).is_none() {
             return finish(history::sequence_limit());
@@ -1985,7 +1991,7 @@ fn call(
     assert!(reserve_provider(conversation, &env.limits), "admitted provider work has receiving room");
     conversation.completion_attempts = attempt.checked_add(1).expect("admitted one-based completion attempt");
     out.push(complete(id, conversation, attempt, &env.limits));
-    State::Calling { attempt }
+    State::Completing { attempt }
 }
 
 /// Move the already charged opener note into its one final user message.
@@ -2017,9 +2023,9 @@ fn final_answer(conversation: &mut Conversation, text: Box<[u8]>, out: &mut Queu
     State::Yielded { tools: None }
 }
 
-fn cancel_call(id: Id<Session>, end: End, out: &mut Queue<Request>) -> State {
+fn cancel_completion(id: Id<Session>, end: End, out: &mut Queue<Request>) -> State {
     out.push(Request::Cancel { owner: id.token() });
-    State::Closing { end, waiting: Waiting { call: true, ..KIT }, tools: None }
+    State::Closing { end, waiting: Waiting { completion: true, ..KIT_ONLY }, tools: None }
 }
 
 /// Withdraws the delegated runs in flight, to end with `end` once every run
@@ -2036,7 +2042,7 @@ fn cancel_tools(runs: &Slab<Run>, tools: Tools, end: End, out: &mut Queue<Reques
         }
     }
     let running = tools.running;
-    State::Closing { end, waiting: Waiting { runs: running, ..KIT }, tools: Some(tools) }
+    State::Closing { end, waiting: Waiting { runs: running, ..KIT_ONLY }, tools: Some(tools) }
 }
 
 /// Ends with `end` at once, or once the runs in flight have settled.
@@ -2049,20 +2055,20 @@ fn abandon(runs: &Slab<Run>, tools: Tools, end: End, out: &mut Queue<Request>) -
 
 /// Counts a completion that came back, and tells the opener.
 fn used(conversation: &mut Conversation, usage: Usage, out: &mut Queue<Request>) -> Result<(), End> {
-    let price = completion_price(&conversation.recording, usage).ok_or(End::PriceOverflow)?;
-    let own = conversation.recording.own_spent.checked_add(price).ok_or(End::PriceOverflow)?;
-    let inclusive = conversation.recording.spent.checked_add(price).ok_or(End::PriceOverflow)?;
+    let price = completion_price(&conversation.spending, usage).ok_or(End::PriceOverflow)?;
+    let own = conversation.spending.own.checked_add(price).ok_or(End::PriceOverflow)?;
+    let inclusive = conversation.spending.total.checked_add(price).ok_or(End::PriceOverflow)?;
     let cumulative = checked_usage(conversation.usage, usage)?;
     let reported = checked_reported(conversation.reported, usage).ok_or(End::UsageOverflow)?;
     let next_turn = conversation.turns.checked_add(1).ok_or(End::UsageOverflow)?;
     conversation.turns = next_turn;
     conversation.usage = cumulative;
     conversation.reported = reported;
-    conversation.recording.reservation = None;
-    conversation.recording.last_charge = price;
-    conversation.recording.own_spent = own;
-    conversation.recording.spent = inclusive;
-    conversation.recording.pending = Some(usage);
+    conversation.spending.reservation = None;
+    conversation.spending.last_charge = price;
+    conversation.spending.own = own;
+    conversation.spending.total = inclusive;
+    conversation.cursor.pending = Some(usage);
     out.push(Request::Priced { opener: conversation.opener, spent: inclusive, own_spent: own });
     out.push(Request::Used { opener: conversation.opener, usage });
     Ok(())
@@ -2113,11 +2119,11 @@ fn add_reported_count(previous: Option<u64>, received: Option<u64>) -> Result<Op
 /// Ends the session with `end`, which has nothing in flight but its kit: the
 /// kit closes, and the opener is told once it has ([`settle`]).
 const fn finish(end: End) -> State {
-    State::Closing { end, waiting: KIT, tools: None }
+    State::Closing { end, waiting: KIT_ONLY, tools: None }
 }
 
 fn finish_batch(end: End, tools: Tools) -> State {
-    State::Closing { end, waiting: KIT, tools: Some(tools) }
+    State::Closing { end, waiting: KIT_ONLY, tools: Some(tools) }
 }
 
 // Helpers.
@@ -2143,7 +2149,8 @@ fn refuse(facts: &mut Facts, opener: Token, end: End, out: &mut Queue<Request>) 
 fn admit(
     opener: Token,
     spec: Spec,
-    recording: Recording,
+    spending: Spending,
+    cursor: Cursor,
     limits: &Limits,
     now: Time,
 ) -> Option<(Conversation, tools::Authority)> {
@@ -2222,7 +2229,8 @@ fn admit(
         // Named as the kit opens: until then, the session is Closed, which
         // holds nothing.
         kit: Token::new(0),
-        recording,
+        spending,
+        cursor,
         jobs: jobs::Jobs::new(limits.tools.jobs),
         builtin: builtin::Owed::with_capacity(limits.completion_blocks),
         detail: Box::default(),
@@ -2241,7 +2249,7 @@ fn affordable(budget: &Budget, most: &Budget) -> bool {
 }
 
 fn next_sequence(conversation: &Conversation) -> u32 {
-    conversation.recording.sequence.checked_add(1).expect("checked before tool effects")
+    conversation.cursor.sequence.checked_add(1).expect("checked before tool effects")
 }
 
 fn current_block(conversation: &Conversation, index: u32) -> &Block {
@@ -2277,9 +2285,9 @@ fn chosen(choice: &ToolChoice, block: &Block) -> bool {
 /// tokens are known only once it comes back), or its time run out.
 fn spent(conversation: &Conversation, now: Time) -> Option<Dimension> {
     {
-        let Recording { budget, spent, .. } = conversation.recording;
+        let Spending { limit, total, .. } = conversation.spending;
 
-        if spent >= budget {
+        if total >= limit {
             return Some(Dimension::Unit);
         }
     }
@@ -2358,7 +2366,7 @@ fn complete(id: Id<Session>, conversation: &Conversation, retry: u32, limits: &L
     Request::Complete {
         owner: id.token(),
         name: crate::llm::CompletionName {
-            sequence: conversation.recording.sequence.checked_add(1).expect("call admitted the next sequence"),
+            sequence: conversation.cursor.sequence.checked_add(1).expect("call admitted the next sequence"),
             retry,
         },
         prompt,
@@ -2640,7 +2648,7 @@ fn receive_completion(conversation: &mut Conversation, content: &[Block], calls:
     assert!(cost <= credit, "complete content and result skeleton obey reserved caps");
     let fits = charge(conversation, Some(cost), limits);
     conversation.window.completed(
-        conversation.recording.pending.expect("ordinary completion usage retained"),
+        conversation.cursor.pending.expect("ordinary completion usage retained"),
         conversation.output,
         conversation.transcript.len().checked_add(1).expect("reserved assistant slot"),
         compaction::prompt_bytes(conversation).unwrap_or(u64::MAX),
@@ -2862,19 +2870,9 @@ pub(crate) fn open(
         refuse(&mut domain.facts, opener, End::Invalid, out);
         return;
     }
-    let recording = Recording {
-        dialect,
-        prices,
-        budget,
-        spent: 0,
-        own_spent: 0,
-        sequence: 0,
-        told: 0,
-        pending: None,
-        reservation: None,
-        last_charge: 0,
-    };
-    let Some((mut conversation, authority)) = admit(opener, spec, recording, &env.limits, env.now) else {
+    let spending = Spending { prices, limit: budget, total: 0, own: 0, reservation: None, last_charge: 0 };
+    let cursor = Cursor { dialect, sequence: 0, told: 0, pending: None };
+    let Some((mut conversation, authority)) = admit(opener, spec, spending, cursor, &env.limits, env.now) else {
         refuse(&mut domain.facts, opener, End::Invalid, out);
         return;
     };
@@ -2909,8 +2907,8 @@ pub(crate) fn open(
         refuse(&mut domain.facts, opener, end, out);
         return;
     }
-    conversation.recording.sequence = sequence;
-    conversation.recording.told = told;
+    conversation.cursor.sequence = sequence;
+    conversation.cursor.told = told;
     open_admitted(domain, env, opener, conversation, authority, out, mark);
 }
 
@@ -3318,12 +3316,9 @@ fn tell_turn(conversation: &mut Conversation, out: &mut Queue<Request>) -> Optio
     if !conversation.builtin.is_empty() {
         return None;
     }
-    let (dialect, sequence, told, usage, spent) = {
-        let Recording { dialect, sequence, told, pending, spent, .. } = &mut conversation.recording;
-
-        let usage = pending.take()?;
-        (*dialect, sequence, told, usage, *spent)
-    };
+    let Cursor { dialect, sequence, told, pending } = &mut conversation.cursor;
+    let usage = pending.take()?;
+    let spent = conversation.spending.total;
     let Some(next) = sequence.checked_add(1) else {
         return Some(history::sequence_limit());
     };
@@ -3372,7 +3367,7 @@ fn tell_turn(conversation: &mut Conversation, out: &mut Queue<Request>) -> Optio
         endpoint: Some(conversation.endpoint),
         model: conversation.model.clone(),
         effort: conversation.effort.clone(),
-        dialect,
+        dialect: *dialect,
         sequence: next,
         usage,
         spent,
@@ -3427,14 +3422,10 @@ pub(crate) fn delegate_ended(
     assert!(by == By::Opener, "the opener answers its delegated call once");
     let session = domain.sessions.get_mut(id).expect("a call keeps its session alive");
     let conversation = &mut session.conversation;
-    let added = conversation.recording.spent.checked_add(bill.spent);
+    let added = conversation.spending.total.checked_add(bill.spent);
     if let Some(total) = added {
-        conversation.recording.spent = total;
-        out.push(Request::Priced {
-            opener: conversation.opener,
-            spent: total,
-            own_spent: conversation.recording.own_spent,
-        });
+        conversation.spending.total = total;
+        out.push(Request::Priced { opener: conversation.opener, spent: total, own_spent: conversation.spending.own });
     }
     let result = history::cut_result(result, credit);
     let fact = match &result {
@@ -3480,7 +3471,7 @@ pub(crate) fn delegate_ended(
             };
             settled(end, waiting, tools)
         }
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Resting { .. }
         | State::Yielded { .. }
@@ -3520,7 +3511,7 @@ pub(crate) fn delegate_withheld(domain: &mut Domain, env: &Env<Limits>, owner: T
             }
             settled(end, waiting, tools)
         }
-        State::Calling { .. }
+        State::Completing { .. }
         | State::Backoff { .. }
         | State::Resting { .. }
         | State::Yielded { .. }
@@ -3532,7 +3523,7 @@ pub(crate) fn delegate_withheld(domain: &mut Domain, env: &Env<Limits>, owner: T
 }
 
 fn clear_pending(conversation: &mut Conversation) {
-    conversation.recording.pending = None;
+    conversation.cursor.pending = None;
 }
 
 fn keep_closing(
@@ -3701,7 +3692,7 @@ fn recorded_shape(message: &Message, limits: &Limits) -> Result<(), crate::recor
 #[cfg(test)]
 pub(crate) fn exhaust_origin_for_test(domain: &mut Domain, owner: Token) {
     let session = domain.sessions.get_mut(Id::from_token(owner)).expect("live test session");
-    session.conversation.recording.sequence = u32::MAX;
+    session.conversation.cursor.sequence = u32::MAX;
 }
 
 /// Reserved provider rights for focused settlement controls. This
@@ -3737,7 +3728,7 @@ fn tool_metadata(
 
 /// Set the slab-issued observation identity before any request or fact can expose it.
 fn observed_run(
-    calls: &mut Calls,
+    calls: &mut ToolCalls,
     session: Id<Session>,
     slot: u32,
     block: u32,

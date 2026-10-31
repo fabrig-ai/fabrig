@@ -3,7 +3,7 @@
 //! It knows no paths or program policy. Preparation makes stand-ins immediately;
 //! result patches consume their credit, and forgetting settles the remaining stand-ins.
 
-use super::{By, Calls, Conversation, Session, Slot, State as SessionState, Tools, addressed, history};
+use super::{By, Conversation, Session, Slot, State as SessionState, ToolCalls, Tools, addressed, history};
 use crate::facts::{FactKind, Facts, ToolCall, ToolSource};
 use crate::llm::{Block, Decoded, Returned};
 use crate::{Domain, Limits, Request};
@@ -93,7 +93,7 @@ impl Owed {
 pub(super) fn prepare(
     conversation: &mut Conversation,
     session: Id<Session>,
-    calls: &mut Calls,
+    calls: &mut ToolCalls,
     tools: &mut Tools,
     limits: &Limits,
 ) {
@@ -174,7 +174,7 @@ pub(super) fn prepare(
 pub(super) fn late(
     conversation: &mut Conversation,
     session: Id<Session>,
-    calls: &mut Calls,
+    calls: &mut ToolCalls,
     count: u32,
     limits: &Limits,
 ) -> Tools {
@@ -295,7 +295,7 @@ pub(crate) fn result(
             let tools = match &mut current.state {
                 SessionState::Tooling { tools } | SessionState::Resting { tools } => tools,
                 SessionState::Closing { tools, .. } => tools.as_mut().expect("closing slots retained"),
-                SessionState::Calling { .. }
+                SessionState::Completing { .. }
                 | SessionState::Backoff { .. }
                 | SessionState::Yielded { .. }
                 | SessionState::Closed => {

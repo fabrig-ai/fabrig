@@ -12,14 +12,14 @@ use smith_domain_tools as tools;
 use crate::boundary::{Event, Request};
 use crate::facts::{Fact, Facts};
 use crate::limits::{self, Limits};
-use crate::session::{self, Alarm, Calls, Ready, Session};
+use crate::session::{self, Alarm, Ready, Session, ToolCalls};
 
 /// The session child domain's state.
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) sessions: Slab<Session>,
     /// What runs the sessions' tool calls: the tools, which the session owns.
-    pub(crate) calls: Calls,
+    pub(crate) calls: ToolCalls,
     pub(crate) alarms: Deadlines<Alarm>,
     /// Sessions resting after a batch answered at once.
     pub(crate) ready: Ready,
@@ -33,8 +33,11 @@ impl Domain {
     pub fn new(limits: &Limits, seed: u64) -> Domain {
         let alarms = limits::alarms(limits).expect("valid limits");
         let runs = limits::runs(limits).expect("valid limits");
-        let calls =
-            Calls { runs: Slab::with_capacity(runs), tools: tools::Domain::new(&limits.tools), out: Queue::uncapped() };
+        let calls = ToolCalls {
+            runs: Slab::with_capacity(runs),
+            tools: tools::Domain::new(&limits.tools),
+            out: Queue::uncapped(),
+        };
         Domain {
             sessions: Slab::with_capacity(limits.sessions),
             calls,
@@ -70,7 +73,7 @@ impl Domain {
         self.calls.tools.kits()
     }
 
-    /// Calls the tools are running, answered ones included until they are
+    /// ToolCalls the tools are running, answered ones included until they are
     /// reclaimed.
     #[must_use]
     pub fn flights(&self) -> u32 {

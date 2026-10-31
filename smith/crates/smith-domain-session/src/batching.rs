@@ -132,7 +132,7 @@ pub(super) fn invalid_slot(tools: &mut Tools, block: &Block, call: &[u8], proble
 /// End remaining polls only after the batch's other work has answered.
 pub(super) fn end_waits(
     conversation: &Conversation,
-    calls: &mut super::Calls,
+    calls: &mut super::ToolCalls,
     tools: &Tools,
     env: &skein_lib::Env<super::Limits>,
     out: &mut skein_lib::Queue<super::Request>,

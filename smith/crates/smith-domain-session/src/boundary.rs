@@ -111,7 +111,7 @@ pub enum Event {
         end: End,
     },
     /// The root denied this requested completion before publishing it to a
-    /// provider. Only its current Calling owner releases credit and ends the
+    /// provider. Only its current Completing owner releases credit and ends the
     /// session, after kit settlement. Stale or duplicate denials are inert;
     /// no cancellation, retry, usage or Turn is produced.
     BudgetDenied {
@@ -121,7 +121,7 @@ pub enum Event {
         reason: BudgetDenial,
     },
     /// The root closed the run before publishing this requested completion.
-    /// Only the current Calling owner releases its reservation and settles
+    /// Only the current Completing owner releases its reservation and settles
     /// Closed after the kit closes. Stale, duplicate and already-closing
     /// events are inert; a provider terminal remains owed once started.
     /// No cancellation, retry, usage or Turn is invented.

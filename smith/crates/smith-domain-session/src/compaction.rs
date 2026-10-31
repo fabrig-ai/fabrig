@@ -65,7 +65,7 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
         model: mem::replace(&mut conversation.model, llm.model),
         window: mem::replace(&mut conversation.model_window, llm.window),
         output: mem::replace(&mut conversation.output, llm.output),
-        prices: mem::replace(&mut conversation.recording.prices, llm.prices),
+        prices: mem::replace(&mut conversation.spending.prices, llm.prices),
     };
     conversation.compaction = match mem::replace(&mut conversation.compaction, Compaction::Idle) {
         Compaction::Idle | Compaction::CarryOver { .. } => Compaction::CarryOver { next: Some(next) },
@@ -253,7 +253,7 @@ pub(super) fn open_window(
         conversation.effort = llm.effort;
         conversation.model_window = llm.window;
         conversation.output = llm.output;
-        conversation.recording.prices = llm.prices;
+        conversation.spending.prices = llm.prices;
     }
     let Some(bytes) = new_bytes(conversation, &content) else {
         return Some(super::history::limit(limits.history_bytes));
@@ -271,7 +271,7 @@ pub(super) fn open_window(
     conversation.bytes = bytes;
     conversation.window = Window::fresh(number, usage.output_tokens.unwrap_or(u64::from(conversation.output)));
     conversation.window.summary_bytes = summary_bytes;
-    conversation.recording.told = 0;
+    conversation.cursor.told = 0;
     super::tell_turn(conversation, out)
 }
 
@@ -325,7 +325,7 @@ pub(super) fn answered(
 ) -> super::State {
     match accept(conversation, completion, &env.limits, out) {
         Some(end) => super::finish(end),
-        None => super::call(conversation, id, 0, env, out),
+        None => super::ask(conversation, id, 0, env, out),
     }
 }
 
@@ -532,7 +532,7 @@ pub(super) fn carry_over(
         Kind::Ordinary => unreachable!("validated opening kind"),
     };
     if transcript.endpoint == Some(conversation.endpoint)
-        && transcript.dialect == conversation.recording.dialect
+        && transcript.dialect == conversation.cursor.dialect
         && same_opening
     {
         return Ok(0);

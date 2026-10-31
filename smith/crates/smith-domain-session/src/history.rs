@@ -111,7 +111,7 @@ pub(super) fn continue_held(
     owe_stopped_calls(conversation);
     match hold_note(conversation, text, &env.limits) {
         Some(end) => super::finish(end),
-        None => super::call(conversation, id, 0, env, out),
+        None => super::ask(conversation, id, 0, env, out),
     }
 }
 
