@@ -186,39 +186,9 @@ pub fn checked(
     listener: Option<SocketAddr>,
     overrides: &[(Box<[u8]>, u64)],
 ) -> Result<Checked, Problems> {
+    let (limits, fetch_bytes) = limits(overrides)?;
     let mut ps = Problems::empty();
-    let mut limits = limits::small();
-    let mut fetch_bytes = limits::FETCH_BYTES;
-    let lp = Path::root().member(b"application").member(b"limits").member(b"overrides");
-    for (name, value) in overrides {
-        let result = if name.as_ref() == b"setup.fetch_bytes" {
-            match limits::fetch_bytes(*value) {
-                Ok(value) => {
-                    fetch_bytes = value;
-                    Ok(())
-                }
-                Err(why) => Err(why),
-            }
-        } else {
-            limits::apply(&mut limits, name, *value)
-        };
-        if let Err(w) = result {
-            ps.push(
-                lp.member(name),
-                What::Reason(match w {
-                    limits::Refused::Unknown => b"no limit of temper's has this name",
-                    limits::Refused::Range => b"outside its type",
-                }),
-            );
-        }
-    }
-    let limits_ok = match skein_forge_setup::limits::check(&limits) {
-        Ok(()) => true,
-        Err(why) => {
-            ps.extend(given::refusal(0, why));
-            false
-        }
-    };
+    let limits_ok = true;
     let setup = Setup::read(document, at, &limits, directories, &mut ps);
     if let Some(setup) = &setup {
         members(setup, members_value, listener.is_some(), &mut ps);
@@ -256,4 +226,38 @@ pub fn checked(
     } else {
         Err(ps)
     }
+}
+
+/// Applies the machine's setup limits (temper/docs/design/draft/playground-reset.md, 3).
+pub fn limits(overrides: &[(Box<[u8]>, u64)]) -> Result<(Limits, u64), Problems> {
+    let mut ps = Problems::empty();
+    let mut limits = limits::small();
+    let mut fetch_bytes = limits::FETCH_BYTES;
+    let lp = Path::root().member(b"application").member(b"limits").member(b"overrides");
+    for (name, value) in overrides {
+        let result = if name.as_ref() == b"setup.fetch_bytes" {
+            match limits::fetch_bytes(*value) {
+                Ok(value) => {
+                    fetch_bytes = value;
+                    Ok(())
+                }
+                Err(why) => Err(why),
+            }
+        } else {
+            limits::apply(&mut limits, name, *value)
+        };
+        if let Err(w) = result {
+            ps.push(
+                lp.member(name),
+                What::Reason(match w {
+                    limits::Refused::Unknown => b"no limit of temper's has this name",
+                    limits::Refused::Range => b"outside its type",
+                }),
+            );
+        }
+    }
+    if let Err(why) = skein_forge_setup::limits::check(&limits) {
+        ps.extend(given::refusal(0, why));
+    }
+    if ps.is_empty() { Ok((limits, fetch_bytes)) } else { Err(ps) }
 }

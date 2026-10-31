@@ -177,7 +177,8 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     let mut fake = value.clone();
-    configuration::fake_entry(&mut fake["application"]["setup"][0], "127.0.0.1:3000");
+    fake["application"]["machine"].as_object_mut().expect("machine").remove("owned");
+    configuration::fake_entry(&mut fake["application"]["machine"]["fake"], "127.0.0.1:3000");
     let mut demo = fake.clone();
     demo["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = 8370.into();
     let fixture = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
@@ -189,18 +190,18 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
     let mut bad_demo = demo.clone();
     bad_demo["application"]["demo"]["project"] = 9.into();
     for (document, expected) in [
-        (&bad_demo, "application.demo.project: names no project\n"),
+        (&bad_demo, "application.demo.project: unknown member\n"),
         (
             &demo,
             "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.demo.llm.listen\n",
         ),
         (
             &value,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.setup[0].mode.owned.listen\n",
+            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.machine.owned.listen\n",
         ),
         (
             &fake,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.setup[0].mode.fake.listen\n",
+            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.machine.fake.listen\n",
         ),
     ] {
         assert_eq!(
@@ -213,7 +214,7 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
         );
     }
     // The same API on a connected forge belongs to the remote peer, not this process.
-    value["application"]["setup"] = serde_json::json!([]);
+    value["application"]["machine"].as_object_mut().expect("machine").remove("owned");
     let deployment = super::setup::check(
         &serde_json::to_vec(&value).expect("connected JSON"),
         &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories"),
@@ -307,38 +308,20 @@ fn configure_program_login(arguments: &[&str]) -> Result<super::Command, String>
 }
 
 #[test]
-fn forge_commands_refuse_managed_and_fake_entries_by_name() {
-    use std::os::unix::fs::DirBuilderExt;
-    let directory = std::env::temp_dir().join(format!("temper-not-owned-{}", std::process::id()));
-    std::fs::DirBuilder::new().mode(0o700).create(&directory).expect("command scratch");
-    let (_, document) = configuration::documents(&directory, "/fixture/temper");
-    let mut managed: serde_json::Value = serde_json::from_slice(&document).expect("document");
-    managed["application"]["setup"] = serde_json::json!([{
-        "forge":1, "directory":"forge-1", "bot":{"login":"temper","email":"temper@example.test"},
-        "orgs":["acme"], "mode":{"managed":{"admin_token":"admin_token"}}
-    }]);
-    managed["application"]["forges"][0]["api_token"] = "forge-1/api_token".into();
-    managed["application"]["forges"][0]["user"] = serde_json::json!({"file":"forge-1/user"});
-    managed["application"]["identities"][0]["token"] = "forge-1/git_token".into();
-    let mut fake = managed.clone();
-    configuration::fake_entry(&mut fake["application"]["setup"][0], "127.0.0.1:9");
-    for (document, arguments, expected) in [
-        (&managed, vec!["prepare", "1"], "temper forge prepare: forge 1: it is managed, not owned\n"),
-        (&managed, vec!["run", "1", "forgejo"], "temper forge run: forge 1: it is managed, not owned\n"),
-        (&fake, vec!["run", "1", "forgejo"], "temper forge run: forge 1: it is fake, not owned\n"),
-    ] {
-        std::fs::write(directory.join("temper.json"), serde_json::to_vec(document).expect("document"))
-            .expect("write document");
-        let refused = super::forge::start(
-            &configuration::directories(&directory),
-            &arguments.iter().map(std::ffi::OsString::from).collect::<Vec<_>>(),
-            None,
-        )
-        .expect_err("not owned");
-        assert_eq!(refused.line(), expected);
-    }
-    assert!(!directory.join("forge-1").exists());
-    std::fs::remove_dir_all(directory).expect("remove command scratch");
+fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
+    let scratch = skein_scratch::Scratch::new("forge-not-owned");
+    let document = configuration::check_document(scratch.path());
+    std::fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("JSON")).expect("document");
+    std::fs::create_dir_all(scratch.path().join("box/groups")).expect("groups");
+    std::fs::write(scratch.path().join("box/groups/1"), b"fake\n").expect("kind");
+    let refused = super::forge::start(
+        &configuration::directories(scratch.path()),
+        &["run".into(), "1".into(), "forgejo".into()],
+        None,
+    )
+    .expect_err("fake is not owned");
+    assert_eq!(refused.line(), "temper forge run: forge 1: it is fake, not owned\n");
+    assert!(!scratch.path().join("forge-1").exists());
 }
 
 pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_json::Value) {
@@ -378,42 +361,25 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
 }
 
 #[test]
-fn unresolved_forge_names_prepare_without_refusing_or_resolving_socket_forges() {
+fn github_runtime_holds_unresolved_hosts_and_uses_the_machine_socket() {
     fn reject_names(configured: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
         match configured {
             jig_protocol_config::Address::Host { .. } => Err("no resolver in this test".into()),
             jig_protocol_config::Address::Addr(address) => Ok(address.socket().expect("socket fixture")),
         }
     }
-    let (_, bytes) = configuration::documents(std::path::Path::new("/fixture"), "/fixture/temper");
-    let mut document: serde_json::Value = serde_json::from_slice(&bytes).expect("fixture JSON");
-    let mut host = document["application"]["forges"][0].clone();
-    host["api"] = serde_json::json!({"host":"forge.example", "port":443});
-    let scratch = skein_scratch::paths::tree().join("target/reject-forge-names");
-    std::fs::create_dir_all(&scratch).expect("test directory");
-    let trust = scratch.join("root.der");
-    std::fs::write(&trust, skein_tls_world::pki::ROOT).expect("fixture trust");
-    host["transport"] = serde_json::json!({"tls":{"server_name":"forge.example", "trust":trust}});
-    let mut socket = host.clone();
-    socket["number"] = 2.into();
-    socket["identity"] = 2.into();
-    socket["transport"] = "plaintext".into();
-    socket["api"] = serde_json::json!({"socket":"127.0.0.1:3001"});
-    document["application"]["forges"] = serde_json::json!([host, socket]);
-    let mut identity = document["application"]["identities"][0].clone();
-    identity["number"] = 2.into();
-    document["application"]["identities"].as_array_mut().expect("identities").push(identity);
-    document["engine"]["limits"]["overrides"]["accounts.credentials"] = 2.into();
-    let bytes = serde_json::to_vec(&document).expect("JSON");
-    let named = temper_service::named(&bytes, &jig_protocol_config::Directories::working()).expect("names");
-    let endpoints = super::forges(&named.forges, reject_names).expect("DNS never refuses a start");
-    assert_eq!(endpoints.len(), 2);
-    assert_eq!(endpoints.get(0).expect("host endpoint").address, temper_service::forge::HELD_ADDRESS);
-    assert!(
-        matches!(&named.forges[0].api, jig_protocol_config::Address::Host { name, .. } if name.as_ref() == b"forge.example")
-    );
-    assert_eq!(endpoints.get(1).expect("socket endpoint").address, ([127, 0, 0, 1], 3001).into());
-    std::fs::remove_dir_all(scratch).expect("remove fixture");
+    let roots = super::trust(None).expect("machine trust roots");
+    let default = super::github_runtime(None, &roots, reject_names).expect("held default");
+    assert_eq!(default.address, temper_service::forge::HELD_ADDRESS);
+    let machine = temper_forge_setup::machine::GitHubMachine {
+        api: jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into())),
+        tls: false,
+        remote: b"http://127.0.0.1:3001".as_slice().into(),
+        web: b"http://127.0.0.1:3001".as_slice().into(),
+    };
+    let fake = super::github_runtime(Some(&machine), &roots, reject_names).expect("machine socket");
+    assert_eq!(fake.address, ([127, 0, 0, 1], 3001).into());
+    assert!(matches!(fake.transport, skein_forge_connection::settings::Transport::Plaintext { .. }));
 }
 
 #[test]

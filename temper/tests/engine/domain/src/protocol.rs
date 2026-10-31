@@ -291,8 +291,6 @@ impl Protocol {
             | engine::Request::Worker(_)
             | engine::Request::Party(_)
             | engine::Request::Forge { .. }
-            | engine::Request::StopGroup { .. }
-            | engine::Request::SetUpGroup { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
             | engine::Request::BoxGroup { .. }

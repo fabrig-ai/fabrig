@@ -1,10 +1,7 @@
 //! The setup owner checks its document before commands read any files.
 use jig_protocol_config as config;
-use temper_forge_setup::{
-    check::{self, Checked, Members},
-    problem,
-};
-use temper_service::startup::{Named, Transport, User};
+use temper_forge_setup::{check::Checked, problem};
+use temper_service::startup::Named;
 
 #[derive(Debug)]
 pub(crate) struct Deployment {
@@ -26,28 +23,6 @@ pub(crate) fn check_with(
         &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
     )
     .expect("named checked document");
-    let mut forges = Vec::with_capacity(named.forges.len());
-    for forge in &named.forges {
-        let identity =
-            named.identities.iter().find(|identity| identity.number == forge.identity).expect("named checked identity");
-        forges.push(check::Forge {
-            number: forge.number,
-            api: match &forge.api {
-                config::Address::Addr(a) => a.socket(),
-                config::Address::Host { .. } => None,
-            },
-            plaintext: matches!(forge.transport, Transport::Plaintext),
-            git: forge.git.clone(),
-            user: match &forge.user {
-                User::Id(value) => check::User::Id(*value),
-                User::File(path) => check::User::File(path.clone()),
-            },
-            api_token: forge.api_token.clone(),
-            webhook_secret: forge.webhook_secret.clone(),
-            identity_token: identity.token.clone(),
-            identity_login: identity.login.clone(),
-        });
-    }
     let mut listeners = match &named.clients {
         config::Address::Addr(a) => a.socket().into_iter().collect::<Vec<_>>(),
         config::Address::Host { .. } => Vec::new(),
@@ -58,36 +33,42 @@ pub(crate) fn check_with(
     {
         listeners.push(socket);
     }
-    let members = Members { forges: forges.into_boxed_slice(), listeners: listeners.into_boxed_slice() };
     let application = super::member(&document, 0, b"application");
-    let at = super::member(&document, application, b"setup");
     let setup_overrides: Vec<_> =
-        named.overrides.iter().filter(|(name, _)| !name.starts_with(b"box.")).cloned().collect();
-    let listener = named.webhooks.as_ref().map(|webhooks| super::address(&webhooks.listener)).transpose()?;
-    let checked = check::checked(&document, at, directories, &members, listener, &setup_overrides)
+        named.overrides.iter().filter(|(name, _)| name.starts_with(b"setup.")).cloned().collect();
+    let (setup_limits, fetch_bytes) = temper_forge_setup::check::limits(&setup_overrides)
         .map_err(|why| String::from_utf8_lossy(&problem::lines(&why)).into_owned())?;
+    let checked = Checked {
+        limits: setup_limits,
+        fetch_bytes,
+        setup: temper_forge_setup::Setup { entries: Box::new([]) },
+        records_only: Box::new([]),
+    };
     let mut problems = temper_service::startup::Problems::empty();
-    for (index, entry) in checked.setup.entries.iter().enumerate() {
-        use temper_forge_setup::setup::Mode;
-        use temper_service::startup::Listener;
-        let index = u32::try_from(index).expect("bounded setup");
-        let local = match &entry.mode {
-            Mode::Managed { .. } => None,
-            Mode::Owned(owned) => Some((owned.listen, Listener::Owned(index))),
-            Mode::Fake(fake) => Some((fake.listen, Listener::Fake(index))),
-        };
-        if let Some((listen, listener)) = local {
+    let machine_at = config::read::Object::new(&document, application)
+        .expect("checked application")
+        .member(&document, b"machine")
+        .ok_or("application.machine: missing member\n")?;
+    let mut machine_problems = problem::Problems::empty();
+    let machine =
+        temper_forge_setup::machine::read(&document, machine_at, &checked.limits, directories, &mut machine_problems);
+    if !machine_problems.is_empty() {
+        return Err(String::from_utf8_lossy(&problem::lines(&machine_problems)).into_owned());
+    }
+    let machine = machine.expect("checked machine");
+    for (listen, listener) in [
+        (machine.owned.as_ref().map(|owned| owned.listen), temper_service::startup::Listener::Owned(0)),
+        (machine.fake.as_ref().map(|fake| fake.listen), temper_service::startup::Listener::Fake(0)),
+    ] {
+        if let Some(listen) = listen {
             temper_service::startup::redirect_ports(&named.redirects, Some(listen.port()), listener, &mut problems);
+            if listeners.contains(&listen) {
+                return Err("application.machine: listener must be unique".into());
+            }
+            listeners.push(listen);
         }
     }
-    let projects: Vec<_> = named.projects.iter().map(|project| project.number).collect();
-    let facts = temper_fake::demo::Facts {
-        llm: &named.llm,
-        projects: &projects,
-        setup: &checked.setup,
-        listeners: &members.listeners,
-        directories,
-    };
+    let facts = temper_fake::demo::Facts { llm: &named.llm, listeners: &listeners, directories };
     let demo = temper_fake::demo::read(&document, super::member(&document, application, b"demo"), &facts)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     if let Some(demo) = &demo {

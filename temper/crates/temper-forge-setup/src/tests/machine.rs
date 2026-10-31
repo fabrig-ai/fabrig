@@ -397,3 +397,23 @@ fn github_refuses_non_network_endpoints_and_insecure_remote_places() {
         );
     }
 }
+
+#[test]
+fn kind_slots_fetch_before_preparation_only_when_a_binary_is_fetched() {
+    for (forgejo, runner) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut machine = read(TEMPLATE_MACHINE, &directories());
+        let owned = machine.owned.as_mut().unwrap();
+        owned.fetch.forgejo = forgejo;
+        owned.fetch.runner = runner;
+        let steps = kinds(&machine, &[], Box::new([]), false);
+        let expected: &[Stage] = if forgejo || runner {
+            &[Stage::Fetch, Stage::Prepare, Stage::Run, Stage::Run]
+        } else {
+            &[Stage::Prepare, Stage::Run, Stage::Run]
+        };
+        assert_eq!(steps.asked[0].steps.len(), expected.len());
+        for ((stage, _), expected) in steps.asked[0].steps.iter().zip(expected) {
+            assert_eq!(stage, expected);
+        }
+    }
+}

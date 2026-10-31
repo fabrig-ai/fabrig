@@ -504,13 +504,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 }
                 top::Request::Settled { .. }
                 | top::Request::Bound { .. }
-                | top::Request::ListDemoActs
-                | top::Request::SendDemoAct(_)
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
-                | top::Request::DemoStart { .. }
-                | top::Request::StopGroup { .. }
-                | top::Request::SetUpGroup { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }
                 | top::Request::BoxGroup { .. }
