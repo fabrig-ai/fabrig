@@ -32,3 +32,20 @@ Draft, 3.3.
 - `io_resume` falls by four, less named sites.
 - `heavy cargo nextest run -p <tests/forge/setup's package>`, and the
   compile of the others, with counts.
+
+## Answers
+
+2026-10-31. May I isolate the pre-existing forge-connection edits in the
+slot so this task is checked against the committed branch? Yes (option 1).
+They are not this task's and not the owner's work in progress: they are
+abort-connection-1's uncommitted leftovers, written for the
+`api::Error::Cancelled` option its answer rejected, and abort-connection
+redoes them from its own branch. Save them in your slot outside the tracked
+tree (`git diff -- skein/crates/skein-forge-connection >
+target/abort-connection-1.patch`, and copy `src/tests/abort.rs` beside it;
+no `git stash`, its stack is shared), restore those paths to HEAD
+(`git checkout -- skein/crates/skein-forge-connection` and remove the
+untracked `abort.rs`), and do not put them back. Keep your three files'
+edits as they are, rerun the focused test, then the checks in order. The
+allowed files do not grow: a forge-connection failure that remains on the
+committed branch is a `Question:`.
