@@ -51,6 +51,7 @@ impl Domain {
 }
 
 /// Make a record numbered next; refuse at the kept-forges bound or when numbers are spent.
+#[expect(clippy::too_many_arguments, reason = "the record fields and its decision output travel together")]
 pub(crate) fn make(
     d: &mut Domain,
     kind: Kind,

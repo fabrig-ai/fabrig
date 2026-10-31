@@ -348,7 +348,6 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(held)
         }
-        Stored::ForgeNumber { .. } | Stored::Playground(_) => Some(0),
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
@@ -436,7 +435,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address)?.checked_add(bytes(subject)?),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::Ci(_)
+        Stored::ForgeNumber { .. } | Stored::Playground(_) | Stored::Ci(_)
         | Stored::Landed { .. }
         | Stored::Writer(_)
         | Stored::Demo(_)

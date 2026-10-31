@@ -47,12 +47,12 @@ fn running() -> Domain {
 }
 
 fn reset_act(sent: &[Request]) -> ([u8; 16], ResetAct) {
-    sent.iter()
-        .find_map(|request| match request {
-            Request::ResetAct { key, act } => Some((*key, *act)),
-            _ => None,
-        })
-        .expect("one reset act")
+    for request in sent {
+        if let Request::ResetAct { key, act } = request {
+            return (*key, *act);
+        }
+    }
+    panic!("one reset act")
 }
 
 #[test]

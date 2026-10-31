@@ -117,7 +117,6 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 /// The bounded forge connector subtree.
 #[derive(Debug)]
 pub struct Domain {
-    pub(crate) playground: Option<crate::Playground>,
     retire_pending: bool,
     pub(crate) machine: Option<crate::Machine>,
     pub(crate) records: Map<u16, crate::ForgeRecord>,
@@ -130,7 +129,7 @@ pub struct Domain {
     pub(crate) playground_ends: Map<Token, Token>,
     pub(crate) playground_answers: Map<Token, crate::Answered>,
     pub(crate) playground_due: Option<skein_lib::Time>,
-    pub(crate) playground_acts_sent: bool,
+    pub(crate) playground_request: Option<Token>,
     pub(crate) demo: Option<crate::DemoConfig>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) demo_state: Option<crate::DemoState>,
@@ -504,6 +503,7 @@ impl Domain {
     }
     /// Construct a connector with the deployment namespace and any writers
     /// known at start; invalid limits or writer configuration are refused.
+    #[expect(clippy::too_many_lines, reason = "bounded connector tables are sized together at admission")]
     pub fn new(
         l: &Limits,
         seed: u64,
@@ -544,7 +544,6 @@ impl Domain {
         }
         Ok(Domain {
             machine: None,
-            playground: None,
             retire_pending: false,
             records: Map::with_capacity(l.forges),
             forge_number,
@@ -556,7 +555,7 @@ impl Domain {
             playground_ends: Map::with_capacity(l.applications),
             playground_answers: Map::with_capacity(l.applications.saturating_mul(2)),
             playground_due: None,
-            playground_acts_sent: false,
+            playground_request: None,
             demo: None,
             demo_state: None,
             bindings: Map::with_capacity(l.bindings),
@@ -5347,18 +5346,6 @@ impl Domain {
     }
     fn restored_link_position(&self, row: &Stored) -> Option<(u32, bool)> {
         let (position, inserted) = match row {
-            Stored::Forge(_) => {
-                // t-forge-map keeps it
-                return None;
-            }
-            Stored::ForgeNumber { .. } => {
-                // t-forge-map keeps it
-                return None;
-            }
-            Stored::Playground(_) => {
-                // t-forge-map keeps it
-                return None;
-            }
             Stored::Call { key, .. } => (self.named_calls.range(..key).count(), !self.named_calls.contains_key(key)),
             Stored::ProposedEffect(row) => {
                 (self.proposed_effects.range(..&row.number).count(), !self.proposed_effects.contains_key(&row.number))
@@ -5403,7 +5390,7 @@ impl Domain {
                 }
                 (position, inserted)
             }
-            Stored::Client(_)
+            Stored::Forge(_) | Stored::ForgeNumber { .. } | Stored::Playground(_) | Stored::Client(_)
             | Stored::Flight { .. }
             | Stored::Writer(_)
             | Stored::Demo(_)

@@ -24,7 +24,7 @@ fn save(d: &mut Domain, row: Playground, out: &mut Queue<Request>) {
 
 fn answer_starts(d: &mut Domain, answer: StartAnswer, out: &mut Queue<Request>) {
     d.playground_due = None;
-    d.playground_acts_sent = false;
+    d.playground_request = None;
     for _ in 0..d.playground_pending.len() {
         let Some((request, token)) = d.playground_pending.first() else { break };
         let (request, token) = (*request, *token);
@@ -122,7 +122,7 @@ fn start_effects(d: &mut Domain, request: Token, out: &mut Queue<Request>) {
 
 pub(crate) fn connected(d: &mut Domain, out: &mut Queue<Request>) {
     let Some(row) = d.playground else { return };
-    if row.state != PlaygroundState::Starting || d.playground_acts_sent {
+    if row.state != PlaygroundState::Starting || d.playground_request.is_some() {
         return;
     }
     match d.connection(row.forge) {
@@ -131,7 +131,7 @@ pub(crate) fn connected(d: &mut Domain, out: &mut Queue<Request>) {
                 Some((request, _)) => *request,
                 None => Token::new(u64::MAX),
             };
-            d.playground_acts_sent = true;
+            d.playground_request = Some(request);
             out.push(Request::PlaygroundActs { request, forge: row.forge });
         }
         Connection::NotConnected
@@ -211,7 +211,7 @@ pub(crate) fn reset_key(forge: u16, step: ResetStep) -> [u8; 16] {
 
 fn reset(d: &mut Domain, out: &mut Queue<Request>) {
     // Three ordered steps bound this decision's fall-through.
-    for _ in 0..3 {
+    for _ in 0_u8..3 {
         let Some(mut row) = d.playground else { return };
         match row.state {
             PlaygroundState::Starting | PlaygroundState::Running => return,
@@ -289,7 +289,7 @@ pub(crate) fn restart(d: &mut Domain, out: &mut Queue<Request>) {
     let Some(row) = d.playground else { return };
     match row.state {
         PlaygroundState::Starting => {
-            d.playground_acts_sent = false;
+            d.playground_request = None;
             start_effects(d, Token::new(u64::MAX), out);
         }
         PlaygroundState::Running => {

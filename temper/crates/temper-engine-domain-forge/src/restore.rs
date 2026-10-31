@@ -149,14 +149,6 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.configured.contains_key(&record.number),
             )
         }
-        Stored::ForgeNumber { .. } => {
-            // t-forge-map keeps it
-            Ok(())
-        }
-        Stored::Playground(_) => {
-            // t-forge-map keeps it
-            Ok(())
-        }
         Stored::Landing(row) => {
             field(
                 K::Landing,
@@ -295,7 +287,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::Demo(_) | Stored::Client(_) => Ok(()),
+        Stored::ForgeNumber { .. } | Stored::Playground(_) | Stored::Demo(_) | Stored::Client(_) => Ok(()),
     }
 }
 
