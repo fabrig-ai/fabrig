@@ -24,6 +24,7 @@ mod deadlines;
 mod decimal;
 mod digest;
 mod env;
+mod growth;
 mod id;
 mod intake;
 mod journal;

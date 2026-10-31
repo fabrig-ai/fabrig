@@ -11,6 +11,7 @@ use core::hash::{Hash, Hasher};
 use core::mem::size_of;
 
 use crate::Id;
+use crate::growth::grown;
 
 /// Entities of one kind, named by `Id<T>`.
 ///
@@ -43,8 +44,6 @@ enum Slot<T> {
     /// Its generation would wrap: never used again, so no handle is reused.
     Spent,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> Slab<T> {
     /// Starts without allocating; slots and lists grow as they fill, up to
@@ -177,8 +176,8 @@ impl<T> Slab<T> {
 
 /// Additional storage for a full buffer that has room below its cap.
 fn growth(len: usize, capacity: u32) -> usize {
-    let target = len.saturating_mul(2).max(GROWTH_FLOOR).min(index(capacity));
-    target.checked_sub(len).expect("room for another item")
+    let needed = len.checked_add(1).expect("room for another item");
+    grown(len, needed, index(capacity)).checked_sub(len).expect("room for another item")
 }
 
 fn index(slot: u32) -> usize {

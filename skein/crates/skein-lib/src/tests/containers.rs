@@ -1,10 +1,22 @@
 //! The bounded containers (lib.md, 5): each refuses past its capacity and
-//! keeps its order, and a B-tree is priced in its nodes.
+//! keeps its order, a B-tree is priced in its nodes, and a full buffer
+//! grows by one rule.
 
 use alloc::boxed::Box;
 
 use crate::btree::price;
+use crate::growth::grown;
 use crate::{Buffer, Intake, List, Map, Queue, Set, Stack};
+
+#[test]
+fn a_full_buffer_doubles_from_the_floor_to_what_it_needs_under_its_cap() {
+    assert_eq!(grown(0, 1, 100), 4, "the floor");
+    assert_eq!(grown(4, 5, 100), 8, "twice");
+    assert_eq!(grown(8, 30, 100), 30, "what it needs, past twice");
+    assert_eq!(grown(64, 65, 100), 100, "never past the cap");
+    assert_eq!(grown(0, 1, 2), 2, "a cap below the floor");
+    assert_eq!(grown(usize::MAX / 2 + 1, 1, usize::MAX), usize::MAX, "doubling saturates");
+}
 
 #[test]
 fn a_list_refuses_past_its_capacity() {

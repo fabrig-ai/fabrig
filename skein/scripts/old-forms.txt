@@ -8,7 +8,7 @@ worst_case 0
 io_resume 39
 earliest_helper 4
 lifecycle_enum 3
-growth_floor 5
+growth_floor 1
 pop_loop 24
 hex_decimal_fn 26
 host_forwarder 11
