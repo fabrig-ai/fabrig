@@ -563,11 +563,11 @@ pub(super) fn tag_tasks(
                     append_people(core, env, people::Event::Decided { request: token, outcome }, &mut out);
                     continue;
                 }
-                if let Some(moved) = core.moving.remove(&token) {
+                if let Some(crate::flight::Flight::Moving { request, task: moved }) = core.land(token) {
                     append_people(
                         core,
                         env,
-                        people::Event::Decided { request: token, outcome: people::Outcome::Moved { task: moved } },
+                        people::Event::Decided { request, outcome: people::Outcome::Moved { task: moved } },
                         &mut out,
                     );
                     continue;
@@ -1206,11 +1206,11 @@ pub(super) fn tag_tasks(
                     );
                     continue;
                 }
-                if core.moving.remove(&token).is_some() {
+                if let Some(crate::flight::Flight::Moving { request, .. }) = core.land(token) {
                     append_people(
                         core,
                         env,
-                        people::Event::Decided { request: token, outcome: person_move_refusal(core, problem) },
+                        people::Event::Decided { request, outcome: person_move_refusal(core, problem) },
                         &mut out,
                     );
                     continue;

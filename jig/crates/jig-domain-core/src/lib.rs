@@ -36,6 +36,7 @@ pub mod waits;
 pub use effects::{EffectKey, EffectOrigin, EffectPurpose};
 
 mod ended_marks;
+mod flight;
 pub mod forget;
 mod funding;
 mod goal_of;
@@ -334,8 +335,8 @@ pub struct Core {
     pub ending_positions: Map<u64, u64>,
     /// Person messages awaiting task admission.
     pub saying: Map<Token, (u64, Option<u64>)>,
-    /// Person task moves awaiting their answer.
-    pub moving: Map<Token, u64>,
+    /// Child requests awaiting their typed continuation.
+    pub(crate) flights: skein_lib::Slab<flight::Flight>,
     /// Person task request routes in flight.
     pub person_tasks: Map<Token, PersonTaskRoute>,
     /// Authenticated person escalation choices awaiting task semantics.
@@ -704,7 +705,7 @@ impl Core {
             routing_people_proposals: Map::with_capacity(limits.people.pending),
             ending_positions: Map::with_capacity(limits.tasks.tasks),
             saying: Map::with_capacity(limits.people.pending),
-            moving: Map::with_capacity(limits.people.pending),
+            flights: skein_lib::Slab::with_capacity(u32::MAX),
             person_tasks: Map::with_capacity(limits.people.pending),
             person_escalations: Map::with_capacity(limits.people.pending),
             result_reads: Map::with_capacity(limits.tasks.tasks),
@@ -862,7 +863,7 @@ impl Core {
             && self.delegating.is_empty()
             && self.ending_positions.is_empty()
             && self.saying.is_empty()
-            && self.moving.is_empty()
+            && self.flights.is_empty()
             && self.person_tasks.is_empty()
             && self.relaying.is_empty()
             && self.adopted.is_empty()

@@ -374,9 +374,9 @@ pub(super) fn move_request(
 ) {
     match core.move_admit(person, role, project, task, env.limits.tasks.tree_tasks, env.limits.tasks.depth) {
         Ok(()) => {
-            assert!(core.moving.insert(request, task) == Ok(None), "one move flight per keyed request");
+            let token = core.fly(crate::flight::Flight::Moving { request, task });
             work.push(Event::Tasks(tasks::Event::Move {
-                reply_to: ReplyTo::new(request),
+                reply_to: ReplyTo::new(token),
                 task,
                 person,
                 period: core.period(project),
