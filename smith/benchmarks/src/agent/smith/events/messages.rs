@@ -79,8 +79,7 @@ pub(super) fn before_task(observer: &Observer, task: &str) -> Measure<bool> {
                 Event::MessageReceived(value) => {
                     if let Some(text) = &value.text {
                         captured = true;
-                        if skein_lib::bytes::find(text, task.trim_end().as_bytes()).is_some()
-                        {
+                        if skein_lib::bytes::find(text, task.trim_end().as_bytes()).is_some() {
                             return Measure::Observed { value: true };
                         }
                     }

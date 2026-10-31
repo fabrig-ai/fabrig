@@ -317,35 +317,15 @@ fn oversized_pieces_replay_successful_edits_and_keep_failed_edit_measurement() {
 }
 
 fn piece(records: &mut Vec<smith_events::Record>, tool: &str, call: &str, input: &serde_json::Value, verdict: Verdict) {
-    static START: std::sync::LazyLock<smith_events::Record> = std::sync::LazyLock::new(|| {
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"))
-    });
-    static END: std::sync::LazyLock<smith_events::Record> = std::sync::LazyLock::new(|| {
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"))
-    });
-    let mut started = START.clone();
-    let mut completed = END.clone();
+    let (mut started, mut completed) = common::tool_pair(tool, call);
     started.t_ms = 4;
     completed.t_ms = 4;
-    {
-        let value = crate::common::edit::tool_started(&mut started);
-        value.run = 0;
-        value.conversation = 0;
-        value.call = call.as_bytes().into();
-        value.tool = tool.as_bytes().into();
-        value.source = Source::Workspace;
-        value.effect = Effect::Write;
-        value.input_bytes = 32768;
-        value.input = Some(serde_json::to_vec(input).expect("captured arguments").into());
-    }
-    {
-        let value = crate::common::edit::tool_completed(&mut completed);
-        value.run = 0;
-        value.conversation = 0;
-        value.call = call.as_bytes().into();
-        value.tool = tool.as_bytes().into();
-        value.verdict = verdict;
-    }
+    let value = crate::common::edit::tool_started(&mut started);
+    value.source = Source::Workspace;
+    value.effect = Effect::Write;
+    value.input_bytes = 32768;
+    value.input = Some(serde_json::to_vec(input).expect("captured arguments").into());
+    crate::common::edit::tool_completed(&mut completed).verdict = verdict;
     let at = records.len() - 3;
     records.insert(at, started);
     records.insert(at + 1, completed);

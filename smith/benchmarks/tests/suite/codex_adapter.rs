@@ -312,7 +312,16 @@ fn repeated_session_metadata_keeps_its_parent_and_refuses_conflicts() {
         parse_rollout(repeated.as_bytes(), "root").expect("same identity"),
         parse_rollout(text.as_bytes(), "root").expect("original")
     );
-    let conflicting = format!("{text}{}\n", crate::common::json::edit_lines(metadata, "/payload/parent_thread_id", &serde_json::json!("parent"), Some(&serde_json::json!("foreign")), 1));
+    let conflicting = format!(
+        "{text}{}\n",
+        crate::common::json::edit_lines(
+            metadata,
+            "/payload/parent_thread_id",
+            &serde_json::json!("parent"),
+            Some(&serde_json::json!("foreign")),
+            1
+        )
+    );
     assert!(
         parse_rollout(conflicting.as_bytes(), "root")
             .expect_err("parent changed")
@@ -367,7 +376,20 @@ fn a_childs_inherited_parent_header_never_replaces_the_childs_ownership() {
     assert_eq!(link, Link::Linked { parent: "root".into() });
     assert_eq!(usage.len(), 1);
     assert_eq!(usage[0].response, "response-child");
-    assert!(parse_rollout(crate::common::json::edit_lines(&stream, "/payload/id", &serde_json::json!("root"), Some(&serde_json::json!("foreign")), 1).as_bytes(), "child").is_err());
+    assert!(
+        parse_rollout(
+            crate::common::json::edit_lines(
+                &stream,
+                "/payload/id",
+                &serde_json::json!("root"),
+                Some(&serde_json::json!("foreign")),
+                1
+            )
+            .as_bytes(),
+            "child"
+        )
+        .is_err()
+    );
 }
 
 fn captured_native_child_headers_and_usage_keep_each_response_in_its_own_scope() {

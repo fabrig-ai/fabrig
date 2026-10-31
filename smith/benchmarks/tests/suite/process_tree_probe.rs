@@ -47,16 +47,9 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         command: Some(COMMAND.into()),
     };
     let mut values = common::events::balanced();
-    let mut start =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
-    let mut end =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
+    let (mut start, mut end) = common::tool_pair("shell", "nested-call");
     {
         let value = crate::common::edit::tool_started(&mut start);
-        value.run = 0;
-        value.conversation = 0;
-        value.call = Box::from(&b"nested-call"[..]);
-        value.tool = Box::from(&b"shell"[..]);
         let input =
             serde_json::to_vec(&serde_json::json!({"command": COMMAND, "timeout_seconds": 1})).expect("fixture");
         value.input_bytes = u64::try_from(input.len()).expect("bounded");
@@ -65,10 +58,6 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
     }
     {
         let value = crate::common::edit::tool_completed(&mut end);
-        value.run = 0;
-        value.conversation = 0;
-        value.call = Box::from(&b"nested-call"[..]);
-        value.tool = Box::from(&b"shell"[..]);
         value.verdict = smith_events::Verdict::TimedOut;
         value.clamped = false;
         value.duration_ms = 1001;

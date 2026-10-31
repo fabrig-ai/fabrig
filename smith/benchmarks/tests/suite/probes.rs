@@ -25,7 +25,6 @@ fn history_reads_one_file_per_completion_to_its_sum() {
     assert_eq!(next, "END");
     assert_eq!(sum, 528);
     assert_eq!(std::fs::read_dir(seed).expect("seed").count(), 32);
-
 }
 
 fn history_observer(records: &mut [smith_events::Record]) -> smith_bench::agent::smith::events::Observer {

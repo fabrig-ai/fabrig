@@ -6,7 +6,10 @@ fn retried_tokens(evidence: &str) -> Vec<TokenRecord> {
         smith_bench::agent::smith::events::Observer::with_ceiling(&limits, 16_384).expect("recorded response bounds");
     let bytes = crate::common::json::edit_lines(
         include_str!("../../recorded/retried-failure-17d63afd-02.jsonl"),
-        "/failure/evidence", &serde_json::json!("response"), Some(&serde_json::json!(evidence)), 1,
+        "/failure/evidence",
+        &serde_json::json!("response"),
+        Some(&serde_json::json!(evidence)),
+        1,
     );
     observer.feed(bytes.as_bytes()).expect("recorded response excerpt");
     observer.finish().expect("whole recorded lines");

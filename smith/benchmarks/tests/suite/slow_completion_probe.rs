@@ -135,8 +135,7 @@ fn absent_transport_content_wrong_join_and_failed_terminal_cannot_pass() {
 #[test]
 fn frozen_slow_task_uses_high_effort_native_only_and_the_declared_preset_bounds() {
     let root = crate::common::repository();
-    let task =
-        crate::common::task("probes/slow-completion");
+    let task = crate::common::task("probes/slow-completion");
     assert_eq!(task.version, 1);
     assert_eq!(task.effort.as_deref(), Some("high"));
     assert!(task.event.contains(&check()));

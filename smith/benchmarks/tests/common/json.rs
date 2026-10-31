@@ -16,8 +16,13 @@ pub fn edit_lines(
                 *record.pointer_mut(pointer).expect("matched field") = after.clone();
             } else {
                 let (parent, key) = pointer.rsplit_once('/').expect("object field pointer");
-                record.pointer_mut(parent).expect("matched parent").as_object_mut().expect("object field")
-                    .remove(key).expect("matched field");
+                record
+                    .pointer_mut(parent)
+                    .expect("matched parent")
+                    .as_object_mut()
+                    .expect("object field")
+                    .remove(key)
+                    .expect("matched field");
             }
             changed += 1;
         }

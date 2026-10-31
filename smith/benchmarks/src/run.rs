@@ -192,7 +192,14 @@ fn raw(
     deadline: u64,
     prepared: &Request,
 ) -> Result<ProcessResult, String> {
-    raw_environment(clock, machine, private, arguments, prepared, CommandPolicy { deadline_seconds: deadline, environment: &BTreeMap::new() })
+    raw_environment(
+        clock,
+        machine,
+        private,
+        arguments,
+        prepared,
+        CommandPolicy { deadline_seconds: deadline, environment: &BTreeMap::new() },
+    )
 }
 
 struct CommandPolicy<'a> {

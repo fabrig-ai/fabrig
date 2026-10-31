@@ -36,7 +36,6 @@ fn tool_output_seed_exercises_capture_and_read_windows() {
         document.lines().nth(699),
         Some("QUOTE: The copper heron carries seven blue lanterns across the silent harbor.")
     );
-
 }
 
 #[test]
@@ -44,24 +43,13 @@ fn payload_bytes_come_from_the_observed_matching_terminal_not_input_or_another_r
     let check = EventCheck::ToolResultBytes { tool: "shell".into(), at_least: 10241 };
     let original = common::events::balanced();
     let mut values = original.clone();
-    let mut start =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
-    let mut end =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
+    let (mut start, mut end) = common::tool_pair("shell", "shell-call");
     {
         let value = crate::common::edit::tool_started(&mut start);
-        value.run = 0;
-        value.conversation = 0;
-        value.call = Box::from(&b"shell-call"[..]);
-        value.tool = Box::from(&b"shell"[..]);
         value.input_bytes = 100_000;
     }
     {
         let value = crate::common::edit::tool_completed(&mut end);
-        value.run = 0;
-        value.conversation = 0;
-        value.call = Box::from(&b"shell-call"[..]);
-        value.tool = Box::from(&b"shell"[..]);
         value.bytes = 10241;
         value.child = None;
         value.delivery = None;
@@ -117,16 +105,9 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
     };
     let original = common::events::balanced();
     let mut values = original.clone();
-    let mut start =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
-    let mut end =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
+    let (mut start, mut end) = common::tool_pair("shell", "timeout-call");
     {
         let value = crate::common::edit::tool_started(&mut start);
-        value.run = 0;
-        value.conversation = 0;
-        value.call = Box::from(&b"timeout-call"[..]);
-        value.tool = Box::from(&b"shell"[..]);
         let input = br#"{"command":"sleep 600","timeout_seconds":9999}"#;
         value.input = Some(Box::from(input.as_slice()));
         value.input_bytes = u64::try_from(input.len()).expect("small input");
@@ -134,10 +115,6 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
     }
     {
         let value = crate::common::edit::tool_completed(&mut end);
-        value.run = 0;
-        value.conversation = 0;
-        value.call = Box::from(&b"timeout-call"[..]);
-        value.tool = Box::from(&b"shell"[..]);
         value.verdict = smith_events::Verdict::TimedOut;
         value.clamped = true;
         value.duration_ms = 1001;
