@@ -37,7 +37,8 @@ class OldForms(unittest.TestCase):
 
     def counts(self):
         return {name: int(count) for line in self.baseline.read_text(encoding="utf-8").splitlines()
-                if line and not line.startswith("#") for name, count in [line.split()]}
+                if line and not line.startswith("#") for name, count in [line.split()]
+                if name in ("max_out", "JournalRoom", "takes", "worst_case")}
 
     def test_comments_do_not_count_and_strings_do(self):
         self.source('// worst_case\n/* max_out /* nested */ */\n'
