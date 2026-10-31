@@ -1,4 +1,4 @@
-//! Admission and answer lifecycle (protocol/channel.md, sections 2–5 and 7).
+//! Admission and answer lifecycle (smith/docs/design/protocol/channel.md, sections 2–5 and 7).
 use super::cancellation::Cancellation;
 use super::turns::Turns;
 use crate::Error;

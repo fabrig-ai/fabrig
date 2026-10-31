@@ -1,4 +1,4 @@
-//! Channel refusal reasons (protocol/channel.md, section 2).
+//! Channel refusal reasons (smith/docs/design/protocol/channel.md, section 2).
 
 /// Channel rule violation.
 pub const RULES: u16 = 256;

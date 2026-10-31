@@ -418,7 +418,7 @@ fn write_loss(json: &mut Encoder, value: &Loss) {
     json.key(b"events");
     json.unsigned(value.events);
     json.key(b"channel");
-    put_nullable_unsigned(json, &value.channel);
+    put_nullable_unsigned(json, value.channel);
     json.object_end();
 }
 
@@ -478,15 +478,15 @@ fn write_model(json: &mut Encoder, value: &Model) {
 fn write_usage(json: &mut Encoder, value: &Usage) {
     json.object_start();
     json.key(b"input_tokens");
-    put_nullable_unsigned(json, &value.input_tokens);
+    put_nullable_unsigned(json, value.input_tokens);
     json.key(b"cache_read_tokens");
-    put_nullable_unsigned(json, &value.cache_read_tokens);
+    put_nullable_unsigned(json, value.cache_read_tokens);
     json.key(b"cache_write_tokens");
-    put_nullable_unsigned(json, &value.cache_write_tokens);
+    put_nullable_unsigned(json, value.cache_write_tokens);
     json.key(b"output_tokens");
-    put_nullable_unsigned(json, &value.output_tokens);
+    put_nullable_unsigned(json, value.output_tokens);
     json.key(b"reasoning_tokens");
-    put_nullable_unsigned(json, &value.reasoning_tokens);
+    put_nullable_unsigned(json, value.reasoning_tokens);
     json.object_end();
 }
 
@@ -552,16 +552,16 @@ fn write_completion_failure(json: &mut Encoder, value: &CompletionFailure, captu
         json.key(b"status");
         json.unsigned(item);
     }
-    put_optional_text(json, b"field", &value.field);
-    put_optional_text(json, b"code", &value.code);
-    put_optional_text(json, b"request_id", &value.request_id);
+    put_optional_text(json, b"field", value.field.as_deref());
+    put_optional_text(json, b"code", value.code.as_deref());
+    put_optional_text(json, b"request_id", value.request_id.as_deref());
     match capture {
         Capture::None | Capture::Unknown(_) => {}
         Capture::Calls | Capture::Everything => {
-            put_optional_text(json, b"detail", &value.detail);
+            put_optional_text(json, b"detail", value.detail.as_deref());
         }
     }
-    put_optional_unsigned(json, b"retry_after_ms", &value.retry_after_ms);
+    put_optional_unsigned(json, b"retry_after_ms", value.retry_after_ms);
     json.object_end();
 }
 
@@ -611,8 +611,8 @@ fn write_answer_failure(json: &mut Encoder, value: &AnswerFailure, capture: &Cap
     }
     json.key(b"class");
     write_answer_class(json, &value.class);
-    put_optional_text(json, b"endpoint", &value.endpoint);
-    put_optional_text(json, b"model", &value.model);
+    put_optional_text(json, b"endpoint", value.endpoint.as_deref());
+    put_optional_text(json, b"model", value.model.as_deref());
     if let Some(item) = value.attempts {
         json.key(b"attempts");
         json.unsigned(item);
@@ -625,8 +625,8 @@ fn write_answer_failure(json: &mut Encoder, value: &AnswerFailure, capture: &Cap
         json.key(b"account");
         json.unsigned(u64::from(*item));
     }
-    put_optional_text(json, b"which", &value.which);
-    put_optional_text(json, b"reason", &value.reason);
+    put_optional_text(json, b"which", value.which.as_deref());
+    put_optional_text(json, b"reason", value.reason.as_deref());
     if let Some(item) = value.dropped {
         json.key(b"dropped");
         json.boolean(item);
@@ -655,7 +655,7 @@ fn write_run_result(json: &mut Encoder, value: &RunResult, capture: &Capture) {
     json.object_start();
     json.key(b"form");
     write_form(json, &value.form);
-    put_optional_text(json, b"label", &value.label);
+    put_optional_text(json, b"label", value.label.as_deref());
     if *capture == Capture::Everything
         && let Some(item) = &value.text
     {
@@ -682,7 +682,7 @@ fn write_message(json: &mut Encoder, value: &Message) {
 
 fn write_prompt(json: &mut Encoder, value: &Prompt) {
     json.object_start();
-    put_optional_text(json, b"system", &value.system);
+    put_optional_text(json, b"system", value.system.as_deref());
     if let Some(item) = &value.tools {
         json.key(b"tools");
         write_list_text(json, item);
@@ -1612,7 +1612,7 @@ fn encode_session_ended(json: &mut Encoder, value: &SessionEnded) {
     json.key(b"aborted");
     json.boolean(value.aborted);
     json.key(b"teardown_ms");
-    put_nullable_unsigned(json, &value.teardown_ms);
+    put_nullable_unsigned(json, value.teardown_ms);
     json.key(b"emitted");
     write_list_count(json, &value.emitted);
     json.key(b"loss");
@@ -1685,8 +1685,8 @@ fn encode_conversation_opened(json: &mut Encoder, value: &ConversationOpened) {
     json.unsigned(value.conversation);
     json.key(b"kind");
     write_conversation_kind(json, &value.kind);
-    put_optional_unsigned(json, b"parent", &value.parent);
-    put_optional_text(json, b"call", &value.call);
+    put_optional_unsigned(json, b"parent", value.parent);
+    put_optional_text(json, b"call", value.call.as_deref());
     json.key(b"thread");
     json.unsigned(value.thread);
     json.key(b"model");
@@ -1721,7 +1721,7 @@ fn encode_conversation_closed(json: &mut Encoder, value: &ConversationClosed, ca
     json.unsigned(value.conversation);
     json.key(b"end");
     write_conversation_end(json, &value.end);
-    put_optional_text(json, b"which", &value.which);
+    put_optional_text(json, b"which", value.which.as_deref());
     if let Some(item) = &value.failure {
         json.key(b"failure");
         write_completion_failure(json, item, capture);
@@ -1793,18 +1793,18 @@ fn encode_response_completed(json: &mut Encoder, value: &ResponseCompleted, capt
     json.key(b"spent");
     json.unsigned(value.spent);
     json.key(b"request_bytes");
-    put_nullable_unsigned(json, &value.request_bytes);
+    put_nullable_unsigned(json, value.request_bytes);
     json.key(b"first_byte_ms");
-    put_nullable_unsigned(json, &value.first_byte_ms);
+    put_nullable_unsigned(json, value.first_byte_ms);
     json.key(b"largest_gap_ms");
-    put_nullable_unsigned(json, &value.largest_gap_ms);
+    put_nullable_unsigned(json, value.largest_gap_ms);
     json.key(b"duration_ms");
     json.unsigned(value.duration_ms);
     if let Some(item) = &value.failure {
         json.key(b"failure");
         write_completion_failure(json, item, capture);
     }
-    put_optional_unsigned(json, b"retry_ms", &value.retry_ms);
+    put_optional_unsigned(json, b"retry_ms", value.retry_ms);
     if *capture == Capture::Everything
         && let Some(item) = &value.completion
     {
@@ -1840,13 +1840,13 @@ fn encode_tool_started(json: &mut Encoder, value: &ToolStarted, capture: &Captur
     json.key(b"effect");
     write_effect(json, &value.effect);
     json.key(b"deadline_ms");
-    put_nullable_unsigned(json, &value.deadline_ms);
+    put_nullable_unsigned(json, value.deadline_ms);
     json.key(b"input_bytes");
     json.unsigned(value.input_bytes);
     match capture {
         Capture::None | Capture::Unknown(_) => {}
         Capture::Calls | Capture::Everything => {
-            put_optional_text(json, b"input", &value.input);
+            put_optional_text(json, b"input", value.input.as_deref());
         }
     }
 }
@@ -1936,7 +1936,7 @@ fn encode_check_started(json: &mut Encoder, value: &CheckStarted) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"deadline_ms");
-    put_nullable_unsigned(json, &value.deadline_ms);
+    put_nullable_unsigned(json, value.deadline_ms);
 }
 
 fn encode_check_completed(json: &mut Encoder, value: &CheckCompleted) {
@@ -2047,7 +2047,7 @@ fn encode_notice(json: &mut Encoder, value: &Notice) {
         json.key(b"forced");
         write_forced(json, forced);
     }
-    put_optional_unsigned(json, b"run", &value.run);
+    put_optional_unsigned(json, b"run", value.run);
     if let Some(account) = value.account {
         json.key(b"account");
         json.unsigned(u64::from(account));
@@ -2056,7 +2056,7 @@ fn encode_notice(json: &mut Encoder, value: &Notice) {
         json.key(b"bytes");
         json.unsigned(bytes);
     }
-    put_optional_unsigned(json, b"reset_ms", &value.reset_ms);
+    put_optional_unsigned(json, b"reset_ms", value.reset_ms);
     if let Some(code) = &value.code {
         json.key(b"code");
         json.string(code);
@@ -2171,23 +2171,23 @@ fn encode_budget_standing(json: &mut Encoder, value: &BudgetStanding) {
     }
 }
 
-fn put_optional_text(json: &mut Encoder, name: &[u8], value: &Option<Box<[u8]>>) {
+fn put_optional_text(json: &mut Encoder, name: &[u8], value: Option<&[u8]>) {
     if let Some(item) = value {
         json.key(name);
         json.string(item);
     }
 }
 
-fn put_optional_unsigned(json: &mut Encoder, name: &[u8], value: &Option<u64>) {
+fn put_optional_unsigned(json: &mut Encoder, name: &[u8], value: Option<u64>) {
     if let Some(item) = value {
         json.key(name);
-        json.unsigned(*item);
+        json.unsigned(item);
     }
 }
 
-fn put_nullable_unsigned(json: &mut Encoder, value: &Option<u64>) {
+fn put_nullable_unsigned(json: &mut Encoder, value: Option<u64>) {
     match value {
-        Some(item) => json.unsigned(*item),
+        Some(item) => json.unsigned(item),
         None => json.null(),
     }
 }

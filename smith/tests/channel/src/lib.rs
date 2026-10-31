@@ -1343,7 +1343,8 @@ mod read_tests {
     fn a_second_cancel_is_refused_without_a_second_terminal() {
         let mut world = World::started();
         for _ in 0..2 {
-            let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {}).unwrap();
+            let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {})
+                .expect("bounded peer record");
             inject_agent(&mut world, smith_channel::Body::Cancel(record));
         }
         assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentCancel).count(), 1);
@@ -1359,7 +1360,7 @@ mod read_tests {
         world.settle();
         let record =
             smith_channel::Acknowledge::new(&smith_channel::CEILINGS, smith_channel::AcknowledgeParts { number: 1 })
-                .unwrap();
+                .expect("bounded peer record");
         inject_agent(&mut world, smith_channel::Body::Acknowledge(record));
         assert_eq!(
             world.observations().iter().filter(|event| **event == Observation::AgentAcknowledged { turn: 1 }).count(),
@@ -1371,7 +1372,8 @@ mod read_tests {
     fn a_cancel_before_start_is_refused_without_reaching_the_service() {
         let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
         world.settle();
-        let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {}).unwrap();
+        let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {})
+            .expect("bounded peer record");
         inject_agent(&mut world, smith_channel::Body::Cancel(record));
         assert!(!world.observations().contains(&Observation::AgentCancel));
         assert_eq!(world.observations().iter().filter(|event| matches!(event, Observation::AgentEnded(_))).count(), 1);

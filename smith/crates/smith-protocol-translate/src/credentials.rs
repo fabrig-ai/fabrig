@@ -1,4 +1,4 @@
-//! Bounded credential forms below the domain (protocol/channel.md, section 6).
+//! Bounded credential forms below the domain (smith/docs/design/protocol/channel.md, section 6).
 //! Conversion retains no state. Callers store values below the domain and
 //! expose only grant names, validity and renewal policy above it.
 
@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use core::fmt;
 
 use crate::Error;
+use smith_channel as channel;
 
 /// A host's tagged grant, retained only below the domain.
 #[derive(Clone, PartialEq, Eq)]
@@ -58,6 +59,28 @@ impl GrantValue {
     }
 }
 
+/// Renewal policy already carried by the existing wire form (smith/docs/design/protocol/channel.md, section 6).
+pub(crate) fn renewable(value: &channel::GrantValue) -> bool {
+    match value {
+        channel::GrantValue::Credential(credential) => match credential.scheme() {
+            channel::Scheme::Key => false,
+            channel::Scheme::Bearer => true,
+        },
+        channel::GrantValue::Program(_) | channel::GrantValue::Withdrawn(_) => true,
+    }
+}
+
+/// Refresh conversion used after the channel retains the value (smith/docs/design/protocol/channel.md, section 6).
+/// Expose only a refreshed grant name and validity to the domain.
+#[must_use]
+pub fn refreshed_grant(value: &channel::Grant) -> smith_domain::Grant {
+    smith_domain::Grant {
+        name: smith_domain::GrantName { account: value.account(), generation: value.generation() },
+        valid: value.valid(),
+        renewable: renewable(value.value()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::program_name;
@@ -85,28 +108,5 @@ mod tests {
         for (index, (name, expected)) in rows.into_iter().enumerate() {
             assert_eq!(program_name(name), Ok(expected), "row {index}");
         }
-    }
-}
-
-use smith_channel as channel;
-
-/// Renewal policy already carried by the existing wire form (protocol/channel.md, section 6).
-pub(crate) fn renewable(value: &channel::GrantValue) -> bool {
-    match value {
-        channel::GrantValue::Credential(credential) => match credential.scheme() {
-            channel::Scheme::Key => false,
-            channel::Scheme::Bearer => true,
-        },
-        channel::GrantValue::Program(_) | channel::GrantValue::Withdrawn(_) => true,
-    }
-}
-
-/// Refresh conversion used after the channel retains the value (protocol/channel.md, section 6).
-/// Expose only a refreshed grant name and validity to the domain.
-pub fn refreshed_grant(value: &channel::Grant) -> smith_domain::Grant {
-    smith_domain::Grant {
-        name: smith_domain::GrantName { account: value.account(), generation: value.generation() },
-        valid: value.valid(),
-        renewable: renewable(value.value()),
     }
 }

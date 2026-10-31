@@ -28,15 +28,17 @@ pub(crate) fn frame(piece: Piece<'_>, limits: &smith_channel::Limits) -> Result<
         PieceKind::Input { id, tool } => (
             smith_channel::LiveKind::Input,
             Some(
-                smith_channel::LiveCall::new(
+                match smith_channel::LiveCall::new(
                     limits,
                     smith_channel::LiveCallParts { id: Box::from(id), tool: Box::from(tool) },
-                )
-                .map_err(Error::ChannelBody)?,
+                ) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
             ),
         ),
     };
-    let record = smith_channel::Live::new(
+    let record = match smith_channel::Live::new(
         limits,
         smith_channel::LiveParts {
             turn: piece.turn,
@@ -46,9 +48,14 @@ pub(crate) fn frame(piece: Piece<'_>, limits: &smith_channel::Limits) -> Result<
             bytes: Box::from(piece.bytes),
             call,
         },
-    )
-    .map_err(Error::ChannelBody)?;
-    let frame = smith_channel::frame(smith_channel::Body::Live(record)).map_err(Error::Frame)?;
+    ) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::ChannelBody(problem)),
+    };
+    let frame = match smith_channel::frame(smith_channel::Body::Live(record)) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::Frame(problem)),
+    };
     Ok(frame)
 }
 

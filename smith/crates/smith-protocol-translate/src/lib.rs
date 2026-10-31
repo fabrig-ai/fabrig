@@ -1,5 +1,5 @@
-//! Shared bounded wire and domain translation (protocol/channel.md, sections 3–7;
-//! protocol/charter.md, sections 2 and 5; protocol/transcript.md, sections 2–4).
+//! Shared bounded wire and domain translation (smith/docs/design/protocol/channel.md, sections 3–7;
+//! smith/docs/design/protocol/charter.md, sections 2 and 5; smith/docs/design/protocol/transcript.md, sections 2–4).
 //!
 //! Callers supply codec limits and configured endpoint identities. Translation
 //! retains no channel lifecycle, addresses or credential values; encode/decode

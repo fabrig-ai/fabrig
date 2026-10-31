@@ -1,4 +1,4 @@
-//! Start context before domain admission (protocol/channel.md, sections 3 and 5).
+//! Start context before domain admission (smith/docs/design/protocol/channel.md, sections 3 and 5).
 use crate::Error;
 use crate::credentials::renewable;
 use crate::delivery::saved_delivery;
@@ -22,7 +22,7 @@ pub struct Mount {
 pub struct Grant {
     pub name: smith_domain::GrantName,
     pub valid: skein_lib::Duration,
-    /// A key is never renewed by its host (protocol/channel.md, section 6).
+    /// A key is never renewed by its host (smith/docs/design/protocol/channel.md, section 6).
     pub renewable: bool,
 }
 

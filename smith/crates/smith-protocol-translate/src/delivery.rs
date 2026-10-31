@@ -1,4 +1,4 @@
-//! Settled delivery translation (protocol/channel.md, section 5).
+//! Settled delivery translation (smith/docs/design/protocol/channel.md, section 5).
 use crate::Error;
 use alloc::boxed::Box;
 use skein_lib::List;

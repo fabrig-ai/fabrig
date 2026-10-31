@@ -1,4 +1,4 @@
-//! Domain answer and refusal translation (protocol/channel.md, section 5).
+//! Domain answer and refusal translation (smith/docs/design/protocol/channel.md, section 5).
 use crate::{Error, encode_result};
 use skein_lib::Token;
 use smith_channel as channel;
@@ -19,28 +19,37 @@ pub fn answer_record(
             let reason = match refusal {
                 run::Refusal::Busy => channel::StartRefusal::Busy,
                 run::Refusal::Invalid(invalid) => {
-                    let value = channel::InvalidStartValue::new(
+                    let value = match channel::InvalidStartValue::new(
                         bodies,
                         channel::InvalidStartValueParts { value: invalid_start(invalid, bodies)? },
-                    )
-                    .map_err(Error::ChannelBody)?;
+                    ) {
+                        Ok(value) => value,
+                        Err(problem) => return Err(Error::ChannelBody(problem)),
+                    };
                     channel::StartRefusal::Invalid(value)
                 }
             };
-            let refused =
-                channel::Refused::new(bodies, channel::RefusedParts { reason }).map_err(Error::ChannelBody)?;
+            let refused = match channel::Refused::new(bodies, channel::RefusedParts { reason }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            };
             (0, 0, channel::RunResult::Refused(refused))
         }
         run::Answer::Parked { spent, turns } => (turns, spent.units, channel::RunResult::Parked),
         run::Answer::Accepted { outcome, spent, turns } => {
             let result = encode_result(&outcome, charter)?;
-            let accepted =
-                channel::Accepted::new(bodies, channel::AcceptedParts { result }).map_err(Error::ChannelBody)?;
+            let accepted = match channel::Accepted::new(bodies, channel::AcceptedParts { result }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            };
             (turns, spent.units, channel::RunResult::Accepted(accepted))
         }
         run::Answer::Failed { failure, spent, turns } => {
             let reason = failure_record(failure, bodies, now)?;
-            let failed = channel::Failed::new(bodies, channel::FailedParts { reason }).map_err(Error::ChannelBody)?;
+            let failed = match channel::Failed::new(bodies, channel::FailedParts { reason }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            };
             (turns, spent.units, channel::RunResult::Failed(failed))
         }
     };
@@ -48,8 +57,10 @@ pub fn answer_record(
         Some(name) => Some(name.raw()),
         None => None,
     };
-    Ok(channel::Answer::new(bodies, channel::AnswerParts { turns, spent, last_read, result })
-        .map_err(Error::ChannelBody)?)
+    Ok(match channel::Answer::new(bodies, channel::AnswerParts { turns, spent, last_read, result }) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::ChannelBody(problem)),
+    })
 }
 
 /// Translate a refused charter into the channel refusal vocabulary.
@@ -67,25 +78,35 @@ pub fn invalid_start(invalid: run::Invalid, limits: &channel::Limits) -> Result<
         run::Invalid::Grants => channel::InvalidStart::Grants,
         run::Invalid::Outcome => channel::InvalidStart::Outcome,
         run::Invalid::Budget(refusal) => channel::InvalidStart::Budget(
-            channel::BudgetRefusalValue::new(
+            match channel::BudgetRefusalValue::new(
                 limits,
                 channel::BudgetRefusalValueParts { value: budget_refusal(refusal, limits)? },
-            )
-            .map_err(Error::ChannelBody)?,
+            ) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::Invalid::Price(rate) => channel::InvalidStart::Price(
-            channel::PriceRateValue::new(limits, channel::PriceRateValueParts { value: price_rate(rate) })
-                .map_err(Error::ChannelBody)?,
+            match channel::PriceRateValue::new(limits, channel::PriceRateValueParts { value: price_rate(rate) }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::Invalid::Llm => channel::InvalidStart::Llm,
         run::Invalid::Effort => channel::InvalidStart::Effort,
         run::Invalid::Conversation => channel::InvalidStart::Conversation,
         run::Invalid::HostPart { bound } => channel::InvalidStart::HostPart(
-            channel::WindowBound::new(limits, channel::WindowBoundParts { bound }).map_err(Error::ChannelBody)?,
+            match channel::WindowBound::new(limits, channel::WindowBoundParts { bound }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
-        run::Invalid::Room { bound } => channel::InvalidStart::Room(
-            channel::WindowBound::new(limits, channel::WindowBoundParts { bound }).map_err(Error::ChannelBody)?,
-        ),
+        run::Invalid::Room { bound } => {
+            channel::InvalidStart::Room(match channel::WindowBound::new(limits, channel::WindowBoundParts { bound }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            })
+        }
     })
 }
 
@@ -103,27 +124,36 @@ fn failure_record(
                 run::TranscriptRefusal::TooLarge => channel::TranscriptRefusal::TooLarge,
             };
             channel::RunFailure::Transcript(
-                channel::TranscriptRefusalValue::new(limits, channel::TranscriptRefusalValueParts { value })
-                    .map_err(Error::ChannelBody)?,
+                match channel::TranscriptRefusalValue::new(limits, channel::TranscriptRefusalValueParts { value }) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
             )
         }
         run::Failure::Model(fault) => {
             let value = model_fault(fault, now, limits)?;
             channel::RunFailure::Model(
-                channel::ModelFaultValue::new(limits, channel::ModelFaultValueParts { value })
-                    .map_err(Error::ChannelBody)?,
+                match channel::ModelFaultValue::new(limits, channel::ModelFaultValueParts { value }) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
             )
         }
         run::Failure::Budget { exhausted, used, bound } => {
             let value = budget_failure(exhausted, limits)?;
             channel::RunFailure::Budget(
-                channel::BudgetFailureValue::new(limits, channel::BudgetFailureValueParts { value, used, bound })
-                    .map_err(Error::ChannelBody)?,
+                match channel::BudgetFailureValue::new(limits, channel::BudgetFailureValueParts { value, used, bound })
+                {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
             )
         }
         run::Failure::Policy(run::Policy::Unfinished { nudges, rejected }) => channel::RunFailure::Policy(
-            channel::PolicyFailure::new(limits, channel::PolicyFailureParts { nudges, rejected })
-                .map_err(Error::ChannelBody)?,
+            match channel::PolicyFailure::new(limits, channel::PolicyFailureParts { nudges, rejected }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::Failure::Cancelled => channel::RunFailure::Cancelled,
         run::Failure::Stale => channel::RunFailure::Stale,
@@ -139,54 +169,19 @@ fn model_fault(
 ) -> Result<channel::ModelFault, Error> {
     let value = match fault {
         run::Fault::Completion { failure, evidence, model, attempts, report } => {
-            let (failure, retry_after) = match failure {
-                run::CompletionFailure::Limit { which, bound } => (
-                    channel::CompletionFailure::Limit(
-                        channel::LimitFailure::new(
-                            limits,
-                            channel::LimitFailureParts { which: completion_limit(which, limits)?, bound },
-                        )
-                        .map_err(Error::ChannelBody)?,
-                    ),
-                    None,
-                ),
-                run::CompletionFailure::ApplicationLimit => (channel::CompletionFailure::ApplicationLimit, None),
-                run::CompletionFailure::Protocol => (channel::CompletionFailure::Protocol, None),
-                run::CompletionFailure::Cancelled => (channel::CompletionFailure::Cancelled, None),
-                run::CompletionFailure::Overloaded => (channel::CompletionFailure::Overloaded, None),
-                run::CompletionFailure::Unavailable => (channel::CompletionFailure::Unavailable, None),
-                run::CompletionFailure::TimedOut { phase } => (
-                    channel::CompletionFailure::TimedOut(
-                        channel::TimeoutFailure::new(
-                            limits,
-                            channel::TimeoutFailureParts { phase: completion_phase(phase) },
-                        )
-                        .map_err(Error::ChannelBody)?,
-                    ),
-                    None,
-                ),
-                run::CompletionFailure::ContextTooLong => (channel::CompletionFailure::ContextTooLong, None),
-                run::CompletionFailure::Invalid => (channel::CompletionFailure::Invalid, None),
-                run::CompletionFailure::Refused => (channel::CompletionFailure::Refused, None),
-                run::CompletionFailure::Unsupported => (channel::CompletionFailure::Unsupported, None),
-                run::CompletionFailure::Unauthorized => (channel::CompletionFailure::Unauthorized, None),
-                run::CompletionFailure::RateLimited { retry_after } => {
-                    (channel::CompletionFailure::RateLimited, Some(retry_after))
-                }
-                run::CompletionFailure::Exhausted { retry_after } => {
-                    (channel::CompletionFailure::Exhausted, retry_after)
-                }
-            };
+            let (failure, retry_after) = completion_failure(failure, limits)?;
             let evidence = match evidence {
                 run::CompletionEvidence::Unsent => channel::CompletionEvidence::Unsent,
                 run::CompletionEvidence::Unknown => channel::CompletionEvidence::Unknown,
                 run::CompletionEvidence::Response { status } => channel::CompletionEvidence::Response(
-                    channel::ResponseEvidence::new(limits, channel::ResponseEvidenceParts { status })
-                        .map_err(Error::ChannelBody)?,
+                    match channel::ResponseEvidence::new(limits, channel::ResponseEvidenceParts { status }) {
+                        Ok(value) => value,
+                        Err(problem) => return Err(Error::ChannelBody(problem)),
+                    },
                 ),
             };
             channel::ModelFault::Completion(
-                channel::CompletionFault::new(
+                match channel::CompletionFault::new(
                     limits,
                     channel::CompletionFaultParts {
                         failure,
@@ -198,12 +193,14 @@ fn model_fault(
                         request_id: report.request,
                         field: report.field,
                     },
-                )
-                .map_err(Error::ChannelBody)?,
+                ) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
             )
         }
         run::Fault::Limited { account, reset_at } => channel::ModelFault::Limited(
-            channel::LimitedFault::new(
+            match channel::LimitedFault::new(
                 limits,
                 channel::LimitedFaultParts {
                     account,
@@ -212,20 +209,28 @@ fn model_fault(
                         None => None,
                     },
                 },
-            )
-            .map_err(Error::ChannelBody)?,
+            ) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::Fault::Refused { account, code } => channel::ModelFault::Refused(
-            channel::RefusedFault::new(limits, channel::RefusedFaultParts { account, code })
-                .map_err(Error::ChannelBody)?,
+            match channel::RefusedFault::new(limits, channel::RefusedFaultParts { account, code }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::Fault::Unauthorized { account } => channel::ModelFault::Unauthorized(
-            channel::UnauthorizedFault::new(limits, channel::UnauthorizedFaultParts { account })
-                .map_err(Error::ChannelBody)?,
+            match channel::UnauthorizedFault::new(limits, channel::UnauthorizedFaultParts { account }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::Fault::Program { name, exit, detail } => channel::ModelFault::Program(
-            channel::ProgramFault::new(limits, channel::ProgramFaultParts { name, exit, detail })
-                .map_err(Error::ChannelBody)?,
+            match channel::ProgramFault::new(limits, channel::ProgramFaultParts { name, exit, detail }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::Fault::Provider => channel::ModelFault::Provider,
         run::Fault::Declined => channel::ModelFault::Declined,
@@ -248,8 +253,10 @@ fn budget_failure(exhausted: run::Exhausted, limits: &channel::Limits) -> Result
                 run::ReceivingLimit::CacheWrite => channel::ReceivingLimit::CacheWrite,
             };
             channel::BudgetFailure::Tokens(
-                channel::ReceivingLimitValue::new(limits, channel::ReceivingLimitValueParts { value })
-                    .map_err(Error::ChannelBody)?,
+                match channel::ReceivingLimitValue::new(limits, channel::ReceivingLimitValueParts { value }) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
             )
         }
         run::Exhausted::Overflow(overflow) => {
@@ -258,8 +265,10 @@ fn budget_failure(exhausted: run::Exhausted, limits: &channel::Limits) -> Result
                 run::Overflow::Usage => channel::BudgetOverflow::Usage,
             };
             channel::BudgetFailure::Overflow(
-                channel::OverflowValue::new(limits, channel::OverflowValueParts { value })
-                    .map_err(Error::ChannelBody)?,
+                match channel::OverflowValue::new(limits, channel::OverflowValueParts { value }) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
             )
         }
     };
@@ -288,37 +297,54 @@ fn budget_refusal(refusal: run::BudgetRefusal, limits: &channel::Limits) -> Resu
         run::BudgetRefusal::Ceiling(ceiling) => {
             let value = match ceiling {
                 run::Ceiling::Turns(value) => channel::BudgetCeiling::Turns(
-                    channel::BudgetTurns::new(limits, channel::BudgetTurnsParts { value })
-                        .map_err(Error::ChannelBody)?,
+                    match channel::BudgetTurns::new(limits, channel::BudgetTurnsParts { value }) {
+                        Ok(value) => value,
+                        Err(problem) => return Err(Error::ChannelBody(problem)),
+                    },
                 ),
                 run::Ceiling::Spend(value) => channel::BudgetCeiling::Spend(
-                    channel::BudgetSpend::new(limits, channel::BudgetSpendParts { value })
-                        .map_err(Error::ChannelBody)?,
+                    match channel::BudgetSpend::new(limits, channel::BudgetSpendParts { value }) {
+                        Ok(value) => value,
+                        Err(problem) => return Err(Error::ChannelBody(problem)),
+                    },
                 ),
                 run::Ceiling::Time(value) => channel::BudgetCeiling::Time(
-                    channel::BudgetTime::new(limits, channel::BudgetTimeParts { value }).map_err(Error::ChannelBody)?,
+                    match channel::BudgetTime::new(limits, channel::BudgetTimeParts { value }) {
+                        Ok(value) => value,
+                        Err(problem) => return Err(Error::ChannelBody(problem)),
+                    },
                 ),
             };
             channel::BudgetRefusal::Ceiling(
-                channel::BudgetCeilingValue::new(limits, channel::BudgetCeilingValueParts { value })
-                    .map_err(Error::ChannelBody)?,
+                match channel::BudgetCeilingValue::new(limits, channel::BudgetCeilingValueParts { value }) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
             )
         }
         run::BudgetRefusal::Empty(part) => channel::BudgetRefusal::Empty(
-            channel::BudgetPartValue::new(limits, channel::BudgetPartValueParts { value: budget_part(part) })
-                .map_err(Error::ChannelBody)?,
+            match channel::BudgetPartValue::new(limits, channel::BudgetPartValueParts { value: budget_part(part) }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::BudgetRefusal::Reserve(part) => channel::BudgetRefusal::Reserve(
-            channel::BudgetPartValue::new(limits, channel::BudgetPartValueParts { value: budget_part(part) })
-                .map_err(Error::ChannelBody)?,
+            match channel::BudgetPartValue::new(limits, channel::BudgetPartValueParts { value: budget_part(part) }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::BudgetRefusal::Completion { most } => channel::BudgetRefusal::Completion(
-            channel::BudgetCompletion::new(limits, channel::BudgetCompletionParts { most })
-                .map_err(Error::ChannelBody)?,
+            match channel::BudgetCompletion::new(limits, channel::BudgetCompletionParts { most }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::BudgetRefusal::Checks { reserve, checks } => channel::BudgetRefusal::Checks(
-            channel::BudgetChecks::new(limits, channel::BudgetChecksParts { reserve, checks })
-                .map_err(Error::ChannelBody)?,
+            match channel::BudgetChecks::new(limits, channel::BudgetChecksParts { reserve, checks }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
     })
 }
@@ -326,11 +352,16 @@ fn budget_refusal(refusal: run::BudgetRefusal, limits: &channel::Limits) -> Resu
 fn completion_limit(which: run::Limit, limits: &channel::Limits) -> Result<channel::CompletionLimit, Error> {
     let which = match which {
         run::Limit::Pool { reservation } => channel::CompletionLimit::Pool(
-            channel::PoolLimit::new(limits, channel::PoolLimitParts { reservation }).map_err(Error::ChannelBody)?,
+            match channel::PoolLimit::new(limits, channel::PoolLimitParts { reservation }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::Limit::Path(cap) => channel::CompletionLimit::Path(
-            channel::PathCap::new(limits, channel::PathCapParts { value: completion_cap(cap) })
-                .map_err(Error::ChannelBody)?,
+            match channel::PathCap::new(limits, channel::PathCapParts { value: completion_cap(cap) }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::ChannelBody(problem)),
+            },
         ),
         run::Limit::History => channel::CompletionLimit::History,
         run::Limit::Window => channel::CompletionLimit::Window,
@@ -374,4 +405,50 @@ const fn completion_phase(phase: run::Phase) -> channel::CompletionPhase {
         run::Phase::Idle => channel::CompletionPhase::Idle,
         run::Phase::Whole => channel::CompletionPhase::Whole,
     }
+}
+
+fn completion_failure(
+    failure: run::CompletionFailure,
+    limits: &channel::Limits,
+) -> Result<(channel::CompletionFailure, Option<skein_lib::Duration>), Error> {
+    Ok(match failure {
+        run::CompletionFailure::Limit { which, bound } => (
+            channel::CompletionFailure::Limit(
+                match channel::LimitFailure::new(
+                    limits,
+                    channel::LimitFailureParts { which: completion_limit(which, limits)?, bound },
+                ) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
+            ),
+            None,
+        ),
+        run::CompletionFailure::ApplicationLimit => (channel::CompletionFailure::ApplicationLimit, None),
+        run::CompletionFailure::Protocol => (channel::CompletionFailure::Protocol, None),
+        run::CompletionFailure::Cancelled => (channel::CompletionFailure::Cancelled, None),
+        run::CompletionFailure::Overloaded => (channel::CompletionFailure::Overloaded, None),
+        run::CompletionFailure::Unavailable => (channel::CompletionFailure::Unavailable, None),
+        run::CompletionFailure::TimedOut { phase } => (
+            channel::CompletionFailure::TimedOut(
+                match channel::TimeoutFailure::new(
+                    limits,
+                    channel::TimeoutFailureParts { phase: completion_phase(phase) },
+                ) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
+            ),
+            None,
+        ),
+        run::CompletionFailure::ContextTooLong => (channel::CompletionFailure::ContextTooLong, None),
+        run::CompletionFailure::Invalid => (channel::CompletionFailure::Invalid, None),
+        run::CompletionFailure::Refused => (channel::CompletionFailure::Refused, None),
+        run::CompletionFailure::Unsupported => (channel::CompletionFailure::Unsupported, None),
+        run::CompletionFailure::Unauthorized => (channel::CompletionFailure::Unauthorized, None),
+        run::CompletionFailure::RateLimited { retry_after } => {
+            (channel::CompletionFailure::RateLimited, Some(retry_after))
+        }
+        run::CompletionFailure::Exhausted { retry_after } => (channel::CompletionFailure::Exhausted, retry_after),
+    })
 }

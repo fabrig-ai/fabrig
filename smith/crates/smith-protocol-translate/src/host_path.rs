@@ -1,4 +1,4 @@
-//! Absolute host path normalization before root attachment (protocol/agent.md, section 4).
+//! Absolute host path normalization before root attachment (smith/docs/design/protocol/agent.md, section 4).
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};
 

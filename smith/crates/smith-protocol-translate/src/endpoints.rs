@@ -1,4 +1,4 @@
-//! Configured endpoint identities (protocol/charter.md, section 5).
+//! Configured endpoint identities (smith/docs/design/protocol/charter.md, section 5).
 use alloc::boxed::Box;
 use skein_lib::List;
 

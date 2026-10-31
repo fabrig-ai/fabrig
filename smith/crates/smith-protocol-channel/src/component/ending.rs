@@ -1,4 +1,4 @@
-//! The channel's single terminal notification (protocol/channel.md, section 2).
+//! The channel's single terminal notification (smith/docs/design/protocol/channel.md, section 2).
 use crate::OpenEvent;
 use core::mem;
 use skein_channel::Closed;

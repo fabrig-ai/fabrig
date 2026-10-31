@@ -693,11 +693,7 @@ fn response_completed_samples() -> Vec<(&'static str, Record, Capture)> {
 }
 
 fn text_delta_samples() -> Vec<(&'static str, Record, Capture)> {
-    let mut values = Vec::new();
-    for (name, capture) in [("text_delta_everything", Capture::Everything)] {
-        values.push((name, recorded(Event::TextDelta(value_text_delta())), capture));
-    }
-    values
+    vec![("text_delta_everything", recorded(Event::TextDelta(value_text_delta())), Capture::Everything)]
 }
 
 fn tool_started_samples() -> Vec<(&'static str, Record, Capture)> {
@@ -719,7 +715,7 @@ fn tool_started_samples() -> Vec<(&'static str, Record, Capture)> {
 
 fn tool_completed_samples() -> Vec<(&'static str, Record, Capture)> {
     let mut values = Vec::new();
-    for (name, words, capture) in [
+    for (name, words, capture) in vec![
         ("tool_completed_none", Words::capture(Capture::None), Capture::None),
         ("tool_completed_calls", Words::capture(Capture::Calls), Capture::Calls),
         ("tool_completed_everything", Words::capture(Capture::Everything), Capture::Everything),

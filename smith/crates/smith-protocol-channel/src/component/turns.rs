@@ -1,4 +1,4 @@
-//! Durable turn credit retained through the final answer (protocol/channel.md, section 7).
+//! Durable turn credit retained through the final answer (smith/docs/design/protocol/channel.md, section 7).
 use crate::Error;
 use skein_lib::{List, Map};
 

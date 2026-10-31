@@ -1,4 +1,4 @@
-//! Charter policy and endpoint resolution (protocol/charter.md, sections 2, 5 and 7).
+//! Charter policy and endpoint resolution (smith/docs/design/protocol/charter.md, sections 2, 5 and 7).
 use crate::Endpoints;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};

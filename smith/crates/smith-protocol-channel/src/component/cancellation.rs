@@ -1,4 +1,4 @@
-//! One polite cancellation per activation (protocol/channel.md, section 5).
+//! One polite cancellation per activation (smith/docs/design/protocol/channel.md, section 5).
 use crate::Error;
 use core::mem;
 

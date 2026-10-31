@@ -18,7 +18,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Reader, Token, Writer};
 use smith_domain::Transcript;
 use smith_local_domain::ChatState;
-use smith_protocol_translate::{self as channel, Endpoints};
+use smith_protocol_translate::Endpoints;
 use smith_transcript as transcript;
 
 /// One file replacement; the service acknowledges it only after a durable store terminal.

@@ -22,7 +22,6 @@ use smith_host_domain as host;
 use smith_inline_agent as inline;
 use smith_local_domain as local;
 use smith_local_protocol as protocol;
-use smith_protocol_channel as channel;
 
 use crate::process::{Launch, ProcessAdapter, ProcessLimits};
 

@@ -1,4 +1,4 @@
-//! Saved turn bytes become concrete session history (protocol/transcript.md,
+//! Saved turn bytes become concrete session history (smith/docs/design/protocol/transcript.md,
 //! sections 2–4 and 8; domain/session.md, section 3).
 //!
 //! This pure translation keeps no state. It knows configured endpoint names

@@ -1,5 +1,5 @@
-//! Concrete accepted result decoding (protocol/charter.md, section 5;
-//! protocol/channel.md, section 5). No state or policy is kept here.
+//! Concrete accepted result decoding (smith/docs/design/protocol/charter.md, section 5;
+//! smith/docs/design/protocol/channel.md, section 5). No state or policy is kept here.
 use crate::Error;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Writer};
@@ -73,8 +73,11 @@ pub fn encode_result(result: &run::outcome::Declared, limits: &wire::v4::Limits)
             for item in &verdict.items {
                 let mut item_fields = List::with_capacity(limits.item_fields);
                 copy_fields(&item.fields, &mut item_fields, limits)?;
-                let item = wire::Item::new(limits, wire::ItemParts { kind: item.kind.clone(), fields: item_fields })
-                    .map_err(Error::CharterBody)?;
+                let item =
+                    match wire::Item::new(limits, wire::ItemParts { kind: item.kind.clone(), fields: item_fields }) {
+                        Ok(value) => value,
+                        Err(problem) => return Err(Error::CharterBody(problem)),
+                    };
                 if items.push(item).is_err() {
                     return Err(Error::Capacity);
                 }
@@ -87,14 +90,21 @@ pub fn encode_result(result: &run::outcome::Declared, limits: &wire::v4::Limits)
         }
     };
     copy_fields(values, &mut fields, limits)?;
-    let record =
-        wire::RunResult::new(limits, wire::RunResultParts { form, label, text: Box::from(text), fields, items })
-            .map_err(Error::CharterBody)?;
+    let record = match wire::RunResult::new(
+        limits,
+        wire::RunResultParts { form, label, text: Box::from(text), fields, items },
+    ) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::CharterBody(problem)),
+    };
     let Ok(length) = usize::try_from(record.measure()) else {
         return Err(Error::Capacity);
     };
     let mut writer = Writer::new(length);
-    record.encode(&mut writer).map_err(Error::Write)?;
+    match record.encode(&mut writer) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::Write(problem)),
+    }
     Ok(writer.finish())
 }
 
@@ -104,8 +114,11 @@ fn copy_fields(
     limits: &wire::v4::Limits,
 ) -> Result<(), Error> {
     for field in values {
-        let value = wire::Field::new(limits, wire::FieldParts { name: field.name.clone(), text: field.value.clone() })
-            .map_err(Error::CharterBody)?;
+        let value =
+            match wire::Field::new(limits, wire::FieldParts { name: field.name.clone(), text: field.value.clone() }) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::CharterBody(problem)),
+            };
         if target.push(value).is_err() {
             return Err(Error::Capacity);
         }

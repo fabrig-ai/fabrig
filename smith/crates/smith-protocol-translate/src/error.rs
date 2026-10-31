@@ -1,4 +1,4 @@
-//! Checked wire translation failures (protocol/channel.md, sections 2–7).
+//! Checked wire translation failures (smith/docs/design/protocol/channel.md, sections 2–7).
 use skein_channel::SchemaError;
 
 /// A wire translation or channel operation exceeded its bounds or order.

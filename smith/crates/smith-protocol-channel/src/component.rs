@@ -166,9 +166,14 @@ impl Component {
         if !self.state.started() {
             return Err(Error::Order);
         }
-        let record =
-            smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {}).map_err(Error::ChannelBody)?;
-        let frame = smith_channel::frame(smith_channel::Body::Admitted(record)).map_err(Error::Frame)?;
+        let record = match smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {}) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::Admitted(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.state.admit();
         self.follow(below);
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
@@ -195,12 +200,17 @@ impl Component {
             run::MessageRefusal::NameInUse => smith_channel::MessageRefusal::NameInUse,
             run::MessageRefusal::Ending => smith_channel::MessageRefusal::Ending,
         };
-        let record = smith_channel::MessageRefused::new(
+        let record = match smith_channel::MessageRefused::new(
             &self.bodies,
             smith_channel::MessageRefusedParts { name: name.raw(), reason },
-        )
-        .map_err(Error::ChannelBody)?;
-        let frame = smith_channel::frame(smith_channel::Body::MessageRefused(record)).map_err(Error::Frame)?;
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::MessageRefused(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -227,7 +237,10 @@ impl Component {
             return Err(Error::Order);
         }
         let record = answer_record(now, answer, read, &self.bodies, &self.charter)?;
-        let frame = smith_channel::frame(smith_channel::Body::Answer(record)).map_err(Error::Frame)?;
+        let frame = match smith_channel::frame(smith_channel::Body::Answer(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.state.answer();
         self.follow(below);
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
@@ -253,9 +266,14 @@ impl Component {
             Some(name) => Some(name.raw()),
             None => None,
         };
-        let record = smith_channel::Waiting::new(&self.bodies, smith_channel::WaitingParts { last_read })
-            .map_err(Error::ChannelBody)?;
-        let frame = smith_channel::frame(smith_channel::Body::Waiting(record)).map_err(Error::Frame)?;
+        let record = match smith_channel::Waiting::new(&self.bodies, smith_channel::WaitingParts { last_read }) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::Waiting(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -280,9 +298,14 @@ impl Component {
             smith_domain::Operation::Completion => smith_channel::Operation::Completion,
             smith_domain::Operation::Command => smith_channel::Operation::Command,
         };
-        let record = smith_channel::Long::new(&self.bodies, smith_channel::LongParts { operation, span })
-            .map_err(Error::ChannelBody)?;
-        let frame = smith_channel::frame(smith_channel::Body::Long(record)).map_err(Error::Frame)?;
+        let record = match smith_channel::Long::new(&self.bodies, smith_channel::LongParts { operation, span }) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::Long(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.state.active_mut()?.long_open = next;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
@@ -300,9 +323,14 @@ impl Component {
         if !self.state.admitted() || self.state.active()?.long_open == 0 {
             return Err(Error::Order);
         }
-        let record =
-            smith_channel::LongDone::new(&self.bodies, smith_channel::LongDoneParts {}).map_err(Error::ChannelBody)?;
-        let frame = smith_channel::frame(smith_channel::Body::LongDone(record)).map_err(Error::Frame)?;
+        let record = match smith_channel::LongDone::new(&self.bodies, smith_channel::LongDoneParts {}) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::LongDone(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         let active = self.state.active_mut()?;
         active.long_open = active.long_open.checked_sub(1).expect("a begun operation owns this terminal");
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
@@ -335,12 +363,17 @@ impl Component {
             Some(name) => Some(name.raw()),
             None => None,
         };
-        let record = smith_channel::Turn::new(
+        let record = match smith_channel::Turn::new(
             &self.bodies,
             smith_channel::TurnParts { number, spent: spent.units, last_read, opens_window, body },
-        )
-        .map_err(Error::ChannelBody)?;
-        let frame = smith_channel::frame(smith_channel::Body::Turn(record)).map_err(Error::Frame)?;
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::Turn(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.state.turns_mut()?.keep(number, body_bytes)?;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
@@ -488,9 +521,14 @@ impl Component {
             self.lost_facts = self.lost_facts.saturating_add(1);
             return Ok(false);
         }
-        let record = smith_channel::Fact::new(&self.bodies, smith_channel::FactParts { kind, elapsed, count })
-            .map_err(Error::ChannelBody)?;
-        let frame = smith_channel::frame(smith_channel::Body::Fact(record)).map_err(Error::Frame)?;
+        let record = match smith_channel::Fact::new(&self.bodies, smith_channel::FactParts { kind, elapsed, count }) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::Fact(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         let room = self.machine.room();
         let reserve = match crate::live::frame_bytes(&self.bodies, self.bodies.live_bytes) {
             Some(live) => match self.fact_reserve_bytes.checked_add(live) {

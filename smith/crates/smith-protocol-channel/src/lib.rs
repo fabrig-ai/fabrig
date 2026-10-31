@@ -12,7 +12,7 @@
 //! | Opened | Start | Resolve charter, transcript and grants, or answer invalid |
 //! | Started | Message/Cancel | Deliver a labelled message or the single cancel |
 //! | Started | Admitted | Send admission; retain the live request and turn window |
-//! | Admitted | HostAnswer/GrantRefresh | Settle a call or retain a new generation |
+//! | Admitted | `HostAnswer`/`GrantRefresh` | Settle a call or retain a new generation |
 //! | Admitted | Acknowledge | Release the durably kept turn prefix |
 //! | Started/Admitted | Answer | Send the final answer and finish writes |
 //! | Answered | Acknowledge | Release remaining turn credit |

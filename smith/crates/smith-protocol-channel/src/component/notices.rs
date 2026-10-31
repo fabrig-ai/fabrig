@@ -1,4 +1,4 @@
-//! Bounded account notices (protocol/channel.md, section 4).
+//! Bounded account notices (smith/docs/design/protocol/channel.md, section 4).
 use super::Component;
 use crate::{Error, OpenEvent};
 use alloc::boxed::Box;
@@ -17,12 +17,17 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let record = smith_channel::Unauthorized::new(
+        let record = match smith_channel::Unauthorized::new(
             &self.bodies,
             smith_channel::UnauthorizedParts { account: name.account, generation: name.generation },
-        )
-        .map_err(Error::ChannelBody)?;
-        let frame = smith_channel::frame(smith_channel::Body::Unauthorized(record)).map_err(Error::Frame)?;
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::Unauthorized(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -41,9 +46,14 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let record = smith_channel::Limited::new(&self.bodies, smith_channel::LimitedParts { account, reset })
-            .map_err(Error::ChannelBody)?;
-        let frame = smith_channel::frame(smith_channel::Body::Limited(record)).map_err(Error::Frame)?;
+        let record = match smith_channel::Limited::new(&self.bodies, smith_channel::LimitedParts { account, reset }) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::Limited(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -64,7 +74,10 @@ impl Component {
             return Err(Error::Order);
         }
         let record = refused_notice(&self.bodies, account, code, reason)?;
-        let frame = smith_channel::frame(smith_channel::Body::AccountRefused(record)).map_err(Error::Frame)?;
+        let frame = match smith_channel::frame(smith_channel::Body::AccountRefused(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -87,15 +100,19 @@ fn refused_notice(
             Some(_) | None => break,
         }
     }
-    Ok(smith_channel::AccountRefused::new(
-        limits,
-        smith_channel::AccountRefusedParts {
-            account,
-            code: Box::from(code),
-            reason: Box::from(reason.get(..end).ok_or(Error::Grants)?),
+    Ok(
+        match smith_channel::AccountRefused::new(
+            limits,
+            smith_channel::AccountRefusedParts {
+                account,
+                code: Box::from(code),
+                reason: Box::from(reason.get(..end).ok_or(Error::Grants)?),
+            },
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
         },
     )
-    .map_err(Error::ChannelBody)?)
 }
 
 #[cfg(test)]

@@ -472,7 +472,7 @@ fn a_chat_writes_session_ended_after_its_last_word() {
         let answer = records.iter().position(|record| matches!(record.event, Event::RunCompleted(_))).expect("answer");
         assert!(answer < records.len() - 1);
         assert!(matches!(&records.last().expect("terminal").event,
-            Event::SessionEnded(end) if end.answered && end.exit == 0 && end.aborted == Some(false)));
+            Event::SessionEnded(end) if end.answered && end.exit == 0 && !end.aborted));
         assert_eq!(records.iter().filter(|record| matches!(record.event, Event::SessionEnded(_))).count(), 1);
     }
 }
@@ -495,7 +495,7 @@ fn a_termination_signal_while_closing_aborts_and_says_so() {
             .expect("abort notice");
         assert!(notice < records.len() - 1);
         assert!(matches!(&records.last().expect("terminal").event,
-            Event::SessionEnded(end) if end.answered && end.exit == 0 && end.aborted == Some(true)));
+            Event::SessionEnded(end) if end.answered && end.exit == 0 && end.aborted));
         assert_eq!(records.iter().filter(|record| matches!(record.event, Event::SessionEnded(_))).count(), 1);
         assert!(records.last().expect("terminal").t_ms - records[notice].t_ms < 5_000);
     }

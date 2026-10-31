@@ -1,4 +1,4 @@
-//! Encode and frame typed channel bodies (protocol/channel.md, sections 3–4).
+//! Encode and frame typed channel bodies (smith/docs/design/protocol/channel.md, sections 3–4).
 use crate::{kind, v5};
 use skein_channel::{Frame, FrameError, frame_writer};
 use skein_lib::Writer;
@@ -6,45 +6,45 @@ use skein_lib::Writer;
 /// One owned channel body whose kind follows its codec.
 #[derive(Debug)]
 pub enum Body {
-    /// The Start wire body.
+    /// The `Start` wire body.
     Start(v5::Start),
-    /// The Message wire body.
+    /// The `Message` wire body.
     Message(v5::Message),
-    /// The HostAnswer wire body.
+    /// The `HostAnswer` wire body.
     HostAnswer(v5::HostAnswer),
-    /// The Acknowledge wire body.
+    /// The `Acknowledge` wire body.
     Acknowledge(v5::Acknowledge),
-    /// The GrantRefresh wire body.
+    /// The `GrantRefresh` wire body.
     GrantRefresh(v5::GrantRefresh),
-    /// The Cancel wire body.
+    /// The `Cancel` wire body.
     Cancel(v5::Cancel),
-    /// The Admitted wire body.
+    /// The `Admitted` wire body.
     Admitted(v5::Admitted),
-    /// The Call wire body.
+    /// The `Call` wire body.
     Call(v5::Call),
-    /// The Withdraw wire body.
+    /// The `Withdraw` wire body.
     Withdraw(v5::Withdraw),
-    /// The Turn wire body.
+    /// The `Turn` wire body.
     Turn(v5::Turn),
-    /// The Waiting wire body.
+    /// The `Waiting` wire body.
     Waiting(v5::Waiting),
-    /// The Long wire body.
+    /// The `Long` wire body.
     Long(v5::Long),
-    /// The LongDone wire body.
+    /// The `LongDone` wire body.
     LongDone(v5::LongDone),
-    /// The Unauthorized wire body.
+    /// The `Unauthorized` wire body.
     Unauthorized(v5::Unauthorized),
-    /// The Limited wire body.
+    /// The `Limited` wire body.
     Limited(v5::Limited),
-    /// The Fact wire body.
+    /// The `Fact` wire body.
     Fact(v5::Fact),
-    /// The Answer wire body.
+    /// The `Answer` wire body.
     Answer(v5::Answer),
-    /// The MessageRefused wire body.
+    /// The `MessageRefused` wire body.
     MessageRefused(v5::MessageRefused),
-    /// The Live wire body.
+    /// The `Live` wire body.
     Live(v5::Live),
-    /// The AccountRefused wire body.
+    /// The `AccountRefused` wire body.
     AccountRefused(v5::AccountRefused),
 }
 

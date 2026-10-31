@@ -1,4 +1,4 @@
-//! Agent-side receive transitions (protocol/channel.md, sections 2–5 and 7).
+//! Agent-side receive transitions (smith/docs/design/protocol/channel.md, sections 2–5 and 7).
 use super::cancellation::Cancellation;
 use super::state::{Active, State};
 use super::turns::Turns;
@@ -248,9 +248,14 @@ impl Component {
             record::Refusal::Unresolved => run::TranscriptRefusal::Unresolved,
             record::Refusal::TooLarge => run::TranscriptRefusal::TooLarge,
         };
-        let admitted =
-            smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {}).map_err(Error::ChannelBody)?;
-        let admitted = smith_channel::frame(smith_channel::Body::Admitted(admitted)).map_err(Error::Frame)?;
+        let admitted = match smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {}) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let admitted = match smith_channel::frame(smith_channel::Body::Admitted(admitted)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.machine.down(Request::Send { token: Token::new(0), frame: admitted }, &mut self.events, below);
         let answer = smith_protocol_translate::answer_record(
             Time::ZERO,
@@ -259,7 +264,10 @@ impl Component {
             &self.bodies,
             &self.charter,
         )?;
-        let frame = smith_channel::frame(smith_channel::Body::Answer(answer)).map_err(Error::Frame)?;
+        let frame = match smith_channel::frame(smith_channel::Body::Answer(answer)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
         self.machine.down(Request::Send { token: Token::new(0), frame }, &mut self.events, below);
         self.machine.down(Request::Finish, &mut self.events, below);
         Ok(())
