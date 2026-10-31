@@ -15,6 +15,10 @@ use jig_domain_tasks as tasks;
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates the core's ask vocabulary")]
 pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, connector: u16, ask: core::Ask) {
     let request = match ask {
+        core::Ask::ReleaseProject { project } => {
+            domain.work.push(Work::Core(core::Event::ProjectReleased { connector, project }));
+            None
+        }
         core::Ask::StepMade { task, step, first, .. } => {
             step_made(domain, task, step, first);
             None

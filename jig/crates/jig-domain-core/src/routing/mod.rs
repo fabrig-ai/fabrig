@@ -482,6 +482,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
             settings::propose_start(core, env, work, reply_to, sign_in, key, digest, *change)
         }
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
+        Event::ProjectReleased { .. } => crate::stopping::empty(),
         Event::Fill { bytes } => {
             core.fill = bytes;
             crate::stopping::empty()

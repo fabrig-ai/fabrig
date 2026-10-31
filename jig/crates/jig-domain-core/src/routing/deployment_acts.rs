@@ -22,7 +22,8 @@ pub(super) fn start(
         people::Act::MakeProject { .. }
         | people::Act::Close { .. }
         | people::Act::RemoveAccount { .. }
-        | people::Act::Adopt { .. } => None,
+        | people::Act::Adopt { .. }
+        | people::Act::RemoveProject { .. } => None,
     };
     let valid = match carried {
         Some(carried) => digest == Some(carried.digest),
@@ -54,6 +55,7 @@ pub(super) fn route(
     act: people::Act,
 ) {
     match act {
+        people::Act::RemoveProject { .. } => refused(work, request, people::Refusal::NotOffered),
         people::Act::MakeProject { maker, name, policy } => {
             super::projects::make_project_act(core, env, work, out, request, maker, name, policy);
         }

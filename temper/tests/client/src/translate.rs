@@ -99,6 +99,7 @@ pub fn party(event: core::Event) -> engine::Event {
         core::Event::ProcedureHoldings { .. } => panic!("the client kit does not make ProcedureHoldings"),
         core::Event::ProcedureStep { .. } => panic!("the client kit does not make ProcedureStep"),
         core::Event::Brief(..) => panic!("the client kit does not make Brief"),
+        core::Event::ProjectReleased { .. } => panic!("the client kit does not make ProjectReleased"),
         core::Event::Holdings { .. } => panic!("the client kit does not make Holdings"),
         core::Event::Account(..) => panic!("the client kit does not make Account"),
         core::Event::View(..) => panic!("the client kit does not make View"),

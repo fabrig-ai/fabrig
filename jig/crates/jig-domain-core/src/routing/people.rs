@@ -207,6 +207,7 @@ pub(super) fn tag_people(
                     | people::Outcome::PolicyChanged { .. }
                     | people::Outcome::Renamed { .. }
                     | people::Outcome::ProjectMade { .. }
+                    | people::Outcome::ProjectRemoved { .. }
                     | people::Outcome::SettingsChanged { .. }
                     | people::Outcome::MovedToNewest { .. }
                     | people::Outcome::PoolSet { .. }
