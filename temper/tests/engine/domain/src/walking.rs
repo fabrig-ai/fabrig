@@ -320,16 +320,7 @@ pub fn config(seed: u64) -> engine::Config {
                 tail_bytes: 128,
                 tools: jig_domain_core::ToolFamilies::JIG,
                 models: models(),
-                llm_providers: accounts::Providers {
-                    providers: Box::new([accounts::Provider {
-                        number: 1,
-                        name: Box::from(b"Scripted".as_slice()),
-                        signed_in_plan: false,
-                        manage_usage: None,
-                        models: Box::new([charter().policy.model.name]),
-                        offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
-                    }]),
-                },
+                llm_providers: providers(),
             },
             seed_projects: Box::new([jig_domain_core::SeedProject {
                 number: 1,
@@ -372,6 +363,19 @@ pub fn config(seed: u64) -> engine::Config {
         under_box: false,
         playground: None,
         demo: None,
+    }
+}
+
+fn providers() -> accounts::Providers {
+    accounts::Providers {
+        providers: Box::new([accounts::Provider {
+            number: 1,
+            name: Box::from(b"Scripted".as_slice()),
+            signed_in_plan: false,
+            manage_usage: None,
+            models: Box::new([charter().policy.model.name]),
+            offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
+        }]),
     }
 }
 
