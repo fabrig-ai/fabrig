@@ -407,3 +407,72 @@ fn an_application_part_uses_the_people_childs_request_when_its_core_handle_diffe
     drop(core.land_kind(staged, crate::flight::Kind::EffectStaging));
     assert!(core.flights.is_empty());
 }
+
+#[test]
+fn an_adoption_part_names_its_parent_until_its_own_answer_arrives() {
+    let (mut core, limits) = core();
+    let waiting = pending(&mut core, &limits);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::Application {
+            reply_to: ReplyTo::new(Token::new(91)),
+            sign_in: 9,
+            key: [2; 16],
+            scope: people::ApplicationScope::Project(1),
+            connector: 1,
+            digest: [3; 32],
+            owner: Token::new(92),
+            carried: None,
+        },
+    );
+    let mut admitted = None;
+    while let Some(row) = out.pop() {
+        if let Request::Ask { ask: Ask::Application { request, token, .. }, .. } = row {
+            admitted = Some((request, token));
+        }
+    }
+    let (application, token) = admitted.expect("application admitted");
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::ApplicationPart {
+            request: application,
+            ask: Box::new(people::Ask::Adopt {
+                project: 1,
+                adoption: people::Adoption {
+                    resource: people::ResourceName { connector: 1, path: Box::new([Box::from(&b"resource"[..])]) },
+                    role: people::ResourceRole::Context,
+                    options: Box::new([]),
+                },
+            }),
+        },
+    );
+    let first = out.pop();
+    let Some(Request::Ask { ask: Ask::Adopt { request, .. }, .. }) = first else {
+        panic!("adoption part: {first:?}; {out:?}")
+    };
+    assert_ne!(request, application);
+    assert_eq!(core.application_part_request(request), Some(application));
+    assert_eq!(core.application_part_request(application), None);
+    assert_eq!(core.application_part_request(waiting), None);
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::People(people::Event::Decided { request, outcome: people::Outcome::Adopted { project: 1 } }),
+    );
+    let Some(Request::Ask { ask: Ask::ApplicationPartAnswered { request: parent, outcome }, .. }) = out.pop() else {
+        panic!("part answer names its application")
+    };
+    assert_eq!(parent, application);
+    assert_eq!(outcome, people::Outcome::Adopted { project: 1 });
+    assert_eq!(core.application_part_request(request), None);
+    drop(step(&mut core, &env, Event::ApplicationFinished { request: application, outcome: Ok(token) }));
+    let current = core.effect_owner();
+    assert_ne!(current, request);
+    assert_eq!(core.application_part_request(request), None);
+    drop(core.land_kind(current, crate::flight::Kind::EffectStaging));
+    drop(core.land_kind(waiting, crate::flight::Kind::Party));
+    assert!(core.flights.is_empty());
+}

@@ -408,6 +408,16 @@ impl Core {
 }
 
 impl Core {
+    /// The parent application request naming connector state while this party part
+    /// awaits its answer (jig/docs/design/domain/connectors.md, 5.5).
+    #[must_use]
+    pub fn application_part_request(&self, token: Token) -> Option<Token> {
+        match self.flights.get(Id::from_token(token)) {
+            Some(Flight::PartyPart { application, .. }) => Some(*application),
+            Some(_) | None => None,
+        }
+    }
+
     pub(crate) fn people_request(&self, token: Token) -> Option<Token> {
         match self.flights.get(Id::from_token(token)) {
             Some(Flight::Party { request }) => Some(*request),
