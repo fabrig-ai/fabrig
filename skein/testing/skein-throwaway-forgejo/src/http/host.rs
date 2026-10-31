@@ -138,12 +138,7 @@ impl Host for OneShot<'_> {
                 self.requests.push(io::Request::Stream { stream: socket, down });
             }
         }
-        while self.io.takes() && self.submit.room() >= 2 {
-            let Some(request) = self.requests.pop() else {
-                break;
-            };
-            io::down(&mut self.io, &env, request, &mut self.submit);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submit);
         // Deliver completed input and its HTTP demands before classifying an unanswered wait.
         if !self.closing && !self.work_pending(now) && now >= self.deadline {
             if let Some(deadline) = &self.real_deadline {
