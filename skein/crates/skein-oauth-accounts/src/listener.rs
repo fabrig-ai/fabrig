@@ -411,15 +411,9 @@ impl Callback {
             return;
         }
         if self.phase != Head::Closing {
-            for _ in 0..self.events.len() {
-                drop(self.events.pop());
-            }
-            for _ in 0..self.requests.len() {
-                drop(self.requests.pop());
-            }
-            for _ in 0..self.below.len() {
-                drop(self.below.pop());
-            }
+            self.events.clear();
+            self.requests.clear();
+            self.below.clear();
             http::down(
                 &mut self.http,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.server },
@@ -427,12 +421,8 @@ impl Callback {
                 &mut self.events,
                 &mut self.below,
             );
-            for _ in 0..self.events.len() {
-                drop(self.events.pop());
-            }
-            for _ in 0..self.below.len() {
-                drop(self.below.pop());
-            }
+            self.events.clear();
+            self.below.clear();
         }
         self.phase = if abort { Head::Aborting } else { Head::Closing };
         io.push(if abort { Request::Abort { entity: self.socket } } else { Request::Close { entity: self.socket } });

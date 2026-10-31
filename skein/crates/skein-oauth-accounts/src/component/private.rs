@@ -4,13 +4,13 @@
 //! operation retains its owner token through cancellation and root closing.
 
 use super::names::{missing_id, number};
-use super::{Component, FileLower, Lifecycle, State, failed, recorded};
+use super::{Component, FileLower, State, failed, recorded};
 use crate::exchange::Stage;
 use crate::keeper::{Operation, Pending, Store};
 use crate::{Asked, Event, Failure, Keeping, Limits, Lower, Place, Refusal, Unloaded};
 use skein_io::digest::digest;
 use skein_io::{file, kernel};
-use skein_lib::{Env, Queue, Token};
+use skein_lib::{Env, Lifecycle, Queue, Token};
 use skein_oauth as oauth;
 
 impl Component {

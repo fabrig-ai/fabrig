@@ -11,7 +11,7 @@ use crate::listener::Listener;
 use crate::redirect;
 use crate::{Asked, Ends, Event, Failure, Limits, Lower, Refusal};
 use alloc::boxed::Box;
-use skein_lib::{CryptoRng, Env, Queue, Time, Writer};
+use skein_lib::{CryptoRng, Env, Lifecycle, Queue, Time, Writer};
 use skein_oauth as oauth;
 use skein_oauth::Redirect;
 
@@ -98,10 +98,7 @@ impl Component {
         let public = registration.client_secret.is_none();
         if public {
             let mut listeners = 0_u32;
-            let mut next = self.first_exchange;
-            while let Some(id) = next {
-                let exchange = self.exchanges.get(id).expect("live exchange");
-                next = exchange.next;
+            for (_, exchange) in &self.exchanges {
                 let reserved = match exchange.stage {
                     Stage::Loading => match self.sources.get(exchange.account).expect("account source") {
                         Source::SignIn { registration, .. } => registration.client_secret.is_none(),
@@ -199,13 +196,13 @@ impl Component {
     }
 
     pub(super) fn listen_waiting(&mut self, env: &Env<Limits>, io: &mut Queue<Lower>) {
-        if self.lifecycle == super::Lifecycle::Aborting {
+        if self.lifecycle == Lifecycle::Aborting {
             return;
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
+        let mut cursor = None;
+        while let Some(id) = self.exchanges.next_after(cursor) {
+            cursor = Some(id);
             let exchange = self.exchanges.get(id).expect("live exchange");
-            next = exchange.next;
             let Some(listener) = &exchange.listener else { continue };
             if listener.sent || listener.settled() || super::due(exchange.next_deadline(), env.now) {
                 continue;
@@ -213,10 +210,7 @@ impl Component {
             let address = listener.address();
             let mut busy = false;
             if listener.fixed() {
-                let mut other = self.first_exchange;
-                while let Some(other_id) = other {
-                    let other_exchange = self.exchanges.get(other_id).expect("live exchange");
-                    other = other_exchange.next;
+                for (other_id, other_exchange) in &self.exchanges {
                     if let Some(other_listener) = &other_exchange.listener
                         && other_id != id
                         && other_listener.sent
@@ -244,11 +238,11 @@ impl Component {
     pub(super) fn redirected(&mut self, env: &Env<Limits>, account: u32, uri: &[u8], up: &mut Queue<Event>) {
         // A redirect completes the already admitted sign-in through a close.
         let draining_reply = match self.lifecycle {
-            super::Lifecycle::Closing => match self.bindings.get(account) {
+            Lifecycle::Closing => match self.bindings.get(account) {
                 Some(Some(id)) => self.exchanges.get(*id).expect("bound exchange").waiting(),
                 Some(None) | None => false,
             },
-            super::Lifecycle::Live | super::Lifecycle::Aborting | super::Lifecycle::Closed => false,
+            Lifecycle::Live | Lifecycle::Aborting | Lifecycle::Closed => false,
         };
         if !draining_reply && self.refused(account, Asked::Redirected, up) {
             return;

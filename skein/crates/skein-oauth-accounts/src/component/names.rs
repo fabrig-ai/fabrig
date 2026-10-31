@@ -1,8 +1,8 @@
 //! Stable account numbers and their bounded places (oauth.md, section 6.2).
 
-use super::{Component, Lifecycle, Name};
+use super::{Component, Name};
 use crate::{Asked, Event, Refusal, Request};
-use skein_lib::{List, Queue};
+use skein_lib::{Lifecycle, List, Queue};
 use skein_oauth::{Registration, SavedToken};
 
 impl Component {
