@@ -492,3 +492,11 @@ fn moved_in_outcomes_show_whether_the_account_was_renewed() {
         assert!(super::cards::contains(&tree, b"4294967295"));
     }
 }
+
+#[test]
+fn the_removed_outcome_has_its_words() {
+    let words = words();
+    let outcome = OwnerOutcome::ProjectRemoved { project: 17 };
+    expect_lines(&render(&outcome, &words), &[b"Deleted the project", b"Project: 17"]);
+    assert_eq!(crate::outcome::route(&jig_client::contract::Outcome::Owner(outcome)), crate::outcome::Route::Other);
+}
