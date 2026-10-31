@@ -7,8 +7,8 @@ use crate::{
 };
 use skein_lib::{Env, List, Queue};
 
-fn infrastructure_env(env: &Env<Limits>) -> Env<infrastructure::Limits> {
-    env.with(env.limits.infrastructure)
+fn infrastructure_env(env: &Env<Limits>) -> Env<jig_client::DomainLimits> {
+    env.with(env.limits.client.domain)
 }
 pub(crate) fn jig(root: &mut Domain, env: &Env<Limits>, event: jig_client_view::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
@@ -32,7 +32,7 @@ pub(crate) fn observability(
     out: &mut Queue<Request>,
 ) {
     let mut child = Queue::uncapped();
-    observability::step(&mut root.observability, &env.with(env.limits.observability), event, &mut child);
+    observability::step(&mut root.observability, &env.with(env.limits.client.domain), event, &mut child);
     route_observability(root, env, &mut child, out);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
@@ -40,7 +40,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::Start { address, kept } => {
             let mut bytes = List::with_capacity(env.limits.client.domain.requests.requests);
             let mut records = List::with_capacity(env.limits.client.domain.requests.requests);
-            let mut jig_kept = List::with_capacity(env.limits.jig.records);
+            let mut jig_kept = List::with_capacity(env.limits.client.domain.records);
             for record in kept.into_boxed() {
                 match record {
                     Record::Jig(record) => {

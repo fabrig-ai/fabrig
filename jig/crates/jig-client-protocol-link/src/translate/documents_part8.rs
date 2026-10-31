@@ -6,7 +6,7 @@ use super::{
 };
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn owner_project_fields(value: &w::OwnerProject, limits: &Limits) -> Result<c::OwnerProject, w::Problem> {
-    if value.members().len() > limits.client.rows {
+    if value.members().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.members().len());
@@ -17,14 +17,14 @@ pub(crate) fn owner_project_fields(value: &w::OwnerProject, limits: &Limits) -> 
         Some(item) => Some(pool_ledger_fields(item)),
         None => None,
     };
-    if value.pools().len() > limits.client.rows {
+    if value.pools().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.pools().len());
     for item in value.pools() {
         list2.push(pool_ledger_fields(item)).expect("reserved supplied list");
     }
-    if value.configured_pools().len() > limits.client.rows {
+    if value.configured_pools().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list3 = List::with_capacity(value.configured_pools().len());
@@ -35,7 +35,7 @@ pub(crate) fn owner_project_fields(value: &w::OwnerProject, limits: &Limits) -> 
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
         number: value.number(),
         name: crate::translate::facts::document_text(value.name(), limits)?,
-        resources: owner_project_resource_piece(value.resources(), limits, limits.client.rows)?,
+        resources: owner_project_resource_piece(value.resources(), limits, limits.client().rows)?,
         policy: owner_project_policy_fields(value.policy(), limits)?,
         members: list0,
         current_period: opt1,
@@ -43,8 +43,8 @@ pub(crate) fn owner_project_fields(value: &w::OwnerProject, limits: &Limits) -> 
         configured_period: value.configured_period(),
         configured_pools: list3,
         configured_pools_cut: value.configured_pools_cut(),
-        spend: owner_project_spend_piece(value.spend(), limits, limits.client.rows)?,
-        recurring: recurring_piece(value.recurring(), limits, limits.client.rows)?,
+        spend: owner_project_spend_piece(value.spend(), limits, limits.client().rows)?,
+        recurring: recurring_piece(value.recurring(), limits, limits.client().rows)?,
         cut: value.cut(),
     })
 }
@@ -58,7 +58,7 @@ pub(crate) fn call_fields(value: &w::Call, limits: &Limits) -> Result<c::Call, w
         Some(item) => Some(text(item, limits)?),
         None => None,
     };
-    if value.objects().len() > limits.client.rows {
+    if value.objects().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.objects().len());
@@ -72,7 +72,7 @@ pub(crate) fn call_fields(value: &w::Call, limits: &Limits) -> Result<c::Call, w
         outcome: opt0,
         failed: value.failed(),
         objects: list1,
-        parts: part_piece(value.parts(), limits, limits.client.rows)?,
+        parts: part_piece(value.parts(), limits, limits.client().rows)?,
     })
 }
 

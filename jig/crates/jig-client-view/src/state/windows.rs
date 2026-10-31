@@ -298,6 +298,6 @@ fn move_historywindow(rows: List<HistoryRow>, start: u32, count: u32, out: &mut 
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub(crate) fn valid(limits: &crate::Limits) -> bool {
+pub(crate) fn valid(limits: &jig_client::DomainLimits) -> bool {
     limits.rows.checked_mul(2).is_some()
 }

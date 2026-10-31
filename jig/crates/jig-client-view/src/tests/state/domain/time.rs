@@ -1,9 +1,10 @@
 use crate::state::store;
+use crate::tests::fixtures::Profile;
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Watched};
 use crate::tests::state::domain::spine::{LIMITS, drain, frame, open_token};
 use crate::{
-    Event, Limits, Request,
+    Event, Request,
     state::{
         address::{Address, Place},
         intents::send_card,
@@ -14,21 +15,21 @@ use crate::{
 };
 use jig_client::contract::*;
 use skein_lib::{Duration, Env, List, Queue, Time, Wall};
-fn limits() -> Limits {
-    Limits { ..LIMITS }
+fn limits() -> Profile {
+    Profile { view: crate::Config { ..(LIMITS).view }, client: jig_client::DomainLimits { ..(LIMITS).client } }
 }
 fn drive(
     domain: &mut Fixture,
-    limits: &Limits,
+    limits: &Profile,
     now: Time,
     event: impl crate::tests::fixtures::Input,
 ) -> Box<[Request]> {
-    domain.ui.limits = *limits;
+    domain.ui.limits = limits.view;
     domain.drive(now, event)
 }
-fn tick(domain: &mut Fixture, limits: &Limits, now: Time) -> Box<[Request]> {
+fn tick(domain: &mut Fixture, limits: &Profile, now: Time) -> Box<[Request]> {
     let mut out = Queue::uncapped();
-    crate::fire(&mut domain.ui, &Env { now, wall: Wall::EPOCH, limits: *limits }, &mut out, &domain.client);
+    crate::fire(&mut domain.ui, &Env { now, wall: Wall::EPOCH, limits: limits.view }, &mut out, &domain.client);
     drain(out)
 }
 
@@ -108,7 +109,7 @@ fn hidden_answers_have_notices_and_lingers_and_coalesced_saves_end_on_deadlines(
     assert!(domain.objects().find(ObjectKey::Task(9)).is_none());
 }
 
-fn start(domain: &mut Fixture, limits: &Limits, kept: List<Record>) -> (jig_client::Handle, jig_client::Handle) {
+fn start(domain: &mut Fixture, limits: &Profile, kept: List<Record>) -> (jig_client::Handle, jig_client::Handle) {
     let f = open_token(&drive(
         domain,
         limits,

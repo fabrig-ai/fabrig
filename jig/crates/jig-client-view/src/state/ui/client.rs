@@ -1,11 +1,11 @@
 //! The UI reads the application-held client through its lent reference (view.md, 18.1).
-use crate::{Limits, Request, Ui, state::intents};
+use crate::{Config, Request, Ui, state::intents};
 use jig_client::{Client, Progress, Readout, Told, contract};
 pub(crate) mod outcome;
 use skein_lib::{Env, Queue, Token};
 pub(crate) fn told(
     domain: &mut Ui,
-    env: &Env<Limits>,
+    env: &Env<Config>,
     client: &Client,
     told: Told,
     salt: u64,
@@ -48,7 +48,7 @@ pub(crate) fn told(
                 jig_client::Link::Offline | jig_client::Link::Live => {}
                 jig_client::Link::SignedOut => super::signed_out(domain, out, client),
                 jig_client::Link::OutOfDate => {
-                    crate::state::page::routing::leave_page(domain, out);
+                    crate::state::page::routing::leave_page(domain, out, client);
                     domain.blocked = true;
                     domain.confirmed = None;
                     domain.page = crate::state::page::Page::OutOfDate;

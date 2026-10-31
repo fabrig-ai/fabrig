@@ -111,28 +111,28 @@ pub(crate) fn answer(value: &c::Answer, bounds: &Bounds) -> Result<c::Answer, In
     let keyed = w::KeyedAnswer::FinalAnswer(owned);
     let bytes = encoded(&keyed, w::KeyedAnswer::measure, w::KeyedAnswer::encode).map_err(|_| Invalid::Payload)?;
     let limits = limits(bounds)?;
-    let record = w::KeyedAnswer::decode(&limits.wire, &mut Reader::new(&bytes)).map_err(|_| Invalid::Payload)?;
+    let record = w::KeyedAnswer::decode(limits.wire(), &mut Reader::new(&bytes)).map_err(|_| Invalid::Payload)?;
     translate::answers::answer(record, &limits).map_err(|_| Invalid::Payload)
 }
 
 /// Outgoing requests use the link's wire translation and the same receiving limits.
 pub(crate) fn ask(value: &c::Ask, bounds: &Bounds) -> Result<(), Invalid> {
     let limits = limits(bounds)?;
-    let record = translate::asks::ask(value, &limits.wire).map_err(|_| Invalid::Payload)?;
+    let record = translate::asks::ask(value, limits.wire()).map_err(|_| Invalid::Payload)?;
     let bytes = encoded(&record, w::Ask::measure, w::Ask::encode).map_err(|_| Invalid::Payload)?;
     if u64::try_from(bytes.len()).map_err(|_| Invalid::Payload)? > bounds.document_bytes {
         return Err(Invalid::Payload);
     }
-    w::Ask::decode(&limits.wire, &mut Reader::new(&bytes)).map_err(|_| Invalid::Payload)?;
+    w::Ask::decode(limits.wire(), &mut Reader::new(&bytes)).map_err(|_| Invalid::Payload)?;
     Ok(())
 }
 
 pub(crate) fn selector(value: &c::Read, bounds: &Bounds) -> Result<(), Invalid> {
-    translate::reads::read(value, &limits(bounds)?.wire).map_err(|_| Invalid::Payload)?;
+    translate::reads::read(value, limits(bounds)?.wire()).map_err(|_| Invalid::Payload)?;
     Ok(())
 }
 
 pub(crate) fn subject(value: &c::Subject, bounds: &Bounds) -> Result<(), Invalid> {
-    translate::watches::subject(value, &limits(bounds)?.wire).map_err(|_| Invalid::Payload)?;
+    translate::watches::subject(value, limits(bounds)?.wire()).map_err(|_| Invalid::Payload)?;
     Ok(())
 }

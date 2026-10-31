@@ -80,7 +80,9 @@ pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::P
         Some(item) => Some(crate::translate::answers::held_role(item)),
         None => None,
     };
-    if value.key_bytes() > limits.wire.keyed_value_some || value.redirect_bytes() > limits.wire.keyed_value_some {
+    if value.key_bytes() > limits.receiving().keyed_value_some
+        || value.redirect_bytes() > limits.receiving().keyed_value_some
+    {
         return Err(too_large());
     }
     Ok(c::Me {
@@ -131,10 +133,10 @@ pub(crate) fn chip_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<Li
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Chip::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Chip::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = chip_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -196,10 +198,10 @@ pub(crate) fn owner_task_link_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerTaskLink::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerTaskLink::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_task_link_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -228,14 +230,14 @@ pub(crate) fn document_specification_fields(
     value: &w::DocumentSpecification,
     limits: &Limits,
 ) -> Result<c::DocumentSpecification, w::Problem> {
-    if value.parameters().len() > limits.client.rows {
+    if value.parameters().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.parameters().len());
     for item in value.parameters() {
         list0.push(parameter_document_fields(item, limits)?).expect("reserved supplied list");
     }
-    if value.inputs().len() > limits.client.rows {
+    if value.inputs().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.inputs().len());

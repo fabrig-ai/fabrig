@@ -297,19 +297,19 @@ fn a_family_the_engine_does_not_serve_marks_the_form_out_of_date() {
 const NEXT_FORGE_VERSION: u32 = temper_client_protocol_wire::CLIENT_VERSION + 1;
 fn version_answer(limits: &jig_client_protocol_link::Limits) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let owner = w::Owner::Family(w::Family::new(&limits.wire, w::FamilyParts { number: fixtures::FORGE }).unwrap());
+    let owner = w::Owner::Family(w::Family::new(limits.wire(), w::FamilyParts { number: fixtures::FORGE }).unwrap());
     let mut served = skein_lib::List::with_capacity(1);
     served
         .push(
             w::Served::new(
-                &limits.wire,
+                limits.wire(),
                 w::ServedParts { owner: owner.clone(), first: NEXT_FORGE_VERSION, last: NEXT_FORGE_VERSION },
             )
             .unwrap(),
         )
         .unwrap();
     let answer =
-        w::KeyedAnswer::NotServed(w::NotServed::new(&limits.wire, w::NotServedParts { owner, served }).unwrap());
+        w::KeyedAnswer::NotServed(w::NotServed::new(limits.wire(), w::NotServedParts { owner, served }).unwrap());
     let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap());
     answer.encode(&mut bytes).unwrap();
     bytes.finish()

@@ -20,7 +20,7 @@ use jig_client::Link;
 use jig_client::contract::*;
 use skein_lib::{List, Time};
 fn text(value: &[u8]) -> Text {
-    Text::new(Box::from(value), LIMITS.text).unwrap()
+    Text::new(Box::from(value), LIMITS.client.text).unwrap()
 }
 pub(in crate::tests) fn project(number: u32, chats: bool) -> MeProject {
     MeProject {
@@ -1062,8 +1062,8 @@ fn an_arranged_task_section_its_document_does_not_offer_is_not_shown() {
 }
 
 fn source_requests(requests: &[Request]) -> (List<Subject>, List<Read>) {
-    let mut watches = List::with_capacity(LIMITS.watches);
-    let mut reads = List::with_capacity(LIMITS.reads);
+    let mut watches = List::with_capacity(LIMITS.client.watches);
+    let mut reads = List::with_capacity(LIMITS.client.reads);
     for request in requests {
         if let Request::Client {
             asked: jig_client::Event::Watch { subject: jig_client::Watchable::Jig(subject), .. },
@@ -1112,13 +1112,13 @@ fn an_arranged_task_page_opens_its_watch_once() {
         (
             Executor::Agent { charter: 1 },
             Phase::Running,
-            &[Subject::Tree { task: 8, window: LIMITS.rows }, Subject::Run { task: 8, turn: None, offset: 0 }],
+            &[Subject::Tree { task: 8, window: LIMITS.client.rows }, Subject::Run { task: 8, turn: None, offset: 0 }],
             &[Read::Activity { task: 8, before: None }],
         ),
         (
             Executor::Party { party: 7 },
             Phase::Held,
-            &[Subject::Tree { task: 8, window: LIMITS.rows }],
+            &[Subject::Tree { task: 8, window: LIMITS.client.rows }],
             &[Read::PersonTask { task: 8 }],
         ),
         (
@@ -1167,8 +1167,8 @@ fn an_arranged_project_page_opens_the_goals_watch_once() {
     assert_eq!(
         watches.as_slice(),
         &[
-            Subject::Tasks { query: crate::state::queries::goals(1), window: LIMITS.rows },
-            Subject::Inbox { window: LIMITS.rows }
+            Subject::Tasks { query: crate::state::queries::goals(1), window: LIMITS.client.rows },
+            Subject::Inbox { window: LIMITS.client.rows }
         ]
     );
     assert_eq!(
@@ -1355,7 +1355,7 @@ fn section_with_an_unrelated_section() -> (Fixture, Section) {
     let mut domain = application_page();
     let section = Section::Task { task: 8, section: TaskSection::Plan };
     show_sections(&mut domain, &[section, Section::Deployment]);
-    page::shown::context_subject(&mut domain, &Subject::Tree { task: 8, window: LIMITS.rows });
+    page::shown::context_subject(&mut domain, &Subject::Tree { task: 8, window: LIMITS.client.rows });
     (domain, section)
 }
 #[test]

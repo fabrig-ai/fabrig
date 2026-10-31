@@ -253,7 +253,7 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>, lent: &jig_client:
 }
 pub(crate) fn answered(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     request: Token,
     handle: Option<jig_client::Handle>,
     answer: Answer,

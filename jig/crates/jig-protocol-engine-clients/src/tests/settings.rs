@@ -128,7 +128,7 @@ fn the_inventory_at_profile_bounds_fits_one_wire_document() {
     let value = translate::document(&document, &w::CEILINGS).unwrap();
     assert!(value.measure() < w::CEILINGS.owned_record);
     assert!(document.settings.len() > w::CEILINGS.revisions_page_rows);
-    let mut client = f::client_limits().client;
+    let mut client = *f::client_limits().client();
     client.document_bytes = u64::from(w::CEILINGS.owned_record);
     client.text = u32::try_from(NAME_BYTES).unwrap();
     client.turn_text = client.text;

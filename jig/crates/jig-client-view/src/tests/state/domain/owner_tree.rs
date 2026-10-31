@@ -17,8 +17,11 @@ use crate::{
 };
 use jig_client::contract::*;
 use skein_lib::{List, Time, Wall};
-fn limits() -> crate::Limits {
-    crate::Limits { objects: 8, reads: 8, ..LIMITS }
+fn limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { objects: 8, ..(LIMITS).view },
+        client: jig_client::DomainLimits { reads: 8, ..(LIMITS).client },
+    }
 }
 fn drive(d: &mut Fixture, event: impl crate::tests::fixtures::Input) -> Vec<Request> {
     d.drive(Time::ZERO, event).into_vec()

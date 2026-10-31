@@ -18,7 +18,6 @@ pub fn limits() -> jig_client_test_domain::Limits {
     limits.client.domain.text = 128;
     limits.client.domain.turn_text = 128;
     limits.client.domain.turn_bytes = 128;
-    limits.jig.text = 128;
     limits.jig.roles = 4;
     limits.first.text = 128;
     limits

@@ -131,7 +131,7 @@ pub(super) fn stored_request(party: u64, request: jig_client::Ask) -> jig_client
         &lim,
     )
     .expect("kept table");
-    let kept = w::Kept::new(&lim.wire, w::KeptParts { store_version: TABLE_VERSION, record: encode!(table) })
+    let kept = w::Kept::new(lim.wire(), w::KeptParts { store_version: TABLE_VERSION, record: encode!(table) })
         .expect("kept record");
     jig_client::Record { key: KEPT_KEY.into(), bytes: encode!(kept) }
 }

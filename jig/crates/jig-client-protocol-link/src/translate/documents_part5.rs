@@ -89,10 +89,10 @@ pub(crate) fn owner_host_run_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerHostRun::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerHostRun::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = owner_host_run_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -138,7 +138,7 @@ pub(crate) fn owner_host_fields(
         connected: value.connected(),
         grace_until: opt0,
         grace_remaining: opt1,
-        runs: owner_host_run_piece(value.runs(), limits, limits.client.rows)?,
+        runs: owner_host_run_piece(value.runs(), limits, limits.client().rows)?,
         cut: value.cut(),
     })
 }
@@ -160,7 +160,7 @@ pub(crate) fn owner_host_piece(
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else {
             return Err(piece_problem(skein_codec::Reason::Malformed));
         };
-        let row = w::OwnerHost::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerHost::decode(limits.wire(), &mut Reader::new(&item))?;
         rows.push(owner_host_fields(&row, limits, room)?).expect("counted host pieces");
     }
     Ok(rows)

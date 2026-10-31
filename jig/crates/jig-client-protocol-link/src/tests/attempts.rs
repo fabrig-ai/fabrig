@@ -6,7 +6,7 @@ fn a_send_becomes_one_post_with_its_key() {
     let Request::Exchange { message: Message::Request(body), .. } = h.out.pop().unwrap() else {
         panic!("expected exchange")
     };
-    let record = w::Keyed::decode(&fixtures::limits().wire, &mut Reader::new(&body)).unwrap();
+    let record = w::Keyed::decode(fixtures::limits().wire(), &mut Reader::new(&body)).unwrap();
     assert_eq!(record.key(), &fixtures::KEY);
     assert_eq!(record.owner(), &w::Owner::Jig);
     assert_eq!(record.version(), jig_client_protocol_wire::VERSION);
@@ -120,9 +120,9 @@ fn malformed_piece_lengths_in_a_final_refusal_are_lost_and_reported() {
 }
 #[test]
 fn an_invalid_client_limit_literal_is_refused() {
-    let mut invalid = fixtures::limits();
-    invalid.wire.owned_record = 16_777_217;
-    assert_eq!(Link::new(&invalid).expect_err("invalid link limits"), Unusable::Limits);
+    let base = fixtures::limits();
+    let client = jig_client_domain::Limits { document_bytes: 16_777_217, ..*base.client() };
+    assert_eq!(Limits::new(client, base.exchanges()), Err(Unusable::Limits));
 }
 
 #[test]
@@ -190,8 +190,8 @@ fn a_seen_over_a_conversation_names_its_task() {
     let Request::Exchange { message: Message::Request(bytes), .. } = harness.out.pop().expect("exchange") else {
         panic!("request bytes")
     };
-    let keyed = w::Keyed::decode(&fixtures::limits().wire, &mut Reader::new(&bytes)).expect("keyed request");
-    let request = w::Ask::decode(&fixtures::limits().wire, &mut Reader::new(keyed.request())).expect("jig request");
+    let keyed = w::Keyed::decode(fixtures::limits().wire(), &mut Reader::new(&bytes)).expect("keyed request");
+    let request = w::Ask::decode(fixtures::limits().wire(), &mut Reader::new(keyed.request())).expect("jig request");
     let w::Ask::Seen(seen) = request else { panic!("seen") };
     let w::SeenThrough::Conversation(conversation) = seen.through() else { panic!("conversation") };
     assert_eq!((conversation.task(), conversation.through()), (u64::MAX, u64::MAX));
@@ -201,12 +201,12 @@ const TEMPLATE_ROWS: [(u32, u32); 3] = [(2, 2), (16, 16), (32, 16)];
 #[test]
 fn template_overrides_keep_the_wire_ceiling_when_the_client_accepts_more_rows() {
     for (rows, expected) in TEMPLATE_ROWS {
-        let mut client = fixtures::limits().client;
+        let mut client = *fixtures::limits().client();
         client.rows = rows;
         let limits = match Limits::new(client, 4) {
             Ok(value) => value,
             Err(error) => panic!("client rows {rows}: {error:?}"),
         };
-        assert_eq!(limits.wire.policy_edit_templates_overrides, expected, "client rows {rows}");
+        assert_eq!(limits.wire().policy_edit_templates_overrides, expected, "client rows {rows}");
     }
 }

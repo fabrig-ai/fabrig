@@ -55,7 +55,7 @@ impl Document {
     }
     /// Whole-value admission against the configured text, row and byte bounds.
     #[must_use]
-    pub fn fits(&self, limits: &super::Limits) -> bool {
+    pub fn fits(&self, limits: &jig_client::DomainLimits) -> bool {
         let Self::Value(document) = self;
         let Some(bytes) = super::values::price(document, limits) else { return false };
         match bytes.checked_add(u64::try_from(size_of::<Document>()).expect("document layout")) {

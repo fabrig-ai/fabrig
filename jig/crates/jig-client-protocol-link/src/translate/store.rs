@@ -8,7 +8,7 @@ use jig_client_protocol_wire::{self as wire, v19 as w};
 use skein_lib::{List, Reader, RequestRecord, Wall, Writer, bytes};
 
 pub(super) fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
-    match c::Text::new(bytes::copy_of(value), limits.client.text) {
+    match c::Text::new(bytes::copy_of(value), limits.client().text) {
         Ok(value) => Ok(value),
         Err(_) => Err(too_large()),
     }
@@ -48,10 +48,10 @@ fn policy_edit(value: &w::PolicyEdit, limits: &Limits) -> Result<c::PolicyEdit, 
             })
         }
         w::PolicyEdit::Requirements(value) => c::PolicyEdit::Requirements {
-            requirements: documents::policy_requirement_piece(value.requirements(), limits, limits.client.rows)?,
+            requirements: documents::policy_requirement_piece(value.requirements(), limits, limits.client().rows)?,
         },
         w::PolicyEdit::Projections(value) => c::PolicyEdit::Projections {
-            grants: documents::owner_grant_piece(value.grants(), limits, limits.client.authority)?,
+            grants: documents::owner_grant_piece(value.grants(), limits, limits.client().authority)?,
         },
         w::PolicyEdit::Permissions(value) => {
             let mut mappings = List::with_capacity(value.mappings().len());
@@ -193,15 +193,15 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
 pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) -> Result<w::TableEntry, w::Problem> {
     let (owner, version, request) = match &value.request.request {
         Ask::Jig(value) => {
-            let record = super::asks::ask(value, &limits.wire)?;
+            let record = super::asks::ask(value, limits.wire())?;
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("u32 fits usize"));
             record.encode(&mut writer).expect("measured ask");
             (w::Owner::Jig, wire::VERSION, writer.finish())
         }
         Ask::Family { scope, record: value } => (
-            w::Owner::Family(w::Family::new(&limits.wire, w::FamilyParts { number: value.family })?),
+            w::Owner::Family(w::Family::new(limits.wire(), w::FamilyParts { number: value.family })?),
             value.version,
-            super::envelope::request(*scope, value, &limits.wire)?,
+            super::envelope::request(*scope, value, limits.wire())?,
         ),
     };
     let first_sent = match value.first_sent {
@@ -209,7 +209,7 @@ pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) ->
         None => None,
     };
     w::TableEntry::new(
-        &limits.wire,
+        limits.wire(),
         w::TableEntryParts {
             asker: value.request.key.asker.0,
             number: value.request.key.number,
@@ -233,14 +233,14 @@ pub fn restore_table(
                 return Err(super::piece_problem(skein_codec::Reason::Version));
             }
             let mut reader = Reader::new(value.request());
-            let ask = w::Ask::decode(&limits.wire, &mut reader)?;
+            let ask = w::Ask::decode(limits.wire(), &mut reader)?;
             if reader.remaining() != 0 {
                 return Err(super::piece_problem(skein_codec::Reason::Malformed));
             }
             Ask::Jig(Box::new(restore_ask(ask, limits)?))
         }
         w::Owner::Family(owner) => {
-            let (scope, bytes) = super::envelope::restore(value.request(), &limits.wire)?;
+            let (scope, bytes) = super::envelope::restore(value.request(), limits.wire())?;
             Ask::Family { scope, record: Family { family: owner.number(), version: value.version(), bytes } }
         }
     };

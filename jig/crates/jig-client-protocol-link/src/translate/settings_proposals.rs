@@ -85,7 +85,7 @@ pub fn restore_owner_proposal_action_settings(
 ) -> Result<c::OwnerProposalActionSettings, w::Problem> {
     Ok(c::OwnerProposalActionSettings {
         against: value.against(),
-        items: decode_heads(value.items(), limits.wire.owner_proposal_action_settings_items)?,
+        items: decode_heads(value.items(), limits.receiving().owner_proposal_action_settings_items)?,
         review: match value.review() {
             Some(item) => Some(restore_settings_review(item, limits)?),
             None => None,
@@ -112,7 +112,7 @@ pub fn restore_owner_retained_action_settings(
 ) -> Result<c::OwnerRetainedActionSettings, w::Problem> {
     Ok(c::OwnerRetainedActionSettings {
         against: value.against(),
-        items: decode_heads(value.items(), limits.wire.owner_retained_action_settings_items)?,
+        items: decode_heads(value.items(), limits.receiving().owner_retained_action_settings_items)?,
         made: *value.made(),
     })
 }
@@ -190,7 +190,7 @@ fn encode_setting_pieces(values: &List<c::SettingItem>, limits: &w::Limits) -> R
     Ok(writer.finish())
 }
 fn decode_setting_pieces(values: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, w::Problem> {
-    if values.len() > usize::try_from(limits.wire.propose_settings_items).expect("wire bytes fit") {
+    if values.len() > usize::try_from(limits.receiving().propose_settings_items).expect("wire bytes fit") {
         return Err(super::too_large());
     }
     let count = piece_count(values)?;
@@ -199,7 +199,7 @@ fn decode_setting_pieces(values: &[u8], limits: &Limits) -> Result<List<c::Setti
     for _ in 0..count {
         let piece = piece(&mut reader)?.ok_or(super::too_large())?;
         let mut input = Reader::new(&piece);
-        let row = w::SettingItem::decode(&limits.wire, &mut input)?;
+        let row = w::SettingItem::decode(limits.receiving(), &mut input)?;
         if !input.is_empty() {
             return Err(super::too_large());
         }
@@ -229,7 +229,7 @@ fn encode_review_pieces(values: &List<c::ReviewItem>, limits: &w::Limits) -> Res
     Ok(writer.finish())
 }
 fn decode_review_pieces(values: &[u8], limits: &Limits) -> Result<List<c::ReviewItem>, w::Problem> {
-    if values.len() > usize::try_from(limits.wire.settings_review_items).expect("wire bytes fit") {
+    if values.len() > usize::try_from(limits.receiving().settings_review_items).expect("wire bytes fit") {
         return Err(super::too_large());
     }
     let count = piece_count(values)?;
@@ -238,7 +238,7 @@ fn decode_review_pieces(values: &[u8], limits: &Limits) -> Result<List<c::Review
     for _ in 0..count {
         let piece = piece(&mut reader)?.ok_or(super::too_large())?;
         let mut input = Reader::new(&piece);
-        let row = w::ReviewItem::decode(&limits.wire, &mut input)?;
+        let row = w::ReviewItem::decode(limits.receiving(), &mut input)?;
         if !input.is_empty() {
             return Err(super::too_large());
         }

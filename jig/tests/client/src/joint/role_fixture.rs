@@ -24,7 +24,7 @@ pub(super) fn front(
     owner.core.documents.rows = 2;
     owner.core.documents.lines = 2;
     owner.core.documents.chips = 2;
-    owner.core.documents.text_bytes = receiving.jig.text;
+    owner.core.documents.text_bytes = receiving.client.domain.text;
     // This scenario offers its agent and human executor, not a procedure.
     let kinds: Box<[jig_domain_authority::Executor]> =
         Box::new([jig_domain_authority::Executor::Charter(1), jig_domain_authority::Executor::Role(1)]);

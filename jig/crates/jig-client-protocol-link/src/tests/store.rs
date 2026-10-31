@@ -119,7 +119,7 @@ fn a_full_table_and_the_stream_s_name_start() {
     const KEPT_RECORDS: u32 = TABLE_RECORDS + 1;
     let mut h = fixtures::Harness::new(&fixtures::limits());
     let mut kept = skein_lib::List::with_capacity(KEPT_RECORDS);
-    assert_eq!(fixtures::limits().client.requests.requests, TABLE_RECORDS);
+    assert_eq!(fixtures::limits().client().requests.requests, TABLE_RECORDS);
     for number in 0..TABLE_RECORDS {
         let mut record = fixtures::saved_table(fixtures::message());
         record.record.key = [u8::try_from(number).unwrap(); 16];
@@ -138,11 +138,11 @@ fn a_full_table_and_the_stream_s_name_start() {
 }
 
 #[test]
-fn valid_refuses_each_unrepresentable_limit() {
+fn construction_refuses_unrepresentable_record_limits() {
     let base = fixtures::limits();
     assert!(crate::store::valid(&base));
-    let invalid = Limits { wire: w::Limits { owned_record: u32::MAX, ..base.wire }, ..base };
-    assert!(!crate::store::valid(&invalid));
+    let client = jig_client_domain::Limits { document_bytes: u64::MAX, ..*base.client() };
+    assert_eq!(Limits::new(client, base.exchanges()), Err(Unusable::Limits));
 }
 
 /// O4: a completed write releases its admitted exchanges in arrival order.
@@ -170,7 +170,7 @@ fn held_exchanges_leave_in_order_after_the_write() {
         let Request::Exchange { message: Message::Request(bytes), .. } = request else {
             panic!("only held keyed exchanges leave: {request:?}")
         };
-        let keyed = w::Keyed::decode(&fixtures::limits().wire, &mut Reader::new(&bytes)).unwrap();
+        let keyed = w::Keyed::decode(fixtures::limits().wire(), &mut Reader::new(&bytes)).unwrap();
         keys.push(*keyed.key()).unwrap();
     }
     assert_eq!(keys.as_slice(), &[[1; 16], [2; 16], [3; 16]]);

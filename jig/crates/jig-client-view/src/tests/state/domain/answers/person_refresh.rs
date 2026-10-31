@@ -158,7 +158,7 @@ fn person_take_hidden_cards_notify_without_refreshing_and_full_reads_refuse_with
     let original = document(None, &[ActKind::Take]);
     let id = install(&mut domain, Body::OwnerPersonTask(Box::new(original.clone())));
 
-    for task in 1..=LIMITS.reads {
+    for task in 1..=LIMITS.client.reads {
         let what = Read::Task { task: u64::from(task) };
         assert!(domain.request_read(Source::Card(id), what).is_some());
     }

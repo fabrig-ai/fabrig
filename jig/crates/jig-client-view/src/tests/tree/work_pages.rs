@@ -193,7 +193,7 @@ pub(in crate::tests) fn recurring_task(number: u64, words: &[u8]) -> ProposedTas
 fn a_task_section_not_shown_builds_nothing() {
     let (d, _) = task(TaskSection::Overview, Executor::Agent { charter: 2 });
     let mut b = skein_ui::Builder::new(&crate::tests::tree::cards::limits());
-    let mut bindings = JigBindings::new(64, crate::tests::tree::cards::CLIENT.text);
+    let mut bindings = JigBindings::new(64, crate::tests::tree::cards::CLIENT.client.text);
     b.open(Role::Page);
     assert!(!crate::tree::sections::section(
         &mut b,

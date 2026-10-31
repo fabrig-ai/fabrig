@@ -32,10 +32,10 @@ fn brief(value: &Chip) -> Tree {
     let client = Fixture::new(&CLIENT);
     let limits = crate::tests::render_limits(&CLIENT, words()).unwrap();
     let mut b = Builder::new(&limits);
-    let mut bindings = JigBindings::new(limits.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(limits.bindings, CLIENT.client.text);
     crate::tree::cards::chip::chip(&mut b, &client.view(), value, words(), &mut bindings);
     let tree = b.finish();
-    assert!(tree.len() <= crate::chip_nodes(&CLIENT).unwrap());
+    assert!(tree.len() <= crate::chip_nodes(&CLIENT, &(CLIENT).client).unwrap());
     tree
 }
 #[test]

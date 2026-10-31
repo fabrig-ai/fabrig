@@ -44,7 +44,7 @@ fn exact_part_slots_keep_separate_literal_segments_all_owner_kinds_and_numeric_k
         ] {
             let reference = OwnerPart { connector: u16::MAX, kind, key };
             let mut b = builder();
-            let mut bindings = JigBindings::new(16, CLIENT.text);
+            let mut bindings = JigBindings::new(16, CLIENT.client.text);
             proposed_task::part(&mut b, &reference, words, &mut bindings);
             let tree = finish(b);
             let slot = tree.nodes().iter().find_map(|node| node.slot).unwrap();
@@ -111,7 +111,7 @@ fn proposed_executor_and_funder_keep_full_width_codes_and_original_period_identi
 fn exact_contracts_keep_approval_state_verdict_fields_and_each_result_bound() {
     let words = words();
     let mut b = builder();
-    let mut bindings = JigBindings::new(16, CLIENT.text);
+    let mut bindings = JigBindings::new(16, CLIENT.client.text);
     for contract in [
         TaskContractDocument::Approval {
             state: b"opaque\xff".as_slice().into(),
@@ -220,7 +220,7 @@ fn normal_phrasebooks_require_and_render_exact_owner_words_in_the_selected_langu
         holes: 4,
         segments: crate::tests::english_phrase_segments(2),
         text_bytes: 200_000,
-        hole_bytes: CLIENT.text,
+        hole_bytes: CLIENT.client.text,
     };
     let mut incomplete = selected_owner_language();
     incomplete.phrases = incomplete
@@ -230,19 +230,19 @@ fn normal_phrasebooks_require_and_render_exact_owner_words_in_the_selected_langu
         .filter(|phrase| phrase.id != crate::words::wake_words::WakePhrase::Policy.id())
         .collect::<Vec<_>>()
         .into_boxed_slice();
-    Phrasebook::load(shapes(CLIENT.text), Box::new([english::language(), incomplete]), &limits).unwrap_err();
+    Phrasebook::load(shapes(CLIENT.client.text), Box::new([english::language(), incomplete]), &limits).unwrap_err();
     let words = crate::words::Words::new(
-        Phrasebook::load(shapes(CLIENT.text), Box::new([english::language(), selected]), &limits).unwrap(),
+        Phrasebook::load(shapes(CLIENT.client.text), Box::new([english::language(), selected]), &limits).unwrap(),
         1,
         60,
     );
-    let limits = crate::sizes::limits::of_words(&CLIENT, &words).unwrap();
+    let limits = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, &words).unwrap();
     assert!(limits.text_per_node >= 2048, "owner saying capacities contribute to normal tree limits");
     let mut b = Builder::new(&limits);
     b.open(Role::Page);
-    let mut bindings = JigBindings::new(limits.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(limits.bindings, CLIENT.client.text);
     let task = crate::tests::tree::work_pages::recurring_task(u64::MAX, b"whole template words");
-    crate::tree::cards::proposal::proposed_task(&mut b, &task, &words, &mut bindings, CLIENT.rows);
+    crate::tree::cards::proposal::proposed_task(&mut b, &task, &words, &mut bindings, CLIENT.client.rows);
     b.close();
     let tree = b.finish();
     assert!(contains(&tree, b"whole template words"));
@@ -263,7 +263,7 @@ fn a_proposed_span_is_distinct_from_no_deadline() {
         let mut task = crate::tests::tree::work_pages::recurring_task(1, b"work");
         task.deadline = selector;
         let mut b = builder();
-        proposed_task::authority(&mut b, &task, words, CLIENT.text, CLIENT.rows);
+        proposed_task::authority(&mut b, &task, words, CLIENT.client.text, CLIENT.client.rows);
         let tree = finish(b);
         assert_eq!(contains(&tree, b"Deadline after acceptance (minutes): 2"), expected, "{selector:?}");
     }

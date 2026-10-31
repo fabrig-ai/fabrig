@@ -43,14 +43,14 @@ fn every_closed_offer_control_and_whole_refusal_fits_the_public_card_tree_with_t
     assert!(u32::try_from(KINDS.len()).unwrap() <= MAX_OFFERED_ACTS);
     let w = words();
     let mut limits = crate::tests::render_limits(&CLIENT, w).unwrap();
-    limits.nodes = crate::card_nodes(&CLIENT).unwrap() + 1;
+    limits.nodes = crate::card_nodes(&CLIENT, &(CLIENT).client).unwrap() + 1;
     limits.text_bytes = limits.nodes * limits.text_per_node;
     for refused in [false, true] {
         let mut value = task_doc(&KINDS);
         if refused {
             let reason = HoldReason::Tries {
                 failures: {
-                    let mut failures = List::with_capacity(CLIENT.rows);
+                    let mut failures = List::with_capacity(CLIENT.client.rows);
                     for attempt in [0, u64::MAX] {
                         failures
                             .push(AttemptFailure {
@@ -74,7 +74,7 @@ fn every_closed_offer_control_and_whole_refusal_fits_the_public_card_tree_with_t
         }
         let before = value.clone();
         let (domain, id) = loaded(ObjectKey::Task(8), ReadValue::Task(Box::new(value.clone())));
-        let mut bindings = JigBindings::new(limits.bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(limits.bindings, CLIENT.client.text);
         let mut builder = Builder::new(&limits);
         builder.open(Role::Page);
         cards::card(&mut builder, &domain.view(), id, &cards::Place::Elsewhere, w, &mut bindings);
@@ -112,6 +112,6 @@ fn every_closed_offer_control_and_whole_refusal_fits_the_public_card_tree_with_t
             assert_eq!(decoded, KINDS);
         }
         assert_eq!(value, before);
-        assert_eq!(CLIENT.rows, 2);
+        assert_eq!(CLIENT.client.rows, 2);
     }
 }

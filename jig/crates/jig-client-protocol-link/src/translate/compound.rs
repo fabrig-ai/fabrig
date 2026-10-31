@@ -76,7 +76,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
     let mut operations = List::with_capacity(count);
     let mut reader = Reader::new(value.operations());
     while let Some(bytes) = piece(&mut reader)? {
-        let record = w::Operation::decode(&limits.wire, &mut Reader::new(&bytes))?;
+        let record = w::Operation::decode(limits.receiving(), &mut Reader::new(&bytes))?;
         let ask = match record {
             w::Operation::Message(v) => w::Ask::Message(v),
             w::Operation::Amend(v) => w::Ask::Amend(v),

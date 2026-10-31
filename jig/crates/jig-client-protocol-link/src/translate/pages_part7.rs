@@ -9,7 +9,7 @@ pub(crate) fn owner_goal_holding_fields(
 ) -> Result<c::OwnerGoalHolding, w::Problem> {
     Ok(match value {
         w::OwnerGoalHolding::Write(row) => {
-            if row.path().len() > limits.client.segments {
+            if row.path().len() > limits.client().segments {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity(row.path().len());
@@ -19,7 +19,7 @@ pub(crate) fn owner_goal_holding_fields(
             c::OwnerGoalHolding::Write { connector: row.connector(), path: list0, kind: row.kind() }
         }
         w::OwnerGoalHolding::Slot(row) => {
-            if row.path().len() > limits.client.segments {
+            if row.path().len() > limits.client().segments {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity(row.path().len());
@@ -52,10 +52,10 @@ pub(crate) fn owner_goal_holding_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerGoalHolding::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerGoalHolding::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = owner_goal_holding_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -69,7 +69,7 @@ pub(crate) fn owner_person_proposal_goal_fields(
     value: &w::OwnerPersonProposalGoal,
     limits: &Limits,
 ) -> Result<c::OwnerPersonProposalGoal, w::Problem> {
-    if value.dependencies().len() > limits.client.rows {
+    if value.dependencies().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.dependencies().len());
@@ -90,7 +90,7 @@ pub(crate) fn owner_person_proposal_goal_fields(
         numbers: crate::translate::facts::owner_numbers(value.numbers()),
         funder: crate::translate::facts::funder(value.funder()),
         dependencies: list0,
-        holdings: owner_goal_holding_piece(value.holdings(), limits, limits.client.rows)?,
+        holdings: owner_goal_holding_piece(value.holdings(), limits, limits.client().rows)?,
         wake: crate::translate::facts::owner_wake_policy(value.wake()),
         tracked: opt1,
     })

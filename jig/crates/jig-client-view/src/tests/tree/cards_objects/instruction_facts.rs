@@ -94,7 +94,7 @@ fn task_instruction_amendment_uses_only_complete_source_without_selecting_it() {
         let (mut domain, id) = loaded(ObjectKey::Task(8), ReadValue::Task(Box::new(row.clone())));
         drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
         drive(&mut domain, Event::Act { action: Action::Edit { field: Purpose::Reason, text: text(b"") } });
-        let mut bindings = JigBindings::new(limits().bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words(), &mut bindings);
         facts(&tree, source.as_ref());
         baseline(&tree, source.as_ref());

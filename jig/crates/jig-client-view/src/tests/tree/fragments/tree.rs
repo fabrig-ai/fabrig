@@ -123,7 +123,7 @@ fn build(value: &OwnerTree, d: &Fixture, w: &Words, nodes: Option<u32>) -> Tree 
     l.text_bytes = f.text_bytes;
     l.text_per_node = f.text_per_node;
     let mut builder = Builder::new(&l);
-    let mut bindings = JigBindings::new(f.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(f.bindings, CLIENT.client.text);
     view::render(&mut builder, value, &d.task_page().plan, &d.view(), w, &mut bindings);
     builder.finish()
 }
@@ -193,7 +193,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
     second.depth = 2;
     value.rows.push(second).unwrap();
     let mut metadata = crate::tests::tree::fragments::chip::details();
-    metadata.closing_connectors = Some(List::with_capacity(CLIENT.rows));
+    metadata.closing_connectors = Some(List::with_capacity(CLIENT.client.rows));
     *value.root.details = ChipPhase {
         phase: OwnerChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
         details: Box::new(metadata),
@@ -257,7 +257,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
     cap.text_per_node = f.text_per_node;
     let render = |cap: skein_ui::Limits| {
         let mut b = Builder::new(&cap);
-        let mut bindings = JigBindings::new(f.bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(f.bindings, CLIENT.client.text);
         view::render(&mut b, &value, &d.task_page().plan, &d.view(), &w, &mut bindings);
         b.finish()
     };
@@ -265,7 +265,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
     cap.text_bytes = bytes.checked_sub(1).unwrap();
     let _panic = std::panic::catch_unwind(|| render(cap)).unwrap_err();
     let mut invalid = value.clone();
-    invalid.rows = List::with_capacity(CLIENT.rows + 1);
+    invalid.rows = List::with_capacity(CLIENT.client.rows + 1);
 }
 #[test]
 fn owner_tree_local_filters_folds_cycles_and_empty_loss_continuations_remain_bounded_and_independent() {
@@ -385,7 +385,7 @@ fn deciding_tree_page(domain: &Fixture) -> Tree {
     // This fragment needs the minimum scratch; whole-page text is priced by of_words.
     cap.text_bytes = cap.text_bytes.max(4096_u32.checked_mul(cap.text_per_node).unwrap());
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     b.open(Role::Page);
     view::render(
         &mut b,
@@ -450,7 +450,7 @@ fn a_task_end_keeps_its_other_documents_visible_while_the_final_header_is_read()
     let w = words();
     let cap = crate::tests::tree::cards::limits();
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     b.open(Role::Page);
     crate::tree::pages::main(&mut b, &domain.view(), w, &mut bindings);
     crate::tree::pages::after_page(&mut b, &domain.view(), w, &mut bindings);

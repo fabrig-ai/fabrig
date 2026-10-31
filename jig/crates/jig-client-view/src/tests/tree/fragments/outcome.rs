@@ -25,9 +25,12 @@ fn words() -> Words {
     Words::new(Phrasebook::load(phrases::shapes(), Box::new([phrases::english()]), &phrase_limits()).unwrap(), 0, 0)
 }
 fn render(value: &OwnerOutcome, words: &Words) -> Tree {
-    let required =
-        crate::sizes::limits::of(&crate::tests::tree::cards::CLIENT, &crate::state::page::Arrangement::none())
-            .expect("closed fragment fits");
+    let required = crate::sizes::limits::of(
+        &crate::tests::tree::cards::CLIENT,
+        &(crate::tests::tree::cards::CLIENT).client,
+        &crate::state::page::Arrangement::none(),
+    )
+    .expect("closed fragment fits");
     let limits = Limits {
         nodes: required.nodes,
         depth: required.depth,
@@ -328,7 +331,7 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
     use crate::words::phrases::{english, jig};
     use skein_lib::List;
 
-    let normal_shapes = jig::shapes(crate::tests::tree::cards::CLIENT.text);
+    let normal_shapes = jig::shapes(crate::tests::tree::cards::CLIENT.client.text);
     assert_eq!(normal_shapes.len(), usize::try_from(crate::words::owner_words::phrase_count()).unwrap());
     for outcome in phrases::ALL {
         let mut copies = 0_u32;
@@ -345,7 +348,7 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
         holes: 4,
         segments: crate::tests::english_phrase_segments(2),
         text_bytes: 200_000,
-        hole_bytes: crate::tests::tree::cards::CLIENT.text,
+        hole_bytes: crate::tests::tree::cards::CLIENT.client.text,
     };
     let mut selected = english::language();
     for phrase in &mut selected.phrases {
@@ -358,11 +361,18 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
         assert!(book.capacity(outcome.id()).is_some());
     }
     let words = Words::new(book, 1, 1);
-    let fragment =
-        crate::sizes::limits::of(&crate::tests::tree::cards::CLIENT, &crate::state::page::Arrangement::none()).unwrap();
+    let fragment = crate::sizes::limits::of(
+        &crate::tests::tree::cards::CLIENT,
+        &(crate::tests::tree::cards::CLIENT).client,
+        &crate::state::page::Arrangement::none(),
+    )
+    .unwrap();
     assert!(fragment.text_per_node >= 2048);
     // This positive language proof needs one row, not every full page window.
-    let client = crate::Limits { rows: 1, ..crate::tests::tree::cards::CLIENT };
+    let client = crate::tests::fixtures::Profile {
+        view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+        client: jig_client::DomainLimits { rows: 1, ..(crate::tests::tree::cards::CLIENT).client },
+    };
     assert!(crate::tests::render_limits(&client, &words).unwrap().text_per_node >= 2048);
     let value = OwnerOutcome::ProposalDecided {
         proposal: ProposalKey { proposer: Proposer::Party(u64::MAX), number: 17 },
@@ -388,7 +398,7 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
     }
     incomplete.phrases = kept.into_boxed();
     assert_eq!(
-        Phrasebook::load(jig::shapes(crate::tests::tree::cards::CLIENT.text), Box::new([incomplete]), &limits)
+        Phrasebook::load(jig::shapes(crate::tests::tree::cards::CLIENT.client.text), Box::new([incomplete]), &limits)
             .unwrap_err(),
         Invalid::Missing { id: phrases::OutcomePhrase::Compound.id() }
     );
@@ -397,8 +407,12 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
 #[test]
 fn durable_answer_rendering_keeps_every_owner_fact_within_the_existing_notice_envelope() {
     let words = words();
-    let required =
-        crate::sizes::limits::of(&crate::tests::tree::cards::CLIENT, &crate::state::page::Arrangement::none()).unwrap();
+    let required = crate::sizes::limits::of(
+        &crate::tests::tree::cards::CLIENT,
+        &(crate::tests::tree::cards::CLIENT).client,
+        &crate::state::page::Arrangement::none(),
+    )
+    .unwrap();
     let limits = Limits {
         nodes: required.nodes,
         depth: required.depth,

@@ -83,15 +83,12 @@ impl Application for OpsScript {
     }
     fn fits(&self, value: ApplicationValue<'_, Self>, bounds: &Bounds) -> bool {
         let mut limits = super::limits();
-        limits.observability.rows = bounds.rows;
-        limits.observability.text = bounds.text;
-        limits.observability.document_bytes = bounds.document_bytes;
-        limits.infrastructure.rows = bounds.rows;
-        limits.infrastructure.text = bounds.text;
-        limits.infrastructure.document_bytes = bounds.document_bytes;
+        limits.client.domain.rows = bounds.rows;
+        limits.client.domain.text = bounds.text;
+        limits.client.domain.document_bytes = bounds.document_bytes;
         let fits = |doc: &Document| match doc {
-            Document::Observability(doc) => doc.fits(&limits.observability),
-            Document::Infrastructure(doc) => doc.fits(&limits.infrastructure),
+            Document::Observability(doc) => doc.fits(&limits.client.domain),
+            Document::Infrastructure(doc) => doc.fits(&limits.client.domain),
         };
         match value {
             ApplicationValue::Document(doc) => fits(doc),

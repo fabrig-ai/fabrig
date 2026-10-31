@@ -326,7 +326,7 @@ fn historical_owner_wrong_query_and_reserved_capacity_refusals_preserve_the_orig
     );
     assert!(d.task_page().owner_ended.is_none());
     let mut over = funding(1);
-    over.rows = List::with_capacity(LIMITS.rows + 1);
+    over.rows = List::with_capacity(LIMITS.client.rows + 1);
     drive(
         &mut d,
         Time::ZERO,
@@ -354,7 +354,7 @@ fn historical_owner_wrong_query_and_reserved_capacity_refusals_preserve_the_orig
     assert_eq!(d.project_page().owner_spend.as_deref(), Some(&actual));
     let (mut d, token) = ended_read();
     let mut over = ended(true);
-    over.rows = List::with_capacity(LIMITS.rows + 1);
+    over.rows = List::with_capacity(LIMITS.client.rows + 1);
     drive(
         &mut d,
         Time::ZERO,

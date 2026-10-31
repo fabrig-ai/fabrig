@@ -138,7 +138,13 @@ struct NoteFields {
     body: Text,
 }
 /// Opens only an act present and admitted in the engine's document.
-pub(crate) fn open(domain: &mut Ui, env: &Env<crate::Limits>, id: Id<Object>, act: ActKind, lent: &jig_client::Client) {
+pub(crate) fn open(
+    domain: &mut Ui,
+    _env: &Env<crate::Config>,
+    id: Id<Object>,
+    act: ActKind,
+    lent: &jig_client::Client,
+) {
     domain.project_page.form.confirmation = None;
     close(domain);
     if domain.blocked || domain.confirmed.is_none() {
@@ -207,7 +213,7 @@ pub(crate) fn open(domain: &mut Ui, env: &Env<crate::Limits>, id: Id<Object>, ac
         option: None,
         cannot: false,
         again: None,
-        disposals: List::with_capacity(env.limits.delegates),
+        disposals: List::with_capacity(lent.domain_limits().delegates),
         change: None,
         release: false,
         priority: None,
@@ -677,7 +683,7 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>, lent: &jig_client:
 }
 
 /// Open the composition of two independently offered operations.
-pub(crate) fn amend_release(domain: &mut Ui, env: &Env<crate::Limits>, id: Id<Object>, lent: &jig_client::Client) {
+pub(crate) fn amend_release(domain: &mut Ui, env: &Env<crate::Config>, id: Id<Object>, lent: &jig_client::Client) {
     let hold = {
         let Some(object) = domain.borrow(lent).objects().get(id) else { return };
         if let Admission::Refused(_) = acts::offered(&object, ActKind::Release) {
@@ -724,7 +730,7 @@ pub(crate) fn can_close(client: &crate::Borrowed<'_>, task: &jig_client::contrac
         Some(Admission::Refused(_)) | None => false,
     }
 }
-pub(crate) fn close_chat(domain: &mut Ui, env: &Env<crate::Limits>, id: Id<Object>, lent: &jig_client::Client) {
+pub(crate) fn close_chat(domain: &mut Ui, env: &Env<crate::Config>, id: Id<Object>, lent: &jig_client::Client) {
     let borrowed = domain.borrow(lent);
     let Some(object) = borrowed.objects().get(id) else { return };
     let Some(Body::Task(task)) = object.body else { return };

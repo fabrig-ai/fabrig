@@ -24,15 +24,15 @@ impl FrameState<'_> {
 /// Checks each populated frame field this spine shows. Other whole
 /// documents arrive within the decoding owner's `document_bytes` budget.
 #[must_use]
-pub fn fits(frame: &Me, limits: &crate::Limits) -> bool {
-    if !frame.party.name.bytes.fits(limits.text)
-        || !frame.party.login.bytes.fits(limits.text)
-        || frame.projects.len() > limits.projects
+pub fn fits(frame: &Me, _limits: &crate::Config, client: &jig_client::DomainLimits) -> bool {
+    if !frame.party.name.bytes.fits(client.text)
+        || !frame.party.login.bytes.fits(client.text)
+        || frame.projects.len() > client.projects
     {
         return false;
     }
     for project in &frame.projects {
-        if !project.name.bytes.fits(limits.text) {
+        if !project.name.bytes.fits(client.text) {
             return false;
         }
     }

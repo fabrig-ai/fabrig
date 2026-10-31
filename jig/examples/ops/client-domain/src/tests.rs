@@ -14,30 +14,20 @@ use crate::{Address, Answered, Ask, Event, Limits, infrastructure};
 use jig_client::contract::{self, Delivery, DocumentText, HeldRole, Me, MeParty, Needs, PartyKind, WatchEvent};
 use skein_lib::{Duration, Env, List, Queue, RequestEnvelope, Time, Token, Wall};
 use support::{Domain, JigOut, Request, new, step, take};
-const JIG: jig_client_view::Limits = jig_client_view::Limits {
-    watches: 4,
+const JIG: jig_client_view::Config = jig_client_view::Config {
     notices: 2,
     notice_life: Duration::from_secs(5),
     linger: Duration::from_secs(5),
     save_delay: Duration::from_secs(1),
     intents: 2,
-    fields: 4,
 
     objects: 2,
     sources: 8,
-    reads: 4,
-    parts: 10,
-    delegates: 2,
-    document_bytes: 65536,
-    records: 2,
-    kept: 4,
+
     drafts: 1,
-    projects: 2,
+
     roles: 2,
-    text: 32,
-    rows: 2,
-    segments: 4,
-    accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+
     conversation_words: 2,
     navigation_entries: 8,
     updates_count: 99,
@@ -45,29 +35,8 @@ const JIG: jig_client_view::Limits = jig_client_view::Limits {
 fn limits() -> Limits {
     Limits {
         jig: JIG,
-        infrastructure: infrastructure::Limits {
-            parts: 10,
-            text: 32,
-            objects: 12,
-            watches: 24,
-            reads: 24,
-            requests: 4,
-            rows: 2,
-            segments: 4,
-
-            document_bytes: 65536,
-        },
-        observability: crate::observability::Limits {
-            parts: 10,
-            objects: 12,
-            reads: 24,
-            watches: 24,
-            rows: 2,
-            segments: 4,
-            text: 32,
-
-            document_bytes: 65536,
-        },
+        infrastructure: infrastructure::Limits { objects: 12 },
+        observability: crate::observability::Limits { objects: 12 },
         client: client_limits(),
     }
 }
@@ -386,8 +355,8 @@ fn abandoned_read_and_closing_watch_tokens_cannot_recreate_a_page() {
 #[test]
 fn whole_document_limits_keep_unknown_owner_facts_unknown() {
     let document = environment(2);
-    assert!(document.fits(&limits().infrastructure));
-    let mut bound = limits().infrastructure;
+    assert!(document.fits(&limits().client.domain));
+    let mut bound = limits().client.domain;
     bound.text = 2;
     assert!(!document.fits(&bound));
     bound.text = 32;
@@ -397,8 +366,8 @@ fn whole_document_limits_keep_unknown_owner_facts_unknown() {
     let object = load_environment(&mut root);
     assert_eq!(root.infrastructure().object(object).unwrap().value, infrastructure::Value::Known(Box::new(document)));
     let mut bound = limits();
-    bound.jig.kept = bound.client.domain.requests.requests - 1;
-    assert!(!crate::valid(&bound));
+    bound.client.domain.kept = bound.client.domain.requests.requests - 1;
+    assert!(crate::valid(&bound));
 }
 fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Document; 1] {
     use crate::observability::{documents::*, values};
@@ -481,10 +450,10 @@ fn observability_project_lists_are_admitted_and_priced_whole() {
         subject: Subject { scope: Scope::Project(1), kind: Kind::Project(1) },
         value: n::Value::Project { project: 1, services, incidents: List::with_capacity(2) },
     };
-    assert!(Document::Value(Box::new(part.clone())).fits(&limits().observability));
+    assert!(Document::Value(Box::new(part.clone())).fits(&limits().client.domain));
     let n::Value::Project { services, .. } = &mut part.value else { unreachable!() };
     *services = List::with_capacity(3);
-    assert!(!Document::Value(Box::new(part)).fits(&limits().observability));
+    assert!(!Document::Value(Box::new(part)).fits(&limits().client.domain));
 }
 
 #[test]
@@ -579,11 +548,11 @@ fn resource_parts_bound_allocated_segments_and_whole_segment_bytes_in_both_conne
         for (path, accepted) in [(valid, true), (empty_overallocated, false), (too_long, false)] {
             let part = contract::Part::Resource { connector, path };
             if connector == 1 {
-                let mut side = crate::observability::Side::new(&limits.observability);
+                let mut side = crate::observability::Side::new(&limits.observability, &limits.client.domain);
                 let mut out = Queue::uncapped();
                 crate::observability::step(
                     &mut side,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.observability },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.client.domain },
                     crate::observability::Event::Show {
                         part: part.clone(),
                         scope: crate::observability::Scope::Project(1),
@@ -602,11 +571,11 @@ fn resource_parts_bound_allocated_segments_and_whole_segment_bytes_in_both_conne
                     assert!(out.is_empty());
                 }
             } else {
-                let mut side = infrastructure::Side::new(&limits.infrastructure);
+                let mut side = infrastructure::Side::new(&limits.infrastructure, &limits.client.domain);
                 let mut out = Queue::uncapped();
                 infrastructure::step(
                     &mut side,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.infrastructure },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.client.domain },
                     infrastructure::Event::Show { part: part.clone(), scope: infrastructure::Scope::Project(1) },
                     &mut out,
                 );
@@ -661,9 +630,9 @@ fn effect_parts_keep_connector_numbers_separate_from_maker_subjects() {
             }
             assert_eq!(infrastructure::documents::subject(&values, infrastructure::Scope::Deployment), None);
             assert_eq!(obs::documents::subject(&values, obs::Scope::Deployment), None);
-            let mut infra = infrastructure::Side::new(&limits.infrastructure);
+            let mut infra = infrastructure::Side::new(&limits.infrastructure, &limits.client.domain);
             let mut infra_out = Queue::uncapped();
-            let infra_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.infrastructure };
+            let infra_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.client.domain };
             infrastructure::step(
                 &mut infra,
                 &infra_env,
@@ -676,9 +645,9 @@ fn effect_parts_keep_connector_numbers_separate_from_maker_subjects() {
             infrastructure::step(&mut infra, &infra_env, infrastructure::Event::PartsLeft, &mut infra_out);
             assert!(!infra.contains(&values));
             assert!(infra_out.is_empty());
-            let mut side = obs::Side::new(&limits.observability);
+            let mut side = obs::Side::new(&limits.observability, &limits.client.domain);
             let mut out = Queue::uncapped();
-            let side_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.observability };
+            let side_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.client.domain };
             obs::step(
                 &mut side,
                 &side_env,
@@ -727,7 +696,7 @@ fn environment_names_request_revision_and_whole_width_end_survive_the_client_req
             pool: None,
         },
     }));
-    assert!(document.fits(&limits().infrastructure));
+    assert!(document.fits(&limits().client.domain));
     let mut root = ready(512);
     let requests = drive(
         &mut root,

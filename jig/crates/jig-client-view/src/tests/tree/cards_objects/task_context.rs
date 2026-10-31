@@ -43,7 +43,7 @@ fn task_context_view_preserves_supplied_runtime_spend_slots_and_impact_without_c
             crate::tests::tree::pages::deliver(&mut domain, watch, Delivery::Task(Box::new(row.clone())));
             let (tree, bindings) = crate::tests::tree::pages::build(&domain, 3, words());
             crate::tests::tree::cards_access::check(&tree);
-            assert!(tree.len() <= crate::task_nodes(&CLIENT, 0).unwrap());
+            assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
             if section == TaskSection::Activity {
                 assert_eq!(contains(&tree, b"supplied work"), present);
             }
@@ -68,7 +68,7 @@ fn task_context_view_preserves_supplied_runtime_spend_slots_and_impact_without_c
         }
         let (mut domain, id, _) = loaded_with_watch(ObjectKey::Task(8), ReadValue::Task(Box::new(row.clone())));
         drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Cancel } });
-        let mut bindings = JigBindings::new(limits().bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words(), &mut bindings);
         let caption =
             words().say(JigPhrase::Word(Word::Decision(D::TasksRunning)), &[Hole::Number(u64::from(u32::MAX))]);

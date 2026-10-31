@@ -71,8 +71,11 @@ fn hold() -> OwnerChipHold {
         hold_wait_since: Some(Wall::from_nanos(40)),
     }
 }
-fn client_limits() -> crate::Limits {
-    crate::Limits { rows: 4, text: 256, objects: 4, ..crate::tests::tree::cards::CLIENT }
+fn client_limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { objects: 4, ..(crate::tests::tree::cards::CLIENT).view },
+        client: jig_client::DomainLimits { rows: 4, text: 256, ..(crate::tests::tree::cards::CLIENT).client },
+    }
 }
 fn phrase_limits() -> PhraseLimits {
     PhraseLimits {
@@ -472,8 +475,8 @@ fn complete_chip_endings_keep_result_requester_and_each_independent_reason_loss(
 
 #[test]
 fn exact_owner_verdict_fits_chip_result_fragment_at_full_field_capacity_and_rejects_whole_overflow() {
-    let mut fields = List::with_capacity(client_limits().rows);
-    for _ in 0..client_limits().rows {
+    let mut fields = List::with_capacity(client_limits().client.rows);
+    for _ in 0..client_limits().client.rows {
         fields.push(ResultField { name: copy_of(&[255; 256]), value: copy_of(&[b'x'; 256]) }).unwrap();
     }
     let mut value = details();

@@ -23,7 +23,7 @@ pub(crate) fn owner_funding_offer_fields(value: &w::OwnerFundingOffer) -> c::Own
 }
 
 pub(crate) fn owner_proposal_fields(value: &w::OwnerProposal, limits: &Limits) -> Result<c::OwnerProposal, w::Problem> {
-    if value.funding().len() > limits.client.rows {
+    if value.funding().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.funding().len());
@@ -105,10 +105,10 @@ pub(crate) fn owner_shown_result_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerShownResult::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerShownResult::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = owner_shown_result_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -149,7 +149,7 @@ pub(crate) fn owner_person_task_fields(
         stall: opt2,
         deadline: opt3,
         contract: task_contract_document_fields(value.contract(), limits)?,
-        results: owner_shown_result_piece(value.results(), limits, limits.client.rows)?,
+        results: owner_shown_result_piece(value.results(), limits, limits.client().rows)?,
         cut: value.cut(),
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
     })

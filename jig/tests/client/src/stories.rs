@@ -76,7 +76,7 @@ pub fn configured(settings: Settings) -> World<Test, Scripted> {
 /// Starts a scripted fixture with the test client's declared page window.
 #[must_use]
 pub fn seeded_world(seed: u64) -> World<Test, Scripted> {
-    configured_rows(Settings { seed, ..Settings::default() }, crate::test::limits().jig.rows)
+    configured_rows(Settings { seed, ..Settings::default() }, crate::test::limits().client.domain.rows)
 }
 fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
     let seed = settings.seed;

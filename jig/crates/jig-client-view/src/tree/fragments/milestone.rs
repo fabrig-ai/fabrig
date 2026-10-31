@@ -6,16 +6,16 @@ use crate::words::milestone_words::MilestonePhrase as P;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use crate::{Borrowed, Limits};
+use crate::{Borrowed, Config};
 use jig_client::contract::{ClosingStage, OwnerMilestoneLine, OwnerMilestonePhase, RunStage};
 
 /// Finite whole row envelope, including existing result follow-ups and raw parts.
 #[must_use]
-pub fn max_nodes(limits: &Limits) -> Option<u32> {
+pub fn max_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
     32_u32
-        .checked_add(crate::tree::fragments::proposed_task::part_nodes(limits)?)?
-        .checked_add(skein_ui::markdown::max_nodes(limits.text)?.checked_mul(2)?)?
-        .checked_add(crate::result_nodes(limits)?)
+        .checked_add(crate::tree::fragments::proposed_task::part_nodes(limits, client)?)?
+        .checked_add(skein_ui::markdown::max_nodes(client.text)?.checked_mul(2)?)?
+        .checked_add(crate::result_nodes(limits, client)?)
 }
 fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let saying =

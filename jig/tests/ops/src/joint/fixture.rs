@@ -18,31 +18,20 @@ pub fn limits() -> client::Limits {
     // Navigation overlaps a page's closing watches with its successor's reads.
     limits.client.exchanges = 16;
     limits.client.domain.handles = 128;
-    limits.client.domain.watches = 64;
-    limits.client.domain.reads = 64;
-    limits.client.domain.text = 4096;
     limits.client.domain.turn_text = 4096;
     limits.client.domain.turn_bytes = 4096;
     limits.client.domain.document_bytes = 262_144;
-    limits.client.domain.rows = 32;
+    limits.jig.roles = 8;
     limits.client.domain.projects = 7;
     limits.client.domain.delegates = 8;
-    limits.jig.text = 4096;
-    limits.jig.document_bytes = 262_144;
-    limits.jig.rows = 32;
-    limits.jig.roles = 8;
-    limits.jig.projects = 32;
-    limits.jig.delegates = 8;
     limits.jig.objects = 16;
     limits.jig.sources = 24;
-    limits.jig.parts = 24;
-    limits.jig.watches = 32;
-    limits.jig.reads = 32;
+    limits.client.domain.parts = 24;
+    limits.client.domain.watches = 32;
+    limits.client.domain.reads = 32;
     limits.jig.conversation_words = 16;
-    limits.observability.rows = 32;
-    limits.observability.text = 4096;
-    limits.infrastructure.rows = 32;
-    limits.infrastructure.text = 4096;
+    limits.client.domain.rows = 32;
+    limits.client.domain.text = 4096;
     limits
 }
 struct Profile {
@@ -56,12 +45,12 @@ fn profile() -> &'static Profile {
     PROFILE.get_or_init(|| {
         let limits = limits();
         let jig = jig_client_view::words::Words::new(
-            jig_client_view::phrases::english::english(limits.jig.text).expect("jig English fits"),
+            jig_client_view::phrases::english::english(limits.client.domain.text).expect("jig English fits"),
             0,
             0,
         );
-        let obs = view::words::Words::english(1, limits.observability.text).expect("Obs English fits");
-        let infra = view::words::Words::english(2, limits.infrastructure.text).expect("Infra English fits");
+        let obs = view::words::Words::english(1, limits.client.domain.text).expect("Obs English fits");
+        let infra = view::words::Words::english(2, limits.client.domain.text).expect("Infra English fits");
         let text_per_node = jig
             .jig_capacity()
             .expect("jig saying bound")
