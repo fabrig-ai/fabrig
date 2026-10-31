@@ -126,6 +126,7 @@ fn another_projects_change_is_unknown() {
             }
         })
         .expect("adopted repository");
+    driver.broken("injects a restored repository the store never holds");
     driver.send(engine::Event::Forge(Box::new(forge::Event::Restore { record: foreign })));
     driver.settle();
     let answer = watch(&mut driver, sign_in, 1, 51, 903);
@@ -297,7 +298,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
     assert_eq!(panel.ci, change::Status::Passed, "setup: the change's step must first read passing CI");
     let limits = driver.env.limits;
     let stand = driver.forge.take();
-    let store = std::mem::replace(&mut driver.store, Store::new());
+    let store = driver.take_store();
     let mut restored = Driver::configured(store, [config(), config()], &limits);
     restored.forge = stand;
     restored.settle();

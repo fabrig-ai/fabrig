@@ -11,7 +11,7 @@ use temper_client_view::look;
 use temper_client_world::{app::Temper, fixtures as f, front::Joint};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::{direct::Driver, store::Store, walking};
+use temper_engine_domain_world::{direct::Driver, walking};
 
 type Pages = World<Temper, Joint>;
 const OWNED: u16 = 1;
@@ -90,7 +90,7 @@ fn configured_with(owner: bool, under_box: bool, rows: &[forge::Configured]) -> 
 fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured], account: bool) -> Pages {
     let mut world = if owner { f::accounts_world(f::SEED) } else { f::world(f::SEED) };
     let front = world.front();
-    let mut store = std::mem::replace(&mut front.engine.store, Store::new());
+    let mut store = front.engine.take_store();
     if !account {
         // The charter keeps its model; the restored deployment account goes.
         let accounts = store
@@ -101,14 +101,40 @@ fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured],
             .collect();
         store.seed(Box::new([]), accounts);
     }
-    if rows.is_empty() {
-        let forges = store
-            .rows
-            .iter()
-            .filter(|(_, row)| matches!(row, engine::Record::Forge { .. }))
-            .map(|(key, _)| key.clone())
-            .collect();
-        store.seed(Box::new([]), forges);
+    // temper/docs/design/draft/playground-reset.md, 3: kept records supply the fixture's forges.
+    let forges = store
+        .rows
+        .iter()
+        .filter(|(_, row)| matches!(row, engine::Record::Forge { .. }))
+        .map(|(key, _)| key.clone())
+        .collect();
+    store.seed(Box::new([]), forges);
+    let mut records = Vec::new();
+    let mut last = 0;
+    for row in rows {
+        last = last.max(row.number);
+        let record = forge::ForgeRecord {
+            number: row.number,
+            kind: row.kind,
+            mode: row.mode,
+            state: forge::ForgeState::Kept,
+            place: forge::Place {
+                api: forge::Address { host: f::FORGE_HOST.into(), port: 443, tls: None },
+                git: row.git.clone(),
+                web: row.web.clone(),
+            },
+            read_only: row.read_only,
+            bot: forge::Bot { login: row.bot.clone(), name: Box::new([]), email: Box::new([]) },
+            asked: row.asked,
+            first: None,
+        };
+        records.push(engine::Record::Forge { row: Box::new(forge::Stored::Forge(record)) });
+    }
+    if last != 0 {
+        records.push(engine::Record::Forge { row: Box::new(forge::Stored::ForgeNumber { last }) });
+    }
+    if !records.is_empty() {
+        store.seed(records.into_boxed_slice(), Box::new([]));
     }
     let mut limits = front.engine.env.limits;
     let configs = std::array::from_fn(|_| {
@@ -661,11 +687,7 @@ fn setup_steps_show_the_reported_step_and_current_flow_step() {
         let progress = &nodes[progress..progress + usize::try_from(nodes[progress].size).expect("tree size")];
         let items = progress.iter().enumerate().filter(|(_, node)| node.role == Role::Item).collect::<Vec<_>>();
         let labels = [
-            if current > Some(0) {
-                "Fetched Forgejo 17.0.0 and its runner 13.2.0"
-            } else {
-                "Fetching Forgejo 17.0.0 and its runner 13.2.0"
-            },
+            if current > Some(0) { "Fetched Forgejo and its runner" } else { "Fetching Forgejo and its runner" },
             "Preparing: its database, temper’s admin, your account",
             "Starting Forgejo and its runner",
             "Connecting as temper",
@@ -708,7 +730,7 @@ fn connecting_and_connected_rows_select_their_flow_steps() {
         (REMOTE, forge::Connection::Connecting, b"Connecting", 1, b"Connect a forge"),
         (OWNED, connected(), b"Ready", 2, b"Forgejo on this machine is connected"),
         (GITHUB, connected(), b"Connecting", 2, "Install temper’s App".as_bytes()),
-        (REMOTE, connected(), b"Ready", 2, b"Forgejo is connected"),
+        (REMOTE, connected(), b"Ready", 2, b"Connected as qa-bot (id 1), managed."),
     ] {
         let mut world = world_for(number);
         connection(&mut world, number, state);
@@ -769,10 +791,7 @@ fn forges_rows_are_folded_and_keep_state_account_and_actions() {
         ),
     ] {
         let mut world = world();
-        let prepared = matches!(
-            state,
-            forge::Connection::Connecting | forge::Connection::Connected { .. } | forge::Connection::Stopped { .. }
-        );
+        let connected = matches!(state, forge::Connection::Connected { .. });
         connection(&mut world, OWNED, state);
         let client = open(&mut world, Address::Forges);
         let row = node(&world, client, Role::Disclosure, b"Forgejo on this machine");
@@ -780,27 +799,15 @@ fn forges_rows_are_folded_and_keep_state_account_and_actions() {
         let drawing = text(&world, client);
         node(&world, client, Role::Term, b"Access");
         node(&world, client, Role::Description, b"Site admin, with temper's own token");
-        if prepared {
-            node(&world, client, Role::Term, b"Runs");
-            node(
-                &world,
-                client,
-                Role::Description,
-                b"Forgejo 17.0.0 and its runner 13.2.0, on this machine. CI jobs run here, as you.",
-            );
-            node(&world, client, Role::Term, b"First password");
-            node(
-                &world,
-                client,
-                Role::Description,
-                b"Your first password is in /fake/forge/person_password. Change it on Forgejo when you like.",
-            );
-        } else {
-            assert!(!drawing.contains("First password"));
-            assert!(!drawing.contains("Your first password is in"));
-            assert!(!drawing.contains("Runs"));
-            assert!(!drawing.contains("Forgejo 17.0.0"));
+        if connected {
+            node(&world, client, Role::Term, b"Account");
+            node(&world, client, Role::Description, b"qa-bot \xc2\xb7 user 1");
         }
+        // Restored forge records have no host-supplied versions or password path.
+        assert!(!drawing.contains("First password"));
+        assert!(!drawing.contains("Your first password is in"));
+        assert!(!drawing.contains("Runs"));
+        assert!(!drawing.contains("Forgejo 17.0.0"));
         for expected in ["forge 1 · Forgejo", words, action] {
             assert!(drawing.contains(expected), "missing {expected}: {drawing}");
         }

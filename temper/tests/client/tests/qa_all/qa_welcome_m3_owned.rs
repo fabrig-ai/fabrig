@@ -43,6 +43,7 @@ fn owned_fixture(runner: Option<&[u8]>) -> (Joint, Root) {
     });
     let mut front = Joint::new(seed, limits);
     front.engine = Driver::with_repositories(Store::new(), configs, &bounds, &[(b"work", b"hello", 42)]);
+    front.engine.settle();
     front.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
         forge: 1,
         state: forge::Connection::NotSetUp,
