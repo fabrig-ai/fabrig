@@ -1,6 +1,6 @@
 [package]
 name = "jig-domain-hub-link"
-description = "The engine core: child domains, runs, calls, and routing"
+description = "The engine link between its fleet and hub"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

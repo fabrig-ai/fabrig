@@ -400,6 +400,7 @@ than one per shape, buys:
   hub's link to the fleet unchanged, as a worker's protocol layer decodes a
   worker's into the same values (`../protocol/channel.md`, section 1); its
   hello states the bounds of its `smith-inline-agent`'s configuration.
+  In the engine, `jig-domain-hub-link` is that link: it keeps the hub's assignments, briefs, payload hand-outs and relayed calls beside the fleet's claims, and the root composes it and routes to it.
 - **The link vocabulary names only what crosses.** It names a run and an
   attempt by their numbers, and a call, a message or a turn by the name
   or number the run or the engine gave it, which mean the same on both
@@ -415,8 +416,7 @@ than one per shape, buys:
   tokens.
 - **Turn busy is not in it.** The engine's answer of busy to a turn is
   the fleet's word to what keeps the backoff below the hub, which arms no
-  timers (6.2): a worker's link, or the engine's root for its own hub, on
-  its protocol layer's timers. At the backoff's deadline it asks its root
+  timers (6.2): a worker's link, or `jig-domain-hub-link` for the engine's own hub, on the timers of the layer that holds it. At the backoff's deadline it asks its root
   for the hub's kept copy of the turn, which goes up again as any turn
   (`../protocol/channel.md`, 5.2).
 - **The engine holds the claim.** It commits a claim before assigning a

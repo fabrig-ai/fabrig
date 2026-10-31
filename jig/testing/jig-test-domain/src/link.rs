@@ -40,12 +40,12 @@ pub(super) fn receive(domain: &mut Domain, channel: Token, link: Event, work: &m
     let event = match link {
         Event::Hello { worker, hello: value } => {
             // The port is routing state; the fleet owns admission and its refusal.
-            let _inserted = domain.links.insert(channel);
+            domain.hub_link.connect(channel);
             Some(hello(channel, worker, value))
         }
         Event::Up(value) => up(domain, channel, value),
         Event::Lost => {
-            let _removed = domain.links.remove(&channel);
+            domain.hub_link.disconnect(channel);
             Some(lost(channel))
         }
     };
@@ -59,16 +59,13 @@ pub(super) fn receive(domain: &mut Domain, channel: Token, link: Event, work: &m
 #[must_use]
 pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
     let (channel, down) = match delivery {
-        Delivery::Core(core::Held::Sources { channel, sources }) if domain.links.contains(&channel) => {
-            (channel, host::LinkDown::Sources { sources })
+        Delivery::Core(held) => {
+            return match jig_domain_hub_link::down(&mut domain.hub_link, held) {
+                Ok((channel, down)) => Delivery::Link { channel, down },
+                Err(held) => Delivery::Core(held),
+            };
         }
-        Delivery::Core(core::Held::CheckSource { channel, name }) if domain.links.contains(&channel) => {
-            (channel, host::LinkDown::Check { name })
-        }
-        Delivery::Core(core::Held::SignOutSource { channel, name }) if domain.links.contains(&channel) => {
-            (channel, host::LinkDown::SignOut { name })
-        }
-        Delivery::Message { channel, task, attempt, word } if domain.links.contains(&channel) => (
+        Delivery::Message { channel, task, attempt, word } if domain.hub_link.connected(channel) => (
             channel,
             host::LinkDown::Message {
                 run: Token::new(task),
@@ -79,7 +76,7 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
                 words: jig_protocol_tools::words(&word),
             },
         ),
-        Delivery::CallBusy { channel, task, attempt, name } if domain.links.contains(&channel) => (
+        Delivery::CallBusy { channel, task, attempt, name } if domain.hub_link.connected(channel) => (
             channel,
             host::LinkDown::Relayed {
                 run: Token::new(task),
@@ -88,7 +85,7 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
                 answer: host::Relayed::Busy,
             },
         ),
-        Delivery::CallAnswer { channel, task, attempt, name, call, writes } if domain.links.contains(&channel) => {
+        Delivery::CallAnswer { channel, task, attempt, name, call, writes } if domain.hub_link.connected(channel) => {
             match call.answer {
                 core::SettledAnswer::Host { error, body } => (
                     channel,
@@ -104,30 +101,11 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
                 }
             }
         }
-        Delivery::Core(core::Held::Acknowledge { channel, run, attempt }) if domain.links.contains(&channel) => {
-            (channel, host::LinkDown::Acknowledge { run, attempt })
-        }
-        Delivery::Core(core::Held::AcknowledgeTurn { channel, run, attempt, turn })
-            if domain.links.contains(&channel) =>
-        {
-            (channel, host::LinkDown::TurnKept { run, attempt, turn })
-        }
-        Delivery::Core(core::Held::Cancel { channel, run, attempt }) if domain.links.contains(&channel) => {
-            (channel, host::LinkDown::Cancel { run, attempt })
-        }
-        Delivery::Core(core::Held::Grant { channel, run, attempt, grant }) if domain.links.contains(&channel) => {
-            (channel, host::LinkDown::Grant { run, attempt, grant })
-        }
-        Delivery::Core(core::Held::Refuse { channel }) => {
-            let _removed = domain.links.remove(&channel);
-            return Delivery::Core(core::Held::Refuse { channel });
-        }
         other @ (Delivery::Start(_)
         | Delivery::Link { .. }
         | Delivery::Message { .. }
         | Delivery::CallBusy { .. }
         | Delivery::CallAnswer { .. }
-        | Delivery::Core(_)
         | Delivery::Assigned { .. }
         | Delivery::Fleet(_)
         | Delivery::ApplicationDocument { .. }
@@ -142,6 +120,38 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
     Delivery::Link { channel, down }
 }
 
+fn delivery(domain: &mut Domain, value: jig_domain_hub_link::Request, writes: bool) -> Delivery {
+    use jig_domain_hub_link::Request as Output;
+    let value = match value {
+        Output::Core(core::Event::Fleet(event)) => Delivery::Fleet(event),
+        Output::Assigned { channel, assignment } => Delivery::Assigned { channel, assignment },
+        Output::Down { channel, value } => Delivery::Link { channel, down: value },
+        Output::Message { channel, run, attempt, word } => {
+            Delivery::Message { channel, task: run.raw(), attempt: attempt.raw(), word }
+        }
+        Output::Relayed { channel, run, attempt, call: name, answer } => match answer {
+            Some(call) => Delivery::CallAnswer { channel, task: run.raw(), attempt: attempt.raw(), name, call, writes },
+            None => Delivery::CallBusy { channel, task: run.raw(), attempt: attempt.raw(), name },
+        },
+        Output::Core(_) | Output::ReadResult { .. } | Output::ConnectorCall { .. } | Output::TurnCopy { .. } => {
+            unreachable!("a delivery has no protocol or core hand-out")
+        }
+    };
+    down(domain, value)
+}
+pub(super) fn held(
+    domain: &mut Domain,
+    now: skein_lib::Time,
+    decision: &mut skein_lib::Decision<crate::Write, Delivery>,
+    event: jig_domain_hub_link::Event,
+) {
+    let mut out = Queue::uncapped();
+    jig_domain_hub_link::step(&mut domain.hub_link, now, event, &mut out);
+    for _ in 0..out.len() {
+        let value = delivery(domain, out.pop().expect("link output count"), true);
+        crate::hold(decision, value);
+    }
+}
 pub(super) fn route(
     domain: &mut Domain,
     now: skein_lib::Time,
@@ -154,13 +164,20 @@ pub(super) fn route(
         match out.pop().expect("link output count") {
             jig_domain_hub_link::Request::Core(event) => work.push(Work::Core(event)),
             jig_domain_hub_link::Request::ReadResult { payload, outcome } => {
-                domain.now.push(Request::ReadResult { payload, outcome })
+                domain.now.push(Request::ReadResult { payload, outcome });
             }
-            jig_domain_hub_link::Request::Down { .. }
+            jig_domain_hub_link::Request::ConnectorCall { to, run, attempt, call } => {
+                domain.now.push(Request::Now(core::Now::Call { to, run, attempt, call }));
+            }
+            value @ (jig_domain_hub_link::Request::Message { .. }
+            | jig_domain_hub_link::Request::Down { .. }
             | jig_domain_hub_link::Request::Assigned { .. }
-            | jig_domain_hub_link::Request::Relayed { .. }
-            | jig_domain_hub_link::Request::TurnCopy { .. } => {
-                unreachable!("input emits only core events or protocol hand-outs")
+            | jig_domain_hub_link::Request::Relayed { .. }) => {
+                let value = delivery(domain, value, false);
+                domain.journal.now(value).expect("uncapped link delivery door");
+            }
+            jig_domain_hub_link::Request::TurnCopy { .. } => {
+                unreachable!("the test root hosts its agents on worker channels")
             }
         }
     }

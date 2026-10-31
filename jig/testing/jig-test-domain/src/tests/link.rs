@@ -119,7 +119,7 @@ fn a_fenced_result_is_handed_out_before_the_answer_is_read() {
 #[test]
 fn channel_records_leave_as_the_hub_s_vocabulary() {
     let mut domain = fixtures::domain();
-    domain.links.insert(fixtures::CHANNEL).expect("one connected link");
+    domain.hub_link.connect(fixtures::CHANNEL);
     for (held, expected) in fixtures::channel_records() {
         let Delivery::Link { channel, down } = link::down(&mut domain, held) else {
             panic!("the hub receives the record");
@@ -287,7 +287,7 @@ fn an_assignment_carries_its_brief_s_sections_in_order() {
 fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
     use jig_domain_accounts as accounts;
     let mut domain = fixtures::domain();
-    domain.links.insert(fixtures::CHANNEL).expect("connected worker");
+    domain.hub_link.connect(fixtures::CHANNEL);
     let env = fixtures::env();
     let env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts };
     let mut out = Queue::uncapped();
@@ -355,7 +355,7 @@ fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
 fn program_source_lifecycle_routes_without_run_payloads() {
     use jig_domain_host::{LinkDown, LinkUp, Login, LoginState, SignOutResult, SourceName};
     let mut domain = fixtures::domain();
-    domain.links.insert(fixtures::CHANNEL).expect("one connected worker");
+    domain.hub_link.connect(fixtures::CHANNEL);
     let name = SourceName::new(b"alice").expect("source name");
     let fleet_name = name;
     for (held, expected) in [

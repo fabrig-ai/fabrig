@@ -76,12 +76,18 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
             });
             fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
         }
-        host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => fleet::Event::Relay {
-            channel,
-            run,
-            attempt,
-            call: fleet::Call { name: call, tool, writes, input, deadline },
-        },
+        host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => {
+            domain
+                .host_calls
+                .insert(call.clone(), crate::HostCall { channel, run, attempt })
+                .expect("uncapped relay routes");
+            fleet::Event::Relay {
+                channel,
+                run,
+                attempt,
+                call: fleet::Call { name: call, tool, writes, input, deadline },
+            }
+        }
         host::LinkUp::Unauthorized { run, attempt, account, generation } => {
             fleet::Event::Unauthorized { channel, run, attempt, account, generation }
         }

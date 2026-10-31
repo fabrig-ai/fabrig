@@ -5,11 +5,10 @@
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
-use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decision, Env, List, Queue, ReplyTo, Token};
+use skein_lib::{Decision, Env, List, Queue, Token};
 
 mod brief;
 mod workspace;
@@ -47,34 +46,30 @@ pub(super) fn route_core(
                         .expect("the connector retains every kept people token");
                     hold(decision, Delivery::Application { to, number, outcome });
                 }
-                core::Held::Assign { channel, run, attempt, .. } => {
-                    let assignment = domain.hub_link.take_assignment(run.raw()).expect("prepared claim has assignment");
-                    assert!(assignment.attempt == attempt.raw(), "current assignment fence");
-                    hold(decision, Delivery::Assigned { channel, assignment });
-                }
+                core::Held::Assign { channel, run, attempt, .. } => crate::link::held(
+                    domain,
+                    env.now,
+                    decision,
+                    jig_domain_hub_link::Event::Assign { channel, run, attempt },
+                ),
                 core::Held::SettledCall { to, call, .. } => {
-                    let answer = crate::payload(domain, crate::Payload::SettledCall(call));
-                    hold(decision, Delivery::Fleet(fleet::Event::Relayed { to, answer }));
+                    crate::link::held(domain, env.now, decision, jig_domain_hub_link::Event::SettledCall { to, call });
                 }
-                core::Held::Relayed { channel, run, attempt, call: name, answer } => {
-                    let delivery = crate::stopping::relayed(domain, channel, run, attempt, name, answer, true);
-                    hold(decision, crate::link::down(domain, delivery));
-                }
+                core::Held::Relayed { channel, run, attempt, call, answer } => crate::link::held(
+                    domain,
+                    env.now,
+                    decision,
+                    jig_domain_hub_link::Event::Relayed { channel, run, attempt, call, answer },
+                ),
                 core::Held::MakeEffect { connector, entry } => {
                     hold(decision, Delivery::Core(core::Held::MakeEffect { connector, entry }));
                 }
-                core::Held::Inbound { channel, run, attempt, message } => {
-                    let Some(crate::Payload::InboxWord(line)) = domain.hub_link.take_payload(message.words) else {
-                        unreachable!("inbox word payload")
-                    };
-                    hold(
-                        decision,
-                        crate::link::down(
-                            domain,
-                            Delivery::Message { channel, task: run.raw(), attempt: attempt.raw(), word: line },
-                        ),
-                    );
-                }
+                core::Held::Inbound { channel, run, attempt, message } => crate::link::held(
+                    domain,
+                    env.now,
+                    decision,
+                    jig_domain_hub_link::Event::Inbound { channel, run, attempt, message },
+                ),
                 other @ (core::Held::ReadLoad { .. }
                 | core::Held::Read { .. }
                 | core::Held::Delivery { .. }
@@ -122,7 +117,7 @@ fn route_ask(
 ) {
     match ask {
         core::Ask::StepMade { task, step, first, revisions } => {
-            domain.procedure_steps.remove(&task);
+            let _removed = domain.hub_link.take_procedure(task);
             work.push(Work::Connector { number, event: connector::Event::StepMade { task, step, first, revisions } });
         }
         core::Ask::StepRefused { task, step, why } => crate::steps::refused(number, task, step, why, work),
@@ -220,24 +215,16 @@ fn route_ask(
                     unreachable!("procedure context has a procedure executor")
                 }
             };
-            assert!(domain.procedure_steps.insert(context.task, (step, code)).is_ok(), "one procedure step flight");
+            domain.hub_link.keep_procedure(context.task, (step, code));
             hold(decision, Delivery::Procedure { task: context.task, step, connector: number, code, context });
         }
         core::Ask::ClaimDone { task, attempt, kinds, version } => {
             if number == 1 {
-                hold(
+                crate::link::held(
+                    domain,
+                    env.now,
                     decision,
-                    Delivery::Fleet(fleet::Event::Start {
-                        placement: Some(domain.hub_link.assignment(task).expect("prepared assignment").run.placement),
-                        grants: grants::fleet(&domain.hub_link.assignment(task).expect("prepared assignment").grants),
-                        reply_to: ReplyTo::new(Token::new(task)),
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                        workstream: task,
-                        assignment: fleet::Assignment { turns: Token::new(task), answered: Token::new(task) },
-                        kinds,
-                        version,
-                    }),
+                    jig_domain_hub_link::Event::Start { task, attempt, kinds, version },
                 );
             }
         }
@@ -365,6 +352,7 @@ fn route_now(
 ) {
     match now {
         core::Now::RelayBusy { channel, run, attempt, call } => {
+            domain.hub_link.forget_call(&call);
             let delivery = crate::link::down(
                 domain,
                 Delivery::CallBusy { channel, task: run.raw(), attempt: attempt.raw(), name: call },
@@ -372,10 +360,15 @@ fn route_now(
             assert!(domain.journal.now(delivery).is_ok(), "reserved busy answer room");
         }
         core::Now::CallBusy { to } | core::Now::NoteBusy { to, .. } => crate::stopping::call(domain, to, work),
-        core::Now::Relayed { channel, run, attempt, call: name, answer } => {
-            let delivery = crate::stopping::relayed(domain, channel, run, attempt, name, answer, false);
-            let delivery = crate::link::down(domain, delivery);
-            assert!(domain.journal.now(delivery).is_ok(), "reserved relay answer room");
+        core::Now::Relayed { channel, run, attempt, call, answer } => crate::link::route(
+            domain,
+            env.now,
+            jig_domain_hub_link::Event::Relayed { channel, run, attempt, call, answer },
+            work,
+        ),
+        core::Now::DropCall { call } => {
+            domain.hub_link.forget_call(&call.name);
+            domain.now.push(crate::Request::Now(core::Now::DropCall { call }));
         }
         core::Now::Undelivered { message, .. } => {
             drop(domain.hub_link.take_payload(message.words));
@@ -451,24 +444,29 @@ fn route_now(
             grants,
             ..
         } => {
-            let budget = run.budget;
-            let brief = domain.hub_link.take_brief(task).expect("completed brief");
             let answered = domain.core.settled_calls(task, attempt);
-            domain.hub_link.keep_assignment(crate::Assignment {
-                live,
-                task,
-                attempt,
-                conversation,
-                brief,
-                charter,
-                run,
-                messages,
-                transcript,
-                answered,
-                grants,
-            });
             let writes = domain.workspace_writes.remove(&task).expect("assembled workspace writes");
-            work.push(Work::Core(core::Event::ClaimPrepared { task, attempt, budget, writes }));
+            crate::link::route(
+                domain,
+                env.now,
+                jig_domain_hub_link::Event::Prepared {
+                    assignment: crate::Assignment {
+                        live,
+                        task,
+                        attempt,
+                        conversation,
+                        brief: Box::new([]),
+                        charter,
+                        run,
+                        messages,
+                        transcript,
+                        answered,
+                        grants,
+                    },
+                    writes,
+                },
+                work,
+            );
         }
         core::Now::RunPreparationFailed { task } | core::Now::DropAssignment { task } => {
             drop(domain.hub_link.take_assignment(task));
@@ -492,7 +490,7 @@ fn route_now(
             work,
         ),
         core::Now::RefusedPayload { request, problem } => {
-            crate::link::route(domain, env.now, jig_domain_hub_link::Event::RefusedPayload { request, problem }, work)
+            crate::link::route(domain, env.now, jig_domain_hub_link::Event::RefusedPayload { request, problem }, work);
         }
         core::Now::RestoreRefused => {
             assert!(domain.start_stopped(), "a refused restore has stopped the core");
@@ -508,7 +506,6 @@ fn route_now(
         | core::Now::HistoricalEscalation { .. }
         | core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }
-        | core::Now::DropCall { .. }
         | core::Now::EffectAnswer { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::SignInRefused { .. }
@@ -607,7 +604,7 @@ pub(super) fn route_connector(
                 write(domain, decision, Write::Erase(Key::Connector { number, key }));
             }
             connector::Request::Step { task, decision: step } => {
-                let (numbered_step, code) = *domain.procedure_steps.get(&task).expect("procedure chose a step");
+                let (numbered_step, code) = *domain.hub_link.procedure(task).expect("procedure chose a step");
                 let Some(action) = crate::steps::translate(domain, task, numbered_step, number, step, work) else {
                     continue;
                 };
@@ -634,7 +631,7 @@ pub(super) fn route_connector(
                 })));
             }
             connector::Request::Verdict { token, verdict } => {
-                let Some((owner, judge, asked_state)) = domain.judges.remove(&token) else { continue };
+                let Some((owner, judge, asked_state)) = domain.hub_link.take_judge(token) else { continue };
                 let (verdict, at, guarded, state) = match verdict {
                     connector::Verdict::Met { state, observed, guarded } => {
                         let pin = state_pin(state);
@@ -653,7 +650,7 @@ pub(super) fn route_connector(
                 })));
             }
             connector::Request::Outcome { entry, outcome } => {
-                let owner = match domain.outbox_owners.get(&entry) {
+                let owner = match domain.hub_link.outbox_owner(entry) {
                     Some(owner) => *owner,
                     None => continue,
                 };
@@ -672,7 +669,7 @@ pub(super) fn route_connector(
                     | connector::Outcome::Withdrawn => true,
                     connector::Outcome::Uncertain | connector::Outcome::Held => false,
                 };
-                match domain.outbox_procedures.get(&entry) {
+                match domain.hub_link.outbox_procedure(entry) {
                     Some(number) if settled => work.push(Work::Connector {
                         number: *number,
                         event: connector::Event::EffectDecision { task: owner.task, made },
@@ -680,8 +677,8 @@ pub(super) fn route_connector(
                     Some(_) | None => {}
                 }
                 if settled {
-                    domain.outbox_owners.remove(&entry);
-                    domain.outbox_procedures.remove(&entry);
+                    let _removed = domain.hub_link.take_outbox_owner(entry);
+                    let _removed = domain.hub_link.take_outbox_procedure(entry);
                 }
                 let outcome = match outcome {
                     connector::Outcome::Made { .. } => core::connector::OutboxOutcome::Made,
@@ -737,7 +734,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::connector::Ask,
         }
         core::connector::Ask::DropProposal { proposal } => connector::Event::DropProposal { number: proposal },
         core::connector::Ask::Keep { owner, entry, task, key } => {
-            domain.effect_procedures.remove(&owner);
+            let _removed = domain.hub_link.take_effect_procedure(owner);
             let origin = match key.origin {
                 core::EffectPurpose::Call { attempt, completion, position } => {
                     connector::Purpose::Call { attempt, completion, position }
@@ -753,7 +750,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::connector::Ask,
             }
         }
         core::connector::Ask::Drop { owner, .. } => {
-            if let Some(task) = domain.effect_procedures.remove(&owner) {
+            if let Some(task) = domain.hub_link.take_effect_procedure(owner) {
                 work.push(Work::Connector { number, event: connector::Event::EffectDecision { task, made: false } });
             }
             drop(domain.effects.remove(&owner));
@@ -762,7 +759,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::connector::Ask,
         core::connector::Ask::Judge { owner, judge, state, resources } => {
             let token = Token::new(domain.next_payload);
             domain.next_payload = domain.next_payload.checked_add(1).expect("bounded judge owner numbers");
-            assert!(domain.judges.insert(token, (owner, judge, state)).is_ok(), "one route per core-selected judge");
+            domain.hub_link.keep_judge(token, (owner, judge, state));
             let mut names = List::with_capacity(u32::try_from(resources.len()).expect("bounded resource names"));
             for name in resources {
                 names.push(path(name.segments)).expect("one path per name");
@@ -967,5 +964,3 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::MarkedSeen { .. } => unreachable!("release core part returns a release terminal"),
     }
 }
-
-mod grants;

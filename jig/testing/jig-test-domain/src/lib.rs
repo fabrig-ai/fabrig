@@ -18,7 +18,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decision, Env, Journal, List, Map, Queue, ReplyTo, Set, Token, Wall};
+use skein_lib::{Decision, Env, Journal, List, Map, Queue, ReplyTo, Token, Wall};
 
 /// A store address owned by the core or one numbered connector.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -295,26 +295,17 @@ pub struct Config {
     pub second: connector::Config,
 }
 
-/// Routing identity reconstructed from the connector's persisted effect key.
-#[derive(Clone, Copy, Debug)]
-struct OutboxOwner {
-    task: u64,
-    projection: bool,
-}
+use jig_domain_hub_link::OutboxOwner;
 
 fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntry) -> bool {
     let key = &row.key;
     let projection = key.origin == connector::Purpose::Projection;
     let owner = OutboxOwner { task: row.task, projection };
-    if domain.outbox_owners.insert(row.number, owner).is_err() {
-        return false;
-    }
+    domain.hub_link.keep_outbox_owner(row.number, owner);
     if key.origin == connector::Purpose::Procedure {
-        if domain.outbox_procedures.insert(row.number, number).is_err() {
-            return false;
-        }
+        domain.hub_link.keep_outbox_procedure(row.number, number);
     } else {
-        domain.outbox_procedures.remove(&row.number);
+        let _removed = domain.hub_link.take_outbox_procedure(row.number);
     }
     true
 }
@@ -329,16 +320,9 @@ pub struct Domain {
     journal: Journal<Write, Delivery>,
     now: Queue<Request>,
     store_answers: Queue<Box<Event>>,
-    links: Set<Token>,
     busy: Queue<Box<Event>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
-    procedure_steps: Map<u64, (u64, u16)>,
-    topic_calls: Map<Token, (ReplyTo, core::CallKey, u16)>,
     effects: Map<Token, connector::Effect>,
-    effect_procedures: Map<Token, u64>,
-    outbox_procedures: Map<u64, u16>,
-    judges: Map<Token, (Token, jig_domain_authority::Judge, [u8; 32])>,
-    outbox_owners: Map<u64, OutboxOwner>,
     next_payload: u64,
     decision_wrote: bool,
     stopped_reported: bool,
@@ -446,18 +430,11 @@ impl Domain {
             journal: Journal::uncapped(limits.journal.release, 0),
             now: Queue::uncapped(),
             store_answers: Queue::uncapped(),
-            links: Set::with_capacity(limits.core.fleet.workers),
             busy: Queue::uncapped(),
             workspace_writes: Map::with_capacity(limits.core.tasks.tasks),
-            procedure_steps: Map::with_capacity(limits.core.tasks.tasks),
-            topic_calls: Map::with_capacity(limits.core.call_records),
             effects: Map::with_capacity(
                 limits.core.call_records.checked_add(limits.core.tasks.tasks).expect("effect room"),
             ),
-            effect_procedures: Map::with_capacity(limits.core.tasks.tasks),
-            outbox_procedures: Map::with_capacity(limits.connector.entries.checked_mul(2).expect("outbox procedures")),
-            judges: Map::with_capacity(limits.core.authority.facts),
-            outbox_owners: Map::with_capacity(limits.connector.entries.checked_mul(2).expect("outboxes")),
             next_payload: 1,
             decision_wrote: false,
             stopped_reported: false,

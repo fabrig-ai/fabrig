@@ -9,7 +9,10 @@ use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
 use skein_lib::{Deadlines, Duration, Map, Queue, ReplyTo, Rng, Time, Token};
+mod down;
+mod grants;
 mod payload;
+pub use down::down;
 pub use payload::{Ending, Payload, up};
 /// The root's assembled, worker assignment.
 #[derive(Debug)]
@@ -40,6 +43,25 @@ pub struct Limits {
     pub payloads: u32,
     pub turns: u32,
 }
+/// A relay's destination, fenced by its attempt.
+#[derive(Clone, Copy, Debug)]
+pub struct HostCall {
+    pub channel: Token,
+    pub run: Token,
+    pub attempt: Token,
+}
+/// A connector read's caller and opaque tool envelope.
+#[derive(Debug)]
+pub struct ReadCall {
+    pub to: Token,
+    pub tool: Box<[u8]>,
+}
+/// The identity kept beside a connector's durable outbox entry.
+#[derive(Clone, Copy, Debug)]
+pub struct OutboxOwner {
+    pub task: u64,
+    pub projection: bool,
+}
 /// Volatile hub wiring; random jitter is supplied by the root.
 #[derive(Debug)]
 pub struct Link {
@@ -50,6 +72,16 @@ pub struct Link {
     turn_backoffs: Deadlines<(Token, Token, u32)>,
     turn_rng: Rng,
     pieces_dropped: u64,
+    host_calls: Map<Box<[u8]>, HostCall>,
+    channels: Map<Token, ()>,
+    read_calls: Map<Token, ReadCall>,
+    close_replies: Map<Token, [u8; 16]>,
+    topic_calls: Map<Token, (ReplyTo, core::CallKey, u16)>,
+    judges: Map<Token, (Token, jig_domain_authority::Judge, [u8; 32])>,
+    procedures: Map<u64, (u64, u16)>,
+    effect_procedures: Map<Token, u64>,
+    outbox_procedures: Map<u64, u16>,
+    outbox_owners: Map<u64, OutboxOwner>,
 }
 impl Link {
     #[must_use]
@@ -62,7 +94,130 @@ impl Link {
             turn_backoffs: Deadlines::with_capacity(limits.turns),
             turn_rng: rng,
             pieces_dropped: 0,
+            host_calls: Map::uncapped(),
+            channels: Map::uncapped(),
+            read_calls: Map::uncapped(),
+            close_replies: Map::uncapped(),
+            topic_calls: Map::uncapped(),
+            judges: Map::uncapped(),
+            procedures: Map::uncapped(),
+            effect_procedures: Map::uncapped(),
+            outbox_procedures: Map::uncapped(),
+            outbox_owners: Map::uncapped(),
         }
+    }
+    /// Register a channel while the fleet judges its hello.
+    pub fn connect(&mut self, channel: Token) {
+        self.channels.insert(channel, ()).expect("uncapped channels");
+    }
+    pub fn disconnect(&mut self, channel: Token) {
+        self.channels.remove(&channel);
+    }
+    #[must_use]
+    pub fn connected(&self, channel: Token) -> bool {
+        self.channels.contains_key(&channel)
+    }
+    /// Forget the opaque relay when its protocol continuation is dropped.
+    pub fn forget_call(&mut self, name: &[u8]) {
+        self.host_calls.remove(name);
+    }
+    pub fn keep_read_call(&mut self, token: Token, call: ReadCall) {
+        self.read_calls.insert(token, call).expect("uncapped read calls");
+    }
+    #[must_use]
+    pub fn take_read_call(&mut self, token: Token) -> Option<ReadCall> {
+        self.read_calls.remove(&token)
+    }
+    pub fn keep_close_reply(&mut self, token: Token, key: [u8; 16]) {
+        self.close_replies.insert(token, key).expect("uncapped close replies");
+    }
+    #[must_use]
+    pub fn take_close_reply(&mut self, token: Token) -> Option<[u8; 16]> {
+        self.close_replies.remove(&token)
+    }
+    /// Retain the child's opaque topic call continuation.
+    pub fn keep_topic_call(&mut self, key: Token, value: (ReplyTo, core::CallKey, u16)) {
+        self.topic_calls.insert(key, value).expect("uncapped continuation table");
+    }
+    /// Consume a continuation once its child answers.
+    #[must_use]
+    pub fn take_topic_call(&mut self, key: Token) -> Option<(ReplyTo, core::CallKey, u16)> {
+        self.topic_calls.remove(&key)
+    }
+    /// Inspect the continuation without consuming its reply right.
+    #[must_use]
+    pub fn topic_call(&self, key: Token) -> Option<&(ReplyTo, core::CallKey, u16)> {
+        self.topic_calls.get(&key)
+    }
+    /// Retain the child's opaque judge continuation.
+    pub fn keep_judge(&mut self, key: Token, value: (Token, jig_domain_authority::Judge, [u8; 32])) {
+        self.judges.insert(key, value).expect("uncapped continuation table");
+    }
+    /// Consume a continuation once its child answers.
+    #[must_use]
+    pub fn take_judge(&mut self, key: Token) -> Option<(Token, jig_domain_authority::Judge, [u8; 32])> {
+        self.judges.remove(&key)
+    }
+    /// Inspect the continuation without consuming its reply right.
+    #[must_use]
+    pub fn judge(&self, key: Token) -> Option<&(Token, jig_domain_authority::Judge, [u8; 32])> {
+        self.judges.get(&key)
+    }
+    /// Retain the child's opaque procedure continuation.
+    pub fn keep_procedure(&mut self, key: u64, value: (u64, u16)) {
+        self.procedures.insert(key, value).expect("uncapped continuation table");
+    }
+    /// Consume a continuation once its child answers.
+    #[must_use]
+    pub fn take_procedure(&mut self, key: u64) -> Option<(u64, u16)> {
+        self.procedures.remove(&key)
+    }
+    /// Inspect the continuation without consuming its reply right.
+    #[must_use]
+    pub fn procedure(&self, key: u64) -> Option<&(u64, u16)> {
+        self.procedures.get(&key)
+    }
+    /// Retain the child's opaque effect procedure continuation.
+    pub fn keep_effect_procedure(&mut self, key: Token, value: u64) {
+        self.effect_procedures.insert(key, value).expect("uncapped continuation table");
+    }
+    /// Consume a continuation once its child answers.
+    #[must_use]
+    pub fn take_effect_procedure(&mut self, key: Token) -> Option<u64> {
+        self.effect_procedures.remove(&key)
+    }
+    /// Inspect the continuation without consuming its reply right.
+    #[must_use]
+    pub fn effect_procedure(&self, key: Token) -> Option<&u64> {
+        self.effect_procedures.get(&key)
+    }
+    /// Retain the child's opaque outbox procedure continuation.
+    pub fn keep_outbox_procedure(&mut self, key: u64, value: u16) {
+        self.outbox_procedures.insert(key, value).expect("uncapped continuation table");
+    }
+    /// Consume a continuation once its child answers.
+    #[must_use]
+    pub fn take_outbox_procedure(&mut self, key: u64) -> Option<u16> {
+        self.outbox_procedures.remove(&key)
+    }
+    /// Inspect the continuation without consuming its reply right.
+    #[must_use]
+    pub fn outbox_procedure(&self, key: u64) -> Option<&u16> {
+        self.outbox_procedures.get(&key)
+    }
+    /// Retain the child's opaque outbox owner continuation.
+    pub fn keep_outbox_owner(&mut self, key: u64, value: OutboxOwner) {
+        self.outbox_owners.insert(key, value).expect("uncapped continuation table");
+    }
+    /// Consume a continuation once its child answers.
+    #[must_use]
+    pub fn take_outbox_owner(&mut self, key: u64) -> Option<OutboxOwner> {
+        self.outbox_owners.remove(&key)
+    }
+    /// Inspect the continuation without consuming its reply right.
+    #[must_use]
+    pub fn outbox_owner(&self, key: u64) -> Option<&OutboxOwner> {
+        self.outbox_owners.get(&key)
     }
     #[must_use]
     pub fn payload_count(&self) -> u32 {
@@ -108,8 +263,9 @@ impl Link {
 }
 /// Inputs from the fleet, hub and protocol hand-outs.
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "the route owns complete typed core continuations")]
 pub enum Event {
+    Prepared { assignment: Assignment, writes: Box<[tasks::Name]> },
+    Start { task: u64, attempt: u64, kinds: fleet::Kinds, version: fleet::Version },
     Hello { channel: Token, worker: u32, hello: host::Hello },
     Up { channel: Token, value: host::LinkUp },
     Lost { channel: Token },
@@ -125,6 +281,10 @@ pub enum Event {
     Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
     Assign { channel: Token, run: Token, attempt: Token },
     Down { channel: Token, value: host::LinkDown },
+    Inbound { channel: Token, run: Token, attempt: Token, message: fleet::Message },
+    RelayBusy { channel: Token, run: Token, attempt: Token, call: Box<[u8]> },
+    DropCall { call: fleet::Call },
+    Call { to: ReplyTo, run: Token, attempt: Token, call: fleet::Call },
     TurnBusy { run: Token, attempt: Token, turn: u32, retained: bool },
     TurnKept { channel: Token, run: Token, attempt: Token, turn: u32 },
 }
@@ -137,15 +297,46 @@ pub enum Request {
     Assigned { channel: Token, assignment: Assignment },
     ReadResult { payload: Token, outcome: Box<[u8]> },
     Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Option<core::SettledCall> },
+    Message { channel: Token, run: Token, attempt: Token, word: tasks::Word },
+    ConnectorCall { to: ReplyTo, run: Token, attempt: Token, call: fleet::Call },
     TurnCopy { run: Token, attempt: Token, turn: u32 },
 }
 /// Route one input; the root applies the journal's durability class to outputs.
+#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the link boundary")]
 pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) {
     match event {
-        Event::Hello { channel, worker, hello } => {
-            out.push(Request::Core(core::Event::Fleet(fleet::Event::Hello { channel, worker, hello })))
+        Event::Prepared { mut assignment, writes } => {
+            let task = assignment.task;
+            let attempt = assignment.attempt;
+            let budget = assignment.run.budget;
+            assignment.brief = link.take_brief(task).expect("completed brief");
+            link.keep_assignment(assignment);
+            out.push(Request::Core(core::Event::ClaimPrepared { task, attempt, budget, writes }));
         }
-        Event::Lost { channel } => out.push(Request::Core(core::Event::Fleet(fleet::Event::Lost { channel }))),
+        Event::Start { task, attempt, kinds, version } => {
+            let assignment = link.assignment(task).expect("prepared assignment");
+            assert!(assignment.attempt == attempt, "prepared attempt fence");
+            let grants = grants::fleet(&assignment.grants);
+            out.push(Request::Core(core::Event::Fleet(fleet::Event::Start {
+                placement: Some(assignment.run.placement),
+                grants,
+                reply_to: ReplyTo::new(Token::new(task)),
+                run: Token::new(task),
+                attempt: Token::new(attempt),
+                workstream: task,
+                assignment: fleet::Assignment { turns: Token::new(task), answered: Token::new(task) },
+                kinds,
+                version,
+            })));
+        }
+        Event::Hello { channel, worker, hello } => {
+            link.connect(channel);
+            out.push(Request::Core(core::Event::Fleet(fleet::Event::Hello { channel, worker, hello })));
+        }
+        Event::Lost { channel } => {
+            link.disconnect(channel);
+            out.push(Request::Core(core::Event::Fleet(fleet::Event::Lost { channel })));
+        }
         Event::Up { channel, value } => {
             if let Some(event) = up(link, channel, value) {
                 out.push(Request::Core(event));
@@ -228,6 +419,7 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
             out.push(Request::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
         }
         Event::Relayed { channel, run, attempt, call, answer } => {
+            link.host_calls.remove(&call);
             let answer = match link.take_payload(answer).expect("retained relay answer") {
                 Payload::Busy => None,
                 Payload::SettledCall(call) => Some(call),
@@ -243,6 +435,33 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
             out.push(Request::Assigned { channel, assignment });
         }
         Event::Down { channel, value } => out.push(Request::Down { channel, value }),
+        Event::Inbound { channel, run, attempt, message } => {
+            let Some(Payload::InboxWord(word)) = link.take_payload(message.words) else {
+                unreachable!("inbox word payload")
+            };
+            out.push(Request::Message { channel, run, attempt, word });
+        }
+        Event::RelayBusy { channel, run, attempt, call } => {
+            link.host_calls.remove(&call);
+            out.push(Request::Down {
+                channel,
+                value: host::LinkDown::Relayed { run, attempt, call, answer: host::Relayed::Busy },
+            });
+        }
+        Event::DropCall { call } => {
+            if let Some(binding) = link.host_calls.remove(&call.name) {
+                out.push(Request::Down {
+                    channel: binding.channel,
+                    value: host::LinkDown::Relayed {
+                        run: binding.run,
+                        attempt: binding.attempt,
+                        call: call.name,
+                        answer: host::Relayed::Answer { error: true, text: skein_lib::bytes::copy_of(b"unavailable") },
+                    },
+                });
+            }
+        }
+        Event::Call { to, run, attempt, call } => out.push(Request::ConnectorCall { to, run, attempt, call }),
         Event::TurnBusy { run, attempt, turn, retained } => {
             if retained {
                 let span = Duration::from_nanos(link.turn_rng.between(50_000_000, 100_000_000));
@@ -284,6 +503,7 @@ fn answer(domain: &mut Link, run: Token, attempt: Token, payload: Token, work: &
     };
     work.push(Request::Core(result_event(domain, payload, end).expect("retained answer")));
 }
+#[must_use]
 pub fn result_event(domain: &Link, payload: Token, end: tasks::End) -> Option<core::Event> {
     let Some(Payload::Answer { task, attempt, cumulative, read, refused, .. }) = domain.payloads.get(&payload) else {
         return None;
@@ -300,3 +520,6 @@ pub fn result_event(domain: &Link, payload: Token, end: tasks::End) -> Option<co
         refused: refused.clone(),
     })
 }
+
+#[cfg(test)]
+mod tests;
