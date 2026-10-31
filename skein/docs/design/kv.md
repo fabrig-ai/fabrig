@@ -171,6 +171,8 @@ transcripts), and so are not held in memory:
 - **Loop latency** stays bounded: a commit applies its ops to the map, a
   load returns a page, a snapshot writes a chunk per step.
 
+- **Sizes for the layer above:** `FRAME_BYTES`, `put_bytes`, `erase_bytes` and `chunk_bytes` are the frame's and a snapshot chunk's encoded sizes, the numbers a user's limits are derived from, written once here.
+
 ## 8. What it needs of io
 
 io.md's whole-file operations hold a file's content in one request. The
