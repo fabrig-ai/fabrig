@@ -121,3 +121,15 @@ impl Duration {
         Duration(self.0.saturating_mul(factor))
     }
 }
+
+/// The earlier of two optional deadlines; `None` only when both are.
+#[must_use]
+pub fn earliest(left: Option<Time>, right: Option<Time>) -> Option<Time> {
+    match left {
+        Some(left) => match right {
+            Some(right) => Some(left.min(right)),
+            None => Some(left),
+        },
+        None => right,
+    }
+}

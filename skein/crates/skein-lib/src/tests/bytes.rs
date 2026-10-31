@@ -339,3 +339,17 @@ fn a_one_byte_needle_is_found_as_the_two_way_search_finds_it() {
         }
     }
 }
+
+#[test]
+fn decimal_parsing_accepts_digits_including_leading_zeros() {
+    for (digits, expected) in [(&b"0"[..], 0), (&b"007"[..], 7), (&b"18446744073709551615"[..], u64::MAX)] {
+        assert_eq!(Decimal::parse(digits), Some(expected), "digits {digits:?}");
+    }
+}
+
+#[test]
+fn decimal_parsing_refuses_empty_invalid_or_overflowing_text() {
+    for digits in [&b""[..], &b"1x"[..], &b"18446744073709551616"[..], &b"-1"[..], &b" 1"[..], &[0xff][..]] {
+        assert_eq!(Decimal::parse(digits), None, "digits {digits:?}");
+    }
+}

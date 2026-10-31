@@ -13,6 +13,23 @@ pub struct Decimal {
 }
 
 impl Decimal {
+    /// `1*DIGIT` as a `u64`, or `None`: empty, another byte, or past `u64::MAX`.
+    /// Leading zeros are digits.
+    #[must_use]
+    pub fn parse(digits: &[u8]) -> Option<u64> {
+        if digits.is_empty() {
+            return None;
+        }
+        let mut value = 0_u64;
+        for &byte in digits {
+            if !byte.is_ascii_digit() {
+                return None;
+            }
+            value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
+        }
+        Some(value)
+    }
+
     /// `n` in decimal digits.
     #[must_use]
     pub fn of(n: u64) -> Decimal {

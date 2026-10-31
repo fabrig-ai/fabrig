@@ -13,6 +13,8 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 
+use crate::growth::growth;
+
 use crate::Overflow;
 use crate::stream::{Delimiter, Read};
 
@@ -57,8 +59,6 @@ impl Until {
     }
 }
 
-const GROWTH_FLOOR: usize = 4;
-
 impl Intake {
     #[must_use]
     pub fn with_capacity(capacity: u32) -> Intake {
@@ -71,6 +71,12 @@ impl Intake {
     #[must_use]
     pub fn price(capacity: u32) -> Option<u64> {
         Some(u64::from(capacity))
+    }
+
+    /// The storage allocated so growth tests can check the allocation contract.
+    #[cfg(test)]
+    pub(crate) fn allocated_capacity(&self) -> usize {
+        self.bytes.capacity()
     }
 
     #[must_use]
@@ -111,8 +117,7 @@ impl Intake {
         }
         let needed = self.bytes.len().checked_add(bytes.len()).expect("within the cap");
         if needed > self.bytes.capacity() {
-            let target =
-                self.bytes.capacity().saturating_mul(2).max(needed).max(GROWTH_FLOOR).min(index(self.capacity));
+            let target = growth(self.bytes.capacity(), needed, self.capacity);
             let additional = target.checked_sub(self.bytes.len()).expect("room for the received bytes");
             self.bytes.reserve_exact(additional);
         }

@@ -1,6 +1,6 @@
 //! Time, deadlines and randomness (lib.md, 8).
 
-use crate::{Deadlines, Duration, Rng, Time, Wall};
+use crate::{Deadlines, Duration, Rng, Time, Wall, earliest};
 
 #[test]
 fn arithmetic_is_checked_or_saturating() {
@@ -74,4 +74,18 @@ fn draws_stay_in_range() {
     let _: u64 = rng.between(0, u64::MAX);
     assert!(!rng.chance(0));
     assert!(rng.chance(1000));
+}
+
+#[test]
+fn the_earliest_deadline_is_the_first_available_time() {
+    for (left, right, expected) in [
+        (None, None, None),
+        (Some(at(10)), None, Some(at(10))),
+        (None, Some(at(20)), Some(at(20))),
+        (Some(at(10)), Some(at(20)), Some(at(10))),
+        (Some(at(20)), Some(at(10)), Some(at(10))),
+        (Some(at(10)), Some(at(10)), Some(at(10))),
+    ] {
+        assert_eq!(earliest(left, right), expected, "left {left:?}, right {right:?}");
+    }
 }
