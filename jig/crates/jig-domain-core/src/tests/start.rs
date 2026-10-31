@@ -175,12 +175,6 @@ fn every_operational_entrance_prevents_late_start() {
             },
         },
         Entrance {
-            name: "made",
-            input: |core, _| {
-                let _route = core.made(Token::new(u64::MAX), Box::new([]));
-            },
-        },
-        Entrance {
             name: "person_proposed",
             input: |core, _| {
                 let token = core
@@ -231,7 +225,7 @@ fn every_operational_entrance_prevents_late_start() {
             name: "sent",
             input: |core, env| {
                 let request = Token::new(1);
-                core.saying.insert(request, (1, None)).expect("message route room");
+                let request = core.fly(crate::flight::Flight::Saying { request, task: 1, question: None });
                 let word = tasks::Word {
                     number: 1,
                     from: tasks::Party::Person(1),

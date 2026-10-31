@@ -302,7 +302,7 @@ fn follow(core: &mut Core, env: &Env<Limits>, event: tasks::Event, pending: &mut
         if let tasks::Request::ProcedureRefused { .. } = &request
             && let Some(token) = procedure
         {
-            drop(core.land(token));
+            drop(core.land_task(token));
         }
         pending.push(request);
     }

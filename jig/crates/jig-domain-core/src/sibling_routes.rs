@@ -25,6 +25,8 @@ pub(crate) fn fleet_grant(grant: accounts::Grant) -> fleet::Grant {
 /// Destination of an accepted message after the task child saved it.
 #[derive(Debug)]
 pub enum SentRoute {
+    /// A retired correlation has no caller.
+    Stale,
     /// A named host call receives its durable answer.
     Call { request: Token, key: CallKey, message: u64 },
     /// A party's keyed request receives its answer from the people child.
@@ -41,7 +43,13 @@ pub enum MadeRoute {
     /// A person request receives its keyed result.
     Person { event: Box<people::Event>, stubs: Box<[tasks::Stub]> },
     /// A named run call receives its batch, after remembering historical stubs.
-    Delegated { key: CallKey, tasks: Box<[u64]>, stubs: Box<[tasks::Stub]>, given: Option<people::Given> },
+    Delegated {
+        request: Token,
+        key: CallKey,
+        tasks: Box<[u64]>,
+        stubs: Box<[tasks::Stub]>,
+        given: Option<people::Given>,
+    },
 }
 
 /// One authenticated person word awaiting a durable task admission.
@@ -83,10 +91,7 @@ impl Core {
             let destination = self.tasks.question_asker(task, person, question).ok_or(people::Refusal::Unknown)?;
             let notice = fresh(&mut self.counters, Family::Message)
                 .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
-            assert!(
-                self.saying.insert(request, (destination, Some(question))) == Ok(None),
-                "one person message flight"
-            );
+            let request = self.fly(Flight::Saying { request, task: destination, question: Some(question) });
             return Ok(tasks::Event::PersonQuestionAnswer {
                 reply_to: skein_lib::ReplyTo::new(request),
                 project,
@@ -105,7 +110,7 @@ impl Core {
                 },
             });
         }
-        assert!(self.saying.insert(request, (task, question)) == Ok(None), "one person message flight");
+        let request = self.fly(Flight::Saying { request, task, question });
         let event = match question {
             Some(_) => tasks::Event::Message {
                 reply_to: skein_lib::ReplyTo::new(request),
@@ -271,20 +276,12 @@ impl Core {
     /// structural reasons are translated at the core's sibling boundary.
     pub fn goal_refused(&mut self, request: Token, why: tasks::Refusal) -> Option<people::Event> {
         self.start_input();
-        let Flight::Goal { request, .. } = self.land(request)? else { return None };
+        let Flight::Goal { request, .. } = self.land_task(request)? else { return None };
         let outcome = crate::routing::refusals::person_task_refusal(self, None, why);
         Some(people::Event::Decided { request, outcome })
     }
 
-    /// Advance a successful batch to the child or caller that owns its
-    /// continuation. The root only carries the returned event or answer.
-    pub fn made(&mut self, token: Token, tasks: Box<[u64]>) -> MadeRoute {
-        self.start_input();
-        let flight = self.land(token);
-        self.made_flight(token, flight, tasks)
-    }
-
-    pub(crate) fn made_flight(&mut self, token: Token, flight: Option<Flight>, tasks: Box<[u64]>) -> MadeRoute {
+    pub(crate) fn made_flight(&mut self, flight: Option<Flight>, tasks: Box<[u64]>) -> MadeRoute {
         match flight {
             Some(Flight::Goal { request, route: GoalRoute::Accepting { proposer, proposal, by } }) => {
                 let row = self.tasks.person_proposal(proposer, proposal).expect("accepted party proposal");
@@ -352,11 +349,10 @@ impl Core {
                     },
                 }),
             },
-            None => match self.delegating.remove(&token) {
-                Some((key, stubs, given)) => MadeRoute::Delegated { key, tasks, stubs, given },
-                None => MadeRoute::Internal,
-            },
-            Some(_) => MadeRoute::Internal,
+            Some(Flight::Delegating { request, route: (key, stubs, given) }) => {
+                MadeRoute::Delegated { request, key, tasks, stubs, given }
+            }
+            None | Some(_) => MadeRoute::Internal,
         }
     }
 
@@ -365,7 +361,7 @@ impl Core {
     pub fn person_proposed(&mut self, request: Token, proposal: u64) -> (people::Event, Box<[tasks::Stub]>) {
         self.start_input();
         let Flight::Goal { request, route: GoalRoute::Offering { proposal: named, to, stubs } } =
-            self.land(request).expect("person proposal flight")
+            self.land_task(request).expect("person proposal flight")
         else {
             return (
                 people::Event::Decided { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) },
@@ -387,7 +383,7 @@ impl Core {
         at: Wall,
     ) -> people::Event {
         self.start_input();
-        let Flight::Goal { request, route } = self.land(request).expect("goal decision flight") else {
+        let Flight::Goal { request, route } = self.land_task(request).expect("goal decision flight") else {
             return people::Event::Decided { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) };
         };
         let (named, proposal, by) = match route {
@@ -542,25 +538,25 @@ impl Core {
             context.inbox = inbox.into_boxed();
             context.last_message = word.number;
         }
-        match self.land(request) {
+        match self.land_task(request) {
             Some(Flight::Call { request, route: RoutedCall::Message(key), .. }) => {
                 SentRoute::Call { request, key, message: word.number }
             }
-            Some(_) | None => {
-                let route = self.saying.remove(&request);
-                let outcome = match route {
-                    Some((named, None)) if named == task => people::Outcome::Said { task, message: word.number },
-                    Some((named, Some(question))) if named == task => {
-                        let asked = match self.people.pending_ask(request) {
+            Some(Flight::Saying { request, task: named, question }) => {
+                assert!(named == task, "person message admitted to its named destination");
+                let outcome = match question {
+                    None => people::Outcome::Said { task, message: word.number },
+                    Some(question) => {
+                        let asked = match self.people.pending_ask(self.people_request(request).expect("party route")) {
                             Some(people::Ask::AnswerQuestion { task, .. }) => *task,
                             Some(_) | None => task,
                         };
                         people::Outcome::QuestionAnswered { task: asked, question, message: word.number }
                     }
-                    Some(_) | None => unreachable!("matching pending person message flight"),
                 };
                 SentRoute::Person(Box::new(people::Event::Decided { request, outcome }))
             }
+            Some(_) | None => SentRoute::Stale,
         }
     }
 }

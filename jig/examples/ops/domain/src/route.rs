@@ -174,7 +174,7 @@ fn event_in(
             crate::assemble::connector_read(domain, to, task, tool, read, work);
         }
         Event::Effect { to, key, effect, deadline, proposal } => {
-            let owner = domain.token();
+            let owner = domain.core.effect_owner();
             domain.effects.insert(owner, effect).expect("admitted decoded effect");
             let origin = match proposal {
                 Some(reason) => core::EffectOrigin::Propose { to, key, reason, as_holder: false },
@@ -1002,7 +1002,7 @@ pub(crate) fn infrastructure_out(
                 let Some((step, connector, code)) = domain.procedures.remove(&task) else { continue };
                 match action {
                     infrastructure::StepDecision::Effect(effect) => {
-                        let owner = domain.token();
+                        let owner = domain.core.effect_owner();
                         domain.effects.insert(owner, effect).expect("admitted procedure effect");
                         domain.effect_procedures.insert(owner, task).expect("procedure effect continuation");
                         work.push(Work::Core(core::Event::EffectStart {

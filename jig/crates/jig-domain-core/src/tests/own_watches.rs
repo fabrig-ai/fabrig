@@ -72,7 +72,7 @@ fn open(core: &mut Core, limits: &Limits, sign_in: u64, watcher: u64, subject: W
 }
 
 fn named(core: &Core, watcher: u64) -> &Subject {
-    let binding = core.view_subjects.get(&Token::new(watcher)).expect("admitted watch");
+    let binding = core.named_watch(Token::new(watcher)).expect("admitted watch");
     &core.view_names.get(binding.subject).expect("bound subject").subject
 }
 
@@ -158,7 +158,7 @@ fn an_own_subject_of_an_ended_sign_in_is_refused_signed_out() {
     for (label, subject) in [("Frame", Watched::Frame), ("Inbox", Watched::Inbox), ("Accounts", Watched::Accounts)] {
         let out = open(&mut core, &limits, sign_in, 30, subject);
         assert_watch_refusal(&out[0], WatchRefusal::SignedOut);
-        assert!(core.view_subjects.is_empty(), "{label}");
+        assert!((core.watch_flights() == 0), "{label}");
     }
 }
 
@@ -182,7 +182,7 @@ fn watching_accounts() -> (Core, Limits) {
 }
 
 fn accounts_marked(core: &Core) -> bool {
-    core.changed_views.contains(&core.view_subjects.get(&Token::new(30)).unwrap().subject)
+    core.changed_views.contains(&core.named_watch(Token::new(30)).unwrap().subject)
 }
 
 fn hello() -> fleet::Event {

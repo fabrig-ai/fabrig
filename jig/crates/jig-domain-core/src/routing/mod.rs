@@ -290,6 +290,7 @@ impl Core {
 /// The parent caller held while the notes child reads its store pages.
 #[derive(Debug)]
 pub(crate) enum NoteRoute {
+    Deletion { project: u32 },
     Call { to: ReplyTo, key: CallKey },
     Person { request: Token },
     Brief { task: u64 },
@@ -305,11 +306,7 @@ pub(crate) enum NoteBrief {
 
 impl Core {
     pub(crate) fn begin_note_route(&mut self, route: NoteRoute) -> Token {
-        let owner = Token::new(self.next_note_owner);
-        self.next_note_owner = self.next_note_owner.checked_add(1).expect("transient note owner space");
-        let previous = self.note_routes.insert(owner, route).expect("notes keeps one pending route plus a refusal");
-        assert!(previous.is_none(), "transient note owners are unique");
-        owner
+        self.fly(crate::flight::Flight::Note(route))
     }
 }
 
@@ -517,10 +514,17 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             view_routes::open_run(core, env, watcher, sign_in, task, turn, offset)
         }
         Event::Unwatch { watcher } => {
+            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
             route_view(core, env, views::Event::EndWatch { watcher, end: views::End::Unwatched })
         }
-        Event::Delivered { watcher } => route_view(core, env, views::Event::Delivered { watcher }),
-        Event::StreamDelivered { watcher } => view_routes::stream_delivered(core, env, watcher),
+        Event::Delivered { watcher } => {
+            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
+            route_view(core, env, views::Event::Delivered { watcher })
+        }
+        Event::StreamDelivered { watcher } => {
+            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
+            view_routes::stream_delivered(core, env, watcher)
+        }
         Event::RunCall { run, attempt, call } => view_routes::run_call(core, env, run, attempt, call),
         Event::RunInput { run, attempt, turn, retry, offset, id, tool, input } => {
             view_routes::run_input(core, env, run, attempt, turn, retry, offset, id, tool, input)

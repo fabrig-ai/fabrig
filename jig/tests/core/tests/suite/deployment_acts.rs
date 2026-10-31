@@ -1,9 +1,8 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    effects::{Cut, World},
-    fixtures::live_row,
-    stories::delegates::delegate_pair,
-};
+use jig_core_world::fixtures::live_row;
+use jig_core_world::stories::delegates::delegate_pair;
+use jig_core_world::world::Cut;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -416,7 +415,7 @@ fn project_world(granted: bool) -> World {
     World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         rows: Some(Box::new([])),
         ..Setup::default()
     })

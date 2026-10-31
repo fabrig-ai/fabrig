@@ -1,9 +1,8 @@
 //! Starts retain durable diagnostic answers (jig/docs/design/domain/engine.md, 6).
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    effects::{World, fixture},
-    fixtures,
-};
+use jig_core_world::fixtures;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
+use jig_core_world::world::fixture;
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -103,7 +102,7 @@ fn unknown_introduction_target_replays_its_original_diagnostic_after_start_link(
 #[test]
 fn retained_malformed_create_keeps_and_replays_the_original_refusal() {
     let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
-    let mut member = fixtures::people_member(b"malformed", 1);
+    let mut member = jig_test_profile::fixtures::people_member(b"malformed", 1);
     member.executor = people::TaskExecutor::Procedure { connector: 0, code: 0 };
     let ask = people::Ask::Create { project: 1, batch: Box::new([member]) };
     let key = people::RequestKey { person: 1, key: [91; 16] };

@@ -151,7 +151,7 @@ fn goal(spec: &[u8], budget: u64, priority: u32) -> people::Ask {
         1,
         spec,
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget, priority, deadline: None },
+        jig_test_profile::fixtures::Goal { budget, priority, deadline: None },
     )
 }
 
@@ -686,7 +686,7 @@ fn a_members_goal_past_their_allotment_becomes_a_proposal_a_maintainer_accepts()
         reply_to: ReplyTo::new(Token::new(2010)),
         sign_in: member_session,
         key: [201; 16],
-        ask: jig_core_world::fixtures::propose_goal(goal(b"ship a goal", 150, 7)),
+        ask: jig_test_profile::fixtures::propose_goal(goal(b"ship a goal", 150, 7)),
     }));
     driver.settle();
     let proposal = proposed(&driver);
@@ -756,7 +756,7 @@ fn two_maintainers_decide_one_proposal_and_the_second_is_told_by_whom_and_how() 
         reply_to: ReplyTo::new(Token::new(2022)),
         sign_in: member_session,
         key: [204; 16],
-        ask: jig_core_world::fixtures::propose_goal(goal(b"race for goal", 150, 3)),
+        ask: jig_test_profile::fixtures::propose_goal(goal(b"race for goal", 150, 3)),
     }));
     driver.settle();
     let proposal = proposed(&driver);

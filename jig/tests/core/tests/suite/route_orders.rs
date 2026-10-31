@@ -1,6 +1,6 @@
 //! Synchronous child routes remain in one decision under watermark pressure.
 use super::admission_support;
-use jig_core_world::effects::World;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -325,7 +325,7 @@ fn reconnect_with_stale_attempt(driver: &mut World, task: u64, attempt: u64) {
         worker: WORKER_NUMBER,
         channel: RECONNECTED_WORKER,
         hello: fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: STOP_BOUND,
             slots: HOSTED,
             workstreams: Box::new([]),

@@ -1,5 +1,7 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{effects::World, reads, stories::reads::request};
+use crate::read_support::request;
+use jig_core_world::reads;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -91,7 +93,7 @@ fn no_run_is_placed_after_the_stop() {
 
 #[test]
 fn a_read_after_the_stop_is_answered_as_before() {
-    let mut world = jig_core_world::stories::reads::world(166);
+    let mut world = crate::read_support::world(166);
     world.stop();
     let task = world.task();
     reads::ask(&mut world, 1, core::reads::Read::Task { task });

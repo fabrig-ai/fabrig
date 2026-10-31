@@ -429,7 +429,6 @@ pub(crate) fn effect_call(
     write: skein_forge::api::Write,
     proposal: Option<(Box<[u8]>, bool)>,
 ) {
-    let owner = effect_owner(domain);
     let flight = match describe_agent(domain, env, key, repository, resource, write) {
         Ok(flight) => flight,
         Err(skein_forge::api::Error::Busy) => {
@@ -441,6 +440,7 @@ pub(crate) fn effect_call(
             return;
         }
     };
+    let owner = effect_owner(domain);
     assert!(domain.forge_effects.insert(owner, flight).is_ok(), "admitted forge effect handoff");
     let deadline = skein_lib::Wall::from_nanos(
         // A call's timeout is its task's charter's (jig's `domain/engine.md`, 7.1).
@@ -3573,9 +3573,7 @@ fn adoption_failure(error: skein_forge::api::Error) -> people::Outcome {
 }
 
 fn effect_owner(domain: &mut Domain) -> Token {
-    let owner = Token::new(domain.next_effect_owner);
-    domain.next_effect_owner = domain.next_effect_owner.checked_add(1).expect("transient effect owner counter");
-    owner
+    domain.core.effect_owner()
 }
 
 /// Assemble connector evidence without replacing the core's status decision.

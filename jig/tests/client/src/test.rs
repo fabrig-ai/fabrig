@@ -404,11 +404,11 @@ pub fn family_request(record: &jig_client::Family) -> domain::family::Ask {
     let request = w::Request::decode(&w::CEILINGS, &mut reader).expect("whole application request").into_parts();
     assert_eq!(reader.remaining(), 0);
     let value = request.value.into_parts();
-    domain::family::Ask::Touch {
+    domain::family::Ask::ChangeObject {
         project: request.project,
-        item: value.object,
+        object: value.object,
         revision: Revision { value: value.revision },
-        parameters: value.value,
+        value: value.value.expect("object request supplies its value"),
     }
 }
 /// The typed test transport retains every supplied family subject field.
@@ -431,10 +431,7 @@ pub fn family_answer(answer: domain::family::Answer) -> jig_client::Answered {
         domain::family::Answer::Refused(why) => {
             jig_client::Answered::Jig(Answer::Refused { refusal: why.into_refusal(), at: None })
         }
-        value @ (domain::family::Answer::Touched { .. }
-        | domain::family::Answer::Moved { .. }
-        | domain::family::Answer::Gone
-        | domain::family::Answer::Connector(_)) => jig_client::Answered::Family(jig_client::Family {
+        value @ domain::family::Answer::Connector(_) => jig_client::Answered::Family(jig_client::Family {
             family: domain::FIRST,
             version: jig_client_test_protocol_wire::VERSION,
             bytes: domain::family::wire::encode_answer(&value).expect("whole application answer"),

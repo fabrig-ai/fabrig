@@ -21,11 +21,11 @@ fn begin(core: &mut Core, limits: &Limits, project: u32) -> (Queue<Work>, Queue<
     (work, out)
 }
 
-fn outcome(mut work: Queue<Work>) -> people::Outcome {
+fn outcome(core: &Core, mut work: Queue<Work>) -> people::Outcome {
     let Some(Work::Event(Event::People(people::Event::Decided { request, outcome }))) = work.pop() else {
         panic!("one deletion answer")
     };
-    assert_eq!(request, Token::new(90));
+    assert_eq!(core.people_request(request).unwrap_or(request), Token::new(90));
     assert!(work.is_empty());
     outcome
 }
@@ -91,7 +91,7 @@ fn removing_a_project_closes_it_and_answers_in_one_decision() {
         Token::new(90),
         people::Act::RemoveProject { project: 1 },
     );
-    assert_eq!(outcome(work), people::Outcome::ProjectRemoved { project: 1 });
+    assert_eq!(outcome(&core, work), people::Outcome::ProjectRemoved { project: 1 });
     assert!(!core.open_project(1));
     assert!(!core.projects.as_slice().contains(&1));
     assert!(!core.names.contains_key(&1));
@@ -117,10 +117,10 @@ fn an_owners_ask_removes_it_and_a_members_is_refused() {
         let mut work = Queue::uncapped();
         let _requests = routing::people_routes::tag_people(&mut core, &environment(&limits), child, &mut work);
         if role == people::Role::Owner {
-            assert_eq!(outcome(work), people::Outcome::ProjectRemoved { project: 1 });
+            assert_eq!(outcome(&core, work), people::Outcome::ProjectRemoved { project: 1 });
             assert!(!core.open_project(1));
         } else {
-            assert_eq!(outcome(work), people::Outcome::Refused(people::Refusal::Role { held: Some(role) }));
+            assert_eq!(outcome(&core, work), people::Outcome::Refused(people::Refusal::Role { held: Some(role) }));
             assert!(core.open_project(1));
         }
     }
@@ -141,7 +141,7 @@ fn removing_an_unknown_or_deleting_project_is_refused_unknown() {
             Token::new(90),
             people::Act::RemoveProject { project },
         );
-        assert_eq!(outcome(work), people::Outcome::Refused(people::Refusal::Unknown));
+        assert_eq!(outcome(&core, work), people::Outcome::Refused(people::Refusal::Unknown));
         assert!(out.is_empty());
     }
 }
@@ -216,7 +216,7 @@ fn close_and_adopt_on_a_closed_project_are_refused_unknown() {
         let mut work = Queue::uncapped();
         let mut out = Queue::uncapped();
         routing::deployment_acts::route(&mut core, &environment(&limits), &mut work, &mut out, Token::new(90), act);
-        assert_eq!(outcome(work), people::Outcome::Refused(people::Refusal::Unknown));
+        assert_eq!(outcome(&core, work), people::Outcome::Refused(people::Refusal::Unknown));
         assert!(out.is_empty());
     }
 }

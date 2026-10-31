@@ -20,7 +20,7 @@ const RELEASED: &[u8] = b"forgettable conversation";
 pub(super) fn action(world: &mut World, action: Action) {
     match action {
         Action::Conversation { forgettable } => {
-            let mut member = jig_core_world::stories::reads::conversation_member(forgettable);
+            let mut member = jig_test_profile::fixtures::conversation_member(forgettable);
             member.words = if forgettable { RELEASED } else { KEPT }.into();
             member.authority.spend = 10;
             member.flags.listed = forgettable;

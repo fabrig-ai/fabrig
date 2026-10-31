@@ -44,7 +44,6 @@ disallowed_methods = "deny"
 jig-client-test-records.workspace = true
 jig-client-protocol-link.workspace = true
 skein-scratch.workspace = true
-jig-core-world = { path = "../../tests/core" }
 jig-domain-core.workspace = true
 jig-test-domain.workspace = true
 skein-kv.workspace = true

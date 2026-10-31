@@ -176,7 +176,7 @@ pub(crate) fn waits(timer: Timer) -> bool {
 
 /// The journal holds this terminal behind every earlier commit.
 pub(crate) fn drained(core: &mut Core, out: &mut Queue<Request>) {
-    if core.draining == Some(true) && core.view_subjects.is_empty() {
+    if core.draining == Some(true) && (core.watch_flights() == 0) {
         core.draining = Some(false);
         out.push(Request::Held(Box::new(Held::Drained)));
     }

@@ -460,9 +460,9 @@ mod activity_tests {
     #[test]
     fn activity_referee_rejects_changed_or_erased_lines() {
         for erased in [false, true] {
-            let configuration = crate::effects::fixture(507, false).0;
+            let configuration = crate::world::fixture(507, false).0;
             let mut observer = Observer::new(&configuration);
-            let mut store = Store::new(&crate::world::limits(), &configuration.core.settings.models);
+            let mut store = Store::new(&jig_test_profile::limits(), &configuration.core.settings.models);
             let row = root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(tasks::ActivityLine {
                 task: 1,
                 position: 1,

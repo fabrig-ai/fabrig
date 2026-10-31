@@ -9,7 +9,7 @@ use jig_test_store_files::{Fault, Store};
 use skein_lib::Wall;
 const LIVE: u64 = 21;
 fn fresh() -> Store {
-    Store::new(&jig_core_world::world::limits(), &[])
+    Store::new(&jig_test_profile::limits(), &[])
 }
 fn save(row: core::CoreRecord) -> root::Write {
     root::Write::Save(root::Record::Core(core::Record::Core(row)))
@@ -169,9 +169,9 @@ fn the_walks_closed_proof_restores_until_the_next_attempt() {
     expected.window.as_mut().expect("parked window").closed = true;
     expected.crossed = true;
     assert_eq!(closed, expected, "the mirror reads the component's own bytes");
-    let limits = jig_core_world::world::limits().core;
+    let limits = jig_test_profile::limits().core;
     let mut engine =
-        core::Core::new(jig_core_world::effects::fixture(f::SEED, false).0.core, &limits).expect("core configuration");
+        core::Core::new(jig_core_world::world::fixture(f::SEED, false).0.core, &limits).expect("core configuration");
     let _loading = engine.start_begin(false, skein_lib::Wall::EPOCH);
     assert_eq!(
         engine.restore(

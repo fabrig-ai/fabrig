@@ -1,5 +1,5 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{effects::World, world};
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -8,7 +8,7 @@ use skein_lib::{ReplyTo, Token};
 
 #[test]
 fn a_delegate_on_another_charter_runs_its_instructions_and_account() {
-    let (config, limits) = world::two_charters(141);
+    let (config, limits) = jig_test_profile::two_charters(141);
     let mut world = World::new(Setup { seed: 141, configuration: Some(config), limits, ..Setup::default() });
     assert_eq!(world.assigned.as_ref().expect("chat").charter, 1);
     world.grant_account(2);
@@ -21,7 +21,7 @@ fn a_delegate_on_another_charter_runs_its_instructions_and_account() {
 
 #[test]
 fn a_task_waits_while_its_charters_account_is_unusable() {
-    let (config, limits) = world::two_charters(142);
+    let (config, limits) = jig_test_profile::two_charters(142);
     let mut world = World::new(Setup { seed: 142, configuration: Some(config), limits, ..Setup::default() });
     let chat = world.assigned.as_ref().expect("chat").task;
     world.delegate_agent(2, b"wait for the account");
@@ -36,7 +36,7 @@ fn a_task_waits_while_its_charters_account_is_unusable() {
 #[test]
 fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
     use jig_domain_fleet as fleet;
-    let (mut config, mut limits) = world::two_charters(151);
+    let (mut config, mut limits) = jig_test_profile::two_charters(151);
     limits.core.fleet.workers = 2;
     config.core.defaults.charters[1].policy.model.name = b"specialist".as_slice().into();
     config.core.settings.llm_providers.providers[1].models = Box::new([b"specialist".as_slice().into()]);
@@ -47,7 +47,7 @@ fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
     world.grant_account(2);
     world.delegate_agent(2, b"wait for a specialist host");
     assert_eq!(world.assigned.as_ref().expect("chat stays assigned").task, chat);
-    let mut bounds = jig_core_world::fixtures::bounds();
+    let mut bounds = jig_test_profile::fixtures::bounds();
     bounds.models[1].name = b"specialist".as_slice().into();
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 1,
@@ -67,7 +67,7 @@ fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
 
 #[test]
 fn a_restart_restores_a_task_on_the_second_charter() {
-    let (config, limits) = world::two_charters(143);
+    let (config, limits) = jig_test_profile::two_charters(143);
     let mut world = World::new(Setup { seed: 143, configuration: Some(config), limits, ..Setup::default() });
     world.delegate_agent(2, b"research across restart");
     let task = world
@@ -83,7 +83,7 @@ fn a_restart_restores_a_task_on_the_second_charter() {
             root::Record::Core(_) | root::Record::Connector { .. } => None,
         })
         .expect("durable delegate");
-    world.restart_with(world::two_charters(143).0);
+    world.restart_with(jig_test_profile::two_charters(143).0);
     world.grant_account(2);
     rejoin(&mut world);
     let assignment = world.assigned.as_ref().expect("restored delegate assigned");
@@ -98,7 +98,7 @@ fn rejoin(world: &mut World) {
         worker: 0,
         channel: skein_lib::Token::new(7),
         hello: jig_domain_fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: 2,
             workstreams: Box::new([]),
@@ -118,14 +118,14 @@ fn set_goal(world: &mut World, charter: u32) {
             1,
             b"Research this goal".as_slice().into(),
             people::TaskExecutor::Agent { charter },
-            jig_core_world::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
+            jig_test_profile::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
         ),
     })));
 }
 
 #[test]
 fn a_goal_on_the_second_charter_is_admitted_and_runs_it() {
-    let (config, limits) = world::two_charters(144);
+    let (config, limits) = jig_test_profile::two_charters(144);
     let mut world = World::new(Setup { seed: 144, configuration: Some(config), limits, ..Setup::default() });
     world.grant_account(2);
     set_goal(&mut world, 2);
@@ -143,7 +143,7 @@ fn a_goal_on_the_second_charter_is_admitted_and_runs_it() {
 
 #[test]
 fn a_goal_naming_an_unoffered_charter_is_refused_not_offered() {
-    let (config, limits) = world::two_charters(145);
+    let (config, limits) = jig_test_profile::two_charters(145);
     let mut world = World::new(Setup { seed: 145, configuration: Some(config), limits, ..Setup::default() });
     set_goal(&mut world, 9);
     assert!(
@@ -199,7 +199,7 @@ fn a_charter_for_the_engine_never_runs_on_a_worker() {
 
 #[test]
 fn a_restart_settles_an_engine_charters_claim_at_once() {
-    let (mut config, mut limits) = jig_core_world::effects::fixture(148, false);
+    let (mut config, mut limits) = jig_core_world::world::fixture(148, false);
     config.core.defaults.charters[0].hosts = jig_domain_fleet::Kinds::Engine;
     limits.core.fleet.engine_slots = 1;
     let mut world = World::new(Setup { seed: 148, configuration: Some(config), limits, ..Setup::default() });
@@ -220,7 +220,7 @@ fn a_restart_settles_an_engine_charters_claim_at_once() {
     assert!(world.store.rows.values().any(|record| matches!(record,
         root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))
         if proof.task == task && proof.host == jig_domain_fleet::HostKind::Engine)));
-    let mut config = jig_core_world::effects::fixture(148, false).0;
+    let mut config = jig_core_world::world::fixture(148, false).0;
     config.core.defaults.charters[0].hosts = jig_domain_fleet::Kinds::Engine;
     world.restart_with(config);
     assert!(world.domain.ready(), "restart does not wait for a worker hello");
@@ -235,7 +235,7 @@ fn worker_with_affinity(world: &mut World, task: u64) {
         worker: 0,
         channel: Token::new(8),
         hello: fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: 1,
             workstreams: Box::new([task]),
@@ -245,7 +245,7 @@ fn worker_with_affinity(world: &mut World, task: u64) {
 }
 
 fn both_host_world(seed: u64) -> World {
-    let (mut config, mut limits) = world::two_charters(seed);
+    let (mut config, mut limits) = jig_test_profile::two_charters(seed);
     config.core.defaults.charters[1].hosts = jig_domain_fleet::Kinds::Both;
     limits.core.fleet.engine_slots = 1;
     limits.core.fleet.slots = 1;

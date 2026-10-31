@@ -3,7 +3,7 @@ use crate::harness::{ClientId, Front, FrontFault, Observed};
 use crate::test::Test;
 use jig_client::{Ask, Down, Readable, Watchable};
 use jig_client_domain::contract::{
-    ObjectKey, Read, ReadNone, ReadResult, ReadValue, Revision, Subject, VersionRange, WatchEnd, WatchEvent,
+    ObjectKey, Read, ReadNone, ReadResult, ReadValue, Subject, VersionRange, WatchEnd, WatchEvent,
 };
 use jig_client_scripted_engine::{self as engine, Application, ApplicationValue, Decision, Envelope, Truth, Up};
 use jig_client_test_domain::{self as domain, Event, Request, family, first};
@@ -23,26 +23,6 @@ impl Application for Family {
     type Document = family::Document;
     fn decide(&mut self, _: &Truth, _: u64, ask: &Self::Ask, _: Wall) -> Decision<Self::Answer> {
         let answer = match ask {
-            family::Ask::Touch { project, item, revision, parameters } => {
-                let subject =
-                    family::Subject { scope: family::Scope::Project(*project), kind: family::Kind::Item(*item) };
-                match self.documents.get_mut(&subject) {
-                    Some(family::Document::Item(doc)) if doc.revision == *revision => {
-                        doc.revision = Revision { value: doc.revision.value + 1 };
-                        if let Some(value) = parameters {
-                            doc.value = *value;
-                        }
-                        family::Answer::Touched { item: *item, revision: doc.revision }
-                    }
-                    Some(doc) => match doc.revision() {
-                        Some(revision) => family::Answer::Moved { item: *item, revision },
-                        None => family::Answer::Connector(jig_client_test_domain::connector_values::ConnectorAnswer {
-                            value: jig_client_test_domain::connector_values::ApplicationOutcome::Unknown,
-                        }),
-                    },
-                    None => family::Answer::Gone,
-                }
-            }
             family::Ask::ChangeObject { project, object, revision, value } => {
                 let subject =
                     family::Subject { scope: family::Scope::Project(*project), kind: family::Kind::Item(*object) };
@@ -78,9 +58,7 @@ impl Application for Family {
                             jig_client_test_domain::connector_values::ApplicationOutcome::Unknown
                         }
                     },
-                    None | Some(family::Document::Item(_) | family::Document::Part(_)) => {
-                        jig_client_test_domain::connector_values::ApplicationOutcome::Unknown
-                    }
+                    None => jig_client_test_domain::connector_values::ApplicationOutcome::Unknown,
                 };
                 family::Answer::Connector(jig_client_test_domain::connector_values::ConnectorAnswer { value: outcome })
             }
@@ -109,7 +87,6 @@ impl Application for Family {
 }
 fn family_document_fits(document: &family::Document, bounds: &engine::Bounds) -> bool {
     match document {
-        family::Document::Item(_) | family::Document::Part(_) => document.fits(bounds.rows),
         family::Document::Connector(value) => {
             let limits = domain::connector_values::ConnectorLimits {
                 rows: bounds.rows,
@@ -132,6 +109,7 @@ pub struct Scripted {
     /// Whole subjects received at the scripted engine boundary.
     pub opened: Vec<Subject>,
     pub engine: engine::Engine<Family>,
+    pub compositions: BTreeMap<first::Address, family::PageComposition>,
     ledger: Ledger<Token, ()>,
     parties: BTreeMap<ClientId, u64>,
     hellos: std::collections::BTreeSet<ClientId>,
@@ -178,6 +156,7 @@ impl Scripted {
         }
         Self {
             opened: Vec::new(),
+            compositions: BTreeMap::new(),
             ledger: Ledger::new("scripted wire operation"),
             engine: engine::Engine::with_application(script, seed, family).expect("script keeps contract"),
             parties: BTreeMap::new(),
@@ -291,7 +270,15 @@ impl Front<Test> for Scripted {
     }
     fn starting(&mut self, client: ClientId) -> Vec<Event> {
         self.hellos.insert(client);
-        vec![crate::test::up(jig_client::Up::SignedIn)]
+        let mut events: Vec<_> = self
+            .compositions
+            .iter()
+            .map(|(address, composition)| {
+                Event::First(first::Event::Compose { address: *address, composition: composition.clone() })
+            })
+            .collect();
+        events.push(crate::test::up(jig_client::Up::SignedIn));
+        events
     }
     fn wire(&mut self, client: ClientId, now: Time, wall: Wall, request: Request) {
         let party = self.parties[&client];

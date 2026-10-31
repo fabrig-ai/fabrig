@@ -269,11 +269,11 @@ mod tests {
 
     #[test]
     fn encoded_family_requests_keep_their_card_and_revision() {
-        let record = crate::family::request(&jig_client_test_domain::family::Ask::Touch {
+        let record = crate::family::request(&jig_client_test_domain::family::Ask::ChangeObject {
             project: PROJECT,
-            item: TASK,
+            object: TASK,
             revision: c::Revision { value: 5 },
-            parameters: None,
+            value: 0,
         });
         let envelope = w::FamilyRequest::new(
             &w::CEILINGS,

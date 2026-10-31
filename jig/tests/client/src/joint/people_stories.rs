@@ -112,7 +112,7 @@ fn a_person_stops_a_run_and_releases_it() {
 fn a_request_sent_twice_is_made_once_across_an_engine_restart() {
     use skein_fake_person::{Face, Found, TreeFace};
     fn configuration() -> jig_test_domain::Config {
-        jig_core_world::world::config(8510)
+        jig_test_profile::config(8510)
     }
     let mut world = super::configured_world(super::turn(), |front| front.restart_configuration(configuration));
     let client = world.client(1, crate::stories::conversation());

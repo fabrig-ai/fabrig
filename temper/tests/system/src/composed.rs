@@ -86,7 +86,7 @@ enum Adoption {
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
     seed: u64,
-    creating: jig_core_world::fixtures::Creating,
+    creating: jig_test_profile::fixtures::Creating,
     chat_ending: tasks::EndedBy,
     root: engine::Domain,
     env: Env<engine::Limits>,
@@ -383,7 +383,7 @@ impl World {
         let store = temper_engine_domain_world::fixtures::restored_store(bootstrap, &limits);
         Self {
             seed,
-            creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
+            creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             chat_ending: config
                 .core
                 .defaults

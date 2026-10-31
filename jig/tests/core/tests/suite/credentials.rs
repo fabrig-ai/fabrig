@@ -1,14 +1,13 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    effects::World,
-    fixtures::{CREDENTIAL_RESOURCE, WORKSPACE_CREDENTIAL, ask_as},
-    world,
-};
+use jig_core_world::fixtures::ask_as;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_test_domain as root;
+use jig_test_profile::fixtures::CREDENTIAL_RESOURCE;
+use jig_test_profile::fixtures::WORKSPACE_CREDENTIAL;
 use skein_lib::{Duration, Time, Token, Wall};
 
 #[path = "../credentials/move_retention.rs"]
@@ -17,7 +16,7 @@ mod move_retention;
 mod moves;
 
 fn configured(seed: u64) -> World {
-    let (config, limits) = world::with_workspace_credential(seed);
+    let (config, limits) = jig_test_profile::with_workspace_credential(seed);
     let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
     let (now, wall) = world.clocks();
     world.set_clock(now, wall);
@@ -46,7 +45,7 @@ fn hello(world: &mut World) {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
             slots: 2,
             workstreams: Box::new([]),
@@ -99,7 +98,7 @@ fn a_new_credential_generation_reaches_the_live_run() {
 fn an_adopted_run_is_sent_its_credential_again() {
     let mut world = delegated(153);
     let task = world.assigned.as_ref().expect("delegate assigned").task;
-    world.restart_with(world::with_workspace_credential(153).0);
+    world.restart_with(jig_test_profile::with_workspace_credential(153).0);
     grant(&mut world, 4);
     hello(&mut world);
     assert_eq!(
@@ -119,7 +118,7 @@ fn an_adopted_run_is_sent_its_credential_again() {
 /// The core world with a provider offering a sign-in, and room for a party's account beside the
 /// configured one.
 fn signing_configuration(seed: u64) -> (root::Config, root::Limits) {
-    let (mut config, mut limits) = jig_core_world::effects::fixture(seed, false);
+    let (mut config, mut limits) = jig_core_world::world::fixture(seed, false);
     config.core.settings.llm_providers = accounts::Providers {
         providers: Box::new([accounts::Provider {
             name: b"Fake".as_slice().into(),
@@ -611,8 +610,8 @@ fn a_carried_llm_key_is_returned_unused_while_stopping() {
 
 fn own_key_run(seed: u64) -> (World, u32, u32) {
     let (config, limits) = signing_configuration(seed);
-    let initial = jig_core_world::fixtures::create_chat(
-        &jig_core_world::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
+    let initial = jig_test_profile::fixtures::create_chat(
+        &jig_test_profile::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
         1,
         0,
         b"make an effect".as_slice().into(),
@@ -742,7 +741,7 @@ fn claim_keeps_pin_and_bindings(world: &World, task: u64, attempt: u64, account:
 }
 
 fn program_configuration(seed: u64) -> (root::Config, root::Limits) {
-    let (mut config, limits) = jig_core_world::effects::fixture(seed, false);
+    let (mut config, limits) = jig_core_world::world::fixture(seed, false);
     config.core.settings.models[0].program = Some(b"claude_code".as_slice().into());
     config.core.defaults.charters[0].policy.model.program = Some(b"claude_code".as_slice().into());
     config.core.settings.llm_providers.providers[0].offers.programs = Box::new([b"claude_code".as_slice().into()]);
@@ -751,13 +750,13 @@ fn program_configuration(seed: u64) -> (root::Config, root::Limits) {
 #[test]
 fn an_adopted_program_run_is_sent_its_grant_again() {
     let (config, limits) = program_configuration(159);
-    let initial = jig_core_world::fixtures::create_chat(
-        &jig_core_world::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
+    let initial = jig_test_profile::fixtures::create_chat(
+        &jig_test_profile::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
         1,
         0,
         b"make an effect".as_slice().into(),
     );
-    let mut rows = jig_core_world::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
+    let mut rows = jig_test_profile::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
     for row in &mut rows {
         if let root::Record::Core(core::Record::Accounts(accounts::Stored::Account { holder, .. })) = row {
             *holder = accounts::Holder::Party(1);

@@ -240,30 +240,20 @@ fn rows(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project: u
     crate::routing::deletion_event(core, env, Event::Tasks(tasks::Event::CloseProject { project }), out);
     crate::routing::deletion_event(core, env, Event::Account(accounts::Event::ForgetProject { project }), out);
     crate::routing::deletion_event(core, env, Event::People(people::Event::ForgetProject { project }), out);
-    let owner = Token::new(core.next_note_owner);
-    core.next_note_owner = core.next_note_owner.checked_add(1).expect("transient note owner space");
+    let owner = core.begin_note_route(crate::routing::NoteRoute::Deletion { project });
     core.deletions.live.get_mut(&project).expect("kept deletion").notes = Some(owner);
     crate::routing::deletion_event(core, env, Event::Notes(notes::Event::DropProject { owner, project }), out);
 }
 
 /// Continue a project's deletion once its notes are dropped.
-pub(crate) fn notes_dropped(core: &mut Core, env: &Env<Limits>, owner: Token) -> Queue<Request> {
-    let mut out = Queue::uncapped();
-    let mut project = None;
-    for (&number, state) in &core.deletions.live {
-        if state.notes == Some(owner) {
-            project = Some(number);
-            break;
-        }
-    }
-    if let Some(project) = project {
+pub(crate) fn notes_dropped(core: &mut Core, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    if let Some(crate::routing::NoteRoute::Deletion { project }) = core.take_note(owner) {
         let state = core.deletions.live.get_mut(&project).expect("kept deletion");
         state.notes = None;
         state.step = people::DeletionStep::Release;
-        keep(core, env, &mut out, project, Some(people::DeletionStep::Release));
-        release(core, env, &mut out, project);
+        keep(core, env, out, project, Some(people::DeletionStep::Release));
+        release(core, env, out, project);
     }
-    out
 }
 
 fn release(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project: u32) {
@@ -307,19 +297,8 @@ fn finish(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project:
 }
 
 /// A failed notes load leaves Rows kept and retries on the next iteration.
-pub(crate) fn notes_refused(core: &mut Core, owner: Token) -> bool {
-    let mut project = None;
-    for (&number, state) in &core.deletions.live {
-        if state.notes == Some(owner) {
-            project = Some(number);
-            break;
-        }
-    }
-    if let Some(project) = project {
-        core.deletions.live.get_mut(&project).expect("kept deletion").notes = None;
-        return true;
-    }
-    false
+pub(crate) fn notes_refused(core: &mut Core, project: u32) {
+    core.deletions.live.get_mut(&project).expect("kept deletion").notes = None;
 }
 
 /// The child completed the project's bounded cancellation decision.

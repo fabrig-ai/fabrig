@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 skein-lib.workspace = true
 jig-domain-core.workspace = true
+jig-domain-hub-link.workspace = true
 jig-protocol-tools.workspace = true
 jig-protocol-store.workspace = true
 jig-domain-brief.workspace = true

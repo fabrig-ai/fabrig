@@ -1,4 +1,4 @@
-//! The application's actual scoped owner values (client/domain/root.md, 6–7).
+//! The application's scoped connector values (client/domain/root.md, 6–7).
 use crate::{
     connector_values::{ConnectorAnswer, ConnectorDocument, ConnectorLimits},
     family,
@@ -20,19 +20,18 @@ pub fn subject(value: family::Subject) -> (ClientScope, jig_client_test_protocol
         family::Scope::Project(project) => ClientScope::Project(project),
         family::Scope::Deployment => ClientScope::Deployment,
     };
-    (scope, scripted::subject(value))
+    (scope, subject_fields::subject(value))
 }
 /// Recover the whole family subject, including jig proposal makers.
 #[must_use]
 pub fn subject_value(value: jig_client_test_protocol_wire::v2::FamilySubject) -> family::Subject {
-    scripted::subject_value(value)
+    subject_fields::subject_value(value)
 }
-/// Carry absent parameters explicitly, separately from an explicit zero.
+/// Carry the object form's supplied value, including an explicit zero.
 #[must_use]
 pub fn request(value: &family::Ask) -> (u32, jig_client_test_protocol_wire::v2::ApplicationRequest) {
     use jig_client_test_protocol_wire::v2 as w;
     let (project, object, revision, value) = match value {
-        family::Ask::Touch { project, item, revision, parameters } => (*project, *item, revision.value, *parameters),
         family::Ask::ChangeObject { project, object, revision, value } => {
             (*project, *object, revision.value, Some(*value))
         }
@@ -207,12 +206,11 @@ mod tests {
     }
 }
 
-mod scripted {
-    //! Exact scripted-family fields, separate from the connector's vocabulary.
+mod subject_fields {
+    //! Family subjects retain jig proposal keys separately from connector references.
     use crate::family as d;
-    use jig_client::contract::{ProposalKey, Proposer, Revision};
+    use jig_client::contract::{ProposalKey, Proposer};
     use jig_client_test_protocol_wire::v2 as w;
-    use skein_lib::List;
 
     pub(super) fn key(value: ProposalKey) -> w::FamilyProposalKey {
         let proposer = match value.proposer {
@@ -273,118 +271,18 @@ mod scripted {
         };
         d::Subject { scope, kind }
     }
-    pub(super) fn item(value: &d::Item) -> w::Item {
-        let state = match value.state {
-            d::ItemState::Ready => w::ItemState::Ready,
-            d::ItemState::Held => w::ItemState::Held,
-            d::ItemState::Ended => w::ItemState::Ended,
-        };
-        let mut proposals = List::with_capacity(value.proposals.len());
-        for proposal in &value.proposals {
-            proposals.push(key(*proposal)).expect("reserved proposal keys");
-        }
-        w::Item::new(
-            &w::CEILINGS,
-            w::ItemParts {
-                project: value.project,
-                key: value.key,
-                revision: value.revision.value,
-                state,
-                value: value.value,
-                task: value.task,
-                second: value.second,
-                proposals,
-                touchable: value.touchable,
-            },
-        )
-        .expect("admitted item")
-    }
-    pub(super) fn item_value(value: w::Item) -> d::Item {
-        let value = value.into_parts();
-        let state = match value.state {
-            w::ItemState::Ready => d::ItemState::Ready,
-            w::ItemState::Held => d::ItemState::Held,
-            w::ItemState::Ended => d::ItemState::Ended,
-        };
-        let mut proposals = List::with_capacity(value.proposals.len());
-        for proposal in &value.proposals {
-            proposals.push(key_value(proposal.clone())).expect("reserved proposal keys");
-        }
-        d::Item {
-            project: value.project,
-            key: value.key,
-            revision: Revision { value: value.revision },
-            state,
-            value: value.value,
-            task: value.task,
-            second: value.second,
-            proposals,
-            touchable: value.touchable,
-        }
-    }
-    #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-    pub(super) fn part(value: &d::PartDocument) -> w::PartDocument {
-        let parameters = match value.parameters {
-            Some(value) => Some(
-                w::Parameters::new(
-                    &w::CEILINGS,
-                    w::ParametersParts {
-                        item: value.item,
-                        revision: value.revision.value,
-                        value: value.value,
-                        amendable: value.amendable,
-                    },
-                )
-                .expect("fixed parameters"),
-            ),
-            None => None,
-        };
-        w::PartDocument::new(
-            &w::CEILINGS,
-            w::PartDocumentParts {
-                subject: subject(value.subject),
-                revision: value.revision.value,
-                value: value.value,
-                parameters,
-            },
-        )
-        .expect("fixed part")
-    }
-    pub(super) fn part_value(value: w::PartDocument) -> d::PartDocument {
-        let value = value.into_parts();
-        let parameters = match value.parameters {
-            Some(value) => {
-                let value = value.into_parts();
-                Some(d::Parameters {
-                    item: value.item,
-                    revision: Revision { value: value.revision },
-                    value: value.value,
-                    amendable: value.amendable,
-                })
-            }
-            None => None,
-        };
-        d::PartDocument {
-            subject: subject_value(value.subject),
-            revision: Revision { value: value.revision },
-            value: value.value,
-            parameters,
-        }
-    }
 }
 
-/// Encode every scripted field and the complete connector document, with its supplied subject.
+/// Encode the complete connector document with its supplied subject.
 #[must_use]
 pub fn encode_document(value: &family::Document) -> Box<[u8]> {
     use jig_client_test_protocol_wire::{codec, v2 as w};
     let value = match value {
-        family::Document::Item(value) => w::FamilyDocument::Item(scripted::item(value)),
-        family::Document::Part(value) => w::FamilyDocument::Part(scripted::part(value)),
         family::Document::Connector(value) => w::FamilyDocument::Connector(
             w::FamilyConnectorDocument::new(
                 &w::CEILINGS,
                 w::FamilyConnectorDocumentParts {
-                    subject: scripted::subject(value.subject),
+                    subject: subject_fields::subject(value.subject),
                     value: codec::family::connector_document(&value.value),
                 },
             )
@@ -401,26 +299,20 @@ pub fn decode_document(
     limits: &ConnectorLimits,
 ) -> Result<family::Document, Invalid> {
     use jig_client_test_protocol_wire::{codec, v2 as w};
-    let Ok(value) = codec::family::document_value(bytes, bounds, limits.rows) else { return Err(Invalid::TooLarge) };
-    let value = match value {
-        w::FamilyDocument::Item(value) => family::Document::Item(scripted::item_value(value)),
-        w::FamilyDocument::Part(value) => family::Document::Part(scripted::part_value(value)),
+    let Ok(value) = codec::family::document_value(bytes, bounds) else { return Err(Invalid::TooLarge) };
+    match value {
         w::FamilyDocument::Connector(value) => {
             let value = value.into_parts();
-            let subject = scripted::subject_value(value.subject);
+            let subject = subject_fields::subject_value(value.subject);
             let Ok(value) = codec::family::connector_document_value(value.value, bounds) else {
                 return Err(Invalid::TooLarge);
             };
-            return match document(subject, value, limits) {
+            match document(subject, value, limits) {
                 Ok(value) => Ok(family::Document::Connector(value)),
                 Err(why) => Err(why),
-            };
+            }
         }
-    };
-    if !value.fits(limits.rows) {
-        return Err(Invalid::TooLarge);
     }
-    Ok(value)
 }
 
 /// # Errors
@@ -428,15 +320,6 @@ pub fn decode_document(
 pub fn encode_answer(value: &family::Answer) -> Result<Box<[u8]>, Invalid> {
     use jig_client_test_protocol_wire::{codec, v2 as w};
     let value = match value {
-        family::Answer::Touched { item, revision } => w::FamilyAnswer::Touched(
-            w::FamilyRevision::new(&w::CEILINGS, w::FamilyRevisionParts { item: *item, revision: revision.value })
-                .expect("fixed family revision"),
-        ),
-        family::Answer::Moved { item, revision } => w::FamilyAnswer::Moved(
-            w::FamilyRevision::new(&w::CEILINGS, w::FamilyRevisionParts { item: *item, revision: revision.value })
-                .expect("fixed family revision"),
-        ),
-        family::Answer::Gone => w::FamilyAnswer::Gone,
         family::Answer::Refused(_) => return Err(Invalid::EntranceRefusal),
         family::Answer::Connector(value) => w::FamilyAnswer::Connector(codec::family::connector_answer(&value.value)),
     };
@@ -445,19 +328,9 @@ pub fn encode_answer(value: &family::Answer) -> Result<Box<[u8]>, Invalid> {
 /// # Errors
 /// Refuses malformed records or values outside the family's configured bounds.
 pub fn decode_answer(bytes: &[u8], bounds: &jig_test_connector::Limits) -> Result<family::Answer, Invalid> {
-    use jig_client::contract::Revision;
     use jig_client_test_protocol_wire::{codec, v2 as w};
     let Ok(value) = codec::family::answer_value(bytes, bounds) else { return Err(Invalid::TooLarge) };
     let value = match value {
-        w::FamilyAnswer::Touched(value) => {
-            let value = value.into_parts();
-            family::Answer::Touched { item: value.item, revision: Revision { value: value.revision } }
-        }
-        w::FamilyAnswer::Moved(value) => {
-            let value = value.into_parts();
-            family::Answer::Moved { item: value.item, revision: Revision { value: value.revision } }
-        }
-        w::FamilyAnswer::Gone => family::Answer::Gone,
         w::FamilyAnswer::Connector(value) => {
             family::Answer::Connector(answer(codec::family::connector_answer_value(value, bounds)))
         }

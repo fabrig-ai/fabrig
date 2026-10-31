@@ -128,7 +128,7 @@ fn busy_and_stale_amendment_loads_leave_the_target_unchanged() {
             );
         }
         assert_eq!(core.tasks.task(TARGET), Some(&before), "{label}");
-        assert!(core.result_reads.is_empty(), "{label}");
+        assert!((core.result_read_flights() == 0), "{label}");
     }
 }
 
@@ -138,7 +138,7 @@ fn owner_cleanup_drops_all_waiting_amendments_and_late_answers() {
     let request = agent_read(&mut core, &limits);
     // Use the same owner cleanup as preparation and run departure.
     routing::result_reads::clear(&mut core, AMENDER);
-    assert!(core.result_reads.is_empty());
+    assert!((core.result_read_flights() == 0));
     assert!(!core.pending_calls.contains_key(&CALL));
     let out = watch_outputs(&mut core, &limits, Event::EndedTaskLoaded { request, row: None, busy: false });
     assert!(out.is_empty());

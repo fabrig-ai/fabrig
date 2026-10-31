@@ -67,7 +67,11 @@ fn an_application_ask_on_a_closed_project_is_refused_as_on_one_never_made() {
     let [Request::Held(unknown_reply), Request::Ask { ask: Ask::DropApplication { .. }, .. }] = unknown.as_ref() else {
         panic!("unknown project refuses without a save: {unknown:?}");
     };
-    assert!(core.applications.is_empty());
+    for (_, flight) in &core.flights {
+        if let crate::flight::Flight::Application { .. } = flight {
+            panic!("refusal retains no application continuation");
+        }
+    }
     assert!(core.application_input.is_none());
     let [Request::Held(reply), Request::Ask { ask: Ask::DropApplication { .. }, .. }] = closed.as_ref() else {
         panic!("refusal has no flight or save: {closed:?}");
@@ -130,10 +134,11 @@ fn a_watch_on_a_closed_project_is_refused_and_a_live_one_ends() {
             window: window(),
         },
     );
+    let internal = core.watch_token(application_watcher).expect("admitted application watch");
     watch_outputs(
         &mut core,
         &limits,
-        Event::View(views::Event::Made { watcher: application_watcher, outcome: views::Made::Ready }),
+        Event::View(views::Event::Made { watcher: internal, outcome: views::Made::Ready }),
     );
     close(&mut core);
     let mut out = routing::view_routes::close_views(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, 1);
@@ -152,7 +157,7 @@ fn a_watch_on_a_closed_project_is_refused_and_a_live_one_ends() {
         panic!("application watch ending");
     };
     assert_eq!((*ended, *why), (application_watcher, views::End::Gone));
-    assert!(core.view_subjects.is_empty());
+    assert_eq!(core.watch_flights(), 0);
     let repeated = routing::view_routes::close_views(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, 1);
     assert!(repeated.is_empty(), "retired subjects need no second ending");
     for project in [1, 99] {
