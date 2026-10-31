@@ -61,10 +61,16 @@ pub(super) enum Source {
     Prepared,
     Managed,
 }
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum IntentSource {
+    Request,
+    Record,
+}
 #[derive(Debug)]
 pub(super) struct Local {
     pub(super) source: Source,
     pub(crate) first: Option<Intent>,
+    pub(super) first_source: IntentSource,
     pub(super) repositories: u64,
     pub(super) pending: bool,
     pub(super) restored: bool,
@@ -122,9 +128,31 @@ pub(super) struct Lifecycle {
     restored: bool,
 }
 impl Lifecycle {
-    #[cfg(test)]
     pub(crate) const fn startup_restored(&self) -> bool {
         self.restored
+    }
+    pub(super) fn forget(&mut self, forge: u16) {
+        self.adoptions.remove(&forge);
+        self.reconcile.remove(&forge);
+        self.deleting.remove(&forge);
+        let mut deleted = List::with_capacity(self.deleted.len());
+        for (key, ()) in &self.deleted {
+            if key.0 == forge {
+                deleted.push(*key).expect("deleted installations");
+            }
+        }
+        for key in deleted.into_boxed() {
+            self.deleted.remove(&key);
+        }
+        let mut installations = List::with_capacity(self.installations.len());
+        for (key, _) in &self.installations {
+            if key.0 == forge {
+                installations.push(*key).expect("known installations");
+            }
+        }
+        for key in installations.into_boxed() {
+            self.installations.remove(&key);
+        }
     }
     pub(super) fn local(&self, forge: u16) -> Option<&Local> {
         match self.reconcile.get(&forge) {
@@ -259,7 +287,7 @@ pub(super) fn has_app(engine: &crate::engine::Engine, forge: u16) -> bool {
     }
 }
 pub(crate) fn state(engine: &mut crate::engine::Engine, forge: u16, state: domain::Connection) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
     engine.events.push(root::Event::Forge(Box::new(domain::Event::Connection { forge, state })));
@@ -275,7 +303,7 @@ pub(super) fn keep(engine: &mut crate::engine::Engine, forge: u16, item: Item, b
     engine
         .setup
         .writes
-        .insert(owner, Write { purpose, number, value: value.clone() })
+        .insert(owner, Write { forge, purpose, number, value: value.clone() })
         .ok()
         .expect("bounded setup writes");
     if let Some(terminal) = engine.store.secrets(
@@ -305,10 +333,11 @@ fn manifest_back(engine: &crate::engine::Engine, token: Token) -> Option<&[u8]> 
         _ => None,
     }
 }
+#[expect(clippy::too_many_lines, reason = "each setup plan completes through its own durable writes")]
 pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: reconcile::Outcome) {
-    let run = engine.setup.runs.get(&token).expect("ended setup run");
+    let Some(run) = engine.setup.runs.get(&token) else { return };
     let (forge, kind) = (run.forge, run.kind);
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         refused(engine, token, forge, Box::from(b"forge ended".as_slice()));
         return;
     }
@@ -328,7 +357,8 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
     }
     if kind == Kind::LocalReconcile {
         engine.setup.runs.get_mut(&token).expect("reconcile done").kind = Kind::LocalConnect;
-        let origin = records::origin(connection::settings::Kind::Forgejo, &configured(engine, forge).api).encode();
+        let Some(config) = configured(engine, forge) else { return };
+        let origin = records::origin(connection::settings::Kind::Forgejo, &config.api).encode();
         keep(engine, forge, Item::Origin, &origin, Purpose::LocalOrigin(token));
         return;
     }
@@ -358,12 +388,13 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
         {
             engine.notes.push(crate::Note::ForgeLacking { number: forge, names: super::diagnostics::names(lacking) });
         }
-        let origin = records::origin(connection::settings::Kind::GitHub, &configured(engine, forge).api).encode();
+        let Some(config) = configured(engine, forge) else { return };
+        let origin = records::origin(connection::settings::Kind::GitHub, &config.api).encode();
         keep(engine, forge, Item::Origin, &origin, Purpose::PasteOrigin(token));
         return;
     }
     if kind == Kind::Convert {
-        let config = configured(engine, forge);
+        let Some(config) = configured(engine, forge) else { return };
         let origin = records::origin(connection::settings::Kind::GitHub, &config.api).encode();
         keep(engine, forge, Item::Origin, &origin, Purpose::Origin(token));
         return;
@@ -409,7 +440,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
 }
 pub(super) fn stopped(engine: &mut crate::engine::Engine, token: Token, failure: reconcile::Failure) {
     super::public::stopped(engine, token, &failure);
-    let run = engine.setup.runs.get(&token).expect("stopped setup run");
+    let Some(run) = engine.setup.runs.get(&token) else { return };
     if crate::forge::ended(engine, run.forge) {
         let forge = run.forge;
         refused(engine, token, forge, Box::from(b"forge ended".as_slice()));
@@ -504,11 +535,28 @@ fn finish(engine: &mut crate::engine::Engine, token: Token, end: root::SetupEnd)
     }
 }
 pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
+    match &purpose {
+        Purpose::Host(run)
+        | Purpose::Origin(run)
+        | Purpose::PasteOrigin(run)
+        | Purpose::LocalOrigin(run)
+        | Purpose::AdminOrigin(run)
+        | Purpose::Admin(run) => {
+            if !engine.setup.runs.contains_key(run) {
+                return;
+            }
+        }
+        Purpose::Deleted(forge) => {
+            if !engine.setup.served.contains_key(forge) {
+                return;
+            }
+        }
+    }
     match purpose {
         Purpose::AdminOrigin(run) => admin_create(engine, run),
         Purpose::Admin(run) => {
             let forge = engine.setup.runs.get(&run).expect("admin waits on Kept").forge;
-            if crate::forge::ended(engine, forge) {
+            if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
                 refused(engine, run, forge, Box::from(b"forge ended".as_slice()));
                 return;
             }
@@ -541,11 +589,19 @@ pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
         }
     }
 }
-fn configured(engine: &crate::engine::Engine, number: u16) -> &crate::settings::Forge {
-    engine.workers.forges.get(number).expect("configured setup forge")
+fn configured(engine: &crate::engine::Engine, number: u16) -> Option<&crate::settings::Forge> {
+    if !engine.setup.served.contains_key(&number)
+        && !engine.setup.unserved.contains_key(&number)
+        && !engine.setup.lifecycle.reconcile.contains_key(&number)
+        && !engine.setup.lifecycle.adoptions.contains_key(&number)
+    {
+        return None;
+    }
+    engine.workers.forges.get(number)
 }
 pub(super) fn connect(engine: &mut crate::engine::Engine, forge: u16) {
-    let expected = records::origin(connection::settings::Kind::GitHub, &configured(engine, forge).api);
+    let Some(config) = configured(engine, forge) else { return };
+    let expected = records::origin(connection::settings::Kind::GitHub, &config.api);
     let access = match engine.forge_records.rows.forge(forge) {
         Some(rows) => {
             records::access(connection::settings::Kind::GitHub, &expected, rows, &engine.forge_records.bounds, false)
@@ -582,10 +638,10 @@ pub(super) fn installations(engine: &mut crate::engine::Engine, forge: u16) {
     engine.forge.down(connection::Request::Installations { forge, accepted });
 }
 pub(crate) fn connected(engine: &mut crate::engine::Engine, forge: u16) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
-    let config = configured(engine, forge);
+    let Some(config) = configured(engine, forge) else { return };
     let github = config.kind == crate::settings::Kind::GitHub;
     let (id, login) = if github {
         let rows = engine.forge_records.rows.forge(forge).expect("Connected has records");
@@ -652,6 +708,9 @@ pub(crate) fn installation(
     account: Option<connection::Account>,
     change: connection::Change,
 ) {
+    if configured(engine, forge).is_none() || !engine.setup.served.contains_key(&forge) {
+        return;
+    }
     if change == connection::Change::Deleted || change == connection::Change::Suspended {
         crate::forge::tokens::removed(engine, forge, installation);
     }
@@ -848,7 +907,7 @@ fn start_pending(engine: &mut crate::engine::Engine, forge: u16) -> bool {
     false
 }
 fn start_local(engine: &mut crate::engine::Engine, forge: u16) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
     let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
@@ -889,7 +948,7 @@ fn start_local(engine: &mut crate::engine::Engine, forge: u16) {
     reconcile_local(engine, forge);
 }
 fn reconcile_local(engine: &mut crate::engine::Engine, forge: u16) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
     let Some(rows) = engine.forge_records.rows.forge(forge) else {
@@ -912,7 +971,8 @@ fn reconcile_local(engine: &mut crate::engine::Engine, forge: u16) {
         records_failed(engine, forge, records::NotConnected::Unreadable);
         return;
     }
-    let expected = records::origin(connection::settings::Kind::Forgejo, &configured(engine, forge).api);
+    let Some(config) = configured(engine, forge) else { return };
+    let expected = records::origin(connection::settings::Kind::Forgejo, &config.api);
     if rows.has(Item::Origin) {
         let origin = match rows.get(Item::Origin) {
             Ok(bytes) => records::Origin::decode(bytes).ok(),
@@ -994,7 +1054,7 @@ fn create_local(engine: &mut crate::engine::Engine, forge: u16) -> bool {
     let Some(first) = local.first.take() else { return false };
     let starter = host::File {
         path: temper_forge_setup::STARTER_PATH.into(),
-        content: temper_forge_setup::starter_workflow(b"temper-host").expect("owned runner label"),
+        content: temper_forge_setup::starter_workflow(&first.label).expect("admitted runner label"),
     };
     let files: Box<[host::File]> = if first.playground {
         Box::new([
@@ -1078,7 +1138,7 @@ fn create_stopped(engine: &mut crate::engine::Engine, token: Token, failure: rec
     }
 }
 fn adopt_local(engine: &mut crate::engine::Engine, forge: u16) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
     let repositories = engine.setup.lifecycle.local(forge).expect("reconciled local").repositories;
@@ -1094,10 +1154,11 @@ fn adopt_local(engine: &mut crate::engine::Engine, forge: u16) {
         .expect("one adoption per local fake");
 }
 pub(super) fn connect_local(engine: &mut crate::engine::Engine, forge: u16) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
-    let expected = records::origin(connection::settings::Kind::Forgejo, &configured(engine, forge).api);
+    let Some(config) = configured(engine, forge) else { return };
+    let expected = records::origin(connection::settings::Kind::Forgejo, &config.api);
     let rows = engine.forge_records.rows.forge(forge).expect("reconciled records");
     let local = engine.setup.lifecycle.local_mut(forge).expect("local connection");
     let start = records::access(
@@ -1175,7 +1236,7 @@ pub(super) fn bounded_reason(text: Box<[u8]>) -> Box<[u8]> {
 }
 /// The box's preparation may create a fresh token on every ask.
 pub(crate) fn started(engine: &mut crate::engine::Engine, forge: u16) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
@@ -1201,9 +1262,9 @@ pub(crate) fn take_read(engine: &mut crate::engine::Engine) -> Option<crate::Han
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
         return None;
     }
-    for configured in engine.workers.forges.iter() {
-        let forge = configured.number;
-        if crate::forge::ended(engine, forge) {
+    for entry in engine.workers.forges.iter() {
+        let forge = entry.number;
+        if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
             continue;
         }
         if let Some(local) = engine.setup.lifecycle.local_mut(forge)
@@ -1227,7 +1288,7 @@ pub(crate) fn read(
     run: Token,
     answer: Result<Option<Secret>, crate::HandoverUnread>,
 ) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
@@ -1259,9 +1320,9 @@ pub(crate) fn take_removal(engine: &mut crate::engine::Engine) -> Option<crate::
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
         return None;
     }
-    for configured in engine.workers.forges.iter() {
-        let forge = configured.number;
-        if crate::forge::ended(engine, forge) {
+    for entry in engine.workers.forges.iter() {
+        let forge = entry.number;
+        if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
             continue;
         }
         if let Some(local) = engine.setup.lifecycle.local_mut(forge)
@@ -1275,7 +1336,7 @@ pub(crate) fn take_removal(engine: &mut crate::engine::Engine) -> Option<crate::
     None
 }
 pub(crate) fn removed(engine: &mut crate::engine::Engine, forge: u16, run: Token, result: Result<(), i32>) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
@@ -1326,10 +1387,12 @@ pub(crate) fn first(
     repository: Box<[u8]>,
     playground: bool,
 ) {
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         return;
     }
-    if let Some(local) = engine.setup.lifecycle.local_mut(forge) {
+    if let Some(local) = engine.setup.lifecycle.local_mut(forge)
+        && local.first_source == IntentSource::Request
+    {
         local.first = Some(Intent { playground, label: b"temper-host".as_slice().into(), org, repository });
     }
 }
@@ -1393,7 +1456,7 @@ fn missing_admin(engine: &mut crate::engine::Engine, forge: u16) {
 }
 fn keep_admin(engine: &mut crate::engine::Engine, run: Token) {
     let forge = engine.setup.runs.get(&run).expect("admin run").forge;
-    if crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
         refused(engine, run, forge, Box::from(b"forge ended".as_slice()));
         return;
     }
@@ -1456,7 +1519,8 @@ fn admin_done(engine: &mut crate::engine::Engine, token: Token, outcome: reconci
     let run = engine.setup.runs.get(&token).expect("ended admin run");
     let (forge, kind) = (run.forge, run.kind);
     if kind == Kind::AdminReconcile {
-        let origin = records::origin(connection::settings::Kind::Forgejo, &configured(engine, forge).api).encode();
+        let Some(config) = configured(engine, forge) else { return };
+        let origin = records::origin(connection::settings::Kind::Forgejo, &config.api).encode();
         keep(engine, forge, Item::Origin, &origin, Purpose::AdminOrigin(token));
         return;
     }

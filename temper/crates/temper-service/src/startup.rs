@@ -900,6 +900,8 @@ fn checked_start_with(
         None
     };
     let mut engine = settings::Engine {
+        machine: None,
+        directories: directories.clone(),
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
