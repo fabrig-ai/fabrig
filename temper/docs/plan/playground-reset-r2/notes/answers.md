@@ -25,6 +25,8 @@ right.
 
 `temper box --fake-backends` seeds no kept forge at its start: a fresh
 deployment under it is empty (draft 6.3), so the welcome offers the
-playground and both committed journeys stand. A test that needs the
-fake GitHub or managed Forgejo kept makes it by a `Connect` or a seed of
-its own.
+playground and both committed journeys stand. Its fake GitHub is the
+machine's GitHub endpoint (`settings::Machine.github`, the stock GitHub
+definition's addresses), so the welcome's GitHub choice makes a GitHub
+record that talks to the fake. Its managed Forgejo is seeded only for a
+test that asks for it (a flag or the test's own seed).
