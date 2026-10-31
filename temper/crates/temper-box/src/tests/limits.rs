@@ -12,6 +12,7 @@ fn the_small_profile_has_the_values_of_the_plan() {
             line_bytes: 256,
             log_bytes: 4_194_304,
             tail_lines: 10,
+            groups: 8,
             grace: Duration::from_secs(10)
         }
     );
@@ -52,6 +53,7 @@ fn a_value_past_u32_is_out_of_range() {
         b"box.line_bytes",
         b"box.log_bytes",
         b"box.tail_lines",
+        b"box.groups",
     ] {
         assert_eq!(limits::apply(&mut limits::small(), name, 4_294_967_296), Err(Refused::Range), "{name:?}");
         assert_eq!(limits::apply(&mut limits::small(), name, 0), Ok(()), "zero fits {name:?}");
@@ -88,4 +90,13 @@ fn logs_hold_a_whole_record_and_tails_hold_one_to_a_hundred_lines() {
         assert_eq!(limits::check(&limits), expected);
     }
     assert_eq!(Unfit::TailLines.names(), &[b"box.tail_lines".as_slice()]);
+}
+
+#[test]
+fn group_files_have_a_configurable_count_bound() {
+    let mut limits = limits::small();
+    assert_eq!(limits.groups, 8);
+    limits::apply(&mut limits, b"box.groups", 2).unwrap();
+    assert_eq!(limits.groups, 2);
+    assert_eq!(Unfit::Groups.names(), &[b"box.groups".as_slice()]);
 }

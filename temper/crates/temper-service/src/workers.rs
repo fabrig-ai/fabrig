@@ -31,7 +31,7 @@ pub struct Workers {
     ending: Option<Closing>,
     pub(crate) component_closed: bool,
     pub(crate) encoding: Encoding,
-    pub(crate) forges: Box<[Forge]>,
+    pub(crate) forges: crate::forges::Forges,
     pub(crate) bad_parts: u64,
 }
 fn invalid(what: What) -> Problems {
@@ -45,6 +45,7 @@ impl Workers {
         files: &Files,
         encoding: Encoding,
         forges: Box<[Forge]>,
+        forge_limit: u32,
         limits: &kit::Limits,
     ) -> Result<Self, Problems> {
         let mut workers = List::with_capacity(limits.names);
@@ -85,7 +86,13 @@ impl Workers {
             ending: None,
             component_closed: false,
             encoding,
-            forges,
+            forges: {
+                let mut table = crate::forges::Forges::with_capacity(forge_limit);
+                for forge in forges {
+                    assert!(table.insert(forge), "unique fixture forges");
+                }
+                table
+            },
             bad_parts: 0,
         })
     }
@@ -498,7 +505,7 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
         models: ceilings.bounds_models,
         workstreams: core.fleet.workstreams,
         accounts: core.accounts.accounts,
-        credentials: u32::try_from(settings.identities.len()).ok()?,
+        credentials: settings.limits.forge.forges,
         facts: link.facts,
     };
     let limits = kit::Limits {
@@ -558,7 +565,8 @@ impl Workers {
                 endpoints: smith_protocol_channel::Endpoints::new(endpoints),
                 deployment,
             },
-            ::core::mem::replace(&mut settings.forges, Box::new([])),
+            Box::new([]),
+            settings.limits.forge.forges,
             &worker_limits,
         )?;
         Ok(workers)

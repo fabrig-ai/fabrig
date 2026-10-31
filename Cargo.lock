@@ -660,7 +660,7 @@ dependencies = [
 name = "jig-client-test-records"
 version = "0.0.0"
 dependencies = [
- "jig-client",
+ "jig-client-domain",
  "jig-client-protocol-wire",
  "skein-codec",
  "skein-lib",
@@ -1156,6 +1156,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1373,7 +1374,6 @@ name = "jig-protocol-engine-clients-http"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
- "jig-protocol-config",
  "jig-protocol-engine-clients",
  "skein-http",
  "skein-lib",
@@ -1404,8 +1404,6 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
- "jig-protocol-config",
- "jig-store-world",
  "jig-test-patches",
  "jig-test-patches-jig",
  "jig-test-patches-smith",
@@ -1437,7 +1435,6 @@ name = "jig-protocol-transcript"
 version = "0.0.0"
 dependencies = [
  "jig-client-domain",
- "jig-client-test-domain",
  "skein-lib",
  "smith-transcript",
 ]
@@ -1707,16 +1704,12 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-notes",
  "jig-domain-people",
- "jig-domain-tasks",
  "jig-protocol-store",
  "jig-protocol-transcript",
  "jig-test-connector",
  "jig-test-connector-world",
  "jig-test-domain",
- "jig-test-profile",
- "jig-test-store-files",
  "skein-codec",
- "skein-io",
  "skein-kv",
  "skein-lib",
 ]
@@ -1727,8 +1720,12 @@ version = "0.0.0"
 dependencies = [
  "jig-conformance",
  "jig-domain-core",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-protocol-store",
  "jig-test-connector",
+ "jig-test-connector-world",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",
@@ -4809,6 +4806,7 @@ dependencies = [
  "skein-fake-oauth",
  "skein-fake-peers",
  "skein-forge",
+ "skein-forge-connection",
  "skein-http",
  "skein-io",
  "skein-json",
@@ -4835,6 +4833,7 @@ dependencies = [
  "temper-fake-git",
  "temper-fake-git-hosted",
  "temper-github-app",
+ "temper-protocol-records",
  "temper-protocol-store",
  "temper-service",
  "temper-worker-domain",

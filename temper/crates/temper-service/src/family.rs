@@ -26,8 +26,9 @@ const _: () = {
 #[expect(clippy::too_many_lines, reason = "one exhaustive match translates the family's typed requests")]
 pub fn to_root(
     exchange: kit::ToApplication,
-    forges: &[crate::settings::Forge],
+    forges: &crate::forges::Forges,
     demo: Option<&crate::settings::Demo>,
+    playground: Option<&forge::Playground>,
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
     match exchange {
@@ -54,7 +55,7 @@ pub fn to_root(
                         carried,
                         request: temper_engine_domain::Application::Forge(forge::Ask::SetUp {
                             playground: value.playground,
-                            forge: value.forge,
+                            forge: making(value.forge),
                             org: value.org,
                             repository: value.repository,
                             project: match value.project {
@@ -123,7 +124,7 @@ pub fn to_root(
                                     forge::How::GitHubManifest { back }
                                 }
                             };
-                            forge::Ask::Connect { forge: value.forge, how }
+                            forge::Ask::Connect { forge: making(value.forge), how }
                         }
                         w::Request::Accept(value) => {
                             let value = value.into_parts();
@@ -149,7 +150,9 @@ pub fn to_root(
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
-                        | w::Request::StartDemo => {
+                        | w::Request::RemoveForge(_)
+                        | w::Request::StartPlayground
+                        | w::Request::EndPlayground => {
                             unreachable!("connect or install")
                         }
                     };
@@ -163,7 +166,7 @@ pub fn to_root(
                         request: root::Application::Forge(request),
                     }));
                 }
-                w::Request::StartDemo => {
+                w::Request::RemoveForge(value) => {
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -171,7 +174,29 @@ pub fn to_root(
                         key,
                         digest,
                         carried,
-                        request: root::Application::Forge(forge::Ask::StartDemo),
+                        request: root::Application::Forge(forge::Ask::RemoveForge { forge: value.forge() }),
+                    }));
+                }
+                w::Request::StartPlayground => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::StartPlayground),
+                    }));
+                }
+                w::Request::EndPlayground => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::EndPlayground),
                     }));
                 }
                 w::Request::Reachable(value) => {
@@ -193,13 +218,10 @@ pub fn to_root(
                 w::Request::Adopt(value) => value,
             };
             let a = request.into_parts();
-            let mut host = Box::default();
-            for forge in forges {
-                if forge.number == a.forge {
-                    host = self::host(&forge.git);
-                    break;
-                }
-            }
+            let host = match forges.get(a.forge) {
+                Some(forge) => host(&forge.git),
+                None => Box::default(),
+            };
             Ok(root::Event::Party(root::PartyInput::Application {
                 scope,
                 reply_to,
@@ -227,31 +249,10 @@ pub fn to_root(
             if family == wire::FORGE
                 && version == wire::CLIENT_VERSION
                 && let Some(reading) = wire::decode_reading(&record, limits)
-                && *reading.read() == w::Read::Demo
-                && let Some(demo) = demo
+                && *reading.read() == w::Read::Playground
+                && let (Some(row), Some(demo)) = (playground, demo)
             {
-                let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded demo cues"));
-                for cue in &demo.cues {
-                    cues.push(cue.clone()).expect("bounded demo cues");
-                }
-                let record = w::DemoAnswer::new(
-                    limits,
-                    w::DemoAnswerParts {
-                        state: match demo.state {
-                            Some(forge::DemoState::Running) => w::DemoState::Running,
-                            Some(forge::DemoState::Ended) => w::DemoState::Ended,
-                            None => w::DemoState::NotStarted,
-                        },
-                        project: demo.project,
-                        forge: demo.forge,
-                        provider: demo.provider,
-                        owner: demo.owner.clone(),
-                        name: demo.name.clone(),
-                        cues,
-                    },
-                )
-                .expect("demo checked at startup");
-                answer = Some(wire::demo_answer(&record));
+                answer = Some(playground_answer(row, demo, limits));
             }
             Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: answer })))
         }
@@ -302,7 +303,7 @@ pub fn to_root(
 /// Encode the whole retained panel, deriving its public address from configuration
 /// (client/forge.md, 9.2). No domain record carries a deployment's web address.
 #[must_use]
-pub fn panel(value: forge::Panel, forges: &[crate::settings::Forge], limits: &w::Limits) -> Option<Box<[u8]>> {
+pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     let pull = match value.pull {
         Some(number) => {
             Some(w::Pull::new(limits, w::PullParts { number, address: address(&value, number, forges) }).ok()?)
@@ -440,7 +441,7 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
     })
 }
 
-fn address(panel: &forge::Panel, number: u64, forges: &[crate::settings::Forge]) -> Box<[u8]> {
+fn address(panel: &forge::Panel, number: u64, forges: &crate::forges::Forges) -> Box<[u8]> {
     pull_address(panel.forge, &panel.owner, &panel.name, number, forges)
 }
 fn pull_address(
@@ -448,22 +449,17 @@ fn pull_address(
     owner: &[u8],
     name: &[u8],
     number: u64,
-    forges: &[crate::settings::Forge],
+    forges: &crate::forges::Forges,
 ) -> Box<[u8]> {
-    for forge in forges {
-        if forge.number != forge_number {
-            continue;
-        }
-        if forge.mode == forge::Mode::Fake {
-            return Box::default();
-        }
-        let kind = match forge.kind {
-            crate::settings::Kind::GitHub => forge::Kind::GitHub,
-            crate::settings::Kind::Forgejo => forge::Kind::Forgejo,
-        };
-        return forge::pull_address(kind, &forge.git, forge.web.as_deref(), owner, name, number).unwrap_or_default();
+    let Some(forge) = forges.get(forge_number) else { return Box::default() };
+    if forge.mode == forge::Mode::Fake {
+        return Box::default();
     }
-    Box::default()
+    let kind = match forge.kind {
+        crate::settings::Kind::GitHub => forge::Kind::GitHub,
+        crate::settings::Kind::Forgejo => forge::Kind::Forgejo,
+    };
+    forge::pull_address(kind, &forge.git, forge.web.as_deref(), owner, name, number).unwrap_or_default()
 }
 /// Keep the authority of an already checked git URL, including its explicit port.
 #[must_use]
@@ -616,24 +612,18 @@ pub fn answer(
             | root::ApplicationAnswer::Connect(forge::ConnectAnswer::Refused(why))
             | root::ApplicationAnswer::Install(forge::InstallAnswer::Refused(why)),
         ) => w::Outcome::ConnectRefused(
-            w::ConnectRefused::new(
-                limits,
-                w::ConnectRefusedParts {
-                    why: match why {
-                        forge::ForgeRefusal::Role => w::ForgeRefusal::Role,
-                        forge::ForgeRefusal::NoSuchForge => w::ForgeRefusal::NoSuchForge,
-                        forge::ForgeRefusal::NotTaken => w::ForgeRefusal::NotTaken,
-                        forge::ForgeRefusal::Connected => w::ForgeRefusal::Connected,
-                        forge::ForgeRefusal::NotConnected => w::ForgeRefusal::NotConnected,
-                        forge::ForgeRefusal::Busy => w::ForgeRefusal::Busy,
-                        forge::ForgeRefusal::NoKey => w::ForgeRefusal::NoKey,
-                        forge::ForgeRefusal::FirstIsBot => w::ForgeRefusal::FirstIsBot,
-                    },
-                },
-            )
-            .ok()?,
+            w::ConnectRefused::new(limits, w::ConnectRefusedParts { why: forge_refusal(why) }).ok()?,
         ),
-        Some(root::ApplicationAnswer::StartDemo(answer)) => start_answer(answer, limits)?,
+        Some(root::ApplicationAnswer::StartPlayground(answer)) => start_answer(answer, limits)?,
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed)) => w::Outcome::Removed,
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(why))) => w::Outcome::RemoveRefused(
+            w::RemoveRefused::new(limits, w::RemoveRefusedParts { why: forge_refusal(why) }).ok()?,
+        ),
+        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)) => w::Outcome::Reset,
+        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => w::Outcome::EndRefused(
+            w::EndRefused::new(limits, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).ok()?,
+        ),
+        None => w::Outcome::Unknown,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(why))) => {
             w::Outcome::SetUpRefused(
@@ -652,7 +642,6 @@ pub fn answer(
                 .ok()?,
             )
         }
-        None => w::Outcome::Unknown,
     };
     let answer = w::Answer::new(limits, w::AnswerParts { outcome }).ok()?;
     Some(wire::answer(&answer))
@@ -948,7 +937,7 @@ fn admin_stop(stop: forge::AdminStop, limits: &w::Limits) -> Option<w::AdminStop
 
 /// Encode a whole landing document, with deployment addresses at this boundary.
 #[must_use]
-pub fn document(value: forge::Document, forges: &[crate::settings::Forge], limits: &w::Limits) -> Option<Box<[u8]>> {
+pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     match value {
         forge::Document::Change(value) => panel(value, forges, limits),
         forge::Document::Landing(value) => {
@@ -1028,7 +1017,7 @@ pub fn document(value: forge::Document, forges: &[crate::settings::Forge], limit
 }
 fn landing_member(
     member: forge::LandingMember,
-    forges: &[crate::settings::Forge],
+    forges: &crate::forges::Forges,
     limits: &w::Limits,
 ) -> Option<w::Member> {
     let pull = match member.pull {
@@ -1104,4 +1093,64 @@ fn landing_phase(phase: &forge::LandingPhase) -> w::LandingPhase {
         forge::LandingPhase::Held { .. } => w::LandingPhase::Held,
         forge::LandingPhase::Cancelled => w::LandingPhase::Cancelled,
     }
+}
+
+// temper/docs/design/draft/playground-reset.md, 3: a new forge carries its whole place.
+fn making(value: w::Making) -> forge::Making {
+    match value {
+        w::Making::Kept(value) => forge::Making::Kept(value.forge()),
+        w::Making::New(value) => forge::Making::New(match value.into_parts().forge {
+            w::ForgeAsk::Github => forge::ForgeAsk::GitHub,
+            w::ForgeAsk::Owned => forge::ForgeAsk::Owned,
+            w::ForgeAsk::Managed(value) => {
+                let value = value.into_parts();
+                forge::ForgeAsk::Managed {
+                    place: forge::Place {
+                        api: forge::Address { host: value.host, port: value.port, tls: value.tls },
+                        git: value.git,
+                        web: value.web,
+                    },
+                }
+            }
+        }),
+    }
+}
+fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
+    match value {
+        forge::ForgeRefusal::Role => w::ForgeRefusal::Role,
+        forge::ForgeRefusal::NoSuchForge => w::ForgeRefusal::NoSuchForge,
+        forge::ForgeRefusal::NotTaken => w::ForgeRefusal::NotTaken,
+        forge::ForgeRefusal::Connected => w::ForgeRefusal::Connected,
+        forge::ForgeRefusal::NotConnected => w::ForgeRefusal::NotConnected,
+        forge::ForgeRefusal::Busy => w::ForgeRefusal::Busy,
+        forge::ForgeRefusal::NoKey => w::ForgeRefusal::NoKey,
+        forge::ForgeRefusal::FirstIsBot => w::ForgeRefusal::FirstIsBot,
+    }
+}
+
+/// The kept row supplies progress and ids; settings supply the scripted model's public view.
+/// temper/docs/design/draft/playground-reset.md, 6.1–6.2.
+fn playground_answer(row: &forge::Playground, demo: &crate::settings::Demo, limits: &w::Limits) -> Box<[u8]> {
+    let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded playground cues"));
+    for cue in &demo.cues {
+        cues.push(cue.clone()).expect("bounded playground cues");
+    }
+    let answer = w::PlaygroundAnswer::new(
+        limits,
+        w::PlaygroundAnswerParts {
+            state: match row.state {
+                forge::PlaygroundState::Starting => w::PlaygroundState::Starting,
+                forge::PlaygroundState::Running => w::PlaygroundState::Running,
+                forge::PlaygroundState::Resetting(_) => w::PlaygroundState::Resetting,
+            },
+            forge: row.forge,
+            project: row.project,
+            provider: demo.provider,
+            owner: demo.owner.clone(),
+            name: demo.name.clone(),
+            cues,
+        },
+    )
+    .expect("playground checked at startup");
+    wire::playground_answer(&answer)
 }

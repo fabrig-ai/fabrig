@@ -87,9 +87,9 @@ const USAGES: &[&[u8]] = &[
     b"account declare PROVIDER ADAPTER NAME [--account ACCOUNT] --key KEY\n",
     b"account verify ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
     b"forge list [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"forge setup FORGE [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]\n",
+    b"forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]\n",
     b"playground start [--key KEY]\n",
-    b"forge connect FORGE github-app APP FILE --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\n",
+    b"forge connect FORGE github-app APP FILE --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\nforge connect github-app APP FILE --key KEY\nforge connect github --key KEY\nforge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] --key KEY\n",
     b"forge install FORGE [--key KEY]\n",
     b"forge repositories FORGE [--installation INSTALLATION] [--page PAGE]\n",
     b"account export ACCOUNT FILE\n",
@@ -110,6 +110,8 @@ const USAGES: &[&[u8]] = &[
     b"hold lift HOLD --rev REV [--with-tasks] [--key KEY]\n",
     b"landing show TASK [--project PROJECT]\n",
     b"landing list --project PROJECT [--ended]\n",
+    b"forge remove FORGE [--key KEY]\n",
+    b"playground end [--key KEY]\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -314,4 +316,39 @@ fn the_project_reference_is_what_the_table_renders() {
         rendered.as_ref(),
         "regenerate with SKEIN_CODEGEN_WRITE=1 and this test"
     );
+}
+
+#[test]
+fn the_forge_reference_is_what_the_table_renders() {
+    reference_matches(b"forge", b"ctl-forge");
+}
+#[test]
+fn the_playground_reference_is_what_the_table_renders() {
+    reference_matches(b"playground", b"ctl-playground");
+}
+fn reference_matches(group_name: &[u8], page_name: &[u8]) {
+    let mut group = None;
+    for candidate in table::GROUPS {
+        if candidate.name == group_name {
+            group = Some(candidate);
+            break;
+        }
+    }
+    let group = group.expect("help group");
+    let mut measured = skein_lib::Writer::new(temper_docs::PAGE_BYTES);
+    crate::help::reference(group, &mut measured).expect("reference fits");
+    let mut out = skein_lib::Writer::new(measured.written());
+    crate::help::reference(group, &mut out).expect("reference measured");
+    let rendered = out.finish();
+    let page = temper_docs::find(page_name).expect("reference page");
+    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
+        Some(value) => value == "1",
+        None => false,
+    };
+    if write {
+        let path = std::path::Path::new("../../docs/help/reference").join(page.name).with_extension("md");
+        std::fs::write(path, &rendered).expect("write group reference");
+        return;
+    }
+    assert_eq!(page.text.as_bytes(), rendered.as_ref(), "{}: the lead updates the reference page", page.name);
 }

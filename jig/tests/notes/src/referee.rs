@@ -20,6 +20,8 @@ pub enum Write {
 /// What the caller asked before the child loaded any records.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Intent {
+    /// Erase the lines in this project, retaining globally named entries.
+    DropProject { owner: Token, project: u32 },
     /// An index or recall.
     Read { owner: Token },
     /// A task's write, with the revision it saw.
@@ -33,6 +35,7 @@ impl Intent {
     #[must_use]
     pub fn from_event(event: &Event) -> Intent {
         match event {
+            Event::DropProject { owner, project } => Intent::DropProject { owner: *owner, project: *project },
             Event::Index { owner, scopes: _, most: _ } | Event::Recall { owner, by: _, page: _ } => {
                 Intent::Read { owner: *owner }
             }
@@ -56,7 +59,10 @@ impl Intent {
     #[must_use]
     pub const fn owner(self) -> Token {
         match self {
-            Intent::Read { owner } | Intent::Write { owner, .. } | Intent::Edit { owner, .. } => owner,
+            Intent::DropProject { owner, .. }
+            | Intent::Read { owner }
+            | Intent::Write { owner, .. }
+            | Intent::Edit { owner, .. } => owner,
         }
     }
 }
@@ -68,6 +74,22 @@ pub struct Referee;
 impl Referee {
     /// A commit saves or erases both records and never advances over an unseen revision.
     pub fn before_commit(&self, store: &BTreeMap<Key, Record>, writes: &[Write], intent: &Intent) {
+        if let Intent::DropProject { project, .. } = intent {
+            for write in writes {
+                let Write::Erase(key @ Key::Line { scope, .. }) = write else {
+                    panic!("a project drop only erases index lines");
+                };
+                let in_project = match scope {
+                    Scope::Deployment => false,
+                    Scope::Project { project: found }
+                    | Scope::Goal { project: found, .. }
+                    | Scope::Resources { project: found, .. } => project == found,
+                };
+                assert!(in_project, "drop erases only its project's scopes");
+                assert!(store.contains_key(key), "drop erases an existing line");
+            }
+            return;
+        }
         match writes {
             [Write::Save(Record::Entry(entry)), Write::Save(Record::Line(line))] => {
                 assert_eq!(entry.name, line.name, "entry and index line name the same note");
@@ -84,7 +106,7 @@ impl Referee {
                         assert_eq!(entry.author, Author::Party { party: *party }, "party authored the correction");
                         Some(*recalled)
                     }
-                    Intent::Read { .. } => panic!("a read makes no write"),
+                    Intent::Read { .. } | Intent::DropProject { .. } => panic!("a read makes no write"),
                 };
                 match store.get(&Key::Entry { name: entry.name }) {
                     None => {
@@ -119,7 +141,7 @@ impl Referee {
         }
     }
 
-    /// Every durable entry and index line agree, and every scope stays bounded.
+    /// Durable index lines agree with their entries, and every scope stays bounded.
     pub fn after_commit(&self, store: &BTreeMap<Key, Record>, limits: &Limits) {
         let mut counts = BTreeMap::<Scope, u32>::new();
         for (key, record) in store {
@@ -127,11 +149,10 @@ impl Referee {
             match record {
                 Record::Entry(entry) => {
                     let line_key = Key::Line { scope: entry.scope.clone(), name: entry.name };
-                    let Some(Record::Line(line)) = store.get(&line_key) else {
-                        panic!("committed entry has its index line");
-                    };
-                    assert_eq!(line.description, entry.description, "index describes the committed entry");
-                    assert_eq!(line.revision, entry.revision, "index gives the committed revision");
+                    if let Some(Record::Line(line)) = store.get(&line_key) {
+                        assert_eq!(line.description, entry.description, "index describes the committed entry");
+                        assert_eq!(line.revision, entry.revision, "index gives the committed revision");
+                    }
                     assert!(entry.description.len() <= usize::try_from(limits.description_bytes).expect("bound fits"));
                     assert!(entry.body.len() <= usize::try_from(limits.body_bytes).expect("bound fits"));
                     assert!(entry.references.len() <= limits.references);
@@ -140,7 +161,8 @@ impl Referee {
                     let Some(Record::Entry(entry)) = store.get(&Key::Entry { name: line.name }) else {
                         panic!("index line has its entry");
                     };
-                    assert_eq!(entry.scope, line.scope, "index line belongs to the entry's scope");
+                    assert_eq!(entry.description, line.description, "index describes the committed entry");
+                    assert_eq!(entry.revision, line.revision, "index gives the committed revision");
                     let count = counts.entry(line.scope.clone()).or_insert(0);
                     *count = count.checked_add(1).expect("scope count fits");
                     assert!(*count <= limits.entries_per_scope, "nothing held beyond entries per scope");

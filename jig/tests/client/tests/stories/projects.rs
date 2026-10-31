@@ -1,6 +1,7 @@
 //! Project requests through the application's public client, on the scripted engine.
 use jig_client::{Asker, Event, Key, contract as c};
 use jig_client_scripted_engine::Change;
+use jig_client_test_domain::store::Record;
 use jig_client_world::{ClientId, FrontFault, Scripted, Test, Until, World, stories};
 use skein_lib::{Duration, Time, Wall};
 type ProjectWorld = World<Test, Scripted>;
@@ -148,4 +149,48 @@ fn a_make_retried_under_its_key_after_a_reload_is_answered_once() {
     assert_eq!(world.front().engine.commits().iter().filter(|commit| commit.key.is_some()).count(), 1);
     assert_eq!(frame(&world, client).projects.iter().filter(|p| p.project == project).count(), 1);
     assert!(world.root(client).client().pending(key).is_none());
+}
+
+#[test]
+fn an_owner_removes_a_project_and_reads_its_answer_once() {
+    let (mut world, client) = ready(true);
+    let key = send(&mut world, client, 91, c::Ask::RemoveProject { project: PROJECT });
+    settle(&mut world);
+    assert_eq!(
+        answer(&mut world),
+        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: PROJECT }))
+    );
+    assert!(world.root(client).client().pending(key).is_none());
+    assert!(!frame(&world, client).projects.iter().any(|p| p.project == PROJECT));
+    settle(&mut world);
+    assert_eq!(world.front().engine.commits().iter().filter(|commit| commit.key.is_some()).count(), 1);
+}
+
+#[test]
+fn a_remove_project_kept_across_a_restart_is_answered_once() {
+    let (mut world, client) = ready(true);
+    world.fault(FrontFault::NoAnswer);
+    let key = send(&mut world, client, 91, c::Ask::RemoveProject { project: PROJECT });
+    assert!(world.root(client).client().pending(key).is_some());
+    assert!(
+        world
+            .kept(client)
+            .iter()
+            .any(|record| { matches!(record, Record::Unlinked(record) if record.request.key == key) })
+    );
+    world.reload(client);
+    settle(&mut world);
+    assert_eq!(
+        answer(&mut world),
+        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: PROJECT }))
+    );
+    assert!(world.root(client).client().pending(key).is_none());
+    assert!(
+        !world
+            .kept(client)
+            .iter()
+            .any(|record| { matches!(record, Record::Unlinked(record) if record.request.key == key) })
+    );
+    assert!(!frame(&world, client).projects.iter().any(|p| p.project == PROJECT));
+    assert_eq!(world.front().engine.commits().iter().filter(|commit| commit.key.is_some()).count(), 1);
 }

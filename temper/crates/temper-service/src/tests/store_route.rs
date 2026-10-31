@@ -904,6 +904,37 @@ fn startup_asserts_a_decoded_census_cursor_that_cannot_name_its_walk() {
     );
 }
 
+#[test]
+fn a_dropped_transcript_and_decision_erases_reach_the_store() {
+    let escalation = core::Key::Core(core::CoreKey::EscalationDecision { task: 7, revision: 2 });
+    let proposal = core::Key::Core(core::CoreKey::ProposalDecision {
+        proposer: jig_domain_people::Proposer::Party(3),
+        proposal: 9,
+    });
+    let request = engine::StoreRequest::Commit {
+        number: 4,
+        writes: Box::new([
+            engine::Write::DropTranscript { task: 7 },
+            engine::Write::Erase(engine::Key::Core(escalation.clone())),
+            engine::Write::Erase(engine::Key::Core(proposal.clone())),
+        ]),
+    };
+    let Some(store::Request::Commit { number, writes }) = route::down(&mut fixtures::routes(), request) else {
+        panic!("whole erasure reaches the store adapter");
+    };
+    assert_eq!(number, 4);
+    let [
+        store::Write::DropTranscript { task: 7 },
+        store::Write::Erase(actual_escalation),
+        store::Write::Erase(actual_proposal),
+    ] = writes.as_ref()
+    else {
+        panic!("the whole erasure retains its writes and order");
+    };
+    assert_eq!(*actual_escalation, escalation);
+    assert_eq!(*actual_proposal, proposal);
+}
+
 fn items(rows: Box<[store::Row]>) -> Box<[store::restore::Item]> {
     let mut items = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());
     for row in rows {

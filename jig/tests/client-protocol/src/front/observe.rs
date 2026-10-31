@@ -123,6 +123,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                 | w::Ask::SignIn(_)
                 | w::Ask::AccountChange(_)
                 | w::Ask::SignOut(_)
+                | w::Ask::RemoveProject(_)
                 | w::Ask::Rename(_)
                 | w::Ask::ChangeSettings(_)
                 | w::Ask::MoveToNewest(_)

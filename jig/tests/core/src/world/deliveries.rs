@@ -60,7 +60,10 @@ impl World {
                 }
             }
             root::Delivery::Core(core::Held::ReadLoad { load, range }) => {
-                let requests = if let Some(reads) = &mut self.reads {
+                let requests = if range.party == 0 {
+                    assert!(self.internal_reads.insert(load), "one internal erasure load");
+                    vec![StoreOut::ReadLoad { load, range }]
+                } else if let Some(reads) = &mut self.reads {
                     reads.load(load, *range, &self.store)
                 } else {
                     vec![StoreOut::ReadLoad { load, range }]

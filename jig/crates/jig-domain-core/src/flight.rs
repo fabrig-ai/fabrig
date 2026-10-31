@@ -41,6 +41,7 @@ pub(crate) enum Flight {
 #[derive(Debug)]
 pub(crate) enum Internal {
     Admission,
+    Deletion { project: u32 },
     Delegate,
     Repair,
     Acknowledge,
@@ -160,6 +161,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         tasks::Event::WithdrawPersonProposal { reply_to, .. }
         | tasks::Event::DecideSettingsProposal { reply_to, .. } => reply_to.as_mut(),
         tasks::Event::MoveToNewest { .. }
+        | tasks::Event::CloseProject { .. }
         | tasks::Event::Charters { .. }
         | tasks::Event::Resource { .. }
         | tasks::Event::ResourceAccess { .. }

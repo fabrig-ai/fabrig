@@ -62,6 +62,13 @@ pub struct Filter {
 /// Identity of a store query, independent of its continuation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Scope {
+    /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store.md, 11.1;
+    /// jig/docs/design/domain/people.md, 5.2).
+    EndedTasks,
+    /// History, milestones, activity, terminals, decisions, ended reads and the
+    /// party proposal and update rows whose task link names this owner
+    /// (jig/docs/design/protocol/store.md, 11.1; jig/docs/design/domain/people.md, 5.2).
+    TaskRows { task: u64 },
     /// Dense inclusive revision interval; held newest and tag-9 predecessors.
     SettingsHistory { first: u32, last: u32, newest: u32, whole: bool },
     /// A task query's live group and its indexed ended group.
@@ -94,7 +101,7 @@ pub enum Scope {
     Notes { project: u32 },
     /// Exact notes owner scope and optional byte substring of its descriptions.
     ScopedNotes { scope: notes::Scope, description: Option<Box<[u8]>> },
-    /// Historical project period ledgers.
+    /// Historical period ledgers; project zero selects the deployment's projects.
     Spend { project: u32 },
 }
 
@@ -225,7 +232,7 @@ pub enum Read {
         description: Option<Box<[u8]>>,
         from: Option<Cursor>,
     },
-    /// Historical period spending.
+    /// Historical period spending; project zero selects the deployment's projects.
     Spend {
         project: u32,
         from: Option<Cursor>,
@@ -488,7 +495,9 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
             }
         }
         Record::Tasks(tasks::Stored::Ledger(ledger) | tasks::Stored::ClosedLedger(ledger)) => match ledger.funder {
-            tasks::Funder::Period { project, .. } => core.people.role(party, project).is_some(),
+            tasks::Funder::Period { project, .. } => {
+                core.people.role(party, project).is_some() || core.people.role(party, people::DEPLOYMENT).is_some()
+            }
             tasks::Funder::Pool { project, person, .. } => {
                 person == party && core.people.role(party, project).is_some()
             }

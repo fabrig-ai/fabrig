@@ -14,9 +14,9 @@ A deployment is one temper: its engine, the workers that run its agents, the for
 - **`temper serve`** runs what the configuration's shape names: the
   engine and its workers in one process, the engine alone, or a worker
   alone, on another host.
-- **A box** is a deployment on one machine: `temper box` runs the
-  forge's setup steps, then `temper serve`, each a child process
-  (temper help box).
+- **A box** is a deployment on one machine: `temper box` runs
+  `temper serve`, and the setup steps of each forge it sets up, each a
+  child process (temper help box).
 - **A server** is a long-lived deployment: the engine behind a proxy,
   its workers on another host (temper help server).
 
@@ -47,12 +47,15 @@ members:
   the first project, naming its policy (`"policy": 1`);
 - `workers`: each worker's engine address, name, secret file, slots
   and agent program;
-- `application`: the forges; the landing rules, how each project lands
-  and its repositories' gates, and the forge's charter; the client and
-  webhook listeners; the owned forge's setup; sign-in with Google; the
-  playground; temper's own limits.
+- `application`: the machine's places for a Forgejo temper runs, the
+  playground's fake forge and GitHub; the landing rules, how each
+  project lands and its repositories' gates, and the forge's charter;
+  the client and webhook listeners; sign-in with Google; the
+  playground's scripted model; temper's own limits.
 
-The settings (charters, templates, policies, rules) are not in it:
+The forges are not in it: a forge is made when it is set up or
+connected, and kept in the store (temper help forge). Nor are the
+settings (charters, templates, policies, rules):
 they live in the store and change while the deployment runs (temper
 help settings). A configuration naming one is refused at the start,
 and so is a project whose policy is written out in it:

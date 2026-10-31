@@ -21,19 +21,27 @@ fn allowed(path: &str) -> bool {
         return false;
     };
     let path = path.trim_start();
+    let (path, names): (&str, &[&str]) = if let Some(path) = path.strip_prefix("machine::") {
+        (path, &["BoxKind", "group_file", "parse_group_file", "group_path", ""])
+    } else {
+        (path, &["Steps", "Group", "Stage", "Kind", "Step", "steps", "FORGE_ARGUMENT", "machine::BoxKind", ""])
+    };
     if let Some(group) = path.strip_prefix('{') {
         let Some(end) = group.find('}') else {
             return false;
         };
         for item in group[..end].split(',') {
             let item = item.trim();
-            if !["Step", "steps", "Steps", "Group", "Stage", "Kind", ""].contains(&item) {
+            if !names.contains(&item) {
                 return false;
             }
         }
         return true;
     }
-    for name in ["Steps", "Group", "Stage", "Kind", "Step", "steps"] {
+    for name in names {
+        if name.is_empty() {
+            continue;
+        }
         if let Some(rest) = path.strip_prefix(name) {
             let rest = rest.trim_start();
             return rest.starts_with(';')
@@ -49,7 +57,11 @@ fn allowed(path: &str) -> bool {
 fn check_source(source: &str) {
     for (position, _) in source.match_indices("temper_forge_setup") {
         let after = position.checked_add("temper_forge_setup".len()).expect("source position");
-        assert!(allowed(&source[after..]), "the box names only Step and steps: {}", &source[position..]);
+        assert!(
+            allowed(&source[after..]),
+            "the box names only steps, kinds and group files: {}",
+            source[position..].lines().next().unwrap()
+        );
     }
 }
 #[test]

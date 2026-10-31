@@ -21,6 +21,10 @@ skein-fake-machine.workspace = true
 skein-sim.workspace = true
 
 [dev-dependencies]
+jig-domain-people.workspace = true
+jig-domain-notes.workspace = true
+jig-domain-tasks.workspace = true
+jig-test-connector-world.workspace = true
 jig-test-profile.workspace = true
 
 # This is a test kit, not a step crate.

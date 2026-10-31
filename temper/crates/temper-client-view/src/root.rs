@@ -80,7 +80,7 @@ impl View {
         let Some(form) = root.forge().form() else { return };
         let project = crate::pages::project_name(
             root.pages().me(root.client()),
-            root.forge().demo(),
+            root.forge().playground(),
             form.project,
             &self.forge_words,
         );
@@ -152,9 +152,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Adopt { .. } => {
             crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
-            crate::frame::demo_banner(&mut builder, root, &view.forge_words, &mut view.pages);
         }
     }
+    crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
     if let Some(page) = root.authorization() {
         crate::sign_in::authorize(
             &mut builder,

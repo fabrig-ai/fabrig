@@ -6,7 +6,9 @@ use crate::routing::Work;
 use crate::*;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
+mod closed;
 mod deadlines;
+mod deletion;
 mod flight;
 mod limits;
 mod start;
@@ -1770,6 +1772,12 @@ fn documents_lifecycle_history_keeps_holds_and_endings() {
 }
 
 fn restore_document_party(core: &mut Core, limits: &Limits, projects: &[u32]) {
+    core.projects = List::with_capacity(u32::try_from(projects.len()).expect("fixture projects"));
+    for project in projects {
+        if *project != people::DEPLOYMENT {
+            core.projects.push(*project).expect("open fixture project");
+        }
+    }
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
     core.people.start_restore(Wall::EPOCH);
@@ -3802,6 +3810,7 @@ fn validity_keeps_document_settings_and_route_refusals() {
     assert!(!valid(&selected), "engine outcomes need a host beyond the workers");
 }
 
+mod erase;
 pub(crate) fn finish_start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let action = core.start_begin(false, env.wall);
     finish_started(core, env, action)

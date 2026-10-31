@@ -454,3 +454,27 @@ fn a_make_project_act_refuses_a_maker_outside_its_subject() {
     act(&mut world, KEY, make_project(u64::MAX));
     assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
 }
+
+#[test]
+fn remove_project_without_its_grant_is_not_offered_and_saves_nothing() {
+    let (mut config, limits) = configuration(1851);
+    config.core.grants = Box::new([]);
+    let mut world = World::new(Setup {
+        seed: 1851,
+        configuration: Some(config),
+        limits,
+        require_assignment: false,
+        ..Setup::default()
+    });
+    let before = world.commits.len();
+    act(&mut world, KEY, people::Act::RemoveProject { project: PROJECT });
+    assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::NotOffered));
+    assert_eq!(world.commits.len(), before);
+    assert!(
+        !world
+            .store
+            .rows
+            .values()
+            .any(|row| matches!(row, root::Record::Core(core::Record::People(people::Stored::Acted { .. }))))
+    );
+}

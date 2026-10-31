@@ -245,6 +245,10 @@ pub enum Ask {
         project: u32,
         name: Text,
     },
+    /// Remove a project as its owner (jig/docs/design/domain/people.md, 5.2).
+    RemoveProject {
+        project: u32,
+    },
     /// Make a project in the deployment scope (contract.md, 7.5).
     MakeProject {
         name: Text,

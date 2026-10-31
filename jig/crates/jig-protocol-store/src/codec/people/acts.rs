@@ -3,6 +3,10 @@ use super::{asks, compound, domain, wire};
 
 pub(super) fn encode(act: &domain::Act, limits: &wire::Limits) -> Result<wire::Act, wire::Problem> {
     Ok(match act {
+        domain::Act::RemoveProject { project } => wire::Act::RemoveProject(wire::ActRemoveProject::new(
+            limits,
+            wire::ActRemoveProjectParts { project: *project },
+        )?),
         domain::Act::MakeProject { maker, name, policy } => wire::Act::MakeProject(wire::ActMakeProject::new(
             limits,
             wire::ActMakeProjectParts { maker: *maker, name: name.as_bytes().into(), policy: *policy },
@@ -32,6 +36,7 @@ pub(super) fn encode(act: &domain::Act, limits: &wire::Limits) -> Result<wire::A
 }
 pub(super) fn decode(act: wire::Act, limits: &wire::Limits) -> Result<domain::Act, wire::Problem> {
     Ok(match act {
+        wire::Act::RemoveProject(value) => domain::Act::RemoveProject { project: value.project() },
         wire::Act::MakeProject(value) => {
             let wire::ActMakeProjectParts { maker, name, policy } = value.into_parts();
             domain::Act::MakeProject { maker, name: asks::project_name(&name, wire::Path::ActMakeProjectName)?, policy }

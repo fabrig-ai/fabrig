@@ -30,7 +30,7 @@ fn github(kind: Kind, mode: Mode) -> Domain {
     .unwrap()
 }
 fn connect(forge: u16) -> Ask {
-    Ask::Connect { forge, how: How::GitHubApp { app: NonZeroU64::new(7).unwrap() } }
+    Ask::Connect { forge: Making::Kept(forge), how: How::GitHubApp { app: NonZeroU64::new(7).unwrap() } }
 }
 fn application(
     d: &mut Domain,
@@ -381,7 +381,10 @@ fn installation_updates_mark_rows_in_id_order_and_deletion_drops_one() {
 }
 
 fn manifest_ask(forge: u16) -> Ask {
-    Ask::Connect { forge, how: How::GitHubManifest { back: Some(Box::from(b"/forges".as_slice())) } }
+    Ask::Connect {
+        forge: Making::Kept(forge),
+        how: How::GitHubManifest { back: Some(Box::from(b"/forges".as_slice())) },
+    }
 }
 #[test]
 fn manifests_need_no_key_erase_carried_and_release_after_the_link() {
@@ -619,7 +622,7 @@ fn read_only_app_refuses_a_manifest_but_accepts_a_paste() {
     d.configured.get_mut(&1).unwrap().read_only = true;
     refused(
         &mut d,
-        Ask::Connect { forge: 1, how: How::GitHubManifest { back: None } },
+        Ask::Connect { forge: Making::Kept(1), how: How::GitHubManifest { back: None } },
         Some(PartyRole::Owner),
         None,
         ForgeRefusal::NotTaken,
@@ -632,7 +635,7 @@ fn read_only_app_refuses_a_manifest_but_accepts_a_paste() {
 }
 
 fn admin_ask(forge: u16, first: Option<FirstAsk>) -> Ask {
-    Ask::Connect { forge, how: How::ForgejoAdmin { first } }
+    Ask::Connect { forge: Making::Kept(forge), how: How::ForgejoAdmin { first } }
 }
 fn admin_domain() -> Domain {
     let mut d = github(Kind::Forgejo, Mode::Managed);
@@ -990,5 +993,16 @@ fn accept_requires_the_owner_a_real_connected_github_and_a_free_writing_slot() {
         } else {
             false
         })
+    );
+}
+
+#[test]
+fn a_new_github_is_refused_without_the_machines_place() {
+    refused(
+        &mut github(Kind::GitHub, Mode::Connected),
+        Ask::Connect { forge: Making::New(ForgeAsk::GitHub), how: How::GitHubApp { app: NonZeroU64::new(7).unwrap() } },
+        Some(PartyRole::Owner),
+        Some(VALUE),
+        ForgeRefusal::NoSuchForge,
     );
 }

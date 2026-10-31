@@ -5,6 +5,9 @@
 //!
 //! | State | Event | Next | Emits |
 //! |---|---|---|---|
+//! | idle | drop project | waiting for project lines | load |
+//! | waiting for project lines | loaded | waiting or idle | erases and load, or answer |
+//! | waiting for project lines | load failed | waiting for project lines | load |
 //! | idle | write or edit | waiting for entry | load |
 //! | waiting for entry | loaded | waiting for scope or idle | load, writes, or refusal |
 //! | waiting for scope | loaded | waiting or idle | load, writes, or refusal |
@@ -14,6 +17,7 @@
 use skein_lib::{Env, Map, Queue, Token, Wall};
 
 use crate::boundary::{Author, Change, Entry, Event, Key, Line, New, Range, Record, Refusal, Request, Rows, Scope};
+use crate::drop_project::{self, Dropping};
 use crate::limits::Limits;
 use crate::read::{self, Cached, ReadPending};
 
@@ -43,6 +47,7 @@ enum Phase {
 pub struct Domain {
     pending: Option<Pending>,
     pub(crate) read: Option<ReadPending>,
+    pub(crate) dropping: Option<Dropping>,
     pub(crate) indexes: Map<Scope, Cached>,
     pub(crate) clock: u64,
     next_load: u64,
@@ -52,13 +57,20 @@ impl Domain {
     /// Create an empty notes child.
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {
-        Domain { pending: None, read: None, indexes: Map::with_capacity(limits.scopes), clock: 0, next_load: 1 }
+        Domain {
+            pending: None,
+            read: None,
+            dropping: None,
+            indexes: Map::with_capacity(limits.scopes),
+            clock: 0,
+            next_load: 1,
+        }
     }
 
     /// Whether a call is waiting for a store page.
     #[must_use]
     pub fn busy(&self) -> bool {
-        self.pending.is_some() || self.read.is_some()
+        self.pending.is_some() || self.read.is_some() || self.dropping.is_some()
     }
 
     /// The number of scope indexes held in memory.
@@ -87,6 +99,7 @@ impl Domain {
 /// Decide one event and emit writes or a store load.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::DropProject { owner, project } => drop_project::start(domain, owner, project, out),
         Event::Index { owner, scopes, most } => read::index(domain, &env.limits, owner, scopes, most, out),
         Event::Recall { owner, by, page } => read::recall(domain, &env.limits, owner, by, page, out),
         Event::Write { owner, entry, recalled } => {
@@ -108,6 +121,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             }
         }
         Event::LoadFailed { owner } => {
+            if domain.dropping.is_some() {
+                drop_project::failed(domain, owner, out);
+                return;
+            }
             let pending = domain.pending.take();
             match pending {
                 Some(pending) if pending.load_owner == owner => {
@@ -118,7 +135,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             }
         }
         Event::Loaded { owner, rows, more } => {
-            if domain.pending.is_some() {
+            if domain.dropping.is_some() {
+                drop_project::loaded(domain, &env.limits, owner, rows, out);
+            } else if domain.pending.is_some() {
                 loaded(domain, env, owner, rows, more, out);
             } else {
                 read::loaded(domain, &env.limits, owner, rows, more, out);

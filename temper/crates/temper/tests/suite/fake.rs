@@ -445,12 +445,9 @@ fn deployment_command(kind: &str, directory: &Path) -> Command {
 }
 fn forge_setup(directory: &Path, listen: &str) -> Value {
     let mut config = support::configuration::check_document(directory);
-    config["application"]["forges"][0]["api"] = json!({"socket":listen});
-    config["application"]["forges"][0]["git"] = json!(format!("http://{listen}"));
-    let fake = &mut config["application"]["setup"][0]["mode"]["fake"];
-    fake["listen"] = json!({"socket":listen});
-    fake["owner"] = json!("fake");
-    fake["repositories"][0]["landing"] = json!("trunk");
+    support::configuration::fake_entry(&mut config["application"]["machine"]["fake"], listen);
+    fs::create_dir_all(directory.join("box/groups")).expect("groups");
+    support::write_private(&directory.join("box/groups/1"), b"fake\n");
     config
 }
 #[expect(clippy::too_many_lines, reason = "deployment forms refuse before creating files")]
@@ -481,9 +478,6 @@ fn refused_deployment_start(root: &Path) {
             "past 40 bytes",
             true,
         ),
-        ("no_entry", "2", "fake", None, false, false, "the setup has no entry for it", false),
-        ("owned", "1", "owned", None, false, false, "it is owned, not fake", false),
-        ("managed", "1", "managed", None, false, false, "it is managed, not fake", false),
         ("both", "1", "fake", None, true, false, "invalid arguments", false),
         ("observations", "1", "fake", Some(TOKEN), false, true, "File exists (os error 17)", true),
     ] {
@@ -502,19 +496,14 @@ fn refused_deployment_start(root: &Path) {
                     person: "ada",
                 },
             ),
-            "managed" => {
-                config = support::configuration::old_form_check_document(&dir);
-                config["application"]["setup"][0]["mode"] = json!({"managed":{"admin_token":"admin_token"}});
-                config["application"]["setup"][0]["orgs"] = json!(["acme"]);
-            }
             "fake" => {}
             _ => unreachable!("fixture mode"),
         }
         document(&dir.join("temper.json"), &config);
         if let Some(token) = token {
-            fs::create_dir(dir.join("forge-1")).expect("token directory");
-            fs::set_permissions(dir.join("forge-1"), fs::Permissions::from_mode(0o700)).expect("private");
-            support::write_private(&dir.join("forge-1/admin_token"), token);
+            fs::create_dir(dir.join("playground-1")).expect("token directory");
+            fs::set_permissions(dir.join("playground-1"), fs::Permissions::from_mode(0o700)).expect("private");
+            support::write_private(&dir.join("playground-1/admin_token"), token);
         }
         let mut command = deployment_command("forge", &dir);
         command.arg(number);
@@ -529,7 +518,7 @@ fn refused_deployment_start(root: &Path) {
         let output = command.output().expect("refused fake");
         assert_eq!(output.status.code(), Some(1), "{name}");
         assert!(output.stdout.is_empty());
-        let file = if observations { "observations" } else { "forge-1/admin_token" };
+        let file = if observations { "observations" } else { "playground-1/admin_token" };
         let location = if names_file { format!("{}: ", dir.join(file).display()) } else { String::new() };
         assert_eq!(
             String::from_utf8(output.stderr).expect("refusal"),
@@ -657,6 +646,7 @@ fn forge_run() {
             b"{\"observations_lost\":0}\n",
             "no seed observations"
         );
+        let owner = if from_setup { "playground" } else { "fake" };
         let auth = format!("token {}", std::str::from_utf8(&token).expect("valid fixture"));
         let user = request(&run, run.address, "GET", "/api/v1/user", &auth, b"");
         assert!(user.starts_with(b"HTTP/1.1 200"));
@@ -664,9 +654,10 @@ fn forge_run() {
         let repository = request(&run, run.address, "GET", "/api/v1/repositories/1", &auth, b"");
         assert!(repository.starts_with(b"HTTP/1.1 200"));
         let repository = body(&repository);
-        for (member, expected) in
-            [("default_branch", "trunk".to_owned()), ("html_url", format!("http://{}/fake/widget", run.address))]
-        {
+        for (member, expected) in [
+            ("default_branch", if from_setup { "main" } else { "trunk" }.to_owned()),
+            ("html_url", format!("http://{}/{owner}/widget", run.address)),
+        ] {
             assert_eq!(repository[member], expected, "{member}");
         }
         let objects = request(&run, run.address, "POST", "/.fake/git/objects", "", br#"{"commits":[1]}"#);
@@ -695,7 +686,7 @@ fn forge_run() {
             &run,
             run.address,
             "PUT",
-            "/api/v1/repos/fake/widget/collaborators/temper-admin",
+            &format!("/api/v1/repos/{owner}/widget/collaborators/temper-admin"),
             &auth,
             br#"{"permission":"admin"}"#,
         );
@@ -704,7 +695,7 @@ fn forge_run() {
             &run,
             run.address,
             "POST",
-            "/api/v1/repos/fake/widget/branches",
+            &format!("/api/v1/repos/{owner}/widget/branches"),
             &auth,
             br#"{"new_branch_name":"work","old_ref_name":"910a2dec89025cc1000000000000000100000000"}"#,
         );
@@ -737,23 +728,14 @@ fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>)
     document(&directory.join("temper.json"), &forge_setup(directory, &listen.to_string()));
     let prepared = support::owned::prepare(directory, 1);
     assert_eq!(prepared.status.code(), Some(0), "{}", String::from_utf8_lossy(&prepared.stderr));
-    let path = directory.join("forge-1/admin_token");
+    let path = directory.join("playground-1/admin_token");
     let token = fs::read(&path).expect("prepared token");
     (listen, path, token)
 }
 #[test]
-fn the_old_form_prepared_fake_reconciles_twice_before_it_stops() {
+fn the_prepared_fake_directs_reconcile_to_the_service_and_keeps_its_token() {
     let scratch = support::Scratch::new("fake_forge_reconcile");
     let (_, path, token) = prepared_forge(scratch.path());
-    // temper-15 retains the explicit file-writing reconcile command.
-    let mut config = support::configuration::old_form_check_document(scratch.path());
-    let prepared: Value =
-        serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("prepared document"))
-            .expect("prepared JSON");
-    config["application"]["forges"][0]["api"] = prepared["application"]["forges"][0]["api"].clone();
-    config["application"]["forges"][0]["git"] = prepared["application"]["forges"][0]["git"].clone();
-    config["application"]["setup"] = prepared["application"]["setup"].clone();
-    document(&scratch.path().join("temper.json"), &config);
     let mut command = deployment_command("forge", scratch.path());
     command.arg("1");
     let run = Running::command(command, None);
@@ -765,9 +747,12 @@ fn the_old_form_prepared_fake_reconciles_twice_before_it_stops() {
             .arg("1")
             .output()
             .expect("reconcile ends");
-        assert_eq!(output.status.code(), Some(0), "{pass}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.status.code(), Some(1), "{pass}: {}", String::from_utf8_lossy(&output.stderr));
         assert!(output.stdout.is_empty());
-        assert!(output.stderr.is_empty());
+        assert_eq!(
+            output.stderr,
+            b"temper forge reconcile: forge 1: forge 1 is kept by the service: connect it from the client\n"
+        );
     }
     run.stop();
     assert_eq!(fs::read(path).expect("handover token kept"), token);

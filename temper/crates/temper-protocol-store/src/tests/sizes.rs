@@ -13,7 +13,7 @@ fn the_application_sizes_are_the_largest_key_and_row() {
     // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
-        Some(jig_protocol_store::sizes::Application { version: 10, key: 511, value: 53_492 })
+        Some(jig_protocol_store::sizes::Application { version: 11, key: 511, value: 53_492 })
     );
 }
 #[test]
@@ -50,23 +50,8 @@ fn a_row_whose_key_disagrees_with_its_record_is_undecodable() {
     assert_eq!(records::row(&key, &[], &bounds), Err(Undecodable), "malformed value");
 }
 #[test]
-fn the_store_version_is_ten() {
-    assert_eq!(crate::STORE_VERSION, 10);
-}
-
-#[test]
-fn demo_row_sizes_fit_the_existing_application_ceiling() {
-    use crate::v10 as w;
-    assert_eq!(w::Demo::encoded_bound(&w::CEILINGS), Some(3));
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    for state in [forge::DemoState::Running, forge::DemoState::Ended] {
-        let row = forge::Stored::Demo(forge::Demo { forge: u16::MAX, state });
-        let value = records::encode(&row);
-        let key = keys::encode(&forge::stored_key(&row), u32::MAX).expect("key");
-        assert_eq!(key.len(), 9);
-        assert_eq!(value.len(), 6);
-        assert_eq!(records::row(&key, &value, &bounds), Ok(row));
-    }
+fn the_store_version_is_eleven() {
+    assert_eq!(crate::STORE_VERSION, 11);
 }
 
 #[test]
@@ -79,17 +64,17 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     const ISSUE_ROW_AFTER_HEAP_CEILING: u64 = 10_000;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let after = *bounds.limits();
-    let before = crate::v10::Limits { plan_item_text: fixtures::LIMITS.issue_policy.comment_bytes, ..after };
-    let old_view = crate::v10::GoalView::encoded_bound(&before).expect("old view size");
-    let new_view = crate::v10::GoalView::encoded_bound(&after).expect("new view size");
+    let before = crate::v11::Limits { plan_item_text: fixtures::LIMITS.issue_policy.comment_bytes, ..after };
+    let old_view = crate::v11::GoalView::encoded_bound(&before).expect("old view size");
+    let new_view = crate::v11::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
     // The schema's fixed framing plus the measured view; ChangeRow still dominates Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
-    assert_eq!(crate::v10::IssueRow::encoded_bound(&before), Some(5657));
-    assert_eq!(crate::v10::IssueRow::encoded_bound(&after), Some(7705));
-    assert_eq!(crate::v10::IssueRow::decoded_bound(&before), Some(5888));
-    assert_eq!(crate::v10::IssueRow::decoded_bound(&after), Some(7936));
+    assert_eq!(crate::v11::IssueRow::encoded_bound(&before), Some(5657));
+    assert_eq!(crate::v11::IssueRow::encoded_bound(&after), Some(7705));
+    assert_eq!(crate::v11::IssueRow::decoded_bound(&before), Some(5888));
+    assert_eq!(crate::v11::IssueRow::decoded_bound(&after), Some(7936));
     for (name, limits, ceiling) in
         [("before", before, ISSUE_ROW_BEFORE_HEAP_CEILING), ("after", after, ISSUE_ROW_AFTER_HEAP_CEILING)]
     {
@@ -99,22 +84,22 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
         let encoded = writer.finish();
         assert_eq!(
             Some(u64::try_from(encoded.len()).expect("encoded length")),
-            crate::v10::IssueRow::encoded_bound(&limits)
+            crate::v11::IssueRow::encoded_bound(&limits)
         );
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
         let decoded =
-            crate::v10::IssueRow::decode(&limits, &mut skein_lib::Reader::new(&encoded)).expect("full issue row");
+            crate::v11::IssueRow::decode(&limits, &mut skein_lib::Reader::new(&encoded)).expect("full issue row");
         let peak = meter.end().peak();
         assert!(peak <= ceiling, "{name}: {peak} bytes exceeds {ceiling}");
         assert_eq!(decoded, row);
     }
-    assert_eq!(crate::v10::Row::encoded_bound(&before), Some(53_492));
-    assert_eq!(crate::v10::Row::encoded_bound(&after), Some(53_492));
+    assert_eq!(crate::v11::Row::encoded_bound(&before), Some(53_492));
+    assert_eq!(crate::v11::Row::encoded_bound(&after), Some(53_492));
 }
 
-fn full_issue_row(limits: &crate::v10::Limits) -> crate::v10::IssueRow {
-    use crate::v10 as w;
+fn full_issue_row(limits: &crate::v11::Limits) -> crate::v11::IssueRow {
+    use crate::v11 as w;
     use skein_lib::{List, bytes};
     let key = w::MilestoneKey::Lifecycle(
         w::Lifecycle::new(limits, w::LifecycleParts { task: u64::MAX, position: u64::MAX }).expect("fixed key"),
@@ -193,4 +178,63 @@ fn full_issue_row(limits: &crate::v10::Limits) -> crate::v10::IssueRow {
         },
     )
     .expect("full issue row")
+}
+
+#[test]
+fn largest_forge_record_fits_the_application_ceiling() {
+    use crate::v11 as w;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let limits = bounds.limits();
+    let bytes = |length| skein_lib::bytes::zeroed(usize::try_from(length).expect("field length"));
+    let row = forge::Stored::Forge(forge::ForgeRecord {
+        number: u16::MAX,
+        kind: forge::Kind::GitHub,
+        mode: forge::Mode::Fake,
+        state: forge::ForgeState::Ended { secrets_erased: true, box_removed: true },
+        place: forge::Place {
+            api: forge::Address {
+                host: bytes(limits.address_host),
+                port: u16::MAX,
+                tls: Some(bytes(limits.address_tls_some)),
+            },
+            git: bytes(limits.place_git),
+            web: Some(bytes(limits.place_web_some)),
+        },
+        read_only: true,
+        bot: forge::Bot {
+            login: bytes(limits.bot_login),
+            name: bytes(limits.bot_name),
+            email: bytes(limits.bot_email),
+        },
+        asked: true,
+        first: Some(forge::FirstIntent {
+            playground: true,
+            org: bytes(limits.first_intent_org),
+            repository: bytes(limits.first_intent_repository),
+            project: forge::SetUpProject::New(bytes(limits.new_first_name)),
+            label: bytes(limits.first_intent_label),
+        }),
+    });
+    let encoded = records::encode(&row);
+    let forge_bound = w::Forge::encoded_bound(limits).expect("forge bound");
+    assert_eq!(u64::try_from(encoded.len()).expect("row length"), forge_bound + 3);
+    assert!(forge_bound + 3 <= w::Row::encoded_bound(limits).expect("application bound"));
+    assert_eq!(records::decode(&encoded, &bounds), Ok(row.clone()));
+    let mut payload = 0_u64;
+    for length in [
+        limits.address_host,
+        limits.address_tls_some,
+        limits.place_git,
+        limits.place_web_some,
+        limits.bot_login,
+        limits.bot_name,
+        limits.bot_email,
+        limits.first_intent_org,
+        limits.first_intent_repository,
+        limits.new_first_name,
+        limits.first_intent_label,
+    ] {
+        payload += u64::from(length);
+    }
+    assert_eq!(forge::stored_bytes(&row), Some(payload));
 }

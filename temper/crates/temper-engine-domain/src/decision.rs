@@ -47,6 +47,12 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Delivery {
+    /// Adoption release reaches the core after its erasures commit
+    /// (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectReleased {
+        connector: u16,
+        project: u32,
+    },
     /// Resumes the start only after this decision is durable.
     Start(jig_domain_core::start::Continuation),
     /// Retry archive admission after the current iteration can retire its read slots.
@@ -63,13 +69,8 @@ pub enum Delivery {
         request: Token,
         answer: temper_engine_domain_forge::BindAnswer,
     },
-    /// Release an act answer after its core decision commits.
-    DemoActed {
-        to: ReplyTo,
-        outcome: jig_domain_people::Outcome,
-    },
     /// A secret-free diagnostic, at most 256 bytes (protocol/setup.md, 8.4).
-    DemoNote {
+    PlaygroundNote {
         line: Box<[u8]>,
     },
     /// Whole forge panel, held with the decision that requested it (domain/root.md, 5.1).
@@ -296,14 +297,9 @@ impl Decision {
         let within = match &write {
             Write::CopySettingsRevision(number) => *number != 0,
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(_))))
-            | Write::Erase(
-                Key::Wires
-                | Key::Core(jig_domain_core::Key::Core(
-                    jig_domain_core::CoreKey::Deployment
-                    | jig_domain_core::CoreKey::EscalationDecision { .. }
-                    | jig_domain_core::CoreKey::ProposalDecision { .. },
-                )),
-            ) => false,
+            | Write::Erase(Key::Wires | Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment))) => {
+                false
+            }
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(row)))) => {
                 row.task != 0
                     && row.attempt != 0
@@ -313,11 +309,14 @@ impl Decision {
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row)))) => {
                 row.key.task != 0 && row.key.attempt != 0 && row.key.completion != 0
             }
-            Write::Wires
+            Write::DropTranscript { .. }
+            | Write::Wires
             | Write::Erase(
                 Key::Core(
                     jig_domain_core::Key::Core(
-                        jig_domain_core::CoreKey::Settings(_)
+                        jig_domain_core::CoreKey::EscalationDecision { .. }
+                        | jig_domain_core::CoreKey::ProposalDecision { .. }
+                        | jig_domain_core::CoreKey::Settings(_)
                         | jig_domain_core::CoreKey::Call(_)
                         | jig_domain_core::CoreKey::Turn { .. }
                         | jig_domain_core::CoreKey::RunProof(..)
@@ -467,11 +466,7 @@ impl Decision {
                 }
                 owned <= usize::try_from(limits.result_bytes.max(limits.transcript_bytes)).expect("u32 fits usize")
             }
-            Delivery::DemoNote { line } => line.len() <= 256,
-            Delivery::DemoActed { outcome, .. } => match crate::store::program_answer_bytes(outcome) {
-                Some(bytes) => bytes <= u64::from(limits.result_bytes.max(limits.transcript_bytes)),
-                None => false,
-            },
+            Delivery::PlaygroundNote { line } => line.len() <= 256,
             Delivery::Fleet(event) => fleet_delivery_within(event),
             Delivery::Relay { word, .. } => {
                 word.number != 0
@@ -482,6 +477,7 @@ impl Decision {
             Delivery::SourceSignedOut { .. }
             | Delivery::Link { .. }
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
@@ -613,9 +609,13 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
                 | crate::PartyRequest::RunText { .. },
             )
             | crate::Output::Store(_)
+            | crate::Output::PlaygroundActs { .. }
+            | crate::Output::ResetAct { .. }
             | crate::Output::Setup { .. }
-            | crate::Output::StopGroup { .. }
-            | crate::Output::SetUpGroup { .. }
+            | crate::Output::ForgeKept(_)
+            | crate::Output::ForgeGone { .. }
+            | crate::Output::BoxGroup { .. }
+            | crate::Output::BoxRemove { .. }
             | crate::Output::SetUp { .. }
             | crate::Output::Account(_)
             | crate::Output::Busy(_)

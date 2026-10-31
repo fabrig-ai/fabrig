@@ -1,4 +1,5 @@
 //! Public offers and payer readiness (client/domain/contract.md, 5.1 and 7.1).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use super::{DocumentLimits, Missing, Text};
 use crate::{Core, Limits};
 use alloc::boxed::Box;
@@ -96,6 +97,9 @@ pub(super) fn rows(core: &Core, limits: &Limits, party: u64) -> Result<(List<Pay
     append(core, pending.as_slice(), tasks::Payer::Party(party), &mut rows, &mut cut)?;
     let roles = core.people.project_roles(party).ok_or(Missing::Unknown)?;
     for role in &roles {
+        if !core.open_project(role.project) {
+            continue;
+        }
         append(core, pending.as_slice(), tasks::Payer::Project(role.project), &mut rows, &mut cut)?;
     }
     Ok((rows, cut))
@@ -135,7 +139,7 @@ fn append(
 
 /// Full-state selection precedes any document truncation. No task pin is chosen here.
 fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, bool) {
-    let coverage = core.account_coverage(payer);
+    let coverage = core.account_coverage(payer, None);
     let mut unknown = false;
     let mut refreshing = false;
     let hosts = core.fleet.host_views();

@@ -7,16 +7,20 @@ mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod connect;
-mod demo;
 mod fixtures;
 mod flight;
 #[path = "tests/landing.rs"]
 mod landing_routes;
 mod limits;
+mod make;
 mod panel;
+mod playground;
 mod projection;
 mod purpose;
 mod reconcile;
+mod records;
+mod release;
+mod removal;
 mod restore_fit;
 mod runs;
 mod stopping;
@@ -55,6 +59,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 const LIMITS: Limits = Limits {
+    forges: 4,
     repositories: 2,
     tasks: 8,
     holds: 8,
@@ -135,7 +140,7 @@ fn domain() -> Domain {
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
         &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
+        &configured()[..1],
         false,
     )
     .expect("valid connector")
@@ -328,6 +333,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
         | Request::Released { .. }
+        | Request::ProjectReleased { .. }
         | Request::Retained { .. }
         | Request::ReleaseFailed { .. }
         | Request::News { .. }
@@ -351,8 +357,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
-        | Request::StopGroup { .. }
-        | Request::SetUpGroup { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
         | Request::Reachable { .. }
@@ -362,10 +366,13 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
-        | Request::DemoStart { .. }
+        | Request::PlaygroundActs { .. }
+        | Request::ResetAct { .. }
         | Request::Settled { .. }
+        | Request::ForgeKept(_)
+        | Request::ForgeGone { .. }
+        | Request::BoxGroup { .. }
+        | Request::BoxRemove { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -400,6 +407,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
         | Request::Released { .. }
+        | Request::ProjectReleased { .. }
         | Request::Retained { .. }
         | Request::ReleaseFailed { .. }
         | Request::News { .. }
@@ -423,8 +431,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
-        | Request::StopGroup { .. }
-        | Request::SetUpGroup { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
         | Request::Reachable { .. }
@@ -434,10 +440,13 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
-        | Request::DemoStart { .. }
+        | Request::PlaygroundActs { .. }
+        | Request::ResetAct { .. }
         | Request::Settled { .. }
+        | Request::ForgeKept(_)
+        | Request::ForgeGone { .. }
+        | Request::BoxGroup { .. }
+        | Request::BoxRemove { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -469,6 +478,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
         | Request::Released { .. }
+        | Request::ProjectReleased { .. }
         | Request::Retained { .. }
         | Request::ReleaseFailed { .. }
         | Request::News { .. }
@@ -492,8 +502,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
-        | Request::StopGroup { .. }
-        | Request::SetUpGroup { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
         | Request::Reachable { .. }
@@ -503,10 +511,13 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
-        | Request::DemoStart { .. }
+        | Request::PlaygroundActs { .. }
+        | Request::ResetAct { .. }
         | Request::Settled { .. }
+        | Request::ForgeKept(_)
+        | Request::ForgeGone { .. }
+        | Request::BoxGroup { .. }
+        | Request::BoxRemove { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
@@ -1185,7 +1196,7 @@ fn routing_domain() -> Domain {
         4,
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
+        &configured(),
         false,
     )
     .unwrap()
@@ -1435,8 +1446,8 @@ fn configured_forges_are_bounded_at_construction() {
     fn config() -> skein_forge_client::Config {
         skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) }
     }
-    let count = usize::try_from(LIMITS.client.repositories).unwrap();
-    let mut forges = skein_lib::List::with_capacity(LIMITS.client.repositories.checked_add(1).unwrap());
+    let count = usize::try_from(LIMITS.forges).unwrap();
+    let mut forges = skein_lib::List::with_capacity(LIMITS.forges.checked_add(1).unwrap());
     for number in 0..=count {
         forges
             .push(Configured { owned: None, number: u16::try_from(number).unwrap(), ..configured()[0].clone() })
@@ -1511,7 +1522,7 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
         retention: Duration::from_secs(60),
         ask: Ask::SetUp {
             playground: false,
-            forge,
+            forge: Making::Kept(forge),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             project: SetUpProject::Existing(1),
@@ -1688,7 +1699,7 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
             retention: Duration::from_secs(60),
             ask: Ask::SetUp {
                 playground: false,
-                forge: 1,
+                forge: Making::Kept(1),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
                 project: project.clone(),
@@ -1757,7 +1768,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                 let accepted = given::check_create(&kit_limits, domain_bound, &plan).is_ok();
                 let ask = Ask::SetUp {
                     playground: false,
-                    forge: 1,
+                    forge: Making::Kept(1),
                     org: org_name.clone(),
                     repository: repository.clone(),
                     project: SetUpProject::Existing(1),
@@ -1818,7 +1829,7 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
         };
         let ask = Ask::SetUp {
             playground: false,
-            forge: 1,
+            forge: Making::Kept(1),
             org: first.org.clone(),
             repository: first.repository.clone(),
             project: first.project.clone(),
@@ -2267,4 +2278,45 @@ fn release_failed(requests: &[Request], task: u64) -> bool {
         }
     }
     false
+}
+
+#[test]
+fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
+    let mut d = domain();
+    d.identities.remove(&1);
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Forge(ForgeRecord {
+                number: 1,
+                kind: Kind::Forgejo,
+                mode: Mode::Managed,
+                state: ForgeState::Kept,
+                place: Place {
+                    api: Address {
+                        host: b"forge.example".as_slice().into(),
+                        port: 443,
+                        tls: Some(b"forge.example".as_slice().into()),
+                    },
+                    git: b"https://forge.example".as_slice().into(),
+                    web: None,
+                },
+                read_only: false,
+                bot: Bot { login: b"temper".as_slice().into(), name: b"Temper".as_slice().into(), email: Box::new([]) },
+                asked: false,
+                first: None,
+            }),
+        },
+    );
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let item = d
+        .workspace_item(items::Seed {
+            task: 7,
+            parent: None,
+            repository: REPO,
+            run_branch: b"temper/7/r7".as_slice().into(),
+            saved_branch: None,
+        })
+        .expect("kept forge's workspace");
+    assert_eq!(item.credential, Some(1));
 }

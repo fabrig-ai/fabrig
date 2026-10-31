@@ -292,6 +292,7 @@ fn kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry(
             "no early erase of a kept Seen answer"
         );
         test.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
+        test.send(Event::Restore { record: Stored::Roles { project: 1, holdings: Box::new([]) } });
         test.send(Event::Restore {
             record: Stored::SignIn {
                 number: 10,
@@ -623,6 +624,7 @@ fn saved_answer(rows: &[Request]) -> Stored {
                 | Stored::SignIn { .. }
                 | Stored::Roles { .. }
                 | Stored::Acted { .. }
+                | Stored::Deletion { .. }
                 | Stored::Policy { .. } => None,
             },
             Request::Reply { .. }
@@ -681,6 +683,7 @@ fn all_roles_route_to_the_core_and_its_refusals_are_saved() {
     }
     let mut test = Test::new(LIMITS);
     test.member();
+    test.send(Event::Roles { project: 2, holdings: Box::new([]) });
     let request = route(&test.request(10, 1, ask(2)));
     let out = test.send(Event::Decided { request, outcome: Outcome::Refused(Refusal::Role { held: None }) });
     assert_eq!(reply(&out), Reply::Outcome(Outcome::Refused(Refusal::Role { held: None })));
@@ -1072,20 +1075,36 @@ fn refused_role_requests_restore_invalid_rosters_and_unknown_targets_for_replay(
         live.send_bounded(Event::Roles { project: 1, holdings: Box::new([Holding { person: 1, role }]) });
         let ask = Ask::SetRoles { project, holdings };
         let mut rows = live.request_bounded(10, 7, ask.clone());
-        let request = route(rows.as_slice());
-        if role == Role::Owner && project == 1 {
-            let reply_token = live.to().into_token();
-            assert_eq!(
-                live.send_bounded(Event::ApplyRoles { reply_to: ReplyTo::new(reply_token), request }).as_slice(),
-                [Request::RolesApplied {
-                    reply_to: ReplyTo::new(reply_token),
-                    request,
-                    result: Err(Outcome::Refused(refusal.clone()))
-                }]
-            );
+        if project == 2 {
+            assert_eq!(rows.len(), 1);
+            assert_eq!(reply(rows.as_slice()), Reply::Refused(Refusal::Unknown));
+            rows = List::with_capacity(1);
+            rows.push(Request::Save {
+                record: Stored::Answer {
+                    key: RequestKey { person: 1, key: [7; 16] },
+                    ask: Box::new(ask.clone()),
+                    models: Box::new([]),
+                    outcome: Outcome::Refused(refusal.clone()),
+                    at: Wall::EPOCH,
+                },
+            })
+            .expect("historical unknown-project answer");
+        } else {
+            let request = route(rows.as_slice());
+            if role == Role::Owner && project == 1 {
+                let reply_token = live.to().into_token();
+                assert_eq!(
+                    live.send_bounded(Event::ApplyRoles { reply_to: ReplyTo::new(reply_token), request }).as_slice(),
+                    [Request::RolesApplied {
+                        reply_to: ReplyTo::new(reply_token),
+                        request,
+                        result: Err(Outcome::Refused(refusal.clone()))
+                    }]
+                );
+            }
+            rows = live.send_bounded(Event::Decided { request, outcome: Outcome::Refused(refusal.clone()) });
+            assert_eq!(reply(rows.as_slice()), Reply::Outcome(Outcome::Refused(refusal.clone())));
         }
-        rows = live.send_bounded(Event::Decided { request, outcome: Outcome::Refused(refusal.clone()) });
-        assert_eq!(reply(rows.as_slice()), Reply::Outcome(Outcome::Refused(refusal.clone())));
         let mut cold = Test::new(LIMITS);
         cold.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
         cold.d.start_restore(cold.env.wall);
@@ -1189,6 +1208,7 @@ fn is_answer(request: &Request) -> bool {
             | Stored::SignIn { .. }
             | Stored::Roles { .. }
             | Stored::Acted { .. }
+            | Stored::Deletion { .. }
             | Stored::Policy { .. } => false,
         },
         Request::Reply { .. }
@@ -1214,6 +1234,7 @@ fn is_roles(request: &Request) -> bool {
             | Stored::SignIn { .. }
             | Stored::Answer { .. }
             | Stored::Acted { .. }
+            | Stored::Deletion { .. }
             | Stored::Policy { .. } => false,
         },
         Request::Reply { .. }
@@ -1358,6 +1379,7 @@ fn expiry_projection_uses_the_environment_when_restore_finishes() {
 fn authenticated_escalation_decisions_route_without_membership_and_io_pressure_is_retryable() {
     let mut test = Test::new(LIMITS);
     test.signin(1, 10, identity(0, 1));
+    test.send(Event::Roles { project: 1, holdings: Box::new([]) });
     let ask = Ask::DecideEscalation { project: 1, task: 9, revision: 2, decision: EscalationDecision::Pass };
     let routed = test.request(10, 2, ask.clone());
     assert!(routed.iter().any(|row| match row {
@@ -1558,6 +1580,7 @@ fn application_admission_shares_capacity_and_retention_and_requires_a_live_sign_
     assert_ne!(route(&test.request(11, 1, application(2))), Token::new(0));
     let mut no_role = Test::new(LIMITS);
     no_role.signin(1, 10, identity(0, 1));
+    no_role.send(Event::Roles { project: 1, holdings: Box::new([]) });
     assert_eq!(
         reply(&no_role.request(10, 1, application(1))),
         Reply::Outcome(Outcome::Refused(Refusal::Role { held: None }))
@@ -2409,3 +2432,80 @@ fn valid_refuses_each_unrepresentable_limit() {
 
 #[path = "tests/start.rs"]
 mod start;
+
+#[test]
+fn a_deleting_projects_seen_chat_can_end_before_it_is_forgotten() {
+    let mut test = Test::new(LIMITS);
+    test.member();
+    test.send(Event::ChatState {
+        party: 1,
+        project: 1,
+        task: 9,
+        last_reply: 2,
+        live: true,
+        seen: None,
+        replies: Box::new([]),
+    });
+    let request = route(&test.request(10, 1, Ask::MarkSeen { seen: Seen::Conversation { task: 9, through: 1 } }));
+    test.send(Event::ConversationSeen { request, project: 1, last_reply: 2 });
+    test.send(Event::Deleting { project: 1, step: Some(DeletionStep::Tasks) });
+    test.send(Event::CloseProject { project: 1 });
+    test.send(Event::ChatState {
+        party: 1,
+        project: 1,
+        task: 9,
+        last_reply: 2,
+        live: false,
+        seen: None,
+        replies: Box::new([]),
+    });
+    test.send(Event::Forget { task: 9, project: 1, party: Some(1), last_reply: 2 });
+    assert_eq!(test.d.chat_owner(9), None);
+}
+
+#[test]
+fn deleting_projects_frees_their_bounded_inbox_census_places() {
+    let limits = Limits { people: 1, projects: 1, ..LIMITS };
+    let mut test = Test::new(limits);
+    test.member();
+    for project in [1, 2] {
+        test.send(Event::Roles { project, holdings: Box::new([Holding { person: 1, role: Role::Member }]) });
+        test.send(Event::ChatState {
+            party: 1,
+            project,
+            task: u64::from(project),
+            last_reply: 1,
+            live: false,
+            seen: None,
+            replies: Box::new([]),
+        });
+        test.d.remember_result(
+            &limits,
+            1,
+            ResultRef {
+                task: u64::from(project),
+                project,
+                at: Wall::EPOCH,
+                position: u64::from(project),
+                forgettable: None,
+            },
+        );
+        assert_eq!(test.d.counts(&limits, 1), Some(Counts { needs: 0, unread: 2, more_unread: false }));
+        test.send(Event::CloseProject { project });
+        test.send(Event::ForgetProject { project });
+        assert_eq!(test.d.counts(&limits, 1), Some(Counts { needs: 0, unread: 0, more_unread: false }));
+    }
+}
+
+#[test]
+fn an_owners_remove_project_ask_routes_before_the_deletion_is_kept() {
+    let mut test = Test::new(LIMITS);
+    test.signin(1, 10, identity(0, 1));
+    test.send(Event::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Owner }]) });
+    let outputs = test.request(10, 1, Ask::RemoveProject { project: 1 });
+    let [Request::Route { person: 1, project: 1, role: Some(Role::Owner), ask, .. }] = outputs.as_slice() else {
+        unreachable!("the owner routes one project deletion to its parent");
+    };
+    assert_eq!(**ask, Ask::RemoveProject { project: 1 });
+    assert!(test.d.deletions().is_empty());
+}

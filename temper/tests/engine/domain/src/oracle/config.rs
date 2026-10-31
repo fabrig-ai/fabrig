@@ -58,6 +58,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         forge_charter: config.forge_charter,
         forges: config.forges.clone(),
         under_box: config.under_box,
-        demo: config.demo.clone(),
+        machine: config.machine.clone(),
+        playground: config.playground.clone(),
     }
 }

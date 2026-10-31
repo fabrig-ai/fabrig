@@ -73,7 +73,7 @@ pub(crate) fn text_tail(tail: &[u8]) -> Box<[u8]> {
 #[must_use]
 pub fn down(
     assignment: root::Assignment,
-    forges: &[crate::settings::Forge],
+    forges: &crate::forges::Forges,
     encoding: &Encoding,
     values: &crate::values::Values,
     channel: Token,

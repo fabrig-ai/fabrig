@@ -222,19 +222,9 @@ fn retained_peer_edits_are_checked_without_replacement() {
         let mut reservation = None;
         match kind {
             "edited" => {
-                let deployment = crate::setup::check(&first.bytes, &first.directories.jig()).expect("deployment");
-                let mut serve = vec![crate::address(&deployment.named.clients).expect("clients address")];
-                if let Some(webhooks) = &deployment.named.webhooks {
-                    serve.push(crate::address(&webhooks.listener).expect("webhooks address"));
-                }
-                let ordinary = temper_fake::steps(
-                    &deployment.checked.setup,
-                    deployment.demo.as_ref(),
-                    &first.directories.flags(),
-                    serve.into_boxed_slice(),
-                    true,
-                    Box::new([]),
-                );
+                let (ordinary, _) =
+                    crate::box_command::configuration_steps(&first.directories, &first.bytes, Box::new([]))
+                        .expect("steps");
                 let mut taken =
                     vec![1455, first.peers.github.port(), first.peers.oauth.port(), first.peers.forgejo.port()];
                 for step in ordinary
@@ -640,16 +630,12 @@ fn effective_commands_reopen_the_retained_directories() {
     let scratch = Scratch::new("commands");
     let source = provisioned_source(&scratch);
     let prepared = start(&source, None).expect("prepare effective document");
-    let deployment =
-        crate::setup::check(&prepared.bytes, &prepared.directories.jig()).expect("checked effective setup");
-    let steps = temper_fake::steps(
-        &deployment.checked.setup,
-        deployment.demo.as_ref(),
-        &prepared.directories.flags(),
-        Box::new([]),
-        true,
+    let (steps, _) = crate::box_command::configuration_steps(
+        &prepared.directories,
+        &prepared.bytes,
         backends::steps(&prepared.directories.config, &prepared.peers),
-    );
+    )
+    .expect("steps");
     let prefix = backends::steps(&prepared.directories.config, &prepared.peers);
     assert_eq!(&steps.always[..prefix.len()], prefix.as_ref());
     for step in steps.always[prefix.len()..]
@@ -745,15 +731,12 @@ fn import_preserves_disabled_git_and_adds_the_fake_program() {
 }
 
 #[test]
-fn four_forges_pass_ordinary_admission_with_a_directoryless_managed_entry() {
+fn fake_github_machine_passes_ordinary_admission_without_document_forges() {
     let scratch = Scratch::new("four-forge-admission-r2");
     let (_source, first) = prepared_source(&scratch);
-    let checked = crate::setup::check(&first.bytes, &first.directories.jig()).expect("ordinary admission");
-    assert_eq!(checked.named.forges.len(), 4);
-    assert_eq!(checked.named.identities.len(), 4);
-    let entry = checked.checked.setup.entry(4).expect("managed four");
-    assert!(entry.directory.is_empty());
-    assert_eq!(temper_forge_setup::given::values(entry, None, &checked.checked.limits).admin_name.as_ref(), b"admin");
+    crate::setup::check(&first.bytes, &first.directories.jig()).expect("ordinary admission");
+    let machine = crate::box_command::machine(&first.bytes, &first.directories).expect("machine");
+    assert_eq!(crate::address(&machine.github.expect("fake GitHub").api).expect("socket"), first.peers.github);
     validate(&first.directories, &first.bytes, &scratch.0.join("fake-claude")).expect("sandbox validation");
     let operations = crate::operations_in(&first.directories, &first.bytes).expect("ordinary computed startup sizing");
     assert!(operations > 0);

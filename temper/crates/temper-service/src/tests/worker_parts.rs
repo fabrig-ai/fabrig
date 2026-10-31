@@ -163,11 +163,15 @@ use temper_worker_domain::wire;
 #[test]
 fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
     let assignment = fixtures::assignment_with(fixtures::repository(3, b"acme", b"app"));
-    let config = fixtures::engine();
     let limits = fixtures::wire_limits();
-    let items = translate::items(&assignment, &config.forges, &crate::forge::tokens::Tokens::empty(), &limits)
-        .unwrap()
-        .unwrap();
+    let items = translate::items(
+        &assignment,
+        &fixtures::forge_table(&fixtures::forges()),
+        &crate::forge::tokens::Tokens::empty(),
+        &limits,
+    )
+    .unwrap()
+    .unwrap();
     for program in [None, Some(Box::from(b"/fake/git".as_slice()))] {
         let mut fields = items.clone().into_parts();
         let mut repositories = skein_lib::List::with_capacity(1);
@@ -308,6 +312,7 @@ fn a_late_older_generation_leaves_the_newest_in_place() {
         );
     }
     assert_eq!(table.newest(2, fixtures::NOW), None);
+    table.granted(u32::from(u16::MAX), 1, None, fixtures::NOW).unwrap();
     for number in [0, 3] {
         assert_eq!(
             table.granted(

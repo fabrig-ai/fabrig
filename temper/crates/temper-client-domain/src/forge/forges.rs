@@ -1,4 +1,4 @@
-//! The deployment's configured forges and their set up (client/README.md, 4.6).
+//! Kept forge records and their setup (temper/docs/design/draft/playground-reset.md, 3, 4, 6.4).
 use super::{family, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Family, Watchable, contract as c};
@@ -184,10 +184,26 @@ pub fn ask(
     playground: bool,
     limits: &super::Limits,
 ) -> Option<Ask> {
-    Some(Ask::Family {
-        scope: c::Scope::Deployment,
-        record: family::set_up(forge, org, repository, project, playground, &wire_limits(limits)?)?,
-    })
+    let bounds = wire_limits(limits)?;
+    let forge = w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).ok()?);
+    ask_target(forge, org, repository, project, playground, &bounds)
+}
+fn ask_target(
+    forge: w::Making,
+    org: Box<[u8]>,
+    repository: Box<[u8]>,
+    project: SetUpProject,
+    playground: bool,
+    bounds: &w::Limits,
+) -> Option<Ask> {
+    let project = match project {
+        SetUpProject::Existing(project) => {
+            w::SetUpProject::Existing(w::ExistingProject::new(bounds, w::ExistingProjectParts { project }).ok()?)
+        }
+        SetUpProject::New(name) => w::SetUpProject::New(w::NewProject::new(bounds, w::NewProjectParts { name }).ok()?),
+    };
+    let value = w::SetUp::new(bounds, w::SetUpParts { forge, org, repository, project, playground }).ok()?;
+    request(w::Request::SetUp(value), bounds)
 }
 #[must_use]
 pub fn answer(answer: &Answered, limits: &super::Limits) -> Option<SetUpAnswer> {
@@ -234,6 +250,8 @@ impl SetupField {
 }
 #[derive(Debug)]
 pub struct Draft {
+    pub removal: Option<Removal>,
+    pub making: Option<New>,
     pub fields: [Box<[u8]>; 3],
     pub written: [u64; 3],
     /// The person wrote the project's name; until then it follows the repository's.
@@ -243,6 +261,8 @@ pub struct Draft {
 impl Draft {
     pub(crate) fn new() -> Self {
         Self {
+            removal: None,
+            making: None,
             fields: [Box::from(b"work".as_slice()), Box::from(b"hello".as_slice()), Box::from(b"hello".as_slice())],
             written: [0; 3],
             named: false,
@@ -298,11 +318,318 @@ pub struct FirstProject {
     pub request: skein_lib::Token,
     pub value: super::start::StartIn,
 }
+/// New records are identified from the watch, after the entrance answers.
+#[derive(Debug)]
+pub struct New {
+    pub kind: Kind,
+    pub mode: Mode,
+    pub seen: Box<[u16]>,
+    pub accepted: bool,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RemovalEffect {
+    OwnedDirectory,
+    ManagedBotAndHooksStay,
+    GitHubAppStays,
+    Playground,
+}
+#[derive(Debug)]
+pub struct Removal {
+    pub forge: u16,
+    pub kind: Kind,
+    pub mode: Mode,
+    pub effect: RemovalEffect,
+    pub request: Option<skein_lib::Token>,
+    pub outcome: Option<jig_client::Outcome>,
+    pub start_over: bool,
+}
+/// Actions whose words and confirmation are rendered by the view.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Act {
+    SetUpOwned,
+    SetUpOwnedAtOnce,
+    GitHub { back: Box<[u8]> },
+    Managed { place: Managed },
+    PlaceWrite { field: super::admin::PlaceField, text: Box<[u8]> },
+    ConnectManaged,
+    Remove { forge: u16 },
+    ConfirmRemove,
+    CancelRemove,
+    StartOver { forge: u16 },
+    GoOn { forge: u16, back: Box<[u8]> },
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Managed {
+    pub host: Box<[u8]>,
+    pub port: u16,
+    pub tls: Option<Box<[u8]>>,
+    pub git: Box<[u8]>,
+    pub web: Option<Box<[u8]>>,
+}
+impl Managed {
+    #[must_use]
+    pub fn valid(&self) -> bool {
+        !self.host.is_empty() && self.port != 0
+    }
+}
+pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: &mut skein_lib::Queue<super::Request>) {
+    match act {
+        Act::SetUpOwned => {
+            if !can_make(side) || !can_set_up(side) || side.playground_running() {
+                return;
+            }
+            new_record(side, Kind::Forgejo, Mode::Owned);
+            set_up(side, limits, 0, out);
+        }
+        Act::SetUpOwnedAtOnce => {
+            if !can_make(side) || !can_set_up(side) || side.playground_running() {
+                return;
+            }
+            new_record(side, Kind::Forgejo, Mode::Owned);
+            set_up_at_once(side, limits, 0, out);
+        }
+        Act::GitHub { back } => {
+            if !can_make(side)
+                || side.party.is_none()
+                || side.playground_running()
+                || side.served == super::Served::OutOfDate
+            {
+                return;
+            }
+            if let Some(pending) = &side.app
+                && pending.answer.is_none()
+            {
+                return;
+            }
+            new_record(side, Kind::GitHub, Mode::Connected);
+            super::github::manifest(side, limits, 0, back, out);
+        }
+        Act::Managed { place } => super::admin::send_new(side, limits, place, out),
+        Act::PlaceWrite { field, text } => super::admin::place_write(side, limits, field, text),
+        Act::ConnectManaged => super::admin::connect_managed(side, limits, out),
+        Act::Remove { forge } => remove(side, forge),
+        Act::ConfirmRemove => confirm_remove(side, limits, out),
+        Act::CancelRemove => {
+            if let Some(removal) = &side.setup_form.removal
+                && removal.request.is_some()
+            {
+                return;
+            }
+            side.setup_form.removal = None;
+            side.changed();
+        }
+        Act::StartOver { forge } => start_over(side, limits, forge, out),
+        Act::GoOn { forge, back } => {
+            let Some(row) = super::connect::row(forge, &side.forges, super::connect::playground(side)) else { return };
+            if row.kind != Kind::GitHub {
+                return;
+            }
+            match row.app {
+                Some(AppWay::Manifest) => super::github::manifest(side, limits, forge, back, out),
+                Some(AppWay::Pasted) => super::github::send(side, limits, forge, Some(back), out),
+                None => {}
+            }
+        }
+    }
+}
+pub(crate) fn can_make(side: &super::Side) -> bool {
+    let Some(new) = &side.setup_form.making else { return true };
+    if new.accepted {
+        return false;
+    }
+    if let Some(last) = &side.set_up
+        && last.forge.is_none()
+        && last.progress.is_some()
+    {
+        return false;
+    }
+    if let Some(pending) = &side.admin
+        && pending.forge == 0
+        && pending.answer.is_none()
+    {
+        return false;
+    }
+    if let Some(pending) = &side.app
+        && pending.forge == 0
+        && pending.answer.is_none()
+    {
+        return false;
+    }
+    true
+}
+pub(crate) fn new_record(side: &mut super::Side, kind: Kind, mode: Mode) {
+    let mut seen = skein_lib::List::with_capacity(ROWS);
+    if let State::Rows(rows) = &side.forges {
+        for row in rows {
+            seen.push(row.number).expect("bounded rows");
+        }
+    }
+    side.setup_form.making = Some(New { kind, mode, seen: seen.into_boxed(), accepted: false });
+}
+fn bind_new(side: &mut super::Side) {
+    let Some(making) = &side.setup_form.making else { return };
+    if !making.accepted {
+        return;
+    }
+    let State::Rows(rows) = &side.forges else { return };
+    for row in rows {
+        if row.kind == making.kind && row.mode == making.mode && !making.seen.contains(&row.number) {
+            if let Some(last) = &mut side.set_up
+                && last.forge.is_none()
+            {
+                last.forge = Some(row.number);
+            }
+            if let Some(pending) = &mut side.admin
+                && pending.forge == 0
+                && making.kind == Kind::Forgejo
+            {
+                pending.forge = row.number;
+            }
+            if let Some(pending) = &mut side.app
+                && pending.forge == 0
+                && making.kind == Kind::GitHub
+            {
+                pending.forge = row.number;
+            }
+            side.setup_form.making = None;
+            return;
+        }
+    }
+}
+#[must_use]
+pub(crate) fn making(side: &super::Side, forge: u16, bounds: &w::Limits) -> Option<w::Making> {
+    if forge == 0
+        && let Some(new) = &side.setup_form.making
+    {
+        let ask = match (new.kind, new.mode) {
+            (Kind::GitHub, Mode::Connected | Mode::Managed | Mode::Owned | Mode::Fake) => w::ForgeAsk::Github,
+            (Kind::Forgejo, Mode::Owned) => w::ForgeAsk::Owned,
+            (Kind::Forgejo, Mode::Managed | Mode::Connected | Mode::Fake) => return None,
+        };
+        return Some(w::Making::New(w::NewForge::new(bounds, w::NewForgeParts { forge: ask }).ok()?));
+    }
+    Some(w::Making::Kept(w::Kept::new(bounds, w::KeptParts { forge }).ok()?))
+}
+/// Collect the confirmation's facts without sending a request.
+pub fn remove(side: &mut super::Side, forge: u16) {
+    if side.party.is_none() || side.served == super::Served::OutOfDate {
+        return;
+    }
+    if let Some(last) = &side.setup_form.removal
+        && last.request.is_some()
+        && last.outcome.is_none()
+    {
+        return;
+    }
+    let State::Rows(rows) = &side.forges else { return };
+    for row in rows {
+        if row.number != forge {
+            continue;
+        }
+        let effect = match (row.kind, row.mode) {
+            (Kind::GitHub, Mode::Connected | Mode::Managed | Mode::Owned | Mode::Fake) => RemovalEffect::GitHubAppStays,
+            (Kind::Forgejo, Mode::Owned) => RemovalEffect::OwnedDirectory,
+            (Kind::Forgejo, Mode::Connected | Mode::Managed) => RemovalEffect::ManagedBotAndHooksStay,
+            (Kind::Forgejo, Mode::Fake) => RemovalEffect::Playground,
+        };
+        side.setup_form.removal = Some(Removal {
+            forge,
+            kind: row.kind,
+            mode: row.mode,
+            effect,
+            request: None,
+            outcome: None,
+            start_over: false,
+        });
+        side.changed();
+        return;
+    }
+}
+pub fn start_over(
+    side: &mut super::Side,
+    limits: super::Limits,
+    forge: u16,
+    out: &mut skein_lib::Queue<super::Request>,
+) {
+    if super::connect::row(forge, &side.forges, super::connect::playground(side)).is_none() {
+        return;
+    }
+    remove(side, forge);
+    let Some(removal) = &mut side.setup_form.removal else { return };
+    if removal.forge != forge || removal.request.is_some() {
+        return;
+    }
+    removal.start_over = true;
+    confirm_remove(side, limits, out);
+}
+pub fn confirm_remove(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib::Queue<super::Request>) {
+    if side.party.is_none() || side.served == super::Served::OutOfDate {
+        return;
+    }
+    let Some(removal) = &mut side.setup_form.removal else { return };
+    if removal.request.is_some() {
+        return;
+    }
+    let Some(bounds) = wire_limits(&limits) else { return };
+    let Ok(value) = w::RemoveForge::new(&bounds, w::RemoveForgeParts { forge: removal.forge }) else { return };
+    let Some(ask) = request(w::Request::RemoveForge(value), &bounds) else { return };
+    side.serial = side.serial.checked_add(1).expect("request serial fits");
+    let token = skein_lib::Token::new(side.serial);
+    removal.request = Some(token);
+    out.push(super::Request::Send { request: token, name: None, ask });
+    side.changed();
+}
+#[must_use]
+pub(crate) fn request(request: w::Request, bounds: &w::Limits) -> Option<Ask> {
+    let requesting = w::Requesting::new(bounds, w::RequestingParts { request }).ok()?;
+    Some(Ask::Family {
+        scope: c::Scope::Deployment,
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&requesting) },
+    })
+}
+fn removed(outcome: &jig_client::Outcome, limits: super::Limits) -> bool {
+    let jig_client::Outcome::Answered(Answered::Family(record)) = outcome else { return false };
+    if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
+        return false;
+    }
+    let Some(bounds) = wire_limits(&limits) else { return false };
+    let mut reader = skein_lib::Reader::new(&record.bytes);
+    let Ok(answer) = w::Answer::decode(&bounds, &mut reader) else { return false };
+    reader.is_empty() && *answer.outcome() == w::Outcome::Removed
+}
+fn removal_told(
+    side: &mut super::Side,
+    value: &jig_client::Told,
+    limits: super::Limits,
+    out: &mut skein_lib::Queue<super::Request>,
+) -> bool {
+    let Some(removal) = &mut side.setup_form.removal else { return false };
+    let Some(request) = removal.request else { return false };
+    let key = jig_client::Key { asker: crate::owner::Owner::Forge.asker(), number: request.raw() };
+    if let jig_client::Told::Answered { key: answered, outcome } = value
+        && *answered == key
+    {
+        if removal.outcome.is_some() {
+            return true;
+        }
+        removal.outcome = Some(outcome.clone());
+        if removed(outcome, limits) && removal.start_over {
+            side.set_up = None;
+            side.setup_form.making = None;
+            side.app = None;
+            side.admin = None;
+            out.push(super::Request::Leave { to: Box::from(b"/welcome?at=forge".as_slice()) });
+        }
+        side.changed();
+        return true;
+    }
+    false
+}
 /// The last set up sent by this client, retained across page changes.
 #[derive(Debug)]
 pub struct SetUp {
     pub playground: bool,
-    pub forge: u16,
+    pub forge: Option<u16>,
     pub party: u64,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
@@ -326,6 +653,8 @@ pub(crate) fn configure(side: &mut super::Side, limits: super::Limits, out: &mut
         side.forges = State::Unknown;
         if side.link == Link::SignedOut {
             side.set_up = None;
+            side.setup_form.making = None;
+            side.setup_form.removal = None;
             side.pickers.clear();
             side.admin_form = super::admin::Draft::new();
             side.admin = None;
@@ -420,14 +749,16 @@ fn send_setup(
 ) {
     let Some(party) = side.party else { return };
     let SetupValues { playground, org, repository, project } = values;
-    let Some(ask) = ask(forge, org.clone(), repository.clone(), project.clone(), playground, &limits) else {
+    let Some(bounds) = wire_limits(&limits) else { return };
+    let Some(target) = making(side, forge, &bounds) else { return };
+    let Some(ask) = ask_target(target, org.clone(), repository.clone(), project.clone(), playground, &bounds) else {
         return;
     };
     side.serial = side.serial.checked_add(1).expect("forge request serial fits");
     let request = skein_lib::Token::new(side.serial);
     side.set_up = Some(Box::new(SetUp {
         playground,
-        forge,
+        forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
         party,
         org,
         repository,
@@ -454,7 +785,7 @@ fn retry_fields(side: &super::Side, forge: u16) -> Option<SetupValues> {
             continue;
         }
         if let Some(last) = &side.set_up
-            && last.forge == forge
+            && last.forge == Some(forge)
         {
             return Some(SetupValues {
                 playground: last.playground,
@@ -482,6 +813,9 @@ pub(crate) fn told(
     out: &mut skein_lib::Queue<super::Request>,
 ) -> bool {
     use jig_client::{Latest, Outcome, Progress, Told};
+    if removal_told(side, value, limits, out) {
+        return true;
+    }
     if project_told(side, client, value, limits, out) {
         return true;
     }
@@ -554,6 +888,14 @@ pub(crate) fn told(
         | Told::Kept { .. }
         | Told::Dropped { .. } => return false,
     }
+    if let Some(last) = &side.set_up
+        && last.forge.is_none()
+        && last.answer == Some(SetUpAnswer::Outcome(SetUpOutcome::SettingUp))
+        && let Some(new) = &mut side.setup_form.making
+    {
+        new.accepted = true;
+    }
+    bind_new(side);
     super::admin::stopped(side);
     maybe_adopt(side, limits, out);
     side.changed();
@@ -616,6 +958,7 @@ fn end(side: &mut super::Side, out: &mut skein_lib::Queue<super::Request>) {
 // The first repository is adopted on the forge side, even away from the flow
 // (protocol/setup.md, 6.7), after jig has made its project.
 pub(crate) fn maybe_adopt(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib::Queue<super::Request>) {
+    bind_new(side);
     if side.party.is_none() || side.served == super::Served::OutOfDate {
         return;
     }
@@ -628,8 +971,9 @@ pub(crate) fn maybe_adopt(side: &mut super::Side, limits: super::Limits, out: &m
     let State::Rows(rows) = &side.forges else {
         return;
     };
+    let Some(forge) = last.forge else { return };
     for row in rows {
-        if row.number != last.forge {
+        if row.number != forge {
             continue;
         }
         // As ctl does, wait for the forge to accept the made repository's Adopt.
@@ -651,7 +995,7 @@ pub(crate) fn maybe_adopt(side: &mut super::Side, limits: super::Limits, out: &m
             let name = name.clone();
             let adoption = super::Adoption {
                 project: 0,
-                forge: last.forge,
+                forge,
                 owner: first.org.clone(),
                 name: first.repository.clone(),
                 prefix: Box::from(b"temper/".as_slice()),
@@ -661,7 +1005,6 @@ pub(crate) fn maybe_adopt(side: &mut super::Side, limits: super::Limits, out: &m
                 checks: Box::default(),
                 home: true,
             };
-            let forge = last.forge;
             setup_start(side, limits, forge, adoption, name, out);
             return;
         }
@@ -721,7 +1064,7 @@ pub(crate) fn retry_start(
     out: &mut skein_lib::Queue<super::Request>,
 ) {
     let Some(last) = &side.set_up else { return };
-    if last.forge != forge || side.party != Some(last.party) || side.served == super::Served::OutOfDate {
+    if last.forge != Some(forge) || side.party != Some(last.party) || side.served == super::Served::OutOfDate {
         return;
     }
     let Some(starting) = &last.starting else { return };

@@ -323,6 +323,7 @@ fn action(
         ActKind::DeleteNote => words.text(b, JigPhrase::WillDeleteNote, &[]),
         ActKind::Seen
         | ActKind::Adopt
+        | ActKind::RemoveProject
         | ActKind::Rename
         | ActKind::ChangePolicy
         | ActKind::SetRoles

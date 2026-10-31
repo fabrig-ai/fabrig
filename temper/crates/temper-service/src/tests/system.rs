@@ -105,7 +105,7 @@ fn an_unusable_git_stops_the_service_naming_its_program() {
 fn a_socket_workers_bind_announces_its_bound_address_once() {
     let mut service = fixtures::started();
     for _ in 0..service.notes().capacity() {
-        service.notes().push(crate::Note::ForgeUnconfigured { number: 1 });
+        service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
     }
     assert_eq!(service.notes().room(), 0, "forge diagnostics occupy their whole queue");
     let addr = ([127, 0, 0, 1], 41733).into();
@@ -119,7 +119,7 @@ fn a_socket_workers_bind_announces_its_bound_address_once() {
     assert!(service.listening().is_empty());
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert!(service.listening().is_empty());
-    assert_eq!(service.notes().pop(), Some(crate::Note::ForgeUnconfigured { number: 1 }));
+    assert_eq!(service.notes().pop(), Some(crate::Note::ForgeLacking { number: 1, names: Box::new([]) }));
 }
 
 #[test]
@@ -244,10 +244,11 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), forge, Connection::NotSetUp);
     }
     turns(&mut stand);
+    while stand.service.notes().pop().is_some() {}
     let bearer = box_sign_in(&mut stand);
     assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
     turns(&mut stand);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: None }
@@ -262,7 +263,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         Connection::SettingUp { step: Some(SetUpStep::Prepare) }
     );
     assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
 
     for byte in b"failed 1 prepare 1 exited 1\n" {
         stand.kernel.box_answers.push(*byte);
@@ -272,11 +273,11 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SetUpFailed { why: b"prepare 1 exited 1".as_slice().into() }
     );
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
 
     assert_eq!(box_setup(&mut stand, &bearer, OWNED, 2), w::Outcome::SettingUp);
     turns(&mut stand);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\nstart 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\nstart 1 owned\n");
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: None }
@@ -285,7 +286,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     let w::Outcome::SetUpRefused(refused) = box_setup(&mut stand, &bearer, OTHER, 3) else { panic!("busy answer") };
     assert_eq!(*refused.why(), w::SetUpRefusal::Busy);
     turns(&mut stand);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\nstart 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\nstart 1 owned\n");
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: None }
@@ -297,7 +298,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         stand.kernel.box_answers.push(*byte);
     }
     turns(&mut stand);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\nstart 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\nstart 1 owned\n");
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: None }
@@ -343,7 +344,7 @@ fn box_setup(
                     &w::CEILINGS,
                     w::SetUpParts {
                         playground: false,
-                        forge,
+                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge }).unwrap()),
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         project: w::SetUpProject::Existing(
@@ -439,7 +440,7 @@ fn a_new_webhook_after_idle_gets_its_whole_delivery_period() {
     let config = fixtures::engine();
     let mut found = jig_protocol_config::Problems::empty();
     let mut settings = crate::forge::settings(
-        &config.forges,
+        &fixtures::forges(),
         fixtures::forge_runtime(),
         Some(skein_forge_connection::hooks::Webhooks { listener: fixtures::http::address() }),
         &mut found,
@@ -547,7 +548,7 @@ fn a_blocked_told_head_holds_later_events_for_other_destinations() {
     }
     let read = read.expect("box read published to the kernel");
     for _ in 0..service.notes().capacity() {
-        service.notes().push(crate::Note::ForgeUnconfigured { number: 1 });
+        service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
     }
     service.completions.push(Complete { op: read.op, kind: read.kind, result: Ok(Done::Count(4)) });
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);

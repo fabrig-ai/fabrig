@@ -35,8 +35,10 @@ A repository is a forge's repository adopted into a project: owned, a fork or co
   adopt it (temper help forge).
 - **Adopted again:** the same repository adopted again into the same
   project replaces its record.
-- **Ended with its forge:** the playground's repository leaves the
-  project's listings when the playground ends.
+- **Ended with its forge or its project:** a repository leaves its
+  project when its forge is removed (temper help forge) or its project
+  is deleted (temper help project); the playground's goes at its
+  reset.
 
 ## What temper guarantees
 

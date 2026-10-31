@@ -1,4 +1,6 @@
-//! The process-tier documents adapted to a real loop on kernel-assigned ports.
+//! Real-loop fixtures on kernel-assigned ports (temper/docs/design/draft/playground-reset.md, 3).
+mod kept;
+pub(crate) use kept::seed;
 use std::{
     io::Write,
     net::SocketAddr,
@@ -52,14 +54,11 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "forges":[{"number":1,"kind":"forgejo","api":{"socket":forge.to_string()},"transport":"plaintext",
-            "git":format!("http://{forge}"),"webhook_secret":null,"api_token":"secrets/forge-1.api-token","user":{"file":"secrets/forge-1.user"},"identity":1}],
-        "identities":[{"number":1,"token":"secrets/forge-1.git-token","login":"temper",
-            "author":{"name":"Temper","email":"temper@example.test"}}],
-        "setup":[],"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{},"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
+    value["world_settings"]["forge"] = forge.to_string().into();
     crate::settings::stage_policies(&mut value);
     stock_document(&mut value);
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
@@ -91,9 +90,6 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
     private(&directory.join("worker.secret"), b"worker-secret")?;
     private(&directory.join("fixture.key"), jig_channel_world::fixtures::KEY)?;
     private(&directory.join("second.key"), SECOND_KEY)?;
-    private(&directory.join("secrets/forge-1.user"), b"42\n")?;
-    private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value")?;
-    private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value")?;
     let (mut agent, mut config) = documents(directory, llm, forge);
     if crate::claude::configured(directory) {
         program_documents(directory, &mut agent, &mut config);
@@ -145,13 +141,13 @@ pub(crate) fn bind(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std:
 }
 
 fn bind_documents(agent: &mut serde_json::Value, config: &mut serde_json::Value, llm: SocketAddr, forge: SocketAddr) {
-    let previous = config["application"]["forges"][0]["api"]["socket"].as_str().expect("fixture forge").to_owned();
+    let previous = config["world_settings"]["forge"].as_str().expect("fixture forge").to_owned();
     let address = forge.to_string();
     let previous_http = format!("http://{previous}");
     let http = format!("http://{address}");
     // These records carry forge destinations and authority patterns. Listeners
     // and the independent LLM destination never participate in this rebinding.
-    for path in ["/application/forges", "/application/landing", "/world_settings/policies"] {
+    for path in ["/world_settings/forge", "/application/machine", "/application/landing", "/world_settings/policies"] {
         if let Some(value) = config.pointer_mut(path) {
             bind_forge(value, [(&previous, &address), (&previous_http, &http)]);
         }

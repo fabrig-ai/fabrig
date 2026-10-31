@@ -35,11 +35,11 @@ impl Core {
         if row.kept_account.is_none()
             && let jig_domain_tasks::Funder::Recurring { .. } = row.funder
             && let Err(jig_domain_tasks::Refusal::Account { account, why }) =
-                self.account_preference(row.llm.as_ref(), payer, None)
+                self.account_preference(row.llm.as_ref(), payer, row.project, None)
         {
             return Err(RunWait::InvalidAccount { account, why });
         }
-        let coverage = self.account_coverage(payer);
+        let coverage = self.account_coverage(payer, Some(row.project));
         let policy = self.chosen_policy(task);
         let provider = self.provider(&policy.model).ok_or(account_wait(None))?;
         let preferred = row.kept_account.or(match &row.llm {
@@ -200,7 +200,8 @@ impl Core {
             return false;
         }
         let Some(payer) = self.tasks.payer(task) else { return false };
-        let coverage = self.account_coverage(payer);
+        let Some(row) = self.tasks.task(task) else { return false };
+        let coverage = self.account_coverage(payer, Some(row.project));
         let channel = match proof.placement {
             Some(channel) => channel,
             None => match proof.host {

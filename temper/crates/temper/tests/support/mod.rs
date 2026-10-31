@@ -97,8 +97,8 @@ pub fn own_listeners(document: &mut serde_json::Value) {
 
     let old = [
         "/application/clients/listener/socket",
-        "/application/setup/1/mode/owned/listen/socket",
-        "/application/setup/0/mode/fake/listen/socket",
+        "/application/machine/owned/listen/socket",
+        "/application/machine/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ]

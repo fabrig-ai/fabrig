@@ -1,4 +1,5 @@
 //! Mockup documents, answered through the same windows as the engine.
+//! First-run records follow temper/docs/design/draft/playground-reset.md, 3 and 6.
 mod github;
 use crate::driver::{answer, deliver, limits, step};
 use crate::samples::{Then, World};
@@ -36,17 +37,17 @@ fn project(w: World) -> &'static str {
 fn doc(s: &str) -> c::DocumentText {
     c::DocumentText::complete(text(s))
 }
-fn matches_demo(w: World) -> bool {
+fn has_playground(w: World) -> bool {
     match w {
-        FirstRun { step: 20..=23 } | Reference | Solo | World::Bare => false,
-        FirstRun { .. } => true,
+        FirstRun { step: 1..=5 | 10 } => true,
+        FirstRun { .. } | Reference | Solo | World::Bare => false,
     }
 }
 fn model(w: World) -> c::LlmChoice {
     c::LlmChoice {
         account: Some(1),
         main: c::ModelEffort {
-            model: text(if matches_demo(w) { "Scripted model" } else { "Opus" }),
+            model: text(if has_playground(w) { "Scripted model" } else { "Opus" }),
             effort: match w {
                 Reference => Some(text("xhigh")),
                 Solo | World::Bare => Some(text("high")),
@@ -82,7 +83,7 @@ fn frame(w: World, connecting: bool) -> c::Me {
             efforts,
         })
         .expect("model");
-    if matches!(w, FirstRun { step: 5..=9 }) {
+    if matches!(w, FirstRun { step: 6..=9 }) {
         let mut models = List::with_capacity(2);
         let mut model = member.models.get(0).expect("demo model").clone();
         model.name = text("gpt-6-luna");
@@ -132,8 +133,8 @@ fn providers(w: World) -> List<c::ProviderOffer> {
     let names: &[(u32, &str)] = match w {
         Reference => &[(17, "anthropic"), (18, "openai")],
         Solo => &[(17, "anthropic")],
-        World::Bare => &[(18, "openai")],
-        FirstRun { .. } => &[(17, "Playground"), (18, "openai")],
+        FirstRun { step: 1..=5 | 10 } => &[(17, "Playground"), (18, "openai")],
+        World::Bare | FirstRun { .. } => &[(18, "openai")],
     };
     for (number, name) in names {
         let mut programs = List::with_capacity(1);
@@ -165,19 +166,11 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
         Address::ConnectModel { .. } | Address::Welcome { step: temper_client_domain::Step::Model { .. } }
     );
     let limits = limits();
-    let mut root = temper_client_domain::unlinked(&limits, SEED);
-    let mut out = Queue::uncapped();
-    step(&mut root, Event::Start { address, kept: List::with_capacity(0), with: None }, &mut out);
-    for event in [
-        jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
-        jig_client::Event::SignIn { with: jig_client::With::Transport },
-        jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-    ] {
-        step(&mut root, Event::Client { event }, &mut out);
-    }
+    let (mut root, mut out) = started(address);
     let mut forge_watch = None;
     let mut accounts_watch = None;
-    // Every response is to an actual open/read, including the demo family read.
+    let mut playground_read = false;
+    // Every response answers an open/read, including the playground family read.
     for _ in 0_u32..256 {
         let Some(request) = out.pop() else { break };
         if let Some(down) = crate::driver::down(request) {
@@ -210,7 +203,11 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
                     }
                 }
                 jig_client::Down::Read { read, what: jig_client::Readable::Family { .. } } => {
-                    demo(&mut root, w, read, &mut out);
+                    // A resetting sample leaves the next read pending.
+                    if w != (FirstRun { step: 10 }) || !playground_read {
+                        playground(&mut root, w, read, &mut out);
+                        playground_read = true;
+                    }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
                     if record.family == FORGE =>
@@ -258,16 +255,30 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
             }
         }
     }
-    assert!(out.is_empty(), "world fixture settles");
+    assert!(out.is_empty(), "world fixture settles: {w:?}");
     first_run_ready(&mut root, w, forge_watch, &mut out);
     (root, accounts_watch)
+}
+fn started(address: Address) -> (Domain, Queue<Request>) {
+    let limits = limits();
+    let mut root = temper_client_domain::unlinked(&limits, SEED);
+    let mut out = Queue::uncapped();
+    step(&mut root, Event::Start { address, kept: List::with_capacity(0), with: None }, &mut out);
+    for event in [
+        jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
+        jig_client::Event::SignIn { with: jig_client::With::Transport },
+        jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+    ] {
+        step(&mut root, Event::Client { event }, &mut out);
+    }
+    (root, out)
 }
 fn first_run_ready(root: &mut Domain, w: World, forge_watch: Option<Token>, out: &mut Queue<Request>) {
     if w == (FirstRun { step: 8 }) {
         adopt_owned_sample(root, forge_watch.expect("owned forge watch"), out);
     }
     if matches!(w, FirstRun { step: 1..=4 }) {
-        assert!(root.demo().expect("answered demo").1.model);
+        assert!(root.forge().playground_running());
     }
 }
 fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
@@ -287,7 +298,7 @@ fn forges(world: World) -> Box<[u8]> {
     }
     let limits = temper_client_domain::forge::wire_limits(&limits().forge).expect("wire limits");
     let mut rows = List::with_capacity(3);
-    if matches_demo(world) && world != (FirstRun { step: 7 }) {
+    if has_playground(world) && world != (FirstRun { step: 7 }) {
         rows.push(
             w::ForgeRow::new(
                 &limits,
@@ -355,31 +366,7 @@ fn forges(world: World) -> Box<[u8]> {
         )
         .expect("forge row");
     }
-    if let FirstRun { step } = world {
-        rows.push(
-            w::ForgeRow::new(
-                &limits,
-                w::ForgeRowParts {
-                    number: 2,
-                    kind: w::Kind::Github,
-                    mode: w::Mode::Managed,
-                    connection: w::Connection::NotConnected,
-                    offer: w::Offer::NotOffered,
-                    first: None,
-                    installations: List::with_capacity(0),
-                    ended: None,
-                    app: None,
-                    web: None,
-                    repositories: List::with_capacity(0),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-            )
-            .expect("GitHub choice"),
-        )
-        .expect("forge row");
+    if let FirstRun { step: step @ (6..=9 | 23) } = world {
         let connection = match step {
             9 => w::Connection::SetUpFailed(
                 w::SetUpFailed::new(
@@ -533,24 +520,22 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         .expect("change panel"),
     )
 }
-fn demo(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
+fn playground(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};
-    let record = if matches_demo(w) {
+    let record = if has_playground(w) && !matches!(w, FirstRun { step: 0 | 7 }) {
         let mut cues = List::with_capacity(3);
         for cue in ["Add CSV export to widget", "Add a dark theme to widget", "Fix widget’s empty search state"] {
             cues.push(Box::from(cue.as_bytes())).expect("cue");
         }
-        let value = v1::DemoAnswer::new(
+        let value = v1::PlaygroundAnswer::new(
             &v1::CEILINGS,
-            v1::DemoAnswerParts {
-                state: if matches!(w, FirstRun { step: 0 }) {
-                    v1::DemoState::NotStarted
-                } else if w == (FirstRun { step: 7 }) {
-                    v1::DemoState::Ended
+            v1::PlaygroundAnswerParts {
+                state: if w == (FirstRun { step: 10 }) {
+                    v1::PlaygroundState::Resetting
                 } else {
-                    v1::DemoState::Running
+                    v1::PlaygroundState::Running
                 },
-                project: PROJECT,
+                project: Some(PROJECT),
                 forge: 1,
                 provider: 17,
                 owner: Box::from(b"playground".as_slice()),
@@ -559,7 +544,7 @@ fn demo(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
             },
         )
         .expect("checked demo");
-        Some(wire::demo_answer(&value))
+        Some(wire::playground_answer(&value))
     } else {
         None
     };
@@ -666,8 +651,7 @@ fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
         (Reference | FirstRun { step: 2 | 3 }, false) | (Solo, true) => &[1],
         (Reference, true) => &[3, 2],
         (Solo, false) => &[6, 10],
-        (FirstRun { step: 4..=6 }, false) => &[4, 1],
-        (FirstRun { step: 7 }, true) => &[1, 4],
+        (FirstRun { step: 4..=5 }, false) => &[4, 1],
         (FirstRun { .. } | World::Bare, _) => &[],
     };
     let mut rows = List::with_capacity(u32::try_from(numbers.len()).expect("small chats"));
@@ -965,7 +949,7 @@ fn document(w: World, number: u64) -> c::Task {
         // A goal offers amend, stop and cancel (client README 3.5, the Task row).
         t.acts = offers(&[c::ActKind::Amend, c::ActKind::Stop, c::ActKind::Cancel]);
     }
-    t.kept_account = if matches_demo(w) || f.change { None } else { Some(f.account) };
+    t.kept_account = if has_playground(w) || f.change { None } else { Some(f.account) };
     t.last_activity = Wall::from_nanos(f.activity_at);
     t.changed = t.last_activity;
     t.requester = match f.parent {
@@ -976,7 +960,7 @@ fn document(w: World, number: u64) -> c::Task {
     // Mockup amounts have decimals; the view prints integer deployment units.
     // Round to the nearest unit, and keep the missing below-ledger at zero.
     t.budget = budget(&f);
-    t.llm = if f.change || matches_demo(w) {
+    t.llm = if f.change || has_playground(w) {
         None
     } else {
         Some(c::LlmChoice {
@@ -1034,18 +1018,6 @@ fn document(w: World, number: u64) -> c::Task {
     if f.proposal {
         t.proposals = List::with_capacity(1);
         t.proposals.push(PROPOSAL).expect("proposal");
-    }
-    if w == (FirstRun { step: 7 }) && (number == 1 || number == 4) {
-        t.chip.phase = c::Phase::Ended;
-        t.waits_on = c::WaitsOn::Nothing;
-        t.last_activity = offset(w, 19);
-        t.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Cancelled {
-            by: c::OwnerRequester::Deployment { project: PROJECT },
-            reason: doc("the playground ended when Forgejo on this machine connected"),
-            result: None,
-            at: offset(w, 19),
-        })));
-        t.acts.clear();
     }
     t.activity = activity(w, number).rows.len().into();
     finish_document(t)
@@ -1999,7 +1971,7 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
             .expect("account");
         }
     }
-    if w == World::Bare {
+    if w == World::Bare || w == (FirstRun { step: 0 }) {
         rows.clear();
     }
     let mut hosts = List::with_capacity(2);
@@ -2038,7 +2010,10 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
             .push(c::PayerReadiness {
                 provider: provider.provider,
                 payer: c::OwnerAccountUse::Party(73),
-                readiness: if w == World::Bare || matches!(w, FirstRun { step: 0..=4 }) && provider.provider == 18 {
+                readiness: if w == World::Bare
+                    || w == (FirstRun { step: 0 })
+                    || matches!(w, FirstRun { step: 1..=4 }) && provider.provider == 18
+                {
                     c::Readiness::Unavailable
                 } else {
                     c::Readiness::Usable
@@ -2079,7 +2054,7 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
             | Then::AccountRefused
             | Then::KeyReady => None,
         },
-        usable: w != World::Bare,
+        usable: w != World::Bare && w != (FirstRun { step: 0 }),
         settled: true,
         cut: false,
         readiness,
@@ -2140,6 +2115,7 @@ fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
             | c::ActKind::SetRoles
             | c::ActKind::MakeService
             | c::ActKind::SetPool
+            | c::ActKind::RemoveProject
             | c::ActKind::Rename
             | c::ActKind::Withdraw => None,
         };
@@ -2519,7 +2495,7 @@ pub(super) fn now(w: World) -> Wall {
     let minutes = match w {
         FirstRun { step } => match step {
             // Synthetic connection frames have no relative timestamps on screen.
-            0 | 1 | 20..=23 => 0,
+            0 | 1 | 10 | 20..=23 => 0,
             2 => 2,
             3 => 4,
             4 => 6,
