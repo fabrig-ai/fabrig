@@ -33,9 +33,6 @@ impl Referee<Script> for Judge {
     fn next_deadline(&self) -> Option<Time> {
         (self.ready && !self.sent).then_some(Time::ZERO)
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         self.passed
     }

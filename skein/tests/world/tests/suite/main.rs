@@ -10,6 +10,7 @@ mod domain_referee;
 mod domain_utilities;
 mod drive;
 mod end_to_end;
+mod forwarding;
 mod hosted;
 mod interrupt;
 mod real;
