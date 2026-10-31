@@ -1,5 +1,5 @@
 //! Rendering properties with deterministic input and the ordinary Rust test kit.
-#![allow(clippy::disallowed_types, reason = "test harnesses use ordinary Rust containers")]
+#![expect(clippy::disallowed_types, reason = "test harnesses use ordinary Rust containers")]
 
 use skein_lib::{Duration, Rng};
 use smith_domain::tools;
@@ -77,7 +77,8 @@ fn random_outcomes_at_random_caps_fit_their_derived_render_bound() {
     let mut rng = Rng::new(941);
     let mut smallest_bound = u32::MAX;
     let mut read_cuts = Vec::new();
-    for case in 0_usize..1 {
+    const CASES: usize = 128;
+    for case in 0..CASES {
         let mut caps = tools();
         caps.read_bytes = u32::try_from(rng.next_u64() % 1024).expect("valid deterministic fixture");
         caps.shell_head = u32::try_from(rng.next_u64() % 1024).expect("valid deterministic fixture");
