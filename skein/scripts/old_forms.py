@@ -8,6 +8,9 @@ The max_out form exempts only the exact identifiers in EXEMPT: the four
 kernel submission bounds and the provider wire field max_output_tokens.
 The worst_case form exempts the four reserved old bound names in EXEMPT.
 Identifiers containing an exempt name still count.
+Component-kit forms (skein/docs/design/draft/component-kit.md, 4): io_resume
+excludes crates/skein-io/; earliest, lifecycle, hex_decimal exclude crates/skein-lib/;
+growth_floor, pop_loop, host_dispatch exclude no paths.
 Recorded raises and other comments stay in place when counts are rewritten.
 Run from the repository root, using only the Python standard library:
 
@@ -24,6 +27,17 @@ FORMS = {
     'JournalRoom': re.compile(r'\bJournalRoom\b'),
     'takes': re.compile(r'\.takes\(&'),
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
+    'io_resume': re.compile(r'\b(?:skein_)?io::resume\('),
+    'earliest': re.compile(r'\bfn (?:earliest|earlier)\b'),
+    'lifecycle': re.compile(r'\benum Lifecycle\b'),
+    'growth_floor': re.compile(r'\bconst GROWTH_FLOOR\b'),
+    'pop_loop': re.compile(
+        r'for _ in 0\.\.[^{\n]*\{\s*(?:drop\()?(?:let _ = )?[\w.()&]+\.pop\(\)\)?;\s*\}'
+    ),
+    'hex_decimal': re.compile(r'\bfn (?:hex|decimal)\b'),
+    'host_dispatch': re.compile(
+        r'fn completions\(&mut self\)[^{]*\{\s*(?:match self\b|self\.host_mut\(\))'
+    ),
 }
 EXEMPT = {
     'worst_case': (
@@ -37,6 +51,12 @@ EXEMPT = {
         # The provider's wire vocabulary stays on the wire.
         'max_output_tokens',
     ),
+}
+EXCLUDED = {
+    'io_resume': ('crates/skein-io/',),
+    'earliest': ('crates/skein-lib/',),
+    'lifecycle': ('crates/skein-lib/',),
+    'hex_decimal': ('crates/skein-lib/',),
 }
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
@@ -99,8 +119,12 @@ def counts():
     for path in paths:
         if not path or b'generated' in path.split(b'/'):
             continue
-        source = Path(path.decode('utf-8')).read_text(encoding='utf-8')
-        if not any(marker in source for marker in (*FORMS, 'MAX_OUT')):
+        path = path.decode('utf-8')
+        source = Path(path).read_text(encoding='utf-8')
+        if not any(marker in source for marker in (
+            *FORMS, 'MAX_OUT', 'resume', 'fn ', 'Lifecycle', 'GROWTH_FLOOR',
+            'pop()', 'completions',
+        )):
             continue
         source = without_comments(source)
         # Prefilter whole identifiers once: the three identifier patterns
@@ -111,8 +135,11 @@ def counts():
             or 'JournalRoom' in word or 'worst_case' in word
         )
         for form, pattern in FORMS.items():
+            if path.startswith(EXCLUDED.get(form, ())):
+                continue
+            subject = candidates if form in ('max_out', 'JournalRoom', 'worst_case') else source
             totals[form] += sum(
-                1 for match in pattern.finditer(source if form == 'takes' else candidates)
+                1 for match in pattern.finditer(subject)
                 if match.group() not in EXEMPT.get(form, ())
             )
     return totals
