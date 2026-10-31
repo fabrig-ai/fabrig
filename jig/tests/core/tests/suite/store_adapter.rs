@@ -172,18 +172,7 @@ fn the_walks_closed_proof_restores_until_the_next_attempt() {
     let limits = jig_core_world::world::limits().core;
     let mut engine =
         core::Core::new(jig_core_world::effects::fixture(f::SEED, false).0.core, &limits).expect("core configuration");
-    engine
-        .restoring_proofs
-        .insert(
-            closed.task,
-            core::RestoringProof {
-                attempt: closed.attempt,
-                turn: closed.turn.expect("committed turn").turn,
-                run_spent: 2,
-                last_answer: closed.terminal.as_ref().map(|terminal| terminal.attempt),
-            },
-        )
-        .expect("one proof");
+    let _loading = engine.start_begin(false, skein_lib::Wall::EPOCH);
     assert!(engine.restore_proof(closed.clone(), limits.tasks.result_bytes));
     assert_eq!(engine.proofs.get(&closed.task), Some(&closed));
     world.restart_with_patch_sets(f::SEED, false, f::AFTER);

@@ -35,9 +35,6 @@ fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceilin
     }
     assert!(domain.start_opened());
     for event in [
-        core::Event::People(people::Event::Restored),
-        core::Event::Tasks(tasks::Event::Check),
-        core::Event::Tasks(tasks::Event::Restored),
         core::Event::Fleet(fleet::Event::Loaded),
         core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
             form: accounts::Form::Credential(accounts::Scheme::Bearer),

@@ -186,55 +186,12 @@ fn effects_scenarios() {
 // Reuse an actual world's durable claim and public configuration, restoring
 // through the core's public entry points rather than injecting waiting rights.
 fn retained_effect_core(seed: u64) -> (core::Core, core::Limits, core::CallKey) {
-    use skein_lib::{Env, Queue, Time, Wall};
+    use skein_lib::{Env, Time, Wall};
     let world = World::new(seed, false);
     let key = world.call_key(1);
     let (configuration, limits) = jig_core_world::effects::fixture(seed, false);
-    let mut domain = core::Core::new(configuration.core, &limits.core).expect("fixture core configuration");
-    let deployment = world
-        .store
-        .rows
-        .values()
-        .find_map(|row| {
-            if let root::Record::Core(core::Record::Core(record @ core::CoreRecord::Deployment(_))) = row {
-                Some(record.clone())
-            } else {
-                None
-            }
-        })
-        .expect("the actual world committed its deployment");
-    assert!(matches!(domain.restore_core(deployment, &limits.core), core::Restored::Deployment { .. }));
-    jig_core_world::fixtures::restore_project_policies(&mut domain, &limits.core, &world.store);
-    let mut out = Queue::uncapped();
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core.tasks };
-    for row in world.store.rows.values() {
-        if let root::Record::Core(core::Record::Tasks(
-            record @ (tasks::Stored::Live(_)
-            | tasks::Stored::Ledger(_)
-            | tasks::Stored::Result(_)
-            | tasks::Stored::EndedByParty(_)
-            | tasks::Stored::EndedByProject(_)
-            | tasks::Stored::EndedDelegate(_)
-            | tasks::Stored::Delegate(_)
-            | tasks::Stored::Update(_)
-            | tasks::Stored::Pool(_)
-            | tasks::Stored::ClosedLedger(_)
-            | tasks::Stored::DecidedProposal(_)
-            | tasks::Stored::Writer(_)),
-        )) = row
-        {
-            assert!(domain.restore_task_row(record));
-            tasks::step(&mut domain.tasks, &env, tasks::Event::Restore { record: record.clone() }, &mut out);
-            while out.pop().is_some() {}
-        }
-    }
-    for row in world.store.rows.values() {
-        if let root::Record::Core(core::Record::Core(record @ core::CoreRecord::RunProof(_))) = row {
-            assert_eq!(domain.restore_core(record.clone(), &limits.core), core::Restored::Live);
-        }
-    }
-    tasks::step(&mut domain.tasks, &env, tasks::Event::Check, &mut out);
-    tasks::step(&mut domain.tasks, &env, tasks::Event::Restored, &mut out);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core };
+    let domain = super::start_links::recovered(&world, configuration.core, &env);
     assert!(domain.current_proof(key.task, key.attempt));
     assert!(matches!(domain.tasks.task(key.task).expect("restored caller").phase,
         tasks::Phase::Active(tasks::Active::Claimed { attempt } | tasks::Active::Running { attempt }) if attempt == key.attempt));

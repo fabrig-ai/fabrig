@@ -24,11 +24,12 @@ struct Harness {
 impl Harness {
     fn stored(world: &World) -> Self {
         let (config, limits) = fixture(SEED, false);
-        let mut h = Self {
-            core: core::Core::new(config.core, &limits.core).expect("configured core"),
-            env: Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits: limits.core },
-            out: Queue::uncapped(),
-        };
+        Self::stored_with(world, config.core, Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits: limits.core })
+    }
+
+    fn stored_with(world: &World, config: core::Config, env: Env<core::Limits>) -> Self {
+        let mut h =
+            Self { core: core::Core::new(config, &env.limits).expect("configured core"), env, out: Queue::uncapped() };
         phase(&h.core.start_begin(false, h.env.wall), Phase::LoadCore);
         for range in core::RestoreRange::LIVE {
             for (key, record) in &world.store.rows {
@@ -193,4 +194,25 @@ fn recurring_lifetime_count_past_live_capacity_survives_selected_link() {
     })));
     assert!(matches!(h.link(), Action::Step(Phase::Sweep) | Action::Commit(_)));
     assert_eq!(h.core.tasks.funding(funder).expect("retained recurring funding").made, made);
+}
+
+/// Restore the direct core through durable Wires before testing runtime inputs.
+pub(super) fn recovered(world: &World, config: core::Config, env: &Env<core::Limits>) -> core::Core {
+    let mut harness = Harness::stored_with(world, config, Env { now: env.now, wall: env.wall, limits: env.limits });
+    let action = harness.link();
+    harness.open(action);
+    assert!(harness.core.start_opened());
+    harness.core
+}
+
+pub(super) fn first(config: core::Config, env: &Env<core::Limits>) -> core::Core {
+    let mut harness = Harness {
+        core: core::Core::new(config, &env.limits).expect("configured core"),
+        env: Env { now: env.now, wall: env.wall, limits: env.limits },
+        out: Queue::uncapped(),
+    };
+    let action = harness.core.start_begin(false, harness.env.wall);
+    harness.open(action);
+    assert!(harness.core.start_opened());
+    harness.core
 }

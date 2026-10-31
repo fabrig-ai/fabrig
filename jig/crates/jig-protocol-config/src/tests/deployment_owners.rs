@@ -131,18 +131,7 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
         let mut action = core.start_begin(false, env.wall);
         if row.restart {
             for record in &first_saves {
-                match record {
-                    Record::Core(record) => {
-                        let _restored = core.restore_core(record.clone(), &env.limits);
-                    }
-                    Record::People(people::Stored::Policy { project, name, value }) => {
-                        let _restored = core.restore_policy(&env.limits, *project, name.clone(), value.clone());
-                    }
-                    Record::People(record) => {
-                        drop(saves(&mut core, &env, Event::People(people::Event::Restore { record: record.clone() })));
-                    }
-                    Record::Tasks(_) | Record::Accounts(_) | Record::Notes(_) => panic!("first-start records"),
-                }
+                restore(&mut core, &env, record);
             }
         }
         let mut records = Vec::new();
@@ -220,5 +209,27 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
             }
         }
         assert_eq!(policies, row.deployment_policy, "{}", row.shows);
+    }
+}
+
+fn restore(core: &mut Core, env: &Env<jig_domain_core::Limits>, record: &Record) {
+    match record {
+        Record::Core(record) => {
+            let _restored = core.restore_core(record.clone(), &env.limits);
+        }
+        Record::People(people::Stored::Policy { project, name, value }) => {
+            let _restored = core.restore_policy(&env.limits, *project, name.clone(), value.clone());
+        }
+        Record::People(record) => {
+            drop(saves(core, env, Event::People(people::Event::Restore { record: record.clone() })));
+        }
+        Record::Tasks(record) => {
+            assert!(core.restore_task_row(record));
+            drop(saves(core, env, Event::Tasks(jig_domain_tasks::Event::Restore { record: record.clone() })));
+        }
+        Record::Accounts(record) => {
+            drop(saves(core, env, Event::Account(jig_domain_accounts::Event::Restore { record: record.clone() })));
+        }
+        Record::Notes(_) => panic!("first start creates no notes"),
     }
 }
