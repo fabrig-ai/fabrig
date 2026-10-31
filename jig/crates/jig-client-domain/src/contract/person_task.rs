@@ -1,22 +1,21 @@
 //! Pending person work and shown results (client/domain/objects.md, 7;
 //! contract.md, 5–6). Optional facts and source order stay independent.
 use super::{
-    Chip, Offered, OwnerRequester, OwnerTaskLink, PersonAddress, Result, Revision, SpecificationDocument,
-    TaskContractDocument,
+    Chip, Offered, PersonAddress, Requester, Result, Revision, SpecificationDocument, TaskContractDocument, TaskLink,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerShownResult {
-    pub task: OwnerTaskLink,
+pub struct ShownResult {
+    pub task: TaskLink,
     pub result: Option<Box<Result>>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerPersonTask {
+pub struct PersonTask {
     pub task: Chip,
     pub revision: Revision,
-    pub requester: OwnerRequester,
+    pub requester: Requester,
     pub spec: SpecificationDocument,
     pub address: PersonAddress,
     pub taken_by: Option<u64>,
@@ -24,11 +23,11 @@ pub struct OwnerPersonTask {
     pub stall: Option<Duration>,
     pub deadline: Option<Wall>,
     pub contract: TaskContractDocument,
-    pub results: List<OwnerShownResult>,
+    pub results: List<ShownResult>,
     pub cut: bool,
     pub acts: List<Offered>,
 }
-impl OwnerPersonTask {
+impl PersonTask {
     /// Routing comes only from the supplied task metadata.
     #[must_use]
     pub fn project(&self) -> Option<u32> {

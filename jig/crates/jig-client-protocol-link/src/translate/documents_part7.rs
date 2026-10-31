@@ -1,14 +1,13 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
 use super::{
-    Limits, List, Reader, Wall, c, chip_fields, owner_authority_document_fields, owner_grant_piece,
-    owner_project_resource_fields, piece_problem, specification_document_fields, task_contract_document_fields,
-    too_large, w,
+    Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, piece_problem,
+    project_resource_fields, specification_document_fields, task_contract_document_fields, too_large, w,
 };
-pub(crate) fn owner_project_resource_piece(
+pub(crate) fn project_resource_piece(
     bytes: &[u8],
     limits: &Limits,
     bound: u32,
-) -> Result<List<c::OwnerProjectResource>, w::Problem> {
+) -> Result<List<c::ProjectResource>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -28,8 +27,8 @@ pub(crate) fn owner_project_resource_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerProjectResource::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = owner_project_resource_fields(&row);
+        let row = w::ProjectResource::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = project_resource_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -37,24 +36,24 @@ pub(crate) fn owner_project_resource_piece(
     Err(too_large())
 }
 
-pub(crate) fn owner_project_policy_role_fields(
-    value: &w::OwnerProjectPolicyRole,
+pub(crate) fn project_policy_role_fields(
+    value: &w::ProjectPolicyRole,
     limits: &Limits,
-) -> Result<c::OwnerProjectPolicyRole, w::Problem> {
-    Ok(c::OwnerProjectPolicyRole {
+) -> Result<c::ProjectPolicyRole, w::Problem> {
+    Ok(c::ProjectPolicyRole {
         number: value.number(),
-        authority: owner_authority_document_fields(value.authority(), limits)?,
+        authority: authority_document_fields(value.authority(), limits)?,
         period_spend: value.period_spend(),
         requests: value.requests(),
         decides: value.decides(),
     })
 }
 
-pub(crate) fn owner_project_policy_role_piece(
+pub(crate) fn project_policy_role_piece(
     bytes: &[u8],
     limits: &Limits,
     bound: u32,
-) -> Result<List<c::OwnerProjectPolicyRole>, w::Problem> {
+) -> Result<List<c::ProjectPolicyRole>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -74,8 +73,8 @@ pub(crate) fn owner_project_policy_role_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerProjectPolicyRole::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = owner_project_policy_role_fields(&row, limits)?;
+        let row = w::ProjectPolicyRole::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = project_policy_role_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -98,7 +97,7 @@ pub(crate) fn policy_requirement_fields(value: &w::PolicyRequirement) -> c::Poli
     c::PolicyRequirement {
         connector: value.connector(),
         kind: value.kind(),
-        pattern: crate::translate::answers::owner_pattern(value.pattern()),
+        pattern: crate::translate::answers::pattern(value.pattern()),
         judge: policy_judge_fields(value.judge()),
         guard: policy_guard_fields(value.guard()),
         must_be_guarded: value.must_be_guarded(),
@@ -143,10 +142,7 @@ pub(crate) fn policy_permission_fields(value: &w::PolicyPermission) -> c::Policy
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_project_policy_fields(
-    value: &w::OwnerProjectPolicy,
-    limits: &Limits,
-) -> Result<c::OwnerProjectPolicy, w::Problem> {
+pub(crate) fn project_policy_fields(value: &w::ProjectPolicy, limits: &Limits) -> Result<c::ProjectPolicy, w::Problem> {
     let opt0 = match value.escalation_role() {
         Some(item) => Some(*item),
         None => None,
@@ -164,13 +160,13 @@ pub(crate) fn owner_project_policy_fields(
         }
         None => None,
     };
-    Ok(c::OwnerProjectPolicy {
+    Ok(c::ProjectPolicy {
         templates: super::me::overrides(value.templates(), limits)?,
-        ceiling: owner_authority_document_fields(value.ceiling(), limits)?,
+        ceiling: authority_document_fields(value.ceiling(), limits)?,
         period_spend: value.period_spend(),
         escalation_role: opt0,
-        projections: owner_grant_piece(value.projections(), limits, limits.client().authority)?,
-        roles: owner_project_policy_role_piece(value.roles(), limits, limits.client().rows)?,
+        projections: grant_piece(value.projections(), limits, limits.client().authority)?,
+        roles: project_policy_role_piece(value.roles(), limits, limits.client().rows)?,
         requirements: policy_requirement_piece(value.requirements(), limits, limits.client().rows)?,
         permissions: opt1,
         permissions_cut: value.permissions_cut(),
@@ -178,11 +174,8 @@ pub(crate) fn owner_project_policy_fields(
     })
 }
 
-pub(crate) fn owner_project_member_fields(
-    value: &w::OwnerProjectMember,
-    limits: &Limits,
-) -> Result<c::OwnerProjectMember, w::Problem> {
-    Ok(c::OwnerProjectMember {
+pub(crate) fn project_member_fields(value: &w::ProjectMember, limits: &Limits) -> Result<c::ProjectMember, w::Problem> {
+    Ok(c::ProjectMember {
         party: value.party(),
         kind: crate::translate::answers::party_kind(value.kind()),
         role: crate::translate::answers::held_role(value.role()),
@@ -191,22 +184,19 @@ pub(crate) fn owner_project_member_fields(
     })
 }
 
-pub(crate) fn owner_project_spend_fields(
-    value: &w::OwnerProjectSpend,
-    limits: &Limits,
-) -> Result<c::OwnerProjectSpend, w::Problem> {
-    Ok(c::OwnerProjectSpend {
+pub(crate) fn project_spend_fields(value: &w::ProjectSpend, limits: &Limits) -> Result<c::ProjectSpend, w::Problem> {
+    Ok(c::ProjectSpend {
         chip: chip_fields(value.chip(), limits)?,
         funder: crate::translate::facts::funder(value.funder()),
-        numbers: crate::translate::facts::owner_numbers(value.numbers()),
+        numbers: crate::translate::facts::numbers(value.numbers()),
     })
 }
 
-pub(crate) fn owner_project_spend_piece(
+pub(crate) fn project_spend_piece(
     bytes: &[u8],
     limits: &Limits,
     bound: u32,
-) -> Result<List<c::OwnerProjectSpend>, w::Problem> {
+) -> Result<List<c::ProjectSpend>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -226,8 +216,8 @@ pub(crate) fn owner_project_spend_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerProjectSpend::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = owner_project_spend_fields(&row, limits)?;
+        let row = w::ProjectSpend::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = project_spend_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -235,7 +225,7 @@ pub(crate) fn owner_project_spend_piece(
     Err(too_large())
 }
 
-pub(crate) fn owner_part_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::OwnerPart>, w::Problem> {
+pub(crate) fn part_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::Part>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -255,8 +245,8 @@ pub(crate) fn owner_part_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Res
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerPart::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = crate::translate::facts::owner_part(&row);
+        let row = w::Part::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = crate::translate::facts::part(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -284,14 +274,14 @@ pub(crate) fn proposed_task_fields(value: &w::ProposedTask, limits: &Limits) -> 
         },
         number: value.number(),
         spec: specification_document_fields(value.spec(), limits)?,
-        executor: crate::translate::facts::owner_executor(value.executor()),
+        executor: crate::translate::facts::executor(value.executor()),
         contract: task_contract_document_fields(value.contract(), limits)?,
-        authority: owner_authority_document_fields(value.authority(), limits)?,
+        authority: authority_document_fields(value.authority(), limits)?,
         budget: value.budget(),
         funder: crate::translate::facts::funder(value.funder()),
         dependencies: list0,
-        resources: owner_part_piece(value.resources(), limits, limits.client().rows)?,
-        wake: crate::translate::facts::owner_wake_policy(value.wake()),
+        resources: part_piece(value.resources(), limits, limits.client().rows)?,
+        wake: crate::translate::facts::wake_policy(value.wake()),
         priority: opt1,
         cut: value.cut(),
     })

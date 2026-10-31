@@ -7,7 +7,7 @@ use skein_lib::Wall;
 
 /// The retained decision for a proposal, without an inferred explanation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerProposalChoice {
+pub enum ProposalChoice {
     /// The proposal was accepted.
     Accepted,
     /// The proposal was rejected.
@@ -22,7 +22,7 @@ pub enum OwnerProposalChoice {
 
 /// The retained decision for a held task's escalation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerEscalationChoice {
+pub enum EscalationChoice {
     /// The task's hold was released.
     Released,
     /// The escalation was rejected and the task remains held.
@@ -31,9 +31,9 @@ pub enum OwnerEscalationChoice {
     Passed,
 }
 
-/// Facts returned by a committed jig request, including a historical winner.
+/// Facts returned by a committed jig request, including a ended winner.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerOutcome {
+pub enum DocumentOutcome {
     Lifted {
         hold: u64,
         released: u32,
@@ -98,12 +98,12 @@ pub enum OwnerOutcome {
     Moved {
         task: u64,
     },
-    /// A proposal's current or historical decision names its maker and winner.
+    /// A proposal's current or ended decision names its maker and winner.
     ProposalDecided {
         proposal: ProposalKey,
         by: u64,
         at: Wall,
-        choice: OwnerProposalChoice,
+        choice: ProposalChoice,
         repeated: bool,
     },
     /// Words were admitted under a message number, with the supplied release fact.
@@ -155,13 +155,13 @@ pub enum OwnerOutcome {
         project: u32,
         person: u64,
     },
-    /// A hold revision's current or historical decision names its winner.
+    /// A hold revision's current or ended decision names its winner.
     EscalationDecided {
         task: u64,
         revision: Revision,
         by: u64,
         at: Wall,
-        choice: OwnerEscalationChoice,
+        choice: EscalationChoice,
     },
     /// An LLM account sign-in's address to open on the engine's machine.
     AccountKeyKept {

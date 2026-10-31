@@ -291,10 +291,10 @@ fn an_accounts_document_is_watched_but_never_read() {
     let limits = fixtures::wire();
     assert_eq!(
         watches::delivery(&document, 0, 1, &[], &limits),
-        Ok(w::DeliveryValue::OwnerAccounts(
-            w::OwnerAccounts::new(
+        Ok(w::DeliveryValue::Accounts(
+            w::Accounts::new(
                 &limits,
-                w::OwnerAccountsParts {
+                w::AccountsParts {
                     skein_bools: [false, true, false, false],
                     readiness: Box::new([]),
                     accounts: Box::from([]),

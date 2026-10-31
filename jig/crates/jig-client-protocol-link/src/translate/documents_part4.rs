@@ -20,8 +20,8 @@ pub(crate) fn object_key_fields(value: &w::ObjectKey) -> c::ObjectKey {
     }
 }
 
-pub(crate) fn owner_phase_counts_fields(value: &w::OwnerPhaseCounts) -> c::OwnerPhaseCounts {
-    c::OwnerPhaseCounts {
+pub(crate) fn phase_counts_fields(value: &w::PhaseCounts) -> c::PhaseCounts {
+    c::PhaseCounts {
         waiting: value.waiting(),
         idle: value.idle(),
         starting: value.starting(),

@@ -74,12 +74,12 @@ fn provisional(number: u32, words: &[u8]) -> RunText {
 fn commit(thread: &mut Thread, turn: TurnRead) {
     let mut page = page(&[], None, None);
     page.rows
-        .push(ActivityLine {
-            source: Box::new(OwnerActivityLine {
+        .push(DecodedActivityLine {
+            source: Box::new(ActivityLine {
                 task: 7,
                 position: 1,
                 at: TURN_AT,
-                line: OwnerActivity::Turn {
+                line: Activity::Turn {
                     reply: 1,
                     attempt: (TurnName { attempt: ATTEMPT, number: TURN }).attempt,
                     turn: (TurnName { attempt: ATTEMPT, number: TURN }).number,
@@ -133,12 +133,12 @@ fn a_live_turn_stays_until_its_staged_commit_merges() {
     let turn = empty_turn();
     let name = TurnName { attempt: ATTEMPT, number: TURN };
     let mut newest = page(&[4, 3], Some(b"older"), None);
-    *newest.rows.get_mut(0).unwrap() = ActivityLine {
-        source: Box::new(OwnerActivityLine {
+    *newest.rows.get_mut(0).unwrap() = DecodedActivityLine {
+        source: Box::new(ActivityLine {
             task: 7,
             position: 4,
             at: TURN_AT,
-            line: OwnerActivity::Turn { reply: 4, attempt: (name).attempt, turn: (name).number, read: None },
+            line: Activity::Turn { reply: 4, attempt: (name).attempt, turn: (name).number, read: None },
         }),
         decoded: Some(ArchivedTurn {
             task: 7,
@@ -222,7 +222,7 @@ fn words_sent_in_a_compound_are_numbered_by_their_place() {
     );
     thread.answered(
         fixtures::STOP,
-        &Answer::Done(Outcome::Owner(OwnerOutcome::Compound {
+        &Answer::Done(Outcome::Document(DocumentOutcome::Compound {
             project: fixtures::PROJECT,
             operations: 2,
             first_message: FIRST_MESSAGE,
@@ -237,27 +237,22 @@ fn words_sent_in_a_compound_are_numbered_by_their_place() {
 }
 
 #[test]
-fn owner_archive_reference_keeps_committed_read_and_local_author_separate_from_raw_sender() {
-    use crate::contract::{OwnerActivity, OwnerActivityLine, OwnerMessageKind, OwnerRequester};
+fn archive_reference_keeps_committed_read_and_local_author_separate_from_raw_sender() {
+    use crate::contract::{Activity, ActivityLine, MessageKind, Requester};
     use crate::thread::words::{KeptWords, Words};
     let mut kept = KeptWords::new(2);
     let request = ARCHIVE_WORDS;
     assert!(kept.begin(request, Some(party(7)), text(b"local")));
     assert!(kept.sent(request, 0));
-    let line = |position, source| ActivityLine {
-        source: Box::new(OwnerActivityLine { task: 8, position, at: Wall::EPOCH, line: source }),
+    let line = |position, source| DecodedActivityLine {
+        source: Box::new(ActivityLine { task: 8, position, at: Wall::EPOCH, line: source }),
         decoded: None,
     };
     let mut rows = List::with_capacity(2);
-    rows.push(line(2, OwnerActivity::Turn { reply: 9, attempt: 3, turn: 4, read: Some(0) })).unwrap();
+    rows.push(line(2, Activity::Turn { reply: 9, attempt: 3, turn: 4, read: Some(0) })).unwrap();
     rows.push(line(
         1,
-        OwnerActivity::Words {
-            message: 0,
-            by: OwnerRequester::Task(7),
-            kind: OwnerMessageKind::Question,
-            words: text(b"task words"),
-        },
+        Activity::Words { message: 0, by: Requester::Task(7), kind: MessageKind::Question, words: text(b"task words") },
     ))
     .unwrap();
     let page = ActivityPage { rows, before: None, after: None, cut: false };

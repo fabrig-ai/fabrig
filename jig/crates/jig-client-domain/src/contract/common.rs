@@ -136,7 +136,7 @@ pub enum Actor {
 
 /// The kind of executor carrying out a task.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Executor {
+pub enum ChipExecutor {
     /// An agent and its charter.
     Agent { charter: u32 },
     /// A connector procedure.
@@ -182,7 +182,7 @@ pub enum Phase {
 
 /// An application value named without carrying its type.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Part {
+pub enum ApplicationPart {
     /// The connector name, supplied by its own view words.
     Connector { connector: u16 },
     /// A resource in its connector.
@@ -215,7 +215,7 @@ pub enum NoteScope {
     /// In a project.
     Project(u32),
     /// On a resource pattern.
-    Resource { project: u32, connector: u16, pattern: super::OwnerPattern },
+    Resource { project: u32, connector: u16, pattern: super::Pattern },
     /// For one goal.
     Task { project: u32, task: u64 },
 }
@@ -224,7 +224,7 @@ pub enum NoteScope {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ending {
     /// The complete ending supplied by a task owner, separate from other terminal objects.
-    Task(Box<super::OwnerChipEnding>),
+    Task(Box<super::ChipEnding>),
     /// Completed.
     Done,
     /// Failed with a reason.

@@ -1,7 +1,7 @@
 //! Exact counts from the owner (client/domain/contract.md, 5.1).
-/// Ten independent supplied lifecycle counters; local folded chips use `PhaseCounts`.
+/// Ten independent supplied lifecycle counters; local folded chips use `ImpactCounts`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerPhaseCounts {
+pub struct PhaseCounts {
     pub waiting: u32,
     pub idle: u32,
     pub starting: u32,
@@ -13,7 +13,7 @@ pub struct OwnerPhaseCounts {
     pub failed: u32,
     pub cancelled: u32,
 }
-impl OwnerPhaseCounts {
+impl PhaseCounts {
     /// Explicitly supplied zero counts for synthetic fixtures.
     pub const ZERO: Self = Self {
         waiting: 0,

@@ -65,7 +65,7 @@ fn an_inbox_page_keeps_its_two_groups_apart() {
         let read = reads::Read::Inbox { group, filter: reads::Filter { project: None, goal: None }, from: None };
         assert_eq!(
             pages::page(&fixtures::models(), &read, source, &limits),
-            Ok(w::ReadValue::OwnerInbox(record)),
+            Ok(w::ReadValue::Inbox(record)),
             "{label}"
         );
     }
@@ -119,14 +119,14 @@ fn kept_lines_and_met_notices_cross_both_client_translations() {
         let record = w::ActivityPage::decode(&limits, &mut Reader::new(&bytes)).unwrap();
         let actual =
             jig_client_protocol_link::translate::pages::activity_page(record, &fixtures::client_limits()).unwrap();
-        let c::ActivityLine { source, decoded } = actual.rows.get(0).unwrap();
+        let c::DecodedActivityLine { source, decoded } = actual.rows.get(0).unwrap();
         assert!(decoded.is_none());
-        let c::OwnerActivity::Kept { attempt, pending, question: kept_question } = &source.line else { panic!("kept") };
+        let c::Activity::Kept { attempt, pending, question: kept_question } = &source.line else { panic!("kept") };
         assert_eq!((*attempt, pending.as_slice()), (3, [19, 23].as_slice()));
         assert_eq!(*kept_question, question);
-        let c::ActivityLine { source, .. } = actual.rows.get(1).unwrap();
-        let c::OwnerActivity::Heard(word) = &source.line else { panic!("heard") };
-        assert_eq!(word.kind, c::OwnerMessageKind::Met { dependency: 19, removed });
-        assert_eq!(word.from, c::OwnerRequester::Task(29));
+        let c::DecodedActivityLine { source, .. } = actual.rows.get(1).unwrap();
+        let c::Activity::Heard(word) = &source.line else { panic!("heard") };
+        assert_eq!(word.kind, c::MessageKind::Met { dependency: 19, removed });
+        assert_eq!(word.from, c::Requester::Task(29));
     }
 }

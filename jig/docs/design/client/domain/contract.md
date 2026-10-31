@@ -633,7 +633,7 @@ served is held, kept and unsent, for its owner's version (client.md,
     names `Model` or `Source { account, source }`, carried with no
     producer since an Open task runs on a program source as any task does
     (`../../domain/hosts.md`, 8.1). The client uses
-    its own `OwnerHostKind` and `OwnerHelloRefusal` vocabulary; the canonical
+    its own `HostKind` and `HelloRefusal` vocabulary; the canonical
     deployment translation retains the existing shortfall context limits.
     These are derived document facts, never a new hold or stored state.
     Client wire 11 carries both arms; status and person-facing words are a

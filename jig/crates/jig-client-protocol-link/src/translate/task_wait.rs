@@ -8,9 +8,9 @@ pub(super) fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> 
         w::TaskRunWait::Host => c::TaskRunWait::Host,
         w::TaskRunWait::Refused(value) => c::TaskRunWait::Refused(match value.value() {
             w::TaskWaitRefused::Hello(row) => c::TaskWaitRefused::Hello {
-                kind: super::documents::owner_host_kind_fields(row.kind()),
+                kind: super::documents::host_kind_fields(row.kind()),
                 at: skein_lib::Wall::from_nanos(row.at()),
-                why: super::documents::owner_hello_refusal_fields(row.why()),
+                why: super::documents::hello_refusal_fields(row.why()),
             },
             w::TaskWaitRefused::Program(value) => c::TaskWaitRefused::Program(match value.value() {
                 w::TaskWaitProgram::Model => c::OpenProgram::Model,
@@ -51,15 +51,15 @@ fn source_state(value: &w::TaskSourceState) -> c::TaskSourceState {
         w::TaskSourceState::Moving => c::TaskSourceState::Moving,
         w::TaskSourceState::Unloaded(row) => c::TaskSourceState::Unloaded {
             at: match row.at() {
-                w::TaskSourcePlace::Directory => c::OwnerAccountPlace::Directory,
-                w::TaskSourcePlace::File => c::OwnerAccountPlace::File,
+                w::TaskSourcePlace::Directory => c::AccountPlace::Directory,
+                w::TaskSourcePlace::File => c::AccountPlace::File,
             },
             why: match row.why() {
-                w::TaskSourceUnread::Unreadable => c::OwnerAccountUnread::Unreadable,
-                w::TaskSourceUnread::Refused => c::OwnerAccountUnread::Refused,
-                w::TaskSourceUnread::Failed => c::OwnerAccountUnread::Failed,
-                w::TaskSourceUnread::Stalled => c::OwnerAccountUnread::Stalled,
-                w::TaskSourceUnread::TooLarge => c::OwnerAccountUnread::TooLarge,
+                w::TaskSourceUnread::Unreadable => c::AccountUnread::Unreadable,
+                w::TaskSourceUnread::Refused => c::AccountUnread::Refused,
+                w::TaskSourceUnread::Failed => c::AccountUnread::Failed,
+                w::TaskSourceUnread::Stalled => c::AccountUnread::Stalled,
+                w::TaskSourceUnread::TooLarge => c::AccountUnread::TooLarge,
             },
         },
     }

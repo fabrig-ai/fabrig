@@ -1,34 +1,32 @@
 //! Single read documents (client/domain/contract.md, 5–6).
-use super::pages::{
-    owner_escalation_fields, owner_historical_fields, owner_person_task_fields, owner_proposal_fields, question_fields,
-};
+use super::pages::{ended_fields, escalation_fields, person_task_fields, proposal_fields, question_fields};
 use super::{Undecodable, classify};
 use crate::Limits;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-pub fn owner_proposal(record: w::OwnerProposal, limits: &Limits) -> Result<c::OwnerProposal, Undecodable> {
+pub fn proposal(record: w::Proposal, limits: &Limits) -> Result<c::Proposal, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::OwnerProposal::new(limits.receiving(), record.into_parts()) {
+    let record = match w::Proposal::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match owner_proposal_fields(&record, limits) {
+    match proposal_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
 }
 
-pub fn owner_escalation(record: w::OwnerEscalation, limits: &Limits) -> Result<c::OwnerEscalation, Undecodable> {
+pub fn escalation(record: w::Escalation, limits: &Limits) -> Result<c::Escalation, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::OwnerEscalation::new(limits.receiving(), record.into_parts()) {
+    let record = match w::Escalation::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match owner_escalation_fields(&record, limits) {
+    match escalation_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
@@ -48,15 +46,15 @@ pub fn question(record: w::Question, limits: &Limits) -> Result<c::Question, Und
     }
 }
 
-pub fn owner_person_task(record: w::OwnerPersonTask, limits: &Limits) -> Result<c::OwnerPersonTask, Undecodable> {
+pub fn person_task(record: w::PersonTask, limits: &Limits) -> Result<c::PersonTask, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::OwnerPersonTask::new(limits.receiving(), record.into_parts()) {
+    let record = match w::PersonTask::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match owner_person_task_fields(&record, limits) {
+    match person_task_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
@@ -76,15 +74,15 @@ pub fn result(record: w::ResultDocument, limits: &Limits) -> Result<c::Result, U
     }
 }
 
-pub fn owner_historical(record: w::OwnerHistorical, limits: &Limits) -> Result<c::OwnerHistorical, Undecodable> {
+pub fn ended(record: w::Ended, limits: &Limits) -> Result<c::Ended, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::OwnerHistorical::new(limits.receiving(), record.into_parts()) {
+    let record = match w::Ended::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match owner_historical_fields(&record, limits) {
+    match ended_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }

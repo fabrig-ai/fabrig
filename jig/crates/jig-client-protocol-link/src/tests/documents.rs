@@ -29,17 +29,11 @@ fn a_tasks_keeps_every_supplied_field() {
 }
 
 fn a_owner_deployment_keeps_every_supplied_field() {
-    assert_eq!(
-        documents::owner_deployment(fixtures::owner_deployment_record(), &fixtures::limits()),
-        Ok(fixtures::owner_deployment())
-    );
+    assert_eq!(documents::deployment(fixtures::deployment_record(), &fixtures::limits()), Ok(fixtures::deployment()));
 }
 
 fn a_owner_project_keeps_every_supplied_field() {
-    assert_eq!(
-        documents::owner_project(fixtures::owner_project_record(), &fixtures::limits()),
-        Ok(fixtures::owner_project())
-    );
+    assert_eq!(documents::project(fixtures::project_record(), &fixtures::limits()), Ok(fixtures::project()));
 }
 
 fn a_run_state_keeps_every_supplied_field() {
@@ -112,8 +106,8 @@ fn a_run_text_one_byte_past_its_text_limit_is_refused() {
 fn an_account_later_keeps_its_optional_wall() {
     for until in [None, Some(0), Some(u64::MAX)] {
         assert_eq!(
-            documents::owner_deployment(fixtures::owner_with_account(until), &fixtures::limits()),
-            Ok(fixtures::owner_account_expected(until))
+            documents::deployment(fixtures::with_account(until), &fixtures::limits()),
+            Ok(fixtures::account_expected(until))
         );
     }
 }
@@ -172,7 +166,7 @@ fn a_resource_path_at_its_segment_bound_is_decoded_past_the_row_bound() {
     for _ in 0_u32..4 {
         path.push(Box::from(b"segment".as_slice())).unwrap();
     }
-    part.key = c::OwnerPartKey::Path(path);
+    part.key = c::PartKey::Path(path);
     assert_eq!(documents::task(fixtures::task_with_resource_path(4), &fixtures::limits()), Ok(expected));
 }
 
@@ -300,10 +294,10 @@ fn task_settings_revisions_cross_into_the_client_document() {
 #[test]
 fn chip_phases_refuse_missing_end_time_and_retry_notice() {
     let limits = fixtures::limits();
-    let backing_off = w::OwnerChipPhase::Active(
-        w::OwnerChipPhaseActive::new(
+    let backing_off = w::ChipPhase::Active(
+        w::ChipPhaseActive::new(
             limits.wire(),
-            w::OwnerChipPhaseActiveParts {
+            w::ChipPhaseActiveParts {
                 value: w::RunStage::BackingOff(
                     w::RunStageBackingOff::new(limits.wire(), w::RunStageBackingOffParts { until: 0 }).unwrap(),
                 ),
@@ -311,7 +305,7 @@ fn chip_phases_refuse_missing_end_time_and_retry_notice() {
         )
         .unwrap(),
     );
-    for (phase, compact) in [(w::OwnerChipPhase::Ended, w::Phase::Ended), (backing_off, w::Phase::BackingOff)] {
+    for (phase, compact) in [(w::ChipPhase::Ended, w::Phase::Ended), (backing_off, w::Phase::BackingOff)] {
         for present in [false, true] {
             let w::Fact::Chip(root) = fixtures::chip_root_fact() else { panic!("chip root") };
             let mut root = root.into_parts();
@@ -326,7 +320,7 @@ fn chip_phases_refuse_missing_end_time_and_retry_notice() {
                     w::RetryNoticeRefused::new(limits.wire(), w::RetryNoticeRefusedParts { count: 0 }).unwrap(),
                 ));
             }
-            details.value = w::OwnerChipDetailsFields::new(limits.wire(), fields).unwrap();
+            details.value = w::ChipDetailsFields::new(limits.wire(), fields).unwrap();
             let chip = fixtures::chip_from_rows(&[
                 w::Fact::Chip(w::ChipRow::new(limits.wire(), root).unwrap()),
                 w::Fact::ChipPhase(
@@ -343,7 +337,7 @@ fn chip_phases_refuse_missing_end_time_and_retry_notice() {
                     )
                     .unwrap(),
                 ),
-                w::Fact::OwnerChipDetails(Box::new(w::OwnerChipDetailsRow::new(limits.wire(), details).unwrap())),
+                w::Fact::ChipDetails(Box::new(w::ChipDetailsRow::new(limits.wire(), details).unwrap())),
             ]);
             let decoded = documents::chip(chip, &limits);
             if present {

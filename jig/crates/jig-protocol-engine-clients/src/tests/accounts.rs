@@ -125,7 +125,7 @@ fn accounts_deliver_whole_with_every_terminal_outcome() {
         let source = d::Document::Accounts(Box::new(document(Some(end))));
         assert_eq!(
             watches::delivery(&source, 0, 2, &[], &limits),
-            Ok(w::DeliveryValue::OwnerAccounts(jig_client_test_records::accounts_record(Some(expected))))
+            Ok(w::DeliveryValue::Accounts(jig_client_test_records::accounts_record(Some(expected))))
         );
     }
     assert_eq!(accounts::document(&document(None), &limits), Ok(jig_client_test_records::accounts_record(None)));
@@ -135,10 +135,10 @@ fn each_accounts_piece_ceiling_is_refused_at_its_own_path() {
     let source = document(None);
     let limits = jig_client_test_records::limits();
     let rows = [
-        (w::Limits { owner_accounts_accounts: 0, ..limits }, w::Path::OwnerAccountsAccounts),
-        (w::Limits { owner_accounts_signing: 0, ..limits }, w::Path::OwnerAccountsSigning),
-        (w::Limits { owner_account_line_sources: 0, ..limits }, w::Path::OwnerAccountLineSources),
-        (w::Limits { owner_account_line_uses_some: 0, ..limits }, w::Path::OwnerAccountLineUses),
+        (w::Limits { accounts_accounts: 0, ..limits }, w::Path::AccountsAccounts),
+        (w::Limits { accounts_signing: 0, ..limits }, w::Path::AccountsSigning),
+        (w::Limits { account_line_sources: 0, ..limits }, w::Path::AccountLineSources),
+        (w::Limits { account_line_uses_some: 0, ..limits }, w::Path::AccountLineUses),
     ];
     for (limits, path) in rows {
         assert_eq!(accounts::document(&source, &limits), Err(w::Problem { path, reason: skein_codec::Reason::Bound }));
@@ -164,10 +164,10 @@ fn deployment_accounts_keep_identity_uses_and_ordered_sources() {
     assert_eq!(encoded.display(), line.display());
     assert_eq!(encoded.holder(), line.holder());
     assert_eq!(encoded.sources(), line.sources());
-    let bound = w::Limits { owner_account_sources: 0, ..limits };
+    let bound = w::Limits { account_sources: 0, ..limits };
     assert_eq!(
         crate::translate::deployment::account(account, &bound),
-        Err(w::Problem { path: w::Path::OwnerAccountSources, reason: skein_codec::Reason::Bound })
+        Err(w::Problem { path: w::Path::AccountSources, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -203,9 +203,9 @@ fn account_capacity_actions_reach_the_wire() {
     let limits = jig_client_test_records::limits();
     let source = fixtures::deployment_document();
     for (action, expected) in [
-        (A::AccountSignIn, w::OwnerPersonCapacityAction::AccountSignIn),
-        (A::AccountSignOut, w::OwnerPersonCapacityAction::AccountSignOut),
-        (A::AccountChange, w::OwnerPersonCapacityAction::AccountChange),
+        (A::AccountSignIn, w::PersonCapacityAction::AccountSignIn),
+        (A::AccountSignOut, w::PersonCapacityAction::AccountSignOut),
+        (A::AccountChange, w::PersonCapacityAction::AccountChange),
     ] {
         let mut refusal = *source.person_room_refusals.get(0).unwrap();
         refusal.action = action;

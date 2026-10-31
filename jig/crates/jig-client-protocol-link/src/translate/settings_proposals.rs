@@ -63,14 +63,14 @@ pub fn restore_settings_review(value: &w::SettingsReview, limits: &Limits) -> Re
     })
 }
 pub fn wire_owner_proposal_action_settings(
-    value: &c::OwnerProposalActionSettings,
+    value: &c::ProposalActionSettings,
     limits: &w::Limits,
-) -> Result<w::OwnerProposalActionSettings, w::Problem> {
-    w::OwnerProposalActionSettings::new(
+) -> Result<w::ProposalActionSettings, w::Problem> {
+    w::ProposalActionSettings::new(
         limits,
-        w::OwnerProposalActionSettingsParts {
+        w::ProposalActionSettingsParts {
             against: value.against,
-            items: encode_heads(&value.items, limits, limits.owner_proposal_action_settings_items)?,
+            items: encode_heads(&value.items, limits, limits.proposal_action_settings_items)?,
             review: match &value.review {
                 Some(item) => Some(wire_settings_review(item, limits)?),
                 None => None,
@@ -80,12 +80,12 @@ pub fn wire_owner_proposal_action_settings(
     )
 }
 pub fn restore_owner_proposal_action_settings(
-    value: &w::OwnerProposalActionSettings,
+    value: &w::ProposalActionSettings,
     limits: &Limits,
-) -> Result<c::OwnerProposalActionSettings, w::Problem> {
-    Ok(c::OwnerProposalActionSettings {
+) -> Result<c::ProposalActionSettings, w::Problem> {
+    Ok(c::ProposalActionSettings {
         against: value.against(),
-        items: decode_heads(value.items(), limits.receiving().owner_proposal_action_settings_items)?,
+        items: decode_heads(value.items(), limits.receiving().proposal_action_settings_items)?,
         review: match value.review() {
             Some(item) => Some(restore_settings_review(item, limits)?),
             None => None,
@@ -94,25 +94,25 @@ pub fn restore_owner_proposal_action_settings(
     })
 }
 pub fn wire_owner_retained_action_settings(
-    value: &c::OwnerRetainedActionSettings,
+    value: &c::RetainedActionSettings,
     limits: &w::Limits,
-) -> Result<w::OwnerRetainedActionSettings, w::Problem> {
-    w::OwnerRetainedActionSettings::new(
+) -> Result<w::RetainedActionSettings, w::Problem> {
+    w::RetainedActionSettings::new(
         limits,
-        w::OwnerRetainedActionSettingsParts {
+        w::RetainedActionSettingsParts {
             against: value.against,
-            items: encode_heads(&value.items, limits, limits.owner_retained_action_settings_items)?,
+            items: encode_heads(&value.items, limits, limits.retained_action_settings_items)?,
             made: value.made,
         },
     )
 }
 pub fn restore_owner_retained_action_settings(
-    value: &w::OwnerRetainedActionSettings,
+    value: &w::RetainedActionSettings,
     limits: &Limits,
-) -> Result<c::OwnerRetainedActionSettings, w::Problem> {
-    Ok(c::OwnerRetainedActionSettings {
+) -> Result<c::RetainedActionSettings, w::Problem> {
+    Ok(c::RetainedActionSettings {
         against: value.against(),
-        items: decode_heads(value.items(), limits.receiving().owner_retained_action_settings_items)?,
+        items: decode_heads(value.items(), limits.receiving().retained_action_settings_items)?,
         made: *value.made(),
     })
 }

@@ -263,19 +263,13 @@ fn a_delivery_over_the_original_document_bound_is_refused() {
 }
 #[test]
 fn an_owner_inbox_delivery_preserves_both_groups_and_its_next_position() {
-    let bytes = fixtures::encoded_delivery(&fixtures::owner_inbox_with_rows(1));
-    assert_eq!(
-        translate::watches::delivery(&bytes, &fixtures::limits()),
-        Ok(fixtures::owner_inbox_with_rows_expected())
-    );
+    let bytes = fixtures::encoded_delivery(&fixtures::inbox_with_rows(1));
+    assert_eq!(translate::watches::delivery(&bytes, &fixtures::limits()), Ok(fixtures::inbox_with_rows_expected()));
 }
 #[test]
 fn an_owner_tree_delivery_preserves_its_whole_descendant() {
-    let bytes = fixtures::encoded_delivery(&fixtures::owner_tree_with_rows(1));
-    assert_eq!(
-        translate::watches::delivery(&bytes, &fixtures::limits()),
-        Ok(fixtures::owner_tree_with_rows_expected())
-    );
+    let bytes = fixtures::encoded_delivery(&fixtures::tree_with_rows(1));
+    assert_eq!(translate::watches::delivery(&bytes, &fixtures::limits()), Ok(fixtures::tree_with_rows_expected()));
 }
 #[test]
 fn a_delivery_piece_that_does_not_split_is_refused() {
@@ -286,12 +280,12 @@ fn a_delivery_piece_that_does_not_split_is_refused() {
 }
 #[test]
 fn an_owner_inbox_delivery_one_row_over_the_limit_is_refused() {
-    let bytes = fixtures::encoded_delivery(&fixtures::owner_inbox_with_rows(3));
+    let bytes = fixtures::encoded_delivery(&fixtures::inbox_with_rows(3));
     assert_eq!(translate::watches::delivery(&bytes, &fixtures::limits()), Err(Undecodable::TooLarge));
 }
 #[test]
 fn an_owner_tree_delivery_one_row_over_the_limit_is_refused() {
-    let bytes = fixtures::encoded_delivery(&fixtures::owner_tree_with_rows(3));
+    let bytes = fixtures::encoded_delivery(&fixtures::tree_with_rows(3));
     assert_eq!(translate::watches::delivery(&bytes, &fixtures::limits()), Err(Undecodable::TooLarge));
 }
 

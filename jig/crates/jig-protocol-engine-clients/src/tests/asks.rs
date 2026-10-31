@@ -150,8 +150,8 @@ fn policy_authority_keeps_every_length_prefixed_grant_and_resource() {
 fn a_piece_past_its_decoded_sum_is_refused() {
     let limits = f::wire();
     let (wire, _) = f::authority_ask();
-    let small = w::Limits { owner_authority_grants: 19, ..limits };
-    assert_eq!(ask(wire, &f::models(), &small), Err(Untranslatable { path: w::Path::OwnerAuthorityGrants }));
+    let small = w::Limits { authority_grants: 19, ..limits };
+    assert_eq!(ask(wire, &f::models(), &small), Err(Untranslatable { path: w::Path::AuthorityGrants }));
 }
 
 #[test]
@@ -261,9 +261,10 @@ fn a_propose_of_an_amendment_reaches_the_people_child_with_its_reason() {
 #[test]
 fn a_sign_in_ask_is_made_a_people_ask_for_its_holder() {
     let limits = f::wire();
-    for (holder, expected) in
-        [(w::AccountHolder::Own, p::AccountHolder::Own), (w::AccountHolder::Deployment, p::AccountHolder::Deployment)]
-    {
+    for (holder, expected) in [
+        (w::AskAccountHolder::Own, p::AccountHolder::Own),
+        (w::AskAccountHolder::Deployment, p::AccountHolder::Deployment),
+    ] {
         let wire = w::Ask::SignIn(
             w::AskSignIn::new(&limits, w::AskSignInParts { holder: holder.clone(), provider: u32::MAX }).unwrap(),
         );

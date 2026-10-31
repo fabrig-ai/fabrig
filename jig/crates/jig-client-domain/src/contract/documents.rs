@@ -3,8 +3,8 @@
 //! List capacities and Text byte bounds are validated by the protocol before entry;
 //! the working set keeps only what its own configured limits admit.
 use super::{
-    Actor, DocumentText, Ending, Executor, NoteScope, Part, Party, Phase, ProposalKey, Refusal, Revision, TaskLine,
-    Text, TurnName, TurnRead,
+    Actor, ApplicationPart, ChipExecutor, DocumentText, Ending, NoteScope, Party, Phase, ProposalKey, Refusal,
+    Revision, TaskLine, Text, TurnName, TurnRead,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
@@ -22,17 +22,17 @@ pub struct Needs {
 pub struct Chip {
     pub task: u64,
     pub title: DocumentText,
-    pub executor: Executor,
+    pub executor: ChipExecutor,
     pub phase: Phase,
     /// Whole live phase facts; compact `phase` remains the document's filter value.
-    pub details: Box<ChipPhase>,
+    pub details: Box<ChipPhaseFacts>,
 }
 
 /// Exact producer phase with its mandatory owner metadata.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ChipPhase {
-    pub phase: super::OwnerChipPhase,
-    pub details: Box<super::OwnerChipDetails>,
+pub struct ChipPhaseFacts {
+    pub phase: super::ChipPhase,
+    pub details: Box<super::ChipDetails>,
 }
 
 /// The settings revisions an agent task's runs read their charter from
@@ -61,9 +61,9 @@ pub struct Task {
     pub goal: Option<u64>,
     pub priority: Option<u32>,
     pub lineage_chips: List<Chip>,
-    pub inputs: List<super::OwnerTaskLink>,
+    pub inputs: List<super::TaskLink>,
     pub project: u32,
-    pub requester: super::OwnerRequester,
+    pub requester: super::Requester,
     pub lineage: List<u64>,
     pub spec: super::SpecificationDocument,
     pub spec_revision: Revision,
@@ -73,19 +73,19 @@ pub struct Task {
     pub taken_by: Option<u64>,
     /// Supplied instruction text; absence supplies no effective text.
     pub instructions: Option<DocumentText>,
-    pub wake: super::OwnerWakePolicy,
+    pub wake: super::WakePolicy,
     /// Standing interests supplied separately from activation policy.
     pub subscriptions: super::Subscriptions,
     pub result_contract: super::TaskContractDocument,
-    pub dependencies: List<super::OwnerTaskLink>,
+    pub dependencies: List<super::TaskLink>,
     pub dependency_facts: List<super::Dependency>,
-    pub references: List<super::OwnerTaskLink>,
+    pub references: List<super::TaskLink>,
     /// At least one task list was omitted; this does not identify which list.
     pub cut: bool,
-    pub resources: List<super::OwnerResourceLine>,
-    pub budget: super::OwnerBudget,
-    pub authority: super::OwnerAuthorityDocument,
-    pub hold: Option<Box<super::OwnerChipHold>>,
+    pub resources: List<super::ResourceLine>,
+    pub budget: super::Budget,
+    pub authority: super::AuthorityDocument,
+    pub hold: Option<Box<super::ChipHold>>,
     pub proposals: List<ProposalKey>,
     pub activity: u64,
     pub changed: Wall,
@@ -104,7 +104,7 @@ pub struct Task {
 /// Absence supplies no runtime, impact, spend, panel or writer-slot facts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TaskContext {
-    pub parts: List<Part>,
+    pub parts: List<ApplicationPart>,
     pub closing: Option<Closing>,
     pub spend: List<SpendLine>,
     pub runtime: Runtime,
@@ -211,13 +211,13 @@ pub enum Bounds {
     /// Additional budget and complete held grants for an amendment.
     Amend {
         budget_left: u64,
-        grants: List<super::OwnerGrant>,
+        grants: List<super::Grant>,
         /// Complete configured connector kind order; equality is implicit.
-        implications: List<super::OwnerKindImplication>,
+        implications: List<super::KindImplication>,
         /// Complete numbers and lists for directly made widening.
-        authority: Box<super::OwnerAuthorityDocument>,
+        authority: Box<super::AuthorityDocument>,
         /// Hard envelope of supported form choices.
-        ceiling: Box<super::OwnerAuthorityDocument>,
+        ceiling: Box<super::AuthorityDocument>,
     },
 }
 
@@ -274,11 +274,11 @@ pub enum HoldReason {
     /// A dependency ended unsuccessfully.
     Dependency { task: u64, how: Ending },
     /// A connector reported drift.
-    Drift { part: Part },
+    Drift { part: ApplicationPart },
     /// A connector effect failed for good.
-    EffectFailed { part: Part },
+    EffectFailed { part: ApplicationPart },
     /// An unrecoverable effect may have happened.
-    EffectUncertain { part: Part },
+    EffectUncertain { part: ApplicationPart },
     /// Out of budget.
     Budget { spent: u64, limit: u64 },
     /// Past a deadline.
@@ -286,11 +286,11 @@ pub enum HoldReason {
     /// Stopped by a party.
     Stopped { by: Party, at: Wall },
     /// Waited too long for a hold.
-    Resource { resource: Part, holder: Actor },
+    Resource { resource: ApplicationPart, holder: Actor },
     /// A pool lost allocation.
-    Pool { part: Part },
+    Pool { part: ApplicationPart },
     /// A procedure needs a decision.
-    Procedure { part: Part },
+    Procedure { part: ApplicationPart },
 }
 
 /// One failed attempt and its failure class.
@@ -320,15 +320,15 @@ pub enum FailureClass {
 pub struct ProposedTask {
     pub number: u64,
     pub spec: super::SpecificationDocument,
-    pub executor: super::OwnerExecutor,
+    pub executor: super::Executor,
     pub contract: super::TaskContractDocument,
-    pub authority: super::OwnerAuthorityDocument,
+    pub authority: super::AuthorityDocument,
     pub deadline: super::NewDeadline,
     pub budget: u64,
     pub funder: super::Funder,
     pub dependencies: List<u64>,
-    pub resources: List<super::OwnerPart>,
-    pub wake: super::OwnerWakePolicy,
+    pub resources: List<super::Part>,
+    pub wake: super::WakePolicy,
     pub priority: Option<u32>,
     pub cut: bool,
 }
@@ -337,7 +337,7 @@ pub struct ProposedTask {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Question {
     pub task: Chip,
-    pub from: Option<super::OwnerRequester>,
+    pub from: Option<super::Requester>,
     pub message: u64,
     pub words: DocumentText,
     pub since: Wall,
@@ -358,7 +358,7 @@ pub enum PersonContract {
     /// Choose from the named options.
     Choice { options: List<OptionLine> },
     /// Approve the named state.
-    Approval { state: Text, part: Part },
+    Approval { state: Text, part: ApplicationPart },
     /// Answer in words.
     Words,
 }
@@ -421,9 +421,9 @@ pub enum ResultValue {
         proposal: Option<ProposalKey>,
     },
     /// A summary and connector result.
-    Connector { summary: DocumentText, part: Part },
+    Connector { summary: DocumentText, part: ApplicationPart },
     /// Exact connector result kind and raw owner part, before any scoped application routing.
-    Change { kind: u16, part: super::OwnerPart, words: DocumentText },
+    Change { kind: u16, part: super::Part, words: DocumentText },
     /// A party choice.
     Choice { option: u32, by: Party, reason: DocumentText },
     /// Whole approved state and its optional explanation.
@@ -449,7 +449,7 @@ pub struct Result {
 
 /// Counts of tasks folded beyond a tree window.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct PhaseCounts {
+pub struct ImpactCounts {
     /// Ended chips whose source does not supply a specific outcome.
     pub ended: u32,
     pub waiting: u32,
@@ -532,8 +532,8 @@ pub struct Note {
 
 /// Whole activity source and its optional decoded committed turn.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ActivityLine {
-    pub source: Box<super::OwnerActivityLine>,
+pub struct DecodedActivityLine {
+    pub source: Box<super::ActivityLine>,
     pub decoded: Option<ArchivedTurn>,
 }
 
@@ -547,20 +547,20 @@ pub struct ArchivedTurn {
     pub at: Wall,
     pub turn: TurnRead,
 }
-impl ActivityLine {
+impl DecodedActivityLine {
     /// A committed archive identity, independent of whether its bytes are available.
     #[must_use]
     pub fn committed_turn(&self) -> Option<TurnName> {
         match self.source.line {
-            super::OwnerActivity::Turn { attempt, turn, .. } => Some(TurnName { attempt, number: turn }),
-            super::OwnerActivity::Words { .. }
-            | super::OwnerActivity::Heard(_)
-            | super::OwnerActivity::Notified { .. }
-            | super::OwnerActivity::RunBegan { .. }
-            | super::OwnerActivity::RunEnded { .. }
-            | super::OwnerActivity::Decided { .. }
-            | super::OwnerActivity::Kept { .. }
-            | super::OwnerActivity::Milestone { .. } => None,
+            super::Activity::Turn { attempt, turn, .. } => Some(TurnName { attempt, number: turn }),
+            super::Activity::Words { .. }
+            | super::Activity::Heard(_)
+            | super::Activity::Notified { .. }
+            | super::Activity::RunBegan { .. }
+            | super::Activity::RunEnded { .. }
+            | super::Activity::Decided { .. }
+            | super::Activity::Kept { .. }
+            | super::Activity::Milestone { .. } => None,
         }
     }
     /// Decoded content paired with its supplied committed identity.
@@ -572,30 +572,30 @@ impl ActivityLine {
     #[must_use]
     pub fn word_message(&self) -> Option<(u64, &Text)> {
         match &self.source.line {
-            super::OwnerActivity::Words { message, words, .. } => Some((*message, words)),
-            super::OwnerActivity::Heard(_)
-            | super::OwnerActivity::Notified { .. }
-            | super::OwnerActivity::RunBegan { .. }
-            | super::OwnerActivity::RunEnded { .. }
-            | super::OwnerActivity::Turn { .. }
-            | super::OwnerActivity::Decided { .. }
-            | super::OwnerActivity::Kept { .. }
-            | super::OwnerActivity::Milestone { .. } => None,
+            super::Activity::Words { message, words, .. } => Some((*message, words)),
+            super::Activity::Heard(_)
+            | super::Activity::Notified { .. }
+            | super::Activity::RunBegan { .. }
+            | super::Activity::RunEnded { .. }
+            | super::Activity::Turn { .. }
+            | super::Activity::Decided { .. }
+            | super::Activity::Kept { .. }
+            | super::Activity::Milestone { .. } => None,
         }
     }
     /// Supplied committed read-through; missing and zero remain distinct.
     #[must_use]
     pub fn read_position(&self) -> Option<u64> {
         match self.source.line {
-            super::OwnerActivity::Turn { read, .. } => read,
-            super::OwnerActivity::Words { .. }
-            | super::OwnerActivity::Heard(_)
-            | super::OwnerActivity::Notified { .. }
-            | super::OwnerActivity::RunBegan { .. }
-            | super::OwnerActivity::RunEnded { .. }
-            | super::OwnerActivity::Decided { .. }
-            | super::OwnerActivity::Kept { .. }
-            | super::OwnerActivity::Milestone { .. } => None,
+            super::Activity::Turn { read, .. } => read,
+            super::Activity::Words { .. }
+            | super::Activity::Heard(_)
+            | super::Activity::Notified { .. }
+            | super::Activity::RunBegan { .. }
+            | super::Activity::RunEnded { .. }
+            | super::Activity::Decided { .. }
+            | super::Activity::Kept { .. }
+            | super::Activity::Milestone { .. } => None,
         }
     }
 }
@@ -606,7 +606,7 @@ pub enum Runtime {
     /// Exact owner activation, including absent observation or actual start.
     Active(super::ActiveRun),
     /// Waiting on dependencies or a named resource hold.
-    Waiting { dependencies: List<u64>, hold: Option<Part> },
+    Waiting { dependencies: List<u64>, hold: Option<ApplicationPart> },
     /// Idle and waiting on its wake policy.
     Idle,
     /// A run is due, preparing or claimed.
@@ -618,7 +618,7 @@ pub enum Runtime {
     /// A failed attempt waits until its retry time.
     BackingOff { at: Wall, attempt: u64, tries: u32, class: FailureClass, reason: Text },
     /// A connector procedure is active, shown in its panel.
-    Procedure { panel: Part },
+    Procedure { panel: ApplicationPart },
     /// A person task is waiting for its named recipient.
     Person { addressed: Recipient, since: Option<Wall> },
     /// Closing while its children and effects settle.
@@ -632,7 +632,7 @@ pub enum Runtime {
 /// What a steering confirmation says a cancel or close would affect.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Impact {
-    pub tasks: PhaseCounts,
+    pub tasks: ImpactCounts,
     pub live_runs: u32,
     pub proposals: u32,
 }
@@ -640,7 +640,7 @@ pub struct Impact {
 /// A resource held for writing and the run holding its writer slot.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct WriterSlot {
-    pub resource: Part,
+    pub resource: ApplicationPart,
     pub task: u64,
     pub attempt: Option<u64>,
 }

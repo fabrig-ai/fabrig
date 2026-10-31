@@ -1,9 +1,9 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::classify;
 use super::documents::{
-    chip_fields, cursor_fields, ending_fields, object_key_fields, offered_piece, owner_authority_document_fields,
-    owner_authority_fields, owner_chip_ending_fields, owner_task_link_fields, proposed_task_piece, result_fields,
-    specification_document_fields, task_contract_document_fields, task_fields,
+    authority_document_fields, authority_fields, chip_ending_fields, chip_fields, cursor_fields, ending_fields,
+    object_key_fields, offered_piece, proposed_task_piece, result_fields, specification_document_fields,
+    task_contract_document_fields, task_fields, task_link_fields,
 };
 use super::{Undecodable, piece_problem, too_large};
 use crate::Limits;
@@ -80,43 +80,43 @@ pub fn note_page(record: w::NotePage, limits: &Limits) -> Result<c::NotePage, Un
     }
 }
 
-pub fn owner_ended_page(record: w::OwnerEndedPage, limits: &Limits) -> Result<c::OwnerEndedPage, Undecodable> {
+pub fn ended_page(record: w::EndedPage, limits: &Limits) -> Result<c::EndedPage, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::OwnerEndedPage::new(limits.receiving(), record.into_parts()) {
+    let record = match w::EndedPage::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match owner_ended_page_fields(&record, limits) {
+    match ended_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
 }
 
-pub fn owner_inbox_page(record: w::OwnerInboxPage, limits: &Limits) -> Result<c::OwnerInboxPage, Undecodable> {
+pub fn inbox_page(record: w::InboxPage, limits: &Limits) -> Result<c::InboxPage, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::OwnerInboxPage::new(limits.receiving(), record.into_parts()) {
+    let record = match w::InboxPage::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match owner_inbox_page_fields(&record, limits) {
+    match inbox_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
 }
 
-pub fn owner_spend_page(record: w::OwnerSpendPage, limits: &Limits) -> Result<c::OwnerSpendPage, Undecodable> {
+pub fn spend_page(record: w::SpendPage, limits: &Limits) -> Result<c::SpendPage, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::OwnerSpendPage::new(limits.receiving(), record.into_parts()) {
+    let record = match w::SpendPage::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match owner_spend_page_fields(&record, limits) {
+    match spend_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }

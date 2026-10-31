@@ -1,68 +1,68 @@
 //! Exact pending proposal facts (client/domain/objects.md, 2 and 4;
-//! contract.md, 3.2 and 5). Historical routing and terminal decisions are
+//! contract.md, 3.2 and 5). Ended routing and terminal decisions are
 //! separate documents; missing funding observations remain absent.
 use super::{
-    AddressChange, DocumentText, Funder, Offered, OwnerAmendmentState, OwnerAuthorityDocument, OwnerChipHold,
-    OwnerHistoryHolder, OwnerPart, OwnerTaskLink, ProposalKey, ProposedTask,
+    AddressChange, AmendmentState, AuthorityDocument, ChipHold, DocumentText, Funder, HistoryHolder, Offered, Part,
+    ProposalKey, ProposedTask, TaskLink,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProposal {
+pub struct Proposal {
     pub key: ProposalKey,
     pub project: u32,
     pub reason: DocumentText,
-    pub action: OwnerProposalAction,
+    pub action: ProposalAction,
     pub as_holder: bool,
-    pub waiting: OwnerProposalWaiting,
-    pub funding: List<OwnerFundingOffer>,
+    pub waiting: ProposalWaiting,
+    pub funding: List<FundingOffer>,
     pub acts: List<Offered>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProposalWaiting {
-    pub holder: OwnerHistoryHolder,
+pub struct ProposalWaiting {
+    pub holder: HistoryHolder,
     pub since: Wall,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerFundingOffer {
+pub struct FundingOffer {
     pub source: Funder,
     pub needed: u64,
     pub left: Option<u64>,
     pub after: Option<u64>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerProposalAction {
-    Settings(Box<super::OwnerProposalActionSettings>),
+pub enum ProposalAction {
+    Settings(Box<super::ProposalActionSettings>),
     Batch(List<ProposedTask>),
     Effect {
-        part: OwnerPart,
-        authority: OwnerAuthorityDocument,
+        part: Part,
+        authority: AuthorityDocument,
         attempt: u64,
         completion: u32,
         position: u32,
         purpose: u64,
     },
     ProcedureEffect {
-        part: OwnerPart,
-        authority: OwnerAuthorityDocument,
+        part: Part,
+        authority: AuthorityDocument,
         step: u64,
         purpose: u64,
     },
     Amend {
-        task: OwnerTaskLink,
+        task: TaskLink,
         addressed: Option<AddressChange>,
-        before: Box<OwnerAmendmentState>,
-        after: Box<OwnerAmendmentState>,
+        before: Box<AmendmentState>,
+        after: Box<AmendmentState>,
         reason: DocumentText,
         release: Option<u64>,
     },
     Widen {
-        task: OwnerTaskLink,
-        before: OwnerAuthorityDocument,
-        after: OwnerAuthorityDocument,
+        task: TaskLink,
+        before: AuthorityDocument,
+        after: AuthorityDocument,
     },
     Release {
-        task: OwnerTaskLink,
-        hold: Option<Box<OwnerChipHold>>,
+        task: TaskLink,
+        hold: Option<Box<ChipHold>>,
     },
 }

@@ -36,7 +36,7 @@ fn task_owner_holds_keep_every_placed_fact_and_their_independent_revisions() {
         .unwrap();
         let mut owner = jig_client_test_records::hold_record().into_parts();
         owner.placed = Some(placed.clone());
-        let owner = w::OwnerChipHold::new(&w::CEILINGS, owner).unwrap();
+        let owner = w::ChipHold::new(&w::CEILINGS, owner).unwrap();
         let mut task = fixtures::task_record().into_parts();
         task.hold = Some(owner);
         let task = w::Task::new(&w::CEILINGS, task).unwrap();

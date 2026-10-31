@@ -129,9 +129,12 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
         w::Done::new(
             &w::CEILINGS,
             w::DoneParts {
-                outcome: w::Outcome::Owner(
-                    w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value: w::OwnerOutcome::AccountChanged })
-                        .expect("owner outcome"),
+                outcome: w::Outcome::Document(
+                    w::OutcomeDocument::new(
+                        &w::CEILINGS,
+                        w::OutcomeDocumentParts { value: w::DocumentOutcome::AccountChanged },
+                    )
+                    .expect("owner outcome"),
                 ),
             },
         )

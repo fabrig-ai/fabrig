@@ -4,7 +4,7 @@
 
 /// A grant of `kind` includes `implies` on this connector only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerKindImplication {
+pub struct KindImplication {
     pub connector: u16,
     pub kind: u16,
     pub implies: u16,

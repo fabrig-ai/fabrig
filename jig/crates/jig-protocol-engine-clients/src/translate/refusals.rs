@@ -88,9 +88,9 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
             w::RefusalDependencyParts {
                 dependency,
                 how: match how {
-                    p::DependencyStatus::Done => w::OwnerTaskStatus::Done,
-                    p::DependencyStatus::Failed => w::OwnerTaskStatus::Failed,
-                    p::DependencyStatus::Cancelled => w::OwnerTaskStatus::Cancelled,
+                    p::DependencyStatus::Done => w::TaskStatus::Done,
+                    p::DependencyStatus::Failed => w::TaskStatus::Failed,
+                    p::DependencyStatus::Cancelled => w::TaskStatus::Cancelled,
                 },
             },
         )?),

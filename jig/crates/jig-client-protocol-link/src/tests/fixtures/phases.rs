@@ -19,10 +19,10 @@ pub fn phase_owner() -> (w::Chip, c::Chip) {
                     value: w::ChipPhaseOwnerFields::new(
                         &lim,
                         w::ChipPhaseOwnerFieldsParts {
-                            phase: w::OwnerChipPhase::Waiting(
-                                w::OwnerChipPhaseWaiting::new(
+                            phase: w::ChipPhase::Waiting(
+                                w::ChipPhaseWaiting::new(
                                     &lim,
-                                    w::OwnerChipPhaseWaitingParts {
+                                    w::ChipPhaseWaitingParts {
                                         dependencies: List::with_capacity(0),
                                         more: false,
                                         holds: false,
@@ -38,13 +38,13 @@ pub fn phase_owner() -> (w::Chip, c::Chip) {
             )
             .unwrap(),
         ),
-        w::Fact::OwnerChipDetails(Box::new(wire_owner_chip_details_row())),
+        w::Fact::ChipDetails(Box::new(wire_owner_chip_details_row())),
     ];
     let record = chip_from_rows(&rows);
     let mut expected = chip();
-    expected.details = Box::new(c::ChipPhase {
-        phase: c::OwnerChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
-        details: Box::new(owner_chip_details()),
+    expected.details = Box::new(c::ChipPhaseFacts {
+        phase: c::ChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
+        details: Box::new(chip_details()),
     });
     (record, expected)
 }
@@ -52,20 +52,20 @@ pub fn chip_root_fact() -> w::Fact {
     jig_client_test_records::chip_root_fact()
 }
 
-pub fn wire_owner_chip_details_row() -> w::OwnerChipDetailsRow {
+pub fn wire_owner_chip_details_row() -> w::ChipDetailsRow {
     jig_client_test_records::wire_owner_chip_details_row()
 }
 
-pub fn owner_chip_details() -> c::OwnerChipDetails {
-    c::OwnerChipDetails {
+pub fn chip_details() -> c::ChipDetails {
+    c::ChipDetails {
         dependencies: List::with_capacity(0),
         project: 7,
-        executor: c::OwnerExecutor::Agent { charter: 7 },
+        executor: c::Executor::Agent { charter: 7 },
         phase_since: Wall::from_nanos(7),
         run_since: None,
         attempt: None,
         retry: None,
-        wake: c::OwnerWakePolicy {
+        wake: c::WakePolicy {
             words: c::WakeRule::Never,
             notices: c::WakeRule::Never,
             news: c::WakeRule::Never,
@@ -76,8 +76,8 @@ pub fn owner_chip_details() -> c::OwnerChipDetails {
         },
         person_wait: None,
         hold: None,
-        budget: c::OwnerBudget {
-            numbers: c::OwnerNumbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
+        budget: c::Budget {
+            numbers: c::Numbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
             left: 7,
             funder: c::Funder::Task(7),
             deadline: None,

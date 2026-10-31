@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+#[expect(clippy::struct_field_names, reason = "The Accounts wire record retains the schema’s accounts field.")]
 #[rustfmt::skip]
 #[path = "generated/v19.rs"]
 pub mod v19;

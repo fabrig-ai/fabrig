@@ -17,8 +17,8 @@ fn a_task_query_subject_reaches_the_core_with_its_keys() {
         &limits,
         w::TaskQueryParts {
             project: Some(QUERY_PROJECT),
-            requester: Some(w::OwnerRequester::Person(
-                w::OwnerRequesterPerson::new(&limits, w::OwnerRequesterPersonParts { value: QUERY_REQUESTER }).unwrap(),
+            requester: Some(w::Requester::Person(
+                w::RequesterPerson::new(&limits, w::RequesterPersonParts { value: QUERY_REQUESTER }).unwrap(),
             )),
             root: Some(QUERY_ROOT),
             parent: Some(QUERY_PARENT),

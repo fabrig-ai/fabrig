@@ -60,7 +60,7 @@ pub struct CreateProcedure {
 /// The first creating bound and the project ceiling (contract.md, 5.3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CreateBounds {
-    pub authority: Box<super::OwnerAuthorityDocument>,
+    pub authority: Box<super::AuthorityDocument>,
     pub pool_left: u64,
     pub charters: List<u32>,
     pub procedures: List<CreateProcedure>,

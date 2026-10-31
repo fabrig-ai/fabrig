@@ -11,14 +11,14 @@ pub enum PersonAddress {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerExecutor {
+pub enum Executor {
     Agent { charter: u32 },
     Procedure { connector: u16, code: u32 },
     Person(PersonAddress),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerPartKind {
+pub enum PartKind {
     Resource,
     Pool,
     Result,
@@ -30,15 +30,15 @@ pub enum OwnerPartKind {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerPartKey {
+pub enum PartKey {
     Path(List<Box<[u8]>>),
     Number(u64),
 }
 
 /// An application value's exact owner reference, without that value's contents.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerPart {
+pub struct Part {
     pub connector: u16,
-    pub kind: OwnerPartKind,
-    pub key: OwnerPartKey,
+    pub kind: PartKind,
+    pub key: PartKey,
 }

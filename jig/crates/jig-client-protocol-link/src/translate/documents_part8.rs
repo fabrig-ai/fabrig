@@ -1,17 +1,17 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
 use super::{
-    Limits, List, Wall, c, object_key_fields, offered_piece, owner_project_member_fields, owner_project_policy_fields,
-    owner_project_resource_piece, owner_project_spend_piece, part_piece, pool_ledger_fields, recurring_piece, text,
+    Limits, List, Wall, application_part_piece, c, object_key_fields, offered_piece, pool_ledger_fields,
+    project_member_fields, project_policy_fields, project_resource_piece, project_spend_piece, recurring_piece, text,
     too_large, w,
 };
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_project_fields(value: &w::OwnerProject, limits: &Limits) -> Result<c::OwnerProject, w::Problem> {
+pub(crate) fn project_fields(value: &w::Project, limits: &Limits) -> Result<c::Project, w::Problem> {
     if value.members().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.members().len());
     for item in value.members() {
-        list0.push(owner_project_member_fields(item, limits)?).expect("reserved supplied list");
+        list0.push(project_member_fields(item, limits)?).expect("reserved supplied list");
     }
     let opt1 = match value.current_period() {
         Some(item) => Some(pool_ledger_fields(item)),
@@ -31,19 +31,19 @@ pub(crate) fn owner_project_fields(value: &w::OwnerProject, limits: &Limits) -> 
     for item in value.configured_pools() {
         list3.push(pool_ledger_fields(item)).expect("reserved supplied list");
     }
-    Ok(c::OwnerProject {
+    Ok(c::Project {
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
         number: value.number(),
         name: crate::translate::facts::document_text(value.name(), limits)?,
-        resources: owner_project_resource_piece(value.resources(), limits, limits.client().rows)?,
-        policy: owner_project_policy_fields(value.policy(), limits)?,
+        resources: project_resource_piece(value.resources(), limits, limits.client().rows)?,
+        policy: project_policy_fields(value.policy(), limits)?,
         members: list0,
         current_period: opt1,
         pools: list2,
         configured_period: value.configured_period(),
         configured_pools: list3,
         configured_pools_cut: value.configured_pools_cut(),
-        spend: owner_project_spend_piece(value.spend(), limits, limits.client().rows)?,
+        spend: project_spend_piece(value.spend(), limits, limits.client().rows)?,
         recurring: recurring_piece(value.recurring(), limits, limits.client().rows)?,
         cut: value.cut(),
     })
@@ -72,7 +72,7 @@ pub(crate) fn call_fields(value: &w::Call, limits: &Limits) -> Result<c::Call, w
         outcome: opt0,
         failed: value.failed(),
         objects: list1,
-        parts: part_piece(value.parts(), limits, limits.client().rows)?,
+        parts: application_part_piece(value.parts(), limits, limits.client().rows)?,
     })
 }
 

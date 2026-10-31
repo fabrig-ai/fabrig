@@ -1,5 +1,5 @@
 use super::*;
-pub fn read_wire_owner_person_task() -> w::OwnerPersonTask {
+pub fn read_wire_owner_person_task() -> w::PersonTask {
     jig_client_test_records::read_wire_owner_person_task()
 }
 

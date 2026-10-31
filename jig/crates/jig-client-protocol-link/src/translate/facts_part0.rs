@@ -17,12 +17,12 @@ pub(crate) fn document_text(value: &w::DocumentText, limits: &Limits) -> Result<
     })
 }
 
-pub(crate) fn executor(value: &w::Executor) -> c::Executor {
+pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {
     match value {
-        w::Executor::Agent(row) => c::Executor::Agent { charter: row.charter() },
-        w::Executor::Procedure(row) => c::Executor::Procedure { connector: row.connector(), kind: row.kind() },
-        w::Executor::Party(row) => c::Executor::Party { party: row.party() },
-        w::Executor::Role(row) => c::Executor::Role { project: row.project(), role: row.role() },
+        w::ChipExecutor::Agent(row) => c::ChipExecutor::Agent { charter: row.charter() },
+        w::ChipExecutor::Procedure(row) => c::ChipExecutor::Procedure { connector: row.connector(), kind: row.kind() },
+        w::ChipExecutor::Party(row) => c::ChipExecutor::Party { party: row.party() },
+        w::ChipExecutor::Role(row) => c::ChipExecutor::Role { project: row.project(), role: row.role() },
     }
 }
 
@@ -136,17 +136,17 @@ pub(crate) fn hold_category(value: &w::HoldCategory) -> c::HoldCategory {
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_chip_phase(value: &w::OwnerChipPhase) -> c::OwnerChipPhase {
+pub(crate) fn chip_phase(value: &w::ChipPhase) -> c::ChipPhase {
     match value {
-        w::OwnerChipPhase::Waiting(row) => {
+        w::ChipPhase::Waiting(row) => {
             let mut list0 = List::with_capacity(row.dependencies().len());
             for item in row.dependencies() {
                 list0.push(*item).expect("reserved supplied list");
             }
-            c::OwnerChipPhase::Waiting { dependencies: list0, more: row.more(), holds: row.holds() }
+            c::ChipPhase::Waiting { dependencies: list0, more: row.more(), holds: row.holds() }
         }
-        w::OwnerChipPhase::Active(row) => c::OwnerChipPhase::Active(run_stage(row.value())),
-        w::OwnerChipPhase::Person(row) => {
+        w::ChipPhase::Active(row) => c::ChipPhase::Active(run_stage(row.value())),
+        w::ChipPhase::Person(row) => {
             let opt0 = match row.taken_by() {
                 Some(item) => Some(*item),
                 None => None,
@@ -155,13 +155,11 @@ pub(crate) fn owner_chip_phase(value: &w::OwnerChipPhase) -> c::OwnerChipPhase {
                 Some(item) => Some(Wall::from_nanos(*item)),
                 None => None,
             };
-            c::OwnerChipPhase::Person { address: person_address(row.address()), taken_by: opt0, since: opt1 }
+            c::ChipPhase::Person { address: person_address(row.address()), taken_by: opt0, since: opt1 }
         }
-        w::OwnerChipPhase::Closing(row) => c::OwnerChipPhase::Closing(closing_stage(row.value())),
-        w::OwnerChipPhase::Held(row) => {
-            c::OwnerChipPhase::Held { reason: hold_category(row.reason()), revision: row.revision() }
-        }
-        w::OwnerChipPhase::Ended => c::OwnerChipPhase::Ended,
+        w::ChipPhase::Closing(row) => c::ChipPhase::Closing(closing_stage(row.value())),
+        w::ChipPhase::Held(row) => c::ChipPhase::Held { reason: hold_category(row.reason()), revision: row.revision() },
+        w::ChipPhase::Ended => c::ChipPhase::Ended,
     }
 }
 

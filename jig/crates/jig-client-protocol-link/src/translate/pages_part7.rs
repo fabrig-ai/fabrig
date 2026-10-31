@@ -1,14 +1,11 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
-    Limits, List, Reader, Wall, c, opaque, owner_authority_fields, owner_message_proposal_kind_fields, piece_problem,
+    Limits, List, Reader, Wall, authority_fields, c, message_proposal_kind_fields, opaque, piece_problem,
     specification_fields, task_contract_document_fields, text, too_large, w,
 };
-pub(crate) fn owner_goal_holding_fields(
-    value: &w::OwnerGoalHolding,
-    limits: &Limits,
-) -> Result<c::OwnerGoalHolding, w::Problem> {
+pub(crate) fn goal_holding_fields(value: &w::GoalHolding, limits: &Limits) -> Result<c::GoalHolding, w::Problem> {
     Ok(match value {
-        w::OwnerGoalHolding::Write(row) => {
+        w::GoalHolding::Write(row) => {
             if row.path().len() > limits.client().segments {
                 return Err(too_large());
             }
@@ -16,9 +13,9 @@ pub(crate) fn owner_goal_holding_fields(
             for item in row.path() {
                 list0.push(opaque(item, limits)?).expect("reserved supplied list");
             }
-            c::OwnerGoalHolding::Write { connector: row.connector(), path: list0, kind: row.kind() }
+            c::GoalHolding::Write { connector: row.connector(), path: list0, kind: row.kind() }
         }
-        w::OwnerGoalHolding::Slot(row) => {
+        w::GoalHolding::Slot(row) => {
             if row.path().len() > limits.client().segments {
                 return Err(too_large());
             }
@@ -26,16 +23,16 @@ pub(crate) fn owner_goal_holding_fields(
             for item in row.path() {
                 list0.push(opaque(item, limits)?).expect("reserved supplied list");
             }
-            c::OwnerGoalHolding::Slot { connector: row.connector(), path: list0, kind: row.kind() }
+            c::GoalHolding::Slot { connector: row.connector(), path: list0, kind: row.kind() }
         }
     })
 }
 
-pub(crate) fn owner_goal_holding_piece(
+pub(crate) fn goal_holding_piece(
     bytes: &[u8],
     limits: &Limits,
     bound: u32,
-) -> Result<List<c::OwnerGoalHolding>, w::Problem> {
+) -> Result<List<c::GoalHolding>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -55,8 +52,8 @@ pub(crate) fn owner_goal_holding_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerGoalHolding::decode(limits.wire(), &mut Reader::new(&item))?;
-        let row = owner_goal_holding_fields(&row, limits)?;
+        let row = w::GoalHolding::decode(limits.wire(), &mut Reader::new(&item))?;
+        let row = goal_holding_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -65,10 +62,10 @@ pub(crate) fn owner_goal_holding_piece(
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_person_proposal_goal_fields(
-    value: &w::OwnerPersonProposalGoal,
+pub(crate) fn person_proposal_goal_fields(
+    value: &w::PersonProposalGoal,
     limits: &Limits,
-) -> Result<c::OwnerPersonProposalGoal, w::Problem> {
+) -> Result<c::PersonProposalGoal, w::Problem> {
     if value.dependencies().len() > limits.client().rows {
         return Err(too_large());
     }
@@ -80,35 +77,35 @@ pub(crate) fn owner_person_proposal_goal_fields(
         Some(item) => Some(*item),
         None => None,
     };
-    Ok(c::OwnerPersonProposalGoal {
+    Ok(c::PersonProposalGoal {
         number: value.number(),
         project: value.project(),
-        executor: crate::translate::facts::owner_executor(value.executor()),
+        executor: crate::translate::facts::executor(value.executor()),
         spec: specification_fields(value.spec(), limits)?,
         contract: task_contract_document_fields(value.contract(), limits)?,
-        authority: owner_authority_fields(value.authority(), limits)?,
-        numbers: crate::translate::facts::owner_numbers(value.numbers()),
+        authority: authority_fields(value.authority(), limits)?,
+        numbers: crate::translate::facts::numbers(value.numbers()),
         funder: crate::translate::facts::funder(value.funder()),
         dependencies: list0,
-        holdings: owner_goal_holding_piece(value.holdings(), limits, limits.client().rows)?,
-        wake: crate::translate::facts::owner_wake_policy(value.wake()),
+        holdings: goal_holding_piece(value.holdings(), limits, limits.client().rows)?,
+        wake: crate::translate::facts::wake_policy(value.wake()),
         tracked: opt1,
     })
 }
 
-pub(crate) fn owner_person_proposal_state_fields(
-    value: &w::OwnerPersonProposalState,
+pub(crate) fn person_proposal_state_fields(
+    value: &w::PersonProposalState,
     limits: &Limits,
-) -> Result<c::OwnerPersonProposalState, w::Problem> {
+) -> Result<c::PersonProposalState, w::Problem> {
     Ok(match value {
-        w::OwnerPersonProposalState::Pending(row) => {
-            c::OwnerPersonProposalState::Pending { since: Wall::from_nanos(row.since()) }
+        w::PersonProposalState::Pending(row) => {
+            c::PersonProposalState::Pending { since: Wall::from_nanos(row.since()) }
         }
-        w::OwnerPersonProposalState::Accepted(row) => {
-            c::OwnerPersonProposalState::Accepted { by: crate::translate::facts::owner_requester(row.by()) }
+        w::PersonProposalState::Accepted(row) => {
+            c::PersonProposalState::Accepted { by: crate::translate::facts::requester(row.by()) }
         }
-        w::OwnerPersonProposalState::Rejected(row) => c::OwnerPersonProposalState::Rejected {
-            by: crate::translate::facts::owner_requester(row.by()),
+        w::PersonProposalState::Rejected(row) => c::PersonProposalState::Rejected {
+            by: crate::translate::facts::requester(row.by()),
             reason: text(row.reason(), limits)?,
             message: row.message(),
             at: Wall::from_nanos(row.at()),
@@ -116,46 +113,44 @@ pub(crate) fn owner_person_proposal_state_fields(
     })
 }
 
-pub(crate) fn owner_person_proposal_fields(
-    value: &w::OwnerPersonProposal,
+pub(crate) fn person_proposal_fields(
+    value: &w::PersonProposal,
     limits: &Limits,
-) -> Result<c::OwnerPersonProposal, w::Problem> {
-    Ok(c::OwnerPersonProposal {
+) -> Result<c::PersonProposal, w::Problem> {
+    Ok(c::PersonProposal {
         number: value.number(),
         proposer: value.proposer(),
         project: value.project(),
-        goal: owner_person_proposal_goal_fields(value.goal(), limits)?,
-        state: owner_person_proposal_state_fields(value.state(), limits)?,
+        goal: person_proposal_goal_fields(value.goal(), limits)?,
+        state: person_proposal_state_fields(value.state(), limits)?,
     })
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_proposal_decision_fields(value: &w::OwnerProposalDecision) -> c::OwnerProposalDecision {
+pub(crate) fn proposal_decision_fields(value: &w::ProposalDecision) -> c::ProposalDecision {
     let opt0 = match value.created() {
         Some(item) => Some((item.first(), item.last())),
         None => None,
     };
-    c::OwnerProposalDecision {
+    c::ProposalDecision {
         project: value.project(),
         proposer: crate::translate::answers::proposer(value.proposer()),
         proposal: value.proposal(),
-        kind: owner_message_proposal_kind_fields(value.kind()),
+        kind: message_proposal_kind_fields(value.kind()),
         by: value.by(),
         at: Wall::from_nanos(value.at()),
-        choice: crate::translate::answers::owner_proposal_choice(value.choice()),
+        choice: crate::translate::answers::proposal_choice(value.choice()),
         created: opt0,
     }
 }
 
-pub(crate) fn owner_escalation_decision_fields(
-    value: &w::OwnerEscalationDecision,
+pub(crate) fn escalation_decision_fields(
+    value: &w::EscalationDecision,
     limits: &Limits,
-) -> Result<c::OwnerEscalationDecision, w::Problem> {
+) -> Result<c::EscalationDecision, w::Problem> {
     Ok(match value {
-        w::OwnerEscalationDecision::Release => c::OwnerEscalationDecision::Release,
-        w::OwnerEscalationDecision::Reject(row) => {
-            c::OwnerEscalationDecision::Reject { reason: text(row.reason(), limits)? }
-        }
-        w::OwnerEscalationDecision::Pass => c::OwnerEscalationDecision::Pass,
+        w::EscalationDecision::Release => c::EscalationDecision::Release,
+        w::EscalationDecision::Reject(row) => c::EscalationDecision::Reject { reason: text(row.reason(), limits)? },
+        w::EscalationDecision::Pass => c::EscalationDecision::Pass,
     })
 }

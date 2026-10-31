@@ -6,8 +6,8 @@ use crate::{
 
 struct Row {
     name: &'static str,
-    phase: OwnerChipPhase,
-    work: Option<OwnerChipWork>,
+    phase: ChipPhase,
+    work: Option<ChipWork>,
     wait: WaitsOn,
     run_wait: Option<TaskRunWait>,
     expected: fn() -> ChatStatus,
@@ -15,13 +15,13 @@ struct Row {
 const NOTHING: WaitsOn = WaitsOn::Nothing;
 const QUESTION: WaitsOn =
     WaitsOn::Party { whom: Whom::Person(PARTY), entries: 1, task: SUBJECT_TASK, kind: WaitedFor::Question };
-const RUNNING: OwnerChipPhase = OwnerChipPhase::Active(RunStage::Running { attempt: ATTEMPT });
+const RUNNING: ChipPhase = ChipPhase::Active(RunStage::Running { attempt: ATTEMPT });
 #[expect(clippy::too_many_lines, reason = "status precedence cases share one table")]
 fn rows() -> Box<[Row]> {
     Box::new([
         Row {
             name: "due",
-            phase: OwnerChipPhase::Active(RunStage::Due),
+            phase: ChipPhase::Active(RunStage::Due),
             work: None,
             wait: NOTHING,
             run_wait: None,
@@ -29,7 +29,7 @@ fn rows() -> Box<[Row]> {
         },
         Row {
             name: "preparing",
-            phase: OwnerChipPhase::Active(RunStage::Preparing),
+            phase: ChipPhase::Active(RunStage::Preparing),
             work: None,
             wait: NOTHING,
             run_wait: None,
@@ -37,7 +37,7 @@ fn rows() -> Box<[Row]> {
         },
         Row {
             name: "claimed",
-            phase: OwnerChipPhase::Active(RunStage::Claimed { attempt: ATTEMPT }),
+            phase: ChipPhase::Active(RunStage::Claimed { attempt: ATTEMPT }),
             work: None,
             wait: NOTHING,
             run_wait: None,
@@ -46,7 +46,7 @@ fn rows() -> Box<[Row]> {
         Row {
             name: "host preparing",
             phase: RUNNING,
-            work: Some(OwnerChipWork::Preparing),
+            work: Some(ChipWork::Preparing),
             wait: NOTHING,
             run_wait: None,
             expected: || ChatStatus::Starting,
@@ -54,7 +54,7 @@ fn rows() -> Box<[Row]> {
         Row {
             name: "host starting",
             phase: RUNNING,
-            work: Some(OwnerChipWork::Starting),
+            work: Some(ChipWork::Starting),
             wait: NOTHING,
             run_wait: None,
             expected: || ChatStatus::Starting,
@@ -62,7 +62,7 @@ fn rows() -> Box<[Row]> {
         Row {
             name: "writing",
             phase: RUNNING,
-            work: Some(OwnerChipWork::Writing),
+            work: Some(ChipWork::Writing),
             wait: NOTHING,
             run_wait: None,
             expected: || ChatStatus::Writing,
@@ -70,7 +70,7 @@ fn rows() -> Box<[Row]> {
         Row {
             name: "working",
             phase: RUNNING,
-            work: Some(OwnerChipWork::Active),
+            work: Some(ChipWork::Active),
             wait: NOTHING,
             run_wait: None,
             expected: || ChatStatus::Working { since: OBSERVED_SINCE },
@@ -78,7 +78,7 @@ fn rows() -> Box<[Row]> {
         Row {
             name: "ending work",
             phase: RUNNING,
-            work: Some(OwnerChipWork::Ending),
+            work: Some(ChipWork::Ending),
             wait: NOTHING,
             run_wait: None,
             expected: || ChatStatus::Working { since: OBSERVED_SINCE },
@@ -94,14 +94,14 @@ fn rows() -> Box<[Row]> {
         Row {
             name: "waiting run",
             phase: RUNNING,
-            work: Some(OwnerChipWork::Waiting),
+            work: Some(ChipWork::Waiting),
             wait: WaitsOn::News,
             run_wait: None,
             expected: || ChatStatus::Parked,
         },
         Row {
             name: "idle",
-            phase: OwnerChipPhase::Active(RunStage::Idle),
+            phase: ChipPhase::Active(RunStage::Idle),
             work: None,
             wait: NOTHING,
             run_wait: None,
@@ -110,14 +110,14 @@ fn rows() -> Box<[Row]> {
         Row {
             name: "reader while writing",
             phase: RUNNING,
-            work: Some(OwnerChipWork::Writing),
+            work: Some(ChipWork::Writing),
             wait: QUESTION,
             run_wait: None,
             expected: || ChatStatus::WaitingForYou { kind: WaitedFor::Question, entries: 1 },
         },
         Row {
             name: "reader while due",
-            phase: OwnerChipPhase::Active(RunStage::Due),
+            phase: ChipPhase::Active(RunStage::Due),
             work: None,
             wait: QUESTION,
             run_wait: None,
@@ -177,7 +177,7 @@ fn rows() -> Box<[Row]> {
         },
         Row {
             name: "backing off",
-            phase: OwnerChipPhase::Active(RunStage::BackingOff { until: RETRY_AT }),
+            phase: ChipPhase::Active(RunStage::BackingOff { until: RETRY_AT }),
             work: None,
             wait: NOTHING,
             run_wait: None,
@@ -185,7 +185,7 @@ fn rows() -> Box<[Row]> {
         },
         Row {
             name: "held before wait",
-            phase: OwnerChipPhase::Held { reason: HoldCategory::Stopped, revision: 1 },
+            phase: ChipPhase::Held { reason: HoldCategory::Stopped, revision: 1 },
             work: None,
             wait: QUESTION,
             run_wait: None,
@@ -193,7 +193,7 @@ fn rows() -> Box<[Row]> {
         },
         Row {
             name: "closing before wait",
-            phase: OwnerChipPhase::Closing(ClosingStage::Delegates),
+            phase: ChipPhase::Closing(ClosingStage::Delegates),
             work: None,
             wait: QUESTION,
             run_wait: None,
@@ -201,7 +201,7 @@ fn rows() -> Box<[Row]> {
         },
         Row {
             name: "ended before wait",
-            phase: OwnerChipPhase::Ended,
+            phase: ChipPhase::Ended,
             work: None,
             wait: QUESTION,
             run_wait: None,
@@ -209,7 +209,7 @@ fn rows() -> Box<[Row]> {
         },
         Row {
             name: "dependencies before refusal",
-            phase: OwnerChipPhase::Active(RunStage::Due),
+            phase: ChipPhase::Active(RunStage::Due),
             work: None,
             wait: WaitsOn::Dependencies {
                 pending: {
@@ -232,8 +232,8 @@ fn rows() -> Box<[Row]> {
         },
     ])
 }
-fn tool_work() -> OwnerChipWork {
-    OwnerChipWork::Tool { call: Box::from(b"call".as_slice()), tool: Box::from(b"search".as_slice()) }
+fn tool_work() -> ChipWork {
+    ChipWork::Tool { call: Box::from(b"call".as_slice()), tool: Box::from(b"search".as_slice()) }
 }
 #[test]
 fn chat_status_follows_the_pages_status_table() {
@@ -261,7 +261,7 @@ fn a_task_line_and_its_task_document_give_one_status() {
             .unwrap();
     let mut line = rows.rows.get(0).unwrap().clone();
     let mut task = facts_task();
-    task.chip = facts_chip(RUNNING, Some(OwnerChipWork::Writing));
+    task.chip = facts_chip(RUNNING, Some(ChipWork::Writing));
     task.waits_on = QUESTION;
     line.chip = task.chip.clone();
     line.waits_on = task.waits_on.clone();
@@ -325,7 +325,7 @@ fn refusal_status_only_replaces_an_unplaced_starting_chat() {
     for row in &rows() {
         let chip = facts_chip(row.phase.clone(), row.work.clone());
         let expected = match (&row.phase, &row.wait) {
-            (OwnerChipPhase::Active(RunStage::Due | RunStage::Preparing), WaitsOn::Nothing) => {
+            (ChipPhase::Active(RunStage::Due | RunStage::Preparing), WaitsOn::Nothing) => {
                 ChatStatus::HostRefused(cause)
             }
             _ => (row.expected)(),

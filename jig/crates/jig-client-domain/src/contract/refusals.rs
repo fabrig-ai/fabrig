@@ -1,6 +1,6 @@
 //! Durable refusals with facts, never phrases; client/domain/contract.md, 4.
 //! These are final answers; busy and signed out are envelopes below this vocabulary.
-use super::{AdmissionLimit, Ending, Executor, HoldReason, Revision};
+use super::{AdmissionLimit, ChipExecutor, Ending, HoldReason, Revision};
 use alloc::boxed::Box;
 use skein_lib::Wall;
 /// The authority the engine found lacking.
@@ -50,7 +50,7 @@ pub enum Lacking {
     },
     /// The executor kind missing.
     TaskKind {
-        executor: Option<Executor>,
+        executor: Option<ChipExecutor>,
     },
     /// Delegation beyond depth.
     Depth {
@@ -193,7 +193,7 @@ pub enum Refusal {
     },
     Dependency {
         dependency: u64,
-        how: super::OwnerTaskStatus,
+        how: super::TaskStatus,
     },
     Kept {
         pending: skein_lib::List<u64>,

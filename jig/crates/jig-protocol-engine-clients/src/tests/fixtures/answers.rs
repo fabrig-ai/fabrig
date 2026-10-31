@@ -9,12 +9,14 @@ pub use refusals::*;
 fn done(outcome: w::Outcome) -> w::Final {
     w::Final::Done(w::Done::new(&wire(), w::DoneParts { outcome }).expect("done"))
 }
-fn owner(value: w::OwnerOutcome) -> w::Final {
-    done(w::Outcome::Owner(w::OutcomeOwner::new(&wire(), w::OutcomeOwnerParts { value }).expect("owner outcome")))
+fn owner(value: w::DocumentOutcome) -> w::Final {
+    done(w::Outcome::Document(
+        w::OutcomeDocument::new(&wire(), w::OutcomeDocumentParts { value }).expect("owner outcome"),
+    ))
 }
 pub fn started() -> w::Final {
-    owner(w::OwnerOutcome::Said(
-        w::OwnerOutcomeSaid::new(&wire(), w::OwnerOutcomeSaidParts { task: 8, message: 9 }).expect("started"),
+    owner(w::DocumentOutcome::Said(
+        w::OutcomeSaid::new(&wire(), w::OutcomeSaidParts { task: 8, message: 9 }).expect("started"),
     ))
 }
 pub fn moved_hold() -> w::Final {

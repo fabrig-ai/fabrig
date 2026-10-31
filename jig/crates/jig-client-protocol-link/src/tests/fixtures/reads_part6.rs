@@ -13,8 +13,8 @@ pub fn read_value_document_specification() -> c::DocumentSpecification {
     }
 }
 
-pub fn read_value_owner_wake_policy() -> c::OwnerWakePolicy {
-    c::OwnerWakePolicy {
+pub fn read_value_owner_wake_policy() -> c::WakePolicy {
+    c::WakePolicy {
         words: read_value_wake_rule(),
         notices: read_value_wake_rule(),
         news: read_value_wake_rule(),
@@ -33,8 +33,8 @@ pub fn read_value_results_wake() -> c::ResultsWake {
     c::ResultsWake::Never
 }
 
-pub fn read_value_owner_authority() -> c::OwnerAuthority {
-    c::OwnerAuthority {
+pub fn read_value_owner_authority() -> c::Authority {
+    c::Authority {
         models: Some(c::AuthorityModels::All),
         tools: 7,
         grants: List::with_capacity(0),
@@ -46,20 +46,20 @@ pub fn read_value_owner_authority() -> c::OwnerAuthority {
     }
 }
 
-pub fn read_value_owner_delegation() -> c::OwnerDelegation {
-    c::OwnerDelegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 }
+pub fn read_value_owner_delegation() -> c::Delegation {
+    c::Delegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 }
 }
 
 pub fn read_value_impact() -> c::Impact {
     c::Impact { tasks: read_value_phase_counts(), live_runs: 7, proposals: 7 }
 }
 
-pub fn read_value_phase_counts() -> c::PhaseCounts {
-    c::PhaseCounts { ended: 7, waiting: 7, running: 7, held: 7, closing: 7, done: 7, failed: 7, cancelled: 7 }
+pub fn read_value_phase_counts() -> c::ImpactCounts {
+    c::ImpactCounts { ended: 7, waiting: 7, running: 7, held: 7, closing: 7, done: 7, failed: 7, cancelled: 7 }
 }
 
-pub fn read_value_owner_escalation() -> c::OwnerEscalation {
-    c::OwnerEscalation { acts: List::with_capacity(0), task: Box::new(task()) }
+pub fn read_value_owner_escalation() -> c::Escalation {
+    c::Escalation { acts: List::with_capacity(0), task: Box::new(task()) }
 }
 
 pub fn read_value_question() -> c::Question {

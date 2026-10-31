@@ -534,43 +534,41 @@ fn edit_note_case(limits: &w::Limits, references: List<u64>) -> (w::Ask, people:
 
 pub fn authority_ask() -> (w::Ask, people::Ask) {
     let limits = wire();
-    let pattern = w::OwnerPattern::new(
+    let pattern = w::Pattern::new(
         &limits,
-        w::OwnerPatternParts {
+        w::PatternParts {
             segments: List::with_capacity(0),
-            last: w::OwnerPatternEnd::Open(
-                w::OwnerPatternEndOpen::new(&limits, w::OwnerPatternEndOpenParts { value: Box::new([255, 0]) })
-                    .expect("end"),
+            last: w::PatternEnd::Open(
+                w::PatternEndOpen::new(&limits, w::PatternEndOpenParts { value: Box::new([255, 0]) }).expect("end"),
             ),
         },
     )
     .expect("pattern");
-    let grant = w::OwnerGrant::new(&limits, w::OwnerGrantParts { connector: 5, kind: 6, pattern: pattern.clone() })
-        .expect("grant");
+    let grant =
+        w::Grant::new(&limits, w::GrantParts { connector: 5, kind: 6, pattern: pattern.clone() }).expect("grant");
     let mut writer = Writer::new(usize::try_from(grant.measure()).expect("grant size"));
     grant.encode(&mut writer).expect("grant bytes");
     let bytes = writer.finish();
     let grants = piece(&bytes);
-    let resource =
-        w::OwnerResourceScope::new(&limits, w::OwnerResourceScopeParts { connector: 7, pattern }).expect("scope");
+    let resource = w::ResourceScope::new(&limits, w::ResourceScopeParts { connector: 7, pattern }).expect("scope");
     let mut writer = Writer::new(usize::try_from(resource.measure()).expect("scope size"));
     resource.encode(&mut writer).expect("scope bytes");
     let bytes = writer.finish();
     let note_resources = piece(&bytes);
     let mut kinds = List::with_capacity(1);
     kinds
-        .push(w::OwnerAuthorityExecutor::Role(
-            w::OwnerAuthorityExecutorRole::new(&limits, w::OwnerAuthorityExecutorRoleParts { value: u32::MAX })
+        .push(w::AuthorityExecutor::Role(
+            w::AuthorityExecutorRole::new(&limits, w::AuthorityExecutorRoleParts { value: u32::MAX })
                 .expect("executor"),
         ))
         .expect("room");
-    let authority = w::OwnerAuthority::new(
+    let authority = w::Authority::new(
         &limits,
-        w::OwnerAuthorityParts {
+        w::AuthorityParts {
             models: None,
             tools: u64::MAX,
             grants,
-            delegation: w::OwnerDelegation::new(&limits, w::OwnerDelegationParts { kinds, tasks: 9, depth: 10 })
+            delegation: w::Delegation::new(&limits, w::DelegationParts { kinds, tasks: 9, depth: 10 })
                 .expect("delegation"),
             spend: u64::MAX,
             deadline: Some(99),

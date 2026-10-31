@@ -89,7 +89,7 @@ pub enum TaskRunWait {
 /// Neither changes task phase. Kept only as part of the current document.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskWaitRefused {
-    Hello { kind: super::OwnerHostKind, at: skein_lib::Wall, why: super::OwnerHelloRefusal },
+    Hello { kind: super::HostKind, at: skein_lib::Wall, why: super::HelloRefusal },
     Program(OpenProgram),
 }
 
@@ -118,7 +118,7 @@ pub enum TaskSourceState {
     Refused,
     NeedsSignIn,
     Misconfigured,
-    Unloaded { at: super::OwnerAccountPlace, why: super::OwnerAccountUnread },
+    Unloaded { at: super::AccountPlace, why: super::AccountUnread },
     Cancelled,
     Closing,
     Moving,
@@ -162,7 +162,7 @@ pub struct PayerReadiness {
     /// Stable configured LLM provider number.
     pub provider: u32,
     /// The authenticated party or a project it may read.
-    pub payer: super::OwnerAccountUse,
+    pub payer: super::AccountUse,
     /// Current observation from the engine selection and host checks.
     pub readiness: Readiness,
     /// Unknown until the engine has program check facts; pending sign-ins are false.

@@ -172,7 +172,7 @@ fn document(number: u64) -> contract::Task {
         chip: contract::Chip {
             task: number,
             title: contract::DocumentText::complete(text()),
-            executor: contract::Executor::Agent { charter: 1 },
+            executor: contract::ChipExecutor::Agent { charter: 1 },
             phase: contract::Phase::Waiting,
             details: Box::new(chip_details(number)),
         },
@@ -181,7 +181,7 @@ fn document(number: u64) -> contract::Task {
         lineage_chips: List::with_capacity(0),
         inputs: List::with_capacity(0),
         project: 7,
-        requester: contract::OwnerRequester::Task(number),
+        requester: contract::Requester::Task(number),
         lineage: List::with_capacity(0),
         spec: contract::SpecificationDocument {
             specification: contract::DocumentSpecification {
@@ -196,7 +196,7 @@ fn document(number: u64) -> contract::Task {
         person_revision: None,
         taken_by: None,
         instructions: None,
-        wake: contract::OwnerWakePolicy {
+        wake: contract::WakePolicy {
             words: contract::WakeRule::Never,
             notices: contract::WakeRule::Never,
             news: contract::WakeRule::Never,
@@ -208,28 +208,28 @@ fn document(number: u64) -> contract::Task {
         subscriptions: contract::Subscriptions { entries: List::with_capacity(0) },
         result_contract: contract::TaskContractDocument::Approval {
             state: Box::from([]),
-            part: contract::OwnerPart {
+            part: contract::Part {
                 connector: 7,
-                kind: contract::OwnerPartKind::Resource,
-                key: contract::OwnerPartKey::Path(List::with_capacity(0)),
+                kind: contract::PartKind::Resource,
+                key: contract::PartKey::Path(List::with_capacity(0)),
             },
         },
         dependencies: List::with_capacity(0),
         references: List::with_capacity(0),
         cut: false,
         resources: List::with_capacity(0),
-        budget: contract::OwnerBudget {
-            numbers: contract::OwnerNumbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
+        budget: contract::Budget {
+            numbers: contract::Numbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
             left: 7,
             funder: contract::Funder::Task(number),
             deadline: None,
         },
-        authority: contract::OwnerAuthorityDocument {
-            authority: contract::OwnerAuthority {
+        authority: contract::AuthorityDocument {
+            authority: contract::Authority {
                 models: None,
                 tools: 7,
                 grants: List::with_capacity(0),
-                delegation: contract::OwnerDelegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
+                delegation: contract::Delegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
                 spend: 7,
                 deadline: None,
                 notes: 7,
@@ -375,18 +375,18 @@ impl Client {
     }
 }
 
-fn chip_details(number: u64) -> contract::ChipPhase {
-    contract::ChipPhase {
-        phase: contract::OwnerChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
-        details: Box::new(contract::OwnerChipDetails {
+fn chip_details(number: u64) -> contract::ChipPhaseFacts {
+    contract::ChipPhaseFacts {
+        phase: contract::ChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
+        details: Box::new(contract::ChipDetails {
             dependencies: List::with_capacity(0),
             project: 7,
-            executor: contract::OwnerExecutor::Agent { charter: 1 },
+            executor: contract::Executor::Agent { charter: 1 },
             phase_since: Wall::from_nanos(0),
             run_since: None,
             attempt: None,
             retry: None,
-            wake: contract::OwnerWakePolicy {
+            wake: contract::WakePolicy {
                 words: contract::WakeRule::Never,
                 notices: contract::WakeRule::Never,
                 news: contract::WakeRule::Never,
@@ -397,8 +397,8 @@ fn chip_details(number: u64) -> contract::ChipPhase {
             },
             person_wait: None,
             hold: None,
-            budget: contract::OwnerBudget {
-                numbers: contract::OwnerNumbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
+            budget: contract::Budget {
+                numbers: contract::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
                 left: 0,
                 funder: contract::Funder::Task(number),
                 deadline: None,

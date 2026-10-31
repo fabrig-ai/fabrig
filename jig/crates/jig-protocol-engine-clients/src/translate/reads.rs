@@ -131,8 +131,8 @@ fn note_scope(value: w::NoteScope) -> notes::Scope {
             let parts = value.into_parts();
             let pattern = parts.pattern.into_parts();
             let last = match pattern.last {
-                w::OwnerPatternEnd::Exact(value) => notes::Last::Exact(value.into_parts().value),
-                w::OwnerPatternEnd::Open(value) => notes::Last::Open(value.into_parts().value),
+                w::PatternEnd::Exact(value) => notes::Last::Exact(value.into_parts().value),
+                w::PatternEnd::Open(value) => notes::Last::Open(value.into_parts().value),
             };
             notes::Scope::Resources {
                 project: parts.project,

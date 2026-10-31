@@ -22,23 +22,22 @@ fn project_outcomes_round_trip_the_supplied_project_number() {
     let limits = fixtures::limits();
     for (wire, expected) in [
         (
-            w::OwnerOutcome::Renamed(
-                w::OwnerOutcomeRenamed::new(limits.wire(), w::OwnerOutcomeRenamedParts { project: 17 }).unwrap(),
+            w::DocumentOutcome::Renamed(
+                w::OutcomeRenamed::new(limits.wire(), w::OutcomeRenamedParts { project: 17 }).unwrap(),
             ),
-            c::OwnerOutcome::Renamed { project: 17 },
+            c::DocumentOutcome::Renamed { project: 17 },
         ),
         (
-            w::OwnerOutcome::ProjectMade(
-                w::OwnerOutcomeProjectMade::new(limits.wire(), w::OwnerOutcomeProjectMadeParts { project: 19 })
-                    .unwrap(),
+            w::DocumentOutcome::ProjectMade(
+                w::OutcomeProjectMade::new(limits.wire(), w::OutcomeProjectMadeParts { project: 19 }).unwrap(),
             ),
-            c::OwnerOutcome::ProjectMade { project: 19 },
+            c::DocumentOutcome::ProjectMade { project: 19 },
         ),
     ] {
         let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
         wire.encode(&mut bytes).unwrap();
-        let decoded = w::OwnerOutcome::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
-        assert_eq!(answers::owner_outcome(&decoded, &limits), Ok(expected));
+        let decoded = w::DocumentOutcome::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
+        assert_eq!(answers::outcome(&decoded, &limits), Ok(expected));
     }
 }
 
@@ -106,13 +105,12 @@ fn remove_project_round_trips_through_the_link() {
     record.encode(&mut bytes).unwrap();
     let decoded = w::Ask::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
     assert_eq!(store::restore_ask(decoded, &limits), Ok(ask));
-    let outcome = w::OwnerOutcome::ProjectRemoved(
-        w::OwnerOutcomeProjectRemoved::new(limits.wire(), w::OwnerOutcomeProjectRemovedParts { project: u32::MAX })
-            .unwrap(),
+    let outcome = w::DocumentOutcome::ProjectRemoved(
+        w::OutcomeProjectRemoved::new(limits.wire(), w::OutcomeProjectRemovedParts { project: u32::MAX }).unwrap(),
     );
     let mut bytes = Writer::new(usize::try_from(outcome.measure()).unwrap());
     outcome.encode(&mut bytes).unwrap();
-    let decoded = w::OwnerOutcome::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
-    assert_eq!(answers::owner_outcome(&decoded, &limits), Ok(c::OwnerOutcome::ProjectRemoved { project: u32::MAX }));
+    let decoded = w::DocumentOutcome::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
+    assert_eq!(answers::outcome(&decoded, &limits), Ok(c::DocumentOutcome::ProjectRemoved { project: u32::MAX }));
     assert_eq!(translate::documents::act_kind_fields(&w::ActKind::RemoveProject), c::ActKind::RemoveProject);
 }
