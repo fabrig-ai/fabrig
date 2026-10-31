@@ -257,7 +257,7 @@ pub(crate) fn check(
     Err(tools::Done::Escapes)
 }
 
-fn in_git(path: &[u8]) -> bool {
+pub(crate) fn in_git(path: &[u8]) -> bool {
     let mut start = 0_usize;
     for (index, byte) in path.iter().enumerate() {
         if *byte == b'/' {
@@ -270,7 +270,7 @@ fn in_git(path: &[u8]) -> bool {
     path.get(start..).expect("path index is in range").eq_ignore_ascii_case(b".git")
 }
 
-fn other() -> tools::Done {
+pub(crate) fn other() -> tools::Done {
     tools::Done::Failed { fault: tools::Fault::Other }
 }
 

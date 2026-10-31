@@ -44,13 +44,7 @@ impl Backend {
                             self.line(env, line.as_slice(), up, below);
                         }
                     } else if self.line.push(byte).is_err() {
-                        self.fail(
-                            env,
-                            smith_domain::llm::Failure::Program { exit: self.exit },
-                            b"smith: the program stream exceeds its line bound",
-                            up,
-                            below,
-                        );
+                        self.fail_program(env, b"smith: the program stream exceeds its line bound", up, below);
                     }
                 }
                 State::Idle | State::Checking | State::Ended => {}

@@ -515,7 +515,7 @@ impl Backend {
         };
         if eof_due {
             self.eof_deadline = None;
-            self.fail(env, llm::Failure::Program { exit: self.exit }, b"smith: the MCP server ended", up, below);
+            self.fail_program(env, b"smith: the MCP server ended", up, below);
         }
         let due = match self.deadline {
             Some(deadline) => env.now >= deadline,
@@ -527,13 +527,7 @@ impl Backend {
         } else if due {
             self.deadline = None;
             match self.state {
-                State::Starting => self.fail(
-                    env,
-                    llm::Failure::Program { exit: self.exit },
-                    b"smith: the program did not initialize",
-                    up,
-                    below,
-                ),
+                State::Starting => self.fail_program(env, b"smith: the program did not initialize", up, below),
                 State::Ending => self.terminate(env.now),
                 State::Running => {
                     let phase = match &self.request {
@@ -735,6 +729,16 @@ impl Backend {
                 None => break,
             }
         }
+    }
+
+    fn fail_program(
+        &mut self,
+        env: &Env<protocol::ComponentLimits>,
+        detail: &[u8],
+        up: &mut Queue<ToDomain>,
+        below: &mut Queue<Below>,
+    ) {
+        self.fail(env, llm::Failure::Program { exit: self.exit }, detail, up, below);
     }
 
     fn fail(

@@ -8,6 +8,7 @@
 //! knows descriptors, file content before io reports it, or the domain's
 //! state.
 
+use crate::files::other;
 use alloc::boxed::Box;
 
 use skein_io as io;
@@ -556,10 +557,6 @@ impl Component {
         }
         first
     }
-}
-
-fn other() -> tools::Done {
-    tools::Done::Failed { fault: tools::Fault::Other }
 }
 
 fn failed_check(owner: Token, to_domain: &mut Queue<ToDomain>) {

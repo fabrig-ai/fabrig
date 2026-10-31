@@ -175,7 +175,7 @@ impl Backend {
     // its later answer cannot consume bytes already held by a built-in.
     pub(super) fn reply_room(&self, extra: u64) -> bool {
         let maximum = u64::from(self.settings.adapter.rendered_result)
-            .checked_mul(u64::from(self.settings.receiving.max_completion_blocks).checked_mul(5).expect("call slots"))
+            .checked_mul(u64::from(self.settings.ledger_slots().expect("call slots")))
             .expect("reply budget");
         let mut retained = extra;
         for call in &self.ledger {

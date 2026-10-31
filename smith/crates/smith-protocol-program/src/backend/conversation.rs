@@ -25,13 +25,7 @@ impl Backend {
         self.begin_prompt(&request);
         self.owner = Some(owner);
         if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
-            self.fail(
-                env,
-                llm::Failure::Program { exit: self.exit },
-                b"smith: the program is no longer accepting input",
-                up,
-                below,
-            );
+            self.fail_program(env, b"smith: the program is no longer accepting input", up, below);
             return;
         }
         self.permitted_message = self
@@ -90,13 +84,7 @@ impl Backend {
     ) {
         let Some(document) = stream::collect(bytes, self.settings.adapter.client.depth, self.settings.stream_tokens)
         else {
-            self.fail(
-                env,
-                llm::Failure::Program { exit: self.exit },
-                b"smith: the program stream does not decode",
-                up,
-                below,
-            );
+            self.fail_program(env, b"smith: the program stream does not decode", up, below);
             return;
         };
         let kind = json::text_in(&document, json::field(&document, 0, b"type"));
@@ -140,13 +128,7 @@ impl Backend {
                     return;
                 }
                 if self.turns.result {
-                    self.fail(
-                        env,
-                        llm::Failure::Program { exit: self.exit },
-                        b"smith: a program turn repeated its result",
-                        up,
-                        below,
-                    );
+                    self.fail_program(env, b"smith: a program turn repeated its result", up, below);
                     return;
                 }
                 self.turns.result = true;
@@ -232,13 +214,7 @@ impl Backend {
     ) {
         if self.owner.is_some() && self.turns.result && self.turns.ready.is_empty() && self.turns.message.is_none() {
             if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
-                self.fail(
-                    env,
-                    llm::Failure::Program { exit: self.exit },
-                    b"smith: the program is no longer accepting input",
-                    up,
-                    below,
-                );
+                self.fail_program(env, b"smith: the program is no longer accepting input", up, below);
                 return;
             }
             // Complete already asks for the next API message. The preceding

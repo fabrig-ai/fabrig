@@ -5,6 +5,7 @@
 //! Depth filters emitted entries, not the selected files.
 //! Contract: domain/tools.md, section 3; programming-model.md, sections 4.4 and 6.3.
 
+use crate::files::{in_git, other};
 use alloc::boxed::Box;
 use core::{
     cmp::Ordering,
@@ -209,21 +210,4 @@ fn relative(path: &[u8]) -> bool {
 
 fn component(name: &[u8]) -> bool {
     !name.is_empty() && name != b"." && name != b".."
-}
-
-fn in_git(path: &[u8]) -> bool {
-    let mut start = 0_usize;
-    for (index, byte) in path.iter().enumerate() {
-        if *byte == b'/' {
-            if path.get(start..index).expect("path component").eq_ignore_ascii_case(b".git") {
-                return true;
-            }
-            start = index.checked_add(1).expect("path byte index");
-        }
-    }
-    path.get(start..).expect("last component").eq_ignore_ascii_case(b".git")
-}
-
-fn other() -> tools::Done {
-    tools::Done::Failed { fault: tools::Fault::Other }
 }

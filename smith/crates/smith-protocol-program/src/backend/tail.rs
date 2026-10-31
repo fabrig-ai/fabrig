@@ -19,6 +19,16 @@ pub(super) struct Rendered {
     pub text: Option<Box<[u8]>>,
 }
 
+pub(super) fn after_assistant(messages: &[llm::Message]) -> Option<usize> {
+    let mut from = 0;
+    for (index, message) in messages.iter().enumerate() {
+        if message.role == llm::Role::Assistant {
+            from = index.checked_add(1)?;
+        }
+    }
+    Some(from)
+}
+
 #[expect(clippy::manual_map, reason = "the protocol subset matches Option without callbacks")]
 pub(super) fn render_observed(
     prompt: &mut llm::Prompt,
@@ -28,12 +38,7 @@ pub(super) fn render_observed(
     prefix: &[u8],
     capture: bool,
 ) -> Option<Rendered> {
-    let mut from = 0;
-    for (index, message) in prompt.messages.iter().enumerate() {
-        if message.role == llm::Role::Assistant {
-            from = index.checked_add(1)?;
-        }
-    }
+    let from = after_assistant(&prompt.messages)?;
     let mut messages = core::mem::replace(&mut prompt.messages, Box::new([]));
     let mut rendered = 0_u32;
     for message in messages.iter_mut().skip(from) {

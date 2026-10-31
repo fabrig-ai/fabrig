@@ -520,10 +520,7 @@ pub(crate) fn search(
     expression.put(&pattern).ok()?;
     args.push(expression.finish()).ok()?;
     if let Some(glob) = glob {
-        let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
-        filter.put(b"--glob=").ok()?;
-        filter.put(&glob).ok()?;
-        args.push(filter.finish()).ok()?;
+        args.push(glob_argument(&glob)?).ok()?;
     }
     args.push(Box::from(&b"--"[..])).ok()?;
     args.push(crate::files::io_path(at.path)).ok()?;
@@ -613,10 +610,7 @@ pub(crate) fn list(
         args.push(Box::from(word)).ok()?;
     }
     if let Some(glob) = glob {
-        let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
-        filter.put(b"--glob=").ok()?;
-        filter.put(&glob).ok()?;
-        args.push(filter.finish()).ok()?;
+        args.push(glob_argument(&glob)?).ok()?;
     }
     args.push(Box::from(b"--".as_slice())).ok()?;
     args.push(Box::from(b".".as_slice())).ok()?;
@@ -631,6 +625,13 @@ pub(crate) fn list(
     let (directory, request) = Directory::open(owner, at.root, spawn, deadline);
     let process = Process::new(Work::List { listing, directory }, deadline, 0, 0);
     Some((process, request))
+}
+
+fn glob_argument(glob: &[u8]) -> Option<Box<[u8]>> {
+    let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
+    filter.put(b"--glob=").ok()?;
+    filter.put(glob).ok()?;
+    Some(filter.finish())
 }
 
 fn listing_failure(error: io::Error) -> tools::Done {

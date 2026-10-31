@@ -253,7 +253,7 @@ impl Backend {
             let until = env.now.saturating_add(self.settings.grace);
             self.eof_deadline = Some(self.eof_deadline.unwrap_or(until).min(until));
         } else if self.state != State::Ending && self.state != State::Ended {
-            self.fail(env, llm::Failure::Program { exit: self.exit }, b"smith: the MCP server ended", up, below);
+            self.fail_program(env, b"smith: the MCP server ended", up, below);
         }
     }
 

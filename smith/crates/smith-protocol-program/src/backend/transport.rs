@@ -92,13 +92,7 @@ impl Backend {
                 if owner == self.token(Owner::Program) {
                     self.spawning = false;
                 }
-                self.fail(
-                    env,
-                    llm::Failure::Program { exit: self.exit },
-                    b"smith: the program could not start",
-                    up,
-                    below,
-                );
+                self.fail_program(env, b"smith: the program could not start", up, below);
             }
             io::Event::Stream { owner, up: stream::Up::Bytes(bytes) } => {
                 if self.pipes.errors == Some(owner) {
@@ -123,13 +117,7 @@ impl Backend {
                     match outcome {
                         stream::OutputOutcome::Granted => {
                             if self.exit.is_some() || self.pipes.input.is_none() {
-                                self.fail(
-                                    env,
-                                    llm::Failure::Program { exit: self.exit },
-                                    b"smith: the program input closed",
-                                    up,
-                                    below,
-                                );
+                                self.fail_program(env, b"smith: the program input closed", up, below);
                                 return;
                             }
                             if right == super::INTERRUPT_RIGHT {
@@ -162,13 +150,9 @@ impl Backend {
                                 }
                             }
                         }
-                        stream::OutputOutcome::Cancelled | stream::OutputOutcome::Failed(_) => self.fail(
-                            env,
-                            llm::Failure::Program { exit: self.exit },
-                            b"smith: the program input failed",
-                            up,
-                            below,
-                        ),
+                        stream::OutputOutcome::Cancelled | stream::OutputOutcome::Failed(_) => {
+                            self.fail_program(env, b"smith: the program input failed", up, below)
+                        }
                     }
                 }
             }

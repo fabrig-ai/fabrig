@@ -49,12 +49,7 @@ pub(super) fn resume(
     let mut synthetic = None;
     // A Complete contains history. Only the tail after the last assistant
     // belongs to this continuation (protocol/programs.md, section 5.9).
-    let mut from = 0;
-    for (index, message) in messages.iter().enumerate() {
-        if message.role == llm::Role::Assistant {
-            from = index.checked_add(1)?;
-        }
-    }
+    let from = super::tail::after_assistant(&messages)?;
     let mut text = false;
     let mut result = false;
     for message in messages.iter().skip(from) {
