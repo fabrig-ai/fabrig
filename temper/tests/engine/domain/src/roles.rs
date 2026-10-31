@@ -155,6 +155,7 @@ fn config(settings: Settings) -> engine::Config {
 #[must_use]
 pub fn limits() -> engine::Limits {
     let mut limits = escalation::limits();
+    limits.authority.roles = 2;
     limits.people.requests = 24;
     limits
 }
@@ -193,6 +194,12 @@ fn story_policy(store: &mut Store, settings: Settings) {
         panic!("the first start saved project one's policy");
     };
     value.roles[0].requests = 1 | 4 | if settings.policy { 256 } else { 0 };
+    // The role stories assign Member; its document acts need that policy entry.
+    let mut member = value.roles[0].clone();
+    member.number = people::Role::Member.number();
+    member.requests = 0;
+    member.decides = 0;
+    value.roles = Box::new([value.roles[0].clone(), member]);
     store.seed(Box::new([row]), Box::new([]));
 }
 
@@ -375,8 +382,19 @@ impl World {
         record.as_ref()
     }
 
-    /// Complete all registered outside replies and actual pending store IO
-    /// within a bounded number of iterations.
+    /// Close this story through the shared cold restart oracle.
+    pub fn close(&mut self) {
+        self.run();
+        crate::oracle::close_world(
+            &mut self.domain,
+            &self.environment,
+            &mut self.store,
+            &mut self.protocol,
+            config(self.settings),
+        );
+    }
+
+    /// Complete registered outside replies and pending store IO within a bounded number of iterations.
     pub fn run(&mut self) {
         for _ in 0..500 {
             if self.settled() {
@@ -582,6 +600,8 @@ pub fn reroute_replayed(settings: Settings, winner: usize) -> World {
     for _ in 0..500 {
         if first.settled() {
             assert!(replay.settled(), "replay settles at identical cut");
+            first.close();
+            replay.close();
             return first;
         }
         first.iterate();

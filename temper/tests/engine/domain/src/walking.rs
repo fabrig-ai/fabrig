@@ -931,6 +931,18 @@ impl World {
         }
     }
 
+    /// Close this story through the shared cold restart oracle.
+    pub fn close(&mut self) {
+        self.run();
+        crate::oracle::close_world(
+            &mut self.domain,
+            &self.environment,
+            &mut self.store,
+            &mut self.protocol,
+            config(self.settings.seed),
+        );
+    }
+
     /// Settle every obligation within a deterministic iteration bound.
     pub fn run(&mut self) {
         for _ in 0..600 {
@@ -965,6 +977,8 @@ pub fn run_replayed(settings: Settings) -> World {
     for _ in 0..600 {
         if first.settled() {
             assert!(replay.settled());
+            first.close();
+            replay.close();
             return first;
         }
         first.iterate();

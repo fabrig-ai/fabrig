@@ -91,6 +91,7 @@ fn owner_policy_roster_and_requester_loss_commit_together_then_old_holder_has_no
         "rerouting is no accepted decision of the obsolete revision"
     );
     assert!(world.referee.done());
+    world.close();
 }
 
 #[test]
@@ -105,6 +106,7 @@ fn unchanged_requester_final_role_and_rejected_state_emit_no_task_write() {
         assert_eq!(*world.task_record(), before, "{base:?}: exact row remains inert");
         assert_eq!(economic_rows(&world), economic);
         assert_eq!(world.referee.replacements, 1);
+        world.close();
     }
 }
 
@@ -123,6 +125,7 @@ fn both_current_owner_race_orders_authorize_only_the_first_committed_roster() {
             panic!("actual durable role replacement");
         };
         assert_eq!(holdings.as_ref(), &[people::Holding { person: world.people[winner], role: people::Role::Owner }]);
+        world.close();
     }
 }
 
@@ -168,6 +171,7 @@ fn role_admission_checks_current_authority_payload_bounds_and_revision_room() {
     );
     assert_eq!(world.referee.replacements, 0);
     current_owner_policy_and_session_expiry_are_separate_real_checks();
+    world.close();
 }
 
 fn current_owner_policy_and_session_expiry_are_separate_real_checks() {
@@ -195,11 +199,14 @@ fn current_owner_policy_and_session_expiry_are_separate_real_checks() {
     member.ask(1, 83, roster(&member, 1), refused(people::Refusal::Role { held: Some(people::Role::Member) }), false);
     member.run();
     assert_eq!(member.referee.replacements, 1, "ordinary membership does not grant administration");
+    expired.close();
+    member.close();
+    no_policy.close();
 }
 
 #[test]
 fn role_commit_cut_recovers_exact_keyed_answer_and_same_holder_without_second_write() {
-    let world = reroute_replayed(
+    let mut world = reroute_replayed(
         Settings { cut: true, commit_delay: 1, page_delay: 1, ..Settings::calm(9306, Base::Requester) },
         1,
     );
@@ -207,11 +214,12 @@ fn role_commit_cut_recovers_exact_keyed_answer_and_same_holder_without_second_wr
     assert!(world.pages > 8, "captured one-row startup pages run again after the durable cut");
     assert_eq!(world.referee.replacements, 1);
     assert!(world.referee.done());
+    world.close();
 }
 
 #[test]
 fn each_role_cohort_corruption_fails_its_specific_contract_after_positive_control() {
-    let world = reroute_replayed(Settings::calm(9307, Base::Requester), 1);
+    let mut world = reroute_replayed(Settings::calm(9307, Base::Requester), 1);
     let (before, writes) = world
         .cohorts
         .iter()
@@ -285,12 +293,15 @@ fn each_role_cohort_corruption_fails_its_specific_contract_after_positive_contro
         }
         assert_eq!(before.clone().commit(&altered), Err(expected), "corruption {corruption}");
     }
+    world.close();
 }
 
 #[test]
 fn saturated_facts_change_no_role_request_trace_or_durable_rows() {
-    let observed = reroute_replayed(Settings::calm(9308, Base::Requester), 1);
-    let saturated = reroute_replayed(Settings { facts: false, ..Settings::calm(9308, Base::Requester) }, 1);
+    let mut observed = reroute_replayed(Settings::calm(9308, Base::Requester), 1);
+    let mut saturated = reroute_replayed(Settings { facts: false, ..Settings::calm(9308, Base::Requester) }, 1);
     assert_eq!(observed.trace, saturated.trace);
     assert_eq!(observed.store.rows, saturated.store.rows);
+    observed.close();
+    saturated.close();
 }

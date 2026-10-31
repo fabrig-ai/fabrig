@@ -824,6 +824,18 @@ impl World {
         }
     }
 
+    /// Close this story through the shared cold restart oracle.
+    pub fn close(&mut self) {
+        self.run();
+        crate::oracle::close_world(
+            &mut self.domain,
+            &self.environment,
+            &mut self.store,
+            &mut self.protocol,
+            config(self.settings.seed),
+        );
+    }
+
     /// Complete every outside obligation and actual pending IO within 600 passes.
     /// A held rejected task is a final story condition, not hidden work
     pub fn run(&mut self) {
@@ -879,6 +891,8 @@ pub fn run_replayed(settings: Settings) -> World {
         if first.settled() {
             assert!(replay.settled(), "replay settled at same cut: {settings:?}; {}", replay.unsettled());
             first.referee.final_state(&first.store.rows).expect("replayed finite funding");
+            first.close();
+            replay.close();
             return first;
         }
         first.iterate();

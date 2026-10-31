@@ -19,6 +19,7 @@ mod loads;
 mod mark;
 mod memory;
 mod notes_load;
+mod oracle;
 mod orders;
 mod panel_before_change;
 mod panels;

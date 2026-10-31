@@ -35,16 +35,19 @@ fn chat_claim_two_charged_turns_and_result_survive_a_lost_commit_completion() {
     assert_eq!(world.restarts, 1);
     assert!(world.pages > 8, "tiny one-row pages restore the real child records");
     assert!(world.store.pending.is_empty());
+    world.close();
 }
 
 #[test]
 fn walking_story_replays_exactly_with_store_and_page_latency() {
     let settings = Settings { commit_delay: 2, page_delay: 1, ..Settings::calm(62) };
-    let first = run_replayed(settings);
+    let mut first = run_replayed(settings);
     let mut replay = World::new(settings);
     replay.run();
+    replay.close();
     assert_eq!(first.trace, replay.trace);
     assert_eq!(first.store.rows, replay.store.rows);
+    first.close();
 }
 
 #[test]
@@ -55,6 +58,8 @@ fn saturated_observation_queues_change_no_walking_decision() {
     saturated.run();
     assert_eq!(observed.trace, saturated.trace);
     assert_eq!(observed.store.rows, saturated.store.rows);
+    observed.close();
+    saturated.close();
 }
 
 #[test]
@@ -63,11 +68,12 @@ fn walking_story_also_settles_without_a_restart() {
     world.run();
     assert_eq!(world.restarts, 0);
     assert!(world.referee.done());
+    world.close();
 }
 
 #[test]
 fn walking_referee_rejects_duplicate_transaction_keys_and_transcripts() {
-    let world = settled();
+    let mut world = settled();
     let task = ended(&world);
     let row = world
         .store
@@ -109,11 +115,12 @@ fn walking_referee_rejects_duplicate_transaction_keys_and_transcripts() {
     let mut referee = WalkingReferee::default();
     referee.commit(&writes).expect("first transcript");
     assert_eq!(referee.commit(&writes), Err("transcript committed twice"));
+    world.close();
 }
 
 #[test]
 fn walking_referee_rejects_split_turn_and_terminal_transactions() {
-    let world = settled();
+    let mut world = settled();
     let task = ended(&world);
     let turn = world
         .store
@@ -139,11 +146,12 @@ fn walking_referee_rejects_split_turn_and_terminal_transactions() {
         WalkingReferee::default().commit(&[Write::Save(terminal)]),
         Err("terminal and funding posting are not one transaction")
     );
+    world.close();
 }
 
 #[test]
 fn walking_referee_rejects_web_replies_without_their_atomic_records() {
-    let world = settled();
+    let mut world = settled();
     let task = ended(&world);
     let tasks::Party::Person(person) = task.requester else { panic!("person requester") };
     let sign_in = world.store.header().sign_ins;
@@ -161,11 +169,12 @@ fn walking_referee_rejects_web_replies_without_their_atomic_records() {
         key: [5; 16],
     }))));
     assert_eq!(referee.started(&rows, task.number), Err("chat reply before keyed answer commit"));
+    world.close();
 }
 
 #[test]
 fn walking_referee_rejects_duplicate_sign_in_and_chat_replies() {
-    let world = settled();
+    let mut world = settled();
     let task = ended(&world);
     let tasks::Party::Person(person) = task.requester else { panic!("person requester") };
     assert_eq!(
@@ -176,6 +185,7 @@ fn walking_referee_rejects_duplicate_sign_in_and_chat_replies() {
         world.referee.clone().started(&world.store.rows, task.number),
         Err("person received chat-start reply twice")
     );
+    world.close();
 }
 
 #[test]
@@ -185,7 +195,7 @@ fn walking_referee_rejects_wrong_task_or_uncommitted_or_duplicate_assignment() {
     use skein_lib::Duration;
     use temper_engine_domain::Assignment;
     use temper_engine_domain::{BriefBody as Body, BriefKind as Kind, BriefSection as Section};
-    let world = settled();
+    let mut world = settled();
     let task = ended(&world);
     let mut assignment = Assignment {
         task: task.number,
@@ -253,11 +263,12 @@ fn walking_referee_rejects_wrong_task_or_uncommitted_or_duplicate_assignment() {
     };
     record.phase = tasks::Phase::Active(tasks::Active::Claimed { attempt: task.attempt });
     assert_eq!(world.referee.clone().assigned(&rows, &assignment), Err("one claim assigned twice across restart"));
+    world.close();
 }
 
 #[test]
 fn walking_referee_rejects_turn_ack_before_transcript_and_charge() {
-    let world = settled();
+    let mut world = settled();
     let task = ended(&world);
     let mut rows = world.store.rows.clone();
     rows.remove(&Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
@@ -280,11 +291,12 @@ fn walking_referee_rejects_turn_ack_before_transcript_and_charge() {
         world.referee.clone().turn_ack(&rows, task.number, task.attempt, 1),
         Err("turn ACK before atomic charge")
     );
+    world.close();
 }
 
 #[test]
 fn walking_referee_rejects_answer_ack_before_final_charge() {
-    let world = settled();
+    let mut world = settled();
     let task = ended(&world);
     let mut rows = world.store.rows.clone();
     let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(record)))) =
@@ -297,11 +309,12 @@ fn walking_referee_rejects_answer_ack_before_final_charge() {
         world.referee.clone().answer_ack(&rows, task.number, task.attempt),
         Err("answer ACK before exact terminal charge")
     );
+    world.close();
 }
 
 #[test]
 fn walking_referee_rejects_a_lost_or_duplicate_funding_posting_and_result() {
-    let world = settled();
+    let mut world = settled();
     let task = ended(&world);
     let tasks::Party::Person(person) = task.requester else { panic!("person requester") };
     for wrong in [0, FINAL_SPEND * 2] {
@@ -322,11 +335,12 @@ fn walking_referee_rejects_a_lost_or_duplicate_funding_posting_and_result() {
         world.referee.clone().result(&world.store.rows, person, task.number, REPORT),
         Err("person received result twice")
     );
+    world.close();
 }
 
 #[test]
 fn walking_referee_rejects_missing_or_split_current_claim_turn_and_terminal_proofs() {
-    let world = settled();
+    let mut world = settled();
     let task = ended(&world);
     let mut live = task.clone();
     live.phase = tasks::Phase::Active(tasks::Active::Claimed { attempt: task.attempt });
@@ -421,6 +435,7 @@ fn walking_referee_rejects_missing_or_split_current_claim_turn_and_terminal_proo
             Write::Erase(Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(task.number)))),
         ])
         .expect("terminal evidence and retirement share final transaction");
+    world.close();
 }
 
 #[test]
@@ -441,17 +456,21 @@ fn final_transaction_survives_a_lost_completion_and_its_retained_answer_recovers
     // Reading the result after the cut is the core's (jig 62410d35), and
     // marks nothing read; the restart adds only its own wires mark.
     assert_eq!(recovered.store.applied, uninterrupted.store.applied + 1, "recovery adds only its start mark");
+    recovered.close();
+    uninterrupted.close();
 }
 
 #[test]
 fn terminal_restart_replays_complete_state_with_delayed_store_and_page_terminals() {
     let settings = Settings { commit_delay: 2, page_delay: 2, ..Settings::terminal(82) };
-    let first = run_replayed(settings);
+    let mut first = run_replayed(settings);
     let mut replay = World::new(settings);
     replay.run();
+    replay.close();
     assert!(first.referee.terminal_replay_done());
     assert_eq!(first.trace, replay.trace);
     assert_eq!(first.store.rows, replay.store.rows);
+    first.close();
 }
 
 #[test]
@@ -463,6 +482,8 @@ fn terminal_restart_is_unchanged_when_observation_queues_saturate() {
     assert_eq!(observed.trace, saturated.trace);
     assert_eq!(observed.store.rows, saturated.store.rows);
     assert!(saturated.referee.done_after_cut() && saturated.referee.terminal_replay_done());
+    observed.close();
+    saturated.close();
 }
 
 fn terminal_cut() -> World {
@@ -479,7 +500,7 @@ fn terminal_cut() -> World {
 
 #[test]
 fn independent_terminal_cut_referee_rejects_missing_or_altered_evidence() {
-    let world = terminal_cut();
+    let mut world = terminal_cut();
     let task = ended(&world);
     let key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Terminal {
         task: task.number,
@@ -528,11 +549,12 @@ fn independent_terminal_cut_referee_rejects_missing_or_altered_evidence() {
     };
     pool.numbers.spent_below *= 2;
     assert_eq!(world.referee.terminal_cut(&rows), Err("final charge was lost, duplicated or posted to another source"));
+    world.close();
 }
 
 #[test]
 fn independent_referee_rejects_recommitted_terminal_and_unscripted_ack() {
-    let world = terminal_cut();
+    let mut world = terminal_cut();
     let task = ended(&world);
     let writes = [
         Write::Save(world.store.rows[&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task.number)))].clone()),
@@ -566,4 +588,5 @@ fn independent_referee_rejects_recommitted_terminal_and_unscripted_ack() {
         referee.replayed_answer_ack(&world.store.rows, task.number, task.attempt),
         Err("replay ACK is not the one explicit post-ACK resend")
     );
+    world.close();
 }
