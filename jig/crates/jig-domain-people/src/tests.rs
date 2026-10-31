@@ -2509,3 +2509,18 @@ fn an_owners_remove_project_ask_routes_before_the_deletion_is_kept() {
     assert_eq!(**ask, Ask::RemoveProject { project: 1 });
     assert!(test.d.deletions().is_empty());
 }
+
+#[test]
+fn deployment_act_status_preserves_retry_and_actionable_refusals() {
+    for (outcome, status) in [
+        (Outcome::Compound { project: 1, operations: 1, first_message: 0 }, ActStatus::Closed),
+        (Outcome::Again(Again::Busy), ActStatus::Again),
+        (Outcome::Refused(Refusal::NotOffered), ActStatus::NotOffered),
+        (Outcome::Refused(Refusal::Role { held: None }), ActStatus::NoOwner),
+        (Outcome::Refused(Refusal::Ended { how: Ending::Done }), ActStatus::Ended),
+        (Outcome::SignedOut, ActStatus::Refused),
+        (Outcome::Refused(Refusal::NameTaken), ActStatus::Refused),
+    ] {
+        assert_eq!(outcome.act_status(), status);
+    }
+}

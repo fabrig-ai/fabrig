@@ -1526,3 +1526,20 @@ fn validate_charters(limits: &Limits, charters: &[crate::CharterModels], efforts
         }
     }
 }
+
+impl Domain {
+    /// The person conversation served by a directly requested delegate (domain/tasks.md, 2 and 8.1).
+    #[must_use]
+    pub fn served_chat(&self, task: u64) -> Option<u64> {
+        let row = self.task(task)?;
+        let chat = match row.requester {
+            Party::Task(chat) => chat,
+            Party::Person(_) | Party::Deployment { .. } => return None,
+        };
+        let row = self.task(chat)?;
+        match row.requester {
+            Party::Person(_) if row.flags.conversation => Some(chat),
+            Party::Person(_) | Party::Task(_) | Party::Deployment { .. } => None,
+        }
+    }
+}
