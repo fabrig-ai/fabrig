@@ -53,17 +53,15 @@ pub(crate) enum CallRoute {
 
 /// One channel event for the agent service.
 #[derive(Debug)]
-pub enum OpenEvent {
+pub enum Heard {
     /// Framing and terms have been agreed at this version.
     Opened { version: u16 },
     /// A structurally valid Start with its charter translated before domain admission.
     Start { start: Box<DecodedStart> },
     /// A host-labelled message for the admitted run.
     Message { finish_requested: bool, name: Token, label: Box<[u8]>, text: Box<[u8]> },
-    /// A declared host tool's one settled terminal.
-    HostReturned { relay: run::RelayName, reply: run::HostReply },
-    /// A delivery's one settled terminal.
-    Delivered { owner: Token, delivery: Box<run::Delivery> },
+    /// A translated host-tool or delivery terminal ready for the agent domain.
+    Event { event: Box<smith_domain::Event> },
     /// A delivery frame never entered the stream; service settles its IO operation.
     DeliveryUnsent { owner: Token },
     /// The host durably kept this numbered turn and its preceding prefix.
@@ -144,14 +142,14 @@ impl Component {
     }
 
     /// Consume one stream event and progress the opening.
-    pub fn from_below(&mut self, event: LowerEvent, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+    pub fn from_below(&mut self, event: LowerEvent, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {
         self.machine.up(event, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
     }
 
     /// Request the next read or write operation, including the initial Open read.
-    pub fn fire(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
+    pub fn fire(&mut self, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {
         self.machine.poll(&mut self.events, below);
         self.drain(to_service, below);
     }
@@ -160,7 +158,7 @@ impl Component {
     pub fn send_admitted(
         &mut self,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.started() {
@@ -188,7 +186,7 @@ impl Component {
         name: Token,
         reason: run::MessageRefusal,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() {
@@ -224,7 +222,7 @@ impl Component {
         answer: run::Answer,
         read: Option<Token>,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         let permitted = match &answer {
@@ -255,7 +253,7 @@ impl Component {
         &mut self,
         read: Option<Token>,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() {
@@ -285,7 +283,7 @@ impl Component {
         operation: smith_domain::Operation,
         span: Duration,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() {
@@ -316,7 +314,7 @@ impl Component {
     pub fn send_long_done(
         &mut self,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() || self.state.active()?.long_open == 0 {
@@ -348,7 +346,7 @@ impl Component {
         opens_window: bool,
         turn: &record::Turn,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() || number == 0 {
@@ -393,7 +391,7 @@ impl Component {
         fact: &smith_domain::Fact,
         started: Time,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<bool, Error> {
         let elapsed = fact.emitted().saturating_since(started);
@@ -409,7 +407,7 @@ impl Component {
         elapsed: Duration,
         count: u64,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<bool, Error> {
         self.offer_fact(smith_channel::FactKind::TextArrived, elapsed, count, token, to_service, below)
@@ -466,7 +464,7 @@ impl Component {
         &mut self,
         piece: crate::Piece<'_>,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<bool, Error> {
         let length = u64::try_from(piece.bytes.len()).expect("piece length fits u64");
@@ -508,7 +506,7 @@ impl Component {
         elapsed: Duration,
         count: u64,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<bool, Error> {
         if !self.state.admitted()
@@ -561,7 +559,7 @@ impl Component {
         input: run::HostInput,
         deadline: Time,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() {
@@ -591,7 +589,7 @@ impl Component {
         change: run::outcome::Change,
         deadline: Time,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() {
@@ -616,7 +614,7 @@ impl Component {
         &mut self,
         relay: run::RelayName,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         if !self.state.admitted() {

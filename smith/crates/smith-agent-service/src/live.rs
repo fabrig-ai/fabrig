@@ -16,7 +16,7 @@ pub(crate) trait Room {
 
 pub(crate) struct Connection<'a> {
     pub channel: &'a mut channel::Component,
-    pub above: &'a mut Queue<channel::OpenEvent>,
+    pub above: &'a mut Queue<channel::Heard>,
     pub below: &'a mut Queue<Lower>,
     pub next: &'a mut u64,
     pub failed: bool,

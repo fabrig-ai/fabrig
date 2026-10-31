@@ -146,7 +146,7 @@ struct Peer {
     half: Half,
     below: Queue<Lower>,
     host_events: Queue<host::Received>,
-    agent_events: Queue<agent::OpenEvent>,
+    agent_events: Queue<agent::Heard>,
     incoming: VecDeque<u8>,
     incoming_ended: bool,
     end_reported: bool,
@@ -423,8 +423,8 @@ impl Peer {
         }
         while let Some(event) = self.agent_events.pop() {
             match event {
-                agent::OpenEvent::Opened { version } => output.push(Observation::AgentOpened(version)),
-                agent::OpenEvent::Start { start } => {
+                agent::Heard::Opened { version } => output.push(Observation::AgentOpened(version)),
+                agent::Heard::Start { start } => {
                     output.push(Observation::AgentStart);
                     if let Some(transcript) = &start.transcript
                         && let Some(turn) = transcript.turns.first()
@@ -455,25 +455,28 @@ impl Peer {
                     }
                     assert!(self.agent_start.replace(start).is_none(), "one decoded Start per channel");
                 }
-                agent::OpenEvent::Ended { why } => output.push(Observation::AgentEnded(why)),
-                agent::OpenEvent::Message { finish_requested, name, label, text } => {
+                agent::Heard::Ended { why } => output.push(Observation::AgentEnded(why)),
+                agent::Heard::Message { finish_requested, name, label, text } => {
                     output.push(Observation::AgentMessage { finish_requested, name, label, text });
                 }
-                agent::OpenEvent::HostReturned { relay, reply } => {
-                    output.push(Observation::AgentHostReturned { relay, reply });
-                }
-                agent::OpenEvent::Delivered { owner, delivery } => {
-                    output.push(Observation::AgentDelivered { owner, delivery });
-                }
-                agent::OpenEvent::DeliveryUnsent { owner } => output.push(Observation::AgentDeliveryUnsent { owner }),
-                agent::OpenEvent::Acknowledged { turn } => output.push(Observation::AgentAcknowledged { turn }),
-                agent::OpenEvent::Grant { grant } => output.push(Observation::AgentGrant {
+                agent::Heard::Event { event } => match *event {
+                    smith_domain::Event::HostReturned { relay, reply } => {
+                        output.push(Observation::AgentHostReturned { relay, reply });
+                    }
+                    smith_domain::Event::Delivered { owner, delivery } => {
+                        output.push(Observation::AgentDelivered { owner, delivery: Box::new(delivery) });
+                    }
+                    _ => panic!("channel emits only host and delivery terminals as domain events"),
+                },
+                agent::Heard::DeliveryUnsent { owner } => output.push(Observation::AgentDeliveryUnsent { owner }),
+                agent::Heard::Acknowledged { turn } => output.push(Observation::AgentAcknowledged { turn }),
+                agent::Heard::Grant { grant } => output.push(Observation::AgentGrant {
                     account: grant.name.account,
                     generation: grant.name.generation,
                     valid: grant.valid,
                 }),
-                agent::OpenEvent::Cancel => output.push(Observation::AgentCancel),
-                agent::OpenEvent::WriteFailed => output.push(Observation::AgentWriteFailed),
+                agent::Heard::Cancel => output.push(Observation::AgentCancel),
+                agent::Heard::WriteFailed => output.push(Observation::AgentWriteFailed),
             }
         }
     }

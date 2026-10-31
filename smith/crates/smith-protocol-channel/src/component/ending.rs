@@ -1,5 +1,5 @@
 //! The channel's single terminal notification (smith/docs/design/protocol/channel.md, section 2).
-use crate::OpenEvent;
+use crate::Heard;
 use core::mem;
 use skein_channel::Closed;
 use skein_lib::Queue;
@@ -18,11 +18,11 @@ impl Ending {
         }
     }
 
-    pub(super) fn end(&mut self, why: Closed, to_service: &mut Queue<OpenEvent>) {
+    pub(super) fn end(&mut self, why: Closed, to_service: &mut Queue<Heard>) {
         let state = mem::replace(self, Ending::Reported);
         *self = match state {
             Ending::Listening => {
-                to_service.push(OpenEvent::Ended { why });
+                to_service.push(Heard::Ended { why });
                 Ending::Reported
             }
             Ending::Reported => Ending::Reported,

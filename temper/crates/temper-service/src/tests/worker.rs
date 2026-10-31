@@ -259,7 +259,7 @@ fn the_worker_demands_each_cancellation_record_and_end() {
     let waiting = (peer.consumed, peer.stdout_demands, peer.worker_read);
     AgentPeer::send(&mut worker, smith_host_domain::Down::Cancel);
     peer.settle(&mut worker);
-    let Some(smith_protocol_channel::OpenEvent::Cancel) = peer.events.pop() else {
+    let Some(smith_protocol_channel::Heard::Cancel) = peer.events.pop() else {
         panic!("agent receives Cancel");
     };
     assert!(peer.events.is_empty(), "one Cancel reaches the real agent peer");

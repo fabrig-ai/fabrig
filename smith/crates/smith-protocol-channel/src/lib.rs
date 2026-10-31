@@ -40,7 +40,7 @@ mod live;
 #[cfg(test)]
 mod tests;
 
-pub use component::{Component, OpenEvent};
+pub use component::{Component, Heard};
 pub use limits::{EdgeRoom, Error, Limits, edge_room, schema, schema_for_start, valid};
 pub use live::{Piece, PieceKind};
 

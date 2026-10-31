@@ -321,10 +321,10 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
     }
 }
 
-pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: channel::OpenEvent) {
+pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: channel::Heard) {
     match event {
-        channel::OpenEvent::Opened { version: _ } => {}
-        channel::OpenEvent::Start { start } => {
+        channel::Heard::Opened { version: _ } => {}
+        channel::Heard::Start { start } => {
             service.live.ask(start.live.clone());
             let count = match &start.mounts {
                 Some(mounts) => u32::try_from(mounts.len()).unwrap_or(u32::MAX),
@@ -350,28 +350,23 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
                 service.start_ready(frame);
             }
         }
-        channel::OpenEvent::Message { finish_requested, name, label, text } => {
+        channel::Heard::Message { finish_requested, name, label, text } => {
             if let Some(run) = service.admitted {
                 service.domain_events.push(domain::Event::Message { finish_requested, run, name, label, text });
             } else {
                 service.pending_messages.push(PendingMessage { finish_requested, name, label, text });
             }
         }
-        channel::OpenEvent::HostReturned { relay, reply } => {
-            service.domain_events.push(domain::Event::HostReturned { relay, reply });
-        }
-        channel::OpenEvent::Delivered { owner, delivery } => {
-            service.domain_events.push(domain::Event::Delivered { owner, delivery: *delivery });
-        }
-        channel::OpenEvent::DeliveryUnsent { owner } => {
+        channel::Heard::Event { event } => service.domain_events.push(*event),
+        channel::Heard::DeliveryUnsent { owner } => {
             service.domain_events.push(domain::Event::Delivered { owner, delivery: run::Delivery::Stale });
         }
-        channel::OpenEvent::Acknowledged { turn } => {
+        channel::Heard::Acknowledged { turn } => {
             if let Some(run) = service.admitted {
                 service.domain_events.push(domain::Event::Acknowledge { run, turn });
             }
         }
-        channel::OpenEvent::Grant { grant } => {
+        channel::Heard::Grant { grant } => {
             let value = frame.channel.grant_value(grant.name).cloned();
             if let Some(value) = &value
                 && program::renew(service, grant, value)
@@ -393,15 +388,15 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
                 None => service.mark_failed(Failure::Credential),
             }
         }
-        channel::OpenEvent::Cancel => {
+        channel::Heard::Cancel => {
             if let Some(run) = service.admitted {
                 service.domain_events.push(domain::Event::Cancel { run });
             } else {
                 service.cancel_pending = true;
             }
         }
-        channel::OpenEvent::WriteFailed => service.mark_failed(Failure::WriteFailed),
-        channel::OpenEvent::Ended { why: _ } => match service.teardown {
+        channel::Heard::WriteFailed => service.mark_failed(Failure::WriteFailed),
+        channel::Heard::Ended { why: _ } => match service.teardown {
             Teardown::Live => {
                 service.mark_failed(Failure::ChannelEnded);
                 if let Some(run) = service.admitted {
