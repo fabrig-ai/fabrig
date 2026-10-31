@@ -493,10 +493,24 @@ fn end_sends_one_end_and_shows_leaving_until_the_read_is_none() {
 #[test]
 fn a_resetting_read_after_a_restart_shows_leaving() {
     let mut side = confirmed();
-    refresh(&mut side, page_with_state(w::PlaygroundState::Resetting));
+    let mut out = refresh(&mut side, page_with_state(w::PlaygroundState::Resetting));
     assert!(side.leaving());
     assert!(choose(&mut side, forge::Act::EndPlayground).is_empty());
+    let Some(forge::Request::Client { asked: jig_client::Event::Read { handle, .. } }) = out.pop() else {
+        panic!("reset reread")
+    };
+    assert!(out.is_empty());
+    demo::told(
+        &mut side,
+        &Told::Page { handle, page: Readout::Family { family: wire::FORGE, record: None } },
+        f::limits().forge,
+        &mut out,
+    );
+    assert!(!side.leaving());
+    let Some(forge::Request::PlaygroundReset) = out.pop() else { panic!("reset navigation") };
+    assert!(out.is_empty());
 }
+
 #[test]
 fn the_reset_opens_the_welcome_at_forge() {
     for answered in [true, false] {
@@ -533,7 +547,9 @@ fn not_offered_ends_leaving_and_rereads_without_navigation() {
         ),
     );
     assert!(!side.leaving());
-    let Some(forge::Request::Client { asked: jig_client::Event::Read { .. } }) = out.pop() else { panic!("playground reread") };
+    let Some(forge::Request::Client { asked: jig_client::Event::Read { .. } }) = out.pop() else {
+        panic!("playground reread")
+    };
     assert!(out.is_empty());
 }
 #[test]
@@ -572,7 +588,14 @@ fn a_starting_playground_can_have_no_project() {
     let mut parts = wire::decode_playground_answer(&answer(CUE), &w::CEILINGS).unwrap().into_parts();
     parts.state = w::PlaygroundState::Starting;
     parts.project = None;
-    refresh(&mut side, Readout::Family { family: wire::FORGE, record: Some(wire::playground_answer(&w::PlaygroundAnswer::new(&w::CEILINGS, parts).unwrap())) });
+    refresh(
+        &mut side,
+        Readout::Family {
+            family: wire::FORGE,
+            record: Some(wire::playground_answer(&w::PlaygroundAnswer::new(&w::CEILINGS, parts).unwrap())),
+        },
+    );
+    assert!(side.playground_starting());
     assert_eq!(side.playground().unwrap().project, None);
     assert_eq!(side.playground_provider(), Some(PROVIDER));
     assert!(choose(&mut side, forge::Act::StartPlayground).is_empty());

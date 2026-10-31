@@ -120,8 +120,14 @@ impl Side {
         self.playground.answered
     }
     #[must_use]
-    pub const fn playground_starting(&self) -> bool {
-        self.playground.start.is_some()
+    pub fn playground_starting(&self) -> bool {
+        if self.playground.start.is_some() {
+            return true;
+        }
+        match &self.playground.answer {
+            Some(answer) => answer.state == PlaygroundState::Starting,
+            None => false,
+        }
     }
     #[must_use]
     pub const fn playground_failure(&self) -> Option<&playground::StartFailure> {

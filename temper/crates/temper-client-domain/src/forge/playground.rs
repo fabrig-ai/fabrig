@@ -83,6 +83,13 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
             if changed || was_leaving != side.playground.leaving {
                 side.changed();
             }
+            // Transitional rows are read until running or erased (6.1–6.2).
+            if let Some(answer) = &side.playground.answer {
+                match answer.state {
+                    PlaygroundState::Starting | PlaygroundState::Resetting => read(side, out),
+                    PlaygroundState::Running => {}
+                }
+            }
             true
         }
         Told::Answered { key, outcome } if owns(side, *key, true) => {
@@ -164,6 +171,8 @@ fn owns(side: &Side, key: jig_client::Key, start: bool) -> bool {
 fn reset(side: &mut Side, out: &mut Queue<Request>) {
     side.playground.leaving = false;
     side.playground.end = None;
+    side.playground.start = None;
+    side.playground.failure = None;
     side.playground.answer = None;
     side.playground.bridge = None;
     out.push(Request::PlaygroundReset);

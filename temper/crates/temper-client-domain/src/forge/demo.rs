@@ -1,6 +1,6 @@
 //! Reader bridges; t-view-drop removes them.
 pub(crate) use super::playground::told;
-pub use super::playground::{StartAnswer, StartFailure, answer, ask};
+pub use super::playground::{StartAnswer, StartFailure, answer};
 use super::{Request, Side};
 use jig_client::{Client, Handle, Latest, contract as c};
 use skein_lib::{Queue, Token};
@@ -158,4 +158,20 @@ fn owner(client: &Client) -> bool {
     }
     let Some(Latest::Jig(c::Delivery::Me(me))) = document.latest else { return false };
     me.deployment_role == Some(c::HeldRole::Owner)
+}
+
+/// t-view-drop removes the ctl reader bridge.
+#[must_use]
+pub fn ask(limits: &super::Limits) -> Option<jig_client::Ask> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let record =
+        w::Requesting::new(&super::wire_limits(limits)?, w::RequestingParts { request: w::Request::StartDemo }).ok()?;
+    Some(jig_client::Ask::Family {
+        scope: c::Scope::Deployment,
+        record: jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::requesting(&record),
+        },
+    })
 }

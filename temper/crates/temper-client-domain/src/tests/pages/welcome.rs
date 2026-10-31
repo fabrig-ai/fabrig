@@ -438,7 +438,10 @@ fn continue_setting_up_goes_to_the_first_step_not_done() {
 fn the_playground_forge_shows_while_the_forge_half_holds() {
     let (mut root, _, accounts, forges) = opened(true, Step::Model { way: None });
     let watch = forges.unwrap();
-    demo::deliver_demo_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) });
+    demo::deliver_demo_read(
+        &mut root,
+        Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) },
+    );
     event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
     account(&mut root, accounts, 18, true);
     rows(&mut root, watch, wire::FORGE);
@@ -477,7 +480,10 @@ fn with_a_demo_model_usable_reads_other_providers_lines() {
 fn ready_and_the_strip_count_an_owners_deployment_model() {
     let (mut root, _, accounts, _) = opened(true, Step::Model { way: None });
     account(&mut root, accounts, 18, false);
-    let mut out = demo::deliver_demo_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) });
+    let mut out = demo::deliver_demo_read(
+        &mut root,
+        Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) },
+    );
     let watch = demo::deployment_watch(&mut out).expect("owner start opens the deployment watch");
     let mut out =
         demo::deliver_deployment(&mut root, watch, demo::deployment(&[demo::DEMO_ACCOUNT, demo::OTHER_ACCOUNT]));
