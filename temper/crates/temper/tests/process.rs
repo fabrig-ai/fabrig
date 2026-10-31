@@ -4264,7 +4264,7 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
     let _cached = cache_forgejo_binaries(&paths[2]);
     let mut steps = vec![
         Step::Run(Call::sign_in()),
-        Step::Run(Call::new(&["forge", "setup", "3", "--playground"])),
+        Step::Run(Call::new(&["forge", "setup", "--playground"])),
         Step::Run(Call::new(&["forge", "list", "--json"])),
     ];
     steps.extend(first_repository::playground_read_steps(scratch.path()));
@@ -4292,10 +4292,10 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
     }
     let adoption = String::from_utf8_lossy(&ended.calls[1].stdout);
     assert!(adoption.lines().any(|line| line == "project: 2 · widget"), "{adoption}");
-    assert!(adoption.contains("Adopted playground/widget on forge 3 as owned."), "{adoption}");
+    assert!(adoption.contains("Adopted playground/widget on forge 1 as owned."), "{adoption}");
     assert!(adoption.contains("It is the project's home."), "{adoption}");
     let rows = support::ctl::json(&ended.calls[2]);
-    let row = rows["forges"].as_array().expect("forge rows").iter().find(|row| row["number"] == 3).expect("forge 3");
+    let row = rows["forges"].as_array().expect("forge rows").iter().find(|row| row["number"] == 1).expect("forge 1");
     assert_eq!(row["first"]["project"]["new"], "widget");
     assert_eq!(row["first"]["org"], "playground");
     assert_eq!(row["first"]["repository"], "widget");
