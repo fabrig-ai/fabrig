@@ -339,29 +339,27 @@ fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String>
     accounts_runtime::resolve(engine)
 }
 
-fn forges(
-    configured: &[service::startup::Forge],
+/// Resolve the machine's GitHub host once at start (temper/docs/design/draft/playground-reset.md, 3).
+fn github_runtime(
+    machine: Option<&temper_forge_setup::machine::GitHubMachine>,
+    roots: &skein_tls::Config,
     resolve: fn(&config::Address) -> Result<std::net::SocketAddr, String>,
-) -> Result<List<service::ForgeRuntime>, String> {
-    use skein_forge_connection::settings::Transport;
-    let mut runtime = List::with_capacity(u32::try_from(configured.len()).expect("bounded forges"));
-    for (index, forge) in configured.iter().enumerate() {
-        let prefix = format!("application.forges[{index}]");
-        let address = match resolve(&forge.api) {
-            Ok(address) => address,
-            Err(_) if matches!(forge.api, config::Address::Host { .. }) => service::forge::HELD_ADDRESS,
-            Err(why) => return Err(format!("{prefix}.api: {why}")),
-        };
-        let transport = match &forge.transport {
-            service::startup::Transport::Plaintext => Transport::Plaintext { name: None },
-            service::startup::Transport::Tls { server_name: name, trust: file } => {
-                let trust = trust(file.as_deref()).map_err(|why| format!("{prefix}.transport.tls.trust: {why}"))?;
-                Transport::Tls { server_name: server_name(name)?, trust }
+) -> Result<service::ForgeRuntime, String> {
+    let default = config::Address::Host { name: Box::from(b"api.github.com".as_slice()), port: 443 };
+    let api = machine.map_or(&default, |machine| &machine.api);
+    let address = resolve(api).unwrap_or(service::forge::HELD_ADDRESS);
+    let transport = if machine.is_none_or(|machine| machine.tls) {
+        let name = match api {
+            config::Address::Host { name, .. } => server_name(name)?,
+            config::Address::Addr(address) => {
+                server_name(address.socket().ok_or("requires a socket address")?.ip().to_string().as_bytes())?
             }
         };
-        runtime.push(service::ForgeRuntime { number: forge.number, address, transport }).expect("forge count");
-    }
-    Ok(runtime)
+        skein_forge_connection::settings::Transport::Tls { server_name: name, trust: roots.clone() }
+    } else {
+        skein_forge_connection::settings::Transport::Plaintext { name: None }
+    };
+    Ok(service::ForgeRuntime { number: 0, address, transport })
 }
 fn prepare(directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
     prepare_with_store(directories, bytes, owned).map(|(service, _)| service)
@@ -395,7 +393,10 @@ fn prepare_with_limits(
     let engine =
         temper_service::startup::engine_with(&document, member(&document, 0, b"engine"), &directories.jig(), given)
             .expect("named checked engine");
-    let forges = forges(&named.forges, address)?;
+    let machine = box_command::machine(bytes, directories)?;
+    let roots = trust(None)?;
+    let github = github_runtime(machine.github.as_ref(), &roots, address)?;
+    let forges = List::with_capacity(0);
     let agent = named.worker.as_ref().map(|_| agent::preflight(&named)).transpose()?;
     let user = skein_shell::effective_user();
     let mut named_files = named.files.into_vec();
@@ -470,16 +471,6 @@ fn prepare_with_limits(
         given,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    let roots = trust(None)?;
-    let github = config::Address::Host { name: Box::from(b"api.github.com".as_slice()), port: 443 };
-    let github = service::ForgeRuntime {
-        number: 0,
-        address: address(&github).unwrap_or(service::forge::HELD_ADDRESS),
-        transport: skein_forge_connection::settings::Transport::Tls {
-            server_name: server_name(b"api.github.com")?,
-            trust: roots.clone(),
-        },
-    };
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
     if let Some(agent) = &agent

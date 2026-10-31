@@ -24,31 +24,19 @@ pub fn document(value: &mut serde_json::Value, names: &Names<'_>) {
     owned.forgejo_binary = names.forgejo.into();
     let mut members = application(&owned);
     members["webhooks"] = serde_json::Value::Null;
-    members["identities"][0]["login"] = names.bot.into();
-    let setup = &mut members["setup"][0];
-    setup["bot"] = serde_json::json!({"login":names.bot,"email":format!("{}@example.invalid", names.bot)});
-    let mode = &mut setup["mode"]["owned"];
+    let mode = &mut members["machine"]["owned"];
     mode["person"] = serde_json::json!({"login":names.person,"email":format!("{}@example.invalid", names.person)});
     if let Some(binary) = names.runner {
         mode["runner"]["binary"] = serde_json::json!(binary);
     } else {
         mode["runner"] = serde_json::Value::Null;
     }
-    for name in ["forges", "identities", "setup"] {
-        value["application"][name] = members[name].take();
-    }
+    value["application"]["machine"] = members["machine"].take();
 }
 
 // temper-15 removes this old form and temper-01a's Adopt stand-in.
 pub fn old_form(application: &mut serde_json::Value) {
-    let webhooks = !application["webhooks"].is_null();
-    let forge = &mut application["forges"][0];
-    forge["identity"] = 1.into();
-    forge["api_token"] = "forge-1/api_token".into();
-    forge["user"] = serde_json::json!({"file":"forge-1/user"});
-    forge["webhook_secret"] = if webhooks { "forge-1/webhook_secret".into() } else { serde_json::Value::Null };
-    application["identities"][0].as_object_mut().expect("identity").remove("forge");
-    application["identities"][0]["token"] = "forge-1/git_token".into();
+    let _ = application;
 }
 
 pub fn configuration(directory: &Path, names: &Names<'_>) {
@@ -58,6 +46,8 @@ pub fn configuration(directory: &Path, names: &Names<'_>) {
     document(&mut value, names);
     old_form(&mut value["application"]);
     super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    fs::create_dir_all(directory.join("box/groups")).expect("groups");
+    super::write_private(&directory.join("box/groups/1"), b"owned\n");
 }
 #[must_use]
 pub fn prepare(directory: &Path, forge: u16) -> Output {
