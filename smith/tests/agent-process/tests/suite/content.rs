@@ -396,7 +396,7 @@ fn trace_fields(value: &serde_json::Value, secrets: &[&[u8]]) {
 fn trace_text(text: &str, secrets: &[&[u8]]) {
     assert!(!text.to_ascii_lowercase().contains("authorization:"), "Authorization header in trace");
     for secret in secrets {
-        assert!(!skein_lib::bytes::find(text.as_bytes(), secret).is_some(), "grant bytes in trace text");
+        assert!(skein_lib::bytes::find(text.as_bytes(), secret).is_none(), "grant bytes in trace text");
     }
 }
 

@@ -18,7 +18,7 @@ struct Live {
     configuration: std::path::PathBuf,
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct Options<'a> {
     permission: bool,
     thinking: bool,

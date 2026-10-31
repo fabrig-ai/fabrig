@@ -4,7 +4,7 @@
 
 use super::{Machine, Parent, World};
 use skein_fake_machine::{How, Item, Opened};
-use skein_lib::{List, Queue, Reader, Writer};
+use skein_lib::{List, Queue, Reader};
 
 // A coding model's output allowance, as in the standard native coding setup.
 pub(super) const OUTPUT: u32 = 32_768;
@@ -97,11 +97,7 @@ pub(super) fn answer_delivery(parent: &mut Parent) {
             smith_channel::HostAnswerParts { name: call.name().clone(), reply: smith_channel::Reply::Delivery(reply) },
         )
         .expect("host delivery answer");
-        let mut body = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-        answer.encode(&mut body).expect("answer bytes");
-        let mut frame = skein_channel::frame_writer(0x0102, answer.measure()).expect("answer frame");
-        frame.put(&body.finish()).expect("answer body");
-        parent.peer.play(frame.finish().expect("answer frame"));
+        parent.peer.play(crate::frame!(0x0102, answer));
         parent.coding_deliveries = Some(parent.coding_deliveries.expect("coding host") + 1);
     }
 }

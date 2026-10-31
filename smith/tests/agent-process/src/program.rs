@@ -68,7 +68,7 @@ impl Case {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct RunOptions<'a> {
     login: Option<&'a [u8]>,
     refresh: Option<&'a smith_channel::GrantValue>,

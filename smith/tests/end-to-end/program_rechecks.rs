@@ -34,7 +34,11 @@ fn calls(scratch: &Scratch) -> Vec<Vec<String>> {
 
 fn counts(scratch: &Scratch, statuses: usize, runs: usize) {
     let calls = calls(scratch);
-    assert_eq!(calls.iter().filter(|arguments| arguments[0] == "-p").count(), runs, "print-mode runs");
+    assert_eq!(
+        calls.iter().filter(|arguments| arguments.first().is_some_and(|argument| argument == "-p")).count(),
+        runs,
+        "print-mode runs"
+    );
     assert_eq!(
         calls.iter().filter(|arguments| **arguments == ["auth", "status"]).count(),
         statuses,
