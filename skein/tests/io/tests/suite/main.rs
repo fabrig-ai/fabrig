@@ -15,6 +15,7 @@ mod remove;
 mod replace_race;
 mod ring;
 mod scenarios;
+mod stage;
 
 mod fuzzy {
     mod append;
