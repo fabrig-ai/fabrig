@@ -40,6 +40,7 @@ skein-shell.workspace = true
 skein-oauth.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 smith-agent-service.workspace = true
 smith-domain-run.workspace = true
 smith-domain-session.workspace = true

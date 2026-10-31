@@ -368,7 +368,8 @@ mod tests {
 
     #[test]
     fn a_build_waits_while_another_holds_the_build_lock() {
-        let root = std::env::temp_dir().join(format!("smith-build-lock-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-arm");
+        let root = scratch.path().to_path_buf().join(format!("smith-build-lock-{}", std::process::id()));
         fs::create_dir(&root).expect("isolated fixture");
         let guard = Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[]).expect("guard");
         let owner = build_lock(&guard, &root).expect("first build owns its lock");
@@ -378,7 +379,7 @@ mod tests {
         owner.unlock().expect("first build ends");
         contender.try_lock().expect("second build can now start");
         contender.unlock().expect("second build ends");
-        fs::remove_dir_all(root).expect("remove fixture");
+
     }
 
     #[test]
@@ -394,7 +395,8 @@ mod tests {
 
     #[test]
     fn dirty_and_unknown_commits_are_refused_before_any_build_write() {
-        let root = std::env::temp_dir().join(format!("smith-bench-arm-source-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-arm");
+        let root = scratch.path().to_path_buf().join(format!("smith-bench-arm-source-{}", std::process::id()));
         fs::create_dir(&root).expect("isolated source");
         output(git(&root).args(["init", "--quiet"]), "test git init").expect("init");
         output(
@@ -419,6 +421,6 @@ mod tests {
         fs::write(root.join("dirty"), "synthetic untracked change").expect("dirty source");
         assert!(resolve_commit(&root, "HEAD").expect_err("dirty source").contains("dirty"));
         assert!(outside_repositories(&root.join("private/arms")).is_err());
-        fs::remove_dir_all(root).expect("remove only the synthetic repository");
+
     }
 }

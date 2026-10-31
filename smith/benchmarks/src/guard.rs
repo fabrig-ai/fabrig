@@ -132,7 +132,8 @@ mod tests {
 
     #[test]
     fn tool_login_directories_are_refused_before_any_write() {
-        let root = std::env::temp_dir().join(format!("smith-bench-guard-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-guard");
+        let root = scratch.path().to_path_buf().join(format!("smith-bench-guard-{}", std::process::id()));
         std::fs::create_dir(&root).expect("fresh deterministic guard root");
         let home = root.join("home");
         let config = root.join("custom-config");
@@ -186,12 +187,13 @@ mod tests {
         std::os::unix::fs::symlink(&external, state.join("smith"))
             .expect("tool alias installed after guard construction");
         assert!(guard.write_path(&external.join("new")).is_err(), "tool links are resolved on each write check");
-        std::fs::remove_dir_all(root).expect("remove only the synthetic guard root");
+
     }
 
     #[test]
     fn live_descendant_aliases_are_refused() {
-        let root = std::env::temp_dir().join(format!("smith-bench-live-links-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-guard");
+        let root = scratch.path().to_path_buf().join(format!("smith-bench-live-links-{}", std::process::id()));
         let home = root.join("home");
         let config = root.join("config");
         let state = root.join("state");
@@ -214,7 +216,7 @@ mod tests {
             assert!(guard.write_path(&alias.canonicalize().expect("synthetic alias target")).is_err());
             std::fs::remove_file(&alias).expect("remove only the synthetic alias");
         }
-        std::fs::remove_dir_all(root).expect("remove only synthetic live links");
+
     }
 
     #[test]

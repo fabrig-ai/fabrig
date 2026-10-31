@@ -344,7 +344,8 @@ fn a_summary_of_another_version_is_refused_by_name() {
     let mut document = serde_json::to_value(summary).expect("document");
     document["version"] = 2.into();
     document.as_object_mut().expect("object").remove("attempts");
-    let file = std::env::temp_dir().join(format!("smith-summary-version-{}.json", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-comparison");
+    let file = scratch.path().to_path_buf().join(format!("smith-summary-version-{}.json", std::process::id()));
     std::fs::write(&file, document.to_string()).expect("fixture");
     let refusal = crate::read_summary(&file).expect_err("version two");
     std::fs::remove_file(&file).expect("cleanup");

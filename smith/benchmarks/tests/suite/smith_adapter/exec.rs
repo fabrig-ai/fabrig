@@ -2,6 +2,7 @@
 use super::{Duration, End, Forced, Path, PathBuf, common, root};
 
 pub(super) struct ExecFixture {
+    _scratch: skein_scratch::Scratch,
     root: PathBuf,
     source: PathBuf,
     guard: smith_bench::guard::Guard,
@@ -26,7 +27,8 @@ impl ExecFixture {
     fn fixture(name: &str, check_code: Option<i32>) -> Self {
         use sha2::{Digest, Sha256};
         use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
-        let root = root(&format!("{name}-outside-repository"));
+        let scratch = root(&format!("{name}-outside-repository"));
+        let root = scratch.path().join("root");
         std::fs::DirBuilder::new().mode(0o700).create(&root).expect("private fixture root");
         let repository = root.join("source");
         std::fs::create_dir_all(&repository).expect("fixture repository");
@@ -102,6 +104,7 @@ impl ExecFixture {
         )
         .expect("environment");
         Self {
+            _scratch: scratch,
             source: root.join("logins/smith"),
             root,
             guard,
@@ -142,7 +145,7 @@ fn an_exec_arm_refused_by_check_is_a_setup_refusal() {
     assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration);
     assert!(refusal.reason.contains("Code(2)"));
     assert!(!fixture.private.root.join("smith/tokens").exists());
-    std::fs::remove_dir_all(fixture.root).expect("fixture cleanup");
+
 }
 
 #[test]
@@ -185,9 +188,6 @@ fn an_exec_arm_classifies_exit_5_as_needs_input() {
 }
 
 impl ExecFixture {
-    pub(super) fn clean(self) {
-        std::fs::remove_dir_all(self.root).expect("fixture cleanup");
-    }
 }
 
 #[test]
@@ -208,5 +208,4 @@ fn the_credentials_lead_reaches_the_native_policy_boundary() {
     let settings = smith_local_shell::settings::from_sources(&shared, fixture.private.workspace.clone(), &[source])
         .expect("refresh-lead policy accepted");
     assert_eq!(settings.values["deployment.refresh_lead"].value.as_integer(), Some(34_560_000));
-    fixture.clean();
 }

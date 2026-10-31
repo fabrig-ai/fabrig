@@ -9,6 +9,7 @@ use crate::{ModelChoice, Provider, Task};
 use std::os::unix::fs::DirBuilderExt;
 
 struct Fixture {
+    _scratch: skein_scratch::Scratch,
     root: PathBuf,
     guard: Guard,
     private: Private,
@@ -21,7 +22,8 @@ struct Fixture {
 
 impl Fixture {
     fn new(name: &str, provider: Provider, model: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("smith-lower-prepare-{name}-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-lower_tests");
+        let root = scratch.path().to_path_buf().join(format!("smith-lower-prepare-{name}-{}", std::process::id()));
         fs::DirBuilder::new().mode(0o700).create(&root).expect("owned root");
         let guard = Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[]).expect("guard");
         let private = crate::isolate::empty(&guard, &root.join("scratch")).expect("private paths");
@@ -35,6 +37,7 @@ impl Fixture {
         task.budget.seconds = None;
         task.budget.spend = None;
         Self {
+            _scratch: scratch,
             home: root.join("admitted-sign-in"),
             arm: ArmRef::Built(Build {
                 directory: root.join("verified-arm"),
@@ -82,9 +85,6 @@ impl Fixture {
             .expect("render admitted inputs")
     }
 
-    fn clean(self) {
-        fs::remove_dir_all(self.root).expect("owned fixture cleanup");
-    }
 }
 
 #[test]
@@ -99,7 +99,6 @@ fn admitted_sign_in_keeps_shared_credentials_and_private_state() {
     assert!(prepared.settings.starts_with(&fixture.private.config));
     assert!(!fixture.private.root.join("smith/tokens").exists());
     assert!(!prepared.program.exists(), "identity is an input, no executable fixture");
-    fixture.clean();
 }
 
 #[test]
@@ -124,7 +123,6 @@ fn supplied_check_bound_reaches_the_prepared_exec_command() {
             "-"
         ]
     );
-    fixture.clean();
 }
 
 #[test]
@@ -140,5 +138,4 @@ fn admitted_program_keeps_its_model_trace_and_serial_guard() {
     assert!(prepared.command().arguments.windows(2).any(|pair| pair == ["-m", "anthropic/claude-haiku-5-5"]));
     assert_eq!(prepared.rendered["trace"]["path"], serde_json::json!(prepared.trace.as_ref().expect("program trace")));
     drop(prepared);
-    fixture.clean();
 }

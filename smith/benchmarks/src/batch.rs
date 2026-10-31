@@ -906,7 +906,8 @@ mod tests {
         // dispatcher resource counts never become agent measurements.
         let (_, requests) = block_requests();
         let request = &requests[0];
-        let state = std::env::temp_dir().join(format!("smith-bench-dispatch-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-batch");
+        let state = scratch.path().to_path_buf().join(format!("smith-bench-dispatch-{}", std::process::id()));
         let guard = Guard::new(&state.join("user-home"), &state.join("config"), &state.join("state"), &[])
             .expect("synthetic guard");
         crate::isolate::create_directory(&guard, &state).expect("private state");
@@ -930,7 +931,7 @@ mod tests {
             artifact.path == Path::new("prepared.json")
                 && artifact.sha256 == crate::arm::binary_digest(&directory.join(&artifact.path)).expect("digest")
         }));
-        fs::remove_dir_all(state).expect("remove dispatch control");
+
     }
 }
 
@@ -953,7 +954,8 @@ mod native_suite_pin_tests {
         let commit = "a".repeat(40);
         let bytes = b"synthetic identity fixture; never executed\n";
         let digest = format!("{:x}", sha2::Sha256::digest(bytes));
-        let directory = std::env::temp_dir()
+        let scratch = skein_scratch::Scratch::new("bench-batch");
+        let directory = scratch.path().to_path_buf()
             .join(format!("smith-native-suite-pin-{}", std::process::id()))
             .join(crate::arm::arm_name(&commit, &digest).expect("arm name"));
         fs::create_dir_all(&directory).expect("isolated identity fixture");
@@ -1001,7 +1003,7 @@ mod native_suite_pin_tests {
         assert_eq!(configuration_matches(&pin, &request), Ok(false), "changed binary identity refused by admission");
         request.identity.binary_sha256 = digest;
         unknown_model_admission(root, &mut request);
-        fs::remove_dir_all(directory.parent().expect("fixture owner")).expect("cleanup");
+
     }
 
     fn unknown_model_admission(root: &Path, request: &mut Prepared) {

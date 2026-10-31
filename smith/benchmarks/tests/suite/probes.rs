@@ -417,7 +417,8 @@ fn smoke_catalogue_selects_five_active_probes_and_retains_deferred_one_turn_with
     let smoke = tasks.iter().find(|task| task.name == "probes/smoke-tools").expect("smoke-tools");
     let child = smoke.task.with_variant("child").expect("historical additive behavior");
     assert!(smoke.task.event.iter().all(|check| child.event.contains(check)));
-    let directory = std::env::temp_dir().join(format!("smith-probe-name-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-probes");
+    let directory = scratch.path().to_path_buf().join(format!("smith-probe-name-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("isolated author typo");
     let manifest = directory.join("task.toml");
     let source = std::fs::read_to_string(&smoke.manifest).expect("authored manifest");
@@ -428,7 +429,7 @@ fn smoke_catalogue_selects_five_active_probes_and_retains_deferred_one_turn_with
             .key
             .starts_with("deciding")
     );
-    std::fs::remove_dir_all(directory).expect("offline cleanup");
+
     let serialized = smith_bench::render_result(&result()).expect("historical result remains valid");
     assert_eq!(smith_bench::parse_result(&root, &serialized).expect("historical round trip"), result());
 }

@@ -52,7 +52,8 @@ fn a_graded_attempt_passes_on_end_grade_protected_and_tree() {
 
 #[test]
 fn a_task_without_deciding_checks_is_refused() {
-    let root = std::env::temp_dir().join(format!("smith-bench-no-deciding-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-outcomes");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-no-deciding-{}", std::process::id()));
     std::fs::create_dir(&root).expect("fixture root");
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/tasks/valid");
     std::fs::create_dir(root.join("seed")).expect("seed");
@@ -66,7 +67,7 @@ fn a_task_without_deciding_checks_is_refused() {
             .expect_err("every task names deciding checks");
     assert_eq!(error.key, "deciding");
     assert_eq!(error.reason, "task requires deciding checks");
-    std::fs::remove_dir_all(root).expect("remove fixture");
+
 }
 
 fn checks(ended: &Ended, checks: &[OutcomeCheck]) -> Vec<smith_bench::CheckVerdict> {

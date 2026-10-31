@@ -11,7 +11,8 @@ fn isolated_replay(name: &str) -> Option<PathBuf> {
     if let Some(root) = std::env::var_os("SMITH_REPOSITORY_REPLAY_ROOT") {
         return Some(PathBuf::from(root));
     }
-    let root = std::env::temp_dir().join(format!("smith-bench-{name}-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-runner");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-{name}-{}", std::process::id()));
     std::fs::create_dir(&root).expect("fixture root");
     let output = std::process::Command::new(std::env::current_exe().expect("test executable"))
         .args(["--exact", &format!("runner::{name}"), "--nocapture"])
@@ -21,7 +22,7 @@ fn isolated_replay(name: &str) -> Option<PathBuf> {
         .env("XDG_STATE_HOME", root.join("state"))
         .output()
         .expect("private replay process");
-    std::fs::remove_dir_all(root).expect("remove private replay");
+
     assert!(
         output.status.success(),
         "{}{}",

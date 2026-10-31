@@ -65,13 +65,14 @@ fn known_usage_shape_changes_and_foreign_thread_records_refuse() {
     assert!(parse_rollout(conflicting.as_bytes(), "root").is_err());
 }
 
-fn private(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("smith-codex-adapter-{}-{name}", std::process::id()))
+fn private(name: &str) -> skein_scratch::Scratch {
+    skein_scratch::Scratch::new(name)
 }
 
 #[test]
 fn codex_refuses_later_person_lines_before_reading_a_login() {
-    let root = private("person");
+    let scratch = private("person");
+    let root = scratch.path().join("root");
     std::fs::create_dir(&root).expect("fixture root");
     let guard = smith_bench::guard::Guard::new(&root.join("user"), &root.join("config"), &root.join("state"), &[])
         .expect("guard");
@@ -102,11 +103,12 @@ fn codex_refuses_later_person_lines_before_reading_a_login() {
     assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration);
     assert!(refusal.reason.contains("later person lines"));
     assert!(!scratch.root.join("codex").exists());
-    std::fs::remove_dir_all(root).expect("cleanup");
+
 }
 
 fn read_only_collection_follows_only_the_named_roots_descendants() {
-    let home = private("named");
+    let scratch = private("named");
+    let home = scratch.path().join("root");
     std::fs::create_dir_all(home.join("sessions")).expect("private fixture");
     let database = home.join("state_5.sqlite");
     let connection = Connection::open(&database).expect("fixture database");
@@ -129,11 +131,12 @@ fn read_only_collection_follows_only_the_named_roots_descendants() {
     assert_eq!(collected.files.len(), 2);
     assert_eq!(collected.children[0].link, Link::Linked { parent: "root".into() });
     assert_eq!(std::fs::read(database).expect("unchanged database"), before);
-    std::fs::remove_dir_all(home).expect("fixture cleanup");
+
 }
 
 fn a_named_path_cannot_read_credentials_or_an_unrelated_file() {
-    let home = private("path");
+    let scratch = private("path");
+    let home = scratch.path().join("root");
     std::fs::create_dir_all(&home).expect("fixture directory");
     let connection = Connection::open(home.join("state_5.sqlite")).expect("fixture database");
     connection.execute_batch("CREATE TABLE threads(id TEXT PRIMARY KEY, rollout_path TEXT); CREATE TABLE thread_spawn_edges(parent_thread_id TEXT, child_thread_id TEXT);").expect("schema");
@@ -145,7 +148,7 @@ fn a_named_path_cannot_read_credentials_or_an_unrelated_file() {
     drop(connection);
     let error = collect_rollouts(&home, "root").expect_err("not a rollout directory");
     assert!(!error.to_string().contains("CREDENTIAL_CONTROL_SENTINEL"));
-    std::fs::remove_dir_all(home).expect("fixture cleanup");
+
 }
 
 fn the_pinned_adapter_refuses_version_drift_and_isolates_the_user_home() {
@@ -154,7 +157,9 @@ fn the_pinned_adapter_refuses_version_drift_and_isolates_the_user_home() {
     use smith_bench::isolate::{SetupStep, empty};
     use smith_bench::{Agent, ModelChoice, read_task};
 
-    let root = private("prepare");
+    let scratch = private("prepare");
+
+    let root = scratch.path().join("root");
     let home = root.join("logins/codex");
     std::fs::create_dir_all(&home).expect("fake user home");
     let configuration = b"model=\"user-choice\"\n";
@@ -204,7 +209,7 @@ fn the_pinned_adapter_refuses_version_drift_and_isolates_the_user_home() {
     let parsed: toml::Value = toml::from_str(&format!("projects={projects}")).expect("dynamic path TOML");
     assert_eq!(parsed["projects"][private.workspace.to_str().expect("path")]["trust_level"].as_str(), Some("trusted"));
     assert_eq!(std::fs::read(home.join("config.toml")).expect("unmodified config"), configuration);
-    std::fs::remove_dir_all(root).expect("fixture cleanup");
+
 }
 
 fn synthetic_auth(expires: u64) -> Vec<u8> {
@@ -218,7 +223,8 @@ fn synthetic_auth(expires: u64) -> Vec<u8> {
 
 fn access_only_credentials_are_private_and_never_copy_a_refresh_or_other_home_file() {
     use std::os::unix::fs::PermissionsExt;
-    let root = private("credentials");
+    let scratch = private("credentials");
+    let root = scratch.path().join("root");
     std::fs::DirBuilder::new().mode(0o700).create(&root).expect("private fixture root");
     let source = root.join("logins/codex");
     std::fs::create_dir_all(&source).expect("fixture source");
@@ -253,11 +259,12 @@ fn access_only_credentials_are_private_and_never_copy_a_refresh_or_other_home_fi
     let proof = borrowed.finish(&guard).expect("after tree settlement");
     assert!(proof.source_unchanged && proof.credential_removed && proof.private_refresh_empty);
     assert_eq!(std::fs::read(source.join("auth.json")).expect("source unchanged"), original);
-    std::fs::remove_dir_all(root).expect("fixture cleanup");
+
 }
 
 fn credentials_expiring_before_the_hard_deadline_refuse_before_creating_a_home() {
-    let root = private("expiry");
+    let scratch = private("expiry");
+    let root = scratch.path().join("root");
     std::fs::DirBuilder::new().mode(0o700).create(&root).expect("private fixture root");
     let source = root.join("logins/codex");
     std::fs::create_dir_all(&source).expect("fixture source");
@@ -277,11 +284,12 @@ fn credentials_expiring_before_the_hard_deadline_refuse_before_creating_a_home()
     assert!(refusal.reason.contains(&format!("run `CODEX_HOME={} codex` once", source.display())));
     assert!(!refusal.reason.contains("UNISSUED"));
     assert!(!home.exists());
-    std::fs::remove_dir_all(root).expect("fixture cleanup");
+
 }
 
 fn changed_user_auth_is_reported_after_private_credentials_are_removed() {
-    let root = private("changed-source");
+    let scratch = private("changed-source");
+    let root = scratch.path().join("root");
     std::fs::DirBuilder::new().mode(0o700).create(&root).expect("private fixture root");
     let source = root.join("logins/codex");
     std::fs::create_dir_all(&source).expect("fixture source");
@@ -299,7 +307,7 @@ fn changed_user_auth_is_reported_after_private_credentials_are_removed() {
     std::fs::write(source.join("auth.json"), synthetic_auth(501)).expect("user refresh control");
     assert!(borrowed.finish(&guard).expect_err("source changed").contains("stop before further inference"));
     assert!(!borrowed.credential.exists());
-    std::fs::remove_dir_all(root).expect("fixture cleanup");
+
 }
 
 fn repeated_session_metadata_keeps_its_parent_and_refuses_conflicts() {
@@ -321,7 +329,8 @@ fn repeated_session_metadata_keeps_its_parent_and_refuses_conflicts() {
 }
 
 fn malformed_named_rollouts_remain_available_for_archive_and_keep_the_cached_fault() {
-    let home = private("raw-fault");
+    let scratch = private("raw-fault");
+    let home = scratch.path().join("root");
     std::fs::create_dir_all(home.join("sessions")).expect("private fixture");
     let file = home.join("sessions/root.jsonl");
     let raw = b"{\"type\":\"session_meta\",\"payload\":{\"id\":\"root\"}}\n{invalid JSON}\n";
@@ -355,7 +364,7 @@ fn malformed_named_rollouts_remain_available_for_archive_and_keep_the_cached_fau
     assert_eq!(retained.files.len(), 1);
     assert_eq!(retained.files[0].bytes, raw);
     assert_eq!(observing.collect().expect_err("cached fault").what, first);
-    std::fs::remove_dir_all(home).expect("fixture cleanup");
+
 }
 
 fn a_childs_inherited_parent_header_never_replaces_the_childs_ownership() {
@@ -427,7 +436,9 @@ fn paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_cred
     use smith_bench::isolate::SetupStep;
     use std::os::unix::fs::PermissionsExt;
 
-    let root = private("paths-prepare");
+    let scratch = private("paths-prepare");
+
+    let root = scratch.path().join("root");
     let home = root.join("logins/codex");
     std::fs::create_dir_all(&home).expect("unissued source directory");
     let auth = synthetic_auth(500);
@@ -507,7 +518,7 @@ fn paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_cred
     }
     assert_eq!(std::fs::read(home.join("auth.json")).expect("unissued source unchanged"), auth);
     smith_bench::isolate::remove_owned_tree(&guard, &private.root).expect("read-only owned layout cleaned");
-    std::fs::remove_dir_all(root).expect("unissued source fixture cleaned");
+
 }
 
 fn recorded_time(bytes: &[u8]) -> smith_bench::Timing {
@@ -671,6 +682,7 @@ fn codex_pin_fixture(root: &Path) -> (PathBuf, smith_bench::PinnedConfiguration,
 }
 
 struct CodexAttempt {
+    _scratch: skein_scratch::Scratch,
     root: PathBuf,
     guard: smith_bench::guard::Guard,
     private: smith_bench::isolate::Private,
@@ -684,7 +696,8 @@ struct CodexAttempt {
 
 impl CodexAttempt {
     fn new(name: &str) -> Self {
-        let root = private(name);
+        let scratch = private(name);
+        let root = scratch.path().join("root");
         let home = root.join("logins/codex");
         std::fs::create_dir_all(&home).expect("unissued login directory");
         std::fs::write(home.join("auth.json"), synthetic_auth(500)).expect("unissued login");
@@ -697,7 +710,7 @@ impl CodexAttempt {
         )
         .expect("fixture task");
         let model = smith_bench::ModelChoice { model: Some("gpt-6-luna".into()), effort: Some("low".into()) };
-        Self { root, guard, private, pin_file, pin, task, model, arm, home }
+        Self { _scratch: scratch, root, guard, private, pin_file, pin, task, model, arm, home }
     }
 
     fn context(&self) -> smith_bench::agent::Context<'_> {
@@ -720,7 +733,7 @@ impl CodexAttempt {
 
     fn finish(self, prepared: smith_bench::agent::codex::Prepared) {
         prepared.borrowed.expect("private credential").finish(&self.guard).expect("settled cleanup");
-        std::fs::remove_dir_all(self.root).expect("fixture cleanup");
+
     }
 }
 
@@ -736,7 +749,7 @@ fn a_codex_binary_whose_digest_differs_from_its_pin_is_refused() {
     assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration);
     assert!(refusal.reason.contains("differs from its pin"));
     assert!(!fixture.private.root.join("codex/auth.json").exists());
-    std::fs::remove_dir_all(fixture.root).expect("fixture cleanup");
+
 }
 
 #[test]

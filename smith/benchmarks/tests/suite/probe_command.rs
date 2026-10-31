@@ -7,8 +7,8 @@ use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn root(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("smith-probe-command-{name}-{}", std::process::id()))
+fn root(name: &str) -> skein_scratch::Scratch {
+    skein_scratch::Scratch::new(name)
 }
 
 #[test]
@@ -40,7 +40,8 @@ fn calibration_stops_at_ten_passes_or_once_ten_are_out_of_reach() {
 
 #[test]
 fn a_replay_arm_runs_through_the_probe_command_and_prints_one_line() {
-    let directory = root("replay");
+    let scratch = root("replay");
+    let directory = scratch.path().join("root");
     let arm = replay_arm(&directory);
     let login = directory.join("state/smith-bench/logins/smith");
     std::fs::create_dir_all(login.join("config/smith")).expect("synthetic configuration");
@@ -70,7 +71,7 @@ fn a_replay_arm_runs_through_the_probe_command_and_prints_one_line() {
     };
     assert_eq!(output.status.code(), Some(verdict));
     assert!(login.join("tokens/chatgpt").is_file());
-    std::fs::remove_dir_all(directory).expect("cleanup");
+
 }
 
 fn replay_arm(directory: &Path) -> PathBuf {
@@ -108,19 +109,20 @@ fn recorded_passes() -> Vec<smith_bench::AttemptResult> {
         .collect()
 }
 
-fn calibration_files(name: &str) -> (PathBuf, PathBuf) {
-    let directory = root(name);
+fn calibration_files(name: &str) -> (skein_scratch::Scratch, PathBuf, PathBuf) {
+    let scratch = root(name);
+    let directory = scratch.path().join("root");
     let repository = Path::new(env!("CARGO_MANIFEST_DIR"));
     std::fs::create_dir_all(&directory).expect("calibration directory");
 
     let file = directory.join("task.toml");
     std::fs::copy(repository.join("tasks/probes/smoke-tools/task.toml"), &file).expect("task");
-    (directory, file)
+    (scratch, directory, file)
 }
 
 #[test]
 fn a_calibration_block_names_its_summary_and_failing_control() {
-    let (directory, file) = calibration_files("block");
+    let (_scratch, directory, file) = calibration_files("block");
     let task = smith_bench::read_task(&file).expect("task");
     let block = common::calibration(&task);
     smith_bench::probe::record_calibration(&directory, &file, "probes/smoke-tools", &block, &recorded_passes(), 7)
@@ -132,12 +134,12 @@ fn a_calibration_block_names_its_summary_and_failing_control() {
     let summary = smith_bench::read_summary(&directory.join("benchmarks").join(&block.summary)).expect("summary");
     assert_eq!(summary.groups[0].attempts.len(), 10);
     assert!(task.calibrated().expect("current inputs"));
-    std::fs::remove_dir_all(directory).expect("cleanup");
+
 }
 
 #[test]
 fn a_variant_carries_its_own_calibration() {
-    let (directory, file) = calibration_files("variant");
+    let (_scratch, directory, file) = calibration_files("variant");
     let task = smith_bench::read_task(&file).expect("task").with_variant("child").expect("child");
     let block = common::calibration(&task);
     smith_bench::probe::record_calibration(
@@ -154,7 +156,7 @@ fn a_variant_carries_its_own_calibration() {
     let variant = task.with_variant("child").expect("child");
     assert_eq!(variant.calibration, Some(block));
     assert!(variant.calibrated().expect("current inputs"));
-    std::fs::remove_dir_all(directory).expect("cleanup");
+
 }
 
 #[test]
@@ -305,7 +307,8 @@ fn an_early_finish_before_the_threshold_is_a_model_deviation() {
 
 #[test]
 fn a_missing_smoke_login_refuses_before_calibration() {
-    let directory = root("missing-smoke-login");
+    let scratch = root("missing-smoke-login");
+    let directory = scratch.path().join("root");
     std::fs::DirBuilder::new().mode(0o700).create(&directory).expect("private root");
     let output = Command::new(env!("CARGO_BIN_EXE_smith-bench"))
         .args(["suite", "smoke"])
@@ -324,5 +327,5 @@ fn a_missing_smoke_login_refuses_before_calibration() {
             directory.join("state/smith-bench/logins/smith/config").display()
         )
     );
-    std::fs::remove_dir_all(directory).expect("synthetic cleanup");
+
 }

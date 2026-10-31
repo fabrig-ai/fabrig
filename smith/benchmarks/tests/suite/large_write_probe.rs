@@ -16,7 +16,8 @@ fn oversized_write_without_a_call_past_the_bound_is_not_exercised() {
     let mut records = common::events::balanced();
     let input = serde_json::json!({"path":"payload.txt","content":"Line 0001"});
     piece(&mut records, "write", "first", &input, Verdict::Written);
-    let workspace = std::env::temp_dir();
+    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
+    let workspace = scratch.path().to_path_buf();
     let verdict = observe(&records).oversized_write(std::path::Path::new("payload.txt"), 2048, Some(13848), &workspace);
     assert!(matches!(&verdict.passed, Measure::Unavailable { reason } if reason.starts_with("not exercised")));
     assert!(verdict.evidence.iter().any(|line| line.starts_with("NotExercised")));
@@ -27,7 +28,8 @@ fn payload_refusal_within_the_call_bound_is_not_exercised() {
     let mut records = common::events::balanced();
     let input = serde_json::json!({"path":"payload.txt","content":"x".repeat(20)});
     piece(&mut records, "write", "first", &input, Verdict::TooLarge);
-    let workspace = std::env::temp_dir();
+    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
+    let workspace = scratch.path().to_path_buf();
     let verdict = observe(&records).oversized_write(std::path::Path::new("payload.txt"), 10, Some(13848), &workspace);
     assert!(matches!(&verdict.passed, Measure::Unavailable { reason } if reason.starts_with("not exercised")));
     assert!(verdict.evidence.iter().any(|line| line.starts_with("NotExercised")));
@@ -35,7 +37,8 @@ fn payload_refusal_within_the_call_bound_is_not_exercised() {
 
 #[test]
 fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
-    let directory = std::env::temp_dir().join(format!("smith-pieces-unexercised-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
+    let directory = scratch.path().to_path_buf().join(format!("smith-pieces-unexercised-{}", std::process::id()));
     fs::create_dir(&directory).expect("fresh workspace");
     fs::write(directory.join("payload.txt"), "hello world").expect("settled pieces");
     let mut records = common::events::balanced();
@@ -82,7 +85,7 @@ fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
     records = original;
     fs::write(directory.join("payload.txt"), "altered").expect("saved file mismatch");
     assert_eq!(checked(&records), Measure::Observed { value: false });
-    fs::remove_dir_all(directory).expect("cleanup");
+
 }
 
 #[test]
@@ -145,7 +148,8 @@ fn version_nine_exercises_the_observed_call_bound_with_small_repair_pieces() {
 
 #[test]
 fn protocol_only_oversized_write_records_identity_and_elided_path() {
-    let directory = std::env::temp_dir().join(format!("smith-protocol-oversized-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
+    let directory = scratch.path().to_path_buf().join(format!("smith-protocol-oversized-{}", std::process::id()));
     fs::create_dir(&directory).expect("fresh workspace");
     let mut records = common::events::balanced();
     if let Event::ResponseCompleted(value) = &mut records[4].event {
@@ -214,7 +218,7 @@ fn protocol_only_oversized_write_records_identity_and_elided_path() {
         observe(&records).oversized_write(std::path::Path::new("payload.txt"), 10, Some(13848), &directory).passed,
         Measure::Unavailable { reason } if reason.starts_with("not exercised")
     ));
-    fs::remove_dir(directory).expect("cleanup");
+
 }
 
 #[test]
@@ -361,7 +365,8 @@ fn version_five_judges_saved_call_bytes_and_measures_seed_fidelity() {
 
 #[test]
 fn saved_write_checks_content_size_pairing_and_capture_not_seed() {
-    let directory = std::env::temp_dir().join(format!("smith-written-file-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
+    let directory = scratch.path().to_path_buf().join(format!("smith-written-file-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("fresh workspace");
     let content = "A line.\nAnother line.\n";
     std::fs::write(directory.join("payload.txt"), content).expect("saved write");
@@ -404,12 +409,13 @@ fn saved_write_checks_content_size_pairing_and_capture_not_seed() {
     assert!(matches!(checked(&records, 1), Measure::Unavailable { .. }));
     std::fs::write(directory.join("payload.txt"), "altered").expect("tampered saved file");
     assert_eq!(checked(&original, 1), Measure::Observed { value: false });
-    std::fs::remove_dir_all(directory).expect("cleanup workspace");
+
 }
 
 #[test]
 fn oversized_pieces_replay_successful_edits_and_keep_failed_edit_measurement() {
-    let directory = std::env::temp_dir().join(format!("smith-file-pieces-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
+    let directory = scratch.path().to_path_buf().join(format!("smith-file-pieces-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("fresh workspace");
     std::fs::write(directory.join("payload.txt"), "hello wide world").expect("saved pieces");
     let mut records = common::events::balanced();
@@ -478,7 +484,7 @@ fn oversized_pieces_replay_successful_edits_and_keep_failed_edit_measurement() {
     assert_eq!(checked(&records), Measure::Observed { value: false });
     std::fs::write(directory.join("payload.txt"), "different pieces").expect("tampered saved file");
     assert_eq!(checked(&original), Measure::Observed { value: false });
-    std::fs::remove_dir_all(directory).expect("cleanup workspace");
+
 }
 
 fn piece(records: &mut Vec<smith_events::Record>, tool: &str, call: &str, input: &serde_json::Value, verdict: Verdict) {
@@ -645,7 +651,8 @@ fn tail_repetitions(file: &std::path::Path) -> usize {
 
 #[test]
 fn payload_too_large_write_then_observed_pieces_is_a_valid_oversized_refusal() {
-    let directory = std::env::temp_dir().join(format!("smith-native-refusal-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
+    let directory = scratch.path().to_path_buf().join(format!("smith-native-refusal-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("fresh workspace");
     std::fs::write(directory.join("payload.txt"), "hello world").expect("saved pieces");
     let mut records = common::events::balanced();
@@ -672,7 +679,7 @@ fn payload_too_large_write_then_observed_pieces_is_a_valid_oversized_refusal() {
         }
     }
     let got = observe(&records).file_pieces(std::path::Path::new("payload.txt"), 10, 64, &directory).passed;
-    std::fs::remove_dir_all(directory).expect("cleanup workspace before assertion");
+
     assert_eq!(got, Measure::Observed { value: true });
 }
 
@@ -711,7 +718,8 @@ fn corrected_refusal_checks_keep_normal_low_and_only_oversized_v8_medium() {
 
 #[test]
 fn native_oversized_refusal_rejects_wrong_pairs_small_content_loss_and_absent_capture() {
-    let directory = std::env::temp_dir().join(format!("smith-refusal-negatives-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
+    let directory = scratch.path().to_path_buf().join(format!("smith-refusal-negatives-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("fresh workspace");
     let mut records = common::events::balanced();
     piece(
@@ -780,14 +788,15 @@ fn native_oversized_refusal_rejects_wrong_pairs_small_content_loss_and_absent_ca
         observe(&original).check(&EventCheck::Blocks { oversized: Some(Count::Exactly(0)), cut: None }, "task").passed,
         Measure::Observed { value: true }
     );
-    std::fs::remove_dir_all(directory).expect("cleanup");
+
 }
 
 #[test]
 fn oversized_refusal_threshold_must_equal_the_native_tool_payload() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let source = root.join("tests/fixtures/large-write/v8");
-    let directory = std::env::temp_dir().join(format!("smith-refusal-declaration-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
+    let directory = scratch.path().to_path_buf().join(format!("smith-refusal-declaration-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("fresh task");
     std::fs::create_dir(directory.join("seed")).expect("seed directory");
     for name in ["source.txt", "oversized-source.txt", "README.md"] {
@@ -799,6 +808,6 @@ fn oversized_refusal_threshold_must_equal_the_native_tool_payload() {
     std::fs::write(directory.join("task.toml"), document).expect("wrong threshold fixture");
     let refused = smith_bench::check_task(&directory.join("task.toml"), &root.join("../docs/design"))
         .expect_err("native bound mismatch refuses");
-    std::fs::remove_dir_all(directory).expect("cleanup");
+
     assert!(refused.to_string().contains("authored native tool_payload"));
 }

@@ -8,13 +8,10 @@ use smith_bench::isolate::Machine;
 use smith_bench::run::{Prepared, attempt, scratch_root};
 use smith_bench::{End, Measure};
 
-fn root(story: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("smith-bench-pipeline-{story}-{}", std::process::id()))
-}
-
-fn fixture(story: &str) -> (Guard, Machine, PathBuf, Prepared) {
+fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Prepared) {
     use std::os::unix::fs::DirBuilderExt;
-    let root = root(story);
+    let scratch = skein_scratch::Scratch::new(story);
+    let root = scratch.path().join("root");
     fs::DirBuilder::new().mode(0o700).create(&root).expect("fresh story root");
     let task = root.join("task");
     fs::create_dir(&task).expect("task");
@@ -44,12 +41,13 @@ fn fixture(story: &str) -> (Guard, Machine, PathBuf, Prepared) {
     let guard =
         Guard::new(&root.join("user-home"), &root.join("user-config"), &root.join("user-state"), &[]).expect("guard");
     let machine = Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
-    (guard, machine, root, prepared)
+    (guard, machine, scratch, prepared)
 }
 
 #[test]
 fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer() {
-    let (guard, machine, root, prepared) = fixture("archives");
+    let (guard, machine, scratch_directory, prepared) = fixture("archives");
+    let root = scratch_directory.path().join("root");
     let request = root.join("prepared.json");
     fs::write(&request, serde_json::to_vec(&prepared).expect("prepared JSON")).expect("request");
     let clock = skein_shell::Clock::new();
@@ -130,14 +128,16 @@ fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
     .expect("settled crashed grader");
     assert!(matches!(judgment.end, smith_bench::grade::GradeEnd::Fault { .. }));
     assert_eq!(judgment.stdout, b"crash-evidence");
-    fs::remove_dir_all(root).expect("remove synthetic story");
+
 }
 
 #[test]
 fn login_shells_keep_machine_path_in_setup_agent_and_grading() {
     use std::os::unix::fs::PermissionsExt;
 
-    let (guard, mut machine, root, mut prepared) = fixture("login-path");
+    let (guard, mut machine, scratch_directory, mut prepared) = fixture("login-path");
+
+    let root = scratch_directory.path().join("root");
     let tools = root.join("machine's tools $literal");
     fs::create_dir(&tools).expect("machine tool directory");
     let tool = tools.join("smith-login-path-fixture");
@@ -165,12 +165,13 @@ fn login_shells_keep_machine_path_in_setup_agent_and_grading() {
     assert_eq!(recorded.result.outcome.end, End::Completed, "{:?}", recorded.result.outcome);
     assert_eq!(recorded.result.outcome.grade, Some(Measure::Observed { value: true }));
     assert!(!scratch_root(&root.join("state"), &prepared).expect("scratch").exists());
-    fs::remove_dir_all(root).expect("remove synthetic story");
+
 }
 
 #[test]
 fn an_existing_scratch_root_is_refused_and_never_deleted() {
-    let (guard, machine, root, prepared) = fixture("existing");
+    let (guard, machine, scratch_directory, prepared) = fixture("existing");
+    let root = scratch_directory.path().join("root");
     let scratch = scratch_root(&root.join("state"), &prepared).expect("scratch");
     fs::create_dir_all(&scratch).expect("existing directory");
     {
@@ -183,7 +184,7 @@ fn an_existing_scratch_root_is_refused_and_never_deleted() {
     assert!(matches!(recorded.result.outcome.end, End::Refused { .. }));
     assert_eq!(recorded.incomplete, smith_bench::run::Incomplete::Setup(smith_bench::isolate::SetupStep::Scratch));
     assert_eq!(fs::read_to_string(scratch.join("sentinel")).expect("retained original"), "keep");
-    fs::remove_dir_all(root).expect("remove synthetic story");
+
 }
 
 fn check_replay_judgments(result: &smith_bench::AttemptResult) {

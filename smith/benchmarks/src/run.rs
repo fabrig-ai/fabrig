@@ -1218,7 +1218,8 @@ mod tests {
 
     #[test]
     fn the_seed_snapshot_comes_from_the_copied_source() {
-        let root = std::env::temp_dir().join(format!("smith-bench-copied-source-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-run");
+        let root = scratch.path().to_path_buf().join(format!("smith-bench-copied-source-{}", std::process::id()));
         fs::create_dir(&root).expect("fixture root");
         let guard = Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[]).expect("guard");
         let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/bundles/tiny");
@@ -1229,6 +1230,6 @@ mod tests {
         assert!(!snapshot.contains_key(Path::new("bundle.toml")));
         fs::write(private.workspace.join("Cargo.toml"), "setup-created").expect("setup edit");
         assert!(!snapshot.contains_key(Path::new("Cargo.toml")));
-        fs::remove_dir_all(root).expect("remove fixture");
+
     }
 }

@@ -66,7 +66,8 @@ fn every_fixture_grader_holds_the_seeds_test_functions() {
 
 #[test]
 fn a_reference_that_changes_a_protected_path_fails_validation() {
-    let root = std::env::temp_dir().join(format!("smith-bench-protected-reference-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-offline");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-protected-reference-{}", std::process::id()));
     std::fs::create_dir_all(root.join("seed")).expect("seed");
     std::fs::create_dir(root.join("reference")).expect("reference");
     std::fs::write(root.join("seed/Cargo.toml"), "seed").expect("protected seed");
@@ -82,19 +83,20 @@ fn a_reference_that_changes_a_protected_path_fails_validation() {
     std::fs::write(root.join("task.toml"), manifest).expect("manifest");
     let error = smith_bench::validate::validate(&root, &[]).expect_err("changed protection refuses");
     assert!(error.contains("reference changes Cargo.toml"), "{error}");
-    std::fs::remove_dir_all(root).expect("remove temporary task");
+
 }
 
-fn comparison_document(name: &str) -> (PathBuf, String) {
-    let directory = std::env::temp_dir().join(format!("smith-bench-{name}-{}", std::process::id()));
+fn comparison_document(name: &str) -> (skein_scratch::Scratch, PathBuf, String) {
+    let scratch = skein_scratch::Scratch::new("bench-offline");
+    let directory = scratch.path().to_path_buf().join(format!("smith-bench-{name}-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("temporary task");
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tasks/fixtures/01-backoff/task.toml");
-    (directory.join("task.toml"), std::fs::read_to_string(manifest).expect("fixture document"))
+    (scratch, directory.join("task.toml"), std::fs::read_to_string(manifest).expect("fixture document"))
 }
 
 #[test]
 fn a_comparison_task_with_a_budget_is_refused() {
-    let (file, document) = comparison_document("comparison-budget");
+    let (_scratch, file, document) = comparison_document("comparison-budget");
     for kind in ["fixture", "repository"] {
         for budget in ["[budget]\n", "[budget]\nseconds = 1\n"] {
             let document = document.replace("kind = \"fixture\"", &format!("kind = \"{kind}\""));
@@ -104,12 +106,12 @@ fn a_comparison_task_with_a_budget_is_refused() {
             assert_eq!(error.reason, "comparison task must not name a budget", "{kind}: {budget}");
         }
     }
-    std::fs::remove_dir_all(file.parent().expect("task directory")).expect("remove temporary task");
+
 }
 
 #[test]
 fn a_comparison_variant_with_a_budget_is_refused() {
-    let (file, document) = comparison_document("comparison-variant-budget");
+    let (_scratch, file, document) = comparison_document("comparison-variant-budget");
     for kind in ["fixture", "repository"] {
         let document = document.replace("kind = \"fixture\"", &format!("kind = \"{kind}\""));
         std::fs::write(&file, format!("{document}\n[[variant]]\nname = 'budget'\n[variant.budget]\n"))
@@ -118,12 +120,12 @@ fn a_comparison_variant_with_a_budget_is_refused() {
         assert_eq!(error.key, "variant[0].budget", "{kind}");
         assert_eq!(error.reason, "comparison task must not name a budget", "{kind}");
     }
-    std::fs::remove_dir_all(file.parent().expect("task directory")).expect("remove temporary task");
+
 }
 
 #[test]
 fn a_comparison_deadline_at_the_run_defaults_is_refused() {
-    let (file, document) = comparison_document("comparison-deadline");
+    let (_scratch, file, document) = comparison_document("comparison-deadline");
     for kind in ["fixture", "repository"] {
         for deadline in [3_600, 3_601, u64::MAX] {
             let document = document
@@ -138,7 +140,7 @@ fn a_comparison_deadline_at_the_run_defaults_is_refused() {
             );
         }
     }
-    std::fs::remove_dir_all(file.parent().expect("task directory")).expect("remove temporary task");
+
 }
 
 #[test]
@@ -269,7 +271,8 @@ fn a_summary_and_baseline_from_recorded_results_round_trip_offline() {
     assert_eq!(summary.groups[0].counts_by_end["completed"], 1);
     assert_eq!(summary.groups[0].metrics["task_wall_ms"].observed, 1);
     let baseline = smith_bench::baseline(&summary).expect("single configuration baseline");
-    let root = std::env::temp_dir().join(format!("smith-bench-summary-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-offline");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-summary-{}", std::process::id()));
     std::fs::create_dir(&root).expect("fresh test root");
     let summary_file = root.join("summary.json");
     let baseline_file = root.join("baseline.json");
@@ -278,7 +281,7 @@ fn a_summary_and_baseline_from_recorded_results_round_trip_offline() {
     assert_eq!(smith_bench::read_summary(&summary_file).expect("round-trip"), summary);
     assert_eq!(smith_bench::read_baseline(&baseline_file).expect("round-trip"), baseline);
     assert!(smith_bench::write_summary(&summary_file, &summary).is_err(), "committed evidence is not overwritten");
-    std::fs::remove_dir_all(root).expect("test root removed");
+
 }
 
 // Related offline assertions share a test process to keep startup overhead

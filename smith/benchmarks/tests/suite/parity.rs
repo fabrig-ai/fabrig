@@ -65,7 +65,8 @@ fn a_summary_with_a_retried_failure_row_verifies_against_its_own_section() {
         missing: vec!["session-0/run-1/conversation-0: session-0/run-1/response-3: retried failure".into()],
     };
     summary.parity = Some(recompute(&summary));
-    let file = std::env::temp_dir().join(format!("smith-bench-parity-roundtrip-{}.json", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-parity");
+    let file = scratch.path().to_path_buf().join(format!("smith-bench-parity-roundtrip-{}.json", std::process::id()));
     smith_bench::write_summary(&file, &summary).expect("write summary");
     let read_back = smith_bench::read_summary(&file).expect("read summary");
     std::fs::remove_file(file).expect("remove summary");
@@ -507,20 +508,22 @@ fn an_incomplete_report_stops_before_a_moved_criterion() {
 
 #[test]
 fn the_change_command_refuses_a_section_that_disagrees() {
-    let (mut summary, directory) = common::named_change("disagrees");
+    let (mut summary, scratch) = common::named_change("disagrees");
+    let directory = scratch.path().join(format!("smith-change-{}-{}", "disagrees", std::process::id()));
     summary.change.as_mut().expect("section").ratios[0].value.statistic = 2.0;
     let file = directory.join("change.json");
     smith_bench::write_summary(&file, &summary).expect("changed section");
     let code = parity::change::command(&file);
     assert_eq!(code, 3);
     assert_eq!(parity::change::verify(&summary), Err("committed change section disagrees with rows or inputs".into()));
-    std::fs::remove_dir_all(directory).expect("cleanup");
+
 }
 
 #[test]
 fn the_change_command_agrees_with_a_stopped_section() {
     const CHANGE_WALL_MS: u64 = 200_000;
-    let (mut summary, directory) = common::named_change("stopped");
+    let (mut summary, scratch) = common::named_change("stopped");
+    let directory = scratch.path().join(format!("smith-change-{}-{}", "stopped", std::process::id()));
     for row in &mut summary.attempts {
         if row.agent_version == common::CHANGE_COMMIT {
             row.task_wall_ms = Measure::Observed { value: CHANGE_WALL_MS };
@@ -534,27 +537,29 @@ fn the_change_command_agrees_with_a_stopped_section() {
     let code = parity::change::command(&file);
     assert_eq!(code, 0);
     assert_eq!(summary.change.expect("section").stop, Some(parity::change::Stop::Moved { criterion: "FT".into() }));
-    std::fs::remove_dir_all(directory).expect("cleanup");
+
 }
 
 #[test]
 fn a_change_command_refuses_an_input_whose_hash_differs() {
-    let (summary, directory) = common::named_change("digest");
+    let (summary, scratch) = common::named_change("digest");
+    let directory = scratch.path().join(format!("smith-change-{}-{}", "digest", std::process::id()));
     let file = directory.join("change.json");
     smith_bench::write_summary(&file, &summary).expect("stored section");
     std::fs::write(directory.join("baseline.json"), b"changed input").expect("changed baseline");
     let code = parity::change::command(&file);
     assert_eq!(code, 3);
-    std::fs::remove_dir_all(directory).expect("cleanup");
+
 }
 
 #[test]
 fn a_change_command_refuses_a_missing_input() {
-    let (summary, directory) = common::named_change("missing");
+    let (summary, scratch) = common::named_change("missing");
+    let directory = scratch.path().join(format!("smith-change-{}-{}", "missing", std::process::id()));
     let file = directory.join("change.json");
     smith_bench::write_summary(&file, &summary).expect("stored section");
     std::fs::remove_file(directory.join("baseline.json")).expect("remove baseline");
     let code = parity::change::command(&file);
     assert_eq!(code, 3);
-    std::fs::remove_dir_all(directory).expect("cleanup");
+
 }

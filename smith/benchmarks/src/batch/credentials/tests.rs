@@ -43,7 +43,8 @@ fn isolated(name: &str) -> Option<PathBuf> {
     if let Some(root) = std::env::var_os("SMITH_BENCH_PAIR_ROOT") {
         return Some(root.into());
     }
-    let root = std::env::temp_dir().join(format!("smith-bench-pair-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-tests");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-pair-{}", std::process::id()));
     std::fs::DirBuilder::new().mode(0o700).create(&root).expect("private synthetic root");
     let output = std::process::Command::new(std::env::current_exe().expect("test executable"))
         .args(["--exact", name, "--nocapture"])
@@ -55,7 +56,7 @@ fn isolated(name: &str) -> Option<PathBuf> {
         .env("XDG_STATE_HOME", root.join("state"))
         .output()
         .expect("isolated pair control");
-    std::fs::remove_dir_all(root).expect("synthetic cleanup");
+
     assert!(
         output.status.success(),
         "{}{}",

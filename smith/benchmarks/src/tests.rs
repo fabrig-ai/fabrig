@@ -18,12 +18,13 @@ seed_sha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 "#;
 
 fn person_document(name: &str, suffix: &str) -> Result<crate::Task, crate::Refusal> {
-    let root = std::env::temp_dir().join(format!("smith-bench-person-{name}-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-tests");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-person-{name}-{}", std::process::id()));
     std::fs::create_dir_all(root.join("seed")).expect("empty seed");
     let file = root.join("task.toml");
     std::fs::write(&file, format!("{DOCUMENT}{suffix}")).expect("task document");
     let result = check_task(&file, &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../docs/design"));
-    std::fs::remove_dir_all(root).expect("fixture cleanup");
+
     result
 }
 
@@ -222,7 +223,8 @@ fn a_calibration_requires_ten_distinct_passes() {
 fn a_seed_digest_freezes_names_content_and_executable_permissions() {
     use std::os::unix::fs::PermissionsExt;
 
-    let root = std::env::temp_dir().join(format!("smith-bench-digest-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-tests");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-digest-{}", std::process::id()));
     std::fs::create_dir(&root).expect("fresh test directory");
     let original = root.join("a.txt");
     std::fs::write(&original, "one").expect("test seed");
@@ -237,16 +239,17 @@ fn a_seed_digest_freezes_names_content_and_executable_permissions() {
     std::fs::set_permissions(&original, std::fs::Permissions::from_mode(0o600)).expect("restored mode");
     std::fs::rename(&original, root.join("b.txt")).expect("changed name");
     assert_ne!(seed_digest(&root).expect("renamed digest"), baseline);
-    std::fs::remove_dir_all(&root).expect("test directory removed");
+
 }
 
 fn a_seed_symlink_cannot_reach_hidden_inputs() {
-    let root = std::env::temp_dir().join(format!("smith-bench-link-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-tests");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-link-{}", std::process::id()));
     std::fs::create_dir(&root).expect("fresh test directory");
     std::os::unix::fs::symlink("../grader", root.join("hidden")).expect("seed symlink");
     let error = seed_digest(&root).expect_err("seed must not follow symlinks");
     assert!(error.reason.contains("symlinks"), "{error}");
-    std::fs::remove_dir_all(&root).expect("test directory removed");
+
 }
 
 fn sample_suite() -> crate::Suite {

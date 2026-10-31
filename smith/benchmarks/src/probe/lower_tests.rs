@@ -7,6 +7,7 @@ const RUN: &str = "lower-plan";
 const STARTED: &str = "2026-10-29T00:00:00Z";
 
 struct Fixture {
+    _scratch: skein_scratch::Scratch,
     directory: PathBuf,
     guard: Guard,
     arm: ArmRef,
@@ -14,7 +15,8 @@ struct Fixture {
 
 impl Fixture {
     fn new(name: &str) -> Self {
-        let directory = std::env::temp_dir().join(format!("smith-lower-plan-{name}-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-lower_tests");
+        let directory = scratch.path().to_path_buf().join(format!("smith-lower-plan-{name}-{}", std::process::id()));
         fs::DirBuilder::new().mode(0o700).create(&directory).expect("private output");
         let guard = Guard::new(&directory.join("home"), &directory.join("config"), &directory.join("state"), &[])
             .expect("guard");
@@ -28,7 +30,7 @@ impl Fixture {
                 binaries: Vec::new(),
             },
         });
-        Self { directory, guard, arm }
+        Self { _scratch: scratch, directory, guard, arm }
     }
 
     fn requests(&self, agent: Agent, arm: &ArmRef, attempts: u32) -> Vec<crate::run::Prepared> {
@@ -61,9 +63,6 @@ impl Fixture {
         requests
     }
 
-    fn clean(self) {
-        fs::remove_dir_all(self.directory).expect("owned cleanup");
-    }
 }
 
 #[test]
@@ -89,7 +88,6 @@ fn supplied_arm_plans_each_attempt_with_pin_and_tier() {
         assert_eq!(persisted.identity.attempt, attempt);
         assert_eq!(persisted.identity.run, RUN);
     }
-    fixture.clean();
 }
 
 #[test]
@@ -101,7 +99,6 @@ fn installed_codex_selects_the_standard_pin_without_environment() {
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].identity.agent, Agent::Codex);
     assert!(requests[0].configuration.as_ref().expect("pin").ends_with("codex/standard.pin.toml"));
-    fixture.clean();
 }
 
 #[test]
@@ -115,5 +112,4 @@ fn program_order_keeps_provider_model_pin_and_arm_identity() {
     assert_eq!(request.identity.model.requested_model, "claude-haiku-5-5");
     assert_eq!(request.identity.arm, "smith-claude-code-bbbbbbbb");
     assert!(request.configuration.as_ref().expect("program pin").ends_with("smith/smith-claude-code.pin.toml"));
-    fixture.clean();
 }

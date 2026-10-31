@@ -323,11 +323,12 @@ fn a_suite_run_below_its_attempts_is_summarised_as_small() {
     result.identity.task = "fixtures/01-backoff".into();
     let batch =
         crate::batch::Batch { results: vec![result], incomplete: false, probes: std::collections::BTreeMap::new() };
-    let directory = std::env::temp_dir().join(format!("smith-small-suite-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-suite");
+    let directory = scratch.path().to_path_buf().join(format!("smith-small-suite-{}", std::process::id()));
     assert_eq!(small_summary(&batch, &suite, 17, &directory).expect("small summary"), Judgment::Incomplete);
     let summary = crate::read_summary(&directory.join("summary.json")).expect("run-local summary");
     assert_eq!(summary.parity.expect("section").verdict, crate::parity::Verdict::Incomplete);
-    fs::remove_dir_all(directory).expect("cleanup");
+
 }
 
 #[test]
@@ -348,7 +349,8 @@ fn a_change_run_below_its_attempts_exits_two_whatever_its_stop() {
         })
         .collect();
     recorded.attempts.retain(|row| kept.contains(&row.attempt));
-    let directory = std::env::temp_dir().join(format!("smith-small-change-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-suite");
+    let directory = scratch.path().to_path_buf().join(format!("smith-small-change-{}", std::process::id()));
     fs::create_dir(&directory).expect("run directory");
     let mut baseline = crate::read_summary(&root.join("tests/recorded/parity/on-par.json")).expect("baseline");
     baseline.attempts.clear();
@@ -365,5 +367,5 @@ fn a_change_run_below_its_attempts_exits_two_whatever_its_stop() {
         assert_eq!(settle_change(recorded.clone(), &run, &inputs, true).expect("small run"), Judgment::Incomplete);
         assert_eq!(crate::read_summary(&run.join("summary.json")).expect("run-local summary").suite, "parity-change");
     }
-    fs::remove_dir_all(directory).expect("cleanup");
+
 }

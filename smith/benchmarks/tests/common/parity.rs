@@ -46,8 +46,9 @@ pub fn change_baseline() -> RunSummary {
     summary
 }
 
-pub fn named_change(name: &str) -> (RunSummary, std::path::PathBuf) {
-    let directory = std::env::temp_dir().join(format!("smith-change-{name}-{}", std::process::id()));
+pub fn named_change(name: &str) -> (RunSummary, skein_scratch::Scratch) {
+    let scratch = skein_scratch::Scratch::new("bench-parity");
+    let directory = scratch.path().to_path_buf().join(format!("smith-change-{name}-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("temporary input directory");
     let baseline = directory.join("baseline.json");
     smith_bench::write_summary(&baseline, &change_baseline()).expect("baseline input");
@@ -60,5 +61,5 @@ pub fn named_change(name: &str) -> (RunSummary, std::path::PathBuf) {
     for projection in &mut report.projection {
         projection.baseline_interval = (0.9, 1.1);
     }
-    (summary, directory)
+    (summary, scratch)
 }

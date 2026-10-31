@@ -109,7 +109,8 @@ mod tests {
 
     #[test]
     fn one_claude_login_holds_one_serial_lock() {
-        let root = std::env::temp_dir().join(format!("smith-bench-serial-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-logins");
+        let root = scratch.path().to_path_buf().join(format!("smith-bench-serial-{}", std::process::id()));
         std::fs::DirBuilder::new().mode(0o700).create(&root).expect("private root");
         let guard = crate::guard::Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[])
             .expect("guard");
@@ -120,7 +121,7 @@ mod tests {
         drop(first);
         second.try_lock().expect("next program attempt after settlement");
         drop(second);
-        std::fs::remove_dir_all(root).expect("synthetic cleanup");
+
     }
 
     #[test]
@@ -132,7 +133,8 @@ mod tests {
 
     #[test]
     fn missing_login_pieces_name_the_setup_command() {
-        let root = std::env::temp_dir().join(format!("smith-bench-logins-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-logins");
+        let root = scratch.path().to_path_buf().join(format!("smith-bench-logins-{}", std::process::id()));
         std::fs::DirBuilder::new().mode(0o700).create(&root).expect("private synthetic root");
         for (account, missing) in [
             ("chatgpt", "config/smith/config.toml"),
@@ -160,13 +162,13 @@ mod tests {
                     directory.join("config").display()
                 )
             );
-            std::fs::remove_dir_all(directory).expect("reset synthetic setup");
+
         }
         let directory = root.join("codex");
         assert_eq!(
             codex(&directory).expect_err("missing Codex").reason,
             format!("no Codex login for the harness: run `CODEX_HOME={} codex login`", directory.display())
         );
-        std::fs::remove_dir_all(root).expect("synthetic cleanup");
+
     }
 }
