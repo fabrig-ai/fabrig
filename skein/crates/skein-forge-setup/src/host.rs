@@ -20,6 +20,15 @@ use run::{Run, Send, forgejo_pair};
 pub use settings::{Forge, Kind, Settings, Transport};
 use skein_lib::{CryptoRng, Env, List, Map, Queue, Secret, Time, Token, bytes};
 
+/// The host's permanent ending (programming-model.md, 5.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Ending {
+    Live,
+    Closing,
+    Aborting,
+    Closed,
+}
+
 /// A service's setup plans: one writing run and one Reachable per forge (6.3).
 pub struct Host {
     settings: Settings,
@@ -31,8 +40,7 @@ pub struct Host {
     closing_tokens: List<Token>,
     next_token: u64,
     wake: Option<Time>,
-    closing: bool,
-    ended: bool,
+    ending: Ending,
 }
 impl Host {
     pub fn new(limits: &Limits, settings: Settings, crypto: CryptoRng) -> Result<Self, Unusable> {
@@ -47,8 +55,7 @@ impl Host {
             closing_tokens: List::with_capacity(limits.runs),
             next_token: 1,
             wake: None,
-            closing: false,
-            ended: false,
+            ending: Ending::Live,
         })
     }
     pub fn down(
@@ -58,11 +65,11 @@ impl Host {
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
-        if self.closing {
-            return;
-        }
         match request {
             Request::Run { run, plan } => {
+                if self.ending != Ending::Live {
+                    return;
+                }
                 let forge = plan.forge();
                 assert!(!self.runs.contains_key(&run), "one live run per owner token");
                 let configured = configured(&self.settings, forge);
@@ -111,24 +118,55 @@ impl Host {
                 }
             }
             Request::Answer { run, answer } => {
+                if self.ending != Ending::Live {
+                    return;
+                }
                 if let Some(live) = self.runs.get_mut(&run) {
                     live.answer(answer, &mut self.plan_out);
                 }
             }
             Request::Close => {
-                self.closing = true;
-                self.states.clear();
-                self.runs = Map::with_capacity(self.runs.capacity());
-                self.closing_tokens.clear();
-                for (token, _) in &self.connections {
-                    self.closing_tokens.push(*token).expect("bounded connections");
+                match self.ending {
+                    Ending::Live => self.ending = Ending::Closing,
+                    Ending::Closing | Ending::Aborting | Ending::Closed => return,
                 }
-                for token in &self.closing_tokens {
-                    self.connections.get_mut(token).expect("owned connection").abort();
+                self.end(false, up);
+            }
+            Request::Abort => {
+                match self.ending {
+                    Ending::Live | Ending::Closing => self.ending = Ending::Aborting,
+                    Ending::Aborting | Ending::Closed => return,
                 }
+                self.end(true, up);
             }
         }
         self.drive(env, up, io);
+    }
+    fn end(&mut self, abort: bool, up: &mut Queue<Event>) {
+        self.states.clear();
+        if abort {
+            // Each admitted run is removed once, before any late answer can reach it.
+            for _ in 0..self.runs.len() {
+                let token = *self.runs.first().expect("remaining run").0;
+                let run = self.runs.remove(&token).expect("owned run");
+                let forge = configured(&self.settings, run.forge);
+                let failure = run.cancel(forge, &mut self.plan_out);
+                up.push(Event::Stop { run: token, failure });
+            }
+        } else {
+            self.runs = Map::with_capacity(self.runs.capacity());
+        }
+        self.closing_tokens.clear();
+        for (token, _) in &self.connections {
+            self.closing_tokens.push(*token).expect("bounded connections");
+        }
+        for token in &self.closing_tokens {
+            let connection = self.connections.get_mut(token).expect("owned connection");
+            // A completed reply may already have a graceful close in flight.
+            if abort || connection.closing.is_none() {
+                connection.abort();
+            }
+        }
     }
     pub fn up(
         &mut self,
@@ -217,8 +255,8 @@ impl Host {
                 self.drive_run(token, env, up, io);
                 continue;
             }
-            if self.closing && self.connections.is_empty() && !self.ended {
-                self.ended = true;
+            if self.ending_pending() && self.connections.is_empty() {
+                self.ending = Ending::Closed;
                 up.push(Event::Closed);
             }
             return;
@@ -264,7 +302,14 @@ impl Host {
                 return true;
             }
         }
-        self.closing && !self.ended && self.connections.is_empty()
+        self.ending_pending() && self.connections.is_empty()
+    }
+
+    fn ending_pending(&self) -> bool {
+        match self.ending {
+            Ending::Live | Ending::Closed => false,
+            Ending::Closing | Ending::Aborting => true,
+        }
     }
 
     fn drive_connection(&mut self, token: Token, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
@@ -386,7 +431,7 @@ impl core::fmt::Debug for Host {
         f.debug_struct("Host")
             .field("runs", &self.runs.len())
             .field("connections", &self.connections.len())
-            .field("closing", &self.closing)
+            .field("ending", &self.ending)
             .finish_non_exhaustive()
     }
 }

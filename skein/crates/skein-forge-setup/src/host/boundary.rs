@@ -109,9 +109,20 @@ pub(super) enum Dialect {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Request {
-    Run { run: Token, plan: Plan },
-    Answer { run: Token, answer: Answer },
+    Run {
+        run: Token,
+        plan: Plan,
+    },
+    Answer {
+        run: Token,
+        answer: Answer,
+    },
     Close,
+    /// A close that does not wait: end held runs as cancelled (`Stop`, `Down`)
+    /// and abort every connection. `Closed` follows once io has settled them.
+    /// Upgrades a close; a later close or abort changes nothing
+    /// (programming-model.md, 5.2).
+    Abort,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Answer {
