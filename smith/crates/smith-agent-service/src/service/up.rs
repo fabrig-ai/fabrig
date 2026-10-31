@@ -5,7 +5,9 @@
 use super::down::drain_facts;
 use super::routing::route_io_event;
 use super::teardown::Teardown;
-use super::{COMPONENT_OWNER_BIT, Failure, Operation, Owner, PendingMessage, Service, credential, program, teardown};
+use super::{
+    COMPONENT_OWNER_BIT, Failure, Frame, Operation, Owner, PendingMessage, Stages, credential, face, program, teardown,
+};
 use skein_io::{self as io, file_layer, kernel};
 use skein_lib::{Id, Time, Token};
 use smith_domain::{self as domain, run};
@@ -13,8 +15,8 @@ use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
 
-pub(super) fn io_up(service: &mut Service) {
-    if let Some(io) = &mut service.io {
+pub(super) fn io_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
+    if let Some(io) = face::io_mut(frame.as_deref_mut()) {
         for _ in 0..service.limits.io.sockets {
             if !io.is_ready() {
                 break;
@@ -28,13 +30,10 @@ pub(super) fn io_up(service: &mut Service) {
         match route {
             Operation::Io(original) | Operation::Signals(original) => {
                 let complete = kernel::Complete { op: original, kind: complete.kind, result: complete.result };
-                io::up(
-                    service.io.as_mut().expect("standalone IO completion"),
-                    &service.io_env,
-                    complete,
-                    &mut service.io_events,
-                    &mut service.io_submissions,
-                );
+                let Some(frame) = frame.as_deref_mut() else {
+                    unreachable!("only framed IO issues native completions")
+                };
+                io::up(&mut frame.io, &service.io_env, complete, &mut service.io_events, &mut service.io_submissions);
             }
             Operation::File(original) => {
                 let complete = kernel::Complete { op: original, kind: complete.kind, result: complete.result };
@@ -42,7 +41,7 @@ pub(super) fn io_up(service: &mut Service) {
             }
         }
     }
-    if let Some(io) = &mut service.io {
+    if let Some(io) = face::io_mut(frame) {
         for _ in 0..service.limits.io.sockets {
             if !io.is_due(service.io_env.now) {
                 break;
@@ -55,9 +54,9 @@ pub(super) fn io_up(service: &mut Service) {
     }
 }
 
-pub(super) fn lower_events(service: &mut Service) {
+pub(super) fn lower_events(service: &mut Stages, mut frame: Option<&mut Frame>) {
     for _ in 0..service.limits.queue {
-        if !super::channel_room(service) {
+        if !super::channel_room(service, frame.as_deref()) {
             break;
         }
         let Some(event) = service.io_events.pop() else { break };
@@ -85,7 +84,7 @@ pub(super) fn lower_events(service: &mut Service) {
             service.io_events.push(event);
             continue;
         }
-        route_io_event(service, event);
+        route_io_event(service, frame.as_deref_mut(), event);
     }
     for _ in 0..service.limits.queue {
         let Some(event) = service.file_events.pop() else { break };
@@ -103,7 +102,7 @@ pub(super) fn lower_events(service: &mut Service) {
     }
 }
 
-fn machine_up(service: &mut Service) {
+fn machine_up(service: &mut Stages) {
     for _ in 0..service.limits.queue {
         let Some(event) = service.machine_events.pop() else { break };
         let event = match event {
@@ -117,7 +116,7 @@ fn machine_up(service: &mut Service) {
     }
 }
 
-fn llm_io(service: &Service, event: &io::Event) -> bool {
+fn llm_io(service: &Stages, event: &io::Event) -> bool {
     let Some(owner) = event.owner() else { return false };
     if service.pipe_routes.contains_key(&owner) || owner.raw() & COMPONENT_OWNER_BIT == 0 {
         return false;
@@ -129,8 +128,8 @@ fn llm_io(service: &Service, event: &io::Event) -> bool {
     }
 }
 
-pub(super) fn live_step(service: &mut Service, action: crate::live::Action<'_>) {
-    let Some(channel) = &mut service.channel else {
+pub(super) fn live_step(service: &mut Stages, frame: Option<&mut Frame>, action: crate::live::Action<'_>) {
+    let Some(channel) = face::channel_mut(frame) else {
         return;
     };
     let ending = match &action {
@@ -156,22 +155,22 @@ pub(super) fn live_step(service: &mut Service, action: crate::live::Action<'_>) 
     }
 }
 
-fn llm_measures(service: &mut Service) {
+fn llm_measures(service: &mut Stages, mut frame: Option<&mut Frame>) {
     let pending = program::pending_measures(service);
-    if !llm_measure_batch(service, pending, false) {
+    if !llm_measure_batch(service, frame.as_deref_mut(), pending, false) {
         return;
     }
     // Recording the one prepared prompt can append one finite child batch.
     // The second snapshot drains it; further work needs another gated entrance.
     for _ in 0_u32..2 {
         let pending = service.llm.pending_measures();
-        if !llm_measure_batch(service, pending, true) {
+        if !llm_measure_batch(service, frame.as_deref_mut(), pending, true) {
             return;
         }
     }
 }
 
-fn llm_measure_batch(service: &mut Service, pending: u32, direct: bool) -> bool {
+fn llm_measure_batch(service: &mut Stages, mut frame: Option<&mut Frame>, pending: u32, direct: bool) -> bool {
     for _ in 0..pending {
         if !super::sinks_take(service) {
             return false;
@@ -189,13 +188,21 @@ fn llm_measure_batch(service: &mut Service, pending: u32, direct: bool) -> bool 
         };
         match &measure {
             llm::Measure::Delta { owner, text, .. } => {
-                live_step(service, crate::live::Action::Delta { owner: *owner, bytes: text });
+                live_step(service, frame.as_deref_mut(), crate::live::Action::Delta { owner: *owner, bytes: text });
             }
             llm::Measure::Call { owner, index, id, name, .. } => {
-                live_step(service, crate::live::Action::Call { owner: *owner, index: *index, id, tool: name });
+                live_step(
+                    service,
+                    frame.as_deref_mut(),
+                    crate::live::Action::Call { owner: *owner, index: *index, id, tool: name },
+                );
             }
             llm::Measure::Arguments { owner, index, bytes, .. } => {
-                live_step(service, crate::live::Action::Arguments { owner: *owner, index: *index, bytes });
+                live_step(
+                    service,
+                    frame.as_deref_mut(),
+                    crate::live::Action::Arguments { owner: *owner, index: *index, bytes },
+                );
             }
             llm::Measure::Prompt { .. }
             | llm::Measure::Completion { .. }
@@ -222,15 +229,15 @@ fn llm_measure_batch(service: &mut Service, pending: u32, direct: bool) -> bool 
     true
 }
 
-pub(super) fn component_up(service: &mut Service) {
+pub(super) fn component_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
     program::fire(service);
-    llm_measures(service);
-    if super::channel_room(service)
-        && let Some(channel) = &mut service.channel
+    llm_measures(service, frame.as_deref_mut());
+    if super::channel_room(service, frame.as_deref())
+        && let Some(channel) = face::channel_mut(frame.as_deref_mut())
     {
         channel.fire(&mut service.channel_events, &mut service.channel_below);
     }
-    live_step(service, crate::live::Action::Pump);
+    live_step(service, frame.as_deref_mut(), crate::live::Action::Pump);
     let llm_due = match service.llm.next_deadline() {
         Some(at) => at <= service.llm_env.now,
         None => false,
@@ -238,7 +245,7 @@ pub(super) fn component_up(service: &mut Service) {
     if (service.llm.has_work() || llm_due) && service.llm.measures_drained() {
         service.llm.fire(&service.llm_env, &mut service.llm_events, &mut service.llm_below);
     }
-    llm_measures(service);
+    llm_measures(service, frame.as_deref_mut());
     let machine_due = match service.machine.next_deadline() {
         Some(at) => at <= service.machine_env.now,
         None => false,
@@ -246,20 +253,22 @@ pub(super) fn component_up(service: &mut Service) {
     if machine_due {
         service.machine.fire(&service.machine_env, &mut service.machine_events, &mut service.machine_below);
     }
-    for _ in 0..service.channel_events.capacity() {
-        if !super::channel_event_ready(service) {
-            break;
+    if let Some(frame) = frame.as_deref_mut() {
+        for _ in 0..service.channel_events.capacity() {
+            if !super::channel_event_ready(service) {
+                break;
+            }
+            let Some(event) = service.channel_events.pop() else { break };
+            channel_event(service, frame, event);
         }
-        let Some(event) = service.channel_events.pop() else { break };
-        channel_event(service, event);
     }
-    llm_events_up(service);
+    llm_events_up(service, frame);
     machine_up(service);
 }
 
-fn llm_events_up(service: &mut Service) {
+fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
     for _ in 0..service.limits.queue {
-        if !super::llm_events_ready(service) {
+        if !super::llm_events_ready(service, frame.as_deref()) {
             break;
         }
         let Some(event) = service.llm_events.pop() else { break };
@@ -292,14 +301,10 @@ fn llm_events_up(service: &mut Service) {
                 service.domain_events.push(domain::Event::Cancelled { owner });
             }
             llm::ToDomain::Text { owner: _, bytes } => {
-                if service.channel.is_none() {
-                    continue;
-                }
+                let Some(frame) = frame.as_deref_mut() else { continue };
                 let token = service.next_send();
-                if service
+                if frame
                     .channel
-                    .as_mut()
-                    .expect("framed agent owns its channel")
                     .send_text_arrived(
                         service.domain_env.now.saturating_since(Time::ZERO),
                         u64::from(bytes),
@@ -316,7 +321,7 @@ fn llm_events_up(service: &mut Service) {
     }
 }
 
-pub(super) fn channel_event(service: &mut Service, event: channel::OpenEvent) {
+pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: channel::OpenEvent) {
     match event {
         channel::OpenEvent::Opened { version: _ } => {}
         channel::OpenEvent::Start { start } => {
@@ -326,7 +331,7 @@ pub(super) fn channel_event(service: &mut Service, event: channel::OpenEvent) {
                 None => 0,
             };
             if count > service.limits.machine.roots {
-                service.refuse_start(run::Invalid::Workspace);
+                service.refuse_start(frame, run::Invalid::Workspace);
                 return;
             }
             let empty = match &start.mounts {
@@ -342,7 +347,7 @@ pub(super) fn channel_event(service: &mut Service, event: channel::OpenEvent) {
             }
             service.pending_start = Some(start);
             if empty {
-                service.start_ready();
+                service.start_ready(frame);
             }
         }
         channel::OpenEvent::Message { finish_requested, name, label, text } => {
@@ -367,14 +372,13 @@ pub(super) fn channel_event(service: &mut Service, event: channel::OpenEvent) {
             }
         }
         channel::OpenEvent::Grant { grant } => {
-            let value =
-                service.channel.as_ref().expect("framed agent owns its channel").grant_value(grant.name).cloned();
+            let value = frame.channel.grant_value(grant.name).cloned();
             if let Some(value) = &value
                 && program::renew(service, grant, value)
             {
                 return;
             }
-            match service.channel.as_ref().expect("framed agent owns its channel").grant_value(grant.name) {
+            match frame.channel.grant_value(grant.name) {
                 Some(value) => match credential(value) {
                     Some(value) => {
                         let lapses = service.domain_env.now.saturating_add(grant.valid);
@@ -411,54 +415,37 @@ pub(super) fn channel_event(service: &mut Service, event: channel::OpenEvent) {
     }
 }
 
-pub(super) fn domain_up(service: &mut Service) {
-    drain_facts(service);
+pub(super) fn domain_up(service: &mut Stages, frame: &mut Frame) {
+    drain_facts(service, Some(&mut *frame));
     // An entrance's facts drain to the sinks before the next entrance.
     for _ in 0..service.limits.domain.run.conversations {
-        if !super::domain_entrance_ready(service)
-            || !service.domain.as_ref().expect("framed agent owns its domain").is_ready()
-        {
+        if !super::domain_entrance_ready(service, Some(&*frame)) || !frame.domain.is_ready() {
             break;
         }
-        domain::resume(
-            service.domain.as_mut().expect("framed agent owns its domain"),
-            &service.domain_env,
-            &mut service.domain_requests,
-        );
-        drain_content(service);
-        drain_facts(service);
+        domain::resume(&mut frame.domain, &service.domain_env, &mut service.domain_requests);
+        drain_content(frame);
+        drain_facts(service, Some(&mut *frame));
     }
     for _ in 0..service.limits.queue {
-        if !super::domain_entrance_ready(service) {
+        if !super::domain_entrance_ready(service, Some(&*frame)) {
             break;
         }
         let Some(event) = service.domain_events.pop() else { break };
         observe_messages(service, &event);
-        domain::step(
-            service.domain.as_mut().expect("framed agent owns its domain"),
-            &service.domain_env,
-            event,
-            &mut service.domain_requests,
-        );
-        drain_content(service);
-        drain_facts(service);
+        domain::step(&mut frame.domain, &service.domain_env, event, &mut service.domain_requests);
+        drain_content(frame);
+        drain_facts(service, Some(&mut *frame));
     }
-    if super::domain_entrance_ready(service)
-        && service.domain.as_ref().expect("framed agent owns its domain").is_due(service.domain_env.now)
-    {
-        domain::fire(
-            service.domain.as_mut().expect("framed agent owns its domain"),
-            &service.domain_env,
-            &mut service.domain_requests,
-        );
-        drain_content(service);
-        drain_facts(service);
+    if super::domain_entrance_ready(service, Some(&*frame)) && frame.domain.is_due(service.domain_env.now) {
+        domain::fire(&mut frame.domain, &service.domain_env, &mut service.domain_requests);
+        drain_content(frame);
+        drain_facts(service, Some(&mut *frame));
     }
 }
 
 // A capture copy waits only on this entrance's facts, never in the input
 // queue. The next entrance is held until every prior fact reaches its sinks.
-fn observe_messages(service: &mut Service, event: &domain::Event) {
+fn observe_messages(service: &mut Stages, event: &domain::Event) {
     let Some(events) = &mut service.events else { return };
     match event {
         domain::Event::Start { messages, .. } => {
@@ -488,9 +475,9 @@ fn observe_messages(service: &mut Service, event: &domain::Event) {
 // The root's optional content observer is not the typed event stream. Its
 // standalone API remains available to domain hosts; this composed service
 // captures provider content before decoding and drains each root entrance.
-fn drain_content(service: &mut Service) {
-    for _ in 0..service.domain.as_ref().expect("framed agent owns its domain").pending_content() {
-        match service.domain.as_mut().expect("framed agent owns its domain").pop_content() {
+fn drain_content(frame: &mut Frame) {
+    for _ in 0..frame.domain.pending_content() {
+        match frame.domain.pop_content() {
             Some(_) => {}
             None => break,
         }

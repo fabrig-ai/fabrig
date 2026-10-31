@@ -1,3 +1,8 @@
+use super::down::domain_down;
+use super::routing::io_down;
+use super::stages::backlog;
+use super::up::{component_up, domain_up, lower_events};
+use skein_lib::ReplyTo;
 mod setup;
 
 pub(crate) use setup::{account_request, account_service, charter, configuration, domain_configuration};
@@ -72,20 +77,20 @@ fn each_grant_value_installs_its_scheme() {
 #[test]
 fn io_routes_preserve_component_owner_and_retire_on_close() {
     let mut service = service();
-    let route = service.owners.insert(Owner::Llm(Token::new(42))).expect("route");
-    route_owned_io(&mut service, io::Event::Closed { owner: component_owner(route.token()) });
-    assert_eq!(service.owners.len(), 1);
-    service.owners.reclaim();
-    assert!(service.owners.is_empty());
+    let route = service.stages.owners.insert(Owner::Llm(Token::new(42))).expect("route");
+    route_owned_io(&mut service.stages, io::Event::Closed { owner: component_owner(route.token()) });
+    assert_eq!(service.stages.owners.len(), 1);
+    service.stages.owners.reclaim();
+    assert!(service.stages.owners.is_empty());
 }
 
 #[test]
 fn machine_terminal_and_channel_message_keep_their_domain_names() {
     let mut service = service();
     let owner = Token::new(42);
-    service.machine_events.push(machine::ToDomain::Probed { owner, executable: true });
-    component_up(&mut service);
-    match service.domain_events.pop().expect("terminal") {
+    service.stages.machine_events.push(machine::ToDomain::Probed { owner, executable: true });
+    component_up(&mut service.stages, Some(&mut service.frame));
+    match service.stages.domain_events.pop().expect("terminal") {
         domain::Event::Probed { owner: observed, executable } => {
             assert_eq!(observed, owner);
             assert!(executable);
@@ -93,7 +98,8 @@ fn machine_terminal_and_channel_message_keep_their_domain_names() {
         other => panic!("unexpected terminal: {other:?}"),
     }
     channel_event(
-        &mut service,
+        &mut service.stages,
+        &mut service.frame,
         channel::OpenEvent::Message {
             finish_requested: true,
             name: owner,
@@ -101,11 +107,11 @@ fn machine_terminal_and_channel_message_keep_their_domain_names() {
             text: Box::from(&b"hello"[..]),
         },
     );
-    assert_eq!(service.pending_messages.len(), 1);
-    assert!(service.domain_events.is_empty());
+    assert_eq!(service.stages.pending_messages.len(), 1);
+    assert!(service.stages.domain_events.is_empty());
     let mut service = admit_pending(service, 9);
-    domain_down(&mut service);
-    match service.domain_events.pop().expect("message") {
+    domain_down(&mut service.stages, Some(&mut service.frame));
+    match service.stages.domain_events.pop().expect("message") {
         domain::Event::Message { finish_requested: true, run, name, label, text } => {
             assert_eq!(label.as_ref(), b"host");
             assert_eq!(run, Token::new(9));
@@ -120,18 +126,19 @@ fn machine_terminal_and_channel_message_keep_their_domain_names() {
 fn llm_and_host_terminals_reach_the_domain_with_their_owners() {
     let mut service = service();
     let owner = Token::new(73);
-    service.llm_events.push(llm::ToDomain::Cancelled { owner });
-    component_up(&mut service);
-    match service.domain_events.pop().expect("LLM terminal") {
+    service.stages.llm_events.push(llm::ToDomain::Cancelled { owner });
+    component_up(&mut service.stages, Some(&mut service.frame));
+    match service.stages.domain_events.pop().expect("LLM terminal") {
         domain::Event::Cancelled { owner: observed } => assert_eq!(observed, owner),
         other => panic!("unexpected LLM terminal: {other:?}"),
     }
     let relay = run::RelayName { owner: Token::new(5), attempt: 1 };
     channel_event(
-        &mut service,
+        &mut service.stages,
+        &mut service.frame,
         channel::OpenEvent::HostReturned { relay, reply: run::HostReply::Unanswered(run::Unanswered::Lost) },
     );
-    match service.domain_events.pop().expect("host terminal") {
+    match service.stages.domain_events.pop().expect("host terminal") {
         domain::Event::HostReturned { relay: observed, reply } => {
             assert_eq!(observed, relay);
             assert_eq!(reply, run::HostReply::Unanswered(run::Unanswered::Lost));
@@ -144,23 +151,23 @@ fn llm_and_host_terminals_reach_the_domain_with_their_owners() {
 fn kernel_cancel_targets_the_right_layer_operation() {
     let mut service = service();
     route_submission(
-        &mut service,
+        &mut service.stages,
         kernel::Submit { op: Token::new(11), kind: kernel::Op::Close { fd: kernel::Fd::new(3) } },
         false,
     );
     route_submission(
-        &mut service,
+        &mut service.stages,
         kernel::Submit { op: Token::new(11), kind: kernel::Op::Close { fd: kernel::Fd::new(4) } },
         true,
     );
     route_submission(
-        &mut service,
+        &mut service.stages,
         kernel::Submit { op: Token::new(12), kind: kernel::Op::Cancel { target: Token::new(11) } },
         true,
     );
-    let io = service.submissions.pop().expect("io close");
-    let file = service.submissions.pop().expect("file close");
-    let cancel = service.submissions.pop().expect("file cancel");
+    let io = service.stages.submissions.pop().expect("io close");
+    let file = service.stages.submissions.pop().expect("file close");
+    let cancel = service.stages.submissions.pop().expect("file cancel");
     assert_ne!(io.op, file.op);
     assert_eq!(cancel.kind, kernel::Op::Cancel { target: file.op });
 }
@@ -168,8 +175,12 @@ fn kernel_cancel_targets_the_right_layer_operation() {
 #[test]
 fn termination_signal_cancels_the_admitted_run() {
     let mut service = admitted(91);
-    route_io_event(&mut service, io::Event::Shutdown { signal: kernel::ServiceSignal::Terminate, from: None });
-    match service.domain_events.pop().expect("cancel event") {
+    route_io_event(
+        &mut service.stages,
+        Some(&mut service.frame),
+        io::Event::Shutdown { signal: kernel::ServiceSignal::Terminate, from: None },
+    );
+    match service.stages.domain_events.pop().expect("cancel event") {
         domain::Event::Cancel { run } => assert_eq!(run, Token::new(91)),
         other => panic!("unexpected signal result: {other:?}"),
     }
@@ -178,8 +189,8 @@ fn termination_signal_cancels_the_admitted_run() {
 #[test]
 fn signal_during_opening_waits_for_the_admitted_run_handle() {
     let mut service = interrupted_before_admission(19);
-    domain_down(&mut service);
-    match service.domain_events.pop().expect("deferred cancel") {
+    domain_down(&mut service.stages, Some(&mut service.frame));
+    match service.stages.domain_events.pop().expect("deferred cancel") {
         domain::Event::Cancel { run } => assert_eq!(run, Token::new(19)),
         other => panic!("unexpected deferred result: {other:?}"),
     }
@@ -188,10 +199,14 @@ fn signal_during_opening_waits_for_the_admitted_run_handle() {
 #[test]
 fn channel_loss_before_answer_keeps_a_concrete_failure_reason() {
     let mut service = service();
-    channel_event(&mut service, channel::OpenEvent::Ended { why: skein_channel::Closed::Truncated });
+    channel_event(
+        &mut service.stages,
+        &mut service.frame,
+        channel::OpenEvent::Ended { why: skein_channel::Closed::Truncated },
+    );
     assert_eq!(failure(&service), Some(Failure::ChannelEnded));
     assert_eq!(
-        service.teardown,
+        service.stages.teardown,
         Teardown::Answered { at: Time::ZERO, answer: Answer::Unsent(Failure::ChannelEnded), close: Close::Graceful }
     );
 }
@@ -199,19 +214,19 @@ fn channel_loss_before_answer_keeps_a_concrete_failure_reason() {
 #[test]
 fn the_answer_requests_every_close_in_one_pass() {
     let mut service = with_channel_streams(Some(Token::new(13)));
-    service.mark_failed(Failure::Send);
-    teardown::answered(&mut service);
-    assert!(!service.llm.closed());
-    teardown::advance(&mut service);
-    assert!(service.llm.closed(), "an empty pool reports its close immediately");
+    service.stages.mark_failed(Failure::Send);
+    teardown::answered(&mut service.stages);
+    assert!(!service.stages.llm.closed());
+    teardown::advance(&mut service.stages, Some(&service.frame));
+    assert!(service.stages.llm.closed(), "an empty pool reports its close immediately");
     for expected in [11, 12] {
-        match service.io_requests.pop() {
+        match service.stages.io_requests.pop() {
             Some(io::Request::Close { entity }) => assert_eq!(entity, Token::new(expected)),
             unexpected => panic!("one close per descriptor: {unexpected:?}"),
         }
     }
     assert_eq!(
-        service.teardown,
+        service.stages.teardown,
         Teardown::Closing {
             at: Time::ZERO,
             answer: Answer::Unsent(Failure::Send),
@@ -224,34 +239,34 @@ fn the_answer_requests_every_close_in_one_pass() {
 #[test]
 fn a_sent_answer_keeps_its_channel_output_right_until_finish() {
     let mut service = with_channel_streams(None);
-    teardown::answered(&mut service);
-    teardown::advance(&mut service);
-    match service.io_requests.pop() {
+    teardown::answered(&mut service.stages);
+    teardown::advance(&mut service.stages, Some(&service.frame));
+    match service.stages.io_requests.pop() {
         Some(io::Request::Close { entity }) => assert_eq!(entity, Token::new(11)),
         unexpected => panic!("input close: {unexpected:?}"),
     }
-    assert!(service.io_requests.is_empty(), "the channel owns its queued frames and output finish");
+    assert!(service.stages.io_requests.is_empty(), "the channel owns its queued frames and output finish");
 }
 
 #[test]
 fn an_answer_requests_its_close_at_once() {
     let mut service = with_input();
-    for _ in 0..service.limits.queue {
-        service.io_requests.push(io::Request::Usage { owner: Token::new(1) });
+    for _ in 0..service.stages.limits.queue {
+        service.stages.io_requests.push(io::Request::Usage { owner: Token::new(1) });
     }
-    teardown::answered(&mut service);
-    teardown::advance(&mut service);
+    teardown::answered(&mut service.stages);
+    teardown::advance(&mut service.stages, Some(&service.frame));
     assert_eq!(
-        service.teardown,
+        service.stages.teardown,
         Teardown::Closing { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful, step: Step::Components }
     );
-    assert!(service.llm.closed());
-    for _ in 0..service.limits.queue {
-        let Some(io::Request::Usage { .. }) = service.io_requests.pop() else {
+    assert!(service.stages.llm.closed());
+    for _ in 0..service.stages.limits.queue {
+        let Some(io::Request::Usage { .. }) = service.stages.io_requests.pop() else {
             panic!("the existing IO requests keep their order")
         };
     }
-    let Some(io::Request::Close { entity }) = service.io_requests.pop() else {
+    let Some(io::Request::Close { entity }) = service.stages.io_requests.pop() else {
         panic!("the input close is requested immediately")
     };
     assert_eq!(entity, Token::new(11));
@@ -262,56 +277,56 @@ fn an_answer_requests_its_close_at_once() {
 fn done_is_some_only_when_closed() {
     let mut service = without_channel();
     assert_eq!(done(&service), None);
-    teardown::answered(&mut service);
+    teardown::answered(&mut service.stages);
     assert_eq!(done(&service), None);
-    teardown::advance(&mut service);
-    service.operations.insert(Token::new(77), Operation::Io(Token::new(4))).expect("one route");
-    teardown::advance(&mut service);
+    teardown::advance(&mut service.stages, Some(&service.frame));
+    service.stages.operations.insert(Token::new(77), Operation::Io(Token::new(4))).expect("one route");
+    teardown::advance(&mut service.stages, Some(&service.frame));
     assert_eq!(done(&service), None);
-    service.operations.remove(&Token::new(77));
-    teardown::advance(&mut service);
+    service.stages.operations.remove(&Token::new(77));
+    teardown::advance(&mut service.stages, Some(&service.frame));
     assert_eq!(
-        service.teardown,
+        service.stages.teardown,
         Teardown::Closing { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful, step: Step::Stream }
     );
     assert_eq!(done(&service), None);
     assert!(work_pending(&service, Time::ZERO), "the last close wakes the phase after reclaim");
-    teardown::advance(&mut service);
+    teardown::advance(&mut service.stages, Some(&service.frame));
     assert_eq!(done(&service), Some(true));
 }
 
 #[test]
 fn a_settled_event_producer_is_runnable_before_its_usage_request() {
     let mut service = event_service();
-    teardown::answered(&mut service);
-    teardown::advance(&mut service);
+    teardown::answered(&mut service.stages);
+    teardown::advance(&mut service.stages, Some(&service.frame));
     assert!(work_pending(&service, Time::ZERO), "usage must be requested before the kernel waits");
-    teardown::advance(&mut service);
-    match service.io_requests.pop() {
+    teardown::advance(&mut service.stages, Some(&service.frame));
+    match service.stages.io_requests.pop() {
         Some(io::Request::Usage { owner }) => assert_eq!(owner, USAGE_OWNER),
         unexpected => panic!("usage request: {unexpected:?}"),
     }
     assert_eq!(done(&service), None);
-    assert!(!teardown::work_pending(&service), "the usage terminal is owed exactly once");
-    teardown::advance(&mut service);
-    assert!(service.io_requests.is_empty());
+    assert!(!teardown::work_pending(&service.stages, Some(&service.frame)), "the usage terminal is owed exactly once");
+    teardown::advance(&mut service.stages, Some(&service.frame));
+    assert!(service.stages.io_requests.is_empty());
 }
 
 #[test]
 fn usage_writes_the_session_end_before_the_stream_closes() {
     let mut service = event_service();
-    teardown::answered(&mut service);
-    teardown::advance(&mut service);
-    teardown::advance(&mut service);
-    service.io_requests.pop().expect("usage request");
-    record_usage(&mut service, io::Measured::Unread);
+    teardown::answered(&mut service.stages);
+    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::advance(&mut service.stages, Some(&service.frame));
+    service.stages.io_requests.pop().expect("usage request");
+    record_usage(&mut service.stages, Some(&service.frame), io::Measured::Unread);
     assert!(service.pop_usage_unread());
     assert_eq!(
-        service.teardown,
+        service.stages.teardown,
         Teardown::Closing { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful, step: Step::Stream }
     );
     assert_eq!(done(&service), None);
-    teardown::advance(&mut service);
+    teardown::advance(&mut service.stages, Some(&service.frame));
     assert_eq!(done(&service), Some(true));
 }
 
@@ -333,22 +348,22 @@ fn effects_report_their_handoffs_backlog() {
 #[test]
 fn a_message_waits_at_the_watermark_and_is_taken_once_the_backlog_falls() {
     let mut service = at_watermark();
-    service.channel_events.push(host_message(31));
-    service.channel_events.push(host_message(32));
+    service.stages.channel_events.push(host_message(31));
+    service.stages.channel_events.push(host_message(32));
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(service.channel_events.len(), 2, "neither message entered the domain");
-    assert!(service.domain_events.is_empty());
-    assert_eq!(backlog(&service), u64::from(service.limits.queue));
+    assert_eq!(service.stages.channel_events.len(), 2, "neither message entered the domain");
+    assert!(service.stages.domain_events.is_empty());
+    assert_eq!(backlog(&service.stages), u64::from(service.stages.limits.queue));
     for _ in 0_u32..2 {
-        service.submissions.pop().expect("shell takes two submissions");
+        service.stages.submissions.pop().expect("shell takes two submissions");
     }
-    io_down(&mut service);
-    assert_eq!(service.io_submissions.len(), service.limits.queue - 2);
+    io_down(&mut service.stages, Some(&mut service.frame));
+    assert_eq!(service.stages.io_submissions.len(), service.stages.limits.queue - 2);
     // Inspect this iteration's domain-facing boundary before domain_up consumes it.
-    component_up(&mut service);
-    assert!(service.channel_events.is_empty());
+    component_up(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.channel_events.is_empty());
     for expected in [31, 32] {
-        let Some(domain::Event::Message { run, name, .. }) = service.domain_events.pop() else {
+        let Some(domain::Event::Message { run, name, .. }) = service.stages.domain_events.pop() else {
             panic!("message reaches the domain in host order")
         };
         assert_eq!(run, Token::new(9));
@@ -364,13 +379,13 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
     // One message fact from each of the two queued entrances.
     const FACTS: u32 = 2;
     let (mut service, run) = preparing_message_run();
-    let sinks = service.events.as_mut().unwrap().sinks();
+    let sinks = service.stages.events.as_mut().unwrap().sinks();
     sinks
         .add(smith_protocol_events::sinks::Destination::Trace, TRACE, smith_protocol_events::sinks::Delivery::Complete)
         .unwrap();
     // As in the slow complete-destination fixture, withhold its IO credit
     // and fill ordinary lines until the sink stops accepting observations.
-    for _ in 0..service.limits.queue {
+    for _ in 0..service.stages.limits.queue {
         if !sinks.takes() {
             break;
         }
@@ -380,7 +395,7 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
         });
     }
     for name in [FIRST, SECOND] {
-        service.domain_events.push(domain::Event::Message {
+        service.stages.domain_events.push(domain::Event::Message {
             finish_requested: false,
             run,
             name: Token::new(name),
@@ -388,19 +403,19 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
             text: Box::from(b"hello".as_slice()),
         });
     }
-    domain_up(&mut service);
-    assert!(!service.events.as_ref().unwrap().takes(), "the complete sink is stalled");
-    assert!(service.domain_requests.is_empty(), "effects do not hold the next entrance");
-    assert!(service.domain.as_ref().unwrap().has_facts(), "the first entrance awaits its sink");
-    assert_eq!(service.domain_events.len(), 1, "the second entrance has not run");
-    domain_up(&mut service);
-    assert_eq!(service.domain_events.len(), 1, "waiting again cannot advance the second entrance");
-    smith_protocol_events::sinks::fixture::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE);
+    domain_up(&mut service.stages, &mut service.frame);
+    assert!(!service.stages.events.as_ref().unwrap().takes(), "the complete sink is stalled");
+    assert!(service.stages.domain_requests.is_empty(), "effects do not hold the next entrance");
+    assert!(&service.frame.domain.has_facts(), "the first entrance awaits its sink");
+    assert_eq!(service.stages.domain_events.len(), 1, "the second entrance has not run");
+    domain_up(&mut service.stages, &mut service.frame);
+    assert_eq!(service.stages.domain_events.len(), 1, "waiting again cannot advance the second entrance");
+    smith_protocol_events::sinks::fixture::drain_ready(service.stages.events.as_mut().unwrap().sinks(), TRACE);
     let mut names = List::with_capacity(FACTS);
     for _ in [FIRST, SECOND] {
-        domain_up(&mut service);
+        domain_up(&mut service.stages, &mut service.frame);
         for record in
-            smith_protocol_events::sinks::fixture::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE)
+            smith_protocol_events::sinks::fixture::drain_ready(service.stages.events.as_mut().unwrap().sinks(), TRACE)
         {
             match record.event {
                 smith_events::Event::MessageReceived(message) => {
@@ -411,8 +426,8 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
         }
     }
     assert_eq!(&*names.into_boxed(), &[FIRST, SECOND], "all first-entrance facts reach the sink before the second's");
-    assert!(service.domain_events.is_empty());
-    assert!(!service.domain.as_ref().unwrap().has_facts());
+    assert!(service.stages.domain_events.is_empty());
+    assert!(!&service.frame.domain.has_facts());
 }
 
 #[test]
@@ -421,25 +436,28 @@ fn an_answer_is_taken_past_the_watermark() {
     // These advance admitted work and can increase the backlog.
     let relay = run::RelayName { owner: Token::new(5), attempt: 1 };
     service
+        .stages
         .channel_events
         .push(channel::OpenEvent::HostReturned { relay, reply: run::HostReply::Unanswered(run::Unanswered::Lost) });
-    service.channel_events.push(channel::OpenEvent::Acknowledged { turn: 1 });
-    service.channel_events.push(channel::OpenEvent::Cancel);
-    service.llm_events.push(llm::ToDomain::Cancelled { owner: Token::new(73) });
-    component_up(&mut service);
-    assert!(service.channel_events.is_empty());
-    assert!(service.llm_events.is_empty());
-    assert!(backlog(&service) > u64::from(service.limits.queue));
-    let Some(domain::Event::HostReturned { relay: observed, .. }) = service.domain_events.pop() else {
+    service.stages.channel_events.push(channel::OpenEvent::Acknowledged { turn: 1 });
+    service.stages.channel_events.push(channel::OpenEvent::Cancel);
+    service.stages.llm_events.push(llm::ToDomain::Cancelled { owner: Token::new(73) });
+    component_up(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.channel_events.is_empty());
+    assert!(service.stages.llm_events.is_empty());
+    assert!(backlog(&service.stages) > u64::from(service.stages.limits.queue));
+    let Some(domain::Event::HostReturned { relay: observed, .. }) = service.stages.domain_events.pop() else {
         panic!("host answer advances")
     };
     assert_eq!(observed, relay);
-    let Some(domain::Event::Acknowledge { turn, .. }) = service.domain_events.pop() else {
+    let Some(domain::Event::Acknowledge { turn, .. }) = service.stages.domain_events.pop() else {
         panic!("acknowledgement advances")
     };
     assert_eq!(turn, 1);
-    let Some(domain::Event::Cancel { .. }) = service.domain_events.pop() else { panic!("cancellation advances") };
-    let Some(domain::Event::Cancelled { owner }) = service.domain_events.pop() else {
+    let Some(domain::Event::Cancel { .. }) = service.stages.domain_events.pop() else {
+        panic!("cancellation advances")
+    };
+    let Some(domain::Event::Cancelled { owner }) = service.stages.domain_events.pop() else {
         panic!("provider terminal advances")
     };
     assert_eq!(owner, Token::new(73));
@@ -448,20 +466,20 @@ fn an_answer_is_taken_past_the_watermark() {
 #[test]
 fn pending_messages_wait_at_the_watermark() {
     let mut service = at_watermark();
-    service.pending_messages.push(PendingMessage {
+    service.stages.pending_messages.push(PendingMessage {
         finish_requested: false,
         name: Token::new(31),
         label: Box::from(b"host".as_slice()),
         text: Box::from(b"hello".as_slice()),
     });
-    domain_down(&mut service);
-    assert_eq!(service.pending_messages.len(), 1);
-    assert!(service.domain_events.is_empty());
-    service.submissions.pop().expect("shell takes one submission");
-    io_down(&mut service);
-    domain_down(&mut service);
-    assert!(service.pending_messages.is_empty());
-    let Some(domain::Event::Message { name, .. }) = service.domain_events.pop() else {
+    domain_down(&mut service.stages, Some(&mut service.frame));
+    assert_eq!(service.stages.pending_messages.len(), 1);
+    assert!(service.stages.domain_events.is_empty());
+    service.stages.submissions.pop().expect("shell takes one submission");
+    io_down(&mut service.stages, Some(&mut service.frame));
+    domain_down(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.pending_messages.is_empty());
+    let Some(domain::Event::Message { name, .. }) = service.stages.domain_events.pop() else {
         panic!("retained message reaches the domain")
     };
     assert_eq!(name, Token::new(31));
@@ -472,7 +490,7 @@ fn a_one_entry_watermark_keeps_the_host_edge_capped_and_effects_progressing() {
     let mut config = configuration();
     config.limits.queue = 1;
     let service = Service::new(config, 1).expect("one-entry watermark builds");
-    assert_eq!(service.channel_below.capacity(), 1, "host edge stays capped");
+    assert_eq!(service.stages.channel_below.capacity(), 1, "host edge stays capped");
     // Effects exercises the same constructors and stages without the channel's
     // retained six-cell edge reservation, which a one-cell frame queue cannot meet.
     let mut config = configuration();
@@ -500,7 +518,7 @@ fn a_one_entry_watermark_keeps_the_host_edge_capped_and_effects_progressing() {
 #[test]
 fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
     let mut service = watermark(None);
-    service.channel_events.push(channel::OpenEvent::Start {
+    service.stages.channel_events.push(channel::OpenEvent::Start {
         start: Box::new(channel::DecodedStart {
             live: None,
             identity: None,
@@ -521,23 +539,23 @@ fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
         }),
     });
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(service.channel_events.len(), 1);
+    assert_eq!(service.stages.channel_events.len(), 1);
     assert!(service.root_to_open().is_none());
-    service.submissions.pop().expect("shell takes one submission");
-    io_down(&mut service);
+    service.stages.submissions.pop().expect("shell takes one submission");
+    io_down(&mut service.stages, Some(&mut service.frame));
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert!(service.channel_events.is_empty());
+    assert!(service.stages.channel_events.is_empty());
     assert_eq!(service.root_to_open(), Some(b"/work".as_slice()));
 }
 
 #[test]
 fn an_uncapped_drain_stops_at_the_iterations_work_bound() {
     let mut service = at_watermark();
-    for _ in 0..=service.limits.queue {
-        service.io_events.push(io::Event::Resized);
+    for _ in 0..=service.stages.limits.queue {
+        service.stages.io_events.push(io::Event::Resized);
     }
-    lower_events(&mut service);
-    assert_eq!(service.io_events.len(), 1, "one iteration drains only queue entries");
+    lower_events(&mut service.stages, Some(&mut service.frame));
+    assert_eq!(service.stages.io_events.len(), 1, "one iteration drains only queue entries");
 }
 
 #[test]
@@ -545,58 +563,63 @@ fn kernel_submission_credit_holds_both_lower_routes() {
     let mut config = configuration();
     config.limits.queue = 1;
     let mut service = Service::new(config, 1).expect("one kernel-edge cell");
-    service.submissions.push(kernel::Submit { op: Token::new(1), kind: kernel::Op::Close { fd: kernel::Fd::new(90) } });
     service
+        .stages
+        .submissions
+        .push(kernel::Submit { op: Token::new(1), kind: kernel::Op::Close { fd: kernel::Fd::new(90) } });
+    service
+        .stages
         .io_submissions
         .push(kernel::Submit { op: Token::new(2), kind: kernel::Op::Close { fd: kernel::Fd::new(91) } });
     service
+        .stages
         .file_submissions
         .push(kernel::Submit { op: Token::new(3), kind: kernel::Op::Close { fd: kernel::Fd::new(92) } });
-    io_down(&mut service);
-    assert_eq!(service.io_submissions.len(), 1);
-    assert_eq!(service.file_submissions.len(), 1);
-    assert!(service.operations.is_empty(), "neither internal route crossed the full edge");
-    service.submissions.pop().expect("shell takes its first submission");
-    io_down(&mut service);
-    assert!(service.io_submissions.is_empty(), "IO keeps priority at the edge");
-    assert_eq!(service.file_submissions.len(), 1);
-    service.submissions.pop().expect("shell takes the IO submission");
-    io_down(&mut service);
-    assert!(service.file_submissions.is_empty());
-    let submit = service.submissions.pop().expect("file submission now crosses the edge");
+    io_down(&mut service.stages, Some(&mut service.frame));
+    assert_eq!(service.stages.io_submissions.len(), 1);
+    assert_eq!(service.stages.file_submissions.len(), 1);
+    assert!(service.stages.operations.is_empty(), "neither internal route crossed the full edge");
+    service.stages.submissions.pop().expect("shell takes its first submission");
+    io_down(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.io_submissions.is_empty(), "IO keeps priority at the edge");
+    assert_eq!(service.stages.file_submissions.len(), 1);
+    service.stages.submissions.pop().expect("shell takes the IO submission");
+    io_down(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.file_submissions.is_empty());
+    let submit = service.stages.submissions.pop().expect("file submission now crosses the edge");
     assert_eq!(submit.kind, kernel::Op::Close { fd: kernel::Fd::new(92) });
-    assert_eq!(backlog(&service), 0);
+    assert_eq!(backlog(&service.stages), 0);
 }
 
 #[test]
 fn work_pending_waits_on_the_kernel_for_a_message_at_the_watermark() {
     let mut service = at_watermark();
-    service.channel_events.push(host_message(31));
+    service.stages.channel_events.push(host_message(31));
     assert!(!work_pending(&service, Time::ZERO), "the kernel holds the only runnable route");
-    assert!(!channel_event_ready(&service));
-    service.submissions.pop().expect("kernel takes one submission");
+    assert!(!channel_event_ready(&service.stages));
+    service.stages.submissions.pop().expect("kernel takes one submission");
     assert!(work_pending(&service, Time::ZERO), "IO can now leave the backlog");
-    io_down(&mut service);
-    assert!(channel_event_ready(&service), "the message now fits admission");
-    component_up(&mut service);
-    assert!(service.channel_events.is_empty());
+    io_down(&mut service.stages, Some(&mut service.frame));
+    assert!(channel_event_ready(&service.stages), "the message now fits admission");
+    component_up(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.channel_events.is_empty());
 }
 
 #[test]
 fn work_pending_waits_on_the_kernel_for_a_pending_message_at_the_watermark() {
     let mut service = at_watermark();
-    service.pending_messages.push(PendingMessage {
+    service.stages.pending_messages.push(PendingMessage {
         finish_requested: false,
         name: Token::new(31),
         label: Box::from(b"host".as_slice()),
         text: Box::from(b"hello".as_slice()),
     });
     assert!(!work_pending(&service, Time::ZERO));
-    service.submissions.pop().expect("kernel takes one submission");
+    service.stages.submissions.pop().expect("kernel takes one submission");
     assert!(work_pending(&service, Time::ZERO));
-    io_down(&mut service);
-    domain_down(&mut service);
-    assert!(service.pending_messages.is_empty());
+    io_down(&mut service.stages, Some(&mut service.frame));
+    domain_down(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.pending_messages.is_empty());
 }
 
 mod validity {

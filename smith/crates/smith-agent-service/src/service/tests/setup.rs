@@ -48,30 +48,34 @@ pub(crate) fn domain_configuration(charter: &run::Charter) -> domain::Config {
 }
 
 pub(super) fn admitted(run: u64) -> Service {
-    Service { admitted: Some(Token::new(run)), ..service() }
+    with_admission(service(), Some(Token::new(run)))
 }
 
 pub(super) fn admit_pending(service: Service, run: u64) -> Service {
-    Service { admitted: Some(Token::new(run)), ..service }
+    with_admission(service, Some(Token::new(run)))
 }
 
 pub(super) fn with_input() -> Service {
-    Service { input: Some(Token::new(11)), ..service() }
+    with_streams(service(), Some(Token::new(11)), None, None)
 }
 
 pub(super) fn with_channel_streams(signals: Option<Token>) -> Service {
-    Service { input: Some(Token::new(11)), output: Some(Token::new(12)), signals, ..service() }
+    with_streams(service(), Some(Token::new(11)), Some(Token::new(12)), signals)
 }
 
 pub(super) fn without_channel() -> Service {
-    Service { channel: None, ..service() }
+    end_channel(service())
 }
 
 pub(super) fn interrupted_before_admission(run: u64) -> Service {
     let mut service = service();
-    route_io_event(&mut service, io::Event::Shutdown { signal: kernel::ServiceSignal::Interrupt, from: None });
-    assert!(service.cancel_pending, "the opening run retains cancellation until admission");
-    Service { admitted: Some(Token::new(run)), ..service }
+    route_io_event(
+        &mut service.stages,
+        Some(&mut service.frame),
+        io::Event::Shutdown { signal: kernel::ServiceSignal::Interrupt, from: None },
+    );
+    assert!(service.stages.cancel_pending, "the opening run retains cancellation until admission");
+    with_admission(service, Some(Token::new(run)))
 }
 
 pub(super) fn service() -> Service {
@@ -81,6 +85,7 @@ pub(super) fn service() -> Service {
 pub(crate) fn account_service() -> Service {
     let mut agent = event_service_with(configuration(), true);
     agent
+        .stages
         .events
         .as_mut()
         .unwrap()
@@ -95,9 +100,11 @@ pub(crate) fn account_service() -> Service {
 }
 
 pub(crate) fn account_request(agent: &mut Service, request: domain::Request) -> smith_events::Record {
-    domain_request(agent, request);
-    let records =
-        smith_protocol_events::sinks::fixture::drain_ready(agent.events.as_mut().unwrap().sinks(), Token::new(400));
+    domain_request(&mut agent.stages, Some(&mut agent.frame), request);
+    let records = smith_protocol_events::sinks::fixture::drain_ready(
+        agent.stages.events.as_mut().unwrap().sinks(),
+        Token::new(400),
+    );
     assert_eq!(records.len(), 1);
     records.into_iter().next().unwrap()
 }
@@ -119,7 +126,7 @@ pub(super) fn event_service_with(mut config: Config, framed: bool) -> Service {
         .expect("bounded event configuration"),
     );
     let service = Service::new(config, 1).expect("bounded producer service");
-    let mut service = if framed { service } else { Service { channel: None, ..service } };
+    let mut service = if framed { service } else { end_channel(service) };
     service.start_session(
         Time::ZERO,
         smith_events::SessionStarted {
@@ -142,23 +149,23 @@ pub(super) fn event_service_with(mut config: Config, framed: bool) -> Service {
 pub(super) fn watermark(run: Option<Token>) -> Service {
     let mut config = configuration();
     config.limits.queue = 8;
-    let mut service = Service { admitted: run, ..Service::new(config, 1).expect("small watermark service") };
-    for number in 0..service.limits.queue {
-        service.submissions.push(kernel::Submit {
+    let mut service = with_admission(Service::new(config, 1).expect("small watermark service"), run);
+    for number in 0..service.stages.limits.queue {
+        service.stages.submissions.push(kernel::Submit {
             op: Token::new(u64::from(number)),
             kind: kernel::Op::Close { fd: kernel::Fd::new(90) },
         });
     }
-    assert_eq!(backlog(&service), 0, "kernel-edge submissions are outside admission");
-    assert_eq!(service.submissions.capacity(), service.limits.queue);
-    assert_eq!(service.completions.capacity(), service.limits.queue);
-    for number in 0..service.limits.queue {
-        service.io_submissions.push(kernel::Submit {
+    assert_eq!(backlog(&service.stages), 0, "kernel-edge submissions are outside admission");
+    assert_eq!(service.stages.submissions.capacity(), service.stages.limits.queue);
+    assert_eq!(service.stages.completions.capacity(), service.stages.limits.queue);
+    for number in 0..service.stages.limits.queue {
+        service.stages.io_submissions.push(kernel::Submit {
             op: Token::new(u64::from(number)),
             kind: kernel::Op::Close { fd: kernel::Fd::new(91) },
         });
     }
-    assert_eq!(backlog(&service), u64::from(service.limits.queue));
+    assert_eq!(backlog(&service.stages), u64::from(service.stages.limits.queue));
     service
 }
 
@@ -182,11 +189,11 @@ pub(super) fn preparing_message_run() -> (Service, Token) {
     let mut config = configuration();
     config.domain = domain_configuration(&charter);
     let mut service = event_service_with(config, false);
-    service.events.as_mut().unwrap().starting(1, 0, &charter);
-    let domain = service.domain.as_mut().unwrap();
+    service.stages.events.as_mut().unwrap().starting(1, 0, &charter);
+    let domain = &mut service.frame.domain;
     domain::step(
         domain,
-        &service.domain_env,
+        &service.stages.domain_env,
         domain::Event::Start {
             reply_to: ReplyTo::new(Token::new(9)),
             host_run: Token::new(9),
@@ -209,14 +216,36 @@ pub(super) fn preparing_message_run() -> (Service, Token) {
             transcript: None,
             answered: Box::default(),
         },
-        &mut service.domain_requests,
+        &mut service.stages.domain_requests,
     );
-    let run = match service.domain_requests.pop() {
+    let run = match service.stages.domain_requests.pop() {
         Some(domain::Request::Admitted { run, .. }) => run,
         unexpected => panic!("the run waits in preparation: {unexpected:?}"),
     };
     // Preparation's effects and facts precede the two entrances under test.
-    while service.domain_requests.pop().is_some() {}
+    while service.stages.domain_requests.pop().is_some() {}
     while domain.pop_fact().is_some() {}
     (service, run)
+}
+
+fn with_admission(service: Service, admitted: Option<Token>) -> Service {
+    let Service { stages, frame } = service;
+    Service { stages: Stages { admitted, ..stages }, frame }
+}
+
+fn with_streams(service: Service, input: Option<Token>, output: Option<Token>, signals: Option<Token>) -> Service {
+    let Service { stages, frame } = service;
+    Service { stages: Stages { input, output, signals, ..stages }, frame }
+}
+
+fn end_channel(mut service: Service) -> Service {
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    service.frame.channel.from_below(
+        skein_channel::LowerEvent::Read(skein_lib::stream::Up::End),
+        &mut above,
+        &mut below,
+    );
+    assert!(service.frame.channel.ended(), "the detached fixture has a terminal channel");
+    service
 }

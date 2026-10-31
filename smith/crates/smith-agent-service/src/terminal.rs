@@ -24,17 +24,22 @@ pub fn last(service: &crate::Service) -> Option<Last> {
     if !answered {
         return Some(Last::Unanswered(crate::failure(service).expect("an unanswered end keeps its first cause")));
     }
-    let failure = match service.final_failure.clone() {
-        Some(why) => smith_protocol_events::failure_record(why, service.final_answer_at),
-        None => match service.final_refusal {
+    let failure = match service.stages.final_failure.clone() {
+        Some(why) => smith_protocol_events::failure_record(why, service.stages.final_answer_at),
+        None => match service.stages.final_refusal {
             Some(why) => smith_protocol_events::refusal_record(why),
             None => return Some(Last::Quiet),
         },
     };
-    Some(Last::Failed { failure: Box::new(failure), detail: service.final_detail.clone() })
+    Some(Last::Failed { failure: Box::new(failure), detail: service.stages.final_detail.clone() })
 }
 
-pub(crate) fn remember(service: &mut crate::Service, answer: &run::Answer, detail: Box<[u8]>, now: skein_lib::Time) {
+pub(crate) fn remember(
+    service: &mut crate::service::Stages,
+    answer: &run::Answer,
+    detail: Box<[u8]>,
+    now: skein_lib::Time,
+) {
     service.final_detail = detail;
     service.final_answer_at = now;
     match answer {

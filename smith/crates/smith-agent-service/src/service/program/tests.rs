@@ -1,4 +1,5 @@
 use super::*;
+use crate::Service;
 
 #[test]
 fn an_unbound_program_keeps_the_native_limits() {
@@ -12,10 +13,10 @@ fn an_unbound_program_keeps_the_native_limits() {
         effective_user: 1000,
     });
     let service = Service::new(configuration, 1).expect("unbound declaration needs no backend settings");
-    assert!(service.program.is_none());
-    assert_eq!(service.limits.routes, limits.routes);
-    assert_eq!(service.limits.io, limits.io);
-    assert_eq!(service.limits.file_slots, limits.file_slots);
+    assert!(service.stages.program.is_none());
+    assert_eq!(service.stages.limits.routes, limits.routes);
+    assert_eq!(service.stages.limits.io, limits.io);
+    assert_eq!(service.stages.limits.file_slots, limits.file_slots);
 }
 
 #[test]
@@ -30,14 +31,21 @@ fn program_close_reaches_io_with_pending_file_terminals() {
     });
     let mut service = Service::new(configuration, 1).expect("bounded program service");
     let entity = Token::new(91);
-    service.program.as_mut().expect("configured program").below.push(backend::Below::Io(io::Request::Close { entity }));
-    service.file_events.push(file::Event::Closed { owner: Token::new(92) });
-    assert_eq!(super::super::backlog(&service), 2, "program lower work counts toward admission");
-    down(&mut service);
-    let io::Request::Close { entity: received } = service.io_requests.pop().expect("program close progresses") else {
+    service
+        .stages
+        .program
+        .as_mut()
+        .expect("configured program")
+        .below
+        .push(backend::Below::Io(io::Request::Close { entity }));
+    service.stages.file_events.push(file::Event::Closed { owner: Token::new(92) });
+    assert_eq!(super::super::stages::backlog(&service.stages), 2, "program lower work counts toward admission");
+    down(&mut service.stages);
+    let io::Request::Close { entity: received } = service.stages.io_requests.pop().expect("program close progresses")
+    else {
         unreachable!("only a close was queued")
     };
     assert_eq!(received, entity);
-    assert!(service.program.as_ref().expect("configured program").below.is_empty());
-    assert_eq!(service.file_events.len(), 1, "file terminals still await their consumer");
+    assert!(service.stages.program.as_ref().expect("configured program").below.is_empty());
+    assert_eq!(service.stages.file_events.len(), 1, "file terminals still await their consumer");
 }

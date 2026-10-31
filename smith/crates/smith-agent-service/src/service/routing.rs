@@ -3,13 +3,13 @@
 //! domain outcomes. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use super::teardown::{Step, Teardown};
-use super::{COMPONENT_OWNER_BIT, Operation, Owner, Service, USAGE_OWNER, program, teardown};
+use super::{COMPONENT_OWNER_BIT, Frame, Operation, Owner, Stages, USAGE_OWNER, face, program, teardown};
 use skein_channel::LowerEvent as ChannelLowerEvent;
 use skein_io::{self as io, kernel};
 use skein_lib::{Id, Token, stream};
 use smith_protocol_machine as machine;
 
-pub(super) fn record_usage(service: &mut Service, usage: io::Measured) {
+pub(super) fn record_usage(service: &mut Stages, frame: Option<&Frame>, usage: io::Measured) {
     let (at, answer, close) = match service.teardown {
         Teardown::Closing { at, answer, close, step: Step::Usage } => (at, answer, close),
         Teardown::Live | Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {
@@ -21,7 +21,7 @@ pub(super) fn record_usage(service: &mut Service, usage: io::Measured) {
         io::Measured::Unread => true,
     };
     #[expect(clippy::manual_map, reason = "strict production entries avoid closures")]
-    let channel = match &service.channel {
+    let channel = match face::channel(frame) {
         Some(channel) => Some(channel.lost_facts()),
         None => None,
     };
@@ -53,10 +53,10 @@ pub(super) fn record_usage(service: &mut Service, usage: io::Measured) {
     service.teardown = Teardown::Closing { at, answer, close, step: Step::Stream };
 }
 
-pub(super) fn route_io_event(service: &mut Service, event: io::Event) {
+pub(super) fn route_io_event(service: &mut Stages, frame: Option<&mut Frame>, event: io::Event) {
     match &event {
         io::Event::Usage { owner, usage } if *owner == USAGE_OWNER => {
-            record_usage(service, *usage);
+            record_usage(service, frame.as_deref(), *usage);
             return;
         }
         io::Event::Listening { .. }
@@ -83,41 +83,14 @@ pub(super) fn route_io_event(service: &mut Service, event: io::Event) {
             Some(_) | None => {}
         }
     }
+    let event = match frame {
+        Some(frame) => framed_event(service, frame, event),
+        None => Some(event),
+    };
+    let Some(event) = event else { return };
     match event {
         io::Event::Resized | io::Event::Window { .. } => {}
         io::Event::Shutdown { .. } => teardown::shutdown(service),
-        io::Event::Stream { owner, up } if Some(owner) == service.input => {
-            service.channel.as_mut().expect("framed agent owns its channel").from_below(
-                ChannelLowerEvent::Read(up),
-                &mut service.channel_events,
-                &mut service.channel_below,
-            );
-        }
-        io::Event::Output { owner, up } if Some(owner) == service.output => {
-            service.channel.as_mut().expect("framed agent owns its channel").from_below(
-                ChannelLowerEvent::Write(up),
-                &mut service.channel_events,
-                &mut service.channel_below,
-            );
-        }
-        io::Event::Stream { owner, up } if Some(owner) == service.output => match up {
-            stream::Up::Failed(fault) => service.channel.as_mut().expect("framed agent owns its channel").from_below(
-                ChannelLowerEvent::WriteFailed(fault),
-                &mut service.channel_events,
-                &mut service.channel_below,
-            ),
-            stream::Up::Bytes(_) | stream::Up::Room | stream::Up::End => {}
-        },
-        io::Event::Closed { owner } if Some(owner) == service.input => {
-            service.input = None;
-            service.channel.as_mut().expect("framed agent owns its channel").from_below(
-                ChannelLowerEvent::Read(stream::Up::End),
-                &mut service.channel_events,
-                &mut service.channel_below,
-            );
-        }
-        io::Event::Closed { owner } if Some(owner) == service.output => service.output = None,
-        io::Event::Closed { owner } if Some(owner) == service.signals => service.signals = None,
         event @ (io::Event::Listening { .. }
         | io::Event::Accepted { .. }
         | io::Event::Connecting { .. }
@@ -132,7 +105,7 @@ pub(super) fn route_io_event(service: &mut Service, event: io::Event) {
     }
 }
 
-pub(super) fn route_owned_io(service: &mut Service, event: io::Event) {
+pub(super) fn route_owned_io(service: &mut Stages, event: io::Event) {
     let Some(event) = program::pipe_event(service, event) else { return };
     let owner = event.owner().expect("only signal events lack owner");
     if service.pipe_routes.contains_key(&owner) {
@@ -185,8 +158,8 @@ pub(super) fn component_owner(route: Token) -> Token {
     Token::new(route.raw() | COMPONENT_OWNER_BIT)
 }
 
-pub(super) fn io_down(service: &mut Service) {
-    if let Some(io) = &mut service.io {
+pub(super) fn io_down(service: &mut Stages, frame: Option<&mut Frame>) {
+    if let Some(io) = face::io_mut(frame) {
         for _ in 0..service.limits.queue {
             if !io.takes() {
                 break;
@@ -215,7 +188,7 @@ pub(super) fn io_down(service: &mut Service) {
     clippy::wildcard_enum_match_arm,
     reason = "the kernel operation is an external vocabulary and only Cancel names another operation"
 )]
-pub(super) fn route_submission(service: &mut Service, submit: kernel::Submit, file: bool) {
+pub(super) fn route_submission(service: &mut Stages, submit: kernel::Submit, file: bool) {
     let global = Token::new(service.next_operation);
     service.next_operation = service.next_operation.checked_add(1).expect("one run does not exhaust operation names");
     let kind = match submit.kind {
@@ -244,4 +217,56 @@ pub(super) fn route_submission(service: &mut Service, submit: kernel::Submit, fi
     };
     service.operations.insert(global, route).expect("reserved operation route");
     service.submissions.push(kernel::Submit { op: global, kind });
+}
+
+fn framed_event(service: &mut Stages, frame: &mut Frame, event: io::Event) -> Option<io::Event> {
+    match event {
+        io::Event::Stream { owner, up } if Some(owner) == service.input => {
+            frame.channel.from_below(
+                ChannelLowerEvent::Read(up),
+                &mut service.channel_events,
+                &mut service.channel_below,
+            );
+        }
+        io::Event::Output { owner, up } if Some(owner) == service.output => {
+            frame.channel.from_below(
+                ChannelLowerEvent::Write(up),
+                &mut service.channel_events,
+                &mut service.channel_below,
+            );
+        }
+        io::Event::Stream { owner, up } if Some(owner) == service.output => match up {
+            stream::Up::Failed(fault) => frame.channel.from_below(
+                ChannelLowerEvent::WriteFailed(fault),
+                &mut service.channel_events,
+                &mut service.channel_below,
+            ),
+            stream::Up::Bytes(_) | stream::Up::Room | stream::Up::End => {}
+        },
+        io::Event::Closed { owner } if Some(owner) == service.input => {
+            service.input = None;
+            frame.channel.from_below(
+                ChannelLowerEvent::Read(stream::Up::End),
+                &mut service.channel_events,
+                &mut service.channel_below,
+            );
+        }
+        io::Event::Closed { owner } if Some(owner) == service.output => service.output = None,
+        io::Event::Closed { owner } if Some(owner) == service.signals => service.signals = None,
+        event @ (io::Event::Listening { .. }
+        | io::Event::Accepted { .. }
+        | io::Event::Connecting { .. }
+        | io::Event::Connected { .. }
+        | io::Event::Stream { .. }
+        | io::Event::Output { .. }
+        | io::Event::Spawned { .. }
+        | io::Event::Exited { .. }
+        | io::Event::Usage { .. }
+        | io::Event::Resized
+        | io::Event::Window { .. }
+        | io::Event::Shutdown { .. }
+        | io::Event::Failed { .. }
+        | io::Event::Closed { .. }) => return Some(event),
+    }
+    None
 }

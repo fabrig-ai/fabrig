@@ -6,7 +6,7 @@
 use skein_lib::Time;
 use smith_domain as domain;
 
-use super::{Failure, Operation, Service, USAGE_OWNER};
+use super::{Failure, Frame, Operation, Stages, USAGE_OWNER, face};
 use skein_io::{self as io, file, file_layer};
 
 /// Where the service is in its end, advanced after each routing pass.
@@ -62,7 +62,7 @@ pub enum Step {
     Signals,
 }
 
-pub(super) fn answered(service: &mut Service) {
+pub(super) fn answered(service: &mut Stages) {
     match service.teardown {
         Teardown::Live => {
             let answer = match service.failure {
@@ -75,7 +75,7 @@ pub(super) fn answered(service: &mut Service) {
     }
 }
 
-pub(super) fn failed(service: &mut Service, failure: Failure) {
+pub(super) fn failed(service: &mut Stages, failure: Failure) {
     match service.teardown {
         Teardown::Live => {}
         Teardown::Answered { at, close, .. } => {
@@ -88,11 +88,11 @@ pub(super) fn failed(service: &mut Service, failure: Failure) {
     }
 }
 
-fn close_room(service: &Service) -> bool {
+fn close_room(service: &Stages) -> bool {
     service.llm.measures_drained()
 }
 
-pub(super) fn components_closed(service: &Service) -> bool {
+pub(super) fn components_closed(service: &Stages, frame: Option<&Frame>) -> bool {
     let streams = match &service.events {
         Some(events) => events.streams(),
         None => 0,
@@ -101,24 +101,24 @@ pub(super) fn components_closed(service: &Service) -> bool {
     super::program::closed(service)
         && service.llm.closed()
         && service.live.deadline().is_none()
-        && settled(service, streams)
+        && settled(service, frame, streams)
 }
 
-fn stream_closed(service: &Service) -> bool {
+fn stream_closed(service: &Stages, frame: Option<&Frame>) -> bool {
     let destinations = match &service.events {
         Some(events) => events.closed(),
         None => true,
     };
     destinations
-        && settled(service, u32::from(service.signals.is_some()))
+        && settled(service, frame, u32::from(service.signals.is_some()))
         && (service.signals.is_some()
-            || match &service.io {
+            || match face::io(frame) {
                 Some(io) => io.is_empty(),
                 None => true,
             })
 }
 
-pub(super) fn shutdown(service: &mut Service) {
+pub(super) fn shutdown(service: &mut Stages) {
     let before_terminal = match service.teardown {
         Teardown::Live => {
             if let Some(run) = service.admitted {
@@ -176,24 +176,24 @@ pub(super) fn shutdown(service: &mut Service) {
     }
 }
 
-pub(super) fn work_pending(service: &Service) -> bool {
+pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>) -> bool {
     match service.teardown {
         Teardown::Live | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => false,
         Teardown::Answered { .. } => close_room(service),
         Teardown::Closing { step: Step::Components, .. } => {
-            (components_closed(service) && owner_ended(service))
+            (components_closed(service, frame) && owner_ended(service, frame))
                 || (!service.roots.is_empty() && roots_closable(service))
         }
-        Teardown::Closing { step: Step::Stream, .. } => stream_closed(service),
-        Teardown::Closing { step: Step::Signals, .. } => service.signals.is_none() && stream_closed(service),
+        Teardown::Closing { step: Step::Stream, .. } => stream_closed(service, frame),
+        Teardown::Closing { step: Step::Signals, .. } => service.signals.is_none() && stream_closed(service, frame),
     }
 }
 
-fn owner_ended(service: &Service) -> bool {
-    service.domain.is_some() || service.product_exit.is_some() || service.events.is_none()
+fn owner_ended(service: &Stages, frame: Option<&Frame>) -> bool {
+    frame.is_some() || service.product_exit.is_some() || service.events.is_none()
 }
 
-pub(super) fn advance(service: &mut Service) {
+pub(super) fn advance(service: &mut Stages, frame: Option<&Frame>) {
     match service.teardown {
         Teardown::Live | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => {}
         Teardown::Answered { at, answer, close } => {
@@ -228,7 +228,7 @@ pub(super) fn advance(service: &mut Service) {
         }
         Teardown::Closing { at, answer, close, step: Step::Components } => {
             close_roots(service);
-            if components_closed(service) && owner_ended(service) {
+            if components_closed(service, frame) && owner_ended(service, frame) {
                 let step = match &service.events {
                     Some(_) => {
                         service.io_requests.push(io::Request::Usage { owner: USAGE_OWNER });
@@ -240,7 +240,7 @@ pub(super) fn advance(service: &mut Service) {
             }
         }
         Teardown::Closing { at, answer, close, step: Step::Stream } => {
-            if stream_closed(service) {
+            if stream_closed(service, frame) {
                 match service.signals {
                     Some(entity) => {
                         service.io_requests.push(io::Request::Close { entity });
@@ -251,14 +251,14 @@ pub(super) fn advance(service: &mut Service) {
             }
         }
         Teardown::Closing { answer, close, step: Step::Signals, .. } => {
-            if service.signals.is_none() && stream_closed(service) {
+            if service.signals.is_none() && stream_closed(service, frame) {
                 service.teardown = Teardown::Closed { answer, close };
             }
         }
     }
 }
 
-fn close_roots(service: &mut Service) {
+fn close_roots(service: &mut Stages) {
     service.machine.close(&mut service.machine_below);
     if roots_closable(service) {
         if service.root_close_next > 0 {
@@ -279,7 +279,7 @@ fn close_roots(service: &mut Service) {
 }
 
 /// All non-destination children have reported closed; only these streams may remain.
-fn operations_settled(service: &Service) -> bool {
+fn operations_settled(service: &Stages) -> bool {
     for (_, operation) in &service.operations {
         match operation {
             Operation::Signals(_) if service.signals.is_some() => {}
@@ -289,10 +289,10 @@ fn operations_settled(service: &Service) -> bool {
     true
 }
 
-fn settled(service: &Service, streams: u32) -> bool {
+fn settled(service: &Stages, frame: Option<&Frame>, streams: u32) -> bool {
     use super::program;
 
-    (match &service.channel {
+    (match face::channel(frame) {
         Some(channel) => channel.ended(),
         None => true,
     }) && service.channel_events.is_empty()
@@ -305,7 +305,7 @@ fn settled(service: &Service, streams: u32) -> bool {
         && service.machine_below.is_empty()
         && service.domain_events.is_empty()
         && service.domain_requests.is_empty()
-        && match &service.domain {
+        && match face::domain(frame) {
             Some(domain) => !domain.has_facts(),
             None => true,
         }
@@ -315,7 +315,7 @@ fn settled(service: &Service, streams: u32) -> bool {
         && service.io_submissions.is_empty()
         && service.file_submissions.is_empty()
         && service.completions.is_empty()
-        && match &service.io {
+        && match face::io(frame) {
             Some(io) => io.sockets() == streams,
             None => true,
         }
@@ -328,7 +328,7 @@ fn settled(service: &Service, streams: u32) -> bool {
         && service.submissions.is_empty()
 }
 
-fn roots_closable(service: &Service) -> bool {
+fn roots_closable(service: &Stages) -> bool {
     service.machine.closed()
         && service.owners.is_empty()
         && service.pipe_routes.is_empty()

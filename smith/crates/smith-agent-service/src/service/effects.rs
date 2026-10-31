@@ -1,14 +1,13 @@
 //! Host-owned effects over the service's shared lower stages.
-//! It retains the service and installed grant names, never a root domain or
+//! It retains the lower stages and installed grant names, never a root domain or
 //! channel. Contract: smith/docs/design/domain/host.md, section 9; smith/docs/design/protocol/hosts.md, section 5.6.
+
+use super::stages::{clocks, done, next_deadline, work_pending};
 
 use super::down::{component_down, domain_down};
 use super::routing::io_down;
 use super::up::{component_up, io_up, lower_events};
-use super::{
-    COMPONENT_OWNER_BIT, Config, ConfigError, Failure, Service, USAGE_OWNER, clocks, credential, done, effects_valid,
-    next_deadline, teardown, work_pending,
-};
+use super::{COMPONENT_OWNER_BIT, Config, ConfigError, Failure, USAGE_OWNER, credential, effects_valid, teardown};
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
 use skein_lib::{Id, Map, Queue, Time, Token, Wall};
@@ -20,7 +19,7 @@ use smith_protocol_channel as channel;
 /// (smith/docs/design/domain/host.md, section 9; smith/docs/design/protocol/hosts.md, section 5.6).
 #[derive(Debug)]
 pub struct Effects {
-    service: Service,
+    stages: super::Stages,
     installed: Map<u32, domain::GrantName>,
 }
 
@@ -34,19 +33,19 @@ impl Effects {
         if !effects_valid(&config.limits, &config.llm_endpoints) {
             return Err(ConfigError::Limits);
         }
-        let service = Service::parts(config, None)?;
-        Ok(Self { service, installed: Map::with_capacity(accounts) })
+        let stages = super::Stages::parts(config)?.stages;
+        Ok(Self { stages, installed: Map::with_capacity(accounts) })
     }
 
     /// Replace the account-to-endpoint bindings before a colocated host lends grants.
     pub fn bind_grants(&mut self, charter: &run::Charter) -> Result<(), Failure> {
-        self.service.llm.bind_grants(charter).or(Err(Failure::Credential))
+        self.stages.llm.bind_grants(charter).or(Err(Failure::Credential))
     }
 
     /// Configure the result shapes used by completion tool schemas.
     pub fn contract(&mut self, outcome: run::outcome::OutcomeSpec) {
-        self.service.delivery.clone_from(&outcome.change);
-        self.service.outcome = Some(outcome);
+        self.stages.delivery.clone_from(&outcome.change);
+        self.stages.outcome = Some(outcome);
     }
 
     /// Adopt opened workspace roots and replace the host's opaque names with file tokens.
@@ -56,17 +55,17 @@ impl Effects {
         roots: Box<[kernel::Fd]>,
     ) -> Result<run::Workspace, ConfigError> {
         if workspace.directories.len() != roots.len()
-            || roots.len() > usize::try_from(self.service.limits.machine.roots).expect("root bound fits")
+            || roots.len() > usize::try_from(self.stages.limits.machine.roots).expect("root bound fits")
         {
             return Err(ConfigError::Io);
         }
         for (directory, fd) in workspace.directories.iter_mut().zip(&roots) {
-            let root = self.service.files.adopt_root(*fd).ok_or(ConfigError::Io)?;
-            self.service.roots.push(root).expect("admitted root count");
+            let root = self.stages.files.adopt_root(*fd).ok_or(ConfigError::Io)?;
+            self.stages.roots.push(root).expect("admitted root count");
             directory.root = root;
         }
-        self.service.root_close_next = self.service.roots.len();
-        self.service.machine.workspace(&workspace);
+        self.stages.root_close_next = self.stages.roots.len();
+        self.stages.machine.workspace(&workspace);
         Ok(workspace)
     }
 
@@ -76,7 +75,7 @@ impl Effects {
             return Ok(());
         }
         let credential = credential(value).ok_or(Failure::Credential)?;
-        match self.service.llm.grant(grant.name, credential, now.saturating_add(grant.valid)) {
+        match self.stages.llm.grant(grant.name, credential, now.saturating_add(grant.valid)) {
             Ok(()) => {
                 self.installed.insert(grant.name.account, grant.name).expect("admitted account count");
                 Ok(())
@@ -97,7 +96,7 @@ impl Effects {
             | domain::Request::Read { .. }
             | domain::Request::Probe { .. }
             | domain::Request::Check { .. }
-            | domain::Request::Abort { .. }) => self.service.domain_requests.push(request),
+            | domain::Request::Abort { .. }) => self.stages.domain_requests.push(request),
             domain::Request::MessageRefused { .. }
             | domain::Request::Waiting { .. }
             | domain::Request::Turn { .. }
@@ -116,7 +115,7 @@ impl Effects {
 
     /// Take one typed LLM or machine terminal for the host's domain.
     pub fn event(&mut self) -> Option<domain::Event> {
-        self.service.domain_events.pop()
+        self.stages.domain_events.pop()
     }
 
     /// Advance the same lower stages used by a framed agent at injected clocks.
@@ -127,57 +126,55 @@ impl Effects {
 
     /// Reap IO and translate its settled terminals before the host's domain pass.
     pub fn up(&mut self, now: Time, wall: Wall) {
-        let service = &mut self.service;
+        let service = &mut self.stages;
         clocks(service, now, wall);
-        io_up(service);
-        lower_events(service);
-        component_up(service);
+        io_up(service, None);
+        lower_events(service, None);
+        component_up(service, None);
     }
 
     /// Submit domain effects and reclaim lower entities after the host's down pass.
     pub fn down(&mut self) {
-        let service = &mut self.service;
-        domain_down(service);
+        let service = &mut self.stages;
+        domain_down(service, None);
         component_down(service);
-        teardown::advance(service);
+        teardown::advance(service, None);
         if let Some(events) = &mut service.events {
             events.sinks().down(service.io_env.now, &mut service.io_requests);
         }
-        io_down(service);
-        if let Some(io) = &mut service.io {
-            io.reclaim();
-        }
+        io_down(service, None);
+
         service.llm.reclaim();
         service.owners.reclaim();
     }
 
     /// Completions supplied by the shell's kernel or a world's simulator.
     pub fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        self.service.completions()
+        self.stages.completions()
     }
 
     /// Kernel work issued by the shared lower stages.
     pub fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        self.service.submissions()
+        self.stages.submissions()
     }
 
     /// The next deadline belonging to an LLM, machine or IO entity.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        next_deadline(&self.service)
+        next_deadline(&self.stages, None)
     }
 
     /// Whether another lower pass can progress without waiting.
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        work_pending(&self.service, now)
+        work_pending(&self.stages, None, now)
     }
 
     /// Entries in the effects' own handoffs for the colocated host's
     /// backlog (smith/docs/design/protocol/limits.md 3.8).
     #[must_use]
     pub fn backlog(&self) -> u64 {
-        super::backlog(&self.service)
+        super::stages::backlog(&self.stages)
     }
 
     /// Adopt the product's append descriptor under its configured delivery policy.
@@ -189,7 +186,7 @@ impl Effects {
         append: bool,
         io: &mut io::Io,
     ) -> Result<(), kernel::Fd> {
-        let service = &mut self.service;
+        let service = &mut self.stages;
         let Some(events) = &mut service.events else { return Err(fd) };
         if !events.sinks().room_for_destination(destination) {
             return Err(fd);
@@ -202,18 +199,18 @@ impl Effects {
 
     /// Requests for the product's one IO owner.
     pub fn io_requests(&mut self) -> &mut Queue<io::Request> {
-        &mut self.service.io_requests
+        &mut self.stages.io_requests
     }
 
     /// A native IO terminal routed by the product to these effects.
     pub fn io_event(&mut self, event: io::Event) {
-        self.service.io_events.push(event);
+        self.stages.io_events.push(event);
     }
 
     /// Whether an IO terminal names a live effect or destination.
     #[must_use]
     pub fn owns_io(&self, event: &io::Event) -> bool {
-        let service = &self.service;
+        let service = &self.stages;
         let Some(owner) = event.owner() else { return false };
         if owner == USAGE_OWNER || service.pipe_routes.contains_key(&owner) {
             return true;
@@ -230,7 +227,7 @@ impl Effects {
     /// Open destinations retained while the common owner closes its other entities.
     #[must_use]
     pub fn streams(&self) -> u32 {
-        match &self.service.events {
+        match &self.stages.events {
             Some(events) => events.streams(),
             None => 0,
         }
@@ -238,14 +235,14 @@ impl Effects {
 
     /// Record the product's startup before its first pass.
     pub fn start_session(&mut self, now: Time, header: smith_events::SessionStarted) {
-        self.service.start_session(now, header);
+        self.stages.start_session(now, header);
     }
 
     /// Retain the values supplied by the parent face's start.
     pub fn starting(&mut self, activation: u64, messages: u64, charter: &run::Charter) {
-        self.service.llm.bind_grants(charter).expect("admitted charter fits its LLM binding bound");
-        self.service.run_started = self.service.domain_env.now;
-        if let Some(events) = &mut self.service.events {
+        self.stages.llm.bind_grants(charter).expect("admitted charter fits its LLM binding bound");
+        self.stages.run_started = self.stages.domain_env.now;
+        if let Some(events) = &mut self.stages.events {
             events.starting(activation, messages, charter);
         }
     }
@@ -253,7 +250,7 @@ impl Effects {
     /// Capture selected by the product's event configuration.
     #[must_use]
     pub fn capture(&self) -> smith_protocol_events::sinks::Capture {
-        match self.service.limits.events {
+        match self.stages.limits.events {
             Some(events) => events.capture,
             None => smith_protocol_events::sinks::Capture::None,
         }
@@ -261,7 +258,7 @@ impl Effects {
 
     /// The existing event sink's optional in-process view, with no destination credit.
     pub fn front_sinks(&mut self) -> Option<&mut smith_protocol_events::sinks::Sinks> {
-        match &mut self.service.events {
+        match &mut self.stages.events {
             Some(events) => Some(events.sinks()),
             None => None,
         }
@@ -270,7 +267,7 @@ impl Effects {
     /// A live-view record awaits its product front end.
     #[must_use]
     pub fn front_pending(&self) -> bool {
-        match &self.service.events {
+        match &self.stages.events {
             Some(events) => events.front_pending(),
             None => false,
         }
@@ -279,7 +276,7 @@ impl Effects {
     /// Whether the destinations can take another record this pass.
     #[must_use]
     pub fn takes(&self) -> bool {
-        match &self.service.events {
+        match &self.stages.events {
             Some(events) => events.takes(),
             None => true,
         }
@@ -287,22 +284,22 @@ impl Effects {
 
     /// Observe the exact parent message before draining its run receipt.
     pub fn message(&mut self, name: Token, label: &[u8], text: &[u8]) {
-        if let Some(events) = &mut self.service.events {
+        if let Some(events) = &mut self.stages.events {
             events.message(name, label, text);
         }
     }
 
     /// Project one inline run fact in its native drain order.
     pub fn fact(&mut self, fact: &domain::Fact) {
-        if let Some(events) = &mut self.service.events {
+        if let Some(events) = &mut self.stages.events {
             events.fact(fact);
         }
     }
 
     /// Finish any opening whose root terminal followed its last session fact.
     pub fn facts_drained(&mut self) {
-        if let Some(events) = &mut self.service.events {
-            for _ in 0..self.service.limits.domain.run.conversations {
+        if let Some(events) = &mut self.stages.events {
+            for _ in 0..self.stages.limits.domain.run.conversations {
                 if !events.takes() || !events.facts_drained() {
                     break;
                 }
@@ -312,36 +309,36 @@ impl Effects {
 
     /// Record the answer where the product meets it, with its producer's totals.
     pub fn answered(&mut self, now: Time, answer: smith_protocol_events::Answered) {
-        if let Some(events) = &mut self.service.events {
-            events.answered(now, self.service.run_started, answer);
+        if let Some(events) = &mut self.stages.events {
+            events.answered(now, self.stages.run_started, answer);
         }
     }
 
     /// End the stream with the product's exit after its children settle.
     pub fn end(&mut self, exit: u8) {
-        self.service.product_exit = Some(exit);
-        teardown::answered(&mut self.service);
+        self.stages.product_exit = Some(exit);
+        teardown::answered(&mut self.stages);
     }
 
     /// Close reusable lower entities after the local domain has ended its run.
     pub fn close(&mut self) {
-        teardown::answered(&mut self.service);
+        teardown::answered(&mut self.stages);
     }
 
     /// Lower components and roots have closed; the product terminal is still owed.
     #[must_use]
     pub fn components_closed(&self) -> bool {
-        teardown::components_closed(&self.service)
+        teardown::components_closed(&self.stages, None)
     }
 
     /// Turn the remaining lower closes into aborts after the product's last word.
     pub fn abort(&mut self) {
-        teardown::shutdown(&mut self.service);
+        teardown::shutdown(&mut self.stages);
     }
 
     /// Every lower child and adopted root has completed its close.
     #[must_use]
     pub fn closed(&self) -> bool {
-        done(&self.service).is_some()
+        done(&self.stages).is_some()
     }
 }
