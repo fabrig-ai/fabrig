@@ -72,7 +72,6 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 w::Request::RemoveForge(_) => false,
                 w::Request::Adopt(_)
                 | w::Request::SetUp(_)
-                | w::Request::StartDemo
                 | w::Request::Return(_)
                 | w::Request::Connect(_)
                 | w::Request::Install(_)

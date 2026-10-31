@@ -212,7 +212,7 @@ fn model_shown(name: &[u8], w: &Words) -> Box<[u8]> {
 
 pub(crate) fn provider_shown(root: &Domain, number: Option<u32>, name: &[u8], w: &Words) -> Box<[u8]> {
     if number.is_some() && number == root.forge().playground_provider() {
-        w.say(W::Demo, &[])
+        w.say(W::Playground, &[])
     } else {
         skein_lib::bytes::copy_of(name)
     }
@@ -548,7 +548,7 @@ fn using_line(
         if ready == c::Readiness::Unavailable {
             line(b, w, W::ModelNeedsAccount, &[Hole::Name(name)]);
         } else {
-            line(b, w, W::DemoUsing, &[Hole::Name(w.say(W::Default, &[]))]);
+            line(b, w, W::PlaygroundUsing, &[Hole::Name(w.say(W::Default, &[]))]);
         }
         return;
     }
@@ -677,7 +677,7 @@ fn account_line(b: &mut Builder, root: &Domain, w: &Words, account: u32, labels:
     match account_row(root, account) {
         Some(row) => {
             let name = if row.provider.is_some() && row.provider == root.forge().playground_provider() {
-                w.say(W::DemoModelName, &[])
+                w.say(W::PlaygroundModelName, &[])
             } else {
                 skein_lib::bytes::copy_of(row.display.bytes())
             };

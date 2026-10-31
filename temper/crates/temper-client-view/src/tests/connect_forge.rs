@@ -370,8 +370,8 @@ fn the_welcomes_ready_follows_a_forge_under_way() {
 #[test]
 fn the_forge_pages_have_navigation_and_the_playground_banner() {
     for address in [Address::ConnectForge { forge: None }, Address::Forges] {
-        let root = f::demo_frame_root(address, f::PROJECT, true, None, None);
-        assert!(root.demo().is_some());
+        let root = f::playground_frame_root(address, f::PROJECT, true, None, None);
+        assert!(root.forge().playground().is_some());
         let view = f::page_view(&root);
         node(view.tree(), Role::Navigation, b"Main navigation");
         assert!(f::find(view.tree(), Role::Region, b"Playground").is_some());
@@ -636,12 +636,12 @@ fn setting_up_names_its_first_repository_and_project() {
     node(view.tree(), Role::Status, b"under way");
 }
 #[test]
-fn setting_up_names_the_demo_project_playground() {
+fn setting_up_names_the_playground_project_playground() {
     let root = f::root_at_with_forges(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         &f::domain_limits(),
         b"Project 1",
-        Some((f::PROJECT, true, w::DemoState::Running)),
+        Some((f::PROJECT, true, w::PlaygroundState::Running)),
         None,
         Some(first_rows(w::Connection::Connecting, w::FirstState::Making)),
     )

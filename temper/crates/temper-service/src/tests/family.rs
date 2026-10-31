@@ -139,7 +139,7 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
             "demo, unconfigured",
             wire::FORGE,
             wire::CLIENT_VERSION,
-            wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap()),
+            wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
             people::ApplicationScope::Deployment,
             (REPLY, wire::FORGE, None),
         ),
@@ -168,7 +168,7 @@ fn read_input(scope: people::ApplicationScope) -> kit::ToApplication {
         sign_in: 3,
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap()),
+        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
         scope,
         window: jig_domain_core::documents::Window { rows: 2, after: None },
     }
@@ -1951,40 +1951,4 @@ fn end_playground_answers_reset() {
         w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome,
         w::Outcome::Reset
     );
-}
-
-#[test]
-fn legacy_start_is_refused_and_its_read_is_empty() {
-    let request = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::StartDemo }).unwrap();
-    let Err(answer) = family::to_root(
-        exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
-        &fixtures::forge_table(&[]),
-        None,
-        None,
-        &w::CEILINGS,
-    ) else {
-        panic!("refused start")
-    };
-    let kit::Event::Application(kit::FromApplication::Answered { to, family, record }) = *answer else {
-        panic!("start answer")
-    };
-    assert_eq!((to, family), (REPLY, wire::FORGE));
-    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&record)).unwrap();
-    assert_eq!(
-        answer.into_parts().outcome,
-        w::Outcome::StartRefused(
-            w::StartRefused::new(&w::CEILINGS, w::StartRefusedParts { why: w::StartRefusal::NotOffered }).unwrap()
-        )
-    );
-    let Err(answer) = family::to_root(
-        read_input(people::ApplicationScope::Deployment),
-        &fixtures::forge_table(&[]),
-        None,
-        None,
-        &w::CEILINGS,
-    ) else {
-        panic!("empty read")
-    };
-    let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("read answer") };
-    assert!(record.is_none());
 }

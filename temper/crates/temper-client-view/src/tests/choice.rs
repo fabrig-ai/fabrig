@@ -163,8 +163,11 @@ fn line_fixture(
     let models = line_models(task_page);
     me.projects.get_mut(0).unwrap().models = models;
     if !task_page {
-        let template =
-            fixtures::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, fixtures::PROJECT, true);
+        let template = fixtures::playground_root(
+            Address::Chats { filter: ChatsFilter::All, start: false },
+            fixtures::PROJECT,
+            true,
+        );
         me.projects.get_mut(0).unwrap().templates =
             template.pages().me(template.client()).unwrap().projects.get(0).unwrap().templates.clone();
     }
@@ -1253,13 +1256,13 @@ pub(super) fn playground_offers_root(address: Address, playground: bool) -> (d::
         address,
         &fixtures::domain_limits(),
         b"Shop",
-        playground.then_some((fixtures::PROJECT, true, w::DemoState::Running)),
+        playground.then_some((fixtures::PROJECT, true, w::PlaygroundState::Running)),
         None,
         Some(super::connect_forge::rows(w::Connection::Connecting, w::Offer::Offered)),
     );
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.providers = List::with_capacity(2);
-    for (provider, name, sign_in) in [(17, b"demo".as_slice(), false), (18, b"openai".as_slice(), true)] {
+    for (provider, name, sign_in) in [(17, b"scripted".as_slice(), false), (18, b"openai".as_slice(), true)] {
         me.providers
             .push(c::ProviderOffer {
                 provider,
@@ -1302,7 +1305,7 @@ fn the_model_choice_leaves_the_scripted_provider_out() {
             let mut view = fixtures::page_view(root);
             let tree = view.tree();
             assert!(fixtures::find(tree, Role::Paragraph, b"Agents need an LLM account to run.").is_some());
-            assert!(fixtures::find(tree, Role::Link, b"Use a demo API key").is_none());
+            assert!(fixtures::find(tree, Role::Link, b"Use a scripted API key").is_none());
             let sign_in = fixtures::find(tree, Role::Link, b"Continue with ChatGPT").unwrap();
             let key = fixtures::find(tree, Role::Link, b"Use an API key").unwrap();
             for (node, kind) in [(sign_in, d::WayKind::SignIn), (key, d::WayKind::Key)] {
@@ -1315,9 +1318,9 @@ fn the_model_choice_leaves_the_scripted_provider_out() {
             }
         };
         check(&root);
-        // A provider named demo in a configuration without a playground is a legitimate key offer.
+        // A provider named scripted in a configuration without a playground is a legitimate key offer.
         let (root, _) = playground_offers_root(address, false);
-        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Link, b"Use a demo API key").is_some());
+        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Link, b"Use a scripted API key").is_some());
     }
 }
 

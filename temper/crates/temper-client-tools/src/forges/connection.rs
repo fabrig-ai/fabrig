@@ -304,8 +304,7 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::Reachable(_)
                 | w::Request::Return(_)
                 | w::Request::Adopt(_)
-                | w::Request::SetUp(_)
-                | w::Request::StartDemo => {
+                | w::Request::SetUp(_) => {
                     return false;
                 }
             };

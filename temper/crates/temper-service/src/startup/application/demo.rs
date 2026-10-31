@@ -43,12 +43,12 @@ pub(super) fn parse(
     let key_file = super::joined(directories, config::Directory::Data, &key_file, &llm_path.member(b"key"), problems)?;
     // This public view reads asked alone; optional cued is checked by the fake.
     // These objects are not finished here, so cued needs no consuming read.
-    let asked = read::list(&mut llm, document, b"asked", w::CEILINGS.demo_answer_cues, &llm_path, problems)?;
+    let asked = read::list(&mut llm, document, b"asked", w::CEILINGS.playground_answer_cues, &llm_path, problems)?;
     let mut cues = List::with_capacity(asked.len());
     for (index, at) in asked.iter().enumerate() {
         let path = read::index(&llm_path.member(b"asked"), index);
         let mut asked = read::object(document, *at, &path, problems)?;
-        let cue = text(document, &mut asked, b"cue", w::CEILINGS.demo_answer_cues_item, &path, problems)?;
+        let cue = text(document, &mut asked, b"cue", w::CEILINGS.playground_answer_cues_item, &path, problems)?;
         cues.push(cue).expect("bounded demo cues");
     }
     Some(settings::Demo {

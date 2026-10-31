@@ -46,7 +46,6 @@ impl Frame {
             | f::Request::RemoveForge(_)
             | f::Request::StartPlayground
             | f::Request::EndPlayground
-            | f::Request::StartDemo
             | f::Request::Install(_)
             | f::Request::Connect(_)
             | f::Request::Accept(_)

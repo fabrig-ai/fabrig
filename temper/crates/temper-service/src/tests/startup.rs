@@ -325,13 +325,13 @@ fn an_unanswerable_demo_is_refused_at_its_field() {
         (
             "cue at bound",
             "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.demo_answer_cues_item).unwrap()),
+            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item).unwrap()),
             "",
         ),
         (
             "cue past bound",
             "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.demo_answer_cues_item + 1).unwrap()),
+            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item + 1).unwrap()),
             "application.demo.llm.asked[0].cue: past its bound\n",
         ),
     ] {

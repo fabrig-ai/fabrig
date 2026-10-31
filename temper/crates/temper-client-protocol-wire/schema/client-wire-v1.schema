@@ -20,7 +20,6 @@ record NewProject { name: bytes 1024 }
 enum SetUpProject { existing: ExistingProject, new: NewProject }
 record SetUp { forge: Making org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
 record Return { source: u32 path: bytes 512 }
-# start_demo: the demo document's start (client/README.md, 4.6; protocol/setup.md, 8.4).
 record GitHubApp { id: u64 }
 record GitHubManifest { back: option bytes 512 }
 record FirstAsk { org: bytes 1024 repository: bytes 1024 project: SetUpProject label: bytes 64 }
@@ -33,7 +32,7 @@ record Accept { forge: u16 installation: u64 }
 
 # temper/docs/design/draft/playground-reset.md, 4 and 6: removal and reset.
 record RemoveForge { forge: u16 }
-enum Request { adopt: Adopt, set_up: SetUp, start_demo, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground }
+enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, new_project, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -42,7 +41,6 @@ record StartRefused { why: StartRefusal }
 record GroupFailed { why: bytes 256 }
 enum StartFailure { group: GroupFailed, account, adoption, not_connected }
 record StartFailed { why: StartFailure }
-enum DemoState { not_started, running, ended }
 
 
 # The deployment's forges, in number order (client/README.md, 4.6).
@@ -75,11 +73,9 @@ record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 51
 record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
 versioned record Forges { forges: list 16 ForgeRow }
 
-# The family's read name and its demo answer (client/README.md, 4.6).
-# No demo is the read's empty answer, with no record.
-enum Read { demo, playground }
+# The playground read (temper/docs/design/draft/playground-reset.md, 6.1).
+enum Read { playground }
 versioned record Reading { read: Read }
-versioned record DemoAnswer { project: u32 forge: u16 provider: u32 owner: bytes 1024 name: bytes 1024 state: DemoState cues: list 8 text 256 }
 
 # temper/docs/design/draft/playground-reset.md, 6.1: no playground is no record.
 enum PlaygroundState { starting, running, resetting }

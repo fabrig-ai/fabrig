@@ -347,8 +347,8 @@ fn each_later_step_offers_the_playground_only_for_an_empty_store() {
     for (step, back) in
         [(Step::Forge { forge: None }, Step::Welcome), (Step::Model { way: None }, Step::Forge { forge: None })]
     {
-        for demo in [false, true] {
-            let root = f::welcome_root(step, demo);
+        for playground in [false, true] {
+            let root = f::welcome_root(step, playground);
             assert_eq!(
                 press(&root, Role::Link, "‹ Back"),
                 d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: back } })
@@ -547,8 +547,8 @@ fn selected_forge_choices_have_one_back_to_choose() {
 
 #[test]
 fn ready_has_no_foot_controls() {
-    for demo in [false, true] {
-        let root = f::welcome_root(Step::Ready, demo);
+    for playground in [false, true] {
+        let root = f::welcome_root(Step::Ready, playground);
         let view = f::page_view(&root);
         for (role, name) in
             [(Role::Link, "‹ Back"), (Role::Link, "Later"), (Role::Button, "Try the playground instead")]
@@ -572,7 +572,7 @@ fn a_kept_real_forge_hides_the_playground() {
     }
     for rows in cases {
         for step in [Step::Forge { forge: None }, Step::Model { way: None }] {
-            let root = f::demo_forges_root(Address::Welcome { step }, rows.clone());
+            let root = f::playground_forges_root(Address::Welcome { step }, rows.clone());
             assert!(root.forge().playground().is_some(), "the cached answer has not been reread yet");
             let view = f::page_view(&root);
             assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());

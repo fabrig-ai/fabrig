@@ -1404,7 +1404,7 @@ fn an_accounts_row_keeps_its_header_sources_facts_and_acts_in_order() {
 
 #[test]
 fn accounts_lists_the_scripted_model_with_nothing_to_add() {
-    let root = fixtures::demo_root(d::Address::Accounts, fixtures::PROJECT, true);
+    let root = fixtures::playground_root(d::Address::Accounts, fixtures::PROJECT, true);
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut view = fixtures::view_of(words);
         let tree = fixtures::build(&mut view, &root);
@@ -1425,7 +1425,7 @@ fn accounts_lists_the_scripted_model_with_nothing_to_add() {
 #[test]
 fn a_real_account_added_before_is_ready_in_the_playground() {
     for playground in [false, true] {
-        let (mut root, _, _, _, watch) = fixtures::root_at_with_demo(
+        let (mut root, _, _, _, watch) = fixtures::root_at_with_playground(
             d::Address::Accounts,
             &fixtures::domain_limits(),
             b"Shop",

@@ -4,13 +4,13 @@ use skein_lib::{Env, Queue, Time};
 pub mod admin;
 pub mod change;
 pub mod connect;
-pub mod demo;
 pub mod family;
 pub mod forges;
 mod form;
 pub mod github;
 pub mod listed;
 pub(crate) mod me;
+pub mod model;
 pub mod panel;
 pub mod picker;
 pub mod playground;
@@ -143,32 +143,15 @@ impl Side {
         Some(self.playground.answer.as_ref()?.provider)
     }
     #[must_use]
-    pub const fn demo_answered(&self) -> bool {
-        self.playground.answered
-    }
-    #[must_use]
-    // t-view-drop removes it
-    pub const fn demo(&self) -> Option<&Demo> {
-        self.playground.bridge.as_ref()
-    }
-    #[must_use]
-    pub fn demo_running(&self) -> bool {
-        match &self.playground.bridge {
-            Some(demo) => {
-                demo.state == demo::DemoState::Running
-                    || self.playground.start.is_some()
-                    || self.playground.failure.is_some()
-            }
+    pub fn playground_running(&self) -> bool {
+        match self.playground() {
+            Some(answer) => answer.state == PlaygroundState::Running,
             None => false,
         }
     }
     #[must_use]
-    pub const fn demo_starting(&self) -> bool {
-        self.playground.start.is_some()
-    }
-    #[must_use]
-    pub const fn demo_failure(&self) -> Option<&demo::StartFailure> {
-        self.playground.failure.as_ref()
+    pub fn playground_request(&self) -> Option<skein_lib::Token> {
+        Some(self.playground.start.as_ref()?.request)
     }
     #[must_use]
     pub const fn panel(&self) -> Option<&panel::Panel> {
@@ -295,7 +278,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::ConnectManifest { forge, back } => github::manifest(side, limits, forge, back, out),
         Act::ConnectApp { forge } => github::send(side, limits, forge, None, out),
         Act::Install { forge, back } => github::send(side, limits, forge, Some(back), out),
-        Act::StartDemo | Act::StartPlayground => playground::start(side, limits, out),
+        Act::StartPlayground => playground::start(side, limits, out),
         Act::EndPlayground => playground::end(side, limits, out),
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
         Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
