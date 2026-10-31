@@ -441,30 +441,20 @@ pub(super) fn root_at_with_forges(
         if let Some((project, model, state)) = demo {
             deliver_demo(
                 &mut root,
-                read.expect("live link reads demo"),
+                read.expect("live link reads playground"),
                 account_watch.expect("accounts watch"),
                 project,
                 model,
                 state,
             );
         } else {
-            deliver_no_demo(&mut root, read.expect("demo read"), account_watch.expect("accounts watch"));
+            deliver_no_demo(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
         }
     }
     (root, watch.expect("me opened"), inbox_watch, tree_watch, account_watch, forges)
 }
 fn deliver_no_demo(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
-    root_event(
-        root,
-        temper_client_domain::Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Family { family: wire::FORGE, record: None },
-                },
-            },
-        },
-    );
+    deliver_no_playground(root, read);
     root_event(
         root,
         temper_client_domain::Event::Client {
@@ -1437,37 +1427,58 @@ fn demo_accounts(model: bool) -> c::OwnerAccounts {
     }
 }
 
-pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::DemoState) {
+/// Playground read fixtures (temper/docs/design/draft/playground-reset.md, 6.1 and 6.2).
+pub fn deliver_playground(
+    root: &mut temper_client_domain::Domain,
+    read: Token,
+    state: w::PlaygroundState,
+    forge: u16,
+    project: Option<u32>,
+) {
     let mut cues = List::with_capacity(2);
     cues.push(Box::from(DEMO_CUE)).expect("first cue");
     cues.push(Box::from(DEMO_OTHER_CUE)).expect("second cue");
-    let answer = w::DemoAnswer::new(
+    let answer = w::PlaygroundAnswer::new(
         &w::CEILINGS,
-        w::DemoAnswerParts {
+        w::PlaygroundAnswerParts {
             state,
             project,
-            forge: wire::FORGE,
+            forge,
             provider: 17,
             owner: b"acme".as_slice().into(),
             name: b"shop".as_slice().into(),
             cues,
         },
     )
-    .expect("demo answer");
+    .expect("playground answer");
+    playground_read_answer(root, read, Some(wire::playground_answer(&answer)));
+}
+pub fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token) {
+    playground_read_answer(root, read, None);
+}
+fn playground_read_answer(root: &mut temper_client_domain::Domain, read: Token, record: Option<Box<[u8]>>) {
     root_event(
         root,
         temper_client_domain::Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::ReadDone {
                     read,
-                    result: jig_client::Readout::Family {
-                        family: wire::FORGE,
-                        record: Some(wire::demo_answer(&answer)),
-                    },
+                    result: jig_client::Readout::Family { family: wire::FORGE, record },
                 },
             },
         },
     );
+}
+pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::DemoState) {
+    match state {
+        w::DemoState::NotStarted => {
+            deliver_playground(root, read, w::PlaygroundState::Starting, wire::FORGE, Some(project));
+        }
+        w::DemoState::Running => {
+            deliver_playground(root, read, w::PlaygroundState::Running, wire::FORGE, Some(project));
+        }
+        w::DemoState::Ended => deliver_no_playground(root, read),
+    }
 }
 
 fn deliver_demo(
