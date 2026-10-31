@@ -1,4 +1,4 @@
-mod jobs;
+pub mod jobs;
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
