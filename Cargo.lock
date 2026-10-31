@@ -387,7 +387,7 @@ name = "jig-accounts-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
- "jig-domain-workers",
+ "jig-domain-link",
  "skein-lib",
  "skein-world",
 ]
@@ -858,7 +858,7 @@ dependencies = [
 name = "jig-domain-accounts"
 version = "0.0.0"
 dependencies = [
- "jig-domain-workers",
+ "jig-domain-link",
  "skein-lib",
 ]
 
@@ -895,12 +895,20 @@ dependencies = [
 name = "jig-domain-fleet"
 version = "0.0.0"
 dependencies = [
- "jig-domain-workers",
+ "jig-domain-link",
  "skein-lib",
 ]
 
 [[package]]
 name = "jig-domain-host"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-link",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-domain-link"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
@@ -933,10 +941,6 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
 ]
-
-[[package]]
-name = "jig-domain-workers"
-version = "0.0.0"
 
 [[package]]
 name = "jig-engine-clients-world"

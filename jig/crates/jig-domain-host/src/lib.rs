@@ -33,17 +33,21 @@ pub mod sources;
 mod tests;
 mod turns;
 
-pub use activity::{Activity, CountKind, Operation};
+pub use activity::Activity;
 pub use boundary::{
     AgentFailure, Answer, AnsweredCall, Ask, Assignment, Bound, Delivery, DeliveryOutcome, Ending, Event, Exceeded,
-    Failure, Finish, Form, FromAgent, Grant, GrantTable, Hosting, Invalid, MessageRefusal, Phase, Preparation, Reason,
-    Refusal, Refused, Reply, Request, RunAssignment, RunFailure, Scheme, SettledAnswer, Start, StartCause,
-    StartMessage, ToAgent, Turn, Work, Workspace,
+    Failure, Finish, FromAgent, Invalid, MessageRefusal, Preparation, Reason, Refusal, Refused, Reply, Request,
+    RunAssignment, RunFailure, SettledAnswer, Start, StartCause, StartMessage, ToAgent, Turn, Work, Workspace,
 };
 pub use domain::{Domain, fire_sources, resume, resume_runs, sources_due, step};
 pub use facts::Fact;
 pub use limits::{Limits, valid};
 
-pub use link::{Bounds, Hello, LinkDown, LinkUp, ModelBound, PROGRAM_ENDPOINTS, Relayed, valid_program_endpoints};
+pub use link::{LinkDown, LinkUp, Relayed};
 
-pub use link::{Login, LoginMethod, LoginState, SignOutResult, SourceFailure, SourceName};
+pub use jig_domain_link::{PROGRAM_ENDPOINTS, SourceName, valid_program_endpoints};
+
+pub use jig_domain_link::{
+    Bounds, CountKind, Form, Grant, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, ModelBound, Operation,
+    Phase, Scheme, SignOutResult, SourceFailure,
+};

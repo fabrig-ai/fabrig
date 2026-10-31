@@ -42,7 +42,7 @@ pub use limits::{
     BriefBudgets, BriefLimits, FACTS, Limits, TRANSCRIPT_TAIL_BYTES, VIEWS, WATCHES_PER_STREAM, core_limits,
     default_watermark, policy_row_bound, valid,
 };
-pub use link::{hello_bounds, inbox_sender, inbox_words};
+pub use link::{inbox_sender, inbox_words};
 pub use route::{Approval, Freshness, Gate, HostDelivery, HostRequest, LandingRule, adopt_repository_ask};
 pub use temper_engine_domain_forge::commit_text;
 pub use translate::{Config, GateCheck, LandingPolicy, ProjectLanding, RepositoryChecks, Way};

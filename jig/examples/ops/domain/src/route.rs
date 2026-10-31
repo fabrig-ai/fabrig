@@ -347,14 +347,7 @@ fn core_held(
         }
         core::Held::Grant { channel, run, attempt, grant } => {
             assert!(channel == Token::new(0), "ops engine's permanent link");
-            child(
-                decision,
-                Released::Host(host::Event::Down(host::LinkDown::Grant {
-                    run,
-                    attempt,
-                    grant: crate::assemble::host_grant(grant),
-                })),
-            );
+            child(decision, Released::Host(host::Event::Down(host::LinkDown::Grant { run, attempt, grant })));
         }
         core::Held::Relayed { run, attempt, call, answer, .. } => {
             if let Some(released) = crate::assemble::relayed(domain, run, attempt, call, answer) {

@@ -86,16 +86,6 @@ pub(crate) fn assignment(
             })
             .ok()?;
     }
-    let mut held = List::with_capacity(u32::try_from(grants.len()).ok()?);
-    for grant in grants {
-        held.push(host::Grant {
-            form: accounts_form(grant.form),
-            account: grant.account,
-            generation: grant.generation,
-            valid: grant.valid,
-        })
-        .ok()?;
-    }
     Some(host::Assignment {
         messages: start_messages.into_boxed(),
         assignment: host::RunAssignment {
@@ -106,7 +96,7 @@ pub(crate) fn assignment(
             save: false,
             live: host::LiveAsk { text: live.text, reasoning: live.reasoning, input: live.input },
             charter: encoded,
-            grants: held.into_boxed(),
+            grants,
         },
         turns: transcript,
         answered: answered.into_boxed(),
@@ -271,64 +261,5 @@ pub(crate) fn connector_read(
 }
 
 pub(crate) fn fleet_grants(grants: &[host::Grant]) -> Box<[fleet::Grant]> {
-    let mut translated = List::with_capacity(u32::try_from(grants.len()).expect("bounded grants"));
-    for grant in grants {
-        translated
-            .push(fleet::Grant {
-                form: fleet_form(grant.form),
-                account: grant.account,
-                generation: grant.generation,
-                valid: grant.valid,
-            })
-            .expect("grant room");
-    }
-    translated.into_boxed()
-}
-
-pub(crate) fn host_grant(grant: fleet::Grant) -> host::Grant {
-    host::Grant {
-        form: host_form(grant.form),
-        account: grant.account,
-        generation: grant.generation,
-        valid: grant.valid,
-    }
-}
-
-fn accounts_form(form: accounts::Form) -> host::Form {
-    match form {
-        accounts::Form::Credential(scheme) => host::Form::Credential(match scheme {
-            accounts::Scheme::Bearer => host::Scheme::Bearer,
-            accounts::Scheme::Key => host::Scheme::Key,
-        }),
-        accounts::Form::Application => host::Form::Application,
-        accounts::Form::Program(name) => {
-            host::Form::Program(host::SourceName::new(name.as_bytes()).expect("source name follows the same rules"))
-        }
-    }
-}
-
-fn fleet_form(form: host::Form) -> fleet::Form {
-    match form {
-        host::Form::Credential(scheme) => fleet::Form::Credential(match scheme {
-            host::Scheme::Bearer => fleet::Scheme::Bearer,
-            host::Scheme::Key => fleet::Scheme::Key,
-        }),
-        host::Form::Application => fleet::Form::Application,
-        host::Form::Program(name) => {
-            fleet::Form::Program(fleet::SourceName::new(name.as_bytes()).expect("source name follows the same rules"))
-        }
-    }
-}
-
-fn host_form(form: fleet::Form) -> host::Form {
-    match form {
-        fleet::Form::Credential(scheme) => host::Form::Credential(match scheme {
-            fleet::Scheme::Bearer => host::Scheme::Bearer,
-            fleet::Scheme::Key => host::Scheme::Key,
-        }),
-        fleet::Form::Application => host::Form::Application,
-        fleet::Form::Program(name) => {
-            host::Form::Program(host::SourceName::new(name.as_bytes()).expect("source name follows the same rules"))
-        }
-    }
+    Box::from(grants)
 }

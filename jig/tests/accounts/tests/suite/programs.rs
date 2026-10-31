@@ -438,14 +438,14 @@ fn an_accepted_program_name_is_a_fleet_source_name() {
     let Some(Request::Programs { names }) = rows.iter().find(|row| matches!(row, Request::Programs { .. })) else {
         panic!("published names")
     };
-    assert_eq!(Some(names[0].name), jig_domain_workers::SourceName::new(name));
+    assert_eq!(Some(names[0].name), jig_domain_link::SourceName::new(name));
 }
 #[test]
 fn a_refused_program_name_is_not_a_fleet_source_name() {
     let mut world = fresh();
     let name = b"not portable";
     assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, name), (Err(programs::DeclarationRefusal::Name), vec![]));
-    assert_eq!(jig_domain_workers::SourceName::new(name), None);
+    assert_eq!(jig_domain_link::SourceName::new(name), None);
 }
 
 #[test]
