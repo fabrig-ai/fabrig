@@ -181,17 +181,12 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         }
     }
 }
-
-#[expect(clippy::manual_map, reason = "step code wraps owned remainders without closures")]
 fn split(domain: &Domain, env: &Env<Limits>, event: Event) -> (Event, Option<Event>) {
     match event {
         Event::Observability(observability::Event::System(system)) => {
-            let (settle, rest) = observability::split(
-                &domain.observability,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
-                system,
-            )
-            .expect("only a mixed system fact is split");
+            let (settle, rest) =
+                observability::split(&domain.observability, &env.with(env.limits.observability), system)
+                    .expect("only a mixed system fact is split");
             let rest = match rest {
                 Some(rest) => Some(Event::Observability(observability::Event::System(rest))),
                 None => None,
@@ -199,12 +194,9 @@ fn split(domain: &Domain, env: &Env<Limits>, event: Event) -> (Event, Option<Eve
             (Event::Observability(observability::Event::System(settle)), rest)
         }
         Event::Infrastructure(infrastructure::Event::System(system)) => {
-            let (settle, rest) = infrastructure::split(
-                &domain.infrastructure,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
-                system,
-            )
-            .expect("only a mixed system fact is split");
+            let (settle, rest) =
+                infrastructure::split(&domain.infrastructure, &env.with(env.limits.infrastructure), system)
+                    .expect("only a mixed system fact is split");
             let rest = match rest {
                 Some(rest) => Some(Event::Infrastructure(infrastructure::Event::System(rest))),
                 None => None,

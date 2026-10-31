@@ -51,7 +51,7 @@ impl World {
         // before delivering the frame, then storage is left delayed.
         let (exchange, watch) = world.watches.remove(0);
         let answer = w::OpenAnswer::Admitted;
-        let mut bytes = Writer::new(usize::try_from(answer.measure()).expect("open answer size"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
         answer.encode(&mut bytes).expect("measured open answer");
         world.client(ClientEvent::Reply { exchange, message: bytes.finish() });
         world.stream(&frame(watch));
@@ -65,7 +65,7 @@ impl World {
     }
 
     fn stream(&mut self, event: &w::StreamEvent) {
-        let mut bytes = Writer::new(usize::try_from(event.measure()).expect("stream event size"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(event.measure()));
         event.encode(&mut bytes).expect("measured stream event");
         self.client(ClientEvent::Streamed { message: Streamed::Record(bytes.finish()) });
     }
@@ -223,7 +223,7 @@ fn frame(watch: u64) -> w::StreamEvent {
     )
     .expect("frame fixture");
     let value = w::DeliveryValue::Me(frame);
-    let mut bytes = Writer::new(usize::try_from(value.measure()).expect("frame size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("measured frame");
     let document = w::Owned::new(
         &w::CEILINGS,
