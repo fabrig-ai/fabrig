@@ -1,6 +1,6 @@
 use super::*;
-use crate::service::ending::Ending;
-use smith_agent_service::{Close, Step};
+use crate::service::ending::{Ending, State};
+use smith_agent_service::Close;
 
 #[test]
 fn service_ending_waits_for_the_check_root() {
@@ -27,7 +27,7 @@ fn service_ending_waits_for_the_check_root() {
         at: Time::ZERO,
         exit: local::ExitStatus::Accepted,
         close: Close::Graceful,
-        step: Step::Components,
+        step: State::Components,
         shell_closed: true,
     };
     assert!(!service.end_work());

@@ -9,14 +9,14 @@ use alloc::boxed::Box;
 use skein_io::kernel;
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use smith_agent_service as agent_service;
-use smith_agent_service::{Close, Step};
+use smith_agent_service::Close;
 
 mod accounts;
 mod choices;
 mod destinations;
 mod ending;
 pub(crate) mod program_check;
-use ending::Ending;
+use ending::{Ending, State as EndState};
 use smith_domain as agent;
 use smith_host_domain as host;
 use smith_inline_agent as inline;
@@ -801,29 +801,11 @@ impl Service {
 
     fn flush_submissions(&mut self) {
         if let Some(accounts) = &mut self.accounts {
-            for _ in 0..self.limits.queue {
-                if self.submissions.room() == 0 {
-                    break;
-                }
-                let Some(submit) = accounts.submissions().pop() else { break };
-                self.submissions.push(namespace_submit(submit, ACCOUNT_OPERATION_BIT));
-            }
+            flush(accounts.submissions(), &mut self.submissions, ACCOUNT_OPERATION_BIT, self.limits.queue);
         }
-        for _ in 0..self.limits.queue {
-            if self.submissions.room() == 0 {
-                break;
-            }
-            let Some(submit) = self.io.submissions().pop() else { break };
-            self.submissions.push(namespace_submit(submit, 0));
-        }
+        flush(self.io.submissions(), &mut self.submissions, 0, self.limits.queue);
         if let Some(effects) = self.effects.as_mut() {
-            for _ in 0..self.limits.queue {
-                if self.submissions.room() == 0 {
-                    break;
-                }
-                let Some(submit) = effects.submissions().pop() else { break };
-                self.submissions.push(namespace_submit(submit, EFFECT_OPERATION_BIT));
-            }
+            flush(effects.submissions(), &mut self.submissions, EFFECT_OPERATION_BIT, self.limits.queue);
         }
     }
 
@@ -911,7 +893,7 @@ impl Service {
                     at: now,
                     exit: status,
                     close: Close::Graceful,
-                    step: Step::Components,
+                    step: EndState::Components,
                     shell_closed,
                 };
                 self.io.close();
@@ -1234,6 +1216,16 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
 const ACCOUNT_OPERATION_BIT: u64 = 1 << 62;
 const EFFECT_OPERATION_BIT: u64 = 1 << 63;
 
+fn flush(source: &mut Queue<kernel::Submit>, target: &mut Queue<kernel::Submit>, namespace: u64, limit: u32) {
+    for _ in 0..limit {
+        if target.room() == 0 {
+            break;
+        }
+        let Some(submit) = source.pop() else { break };
+        target.push(namespace_submit(submit, namespace));
+    }
+}
+
 fn local_pass(service: &mut Service, now: Time, wall: Wall) {
     let local_env = Env { now, wall, limits: service.limits.local.clone() };
     for _ in 0..service.limits.queue {
@@ -1244,15 +1236,19 @@ fn local_pass(service: &mut Service, now: Time, wall: Wall) {
             break;
         }
         let Some(event) = service.local_events.pop() else { break };
-        match &event {
-            local::Event::Interrupt | local::Event::Drop => service.interrupt_program_requests(),
+        let forward = match &event {
+            local::Event::StateSaved => service.state_saved(),
+            local::Event::Interrupt | local::Event::Drop => {
+                service.interrupt_program_requests();
+                true
+            }
             local::Event::Process(event) => {
                 if service.remote || service.local.headless() {
                     service.remote_timing.received(event, now);
                 }
+                true
             }
-            local::Event::StateSaved
-            | local::Event::Line { .. }
+            local::Event::Line { .. }
             | local::Event::Slash(_)
             | local::Event::Closed
             | local::Event::ChatSelected { .. }
@@ -1265,36 +1261,11 @@ fn local_pass(service: &mut Service, now: Time, wall: Wall) {
             | local::Event::StoreFailed { .. }
             | local::Event::Credential { .. }
             | local::Event::NoCredential { .. }
-            | local::Event::Below { .. } => {}
+            | local::Event::Below { .. } => true,
+        };
+        if forward {
+            local::step(&mut service.local, &local_env, event, &mut service.local_requests);
         }
-        match event {
-            local::Event::StateSaved => {
-                if !service.state_saved() {
-                    continue;
-                }
-            }
-            other @ (local::Event::Line { .. }
-            | local::Event::Slash(_)
-            | local::Event::Interrupt
-            | local::Event::Drop
-            | local::Event::Closed
-            | local::Event::ChatSelected { .. }
-            | local::Event::SelectChat { .. }
-            | local::Event::Loaded { .. }
-            | local::Event::TurnSaved { .. }
-            | local::Event::DeliverySaved { .. }
-            | local::Event::Git { .. }
-            | local::Event::PlainStatus { .. }
-            | local::Event::StoreFailed { .. }
-            | local::Event::Credential { .. }
-            | local::Event::NoCredential { .. }
-            | local::Event::Below { .. }
-            | local::Event::Process(_)) => {
-                local::step(&mut service.local, &local_env, other, &mut service.local_requests);
-                continue;
-            }
-        }
-        local::step(&mut service.local, &local_env, local::Event::StateSaved, &mut service.local_requests);
     }
     if service.drain_run_facts() && service.local.is_due(now) && service.local_requests_dispatched() {
         local::fire(&mut service.local, &local_env, &mut service.local_requests);
