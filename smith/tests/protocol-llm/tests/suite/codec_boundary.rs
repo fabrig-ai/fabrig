@@ -8,8 +8,8 @@ use skein_lib::Token;
 use skein_llm::{self as shared, client};
 use skein_llm_world::fake::Exchange;
 use smith_domain::{Event, llm, run, tools};
-use smith_protocol_llm_world::adapter::{self as adapter, Context, Input, Limits, ToolKind, ToolSchema};
-use smith_protocol_llm_world::wire::{self, Configuration};
+use smith_protocol_llm_world::client_peer::{self, Configuration};
+use smith_protocol_llm_world::codec::{self as codec, Context, Input, Limits, ToolKind, ToolSchema};
 
 const OWNER: Token = Token::new(71);
 const WAIT_SCHEMA: &[u8] = br#"{"type":"object","properties":{},"additionalProperties":false}"#;
@@ -17,7 +17,7 @@ const WAIT_SCHEMA: &[u8] = br#"{"type":"object","properties":{},"additionalPrope
 fn limits() -> Limits {
     Limits {
         rendered_result: 2048,
-        ..smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated())
+        ..smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated())
     }
 }
 
@@ -96,7 +96,7 @@ fn adopt(input: Input, calls: bool) -> (Context, Exchange) {
         account_id: input.credential.account_id.clone(),
         scheme: skein_llm::Scheme::Bearer,
     };
-    let adapter::Prepared { client, context } = adapter::prepare(input, &limits()).expect("positive admission");
+    let codec::Prepared { client, context } = codec::prepare(input, &limits()).expect("positive admission");
     let peer = Exchange::prepared(client, endpoint, Some(credential), limits().client, scripts(calls));
     assert!(peer.queries.is_empty(), "preparation starts no wire request");
     assert!(peer.requests.is_empty());
@@ -176,7 +176,7 @@ fn result_input(configuration: &Configuration) -> Input {
 
 #[test]
 fn owned_results_use_the_production_renderer_before_the_request_goes() {
-    for configuration in &wire::configurations() {
+    for configuration in &client_peer::configurations() {
         let (context, mut peer) = adopt(result_input(configuration), false);
         peer.start();
         peer.run();
@@ -187,14 +187,14 @@ fn owned_results_use_the_production_renderer_before_the_request_goes() {
         assert!(output.starts_with(b"exit code 0\nprior"));
         assert!(!*is_error);
         let client::Event::Completed { owner: _, completion } = take_terminal(&mut peer) else { panic!("completion") };
-        assert!(matches!(adapter::completion(context, completion), Ok(Event::Completed { .. })));
+        assert!(matches!(codec::completion(context, completion), Ok(Event::Completed { .. })));
         close_won(&mut peer);
     }
 }
 
 #[test]
 fn a_result_past_its_bound_is_cut_with_its_marker_and_the_request_goes() {
-    for configuration in &wire::configurations() {
+    for configuration in &client_peer::configurations() {
         let mut input = result_input(configuration);
         let byte_count = usize::try_from(limits().rendered_result).expect("u32 fits usize") * 2;
         input.prompt.messages[1].content[0] = llm::Block::ToolResult {
@@ -230,7 +230,7 @@ fn a_result_past_its_bound_is_cut_with_its_marker_and_the_request_goes() {
             .expect("decimal omitted count");
         assert_eq!(omitted + marker, byte_count + b"exit code 0\n".len());
         let client::Event::Completed { owner: _, completion } = take_terminal(&mut peer) else { panic!("completion") };
-        assert!(matches!(adapter::completion(context, completion), Ok(Event::Completed { .. })));
+        assert!(matches!(codec::completion(context, completion), Ok(Event::Completed { .. })));
         close_won(&mut peer);
     }
 }
@@ -238,14 +238,14 @@ fn a_result_past_its_bound_is_cut_with_its_marker_and_the_request_goes() {
 fn child_completed(configuration: &Configuration, arguments: &[u8]) -> (Context, Exchange, Token, shared::Completion) {
     let mut offered = input(configuration);
     offered.prompt.served = Box::new([llm::Served::SubAgent]);
-    let schema = adapter::schemas(&offered.prompt, &limits().stated)[0].schema.clone();
+    let schema = codec::schemas(&offered.prompt, &limits().stated)[0].schema.clone();
     let endpoint = offered.endpoint.clone();
     let credential = shared::Credential {
         value: offered.credential.value.clone(),
         account_id: offered.credential.account_id.clone(),
         scheme: skein_llm::Scheme::Bearer,
     };
-    let adapter::Prepared { client, context } = adapter::prepare(offered, &limits()).expect("observed admission");
+    let codec::Prepared { client, context } = codec::prepare(offered, &limits()).expect("observed admission");
     let script = Box::new([api::Script {
         cue: b"@adapter-boundary".as_slice().into(),
         turns: Box::new([api::Turn {
@@ -297,7 +297,7 @@ fn optional_child_shares_cross_both_provider_schemas_and_observed_completions() 
         (br#"{"brief":"inspect","tools":["inspect"],"max_seconds":0}"#, None, b"max_seconds"),
         (br#"{"brief":"inspect","tools":["inspect"],"max_seconds":1.5}"#, None, b"max_seconds"),
     ];
-    for configuration in &wire::configurations() {
+    for configuration in &client_peer::configurations() {
         for (arguments, expected, field) in cases {
             let (context, mut peer, _owner, completion) = child_completed(configuration, arguments);
             let [shared::Block::ToolCall { arguments: received, .. }] = completion.content.as_ref() else {
@@ -305,7 +305,7 @@ fn optional_child_shares_cross_both_provider_schemas_and_observed_completions() 
             };
             assert_eq!(received.as_ref(), arguments);
             let Event::Completed { completion, .. } =
-                adapter::completion(context, completion).expect("observed checked adapter callback")
+                codec::completion(context, completion).expect("observed checked adapter callback")
             else {
                 panic!("the observed call has one root completion");
             };

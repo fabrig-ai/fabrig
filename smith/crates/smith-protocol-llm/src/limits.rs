@@ -7,14 +7,14 @@ use core::mem::size_of;
 use skein_llm::client;
 use smith_domain::{llm, session};
 
-/// Immutable protocol bounds for application translation and the shared Client.
-/// The caller supplies these at startup, independently from application scheduling limits.
+/// Immutable protocol bounds for tool translation and the skein Client.
+/// The caller supplies these at startup, independently from tool scheduling limits.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
-    /// Observed shared Client document, HTTP/SSE and receiving bounds.
+    /// Observed skein Client document, HTTP/SSE and receiving bounds.
     pub client: client::Limits,
 
-    /// Aggregate retained served/application declaration wrappers and all owned fields.
+    /// Aggregate retained served/tool declaration wrappers and all owned fields.
     pub tool_bytes: u64,
 
     /// Aggregate source history payload admitted by the parent session.
@@ -28,7 +28,7 @@ pub struct Limits {
 }
 
 /// Observed root Complete receiving contract, checked before preparing the Client.
-/// No receiving field is inferred from an application's token budget.
+/// No receiving field is inferred from an tool's token budget.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Receiving {
     /// Maximum complete translated content ownership, including all block cells and replay envelopes.
@@ -61,12 +61,12 @@ pub(crate) fn replay_limits(client: &client::Limits) -> Option<skein_llm::Docume
     })
 }
 
-/// Bounds the translated ownership of one completion admitted by the shared Client.
+/// Bounds the translated ownership of one completion admitted by the skein Client.
 /// Original text/IDs/arguments are under `answer_bytes`; reasoning shares one
 /// aggregate allowance, beside each block's metadata and durable header.
 /// Decoded ownership is one aggregate allowance, never multiplied per block.
 /// It must first cover one full fallback `Decoded` cell per possible output part.
-/// Returns None on overflow or an invalid shared-client configuration.
+/// Returns None on overflow or an invalid client configuration.
 #[must_use]
 pub fn completion_bound(client_limits: &client::Limits, decoded_call_bytes: u64) -> Option<u64> {
     if !client::valid(client_limits) {
@@ -91,7 +91,7 @@ pub fn completion_bound(client_limits: &client::Limits, decoded_call_bytes: u64)
         .checked_add(decoded_call_bytes)
 }
 
-/// Whether an adapter can serve under these receiving bounds: compatibility
+/// Whether a component can serve under these receiving bounds: compatibility
 /// and representable edge workspaces (programming-model.md, section 6.3).
 #[must_use]
 pub fn valid(limits: &Limits, receiving: &Receiving) -> bool {

@@ -9,10 +9,10 @@ use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Query, Role, Scrip
 use skein_lib::{Duration, Time, Token};
 use skein_world::domain::Span;
 use smith_domain::{Answered, AnsweredCall, Transcript, run, session::llm};
-use smith_protocol_llm_world::adapter::{self as adapter, Limits};
+use smith_protocol_llm_world::codec::{self as codec, Limits};
 use smith_protocol_llm_world::{
     Job, Settings, World,
-    wire::{self, Configuration},
+    client_peer::{self, Configuration},
 };
 
 const BEGIN: &[u8] = b"Begin the work your brief describes.";
@@ -113,7 +113,7 @@ fn scripts(fixture: &Fixture, tail: bool) -> Box<[Script]> {
 
 fn bounds() -> Limits {
     let mut bounds =
-        smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
+        smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
     bounds
@@ -129,7 +129,7 @@ fn settings(seed: u64, resume: bool, bounds: &Limits) -> Settings {
         ..smith_protocol_llm_world::fixture::settings(seed)
     };
     settings.limits.session.completion_bytes =
-        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
+        codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("complete observed translated reservation before Start");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
@@ -385,7 +385,7 @@ fn expected_usage(
     [if fixture.cache_write { 0 } else { fresh }, output, read, if fixture.cache_write { fresh } else { 0 }]
 }
 
-fn accounting(world: &World, fixture: &Fixture, expected_prompts: &[Vec<Message>], outputs: &[u64]) {
+fn observe_usage(world: &World, fixture: &Fixture, expected_prompts: &[Vec<Message>], outputs: &[u64]) {
     assert_eq!(world.prompts().len(), expected_prompts.len());
     assert_eq!(world.turns().len(), expected_prompts.len());
     for (index, ((query, turn), expected_prompt)) in
@@ -416,7 +416,7 @@ fn accounting(world: &World, fixture: &Fixture, expected_prompts: &[Vec<Message>
 }
 
 fn configuration(index: usize) -> Configuration {
-    wire::configurations().into_iter().nth(index).expect("two caller native fixtures")
+    client_peer::configurations().into_iter().nth(index).expect("two caller native fixtures")
 }
 
 fn resume(first: &World, fixture: &Fixture, index: usize, tail: bool) {
@@ -428,12 +428,18 @@ fn resume(first: &World, fixture: &Fixture, index: usize, tail: bool) {
     };
     let bounds = bounds();
     let settings = settings(920, true, &bounds);
-    let mut world =
-        World::with_wire_answers(settings, Some(saved), answered, configuration(index), bounds, scripts(fixture, tail));
+    let mut world = World::with_protocol_answers(
+        settings,
+        Some(saved),
+        answered,
+        configuration(index),
+        bounds,
+        scripts(fixture, tail),
+    );
     world.run(100_000);
     let prefix = resumed_prefix(fixture, tail);
     prefix_corruptions(&world.prompts()[0], fixture, &prefix);
-    accounting(&world, fixture, &[prefix], &[11]);
+    observe_usage(&world, fixture, &[prefix], &[11]);
     if !tail {
         assert!(recorded_wait(&world.turns()[0], fixture, false));
     }
@@ -447,10 +453,10 @@ fn native_root_parks_then_restores_whole_opaque_prefix_and_real_post_tail() {
     for (index, fixture) in fixtures().into_iter().enumerate() {
         let bounds = bounds();
         let settings = settings(919, false, &bounds);
-        let mut first = World::with_wire(settings, None, configuration(index), bounds, scripts(&fixture, false));
+        let mut first = World::with_protocol(settings, None, configuration(index), bounds, scripts(&fixture, false));
         first.message_at(Time::from_nanos(500_000_000), Token::new(0), b"native wake".as_slice().into());
         first.run(100_000);
-        accounting(&first, &fixture, &[vec![message(Role::User, vec![text(BEGIN)])], prefix(&fixture)], &[17, 3]);
+        observe_usage(&first, &fixture, &[vec![message(Role::User, vec![text(BEGIN)])], prefix(&fixture)], &[17, 3]);
         recorded_corruptions(&first.turns()[0], &fixture);
         assert!(
             matches!(first.turns()[1].messages[1].content.as_ref(), [llm::Block::Text { text, replay: metadata }, llm::Block::ToolCall { .. }]

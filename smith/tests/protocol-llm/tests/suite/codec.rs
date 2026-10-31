@@ -6,9 +6,9 @@
 use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
 use skein_lib::{Duration, Token};
 use smith_domain::{Event, llm, run, tools};
-use smith_protocol_llm_world::adapter::{self as adapter, Limits, Receiving};
+use smith_protocol_llm_world::client_peer::{self, ClientPeer, Configuration, Observed};
+use smith_protocol_llm_world::codec::{self as codec, Limits, Receiving};
 use smith_protocol_llm_world::fixture::limits;
-use smith_protocol_llm_world::wire::{self, Configuration, Observed, Wire};
 
 const BODY: &[u8] = br#"{ "opaque" : {"future":[1,true,null]}, "extra":"unchanged" }"#;
 const SCHEMA: &[u8] = br#"{"type":"object","properties":{"opaque":{"type":"object"}},"required":["opaque"],"x-caller":{"nested":[1,null,true]}}"#;
@@ -67,10 +67,11 @@ fn scripts() -> Box<[Script]> {
     }])
 }
 
-fn run_wire(prompt: llm::Prompt, configuration: &Configuration, owner: u64) -> (Wire, Event) {
+fn run_client(prompt: llm::Prompt, configuration: &Configuration, owner: u64) -> (ClientPeer, Event) {
     let bounds = limits();
-    let mut wire = Wire::prepare(Token::new(owner), prompt, receiving(&bounds), configuration, &bounds, scripts())
-        .expect("whole prompt and receiving configuration admitted before observed Client effects");
+    let mut wire =
+        ClientPeer::prepare(Token::new(owner), prompt, receiving(&bounds), configuration, &bounds, scripts())
+            .expect("whole prompt and receiving configuration admitted before observed Client effects");
     let mut terminals = wire.start();
     for _ in 0..100_000 {
         let (progress, returned) = wire.tick();
@@ -118,7 +119,7 @@ fn feedback(
 }
 
 fn conveys(configuration: &Configuration, error: bool) {
-    let (first, terminal) = run_wire(prompt(), configuration, 17);
+    let (first, terminal) = run_client(prompt(), configuration, 17);
     let [query] = first.peer.queries.as_slice() else {
         panic!("one observed observed wire query");
     };
@@ -181,7 +182,7 @@ fn conveys(configuration: &Configuration, error: bool) {
             }]),
         },
     ]);
-    let (second, terminal) = run_wire(next, configuration, 18);
+    let (second, terminal) = run_client(next, configuration, 18);
     let [query] = second.peer.queries.as_slice() else {
         panic!("one observed continued wire query");
     };
@@ -253,7 +254,7 @@ fn corrupted_arguments(
 
 #[test]
 fn both_shared_configurations_convey_whole_host_contract_input_and_exact_feedback() {
-    for configuration in &wire::configurations() {
+    for configuration in &client_peer::configurations() {
         for error in [false, true] {
             conveys(configuration, error);
         }
@@ -264,7 +265,7 @@ fn both_shared_configurations_convey_whole_host_contract_input_and_exact_feedbac
 fn invalid_limits_are_refused() {
     let bounds = limits();
     let accepted = receiving(&bounds);
-    assert!(adapter::valid(&bounds, &accepted));
+    assert!(codec::valid(&bounds, &accepted));
     smith_protocol_llm::fixture::prepare_prompt(Token::new(1), prompt(), accepted, &bounds)
         .expect("valid limits prepare a prompt");
     let mut cases = Vec::new();
@@ -290,18 +291,18 @@ fn invalid_limits_are_refused() {
     invalid.client.reasoning = u32::MAX;
     cases.push(("replay representability", invalid, accepted));
     for (check, bounds, receiving) in cases {
-        assert!(!adapter::valid(&bounds, &receiving), "{check}");
+        assert!(!codec::valid(&bounds, &receiving), "{check}");
         assert!(
             matches!(
                 smith_protocol_llm::fixture::prepare_prompt(Token::new(1), prompt(), receiving, &bounds),
-                Err(adapter::Error::Limit)
+                Err(codec::Error::Limit)
             ),
             "{check}"
         );
     }
     let mut large = bounds;
     large.history_bytes = u64::MAX;
-    assert!(adapter::valid(&large, &accepted), "aggregate heap arithmetic is not validity");
+    assert!(codec::valid(&large, &accepted), "aggregate heap arithmetic is not validity");
 }
 
 #[test]
@@ -309,10 +310,10 @@ fn receiving_incompatibility_refuses_before_client_effects() {
     let bounds = limits();
     let mut receiving = receiving(&bounds);
     receiving.max_completion_bytes -= 1;
-    for configuration in &wire::configurations() {
+    for configuration in &client_peer::configurations() {
         assert!(matches!(
-            Wire::prepare(Token::new(1), prompt(), receiving, configuration, &bounds, scripts()),
-            Err(adapter::Error::Limit)
+            ClientPeer::prepare(Token::new(1), prompt(), receiving, configuration, &bounds, scripts()),
+            Err(codec::Error::Limit)
         ));
     }
 }
@@ -343,10 +344,16 @@ fn restored_result(replay: Option<llm::Replay>) -> llm::Prompt {
 #[test]
 fn restored_result_metadata_has_explicit_unsupported_refusal_before_start() {
     let bounds = limits();
-    for configuration in &wire::configurations() {
-        let mut positive =
-            Wire::prepare(Token::new(19), restored_result(None), receiving(&bounds), configuration, &bounds, scripts())
-                .expect("ordinary concrete result is representable before any wire start");
+    for configuration in &client_peer::configurations() {
+        let mut positive = ClientPeer::prepare(
+            Token::new(19),
+            restored_result(None),
+            receiving(&bounds),
+            configuration,
+            &bounds,
+            scripts(),
+        )
+        .expect("ordinary concrete result is representable before any wire start");
         assert!(positive.peer.queries.is_empty());
         assert!(positive.close().is_empty());
         let observed = positive.settle();
@@ -367,7 +374,7 @@ fn restored_result_metadata_has_explicit_unsupported_refusal_before_start() {
         .expect("complete caller-owned durable envelope");
         assert!(
             matches!(
-                Wire::prepare(
+                ClientPeer::prepare(
                     Token::new(20),
                     restored_result(Some(llm::Replay { bytes: opaque })),
                     receiving(&bounds),
@@ -375,7 +382,7 @@ fn restored_result_metadata_has_explicit_unsupported_refusal_before_start() {
                     &bounds,
                     scripts()
                 ),
-                Err(adapter::Error::Unsupported)
+                Err(codec::Error::Unsupported)
             ),
             "restored metadata cannot silently disappear into a ToolResult without replay support"
         );
@@ -386,7 +393,7 @@ fn two_calls(
     configuration: &Configuration,
     bounds: &Limits,
     receiving: Receiving,
-) -> (adapter::Context, skein_llm_world::fake::Exchange) {
+) -> (codec::Context, skein_llm_world::fake::Exchange) {
     let mut input = prompt();
     input.served = Box::new([input.served[0].clone(), llm::Served::Finish]);
     let endpoint = configuration.endpoint.clone();
@@ -395,8 +402,8 @@ fn two_calls(
         account_id: configuration.credential.account_id.clone(),
         scheme: skein_llm::Scheme::Bearer,
     };
-    let adapter::Prepared { client, context } = adapter::prepare(
-        adapter::Input {
+    let codec::Prepared { client, context } = codec::prepare(
+        codec::Input {
             owner: Token::new(31),
             endpoint_name: input.endpoint,
             prompt: input,
@@ -466,7 +473,7 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
     };
     let (context, mut peer) = two_calls(configuration, &bounds, receiving);
     let (_owner, observed_completion) = owned_completion(&mut peer);
-    let Event::Completed { completion, .. } = adapter::completion(context, observed_completion)
+    let Event::Completed { completion, .. } = codec::completion(context, observed_completion)
         .expect("fallback wrappers stay in the secured aggregate before later host decoding")
     else {
         panic!("translated observed completion");
@@ -501,17 +508,17 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
 
 #[test]
 fn oversized_first_decoding_retains_its_cell_before_exact_residual_host_admission() {
-    for configuration in &wire::configurations() {
+    for configuration in &client_peer::configurations() {
         reservation_control(configuration, true);
         reservation_control(configuration, false);
         let bounds = limits();
-        assert!(adapter::completion_bound(&bounds.client, 0).is_none());
+        assert!(codec::completion_bound(&bounds.client, 0).is_none());
         let mut no_cells = receiving(&bounds);
         no_cells.decoded_call_bytes = 0;
         assert!(
             matches!(
-                Wire::prepare(Token::new(32), prompt(), no_cells, configuration, &bounds, scripts()),
-                Err(adapter::Error::Limit)
+                ClientPeer::prepare(Token::new(32), prompt(), no_cells, configuration, &bounds, scripts()),
+                Err(codec::Error::Limit)
             ),
             "cap zero refuses before a Client could return even an unknown call's fixed Invalid cell"
         );
@@ -520,7 +527,7 @@ fn oversized_first_decoding_retains_its_cell_before_exact_residual_host_admissio
 
 #[test]
 fn unknown_call_uses_its_full_secured_fallback_cell() {
-    for configuration in &wire::configurations() {
+    for configuration in &client_peer::configurations() {
         let mut bounds = limits();
         bounds.client.output_items = 1;
         let floor = u64::try_from(core::mem::size_of::<llm::Decoded>()).expect("fixed fallback cell");
@@ -539,7 +546,7 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
                 tokens: 4,
             }]),
         }]);
-        let mut wire = Wire::prepare(Token::new(33), prompt(), secured, configuration, &bounds, script)
+        let mut wire = ClientPeer::prepare(Token::new(33), prompt(), secured, configuration, &bounds, script)
             .expect("one observed unknown call has its fixed wrapper reserved before Client preparation");
         let mut returned = wire.start();
         for _ in 0..100_000 {
@@ -567,13 +574,13 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
 
 #[test]
 fn observed_requests_render_the_run_key_and_thread_only_for_codex() {
-    for configuration in wire::configurations() {
+    for configuration in client_peer::configurations() {
         for (thread, expected_thread) in
             [(0, "42424242-4242-4242-4242-424242424242"), (0x0102_0304, "42424242-4242-4242-4242-424243404146")]
         {
             let mut prompt = prompt();
             prompt.affinity = llm::Affinity { key: [0x42; 16], thread };
-            let (wire, terminal) = run_wire(prompt, &configuration, 200 + u64::from(thread));
+            let (wire, terminal) = run_client(prompt, &configuration, 200 + u64::from(thread));
             assert!(matches!(terminal, Event::Completed { .. }));
             let request = smith_protocol_llm_world::referee::NativeRequest::from_http(&wire.peer.requests);
             match configuration.endpoint.provider {
@@ -601,10 +608,10 @@ fn observed_requests_render_the_run_key_and_thread_only_for_codex() {
 
 #[test]
 fn only_uses_automatic_wire_choice_and_keeps_all_definitions_and_not_run_feedback() {
-    for configuration in &wire::configurations() {
+    for configuration in &client_peer::configurations() {
         let mut ordinary = prompt();
         ordinary.tools.inspect = true;
-        let (auto, _) = run_wire(ordinary, configuration, 801);
+        let (auto, _) = run_client(ordinary, configuration, 801);
         let mut final_prompt = prompt();
         final_prompt.tools.inspect = true;
         let descriptor = final_prompt.served[0].clone();
@@ -630,11 +637,11 @@ fn only_uses_automatic_wire_choice_and_keeps_all_definitions_and_not_run_feedbac
                 }]),
             },
         ]);
-        let (only, _) = run_wire(final_prompt, configuration, 802);
+        let (only, _) = run_client(final_prompt, configuration, 802);
         let ordinary = smith_protocol_llm_world::referee::NativeRequest::from_http(&auto.peer.requests);
         let narrowed = smith_protocol_llm_world::referee::NativeRequest::from_http(&only.peer.requests);
         assert_eq!(ordinary.tools, narrowed.tools, "narrowing never changes observed native definitions");
-        let choice = |wire: &Wire| {
+        let choice = |wire: &ClientPeer| {
             let requests = skein_llm_world::identity(&wire.peer.requests);
             let body = requests.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP body");
             let body: serde_json::Value = serde_json::from_slice(&requests[body + 4..]).expect("JSON");
@@ -659,7 +666,7 @@ fn only_uses_automatic_wire_choice_and_keeps_all_definitions_and_not_run_feedbac
     }
 }
 
-fn native_choice(wire: &Wire) -> Option<serde_json::Value> {
+fn native_choice(wire: &ClientPeer) -> Option<serde_json::Value> {
     let requests = skein_llm_world::identity(&wire.peer.requests);
     let body = requests.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP body");
     let body: serde_json::Value = serde_json::from_slice(&requests[body + 4..]).expect("JSON");
@@ -670,16 +677,16 @@ fn native_choice(wire: &Wire) -> Option<serde_json::Value> {
 fn a_compaction_asks_none_in_each_dialect_and_the_next_window_its_choice() {
     let choices =
         [(serde_json::json!("none"), Some(serde_json::json!("auto"))), (serde_json::json!({"type":"none"}), None)];
-    for (configuration, (none, only)) in wire::configurations().iter().zip(choices) {
+    for (configuration, (none, only)) in client_peer::configurations().iter().zip(choices) {
         let mut summary = prompt();
         summary.purpose = llm::Purpose::Compaction { room: 4096 };
         summary.choice = llm::ToolChoice::None;
         summary.tools.inspect = true;
-        let (compaction, _) = run_wire(summary, configuration, 811);
+        let (compaction, _) = run_client(summary, configuration, 811);
         let mut next = prompt();
         next.tools.inspect = true;
         next.choice = llm::ToolChoice::Only(Box::new([next.served[0].clone()]));
-        let (continued, _) = run_wire(next, configuration, 812);
+        let (continued, _) = run_client(next, configuration, 812);
         assert_eq!(native_choice(&compaction), Some(none));
         assert_eq!(native_choice(&continued), only);
         let old = smith_protocol_llm_world::referee::NativeRequest::from_http(&compaction.peer.requests);

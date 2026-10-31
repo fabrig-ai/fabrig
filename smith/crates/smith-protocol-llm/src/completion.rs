@@ -5,7 +5,6 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 
 use skein_lib::{List, bytes};
-use skein_llm as shared;
 use smith_domain::{Event, llm, run};
 
 use crate::types::Context;
@@ -15,8 +14,8 @@ use crate::Error;
 /// Decode the client's blocks under the retained charter and receiving contract.
 /// Original provider bytes and replay survive decoding. Decoded ownership beyond
 /// the secured aggregate becomes `TooLarge`; invalid replay refuses translation.
-pub fn completion(context: Context, completion: shared::Completion) -> Result<Event, Error> {
-    let shared::Completion { content, stop, usage } = completion;
+pub fn completion(context: Context, completion: skein_llm::Completion) -> Result<Event, Error> {
+    let skein_llm::Completion { content, stop, usage } = completion;
     let maximum = usize::try_from(context.receiving.max_completion_blocks.min(context.limits.client.output_items))
         .expect("u32 fits usize");
     if content.len() > maximum {
@@ -32,7 +31,7 @@ pub fn completion(context: Context, completion: shared::Completion) -> Result<Ev
     let mut held = 0_u64;
     for block in content {
         let block = match block {
-            shared::Block::Dropped { bytes } => {
+            skein_llm::Block::Dropped { bytes } => {
                 held = held.checked_add(u64::try_from(size_of::<u64>()).or(Err(Error::Limit))?).ok_or(Error::Limit)?;
                 if held > context.receiving.max_completion_bytes {
                     return Err(Error::Limit);
@@ -40,13 +39,13 @@ pub fn completion(context: Context, completion: shared::Completion) -> Result<Ev
                 reasoning_dropped.push(bytes).expect("one drop per observed block");
                 continue;
             }
-            block @ (shared::Block::Text { .. }
-            | shared::Block::Refusal { .. }
-            | shared::Block::Reasoning { .. }
-            | shared::Block::ToolCall { .. }
-            | shared::Block::ToolResult { .. }
-            | shared::Block::Oversize { .. }
-            | shared::Block::Cut { .. }) => block,
+            block @ (skein_llm::Block::Text { .. }
+            | skein_llm::Block::Refusal { .. }
+            | skein_llm::Block::Reasoning { .. }
+            | skein_llm::Block::ToolCall { .. }
+            | skein_llm::Block::ToolResult { .. }
+            | skein_llm::Block::Oversize { .. }
+            | skein_llm::Block::Cut { .. }) => block,
         };
         let said = block_value(block, &context, &mut decoded_bytes)?;
         held = held.checked_add(said_bytes(&said)?).ok_or(Error::Limit)?;
@@ -56,12 +55,12 @@ pub fn completion(context: Context, completion: shared::Completion) -> Result<Ev
         translated.push(said).expect("one translated block per observed input block");
     }
     let stop = match stop {
-        shared::Stop::EndTurn => llm::Stop::EndTurn,
-        shared::Stop::ToolUse => llm::Stop::ToolUse,
-        shared::Stop::MaxTokens => llm::Stop::MaxTokens,
-        shared::Stop::Refusal => llm::Stop::Refusal,
+        skein_llm::Stop::EndTurn => llm::Stop::EndTurn,
+        skein_llm::Stop::ToolUse => llm::Stop::ToolUse,
+        skein_llm::Stop::MaxTokens => llm::Stop::MaxTokens,
+        skein_llm::Stop::Refusal => llm::Stop::Refusal,
     };
-    let shared::Usage { input, output, cache_read, cache_write, reasoning } = usage;
+    let skein_llm::Usage { input, output, cache_read, cache_write, reasoning } = usage;
     let usage = llm::Usage {
         input_tokens: input,
         output_tokens: output,
@@ -80,34 +79,36 @@ pub fn completion(context: Context, completion: shared::Completion) -> Result<Ev
     })
 }
 
-fn block_value(block: shared::Block, context: &Context, decoded_bytes: &mut u64) -> Result<llm::Said, Error> {
+fn block_value(block: skein_llm::Block, context: &Context, decoded_bytes: &mut u64) -> Result<llm::Said, Error> {
     match block {
-        shared::Block::Text { text, replay } => Ok(llm::Said::Text { text, replay: encode_replay(replay, context)? }),
-        shared::Block::Refusal { text, replay } => {
+        skein_llm::Block::Text { text, replay } => {
+            Ok(llm::Said::Text { text, replay: encode_replay(replay, context)? })
+        }
+        skein_llm::Block::Refusal { text, replay } => {
             Ok(llm::Said::Refusal { text, replay: encode_replay(replay, context)? })
         }
-        shared::Block::Reasoning { replay } => {
+        skein_llm::Block::Reasoning { replay } => {
             let limits = crate::limits::replay_limits(&context.limits.client).ok_or(Error::Limit)?;
             let bytes = match replay.to_bytes(&limits) {
                 Ok(bytes) => bytes,
-                Err(error) => return Err(Error::from_shared(error)),
+                Err(error) => return Err(Error::from_client(error)),
             };
             Ok(llm::Said::Opaque { bytes })
         }
-        shared::Block::ToolCall { id, name, arguments, replay } => {
+        skein_llm::Block::ToolCall { id, name, arguments, replay } => {
             let call = decode(&name, &arguments, context, *decoded_bytes)?;
             let call = receiving_call(call, decoded_bytes, context.receiving.decoded_call_bytes);
             Ok(llm::Said::ToolCall { id, name, input: arguments, call, replay: encode_replay(replay, context)? })
         }
-        shared::Block::Oversize { id, name, bytes } => {
+        skein_llm::Block::Oversize { id, name, bytes } => {
             Ok(invalid_call(id, name, llm::Problem::Oversize { bytes, bound: context.limits.client.input }))
         }
-        shared::Block::Cut { id, name, arguments } => {
+        skein_llm::Block::Cut { id, name, arguments } => {
             let bytes = u64::try_from(arguments.len()).or(Err(Error::Limit))?;
             Ok(invalid_call(id, name, llm::Problem::CutOff { bytes }))
         }
-        shared::Block::ToolResult { .. } => Err(Error::Invalid),
-        shared::Block::Dropped { .. } => unreachable!("drops are separate metadata"),
+        skein_llm::Block::ToolResult { .. } => Err(Error::Invalid),
+        skein_llm::Block::Dropped { .. } => unreachable!("drops are separate metadata"),
     }
 }
 
@@ -124,13 +125,13 @@ fn invalid_call(id: Box<[u8]>, name: Box<[u8]>, problem: llm::Problem) -> llm::S
     }
 }
 
-fn encode_replay(value: Option<shared::Replay>, context: &Context) -> Result<Option<llm::Replay>, Error> {
+fn encode_replay(value: Option<skein_llm::Replay>, context: &Context) -> Result<Option<llm::Replay>, Error> {
     match value {
         Some(replay) => {
             let limits = crate::limits::replay_limits(&context.limits.client).ok_or(Error::Limit)?;
             match replay.to_bytes(&limits) {
                 Ok(bytes) => Ok(Some(llm::Replay { bytes })),
-                Err(error) => Err(Error::from_shared(error)),
+                Err(error) => Err(Error::from_client(error)),
             }
         }
         None => Ok(None),
@@ -193,18 +194,18 @@ fn host_wanted(declaration: &run::HostTool, input: &[u8]) -> Option<u64> {
     u64::try_from(declaration.name.len()).ok()?.checked_add(u64::try_from(input.len()).ok()?)
 }
 
-fn decoded_cells(content: &[shared::Block]) -> Result<u64, Error> {
+fn decoded_cells(content: &[skein_llm::Block]) -> Result<u64, Error> {
     let mut calls = 0_u64;
     for block in content {
         match block {
-            shared::Block::ToolCall { .. } | shared::Block::Oversize { .. } | shared::Block::Cut { .. } => {
+            skein_llm::Block::ToolCall { .. } | skein_llm::Block::Oversize { .. } | skein_llm::Block::Cut { .. } => {
                 calls = calls.checked_add(1).ok_or(Error::Limit)?;
             }
-            shared::Block::Text { .. }
-            | shared::Block::Refusal { .. }
-            | shared::Block::Reasoning { .. }
-            | shared::Block::ToolResult { .. }
-            | shared::Block::Dropped { .. } => {}
+            skein_llm::Block::Text { .. }
+            | skein_llm::Block::Refusal { .. }
+            | skein_llm::Block::Reasoning { .. }
+            | skein_llm::Block::ToolResult { .. }
+            | skein_llm::Block::Dropped { .. } => {}
         }
     }
     calls.checked_mul(u64::try_from(size_of::<llm::Decoded>()).or(Err(Error::Limit))?).ok_or(Error::Limit)

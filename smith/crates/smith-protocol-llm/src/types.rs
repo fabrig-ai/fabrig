@@ -1,5 +1,5 @@
 //! Bounded caller-owned codec data and one observed Client's translation context.
-//! No borrowed application value survives an entry point.
+//! No borrowed tool value survives an entry point.
 //! Contract: protocol/llm.md, sections 3, 4 and 6.
 
 use alloc::boxed::Box;
@@ -9,27 +9,27 @@ use smith_domain::{llm, run, tools};
 
 use crate::{Limits, Receiving};
 
-/// A preparation refusal reported by the protocol adapter to its caller.
+/// A preparation refusal reported by the protocol component to its caller.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Error {
-    /// The caller supplied an invalid application value; no call starts.
+    /// The caller supplied an invalid tool value; no call starts.
     Invalid,
 
-    /// A local application or shared-client bound refused the value; no call starts.
+    /// A local tool or client bound refused the value; no call starts.
     Limit,
 
     /// Native preparation refused an exact path cap, preserved for session policy.
     PathLimit { which: llm::Cap, bound: u64 },
 
-    /// The shared dialect cannot represent the value; no call starts.
+    /// The configured dialect cannot represent the value; no call starts.
     Unsupported,
 }
 
 impl Error {
-    /// Preserve the adapter's existing refusal class at the shared boundary.
-    /// Application ownership limits are distinct from the shared Client's caps.
+    /// Preserve the component's existing refusal class at the client boundary.
+    /// Smith ownership limits are distinct from the skein Client's caps.
     #[must_use]
-    pub const fn from_shared(error: skein_llm::Error) -> Self {
+    pub const fn from_client(error: skein_llm::Error) -> Self {
         match error {
             skein_llm::Error::Invalid => Self::Invalid,
             skein_llm::Error::Limit { which, bound } => Self::PathLimit { which: crate::failure::cap(which), bound },
@@ -38,12 +38,12 @@ impl Error {
     }
 }
 
-/// Semantic descriptor supplied by the application codec, never inferred from JSON Schema.
+/// Tool identity used by the LLM and program backends, never inferred from JSON Schema.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ToolKind {
     /// A concrete checkout operation, offered only under its existing family grant.
     Owned(
-        /// Exact checkout operation whose typed input the caller decodes.
+        /// Exact checkout operation decoded from the client's arguments.
         tools::Tool,
     ),
 
@@ -60,26 +60,25 @@ pub enum ToolKind {
     Wait,
 }
 
-/// One whole caller-supplied schema for a concrete non-host tool.
-/// All offered application tools require exactly one descriptor; no schema is invented.
+/// One whole generated schema for a concrete Smith tool.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ToolSchema {
     /// Semantic classification checked against the prompt's observed grants/descriptors.
     pub kind: ToolKind,
 
-    /// Exact nonempty tool name, unique across application and host declarations.
+    /// Exact nonempty tool name, unique across tool and host declarations.
     pub name: Box<[u8]>,
 
-    /// Whole application description passed to the shared Client.
+    /// Whole tool description passed to the skein Client.
     pub description: Box<[u8]>,
 
     /// Whole JSON Schema object bytes; syntax is attested by Skein JSON before preparation.
-    /// This adapter never validates arguments against the schema's meaning.
+    /// This component never validates arguments against the schema's meaning.
     pub schema: Box<[u8]>,
 }
 
-/// Immutable context for the observed call. No provider schema or application policy is interpreted.
-/// Declarations survive consumed prompt preparation and are released after observed terminal translation.
+/// Grants, result rules and receiving bounds retained for decoding one client terminal.
+/// The component releases this context when it returns the call's one terminal.
 #[derive(Debug)]
 pub struct Context {
     pub(crate) owner: Token,

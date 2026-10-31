@@ -735,6 +735,7 @@ impl Counted {
             let text = if round >= usize::try_from(cycles * 2).expect("bounded rounds") { RESTORED } else { SAID };
             llm::Said::Text { text: text.into(), replay: None }
         };
+        drop(complete.prompt);
         let event = Event::Completed {
             owner: complete.owner,
             completion: llm::Completion {

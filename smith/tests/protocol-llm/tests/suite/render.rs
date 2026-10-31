@@ -1,7 +1,7 @@
 //! Production rendering of typed workspace outcomes in live and saved prompts.
 
 use smith_domain::{llm, tools};
-use smith_protocol_llm_world::adapter::{self as adapter};
+use smith_protocol_llm_world::codec::{self as codec};
 use smith_protocol_llm_world::fixture::limits;
 
 #[test]
@@ -13,7 +13,7 @@ fn a_refused_write_names_its_payload_bound_and_the_piece_then_edits_route() {
     let mut settings = Settings::calm(42020);
     settings.tools.tool_payload = 40_960;
     settings.tools.file_bytes = 1_048_576;
-    let maximum = adapter::render_bound(&settings.tools, 4096, 4096).expect("derived result bound");
+    let maximum = codec::render_bound(&settings.tools, 4096, 4096).expect("derived result bound");
     let mut world = World::new(settings, fixture.checkout);
     let session = world.session(
         skein_lib::Time::ZERO,
@@ -27,7 +27,7 @@ fn a_refused_write_names_its_payload_bound_and_the_piece_then_edits_route() {
     assert_eq!(world.stats().ops, 0, "oversized content never reaches file IO");
     let answers = world.answers(session);
     assert_eq!(answers.len(), 1, "the refused call has one terminal");
-    let (text, error) = adapter::render_outcome(answers[0], &tools::Namespace::One, maximum).expect("live refusal");
+    let (text, error) = codec::render_outcome(answers[0], &tools::Namespace::One, maximum).expect("live refusal");
     let text = String::from_utf8(text.into_vec()).expect("rendered UTF-8");
     assert!(error);
     assert!(text.contains("write content"), "what was too large: {text}");
@@ -88,7 +88,7 @@ fn workspace_successes_render_the_retained_content_and_counts() {
         ),
     ];
     for (outcome, expected) in cases {
-        let (text, error) = adapter::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("bounded rendering");
+        let (text, error) = codec::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("bounded rendering");
         assert_eq!(text.as_ref(), expected);
         assert!(!error);
     }
@@ -130,7 +130,7 @@ fn workspace_failures_and_invalid_bytes_stay_visible_and_bounded() {
     ];
     for outcome in failures {
         let (text, error) =
-            adapter::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("bounded failure rendering");
+            codec::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("bounded failure rendering");
         assert!(error, "{outcome:?}");
         assert!(!text.is_empty());
         assert!(text.iter().all(u8::is_ascii), "{text:?}");
@@ -141,15 +141,15 @@ fn workspace_failures_and_invalid_bytes_stay_visible_and_bounded() {
 fn an_unchanged_edit_reports_the_whole_batch() {
     let outcome = tools::Outcome::EditFailed { edit: 2, why: tools::Mismatch::Unchanged };
     let (text, error) =
-        adapter::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("bounded failure rendering");
+        codec::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("bounded failure rendering");
     assert_eq!(text.as_ref(), b"edit 2 failed: edits leave the file unchanged");
     assert!(error);
 }
 
 #[test]
 fn a_stale_change_says_to_read_again_or_to_write_a_gone_file_again() {
-    let (text, error) = adapter::render_outcome(&tools::Outcome::Stale, &tools::Namespace::One, 4096)
-        .expect("bounded failure rendering");
+    let (text, error) =
+        codec::render_outcome(&tools::Outcome::Stale, &tools::Namespace::One, 4096).expect("bounded failure rendering");
     assert_eq!(
         text.as_ref(),
         b"file changed or is gone since it was read; read it again, or, if it is gone, write it again to create it"
@@ -168,8 +168,7 @@ fn the_same_typed_result_renders_after_a_saved_turn_is_replayed() {
         next: tools::Next::Line(6),
         window: tools::BytesClamp::Clamped { asked: 99, ceiling: 32 },
     };
-    let (live_text, live_error) =
-        adapter::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("live feedback");
+    let (live_text, live_error) = codec::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("live feedback");
     assert!(live_text.ends_with(b"[next line 6] [window clamped: 99 bytes to 32 bytes]"));
     let history = llm::Prompt {
         effort: None,
@@ -192,7 +191,7 @@ fn the_same_typed_result_renders_after_a_saved_turn_is_replayed() {
         }]),
         max_tokens: 32,
     };
-    let translated = adapter::prompt(history, &[], &limits()).expect("saved typed result translated");
+    let translated = codec::prompt(history, &[], &limits()).expect("saved typed result translated");
     let [message] = translated.messages.as_ref() else { panic!("one saved message") };
     let [skein_llm::Block::ToolResult { id, text, is_error }] = message.content.as_ref() else {
         panic!("one saved result");
@@ -238,7 +237,7 @@ fn written_text_and_mechanical_feedback_keep_their_error_flags() {
         }]),
         max_tokens: 32,
     };
-    let translated = adapter::prompt(history, &[], &limits()).expect("bounded feedback translated");
+    let translated = codec::prompt(history, &[], &limits()).expect("bounded feedback translated");
     let [message] = translated.messages.as_ref() else { panic!("one message") };
     let [first, second, third, fourth] = message.content.as_ref() else { panic!("four result blocks") };
     let skein_llm::Block::ToolResult { text, is_error, .. } = first else { panic!("text result") };
@@ -289,8 +288,8 @@ fn oversized_write_and_edit_replay_the_same_concrete_piecewise_advice() {
             ]),
         };
         let bounds = limits();
-        let offered = adapter::schemas(&history, &bounds.stated);
-        let translated = adapter::prompt(history, &offered, &bounds).expect("corrective prompt");
+        let offered = codec::schemas(&history, &bounds.stated);
+        let translated = codec::prompt(history, &offered, &bounds).expect("corrective prompt");
         let [skein_llm::Block::ToolCall { name: observed, arguments, .. }] = translated.messages[0].content.as_ref()
         else {
             panic!("replayable call")
@@ -319,7 +318,7 @@ fn command_clamps_are_rendered_without_losing_the_exit_or_omitted_output() {
         },
         output: tools::BytesClamp::Clamped { asked: 99, ceiling: 12 },
     };
-    let (text, error) = adapter::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("command feedback");
+    let (text, error) = codec::render_outcome(&outcome, &tools::Namespace::One, 4096).expect("command feedback");
     assert_eq!(text.as_ref(), b"exit code 1\nfirst\n... 100 bytes dropped ...\nlast\n[timeout clamped: 9000 ms to 5000 ms]\n[output clamped: 99 bytes to 12 bytes]");
     assert!(error);
 }
@@ -392,9 +391,9 @@ fn owed_results_prompt(purpose: llm::Purpose) -> llm::Prompt {
     }
 }
 
-fn finish_tool() -> adapter::ToolSchema {
-    adapter::ToolSchema {
-        kind: adapter::ToolKind::Finish,
+fn finish_tool() -> codec::ToolSchema {
+    codec::ToolSchema {
+        kind: codec::ToolKind::Finish,
         name: b"finish".as_slice().into(),
         description: b"Finish the work.".as_slice().into(),
         schema: b"{}".as_slice().into(),
@@ -417,9 +416,9 @@ fn retained_history(ordinary: &skein_llm::Prompt, summary: &skein_llm::Prompt) {
 fn a_compactions_owed_results_are_cut_and_its_history_is_unchanged() {
     let bounds = limits();
     let finish = [finish_tool()];
-    let ordinary = adapter::prompt(owed_results_prompt(llm::Purpose::Ordinary { guard: None }), &finish, &bounds)
+    let ordinary = codec::prompt(owed_results_prompt(llm::Purpose::Ordinary { guard: None }), &finish, &bounds)
         .expect("admitted prompt");
-    let summary = adapter::prompt(owed_results_prompt(llm::Purpose::Compaction { room: 160 }), &finish, &bounds)
+    let summary = codec::prompt(owed_results_prompt(llm::Purpose::Compaction { room: 160 }), &finish, &bounds)
         .expect("admitted prompt");
     retained_history(&ordinary, &summary);
     let mut kept = 0;
@@ -477,7 +476,7 @@ fn render_not_run(why: llm::NotRun, calls: usize) -> Box<[u8]> {
             },
         ]),
     };
-    let rendered = adapter::prompt(history, &[], &limits()).expect("rendered history");
+    let rendered = codec::prompt(history, &[], &limits()).expect("rendered history");
     let skein_llm::Block::ToolResult { text, is_error, .. } = &rendered.messages[1].content[0] else {
         panic!("result")
     };

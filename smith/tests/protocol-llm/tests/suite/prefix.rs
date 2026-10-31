@@ -9,10 +9,10 @@ use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Role, Script, Turn
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
 use smith_domain::{Transcript, run, session::llm};
-use smith_protocol_llm_world::adapter::{self as adapter};
+use smith_protocol_llm_world::codec::{self as codec};
 use smith_protocol_llm_world::{
     Job, Settings, World,
-    wire::{self},
+    client_peer::{self},
 };
 
 const BEGIN: &[u8] = b"Begin the work your brief describes.";
@@ -151,7 +151,7 @@ fn part_bytes(part: &Part) -> usize {
     }
 }
 
-fn native_accounting(
+fn observe_prefix_and_usage(
     world: &World,
     prefixes: &[Vec<Message>],
     outputs: &[u64],
@@ -161,7 +161,7 @@ fn native_accounting(
     assert_eq!(world.prompts().len(), prefixes.len());
     assert_eq!(world.turns().len(), prefixes.len());
     let requests = world
-        .wire_bindings()
+        .protocol_calls()
         .iter()
         .map(|binding| smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request))
         .collect::<Vec<_>>();
@@ -211,8 +211,8 @@ fn native_accounting(
 
 #[test]
 fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer() {
-    for index in 0..2 {
-        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), adapter::stated());
+    for dialect in smith_protocol_llm_world::fixture::Dialect::ALL {
+        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), codec::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {
@@ -222,7 +222,7 @@ fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer(
             ..smith_protocol_llm_world::fixture::settings(1103)
         };
         settings.limits.session.completion_bytes =
-            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
+            codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
                 .expect("observed receiving reservation");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
@@ -237,12 +237,12 @@ fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer(
             ]),
         }]);
         let (disk, mounted) = workspace();
-        let mut world = World::with_workspace_wire_charter(
+        let mut world = World::with_workspace_protocol_charter(
             settings,
             None,
             Some(mounted),
             disk,
-            (wire::configurations().into_iter().nth(index).expect("two native dialects"), bounds),
+            (dialect.configuration(), bounds),
             scripts,
             charter(&settings, NATIVE_INSTRUCTIONS),
         );
@@ -272,8 +272,8 @@ fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer(
             ]);
             prefixes.push(history.clone());
         }
-        native_accounting(&world, &prefixes, &[2, 3, 5, 7, 11], true, if index == 0 { Some(0) } else { None });
-        assert_eq!(world.wire_bindings().len(), 5, "five observed native Client requests");
+        observe_prefix_and_usage(&world, &prefixes, &[2, 3, 5, 7, 11], true, dialect.reasoning());
+        assert_eq!(world.protocol_calls().len(), 5, "five observed native Client requests");
     }
 }
 
@@ -297,7 +297,7 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
     client.http.read = pieces.http.read;
     client.http.send = pieces.http.send;
     client.sse.chunk = pieces.sse.chunk;
-    let bounds = smith_protocol_llm::fixture::small(client, adapter::stated());
+    let bounds = smith_protocol_llm::fixture::small(client, codec::stated());
     let mut settings = Settings {
         job: Job::Waiting,
         waiting: Duration::from_secs(1),
@@ -314,7 +314,7 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
         })
         .expect("observed batch inputs plus fallback cells");
     settings.limits.session.completion_bytes =
-        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
+        codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("observed batch and history receiving reservation");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
@@ -330,12 +330,12 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
         ]),
     }]);
     let (disk, mounted) = workspace();
-    let mut world = World::with_workspace_wire_charter(
+    let mut world = World::with_workspace_protocol_charter(
         settings,
         None,
         Some(mounted),
         disk,
-        (wire::configurations().into_iter().nth(1).expect("Anthropic fixture"), bounds),
+        (client_peer::configurations().into_iter().nth(1).expect("Anthropic fixture"), bounds),
         scripts,
         charter(&settings, NATIVE_INSTRUCTIONS),
     );
@@ -363,7 +363,7 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
     ]);
     prefixes.push(history);
 
-    native_accounting(&world, &prefixes, &[2, 3, 5], true, None);
+    observe_prefix_and_usage(&world, &prefixes, &[2, 3, 5], true, None);
     let turns = world.turns();
     let largest = turns
         .iter()
@@ -392,8 +392,8 @@ fn affinity_scripts() -> Box<[Script]> {
 
 #[test]
 fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
-    for dialect in 0..2 {
-        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), adapter::stated());
+    for dialect in smith_protocol_llm_world::fixture::Dialect::ALL {
+        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), codec::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {
@@ -403,17 +403,17 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
             ..smith_protocol_llm_world::fixture::settings(1110)
         };
         settings.limits.session.completion_bytes =
-            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
+            codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
                 .expect("observed receiving reservation");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
         let (disk, mounted) = workspace();
-        let mut first = World::with_workspace_wire_charter(
+        let mut first = World::with_workspace_protocol_charter(
             settings,
             None,
             Some(mounted),
             disk,
-            (wire::configurations().into_iter().nth(dialect).expect("two native forms"), bounds),
+            (dialect.configuration(), bounds),
             affinity_scripts(),
             charter(&settings, NATIVE_INSTRUCTIONS),
         );
@@ -427,7 +427,7 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
             }
         };
         assert_eq!(affinity.thread, 0);
-        let original = smith_protocol_llm_world::referee::NativeRequest::from_http(&first.wire_bindings()[0].request);
+        let original = smith_protocol_llm_world::referee::NativeRequest::from_http(&first.protocol_calls()[0].request);
         let saved = Transcript {
             version: first.turns()[0].version,
             endpoint: first.turns()[0].endpoint,
@@ -437,12 +437,12 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
         settings.resume = true;
         settings.seed = 999_110;
         let (disk, mounted) = workspace();
-        let mut resumed = World::with_workspace_wire_charter(
+        let mut resumed = World::with_workspace_protocol_charter(
             settings,
             Some(saved),
             Some(mounted),
             disk,
-            (wire::configurations().into_iter().nth(dialect).expect("same native form"), bounds),
+            (dialect.configuration(), bounds),
             affinity_scripts(),
             charter(&settings, NATIVE_INSTRUCTIONS),
         );
@@ -453,7 +453,7 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
             [(2, smith_domain::session::record::Kind::Ordinary), (3, smith_domain::session::record::Kind::Ordinary),]
         );
         assert_eq!(resumed.prompts().len(), 3, "two main requests and one observed child request");
-        for (query, binding) in resumed.prompts().iter().zip(resumed.wire_bindings()) {
+        for (query, binding) in resumed.prompts().iter().zip(resumed.protocol_calls()) {
             if original.affinity.is_some() {
                 assert_eq!(query.caching, skein_fake_llm_domain::api::Caching::Scope(affinity.key));
             } else {
@@ -479,10 +479,10 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
                 (None, None) => {}
                 other => panic!("both requests use the same dialect: {other:?}"),
             }
-            assert!(binding.retired.is_some(), "observed lower Closed settles every request");
+            assert!(binding.terminal.is_some(), "component terminal settles every request");
         }
     }
 }
 
-#[path = "brief/open.rs"]
+#[path = "prefix/open.rs"]
 mod open;

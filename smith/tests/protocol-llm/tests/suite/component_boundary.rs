@@ -7,8 +7,8 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_llm::{self as shared, Credential};
 use skein_world::domain::heap::Meter;
 use smith_domain::{GrantName, llm, run, tools};
-use smith_protocol_llm_world::adapter::{
-    self as adapter, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
+use smith_protocol_llm_world::codec::{
+    self as codec, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
 };
 
 fn limits() -> ComponentLimits {
@@ -104,7 +104,7 @@ fn credential(value: &[u8]) -> Credential {
 #[test]
 fn invalid_limits_are_refused() {
     let bounds = limits();
-    assert!(adapter::component_valid(&bounds, &endpoints()));
+    assert!(codec::component_valid(&bounds, &endpoints()));
     Component::new(&bounds, endpoints()).expect("valid component");
     let mut cases = Vec::new();
     for check in 0..16 {
@@ -181,16 +181,16 @@ fn invalid_limits_are_refused() {
         cases.push((name, invalid));
     }
     for (check, invalid) in cases {
-        assert!(!adapter::component_valid(&invalid, &endpoints()), "{check}");
-        assert!(matches!(Component::new(&invalid, endpoints()), Err(adapter::ComponentError::Limits)), "{check}");
+        assert!(!codec::component_valid(&invalid, &endpoints()), "{check}");
+        assert!(matches!(Component::new(&invalid, endpoints()), Err(codec::ComponentError::Limits)), "{check}");
     }
     let mut incompatible = bounds;
     incompatible.adapter.client.tools -= 1;
-    assert!(!adapter::component_valid(&incompatible, &endpoints()));
-    assert!(matches!(Component::new(&incompatible, endpoints()), Err(adapter::ComponentError::ClientLimits)));
+    assert!(!codec::component_valid(&incompatible, &endpoints()));
+    assert!(matches!(Component::new(&incompatible, endpoints()), Err(codec::ComponentError::ClientLimits)));
     let mut large = bounds;
     large.contract_bytes = u64::MAX;
-    assert!(adapter::component_valid(&large, &endpoints()), "retained heap total is not validity");
+    assert!(codec::component_valid(&large, &endpoints()), "retained heap total is not validity");
     Component::new(&large, endpoints()).expect("aggregate heap arithmetic is not constructor validity");
 }
 
@@ -300,8 +300,8 @@ fn shared_failure_cases() -> [(shared::Failure, llm::Failure); 18] {
     ]
 }
 
-fn prepared_failure(limits: &ComponentLimits) -> adapter::Prepared {
-    let input = adapter::Input {
+fn prepared_failure(limits: &ComponentLimits) -> codec::Prepared {
+    let input = codec::Input {
         owner: Token::new(71),
         prompt: prompt(),
         endpoint_name: llm::Endpoint(42),
@@ -310,7 +310,7 @@ fn prepared_failure(limits: &ComponentLimits) -> adapter::Prepared {
 
         receiving: limits.receiving,
     };
-    adapter::prepare(input, &limits.adapter).expect("bounded preparation")
+    codec::prepare(input, &limits.adapter).expect("bounded preparation")
 }
 
 #[test]
@@ -324,7 +324,7 @@ fn every_shared_failure_class_keeps_each_evidence_and_detail() {
     for (source, expected) in shared_failure_cases() {
         for (sent, expected_sent) in evidence {
             let prepared = prepared_failure(&limits);
-            let event = adapter::failed(
+            let event = codec::failed(
                 prepared.context,
                 source,
                 sent,
@@ -482,8 +482,8 @@ fn an_observed_request_is_native_validated_before_its_payload_is_copied() {
 #[test]
 fn a_response_failure_keeps_its_status_in_the_evidence() {
     let limits = limits();
-    let prepared = adapter::prepare(
-        adapter::Input {
+    let prepared = codec::prepare(
+        codec::Input {
             owner: Token::new(71),
             prompt: prompt(),
             endpoint_name: llm::Endpoint(42),
@@ -495,7 +495,7 @@ fn a_response_failure_keeps_its_status_in_the_evidence() {
         &limits.adapter,
     )
     .expect("bounded preparation");
-    let terminal = adapter::failed(
+    let terminal = codec::failed(
         prepared.context,
         shared::Failure::Unavailable,
         shared::client::Evidence::Response { status: 503 },
@@ -534,7 +534,7 @@ fn skeins_report_reaches_the_session_whole() {
     ] {
         let prepared = prepared_failure(&limits);
         let report = shared::Report { code: code.into(), request: request.into(), field: field.into() };
-        let terminal = adapter::failed(
+        let terminal = codec::failed(
             prepared.context,
             shared::Failure::Unsupported,
             shared::client::Evidence::Unsent,

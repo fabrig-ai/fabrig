@@ -20,7 +20,7 @@ pub struct Input {
     /// Root completion callback owner, echoed exactly by its observed terminal.
     pub owner: Token,
 
-    /// Observed root prompt, consumed without retained borrowed application data.
+    /// Observed root prompt, consumed without retained borrowed prompt data.
     pub prompt: llm::Prompt,
 
     /// Caller-configured neutral endpoint identity; must equal the prompt's identity.
@@ -36,18 +36,18 @@ pub struct Input {
     pub receiving: Receiving,
 }
 
-/// One prepared shared Client and its retained application translation context.
+/// One prepared skein Client and its retained translation context.
 /// The caller drives the Client itself; no second client or protocol state machine is created.
 #[expect(missing_debug_implementations, reason = "the observed Client holds credential-bearing HTTP state")]
 pub struct Prepared {
-    /// Observed shared Client, retained through real Reusable or Close/Closed settlement.
+    /// Observed skein Client, retained through real Reusable or Close/Closed settlement.
     pub client: client::Client,
 
     /// Owned declarations and receiving contract, consumed by exactly one observed terminal translation.
     pub context: Context,
 }
 
-/// Prepare the shared client with the production translator.
+/// Prepare the skein client with the production translator.
 /// # Errors
 /// Refuses incompatible receiving limits or invalid prompt declarations.
 pub fn prepare(input: Input, limits: &Limits) -> Result<Prepared, Error> {
@@ -57,12 +57,12 @@ pub fn prepare(input: Input, limits: &Limits) -> Result<Prepared, Error> {
     }
     let ceiling = prompt.max_tokens;
     let (mut translated, context) = smith_protocol_llm::fixture::prepare_prompt(owner, prompt, receiving, limits)?;
-    translated.output_ceiling(endpoint.provider, ceiling).map_err(Error::from_shared)?;
+    translated.output_ceiling(endpoint.provider, ceiling).map_err(Error::from_client)?;
     let client = client::Client::prepare(
         skein_llm::Call { owner, endpoint, credential: Some(credential), prompt: translated },
         &limits.client,
     )
-    .map_err(Error::from_shared)?;
+    .map_err(Error::from_client)?;
     Ok(Prepared { client, context })
 }
 
@@ -82,12 +82,12 @@ pub fn prepare_for_contract(
     let ceiling = prompt.max_tokens;
     let (mut translated, context) =
         smith_protocol_llm::fixture::prepare_for_contract(owner, prompt, outcome, deliver, receiving, limits)?;
-    translated.output_ceiling(endpoint.provider, ceiling).map_err(Error::from_shared)?;
+    translated.output_ceiling(endpoint.provider, ceiling).map_err(Error::from_client)?;
     let client = client::Client::prepare(
         skein_llm::Call { owner, endpoint, credential: Some(credential), prompt: translated },
         &limits.client,
     )
-    .map_err(Error::from_shared)?;
+    .map_err(Error::from_client)?;
     Ok(Prepared { client, context })
 }
 

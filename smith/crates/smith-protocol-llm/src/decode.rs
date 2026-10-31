@@ -13,7 +13,7 @@ use smith_domain::{llm, run, tools};
 use crate::Limits;
 
 /// Decode one offered Smith tool. Host tools are checked and relayed by the
-/// completion adapter; finish and deliver use their contract decoder.
+/// completion translation; finish and deliver use their contract decoder.
 #[must_use]
 pub fn decode(
     name: &[u8],
@@ -247,7 +247,7 @@ fn bad_value(name: &[u8]) -> llm::Problem {
     llm::Problem::BadValue { field: name.into() }
 }
 
-// The document owns admitted grammar; application code selects direct fields.
+// The document owns admitted grammar; tool code selects direct fields.
 fn field(document: &Document, name: &[u8]) -> Option<Compact> {
     document.token(document.member(0, name)?).copied()
 }

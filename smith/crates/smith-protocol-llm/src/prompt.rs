@@ -1,66 +1,49 @@
-//! Whole bounded application declarations and concrete conversations into Skein.
+//! Whole bounded tool declarations and concrete conversations into Skein.
 //! Parsing is generic JSON attestation, never schema-policy validation.
 
 use alloc::boxed::Box;
 
 use skein_json::Kind;
 use skein_lib::{List, bytes};
-use skein_llm as shared;
 use smith_domain::{llm, run, tools};
 
 use crate::types::{Context, ToolSchema};
 use crate::{Error, Limits, valid};
 
 /// Prepare the translated prompt and retained context for the connection
-/// component, which prepares the sole shared Client when it admits Start.
+/// component, which prepares the sole skein Client when it admits Start.
 pub(crate) fn prepare_component(
     owner: skein_lib::Token,
     prompt: llm::Prompt,
-    outcome: &run::outcome::OutcomeSpec,
-    deliver: Option<&run::outcome::ChangeSpec>,
+    outcome: run::outcome::OutcomeSpec,
+    deliver: Option<run::outcome::ChangeSpec>,
     receiving: crate::Receiving,
     limits: &Limits,
-) -> Result<(shared::Prompt, Context), Error> {
+) -> Result<(skein_llm::Prompt, Context), Error> {
     if !valid(limits, &receiving) {
         return Err(Error::Limit);
     }
-    let application =
-        crate::tools::schemas_for_contract(&prompt, &limits.stated, outcome, deliver, limits.client.request)?;
+    let schemas =
+        crate::tools::schemas_for_contract(&prompt, &limits.stated, &outcome, deliver.as_ref(), limits.client.request)?;
     let asker = prompt.asker;
     let grants = prompt.tools;
-    let (translated, served) = translate(prompt, &application, limits)?;
-    Ok((
-        translated,
-        Context {
-            owner,
-            asker,
-            grants,
-            served,
-            receiving,
-            limits: *limits,
-            outcome: outcome.clone(),
-            deliver: deliver.cloned(),
-        },
-    ))
+    let (translated, served) = translate(prompt, &schemas, limits)?;
+    Ok((translated, Context { owner, asker, grants, served, receiving, limits: *limits, outcome, deliver }))
 }
 
-/// Pure application prompt translation, including whole supplied tool schemas.
-/// The caller applies the shared `output_ceiling` for its configured endpoint
-/// before directly preparing a Client.
-/// Missing or conflicting application descriptors are Invalid, exceeded
-/// bounds are Limit and incompatible replay remains Unsupported.
+/// Translate an isolated codec fixture's prompt and schemas under the component's bounds.
 #[cfg(any(test, feature = "fixture"))]
-pub fn prompt(input: llm::Prompt, application: &[ToolSchema], limits: &Limits) -> Result<shared::Prompt, Error> {
-    let (translated, _served) = translate(input, application, limits)?;
+pub fn prompt(input: llm::Prompt, schemas: &[ToolSchema], limits: &Limits) -> Result<skein_llm::Prompt, Error> {
+    let (translated, _served) = translate(input, schemas, limits)?;
     Ok(translated)
 }
 
 fn translate(
     input: llm::Prompt,
-    application: &[ToolSchema],
+    schemas: &[ToolSchema],
     limits: &Limits,
-) -> Result<(shared::Prompt, Box<[llm::Served]>), Error> {
-    inventory(&input, application, limits)?;
+) -> Result<(skein_llm::Prompt, Box<[llm::Served]>), Error> {
+    inventory(&input, schemas, limits)?;
     let llm::Prompt {
         asker: _,
         endpoint: _,
@@ -77,28 +60,32 @@ fn translate(
         purpose,
     } = input;
     let mut offered = List::with_capacity(
-        u32::try_from(application.len().checked_add(served.len()).ok_or(Error::Limit)?).or(Err(Error::Limit))?,
+        u32::try_from(schemas.len().checked_add(served.len()).ok_or(Error::Limit)?).or(Err(Error::Limit))?,
     );
     for descriptor in &served {
         match descriptor {
             llm::Served::Host(tool) => {
                 let schema = object(&tool.schema, limits)?;
                 offered
-                    .push(shared::Tool { name: tool.name.clone(), description: tool.description.clone(), schema })
+                    .push(skein_llm::Tool { name: tool.name.clone(), description: tool.description.clone(), schema })
                     .or(Err(Error::Limit))?;
             }
             llm::Served::Deliver | llm::Served::Finish | llm::Served::SubAgent | llm::Served::Wait => {}
         }
     }
-    for descriptor in application {
+    for descriptor in schemas {
         let schema = object(&descriptor.schema, limits)?;
         offered
-            .push(shared::Tool { name: descriptor.name.clone(), description: descriptor.description.clone(), schema })
+            .push(skein_llm::Tool {
+                name: descriptor.name.clone(),
+                description: descriptor.description.clone(),
+                schema,
+            })
             .or(Err(Error::Limit))?;
     }
-    let shared_choice = match &choice {
-        llm::ToolChoice::Auto => shared::ToolChoice::Auto,
-        llm::ToolChoice::None => shared::ToolChoice::None,
+    let native_choice = match &choice {
+        llm::ToolChoice::Auto => skein_llm::ToolChoice::Auto,
+        llm::ToolChoice::None => skein_llm::ToolChoice::None,
         llm::ToolChoice::Only(selected) => {
             let mut names = List::with_capacity(u32::try_from(selected.len()).or(Err(Error::Limit))?);
             for descriptor in selected {
@@ -107,12 +94,12 @@ fn translate(
                 }
                 names.push(bytes::copy_of(served_name(descriptor))).or(Err(Error::Limit))?;
             }
-            shared::ToolChoice::Only(names.into_boxed())
+            skein_llm::ToolChoice::Only(names.into_boxed())
         }
     };
     let owed_message = messages.len().checked_sub(2);
     let result_maximum = owed_result_bound(purpose, &messages, limits.rendered_result)?;
-    let mut translated: List<shared::Message> =
+    let mut translated: List<skein_llm::Message> =
         List::with_capacity(u32::try_from(messages.len()).or(Err(Error::Limit))?);
     for (index, message) in messages.into_iter().enumerate() {
         let maximum = if Some(index) == owed_message { result_maximum } else { limits.rendered_result };
@@ -122,20 +109,20 @@ fn translate(
             content.push(block).expect("room for each admitted source block");
         }
         let role = match message.role {
-            llm::Role::User => shared::Role::User,
-            llm::Role::Assistant => shared::Role::Assistant,
+            llm::Role::User => skein_llm::Role::User,
+            llm::Role::Assistant => skein_llm::Role::Assistant,
         };
-        translated.push(shared::Message { role, content: content.into_boxed() }).expect("admitted message count");
+        translated.push(skein_llm::Message { role, content: content.into_boxed() }).expect("admitted message count");
     }
     Ok((
-        shared::Prompt {
+        skein_llm::Prompt {
             model,
             instructions: system,
             tools: offered.into_boxed(),
-            choice: shared_choice,
+            choice: native_choice,
             messages: translated.into_boxed(),
             reasoning_effort: effort,
-            affinity: Some(shared::Affinity { key: affinity.key, thread: affinity.thread }),
+            affinity: Some(skein_llm::Affinity { key: affinity.key, thread: affinity.thread }),
             max_output_tokens: Some(max_tokens),
         },
         served,
@@ -209,15 +196,15 @@ fn outside_choice(choice: Option<&[Box<[u8]>]>, maximum: u32) -> Result<Box<[u8]
     Ok(writer.finish())
 }
 
-fn after_failed_write(call: u16, previous: Option<&shared::Message>, maximum: u32) -> Result<Box<[u8]>, Error> {
+fn after_failed_write(call: u16, previous: Option<&skein_llm::Message>, maximum: u32) -> Result<Box<[u8]>, Error> {
     let previous = previous.ok_or(Error::Invalid)?;
-    if previous.role != shared::Role::Assistant || call == 0 {
+    if previous.role != skein_llm::Role::Assistant || call == 0 {
         return Err(Error::Invalid);
     }
     let mut position = 0_u16;
     for block in &previous.content {
         match block {
-            shared::Block::ToolCall { name, .. } => {
+            skein_llm::Block::ToolCall { name, .. } => {
                 position = position.checked_add(1).ok_or(Error::Limit)?;
                 if position == call {
                     let prefix = b"not run: call ";
@@ -245,26 +232,26 @@ fn after_failed_write(call: u16, previous: Option<&shared::Message>, maximum: u3
                     return Ok(writer.finish());
                 }
             }
-            shared::Block::Text { .. }
-            | shared::Block::Refusal { .. }
-            | shared::Block::Reasoning { .. }
-            | shared::Block::Oversize { .. }
-            | shared::Block::Cut { .. }
-            | shared::Block::Dropped { .. }
-            | shared::Block::ToolResult { .. } => {}
+            skein_llm::Block::Text { .. }
+            | skein_llm::Block::Refusal { .. }
+            | skein_llm::Block::Reasoning { .. }
+            | skein_llm::Block::Oversize { .. }
+            | skein_llm::Block::Cut { .. }
+            | skein_llm::Block::Dropped { .. }
+            | skein_llm::Block::ToolResult { .. } => {}
         }
     }
     Err(Error::Invalid)
 }
 
-fn inventory(input: &llm::Prompt, application: &[ToolSchema], limits: &Limits) -> Result<(), Error> {
+fn inventory(input: &llm::Prompt, schemas: &[ToolSchema], limits: &Limits) -> Result<(), Error> {
     let maximum = usize::try_from(limits.client.tools).expect("u32 fits usize");
-    if application.len() > maximum
+    if schemas.len() > maximum
         || input.messages.len() > usize::try_from(limits.client.history_items).expect("u32 fits usize")
     {
         return Err(Error::Limit);
     }
-    let mut count = application.len();
+    let mut count = schemas.len();
     let mut declaration_bytes = 0_u64;
     for (index, descriptor) in input.served.iter().enumerate() {
         served_unique(descriptor, input.served.get(..index).expect("enumerated served prefix"))?;
@@ -275,7 +262,7 @@ fn inventory(input: &llm::Prompt, application: &[ToolSchema], limits: &Limits) -
                 for field in [&tool.name, &tool.description, &tool.schema] {
                     declaration_bytes = declaration_bytes.checked_add(size(field.len())?).ok_or(Error::Limit)?;
                 }
-                for other in application {
+                for other in schemas {
                     if other.name == tool.name {
                         return Err(Error::Invalid);
                     }
@@ -287,7 +274,7 @@ fn inventory(input: &llm::Prompt, application: &[ToolSchema], limits: &Limits) -
     if count > maximum || input.served.len() > maximum {
         return Err(Error::Limit);
     }
-    for descriptor in application {
+    for descriptor in schemas {
         declaration_bytes = declaration_bytes.checked_add(size(size_of::<ToolSchema>())?).ok_or(Error::Limit)?;
         for field in [&descriptor.name, &descriptor.description, &descriptor.schema] {
             declaration_bytes = declaration_bytes.checked_add(size(field.len())?).ok_or(Error::Limit)?;
@@ -352,27 +339,27 @@ fn translate_block(
     namespace: &tools::Namespace,
     limits: &Limits,
     maximum: u32,
-    previous: Option<&shared::Message>,
-) -> Result<shared::Block, Error> {
+    previous: Option<&skein_llm::Message>,
+) -> Result<skein_llm::Block, Error> {
     match block {
-        llm::Block::Text { text, replay } => Ok(shared::Block::Text { text, replay: replay_value(replay, limits)? }),
+        llm::Block::Text { text, replay } => Ok(skein_llm::Block::Text { text, replay: replay_value(replay, limits)? }),
         llm::Block::Refusal { text, replay } => {
-            Ok(shared::Block::Refusal { text, replay: replay_value(replay, limits)? })
+            Ok(skein_llm::Block::Refusal { text, replay: replay_value(replay, limits)? })
         }
         llm::Block::Opaque { bytes } => {
             let replay_limits = crate::limits::replay_limits(&limits.client).ok_or(Error::Limit)?;
-            let replay = match shared::Replay::from_bytes(&bytes, &replay_limits) {
+            let replay = match skein_llm::Replay::from_bytes(&bytes, &replay_limits) {
                 Ok(replay) => replay,
-                Err(error) => return Err(Error::from_shared(error)),
+                Err(error) => return Err(Error::from_client(error)),
             };
-            Ok(shared::Block::Reasoning { replay })
+            Ok(skein_llm::Block::Reasoning { replay })
         }
         llm::Block::ToolCall { id, name, input, replay } => {
-            Ok(shared::Block::ToolCall { id, name, arguments: input, replay: replay_value(replay, limits)? })
+            Ok(skein_llm::Block::ToolCall { id, name, arguments: input, replay: replay_value(replay, limits)? })
         }
         llm::Block::ToolResult { id, result } => {
             let (text, error) = result_text(result, namespace, limits, maximum, previous)?;
-            Ok(shared::Block::ToolResult { id, text, is_error: error })
+            Ok(skein_llm::Block::ToolResult { id, text, is_error: error })
         }
     }
 }
@@ -382,7 +369,7 @@ fn result_text(
     namespace: &tools::Namespace,
     limits: &Limits,
     maximum: u32,
-    previous: Option<&shared::Message>,
+    previous: Option<&skein_llm::Message>,
 ) -> Result<(Box<[u8]>, bool), Error> {
     match result {
         llm::Returned::Text { text, error, replay } => match replay {
@@ -407,27 +394,27 @@ fn result_text(
     }
 }
 
-fn replay_value(replay: Option<llm::Replay>, limits: &Limits) -> Result<Option<shared::Replay>, Error> {
+fn replay_value(replay: Option<llm::Replay>, limits: &Limits) -> Result<Option<skein_llm::Replay>, Error> {
     match replay {
         Some(replay) => {
             let replay_limits = crate::limits::replay_limits(&limits.client).ok_or(Error::Limit)?;
-            match shared::Replay::from_bytes(&replay.bytes, &replay_limits) {
+            match skein_llm::Replay::from_bytes(&replay.bytes, &replay_limits) {
                 Ok(replay) => Ok(Some(replay)),
-                Err(error) => Err(Error::from_shared(error)),
+                Err(error) => Err(Error::from_client(error)),
             }
         }
         None => Ok(None),
     }
 }
 
-pub(crate) fn object(data: &[u8], limits: &Limits) -> Result<shared::Json, Error> {
+pub(crate) fn object(data: &[u8], limits: &Limits) -> Result<skein_llm::Json, Error> {
     let bytes = u32::try_from(data.len()).or(Err(Error::Limit))?;
     if bytes > limits.client.request {
         return Err(Error::PathLimit { which: llm::Cap::Request, bound: u64::from(limits.client.request) });
     }
-    let value = match shared::Json::from_bytes(data, &crate::limits::document_limits(&limits.client, bytes)) {
+    let value = match skein_llm::Json::from_bytes(data, &crate::limits::document_limits(&limits.client, bytes)) {
         Ok(value) => value,
-        Err(error) => return Err(Error::from_shared(shared::document_error(error))),
+        Err(error) => return Err(Error::from_client(skein_llm::document_error(error))),
     };
     match value.document().token(0) {
         Some(record) if record.kind == Kind::ObjectStart => {}

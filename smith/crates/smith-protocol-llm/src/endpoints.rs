@@ -39,7 +39,7 @@ pub fn endpoint_own(identity: IdentityProfile) -> Result<u64, crate::Error> {
         IdentityProfile::ClaudeCode => {
             let instructions = match skein_llm::anthropic::identity::instructions(&[]) {
                 Ok(instructions) => instructions,
-                Err(error) => return Err(crate::Error::from_shared(error)),
+                Err(error) => return Err(crate::Error::from_client(error)),
             };
             bytes = bytes
                 .checked_add(u64::try_from(instructions.len()).or(Err(crate::Error::Limit))?)

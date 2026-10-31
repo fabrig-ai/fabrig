@@ -7,11 +7,11 @@ const AGAIN: &[u8] = b"A second reply.";
 const NEXT: Token = Token::new(0);
 
 fn world(dialect: usize, turns: Box<[Turn]>, reserve: run::charter::Reserve, budget_turns: u32) -> World {
-    let bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), adapter::stated());
+    let bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), codec::stated());
     let mut settings =
         Settings { job: Job::Waiting, network: Span::millis(1, 1), ..smith_protocol_llm_world::fixture::settings(306) };
     settings.limits.session.completion_bytes =
-        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("native receiving");
+        codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("native receiving");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
     let mut selected = charter(&settings, CUE);
@@ -19,12 +19,12 @@ fn world(dialect: usize, turns: Box<[Turn]>, reserve: run::charter::Reserve, bud
     selected.grants.agents = false;
     selected.reserve = reserve;
     selected.budget.turns = budget_turns;
-    World::with_workspace_wire_charter(
+    World::with_workspace_protocol_charter(
         settings,
         None,
         None,
         Checkout::new(),
-        (wire::configurations().into_iter().nth(dialect).expect("native dialect"), bounds),
+        (client_peer::configurations().into_iter().nth(dialect).expect("native dialect"), bounds),
         Box::new([Script { cue: CUE.as_bytes().into(), turns }]),
         selected,
     )

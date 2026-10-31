@@ -12,7 +12,7 @@ use core::fmt;
 
 use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::{Env, Map, Queue, Set, Time, Token, bytes};
-use skein_llm::{self as shared, Credential};
+use skein_llm::Credential;
 use skein_llm_connection as connection;
 use smith_domain::{Event as DomainEvent, GrantName, llm, run};
 
@@ -42,7 +42,7 @@ pub struct ComponentLimits {
 /// A startup configuration problem.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ComponentError {
-    /// A configured endpoint and the adapter disagree on client bounds.
+    /// A configured endpoint and the translator disagree on client bounds.
     ClientLimits,
     /// A configured count, receiving contract or edge bound is invalid.
     Limits,
@@ -136,14 +136,14 @@ pub fn component_valid(limits: &ComponentLimits, endpoints: &Endpoints) -> bool 
     }
     for endpoint in endpoints.destinations() {
         let mut native = endpoint.limits;
-        native.http.request = match shared::client::request_head(&endpoint.llm, &endpoint.credential, &native) {
+        native.http.request = match skein_llm::client::request_head(&endpoint.llm, &endpoint.credential, &native) {
             Ok(head) => head,
             Err(_) => return false,
         };
-        let Some(reservation) = shared::client::largest_reservation(&native) else {
+        let Some(reservation) = skein_llm::client::largest_reservation(&native) else {
             return false;
         };
-        if reservation > pool.memory || shared::client::encoder_bound(&native).is_none() {
+        if reservation > pool.memory || skein_llm::client::encoder_bound(&native).is_none() {
             return false;
         }
         match &endpoint.transport {
@@ -261,11 +261,11 @@ impl Component {
             if *account == name.account {
                 let options = self.options.get(endpoint).ok_or(GrantError::Scheme)?;
                 let accepted = match options.provider {
-                    shared::Provider::OpenAiCodex => match credential.scheme {
-                        shared::Scheme::Bearer => !credential.account_id.is_empty(),
-                        shared::Scheme::Key => false,
+                    skein_llm::Provider::OpenAiCodex => match credential.scheme {
+                        skein_llm::Scheme::Bearer => !credential.account_id.is_empty(),
+                        skein_llm::Scheme::Key => false,
                     },
-                    shared::Provider::OpenAi | shared::Provider::Anthropic => credential.account_id.is_empty(),
+                    skein_llm::Provider::OpenAi | skein_llm::Provider::Anthropic => credential.account_id.is_empty(),
                 };
                 if !accepted {
                     return Err(GrantError::Scheme);
@@ -424,9 +424,9 @@ impl Component {
             }
         };
         let purpose = prompt.purpose;
-        let adapter = crate::Limits { client: options.client, ..self.limits.adapter };
+        let translation = crate::Limits { client: options.client, ..self.limits.adapter };
         let (mut translated, context) =
-            match crate::prompt::prepare_component(owner, prompt, &outcome, deliver.as_ref(), bounds, &adapter) {
+            match crate::prompt::prepare_component(owner, prompt, outcome, deliver, bounds, &translation) {
                 Ok(prepared) => prepared,
                 Err(error) => {
                     Self::refusal(owner, error, bounds.max_failure_bytes, to_domain);
@@ -435,16 +435,17 @@ impl Component {
             };
         match options.identity {
             IdentityProfile::Plain => {}
-            IdentityProfile::ClaudeCode => match shared::anthropic::identity::instructions(&translated.instructions) {
+            IdentityProfile::ClaudeCode => match skein_llm::anthropic::identity::instructions(&translated.instructions)
+            {
                 Ok(instructions) => translated.instructions = instructions,
                 Err(error) => {
-                    Self::refusal(owner, Error::from_shared(error), bounds.max_failure_bytes, to_domain);
+                    Self::refusal(owner, Error::from_client(error), bounds.max_failure_bytes, to_domain);
                     return;
                 }
             },
         }
         if let Err(error) = translated.output_ceiling(options.provider, translated.max_output_tokens.unwrap_or(0)) {
-            Self::refusal(owner, Error::from_shared(error), bounds.max_failure_bytes, to_domain);
+            Self::refusal(owner, Error::from_client(error), bounds.max_failure_bytes, to_domain);
             return;
         }
         if let Some(event) =
@@ -542,7 +543,7 @@ impl Component {
                         connection::Refusal::Endpoint => Error::Invalid,
                         connection::Refusal::Calls { bound: _ } => Error::Limit,
                         connection::Refusal::Closed => unreachable!("the service closes the pool after its answer"),
-                        connection::Refusal::Client(error) => Error::from_shared(error),
+                        connection::Refusal::Client(error) => Error::from_client(error),
                     };
                     Self::refusal(call, error, maximum, to_domain);
                 }
@@ -593,9 +594,9 @@ impl Component {
         }
     }
 
-    fn delta(&mut self, now: Time, call: Token, delta: shared::Delta, to_domain: &mut Queue<ToDomain>) {
+    fn delta(&mut self, now: Time, call: Token, delta: skein_llm::Delta, to_domain: &mut Queue<ToDomain>) {
         match delta {
-            shared::Delta::Text { index, content_index: _, text } => {
+            skein_llm::Delta::Text { index, content_index: _, text } => {
                 let count = u32::try_from(text.len()).expect("the client admitted a u32 text bound");
                 to_domain.push(ToDomain::Text { owner: call, bytes: count });
                 let live = match self.active.get(&call) {
@@ -606,16 +607,16 @@ impl Component {
                     self.measures.push(crate::Measure::Delta { at: now, owner: call, block: index, text });
                 }
             }
-            shared::Delta::Reasoning { text, .. } => {
+            skein_llm::Delta::Reasoning { text, .. } => {
                 let count = u32::try_from(text.len()).expect("the client admitted a u32 text bound");
                 to_domain.push(ToDomain::Text { owner: call, bytes: count });
             }
-            shared::Delta::ToolStart { index, id, name } => {
+            skein_llm::Delta::ToolStart { index, id, name } => {
                 if self.input_wanted(call) {
                     self.measures.push(crate::Measure::Call { at: now, owner: call, index, id, name });
                 }
             }
-            shared::Delta::ToolArguments { index, delta } => {
+            skein_llm::Delta::ToolArguments { index, delta } => {
                 if self.input_wanted(call) {
                     self.measures.push(crate::Measure::Arguments { at: now, owner: call, index, bytes: delta });
                 }
@@ -693,16 +694,16 @@ impl Component {
 // Validate the native preparation entrance before copying its observed payload.
 // This is not a transport measurement: bytes remain unobserved until sending.
 fn observed_prompt(
-    translated: &shared::Prompt,
+    translated: &skein_llm::Prompt,
     credential: Option<&Credential>,
     options: &EndpointOptions,
     observation: Option<crate::Observation>,
 ) -> Result<Option<smith_events::Prompt>, Error> {
     match observation {
         Some(observation) => {
-            match shared::client::measure(translated, credential, &options.endpoint, &options.client) {
+            match skein_llm::client::measure(translated, credential, &options.endpoint, &options.client) {
                 Ok(_) => {}
-                Err(error) => return Err(Error::from_shared(error)),
+                Err(error) => return Err(Error::from_client(error)),
             }
             let prompt = crate::capture::prompt(translated, observation, &options.client)
                 .expect("the owner's cursor and translated replay were admitted");

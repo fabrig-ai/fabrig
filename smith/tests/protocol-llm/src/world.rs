@@ -1,10 +1,10 @@
 //! Protocol backend constructors for the shared agent world (smith/docs/design/protocol/llm.md, section 10).
-use crate::wire;
+use crate::fixture::Configuration;
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain as provider;
 use smith_agent_world::Settings;
 use smith_domain::{self as agent, run};
-use smith_protocol_llm::Limits as WireLimits;
+use smith_protocol_llm::Limits as TranslationLimits;
 
 /// The shared agent loop with native byte observations.
 #[derive(Debug)]
@@ -22,23 +22,14 @@ impl core::ops::DerefMut for World {
     }
 }
 impl World {
-    /// Opt into observed adapter/Client/byte-peer routing for the queued original
-    /// Start and discovery. Caller data supplies native endpoint, credentials,
-    /// limits and scripts; typed worlds keep their existing backend.
-    /// The selected wire backend constructs no typed provider or provider queues;
-    /// observed Clients are prepared only when the root issues Complete. Receiving
-    /// metadata comes only from each observed Complete. The fixture asserts a
-    /// 256-call ceiling and compatible admission before any wire effect.
-    /// The host supplies optional concrete history and committed results; the
-    /// charter's resume flag selects it, and root/session admission precedes
-    /// any provider effect. Success queues the original Start; its one Answer
-    /// and every observed lower Closed remain owed while the caller drives it.
+    /// Queue the host's Start and run its completions through one production Component.
+    /// The scripted byte peers observe the requests; the pool owns socket reuse and closure.
     #[must_use]
-    pub fn with_wire(
+    pub fn with_protocol(
         mut settings: Settings,
         transcript: Option<agent::Transcript>,
-        configuration: wire::Configuration,
-        limits: WireLimits,
+        configuration: Configuration,
+        limits: TranslationLimits,
         scripts: Box<[provider::api::Script]>,
     ) -> World {
         settings.window = crate::MODEL_WINDOW;
@@ -50,14 +41,14 @@ impl World {
         ))
     }
 
-    /// Native replay with calls answered by the host after its last saved turn.
+    /// Replay with calls answered by the host after its last saved turn.
     #[must_use]
-    pub fn with_wire_answers(
+    pub fn with_protocol_answers(
         mut settings: Settings,
         transcript: Option<agent::Transcript>,
         answered: Box<[agent::AnsweredCall]>,
-        configuration: wire::Configuration,
-        limits: WireLimits,
+        configuration: Configuration,
+        limits: TranslationLimits,
         scripts: Box<[provider::api::Script]>,
     ) -> World {
         settings.window = crate::MODEL_WINDOW;
@@ -70,15 +61,15 @@ impl World {
     }
 
     /// Caller-selected mounts and observed Client/byte-peer scripts, using the same
-    /// receiving and settling paths as `with_wire`; no unused fixture root is seeded.
+    /// receiving and settling paths as `with_protocol`; no unused fixture root is seeded.
     #[must_use]
-    pub fn with_workspace_wire(
+    pub fn with_workspace_protocol(
         mut settings: Settings,
         transcript: Option<agent::Transcript>,
         workspace: Option<run::Workspace>,
         disk: Checkout,
-        configuration: wire::Configuration,
-        limits: WireLimits,
+        configuration: Configuration,
+        limits: TranslationLimits,
         scripts: Box<[provider::api::Script]>,
     ) -> World {
         settings.window = crate::MODEL_WINDOW;
@@ -94,22 +85,19 @@ impl World {
         ))
     }
 
-    /// Caller-selected complete Charter, concrete saved history and native
-    /// configuration/limits use the original root Start, observed Client and byte
-    /// peer. Only the selected native backend exists; receiving bounds and
-    /// all pending lower terminals apply through the one host Answer.
+    /// Run the caller's charter and concrete saved history through the production component.
     #[must_use]
-    pub fn with_workspace_wire_charter(
+    pub fn with_workspace_protocol_charter(
         mut settings: Settings,
         transcript: Option<agent::Transcript>,
         workspace: Option<run::Workspace>,
         disk: Checkout,
-        wire: (wire::Configuration, WireLimits),
+        protocol: (Configuration, TranslationLimits),
         scripts: Box<[provider::api::Script]>,
         charter: run::Charter,
     ) -> World {
         settings.window = crate::MODEL_WINDOW;
-        let (configuration, limits) = wire;
+        let (configuration, limits) = protocol;
         Self(smith_agent_world::World::with_selected_backend(
             &settings,
             transcript,
@@ -121,10 +109,10 @@ impl World {
             None,
         ))
     }
-    /// Observed native bindings, retained after retirement.
+    /// Logical completion calls and their independently received HTTP requests.
     #[must_use]
-    pub fn wire_bindings(&self) -> &[crate::component_backend::Call] {
-        self.0.backend().bindings()
+    pub fn protocol_calls(&self) -> &[crate::component_backend::Call] {
+        self.0.backend().calls()
     }
 
     /// Schedule a message bearing the scripted host's label.

@@ -31,9 +31,9 @@ pub fn receiving(client: &client::Limits, decoded_call_bytes: u64) -> Option<Rec
 
 /// Two concurrent calls through one endpoint, with the caller's idle policy.
 #[must_use]
-pub fn component(adapter: Limits, idle_keep: Duration) -> Option<ComponentLimits> {
+pub fn component(translation: Limits, idle_keep: Duration) -> Option<ComponentLimits> {
     Some(ComponentLimits {
-        adapter,
+        adapter: translation,
         connection: skein_llm_connection::Limits {
             memory: 1 << 40,
             endpoints: 1,
@@ -55,12 +55,12 @@ pub fn component(adapter: Limits, idle_keep: Duration) -> Option<ComponentLimits
                 retry: Duration::from_millis(10),
             },
             tls: skein_tls::client::Limits {
-                read: client::largest_read(&adapter.client),
+                read: client::largest_read(&translation.client),
                 send: 4096,
                 records: skein_tls::client::MAX_RECORD,
             },
         },
-        receiving: receiving(&adapter.client, 4096)?,
+        receiving: receiving(&translation.client, 4096)?,
         contract_bytes: 4096,
         llms: 1,
         accounts: 1,
@@ -104,7 +104,7 @@ pub fn prepare_prompt(
     limits: &Limits,
 ) -> Result<(skein_llm::Prompt, Context), crate::Error> {
     let delivery = smith_domain::run::outcome::ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
-    crate::prompt::prepare_component(owner, prompt, &contract(), Some(&delivery), receiving, limits)
+    crate::prompt::prepare_component(owner, prompt, contract(), Some(delivery), receiving, limits)
 }
 
 /// Prepare a codec fixture with caller-selected result rules.
@@ -118,5 +118,5 @@ pub fn prepare_for_contract(
     receiving: Receiving,
     limits: &Limits,
 ) -> Result<(skein_llm::Prompt, Context), crate::Error> {
-    crate::prompt::prepare_component(owner, prompt, outcome, deliver, receiving, limits)
+    crate::prompt::prepare_component(owner, prompt, outcome.clone(), deliver.cloned(), receiving, limits)
 }
