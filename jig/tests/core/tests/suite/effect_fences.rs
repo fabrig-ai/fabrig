@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::{World, fixture};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -81,7 +82,7 @@ fn verdict(core: &mut core::Core, env: &Env<core::Limits>, judge: authority::Jud
 }
 
 fn a_delayed_judge_cannot_keep_or_charge_an_effect_after_its_calling_run_is_cancelled() {
-    let world = World::new(129, true);
+    let world = World::new(Setup { seed: 129, requirement: true, ..Setup::default() });
     let key = world.call_key(1);
     let (mut core, env) = recovered(&world, 129, true);
     let judge = begin(
@@ -120,7 +121,7 @@ fn a_delayed_judge_cannot_keep_or_charge_an_effect_after_its_calling_run_is_canc
 }
 
 fn a_delayed_judge_is_checked_against_the_policy_that_exists_when_it_completes() {
-    let world = World::new(130, true);
+    let world = World::new(Setup { seed: 130, requirement: true, ..Setup::default() });
     let key = world.call_key(1);
     let (mut core, env) = recovered(&world, 130, true);
     let judge = begin(
@@ -145,7 +146,7 @@ fn a_delayed_judge_is_checked_against_the_policy_that_exists_when_it_completes()
 }
 
 fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
-    let mut world = World::new(132, true);
+    let mut world = World::new(Setup { seed: 132, requirement: true, ..Setup::default() });
     world.delegate();
     let task = world.procedure.expect("procedure");
     let parent = world.assignments[0].0;
@@ -186,7 +187,7 @@ fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
 }
 
 fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_missing_acknowledgement() {
-    let world = World::new(133, false);
+    let world = World::new(Setup { seed: 133, ..Setup::default() });
     let key = world.call_key(1);
     let (mut core, env) = recovered(&world, 133, false);
     let _requests = core::step(
@@ -250,7 +251,7 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
 }
 
 fn a_conflicting_late_terminal_cannot_replace_an_already_committed_answer() {
-    let mut world = World::new(131, false);
+    let mut world = World::new(Setup { seed: 131, ..Setup::default() });
     let key = world.call_key(1);
     world.end(tasks::End::Parked, 0);
     let (mut core, env) = recovered(&world, 131, false);
@@ -308,7 +309,7 @@ fn a_conflicting_late_terminal_cannot_replace_an_already_committed_answer() {
 }
 
 fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
-    let world = World::new(135, true);
+    let world = World::new(Setup { seed: 135, requirement: true, ..Setup::default() });
     let key = world.call_key(1);
     for busy in [true, false] {
         let (mut core, env) = recovered(&world, 135, true);
@@ -356,18 +357,28 @@ fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
 // A shared entrypoint avoids one process startup per short scenario.
 #[test]
 fn effect_fences_scenarios() {
-    a_delayed_judge_cannot_keep_or_charge_an_effect_after_its_calling_run_is_cancelled();
-    a_delayed_judge_is_checked_against_the_policy_that_exists_when_it_completes();
-    a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure();
-    every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_missing_acknowledgement();
-    a_conflicting_late_terminal_cannot_replace_an_already_committed_answer();
-    late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run();
+    let mut bundle = super::bundle::Bundle::default();
+    crate::bundle::case!(
+        bundle,
+        129,
+        a_delayed_judge_cannot_keep_or_charge_an_effect_after_its_calling_run_is_cancelled
+    );
+    crate::bundle::case!(bundle, 130, a_delayed_judge_is_checked_against_the_policy_that_exists_when_it_completes);
+    crate::bundle::case!(bundle, 132, a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure);
+    crate::bundle::case!(
+        bundle,
+        133,
+        every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_missing_acknowledgement
+    );
+    crate::bundle::case!(bundle, 131, a_conflicting_late_terminal_cannot_replace_an_already_committed_answer);
+    crate::bundle::case!(bundle, 135, late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run);
+    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }
 
 fn dependency_world(seed: u64, executor: tasks::Executor) -> (World, u64, u64) {
     use jig_core_world::fixtures::{delegate, member};
     let (configuration, limits) = jig_core_world::faults::plan_fixture(seed);
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     world.hold_procedures = true;
     let parent = world.assignments[0];
     let target = member(&world, executor, b"kept task");

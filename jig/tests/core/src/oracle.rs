@@ -65,16 +65,6 @@ impl Drop for World {
 }
 
 impl World {
-    /// Transfer the started application to another scripted driver.
-    pub(crate) fn into_domain_store(mut self) -> (root::Domain, crate::Store) {
-        self.oracle_closed = true;
-        let config = configuration(&self.restart_config.0);
-        let limits = self.restart_config.1;
-        let store = crate::Store::starting(&limits, &config.core.settings.models);
-        let domain = root::Domain::new(config, &limits);
-        (std::mem::replace(&mut self.domain, domain), std::mem::replace(&mut self.store, store))
-    }
-
     /// Declare this world a deliberately broken fixture: `close` does nothing.
     pub fn broken(&mut self) {
         self.broken = true;
@@ -88,6 +78,8 @@ impl World {
             return;
         }
         self.oracle_closed = true;
+        self.manual = false;
+        self.walking = None;
         // Oracle transport does not advance the scenario's clocks or age its deadlines.
         let (now, wall) = self.clocks();
         self.set_clock(now, wall);

@@ -49,10 +49,10 @@ fn a_procedures_proposal_needs_no_observed_ask() {
     fake.commit(2, rows).expect("a procedure proposes in its step");
 }
 
-pub(super) fn proposals_referee_cases() {
-    authority_catches_a_proposal_its_proposer_did_not_ask_for();
-    authority_catches_a_proposal_after_its_ask_was_refused();
-    a_proposal_asked_by_its_party_is_valid();
-    a_proposal_asked_by_its_run_is_valid();
-    a_procedures_proposal_needs_no_observed_ask();
+pub(super) fn proposals_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, authority_catches_a_proposal_its_proposer_did_not_ask_for);
+    crate::bundle::case!(bundle, 0, authority_catches_a_proposal_after_its_ask_was_refused);
+    crate::bundle::case!(bundle, 0, a_proposal_asked_by_its_party_is_valid);
+    crate::bundle::case!(bundle, 0, a_proposal_asked_by_its_run_is_valid);
+    crate::bundle::case!(bundle, 0, a_procedures_proposal_needs_no_observed_ask);
 }

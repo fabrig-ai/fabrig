@@ -1,4 +1,5 @@
 //! Independent scripted parties close a chat across disposal and restart boundaries.
+use crate::effects::Setup;
 use crate::{
     effects::World,
     peers::{Peers, fixture},
@@ -34,10 +35,10 @@ fn fixture_with_delegates() -> (World, root::Config, u64, [u64; 2]) {
     limits.core.tasks.contract_choices = 1;
     limits.core.people.inbox_recipients = 24;
     crate::peers::journal(&mut limits);
-    let mut world = World::scripted(
-        fixture(7074, 0).0,
+    let mut world = World::new(Setup {
+        configuration: Some(fixture(7074, 0).0),
         limits,
-        Peers::new(
+        peers: Some(Peers::new(
             vec![Worker::new(
                 7,
                 3,
@@ -49,8 +50,9 @@ fn fixture_with_delegates() -> (World, root::Config, u64, [u64; 2]) {
                 70_000,
                 Box::new([Act::SignIn { provider: 0, subject: Box::from(&b"close"[..]) }]),
             )],
-        ),
-    );
+        )),
+        ..Setup::default()
+    });
     let person = world.peers.as_ref().expect("close story fixture").parties[0].person.expect("close story fixture");
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: 1,

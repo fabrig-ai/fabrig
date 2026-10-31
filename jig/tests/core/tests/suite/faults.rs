@@ -1,4 +1,5 @@
 use jig_core_world::Fault as StoreFault;
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::{Cut, World},
     faults,
@@ -20,14 +21,14 @@ fn effect_scenario(world: &mut World) {
 
 #[test]
 fn every_commit_of_a_turn_effect_and_terminal_survives_both_crash_cuts() {
-    let mut reference = World::new(300, false);
+    let mut reference = World::new(Setup { seed: 300, ..Setup::default() });
     let first = reference.store.applied + 1;
     effect_scenario(&mut reference);
     let last = reference.store.applied;
     assert!(last >= first + 2);
     for number in first..=last {
         for cut in [Cut::Submitted(number), Cut::Durable(number)] {
-            let mut world = World::new(300, false);
+            let mut world = World::new(Setup { seed: 300, ..Setup::default() });
             world.cut = Some(cut);
             effect_scenario(&mut world);
             assert_eq!(world.reached_cut, Some(cut));
@@ -47,11 +48,11 @@ fn every_commit_of_a_turn_effect_and_terminal_survives_both_crash_cuts() {
 
 #[test]
 fn a_failed_commit_at_every_scenario_boundary_stops_before_any_later_output() {
-    let mut reference = World::new(301, false);
+    let mut reference = World::new(Setup { seed: 301, ..Setup::default() });
     let first = reference.store.applied + 1;
     effect_scenario(&mut reference);
     for number in first..=reference.store.applied {
-        let mut world = World::new(301, false);
+        let mut world = World::new(Setup { seed: 301, ..Setup::default() });
         world.store.fault(StoreFault::Fail { commit: number });
         effect_scenario(&mut world);
         assert!(world.stopped, "failed commit {number}");

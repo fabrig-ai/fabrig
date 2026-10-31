@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::{effects::World, world};
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -8,7 +9,7 @@ use skein_lib::{ReplyTo, Token};
 #[test]
 fn a_delegate_on_another_charter_runs_its_instructions_and_account() {
     let (config, limits) = world::two_charters(141);
-    let mut world = World::configured(141, false, config, limits);
+    let mut world = World::new(Setup { seed: 141, configuration: Some(config), limits, ..Setup::default() });
     assert_eq!(world.assigned.as_ref().expect("chat").charter, 1);
     world.grant_account(2);
     world.delegate_agent(2, b"find the regression");
@@ -21,7 +22,7 @@ fn a_delegate_on_another_charter_runs_its_instructions_and_account() {
 #[test]
 fn a_task_waits_while_its_charters_account_is_unusable() {
     let (config, limits) = world::two_charters(142);
-    let mut world = World::configured(142, false, config, limits);
+    let mut world = World::new(Setup { seed: 142, configuration: Some(config), limits, ..Setup::default() });
     let chat = world.assigned.as_ref().expect("chat").task;
     world.delegate_agent(2, b"wait for the account");
     assert_eq!(world.assigned.as_ref().expect("chat stays assigned").task, chat);
@@ -41,7 +42,7 @@ fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
     config.core.settings.llm_providers.providers[1].models = Box::new([b"specialist".as_slice().into()]);
     let specialist = config.core.defaults.charters[1].policy.model.clone();
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), specialist]);
-    let mut world = World::configured(151, false, config, limits);
+    let mut world = World::new(Setup { seed: 151, configuration: Some(config), limits, ..Setup::default() });
     let chat = world.assigned.as_ref().expect("chat").task;
     world.grant_account(2);
     world.delegate_agent(2, b"wait for a specialist host");
@@ -67,7 +68,7 @@ fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
 #[test]
 fn a_restart_restores_a_task_on_the_second_charter() {
     let (config, limits) = world::two_charters(143);
-    let mut world = World::configured(143, false, config, limits);
+    let mut world = World::new(Setup { seed: 143, configuration: Some(config), limits, ..Setup::default() });
     world.delegate_agent(2, b"research across restart");
     let task = world
         .store
@@ -125,7 +126,7 @@ fn set_goal(world: &mut World, charter: u32) {
 #[test]
 fn a_goal_on_the_second_charter_is_admitted_and_runs_it() {
     let (config, limits) = world::two_charters(144);
-    let mut world = World::configured(144, false, config, limits);
+    let mut world = World::new(Setup { seed: 144, configuration: Some(config), limits, ..Setup::default() });
     world.grant_account(2);
     set_goal(&mut world, 2);
     assert!(
@@ -143,7 +144,7 @@ fn a_goal_on_the_second_charter_is_admitted_and_runs_it() {
 #[test]
 fn a_goal_naming_an_unoffered_charter_is_refused_not_offered() {
     let (config, limits) = world::two_charters(145);
-    let mut world = World::configured(145, false, config, limits);
+    let mut world = World::new(Setup { seed: 145, configuration: Some(config), limits, ..Setup::default() });
     set_goal(&mut world, 9);
     assert!(
         world.people_answers.iter().any(|reply| matches!(
@@ -166,7 +167,12 @@ fn host_world(seed: u64, kinds: jig_domain_fleet::Kinds) -> World {
         10_000,
         Box::new([Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() }]),
     );
-    let mut world = World::scripted(config, limits, Peers::new(workers, vec![party]));
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        peers: Some(Peers::new(workers, vec![party])),
+        ..Setup::default()
+    });
     world.peers.as_mut().expect("peers").parties[0]
         .extend(Box::new([Act::Request { key: [1; 16], ask: Ask::Chat { words: Box::from(&b"hello"[..]) } }]));
     world.drain();
@@ -196,7 +202,7 @@ fn a_restart_settles_an_engine_charters_claim_at_once() {
     let (mut config, mut limits) = jig_core_world::effects::fixture(148, false);
     config.core.defaults.charters[0].hosts = jig_domain_fleet::Kinds::Engine;
     limits.core.fleet.engine_slots = 1;
-    let mut world = World::configured(148, false, config, limits);
+    let mut world = World::new(Setup { seed: 148, configuration: Some(config), limits, ..Setup::default() });
     let assignment = world.assigned.as_ref().expect("engine assigned");
     let task = assignment.task;
     let attempt = assignment.attempt;
@@ -243,7 +249,7 @@ fn both_host_world(seed: u64) -> World {
     config.core.defaults.charters[1].hosts = jig_domain_fleet::Kinds::Both;
     limits.core.fleet.engine_slots = 1;
     limits.core.fleet.slots = 1;
-    let mut world = World::configured(seed, false, config, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
     world.grant_account(2);
     world
 }
@@ -321,7 +327,7 @@ fn a_claim_for_the_engine_is_placed_only_on_the_engine() {
 
 #[test]
 fn a_task_created_without_an_llm_choice_records_its_default_and_its_run_uses_it() {
-    let world = World::new(153, false);
+    let world = World::new(Setup { seed: 153, ..Setup::default() });
     let assignment = world.assigned.as_ref().expect("chat assigned");
     let chat = world
         .store

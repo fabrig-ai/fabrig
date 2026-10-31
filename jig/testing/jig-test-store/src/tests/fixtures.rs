@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_test_connector as d;
 use skein_lib::{Rng, Token, Wall};
 pub const FIRST: u16 = 1;
@@ -325,7 +326,7 @@ pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_
     }
 }
 pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
-    let mut world = jig_core_world::effects::World::new(18, false);
+    let mut world = jig_core_world::effects::World::new(Setup { seed: 18, ..Setup::default() });
     let task = world.assigned.as_ref().expect("chat assigned").task;
     world.end(
         jig_domain_tasks::End::Finished {

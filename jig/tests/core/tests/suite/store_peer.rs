@@ -1,4 +1,5 @@
 use jig_core_world::Fault;
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     Store,
     client_peer::ClientPeer,
@@ -24,7 +25,7 @@ fn sign_in(number: u8) -> root::Event {
 }
 
 fn observed_world(seed: u64) -> World {
-    let mut world = World::new(seed, false);
+    let mut world = World::new(Setup { seed, ..Setup::default() });
     assert!(world.store_peer.is_none(), "default bootstrap has no capturing peer");
     let mut peer = StorePeer::after(world.store.applied);
     peer.capture(Time::ZERO, &world.store);

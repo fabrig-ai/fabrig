@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::World;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
@@ -5,7 +6,7 @@ use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
 fn a_chat_answers_parks_and_resumes() {
-    let mut world = World::new(101, false);
+    let mut world = World::new(Setup { seed: 101, ..Setup::default() });
     let first = world.assigned.as_ref().expect("chat assigned").attempt;
     world.turn(1, 3, None, b"first opaque turn");
     world.end(tasks::End::Parked, 3);
@@ -39,7 +40,7 @@ fn a_chat_answers_parks_and_resumes() {
 }
 
 fn a_turn_admits_its_read_fence_and_spend_together_and_duplicates_change_nothing() {
-    let mut world = World::new(102, false);
+    let mut world = World::new(Setup { seed: 102, ..Setup::default() });
     let message = world.say(73);
     let rows = world.store.rows.clone();
     let commits = world.store.applied;
@@ -56,7 +57,7 @@ fn a_turn_admits_its_read_fence_and_spend_together_and_duplicates_change_nothing
 }
 
 fn settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it() {
-    let mut world = World::new(103, false);
+    let mut world = World::new(Setup { seed: 103, ..Setup::default() });
     world.turn(1, 1, None, b"turn");
     let right = world.host_call(b"call-name", b"deliver", b"opaque-input", true);
     let key = world.call_key(2);
@@ -109,7 +110,7 @@ fn settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it
 }
 
 fn a_chat_past_the_resume_limit_starts_fresh() {
-    let mut world = World::new(104, false);
+    let mut world = World::new(Setup { seed: 104, ..Setup::default() });
     world.turn(1, 1, None, &[b'a'; 200]);
     world.turn(2, 2, None, &[b'b'; 100]);
     world.end(tasks::End::Parked, 2);
@@ -149,7 +150,7 @@ fn loaded_transcript_pages_reject_repeated_and_reversed_turns() {
 }
 
 fn a_chat_resumed_after_a_compaction_is_sent_only_its_window() {
-    let mut world = World::new(115, false);
+    let mut world = World::new(Setup { seed: 115, ..Setup::default() });
     world.turn(1, 1, None, &[b'a'; 200]);
     park_chat(&mut world, 1);
     world.say(86);
@@ -164,7 +165,7 @@ fn a_chat_resumed_after_a_compaction_is_sent_only_its_window() {
 }
 
 fn a_window_past_the_resume_limit_starts_fresh_with_its_tail() {
-    let mut world = World::new(116, false);
+    let mut world = World::new(Setup { seed: 116, ..Setup::default() });
     world.turn(1, 1, None, b"earlier window");
     world.window_turn(2, 2, None, &[b'b'; 200]);
     park_chat(&mut world, 2);
@@ -257,7 +258,7 @@ fn a_closed_windows_unread_tail_starts_fresh_without_counting() {
 }
 
 fn an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh() {
-    let mut world = World::new(106, false);
+    let mut world = World::new(Setup { seed: 106, ..Setup::default() });
     world.turn(1, 1, None, b"unusable bytes");
     world.end(tasks::End::Parked, 1);
     let read = world.say(77);
@@ -277,7 +278,7 @@ fn an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh
 }
 
 fn settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes() {
-    let mut world = World::new(107, false);
+    let mut world = World::new(Setup { seed: 107, ..Setup::default() });
     for (completion, name) in [(4, &b"first"[..]), (2, &b"second"[..])] {
         let right = world.host_call(name, b"read", b"{}", false);
         let key = world.call_key(completion);
@@ -323,7 +324,7 @@ fn settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes() {
 }
 
 fn a_woken_chats_start_carries_its_waiting_words_oldest_first() {
-    let mut world = World::new(141, false);
+    let mut world = World::new(Setup { seed: 141, ..Setup::default() });
     let first = world.say(84);
     let second = world.say(85);
     park_chat(&mut world, 0);
@@ -336,7 +337,7 @@ fn a_woken_chats_start_carries_its_waiting_words_oldest_first() {
 fn a_start_carries_at_most_the_runs_inbox() {
     let (config, mut limits) = jig_core_world::effects::fixture(142, false);
     limits.core.tasks.run_inbox = 1;
-    let mut world = World::configured(142, false, config, limits);
+    let mut world = World::new(Setup { seed: 142, configuration: Some(config), limits, ..Setup::default() });
     let first = world.say(86);
     let second = world.say(87);
     park_chat(&mut world, 0);
@@ -355,7 +356,7 @@ fn a_start_carries_at_most_the_runs_inbox() {
 fn relays_wait_while_the_runs_inbox_is_full() {
     let (config, mut limits) = jig_core_world::effects::fixture(143, false);
     limits.core.tasks.run_inbox = 1;
-    let mut world = World::configured(143, false, config, limits);
+    let mut world = World::new(Setup { seed: 143, configuration: Some(config), limits, ..Setup::default() });
     let first = world.say(88);
     let second = world.say(89);
     assert_eq!(world.inbound.iter().map(|word| word.number).collect::<Vec<_>>(), [first]);
@@ -366,7 +367,7 @@ fn relays_wait_while_the_runs_inbox_is_full() {
 fn a_run_reading_nothing_is_relayed_nothing_more() {
     let (config, mut limits) = jig_core_world::effects::fixture(144, false);
     limits.core.tasks.run_inbox = 1;
-    let mut world = World::configured(144, false, config, limits);
+    let mut world = World::new(Setup { seed: 144, configuration: Some(config), limits, ..Setup::default() });
     let first = world.say(90);
     world.say(91);
     world.turn(1, 1, None, b"reads no message");
@@ -396,7 +397,7 @@ fn invalid_answer_recorded(world: &World) -> bool {
 }
 
 fn an_answer_whose_fence_passes_its_last_turn_fails_invalid() {
-    let mut world = World::new(145, false);
+    let mut world = World::new(Setup { seed: 145, ..Setup::default() });
     let first = world.say(92);
     world.turn(1, 1, Some(first), b"reads the first words");
     let second = world.say(93);
@@ -405,7 +406,7 @@ fn an_answer_whose_fence_passes_its_last_turn_fails_invalid() {
 }
 
 fn an_answer_refusing_an_unoffered_word_fails_invalid() {
-    let mut world = World::new(146, false);
+    let mut world = World::new(Setup { seed: 146, ..Setup::default() });
     world.turn(1, 1, None, b"reads no words");
     answer_with_messages(&mut world, None, &[999]);
     assert!(invalid_answer_recorded(&world), "{:?}", world.trace);
@@ -414,7 +415,7 @@ fn an_answer_refusing_an_unoffered_word_fails_invalid() {
 fn a_refusal_frees_the_runs_inbox_for_its_next_waiting_word() {
     let (config, mut limits) = jig_core_world::effects::fixture(147, false);
     limits.core.tasks.run_inbox = 1;
-    let mut world = World::configured(147, false, config, limits);
+    let mut world = World::new(Setup { seed: 147, configuration: Some(config), limits, ..Setup::default() });
     let first = world.say(94);
     let second = world.say(95);
     world.turn_refusing(1, 1, None, &[first], b"refuses the first words");
@@ -422,7 +423,7 @@ fn a_refusal_frees_the_runs_inbox_for_its_next_waiting_word() {
 }
 
 fn a_refused_message_survives_a_later_fence_and_wakes_its_task_as_the_run_parks() {
-    let mut world = World::new(148, false);
+    let mut world = World::new(Setup { seed: 148, ..Setup::default() });
     let first = world.say(80);
     let second = world.say(81);
     let attempt = assigned_chat(&world).attempt;
@@ -434,7 +435,7 @@ fn a_refused_message_survives_a_later_fence_and_wakes_its_task_as_the_run_parks(
 }
 
 fn a_message_left_unread_wakes_its_task_as_the_run_parks() {
-    let mut world = World::new(149, false);
+    let mut world = World::new(Setup { seed: 149, ..Setup::default() });
     let first = world.say(82);
     world.turn(1, 1, Some(first), b"reads the first words");
     let unread = world.say(83);
@@ -448,7 +449,7 @@ fn a_message_left_unread_wakes_its_task_as_the_run_parks() {
 fn quiet_news_left_unread_waits_for_the_next_activation() {
     let (config, mut limits) = jig_core_world::effects::fixture(150, false);
     limits.core.tasks.inbox_bytes = 256;
-    let mut world = World::configured(150, false, config, limits);
+    let mut world = World::new(Setup { seed: 150, configuration: Some(config), limits, ..Setup::default() });
     let task = assigned_chat(&world).task;
     subscribe_topic(&mut world, task, 10);
     subscribe_topic(&mut world, task, 11);
@@ -502,30 +503,32 @@ fn assigned_chat(world: &World) -> &root::Assignment {
 // A shared entrypoint avoids one process startup per short scenario.
 #[test]
 fn runs_scenarios() {
-    a_refused_message_survives_a_later_fence_and_wakes_its_task_as_the_run_parks();
-    a_message_left_unread_wakes_its_task_as_the_run_parks();
-    quiet_news_left_unread_waits_for_the_next_activation();
-    an_answer_whose_fence_passes_its_last_turn_fails_invalid();
-    an_answer_refusing_an_unoffered_word_fails_invalid();
-    a_refusal_frees_the_runs_inbox_for_its_next_waiting_word();
-    relays_wait_while_the_runs_inbox_is_full();
-    a_run_reading_nothing_is_relayed_nothing_more();
-    a_woken_chats_start_carries_its_waiting_words_oldest_first();
-    a_start_carries_at_most_the_runs_inbox();
-    a_chat_answers_parks_and_resumes();
-    a_turn_admits_its_read_fence_and_spend_together_and_duplicates_change_nothing();
-    settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it();
-    a_chat_past_the_resume_limit_starts_fresh();
-    a_chat_resumed_after_a_compaction_is_sent_only_its_window();
-    a_window_past_the_resume_limit_starts_fresh_with_its_tail();
-    loaded_transcript_pages_reject_repeated_and_reversed_turns();
-    an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh();
-    settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes();
+    let mut bundle = super::bundle::Bundle::default();
+    crate::bundle::case!(bundle, 148, a_refused_message_survives_a_later_fence_and_wakes_its_task_as_the_run_parks);
+    crate::bundle::case!(bundle, 149, a_message_left_unread_wakes_its_task_as_the_run_parks);
+    crate::bundle::case!(bundle, 150, quiet_news_left_unread_waits_for_the_next_activation);
+    crate::bundle::case!(bundle, 145, an_answer_whose_fence_passes_its_last_turn_fails_invalid);
+    crate::bundle::case!(bundle, 146, an_answer_refusing_an_unoffered_word_fails_invalid);
+    crate::bundle::case!(bundle, 147, a_refusal_frees_the_runs_inbox_for_its_next_waiting_word);
+    crate::bundle::case!(bundle, 143, relays_wait_while_the_runs_inbox_is_full);
+    crate::bundle::case!(bundle, 144, a_run_reading_nothing_is_relayed_nothing_more);
+    crate::bundle::case!(bundle, 141, a_woken_chats_start_carries_its_waiting_words_oldest_first);
+    crate::bundle::case!(bundle, 142, a_start_carries_at_most_the_runs_inbox);
+    crate::bundle::case!(bundle, 101, a_chat_answers_parks_and_resumes);
+    crate::bundle::case!(bundle, 102, a_turn_admits_its_read_fence_and_spend_together_and_duplicates_change_nothing);
+    crate::bundle::case!(bundle, 103, settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it);
+    crate::bundle::case!(bundle, 104, a_chat_past_the_resume_limit_starts_fresh);
+    crate::bundle::case!(bundle, 115, a_chat_resumed_after_a_compaction_is_sent_only_its_window);
+    crate::bundle::case!(bundle, 116, a_window_past_the_resume_limit_starts_fresh_with_its_tail);
+    crate::bundle::case!(bundle, 105, loaded_transcript_pages_reject_repeated_and_reversed_turns);
+    crate::bundle::case!(bundle, 106, an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh);
+    crate::bundle::case!(bundle, 107, settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes);
+    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }
 
 #[test]
 fn a_resuming_charters_first_claim_records_its_own_attempt() {
-    let world = World::new(108, false);
+    let world = World::new(Setup { seed: 108, ..Setup::default() });
     let assigned = world.assigned.as_ref().expect("first chat assignment");
     let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(assigned.task)));
     let root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) = &world.store.rows[&key] else {
@@ -536,7 +539,7 @@ fn a_resuming_charters_first_claim_records_its_own_attempt() {
 
 #[test]
 fn a_conversations_attempts_name_one_first_attempt() {
-    let mut world = World::new(109, false);
+    let mut world = World::new(Setup { seed: 109, ..Setup::default() });
     let first = world.assigned.as_ref().expect("first assignment").attempt;
     for key in [81, 82] {
         world.turn(1, 1, None, b"conversation turn");
@@ -568,7 +571,13 @@ fn reserve_fixture(seed: u64, spend: u64) -> (root::Config, root::Limits) {
 #[test]
 fn a_chat_whose_spend_is_below_its_reserve_is_held_for_budget() {
     let (config, limits) = reserve_fixture(139, 19);
-    let world = World::configured_unassigned(139, false, config, limits);
+    let world = World::new(Setup {
+        seed: 139,
+        configuration: Some(config),
+        limits,
+        require_assignment: false,
+        ..Setup::default()
+    });
     assert!(world.assigned.is_none());
     assert!(world.store.rows.values().any(|row| matches!(row,
         root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task)))
@@ -578,13 +587,13 @@ fn a_chat_whose_spend_is_below_its_reserve_is_held_for_budget() {
 #[test]
 fn a_chat_whose_spend_holds_its_reserve_is_assigned() {
     let (config, limits) = reserve_fixture(140, 20);
-    let world = World::configured(140, false, config, limits);
+    let world = World::new(Setup { seed: 140, configuration: Some(config), limits, ..Setup::default() });
     assert_eq!(world.assigned.as_ref().expect("chat assigned at floor").run.budget, 20);
 }
 
 #[test]
 fn a_resumed_run_names_its_first_runs_attempt() {
-    let mut world = World::new(110, false);
+    let mut world = World::new(Setup { seed: 110, ..Setup::default() });
     let first = world.assigned.as_ref().expect("first assignment").attempt;
     for key in [83, 84] {
         world.turn(1, 1, None, b"conversation turn");
@@ -598,7 +607,7 @@ fn a_resumed_run_names_its_first_runs_attempt() {
 
 #[test]
 fn a_fresh_start_after_a_transient_failure_names_its_own() {
-    let mut world = World::new(111, false);
+    let mut world = World::new(Setup { seed: 111, ..Setup::default() });
     let first = world.assigned.as_ref().expect("first assignment").attempt;
     world.turn(1, 1, None, b"old conversation");
     world.end(tasks::End::Failed(tasks::Class::Transient), 1);
@@ -626,7 +635,7 @@ fn account_granted(world: &mut World) {
 }
 #[test]
 fn a_run_waits_while_its_account_must_sign_in_again() {
-    let mut world = World::new(141, false);
+    let mut world = World::new(Setup { seed: 141, ..Setup::default() });
     world.end(tasks::End::Parked, 0);
     account_failed(&mut world);
     let assigned = world.assignments.len();
@@ -638,7 +647,7 @@ fn a_run_waits_while_its_account_must_sign_in_again() {
 }
 #[test]
 fn a_run_waiting_for_its_account_starts_once_granted() {
-    let mut world = World::new(142, false);
+    let mut world = World::new(Setup { seed: 142, ..Setup::default() });
     world.end(tasks::End::Parked, 0);
     account_failed(&mut world);
     let assigned = world.assignments.len();
@@ -650,7 +659,7 @@ fn a_run_waiting_for_its_account_starts_once_granted() {
 }
 #[test]
 fn an_account_unusable_at_the_second_check_waits_and_is_not_held() {
-    let mut world = World::new(143, false);
+    let mut world = World::new(Setup { seed: 143, ..Setup::default() });
     world.turn(1, 1, None, b"turn to resume");
     world.end(tasks::End::Parked, 1);
     world.fail_account_before_workspace = true;
@@ -675,7 +684,7 @@ fn current_window_proof(world: &World) -> &core::RunProof {
 
 #[test]
 fn a_window_turn_moves_the_tasks_window_in_its_commit() {
-    let mut world = World::new(113, false);
+    let mut world = World::new(Setup { seed: 113, ..Setup::default() });
     let attempt = world.assigned.as_ref().expect("assigned chat").attempt;
     world.turn(1, 1, None, b"opening turn");
     assert_eq!(current_window_proof(&world).window, Some(core::CurrentWindow { attempt, turn: 1, closed: false }));
@@ -694,7 +703,7 @@ fn a_window_turn_moves_the_tasks_window_in_its_commit() {
 
 #[test]
 fn a_fresh_start_clears_the_window_until_its_first_turn() {
-    let mut world = World::new(114, false);
+    let mut world = World::new(Setup { seed: 114, ..Setup::default() });
     world.window_turn(1, 1, None, b"old window");
     world.end(tasks::End::Failed(tasks::Class::Transient), 1);
     world.retry_due();
@@ -706,7 +715,7 @@ fn a_fresh_start_clears_the_window_until_its_first_turn() {
 
 #[test]
 fn a_transcript_read_as_unread_fails_the_run_and_the_next_starts_fresh() {
-    let mut world = World::new(117, false);
+    let mut world = World::new(Setup { seed: 117, ..Setup::default() });
     world.turn(1, 1, None, b"unread window");
     park_chat(&mut world, 1);
     let task = current_window_proof(&world).task;

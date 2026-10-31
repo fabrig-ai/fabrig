@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::{effects::World, peers::Peers, world};
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -21,7 +22,13 @@ fn supplied_joint_clocks_survive_internal_commits_and_drive_the_actual_sign_in_e
     let limits = world::limits();
     let now = Time::from_nanos(17);
     let wall = Wall::from_nanos(1_000_000_000_000);
-    let mut world = World::scripted_clock(world::config(8451), limits, Peers::new(Vec::new(), Vec::new()), now, wall);
+    let mut world = World::new(Setup {
+        configuration: Some(world::config(8451)),
+        limits,
+        peers: Some(Peers::new(Vec::new(), Vec::new())),
+        clock: Some((now, wall)),
+        ..Setup::default()
+    });
     sign_in(&mut world, 7);
     let expiry = Wall::from_nanos(
         wall.as_nanos().checked_add(limits.core.people.sign_in_lifetime.as_nanos()).expect("bounded configured expiry"),
@@ -45,13 +52,13 @@ fn corrected_joint_wall_is_independent_of_elapsed_time_and_is_persisted_for_a_ne
     let limits = world::limits();
     let mut configuration = world::config(8452);
     configuration.core.owners = Box::new([]);
-    let mut world = World::scripted_clock(
-        configuration,
+    let mut world = World::new(Setup {
+        configuration: Some(configuration),
         limits,
-        Peers::new(Vec::new(), Vec::new()),
-        Time::from_nanos(17),
-        Wall::from_nanos(2_000_000_000_000),
-    );
+        peers: Some(Peers::new(Vec::new(), Vec::new())),
+        clock: Some((Time::from_nanos(17), Wall::from_nanos(2_000_000_000_000))),
+        ..Setup::default()
+    });
     sign_in(&mut world, 7);
     let prior_expiry = Wall::from_nanos(2_000_000_000_000 + limits.core.people.sign_in_lifetime.as_nanos());
     let now = Time::from_nanos(31);
@@ -77,7 +84,13 @@ fn joint_scheduler_expires_the_actual_sign_in_at_its_armed_people_deadline() {
     let limits = world::limits();
     let now = Time::from_nanos(17);
     let wall = Wall::from_nanos(1_000_000_000_000);
-    let mut world = World::scripted_clock(world::config(8453), limits, Peers::new(Vec::new(), Vec::new()), now, wall);
+    let mut world = World::new(Setup {
+        configuration: Some(world::config(8453)),
+        limits,
+        peers: Some(Peers::new(Vec::new(), Vec::new())),
+        clock: Some((now, wall)),
+        ..Setup::default()
+    });
     sign_in(&mut world, 7);
     let due = Time::from_nanos(now.as_nanos() + limits.core.people.sign_in_lifetime.as_nanos());
     assert!(
@@ -111,7 +124,13 @@ fn joint_scheduler_erases_a_sign_in_when_wall_jumps_before_its_elapsed_alarm() {
     let limits = world::limits();
     let now = Time::from_nanos(17);
     let wall = Wall::from_nanos(1_000_000_000_000);
-    let mut world = World::scripted_clock(world::config(8455), limits, Peers::new(Vec::new(), Vec::new()), now, wall);
+    let mut world = World::new(Setup {
+        configuration: Some(world::config(8455)),
+        limits,
+        peers: Some(Peers::new(Vec::new(), Vec::new())),
+        clock: Some((now, wall)),
+        ..Setup::default()
+    });
     sign_in(&mut world, 7);
     let saved = world
         .store
@@ -139,7 +158,7 @@ fn joint_scheduler_erases_a_sign_in_when_wall_jumps_before_its_elapsed_alarm() {
 
 #[test]
 fn joint_scheduler_resamples_the_effect_wall_after_correction_and_consumes_the_right_without_a_new_commit() {
-    let mut world = World::new(8454, false);
+    let mut world = World::new(Setup { seed: 8454, ..Setup::default() });
     let now = world.clocks().0;
     let wall = Wall::from_nanos(1_000_000_000_000);
     // Settle People made due by the forward correction before isolating the effect deadline.
@@ -256,7 +275,7 @@ fn source_wall_survives_held_reads_and_a_new_restore_origin() {
     let (configuration, mut limits) = jig_core_world::effects::fixture(seed, false);
     limits.core.people.projects = 2;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     let assigned = world.assigned.as_ref().expect("assigned chat");
     let (task, attempt) = (assigned.task, assigned.attempt);
     let sign_in = world.sign_in.expect("signed in");

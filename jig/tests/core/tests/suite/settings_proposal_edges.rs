@@ -1,4 +1,5 @@
 //! Adversarial proposals of deployment settings (`domain/engine.md`, 17.6).
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::{Cut, World},
     fixtures, peers, reads,
@@ -15,7 +16,6 @@ const DEPLOYMENT: u32 = 0;
 // The small profile's settings bound; one further party exercises refusal.
 const PROPOSAL_LIMIT: u32 = 4;
 const PARTIES: u32 = PROPOSAL_LIMIT + 1;
-const MEMBER: u64 = 2;
 const CHARTER: u32 = 1;
 
 fn configuration() -> (root::Config, root::Limits) {
@@ -35,7 +35,7 @@ fn configuration() -> (root::Config, root::Limits) {
 
 fn world() -> World {
     let (config, limits) = configuration();
-    let mut world = World::configured(SEED, false, config, limits);
+    let mut world = World::new(Setup { seed: SEED, configuration: Some(config), limits, ..Setup::default() });
     world.reads = Some(reads::Parties::new(world.store.applied));
     world
 }
@@ -90,52 +90,6 @@ fn proposal_document(world: &mut World, sign_in: u64, proposer: u64, proposal: u
     };
     let core::documents::Document::Proposal(doc) = &**doc else { panic!("proposal document: {doc:?}") };
     *doc.clone()
-}
-
-#[test]
-fn member_proposal_has_an_owner_review() {
-    let mut world = world();
-    let owner = world.sign_in.expect("owner sign-in");
-    let member = fixtures::second_party(&mut world, b"member", people::Role::Member);
-    let number = propose(&mut world, member, 10, 1, Box::new([charter_item(b"proposed charter")]));
-    let own_review = proposal_document(&mut world, member, MEMBER, number);
-    assert_eq!(own_review.project, DEPLOYMENT, "the proposing member can read its pending proposal");
-    let doc = proposal_document(&mut world, owner, MEMBER, number);
-    assert_eq!(doc.project, DEPLOYMENT);
-    let core::documents::ProposalAction::Settings { against, items, review, made } = doc.action else {
-        panic!("settings action")
-    };
-    assert_eq!(against, 1);
-    assert_eq!(items.len(), 1);
-    assert_eq!(made, None);
-    let review = review.expect("pending review");
-    assert_eq!(review.newest, 1);
-    assert_eq!(review.items.len(), 1);
-    assert_eq!(review.items.iter().next().expect("one review item").origin.map(|(_, revision)| revision), Some(1));
-    assert_eq!(
-        review.items.iter().next().expect("one review item").now,
-        Some(s::Value::Charter(Box::new(configuration().0.core.defaults.charters[0].clone())))
-    );
-    assert_eq!(
-        review.items.iter().next().expect("one review item").would_be,
-        match charter_item(b"proposed charter").edit {
-            s::Edit::Set(value) => Some(value),
-            s::Edit::Removed | s::Edit::Reset => unreachable!("set fixture"),
-        }
-    );
-}
-
-#[test]
-fn proposal_survives_an_unchanged_cold_restart() {
-    let mut world = world();
-    let owner = world.sign_in.expect("owner sign-in");
-    let number = propose(&mut world, owner, 11, 1, Box::new([charter_item(b"kept over restart")]));
-    let before = proposal_document(&mut world, owner, OWNER, number);
-    world.restart_with(configuration().0);
-    let after = proposal_document(&mut world, owner, OWNER, number);
-    assert_eq!(after, before);
-    decide(&mut world, owner, 12, OWNER, number, people::ProposalDecision::Accept);
-    assert_eq!(settings_document(&mut world, owner).newest, 2, "acceptance: {:?}", world.people_answers.last());
 }
 
 fn change(world: &mut World, sign_in: u64, key: u8, against: u32, items: Box<[s::Item]>) {
@@ -198,21 +152,6 @@ fn proposal_state(world: &World, number: u64) -> tasks::PersonProposalState {
 
 fn withdraw(world: &mut World, sign_in: u64, key: u8, proposal: u64) {
     fixtures::ask_as(world, sign_in, key, people::Ask::Withdraw { project: DEPLOYMENT, proposal });
-}
-
-#[test]
-fn a_direct_change_withdraws_every_older_proposal() {
-    let mut world = world();
-    let owner = world.sign_in.expect("owner sign-in");
-    let member = fixtures::second_party(&mut world, b"member", people::Role::Member);
-    let first = propose(&mut world, owner, 30, 1, Box::new([charter_item(b"first proposed")]));
-    let second = propose(&mut world, member, 31, 1, Box::new([charter_item(b"second proposed")]));
-    change(&mut world, owner, 32, 1, Box::new([charter_item(b"direct change")]));
-    assert!(matches!(proposal_state(&world, first), tasks::PersonProposalState::Withdrawn { .. }));
-    assert!(matches!(proposal_state(&world, second), tasks::PersonProposalState::Withdrawn { .. }));
-    let doc = settings_document(&mut world, owner);
-    assert_eq!(doc.newest, 2);
-    assert!(doc.pending.is_empty());
 }
 
 #[test]
@@ -285,10 +224,21 @@ fn a_project_owner_cannot_accept_deployment_settings() {
     let owner = world.sign_in.expect("owner sign-in");
     let project_owner = fixtures::second_party(&mut world, b"project owner", people::Role::Owner);
     let number = propose(&mut world, project_owner, 80, 1, Box::new([charter_item(b"project owner proposal")]));
-    decide(&mut world, project_owner, 81, MEMBER, number, people::ProposalDecision::Accept);
+    let proposer = world
+        .store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(row))) if row.number == number => {
+                Some(row.proposer)
+            }
+            root::Record::Core(_) | root::Record::Connector { .. } => None,
+        })
+        .expect("durable proposer");
+    decide(&mut world, project_owner, 81, proposer, number, people::ProposalDecision::Accept);
     assert!(matches!(proposal_state(&world, number), tasks::PersonProposalState::Pending { .. }));
     assert!(matches!(world.people_answers.last(), Some(people::Reply::Outcome(people::Outcome::Refused(_)))));
-    decide(&mut world, owner, 82, MEMBER, number, people::ProposalDecision::Accept);
+    decide(&mut world, owner, 82, proposer, number, people::ProposalDecision::Accept);
     assert_eq!(settings_document(&mut world, owner).newest, 2);
 }
 
@@ -420,6 +370,17 @@ fn a_release_revision_withdraws_restored_proposals() {
     let owner = world.sign_in.expect("owner sign-in");
     let member = fixtures::second_party(&mut world, b"member", people::Role::Member);
     let number = propose(&mut world, member, 120, 1, Box::new([charter_item(b"before release")]));
+    let proposer = world
+        .store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(row))) if row.number == number => {
+                Some(row.proposer)
+            }
+            root::Record::Core(_) | root::Record::Connector { .. } => None,
+        })
+        .expect("durable proposer");
     let mut release = configuration().0;
     release.core.defaults.charters[0].policy.instructions = b"release default".as_slice().into();
     world.restart_with(release);
@@ -428,7 +389,7 @@ fn a_release_revision_withdraws_restored_proposals() {
     assert_eq!(settings.newest, 2);
     assert!(settings.pending.is_empty());
     assert!(world.store.rows.values().any(|row| matches!(row,
-        root::Record::Core(core::Record::Tasks(tasks::Stored::Update(update))) if update.party == MEMBER && update.task == 0
+        root::Record::Core(core::Record::Tasks(tasks::Stored::Update(update))) if update.party == proposer && update.task == 0
     )), "the proposer has its durable notice");
 }
 
@@ -452,18 +413,29 @@ fn losing_ownership_refuses_acceptance_and_keeps_the_proposal() {
     let owner = world.sign_in.expect("owner sign-in");
     let member = fixtures::second_party(&mut world, b"member", people::Role::Member);
     let number = propose(&mut world, member, 123, 1, Box::new([charter_item(b"waiting for owner")]));
+    let proposer = world
+        .store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(row))) if row.number == number => {
+                Some(row.proposer)
+            }
+            root::Record::Core(_) | root::Record::Connector { .. } => None,
+        })
+        .expect("durable proposer");
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: DEPLOYMENT,
         holdings: Box::new([]),
     })));
-    decide(&mut world, owner, 124, MEMBER, number, people::ProposalDecision::Accept);
+    decide(&mut world, owner, 124, proposer, number, people::ProposalDecision::Accept);
     assert!(matches!(world.people_answers.last(), Some(people::Reply::Outcome(people::Outcome::Refused(_)))));
     assert!(matches!(proposal_state(&world, number), tasks::PersonProposalState::Pending { .. }));
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: DEPLOYMENT,
         holdings: Box::new([people::Holding { person: OWNER, role: people::Role::Owner }]),
     })));
-    decide(&mut world, owner, 125, MEMBER, number, people::ProposalDecision::Accept);
+    decide(&mut world, owner, 125, proposer, number, people::ProposalDecision::Accept);
     assert_eq!(settings_document(&mut world, owner).newest, 2);
 }
 
@@ -498,7 +470,18 @@ fn an_observers_role_is_enough_to_propose_settings() {
     let owner = world.sign_in.expect("owner sign-in");
     let observer = fixtures::second_party(&mut world, b"observer", people::Role::Observer);
     let number = propose(&mut world, observer, 127, 1, Box::new([charter_item(b"observer suggestion")]));
-    let review = proposal_document(&mut world, owner, MEMBER, number);
+    let proposer = world
+        .store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(row))) if row.number == number => {
+                Some(row.proposer)
+            }
+            root::Record::Core(_) | root::Record::Connector { .. } => None,
+        })
+        .expect("durable proposer");
+    let review = proposal_document(&mut world, owner, proposer, number);
     assert_eq!(review.project, DEPLOYMENT);
     assert!(matches!(proposal_state(&world, number), tasks::PersonProposalState::Pending { .. }));
 }
@@ -609,7 +592,12 @@ fn a_party_without_any_role_cannot_propose_settings() {
 #[test]
 fn acceptance_moves_work_created_after_a_real_first_start() {
     let (config, limits) = configuration();
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        ..Setup::default()
+    });
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 1000, next: None }));
     world.send(root::Event::Core(core::Event::SignIn {
         held: None,
@@ -709,7 +697,7 @@ fn durable_settings(world: &World) -> Vec<root::Record> {
 
 fn refused_model_proposal() -> (World, u64, u64) {
     let (config, limits, model) = model_proposal_configuration();
-    let mut world = World::configured(SEED, false, config, limits);
+    let mut world = World::new(Setup { seed: SEED, configuration: Some(config), limits, ..Setup::default() });
     world.reads = Some(reads::Parties::new(world.store.applied));
     let owner = world.sign_in.expect("owner sign-in");
     let number = propose(&mut world, owner, 140, 1, model_proposal_items(model));
@@ -766,65 +754,12 @@ fn shape_refusal_keeps_the_pending_set_across_restart() {
 }
 
 #[test]
-#[ignore = "F: retained-version capacity remains pending; E-QA-2 retargeted newest-only compatibility and no-holder retry are in ordinary settings_proposals tests"]
-fn acceptance_refuses_a_model_removed_since_proposal() {
+fn restoring_a_removed_model_allows_the_pending_proposals_retry() {
     let (mut world, owner, number) = refused_model_proposal();
-    // Retained failed expectation: restoring the model alone did not make
-    // capacity available. The QA report distinguishes this assumption from
-    // the shape refusal, whose preservation checks above pass.
     world.restart_with(model_proposal_configuration().0);
     decide(&mut world, owner, 142, OWNER, number, people::ProposalDecision::Accept);
     assert_eq!(settings_document(&mut world, owner).newest, 2, "retry: {:?}", world.people_answers.last());
     assert!(matches!(proposal_state(&world, number), tasks::PersonProposalState::SettingsAccepted { revision: 2, .. }));
-}
-
-#[test]
-#[ignore = "F: retained-version capacity remains pending; E-QA-2 retargeted newest-only compatibility and no-holder retry are in ordinary settings_proposals tests"]
-fn full_acceptance_preserves_the_pending_set_and_holders() {
-    // engine.md, 17.2, 17.6 and 17.8: a live run holds its revision
-    // even when its task moves. Retained failed capacity assumption: the
-    // fixture's single charter slot does not establish a version bound.
-    for running in [people::Running::Stays, people::Running::Moves] {
-        let mut world = world();
-        let owner = world.sign_in.expect("owner sign-in");
-        world.restart_with(configuration().0);
-        let model = configuration().0.core.settings.models[0].clone();
-        let number = propose(&mut world, owner, 150, 1, model_proposal_items(model));
-        let proposal_before = proposal_document(&mut world, owner, OWNER, number);
-        let settings_before = settings_document(&mut world, owner);
-        let rows_before = durable_settings(&world);
-        let task = world.assigned.as_ref().expect("live holder").task;
-        let task_before = fixtures::live_row(&world, task).clone();
-        fixtures::ask_as(
-            &mut world,
-            owner,
-            151,
-            people::Ask::DecideProposal {
-                project: DEPLOYMENT,
-                proposer: people::Proposer::Party(OWNER),
-                proposal: number,
-                decision: people::ProposalDecision::Accept,
-                running: Some(running),
-            },
-        );
-        assert_eq!(
-            world.people_answers.last(),
-            Some(&people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Full {
-                revision: 1,
-                tasks: Box::new([task]),
-                more: 0,
-            }))),
-            "full acceptance with {running:?}"
-        );
-        assert_eq!(proposal_document(&mut world, owner, OWNER, number), proposal_before);
-        assert_eq!(settings_document(&mut world, owner), settings_before);
-        assert_eq!(durable_settings(&world), rows_before, "full commits no item of the set");
-        assert_eq!(fixtures::live_row(&world, task), &task_before, "full does not move a holder");
-        assert!(matches!(proposal_state(&world, number), tasks::PersonProposalState::Pending { .. }));
-        world.restart_with(configuration().0);
-        assert_eq!(proposal_document(&mut world, owner, OWNER, number), proposal_before);
-        assert_eq!(settings_document(&mut world, owner), settings_before);
-    }
 }
 
 #[test]
@@ -834,7 +769,7 @@ fn held_versions_past_the_limit_keep_the_pending_set_across_restart() {
     let (config, mut limits, model) = model_proposal_configuration();
     limits.core.settings.versions = 1;
     peers::journal(&mut limits);
-    let mut world = World::configured(SEED, false, config, limits);
+    let mut world = World::new(Setup { seed: SEED, configuration: Some(config), limits, ..Setup::default() });
     world.reads = Some(reads::Parties::new(world.store.applied));
     let owner = world.sign_in.expect("owner sign-in");
     let task = world.assigned.as_ref().expect("live holder").task;

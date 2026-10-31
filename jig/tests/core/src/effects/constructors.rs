@@ -1,7 +1,7 @@
 //! Seeded configuration and world construction.
 use super::{
-    Cut, Duration, Queue, ReplyTo, Store, System, Time, Token, VecDeque, Wall, World, accounts, authority, connector,
-    core, fleet, people, root,
+    Boot, Duration, Queue, ReplyTo, Setup, Store, System, Token, VecDeque, World, accounts, authority, connector, core,
+    fleet, people, root,
 };
 fn grant() -> authority::Grant {
     authority::Grant {
@@ -13,10 +13,7 @@ fn grant() -> authority::Grant {
 
 #[must_use]
 pub fn fixture(seed: u64, requirement: bool) -> (root::Config, root::Limits) {
-    let mut limits = crate::world::limits();
-    limits.core.authority.segments = 2;
-    limits.core.people.requests = 16;
-    limits.connector.write_lifetime = Duration::from_secs(1);
+    let limits = limits();
     let mut configuration = crate::world::config(seed);
     let mut rules = configuration.core.defaults.rules.clone();
     rules.ceiling.grants = Box::new([grant()]);
@@ -62,6 +59,14 @@ pub fn fixture(seed: u64, requirement: bool) -> (root::Config, root::Limits) {
     (configuration, limits)
 }
 
+pub(super) fn limits() -> root::Limits {
+    let mut limits = crate::world::limits();
+    limits.core.authority.segments = 2;
+    limits.core.people.requests = 16;
+    limits.connector.write_lifetime = Duration::from_secs(1);
+    limits
+}
+
 fn initial_request(configuration: &root::Config, creating: &crate::fixtures::Creating) -> people::Ask {
     if configuration.core.seed_projects.is_empty() {
         people::Ask::MarkSeen { seen: people::Seen::Results { through: 0 } }
@@ -71,6 +76,121 @@ fn initial_request(configuration: &root::Config, creating: &crate::fixtures::Cre
 }
 
 impl World {
+    /// Start the root, store and selected scripted neighbours from one setup.
+    #[must_use]
+    #[expect(clippy::too_many_lines, reason = "startup applies one setup to the root, store and peers")]
+    pub fn new(setup: Setup) -> World {
+        let Setup {
+            seed,
+            requirement,
+            configuration,
+            limits,
+            initial,
+            rows,
+            startup,
+            patch_sets,
+            mut peers,
+            cut,
+            clock,
+            boot,
+            require_assignment,
+            walking,
+        } = setup;
+        let mut configuration = configuration.unwrap_or_else(|| fixture(seed, requirement).0);
+        if let Some(peers) = &peers {
+            let workers = peers.workers.iter().filter(|worker| worker.channel != 0).count();
+            if workers > configuration.core.worker_names.len() {
+                configuration.core.worker_names =
+                    (0..workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
+            }
+        }
+        let rows = rows.unwrap_or_else(|| crate::fixtures::account_rows(&configuration.core.settings.llm_providers));
+        let projects: Vec<_> = configuration
+            .core
+            .seed_projects
+            .iter()
+            .map(|project| (project.number, project.policy.policy.period_spend))
+            .collect();
+        let mut world = Self::empty(configuration, &limits, patch_sets);
+        if let Some((now, wall)) = clock {
+            world.set_clock(now, wall);
+        }
+        if let Some(initial) = initial {
+            world.initial_ask = initial;
+        }
+        world.fixture_rows = rows;
+        world.startup = startup;
+        if let Some(startup) = startup {
+            startup(&mut world.domain);
+        }
+        world.walking = walking.map(super::Walking::new);
+        if let Some(peers) = &mut peers {
+            peers.creating = Some(world.creating.clone());
+        }
+        world.peers = peers;
+        world.cut = cut;
+        world.send(root::Event::StartBegin { pending: world.store.generation_pending });
+        if world.reached_cut.is_some() {
+            return world;
+        }
+        if world.peers.is_some() {
+            world.hello_engine();
+            world.send(root::Event::Core(core::Event::Account(accounts::Event::Component(
+                accounts::FromComponent::Granted {
+                    form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                    account: 1,
+                    generation: 1,
+                    valid: Duration::from_secs(60),
+                },
+            ))));
+        } else if boot == Boot::Caller {
+            world.hello_engine();
+            for (project, budget) in projects {
+                world.send(root::Event::Core(core::Event::Period { project, period: 1, budget, next: None }));
+            }
+            world.events.extend([
+                root::Event::Core(core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
+                    form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                    account: 1,
+                    generation: 1,
+                    valid: Duration::from_secs(60),
+                }))),
+                root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
+                    worker: 0,
+                    channel: Token::new(7),
+                    hello: fleet::Hello {
+                        bounds: crate::fixtures::bounds(),
+                        stop_bound: Duration::from_millis(100),
+                        slots: limits.core.fleet.slots,
+                        workstreams: Box::new([]),
+                        hosting: Box::new([]),
+                    },
+                })),
+                root::Event::Core(core::Event::SignIn {
+                    held: None,
+                    reply_to: ReplyTo::new(Token::new(101)),
+                    identity: people::Identity {
+                        key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                        login: b"person".as_slice().into(),
+                        name: b"Person".as_slice().into(),
+                    },
+                }),
+            ]);
+            world.drain();
+            if requirement {
+                world.waiting_judge();
+            }
+            if require_assignment && world.walking.is_none() {
+                assert!(
+                    world.assigned.is_some(),
+                    "the task hub and fleet assigned the caller: {:?}; replies {:?}",
+                    world.trace,
+                    world.people_answers
+                );
+            }
+        }
+        world
+    }
     /// The local scripted host declares the same models as the worker fixtures.
     pub(super) fn hello_engine(&mut self) {
         if self.limits.core.fleet.engine_slots > 0 {
@@ -88,214 +208,8 @@ impl World {
         }
     }
 
-    /// Restore configuration into a wholly empty store without a manual bootstrap.
-    #[must_use]
-    pub fn first_start(configuration: root::Config, limits: root::Limits) -> World {
-        let mut world = Self::empty(configuration, &limits);
-        world.send(root::Event::StartBegin { pending: world.store.generation_pending });
-        world
-    }
-
-    /// Walking scenarios preload their fake account records before startup wants sources.
-    #[must_use]
-    pub fn first_start_with_accounts(configuration: root::Config, limits: &root::Limits) -> World {
-        let rows = crate::fixtures::account_rows(&configuration.core.settings.llm_providers);
-        let mut world = Self::empty(configuration, limits);
-        world.fixture_rows = rows;
-        world.send(root::Event::StartBegin { pending: world.store.generation_pending });
-        world
-    }
-
-    #[must_use]
-    pub fn new(seed: u64, requirement: bool) -> World {
-        Self::with_entries(seed, requirement, crate::world::limits().connector.entries)
-    }
-
-    /// A finite connector outbox that can be filled by a pending write.
-    #[must_use]
-    pub fn with_entries(seed: u64, requirement: bool, entries: u32) -> World {
-        let (configuration, mut limits) = fixture(seed, requirement);
-        limits.connector.entries = entries;
-        Self::configured(seed, requirement, configuration, limits)
-    }
-
-    /// The application configures its core before startup and on each restart.
-    #[must_use]
-    pub fn configured_with_startup(
-        seed: u64,
-        configuration: root::Config,
-        limits: root::Limits,
-        setup: fn(&mut root::Domain),
-    ) -> World {
-        let initial = crate::fixtures::create_chat(
-            &crate::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks),
-            1,
-            0,
-            b"make an effect".as_slice().into(),
-        );
-        let rows = crate::fixtures::account_rows(&configuration.core.settings.llm_providers);
-        Self::configured_with_rows_and_sets(
-            seed,
-            false,
-            configuration,
-            &limits,
-            initial,
-            rows,
-            (jig_protocol_store::PatchSets::NONE, Some(setup)),
-        )
-    }
-
-    /// A story may configure its programs, policy and worker capacity.
-    #[must_use]
-    pub fn configured(seed: u64, requirement: bool, configuration: root::Config, limits: root::Limits) -> World {
-        let world = Self::configured_unassigned(seed, requirement, configuration, limits);
-        assert!(
-            world.assigned.is_some(),
-            "the task hub and fleet assigned the caller: {:?}; source {:?}; replies {:?}",
-            world.trace,
-            world.domain.accounts().source(1),
-            world.people_answers
-        );
-        world
-    }
-
-    /// Build a story whose initial chat may wait or be held before assignment.
-    #[must_use]
-    pub fn configured_unassigned(
-        seed: u64,
-        requirement: bool,
-        configuration: root::Config,
-        limits: root::Limits,
-    ) -> World {
-        let initial = crate::fixtures::create_chat(
-            &crate::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks),
-            1,
-            0,
-            b"make an effect".as_slice().into(),
-        );
-        Self::configured_with(seed, requirement, configuration, limits, initial)
-    }
-
-    /// Choose the initial authenticated task request.
-    #[must_use]
-    pub fn configured_with(
-        seed: u64,
-        requirement: bool,
-        configuration: root::Config,
-        limits: root::Limits,
-        initial: people::Ask,
-    ) -> World {
-        let rows = crate::fixtures::account_rows(&configuration.core.settings.llm_providers);
-        Self::configured_with_rows(seed, requirement, configuration, limits, initial, rows)
-    }
-
-    /// Explicit lower-world rows; a story using real key/sign-in requests supplies none.
-    #[must_use]
-    pub fn configured_with_rows(
-        seed: u64,
-        requirement: bool,
-        configuration: root::Config,
-        limits: root::Limits,
-        initial: people::Ask,
-        rows: Box<[root::Record]>,
-    ) -> World {
-        Self::configured_with_rows_and_sets(
-            seed,
-            requirement,
-            configuration,
-            &limits,
-            initial,
-            rows,
-            (jig_protocol_store::PatchSets::NONE, None),
-        )
-    }
-
-    /// A binary whose store receives explicit patch sets before its first open.
-    #[must_use]
-    pub fn with_patch_sets(seed: u64, requirement: bool, sets: jig_protocol_store::PatchSets) -> World {
-        let (configuration, limits) = fixture(seed, requirement);
-        let initial = crate::fixtures::create_chat(
-            &crate::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks),
-            1,
-            0,
-            b"make an effect".as_slice().into(),
-        );
-        let rows = crate::fixtures::account_rows(&configuration.core.settings.llm_providers);
-        Self::configured_with_rows_and_sets(seed, requirement, configuration, &limits, initial, rows, (sets, None))
-    }
-
-    fn configured_with_rows_and_sets(
-        _seed: u64,
-        requirement: bool,
-        configuration: root::Config,
-        limits: &root::Limits,
-        initial: people::Ask,
-        rows: Box<[root::Record]>,
-        startup: (jig_protocol_store::PatchSets, Option<fn(&mut root::Domain)>),
-    ) -> World {
-        let (sets, setup) = startup;
-        let projects: Vec<_> = configuration
-            .core
-            .seed_projects
-            .iter()
-            .map(|project| (project.number, project.policy.policy.period_spend))
-            .collect();
-        let mut world = Self::empty_with_sets(configuration, limits, sets);
-        world.initial_ask = initial;
-        world.fixture_rows = rows;
-        world.startup = setup;
-        if let Some(setup) = setup {
-            setup(&mut world.domain);
-        }
-        world.send(root::Event::StartBegin { pending: world.store.generation_pending });
-        world.hello_engine();
-        for (project, budget) in projects {
-            world.send(root::Event::Core(core::Event::Period { project, period: 1, budget, next: None }));
-        }
-        world.events.extend([
-            root::Event::Core(core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-                form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                account: 1,
-                generation: 1,
-                valid: Duration::from_secs(60),
-            }))),
-            root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
-                worker: 0,
-                channel: Token::new(7),
-                hello: fleet::Hello {
-                    bounds: crate::fixtures::bounds(),
-                    stop_bound: Duration::from_millis(100),
-                    slots: limits.core.fleet.slots,
-                    workstreams: Box::new([]),
-                    hosting: Box::new([]),
-                },
-            })),
-            root::Event::Core(core::Event::SignIn {
-                held: None,
-                reply_to: ReplyTo::new(Token::new(101)),
-                identity: people::Identity {
-                    key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-                    login: b"person".as_slice().into(),
-                    name: b"Person".as_slice().into(),
-                },
-            }),
-        ]);
-        world.drain();
-        if requirement {
-            world.waiting_judge();
-        }
-        world
-    }
-
-    pub(super) fn empty(configuration: root::Config, limits: &root::Limits) -> World {
-        Self::empty_with_sets(configuration, limits, jig_protocol_store::PatchSets::NONE)
-    }
-
-    fn empty_with_sets(
-        configuration: root::Config,
-        limits: &root::Limits,
-        sets: jig_protocol_store::PatchSets,
-    ) -> World {
+    #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
+    fn empty(configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::PatchSets) -> World {
         let observer = crate::observations::Observer::new(&configuration);
         let heap = crate::observations::Heap::new();
         let creating = crate::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
@@ -304,6 +218,11 @@ impl World {
         let store = Store::starting_with_patch_sets(limits, &configuration.core.settings.models, sets);
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
+            manual: false,
+            returned: 0,
+            released: Vec::new(),
+            serial: 1000,
+            walking: None,
             broken: false,
             oracle_closed: false,
             restart_config: (crate::oracle::configuration(&configuration), *limits),
@@ -395,76 +314,5 @@ impl World {
             wall_lag: 0,
             supplied_wall: None,
         }
-    }
-
-    /// Compose the testing root with independently scripted workers and parties.
-    #[must_use]
-    pub fn scripted(configuration: root::Config, limits: root::Limits, peers: crate::peers::Peers) -> World {
-        Self::scripted_at(configuration, limits, peers, None)
-    }
-
-    /// Select a cut before even the first sign-in and assignment have committed.
-    #[must_use]
-    pub fn scripted_at(
-        configuration: root::Config,
-        limits: root::Limits,
-        peers: crate::peers::Peers,
-        cut: Option<Cut>,
-    ) -> World {
-        Self::scripted_clock_at(configuration, &limits, peers, cut, None)
-    }
-
-    /// Run the same root/store/peer machinery with the enclosing world's clocks.
-    /// Internal draining preserves these values until the caller supplies a new pair.
-    #[must_use]
-    pub fn scripted_clock(
-        configuration: root::Config,
-        limits: root::Limits,
-        peers: crate::peers::Peers,
-        now: Time,
-        wall: Wall,
-    ) -> World {
-        Self::scripted_clock_at(configuration, &limits, peers, None, Some((now, wall)))
-    }
-
-    fn scripted_clock_at(
-        configuration: root::Config,
-        limits: &root::Limits,
-        peers: crate::peers::Peers,
-        cut: Option<Cut>,
-        clock: Option<(Time, Wall)>,
-    ) -> World {
-        let mut configuration = configuration;
-        let workers = peers.workers.iter().filter(|worker| worker.channel != 0).count();
-        if workers > configuration.core.worker_names.len() {
-            configuration.core.worker_names =
-                (0..workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
-        }
-        let rows = crate::fixtures::account_rows(&configuration.core.settings.llm_providers);
-        let mut world = Self::empty(configuration, limits);
-        if let Some((now, wall)) = clock {
-            world.set_clock(now, wall);
-        }
-        world.fixture_rows = rows;
-        let mut peers = peers;
-        peers.creating = Some(world.creating.clone());
-        world.peers = Some(peers);
-        world.cut = cut;
-        world.events.push_back(root::Event::StartBegin { pending: world.store.generation_pending });
-        world.drain();
-        if world.reached_cut.is_some() {
-            return world;
-        }
-        world.hello_engine();
-        world.events.push_back(root::Event::Core(core::Event::Account(accounts::Event::Component(
-            accounts::FromComponent::Granted {
-                form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                account: 1,
-                generation: 1,
-                valid: Duration::from_secs(60),
-            },
-        ))));
-        world.drain();
-        world
     }
 }

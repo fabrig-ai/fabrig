@@ -1,6 +1,7 @@
 //! Replayable fault scenarios for `domain/testing.md`, 4, 7. Configuration
 //! comes from the scenario, choices from a seed, and the referee observes every
 //! drain. Conformance can reuse the independent peers and the chosen cuts.
+use crate::effects::Setup;
 use crate::{effects::World, peers::Peers};
 use jig_fake_parties::{Act, Ask, Party, Role, Task};
 use jig_fake_workers::{Fault, Script, Worker};
@@ -30,10 +31,10 @@ pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::effect
     if engine {
         hosts.insert(0, Worker::new(0, 1, vec![script(1), script(2)]));
     }
-    World::scripted_at(
-        config,
+    World::new(Setup {
+        configuration: Some(config),
         limits,
-        Peers::new(
+        peers: Some(Peers::new(
             hosts,
             vec![Party::new(
                 1,
@@ -44,9 +45,10 @@ pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::effect
                     Act::Request { key: [1; 16], ask: Ask::Chat { words: b"work".as_slice().into() } },
                 ]),
             )],
-        ),
+        )),
         cut,
-    )
+        ..Setup::default()
+    })
 }
 
 /// Resume the owner's last chat, retaining the key for reproducible retries.

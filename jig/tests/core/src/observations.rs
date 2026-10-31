@@ -273,6 +273,7 @@ pub struct Observer {
     proposals: BTreeMap<u64, (u16, connector::Effect)>,
     accepted: BTreeMap<(u16, connector::Key), r::Source>,
     settled_calls: BTreeSet<(u64, u64, u64)>,
+    claims: BTreeSet<(u64, u64)>,
     // Durable fresh marks fence these attempts: their traffic is acknowledged
     // and discarded without a turn or terminal row (engine.md, 7.2 and 8).
     crossed: BTreeSet<(u64, u64)>,
@@ -388,6 +389,7 @@ impl Observer {
             proposals: BTreeMap::new(),
             accepted: BTreeMap::new(),
             settled_calls: BTreeSet::new(),
+            claims: BTreeSet::new(),
             crossed: BTreeSet::new(),
             cancelled: BTreeSet::new(),
             discarded: BTreeSet::new(),
@@ -455,7 +457,13 @@ impl Observer {
             }
             root::Event::Turn { task, attempt, cumulative, .. }
             | root::Event::Answer { task, attempt, cumulative, .. } => {
-                self.observe(now, r::Observed::Completion { task: *task, attempt: *attempt, cumulative: *cumulative });
+                // Unknown host listings are discarded without a reservation or charge.
+                if self.claims.contains(&(*task, *attempt)) {
+                    self.observe(
+                        now,
+                        r::Observed::Completion { task: *task, attempt: *attempt, cumulative: *cumulative },
+                    );
+                }
             }
             root::Event::Connector {
                 number,
@@ -623,6 +631,7 @@ impl Observer {
                     Some(r::Receipt::Task(value.number))
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
+                    self.claims.insert((value.task, value.attempt));
                     if value.crossed {
                         self.crossed.insert((value.task, value.attempt));
                     }
@@ -927,6 +936,7 @@ impl Observer {
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
                     snapshot.receipts.insert(r::Receipt::Claim(value.task, value.attempt));
+                    self.claims.insert((value.task, value.attempt));
                     if value.crossed {
                         self.crossed.insert((value.task, value.attempt));
                     }
@@ -1132,12 +1142,7 @@ impl Observer {
                 requires.push(receipt);
             }
             root::Delivery::Core(core::Held::Acknowledge { run, attempt, .. }) => {
-                let receipt = if self.crossed.contains(&(run.raw(), attempt.raw())) {
-                    r::Receipt::Claim(run.raw(), attempt.raw())
-                } else {
-                    r::Receipt::Terminal(run.raw(), attempt.raw())
-                };
-                requires.push(receipt);
+                requires.extend(self.terminal_receipt(run.raw(), attempt.raw()));
             }
             root::Delivery::Core(core::Held::CallAnswer { key, .. }) => {
                 requires.push(call(*key));
@@ -1191,6 +1196,18 @@ impl Observer {
             | root::Delivery::System { .. } => {}
         }
         self.observe(now, r::Observed::Released { requires });
+    }
+
+    fn terminal_receipt(&self, run: u64, attempt: u64) -> Option<r::Receipt> {
+        // Cancelling and forgetting an unknown host listing produces no terminal.
+        if self.cancelled.contains(&(run, attempt)) && !self.claims.contains(&(run, attempt)) {
+            return None;
+        }
+        Some(if self.crossed.contains(&(run, attempt)) {
+            r::Receipt::Claim(run, attempt)
+        } else {
+            r::Receipt::Terminal(run, attempt)
+        })
     }
 
     fn reply_receipts(&mut self, to: &mut skein_lib::ReplyTo, reply: &people::Reply, requires: &mut Vec<r::Receipt>) {

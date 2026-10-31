@@ -1,4 +1,5 @@
 //! Selected starts retain durable diagnostic answers (jig/docs/design/domain/engine.md, 6).
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::{World, fixture},
     fixtures,
@@ -116,7 +117,7 @@ fn phase(action: &Action, expected: Phase) {
 
 #[test]
 fn unknown_introduction_target_replays_its_original_diagnostic_after_selected_link() {
-    let mut world = World::new(SEED, false);
+    let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.tool_call(b"introduce", br#"{"left":2,"right":18446744073709551615}"#, true);
@@ -135,7 +136,7 @@ fn unknown_introduction_target_replays_its_original_diagnostic_after_selected_li
 
 #[test]
 fn retained_malformed_create_keeps_and_replays_the_original_refusal() {
-    let mut world = World::new(SEED, false);
+    let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
     let mut member = fixtures::people_member(b"malformed", 1);
     member.executor = people::TaskExecutor::Procedure { connector: 0, code: 0 };
     let ask = people::Ask::Create { project: 1, batch: Box::new([member]) };
@@ -178,7 +179,7 @@ fn retained_malformed_create_keeps_and_replays_the_original_refusal() {
 
 #[test]
 fn recurring_lifetime_count_past_live_capacity_survives_selected_link() {
-    let world = World::new(SEED, false);
+    let world = World::new(Setup { seed: SEED, ..Setup::default() });
     let mut h = Harness::stored(&world);
     let task = h.core.tasks.task(1).expect("standing root");
     let parent = task.funder;

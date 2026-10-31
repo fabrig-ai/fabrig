@@ -1,5 +1,6 @@
 //! Project decisions at the engine's lowest complete boundary (people.md, 5.1–5.3).
 
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     client_peer::ClientPeer,
     effects::{Cut, World},
@@ -52,7 +53,13 @@ fn start(mut config: root::Config, mut limits: root::Limits) -> (World, u64) {
     .rules()
     .clone();
     jig_core_world::peers::journal(&mut limits);
-    let mut world = World::first_start(config, limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::effects::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let (_, signed) = sign_in(&mut world, OWNER_SUBJECT);
     (world, signed)
