@@ -2,8 +2,6 @@
 //! `fact` precedes `request`; the service supplies its exact `answer`.
 //! Contracts: smith/docs/design/protocol/events.md, sections 3–5; smith/docs/design/domain/run.md, section 11.
 
-#![expect(clippy::manual_map, reason = "bounded production entries use explicit matches without closures")]
-
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Time, Token};
 use smith_domain::{self as domain, run};
@@ -615,12 +613,6 @@ pub fn valid(limits: &crate::Limits) -> bool {
 
 #[cfg(test)]
 mod tests {
-    #![allow(
-        clippy::disallowed_macros,
-        clippy::disallowed_types,
-        clippy::disallowed_methods,
-        reason = "programming-model.md section10.2: bounded deterministic source fixtures use ordinary Rust"
-    )]
 
     use super::*;
     use crate::responses::tests::{at, fact, opened, prompt, seen_completion};

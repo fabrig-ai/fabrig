@@ -2,8 +2,6 @@
 //! Only accepted results carry content, under the configured capture policy.
 //! Contract: protocol/events.md, sections 3.3 and 4.
 
-#![expect(clippy::manual_map, reason = "the strict subset uses exhaustive matches without closures")]
-
 use smith_agent_service::{Answered, sinks::Capture};
 use smith_events::{AnswerClass, AnswerFailure, CompletionFailure, Evidence, FailureClass, Status};
 use smith_host_domain as host;

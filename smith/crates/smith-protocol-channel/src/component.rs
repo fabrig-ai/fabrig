@@ -268,7 +268,6 @@ impl Component {
     }
 
     /// Tell the host that the run waits after the last message it read.
-    #[expect(clippy::manual_map, reason = "production steps do not use closure methods")]
     pub fn send_waiting(
         &mut self,
         read: Option<Token>,
@@ -356,7 +355,6 @@ impl Component {
     }
 
     /// Tell the host one concrete transcript turn with activation-wide spend.
-    #[expect(clippy::manual_map, reason = "production steps do not use closure methods")]
     #[expect(clippy::too_many_arguments, reason = "turn and its host envelope have independent names")]
     pub fn send_turn(
         &mut self,

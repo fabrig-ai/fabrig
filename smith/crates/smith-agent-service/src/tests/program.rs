@@ -1,9 +1,3 @@
-#![allow(
-    clippy::disallowed_macros,
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "ordinary Rust deterministic harness, programming-model.md 10.2"
-)]
 use super::*;
 use crate::responses::tests::{at, intent, opened, prompt};
 use crate::sinks::tests::{drain_ready, grant, limits};

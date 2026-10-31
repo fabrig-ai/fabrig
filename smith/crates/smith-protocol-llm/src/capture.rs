@@ -106,7 +106,6 @@ fn blocks(input: &[shared::Block], limits: &shared::client::Limits) -> Result<Li
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::disallowed_types, reason = "test harnesses use ordinary Rust containers")]
 
     use super::*;
 

@@ -3,8 +3,6 @@
 //! wind-down and elapsed time; no observation of stdout establishes acceptance.
 //! Contract: smith/docs/design/protocol/events.md, sections 3.3 and 3.10.
 
-#![expect(clippy::manual_map, reason = "the strict subset requires explicit matches instead of closures")]
-
 use alloc::boxed::Box;
 use skein_lib::{Duration, List};
 use smith_domain::run;

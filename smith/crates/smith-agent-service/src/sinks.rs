@@ -789,7 +789,6 @@ impl Sinks {
     }
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset requires an explicit match instead of a closure")]
 fn ended_record(now: Time, started: Time, ended: &Ended, emitted: List<smith_events::Count>, loss: u64) -> Record {
     let (cpu_ms, peak_rss_bytes) = match ended.usage {
         io::Measured::Read(usage) => (
@@ -1182,11 +1181,11 @@ fn ordinary_credit(limits: &SinkLimits, capture: Capture) -> Option<u32> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    #![allow(
+    #![expect(
         clippy::disallowed_macros,
         clippy::disallowed_types,
         clippy::disallowed_methods,
-        reason = "programming-model.md section 10.2: deterministic harnesses use ordinary Rust"
+        reason = "test modules are ordinary Rust: programming-model.md 10.2"
     )]
 
     use super::*;

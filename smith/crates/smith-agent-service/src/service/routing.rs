@@ -20,7 +20,6 @@ pub(super) fn record_usage(service: &mut Service, usage: io::Measured) {
         io::Measured::Read(_) => false,
         io::Measured::Unread => true,
     };
-    #[expect(clippy::manual_map, reason = "strict production entries avoid closures")]
     let channel = match &service.channel {
         Some(channel) => Some(channel.lost_facts()),
         None => None,

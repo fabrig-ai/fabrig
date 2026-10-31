@@ -49,7 +49,6 @@ pub struct DecodedStart {
 }
 
 /// Move decoded channel fields into bounded start context, keeping values below the domain.
-#[expect(clippy::manual_map, reason = "strict subset keeps optional boundary conversion as an explicit match")]
 pub fn start_context(
     start: channel::Start,
     charter: run::Charter,
@@ -301,7 +300,6 @@ pub fn decode_charter(
     translate_charter(&charter, endpoints)
 }
 
-#[expect(clippy::manual_map, reason = "production steps do not use closures")]
 fn translate_charter(charter: &wire::Charter, endpoints: &Endpoints) -> Result<run::Charter, run::Invalid> {
     let mut sections = List::with_capacity(charter.brief().len());
     for section in charter.brief() {
@@ -500,7 +498,6 @@ fn copy_fields(
 }
 
 /// Translate the domain's single Start terminal into the channel's last word.
-#[expect(clippy::manual_map, reason = "the protocol subset keeps option projection exhaustive")]
 pub fn answer_record(
     now: skein_lib::Time,
     answer: run::Answer,
@@ -613,7 +610,6 @@ fn failure_record(
     Ok(record)
 }
 
-#[expect(clippy::manual_map, reason = "the protocol subset projects the optional cooldown without a closure")]
 fn model_fault(
     fault: run::Fault,
     now: skein_lib::Time,

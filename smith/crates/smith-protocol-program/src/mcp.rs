@@ -472,7 +472,6 @@ impl Server {
     }
 
     /// Return the backend's permission decision to a live prompt call (5.4).
-    #[expect(clippy::manual_map, reason = "the protocol subset uses exhaustive matches without callbacks")]
     pub fn verdict(&mut self, call: CallId, verdict: Verdict, below: &mut Queue<io::Request>) {
         let Some(id) = self.take_call(call) else {
             return;

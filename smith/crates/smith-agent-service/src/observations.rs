@@ -85,7 +85,6 @@ pub fn check_exit(exit: run::Exit) -> (smith_events::CheckExit, bool) {
 /// The opening's model, joined to the configured endpoint name and effort.
 /// The caller supplies configured metadata; no endpoint or model is inferred.
 #[must_use]
-#[expect(clippy::manual_map, reason = "the strict subset requires an explicit match instead of a closure")]
 pub fn opening_model(
     llm: &run::charter::Llm,
     endpoint: &[u8],
@@ -190,7 +189,6 @@ pub struct ChildShare {
 
 /// Project a child's opening, keeping an absent ask distinct from a grant.
 #[must_use]
-#[expect(clippy::manual_map, reason = "the strict subset requires explicit matches")]
 pub fn child_share(kind: run::facts::Kind) -> Option<ChildShare> {
     let (asked, granted) = match kind {
         run::facts::Kind::Main => return None,

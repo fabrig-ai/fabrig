@@ -4915,11 +4915,11 @@ fn a_capped_child_answer_keeps_its_budget_stop_until_the_seen_end_and_returns_on
 }
 
 mod room_controls {
-    #![allow(
+    #![expect(
         clippy::disallowed_macros,
         clippy::disallowed_methods,
         clippy::disallowed_types,
-        reason = "programming-model.md, section 10.2: deterministic test harnesses are ordinary Rust"
+        reason = "test modules are ordinary Rust: programming-model.md 10.2"
     )]
     use super::{
         Answer, Ask, AskRefusal, Charter, EXPIRY, Event, FieldRule, Harness, Invalid, LIMITS, Limits, Refusal, Request,

@@ -13,8 +13,6 @@
 //! the main failure. Capture none keeps no provider diagnostic content.
 //! Contracts: smith/docs/design/protocol/events.md, sections 3.4–3.5, 3.10–3.11 and 4.
 
-#![expect(clippy::manual_map, reason = "the strict subset keeps bounded entries explicit and uses no closures")]
-
 mod retry;
 
 use alloc::boxed::Box;
@@ -1081,12 +1079,7 @@ fn provider_field(value: &[u8]) -> Option<Box<[u8]>> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    #![allow(
-        clippy::disallowed_macros,
-        clippy::disallowed_types,
-        clippy::disallowed_methods,
-        reason = "programming-model.md section 10.2: deterministic unit harnesses use ordinary Rust"
-    )]
+    #![expect(clippy::disallowed_methods, reason = "test modules are ordinary Rust: programming-model.md 10.2")]
 
     use super::*;
     use alloc::boxed::Box;

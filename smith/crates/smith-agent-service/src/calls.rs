@@ -489,12 +489,7 @@ pub(crate) fn valid(limits: &session::Limits) -> bool {
 
 #[cfg(test)]
 mod tests {
-    #![allow(
-        clippy::disallowed_macros,
-        clippy::disallowed_methods,
-        clippy::disallowed_types,
-        reason = "programming-model.md section10.2: deterministic test harnesses use ordinary Rust"
-    )]
+    #![expect(clippy::disallowed_methods, reason = "test modules are ordinary Rust: programming-model.md 10.2")]
 
     use super::*;
     use crate::sinks::tests::{drain, drain_ready, grant};

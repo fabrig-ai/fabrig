@@ -1,7 +1,6 @@
 //! Checked record dispatch (protocol/channel.md, sections 3–4).
 //! The channel state admits a record before its handler changes the call,
 //! turn, live-piece or long-operation ledger. No host policy is interpreted.
-#![expect(clippy::manual_map, reason = "the strict step subset spells out optional value moves")]
 
 use super::{CallKey, Component, OpenEvent, State};
 use crate::Error;

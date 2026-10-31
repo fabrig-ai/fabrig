@@ -217,7 +217,6 @@ pub(super) fn parts(
         Some(_) => config,
         None => None,
     };
-    #[expect(clippy::manual_map, reason = "production steps use explicit matches instead of closures")]
     let effective_user = match &config {
         Some(program) => Some(program.effective_user),
         None => None,
