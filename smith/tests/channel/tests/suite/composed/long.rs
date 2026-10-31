@@ -130,16 +130,9 @@ fn an_observed_command_crosses_the_channel_and_outlasts_no_progress_until_its_te
     let mut world = LongWorld::new();
     let mut charter = composed_charter().into_value();
     charter.grants.tools.shell = true;
-    world.step(AgentEvent::Start {
-        messages: Box::default(),
-        identity: None,
-        activation: 1,
+    world.step(AgentEvent::Start(smith_domain::Start {
         host_run: Token::new(7),
-        reply_to: ReplyTo::new(Token::new(1)),
         window: agent::Window { turns: 100, bytes: u64::MAX },
-        charter,
-        transcript: None,
-        answered: Box::default(),
         workspace: Some(agent::run::Workspace {
             directories: Box::from([agent::run::Directory {
                 host: Box::from(b"/host".as_slice()),
@@ -155,7 +148,8 @@ fn an_observed_command_crosses_the_channel_and_outlasts_no_progress_until_its_te
             renewable: true,
             valid: Duration::from_secs(7200),
         }]),
-    });
+        ..smith_domain::fixture::start(Token::new(1), charter)
+    }));
     let owner = world.completion.take().expect("observed provider request");
     world.step(AgentEvent::Completed {
         owner,

@@ -21,7 +21,7 @@ fn one_content_drain_empties_the_root_beyond_the_service_fact_allowance() {
     domain::step(
         root,
         &service.stages.domain_env,
-        domain::Event::Start {
+        domain::Event::Start(domain::Start {
             reply_to: ReplyTo::new(Token::new(1)),
             host_run: Token::new(1),
             activation: 1,
@@ -33,7 +33,7 @@ fn one_content_drain_empties_the_root_beyond_the_service_fact_allowance() {
             grants: Box::default(),
             transcript: None,
             answered: Box::default(),
-        },
+        }),
         &mut service.stages.domain_requests,
     );
     let mut completion = None;

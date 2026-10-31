@@ -339,56 +339,20 @@ fn choose_start(
     selected_start: Option<Event>,
 ) -> (Event, Token) {
     match selected_start {
-        Some(Event::Start {
-            reply_to,
-            host_run,
-            activation,
-            identity,
-            window,
-            messages,
-            charter,
-            workspace,
-            grants,
-            transcript,
-            answered,
-        }) => {
-            let token = reply_to.into_token();
-            (
-                Event::Start {
-                    reply_to: ReplyTo::new(token),
-                    host_run,
-                    activation,
-                    identity,
-                    window,
-                    messages,
-                    charter,
-                    workspace,
-                    grants,
-                    transcript,
-                    answered,
-                },
-                token,
-            )
+        Some(Event::Start(mut start)) => {
+            let token = start.reply_to.into_token();
+            start.reply_to = ReplyTo::new(token);
+            (Event::Start(start), token)
         }
         Some(_) => panic!("the caller supplies a complete Start event"),
         None => (
-            Event::Start {
-                messages: Box::default(),
-                reply_to: ReplyTo::new(Token::new(1)),
-                host_run: Token::new(1),
-                identity: None,
+            Event::Start(smith_domain::Start {
                 activation: if settings.resume { 2 } else { 1 },
-                window: agent::Window { turns: u32::MAX, bytes: u64::MAX },
-                charter: selected_charter.unwrap_or_else(|| charter(settings)),
                 workspace,
-                grants: Box::new([Grant {
-                    renewable: true,
-                    name: GrantName { account: 0, generation: 1 },
-                    valid: Duration::from_secs(7200),
-                }]),
                 transcript,
                 answered,
-            },
+                ..fixture::start(selected_charter.unwrap_or_else(|| charter(settings)))
+            }),
             Token::new(1),
         ),
     }
@@ -468,7 +432,7 @@ impl<B: Backend> World<B> {
         let supplied_start = selected_start.is_some();
         let (start, reply_to) =
             choose_start(settings, transcript, answered, workspace, selected_charter, selected_start);
-        let Event::Start { host_run, charter, workspace, messages, .. } = &start else {
+        let Event::Start(smith_domain::Start { host_run, charter, workspace, messages, .. }) = &start else {
             unreachable!("the selected event is Start")
         };
         let root = workspace
@@ -840,10 +804,11 @@ impl<B: Backend> World<B> {
     }
 
     fn log_event(&mut self, event: &mut Event) {
-        let saved = if let Event::Start { transcript, .. } = event { transcript.clone() } else { None };
+        let saved =
+            if let Event::Start(smith_domain::Start { transcript, .. }) = event { transcript.clone() } else { None };
         let mut lengths = Vec::new();
         let mut digest = DefaultHasher::new();
-        if let Event::Start { transcript: Some(transcript), .. } = event {
+        if let Event::Start(smith_domain::Start { transcript: Some(transcript), .. }) = event {
             for block in
                 transcript.turns.iter_mut().flat_map(|turn| &mut turn.messages).flat_map(|message| &mut message.content)
             {
@@ -866,7 +831,7 @@ impl<B: Backend> World<B> {
         } else {
             self.trace.log(self.now, format!("agent <- {event:?}; large payload lengths {lengths:?}, envelope and first/last 512-byte fingerprint {:016x}", digest.finish()));
         }
-        if let Event::Start { transcript, .. } = event {
+        if let Event::Start(smith_domain::Start { transcript, .. }) = event {
             *transcript = saved;
         }
     }
@@ -1454,7 +1419,7 @@ impl<B: Backend> World<B> {
             Event::BuiltinResult { .. }
             | Event::ReadVersion { .. }
             | Event::HostReturned { .. }
-            | Event::Start { .. }
+            | Event::Start(_)
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Grant { .. }
@@ -1519,7 +1484,7 @@ impl<B: Backend> World<B> {
             | Event::HostReturned { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
-            | Event::Start { .. }
+            | Event::Start(_)
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Done { .. }
@@ -1539,7 +1504,7 @@ impl<B: Backend> World<B> {
             Event::BuiltinResult { .. }
             | Event::ReadVersion { .. }
             | Event::Cancel { .. }
-            | Event::Start { .. }
+            | Event::Start(_)
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Grant { .. }
@@ -2012,19 +1977,7 @@ pub fn world(settings: &Settings, charter: run::Charter, granted: &[u32]) -> Wor
         .collect();
     World::with_start(
         *settings,
-        Event::Start {
-            messages: Box::default(),
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
-            identity: None,
-            activation: 1,
-            window: agent::Window { turns: u32::MAX, bytes: u64::MAX },
-            charter,
-            workspace: None,
-            grants,
-            transcript: None,
-            answered: Box::new([]),
-        },
+        Event::Start(smith_domain::Start { grants, ..smith_domain::fixture::start(Token::new(1), charter) }),
     )
 }
 
@@ -2100,46 +2053,17 @@ impl World<Typed> {
         charter.brief.sections = Box::default();
         charter.instructions = script::cue(settings.job).unwrap_or(b"Look into the code.").into();
         charter.grants.wait = true;
-        let start = Event::Start {
-            messages: Box::default(),
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
-            identity: None,
-            activation: 1,
+        let start = Event::Start(smith_domain::Start {
             window: agent::Window { turns: 100, bytes: u64::MAX },
-            charter,
-            workspace: None,
-            transcript: None,
-            answered: Box::default(),
-            grants: Box::new([Grant {
-                renewable: true,
-                name: GrantName { account: 0, generation: 1 },
-                valid: Duration::from_secs(7200),
-            }]),
-        };
+            ..fixture::start(charter)
+        });
         Self::with_start(settings, start)
     }
 
     /// Start a scripted run with the host's specified acknowledgement credit.
     #[must_use]
     pub fn with_window(settings: Settings, window: agent::Window) -> World {
-        let start = Event::Start {
-            messages: Box::default(),
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
-            identity: None,
-            activation: 1,
-            window,
-            charter: charter(&settings),
-            workspace: None,
-            transcript: None,
-            answered: Box::default(),
-            grants: Box::new([Grant {
-                renewable: true,
-                name: GrantName { account: 0, generation: 1 },
-                valid: Duration::from_secs(7200),
-            }]),
-        };
+        let start = Event::Start(smith_domain::Start { window, ..fixture::start(charter(&settings)) });
         Self::with_start(settings, start)
     }
 
@@ -2238,23 +2162,16 @@ mod bridge_tests {
     #[test]
     fn a_caller_start_and_host_reply_cross_the_parent_bridge() {
         let settings = Settings { job: Job::HostTools, ..Settings::calm(811) };
-        let start = Event::Start {
-            messages: Box::default(),
-            answered: Box::default(),
-            reply_to: ReplyTo::new(Token::new(71)),
+        let start = Event::Start(smith_domain::Start {
             host_run: Token::new(73),
-            identity: None,
             activation: 4,
-            window: agent::Window { turns: u32::MAX, bytes: u64::MAX },
-            charter: charter(&settings),
-            workspace: None,
             grants: Box::new([Grant {
                 renewable: true,
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(7200),
             }]),
-            transcript: None,
-        };
+            ..smith_domain::fixture::start(Token::new(71), charter(&settings))
+        });
         let mut world = World::with_start(settings, start);
         world.enable_parent_host_calls();
         assert!(!world.drive(20_000), "the world yields before answering the host call");
@@ -2285,23 +2202,16 @@ mod bridge_tests {
         let settings = Settings { job: Job::HostTools, ..Settings::calm(819) };
         let mut charter = charter(&settings);
         charter.grants.host_tools[0].name = b"message".as_slice().into();
-        let start = Event::Start {
-            messages: Box::default(),
-            answered: Box::default(),
-            reply_to: ReplyTo::new(Token::new(71)),
+        let start = Event::Start(smith_domain::Start {
             host_run: Token::new(73),
-            identity: None,
             activation: 4,
-            window: agent::Window { turns: u32::MAX, bytes: u64::MAX },
-            charter,
-            workspace: None,
             grants: Box::new([Grant {
                 renewable: true,
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(7200),
             }]),
-            transcript: None,
-        };
+            ..smith_domain::fixture::start(Token::new(71), charter)
+        });
         let scripts = Box::new([Script {
             cue: b"@hosttools".as_slice().into(),
             turns: Box::new([

@@ -686,7 +686,7 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
         assert_eq!(refresh.valid, source.grants[0].valid);
         let decoded = translate::start(Token::new(1), source, &bounds());
         if admitted {
-            let smith::Event::Start { grants, .. } = decoded.expect("existing form admitted") else {
+            let smith::Event::Start(smith::Start { grants, .. }) = decoded.expect("existing form admitted") else {
                 panic!("expected root Start");
             };
             assert_eq!(grants.as_ref(), &[refresh], "start {form:?}");

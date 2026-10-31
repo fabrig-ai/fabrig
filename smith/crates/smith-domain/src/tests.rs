@@ -348,19 +348,11 @@ impl Harness {
         charter: Charter,
         grants: Box<[crate::Grant]>,
     ) -> (Token, Token, Prompt, crate::llm::CompletionName) {
-        let emitted = self.step(Event::Start {
-            messages: Box::default(),
-            window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-            answered: Box::default(),
+        let emitted = self.step(Event::Start(crate::Start {
             workspace: Some(workspace()),
             grants,
-            reply_to: ReplyTo::new(Token::new(call)),
-            host_run: Token::new(call),
-            identity: None,
-            activation: 1,
-            charter,
-            transcript: None,
-        });
+            ..crate::fixture::start(Token::new(call), charter)
+        }));
         let [Request::Admitted { host_run: _, run }, Request::Read { owner, .. }] = &*emitted else {
             panic!("expected an admitted run, got {emitted:?}");
         };
@@ -457,10 +449,7 @@ fn charter() -> Charter {
 #[test]
 fn root_refuses_invalid_grants_before_admission() {
     let mut h = Harness::new();
-    let emitted = h.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
+    let emitted = h.step(Event::Start(crate::Start {
         workspace: Some(workspace()),
         grants: Box::new(
             [crate::Grant {
@@ -469,13 +458,8 @@ fn root_refuses_invalid_grants_before_admission() {
                 valid: Duration::from_secs(60),
             }; 5],
         ),
-        reply_to: ReplyTo::new(Token::new(7)),
-        host_run: Token::new(7),
-        identity: None,
-        activation: 1,
-        charter: charter(),
-        transcript: None,
-    });
+        ..crate::fixture::start(Token::new(7), charter())
+    }));
     let [Request::Answer { answer, .. }] = &*emitted else { panic!("expected admission refusal: {emitted:?}") };
     assert_eq!(answer, &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Grants)));
 }
@@ -488,19 +472,10 @@ fn root_refuses_unconfigured_main_and_sub_agent_endpoints_before_admission() {
         requested.llm.endpoint = main;
         requested.models =
             Box::new([Llm { effort: None, endpoint: child, model: bytes(b"model-b"), ..requested.llm.clone() }]);
-        let emitted = h.step(Event::Start {
-            messages: Box::default(),
-            window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-            answered: Box::default(),
-            workspace: None,
+        let emitted = h.step(Event::Start(crate::Start {
             grants: account_grants(),
-            reply_to: ReplyTo::new(Token::new(7)),
-            host_run: Token::new(7),
-            identity: None,
-            activation: 1,
-            charter: requested,
-            transcript: None,
-        });
+            ..crate::fixture::start(Token::new(7), requested)
+        }));
         assert_eq!(
             &*emitted,
             &[Request::Answer {
@@ -518,19 +493,7 @@ fn root_refuses_unconfigured_main_and_sub_agent_endpoints_before_admission() {
         Box::new([Llm { effort: None, endpoint: Endpoint(2), model: bytes(b"model-b"), ..requested.llm.clone() }]);
     let mut grants = account_grants();
     grants[0].valid = Duration::ZERO;
-    let emitted = h.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
-        workspace: None,
-        grants,
-        reply_to: ReplyTo::new(Token::new(7)),
-        host_run: Token::new(7),
-        identity: None,
-        activation: 1,
-        charter: requested,
-        transcript: None,
-    });
+    let emitted = h.step(Event::Start(crate::Start { grants, ..crate::fixture::start(Token::new(7), requested) }));
     let [Request::Admitted { .. }] = &*emitted else {
         panic!("configured endpoints admit the start: {emitted:?}");
     };
@@ -540,19 +503,11 @@ fn root_refuses_unconfigured_main_and_sub_agent_endpoints_before_admission() {
 fn root_refuses_incompatible_conversation_limits_before_admission() {
     let limits = Limits { run: run::Limits { directories: 3, ..LIMITS.run }, ..LIMITS };
     let mut h = Harness::with(&limits);
-    let emitted = h.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
+    let emitted = h.step(Event::Start(crate::Start {
         workspace: Some(workspace()),
         grants: account_grants(),
-        reply_to: ReplyTo::new(Token::new(7)),
-        host_run: Token::new(7),
-        identity: None,
-        activation: 1,
-        charter: charter(),
-        transcript: None,
-    });
+        ..crate::fixture::start(Token::new(7), charter())
+    }));
     let [Request::Answer { answer, .. }] = &*emitted else { panic!("expected admission refusal: {emitted:?}") };
     assert_eq!(answer, &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Conversation)));
 }
@@ -592,19 +547,12 @@ fn oversized_resume_history_is_refused_when_the_conversation_opens() {
         dialect: 1,
         turns: turns.into_boxed(),
     };
-    let emitted = h.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
+    let emitted = h.step(Event::Start(crate::Start {
         workspace: Some(workspace()),
         grants: account_grants(),
-        reply_to: ReplyTo::new(Token::new(7)),
-        host_run: Token::new(7),
-        identity: None,
-        activation: 1,
-        charter: Charter { resume: true, ..charter() },
         transcript: Some(transcript),
-    });
+        ..crate::fixture::start(Token::new(7), Charter { resume: true, ..charter() })
+    }));
     let [Request::Admitted { run, .. }, Request::Read { .. }] = &*emitted else {
         panic!("expected an admitted run: {emitted:?}")
     };
@@ -801,19 +749,10 @@ fn no_grant_fails_locally_and_exhaustion_reports_the_account() {
     let mut h = Harness::new();
     let mut ungranted = charter();
     ungranted.llm.account = Some(9);
-    let emitted = h.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
+    let emitted = h.step(Event::Start(crate::Start {
         workspace: Some(workspace()),
-        reply_to: ReplyTo::new(Token::new(7)),
-        host_run: Token::new(7),
-        identity: None,
-        activation: 1,
-        charter: ungranted,
-        grants: Box::new([]),
-        transcript: None,
-    });
+        ..crate::fixture::start(Token::new(7), ungranted)
+    }));
     let [Request::Answer { answer, .. }] = emitted.as_ref() else { panic!("missing grant is refused") };
     assert_eq!(answer, &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Grants)));
     let mut h = Harness::new();
@@ -905,19 +844,11 @@ fn an_unsafe_workspace_mount_refuses_start_before_discovery() {
             conflicts: Box::new([]),
         }]),
     };
-    let emitted = h.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
+    let emitted = h.step(Event::Start(crate::Start {
         grants: account_grants(),
-        reply_to: ReplyTo::new(Token::new(7)),
-        host_run: Token::new(7),
-        identity: None,
-        activation: 1,
-        charter: charter(),
         workspace: Some(checkout),
-        transcript: None,
-    });
+        ..crate::fixture::start(Token::new(7), charter())
+    }));
     let requests = Box::<[Request; 1]>::try_from(emitted).expect("one refusal terminal, no admission or discovery");
     let [Request::Answer { to, answer, read: _, detail: _ }] = *requests else {
         panic!("unsafe mount refuses before admission or discovery");
@@ -947,19 +878,11 @@ fn an_opening_larger_than_a_session_holds_refuses_main_as_invalid() {
     assert!(valid(&limits));
     let mut h = Harness::with(&limits);
     let brief = filler(10_240);
-    let emitted = h.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
+    let emitted = h.step(Event::Start(crate::Start {
         workspace: Some(workspace()),
         grants: account_grants(),
-        reply_to: ReplyTo::new(Token::new(7)),
-        host_run: Token::new(7),
-        identity: None,
-        activation: 1,
-        charter: Charter { instructions: brief, ..charter() },
-        transcript: None,
-    });
+        ..crate::fixture::start(Token::new(7), Charter { instructions: brief, ..charter() })
+    }));
     let [Request::Admitted { run, .. }, Request::Read { .. }] = &*emitted else {
         panic!("expected an admitted run, got {emitted:?}");
     };
@@ -1497,23 +1420,15 @@ fn convention_main(harness: &mut Harness, selected: Option<run::Conventions>) ->
         },
         ..charter()
     };
-    let emitted = harness.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
-        reply_to: ReplyTo::new(Token::new(77)),
-        host_run: Token::new(77),
-        identity: None,
-        activation: 1,
-        charter,
+    let emitted = harness.step(Event::Start(crate::Start {
         workspace: mounted,
-        transcript: None,
         grants: Box::new([crate::Grant {
             renewable: true,
             name: crate::GrantName { account: 0, generation: 1 },
             valid: Duration::from_secs(3600),
         }]),
-    });
+        ..crate::fixture::start(Token::new(77), charter)
+    }));
     let [Request::Admitted { run, .. }, Request::Read { owner, at, max, deadline }] = emitted.as_ref() else {
         panic!("admitted discovery: {emitted:?}");
     };
@@ -1693,19 +1608,11 @@ fn invalid_conventions_are_refused_at_original_root_start_before_any_effect() {
             } else {
                 run::Conventions { guide: bytes(b"docs/GUIDE"), checks: bytes(path) }
             };
-            let emitted = harness.step(Event::Start {
-                messages: Box::default(),
-                window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-                answered: Box::default(),
+            let emitted = harness.step(Event::Start(crate::Start {
                 workspace: Some(workspace()),
-                reply_to: ReplyTo::new(Token::new(77)),
-                host_run: Token::new(77),
-                identity: None,
-                activation: 1,
-                charter: Charter { conventions: Some(conventions), ..charter() },
-                transcript: None,
                 grants: account_grants(),
-            });
+                ..crate::fixture::start(Token::new(77), Charter { conventions: Some(conventions), ..charter() })
+            }));
             let [Request::Answer { answer, .. }] = emitted.as_ref() else {
                 panic!("invalid selection has only its original Start terminal: {emitted:?}");
             };
@@ -1780,14 +1687,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
         } else {
             None
         };
-        let emitted = harness.step(Event::Start {
-            messages: Box::default(),
-            window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-            answered: Box::default(),
-            reply_to: ReplyTo::new(Token::new(7)),
-            host_run: Token::new(7),
-            identity: None,
-            activation: 1,
+        let emitted = harness.step(Event::Start(crate::Start {
             workspace: Some(Workspace {
                 directories: Box::new([
                     Directory {
@@ -1808,14 +1708,13 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
                     },
                 ]),
             }),
-            charter: Charter { conventions: selected, ..charter() },
-            transcript: None,
             grants: Box::new([crate::Grant {
                 renewable: true,
                 name: crate::GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(3600),
             }]),
-        });
+            ..crate::fixture::start(Token::new(7), Charter { conventions: selected, ..charter() })
+        }));
         let [Request::Admitted { run, .. }, Request::Read { .. }] = emitted.as_ref() else {
             panic!("valid maximum paths admit before opening size is known: {emitted:?}");
         };
@@ -1879,19 +1778,11 @@ fn scalar_charter() -> Charter {
 
 fn scalar_prepared(charter: Charter) -> (Harness, Box<[Request]>) {
     let mut harness = Harness::with(&scalar_limits());
-    let emitted = harness.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
+    let emitted = harness.step(Event::Start(crate::Start {
         workspace: Some(workspace()),
         grants: account_grants(),
-        reply_to: ReplyTo::new(Token::new(1)),
-        host_run: Token::new(1),
-        identity: None,
-        activation: 1,
-        charter,
-        transcript: None,
-    });
+        ..crate::fixture::start(Token::new(1), charter)
+    }));
     let [Request::Admitted { run, .. }, Request::Read { .. }] = emitted.as_ref() else {
         panic!("run admission: {emitted:?}");
     };
@@ -1991,19 +1882,11 @@ fn overflowing_reservation_runs_no_calls_and_tells_no_turn() {
         ..scalar_charter()
     };
     let mut harness = Harness::with(&scalar_limits());
-    let emitted = harness.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
+    let emitted = harness.step(Event::Start(crate::Start {
         workspace: Some(workspace()),
         grants: account_grants(),
-        reply_to: ReplyTo::new(Token::new(1)),
-        host_run: Token::new(1),
-        identity: None,
-        activation: 1,
-        charter: selected,
-        transcript: None,
-    });
+        ..crate::fixture::start(Token::new(1), selected)
+    }));
     let [Request::Answer { answer: run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Budget(reason))), .. }] =
         emitted.as_ref()
     else {
@@ -2036,19 +1919,10 @@ fn each_main_or_child_model_quantity_is_checked_before_admission() {
                 requested.llm = model;
             }
             let mut harness = Harness::new();
-            let emitted = harness.step(Event::Start {
-                messages: Box::default(),
-                reply_to: ReplyTo::new(Token::new(7)),
-                host_run: Token::new(7),
-                identity: None,
-                activation: 1,
-                window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-                charter: requested,
-                workspace: None,
+            let emitted = harness.step(Event::Start(crate::Start {
                 grants: account_grants(),
-                transcript: None,
-                answered: Box::new([]),
-            });
+                ..crate::fixture::start(Token::new(7), requested)
+            }));
             let [Request::Answer { answer, .. }] = emitted.as_ref() else {
                 panic!("one admission refusal: {emitted:?}")
             };
@@ -2072,19 +1946,11 @@ fn the_selected_model_progress_reaches_the_original_root_completion() {
         requested.llm.endpoint = declared.endpoint;
         requested.llm.model = declared.model;
         requested.conventions = None;
-        let emitted = harness.step(Event::Start {
-            messages: Box::default(),
-            reply_to: ReplyTo::new(Token::new(7)),
-            host_run: Token::new(7),
-            identity: None,
-            activation: 1,
-            window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-            charter: requested,
+        let emitted = harness.step(Event::Start(crate::Start {
             workspace: Some(workspace()),
             grants: account_grants(),
-            transcript: None,
-            answered: Box::default(),
-        });
+            ..crate::fixture::start(Token::new(7), requested)
+        }));
         let [Request::Admitted { run, .. }, Request::Read { owner, .. }] = emitted.as_ref() else {
             panic!("original root discovery: {emitted:?}");
         };
@@ -2104,19 +1970,16 @@ fn the_selected_model_progress_reaches_the_original_root_completion() {
 }
 
 fn awaiting_start(transcript: Option<session::record::Transcript>, answered: Box<[crate::AnsweredCall]>) -> Event {
-    Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        reply_to: ReplyTo::new(Token::new(91)),
-        host_run: Token::new(91),
-        identity: None,
+    Event::Start(crate::Start {
         activation: 2,
-        charter: Charter { brief: smith_domain_run::Brief { sections: Box::new([]) }, resume: true, ..charter() },
-        workspace: None,
         transcript,
         answered,
         grants: account_grants(),
-    }
+        ..crate::fixture::start(
+            Token::new(91),
+            Charter { brief: smith_domain_run::Brief { sections: Box::new([]) }, resume: true, ..charter() },
+        )
+    })
 }
 
 #[test]
@@ -2347,19 +2210,10 @@ fn an_unchecked_charter_effort_is_refused_before_any_run_work() {
     }
     let mut requested = charter();
     requested.llm.effort = Some(b"high".as_slice().into());
-    let emitted = harness.step(Event::Start {
-        messages: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(7)),
-        host_run: Token::new(7),
-        identity: None,
-        activation: 1,
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        charter: requested,
-        workspace: None,
+    let emitted = harness.step(Event::Start(crate::Start {
         grants: account_grants(),
-        transcript: None,
-        answered: Box::new([]),
-    });
+        ..crate::fixture::start(Token::new(7), requested)
+    }));
     let [Request::Answer { answer, .. }] = emitted.as_ref() else { panic!("one refusal") };
     assert_eq!(answer, &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Effort)));
     assert!(harness.turns.is_empty());

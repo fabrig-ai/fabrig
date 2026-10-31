@@ -36,7 +36,7 @@ pub(crate) const fn session_env(env: &Env<Limits>) -> Env<session::Limits> {
 /// Hands one of the protocol's events to the child domain it is for.
 pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     let event = match event {
-        Event::Start {
+        Event::Start(crate::Start {
             reply_to,
             host_run,
             activation,
@@ -48,7 +48,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             grants,
             transcript,
             answered,
-        } => {
+        }) => {
             if let Err(invalid) = models_declared(domain, &charter) {
                 domain.notices.push(Request::Answer {
                     read: None,

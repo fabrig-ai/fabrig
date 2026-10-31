@@ -1320,7 +1320,7 @@ fn to_below(event: agent::Event) -> inline::Below {
         agent::Event::Probed { owner, executable } => inline::Below::Probed { owner, executable },
         agent::Event::Checked { owner, ran } => inline::Below::Checked { owner, ran },
         agent::Event::Aborted { owner } => inline::Below::Aborted { owner },
-        agent::Event::Start { .. }
+        agent::Event::Start(_)
         | agent::Event::Message { .. }
         | agent::Event::Cancel { .. }
         | agent::Event::Acknowledge { .. }

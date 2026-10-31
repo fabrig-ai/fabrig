@@ -443,7 +443,7 @@ pub(super) fn domain_up(service: &mut Stages, frame: &mut Frame) {
 fn observe_messages(service: &mut Stages, event: &domain::Event) {
     let Some(events) = &mut service.events else { return };
     match event {
-        domain::Event::Start { messages, .. } => {
+        domain::Event::Start(domain::Start { messages, .. }) => {
             for message in messages {
                 events.message(message.name, &message.label, &message.text);
             }

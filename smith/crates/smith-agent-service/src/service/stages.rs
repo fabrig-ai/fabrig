@@ -295,7 +295,7 @@ impl Stages {
                 .expect("grant count was checked at Start");
         }
         self.run_started = self.domain_env.now;
-        self.domain_events.push(domain::Event::Start {
+        self.domain_events.push(domain::Event::Start(domain::Start {
             messages: start.messages,
             reply_to: ReplyTo::new(START_REPLY),
             host_run: START_REPLY,
@@ -307,7 +307,7 @@ impl Stages {
             transcript: start.transcript,
             answered: start.answered,
             grants: grants.into_boxed(),
-        });
+        }));
     }
 
     pub(super) fn completions(&mut self) -> &mut Queue<kernel::Complete> {

@@ -51,7 +51,7 @@ mod translate;
 mod translation_tests;
 mod waking;
 
-pub use boundary::{Answered, AnsweredCall, Event, Grant, GrantName, Operation, Request, Window};
+pub use boundary::{Answered, AnsweredCall, Event, Grant, GrantName, Operation, Request, Start, Window};
 pub use config::{Config, ConfiguredModel, Program};
 pub use domain::{Domain, fire, resume, step};
 pub use facts::{Content, Fact, Opening};
