@@ -58,13 +58,11 @@ impl Book {
                         llm::Decoded::Invalid { .. } => false,
                     };
                     if selected {
-                        let identity = u64::try_from(id.len())
-                            .expect("bounded provider call identity")
-                            .checked_add(u64::try_from(name.len()).expect("bounded tool name"))
+                        let identity = skein_lib::len_u64(id.len())
+                            .checked_add(skein_lib::len_u64(name.len()))
                             .expect("bounded provider identity sum");
-                        let payload = identity
-                            .checked_add(u64::try_from(input.len()).expect("bounded arguments"))
-                            .expect("bounded provider input sum");
+                        let payload =
+                            identity.checked_add(skein_lib::len_u64(input.len())).expect("bounded provider input sum");
                         bytes = bytes.checked_add(payload).expect("bounded completion payload sum");
                         assert!(
                             bytes <= self.bytes,
@@ -89,7 +87,7 @@ impl Book {
             if input.call == metadata.id && input.tool == metadata.name {
                 let text = input.text.take().expect("a provider call starts once in its batch");
                 assert_eq!(
-                    u64::try_from(text.len()).expect("bounded input length"),
+                    skein_lib::len_u64(text.len()),
                     metadata.input_bytes,
                     "the start keeps its provider arguments"
                 );

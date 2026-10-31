@@ -227,7 +227,7 @@ impl Peer {
                 drain_measures(&mut self.component, &self.env, &mut self.measures, &mut self.above, &mut self.below);
                 match request {
                     IoRequest::Connect { owner, .. } => {
-                        let socket = Token::new(100 + u64::try_from(self.bindings.len()).expect("few bindings"));
+                        let socket = Token::new(100 + skein_lib::len_u64(self.bindings.len()));
                         self.bindings
                             .insert(socket, Binding { owner, read: None, response: Intake::with_capacity(16_384) });
                         self.component.from_below(
@@ -260,7 +260,7 @@ impl Peer {
                             Down::Send(bytes) => {
                                 self.request_bytes = self
                                     .request_bytes
-                                    .checked_add(u64::try_from(bytes.len()).expect("native bounded send length"))
+                                    .checked_add(skein_lib::len_u64(bytes.len()))
                                     .expect("bounded fixture sends");
                             }
                             Down::Finish => {}

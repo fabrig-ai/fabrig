@@ -260,12 +260,10 @@ fn a_resumed_run_is_told_of_each_answer_its_transcript_lacks() {
     let prompt = &next.prompts()[0];
     assert!(next.host_submissions().is_empty(), "saved host calls are not decided again");
     assert!(prompt.messages.iter().any(|message| message.parts.iter().any(|part| {
-        matches!(part, Part::Text { text } if text.windows(b"opaque host answer: first decision".len())
-            .any(|window| window == b"opaque host answer: first decision"))
+        matches!(part, Part::Text { text } if skein_lib::bytes::find(text, b"opaque host answer: first decision").is_some())
     })));
     assert!(prompt.messages.iter().any(|message| message.parts.iter().any(|part| {
-        matches!(part, Part::Text { text } if text.windows(b"tool=deliver error: nothing".len())
-            .any(|window| window == b"tool=deliver error: nothing"))
+        matches!(part, Part::Text { text } if skein_lib::bytes::find(text, b"tool=deliver error: nothing").is_some())
     })));
 }
 
@@ -283,12 +281,10 @@ fn a_resumed_run_is_told_its_saved_answer_was_too_large() {
     world.run(2000);
     let prompt = &world.prompts()[0];
     assert!(prompt.messages.iter().any(|message| message.parts.iter().any(|part| {
-        matches!(part, Part::Text { text } if text.windows(b"host decided this call".len())
-            .any(|window| window == b"host decided this call"))
+        matches!(part, Part::Text { text } if skein_lib::bytes::find(text, b"host decided this call").is_some())
     })));
     assert!(prompt.messages.iter().any(|message| message.parts.iter().any(|part| {
-        matches!(part, Part::Text { text } if text.windows(b"answer was too large to give".len())
-            .any(|window| window == b"answer was too large to give"))
+        matches!(part, Part::Text { text } if skein_lib::bytes::find(text, b"answer was too large to give").is_some())
     })));
 }
 

@@ -103,12 +103,11 @@ impl Delivered {
     /// The sealed cap makes this count infallible; callers price every retained copy.
     #[must_use]
     pub fn owned_bytes(&self) -> u64 {
-        let mut bytes = u64::try_from(self.receipts.len())
-            .expect("sealed count")
+        let mut bytes = skein_lib::len_u64(self.receipts.len())
             .checked_mul(u64::try_from(size_of::<Receipt>()).expect("inline receipt fits"))
             .expect("sealed storage");
         for receipt in &self.receipts {
-            bytes = bytes.checked_add(u64::try_from(receipt.text.len()).expect("sealed bytes")).expect("sealed sum");
+            bytes = bytes.checked_add(skein_lib::len_u64(receipt.text.len())).expect("sealed sum");
         }
         bytes
     }

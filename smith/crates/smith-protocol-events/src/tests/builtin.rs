@@ -65,7 +65,7 @@ fn a_builtin_call_is_a_workspace_tool_event() {
             source: session::ToolSource::Workspace,
             effect: tools::Effect::Read,
             deadline: Time::from_nanos(103_000_000),
-            input_bytes: u64::try_from(input.len()).unwrap(),
+            input_bytes: skein_lib::len_u64(input.len()),
         };
         book.fact(
             Time::ZERO,
@@ -97,7 +97,7 @@ fn a_builtin_call_is_a_workspace_tool_event() {
         assert_eq!((started.run, started.conversation, started.source.clone()), (77, 0, Source::Workspace));
         assert_eq!(started.call.as_ref(), b"read");
         assert_eq!(started.tool.as_ref(), b"Read");
-        assert_eq!(started.input_bytes, u64::try_from(input.len()).unwrap());
+        assert_eq!(started.input_bytes, skein_lib::len_u64(input.len()));
         assert_eq!(started.input.as_deref(), if capture == Capture::None { None } else { Some(input.as_slice()) });
         let Event::ToolCompleted(completed) = &completed.event else {
             panic!("tool terminal");

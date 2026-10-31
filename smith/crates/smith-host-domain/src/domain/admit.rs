@@ -107,7 +107,7 @@ fn safe_name(name: &[u8]) -> bool {
 }
 
 pub(super) fn within(bytes: &[u8], limit: u64) -> bool {
-    u64::try_from(bytes.len()).expect("length fits u64") <= limit
+    skein_lib::len_u64(bytes.len()) <= limit
 }
 
 fn answered_bytes(calls: &[AnsweredCall], name_bytes: u32) -> Option<u64> {

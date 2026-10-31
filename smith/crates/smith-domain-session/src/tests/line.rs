@@ -80,7 +80,7 @@ fn result_caps(messages: &[Message]) -> Vec<u64> {
                     }
                 );
                 assert_eq!(*cut, tools::Cut::Line);
-                Some(u64::try_from(content.len()).unwrap())
+                Some(skein_lib::len_u64(content.len()))
             }
             Block::Opaque { .. }
             | Block::Refusal { .. }
@@ -162,7 +162,7 @@ fn the_line_holds_exact_minima_and_falls_back_one_byte_short() {
             .flat_map(|message| message.content.iter())
             .filter_map(|block| match block {
                 Block::ToolResult { result: Returned::Owned { outcome: Outcome::Read { content, .. } }, .. } => {
-                    Some(u64::try_from(content.len()).unwrap())
+                    Some(skein_lib::len_u64(content.len()))
                 }
                 Block::Opaque { .. }
                 | Block::Refusal { .. }

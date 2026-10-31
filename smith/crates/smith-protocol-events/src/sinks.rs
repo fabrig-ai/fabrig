@@ -1074,13 +1074,13 @@ fn names(index: usize) -> &'static [u8] {
 fn answer_bytes(answer: &smith_events::RunCompleted) -> u64 {
     let Some(result) = &answer.result else { return 0 };
     let mut bytes = match &result.text {
-        Some(text) => u64::try_from(text.len()).expect("accepted text length fits u64"),
+        Some(text) => skein_lib::len_u64(text.len()),
         None => 0,
     };
     if let Some(fields) = &result.fields {
         for field in fields {
             bytes = bytes
-                .checked_add(u64::try_from(field.text.len()).expect("accepted field length fits u64"))
+                .checked_add(skein_lib::len_u64(field.text.len()))
                 .expect("run admitted aggregate outcome ownership");
         }
     }

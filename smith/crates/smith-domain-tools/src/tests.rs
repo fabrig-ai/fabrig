@@ -1903,7 +1903,7 @@ fn read_terminal_facts_preserve_window_omission_and_applied_clamps() {
                 session: Token::new(5),
                 tool: Tool::Read,
                 verdict: Verdict::Read,
-                bytes: u64::try_from(content.len()).unwrap(),
+                bytes: skein_lib::len_u64(content.len()),
                 omitted_bytes,
                 clamped,
             }],

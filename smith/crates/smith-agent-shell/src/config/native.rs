@@ -148,7 +148,7 @@ fn trust_sources(sources: &[skein_shell::Trust], errors: &mut dyn Write) -> Resu
         })?;
         for certificate in roots.certificates {
             bytes = bytes
-                .checked_add(u64::try_from(certificate.len()).expect("bounded certificate"))
+                .checked_add(skein_lib::len_u64(certificate.len()))
                 .ok_or("trust roots exceed their byte bound")?;
             if bytes > TRUST_BYTES
                 || certificates.len() >= usize::try_from(CERTIFICATES).expect("certificate bound fits usize")

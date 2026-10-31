@@ -96,7 +96,7 @@ impl Observing {
     /// Preserve the stream's passive evidence and name its missing fields.
     #[must_use]
     pub fn health(&self, exit: crate::Exit, forced: crate::Forced) -> Option<crate::Health> {
-        let teardown = self.prepared.teardown.as_nanos() / 1_000_000;
+        let teardown = self.prepared.teardown.as_millis();
         let mut health = self.events().health(exit, forced, teardown);
         if self.agent.is_some() {
             let host = self.observer.health(exit, forced, teardown);

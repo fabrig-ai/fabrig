@@ -91,7 +91,7 @@ fn read_source(path: &Path) -> Result<Vec<u8>, String> {
     let file = File::open(path).map_err(|_| "cannot read Codex auth.json")?;
     let mut bytes = Vec::new();
     file.take(MAX_AUTH_BYTES + 1).read_to_end(&mut bytes).map_err(|_| "cannot read Codex auth.json")?;
-    if u64::try_from(bytes.len()).expect("bounded credential fits u64") > MAX_AUTH_BYTES {
+    if skein_lib::len_u64(bytes.len()) > MAX_AUTH_BYTES {
         return Err("Codex auth.json exceeds the credential bound".into());
     }
     Ok(bytes)

@@ -39,10 +39,7 @@ fn terminal(world: &World) -> &RunCompleted {
     assert_eq!(world.trace_loss(), 0, "trace room is independent of channel room");
     assert!(matches!(world.records().first().expect("header").event, Event::SessionStarted(_)));
     let Event::SessionEnded(end) = &world.records().last().expect("end").event else { panic!("end is last") };
-    assert_eq!(
-        end.emitted.iter().map(|count| count.count).sum::<u64>(),
-        u64::try_from(world.records().len()).expect("finite records")
-    );
+    assert_eq!(end.emitted.iter().map(|count| count.count).sum::<u64>(), skein_lib::len_u64(world.records().len()));
     terminals[0]
 }
 
@@ -211,11 +208,7 @@ fn initial_task_receipt_carries_the_seen_channel_label_and_text() {
     assert_eq!(message.name, 901);
     assert_eq!(message.label.as_deref(), Some(b"task".as_slice()));
     assert_eq!(message.text.as_deref(), Some(b"Read the guide. Keep \"quotes\" and a newline.\nALPHA".as_slice()));
-    assert_eq!(
-        message.bytes,
-        u64::try_from(b"task: Read the guide. Keep \"quotes\" and a newline.\nALPHA".len())
-            .expect("finite observed message bytes")
-    );
+    assert_eq!(message.bytes, skein_lib::len_u64(b"task: Read the guide. Keep \"quotes\" and a newline.\nALPHA".len()));
     assert!(message.refused.is_none());
     assert_eq!(terminal(&world).status, Status::Accepted);
     world.assert_agent_clean();

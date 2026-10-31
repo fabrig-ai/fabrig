@@ -286,9 +286,9 @@ pub fn read_configuration(file: &Path) -> Result<PinnedConfiguration, Refusal> {
     let bytes =
         std::fs::read(&configuration).map_err(|error| Refusal::new(file, "configuration", error.to_string()))?;
     let mut digest = Sha256::new();
-    digest.update(u64::try_from(metadata.len()).expect("pin fits u64").to_be_bytes());
+    digest.update(skein_lib::len_u64(metadata.len()).to_be_bytes());
     digest.update(metadata);
-    digest.update(u64::try_from(bytes.len()).expect("configuration fits u64").to_be_bytes());
+    digest.update(skein_lib::len_u64(bytes.len()).to_be_bytes());
     digest.update(bytes);
     Ok(PinnedConfiguration { pin, sha256: format!("{:x}", digest.finalize()) })
 }

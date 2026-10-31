@@ -2,7 +2,8 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, Ordering};
+
+use skein_scratch::Scratch;
 
 use skein_codec::patch::{self, Capacity, Halt, PatchWrong, Patcher, Site, Step};
 use skein_codec::schema::{self, FieldIx, Held, Schema, Shape, Type};
@@ -54,7 +55,6 @@ const FROZEN_TEXT_PATH: &str = "schema/kept/fixture-turn-v1.schema";
 const FROZEN_GOLDEN_PATH: &str = "patches/golden/0001/fixture-turn/record_turn_smallest.bin";
 // Current schema, two kept texts, one patch and its two goldens.
 const OWNER_DATA_FILES: usize = 6;
-static NEXT_DIRECTORY: AtomicU32 = AtomicU32::new(0);
 
 fn kept_turn(said: &[u8], replay: &[u8]) -> Box<[u8]> {
     let mut record = VERSION_ONE.to_be_bytes().to_vec();
@@ -121,13 +121,11 @@ fn waiting_holder(turn: &[u8]) -> (Patcher, skein_codec::value::Node, schema::Sp
 }
 
 /// A fixture owner made only from allowed data; all mutations die with it.
-struct FixtureOwner(PathBuf);
+struct FixtureOwner(Scratch);
 
 impl FixtureOwner {
     fn new() -> Self {
-        let serial = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
-        let owner = Self(std::env::temp_dir().join(format!("smith-qa-patches-{}-{serial}", std::process::id())));
-        fs::create_dir(&owner.0).expect("make a fresh temporary fixture owner");
+        let owner = Self(Scratch::new("smith-codec-patches"));
         let files: [(&str, &[u8]); OWNER_DATA_FILES] = [
             ("schema/fixture-turn-v2.schema", KEPT_V2.as_bytes()),
             (FROZEN_TEXT_PATH, KEPT_V1.as_bytes()),
@@ -137,7 +135,7 @@ impl FixtureOwner {
             ("patches/golden/0001/fixture-turn/record_turn_full.bin", FULL),
         ];
         for (relative, bytes) in files {
-            let destination = owner.0.join(relative);
+            let destination = owner.path().join(relative);
             fs::create_dir_all(destination.parent().expect("fixture data has a parent")).expect("fixture directories");
             fs::write(destination, bytes).expect("copy only the fixture owner's data");
         }
@@ -145,13 +143,7 @@ impl FixtureOwner {
     }
 
     fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Drop for FixtureOwner {
-    fn drop(&mut self) {
-        fs::remove_dir_all(&self.0).expect("remove the temporary fixture owner");
+        self.0.path()
     }
 }
 

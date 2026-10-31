@@ -149,8 +149,8 @@ fn listed_entry(path: &[u8], kind: tools::Kind) -> tools::Entry {
 
 fn selected_native_output(suffix: &str) -> Vec<u8> {
     use std::fs;
-    let root = std::env::temp_dir().join(format!("smith-list-tree-{suffix}-{}", std::process::id()));
-    fs::create_dir(&root).expect("unique scratch");
+    let scratch = skein_scratch::Scratch::new(&format!("smith-list-tree-{suffix}"));
+    let root = scratch.path();
     for directory in ["src/deep", "ignored", "empty", ".git", "unmatched"] {
         fs::create_dir_all(root.join(directory)).expect("fixture directory");
     }
@@ -160,8 +160,7 @@ fn selected_native_output(suffix: &str) -> Vec<u8> {
     {
         fs::write(root.join(file), b"").expect("empty selected file fixture");
     }
-    let output = native_output(&root);
-    fs::remove_dir_all(&root).expect("scratch reclaimed");
+    let output = native_output(root);
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.stdout.as_slice(), b"./src/deep/only.rs\0./src/empty.rs\0");
     output.stdout

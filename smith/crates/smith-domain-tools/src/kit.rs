@@ -287,7 +287,7 @@ fn directories(working: &Working, limits: &Limits) -> Outcome {
     let mut bytes = 0_u64;
     for name in &names {
         let cell = u64::try_from(size_of::<Entry>()).expect("entry cell fits");
-        let cost = cell.checked_add(u64::try_from(name.len()).expect("admitted name fits")).expect("bounded entry");
+        let cost = cell.checked_add(skein_lib::len_u64(name.len())).expect("bounded entry");
         let Some(next) = bytes.checked_add(cost) else { break };
         if entries.len() >= limits.list_entries || next > limits.list_bytes {
             break;

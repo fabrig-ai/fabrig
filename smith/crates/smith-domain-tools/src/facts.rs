@@ -269,7 +269,7 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
 }
 
 fn len(bytes: &[u8]) -> u64 {
-    u64::try_from(bytes.len()).expect("bounded tool bytes fit u64")
+    skein_lib::len_u64(bytes.len())
 }
 
 /// Step observations not yet drained by the parent.

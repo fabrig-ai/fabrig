@@ -195,20 +195,20 @@ fn completion_cell() -> u64 {
 /// Price every original provider field, replay and decoded owning value, plus
 /// All translated cells. This boundary check precedes the step call.
 pub(super) fn completion_owned(completion: &Completion) -> (u64, u64) {
-    let mut owned = completion_cell() * u64::try_from(completion.content.len()).expect("bounded cells");
+    let mut owned = completion_cell() * skein_lib::len_u64(completion.content.len());
     let mut decoded = 0;
     for block in &completion.content {
         let payload = match block {
-            Said::Opaque { bytes } => u64::try_from(bytes.len()).expect("bounded opaque bytes"),
+            Said::Opaque { bytes } => skein_lib::len_u64(bytes.len()),
             Said::Text { text, replay } | Said::Refusal { text, replay } => {
-                u64::try_from(text.len()).expect("bounded text")
-                    + replay.as_ref().map_or(0, |replay| u64::try_from(replay.bytes.len()).expect("bounded replay"))
+                skein_lib::len_u64(text.len())
+                    + replay.as_ref().map_or(0, |replay| skein_lib::len_u64(replay.bytes.len()))
             }
             Said::ToolCall { id, name, input, call, replay } => {
                 let call_bytes = call.owned_bytes().expect("bounded decoded ownership");
                 decoded += call_bytes;
                 u64::try_from(id.len() + name.len() + input.len()).expect("bounded provider fields")
-                    + replay.as_ref().map_or(0, |replay| u64::try_from(replay.bytes.len()).expect("bounded replay"))
+                    + replay.as_ref().map_or(0, |replay| skein_lib::len_u64(replay.bytes.len()))
                     + call_bytes
             }
         };

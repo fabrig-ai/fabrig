@@ -58,8 +58,7 @@ impl Streams {
                 return Err(Rule::Offset);
             }
         }
-        let Some(end) = piece.offset().checked_add(u64::try_from(piece.bytes().len()).expect("piece length fits u64"))
-        else {
+        let Some(end) = piece.offset().checked_add(skein_lib::len_u64(piece.bytes().len())) else {
             return Err(Rule::Offset);
         };
         *held = Some((piece.retry(), end));

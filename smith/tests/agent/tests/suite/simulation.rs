@@ -101,12 +101,12 @@ fn a_report_answers_the_host_without_checks_or_pushes() {
 fn a_report_only_run_with_a_writable_directory_is_told_of_its_checks() {
     let world = settled(&Settings { job: Job::Reporting, writable: true, ..Settings::calm(1010) });
     assert!(matches!(world.answer(), Answer::Accepted { outcome: Declared::Report(_), .. }));
-    assert!(world.prompts().iter().any(|query| {
-        query
-            .system
-            .windows(b"with checks (`.temper/pre-pr`)".len())
-            .any(|part| part == b"with checks (`.temper/pre-pr`)")
-    }));
+    assert!(
+        world
+            .prompts()
+            .iter()
+            .any(|query| { skein_lib::bytes::find(&query.system, b"with checks (`.temper/pre-pr`)").is_some() })
+    );
     assert!(world.checked().is_empty() && world.pushes().is_empty());
 }
 
@@ -131,7 +131,7 @@ fn a_child_asking_for_sub_agents_is_refused() {
     let fixer = world
         .prompts()
         .iter()
-        .filter(|query| query.system.windows(b"@fix".len()).any(|part| part == b"@fix"))
+        .filter(|query| skein_lib::bytes::find(&query.system, b"@fix").is_some())
         .collect::<Vec<_>>();
     assert!(!fixer.is_empty());
     assert!(fixer.iter().all(|query| !query.tools.iter().any(|tool| tool.name.as_ref() == b"sub_agent")));
@@ -146,7 +146,7 @@ fn a_child_asking_for_sub_agents_is_refused() {
     assert!(
         fixer.iter().flat_map(|query| &query.messages).flat_map(|message| &message.parts).any(|part| {
             matches!(part, skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: true, .. }
-            if output.windows(b"Nesting".len()).any(|bytes| bytes == b"Nesting"))
+            if skein_lib::bytes::find(output, b"Nesting").is_some())
         }),
         "the independent fixture decoder returns the typed nesting problem"
     );
@@ -193,7 +193,7 @@ fn refused_push_feedback_reaches_the_llm_and_is_retried() {
     let feedback =
         world.prompts().iter().flat_map(|prompt| &prompt.messages).flat_map(|message| &message.parts).any(|part| {
             matches!(part, skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: true, .. }
-            if output.windows(b"remote: push refused".len()).any(|part| part == b"remote: push refused"))
+            if skein_lib::bytes::find(output, b"remote: push refused").is_some())
         });
     assert!(feedback, "the host's exact bounded diagnostic returned to the provider");
     assert!(world.landed().is_empty());
@@ -305,10 +305,7 @@ fn a_silent_run_drains_every_native_fact_without_changing_the_answer() {
         assert_eq!(silent.trace(), kept.trace());
         assert_eq!(silent.landed(), kept.landed());
         assert!(silent.facts().is_empty());
-        assert_eq!(
-            silent.agent_facts_not_written(),
-            u64::try_from(kept.facts().len()).expect("bounded observed fact history")
-        );
+        assert_eq!(silent.agent_facts_not_written(), skein_lib::len_u64(kept.facts().len()));
     }
 }
 

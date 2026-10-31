@@ -52,7 +52,7 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         let value = crate::common::edit::tool_started(&mut start);
         let input =
             serde_json::to_vec(&serde_json::json!({"command": COMMAND, "timeout_seconds": 1})).expect("fixture");
-        value.input_bytes = u64::try_from(input.len()).expect("bounded");
+        value.input_bytes = skein_lib::len_u64(input.len());
         value.input = Some(input.into_boxed_slice());
         value.deadline_ms = Some(1000);
     }

@@ -105,12 +105,12 @@ pub(super) fn charter(context_bytes: u64) -> Charter {
     let payload = context_bytes
         - u64::try_from(std::mem::size_of::<run::Section>() * count).expect("bounded owning Section array fits u64");
     let instructions = bytes(payload / 4);
-    let mut remainder = payload - u64::try_from(instructions.len()).expect("bounded instructions payload fits u64");
+    let mut remainder = payload - skein_lib::len_u64(instructions.len());
     let mut sections = Vec::with_capacity(count);
     for section in 0..count {
         let remaining = u64::try_from(count - section).expect("bounded Section suffix count fits u64");
         let title = bytes(remainder / remaining / 3);
-        let text = bytes(remainder / remaining - u64::try_from(title.len()).expect("bounded title payload fits u64"));
+        let text = bytes(remainder / remaining - skein_lib::len_u64(title.len()));
         remainder -= u64::try_from(title.len() + text.len()).expect("bounded Section payloads fit u64");
         sections.push(run::Section { title, text });
     }

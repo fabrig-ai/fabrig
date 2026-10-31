@@ -49,7 +49,7 @@ impl StatusLine {
             count(self.usage.cache_read_tokens),
             count(self.usage.output_tokens),
             self.spent,
-            self.elapsed.as_nanos() / 1_000_000,
+            self.elapsed.as_millis(),
             remaining
         )
         .into_bytes()

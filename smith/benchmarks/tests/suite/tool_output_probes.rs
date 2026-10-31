@@ -104,7 +104,7 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
         let value = crate::common::edit::tool_started(&mut start);
         let input = br#"{"command":"sleep 600","timeout_seconds":9999}"#;
         value.input = Some(Box::from(input.as_slice()));
-        value.input_bytes = u64::try_from(input.len()).expect("small input");
+        value.input_bytes = skein_lib::len_u64(input.len());
         value.deadline_ms = Some(1000);
     }
     {

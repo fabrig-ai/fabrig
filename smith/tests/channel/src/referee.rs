@@ -136,7 +136,7 @@ impl Expectations for Meeting {
                 judge.check(spent >= self.spent, "turn spend never falls");
                 if !self.credential.is_empty() {
                     judge.check(
-                        !body.windows(self.credential.len()).any(|window| window == self.credential.as_ref()),
+                        skein_lib::bytes::find(&body, self.credential.as_ref()).is_none(),
                         "credential value stays out of turn bytes",
                     );
                 }

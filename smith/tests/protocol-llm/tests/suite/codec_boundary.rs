@@ -262,9 +262,9 @@ fn child_completed(configuration: &Configuration, arguments: &[u8]) -> (Context,
     assert_eq!(tool.name.as_ref(), b"sub_agent");
     assert_eq!(tool.parameters, schema, "the provider sees the complete production schema");
     for name in [b"max_turns".as_slice(), b"max_seconds"] {
-        assert!(tool.parameters.windows(name.len()).any(|part| part == name));
+        assert!(skein_lib::bytes::find(&tool.parameters, name).is_some());
     }
-    assert!(!tool.parameters.windows(b"maximum".len()).any(|part| part == b"maximum"));
+    assert!(skein_lib::bytes::find(&tool.parameters, b"maximum").is_none());
     let client::Event::Completed { owner: _, completion } = take_terminal(&mut peer) else {
         panic!("one observed provider completion");
     };

@@ -424,10 +424,11 @@ fn discovered(world: &World) {
         world.trace().iter().position(|line| line.contains("agent -> Complete {")).expect("observed root Complete");
     assert!(read < returned && returned < complete);
     assert!(
-        world.prompts()[0]
-            .system
-            .windows(b"The answer is in src/lib.rs; the checks want it to be 43.\n".len())
-            .any(|bytes| bytes == b"The answer is in src/lib.rs; the checks want it to be 43.\n")
+        skein_lib::bytes::find(
+            &world.prompts()[0].system,
+            b"The answer is in src/lib.rs; the checks want it to be 43.\n"
+        )
+        .is_some()
     );
 }
 
@@ -727,9 +728,9 @@ fn a_cut_call_is_replaced_and_the_next_request_replays() {
     let (context, mut next) = adopt(&configuration, Token::new(72), history, source);
     drop(completed(context, &mut next, Token::new(72)));
     let body = native_body(&next);
-    assert!(body.windows(b"\"arguments\":\"{}\"".len()).any(|part| part == b"\"arguments\":\"{}\""));
-    assert!(body.windows(b"input cut off after 7 bytes".len()).any(|part| part == b"input cut off after 7 bytes"));
-    assert!(!body.windows(b"{broken".len()).any(|part| part == b"{broken"));
+    assert!(skein_lib::bytes::find(&body, b"\"arguments\":\"{}\"").is_some());
+    assert!(skein_lib::bytes::find(&body, b"input cut off after 7 bytes").is_some());
+    assert!(skein_lib::bytes::find(&body, b"{broken").is_none());
     close(&mut next);
 }
 
@@ -753,10 +754,7 @@ fn a_reasoning_item_past_its_bound_fails_unless_the_model_drops_it() {
             else {
                 panic!("completed");
             };
-            assert_eq!(
-                completion.reasoning_dropped.as_ref(),
-                &[u64::try_from(b"exact-opaque".len()).expect("fixture size")]
-            );
+            assert_eq!(completion.reasoning_dropped.as_ref(), &[skein_lib::len_u64(b"exact-opaque".len())]);
             assert_eq!(completion.content.len(), 2);
             assert!(completion.content.iter().all(|block| !matches!(block, llm::Said::Opaque { .. })));
             close(&mut peer);

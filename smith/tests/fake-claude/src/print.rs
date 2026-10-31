@@ -864,7 +864,7 @@ impl Print {
         // The group is one API message, regardless of its number of calls.
         self.texts = self
             .texts
-            .checked_sub(u64::try_from(blocks.len()).expect("group size"))
+            .checked_sub(skein_lib::len_u64(blocks.len()))
             .and_then(|count| count.checked_add(1))
             .expect("message count");
         let mut assistant = stream::assistant(

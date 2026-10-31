@@ -187,7 +187,7 @@ fn check_transport(records: &[Record], program: bool) {
                 match header.capture {
                     smith_events::Capture::Calls | smith_events::Capture::Everything => {
                         let input = call.input.as_ref().expect("the call carries its provider arguments");
-                        assert_eq!(u64::try_from(input.len()).expect("bounded input length"), call.input_bytes);
+                        assert_eq!(skein_lib::len_u64(input.len()), call.input_bytes);
                         if header.capture == smith_events::Capture::Everything {
                             let arguments = records
                                 .iter()

@@ -440,13 +440,11 @@ fn receiving_limits(pressure: u64, content: &[Block], result_credit: u64) -> Lim
 
 fn initial_bytes() -> u64 {
     let spec = spec();
-    let model = u64::try_from(spec.model.len()).expect("fixture model fits");
-    let system = u64::try_from(spec.system.len()).expect("fixture system fits");
-    let prompt = u64::try_from(spec.prompt.len()).expect("fixture prompt fits");
+    let model = skein_lib::len_u64(spec.model.len());
+    let system = skein_lib::len_u64(spec.system.len());
+    let prompt = skein_lib::len_u64(spec.prompt.len());
     let descriptor = u64::try_from(size_of::<Descriptor>()).expect("descriptor fits");
-    let descriptors = descriptor
-        .checked_mul(u64::try_from(spec.delegated.len()).expect("descriptor count fits"))
-        .expect("descriptors fit");
+    let descriptors = descriptor.checked_mul(skein_lib::len_u64(spec.delegated.len())).expect("descriptors fit");
     let block = u64::try_from(size_of::<Block>()).expect("block fits");
     let names = model.checked_add(system).expect("fixture names fit");
     let payload = names
@@ -454,9 +452,9 @@ fn initial_bytes() -> u64 {
             prompt
                 .checked_mul(2)
                 .expect("task copied")
-                .checked_add(u64::try_from(spec.summary.len()).expect("summary fits"))
+                .checked_add(skein_lib::len_u64(spec.summary.len()))
                 .expect("summary fits")
-                .checked_add(u64::try_from(spec.preamble.len()).expect("preamble fits"))
+                .checked_add(skein_lib::len_u64(spec.preamble.len()))
                 .expect("retained instructions fit"),
         )
         .expect("fixture opening payload fits");

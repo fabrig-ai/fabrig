@@ -265,7 +265,7 @@ fn failed(why: &host::RunFailure) -> AnswerFailure {
                 result.account = Some(*account);
                 result.state = Some(smith_events::AccountState::Limited);
                 result.reset_ms = match reset {
-                    Some(reset) => reset.as_nanos().checked_div(1_000_000),
+                    Some(reset) => Some(reset.as_millis()),
                     None => None,
                 };
                 result
@@ -355,12 +355,12 @@ fn completion(why: host::CompletionFailure, evidence: host::CompletionEvidence) 
         host::CompletionFailure::Unsupported | host::CompletionFailure::Invalid => (FailureClass::Invalid, None),
         host::CompletionFailure::Unauthorized => (FailureClass::Unauthorized, None),
         host::CompletionFailure::RateLimited { retry_after } => {
-            (FailureClass::RateLimited, Some(retry_after.as_nanos() / 1_000_000))
+            (FailureClass::RateLimited, Some(retry_after.as_millis()))
         }
         host::CompletionFailure::Exhausted { retry_after } => (
             FailureClass::Exhausted,
             match retry_after {
-                Some(reset) => reset.as_nanos().checked_div(1_000_000),
+                Some(reset) => Some(reset.as_millis()),
                 None => None,
             },
         ),

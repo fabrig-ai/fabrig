@@ -56,15 +56,15 @@ fn every_contract_form_yields_a_bounded_json_schema() {
         let document = skein_llm::Json::from_bytes(&schema, &limits().client.native().request_document())
             .expect("scripted peer accepts a complete JSON object schema");
         assert_eq!(document.document().token(0).map(|record| record.kind), Some(skein_json::Kind::ObjectStart));
-        assert!(schema.windows(b"\"maxLength\"".len()).any(|part| part == b"\"maxLength\""));
+        assert!(skein_lib::bytes::find(&schema, b"\"maxLength\"").is_some());
     }
     let all_schema = codec::finish_schema(&all, limits().client.request).expect("four forms");
     for literal in [b"approve".as_slice(), b"observation", b"maxItems", b"minItems", b"source"] {
-        assert!(all_schema.windows(literal.len()).any(|part| part == literal));
+        assert!(skein_lib::bytes::find(&all_schema, literal).is_some());
     }
     let delivery =
         codec::deliver_schema(all.change.as_ref().expect("separate grant"), 4096).expect("mid-run change fields");
-    assert!(delivery.windows(b"ticket".len()).any(|part| part == b"ticket"));
+    assert!(skein_lib::bytes::find(&delivery, b"ticket").is_some());
 }
 
 #[test]
@@ -175,8 +175,8 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
                 .expect("scripted peer accepts the whole schema document");
             assert_eq!(schema.document().token(0).map(|record| record.kind), Some(skein_json::Kind::ObjectStart));
         }
-        assert!(query.tools[0].parameters.windows(b"observation".len()).any(|part| part == b"observation"));
-        assert!(query.tools[1].parameters.windows(b"ticket".len()).any(|part| part == b"ticket"));
+        assert!(skein_lib::bytes::find(&query.tools[0].parameters, b"observation").is_some());
+        assert!(skein_lib::bytes::find(&query.tools[1].parameters, b"ticket").is_some());
     }
 }
 
@@ -227,8 +227,10 @@ fn root_finish_uses_the_admitted_contract_and_corrects_the_fixture_grammar() {
         assert_eq!(report.text.as_ref(), b"production grammar");
         assert_eq!(report.fields[0].name.as_ref(), b"evidence");
         assert_eq!(world.completions().len(), 2);
-        assert!(world.prompts()[0].tools.iter().any(|tool| tool.name.as_ref() == b"finish"
-            && tool.parameters.windows(b"evidence".len()).any(|part| part == b"evidence")));
+        assert!(
+            world.prompts()[0].tools.iter().any(|tool| tool.name.as_ref() == b"finish"
+                && skein_lib::bytes::find(&tool.parameters, b"evidence").is_some())
+        );
         assert!(world.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(|block| matches!(block, smith_domain::session::llm::Block::ToolResult { result: smith_domain::session::llm::Returned::Invalid { problem: llm::Problem::Missing { field } }, .. } if field.as_ref() == b"form")));
     }
 }

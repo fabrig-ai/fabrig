@@ -410,7 +410,7 @@ fn tool_budget_and_command_exit_metadata_survive_every_capture_policy() {
             let encoded = round_trips_within_bound(&record, &capture);
             assert_eq!(read(&encoded, &limits()).expect("valid metadata"), Some(record.clone()), "{name}");
             assert!(
-                u64::try_from(encoded.len()).expect("size")
+                skein_lib::len_u64(encoded.len())
                     <= u64::from(smith_events::largest_size(&record.event, &capture, &limits()).expect("bound"))
             );
         }

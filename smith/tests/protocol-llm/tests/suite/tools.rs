@@ -196,7 +196,7 @@ fn optional_child_turns_and_seconds_decode_without_a_schema_maximum() {
         .collect();
     assert!(keys.contains(&b"max_turns".as_slice()) && keys.contains(&b"max_seconds".as_slice()));
     assert!(!keys.contains(&b"maximum".as_slice()));
-    assert!(schema.description.windows(b"finishing reserve".len()).any(|part| part == b"finishing reserve"));
+    assert!(skein_lib::bytes::find(&schema.description, b"finishing reserve").is_some());
 }
 
 #[test]

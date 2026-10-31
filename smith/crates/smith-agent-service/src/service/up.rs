@@ -339,11 +339,7 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
                 None => true,
             };
             if let Some(events) = &mut service.events {
-                events.starting(
-                    start.activation,
-                    u64::try_from(start.messages.len()).expect("bounded messages"),
-                    &start.charter,
-                );
+                events.starting(start.activation, skein_lib::len_u64(start.messages.len()), &start.charter);
             }
             service.pending_start = Some(start);
             if empty {

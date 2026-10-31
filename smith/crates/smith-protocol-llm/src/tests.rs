@@ -624,17 +624,11 @@ fn drawn_contract_schema_costs_equal_every_rendered_byte() {
         };
         assert_eq!(
             costs.finish(&outcome),
-            Some(
-                u64::try_from(crate::finish_schema(&outcome, u32::MAX).expect("rendered finish").len())
-                    .expect("length")
-            )
+            Some(skein_lib::len_u64(crate::finish_schema(&outcome, u32::MAX).expect("rendered finish").len()))
         );
         assert_eq!(
             costs.deliver(&change),
-            Some(
-                u64::try_from(crate::deliver_schema(&change, u32::MAX).expect("rendered deliver").len())
-                    .expect("length")
-            )
+            Some(skein_lib::len_u64(crate::deliver_schema(&change, u32::MAX).expect("rendered deliver").len()))
         );
     }
 }

@@ -181,9 +181,7 @@ impl Backend {
         for call in &self.ledger {
             let bytes = if call.builtin {
                 match &call.answer {
-                    Some(mcp::Answer::Text(text) | mcp::Answer::Error(text)) => {
-                        u64::try_from(text.len()).expect("bounded result")
-                    }
+                    Some(mcp::Answer::Text(text) | mcp::Answer::Error(text)) => skein_lib::len_u64(text.len()),
                     None => 0,
                 }
             } else {

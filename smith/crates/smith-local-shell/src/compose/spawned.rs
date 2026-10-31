@@ -42,7 +42,7 @@ fn generated(
         .expect("generated policy")
         .as_object_mut()
         .expect("policy object")
-        .insert("exit_grace".into(), serde_json::json!(exit_grace.as_nanos() / 1_000_000));
+        .insert("exit_grace".into(), serde_json::json!(exit_grace.as_millis()));
     if let Some(trace) = trace {
         let mut path = trace.path.as_os_str().to_os_string();
         path.push(".agent");

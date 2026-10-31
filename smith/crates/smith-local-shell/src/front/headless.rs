@@ -128,7 +128,7 @@ impl Headless {
                         "accepted in {} turns, {} notional, {} ms\n",
                         answer.turns,
                         answer.spent,
-                        elapsed.as_nanos() / 1_000_000
+                        elapsed.as_millis()
                     )
                     .into_bytes()
                     .into(),

@@ -143,7 +143,7 @@ fn evaluate(
     let Some(content) = content else {
         return measured(false);
     };
-    if edits == 0 || u64::try_from(content.len()).expect("bounded replay") <= above {
+    if edits == 0 || skein_lib::len_u64(content.len()) <= above {
         return measured(false);
     }
     match crate::grade::file(workspace, path).and_then(|file| std::fs::read(file).map_err(|error| error.to_string())) {
@@ -249,7 +249,7 @@ fn protocol_refusals(
                     if let Block::Oversized { call, tool, bytes } = block { Some((call, tool, bytes)) } else { None }
                 })
                 .collect();
-            if u64::try_from(blocks.len()).expect("bounded blocks") != response.oversized {
+            if skein_lib::len_u64(blocks.len()) != response.oversized {
                 return Err(Measure::Observed { value: false });
             }
             for (call, tool, bytes) in blocks {
@@ -318,7 +318,7 @@ fn native_refusals(
             let Some(content) = input.get("content").and_then(serde_json::Value::as_str) else {
                 return Err(Measure::unavailable("oversized write content is unavailable"));
             };
-            let bytes = u64::try_from(content.len()).expect("captured input fits");
+            let bytes = skein_lib::len_u64(content.len());
             if bytes <= above {
                 return Err(Measure::Observed { value: false });
             }
@@ -398,7 +398,7 @@ fn apply(
         let Some(first) = input.get("content").and_then(serde_json::Value::as_str) else {
             return Err(Measure::unavailable("first piece content is absent"));
         };
-        if u64::try_from(first.len()).expect("bounded first piece") > maximum {
+        if skein_lib::len_u64(first.len()) > maximum {
             return Err(Measure::Observed { value: false });
         }
         *content = Some(first.to_owned());

@@ -419,9 +419,9 @@ pub(crate) fn left(standing: &crate::facts::Standing) -> Budget {
         turns: standing.turns_limit.saturating_sub(standing.turns).saturating_sub(standing.reserve.turns),
         spend: standing.spend_limit.saturating_sub(standing.spend).saturating_sub(standing.reserve_spend),
         time: Duration::from_millis(
-            (standing.time_limit.as_nanos() / 1_000_000)
-                .saturating_sub(standing.time.as_nanos() / 1_000_000)
-                .saturating_sub(standing.reserve.time.as_nanos() / 1_000_000),
+            (standing.time_limit.as_millis())
+                .saturating_sub(standing.time.as_millis())
+                .saturating_sub(standing.reserve.time.as_millis()),
         ),
     }
 }
