@@ -3,8 +3,8 @@
 use std::net::{Ipv4Addr, TcpListener, TcpStream};
 use std::os::fd::IntoRawFd;
 
-use skein_io::{self as io, Addr, Event, Request, kernel::Fd};
-use skein_lib::{Duration, Env, Token};
+use skein_io::{self as io, Addr, Event, Request, kernel::Fd, stage};
+use skein_lib::{Duration, Env, Queue, Token};
 use skein_shell::{Backend, Clock, Config, Kernel, Wait};
 use skein_world::Expired;
 
@@ -51,6 +51,7 @@ fn queued_before_claim(backend: Backend) {
     let clock = Clock::new();
     let deadline = deadlines::Patience::new("the adopted listener settling", Duration::from_secs(2));
     let (mut submissions, mut completions, mut events) = deadlines::records(16);
+    let mut requests = Queue::uncapped();
     let now = clock.now();
     io::down(
         &mut state,
@@ -66,13 +67,8 @@ fn queued_before_claim(backend: Backend) {
         state.reclaim();
         let now = clock.now();
         let env = Env { now: now.now, wall: now.wall, limits };
-        while state.is_ready() {
-            io::resume(&mut state, &env, &mut events, &mut submissions);
-        }
         kernel.reap(&mut completions);
-        while let Some(complete) = completions.pop() {
-            io::up(&mut state, &env, complete, &mut events, &mut submissions);
-        }
+        stage::up(&mut state, &env, &mut completions, &mut events, &mut submissions, now.now);
         while let Some(event) = events.pop() {
             match event {
                 Event::Listening { owner, listener, addr } => {
@@ -84,8 +80,8 @@ fn queued_before_claim(backend: Backend) {
                     assert!(listening && !accepted);
                     assert_eq!((owner, address), (Token::new(100), Addr::Ip(peer)));
                     accepted = true;
-                    io::down(&mut state, &env, Request::Reject { socket }, &mut submissions);
-                    io::down(&mut state, &env, Request::Close { entity: token }, &mut submissions);
+                    requests.push(Request::Reject { socket });
+                    requests.push(Request::Close { entity: token });
                 }
                 Event::Closed { owner } => {
                     assert!(!closed);
@@ -105,6 +101,7 @@ fn queued_before_claim(backend: Backend) {
                 | Event::Failed { .. }) => panic!("unexpected listener event: {other:?}"),
             }
         }
+        stage::down(&mut state, &env, &mut requests, &mut submissions);
         state.reclaim();
         if state.is_empty() {
             assert!(listening && accepted && closed);
@@ -131,7 +128,12 @@ fn queued_before_claim(backend: Backend) {
             }
         }
         let until = now.now.saturating_add(Duration::from_millis(5)).min(deadline.until());
-        kernel.submit(&mut submissions, Wait::Until(until));
+        let wait = if state.is_ready() || !completions.is_empty() || !requests.is_empty() {
+            Wait::No
+        } else {
+            Wait::Until(until)
+        };
+        kernel.submit(&mut submissions, wait);
     }
 }
 
@@ -170,9 +172,7 @@ fn cleanup_cancels_an_adopted_listeners_pending_accept() {
             Request::Listen { owner: Token::new(100), addr: Addr::Ip(address) },
             &mut submissions,
         );
-        while state.is_ready() {
-            io::resume(&mut state, &env, &mut events, &mut submissions);
-        }
+        stage::up(&mut state, &env, &mut completions, &mut events, &mut submissions, now.now);
         kernel.submit(&mut submissions, Wait::No);
         deadlines::end_io(&mut kernel, &mut state, limits, &mut submissions, &mut completions, &mut events, &[token]);
         assert!(state.is_empty(), "cleanup closes the listener");

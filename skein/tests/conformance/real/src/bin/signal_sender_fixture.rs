@@ -15,8 +15,8 @@ mod deadlines;
 )]
 fn main() {
     use skein_io::kernel::{Pipe, ServiceSignal, Spawn, Way};
-    use skein_io::{self as io, Event, Request};
-    use skein_lib::{Duration, Env, Token};
+    use skein_io::{self as io, Event, Request, stage};
+    use skein_lib::{Duration, Env, Queue, Token};
     use skein_shell::{Backend, Clock, Config, Kernel, Wait};
     use std::os::unix::ffi::OsStrExt;
 
@@ -124,6 +124,7 @@ fn main() {
         None => clock.now().now.saturating_add(Duration::from_secs(3)),
     };
     let (mut submissions, mut completions, mut events) = deadlines::records(RECORDS);
+    let mut requests = Queue::uncapped();
     let now = clock.now();
     let env = Env { now: now.now, wall: now.wall, limits };
     let executable = std::env::current_exe().expect("sender fixture path");
@@ -164,16 +165,13 @@ fn main() {
     loop {
         let now = clock.now();
         let env = Env { now: now.now, wall: now.wall, limits };
-        while state.is_ready() {
-            io::resume(&mut state, &env, &mut events, &mut submissions);
-        }
         kernel.reap(&mut completions);
-        while let Some(complete) = completions.pop() {
+        for complete in &completions {
             if let Some(patience) = &mut patience {
-                patience.watch_spawn(&complete);
+                patience.watch_spawn(complete);
             }
-            io::up(&mut state, &env, complete, &mut events, &mut submissions);
         }
+        stage::up(&mut state, &env, &mut completions, &mut events, &mut submissions, now.now);
         while let Some(event) = events.pop() {
             match event {
                 Event::Spawned { child: token, pipes, .. } => {
@@ -189,19 +187,9 @@ fn main() {
                     assert!(child.is_some(), "the sender's spawn has completed");
                     assert!(!heard, "one signal");
                     heard = true;
-                    io::down(
-                        &mut state,
-                        &env,
-                        Request::Close { entity: child.expect("spawned child") },
-                        &mut submissions,
-                    );
-                    io::down(
-                        &mut state,
-                        &env,
-                        Request::Close { entity: input.expect("the child input pipe") },
-                        &mut submissions,
-                    );
-                    io::down(&mut state, &env, Request::Close { entity: source }, &mut submissions);
+                    requests.push(Request::Close { entity: child.expect("spawned child") });
+                    requests.push(Request::Close { entity: input.expect("the child input pipe") });
+                    requests.push(Request::Close { entity: source });
                 }
                 Event::Exited { .. } | Event::Closed { .. } | Event::Stream { .. } => {}
                 other @ (Event::Listening { .. }
@@ -215,6 +203,7 @@ fn main() {
                 | Event::Failed { .. }) => panic!("unexpected signal service event {other:?}"),
             }
         }
+        stage::down(&mut state, &env, &mut requests, &mut submissions);
         state.reclaim();
         if state.is_empty() {
             assert!(heard, "the service heard its signal");
@@ -249,7 +238,11 @@ fn main() {
             }
             panic!("signal sender service must settle: child {child:?}, heard {heard}");
         }
-        let wait = if state.is_ready() || !events.is_empty() { Wait::No } else { Wait::Until(deadline) };
+        let wait = if state.is_ready() || !events.is_empty() || !completions.is_empty() || !requests.is_empty() {
+            Wait::No
+        } else {
+            Wait::Until(deadline)
+        };
         kernel.submit(&mut submissions, wait);
     }
 }
