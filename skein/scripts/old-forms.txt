@@ -4,7 +4,7 @@ max_out 0
 JournalRoom 0
 takes 0
 worst_case 0
-io_resume 39
+io_resume 34
 earliest_helper 3
 enum_lifecycle 3
 growth_floor 5
