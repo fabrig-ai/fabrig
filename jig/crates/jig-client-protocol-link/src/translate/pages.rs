@@ -1,10 +1,9 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::classify;
 use super::documents::{
-    budget_fields, chip_fields, cursor_fields, ending_fields, field_rule_fields, hold_fields, inbox_entry_piece,
-    object_key_fields, offered_piece, owner_authority_document_fields, owner_authority_fields,
-    owner_chip_ending_fields, owner_task_link_fields, part_piece, passed_piece, proposed_task_piece, recurring_piece,
-    result_fields, specification_document_fields, task_contract_document_fields, task_fields,
+    chip_fields, cursor_fields, ending_fields, object_key_fields, offered_piece, owner_authority_document_fields,
+    owner_authority_fields, owner_chip_ending_fields, owner_task_link_fields, proposed_task_piece, result_fields,
+    specification_document_fields, task_contract_document_fields, task_fields,
 };
 use super::{Undecodable, piece_problem, too_large};
 use crate::Limits;
@@ -41,11 +40,6 @@ fn receiving_part0(checked: &mut Limits, limits: &Limits) {
     checked.wire.activity_page_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.amendment_dependencies_some = limits.client.rows;
     checked.wire.amendment_instructions_some = limits.client.text;
-    checked.wire.authority_grants = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.authority_task_kinds = limits.client.authority;
-    checked.wire.authority_tools = limits.client.rows;
-    checked.wire.authority_note_scopes =
-        u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.call_identity_id = limits.client.text;
     checked.wire.chip_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.closing_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
@@ -53,13 +47,10 @@ fn receiving_part0(checked: &mut Limits, limits: &Limits) {
     checked.wire.document_specification_inputs = limits.client.rows;
     checked.wire.document_text_bytes = limits.client.text;
     checked.wire.ending_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.escalation_trail = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.escalation_acts = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.held_runtime_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.history_page_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.hold_spend = limits.client.rows;
     checked.wire.hold_reason_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.inbox_page_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.note_page_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.object_page_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.owner_activity_words_words = limits.client.text;
@@ -108,28 +99,7 @@ fn receiving_part1(checked: &mut Limits, limits: &Limits) {
     checked.wire.part_resource_path = limits.client.segments;
     checked.wire.part_resource_path_item = limits.client.text;
     checked.wire.party_name = limits.client.text;
-    checked.wire.person_contract_approval_state = limits.client.text;
     checked.wire.person_contract_choice_options =
-        u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.person_task_inputs = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.person_task_acts = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.policy_roles = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.policy_requirements = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.policy_deciders = limits.client.rows;
-    checked.wire.project_spend_lines = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.project_name = limits.client.text;
-    checked.wire.project_roles = limits.client.rows;
-    checked.wire.project_pools = limits.client.rows;
-    checked.wire.project_resources = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.project_services = limits.client.rows;
-    checked.wire.project_recurring = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.project_parts = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.project_acts = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.proposal_why = limits.client.text;
-    checked.wire.proposal_trail = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.proposal_acts = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.proposal_action_amend_before = limits.client.text;
-    checked.wire.proposal_action_batch_tasks =
         u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.question_acts = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.recipient_roles_roles = limits.client.rows;
@@ -146,12 +116,9 @@ fn receiving_part2(checked: &mut Limits, limits: &Limits) {
     checked.wire.run_work_tool_tool = limits.client.text;
     checked.wire.runtime_backing_off_reason = limits.client.text;
     checked.wire.runtime_running_tool_some = limits.client.text;
-    checked.wire.runtime_waiting_dependencies = limits.client.rows;
     checked.wire.specification_words = limits.client.text;
     checked.wire.specification_parameters = limits.client.rows;
     checked.wire.specification_inputs = limits.client.rows;
-    checked.wire.spend_page_rows = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.steering_dependencies = limits.client.rows;
     checked.wire.subscriptions_entries = limits.client.rows;
     checked.wire.taken_by_name_some = limits.client.text;
     checked.wire.task_lineage_chips = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
@@ -215,38 +182,6 @@ pub fn history_page(record: w::HistoryPage, limits: &Limits) -> Result<c::Histor
     }
 }
 
-pub fn inbox_page(record: w::InboxPage, limits: &Limits) -> Result<c::InboxPage, Undecodable> {
-    if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
-        return Err(Undecodable::TooLarge);
-    }
-    let checked = receiving(limits)?;
-    let limits = &checked;
-    let record = match w::InboxPage::new(&limits.wire, record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
-    match inbox_page_fields(&record, limits) {
-        Ok(value) => Ok(value),
-        Err(problem) => Err(classify(problem)),
-    }
-}
-
-pub fn spend_page(record: w::SpendPage, limits: &Limits) -> Result<c::SpendPage, Undecodable> {
-    if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
-        return Err(Undecodable::TooLarge);
-    }
-    let checked = receiving(limits)?;
-    let limits = &checked;
-    let record = match w::SpendPage::new(&limits.wire, record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
-    match spend_page_fields(&record, limits) {
-        Ok(value) => Ok(value),
-        Err(problem) => Err(classify(problem)),
-    }
-}
-
 pub fn note_page(record: w::NotePage, limits: &Limits) -> Result<c::NotePage, Undecodable> {
     if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
         return Err(Undecodable::TooLarge);
@@ -258,22 +193,6 @@ pub fn note_page(record: w::NotePage, limits: &Limits) -> Result<c::NotePage, Un
         Err(problem) => return Err(classify(problem)),
     };
     match note_page_fields(&record, limits) {
-        Ok(value) => Ok(value),
-        Err(problem) => Err(classify(problem)),
-    }
-}
-
-pub fn object_page(record: w::ObjectPage, limits: &Limits) -> Result<c::ObjectPage, Undecodable> {
-    if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
-        return Err(Undecodable::TooLarge);
-    }
-    let checked = receiving(limits)?;
-    let limits = &checked;
-    let record = match w::ObjectPage::new(&limits.wire, record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
-    match object_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
@@ -341,13 +260,6 @@ pub fn activity_page(record: w::ActivityPage, limits: &Limits) -> Result<c::Acti
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
-}
-
-pub(crate) fn turn_fields(value: &[u8], limits: &Limits) -> c::TurnRead {
-    let bytes = u32::try_from(limits.client.document_bytes)
-        .expect("validated document bytes")
-        .min(limits.wire.activity_turn_turn);
-    super::turn::decode(value, limits, bytes)
 }
 
 /// An archived turn its page carries, within the archive's bound (`turn::archive`).

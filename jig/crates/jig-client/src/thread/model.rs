@@ -3,8 +3,8 @@ use super::{Thread, Words, later, live_turn};
 use crate::{
     Key,
     contract::{
-        Activity, ActivityLine, ActivityPage, Answer, ArchivedTurn, Outcome, OwnerOutcome, Party, PartyKind,
-        ProvisionalTurnName, Read, RunState, RunText, Task, Text, Turn, TurnName, TurnProblem, TurnRead,
+        ActivityLine, ActivityPage, Answer, ArchivedTurn, Outcome, OwnerOutcome, Party, PartyKind, ProvisionalTurnName,
+        Read, RunState, RunText, Task, Text, Turn, TurnName, TurnProblem, TurnRead,
     },
 };
 use alloc::boxed::Box;
@@ -156,15 +156,7 @@ impl Thread {
         };
         let message = match answer {
             Answer::Done(Outcome::Owner(value)) => number(value, self.task, place),
-            Answer::Done(
-                Outcome::Made { .. }
-                | Outcome::Proposed { .. }
-                | Outcome::Decided { .. }
-                | Outcome::DecidedFirst { .. }
-                | Outcome::Changed
-                | Outcome::SettingsChanged(_)
-                | Outcome::MovedToNewest(_),
-            )
+            Answer::Done(Outcome::Made { .. } | Outcome::SettingsChanged(_) | Outcome::MovedToNewest(_))
             | Answer::Refused { .. } => None,
         };
         match message {
@@ -182,31 +174,19 @@ impl Thread {
         for offset in 0..self.lines.rows.len() {
             let at = self.lines.rows.len().saturating_sub(offset).saturating_sub(1);
             let row = self.lines.rows.get(at).expect("reverse row exists");
-            let line = match &row.event {
-                Activity::Words { by, message, words } => Line::Words {
-                    by: Some(by),
-                    words: words.bytes(),
-                    state: self.words.state(*message),
-                    at: Some(row.at),
+            let line = match &row.decoded {
+                Some(ArchivedTurn { name, turn, .. }) => match turn {
+                    TurnRead::Decoded(turn) => Line::Turn { name: *name, turn, at: row.source.at },
+                    TurnRead::Undecodable { why } => Line::Undecoded { name: *name, why: *why, at: row.source.at },
                 },
-                Activity::Turn { name, turn }
-                | Activity::Owner { decoded: Some(ArchivedTurn { name, turn, .. }), .. } => match turn {
-                    TurnRead::Decoded(turn) => Line::Turn { name: *name, turn, at: row.at },
-                    TurnRead::Undecodable { why } => Line::Undecoded { name: *name, why: *why, at: row.at },
-                },
-                Activity::RunBegan { attempt, .. } => Line::RunBegan { attempt: *attempt },
-                Activity::RunEnded { attempt, .. } => Line::RunEnded { attempt: *attempt },
-                Activity::Owner { decoded: None, .. }
-                | Activity::Result { .. }
-                | Activity::News { .. }
-                | Activity::Decision { .. } => Line::Activity { line: row },
+                None => Line::Activity { line: row },
             };
             lines.push(line).expect("thread projection fits its three bounded sets");
         }
         for row in &self.words.rows {
             let mut held = false;
             for line in &self.lines.rows {
-                if let Some((message, _)) = line.event.word_message()
+                if let Some((message, _)) = line.word_message()
                     && self.words.state(message) == row.state
                 {
                     held = true;

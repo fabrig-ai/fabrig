@@ -59,8 +59,6 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.run_work_tool_tool = client.text;
     wire.part_resource_path = client.segments;
     wire.part_resource_path_item = client.text;
-    wire.wake_policy_topics = client.rows;
-    wire.wake_policy_subscriptions = u32::try_from(client.document_bytes).ok()?;
     wire.recipient_roles_roles = client.rows;
     wire.taken_by_name_some = client.text;
     wire.party_name = client.text;
@@ -71,9 +69,6 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.owner_part_key_path_value_item = client.text;
     wire.result_field_name = client.text;
     wire.result_field_value = client.text;
-    wire.chip_phase_waiting_fields_dependencies = client.rows;
-    wire.chip_phase_running_fields_tool_some = client.text;
-    wire.chip_phase_backing_off_fields_reason = client.text;
     wire.closing_fields_connectors_some = client.rows;
     wire.ending_failed_fields_reason_some = client.text;
     wire.ending_cancelled_fields_reason_some = client.text;
@@ -149,9 +144,6 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.bounds_amend_grants = u32::try_from(client.document_bytes).ok()?;
     wire.bounds_amend_implications = client.authority;
     wire.result_document_acts = u32::try_from(client.document_bytes).ok()?;
-    wire.activity_words_words = client.text;
-    wire.activity_run_began_why = client.text;
-    wire.activity_news_summary = client.text;
     wire.activity_page_rows = u32::try_from(client.document_bytes).ok()?;
     wire.hold_spend = client.rows;
     wire.history_change_amended_before = client.text;
@@ -166,14 +158,8 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.owner_retained_action_batch_value = u32::try_from(client.document_bytes).ok()?;
     wire.owner_amendment_state_dependencies = client.rows;
     wire.history_page_rows = u32::try_from(client.document_bytes).ok()?;
-    wire.runtime_waiting_dependencies = client.rows;
     wire.runtime_running_tool_some = client.text;
     wire.runtime_backing_off_reason = client.text;
-    wire.inbox_entry_lineage = u32::try_from(client.document_bytes).ok()?;
-    wire.inbox_page_rows = u32::try_from(client.document_bytes).ok()?;
-    wire.spend_period_pools = client.rows;
-    wire.spend_period_tasks = u32::try_from(client.document_bytes).ok()?;
-    wire.spend_page_rows = u32::try_from(client.document_bytes).ok()?;
     wire.note_tasks = client.rows;
     wire.note_acts = u32::try_from(client.document_bytes).ok()?;
     wire.note_page_rows = u32::try_from(client.document_bytes).ok()?;

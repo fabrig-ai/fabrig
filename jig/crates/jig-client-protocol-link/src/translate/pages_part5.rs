@@ -1,9 +1,8 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
-    Box, Limits, List, Reader, Wall, address_change_fields, budget_fields, c, cursor_fields, ending_fields,
-    offered_piece, owner_amendment_state_fields, owner_authority_document_fields, owner_authority_fields,
-    owner_history_holder_fields, owner_period_times_fields, owner_task_link_fields, passed_piece, piece_problem,
-    proposed_task_piece, text, too_large, w,
+    Box, Limits, List, Wall, address_change_fields, c, cursor_fields, owner_amendment_state_fields,
+    owner_authority_document_fields, owner_authority_fields, owner_history_holder_fields, owner_period_times_fields,
+    owner_task_link_fields, proposed_task_piece, text, too_large, w,
 };
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn owner_funding_record_fields(value: &w::OwnerFundingRecord) -> c::OwnerFundingRecord {
@@ -45,97 +44,6 @@ pub(crate) fn owner_spend_page_fields(
         None => None,
     };
     Ok(c::OwnerSpendPage { rows: list0, before: opt1, after: opt2, cut: value.cut() })
-}
-
-pub(crate) fn grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::Grant>, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(bound);
-    let mut sum = 0_u64;
-    for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
-            return Err(too_large());
-        }
-        let row = w::Grant::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = crate::translate::answers::grant(&row);
-        if rows.push(row).is_err() {
-            return Err(too_large());
-        }
-    }
-    Err(too_large())
-}
-
-pub(crate) fn note_scope_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::NoteScope>, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(bound);
-    let mut sum = 0_u64;
-    for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
-            return Err(too_large());
-        }
-        let row = w::NoteScope::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = crate::translate::answers::note_scope(&row);
-        if rows.push(row).is_err() {
-            return Err(too_large());
-        }
-    }
-    Err(too_large())
-}
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn authority_fields(value: &w::Authority, limits: &Limits) -> Result<c::Authority, w::Problem> {
-    if value.task_kinds().len() > limits.client.authority {
-        return Err(too_large());
-    }
-    let mut list0 = List::with_capacity(value.task_kinds().len());
-    for item in value.task_kinds() {
-        list0.push(crate::translate::answers::executor(item)).expect("reserved supplied list");
-    }
-    let opt1 = match value.deadline() {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    if value.tools().len() > limits.client.rows {
-        return Err(too_large());
-    }
-    let mut list2 = List::with_capacity(value.tools().len());
-    for item in value.tools() {
-        list2.push(*item).expect("reserved supplied list");
-    }
-    Ok(c::Authority {
-        models: crate::translate::model_sets::decode(value.models().as_ref())?,
-        budget: value.budget(),
-        grants: grant_piece(value.grants(), limits, limits.client.authority)?,
-        task_kinds: list0,
-        depth: value.depth(),
-        tasks: value.tasks(),
-        deadline: opt1,
-        tools: list2,
-        note_scopes: note_scope_piece(value.note_scopes(), limits, limits.client.authority)?,
-    })
 }
 
 pub(crate) fn parameter_fields(value: &w::Parameter, limits: &Limits) -> Result<c::Parameter, w::Problem> {
@@ -213,49 +121,6 @@ pub(crate) fn amendment_fields(value: &w::Amendment, limits: &Limits) -> Result<
             None => None,
         },
         llm: crate::translate::llm::choice(value.llm().as_ref(), limits)?,
-    })
-}
-
-pub(crate) fn proposal_action_fields(
-    value: &w::ProposalAction,
-    limits: &Limits,
-) -> Result<c::ProposalAction, w::Problem> {
-    Ok(match value {
-        w::ProposalAction::Batch(row) => c::ProposalAction::Batch {
-            tasks: proposed_task_piece(row.tasks(), limits, limits.client.rows)?,
-            own: row.own(),
-        },
-        w::ProposalAction::Effect(row) => c::ProposalAction::Effect { part: crate::translate::facts::part(row.part()) },
-        w::ProposalAction::Widen(row) => c::ProposalAction::Widen {
-            before: authority_fields(row.before(), limits)?,
-            after: authority_fields(row.after(), limits)?,
-        },
-        w::ProposalAction::Amend(row) => c::ProposalAction::Amend {
-            task: row.task(),
-            before: text(row.before(), limits)?,
-            change: amendment_fields(row.change(), limits)?,
-        },
-    })
-}
-
-pub(crate) fn proposal_fields(value: &w::Proposal, limits: &Limits) -> Result<c::Proposal, w::Problem> {
-    let opt0 = match value.ending() {
-        Some(item) => Some(ending_fields(item, limits)?),
-        None => None,
-    };
-    Ok(c::Proposal {
-        key: crate::translate::answers::proposal_key(value.key()),
-        project: value.project(),
-        proposer: crate::translate::answers::proposer(value.proposer()),
-        why: text(value.why(), limits)?,
-        action: proposal_action_fields(value.action(), limits)?,
-        needs: authority_fields(value.needs(), limits)?,
-        funding: budget_fields(value.funding()),
-        waiting: crate::translate::facts::recipient(value.waiting()),
-        trail: passed_piece(value.trail(), limits, limits.client.rows)?,
-        since: Wall::from_nanos(value.since()),
-        acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
-        ending: opt0,
     })
 }
 

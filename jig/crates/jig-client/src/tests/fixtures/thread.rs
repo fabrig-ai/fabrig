@@ -11,9 +11,13 @@ pub fn cursor(bytes: &[u8]) -> Cursor {
 }
 pub fn row(position: u64) -> ActivityLine {
     ActivityLine {
-        position,
-        at: Wall::EPOCH,
-        event: Activity::RunBegan { attempt: 1, how: RunBeginning::Fresh { tail: 3 }, why: text(b"fresh") },
+        source: Box::new(OwnerActivityLine {
+            task: 7,
+            position: position,
+            at: Wall::EPOCH,
+            line: OwnerActivity::RunBegan { attempt: 1, why: OwnerRunWhy::Made, resumed: false },
+        }),
+        decoded: None,
     }
 }
 pub fn page(positions: &[u64], older: Option<&[u8]>, newer: Option<&[u8]>) -> ActivityPage {
@@ -43,7 +47,7 @@ pub fn page(positions: &[u64], older: Option<&[u8]>, newer: Option<&[u8]>) -> Ac
 pub fn positions(c: &Thread) -> Box<[u64]> {
     let mut positions = List::with_capacity(c.lines.rows.capacity());
     for row in &c.lines.rows {
-        positions.push(row.position).unwrap();
+        positions.push(row.source.position).unwrap();
     }
     positions.into_boxed()
 }

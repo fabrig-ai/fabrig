@@ -147,11 +147,36 @@ pub fn piece_items<T>(
 
 pub fn activity_line(turn: Box<[u8]>) -> ActivityLine {
     let limits = limits();
-    let name = TurnName::new(&limits, TurnNameParts { attempt: u64::MAX, number: u32::MAX })
-        .expect("whole committed turn name");
-    let event = ActivityTurn::new(&limits, ActivityTurnParts { name, turn }).expect("opaque turn bytes");
-    ActivityLine::new(&limits, ActivityLineParts { position: u64::MAX, at: u64::MAX, event: Activity::Turn(event) })
-        .expect("whole activity line")
+    let name = TurnName::new(&limits, TurnNameParts { attempt: u64::MAX, number: u32::MAX }).expect("turn name");
+    let source = OwnerActivityLine::new(
+        &limits,
+        OwnerActivityLineParts {
+            task: u64::MAX,
+            position: u64::MAX,
+            at: u64::MAX,
+            line: OwnerActivity::Turn(
+                OwnerActivityTurn::new(
+                    &limits,
+                    OwnerActivityTurnParts { reply: 0, attempt: u64::MAX, turn: u32::MAX, read: None },
+                )
+                .expect("turn source"),
+            ),
+        },
+    )
+    .expect("activity source");
+    let decoded = ArchivedTurn::new(
+        &limits,
+        ArchivedTurnParts {
+            task: u64::MAX,
+            name,
+            cumulative: 0,
+            read: None,
+            at: u64::MAX,
+            turn: TurnBytes::Carried(TurnCarried::new(&limits, TurnCarriedParts { bytes: turn }).expect("turn bytes")),
+        },
+    )
+    .expect("archive");
+    ActivityLine::new(&limits, ActivityLineParts { source, decoded: Some(decoded) }).expect("activity line")
 }
 
 pub fn activity_rows(count: u32, width: u32) -> List<ActivityLine> {
@@ -346,21 +371,6 @@ pub fn owner_wake_policy(limits: &Limits) -> OwnerWakePolicy {
     .expect("bounded owner_wake_policy")
 }
 
-pub fn active_run(limits: &Limits) -> ActiveRun {
-    ActiveRun::new(
-        limits,
-        ActiveRunParts {
-            stage: RunStage::Idle,
-            phase_since: u64::MAX,
-            attempt: None,
-            placement: Some(u64::MAX),
-            retry: None,
-            observation: None,
-        },
-    )
-    .expect("bounded active_run")
-}
-
 pub fn executor_agent(limits: &Limits) -> ExecutorAgent {
     ExecutorAgent::new(limits, ExecutorAgentParts { charter: u32::MAX }).expect("bounded executor_agent")
 }
@@ -368,106 +378,6 @@ pub fn executor_agent(limits: &Limits) -> ExecutorAgent {
 pub fn chip_phase_owner_fields(limits: &Limits) -> ChipPhaseOwnerFields {
     ChipPhaseOwnerFields::new(limits, ChipPhaseOwnerFieldsParts { phase: OwnerChipPhase::Ended, details: 2 })
         .expect("bounded chip_phase_owner_fields")
-}
-
-pub fn chip_phase_active_fields(limits: &Limits) -> ChipPhaseActiveFields {
-    ChipPhaseActiveFields::new(limits, ChipPhaseActiveFieldsParts { value: active_run(limits) })
-        .expect("bounded chip_phase_active_fields")
-}
-
-pub fn chip_phase_waiting_fields(limits: &Limits) -> ChipPhaseWaitingFields {
-    ChipPhaseWaitingFields::new(limits, ChipPhaseWaitingFieldsParts { dependencies: repeated(u64::MAX, 2), hold: None })
-        .expect("bounded chip_phase_waiting_fields")
-}
-
-pub fn chip_phase_idle_fields(limits: &Limits) -> ChipPhaseIdleFields {
-    ChipPhaseIdleFields::new(limits, ChipPhaseIdleFieldsParts { wake: wake_policy(limits) })
-        .expect("bounded chip_phase_idle_fields")
-}
-
-pub fn wake_policy(limits: &Limits) -> WakePolicy {
-    WakePolicy::new(
-        limits,
-        WakePolicyParts { words: true, results: false, topics: repeated(u16::MAX, 2), subscriptions: Box::from([]) },
-    )
-    .expect("bounded wake_policy")
-}
-
-pub fn chip_phase_running_fields(limits: &Limits) -> ChipPhaseRunningFields {
-    ChipPhaseRunningFields::new(
-        limits,
-        ChipPhaseRunningFieldsParts { attempt: u64::MAX, since: u64::MAX, tool: Some(ceiling_text(4)) },
-    )
-    .expect("bounded chip_phase_running_fields")
-}
-
-pub fn chip_phase_waiting_for_words_fields(limits: &Limits) -> ChipPhaseWaitingForWordsFields {
-    ChipPhaseWaitingForWordsFields::new(
-        limits,
-        ChipPhaseWaitingForWordsFieldsParts { attempt: u64::MAX, since: u64::MAX },
-    )
-    .expect("bounded chip_phase_waiting_for_words_fields")
-}
-
-pub fn chip_phase_backing_off_fields(limits: &Limits) -> ChipPhaseBackingOffFields {
-    ChipPhaseBackingOffFields::new(
-        limits,
-        ChipPhaseBackingOffFieldsParts {
-            at: u64::MAX,
-            attempt: u64::MAX,
-            tries: u32::MAX,
-            class: FailureClass::Stall,
-            reason: ceiling_text(4),
-        },
-    )
-    .expect("bounded chip_phase_backing_off_fields")
-}
-
-pub fn chip_phase_procedure_fields(limits: &Limits) -> ChipPhaseProcedureFields {
-    ChipPhaseProcedureFields::new(limits, ChipPhaseProcedureFieldsParts { panel: Part::Panel(part_panel(limits)) })
-        .expect("bounded chip_phase_procedure_fields")
-}
-
-pub fn part_panel(limits: &Limits) -> PartPanel {
-    PartPanel::new(limits, PartPanelParts { connector: u16::MAX, task: u64::MAX }).expect("bounded part_panel")
-}
-
-pub fn chip_phase_person_fields(limits: &Limits) -> ChipPhasePersonFields {
-    ChipPhasePersonFields::new(
-        limits,
-        ChipPhasePersonFieldsParts {
-            addressed: Recipient::Party(recipient_party(limits)),
-            taken: Some(taken_by(limits)),
-            since: None,
-        },
-    )
-    .expect("bounded chip_phase_person_fields")
-}
-
-pub fn recipient_party(limits: &Limits) -> RecipientParty {
-    RecipientParty::new(limits, RecipientPartyParts { value: u64::MAX }).expect("bounded recipient_party")
-}
-
-pub fn taken_by(limits: &Limits) -> TakenBy {
-    TakenBy::new(limits, TakenByParts { number: u64::MAX, name: None }).expect("bounded taken_by")
-}
-
-pub fn chip_phase_closing_fields(limits: &Limits) -> ChipPhaseClosingFields {
-    ChipPhaseClosingFields::new(limits, ChipPhaseClosingFieldsParts { value: 2 })
-        .expect("bounded chip_phase_closing_fields")
-}
-
-pub fn chip_phase_held_fields(limits: &Limits) -> ChipPhaseHeldFields {
-    ChipPhaseHeldFields::new(
-        limits,
-        ChipPhaseHeldFieldsParts { reason: 2, since: u64::MAX, revision: revision(limits), was: None },
-    )
-    .expect("bounded chip_phase_held_fields")
-}
-
-pub fn chip_phase_ended_fields(limits: &Limits) -> ChipPhaseEndedFields {
-    ChipPhaseEndedFields::new(limits, ChipPhaseEndedFieldsParts { how: 2, at: u64::MAX })
-        .expect("bounded chip_phase_ended_fields")
 }
 
 pub fn owner_executor_agent(limits: &Limits) -> OwnerExecutorAgent {
@@ -505,24 +415,6 @@ pub fn owner_chip_details_fields(limits: &Limits) -> OwnerChipDetailsFields {
     .expect("bounded owner_chip_details_fields")
 }
 
-pub fn closing_fields(limits: &Limits) -> ClosingFields {
-    ClosingFields::new(
-        limits,
-        ClosingFieldsParts {
-            delegates: u32::MAX,
-            connectors: Some(repeated(u16::MAX, 2)),
-            stage: Some(ClosingStage::Settled),
-            ending: None,
-        },
-    )
-    .expect("bounded closing_fields")
-}
-
-pub fn hold_reason_budget_fields(limits: &Limits) -> HoldReasonBudgetFields {
-    HoldReasonBudgetFields::new(limits, HoldReasonBudgetFieldsParts { spent: u64::MAX, limit: u64::MAX })
-        .expect("bounded hold_reason_budget_fields")
-}
-
 pub fn frame_at_ceilings(limits: &Limits) -> Me {
     Me::new(
         limits,
@@ -543,104 +435,6 @@ pub fn frame_at_ceilings(limits: &Limits) -> Me {
         },
     )
     .expect("frame at configured ceilings")
-}
-
-pub fn chip_phases(limits: &Limits) -> [ChipPhaseFields; 13] {
-    [
-        ChipPhaseFields::Owner(chip_phase_owner_fields(limits)),
-        ChipPhaseFields::Active(chip_phase_active_fields(limits)),
-        ChipPhaseFields::Waiting(chip_phase_waiting_fields(limits)),
-        ChipPhaseFields::Idle(chip_phase_idle_fields(limits)),
-        ChipPhaseFields::Starting,
-        ChipPhaseFields::Running(chip_phase_running_fields(limits)),
-        ChipPhaseFields::WaitingForWords(chip_phase_waiting_for_words_fields(limits)),
-        ChipPhaseFields::BackingOff(chip_phase_backing_off_fields(limits)),
-        ChipPhaseFields::Procedure(chip_phase_procedure_fields(limits)),
-        ChipPhaseFields::Person(chip_phase_person_fields(limits)),
-        ChipPhaseFields::Closing(chip_phase_closing_fields(limits)),
-        ChipPhaseFields::Held(chip_phase_held_fields(limits)),
-        ChipPhaseFields::Ended(chip_phase_ended_fields(limits)),
-    ]
-}
-
-fn phase_fact(limits: &Limits, phase: &ChipPhaseFields) -> Option<Fact> {
-    match phase {
-        ChipPhaseFields::Owner(_) => Some(Fact::OwnerChipDetails(Box::new(
-            OwnerChipDetailsRow::new(
-                limits,
-                OwnerChipDetailsRowParts { parent: Some(1), value: owner_chip_details_fields(limits) },
-            )
-            .expect("whole owner details"),
-        ))),
-        ChipPhaseFields::Closing(_) => Some(Fact::Closing(
-            ClosingRow::new(limits, ClosingRowParts { parent: Some(1), value: closing_fields(limits) })
-                .expect("whole closing"),
-        )),
-        ChipPhaseFields::Held(_) => Some(Fact::HoldReason(
-            HoldReasonRow::new(
-                limits,
-                HoldReasonRowParts {
-                    parent: Some(1),
-                    value: HoldReasonFields::Budget(hold_reason_budget_fields(limits)),
-                },
-            )
-            .expect("whole hold"),
-        )),
-        ChipPhaseFields::Ended(_) => Some(Fact::Ending(
-            EndingRow::new(limits, EndingRowParts { parent: Some(1), value: EndingFields::Done })
-                .expect("whole ending"),
-        )),
-        ChipPhaseFields::Active(_)
-        | ChipPhaseFields::Waiting(_)
-        | ChipPhaseFields::Idle(_)
-        | ChipPhaseFields::Starting
-        | ChipPhaseFields::Running(_)
-        | ChipPhaseFields::WaitingForWords(_)
-        | ChipPhaseFields::BackingOff(_)
-        | ChipPhaseFields::Procedure(_)
-        | ChipPhaseFields::Person(_) => None,
-    }
-}
-
-fn compact_phase(phase: &ChipPhaseFields) -> Phase {
-    match phase {
-        ChipPhaseFields::Owner(_) => Phase::Ended,
-        ChipPhaseFields::Active(_) | ChipPhaseFields::Procedure(_) | ChipPhaseFields::Person(_) => Phase::Active,
-        ChipPhaseFields::Waiting(_) => Phase::Waiting,
-        ChipPhaseFields::Idle(_) => Phase::Idle,
-        ChipPhaseFields::Starting => Phase::Due,
-        ChipPhaseFields::Running(_) | ChipPhaseFields::WaitingForWords(_) => Phase::Running,
-        ChipPhaseFields::BackingOff(_) => Phase::BackingOff,
-        ChipPhaseFields::Closing(_) => Phase::Closing,
-        ChipPhaseFields::Held(_) => Phase::Held,
-        ChipPhaseFields::Ended(_) => Phase::Done,
-    }
-}
-
-pub fn chip_facts(limits: &Limits, phase: ChipPhaseFields) -> List<Fact> {
-    let mut rows = List::with_capacity(3);
-    let fields = ChipFields::new(
-        limits,
-        ChipFieldsParts {
-            task: u64::MAX,
-            title: document_text(limits),
-            executor: Executor::Agent(executor_agent(limits)),
-            phase: compact_phase(&phase),
-            details: 1,
-        },
-    )
-    .expect("whole chip header");
-    rows.push(Fact::Chip(ChipRow::new(limits, ChipRowParts { parent: None, value: fields }).expect("chip root")))
-        .expect("reserved root");
-    let extra = phase_fact(limits, &phase);
-    rows.push(Fact::ChipPhase(
-        ChipPhaseRow::new(limits, ChipPhaseRowParts { parent: Some(0), value: phase }).expect("child phase"),
-    ))
-    .expect("reserved phase");
-    if let Some(extra) = extra {
-        rows.push(extra).expect("reserved details");
-    }
-    rows
 }
 
 pub fn chip(limits: &Limits, rows: &List<Fact>) -> Chip {
@@ -674,4 +468,44 @@ mod compound;
 pub use compound::{COMPOUND_PROJECT, compound_operations};
 
 // The previous 111-byte minimum plus an empty name: four length bytes and its cut flag.
-pub const OWNER_PROJECT_MIN_BYTES: u32 = 116;
+
+pub fn chip_phases(limits: &Limits) -> [ChipPhaseOwnerFields; 1] {
+    [chip_phase_owner_fields(limits)]
+}
+pub fn chip_facts(limits: &Limits, phase: ChipPhaseOwnerFields) -> List<Fact> {
+    let mut rows = List::with_capacity(3);
+    rows.push(Fact::Chip(
+        ChipRow::new(
+            limits,
+            ChipRowParts {
+                parent: None,
+                value: ChipFields::new(
+                    limits,
+                    ChipFieldsParts {
+                        task: u64::MAX,
+                        title: document_text(limits),
+                        executor: Executor::Agent(executor_agent(limits)),
+                        phase: Phase::Ended,
+                        details: 1,
+                    },
+                )
+                .expect("chip fields"),
+            },
+        )
+        .expect("chip row"),
+    ))
+    .expect("root row");
+    rows.push(Fact::ChipPhase(
+        ChipPhaseRow::new(limits, ChipPhaseRowParts { parent: Some(0), value: phase }).expect("phase row"),
+    ))
+    .expect("phase");
+    rows.push(Fact::OwnerChipDetails(Box::new(
+        OwnerChipDetailsRow::new(
+            limits,
+            OwnerChipDetailsRowParts { parent: Some(1), value: owner_chip_details_fields(limits) },
+        )
+        .expect("owner row"),
+    )))
+    .expect("details");
+    rows
+}

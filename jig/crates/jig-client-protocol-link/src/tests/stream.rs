@@ -265,7 +265,7 @@ fn a_delivery_over_the_original_document_bound_is_refused() {
 fn a_delivery_with_mutated_original_limits_is_refused() {
     let mut limits = fixtures::limits();
     limits.wire.run_text_text = 1;
-    let bytes = fixtures::encoded_delivery(&w::DeliveryValue::Run(fixtures::run_text_record()));
+    let bytes = fixtures::encoded_delivery(&w::DeliveryValue::Me(fixtures::frame_record()));
     assert_eq!(translate::watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge));
 }
 #[test]

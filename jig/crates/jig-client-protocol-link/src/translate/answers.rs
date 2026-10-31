@@ -171,15 +171,6 @@ pub(crate) fn made(value: &w::Made) -> c::Made {
     }
 }
 
-pub(crate) fn actor(value: &w::Actor) -> c::Actor {
-    match value {
-        w::Actor::Party(row) => c::Actor::Party(row.value()),
-        w::Actor::Task(row) => c::Actor::Task(row.value()),
-        w::Actor::Deployment => c::Actor::Deployment,
-        w::Actor::ProjectDeployment(row) => c::Actor::ProjectDeployment { project: row.project() },
-    }
-}
-
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decision, w::Problem> {
     Ok(match value {
@@ -214,32 +205,10 @@ pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
     }
 }
 
-pub(crate) fn party(value: &w::Party, limits: &Limits) -> Result<c::Party, w::Problem> {
-    Ok(c::Party {
-        number: value.number(),
-        kind: party_kind(value.kind()),
-        name: match c::Text::new(bytes::copy_of(value.name()), limits.client.text) {
-            Ok(value) => value,
-            Err(_) => return Err(text_problem()),
-        },
-    })
-}
-
 pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
     Ok(match value {
         w::Outcome::Owner(row) => c::Outcome::Owner(owner_outcome(row.value(), limits)?),
         w::Outcome::Made(row) => c::Outcome::Made { what: made(row.what()) },
-        w::Outcome::Proposed(row) => c::Outcome::Proposed { proposal: proposal_key(row.proposal()) },
-        w::Outcome::Decided(row) => c::Outcome::Decided {
-            by: actor(row.by()),
-            how: decision(row.how(), limits)?,
-            at: Wall::from_nanos(row.at()),
-        },
-        w::Outcome::DecidedFirst(row) => c::Outcome::DecidedFirst {
-            by: party(row.by(), limits)?,
-            how: decision(row.how(), limits)?,
-            at: Wall::from_nanos(row.at()),
-        },
         w::Outcome::MovedToNewest(value) => c::Outcome::MovedToNewest(c::OutcomeMovedToNewest {
             newest: value.newest(),
             moved: value.moved(),
@@ -248,7 +217,6 @@ pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome,
         w::Outcome::SettingsChanged(value) => {
             c::Outcome::SettingsChanged(super::settings::restore_outcome_settings_changed(value)?)
         }
-        w::Outcome::Changed => c::Outcome::Changed,
     })
 }
 
@@ -260,10 +228,6 @@ pub(crate) fn held_role(value: &w::HeldRole) -> c::HeldRole {
         w::HeldRole::Observer => c::HeldRole::Observer,
         w::HeldRole::Policy(row) => c::HeldRole::Policy { role: row.role() },
     }
-}
-
-pub(crate) fn grant(value: &w::Grant) -> c::Grant {
-    c::Grant { connector: value.connector(), kind: value.kind(), pattern: owner_pattern(value.pattern()) }
 }
 
 pub(crate) fn executor(value: &w::Executor) -> c::Executor {
@@ -309,7 +273,6 @@ pub(crate) fn lacking(value: &w::Lacking) -> c::Lacking {
     match value {
         w::Lacking::Approver => c::Lacking::Approver,
         w::Lacking::Budget(row) => c::Lacking::Budget { needed: row.needed(), left: row.left() },
-        w::Lacking::Grant(row) => c::Lacking::Grant(grant(row.value())),
         w::Lacking::GrantKind(row) => c::Lacking::GrantKind { kind: row.kind() },
         w::Lacking::Funding => c::Lacking::Funding,
         w::Lacking::Tool => c::Lacking::Tool,

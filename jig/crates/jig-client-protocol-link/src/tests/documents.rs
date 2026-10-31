@@ -24,20 +24,8 @@ fn a_task_keeps_every_supplied_field() {
     assert_eq!(documents::task(fixtures::task_record(), &fixtures::limits()), Ok(fixtures::task()));
 }
 
-fn a_tree_keeps_every_supplied_field() {
-    assert_eq!(documents::tree(fixtures::tree_record(), &fixtures::limits()), Ok(fixtures::tree()));
-}
-
-fn a_inbox_keeps_every_supplied_field() {
-    assert_eq!(documents::inbox(fixtures::inbox_record(), &fixtures::limits()), Ok(fixtures::inbox()));
-}
-
 fn a_tasks_keeps_every_supplied_field() {
     assert_eq!(documents::tasks(fixtures::tasks_record(), &fixtures::limits()), Ok(fixtures::tasks()));
-}
-
-fn a_deployment_keeps_every_supplied_field() {
-    assert_eq!(documents::deployment(fixtures::deployment_record(), &fixtures::limits()), Ok(fixtures::deployment()));
 }
 
 fn a_owner_deployment_keeps_every_supplied_field() {
@@ -158,10 +146,7 @@ fn table<const N: usize>(cases: [Case; N]) {
 fn documents_keep_every_supplied_field() {
     table([
         ("a_task_keeps_every_supplied_field", a_task_keeps_every_supplied_field),
-        ("a_tree_keeps_every_supplied_field", a_tree_keeps_every_supplied_field),
-        ("a_inbox_keeps_every_supplied_field", a_inbox_keeps_every_supplied_field),
         ("a_tasks_keeps_every_supplied_field", a_tasks_keeps_every_supplied_field),
-        ("a_deployment_keeps_every_supplied_field", a_deployment_keeps_every_supplied_field),
         ("a_owner_deployment_keeps_every_supplied_field", a_owner_deployment_keeps_every_supplied_field),
         ("a_owner_project_keeps_every_supplied_field", a_owner_project_keeps_every_supplied_field),
         ("a_run_state_keeps_every_supplied_field", a_run_state_keeps_every_supplied_field),
@@ -296,5 +281,63 @@ fn task_settings_revisions_cross_into_the_client_document() {
         let record = w::Task::new(&w::CEILINGS, parts).expect("task record");
         let task = documents::task(record, &fixtures::limits()).expect("task document");
         assert_eq!(task.settings, settings);
+    }
+}
+
+#[test]
+fn chip_phases_refuse_missing_end_time_and_retry_notice() {
+    let limits = fixtures::limits();
+    let backing_off = w::OwnerChipPhase::Active(
+        w::OwnerChipPhaseActive::new(
+            &limits.wire,
+            w::OwnerChipPhaseActiveParts {
+                value: w::RunStage::BackingOff(
+                    w::RunStageBackingOff::new(&limits.wire, w::RunStageBackingOffParts { until: 0 }).unwrap(),
+                ),
+            },
+        )
+        .unwrap(),
+    );
+    for (phase, compact) in [(w::OwnerChipPhase::Ended, w::Phase::Ended), (backing_off, w::Phase::BackingOff)] {
+        for present in [false, true] {
+            let w::Fact::Chip(root) = fixtures::chip_root_fact() else { panic!("chip root") };
+            let mut root = root.into_parts();
+            let mut fields = root.value.into_parts();
+            fields.phase = compact.clone();
+            root.value = w::ChipFields::new(&limits.wire, fields).unwrap();
+            let mut details = fixtures::wire_owner_chip_details_row().into_parts();
+            let mut fields = details.value.into_parts();
+            if present {
+                fields.ended_at = Some(0);
+                fields.retry = Some(w::RetryNotice::Refused(
+                    w::RetryNoticeRefused::new(&limits.wire, w::RetryNoticeRefusedParts { count: 0 }).unwrap(),
+                ));
+            }
+            details.value = w::OwnerChipDetailsFields::new(&limits.wire, fields).unwrap();
+            let chip = fixtures::chip_from_rows(&[
+                w::Fact::Chip(w::ChipRow::new(&limits.wire, root).unwrap()),
+                w::Fact::ChipPhase(
+                    w::ChipPhaseRow::new(
+                        &limits.wire,
+                        w::ChipPhaseRowParts {
+                            parent: Some(0),
+                            value: w::ChipPhaseOwnerFields::new(
+                                &limits.wire,
+                                w::ChipPhaseOwnerFieldsParts { phase: phase.clone(), details: 2 },
+                            )
+                            .unwrap(),
+                        },
+                    )
+                    .unwrap(),
+                ),
+                w::Fact::OwnerChipDetails(Box::new(w::OwnerChipDetailsRow::new(&limits.wire, details).unwrap())),
+            ]);
+            let decoded = documents::chip(chip, &limits);
+            if present {
+                assert!(decoded.is_ok(), "zero-valued required facts are supplied");
+            } else {
+                assert_eq!(decoded, Err(Undecodable::Malformed));
+            }
+        }
     }
 }

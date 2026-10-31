@@ -120,10 +120,8 @@ pub fn owner_chip_record(phase: w::OwnerChipPhase, compact: w::Phase) -> w::Chip
                 &lim,
                 w::ChipPhaseRowParts {
                     parent: Some(0),
-                    value: w::ChipPhaseFields::Owner(
-                        w::ChipPhaseOwnerFields::new(&lim, w::ChipPhaseOwnerFieldsParts { phase, details: 2 })
-                            .expect("literal fixture fits"),
-                    ),
+                    value: w::ChipPhaseOwnerFields::new(&lim, w::ChipPhaseOwnerFieldsParts { phase, details: 2 })
+                        .expect("literal fixture fits"),
                 },
             )
             .expect("literal fixture fits"),
@@ -140,9 +138,7 @@ pub fn task_with_hold_record() -> w::Task {
     let lim = limits();
     let mut parts = task_record().into_parts();
     parts.chip = owner_waiting_chip_record();
-    parts.hold = Some(w::TaskHold::Owner(
-        w::TaskHoldOwner::new(&lim, w::TaskHoldOwnerParts { value: hold_record() }).expect("literal fixture fits"),
-    ));
+    parts.hold = Some(hold_record());
     w::Task::new(&lim, parts).expect("literal fixture fits")
 }
 #[must_use]

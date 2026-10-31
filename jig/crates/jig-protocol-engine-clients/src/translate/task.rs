@@ -271,7 +271,11 @@ pub fn links_pieces(rows: &List<w::OwnerTaskLink>, bound: u32, path: w::Path) ->
     }
     pieces(&encoded, bound, path)
 }
-pub fn task_resources_pieces(rows: &List<w::TaskResource>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn task_resources_pieces(
+    rows: &List<w::OwnerResourceLine>,
+    bound: u32,
+    path: w::Path,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
         let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
@@ -376,10 +380,7 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
             budget: owner::budget(&value.budget, limits)?,
             authority: owner::authority(models, &value.authority, limits)?,
             hold: match &value.hold {
-                Some(item) => Some(w::TaskHold::Owner(w::TaskHoldOwner::new(
-                    limits,
-                    w::TaskHoldOwnerParts { value: chips::held(item, limits)? },
-                )?)),
+                Some(item) => Some(chips::held(item, limits)?),
                 None => None,
             },
             proposals,
@@ -415,12 +416,7 @@ fn link_list(
 fn resources(value: &List<d::ResourceLine>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut resource_rows = List::with_capacity(value.capacity());
     for item in value {
-        resource_rows
-            .push(w::TaskResource::Owner(w::TaskResourceOwner::new(
-                limits,
-                w::TaskResourceOwnerParts { value: chips::resource(item, limits)? },
-            )?))
-            .expect("supplied resources");
+        resource_rows.push(chips::resource(item, limits)?).expect("supplied resources");
     }
     task_resources_pieces(&resource_rows, limits.task_resources.min(w::CEILINGS.task_resources), w::Path::TaskResources)
 }

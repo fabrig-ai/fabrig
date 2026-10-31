@@ -4,21 +4,6 @@ pub fn read_value_phase() -> c::Phase {
     c::Phase::Waiting
 }
 
-pub fn read_value_steering() -> c::Steering {
-    c::Steering {
-        addressed: None,
-        person_revision: None,
-        taken_by: None,
-        revision: read_value_revision(),
-        spec: read_value_specification_document(),
-        instructions: None,
-        wake: read_value_owner_wake_policy(),
-        dependencies: List::with_capacity(0),
-        authority: read_value_owner_authority_document(),
-        budget: read_value_budget(),
-    }
-}
-
 pub fn read_value_specification_document() -> c::SpecificationDocument {
     c::SpecificationDocument { specification: read_value_document_specification(), cut: false }
 }
@@ -92,24 +77,6 @@ pub fn read_value_question() -> c::Question {
         message: 7,
         words: jig_client_domain::contract::DocumentText::complete(text(b"")),
         since: Wall::from_nanos(7),
-        acts: List::with_capacity(0),
-        ending: None,
-    }
-}
-
-pub fn read_value_person_task() -> c::PersonTask {
-    c::PersonTask {
-        task: chip(),
-        revision: read_value_revision(),
-        requester: read_value_actor(),
-        spec: read_value_specification_document(),
-        contract: read_value_person_contract(),
-        inputs: List::with_capacity(0),
-        addressed: read_value_recipient(),
-        taken: None,
-        since: None,
-        stall: None,
-        deadline: None,
         acts: List::with_capacity(0),
         ending: None,
     }

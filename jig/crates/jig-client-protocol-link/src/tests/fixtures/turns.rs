@@ -19,9 +19,25 @@ pub fn expected_activity_rows(rows: List<c::ActivityLine>) -> c::ActivityPage {
 }
 pub fn expected_turn_line(position: u64, at: u64, number: u32, turn: c::TurnRead) -> c::ActivityLine {
     c::ActivityLine {
-        position,
-        at: Wall::from_nanos(at),
-        event: c::Activity::Turn { name: c::TurnName { attempt: 44, number }, turn },
+        source: Box::new(c::OwnerActivityLine {
+            task: 7,
+            position: position,
+            at: Wall::from_nanos(at),
+            line: c::OwnerActivity::Turn {
+                reply: position,
+                attempt: (c::TurnName { attempt: 44, number }).attempt,
+                turn: (c::TurnName { attempt: 44, number }).number,
+                read: None,
+            },
+        }),
+        decoded: Some(c::ArchivedTurn {
+            task: 7,
+            name: c::TurnName { attempt: 44, number },
+            cumulative: 0,
+            read: None,
+            at: Wall::from_nanos(at),
+            turn: turn,
+        }),
     }
 }
 pub fn decoded_activity_record() -> w::ActivityPage {
@@ -85,11 +101,7 @@ fn archived_activity_page_with_problem(why: c::TurnProblem) -> c::ActivityPage {
         at: Wall::from_nanos(99),
         turn: c::TurnRead::Undecodable { why },
     };
-    expected_one_activity_line(c::ActivityLine {
-        position: 50,
-        at: Wall::from_nanos(51),
-        event: c::Activity::Owner { source: Box::new(source), decoded: Some(decoded) },
-    })
+    expected_one_activity_line(c::ActivityLine { source: Box::new(source), decoded: Some(decoded) })
 }
 
 pub fn turn_limits(text: u32, document_bytes: u64) -> Limits {
@@ -114,18 +126,11 @@ pub fn owner_turn_pages() -> [(&'static str, w::ActivityPage, c::ActivityPage); 
             owner_turn_activity_record(Some(w::TurnBytes::TooLarge(large))),
             archived_activity_page_with_problem(c::TurnProblem::TooLarge { bytes: MARKER_BYTES }),
         ),
-        (
-            "malformed unread",
-            owner_turn_activity_record(None),
-            expected_one_activity_line(c::ActivityLine {
-                position: 50,
-                at: Wall::from_nanos(51),
-                event: c::Activity::Turn {
-                    name: c::TurnName { attempt: 44, number: 3 },
-                    turn: c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
-                },
-            }),
-        ),
+        ("unread", owner_turn_activity_record(None), {
+            let mut page = archived_activity_page();
+            page.rows.get_mut(0).unwrap().decoded = None;
+            page
+        }),
     ]
 }
 
