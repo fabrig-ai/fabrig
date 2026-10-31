@@ -166,6 +166,11 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
+    /// The playground row as the service reads it (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+    #[must_use]
+    pub fn playground(&self) -> Option<&forge::Playground> {
+        self.forge.playground()
+    }
     /// The connector's durable demo end, shared with setup readiness scans.
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
