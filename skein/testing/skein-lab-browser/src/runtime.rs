@@ -111,7 +111,7 @@ struct Runtime {
     io_events: Queue<io::Event>,
     events: Queue<Event>,
     down: Queue<b::Down>,
-    requests: VecDeque<io::Request>,
+    requests: Queue<io::Request>,
     answers: VecDeque<Event>,
     proxy: Proxy,
     origins: BTreeMap<String, Pages>,
@@ -218,7 +218,7 @@ impl Runtime {
             io_events: Queue::with_capacity(4096),
             events: Queue::with_capacity(256),
             down: Queue::with_capacity(256),
-            requests: VecDeque::new(),
+            requests: Queue::uncapped(),
             answers: VecDeque::new(),
             proxy: Proxy::new(),
             origins: BTreeMap::new(),
@@ -315,14 +315,14 @@ impl Runtime {
                 })
                 .collect(),
         };
-        self.requests.push_back(io::Request::Spawn { owner: PROCESS, spawn });
+        self.requests.push(io::Request::Spawn { owner: PROCESS, spawn });
         Ok(())
     }
     fn ask(&mut self, request: Request) {
         browser::down(&mut self.browser, &self.benv, request, &mut self.events, &mut self.down);
     }
     fn stream(&mut self, stream: Token, down: stream::Down) {
-        self.requests.push_back(io::Request::Stream { stream, down });
+        self.requests.push(io::Request::Stream { stream, down });
     }
     fn next_event(&mut self) -> Result<Event, String> {
         loop {
@@ -404,6 +404,11 @@ impl Runtime {
         self.benv.wall = time.wall;
         while let Some(complete) = self.ring.reap().pop() {
             let (host, complete) = self.ring.complete(complete);
+            if host == 0
+                && let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result
+            {
+                self.pid = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0);
+            }
             self.ring.returned(host, complete);
         }
         self.ring.deliver(0, &mut self.complete);
@@ -413,18 +418,7 @@ impl Runtime {
             complete.result.map_err(|e| format!("root close: {e:?}"))?;
             self.root_closed = true;
         }
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
-        while let Some(complete) = self.complete.pop() {
-            if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
-                self.pid = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0);
-            }
-            io::up(&mut self.io, &self.ienv, complete, &mut self.io_events, &mut self.submits);
-        }
-        while self.io.is_due(time.now) {
-            io::fire(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
+        io::stage::up(&mut self.io, &self.ienv, &mut self.complete, &mut self.io_events, &mut self.submits);
         while let Some(event) = self.io_events.pop() {
             self.io_event(event)?;
         }
@@ -449,20 +443,19 @@ impl Runtime {
         for pages in self.origins.values_mut() {
             pages.update_time(time.now, time.wall);
             while let Some(request) = pages.take() {
-                self.requests.push_back(request);
+                self.requests.push(request);
             }
         }
         if let Some(listener) = &mut self.listener {
             listener.fire(time.now);
-            self.requests.extend(listener.requests.drain(..));
+            for request in listener.requests.drain(..) {
+                self.requests.push(request);
+            }
         }
-        self.requests.extend(self.proxy.requests.drain(..));
-        while self.io.takes() {
-            let Some(request) = self.requests.pop_front() else {
-                break;
-            };
-            io::down(&mut self.io, &self.ienv, request, &mut self.submits);
+        for request in self.proxy.requests.drain(..) {
+            self.requests.push(request);
         }
+        io::stage::down(&mut self.io, &self.ienv, &mut self.requests, &mut self.submits);
         self.io.reclaim();
         self.browser.reclaim();
         let pending = self.io.is_ready()
@@ -589,7 +582,7 @@ impl Runtime {
                 self.exited = true;
                 if let Some(pipes) = self.pipes {
                     for entity in pipes {
-                        self.requests.push_back(io::Request::Close { entity });
+                        self.requests.push(io::Request::Close { entity });
                     }
                 }
             }
@@ -850,7 +843,7 @@ impl Runtime {
             .chain(self.signals.take())
             .chain([self.input, self.output])
         {
-            self.requests.push_back(io::Request::Abort { entity });
+            self.requests.push(io::Request::Abort { entity });
         }
         while !self.io.is_empty() || !self.ring.is_empty() || !self.requests.is_empty() || !self.submits.is_empty() {
             self.pump()?;
@@ -880,8 +873,8 @@ impl Runtime {
             pages.stop();
         }
         self.proxy.stop();
-        self.requests.push_back(io::Request::Close { entity: self.input });
-        self.requests.push_back(io::Request::Close { entity: self.output });
+        self.requests.push(io::Request::Close { entity: self.input });
+        self.requests.push(io::Request::Close { entity: self.output });
         let deadline = self.deadline("the lab browser shutdown", Duration::from_secs(8));
         while !self.settled() {
             self.pump()?;

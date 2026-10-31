@@ -12,7 +12,7 @@ max_out 0
 JournalRoom 0
 takes 0
 worst_case 0
-io_resume 27
+io_resume 20
 earliest 2
 lifecycle 2
 growth_floor 1

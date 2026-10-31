@@ -169,12 +169,7 @@ impl Reader {
             self.ring.returned(host, complete);
         }
         self.ring.deliver(0, &mut self.complete);
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submits);
-        }
-        while let Some(complete) = self.complete.pop() {
-            io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submits);
-        }
+        io::stage::up(&mut self.io, &self.env, &mut self.complete, &mut self.events, &mut self.submits);
         while let Some(event) = self.events.pop() {
             match event {
                 io::Event::Stream { up, .. } => self.received.push_back(up),
