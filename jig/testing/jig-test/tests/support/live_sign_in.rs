@@ -108,7 +108,7 @@ struct Judge {
     deadline: Time,
     sign_in_deadline: Option<Time>,
     received: usize,
-    accounts: Option<c::OwnerAccounts>,
+    accounts: Option<c::Accounts>,
     state: String,
     chat: Option<u64>,
     task: Option<c::Task>,
@@ -119,7 +119,7 @@ fn client(procs: &mut [Process]) -> &mut NativeClient {
     let Process::Person(person) = &mut procs[1] else { panic!("native person") };
     person.client.as_mut().expect("native client")
 }
-fn progress(previous: &mut String, document: &c::OwnerAccounts, source: u32) {
+fn progress(previous: &mut String, document: &c::Accounts, source: u32) {
     let state = if let Some(end) = document.last_end.as_ref().filter(|end| end.source == source) {
         format!("{:?}", end.end)
     } else if document.signing.iter().any(|signing| signing.source == source) {
@@ -158,16 +158,16 @@ pub(super) fn run_line(task: &c::Task) -> String {
         task.run_wait,
     )
 }
-fn ending(ending: &c::OwnerChipEnding) -> String {
+fn ending(ending: &c::ChipEnding) -> String {
     let text = |text: &c::DocumentText| String::from_utf8_lossy(text.bytes.bytes()).into_owned();
     match ending {
-        c::OwnerChipEnding::Done(c::ResultValue::Report(words) | c::ResultValue::Words(words)) => {
+        c::ChipEnding::Done(c::ResultValue::Report(words) | c::ResultValue::Words(words)) => {
             format!("Done({:?})", text(words))
         }
-        c::OwnerChipEnding::Done(c::ResultValue::Failure(words)) => format!("Done(Failure({:?}))", text(words)),
-        c::OwnerChipEnding::Done(_) => "Done(another result)".to_owned(),
-        c::OwnerChipEnding::Failed(words) => format!("Failed({:?})", text(words)),
-        c::OwnerChipEnding::Cancelled { reason, .. } => format!("Cancelled({:?})", text(reason)),
+        c::ChipEnding::Done(c::ResultValue::Failure(words)) => format!("Done(Failure({:?}))", text(words)),
+        c::ChipEnding::Done(_) => "Done(another result)".to_owned(),
+        c::ChipEnding::Failed(words) => format!("Failed({:?})", text(words)),
+        c::ChipEnding::Cancelled { reason, .. } => format!("Cancelled({:?})", text(reason)),
     }
 }
 /// Whether the run can no longer bring the answer: any failed or refused attempt, a hold, an
@@ -178,9 +178,9 @@ pub(super) fn failed(task: &c::Task) -> bool {
     refused
         || details.retry.is_some()
         || details.hold.is_some()
-        || matches!(phase, c::OwnerChipPhase::Held { .. })
+        || matches!(phase, c::ChipPhase::Held { .. })
         || details.ending.as_ref().is_some_and(|ending| {
-            !matches!(ending, c::OwnerChipEnding::Done(c::ResultValue::Report(_) | c::ResultValue::Words(_)))
+            !matches!(ending, c::ChipEnding::Done(c::ResultValue::Report(_) | c::ResultValue::Words(_)))
         })
 }
 fn reported(task: &c::Task) -> bool {
@@ -204,7 +204,7 @@ impl Judge {
         let mut answer = None;
         for received in &native.received[self.received..] {
             match received {
-                Received::Delivery(c::Delivery::OwnerAccounts(document)) => {
+                Received::Delivery(c::Delivery::Accounts(document)) => {
                     self.accounts = Some(document.as_ref().clone());
                 }
                 Received::Delivery(c::Delivery::Task(document)) if Some(document.chip.task) == self.chat => {
@@ -222,14 +222,14 @@ impl Judge {
         progress(&mut self.state, document, source);
         let Some(end) = document.last_end.as_ref().filter(|end| end.source == source) else { return };
         match end.end {
-            c::OwnerAccountEnd::Made { account, declined } | c::OwnerAccountEnd::Renewed { account, declined } => {
+            c::AccountEnd::Made { account, declined } | c::AccountEnd::Renewed { account, declined } => {
                 assert!(!declined, "ChatGPT sign-in made, but plan usage was declined");
                 let account = document.accounts.iter().find(|line| line.number == account).expect("made account");
                 let grant = account.sources.iter().find(|grant| grant.number == source).expect("signed-in source");
                 assert!(account.plan, "ChatGPT sign-in made without plan usage");
-                if grant.usable && grant.state == c::OwnerAccountState::Granted {
-                    assert!(matches!(account.holder, c::OwnerAccountHolder::Party(_)), "a plan is held by its person");
-                    assert_eq!(grant.kind, c::OwnerAccountKind::SignIn);
+                if grant.usable && grant.state == c::AccountState::Granted {
+                    assert!(matches!(account.holder, c::AccountHolder::Party(_)), "a plan is held by its person");
+                    assert_eq!(grant.kind, c::AccountKind::SignIn);
                     self.sign_in_deadline = None;
                     let native = client(procs);
                     native.account_request(jig_client::Event::Unwatch { handle: ACCOUNTS });
@@ -238,8 +238,8 @@ impl Judge {
                     self.phase = Phase::Answer { source };
                 }
             }
-            c::OwnerAccountEnd::Failed { failure } => panic!("ChatGPT sign-in failed: {failure:?}"),
-            c::OwnerAccountEnd::Refused { refusal } => panic!("ChatGPT sign-in refused: {refusal:?}"),
+            c::AccountEnd::Failed { failure } => panic!("ChatGPT sign-in failed: {failure:?}"),
+            c::AccountEnd::Refused { refusal } => panic!("ChatGPT sign-in refused: {refusal:?}"),
         }
     }
 }
@@ -265,8 +265,10 @@ impl Referee<Process> for Judge {
             }
             Phase::Address => {
                 if let Some(answer) = answer {
-                    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignInStarted { source, address })) =
-                        answer
+                    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted {
+                        source,
+                        address,
+                    })) = answer
                     else {
                         panic!("ChatGPT sign-in start: {answer:?}");
                     };
@@ -278,7 +280,7 @@ impl Referee<Process> for Judge {
             Phase::Signing { source } => self.signing(procs, source),
             Phase::Answer { source } => {
                 match answer {
-                    Some(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, .. })))
+                    Some(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, .. })))
                         if self.chat.is_none() =>
                     {
                         self.chat = Some(first);
@@ -303,7 +305,7 @@ impl Referee<Process> for Judge {
                 if let Some(answer) = answer {
                     assert_eq!(
                         answer,
-                        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignedOut {
+                        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignedOut {
                             confirmed: true,
                             failed_hosts: Box::new([])
                         })),
@@ -635,7 +637,7 @@ mod tests {
         )
         .expect("owner task fixture");
         let c::ChipPhase { phase, details } = task.chip.details.as_mut();
-        *phase = c::OwnerChipPhase::Active(c::RunStage::BackingOff { until: skein_lib::Wall::from_nanos(17) });
+        *phase = c::ChipPhase::Active(c::RunStage::BackingOff { until: skein_lib::Wall::from_nanos(17) });
         details.attempt = Some(1);
         details.retry = Some(c::RetryNotice::OwnerFailed { class: c::HoldFailure::Run, count: 1, allowance: 3 });
         details.hold = None;

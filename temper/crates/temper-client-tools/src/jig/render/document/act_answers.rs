@@ -214,7 +214,7 @@ pub(super) fn encode_owner_outcome(
             out.object_end();
         }
         jig_client::contract::DocumentOutcome::ProjectMade { project } => {
-            encode_project(b"project_made", *project, out)
+            encode_project(b"project_made", *project, out);
         }
         jig_client::contract::DocumentOutcome::Renamed { project } => encode_project(b"renamed", *project, out),
         jig_client::contract::DocumentOutcome::ProjectRemoved { project } => {

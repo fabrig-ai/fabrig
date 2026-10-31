@@ -120,7 +120,8 @@ impl Referee<Process> for Shutdown {
         }
         {
             let Some(answer) = answer(procs) else { return };
-            let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignInStarted { address, .. })) = answer
+            let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted { address, .. })) =
+                answer
             else {
                 panic!("account sign-in answer: {answer:?}")
             };

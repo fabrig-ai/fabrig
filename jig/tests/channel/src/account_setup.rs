@@ -77,8 +77,9 @@ impl Setup {
             .filter_map(|r| {
                 if let Received::Answer {
                     answer:
-                        answer @ c::Answer::Done(c::Outcome::Owner(
-                            c::OwnerOutcome::AccountKeyKept { .. } | c::OwnerOutcome::AccountProgramDeclared { .. },
+                        answer @ c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::AccountKeyKept { .. }
+                            | c::DocumentOutcome::AccountProgramDeclared { .. },
                         )),
                     ..
                 } = r
@@ -90,8 +91,9 @@ impl Setup {
             })
             .collect();
         for answer in &replies[self.answers..] {
-            let c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountKeyKept { source } | c::OwnerOutcome::AccountProgramDeclared { source, .. },
+            let c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountKeyKept { source }
+                | c::DocumentOutcome::AccountProgramDeclared { source, .. },
             )) = answer
             else {
                 panic!("fixture source admitted: {answer:?}");
@@ -145,11 +147,11 @@ impl Setup {
             .iter()
             .filter_map(|r| match r {
                 Received::Answer {
-                    answer: c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, .. })),
+                    answer: c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, .. })),
                     ..
                 } => Some(Reply::Started { task: *first }),
                 Received::Answer {
-                    answer: c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Said { task, message })),
+                    answer: c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task, message })),
                     ..
                 } => Some(Reply::Said { task: *task, message: *message }),
                 Received::SignedIn { .. }

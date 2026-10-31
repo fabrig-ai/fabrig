@@ -693,7 +693,7 @@ pub(crate) fn result_part(value: &c::ApplicationPart, out: &mut Text) {
             out,
         ),
         c::ApplicationPart::Connector { .. } => {
-            literals_text(words::resource_english(words::ResourceWord::Connector).0, &[], out)
+            literals_text(words::resource_english(words::ResourceWord::Connector).0, &[], out);
         }
         c::ApplicationPart::Kind { kind, .. } => match words::kind(*kind) {
             Some(word) => literals_text(words::resource_english(word).0, &[], out),
@@ -711,7 +711,7 @@ pub(crate) fn result_part(value: &c::ApplicationPart, out: &mut Text) {
         | c::ApplicationPart::Hold { .. }
         | c::ApplicationPart::Project { .. }
         | c::ApplicationPart::Deployment { .. } => {
-            literals_text(words::resource_english(words::ResourceWord::Shown).0, &[], out)
+            literals_text(words::resource_english(words::ResourceWord::Shown).0, &[], out);
         }
     }
 }

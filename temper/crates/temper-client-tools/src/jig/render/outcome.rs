@@ -314,7 +314,7 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
             out.number(u64::from(changed.revision));
         }
         c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Lifted { hold, released })) => {
-            lifted(*hold, *released, out)
+            lifted(*hold, *released, out);
         }
         c::Answer::Done(done) => {
             out.put(b"done: ");

@@ -205,8 +205,8 @@ impl Host for Person {
                 matches!(
                     r,
                     jig_client_protocol_world::native::Received::Answer {
-                        answer: jig_client::contract::Answer::Done(jig_client::contract::Outcome::Owner(
-                            jig_client::contract::OwnerOutcome::AccountKeyKept { .. }
+                        answer: jig_client::contract::Answer::Done(jig_client::contract::Outcome::Document(
+                            jig_client::contract::DocumentOutcome::AccountKeyKept { .. }
                         )),
                         ..
                     }

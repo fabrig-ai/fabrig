@@ -599,7 +599,7 @@ fn notice(
     {
         match last.end {
             c::AccountEnd::Made { account, declined: yes } | c::AccountEnd::Renewed { account, declined: yes } => {
-                declined = yes && account == row.account
+                declined = yes && account == row.account;
             }
             c::AccountEnd::Refused { .. } | c::AccountEnd::Failed { .. } => {}
         }
