@@ -1,4 +1,4 @@
-//! V2 supervision cells and surviving terminal ledgers (domain/host.md, sections
+//! Supervision cells and surviving terminal ledgers (domain/host.md, sections
 //! 2–7 and 9.2). Process exit never discards parent calls. A parent's drop
 //! releases held turns unacknowledged, retaining submitted send terminals.
 //! The kit knows channel send order, not private agent stop
@@ -119,7 +119,6 @@ pub(crate) struct Agent {
     spent: u64,
     turn_bytes: u64,
     cancel_queued: bool,
-    cancel_sent: bool,
     progress: Time,
     long: crate::long::Long,
     // Paused only while the run waits with no message still queued or unread.
@@ -183,14 +182,13 @@ impl Domain {
         self.facts.pop()
     }
 
-    /// Entries held for the parent to drain (skein's draft
-    /// dynamic-memory.md 4.1): the parent root counts them in its backlog.
+    /// Entries held for the parent to drain (skein/docs/foundation/programming-model.md, section 7.1): the parent root counts them in its backlog.
     #[must_use]
     pub fn backlog(&self) -> u32 {
         self.facts.len()
     }
 
-    /// The host no longer drops facts; the name stays while parents still read it.
+    /// Lossless observation retention leaves no dropped facts.
     #[must_use]
     pub const fn facts_lost(&self) -> u64 {
         0
@@ -514,7 +512,6 @@ fn spawn(domain: &mut Domain, env: &Env<Limits>, event: Input, out: &mut Queue<O
         spent: 0,
         turn_bytes: 0,
         cancel_queued: false,
-        cancel_sent: false,
         progress: env.now,
         long: crate::long::Long::new(env.now),
         waiting: false,
@@ -797,7 +794,7 @@ fn grant_name(agent: &mut Agent, grant: Grant) {
 
 fn answered(agent: &mut Agent, callback: Token, reply: Reply, env: &Env<Limits>) {
     let call = *agent.calls.get(&callback).expect("parent returns one known operation right");
-    assert!(call.stage == CallStage::Parent, "one actual parent answer per call");
+    assert!(call.stage == CallStage::Parent, "one parent answer per call");
     let reply = match reply {
         Reply::Delivery(delivery) => {
             assert!(call.kind == Kind::Delivery, "delivery terminal matches delivery call");
@@ -808,7 +805,7 @@ fn answered(agent: &mut Agent, callback: Token, reply: Reply, env: &Env<Limits>)
             if within(&body, env.limits.answer_bytes) { Reply::Host { error, body } } else { Reply::TooLarge }
         }
         reply @ (Reply::Busy | Reply::Unavailable | Reply::Withdrawn | Reply::TooLarge) => {
-            assert!(call.kind == Kind::Host, "submitted delivery owes its full actual terminal");
+            assert!(call.kind == Kind::Host, "submitted delivery owes its full terminal");
             reply
         }
     };
@@ -816,7 +813,7 @@ fn answered(agent: &mut Agent, callback: Token, reply: Reply, env: &Env<Limits>)
         agent.calls.get_mut(&callback).expect("known call").stage = CallStage::Queued;
         agent.outbox.push(Down::Answer { call: callback, reply });
     } else {
-        agent.calls.remove(&callback).expect("actual parent right settled");
+        agent.calls.remove(&callback).expect("parent right settled");
     }
 }
 
@@ -1299,10 +1296,7 @@ fn send_next(agent: &mut Agent, owner: Token, out: &mut Queue<Output>) {
                     agent.accounts.get_mut(&grant.account).expect("known grant").emitted = grant.generation;
                     Sent::Grant
                 }
-                Down::Cancel => {
-                    agent.cancel_sent = true;
-                    Sent::Cancel
-                }
+                Down::Cancel => Sent::Cancel,
             };
             (sent, message)
         }

@@ -12,7 +12,7 @@ use smith_host_domain::parent;
 pub enum Below {
     /// A provider supplied its bounded completion; ends one Complete.
     Completed { owner: Token, completion: smith::llm::Completion },
-    /// A provider failed with actual transport evidence; ends one Complete.
+    /// A provider failed with transport evidence; ends one Complete.
     Failed {
         owner: Token,
         failure: smith::llm::Failure,

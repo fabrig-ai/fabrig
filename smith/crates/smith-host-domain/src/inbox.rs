@@ -31,7 +31,7 @@ mod tests {
     }
 
     #[test]
-    fn a_fence_covers_only_the_actual_sent_prefix_and_reports_queued_names() {
+    fn a_fence_covers_only_the_seen_sent_prefix_and_reports_queued_names() {
         let mut inbox = Inbox::new(3);
         for name in 1..=3 {
             inbox.admit(Token::new(name), b"p", b"hi", 5).expect("accepted message");

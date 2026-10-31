@@ -176,7 +176,7 @@ impl World {
         let mut trace = Trace::default();
         trace.log(Time::ZERO, format!("seed {seed}"));
         Self {
-            agent: inline::Domain::new(&bounds, configuration_value(), seed),
+            agent: inline::Domain::new(&bounds, self::configuration(), seed),
             stage: Stage::uncapped(bounds),
             schedule: Schedule::new(),
             seen: BTreeMap::new(),
@@ -230,7 +230,7 @@ impl World {
         }
     }
 
-    /// Fail actual provider requests with selected typed terminal metadata.
+    /// Fail provider requests with selected typed terminal metadata.
     pub fn fail_with(&mut self, failure: smith::llm::Failure, evidence: smith::llm::Evidence) {
         assert_eq!(self.provider.calls(), 0);
         self.provider_env.limits.overloaded = 1000;
@@ -255,10 +255,10 @@ impl World {
     /// Return the generation-safe parent handle learned from Started.
     #[must_use]
     pub fn handle(&self, client: Token) -> Token {
-        self.seen[&client].agent.expect("actual Started")
+        self.seen[&client].agent.expect("Started")
     }
 
-    /// Deliver one parent command, recording actual parent terminals first.
+    /// Deliver one parent command, recording parent terminals first.
     pub fn event(&mut self, event: parent::Event) {
         match &event {
             parent::Event::Spawn { client, start } => {
@@ -275,18 +275,15 @@ impl World {
                 }
             }
             parent::Event::Answer { agent, call, .. } => {
-                let seen =
-                    self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's actual slot");
-                assert!(seen.calls.remove(call), "one actual parent terminal");
+                let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
+                assert!(seen.calls.remove(call), "one parent terminal");
             }
             parent::Event::Acknowledge { agent, turn } => {
-                let seen =
-                    self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's actual slot");
+                let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
                 seen.turns.remove(turn);
             }
             parent::Event::Drop { agent } => {
-                let seen =
-                    self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's actual slot");
+                let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
                 seen.turns.clear();
             }
             parent::Event::Grant { .. } | parent::Event::Stop { .. } => {}
@@ -300,7 +297,7 @@ impl World {
         self.pass();
     }
 
-    /// Advance to one actual clock point; queued inputs precede root alarms.
+    /// Advance to one clock point; queued inputs precede root alarms.
     pub fn at(&mut self, now: Time) {
         assert!(now >= self.stage.env.now);
         self.stage.tick(now);
@@ -320,7 +317,7 @@ impl World {
         self.pass();
     }
 
-    /// Earliest actual provider, slot or scheduled parent alarm.
+    /// Earliest provider, slot or scheduled parent alarm.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         self.provider
@@ -457,7 +454,7 @@ impl World {
                             .bindings
                             .values_mut()
                             .find(|binding| binding.agent == agent && binding.owner == owner)
-                            .expect("cancel retains actual provider call");
+                            .expect("cancel retains provider call");
                         assert!(!binding.cancelled, "cancel emitted once");
                         binding.cancelled = true;
                     }
@@ -607,10 +604,6 @@ impl World {
         }
         panic!("bounded ready work did not settle");
     }
-}
-
-fn configuration_value() -> smith::Config {
-    configuration()
 }
 
 fn parent_client(request: &parent::Request) -> Token {

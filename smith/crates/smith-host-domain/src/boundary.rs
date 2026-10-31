@@ -57,7 +57,7 @@ pub enum MessageRefusal {
     TooLarge,
     /// Bounded queued or unread messages full.
     Full,
-    /// Agent no longer accepts messages.
+    /// Agent is ending and refuses messages.
     Ending,
     /// Outstanding name or current read watermark reused.
     NameInUse,

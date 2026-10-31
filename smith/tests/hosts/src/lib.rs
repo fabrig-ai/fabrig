@@ -20,7 +20,7 @@ pub use world::World;
 /// Which child program the scripted machine supplies for the host's spawn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Program {
-    /// A second simulated process running the actual agent service.
+    /// A second simulated process running the agent service.
     Service,
     /// The machine refuses to start the requested agent.
     Refused,

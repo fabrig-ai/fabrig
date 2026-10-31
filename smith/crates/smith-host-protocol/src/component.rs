@@ -67,7 +67,7 @@ pub enum OpenEvent {
     Waiting { read: Option<Token> },
     /// The run announced a long operation with a bounded progress extension.
     Long { operation: smith_domain::Operation, span: Duration },
-    /// The run ended its previously announced long operation.
+    /// The run ended its announced long operation.
     LongDone,
     /// One concrete turn and its checked host envelope.
     Turn { turn: channel::Turn },
@@ -183,7 +183,7 @@ impl Component {
         }
     }
 
-    /// Set the monotonic clock used to turn agent-relative deadlines into host deadlines.
+    /// Set the monotonic clock for converting agent-relative deadlines into host deadlines.
     pub fn set_now(&mut self, now: Time) {
         self.now = now;
     }

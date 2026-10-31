@@ -7,8 +7,8 @@
 //! lower requests. The owner routes every lower terminal, drains observations
 //! each pass, and calls `reclaim` only after handing the outputs onward.
 //! Workspace operations keep exact mounted IO roots and machine terminal rights.
-//! Stop cancels and waits within the wall bound; the later stop increment adds
-//! the host's cancel grace and explicit drop.
+//! Stop cancels and waits within the wall bound, with the host's cancel grace
+//! and explicit drop.
 //!
 //! | State | Input | Next state | Emits |
 //! |---|---|---|---|

@@ -4,7 +4,7 @@
 
 use alloc::boxed::Box;
 
-/// A program source check returned by the half to its host (programs.md, section 3).
+/// A program source check returned by the half to its host (protocol/programs.md, section 3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ProgramCheck {
     /// The program is signed in through the person's subscription.
@@ -17,7 +17,7 @@ pub enum ProgramCheck {
     Failed(ProgramFailure),
 }
 
-/// A program sign-out returned by the half to its host (programs.md, section 4.1).
+/// A program sign-out returned by the half to its host (protocol/programs.md, section 4.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ProgramSignOut {
     /// The program's sign-out exited successfully.
@@ -34,7 +34,7 @@ pub struct ProgramFailure {
     pub detail: Box<[u8]>,
 }
 
-/// Why the half could not complete the source operation (programs.md, section 3).
+/// Why the half could not complete the source operation (protocol/programs.md, section 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FailureReason {
     /// The program could not start.

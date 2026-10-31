@@ -1,8 +1,9 @@
 //! Total parent/root translations (domain/host.md, section 9.4).
-//! No state, codec, policy interpretation or credential values live here.
-//! Values move into the root; its own admission checks decide their semantics.
+//! Translations move values into the root; its admission checks decide their
+//! semantics. `route` drains root requests into the owning slot's turn and call
+//! ledgers and emits parent notices or lower requests. It knows no codec,
+//! policy interpretation or credential values.
 
-#![expect(clippy::manual_let_else, reason = "exhaustive bounded request draining")]
 #![expect(clippy::manual_map, reason = "no application closures or map in the strict subset")]
 
 use alloc::boxed::Box;
@@ -347,9 +348,8 @@ const fn delivery_reason(value: host::DeliveryReason) -> run::DeliveryReason {
 #[expect(clippy::too_many_lines, reason = "every root request has one typed parent or lower route")]
 pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &mut Queue<Output>) {
     for _ in 0..agent.lower.len() {
-        let request = match agent.lower.pop() {
-            Some(request) => request,
-            None => break,
+        let Some(request) = agent.lower.pop() else {
+            break;
         };
         let slot = agent.slots.get_mut(id).expect("root output belongs to its slot");
         let client = slot.client;
@@ -552,11 +552,7 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
             smith::Request::Abort { owner } => crate::workspace::abort(slot, id.token(), owner, out),
         }
     }
-    assert!(root_requests_routed(agent), "each root's requests are routed to its own slot before the next entrance");
-}
-
-fn root_requests_routed(agent: &Domain) -> bool {
-    agent.lower.is_empty()
+    assert!(agent.lower.is_empty(), "each root's requests are routed to its own slot before the next entrance");
 }
 
 const fn price_rate(rate: run::Rate) -> host::Rate {

@@ -8,7 +8,7 @@
 //! Send names protect reuse, and only Waiting establishes a watchdog claim.
 //! Turns move to the parent, with exact commitment ACK metadata retained here.
 //! Content-free facts are retained losslessly until the parent drains them.
-//! Actual deliveries survive EOF and tree cleanup; `Gone` is the separate process
+//! Deliveries survive EOF and tree cleanup; `Gone` is the separate process
 //! containment terminal, after every outstanding right. Reclaim at the iteration boundary
 //! (programming-model.md, sections 4.5, 5 and 6; domain/host.md, sections 4 and 6).
 #![cfg_attr(not(test), no_std)]
@@ -53,8 +53,7 @@ pub use channel::{
 };
 
 pub use delivery::{
-    Delivered, Delivery, DeliveryFailure, DeliveryReason, DeliveryRefusal, DeliveryStatus, Diagnostic, MAX_DIRECTORIES,
-    Marker, Receipt,
+    Delivered, Delivery, DeliveryFailure, DeliveryReason, DeliveryRefusal, Diagnostic, MAX_DIRECTORIES, Marker, Receipt,
 };
 
 pub use domain::{Domain, fire, step};

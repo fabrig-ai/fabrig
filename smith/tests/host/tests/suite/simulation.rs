@@ -1,4 +1,4 @@
-//! Preserved Temper 19735a06 supervision stories, entirely through V2 boundary
+//! Supervision stories, entirely through boundary
 //! observations (domain/host.md, section 10; testing-strategy.md, sections 2.2, 6).
 use skein_lib::{Duration, Time, Token};
 use smith_host_domain::{
@@ -119,19 +119,22 @@ fn process_started_precedes_agent_admitted_and_start_is_first() {
         label: Box::new([]),
         text: Box::from(&b"early"[..]),
     }));
-    assert_eq!(world.seen.bounces, [MessageRefusal::Ending]);
+    assert_eq!(
+        world.seen.refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+        [MessageRefusal::Ending]
+    );
     world.spawned();
     assert!(!world.seen.admitted);
     match world.seen.down.first().expect("Start issued") {
-        Down::Start { start: actual, window } => {
+        Down::Start { start: seen, window } => {
             assert_eq!(
                 *window,
                 smith_host_domain::Window { turns: limits().turns, bytes: limits().unacknowledged_bytes }
             );
-            assert_eq!(actual.charter, start().charter);
-            assert_eq!(actual.transcript, start().transcript);
-            assert_eq!(actual.answered, start().answered);
-            assert_eq!(actual.workspace, None);
+            assert_eq!(seen.charter, start().charter);
+            assert_eq!(seen.transcript, start().transcript);
+            assert_eq!(seen.answered, start().answered);
+            assert_eq!(seen.workspace, None);
         }
         Down::Message { .. } | Down::Answer { .. } | Down::Acknowledge { .. } | Down::Grant { .. } | Down::Cancel => {
             panic!("Start must be first")
@@ -464,7 +467,10 @@ fn inbound_messages_are_ordered_bounded_and_named_opaquely() {
     message(&mut world, 32, 62);
     message(&mut world, 33, 63);
     message(&mut world, 0, 1);
-    assert_eq!(world.seen.bounces, [MessageRefusal::Full, MessageRefusal::TooLarge, MessageRefusal::NameInUse]);
+    assert_eq!(
+        world.seen.refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+        [MessageRefusal::Full, MessageRefusal::TooLarge, MessageRefusal::NameInUse]
+    );
     for _ in 0..3 {
         world.sent();
     }
@@ -507,7 +513,11 @@ fn a_message_sends_its_label_and_text_to_the_agent_as_given() {
         label: b"x".as_slice().into(),
         text: vec![b'm'; 64].into_boxed_slice(),
     }));
-    assert_eq!(world.seen.bounces, [MessageRefusal::TooLarge], "label and text share the message byte cap");
+    assert_eq!(
+        world.seen.refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+        [MessageRefusal::TooLarge],
+        "label and text share the message byte cap"
+    );
     world.sent();
     finish(&mut world);
 }
@@ -523,7 +533,10 @@ fn sent_message_at_run_end_stays_outside_the_read_fence() {
     assert_eq!(world.seen.answer.as_ref().expect("final word").turns, 0);
     assert_eq!(world.seen.fault, None);
     message(&mut world, 78, 4);
-    assert_eq!(world.seen.bounces, [MessageRefusal::Ending]);
+    assert_eq!(
+        world.seen.refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+        [MessageRefusal::Ending]
+    );
     world.cleanup(Some(smith_host_domain::Exit::Code(0)));
     world.settled();
 }
@@ -542,7 +555,10 @@ fn read_watermarks_cover_only_sent_names_and_release_exact_prefix() {
     message(&mut world, 33, 1);
     message(&mut world, 34, 1);
     message(&mut world, 35, 1);
-    assert_eq!(world.seen.bounces, [MessageRefusal::Full]);
+    assert_eq!(
+        world.seen.refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+        [MessageRefusal::Full]
+    );
     world.sent();
     world.sent();
     world.event(Input::Parent(parent::Event::Acknowledge { agent: world.agent(), turn: 1 }));
@@ -558,7 +574,10 @@ fn read_watermarks_cover_only_sent_names_and_release_exact_prefix() {
         world.up(Up::Waiting { read: Some(Token::new(30)) });
         if fence == Some(Token::new(30)) {
             message(&mut world, 30, 1);
-            assert_eq!(world.seen.bounces, [MessageRefusal::NameInUse]);
+            assert_eq!(
+                world.seen.refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+                [MessageRefusal::NameInUse]
+            );
             finish(&mut world);
         } else {
             world.up(Up::Waiting { read: fence });
@@ -586,7 +605,7 @@ fn old_acknowledged_name_history_is_a_parent_namespace_promise() {
     // Bounded host metadata rejects current watermark/outstanding reuse, but
     // deliberately does not claim complete history for older opaque names.
     message(&mut world, 30, 1);
-    assert!(world.seen.bounces.is_empty());
+    assert!(world.seen.refused_messages.is_empty());
     world.sent();
     finish(&mut world);
 }
@@ -680,7 +699,7 @@ fn an_oversized_generic_answer_is_too_large_but_delivery_always_fits() {
             body: vec![0; usize::try_from(limits().answer_bytes + 1).expect("small")].into_boxed_slice(),
         },
     );
-    match world.seen.down.last().expect("actual send") {
+    match world.seen.down.last().expect("send") {
         Down::Answer { reply: Reply::TooLarge, .. } => {}
         Down::Answer { .. }
         | Down::Start { .. }
@@ -948,7 +967,7 @@ fn delivery_right_outlives_process_tree_and_eof_without_abandonment() {
             &mut world,
             20,
             Reply::Delivery(if delivered {
-                Delivery::Delivered(receipts(b"actual durable effect"))
+                Delivery::Delivered(receipts(b"durable effect"))
             } else {
                 Delivery::Nothing
             }),
@@ -1003,7 +1022,6 @@ fn every_delivery_terminal_survives_withdrawal_and_expired_deadline() {
         match world.seen.down.last().expect("delivery response") {
             Down::Answer { reply: Reply::Delivery(received), .. } => {
                 assert_eq!(*received, terminal);
-                assert_eq!(received.status(), terminal.status());
                 match received {
                     Delivery::Delivered(landed) => {
                         let receipt = landed.receipts().first().expect("one changed mount");
@@ -1025,7 +1043,7 @@ fn every_delivery_terminal_survives_withdrawal_and_expired_deadline() {
             | Down::Message { .. }
             | Down::Acknowledge { .. }
             | Down::Grant { .. }
-            | Down::Cancel => panic!("full actual terminal required"),
+            | Down::Cancel => panic!("full terminal required"),
         }
         world.sent();
         finish(&mut world);
@@ -1041,7 +1059,7 @@ fn grant_generation_races_are_fenced_by_emission_not_queued_refresh() {
     grant(&mut world, 2);
     grant(&mut world, 3);
     world.up(Up::Unauthorized { account: 1, generation: 1 });
-    assert_eq!(world.seen.rejected, [(1, 1)]);
+    assert_eq!(world.seen.account_notices, [Up::Unauthorized { account: 1, generation: 1 }]);
     world.sent();
     match world.seen.down.last().expect("coalesced refresh") {
         Down::Grant { grant } => assert_eq!(grant.generation, 3),
@@ -1176,7 +1194,7 @@ fn final_answers_cannot_abandon_parent_or_queued_delivery_terminals() {
             world.settled();
         }
     }
-    // The actual response can reach the agent before its Send terminal returns.
+    // The response can reach the agent before its Send terminal returns.
     let mut world = World::new(62, limits());
     world.live();
     call(&mut world, 20, 1, true, 100);
@@ -1322,7 +1340,7 @@ fn continual_progress_reaches_only_the_independent_wall_deadline() {
             Time::ZERO.saturating_add(Duration::from_secs(second)),
             Input::Process(process::Event::Received {
                 owner: world.owner(),
-                message: Up::Fact { body: Box::from(&b"actual progress"[..]) },
+                message: Up::Fact { body: Box::from(&b"progress"[..]) },
             }),
         );
         world.at(second);
@@ -1372,7 +1390,7 @@ fn surviving_descendants_keep_reap_right_through_terminate_and_kill() {
         owner: world.owner(),
         detail: Box::from(&b"descendants gone"[..]),
     }));
-    assert_eq!(world.seen.gone, None, "both actual signal rights also remain");
+    assert_eq!(world.seen.gone, None, "both signal rights also remain");
     world.event(Input::Process(process::Event::Signalled { owner: world.owner() }));
     assert_eq!(world.seen.gone, None);
     world.event(Input::Process(process::Event::Signalled { owner: world.owner() }));
@@ -1392,7 +1410,7 @@ fn the_kit_counts_the_label_separator_at_the_exact_message_bound_and_one_byte_ov
         label: Box::from(*b"peer"),
         text: Box::from(*b"123456"),
     }));
-    assert!(world.seen.bounces.is_empty(), "twelve rendered bytes fit");
+    assert!(world.seen.refused_messages.is_empty(), "twelve rendered bytes fit");
     world.sent();
     world.event(Input::Parent(parent::Event::Message {
         finish_requested: false,
@@ -1401,7 +1419,10 @@ fn the_kit_counts_the_label_separator_at_the_exact_message_bound_and_one_byte_ov
         label: Box::from(*b"peer"),
         text: Box::from(*b"1234567"),
     }));
-    assert_eq!(world.seen.bounces, [MessageRefusal::TooLarge]);
+    assert_eq!(
+        world.seen.refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+        [MessageRefusal::TooLarge]
+    );
     finish(&mut world);
 }
 

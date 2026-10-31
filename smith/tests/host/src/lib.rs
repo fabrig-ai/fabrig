@@ -1,4 +1,4 @@
-//! V2 host world: scripted parent, agent channel and contained tree, driven by
+//! Host world: scripted parent, agent channel and contained tree, driven by
 //! skein's Stage, Schedule, Ledger and Trace (testing-strategy.md, sections 2.2,
 //! 6 and 7; domain/host.md, section 10). Observations, never domain cells, prove
 //! exact terminals, parent-owned turns and no Gone before tree/EOF/rights.
@@ -33,12 +33,12 @@ pub enum Lower {
 #[derive(Debug, Default)]
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "independent actual tree, channel and parent observations are outside the domain state machine"
+    reason = "independent tree, channel and parent observations are outside the domain state machine"
 )]
 pub struct Seen {
     /// Parent handle, available only after Started.
     pub agent: Option<Token>,
-    /// Actual lower owner, available to the tree before Started.
+    /// Lower owner, available to the tree before Started.
     pub owner: Option<Token>,
     /// Agent admission record, independently from Started.
     pub admitted: bool,
@@ -46,49 +46,36 @@ pub struct Seen {
     pub answer: Option<Answer>,
     /// One failure while the run was untold.
     pub fault: Option<Fault>,
-    /// Physical containment terminal.
     pub gone: Option<End>,
-    /// Actual bounded operator suffix retained from the Gone terminal.
+    /// Bounded operator suffix retained from the Gone terminal.
     pub gone_detail: Option<Box<[u8]>>,
-    /// Actual process-exited observation.
     pub exited: bool,
-    /// Actual empty-tree observation.
     pub empty: bool,
-    /// Actual EOF read terminal.
     pub eof: bool,
     /// Calls whose operation terminal still belongs to the parent.
     pub calls: BTreeSet<Token>,
     /// Turn payload bytes owned by the parent until its exact ACK.
     pub turns: BTreeMap<u32, host::TurnValue>,
-    /// Last read fence observed in an actual parent Turn or Waiting notice.
+    /// Last read fence observed in a parent Turn or Waiting notice.
     pub read: Option<Token>,
     /// Ingress attempts still pending admission, read or unread.
     pub messages: Vec<Token>,
-    /// Names actually issued to the agent before any covering fence.
+    /// Names issued to the agent before any covering fence.
     pub sent_messages: BTreeSet<Token>,
-    /// Names covered by actual parent fences.
     pub read_messages: Vec<Token>,
-    /// One actual unread report, including the empty report.
+    /// One unread report, including the empty report.
     pub unread: Option<Vec<Token>>,
     /// Every refused ingress attempt or issued name.
     pub refused_messages: Vec<(Token, host::MessageRefusal)>,
-    /// Actual parent Turn metadata: sequence, scalar prefix and independent
+    /// Parent Turn metadata: sequence, scalar prefix and independent
     /// currency/raw overflow attestations. ACK never erases these observations.
-    /// Contract: domain/host.md, section 6; testing-strategy.md, sections 6 and 7.
     pub turn_metadata: Vec<(u32, u64)>,
     /// Parent notifications after withdrawal, which never consume a call right.
     pub withdrawals: BTreeSet<Token>,
-    /// Downlink words handed to the agent by the scripted transport.
     pub down: Vec<Down>,
-    /// Message names bounced by the kit.
-    pub bounces: Vec<host::MessageRefusal>,
-    /// Notices the parent actually heard.
-    pub rejected: Vec<(u32, u64)>,
-    /// Typed account notices accepted by the host domain.
     pub account_notices: Vec<host::Up>,
-    /// Generic facts forwarded without interpretation.
     pub told: u32,
-    /// One-way process signals, in actual order.
+    /// One-way process signals, in order.
     pub signals: Vec<host::Signal>,
 }
 
@@ -99,21 +86,17 @@ pub struct Seen {
 pub struct World {
     /// Deterministic seed is recorded in the trace.
     pub seed: u64,
-    /// Real domain under test.
     pub domain: host::Domain,
     /// Bounded stage, injected clock and handed outputs.
     pub stage: Stage<Limits, Input, Output>,
-    /// Shared deterministic scheduler for raced terminals.
     pub schedule: Schedule<Input>,
     /// Independent exactly-once lower terminal accounting.
     pub lower: Ledger<Lower, Token>,
-    /// Observable parent, agent and tree state.
     pub seen: Seen,
-    /// Shared replay trace of boundary observations.
     pub trace: Trace,
 }
 
-/// Small valid V2 capacities; every sealed actual delivery fits the reply cap.
+/// Small valid capacities; every sealed delivery fits the reply cap.
 #[must_use]
 pub fn limits() -> Limits {
     Limits {
@@ -151,7 +134,7 @@ pub fn limits() -> Limits {
     }
 }
 
-/// Opaque V2 source cells, optional workspace and credential names only.
+/// Opaque source cells, optional workspace and credential names only.
 #[must_use]
 pub fn start() -> Start {
     Start {
@@ -198,7 +181,7 @@ impl World {
         }
     }
 
-    /// Deliver one typed input, with actual lower accounting and ordered outputs.
+    /// Deliver one typed input, with lower accounting and ordered outputs.
     pub fn event(&mut self, event: Input) {
         match &event {
             Input::Parent(parent::Event::Spawn { start, .. }) => {
@@ -241,23 +224,23 @@ impl World {
         self.event(Input::Parent(parent::Event::Spawn { client: Token::new(1), start }));
     }
 
-    /// Actual process Started, distinct from agent admission.
+    /// Process Started, distinct from agent admission.
     pub fn spawned(&mut self) {
         let owner = self.owner();
         self.event(Input::Process(process::Event::Spawned { owner, process: Token::new(9) }));
     }
 
-    /// Actual completion of the currently issued channel send.
+    /// Completion of the currently issued channel send.
     pub fn sent(&mut self) {
         self.event(Input::Process(process::Event::Sent { owner: self.owner() }));
     }
 
-    /// Actual channel message on one previously demanded read.
+    /// Channel message on one demanded read.
     pub fn up(&mut self, message: Up) {
         self.event(Input::Process(process::Event::Received { owner: self.owner(), message }));
     }
 
-    /// Start, finish its Send terminal and admit through the actual read path.
+    /// Start, finish its Send terminal and admit through the read path.
     pub fn live(&mut self) {
         self.spawn(start());
         self.spawned();
@@ -271,7 +254,7 @@ impl World {
         self.seen.agent.expect("parent learned Started")
     }
 
-    /// Lower owner learned from actual Spawn request.
+    /// Lower owner learned from Spawn request.
     #[must_use]
     pub fn owner(&self) -> Token {
         self.seen.owner.expect("tree learned Spawn")
@@ -341,7 +324,7 @@ impl World {
                 }
             }
             Input::Parent(parent::Event::Answer { call, .. }) => {
-                assert!(self.seen.calls.remove(call), "actual parent operation right");
+                assert!(self.seen.calls.remove(call), "parent operation right");
                 None
             }
             Input::Parent(parent::Event::Acknowledge { turn, .. }) => {
@@ -567,13 +550,13 @@ impl Seen {
         let name = read.expect("fences never go backwards");
         let at = self.messages.iter().position(|old| *old == name).expect("fence owns an accepted message");
         for name in self.messages.drain(..=at) {
-            assert!(self.sent_messages.remove(&name), "a covering fence follows actual message issuance");
+            assert!(self.sent_messages.remove(&name), "a covering fence follows message issuance");
             self.read_messages.push(name);
         }
         self.read = read;
     }
 
-    /// Common parent referee; the kind supplies actual lower containment proof.
+    /// Common parent referee; the kind supplies lower containment proof.
     pub fn observe_parent(&mut self, request: parent::Request, contained: bool, lower_settled: bool) {
         match request {
             parent::Request::Started { agent, .. } => {
@@ -598,7 +581,7 @@ impl Seen {
             parent::Request::Answered { answer, .. } => {
                 assert!(self.fault.is_none());
                 self.fence(answer.read);
-                assert!(self.answer.replace(answer).is_none(), "one actual run answer");
+                assert!(self.answer.replace(answer).is_none(), "one run answer");
             }
             parent::Request::Faulted { fault, .. } => {
                 assert!(self.answer.is_none());
@@ -607,7 +590,7 @@ impl Seen {
             }
             parent::Request::Gone { end, detail, .. } => {
                 if matches!(end, End::Exited { .. } | End::Settled) {
-                    assert!(contained, "Gone needs the kind's actual containment proof");
+                    assert!(contained, "Gone needs the kind's containment proof");
                     assert!(lower_settled, "Gone retains every lower terminal");
                     assert!(self.calls.is_empty(), "Gone retains every parent call");
                     assert!(self.turns.is_empty(), "Gone retains every told turn");
@@ -635,16 +618,14 @@ impl Seen {
                 self.unread = Some(names.into_vec());
             }
             parent::Request::MessageRefused { name, reason, .. } => {
-                let at = self.messages.iter().rposition(|old| *old == name).expect("one actual message terminal");
+                let at = self.messages.iter().rposition(|old| *old == name).expect("one message terminal");
                 self.messages.remove(at);
                 if !self.messages.contains(&name) {
                     self.sent_messages.remove(&name);
                 }
                 self.refused_messages.push((name, reason));
-                self.bounces.push(reason);
             }
             parent::Request::Unauthorized { account, generation, .. } => {
-                self.rejected.push((account, generation));
                 self.account_notices.push(host::Up::Unauthorized { account, generation });
             }
             parent::Request::Told { .. } => self.told += 1,

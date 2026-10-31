@@ -21,7 +21,7 @@ fn an_inline_run_answers_and_its_slot_is_released_after_its_last_completion() {
         if world.seen[&Token::new(1)].answer.is_some() {
             break;
         }
-        let next = world.next_deadline().expect("actual provider or root alarm");
+        let next = world.next_deadline().expect("provider or root alarm");
         world.at(next);
     }
     let seen = &world.seen[&Token::new(1)];
@@ -50,9 +50,9 @@ fn a_drop_after_an_answer_releases_held_turns_without_replacing_the_answer() {
         if inline.seen[&Token::new(1)].answer.is_some() {
             break;
         }
-        inline.at(inline.next_deadline().expect("actual provider or root alarm"));
+        inline.at(inline.next_deadline().expect("provider or root alarm"));
     }
-    assert!(inline.seen[&Token::new(1)].answer.is_some(), "actual native answer");
+    assert!(inline.seen[&Token::new(1)].answer.is_some(), "native answer");
     let answer = format!("{:?}", inline.seen[&Token::new(1)].answer);
     assert!(!inline.seen[&Token::new(1)].turns.is_empty());
     inline.event(parent::Event::Drop { agent: inline.handle(Token::new(1)) });
@@ -96,7 +96,7 @@ fn a_late_drop_is_ignored_after_the_ordinary_answer_and_gone() {
 }
 
 #[test]
-fn a_drop_before_the_answer_waits_for_actual_lower_settlement() {
+fn a_drop_before_the_answer_waits_for_seen_lower_settlement() {
     let mut world = World::new(320, inline::limits());
     spawn(&mut world, 1, Job::HostTools);
     assert!(!world.lower.is_empty());
@@ -157,7 +157,7 @@ fn an_inline_run_that_ignores_its_cancel_is_dropped_at_its_grace_with_everything
     world.at(Time::ZERO.saturating_add(Duration::from_secs(5)));
     assert_eq!(world.seen[&Token::new(1)].fault, Some(host::Fault::Exited));
     assert!(world.seen[&Token::new(1)].answer.is_none());
-    assert!(world.seen[&Token::new(1)].gone.is_none(), "actual provider terminal remains owed");
+    assert!(world.seen[&Token::new(1)].gone.is_none(), "provider terminal remains owed");
     assert!(!world.lower.is_empty());
     world.run();
     world.settled();
@@ -217,7 +217,7 @@ fn an_inline_run_cancelled_mid_turn_answers_cancelled() {
     assert!(!world.lower.is_empty());
     let agent = world.handle(Token::new(1));
     world.event(parent::Event::Stop { agent });
-    assert!(world.seen[&Token::new(1)].gone.is_none(), "cancel still owes actual provider terminal");
+    assert!(world.seen[&Token::new(1)].gone.is_none(), "cancel still owes provider terminal");
     world.run();
     world.settled();
     assert!(matches!(
@@ -240,7 +240,10 @@ fn a_message_past_the_runs_bound_is_refused_typed_by_either_kind() {
         label: Box::default(),
         text: vec![b'x'; 63].into(),
     });
-    assert_eq!(world.seen[&Token::new(1)].bounces, [host::MessageRefusal::TooLarge]);
+    assert_eq!(
+        world.seen[&Token::new(1)].refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+        [host::MessageRefusal::TooLarge]
+    );
     world.run();
     world.settled();
     let mut spawned = Spawned::new(315, smith_host_world::limits());
@@ -253,7 +256,10 @@ fn a_message_past_the_runs_bound_is_refused_typed_by_either_kind() {
         label: Box::default(),
         text: vec![b'x'; 63].into(),
     }));
-    assert_eq!(spawned.seen.bounces, [host::MessageRefusal::TooLarge]);
+    assert_eq!(
+        spawned.seen.refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
+        [host::MessageRefusal::TooLarge]
+    );
 }
 
 #[test]
@@ -261,7 +267,7 @@ fn an_inline_runs_facts_are_drained_every_pass() {
     let mut world = World::new(316, inline::limits());
     spawn(&mut world, 1, Job::HostTools);
     assert!(!world.facts.is_empty(), "admission observations available before provider finishes");
-    assert!(world.agent.pop_fact(Token::new(1)).is_none(), "drained at this actual iteration");
+    assert!(world.agent.pop_fact(Token::new(1)).is_none(), "drained at this iteration");
     world.run();
     world.settled();
     assert!(!world.content.is_empty());
@@ -287,7 +293,7 @@ fn two_inline_slots_keep_provider_owners_independent() {
 }
 
 /// Each root's requests reach its own slot before the next entrance runs
-/// (skein's draft dynamic-memory.md 4.6): two slots doing tool work at
+/// (skein/docs/foundation/programming-model.md, section 4.5): two slots doing tool work at
 /// once, their completions interleaved, every lower right and parent
 /// request names the slot whose root emitted it.
 #[test]
@@ -393,7 +399,7 @@ fn two_inline_slots_route_each_roots_requests_to_its_own_slot_under_load() {
 }
 
 #[test]
-fn inline_scripts_use_actual_root_types_without_a_codec() {
+fn inline_scripts_use_seen_root_types_without_a_codec() {
     let start = inline::start(318, Job::HostTools);
     assert!(start.workspace.is_none());
     assert!(!start.charter.value().grants.host_tools.is_empty());
@@ -544,7 +550,7 @@ fn child_command_world(seed: u64) -> World {
         }
         world.at(world.next_deadline().expect("native provider alarm"));
     }
-    assert!(world.machine_trace.iter().any(|request| request.contains("Spawn")), "actual child command requested");
+    assert!(world.machine_trace.iter().any(|request| request.contains("Spawn")), "child command requested");
     world
 }
 
@@ -554,10 +560,7 @@ fn an_inline_run_cancels_its_child_command_and_is_gone_once_it_settles() {
     let handle = world.handle(Token::new(1));
     world.event(parent::Event::Stop { agent: handle });
     assert!(world.seen[&Token::new(1)].answer.is_none(), "the native root also waits for its command terminal");
-    assert!(
-        world.seen[&Token::new(1)].gone.is_none(),
-        "the command's actual native terminal is held across cancellation"
-    );
+    assert!(world.seen[&Token::new(1)].gone.is_none(), "the command's native terminal is held across cancellation");
     assert!(world.machine_trace.iter().any(|request| request.starts_with("cancel")));
     world.tool_terminals = inline::ToolTerminals::Forward;
     world.machine_replies();
@@ -575,7 +578,7 @@ fn a_real_completion_stretches_the_spawned_watchdog_past_no_progress() {
     native.provider_latency(Duration::from_secs(20));
     spawn(&mut native, 1, Job::HostTools);
     let [(_, Some((operation, span)))] = native.long_notices.as_slice() else {
-        panic!("actual provider issuance reports one span: {:?}", native.long_notices);
+        panic!("provider issuance reports one span: {:?}", native.long_notices);
     };
     assert_eq!(*operation, host::Operation::Completion);
     let mut bounds = smith_host_world::limits();
@@ -585,8 +588,8 @@ fn a_real_completion_stretches_the_spawned_watchdog_past_no_progress() {
     spawned.up(host::Up::Long { operation: *operation, span: *span });
     native.at(Time::ZERO.saturating_add(Duration::from_secs(11)));
     spawned.at(11);
-    assert_eq!(spawned.seen.fault, None, "actual completion outlasts no_progress");
-    assert_eq!(native.long_notices.len(), 1, "actual provider has not ended");
+    assert_eq!(spawned.seen.fault, None, "completion outlasts no_progress");
+    assert_eq!(native.long_notices.len(), 1, "provider has not ended");
     native.event(parent::Event::Stop { agent: native.handle(Token::new(1)) });
     assert_eq!(native.long_notices.len(), 1, "cancel alone does not end the completion");
     native.run();

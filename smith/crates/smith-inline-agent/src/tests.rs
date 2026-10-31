@@ -192,7 +192,7 @@ fn cancel_fire_resume_terminal_and_reclaim_settle_exactly_once() {
             completion_owner = Some(owner);
         }
     }
-    let owner = completion_owner.expect("actual provider request");
+    let owner = completion_owner.expect("provider request");
     resume(&mut agent, &env, &mut out);
     assert!(out.is_empty());
     env.now = Time::ZERO.saturating_add(Duration::from_secs(1));
@@ -291,10 +291,10 @@ fn a_full_parent_reply_is_a_typed_too_large_terminal() {
 
 #[test]
 fn a_slot_roots_undrained_facts_refuse_nothing_and_are_all_drained() {
-    // T1 first refused message 2044 after stepping 2043 messages without a drain.
-    const OLD_REFUSAL: u32 = 2044;
+    // Exercise thousands of undrained observations with two message counts.
+    const MESSAGE_COUNT: u32 = 2044;
     const LIFECYCLE_FACTS: u32 = 2; // One Opened per slot.
-    for messages in [OLD_REFUSAL, OLD_REFUSAL * 2] {
+    for messages in [MESSAGE_COUNT, MESSAGE_COUNT * 2] {
         let env = env();
         let mut domain = Domain::new(&env.limits, configuration(), 5);
         let mut out = Queue::uncapped();
@@ -307,20 +307,18 @@ fn a_slot_roots_undrained_facts_refuse_nothing_and_are_all_drained() {
                 Input::Parent(parent::Event::Spawn { client: client_token, start: start() }),
                 &mut out,
             );
-            let Some(Output::Parent(parent::Request::Started { agent, .. })) = out.pop() else {
-                panic!("actual slot handle")
-            };
+            let Some(Output::Parent(parent::Request::Started { agent, .. })) = out.pop() else { panic!("slot handle") };
             handles[usize::try_from(client - 1).expect("two slots")] = agent;
             while out.pop().is_some() {}
             while domain.pop_fact(client_token).is_some() {}
         }
-        // Full inline ingress refuses before entering the root. As in the old
-        // test, drive A's native public entry to get actual accepted/refused
+        // Full inline ingress refuses before entering the root. Drive the
+        // native public entry to get accepted/refused
         // message facts while leaving its observations undrained.
         let native_env = Env { now: env.now, wall: env.wall, limits: env.limits.smith };
         let mut native_out = Queue::uncapped();
         for name in 1..=messages {
-            let slot = domain.slots.get_mut(Id::from_token(handles[0])).expect("actual native slot");
+            let slot = domain.slots.get_mut(Id::from_token(handles[0])).expect("native slot");
             smith::step(
                 &mut slot.root,
                 &native_env,
@@ -592,7 +590,7 @@ fn a_dropped_slot_keeps_a_command_right_until_its_terminal() {
         }
     }
     // This unit supplies a root-boundary command fixture; the composed worlds
-    // supply actual root operations and the native fake-machine settlement.
+    // supply root operations and the native fake-machine settlement.
     agent.lower.push(smith::Request::Io {
         owner: Token::new(100),
         op: smith::tools::Op::Spawn {
@@ -629,13 +627,13 @@ fn a_dropped_slot_keeps_a_command_right_until_its_terminal() {
     step(
         &mut agent,
         &env,
-        Input::Below { agent: handle, terminal: Below::Cancelled { owner: completion.expect("actual Complete") } },
+        Input::Below { agent: handle, terminal: Below::Cancelled { owner: completion.expect("Complete") } },
         &mut out,
     );
     assert!(out.is_empty(), "the command still owns its terminal");
     assert_eq!(agent.hosted(), 1);
     // A dropped root hears nothing, so this boundary fixture needs no native tools job.
-    // Actual composed cancellation and answer settlement stay in the host worlds.
+    // composed cancellation and answer settlement stay in the host worlds.
     step(
         &mut agent,
         &env,

@@ -4,8 +4,6 @@
 //! turns unacknowledged. Answered roots still hear their owed terminals;
 //! dropped roots hear nothing. The injected clock bounds cancellation grace.
 
-#![expect(clippy::manual_let_else, reason = "checked slot lookup remains exhaustive")]
-
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, List, Queue, Time};
 use smith_domain as smith;
@@ -15,9 +13,8 @@ use crate::domain::{Domain, Slot, observe, root_step};
 use crate::{FactKind, Limits, Lower, Output};
 
 pub(crate) fn cancel(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &mut Queue<Output>) {
-    let slot = match agent.slots.get_mut(id) {
-        Some(slot) => slot,
-        None => return,
+    let Some(slot) = agent.slots.get_mut(id) else {
+        return;
     };
     match slot.state {
         Stage::Live => slot.state = Stage::Cancelling { grace: env.now.saturating_add(env.limits.cancel_grace) },
@@ -41,9 +38,8 @@ pub(crate) fn finish(agent: &mut Domain, now: Time, id: Id<Slot>, out: &mut Queu
 }
 
 pub(crate) fn drop_run(agent: &mut Domain, now: Time, id: Id<Slot>, out: &mut Queue<Output>) {
-    let slot = match agent.slots.get_mut(id) {
-        Some(slot) => slot,
-        None => return,
+    let Some(slot) = agent.slots.get_mut(id) else {
+        return;
     };
     let unanswered = match slot.state {
         Stage::Live | Stage::Cancelling { .. } => true,

@@ -19,7 +19,7 @@ pub struct Limits {
 }
 
 /// Whether a domain can be built under `limits`: compatible limits and
-/// representable constructor capacities (programming-model.md, section 6.3).
+/// Representable constructor capacities (programming-model.md, section 6.3).
 /// The shell refuses limits for which this is false.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {

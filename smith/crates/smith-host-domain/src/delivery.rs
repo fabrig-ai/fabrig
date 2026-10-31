@@ -206,29 +206,6 @@ impl DeliveryRefusal {
     }
 }
 
-/// Content-free classification of a host terminal, for bounded facts.
-/// It carries no receipt, path, diagnostic or host policy text.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum DeliveryStatus {
-    /// Actual landing.
-    Delivered,
-
-    /// No changed directory.
-    Nothing,
-
-    /// Correctable host refusal.
-    Refused,
-
-    /// Actual host failure classification.
-    Failed(
-        /// Fixed host reason, with no diagnostic or policy bytes.
-        DeliveryReason,
-    ),
-
-    /// Host context moved.
-    Stale,
-}
-
 /// The last bytes of a failed host operation's diagnostic output. The fixed
 /// protocol cap bounds every terminal, landing and reply without allocation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -355,7 +332,7 @@ pub enum Delivery {
         DeliveryRefusal,
     ),
 
-    /// Actual failed operation with bounded feedback.
+    /// Failed operation with bounded feedback.
     Failed(
         /// Generic reason and fixed 512-byte diagnostic tail/drop count.
         DeliveryFailure,
@@ -363,21 +340,6 @@ pub enum Delivery {
 
     /// Host context moved; this run cannot land later.
     Stale,
-}
-
-impl Delivery {
-    /// Project the terminal to content-free observation; this neither
-    /// validates mounted authority nor decides lifecycle behavior.
-    #[must_use]
-    pub const fn status(&self) -> DeliveryStatus {
-        match self {
-            Self::Delivered(_) => DeliveryStatus::Delivered,
-            Self::Nothing => DeliveryStatus::Nothing,
-            Self::Refused(_) => DeliveryStatus::Refused,
-            Self::Failed(failure) => DeliveryStatus::Failed(failure.reason),
-            Self::Stale => DeliveryStatus::Stale,
-        }
-    }
 }
 
 #[cfg(test)]

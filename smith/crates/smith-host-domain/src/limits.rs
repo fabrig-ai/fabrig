@@ -8,7 +8,6 @@ use skein_lib::Duration;
 /// Immutable parent bounds; invalid arithmetic refuses construction.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
-    /// Contained process slots.
     pub agents: u32,
     /// Mount descriptors per start.
     pub directories: u32,
@@ -19,7 +18,6 @@ pub struct Limits {
     pub path_bytes: u32,
     /// Mount and generic tool label bytes.
     pub name_bytes: u32,
-    /// Distinct credential names.
     pub accounts: u32,
     /// Typed start charter ownership, in bytes.
     pub charter_bytes: u64,
@@ -49,7 +47,6 @@ pub struct Limits {
     pub outcome_bytes: u64,
     /// Operator process-tail bytes.
     pub detail_bytes: u32,
-    /// Lower spawn terminal deadline.
     pub spawn_timeout: Duration,
     /// Unpaused progress deadline.
     pub no_progress: Duration,
@@ -59,7 +56,6 @@ pub struct Limits {
     pub long_span: Duration,
     /// Simultaneously announced spans, each ended by one `LongDone`.
     pub long_open: u32,
-    /// Independent working wall deadline.
     pub wall_time: Duration,
     /// A cancelled run's grace to answer before tree termination.
     pub cancel_grace: Duration,
@@ -94,7 +90,7 @@ pub fn check(limits: &Limits) -> Result<(), Check> {
 }
 
 /// Whether a domain can be built under `limits`: compatible limits and
-/// representable constructor capacities (programming-model.md, section 6.3).
+/// Representable constructor capacities (programming-model.md, section 6.3).
 /// The shell refuses limits for which this is false.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {

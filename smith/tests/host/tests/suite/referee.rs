@@ -22,7 +22,7 @@ fn the_common_parent_referee_rejects_a_gone_with_an_open_inline_completion() {
 }
 
 #[test]
-#[should_panic(expected = "one actual run answer")]
+#[should_panic(expected = "one run answer")]
 fn the_common_parent_referee_rejects_two_run_answers() {
     let mut seen = Seen::default();
     for _ in 0..2 {
@@ -51,7 +51,7 @@ fn the_common_parent_referee_rejects_a_gone_with_an_unanswered_parent_call() {
 }
 
 #[test]
-#[should_panic(expected = "one actual parent terminal")]
+#[should_panic(expected = "one parent terminal")]
 fn the_common_parent_referee_rejects_two_answers_to_one_inline_call() {
     let mut world = World::new(319, inline::limits());
     world.auto_answer = false;
@@ -60,10 +60,10 @@ fn the_common_parent_referee_rejects_two_answers_to_one_inline_call() {
         if !world.seen[&Token::new(1)].calls.is_empty() {
             break;
         }
-        world.at(world.next_deadline().expect("actual provider alarm"));
+        world.at(world.next_deadline().expect("provider alarm"));
     }
     let agent = world.handle(Token::new(1));
-    let call = *world.seen[&Token::new(1)].calls.first().expect("actual relayed call");
+    let call = *world.seen[&Token::new(1)].calls.first().expect("relayed call");
     for _ in 0..2 {
         world.event(parent::Event::Answer {
             agent,
@@ -75,7 +75,7 @@ fn the_common_parent_referee_rejects_two_answers_to_one_inline_call() {
 
 #[test]
 #[should_panic(expected = "Gone retains every lower terminal")]
-fn the_common_parent_referee_rejects_a_gone_with_an_actual_machine_right() {
+fn the_common_parent_referee_rejects_a_gone_with_a_seen_machine_right() {
     let mut world = World::new(84, inline::limits());
     world.auto_machine = false;
     world.event(parent::Event::Spawn { client: Token::new(1), start: inline::workspace_start(84, Job::Reporting) });
@@ -105,7 +105,7 @@ fn the_common_parent_referee_rejects_a_report_that_loses_a_queued_name() {
 }
 
 #[test]
-#[should_panic(expected = "one actual message terminal")]
+#[should_panic(expected = "one message terminal")]
 fn the_common_parent_referee_rejects_refusal_after_reporting_the_same_name() {
     let mut seen = Seen::default();
     seen.messages.push(Token::new(2));
@@ -126,7 +126,7 @@ fn the_common_parent_referee_rejects_refusal_after_reporting_the_same_name() {
 }
 
 #[test]
-#[should_panic(expected = "a covering fence follows actual message issuance")]
+#[should_panic(expected = "a covering fence follows message issuance")]
 fn the_common_parent_referee_rejects_a_fence_covering_an_unissued_name() {
     let mut seen = Seen::default();
     seen.messages.push(Token::new(2));
