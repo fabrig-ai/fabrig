@@ -15,7 +15,8 @@ const DEPLOYMENT: u32 = 0;
 // The small profile's settings bound; one further party exercises refusal.
 const PROPOSAL_LIMIT: u32 = 4;
 const PARTIES: u32 = PROPOSAL_LIMIT + 1;
-const MEMBER: u64 = 2;
+// Person 1 is the seeded owner; its sign-in draws unused person 2 (`jig/docs/design/domain/people.md`, 3).
+const MEMBER: u64 = 3;
 const CHARTER: u32 = 1;
 
 fn configuration() -> (root::Config, root::Limits) {
