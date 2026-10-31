@@ -13,21 +13,49 @@ fn configuration() -> Config {
 }
 
 #[test]
-fn invalid_limits_are_refused() {
+fn configured_and_native_programs_fit_their_limits() {
     assert!(program_valid(&crate::service::tests::configuration()));
     assert!(program_valid(&configuration()));
-    for case in 0_u8..7 {
+}
+
+#[test]
+fn invalid_limits_are_refused() {
+    let base = configuration().limits;
+    for (name, limits) in [
+        ("contract bytes", Limits { llm: llm::ComponentLimits { contract_bytes: u64::MAX, ..base.llm }, ..base }),
+        ("socket overflow", Limits { io: io::Limits { sockets: u32::MAX, ..base.io }, ..base }),
+        ("file overflow", Limits { file_slots: u32::MAX, ..base }),
+        (
+            "host path",
+            Limits {
+                domain: domain::Limits {
+                    session: domain::session::Limits {
+                        tools: domain::tools::Limits { host_path_bytes: u32::MAX, ..base.domain.session.tools },
+                        ..base.domain.session
+                    },
+                    ..base.domain
+                },
+                ..base
+            },
+        ),
+        (
+            "conversations",
+            Limits {
+                domain: domain::Limits {
+                    run: domain::run::Limits { conversations: u32::MAX, ..base.domain.run },
+                    ..base.domain
+                },
+                ..base
+            },
+        ),
+        (
+            "receive mismatch",
+            Limits { io: io::Limits { receive: base.io.receive.checked_add(1).unwrap(), ..base.io }, ..base },
+        ),
+        ("socket reserve", Limits { io: io::Limits { sockets: u32::MAX / 8 - 10, ..base.io }, ..base }),
+    ] {
         let mut config = configuration();
-        match case {
-            0 => config.limits.llm.contract_bytes = u64::MAX,
-            1 => config.limits.io.sockets = u32::MAX,
-            2 => config.limits.file_slots = u32::MAX,
-            3 => config.limits.domain.session.tools.host_path_bytes = u32::MAX,
-            4 => config.limits.domain.run.conversations = u32::MAX,
-            5 => config.limits.io.receive += 1,
-            6 => config.limits.io.sockets = u32::MAX / 8 - 10,
-            _ => unreachable!(),
-        }
-        assert!(!program_valid(&config), "invalid program case {case}");
+        config.limits = limits;
+        assert!(!program_valid(&config), "{name}");
     }
 }

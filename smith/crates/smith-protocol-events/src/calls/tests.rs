@@ -5,6 +5,8 @@ use crate::sinks::tests::{drain, drain_ready, grant};
 use crate::sinks::{Capture, Delivery, Destination, Ended};
 use skein_lib::Duration;
 
+const OPENER: Token = Token::new(91);
+
 #[test]
 fn invalid_limits_are_refused() {
     let mut limits = source();
@@ -37,7 +39,7 @@ fn fixture(source: &session::Limits, capture: Capture) -> (Book, Sinks, Token, T
     let destination = Token::new(999);
     sinks.add(Destination::Trace, destination, Delivery::Complete).unwrap();
     grant(&mut sinks, destination);
-    let opener = Token::new(91);
+    let opener = OPENER;
     sinks.conversation(
         Time::ZERO,
         Time::ZERO,
@@ -284,198 +286,8 @@ fn seen_workspace_terminals_keep_scalar_measurements_and_provider_identity_under
     }
 }
 
-#[test]
-#[expect(clippy::too_many_lines, reason = "one 15-case child control keeps the three-layer typed source join together")]
-fn seen_child_terminals_join_public_identity_reported_usage_and_omissions_under_every_capture() {
-    use smith_domain::run;
-    let source = source();
-    let used = run::facts::Used { turns: 2, spend: 18, time: Duration::from_millis(13) };
-    for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-        for (result, yielded, end, expected, omitted) in [
-            (
-                run::facts::Return::Answered { used, cut: 17 },
-                session::Yield::Done,
-                run::facts::EndKind::Closed,
-                smith_events::ChildStop::End,
-                17,
-            ),
-            (
-                run::facts::Return::Answered { used, cut: 17 },
-                session::Yield::Budget,
-                run::facts::EndKind::Closed,
-                smith_events::ChildStop::Budget,
-                17,
-            ),
-            (
-                run::facts::Return::Unanswered { used },
-                session::Yield::Done,
-                run::facts::EndKind::Budget(run::Exhausted::Turns),
-                smith_events::ChildStop::Failed,
-                0,
-            ),
-            (
-                run::facts::Return::Cancelled,
-                session::Yield::Done,
-                run::facts::EndKind::Closed,
-                smith_events::ChildStop::Closed,
-                0,
-            ),
-            (
-                run::facts::Return::TimedOut,
-                session::Yield::Done,
-                run::facts::EndKind::Closed,
-                smith_events::ChildStop::Closed,
-                0,
-            ),
-        ] {
-            let (mut book, mut sinks, destination, opener, mut metadata) = fixture(&source, capture);
-            metadata.source = session::ToolSource::Run;
-            book.fact(
-                Time::ZERO,
-                &session::Fact {
-                    at: Time::from_nanos(3_000_000),
-                    kind: session::FactKind::DelegateStarted { opener, block: 0 },
-                    call: Some(metadata.clone()),
-                    response: None,
-                },
-                &mut sinks,
-            );
-            let scope = sinks.scope(opener).unwrap();
-            book.called(metadata.owner, scope, run::facts::Asked::SubAgent);
-            let child = Token::new(92);
-            let seen_id = book.child_opened(
-                child,
-                19,
-                metadata.owner,
-                scope,
-                run::Granted {
-                    turns: 2,
-                    time: Duration::from_millis(30),
-                    spend: 18,
-                    turns_set: run::Set::Reserve,
-                    time_set: run::Set::Asked,
-                },
-                Time::from_nanos(5_000_000),
-            );
-            assert_eq!(seen_id, metadata.id);
-            for (number, charge, usage) in [
-                (
-                    1,
-                    7,
-                    smith_domain::llm::Usage {
-                        input_tokens: Some(3),
-                        output_tokens: None,
-                        cache_read_tokens: Some(0),
-                        cache_write_tokens: None,
-                        reasoning_tokens: None,
-                    },
-                ),
-                (
-                    2,
-                    11,
-                    smith_domain::llm::Usage {
-                        input_tokens: None,
-                        output_tokens: Some(5),
-                        cache_read_tokens: None,
-                        cache_write_tokens: Some(2),
-                        reasoning_tokens: Some(1),
-                    },
-                ),
-            ] {
-                book.child_received(child, usage);
-                book.fact(
-                    Time::ZERO,
-                    &session::Fact {
-                        at: Time::from_nanos(9_000_000),
-                        kind: session::FactKind::Used { opener: child, usage },
-                        call: None,
-                        response: Some(session::ResponseInfo { number, spent: Some(charge) }),
-                    },
-                    &mut sinks,
-                );
-            }
-            let answered = result == run::facts::Return::Answered { used, cut: 17 };
-            if answered {
-                book.fact(
-                    Time::ZERO,
-                    &session::Fact {
-                        at: Time::from_nanos(17_000_000),
-                        kind: session::FactKind::Yielded { opener: child, stop: yielded },
-                        call: None,
-                        response: None,
-                    },
-                    &mut sinks,
-                );
-            }
-            book.fact(
-                Time::ZERO,
-                &session::Fact {
-                    at: Time::from_nanos(18_000_000),
-                    kind: session::FactKind::Ended {
-                        opener: child,
-                        end: session::End::Closed,
-                        turns: 2,
-                        usage: smith_domain::llm::Usage::NONE,
-                    },
-                    call: None,
-                    response: None,
-                },
-                &mut sinks,
-            );
-            book.child_ended(child, end, Time::from_nanos(18_000_000));
-            book.returned(metadata.owner, result);
-            let terminal = if result == run::facts::Return::Cancelled {
-                session::FactKind::DelegateCancelled { opener }
-            } else {
-                session::FactKind::DelegateAnswered { opener, bytes: 23, error: !answered }
-            };
-            book.fact(
-                Time::ZERO,
-                &session::Fact {
-                    at: Time::from_nanos(21_000_000),
-                    kind: terminal,
-                    call: Some(metadata.clone()),
-                    response: None,
-                },
-                &mut sinks,
-            );
-            sinks.ended(
-                Time::from_nanos(23_000_000),
-                Time::ZERO,
-                &Ended {
-                    exit: 0,
-                    answered: true,
-                    aborted: false,
-                    teardown: Some(Duration::ZERO),
-                    usage: skein_io::Measured::Unread,
-                    channel: None,
-                },
-            );
-            let records = drain(&mut sinks, destination);
-            let [_, terminal, _] = records.as_slice() else { panic!("paired call and end") };
-            let Event::ToolCompleted(completed) = &terminal.event else { panic!("typed completion") };
-            assert_eq!((completed.run, completed.conversation), (77, 0));
-            assert_eq!(completed.call, metadata.id);
-            assert_eq!(completed.omitted_bytes, omitted);
-            assert!(completed.clamped);
-            let child = completed.child.as_ref().unwrap();
-            assert_eq!((child.conversation, child.turns, child.time_ms, child.spent), (19, 2, 13, 18));
-            assert_eq!(child.stop, expected);
-            assert_eq!(
-                child.usage,
-                smith_events::Usage {
-                    input_tokens: Some(3),
-                    output_tokens: Some(5),
-                    cache_read_tokens: Some(0),
-                    cache_write_tokens: Some(2),
-                    reasoning_tokens: Some(1)
-                }
-            );
-            no_tool_result(terminal, capture);
-            assert!(book.calls.is_empty());
-        }
-    }
-}
+mod children;
+
 #[test]
 fn seen_main_deliveries_keep_the_exclusive_provider_call_under_every_capture() {
     use smith_domain::run;
