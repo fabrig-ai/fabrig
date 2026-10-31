@@ -20,6 +20,7 @@ pub struct Routes {
 }
 #[derive(Debug)]
 enum Flight {
+    Start { phase: core::start::Phase, census: Option<core::Census> },
     Restart { step: core::RestartStep, census: Option<core::Census> },
     Read(Token),
     Notes(Token),
@@ -81,6 +82,16 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             routes.commit = number;
             Request::Commit { number, writes: translated.into_boxed() }
         }
+        StoreOut::Start { phase, census } => {
+            if phase == core::start::Phase::LoadInbox {
+                census.as_ref()?;
+            }
+            let owner = routes.keep(Flight::Start { phase, census });
+            if phase == core::start::Phase::Switch {
+                return Some(Request::Switch { owner });
+            }
+            restart(routes, owner, None)?
+        }
         StoreOut::Restart { step, census } => {
             if step == core::RestartStep::Switch {
                 let owner = routes.keep(Flight::Restart { step, census });
@@ -126,19 +137,36 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
     })
 }
 fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Option<Request> {
-    let (step, census) = match routes.pending.get(&owner)? {
-        Flight::Restart { step, census } => (step, census),
+    use core::start::Phase;
+    let (phase, census) = match routes.pending.get(&owner)? {
+        Flight::Start { phase, census } => (*phase, census),
+        Flight::Restart { step, census } => (
+            match step {
+                core::RestartStep::LoadCore => Phase::LoadCore,
+                core::RestartStep::LoadInbox => Phase::LoadInbox,
+                core::RestartStep::RestoreConnector { connector } => Phase::RestoreConnector { connector: *connector },
+                core::RestartStep::Switch
+                | core::RestartStep::AdoptRuns
+                | core::RestartStep::ReadAfresh { .. }
+                | core::RestartStep::SettleOutbox { .. }
+                | core::RestartStep::Open => return None,
+            },
+            census,
+        ),
         Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) | Flight::Window { .. } => return None,
     };
-    let range = match step {
-        core::RestartStep::LoadCore => Restore::Jig(Box::new(core::RestoreRange::LIVE)),
-        core::RestartStep::LoadInbox => Restore::Jig(Box::new([core::RestoreRange::Census(census.clone()?)])),
-        core::RestartStep::RestoreConnector { connector } => Restore::Application(Box::new([live(*connector)])),
-        core::RestartStep::Switch
-        | core::RestartStep::AdoptRuns
-        | core::RestartStep::ReadAfresh { .. }
-        | core::RestartStep::SettleOutbox { .. }
-        | core::RestartStep::Open => return None,
+    let range = match phase {
+        Phase::LoadCore => Restore::Jig(Box::new(core::RestoreRange::LIVE)),
+        Phase::LoadInbox => Restore::Jig(Box::new([core::RestoreRange::Census(census.clone()?)])),
+        Phase::RestoreConnector { connector } => Restore::Application(Box::new([live(connector)])),
+        Phase::Sweep => Restore::Jig(Box::new([core::RestoreRange::People])),
+        Phase::Link
+        | Phase::Switch
+        | Phase::Wires
+        | Phase::AdoptRuns
+        | Phase::ReadAfresh { .. }
+        | Phase::SettleOutbox { .. }
+        | Phase::Open => return None,
     };
     Some(Request::Restore {
         owner,
@@ -151,7 +179,9 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
 fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Request> {
     let (task, attempt, turn) = match routes.pending.get(&owner)? {
         Flight::Window { task, attempt, turn } => (task, attempt, turn),
-        Flight::Restart { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) => return None,
+        Flight::Start { .. } | Flight::Restart { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) => {
+            return None;
+        }
     };
     let limits = routes.limits?;
     Some(Request::Transcript {
