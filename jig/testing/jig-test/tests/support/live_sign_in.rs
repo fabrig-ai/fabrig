@@ -147,7 +147,7 @@ fn progress(previous: &mut String, document: &c::Accounts, source: u32) {
 /// The chat's run in words: its phase, attempt, retry, work, hold, ending and run wait. A
 /// result's words are the page's; no grant or credential is in the task document.
 pub(super) fn run_line(task: &c::Task) -> String {
-    let c::ChipPhase { phase, details } = task.chip.details.as_ref();
+    let c::ChipPhaseFacts { phase, details } = task.chip.details.as_ref();
     format!(
         "phase={phase:?}; attempt={:?}; retry={:?}; work={:?}; hold={:?}; ending={}; wait={:?}",
         details.attempt,
@@ -174,7 +174,7 @@ fn ending(ending: &c::ChipEnding) -> String {
 /// ending other than a report, or a host's refusal. Each fails the test at once, in words.
 pub(super) fn failed(task: &c::Task) -> bool {
     let refused = matches!(task.run_wait, Some(c::TaskRunWait::Refused(_)));
-    let c::ChipPhase { phase, details } = task.chip.details.as_ref();
+    let c::ChipPhaseFacts { phase, details } = task.chip.details.as_ref();
     refused
         || details.retry.is_some()
         || details.hold.is_some()
@@ -636,7 +636,7 @@ mod tests {
             &jig_client_protocol_world::fixtures::link_limits(),
         )
         .expect("owner task fixture");
-        let c::ChipPhase { phase, details } = task.chip.details.as_mut();
+        let c::ChipPhaseFacts { phase, details } = task.chip.details.as_mut();
         *phase = c::ChipPhase::Active(c::RunStage::BackingOff { until: skein_lib::Wall::from_nanos(17) });
         details.attempt = Some(1);
         details.retry = Some(c::RetryNotice::OwnerFailed { class: c::HoldFailure::Run, count: 1, allowance: 3 });
