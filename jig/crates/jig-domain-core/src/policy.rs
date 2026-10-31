@@ -468,11 +468,6 @@ impl Core {
         {
             return false;
         }
-        for (&other, previous) in &self.names {
-            if project != other && people::same_name(&name, previous) {
-                return false;
-            }
-        }
         match people::policy_bytes(&value) {
             Some(bytes) if bytes <= limits.policy_bytes => {}
             Some(_) | None => {

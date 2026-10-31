@@ -292,7 +292,10 @@ impl Core {
         }
         let next = match done {
             RestartStep::LoadCore => {
-                if !self.restoring_proofs.is_empty() || !self.settings_proposals_consistent() {
+                if !self.restoring_proofs.is_empty()
+                    || !self.settings_proposals_consistent()
+                    || !crate::deletion::restored(self)
+                {
                     return self.restart_refuse();
                 }
                 self.counters.finish_restore();

@@ -14,5 +14,4 @@ pub(crate) enum Select {
 pub(crate) struct Erasures {}
 
 /// Walk selected ended tasks, then call `deletion::tasks_erased`.
-#[expect(dead_code, reason = "entry point is reserved for the whole-task erasure driver")]
 pub(crate) fn scan(_core: &mut Core, _env: &Env<Limits>, _out: &mut Queue<Request>, _select: Select) {}

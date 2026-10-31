@@ -559,6 +559,9 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::CompoundRefused { reply_to, at, problem } => {
                 let request = reply_to.into_token();
+                if crate::deletion::compound_done(core, request) {
+                    continue;
+                }
                 let Some(PersonTaskRoute::Compound { .. }) = core.person_tasks.remove(&request) else {
                     unreachable!("compound continuation");
                 };
@@ -573,6 +576,9 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::Done { reply_to } => {
                 let token = reply_to.into_token();
+                if crate::deletion::compound_done(core, token) {
+                    continue;
+                }
                 if let Some(route) = core.person_tasks.remove(&token) {
                     let outcome = match route {
                         PersonTaskRoute::Compound { project, operations, first_message } => {
