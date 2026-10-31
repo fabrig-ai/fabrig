@@ -21,7 +21,7 @@ fn idle_config(config: Config, seed: u64) -> (Domain, Env<Limits>, Queue<Request
     let mut out = Queue::uncapped();
     crate::resume(&mut domain, &env, &mut out);
     drop(drain_requests(&mut out));
-    crate::step(&mut domain, &env, Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) }, &mut out);
+    crate::step(&mut domain, &env, crate::fixture::loaded(), &mut out);
     (domain, env, out)
 }
 
@@ -389,12 +389,7 @@ pub(super) fn spawned_chat_with_saved_hello() -> (Domain, Env<Limits>, Queue<Req
         Some(Request::Load) => true,
         _ => false,
     });
-    crate::step(
-        &mut domain,
-        &env,
-        Event::Loaded { state: None, transcript: None, deliveries: Box::default() },
-        &mut out,
-    );
+    crate::step(&mut domain, &env, crate::fixture::loaded(), &mut out);
     crate::step(&mut domain, &env, Event::Line { text: Box::from(&b"hello"[..]) }, &mut out);
     assert!(match out.pop() {
         Some(Request::Credential { account: 7 }) => true,
@@ -597,7 +592,7 @@ fn an_inline_runs_facts_wait_for_the_service() {
     let mut out = Queue::uncapped();
     crate::resume(&mut domain, &env, &mut out);
     drop(drain_requests(&mut out));
-    let loaded = Event::Loaded { state: None, transcript: None, deliveries: Box::default() };
+    let loaded = crate::fixture::loaded();
     crate::step(&mut domain, &env, loaded, &mut out);
     crate::step(&mut domain, &env, Event::Line { text: b"hello".as_slice().into() }, &mut out);
     crate::step(
@@ -777,7 +772,7 @@ fn a_headless_start_reading_its_repository_head() -> (Domain, Env<Limits>, Queue
     let mut out = Queue::uncapped();
     crate::resume(&mut domain, &env, &mut out);
     drop(drain_requests(&mut out));
-    crate::step(&mut domain, &env, Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) }, &mut out);
+    crate::step(&mut domain, &env, crate::fixture::loaded(), &mut out);
     drop(drain_requests(&mut out));
     crate::step(
         &mut domain,
@@ -823,7 +818,7 @@ fn a_headless_start_whose_head_cannot_be_read_exits_refused() {
         .filter_map(|request| if let Request::Exit { status } = request { Some(*status) } else { None })
         .collect::<Vec<_>>();
     assert_eq!(exits, [crate::ExitStatus::Refused]);
-    assert_eq!(domain.chat.phase, crate::chat::State::Done);
+    let crate::chat::State::Done = domain.chat.phase else { panic!("names exhausted ends the chat") };
     crate::resume(&mut domain, &env, &mut out);
     assert!(out.is_empty(), "a failed start never opens a run");
 }
@@ -917,4 +912,26 @@ pub(crate) fn awaiting_credential(config: Config) -> (Domain, Env<Limits>, Queue
     crate::step(&mut domain, &env, Event::StateSaved, &mut out);
     drop(drain_requests(&mut out));
     (domain, env, out)
+}
+
+#[test]
+fn interrupting_a_pending_start_head_does_not_submit_a_second_read() {
+    let (mut domain, env, mut out) = a_headless_start_reading_its_repository_head();
+    crate::step(&mut domain, &env, Event::Interrupt, &mut out);
+    assert!(out.is_empty());
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Git { owner: Token::new(0), result: crate::GitResult::Head { head: b"known".as_slice().into() } },
+        &mut out,
+    );
+    let Some(Request::Notice { notice: crate::Notice::NotDelivered { why: crate::Undelivered::Dropped, .. } }) =
+        out.pop()
+    else {
+        panic!("the cancelled startup drops its queued prompt")
+    };
+    let Some(Request::Exit { status: crate::ExitStatus::Interrupted }) = out.pop() else {
+        panic!("the cancelled startup exits once")
+    };
+    assert!(out.is_empty(), "startup submits no second read or child");
 }

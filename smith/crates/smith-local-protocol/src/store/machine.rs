@@ -1,16 +1,21 @@
 //! Serial durable chat operations (protocol/hosts.md, 5.3; skein io.md, 5.2).
-//! The owner retains only record versions and bounded loading buffers. It knows
-//! neither the conversation's policy nor whether a turn was acknowledged.
+//! Compatibility, loading, fresh-history recovery and writes own their sequence
+//! data. Record versions survive operations; conversation policy is never known.
 mod compatibility;
 mod ephemeral;
+mod fresh;
+mod load;
 mod selection;
-
-use selection::Selection;
+mod write;
 
 use super::boundary::{Action, History, RecordName, StoreFault, StoreLimits, StoreRequest};
 use super::{File, decode_state, decode_turns_bounded, save_state, save_turn, turn_opens_window_bounded};
 use alloc::boxed::Box;
+use compatibility::Compatibility;
 use core::mem::replace;
+use fresh::{Fresh, Resume};
+use load::Loading;
+use selection::Selection;
 use skein_io::{
     digest::{Digest, digest},
     file::{self, Expect},
@@ -20,36 +25,19 @@ use skein_lib::bytes::decimal;
 use skein_lib::{Duration, List, Map, Queue, Time, Token};
 use smith_local_domain::{self as local, ChatState, DeliveryRecord};
 use smith_protocol_translate::Endpoints;
+use write::{AfterWrite, Writing};
 
 #[derive(Debug)]
-enum Phase {
+enum State {
     Idle,
-    Selecting,
-    Format,
-    Admit,
-    CreateFormat,
-    Journal,
-    State,
-    Scan,
-    Headers,
-    Records,
-    Write,
-    Remove,
-    SyncOld,
-    RemoveJournal,
-    SyncJournal,
+    Selecting(Selection),
+    Compatibility(Compatibility),
+    Load(Loading),
+    Fresh(Fresh),
+    Write(Writing),
     Cleaning,
     Closing,
     Closed,
-}
-
-#[derive(Debug)]
-struct Writing {
-    record: RecordName,
-    file: File,
-    expected: Expect,
-    terminal: local::Event,
-    retried: bool,
 }
 
 /// One serial chat store over an independently adopted root.
@@ -60,24 +48,12 @@ pub struct Store {
     descriptor: kernel::Fd,
     chats_root: Token,
     chats_descriptor: kernel::Fd,
-    selection: Option<Selection>,
-    opened_descriptor: Option<kernel::Fd>,
     limits: StoreLimits,
     endpoints: Endpoints,
-    phase: Phase,
-    loading: bool,
+    phase: State,
     checked: bool,
     closing: bool,
-    fresh: Option<ChatState>,
-    state: Option<ChatState>,
-    entries: Box<[file::Entry]>,
-    index: usize,
-    window: Box<[u8]>,
-    total: u64,
-    turns: List<Box<[u8]>>,
-    deliveries: List<DeliveryRecord>,
     versions: Map<Box<[u8]>, Digest>,
-    writing: Option<Writing>,
     ephemeral: Option<ephemeral::Ephemeral>,
 }
 
@@ -104,24 +80,12 @@ impl Store {
             descriptor,
             chats_root: root,
             chats_descriptor: descriptor,
-            selection: None,
-            opened_descriptor: None,
             limits,
             endpoints,
-            phase: Phase::Idle,
-            loading: false,
+            phase: State::Idle,
             checked: false,
             closing: false,
-            fresh: None,
-            state: None,
-            entries: Box::new([]),
-            index: 0,
-            window: Box::new([]),
-            total: 0,
-            turns: List::with_capacity(limits.turns),
-            deliveries: List::with_capacity(limits.deliveries),
             versions: Map::with_capacity(records),
-            writing: None,
             ephemeral: None,
         })
     }
@@ -145,66 +109,52 @@ impl Store {
 
     fn idle(&self) -> bool {
         match self.phase {
-            Phase::Idle => true,
-            Phase::Selecting
-            | Phase::Format
-            | Phase::Admit
-            | Phase::CreateFormat
-            | Phase::Journal
-            | Phase::State
-            | Phase::Scan
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::Remove
-            | Phase::SyncOld
-            | Phase::RemoveJournal
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => false,
+            State::Idle => true,
+            State::Selecting(_)
+            | State::Compatibility(_)
+            | State::Load(_)
+            | State::Fresh(_)
+            | State::Write(_)
+            | State::Cleaning
+            | State::Closing
+            | State::Closed => false,
         }
     }
 
     /// Admit one request while idle; its IO requests carry a bounded deadline.
     pub fn request(&mut self, request: StoreRequest, now: Time, out: &mut Queue<Action>) {
         assert!(self.takes(), "the service reserves a serial store slot");
-        self.loading = false;
-        match request {
-            StoreRequest::SelectChat { name, create } => self.select_chat(name, create, now, out),
-            StoreRequest::Load if self.ephemeral.is_some() => {
-                self.finish(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) }, now, out);
-            }
+        self.phase = match request {
+            StoreRequest::SelectChat { name, create } => self.select_chat(name, create, out),
+            StoreRequest::Load if self.ephemeral.is_some() => Self::empty(out),
             StoreRequest::Load => {
-                self.loading = true;
-                self.total = 0;
-                self.window = Box::new([]);
-                self.state = None;
-                self.fresh = None;
-                self.turns.clear();
-                self.deliveries.clear();
                 self.versions = Map::with_capacity(self.versions.capacity());
-                if self.checked {
-                    self.load_current(now, out);
-                } else {
-                    self.phase = Phase::Format;
-                    self.load(b"format".as_slice().into(), now, out);
-                }
+                if self.checked { State::Load(Loading::Journal) } else { State::Compatibility(Compatibility::Format) }
             }
             StoreRequest::SaveState { state, history } => {
                 assert!(self.checked, "Load must check the selected root before any save");
                 match history {
-                    History::Kept => {
-                        self.write(RecordName::State, save_state(state), local::Event::StateSaved, now, out);
-                    }
-                    History::Fresh if self.ephemeral.is_some() => {
-                        self.write(RecordName::State, save_state(state), local::Event::StateSaved, now, out);
-                    }
+                    History::Kept => self.begin_write(
+                        RecordName::State,
+                        save_state(state),
+                        AfterWrite::Answer(local::Event::StateSaved),
+                        out,
+                    ),
+                    History::Fresh if self.ephemeral.is_some() => self.begin_write(
+                        RecordName::State,
+                        save_state(state),
+                        AfterWrite::Answer(local::Event::StateSaved),
+                        out,
+                    ),
                     History::Fresh => {
-                        self.fresh = Some(state);
                         let mut journal = save_state(state);
                         journal.name = b"fresh".as_slice().into();
-                        self.write(RecordName::Journal, journal, local::Event::StateSaved, now, out);
+                        self.begin_write(
+                            RecordName::Journal,
+                            journal,
+                            AfterWrite::Journal { state, resume: Resume::Save },
+                            out,
+                        )
                     }
                 }
             }
@@ -213,230 +163,125 @@ impl Store {
                 let record = RecordName::Turn(turn.sequence);
                 match save_turn(turn.sequence, read, opens_window, &turn, &smith_transcript::CEILINGS, &self.endpoints)
                 {
-                    Ok(file) => self.write(record, file, local::Event::TurnSaved { number }, now, out),
-                    Err(_) => self.fail(record, StoreFault::Malformed { file: record }, now, out),
+                    Ok(file) => {
+                        self.begin_write(record, file, AfterWrite::Answer(local::Event::TurnSaved { number }), out)
+                    }
+                    Err(_) => Self::failure(record, StoreFault::Malformed { file: record }, false, out),
                 }
             }
             StoreRequest::SaveDelivery { record } => {
                 assert!(self.checked, "Load must check the selected root before any save");
                 let name = RecordName::Delivery(record.name);
-                match crate::save_delivery(&record, self.limits.file_bytes.min(1_u32 << 20_u32)) {
-                    Ok(file) => self.write(name, file, local::Event::DeliverySaved { name: record.name }, now, out),
-                    Err(_) => self.fail(name, StoreFault::Malformed { file: name }, now, out),
+                match crate::save_delivery(&record, self.limits.file_bytes.min(DELIVERY_BYTES)) {
+                    Ok(file) => self.begin_write(
+                        name,
+                        file,
+                        AfterWrite::Answer(local::Event::DeliverySaved { name: record.name }),
+                        out,
+                    ),
+                    Err(_) => Self::failure(name, StoreFault::Malformed { file: name }, false, out),
                 }
             }
-        }
+        };
+        self.follow(now, out);
     }
 
     /// Consume one terminal of the last file request, reserving three output slots.
     pub fn from_io(&mut self, event: file::Event, now: Time, out: &mut Queue<Action>) {
         assert_eq!(event.owner(), self.owner, "store IO echoes its owner");
-        if self.selection.is_some() {
-            self.selection_event(event, now, out);
-            return;
-        }
         match self.phase {
-            Phase::Format | Phase::Admit | Phase::CreateFormat => {
-                self.compatibility_event(event, now, out);
-                return;
-            }
-            Phase::Cleaning => {
+            State::Cleaning => {
                 self.cleanup_event(event, now, out);
                 return;
             }
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Journal
-            | Phase::State
-            | Phase::Scan
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::Remove
-            | Phase::SyncOld
-            | Phase::RemoveJournal
-            | Phase::SyncJournal
-            | Phase::Closing
-            | Phase::Closed => {}
+            State::Idle
+            | State::Selecting(_)
+            | State::Compatibility(_)
+            | State::Load(_)
+            | State::Fresh(_)
+            | State::Write(_)
+            | State::Closing
+            | State::Closed => {}
         }
-        let record = self.record();
+        let state = replace(&mut self.phase, State::Closed);
+        self.phase = match state {
+            State::Selecting(state) => self.selection_event(state, event, out),
+            State::Compatibility(state) => self.compatibility_event(state, terminal(event), out),
+            State::Load(state) => self.load_event(state, terminal(event), out),
+            State::Fresh(state) => self.fresh_event(state, terminal(event), out),
+            State::Write(writing) => self.write_event(writing, terminal(event), out),
+            State::Closing => self.close_event(terminal(event), out),
+            State::Idle | State::Cleaning | State::Closed => {
+                unreachable!("IO terminal has an outstanding request")
+            }
+        };
+        self.follow(now, out);
+    }
+
+    fn follow(&mut self, now: Time, out: &mut Queue<Action>) {
+        match &self.phase {
+            State::Fresh(Fresh::Remove { entries, index, .. }) => {
+                self.versions.remove(&entries.get(*index).expect("selected removal").name);
+            }
+            State::Idle
+            | State::Selecting(_)
+            | State::Compatibility(_)
+            | State::Load(_)
+            | State::Fresh(_)
+            | State::Write(_)
+            | State::Cleaning
+            | State::Closing
+            | State::Closed => {}
+        }
+        let request = match &self.phase {
+            State::Selecting(state) => Some(self.selection_request(state)),
+            State::Compatibility(state) => Some(self.compatibility_request(state)),
+            State::Load(state) => Some(self.load_request(state)),
+            State::Fresh(state) => Some(self.fresh_request(state)),
+            State::Write(writing) => Some(writing.request(self.owner, self.root)),
+            State::Closing => Some(file::Request::Close { owner: self.owner, file: self.root }),
+            State::Idle => {
+                if self.closing {
+                    self.close(now, out);
+                }
+                None
+            }
+            State::Cleaning | State::Closed => None,
+        };
+        if let Some(request) = request {
+            Self::io(request, now, out);
+        }
+    }
+
+    fn close_event(&mut self, event: Terminal, out: &mut Queue<Action>) -> State {
         match event {
-            file::Event::Loaded { bytes, .. } => self.loaded(Some(bytes), now, out),
-            file::Event::Scanned { entries, more, .. } => {
-                if more != 0 {
-                    self.fail(record, StoreFault::TooLarge { file: record }, now, out);
-                    return;
-                }
-                self.entries = entries;
-                self.index = 0;
-                self.phase = match self.fresh {
-                    Some(_) => Phase::Remove,
-                    None => Phase::Headers,
-                };
-                self.advance(now, out);
-            }
-            file::Event::Stored { digest, .. } => self.stored(digest, now, out),
-            file::Event::Failed { error: kernel::Error::NotFound, committed: false, .. } => match self.phase {
-                Phase::Journal | Phase::State => self.loaded(None, now, out),
-                Phase::Idle
-                | Phase::Selecting
-                | Phase::Format
-                | Phase::Admit
-                | Phase::CreateFormat
-                | Phase::Scan
-                | Phase::Headers
-                | Phase::Records
-                | Phase::Write
-                | Phase::Remove
-                | Phase::SyncOld
-                | Phase::RemoveJournal
-                | Phase::SyncJournal
-                | Phase::Cleaning
-                | Phase::Closing
-                | Phase::Closed => {
-                    self.fail(record, StoreFault::Io { file: record, error: kernel::Error::NotFound }, now, out);
-                }
-            },
-            file::Event::Failed { committed: true, .. } => self.retry_committed(record, now, out),
-            file::Event::Failed { error, .. } => self.fail(record, StoreFault::Io { file: record, error }, now, out),
-            file::Event::Conflict { .. } => self.fail(record, StoreFault::Conflict { file: record }, now, out),
-            file::Event::TooLarge { .. } => self.fail(record, StoreFault::TooLarge { file: record }, now, out),
-            file::Event::Cancelled { .. } => {
-                self.fail(record, StoreFault::Io { file: record, error: kernel::Error::TimedOut }, now, out);
-            }
-            file::Event::Refused { .. } => self.fail(record, StoreFault::Malformed { file: record }, now, out),
-            file::Event::Removed { .. } => self.removed(now, out),
-            file::Event::Synced { .. } => self.synced(now, out),
-            file::Event::Closed { .. } => {
-                if self.root != self.chats_root {
+            Terminal::Closed => {
+                if self.root == self.chats_root {
+                    out.push(Action::Closed);
+                    State::Closed
+                } else {
                     self.root = self.chats_root;
                     self.descriptor = self.chats_descriptor;
-                    Self::io(file::Request::Close { owner: self.owner, file: self.root }, now, out);
-                    return;
+                    State::Closing
                 }
-                self.phase = Phase::Closed;
+            }
+            event @ (Terminal::Loaded(_)
+            | Terminal::Scanned { .. }
+            | Terminal::Stored(_)
+            | Terminal::Removed
+            | Terminal::Synced
+            | Terminal::Missing
+            | Terminal::Committed(_)
+            | Terminal::Fault(_)) => {
+                out.push(Action::Fault(event_fault(RecordName::State, event)));
                 out.push(Action::Closed);
+                State::Closed
             }
-            file::Event::Locked { .. }
-            | file::Event::Busy { .. }
-            | file::Event::Made { .. }
-            | file::Event::Opened { .. }
-            | file::Event::Stated { .. }
-            | file::Event::Written { .. }
-            | file::Event::Read { .. }
-            | file::Event::Renamed { .. }
-            | file::Event::Cut { .. }
-            | file::Event::Listed { .. } => unreachable!("store requests have whole-file terminals"),
-        }
-    }
-
-    fn retry_committed(&mut self, record: RecordName, now: Time, out: &mut Queue<Action>) {
-        let writing = self.writing.as_ref().expect("committed belongs to Store");
-        self.retain_written(writing.file.name.clone(), digest(&writing.file.bytes));
-        let writing = self.writing.as_mut().expect("committed belongs to Store");
-        if writing.retried {
-            self.fail(record, StoreFault::NotDurable { file: record }, now, out);
-        } else {
-            writing.retried = true;
-            writing.expected = Expect::Digest(digest(&writing.file.bytes));
-            self.send_write(now, out);
-        }
-    }
-
-    fn removed(&mut self, now: Time, out: &mut Queue<Action>) {
-        match self.phase {
-            Phase::Remove => {
-                self.index = self.index.checked_add(1).expect("bounded scan");
-                self.advance(now, out);
-            }
-            Phase::RemoveJournal => {
-                self.versions.remove(&Box::from(&b"fresh"[..]));
-                self.phase = Phase::SyncJournal;
-                self.sync(now, out);
-            }
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Format
-            | Phase::Admit
-            | Phase::CreateFormat
-            | Phase::Journal
-            | Phase::State
-            | Phase::Scan
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::SyncOld
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => unreachable!("remove terminal belongs to fresh history"),
-        }
-    }
-
-    fn synced(&mut self, now: Time, out: &mut Queue<Action>) {
-        match self.phase {
-            Phase::SyncOld => {
-                self.turns.clear();
-                self.deliveries.clear();
-                let state = self.fresh.expect("fresh history has metadata");
-                self.write(RecordName::State, save_state(state), local::Event::StateSaved, now, out);
-            }
-            Phase::SyncJournal => {
-                self.fresh = None;
-                if self.loading {
-                    self.phase = Phase::Scan;
-                    self.scan(now, out);
-                } else {
-                    self.finish(local::Event::StateSaved, now, out);
-                }
-            }
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Format
-            | Phase::Admit
-            | Phase::CreateFormat
-            | Phase::Journal
-            | Phase::State
-            | Phase::Scan
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::Remove
-            | Phase::RemoveJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => unreachable!("sync terminal belongs to fresh history"),
         }
     }
 
     fn io(request: file::Request, now: Time, out: &mut Queue<Action>) {
         out.push(Action::Io { request, deadline: now.saturating_add(Duration::from_secs(30)) });
-    }
-
-    fn load(&self, path: Box<[u8]>, now: Time, out: &mut Queue<Action>) {
-        let max = match self.phase {
-            Phase::Journal | Phase::State => u32::try_from(
-                crate::local_store_v1::State::encoded_bound(&crate::local_store_v1::CEILINGS).expect("fixed metadata"),
-            )
-            .expect("metadata fits u32"),
-            Phase::Format => crate::format::max_bytes(),
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Admit
-            | Phase::CreateFormat
-            | Phase::Scan
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::Remove
-            | Phase::SyncOld
-            | Phase::RemoveJournal
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => self.limits.file_bytes,
-        };
-        Self::io(file::Request::Load { owner: self.owner, root: self.root, path, max, no_follow: true }, now, out);
     }
 
     fn marker_entry_bytes() -> u64 {
@@ -446,27 +291,7 @@ impl Store {
             .expect("marker name fits scan accounting")
     }
 
-    fn scan(&self, now: Time, out: &mut Queue<Action>) {
-        let reserve_marker = match self.phase {
-            Phase::Admit => true,
-            Phase::Scan => false,
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Format
-            | Phase::CreateFormat
-            | Phase::Journal
-            | Phase::State
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::Remove
-            | Phase::SyncOld
-            | Phase::RemoveJournal
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => unreachable!("only absence and current-record scans"),
-        };
+    fn scan_request(&self, reserve_marker: bool) -> file::Request {
         let max = self
             .limits
             .turns
@@ -481,398 +306,112 @@ impl Store {
         } else {
             self.limits.scan_bytes
         };
-        Self::io(
-            file::Request::Scan {
-                owner: self.owner,
-                root: self.root,
-                path: b".".as_slice().into(),
-                max,
-                max_bytes,
-                no_follow: true,
-            },
-            now,
-            out,
-        );
-    }
-
-    fn loaded(&mut self, bytes: Option<Box<[u8]>>, now: Time, out: &mut Queue<Action>) {
-        let record = self.record();
-        match self.phase {
-            Phase::Journal | Phase::State => self.metadata(bytes, now, out),
-            Phase::Headers => {
-                let bytes = bytes.expect("record load exists");
-                match turn_opens_window_bounded(&bytes, self.limits.file_bytes) {
-                    Ok(true) => self.window = self.path(),
-                    Ok(false) => {}
-                    Err(_) => {
-                        self.fail(record, StoreFault::Malformed { file: record }, now, out);
-                        return;
-                    }
-                }
-                self.index = self.index.checked_add(1).expect("bounded scan");
-                self.advance(now, out);
-            }
-            Phase::Records => {
-                let bytes = bytes.expect("record load exists");
-                self.total = match self.total.checked_add(u64::try_from(bytes.len()).expect("file bytes fit")) {
-                    Some(total) if total <= u64::from(self.limits.file_bytes) => total,
-                    Some(_) | None => {
-                        self.fail(record, StoreFault::TooLarge { file: record }, now, out);
-                        return;
-                    }
-                };
-                match record {
-                    RecordName::Turn(_) => {
-                        if self.turns.push(bytes).is_err() {
-                            self.fail(record, StoreFault::TooLarge { file: record }, now, out);
-                            return;
-                        }
-                    }
-                    RecordName::Delivery(_) => {
-                        if self.versions.insert(self.path(), digest(&bytes)).is_err() {
-                            self.fail(record, StoreFault::TooLarge { file: record }, now, out);
-                            return;
-                        }
-                        match crate::decode_delivery(&bytes, self.limits.file_bytes.min(1_u32 << 20_u32)) {
-                            Ok(value) => {
-                                if self.deliveries.push(value).is_err() {
-                                    self.fail(record, StoreFault::TooLarge { file: record }, now, out);
-                                    return;
-                                }
-                            }
-                            Err(_) => {
-                                self.fail(record, StoreFault::Malformed { file: record }, now, out);
-                                return;
-                            }
-                        }
-                    }
-                    RecordName::State | RecordName::Journal => unreachable!("record scan selects turns and deliveries"),
-                }
-                self.index = self.index.checked_add(1).expect("bounded scan");
-                self.advance(now, out);
-            }
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Format
-            | Phase::Admit
-            | Phase::CreateFormat
-            | Phase::Scan
-            | Phase::Write
-            | Phase::Remove
-            | Phase::SyncOld
-            | Phase::RemoveJournal
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => unreachable!("load terminal belongs to a read"),
+        file::Request::Scan {
+            owner: self.owner,
+            root: self.root,
+            path: b".".as_slice().into(),
+            max,
+            max_bytes,
+            no_follow: true,
         }
     }
 
-    fn metadata(&mut self, bytes: Option<Box<[u8]>>, now: Time, out: &mut Queue<Action>) {
-        let record = self.record();
-        let state = match bytes {
-            None => None,
-            Some(bytes) => match decode_state(&bytes) {
-                Ok(state) => {
-                    self.versions.insert(self.path(), digest(&bytes)).expect("bounded metadata versions");
-                    Some(state)
-                }
-                Err(_) => {
-                    self.fail(record, StoreFault::Malformed { file: record }, now, out);
-                    return;
-                }
-            },
-        };
-        match self.phase {
-            Phase::Journal => {
-                self.fresh = state;
-                self.phase = Phase::State;
-                self.load(b"state".as_slice().into(), now, out);
-            }
-            Phase::State => {
-                self.state = state;
-                self.phase = Phase::Scan;
-                self.scan(now, out);
-            }
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Format
-            | Phase::Admit
-            | Phase::CreateFormat
-            | Phase::Scan
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::Remove
-            | Phase::SyncOld
-            | Phase::RemoveJournal
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => unreachable!("metadata phase"),
-        }
+    fn load_file(&self, path: Box<[u8]>, max: u32) -> file::Request {
+        file::Request::Load { owner: self.owner, root: self.root, path, max, no_follow: true }
     }
 
-    fn advance(&mut self, now: Time, out: &mut Queue<Action>) {
-        for _ in 0_u8..2_u8 {
-            for index in self.index..self.entries.len() {
-                self.index = index;
-                let entry = self.entries.get(index).expect("bounded scan index");
-                let record = record_name(&entry.name);
-                let selected = match self.phase {
-                    Phase::Headers => match record {
-                        Some(RecordName::Turn(_)) => true,
-                        Some(RecordName::State | RecordName::Journal | RecordName::Delivery(_)) | None => false,
-                    },
-                    Phase::Records => match record {
-                        Some(RecordName::Turn(_)) => entry.name >= self.window,
-                        Some(RecordName::Delivery(_)) => true,
-                        Some(RecordName::State | RecordName::Journal) | None => false,
-                    },
-                    Phase::Remove => match record {
-                        Some(RecordName::Turn(_) | RecordName::Delivery(_)) => true,
-                        Some(RecordName::State | RecordName::Journal) | None => false,
-                    },
-                    Phase::Idle
-                    | Phase::Selecting
-                    | Phase::Format
-                    | Phase::Admit
-                    | Phase::CreateFormat
-                    | Phase::Journal
-                    | Phase::State
-                    | Phase::Scan
-                    | Phase::Write
-                    | Phase::SyncOld
-                    | Phase::RemoveJournal
-                    | Phase::SyncJournal
-                    | Phase::Cleaning
-                    | Phase::Closing
-                    | Phase::Closed => unreachable!("scan traversal phase"),
-                };
-                if selected {
-                    if self.fresh.is_some() {
-                        self.versions.remove(&entry.name);
-                        self.remove_file(entry.name.clone(), now, out);
-                    } else {
-                        self.load(entry.name.clone(), now, out);
-                    }
-                    return;
-                }
-            }
-            match self.phase {
-                Phase::Headers => {
-                    self.phase = Phase::Records;
-                    self.index = 0;
-                    continue;
-                }
-                Phase::Records => self.finish_load(now, out),
-                Phase::Remove => {
-                    self.entries = Box::new([]);
-                    self.phase = Phase::SyncOld;
-                    self.sync(now, out);
-                }
-                Phase::Idle
-                | Phase::Selecting
-                | Phase::Format
-                | Phase::Admit
-                | Phase::CreateFormat
-                | Phase::Journal
-                | Phase::State
-                | Phase::Scan
-                | Phase::Write
-                | Phase::SyncOld
-                | Phase::RemoveJournal
-                | Phase::SyncJournal
-                | Phase::Cleaning
-                | Phase::Closing
-                | Phase::Closed => unreachable!("scan exhausted"),
-            }
-            return;
-        }
+    fn remove_file(&self, name: Box<[u8]>) -> file::Request {
+        file::Request::Remove { owner: self.owner, root: self.descriptor, name, directory: false }
     }
 
-    fn finish_load(&mut self, now: Time, out: &mut Queue<Action>) {
-        match decode_turns_bounded(
-            self.turns.as_slice(),
-            &smith_transcript::CEILINGS,
-            &self.endpoints,
-            self.limits.file_bytes,
-        ) {
-            Ok((transcript, read)) => {
-                if transcript.is_some() {
-                    match &mut self.state {
-                        Some(state) => state.read = read,
-                        None => {
-                            self.fail(RecordName::State, StoreFault::Malformed { file: RecordName::State }, now, out);
-                            return;
-                        }
-                    }
-                }
-                let deliveries =
-                    replace(&mut self.deliveries, List::with_capacity(self.limits.deliveries)).into_boxed();
-                self.turns.clear();
-                self.entries = Box::new([]);
-                self.finish(local::Event::Loaded { state: self.state, transcript, deliveries }, now, out);
-            }
-            Err(_) => {
-                self.fail(RecordName::State, StoreFault::Malformed { file: RecordName::State }, now, out);
-            }
-        }
-    }
-
-    fn remove_file(&self, name: Box<[u8]>, now: Time, out: &mut Queue<Action>) {
-        Self::io(file::Request::Remove { owner: self.owner, root: self.descriptor, name, directory: false }, now, out);
-    }
-
-    fn write(&mut self, record: RecordName, file: File, terminal: local::Event, now: Time, out: &mut Queue<Action>) {
-        if file.bytes.len() > usize::try_from(self.limits.file_bytes).expect("file bound fits") {
-            self.fail(record, StoreFault::TooLarge { file: record }, now, out);
-            return;
-        }
-        if self.ephemeral.is_some()
-            && !self.versions.contains_key(&file.name)
-            && self.versions.len() == self.versions.capacity()
-        {
-            self.fail(record, StoreFault::TooLarge { file: record }, now, out);
-            return;
-        }
-        let expected = match record {
-            RecordName::Turn(_) => Expect::Absent,
-            RecordName::State | RecordName::Delivery(_) | RecordName::Journal => match self.versions.get(&file.name) {
-                Some(version) => Expect::Digest(*version),
-                None => Expect::Absent,
-            },
-        };
-        self.writing = Some(Writing { record, file, expected, terminal, retried: false });
-        self.phase = Phase::Write;
-        self.send_write(now, out);
-    }
-
-    fn send_write(&self, now: Time, out: &mut Queue<Action>) {
-        let writing = self.writing.as_ref().expect("write retains its retry bytes");
-        Self::io(
-            file::Request::Store {
-                owner: self.owner,
-                root: self.root,
-                path: writing.file.name.clone(),
-                bytes: writing.file.bytes.clone(),
-                expected: writing.expected,
-                no_follow: true,
-            },
-            now,
-            out,
-        );
-    }
-
-    fn stored(&mut self, digest: Digest, now: Time, out: &mut Queue<Action>) {
-        let writing = self.writing.take().expect("stored terminal belongs to a write");
-        self.retain_written(writing.file.name.clone(), digest);
-        let retained = match writing.record {
-            RecordName::Turn(_) => true,
-            RecordName::State | RecordName::Journal | RecordName::Delivery(_) => {
-                self.versions.insert(writing.file.name, digest).is_ok()
-            }
-        };
-        if !retained {
-            self.fail(writing.record, StoreFault::TooLarge { file: writing.record }, now, out);
-            return;
-        }
-        match writing.record {
-            RecordName::Journal => {
-                self.phase = Phase::Scan;
-                self.scan(now, out);
-            }
-            RecordName::State if self.fresh.is_some() => {
-                self.state = self.fresh;
-                self.phase = Phase::RemoveJournal;
-                Self::io(
-                    file::Request::Remove {
-                        owner: self.owner,
-                        root: self.descriptor,
-                        name: b"fresh".as_slice().into(),
-                        directory: false,
-                    },
-                    now,
-                    out,
-                );
-            }
-            RecordName::State | RecordName::Turn(_) | RecordName::Delivery(_) => {
-                self.finish(writing.terminal, now, out);
-            }
-        }
-    }
-
-    fn sync(&self, now: Time, out: &mut Queue<Action>) {
-        Self::io(file::Request::SyncDirectory { owner: self.owner, root: self.descriptor }, now, out);
-    }
-
-    fn finish(&mut self, event: local::Event, now: Time, out: &mut Queue<Action>) {
-        self.phase = Phase::Idle;
+    fn finished(event: local::Event, out: &mut Queue<Action>) -> State {
         out.push(Action::Domain(event));
-        if self.closing {
-            self.close(now, out);
-        }
+        State::Idle
     }
 
-    fn fail(&mut self, record: RecordName, fault: StoreFault, now: Time, out: &mut Queue<Action>) {
+    fn empty(out: &mut Queue<Action>) -> State {
+        Self::finished(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) }, out)
+    }
+
+    fn failure(record: RecordName, fault: StoreFault, loading: bool, out: &mut Queue<Action>) -> State {
         out.push(Action::Fault(fault));
-        self.writing = None;
-        match self.phase {
-            Phase::Closing => {
-                self.phase = Phase::Closed;
-                out.push(Action::Closed);
-                return;
-            }
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Format
-            | Phase::Admit
-            | Phase::CreateFormat
-            | Phase::Journal
-            | Phase::State
-            | Phase::Scan
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::Remove
-            | Phase::SyncOld
-            | Phase::RemoveJournal
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closed => {}
-        }
         let turn = match record {
             RecordName::Turn(number) => Some(number),
             RecordName::State | RecordName::Delivery(_) | RecordName::Journal => None,
         };
-        let reason = if self.loading { local::StoreFailure::Read } else { local::StoreFailure::Write };
-        self.finish(local::Event::StoreFailed { turn, reason }, now, out);
+        let reason = if loading { local::StoreFailure::Read } else { local::StoreFailure::Write };
+        Self::finished(local::Event::StoreFailed { turn, reason }, out)
     }
+}
 
-    fn path(&self) -> Box<[u8]> {
-        match self.phase {
-            Phase::Journal | Phase::RemoveJournal => b"fresh".as_slice().into(),
-            Phase::Headers | Phase::Records | Phase::Remove => {
-                self.entries.get(self.index).expect("selected entry").name.clone()
-            }
-            Phase::Write => self.writing.as_ref().expect("pending write").file.name.clone(),
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Format
-            | Phase::Admit
-            | Phase::CreateFormat
-            | Phase::State
-            | Phase::Scan
-            | Phase::SyncOld
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => b"state".as_slice().into(),
-        }
+const DELIVERY_BYTES: u32 = 1_u32 << 20_u32;
+
+#[derive(Debug)]
+enum Terminal {
+    Loaded(Box<[u8]>),
+    Scanned { entries: Box<[file::Entry]>, more: u64 },
+    Stored(Digest),
+    Removed,
+    Synced,
+    Closed,
+    Missing,
+    Committed(kernel::Error),
+    Fault(Fault),
+}
+
+#[derive(Debug)]
+enum Fault {
+    Io(kernel::Error),
+    Conflict,
+    TooLarge,
+    Malformed,
+}
+
+fn terminal(event: file::Event) -> Terminal {
+    match event {
+        file::Event::Loaded { bytes, .. } => Terminal::Loaded(bytes),
+        file::Event::Scanned { entries, more, .. } => Terminal::Scanned { entries, more },
+        file::Event::Stored { digest, .. } => Terminal::Stored(digest),
+        file::Event::Removed { .. } => Terminal::Removed,
+        file::Event::Synced { .. } => Terminal::Synced,
+        file::Event::Closed { .. } => Terminal::Closed,
+        file::Event::Failed { error: kernel::Error::NotFound, committed: false, .. } => Terminal::Missing,
+        file::Event::Failed { error, committed: true, .. } => Terminal::Committed(error),
+        file::Event::Failed { error, .. } => Terminal::Fault(Fault::Io(error)),
+        file::Event::Conflict { .. } => Terminal::Fault(Fault::Conflict),
+        file::Event::TooLarge { .. } => Terminal::Fault(Fault::TooLarge),
+        file::Event::Cancelled { .. } => Terminal::Fault(Fault::Io(kernel::Error::TimedOut)),
+        file::Event::Refused { .. } => Terminal::Fault(Fault::Malformed),
+        file::Event::Locked { .. }
+        | file::Event::Busy { .. }
+        | file::Event::Made { .. }
+        | file::Event::Opened { .. }
+        | file::Event::Stated { .. }
+        | file::Event::Written { .. }
+        | file::Event::Read { .. }
+        | file::Event::Renamed { .. }
+        | file::Event::Cut { .. }
+        | file::Event::Listed { .. } => unreachable!("store requests have whole-file terminals"),
     }
+}
 
-    fn record(&self) -> RecordName {
-        record_name(&self.path()).unwrap_or(RecordName::State)
+fn event_fault(record: RecordName, event: Terminal) -> StoreFault {
+    let fault = match event {
+        Terminal::Missing => Fault::Io(kernel::Error::NotFound),
+        Terminal::Committed(error) => Fault::Io(error),
+        Terminal::Fault(fault) => fault,
+        Terminal::Loaded(_)
+        | Terminal::Scanned { .. }
+        | Terminal::Stored(_)
+        | Terminal::Removed
+        | Terminal::Synced
+        | Terminal::Closed => unreachable!("terminal matches its store request"),
+    };
+    match fault {
+        Fault::Io(error) => StoreFault::Io { file: record, error },
+        Fault::Conflict => StoreFault::Conflict { file: record },
+        Fault::TooLarge => StoreFault::TooLarge { file: record },
+        Fault::Malformed => StoreFault::Malformed { file: record },
     }
 }
 

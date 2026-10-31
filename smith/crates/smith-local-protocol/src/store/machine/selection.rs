@@ -1,32 +1,32 @@
 //! One chat directory selected between serial store operations (protocol/hosts.md, section 5.3).
 //! The old root stays owned until its replacement opens; both roots settle on close.
-
-use super::{Action, Box, Phase, Queue, Store, Time, Token, file, kernel, local};
-use skein_lib::Map;
+use super::{Action, Box, Map, Queue, State, Store, Token, file, kernel, local};
 
 #[derive(Debug)]
-enum Selecting {
-    Making,
-    Opening,
-    Retiring,
-}
-
-#[derive(Debug)]
-/// One candidate directory kept until its open and the old root's close settle.
-pub(super) struct Selection {
-    name: Box<[u8]>,
-    step: Selecting,
-    directory: Option<(Token, kernel::Fd)>,
+pub(super) enum Selection {
+    Making { name: Box<[u8]> },
+    Opening { name: Box<[u8]>, descriptor: Option<kernel::Fd> },
+    Retiring { name: Box<[u8]>, root: Token, descriptor: kernel::Fd },
 }
 
 impl Store {
     /// Supply the descriptor of the directory token reported by the shared file layer.
-    pub fn opened_directory_descriptor(&mut self, descriptor: kernel::Fd) {
-        assert!(self.selection.is_some(), "the store only opens directories during selection");
-        self.opened_descriptor = Some(descriptor);
+    pub fn opened_directory_descriptor(&mut self, opened: kernel::Fd) {
+        match &mut self.phase {
+            State::Selecting(Selection::Opening { descriptor, .. }) => *descriptor = Some(opened),
+            State::Idle
+            | State::Selecting(_)
+            | State::Compatibility(_)
+            | State::Load(_)
+            | State::Fresh(_)
+            | State::Write(_)
+            | State::Cleaning
+            | State::Closing
+            | State::Closed => unreachable!("only selection opens a directory"),
+        }
     }
 
-    pub(super) fn select_chat(&mut self, name: Box<[u8]>, create: bool, now: Time, out: &mut Queue<Action>) {
+    pub(super) fn select_chat(&self, name: Box<[u8]>, create: bool, out: &mut Queue<Action>) -> State {
         let refused = if self.ephemeral.is_some() {
             Some(local::ChatRefusal::Ephemeral)
         } else if name.len() > 255 || !kernel::is_name(&name) {
@@ -35,72 +35,64 @@ impl Store {
             None
         };
         if let Some(reason) = refused {
-            out.push(Action::Domain(local::Event::ChatSelected { name, result: Err(reason) }));
-            return;
+            return Self::finished(local::Event::ChatSelected { name, result: Err(reason) }, out);
         }
-        self.phase = Phase::Selecting;
-        self.selection = Some(Selection {
-            name,
-            step: if create { Selecting::Making } else { Selecting::Opening },
-            directory: None,
-        });
-        if create {
-            Self::io(
-                file::Request::MakeDirectory {
-                    owner: self.owner,
-                    root: self.chats_root,
-                    path: self.selection.as_ref().expect("selected name").name.clone(),
-                    mode: 0o700,
-                },
-                now,
-                out,
-            );
+        State::Selecting(if create {
+            Selection::Making { name }
         } else {
-            self.open_selected(now, out);
-        }
+            Selection::Opening { name, descriptor: None }
+        })
     }
 
-    fn open_selected(&self, now: Time, out: &mut Queue<Action>) {
-        Self::io(
-            file::Request::OpenDirectory {
+    pub(super) fn selection_request(&self, state: &Selection) -> file::Request {
+        match state {
+            Selection::Making { name } => file::Request::MakeDirectory {
+                owner: self.owner,
+                root: self.chats_root,
+                path: name.clone(),
+                mode: 0o700,
+            },
+            Selection::Opening { name, .. } => file::Request::OpenDirectory {
                 owner: self.owner,
                 root: self.chats_descriptor,
-                name: self.selection.as_ref().expect("selected name").name.clone(),
+                name: name.clone(),
                 no_follow: true,
             },
-            now,
-            out,
-        );
+            Selection::Retiring { .. } => file::Request::Close { owner: self.owner, file: self.root },
+        }
     }
 
-    pub(super) fn selection_event(&mut self, event: file::Event, now: Time, out: &mut Queue<Action>) {
+    pub(super) fn selection_event(
+        &mut self,
+        selection: Selection,
+        event: file::Event,
+        out: &mut Queue<Action>,
+    ) -> State {
         match event {
-            file::Event::Made { .. } => {
-                match self.selection.as_ref().expect("selection owns its terminal").step {
-                    Selecting::Making => {}
-                    Selecting::Opening | Selecting::Retiring => unreachable!("only directory creation emits Made"),
+            file::Event::Made { .. } => match selection {
+                Selection::Making { name } => State::Selecting(Selection::Opening { name, descriptor: None }),
+                Selection::Opening { .. } | Selection::Retiring { .. } => {
+                    unreachable!("only directory creation emits Made")
                 }
-                self.selection.as_mut().expect("selection owns its terminal").step = Selecting::Opening;
-                self.open_selected(now, out);
-            }
-            file::Event::Opened { file, .. } => {
-                match self.selection.as_ref().expect("selection owns its terminal").step {
-                    Selecting::Opening => {}
-                    Selecting::Making | Selecting::Retiring => unreachable!("only selection's open emits Opened"),
+            },
+            file::Event::Opened { file, .. } => match selection {
+                Selection::Opening { name, descriptor } => {
+                    let descriptor = descriptor.expect("file layer's opened descriptor");
+                    if self.root == self.chats_root {
+                        self.selected(name, file, descriptor, out)
+                    } else {
+                        State::Selecting(Selection::Retiring { name, root: file, descriptor })
+                    }
                 }
-                let selection = self.selection.as_mut().expect("selection owns its terminal");
-                selection.directory =
-                    Some((file, self.opened_descriptor.take().expect("file layer's opened descriptor")));
-                if self.root == self.chats_root {
-                    self.selected(now, out);
-                } else {
-                    selection.step = Selecting::Retiring;
-                    Self::io(file::Request::Close { owner: self.owner, file: self.root }, now, out);
+                Selection::Making { .. } | Selection::Retiring { .. } => {
+                    unreachable!("only selection's open emits Opened")
                 }
-            }
-            file::Event::Closed { .. } => match self.selection.as_ref().expect("selection owns its terminal").step {
-                Selecting::Retiring => self.selected(now, out),
-                Selecting::Making | Selecting::Opening => unreachable!("only the previous root emits Closed"),
+            },
+            file::Event::Closed { .. } => match selection {
+                Selection::Retiring { name, root, descriptor } => self.selected(name, root, descriptor, out),
+                Selection::Making { .. } | Selection::Opening { .. } => {
+                    unreachable!("only the previous root emits Closed")
+                }
             },
             file::Event::Failed { error, .. } => {
                 let reason = match error {
@@ -132,10 +124,10 @@ impl Store {
                     | kernel::Error::InvalidArgument
                     | kernel::Error::Other(_) => local::ChatRefusal::Io,
                 };
-                self.selection_failed(reason, now, out);
+                self.selection_failed(selection, reason, out)
             }
             file::Event::Cancelled { .. } | file::Event::Refused { .. } => {
-                self.selection_failed(local::ChatRefusal::Io, now, out);
+                self.selection_failed(selection, local::ChatRefusal::Io, out)
             }
             file::Event::Locked { .. }
             | file::Event::Busy { .. }
@@ -150,36 +142,30 @@ impl Store {
             | file::Event::Cut { .. }
             | file::Event::Synced { .. }
             | file::Event::Renamed { .. }
-            | file::Event::Removed { .. }
-            | file::Event::Listed { .. } => unreachable!("selection only creates, opens and retires directories"),
+            | file::Event::Listed { .. }
+            | file::Event::Removed { .. } => unreachable!("selection only creates, opens and retires directories"),
         }
     }
 
-    fn selected(&mut self, now: Time, out: &mut Queue<Action>) {
-        let selection = self.selection.take().expect("selection owns its terminal");
-        let (root, descriptor) = selection.directory.expect("selection opened its new root");
+    fn selected(&mut self, name: Box<[u8]>, root: Token, descriptor: kernel::Fd, out: &mut Queue<Action>) -> State {
         self.root = root;
         self.descriptor = descriptor;
         self.checked = false;
-        self.state = None;
-        self.fresh = None;
-        self.window = Box::new([]);
-        self.entries = Box::new([]);
-        self.turns.clear();
-        self.deliveries.clear();
         self.versions = Map::with_capacity(self.versions.capacity());
-        self.finish(local::Event::ChatSelected { name: selection.name, result: Ok(()) }, now, out);
+        Self::finished(local::Event::ChatSelected { name, result: Ok(()) }, out)
     }
 
-    fn selection_failed(&mut self, reason: local::ChatRefusal, now: Time, out: &mut Queue<Action>) {
-        let selection = self.selection.take().expect("selection owns its terminal");
-        if let Some((root, descriptor)) = selection.directory {
-            self.checked = false;
-            self.root = root;
-            self.descriptor = descriptor;
-            out.push(Action::Domain(local::Event::StoreFailed { turn: None, reason: local::StoreFailure::Write }));
-        }
-        self.opened_descriptor = None;
-        self.finish(local::Event::ChatSelected { name: selection.name, result: Err(reason) }, now, out);
+    fn selection_failed(&mut self, selection: Selection, reason: local::ChatRefusal, out: &mut Queue<Action>) -> State {
+        let name = match selection {
+            Selection::Making { name } | Selection::Opening { name, .. } => name,
+            Selection::Retiring { name, root, descriptor } => {
+                self.checked = false;
+                self.root = root;
+                self.descriptor = descriptor;
+                out.push(Action::Domain(local::Event::StoreFailed { turn: None, reason: local::StoreFailure::Write }));
+                name
+            }
+        };
+        Self::finished(local::Event::ChatSelected { name, result: Err(reason) }, out)
     }
 }

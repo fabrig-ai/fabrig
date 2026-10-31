@@ -6,7 +6,7 @@ use smith_local_world::{Cut, StoreFault, World};
 fn a_chat_granted_sub_agents_delegates_a_reading_and_answers() {
     let mut world = World::of(smith_local_world::Scenario::Delegating, 702);
     world.line(b"Read the answer with a child");
-    world.drive(400);
+    world.drive(crate::bounds::TOOL);
     assert_eq!(world.child_prompts().len(), 2, "child reads, then answers its caller");
     for (grants, served) in world.child_prompts() {
         assert!(grants.inspect && !grants.modify && !grants.shell);
@@ -27,7 +27,7 @@ fn a_chat_granted_sub_agents_delegates_a_reading_and_answers() {
     assert_replays(702, 703, |seed| {
         let mut world = World::of(smith_local_world::Scenario::Delegating, seed);
         world.line(b"Read the answer with a child");
-        world.drive(400);
+        world.drive(crate::bounds::TOOL);
         (world.trace().to_vec(), world.shown().to_vec())
     });
 }
@@ -36,7 +36,7 @@ fn a_chat_granted_sub_agents_delegates_a_reading_and_answers() {
 fn a_question_is_answered_and_the_chat_waits_for_the_next() {
     let mut world = World::new(17);
     world.line(b"What can you do?");
-    assert!(world.drive(200), "the chat reaches a saved turn and a wait");
+    assert!(world.drive(crate::bounds::REPLY), "the chat reaches a saved turn and a wait");
     assert_eq!(world.saved_turns(), 1, "the answered exchange is durable while the next wait remains withheld");
     assert!(world.waiting(), "the run asked to wait for another person message");
     assert!(world.completions() >= 2, "the fake provider served the reply and wait");
@@ -47,7 +47,7 @@ fn a_question_is_answered_and_the_chat_waits_for_the_next() {
 fn a_chat_reads_and_edits_files_in_a_workspace_directory() {
     let mut world = World::of(smith_local_world::Scenario::Workspace, 18);
     world.line(b"Change the answer in work");
-    world.drive(400);
+    world.drive(crate::bounds::TOOL);
     let (content, _) = world.disk().load(1, b"src/lib.rs", 4096).expect("workspace source remains present");
     assert_eq!(content, b"pub fn answer() -> u32 { 43 }\n");
     assert!(world.shown().iter().any(|text| text.as_ref() == b"The answer is 43."));
@@ -57,7 +57,7 @@ fn a_chat_reads_and_edits_files_in_a_workspace_directory() {
 fn a_change_to_a_plain_directory_keeps_its_files() {
     let mut world = World::of(smith_local_world::Scenario::PlainChange, 19);
     world.line(b"Make the answer 43");
-    world.drive(400);
+    world.drive(crate::bounds::TOOL);
     let (content, _) = world.disk().load(1, b"src/lib.rs", 4096).expect("plain file is kept");
     assert_eq!(content, b"pub fn answer() -> u32 { 43 }\n");
     assert!(world.shown().iter().any(|text| text.as_ref() == b"Change delivered"));
@@ -67,7 +67,7 @@ fn a_change_to_a_plain_directory_keeps_its_files() {
 fn a_delivery_with_no_changes_answers_nothing_and_the_llm_is_told() {
     let mut world = World::of(smith_local_world::Scenario::PlainNothing, 192);
     world.line(b"Deliver the current state");
-    world.drive(400);
+    world.drive(crate::bounds::TOOL);
     assert!(matches!(world.delivery(), Some(smith_domain::run::Delivery::Nothing)));
     assert!(world.tool_results().iter().any(|text| skein_lib::bytes::find(text, b"nothing").is_some()));
 }
@@ -76,7 +76,7 @@ fn a_delivery_with_no_changes_answers_nothing_and_the_llm_is_told() {
 fn a_marker_left_in_a_conflicted_file_refuses_the_delivery_naming_it() {
     let mut world = World::of(smith_local_world::Scenario::GitMarker, 193);
     world.line(b"Deliver the merge");
-    world.drive(400);
+    world.drive(crate::bounds::TOOL);
     let Some(smith_domain::run::Delivery::Refused(refusal)) = world.delivery() else {
         panic!("marker refusal recorded")
     };
@@ -88,7 +88,7 @@ fn a_marker_left_in_a_conflicted_file_refuses_the_delivery_naming_it() {
 fn a_commit_failing_in_the_second_directory_names_it_and_stops() {
     let mut world = World::of(smith_local_world::Scenario::SecondFails, 194);
     world.line(b"Deliver both repositories");
-    world.drive(500);
+    world.drive(crate::bounds::DELIVERY);
     let Some(smith_domain::run::Delivery::Failed(failure)) = world.delivery() else { panic!("failure recorded") };
     assert_eq!(failure.directory, 1);
     assert_eq!(failure.reason, smith_domain::run::DeliveryReason::Broken);
@@ -101,14 +101,14 @@ fn a_cancel_during_a_delivery_waits_for_it_and_still_answers_cancelled() {
     let mut world = World::of(smith_local_world::Scenario::MidReport, 195);
     world.slow_git();
     world.line(b"Make the answer 43");
-    assert!(!world.drive(500), "delivery pauses at its first git terminal");
+    assert!(!world.drive(crate::bounds::DELIVERY), "delivery pauses at its first git terminal");
     world.interrupt();
-    assert!(!world.drive_to_cancelled(100), "cancel waits for the delivery terminal");
+    assert!(!world.drive_to_cancelled(crate::bounds::CHECKPOINT), "cancel waits for the delivery terminal");
     for _ in 0..4 {
         if !world.release_git() {
             break;
         }
-        if world.drive_to_cancelled(500) {
+        if world.drive_to_cancelled(crate::bounds::DELIVERY) {
             break;
         }
     }
@@ -125,7 +125,7 @@ fn a_cancel_during_a_delivery_waits_for_it_and_still_answers_cancelled() {
 fn a_change_is_checked_and_committed_in_place() {
     let mut world = World::of(smith_local_world::Scenario::GitChange, 20);
     world.line(b"Make the answer 43");
-    world.drive(500);
+    world.drive(crate::bounds::DELIVERY);
     let (content, _) = world.disk().load(1, b"src/lib.rs", 4096).expect("committed source remains present");
     assert_eq!(content, b"pub fn answer() -> u32 { 43 }\n");
     assert_eq!(
@@ -139,7 +139,7 @@ fn a_change_is_checked_and_committed_in_place() {
 fn a_configured_push_lands_after_the_local_commit() {
     let mut world = World::of(smith_local_world::Scenario::PushLands, 205);
     world.line(b"Make the answer 43 and push");
-    world.drive(500);
+    world.drive(crate::bounds::DELIVERY);
     assert_eq!(world.remote_head(), Some(2), "the remote branch names the committed change");
     assert!(matches!(world.delivery(), Some(smith_domain::run::Delivery::Delivered(_))));
     assert!(world.shown().iter().any(|text| text.as_ref() == b"Change delivered"));
@@ -149,7 +149,7 @@ fn a_configured_push_lands_after_the_local_commit() {
 fn a_moved_remote_makes_a_configured_push_stale() {
     let mut world = World::of(smith_local_world::Scenario::PushStale, 206);
     world.line(b"Make the answer 43 and push");
-    world.drive(500);
+    world.drive(crate::bounds::DELIVERY);
     assert_eq!(world.remote_head(), Some(2), "the remote stayed on its outside commit");
     assert!(matches!(world.delivery(), Some(smith_domain::run::Delivery::Stale)));
     assert!(world.shown().iter().any(|text| text.as_ref() == b"run failed: stale: workspace changed\n"));
@@ -160,7 +160,7 @@ fn a_commit_made_meanwhile_in_the_repository_makes_the_delivery_stale() {
     let mut world = World::of(smith_local_world::Scenario::GitChange, 234);
     world.commit_meanwhile();
     world.line(b"Make the answer 43");
-    world.drive(600);
+    world.drive(crate::bounds::RECOVERY);
     assert!(
         matches!(world.delivery(), Some(smith_domain::run::Delivery::Stale)),
         "delivery: {:?}; trace: {:?}",
@@ -174,7 +174,7 @@ fn a_commit_made_meanwhile_in_the_repository_makes_the_delivery_stale() {
 fn a_second_delivery_after_the_hosts_own_commit_is_not_stale() {
     let mut world = World::of(smith_local_world::Scenario::TwoDeliveries, 235);
     world.line(b"Deliver twice");
-    world.drive(600);
+    world.drive(crate::bounds::RECOVERY);
     assert_eq!(world.delivery_commits(), 1);
     assert!(matches!(world.delivery(), Some(smith_domain::run::Delivery::Nothing)));
 }
@@ -183,11 +183,11 @@ fn a_second_delivery_after_the_hosts_own_commit_is_not_stale() {
 fn a_commit_before_push_is_recovered_to_the_recorded_target() {
     let mut first = World::of(smith_local_world::Scenario::PushLands, 224);
     first.line(b"Make the answer 43 and push");
-    assert!(first.drive_to_cut(600, Cut::AfterCommit(0)));
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterCommit(0)));
     assert_eq!(first.remote_head(), Some(1));
-    let mut second = World::resumed(smith_local_world::Scenario::GitChange, 225, first.into_store());
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::GitChange, 225);
     second.line(b"What landed?");
-    assert!(second.drive_to_cut(600, Cut::AfterSaveDelivery));
+    assert!(second.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSaveDelivery));
     assert_eq!(second.remote_head(), Some(2), "recovery uses the saved target despite changed configuration");
     assert!(matches!(second.delivery(), Some(smith_domain::run::Delivery::Delivered(_))));
     assert_eq!(second.delivery_commits(), 1);
@@ -197,11 +197,11 @@ fn a_commit_before_push_is_recovered_to_the_recorded_target() {
 fn a_push_effect_before_its_terminal_is_recovered_as_delivered() {
     let mut first = World::of(smith_local_world::Scenario::PushLands, 226);
     first.line(b"Make the answer 43 and push");
-    assert!(first.drive_to_cut(600, Cut::BeforePushTerminal));
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::BeforePushTerminal));
     assert_eq!(first.remote_head(), Some(2));
-    let mut second = World::resumed(smith_local_world::Scenario::PushLands, 227, first.into_store());
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::PushLands, 227);
     second.line(b"What landed?");
-    assert!(second.drive_to_cut(600, Cut::AfterSaveDelivery));
+    assert!(second.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSaveDelivery));
     assert_eq!(second.remote_head(), Some(2));
     assert!(matches!(second.delivery(), Some(smith_domain::run::Delivery::Delivered(_))));
     assert_eq!(second.delivery_commits(), 1);
@@ -211,11 +211,11 @@ fn a_push_effect_before_its_terminal_is_recovered_as_delivered() {
 fn a_push_terminal_before_the_saved_answer_is_recovered_as_delivered() {
     let mut first = World::of(smith_local_world::Scenario::PushLands, 228);
     first.line(b"Make the answer 43 and push");
-    assert!(first.drive_to_cut(600, Cut::AfterPushTerminal));
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterPushTerminal));
     assert_eq!(first.remote_head(), Some(2));
-    let mut second = World::resumed(smith_local_world::Scenario::PushLands, 229, first.into_store());
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::PushLands, 229);
     second.line(b"What landed?");
-    assert!(second.drive_to_cut(600, Cut::AfterSaveDelivery));
+    assert!(second.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSaveDelivery));
     assert_eq!(second.remote_head(), Some(2));
     assert!(matches!(second.delivery(), Some(smith_domain::run::Delivery::Delivered(_))));
     assert_eq!(second.delivery_commits(), 1);
@@ -225,10 +225,10 @@ fn a_push_terminal_before_the_saved_answer_is_recovered_as_delivered() {
 fn a_recovered_push_whose_remote_moved_is_stale() {
     let mut first = World::of(smith_local_world::Scenario::PushStale, 230);
     first.line(b"Make the answer 43 and push");
-    assert!(first.drive_to_cut(600, Cut::AfterCommit(0)));
-    let mut second = World::resumed(smith_local_world::Scenario::PushStale, 231, first.into_store());
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterCommit(0)));
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::PushStale, 231);
     second.line(b"What landed?");
-    assert!(second.drive_to_cut(600, Cut::AfterSaveDelivery));
+    assert!(second.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSaveDelivery));
     assert!(matches!(second.delivery(), Some(smith_domain::run::Delivery::Stale)));
     assert_eq!(second.delivery_commits(), 1);
 }
@@ -237,11 +237,11 @@ fn a_recovered_push_whose_remote_moved_is_stale() {
 fn a_recovered_push_failure_keeps_its_local_commit_receipt() {
     let mut first = World::of(smith_local_world::Scenario::PushLands, 232);
     first.line(b"Make the answer 43 and push");
-    assert!(first.drive_to_cut(600, Cut::AfterCommit(0)));
-    let mut second = World::resumed(smith_local_world::Scenario::PushLands, 233, first.into_store());
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterCommit(0)));
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::PushLands, 233);
     second.fail_next_push();
     second.line(b"What landed?");
-    assert!(second.drive_to_cut(600, Cut::AfterSaveDelivery));
+    assert!(second.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSaveDelivery));
     let Some(smith_domain::run::Delivery::Failed(failure)) = second.delivery() else { panic!("push failed") };
     assert_eq!(failure.directory, 0);
     assert_eq!(failure.reason, smith_domain::run::DeliveryReason::Broken);
@@ -253,7 +253,10 @@ fn a_recovered_push_failure_keeps_its_local_commit_receipt() {
 fn a_crash_after_a_commit_tells_the_resumed_run_what_was_committed() {
     let mut first = World::of(smith_local_world::Scenario::GitChange, 201);
     first.line(b"Make the answer 43");
-    assert!(first.drive_to_cut(600, Cut::AfterSaveDelivery), "the commit and its decision become durable");
+    assert!(
+        first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSaveDelivery),
+        "the commit and its decision become durable"
+    );
     assert_eq!(
         first.commit_message(),
         Some(b"Make the answer 43\n\nThe answer is 43 now.\n\nSmith-Delivery: 1/3/0".as_slice())
@@ -261,7 +264,7 @@ fn a_crash_after_a_commit_tells_the_resumed_run_what_was_committed() {
     let store = first.into_store();
     let mut second = World::resumed(smith_local_world::Scenario::GitChange, 202, store);
     second.line(b"What happened before the crash?");
-    second.drive(600);
+    second.drive(crate::bounds::RECOVERY);
     assert!(
         second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"commit 2").is_some()),
         "prompts: {:?}, trace: {:?}, shown: {:?}",
@@ -275,13 +278,16 @@ fn a_crash_after_a_commit_tells_the_resumed_run_what_was_committed() {
 fn two_deliveries_before_a_saved_turn_are_both_told_after_a_crash() {
     let mut first = World::of(smith_local_world::Scenario::TwoDeliveries, 216);
     first.line(b"Deliver twice");
-    assert!(first.drive_to_cut(600, Cut::AfterSecondSaveDelivery), "both delivery answers are durable");
+    assert!(
+        first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSecondSaveDelivery),
+        "both delivery answers are durable"
+    );
     let store = first.into_store();
     assert_eq!(store.turns(), 1, "the call turn is not saved yet");
     assert_eq!(store.delivery_answers(), 2);
     let mut second = World::resumed(smith_local_world::Scenario::TwoDeliveries, 217, store);
     second.line(b"What was delivered?");
-    second.drive(600);
+    second.drive(crate::bounds::RECOVERY);
     assert_eq!(second.delivery_commits(), 1, "the first delivery is not repeated");
     let prompts = second.prompt_texts();
     for answer in [b"position=0 tool=deliver result: delivered".as_slice(), b"position=1 tool=deliver error: nothing"] {
@@ -293,11 +299,11 @@ fn two_deliveries_before_a_saved_turn_are_both_told_after_a_crash() {
 fn a_saved_stale_answer_is_told_after_a_crash() {
     let mut first = World::of(smith_local_world::Scenario::PushStale, 218);
     first.line(b"Make the answer 43 and push");
-    assert!(first.drive_to_cut(600, Cut::AfterSaveDelivery));
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSaveDelivery));
     assert!(matches!(first.delivery(), Some(smith_domain::run::Delivery::Stale)));
-    let mut second = World::resumed(smith_local_world::Scenario::PushStale, 219, first.into_store());
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::PushStale, 219);
     second.line(b"What happened?");
-    second.drive(600);
+    second.drive(crate::bounds::RECOVERY);
     assert!(
         second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"tool=deliver error: stale").is_some())
     );
@@ -308,11 +314,11 @@ fn a_saved_stale_answer_is_told_after_a_crash() {
 fn a_saved_failure_after_a_commit_is_told_after_a_crash() {
     let mut first = World::of(smith_local_world::Scenario::SecondFails, 220);
     first.line(b"Deliver both repositories");
-    assert!(first.drive_to_cut(600, Cut::AfterSaveDelivery));
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSaveDelivery));
     assert_eq!(first.delivery_commits(), 1);
-    let mut second = World::resumed(smith_local_world::Scenario::SecondFails, 221, first.into_store());
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::SecondFails, 221);
     second.line(b"What happened?");
-    second.drive(600);
+    second.drive(crate::bounds::RECOVERY);
     let outcome = b"tool=deliver error: delivery-failed directory=1 reason=broken";
     assert!(second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, outcome).is_some()));
     assert_eq!(second.delivery_commits(), 1);
@@ -322,11 +328,11 @@ fn a_saved_failure_after_a_commit_is_told_after_a_crash() {
 fn a_maximum_length_person_line_reaches_the_run_whole_after_a_crash() {
     let mut first = World::of(smith_local_world::Scenario::GitChange, 222);
     first.line(b"Make the answer 43");
-    assert!(first.drive_to_cut(600, Cut::AfterSaveDelivery));
-    let mut second = World::resumed(smith_local_world::Scenario::GitChange, 223, first.into_store());
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterSaveDelivery));
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::GitChange, 223);
     let line = vec![b'Q'; 1024];
     second.line(&line);
-    second.drive(600);
+    second.drive(crate::bounds::RECOVERY);
     assert!(second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, &line).is_some()));
 }
 
@@ -334,17 +340,17 @@ fn a_maximum_length_person_line_reaches_the_run_whole_after_a_crash() {
 fn an_intent_saved_before_the_first_commit_reconciles_as_interrupted() {
     let mut first = World::of(smith_local_world::Scenario::MidReport, 207);
     first.line(b"Make the answer 43");
-    assert!(first.drive_to_cut(600, Cut::AfterIntent));
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterIntent));
     assert_eq!(first.delivery_commits(), 0);
-    let mut second = World::resumed(smith_local_world::Scenario::MidReport, 208, first.into_store());
-    second.drive(100);
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::MidReport, 208);
+    second.drive(crate::bounds::CHECKPOINT);
     let Some(smith_domain::run::Delivery::Failed(failure)) = second.delivery() else { panic!("interruption saved") };
     assert_eq!(failure.directory, 0);
     assert_eq!(failure.reason, smith_domain::run::DeliveryReason::Broken);
     assert_eq!(failure.diagnostic.output(), b"delivery interrupted; committed: none");
     assert_eq!(second.delivery_commits(), 0);
     second.line(b"What happened before the crash?");
-    second.drive(600);
+    second.drive(crate::bounds::RECOVERY);
     assert!(second.trace().iter().any(|line| line.contains("Message")), "the next run received its waking message");
 }
 
@@ -352,10 +358,10 @@ fn an_intent_saved_before_the_first_commit_reconciles_as_interrupted() {
 fn an_intent_after_the_first_of_two_commits_reports_only_that_commit() {
     let mut first = World::of(smith_local_world::Scenario::SecondFails, 209);
     first.line(b"Deliver both repositories");
-    assert!(first.drive_to_cut(600, Cut::AfterCommit(0)));
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterCommit(0)));
     assert_eq!(first.delivery_commits(), 1);
-    let mut second = World::resumed(smith_local_world::Scenario::SecondFails, 210, first.into_store());
-    second.drive(100);
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::SecondFails, 210);
+    second.drive(crate::bounds::CHECKPOINT);
     let Some(smith_domain::run::Delivery::Failed(failure)) = second.delivery() else {
         panic!("partial delivery saved")
     };
@@ -364,7 +370,7 @@ fn an_intent_after_the_first_of_two_commits_reports_only_that_commit() {
     assert!(skein_lib::bytes::find(failure.diagnostic.output(), b"commit 2").is_some());
     assert_eq!(second.delivery_commits(), 1, "recovery did not commit again");
     second.line(b"What landed?");
-    second.drive(600);
+    second.drive(crate::bounds::RECOVERY);
     assert!(
         second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"commit 2").is_some()),
         "prompts: {:?}, shown: {:?}",
@@ -377,14 +383,14 @@ fn an_intent_after_the_first_of_two_commits_reports_only_that_commit() {
 fn an_intent_after_every_commit_reconciles_to_delivered() {
     let mut first = World::of(smith_local_world::Scenario::GitChange, 211);
     first.line(b"Make the answer 43");
-    assert!(first.drive_to_cut(600, Cut::AfterCommit(0)));
+    assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterCommit(0)));
     assert_eq!(first.delivery_commits(), 1);
-    let mut second = World::resumed(smith_local_world::Scenario::GitChange, 212, first.into_store());
-    second.drive(100);
+    let mut second = first.crash_then_resume(smith_local_world::Scenario::GitChange, 212);
+    second.drive(crate::bounds::CHECKPOINT);
     assert!(matches!(second.delivery(), Some(smith_domain::run::Delivery::Delivered(_))));
     assert_eq!(second.delivery_commits(), 1);
     second.line(b"What landed?");
-    second.drive(600);
+    second.drive(crate::bounds::RECOVERY);
     assert!(
         second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"commit 2").is_some()),
         "prompts: {:?}, shown: {:?}",
@@ -397,7 +403,7 @@ fn an_intent_after_every_commit_reconciles_to_delivered() {
 fn a_delivery_asked_again_under_its_name_gets_its_first_answer() {
     let mut world = World::of(smith_local_world::Scenario::GitChange, 203);
     world.line(b"Make the answer 43");
-    assert!(world.drive_to_cut(500, Cut::AfterSaveDelivery));
+    assert!(world.drive_to_cut(crate::bounds::DELIVERY, Cut::AfterSaveDelivery));
     let commit = world.commit_message().expect("one real commit").to_vec();
     let store = world.into_store();
     let name = store.delivery_name().expect("one saved delivery name");
@@ -413,7 +419,7 @@ fn a_delivery_asked_again_under_its_name_gets_its_first_answer() {
 fn a_chat_with_no_workspace_waits_parks_and_resumes_on_the_next_invocation() {
     let mut first = World::new(21);
     first.line(b"Hello");
-    assert!(first.drive_to_park(300), "first activation parks after waiting");
+    assert!(first.drive_to_park(crate::bounds::CHAT), "first activation parks after waiting");
     assert_eq!(first.activation(), 1);
     let stored = first.into_store();
     let prior_turns = stored.turns();
@@ -421,7 +427,11 @@ fn a_chat_with_no_workspace_waits_parks_and_resumes_on_the_next_invocation() {
 
     let mut second = World::with_store(22, stored);
     second.line(b"I am back");
-    assert!(!second.drive(300), "a fresh domain resumes from {prior_turns} stored turns: {:?}", second.trace());
+    assert!(
+        !second.drive(crate::bounds::CHAT),
+        "a fresh domain resumes from {prior_turns} stored turns: {:?}",
+        second.trace()
+    );
     assert_eq!(second.activation(), 2, "the next activation is durable before its agent runs");
     assert_eq!(second.prompt_assistants().first(), Some(&prior_turns), "provider sees the saved assistant history");
     assert!(second.shown().iter().any(|text| skein_lib::bytes::find(text, b"Welcome back.").is_some()));
@@ -431,11 +441,11 @@ fn a_chat_with_no_workspace_waits_parks_and_resumes_on_the_next_invocation() {
 fn a_chat_keeps_its_identity_across_activations_and_invocations() {
     let mut first = World::new(8084);
     first.line(b"Hello");
-    assert!(first.drive_to_park(300), "first activation parks");
+    assert!(first.drive_to_park(crate::bounds::CHAT), "first activation parks");
     let identity = first.identity().expect("identity durable before the child starts");
     assert_eq!(first.activation(), 1);
     first.line(b"Another activation in this invocation");
-    assert!(first.drive_to_park(300), "a later activation reaches its own park");
+    assert!(first.drive_to_park(crate::bounds::CHAT), "a later activation reaches its own park");
     assert_eq!(first.activation(), 2);
     assert_eq!(first.identity(), Some(identity));
     assert!(!first.prompt_affinities().is_empty());
@@ -443,7 +453,7 @@ fn a_chat_keeps_its_identity_across_activations_and_invocations() {
 
     let mut second = World::with_store(8085, first.into_store());
     second.line(b"Resume in another invocation");
-    assert!(second.drive_to_park(300), "resumed activation parks");
+    assert!(second.drive_to_park(crate::bounds::CHAT), "resumed activation parks");
     assert_eq!(second.activation(), 3);
     assert_eq!(second.identity(), Some(identity), "the new invocation's seed does not replace the saved key");
     assert!(!second.prompt_affinities().is_empty());
@@ -451,7 +461,7 @@ fn a_chat_keeps_its_identity_across_activations_and_invocations() {
 
     let mut fresh = World::with_store_fresh(8086, second.into_store());
     fresh.line(b"Begin afresh");
-    assert!(fresh.drive_to_park(300), "resume off starts a fresh conversation");
+    assert!(fresh.drive_to_park(crate::bounds::CHAT), "resume off starts a fresh conversation");
     let replacement = fresh.identity().expect("fresh identity durable");
     assert_ne!(replacement, identity);
     assert!(!fresh.prompt_affinities().is_empty());
@@ -460,7 +470,7 @@ fn a_chat_keeps_its_identity_across_activations_and_invocations() {
     );
     let mut resumed = World::with_store(8087, fresh.into_store());
     resumed.line(b"Resume the replacement chat");
-    assert!(!resumed.drive(300));
+    assert!(!resumed.drive(crate::bounds::CHAT));
     assert_eq!(resumed.identity(), Some(replacement));
     assert!(resumed.prompt_affinities().iter().all(|affinity| affinity.key == replacement.bytes()));
 }
@@ -469,7 +479,7 @@ fn a_chat_keeps_its_identity_across_activations_and_invocations() {
 fn a_crash_after_saving_an_activation_never_reuses_it() {
     let mut first = World::new(23);
     first.line(b"First attempt");
-    assert!(first.drive_to_cut(100, Cut::AfterSaveState));
+    assert!(first.drive_to_cut(crate::bounds::CHECKPOINT, Cut::AfterSaveState));
     let stored = first.into_store();
     assert_eq!(stored.activation(), 1);
     let identity = stored.identity().expect("metadata names the chat before any provider work");
@@ -477,7 +487,7 @@ fn a_crash_after_saving_an_activation_never_reuses_it() {
 
     let mut second = World::with_store(24, stored);
     second.line(b"Retry");
-    assert!(second.drive_to_cut(100, Cut::AfterSaveState));
+    assert!(second.drive_to_cut(crate::bounds::CHECKPOINT, Cut::AfterSaveState));
     assert_eq!(second.activation(), 2, "the crashed activation is never reused");
     assert_eq!(second.identity(), Some(identity), "the crash did not replace its durable chat identity");
 }
@@ -486,7 +496,7 @@ fn a_crash_after_saving_an_activation_never_reuses_it() {
 fn a_crash_before_a_turn_is_saved_resumes_from_the_turn_before_with_a_new_activation() {
     let mut first = World::new(25);
     first.line(b"Hello");
-    assert!(first.drive_to_cut(300, Cut::BeforeSaveTurn(2)));
+    assert!(first.drive_to_cut(crate::bounds::CHAT, Cut::BeforeSaveTurn(2)));
     let stored = first.into_store();
     assert_eq!(stored.turns(), 1, "the second turn did not reach durable storage");
     let identity = stored.identity().expect("first activation identity durable");
@@ -494,7 +504,7 @@ fn a_crash_before_a_turn_is_saved_resumes_from_the_turn_before_with_a_new_activa
 
     let mut second = World::with_store(26, stored);
     second.line(b"Continue");
-    assert!(!second.drive(300), "the next activation resumes the saved prefix");
+    assert!(!second.drive(crate::bounds::CHAT), "the next activation resumes the saved prefix");
     assert_eq!(second.activation(), 2, "the replacement activation has a new name");
     assert_eq!(second.identity(), Some(identity));
     assert!(second.prompt_affinities().iter().all(|affinity| affinity.key == identity.bytes()));
@@ -505,13 +515,13 @@ fn a_crash_before_a_turn_is_saved_resumes_from_the_turn_before_with_a_new_activa
 fn a_crash_after_turn_saved_replays_that_turn() {
     let mut first = World::new(27);
     first.line(b"Hello");
-    assert!(first.drive_to_cut(300, Cut::AfterTurnSaved(2)));
+    assert!(first.drive_to_cut(crate::bounds::CHAT, Cut::AfterTurnSaved(2)));
     let stored = first.into_store();
     assert_eq!(stored.turns(), 2);
     assert!(stored.read().is_some(), "the acknowledged turn's read fence is durable");
     let mut second = World::with_store(28, stored);
     second.line(b"Continue");
-    assert!(!second.drive(300), "the acknowledged turn is replayed");
+    assert!(!second.drive(crate::bounds::CHAT), "the acknowledged turn is replayed");
     assert_eq!(second.activation(), 2);
     assert_eq!(second.prompt_assistants().first(), Some(&2), "the acknowledged turns are in the next prompt");
 }
@@ -520,25 +530,25 @@ fn a_crash_after_turn_saved_replays_that_turn() {
 fn a_transcript_the_agent_refuses_is_reported_and_nothing_starts() {
     let mut first = World::new(29);
     first.line(b"Hello");
-    assert!(first.drive_to_park(300));
+    assert!(first.drive_to_park(crate::bounds::CHAT));
     let mut stored = first.into_store();
     stored.refuse_version();
     let mut second = World::with_store(30, stored);
     second.line(b"Continue");
-    assert!(!second.drive(300), "a refused transcript cannot reach a wait");
+    assert!(!second.drive(crate::bounds::CHAT), "a refused transcript cannot reach a wait");
     assert_eq!(second.completions(), 0, "refusal precedes provider effects");
     assert!(second.shown().iter().any(|text| text.as_ref() == b"run failed: chat cannot be resumed: version\n"));
 
     let stored = second.into_store();
     let mut fresh = World::with_store_fresh(31, stored);
     fresh.line(b"Start a fresh chat");
-    assert!(fresh.drive(300), "resume false ignores the refused history");
+    assert!(fresh.drive(crate::bounds::CHAT), "resume false ignores the refused history");
     assert!(fresh.completions() > 0, "the fresh run reaches the provider");
 
     let stored = fresh.into_store();
     let mut resumed = World::with_store(32, stored);
     resumed.line(b"Continue after a fresh start");
-    assert!(!resumed.drive(300), "the replacement history is resumable");
+    assert!(!resumed.drive(crate::bounds::CHAT), "the replacement history is resumable");
 }
 
 #[test]
@@ -546,7 +556,7 @@ fn an_expired_credential_is_refreshed_and_the_completion_retried() {
     let mut world = World::new(41);
     world.reject_first_credential();
     world.line(b"Hello");
-    assert!(world.drive(300), "the provider retry reaches the next wait");
+    assert!(world.drive(crate::bounds::CHAT), "the provider retry reaches the next wait");
     assert_eq!(world.credential_requests(), 2, "the rejected generation triggers one refresh");
     assert!(world.completions() >= 3, "the rejected completion was retried");
     assert!(world.shown().iter().any(|text| { skein_lib::bytes::find(text, b"Hello from the agent.").is_some() }));
@@ -557,7 +567,7 @@ fn a_limited_account_is_shown_with_its_reset() {
     let mut world = World::new(44);
     world.exhaust_first_account();
     world.line(b"Hello");
-    world.drive(300);
+    world.drive(crate::bounds::CHAT);
     assert!(world.notices().contains(&smith_local_domain::Notice::Failure(smith_local_domain::Failure::Account(
         smith_local_domain::AccountFailure::Limited {
             account: 0,
@@ -576,7 +586,7 @@ fn a_limited_account_is_shown_with_its_reset() {
 fn a_refused_account_is_shown_with_its_code_and_reason() {
     let mut world = World::headless(44, b"Hello");
     world.refuse_first_account();
-    assert!(world.drive_to_exit(300));
+    assert!(world.drive_to_exit(crate::bounds::CHAT));
     assert!(
         world
             .shown()
@@ -591,14 +601,14 @@ fn a_run_cancelled_at_the_terminal_answers_cancelled_after_its_last_turn_is_save
     let mut world = World::new(42);
     world.slow_store();
     world.line(b"Hello");
-    assert!(!world.drive(300), "the slow store holds a turn acknowledgement");
+    assert!(!world.drive(crate::bounds::CHAT), "the slow store holds a turn acknowledgement");
     assert!(world.delayed_turns() > 0);
     world.interrupt();
-    assert!(!world.drive_to_cancelled(300), "the cancelled answer waits for the store");
+    assert!(!world.drive_to_cancelled(crate::bounds::CHAT), "the cancelled answer waits for the store");
     assert!(!world.shown().iter().any(|text| text.as_ref() == b"interrupted: the run was cancelled\n"));
     for _ in 0..4 {
         assert!(world.release_turn(), "a stalled turn must be acknowledged");
-        if world.drive_to_cancelled(300) {
+        if world.drive_to_cancelled(crate::bounds::CHAT) {
             break;
         }
     }
@@ -614,14 +624,14 @@ fn a_slow_store_pauses_the_agent_and_loses_no_turn() {
     let mut world = World::tight_unsaved(43);
     world.slow_store();
     world.line(b"Hello");
-    assert!(!world.drive(300), "the full unsaved window pauses the chat");
+    assert!(!world.drive(crate::bounds::CHAT), "the full unsaved window pauses the chat");
     assert_eq!(world.saved_turns(), 1, "the second completion cannot tell another turn yet");
     assert_eq!(world.delayed_turns(), 1);
 
     let mut parked = false;
     for _ in 0..8 {
         assert!(world.release_turn(), "each stalled turn has an acknowledgement to release");
-        if world.drive_to_park(300) {
+        if world.drive_to_park(crate::bounds::CHAT) {
             parked = true;
             break;
         }
@@ -636,7 +646,7 @@ fn a_chat_replays_the_same_boundary_trace_from_its_seed() {
     let trace = assert_replays(71, 72, |seed| {
         let mut world = World::new(seed);
         world.line(b"Hello");
-        assert!(world.drive(300));
+        assert!(world.drive(crate::bounds::CHAT));
         (world.trace().to_vec(), (world.saved_turns(), world.shown().to_vec()))
     });
     assert!(trace.iter().any(|line| line.contains("TurnSaved")));
@@ -647,10 +657,10 @@ fn an_interrupted_delivery_replays_the_same_reconciliation() {
     let trace = assert_replays(213, 214, |seed| {
         let mut first = World::of(smith_local_world::Scenario::GitChange, seed);
         first.line(b"Make the answer 43");
-        assert!(first.drive_to_cut(600, Cut::AfterCommit(0)));
+        assert!(first.drive_to_cut(crate::bounds::RECOVERY, Cut::AfterCommit(0)));
         let mut trace = first.trace().to_vec();
-        let mut second = World::resumed(smith_local_world::Scenario::GitChange, seed + 1, first.into_store());
-        second.drive(100);
+        let mut second = first.crash_then_resume(smith_local_world::Scenario::GitChange, seed + 1);
+        second.drive(crate::bounds::CHECKPOINT);
         trace.extend(second.trace().iter().cloned());
         (trace, (second.delivery().cloned(), second.delivery_commits()))
     });
@@ -661,10 +671,10 @@ fn an_interrupted_delivery_replays_the_same_reconciliation() {
 fn facts_do_not_change_the_chat_when_their_queue_is_full() {
     let mut observed = World::new(73);
     observed.line(b"Hello");
-    assert!(observed.drive(300));
+    assert!(observed.drive(crate::bounds::CHAT));
     let mut dropped = World::without_facts(73);
     dropped.line(b"Hello");
-    assert!(dropped.drive(300));
+    assert!(dropped.drive(crate::bounds::CHAT));
     assert_eq!(observed.saved_turns(), dropped.saved_turns());
     assert_eq!(observed.shown(), dropped.shown());
     assert!(dropped.facts_lost() > 0);
@@ -677,7 +687,7 @@ fn a_store_failure_stops_the_chat_and_tells_the_person() {
         let mut world = World::new(75);
         world.fail_store(fault);
         world.line(b"Hello");
-        world.drive(300);
+        world.drive(crate::bounds::CHAT);
         assert_eq!(world.exit(), Some(ExitStatus::RunFailed), "{fault:?} failure exits");
         assert!(world.notices().iter().any(|notice| matches!(
             notice,
@@ -691,7 +701,7 @@ fn a_deadline_racing_a_landed_commit_is_answered_with_its_receipt() {
     let mut world = World::of(smith_local_world::Scenario::GitChange, 871);
     world.uncertain_git(smith_local_world::GitFault::Deadline);
     world.line(b"Make the answer 43");
-    world.drive(600);
+    world.drive(crate::bounds::RECOVERY);
     assert_eq!(world.delivery_commits(), 1);
     assert!(matches!(world.delivery(), Some(smith_domain::run::Delivery::Delivered(_))));
 }
@@ -701,7 +711,7 @@ fn an_unreadable_head_after_commit_is_settled_by_the_delivery_trailer() {
     let mut world = World::of(smith_local_world::Scenario::GitChange, 872);
     world.uncertain_git(smith_local_world::GitFault::HeadUnreadable);
     world.line(b"Make the answer 43");
-    world.drive(600);
+    world.drive(crate::bounds::RECOVERY);
     assert_eq!(world.delivery_commits(), 1);
     assert!(matches!(world.delivery(), Some(smith_domain::run::Delivery::Delivered(_))));
 }
@@ -711,14 +721,14 @@ fn an_unknown_commit_keeps_its_intent_until_a_restart_finds_it() {
     let mut first = World::of(smith_local_world::Scenario::GitChange, 873);
     first.uncertain_git(smith_local_world::GitFault::InspectionUnreadable);
     first.line(b"Make the answer 43");
-    first.drive(600);
+    first.drive(crate::bounds::RECOVERY);
     assert_eq!(first.delivery_commits(), 1);
     let store = first.into_store();
     assert_eq!(store.delivery_answers(), 0, "unknown did not replace the saved intent");
     assert!(store.delivery_name().is_some(), "the intent survives a later saved turn");
     let mut second = World::resumed(smith_local_world::Scenario::GitChange, 874, store);
     second.line(b"What landed?");
-    second.drive(600);
+    second.drive(crate::bounds::RECOVERY);
     assert_eq!(second.delivery_commits(), 1, "reconciliation never committed again");
     assert!(second.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"delivered").is_some()));
 }
@@ -728,7 +738,7 @@ fn an_absent_delivery_trailer_and_unchanged_head_prove_no_effect() {
     let mut world = World::of(smith_local_world::Scenario::GitChange, 875);
     world.uncertain_git(smith_local_world::GitFault::NoEffect);
     world.line(b"Make the answer 43");
-    world.drive(600);
+    world.drive(crate::bounds::RECOVERY);
     assert_eq!(world.delivery_commits(), 0);
     let Some(smith_domain::run::Delivery::Failed(failure)) = world.delivery() else { panic!("original failure") };
     assert_eq!(failure.reason, smith_domain::run::DeliveryReason::TimedOut);
@@ -737,7 +747,7 @@ fn an_absent_delivery_trailer_and_unchanged_head_prove_no_effect() {
 #[test]
 fn a_headless_run_that_would_wait_parks_at_once_and_needs_input() {
     let mut world = World::headless(710, b"What can you do?");
-    assert!(world.drive_to_park(400));
+    assert!(world.drive_to_park(crate::bounds::TOOL));
     assert_eq!(world.exit(), Some(ExitStatus::NeedsInput));
     assert_eq!(world.saved_turns(), 1);
     assert_eq!(world.completions(), 1, "zero waiting admits no follow-up completion");
@@ -747,7 +757,7 @@ fn a_headless_run_that_would_wait_parks_at_once_and_needs_input() {
 fn a_headless_prompt_opens_the_run_and_its_answer_ends_the_host() {
     let mut world = World::headless_workspace(711, b"Change the answer in work");
     world.line(b"This follow-up must not be relayed");
-    world.drive(400);
+    world.drive(crate::bounds::TOOL);
     assert_eq!(world.exit(), Some(ExitStatus::Accepted));
     assert_eq!(world.activation(), 1);
     let prompt = String::from_utf8_lossy(&world.prompt_texts()[0]);
@@ -758,7 +768,7 @@ fn a_headless_prompt_opens_the_run_and_its_answer_ends_the_host() {
 #[test]
 fn a_headless_run_out_of_turns_ends_with_the_budget_status() {
     let mut world = World::headless_budget(712, b"Change the answer in work");
-    world.drive(500);
+    world.drive(crate::bounds::DELIVERY);
     assert_eq!(world.exit(), Some(ExitStatus::Budget));
 }
 
@@ -766,7 +776,7 @@ fn a_headless_run_out_of_turns_ends_with_the_budget_status() {
 fn a_headless_run_whose_model_fails_ends_run_failed() {
     let mut world = World::headless(713, b"What can you do?");
     world.fail_model();
-    world.drive(500);
+    world.drive(crate::bounds::DELIVERY);
     assert_eq!(world.exit(), Some(ExitStatus::RunFailed));
 }
 
@@ -774,7 +784,7 @@ fn a_headless_run_whose_model_fails_ends_run_failed() {
 fn a_headless_run_without_a_credential_starts_nothing() {
     let mut world = World::headless(714, b"What can you do?");
     world.without_credential();
-    world.drive(100);
+    world.drive(crate::bounds::CHECKPOINT);
     assert_eq!(world.exit(), Some(ExitStatus::Credentials { account: 0 }));
     assert_eq!(world.completions(), 0);
     assert_eq!(world.credential_requests(), 1);
@@ -784,7 +794,7 @@ fn a_headless_run_without_a_credential_starts_nothing() {
 fn an_interrupt_ends_a_headless_run_interrupted() {
     let mut world = World::headless(715, b"What can you do?");
     world.interrupt();
-    world.drive(100);
+    world.drive(crate::bounds::CHECKPOINT);
     assert_eq!(world.exit(), Some(ExitStatus::Interrupted));
     assert_eq!(world.completions(), 0);
 }
@@ -792,7 +802,7 @@ fn an_interrupt_ends_a_headless_run_interrupted() {
 #[test]
 fn a_headless_delivery_commits_in_place() {
     let mut world = World::headless_delivery(716, b"Make the answer 43");
-    world.drive(500);
+    world.drive(crate::bounds::DELIVERY);
     assert_eq!(world.exit(), Some(ExitStatus::Accepted));
     assert_eq!(world.delivery_commits(), 1);
     assert!(world.commit_message().is_some_and(|message| message.starts_with(b"Make the answer 43")));
@@ -803,7 +813,7 @@ fn a_headless_delivery_commits_in_place() {
 #[test]
 fn a_budget_failure_is_shown_naming_what_ran_out() {
     let mut world = World::headless_budget(47, b"Update the source");
-    world.drive_to_exit(300);
+    world.drive_to_exit(crate::bounds::CHAT);
     assert!(world.shown().iter().any(|text| text.as_ref() == b"run failed: out of turns: used 3 of 3\n"));
 }
 
@@ -812,7 +822,7 @@ fn a_provider_refusal_is_shown_with_its_class_and_text() {
     let mut world = World::new(48);
     world.refuse_first_model();
     world.line(b"Hello");
-    world.drive(300);
+    world.drive(crate::bounds::CHAT);
     let shown = world.shown().iter().find(|text| text.starts_with(b"run failed: ")).expect("failure line");
     assert!(skein_lib::bytes::find(shown, b"invalid (HTTP 400)").is_some());
     assert!(shown.ends_with(b"after 1 attempts: model does not exist\n"));

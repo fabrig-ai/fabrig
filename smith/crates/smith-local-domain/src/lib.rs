@@ -37,6 +37,7 @@ extern crate alloc;
 mod agent;
 mod boundary;
 mod chat;
+mod child;
 mod choices;
 mod config;
 mod credentials;

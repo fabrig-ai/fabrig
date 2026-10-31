@@ -1,7 +1,6 @@
 //! Lines, names and text shown to one terminal (domain/host.md, section 8).
 
 use crate::chat::State;
-use crate::domain::ChildState;
 use crate::{Domain, ExitStatus, Fact, Reading, Request};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token};
@@ -361,15 +360,25 @@ pub(crate) fn show_dropped(lines: &mut Lines, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
-    if domain.agent_life != ChildState::Gone || domain.chat.state_pending {
+    if !domain.child.is_gone() || domain.chat.state_pending() || !domain.turns.unsaved.is_empty() {
         return;
     }
-    let Some(answer) = domain.turns.answer.take() else { return };
-    if domain.stop_failed {
-        domain.run = None;
-        domain.chat.phase = State::Done;
-        out.push(Request::Exit { status: crate::end::exit_status(domain.end_cause) });
-        return;
+    let state = core::mem::replace(&mut domain.chat.phase, State::Done);
+    domain.chat.phase = match state {
+        State::Answered { answer, detail } => finish_answered(domain, answer, detail, out),
+        state @ (State::Loading(_)
+        | State::Idle
+        | State::Starting(_)
+        | State::Running { .. }
+        | State::Ending(_)
+        | State::Done) => state,
+    };
+}
+
+fn finish_answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u8]>, out: &mut Queue<Request>) -> State {
+    if domain.ending.store_failed() {
+        out.push(Request::Exit { status: crate::end::exit_status(domain.ending.cause()) });
+        return State::Done;
     }
     crate::domain::observe(domain, Fact::Shown { activation: domain.chat.state.activation });
     let status = match domain.config.mode {
@@ -378,7 +387,6 @@ pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
         }
         crate::Mode::Chat { .. } => ExitStatus::Accepted,
     };
-    let detail = core::mem::replace(&mut domain.turns.detail, Box::new([]));
     match &answer.result {
         host::RunResult::Failed { failure } => {
             out.push(Request::Notice {
@@ -394,8 +402,6 @@ pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
         }
     }
     out.push(Request::Answered { answer });
-    domain.run = None;
-    domain.wall_deadline = None;
 
     let headless = match domain.config.mode {
         crate::Mode::Headless { .. } => true,
@@ -405,16 +411,15 @@ pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
         Some(last) => domain.chat.state.activation >= last,
         None => false,
     };
-    if domain.chat.closed && drained {
+    if domain.chat.closed() && drained {
         show_dropped(&mut domain.lines, out);
     }
-    if (domain.chat.closed && domain.lines.is_empty()) || headless {
-        domain.chat.phase = State::Done;
+    if (domain.chat.closed() && domain.lines.is_empty()) || headless {
         out.push(Request::Exit { status });
+        State::Done
     } else {
-        domain.chat.phase = State::Loading;
-        domain.chat.load_requested = true;
         out.push(Request::Load);
+        State::Loading(crate::chat::Load::Waiting)
     }
 }
 
@@ -516,13 +521,17 @@ pub(crate) fn answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u
     domain.lines.fence(answer.read);
     domain.chat.state.read = answer.read;
     crate::domain::observe(domain, Fact::Answered { activation: domain.chat.state.activation, read: answer.read });
-    domain.chat.phase = State::Answered;
-    match policy(Some(&answer.result), domain.cancel_requested.is_some()) {
+    match policy(Some(&answer.result), domain.ending.requested().is_some()) {
         UnreadPolicy::Carry => {}
         UnreadPolicy::Drop => show_dropped(&mut domain.lines, out),
     }
-    domain.turns.answer = Some(answer);
-    domain.turns.detail = detail;
+    let state = core::mem::replace(&mut domain.chat.phase, State::Done);
+    domain.chat.phase = match state {
+        State::Running { .. } | State::Ending(_) => State::Answered { answer, detail },
+        State::Loading(_) | State::Idle | State::Starting(_) | State::Answered { .. } | State::Done => {
+            unreachable!("one answer belongs to the live activation")
+        }
+    };
     if domain.turns.unsaved.is_empty() {
         finish_answer(domain, out);
     }

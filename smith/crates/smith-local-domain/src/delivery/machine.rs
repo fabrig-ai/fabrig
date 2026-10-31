@@ -387,7 +387,7 @@ fn committed(
                 return failure(call.next, run::DeliveryReason::TooLarge);
             }
             assert!(!head.is_empty() && head.len() <= run::Receipt::CAPACITY, "commit head is bounded");
-            domain.own_heads.insert(call.next, head).expect("one head per writable repository");
+            domain.chat.live_mut().own_heads.insert(call.next, head).expect("one head per writable repository");
             call.receipt(call.next, receipt);
             let mut target = None;
             for entry in &call.directories {
@@ -541,11 +541,11 @@ fn commit_request(domain: &mut Domain, mut in_place: InPlace, out: &mut Queue<Re
 }
 
 fn stale_head(domain: &Domain, directory: u32, head: &[u8]) -> bool {
-    let start = domain.heads.get(&directory).expect("writable repository head known before run");
+    let start = domain.chat.live().heads.get(&directory).expect("writable repository head known before run");
     if start.as_ref() == head {
         return false;
     }
-    match domain.own_heads.get(&directory) {
+    match domain.chat.live().own_heads.get(&directory) {
         Some(own) => own.as_ref() != head,
         None => true,
     }
@@ -616,6 +616,10 @@ pub(super) fn deliver_to_agent(domain: &mut Domain, env: &Env<Limits>, owner: To
         &mut domain.agent,
         env.now,
         env.wall,
-        parent::Event::Answer { agent: domain.run.expect("delivery belongs to the started child"), call: owner, reply },
+        parent::Event::Answer {
+            agent: domain.child.run().expect("delivery belongs to the started child"),
+            call: owner,
+            reply,
+        },
     );
 }

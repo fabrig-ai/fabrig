@@ -1,6 +1,6 @@
 //! Local policy consumes each typed parent variant; process ownership is
 //! exercised separately by the spawned lifecycle unit and composed worlds.
-use super::{ChildState, Domain, State, parent_request};
+use super::{Domain, State, parent_request};
 use crate::{
     AccountFailure, AgentFailure, Checks, Config, Contract, Event, Failure, Limits, Notice, Request, Undelivered,
 };
@@ -20,7 +20,8 @@ fn running(config: Config) -> (Domain, Env<Limits>, Queue<Request>) {
 
 #[test]
 fn started_binds_the_handle_and_admission_keeps_an_empty_person_queue() {
-    let (mut domain, env, mut out) = running(crate::tests::config());
+    let (_, env, mut out) = running(crate::tests::config());
+    let mut domain = Domain::starting_parent(crate::tests::config(), &env.limits, 71);
     parent_request(
         &mut domain,
         &env,
@@ -28,7 +29,7 @@ fn started_binds_the_handle_and_admission_keeps_an_empty_person_queue() {
         &mut out,
     );
     parent_request(&mut domain, &env, parent::Request::Admitted { client: Token::new(1) }, &mut out);
-    assert_eq!(domain.run, Some(Token::new(9)));
+    assert_eq!(domain.child.run(), Some(Token::new(9)));
     assert!(out.is_empty());
 }
 
@@ -59,14 +60,13 @@ fn the_first_drop_cause_survives_store_failure_and_the_childs_later_fault() {
         parent_request(
             &mut domain,
             &env,
-            parent::Request::Gone {
-                client: Token::new(1),
-                end: host::End::Exited {
+            crate::fixture::gone(
+                host::End::Exited {
                     exit: Some(smith_host_domain::Exit::Code(0)),
                     forced: smith_host_domain::Forced::No,
                 },
-                detail: Box::default(),
-            },
+                Box::default(),
+            ),
             &mut out,
         );
         assert_eq!(domain.end_cause(), Some(cause), "later child terminals cannot replace the cause");
@@ -234,25 +234,21 @@ fn the_parent_answer_keeps_its_host_spend_until_gone() {
         &mut out,
     );
     assert!(out.is_empty());
-    let Some(answer) = &domain.turns.answer else { panic!("typed host answer retained") };
+    let State::Answered { answer, .. } = &domain.chat.phase else { panic!("typed host answer retained") };
     assert_eq!(answer.spent, 29);
     assert_eq!(answer.turns, 3);
     parent_request(
         &mut domain,
         &env,
-        parent::Request::Gone {
-            client: Token::new(1),
-            end: host::End::Exited {
-                exit: Some(smith_host_domain::Exit::Code(0)),
-                forced: smith_host_domain::Forced::No,
-            },
-            detail: Box::default(),
-        },
+        crate::fixture::gone(
+            host::End::Exited { exit: Some(smith_host_domain::Exit::Code(0)), forced: smith_host_domain::Forced::No },
+            Box::default(),
+        ),
         &mut out,
     );
     let Some(Request::Show { text }) = out.pop() else { panic!("answer shown after Gone") };
     assert_eq!(text.as_ref(), b"Chat parked");
-    assert_eq!(domain.agent_life, ChildState::Gone);
+    assert!(domain.child.is_gone());
 }
 
 #[test]
@@ -264,13 +260,8 @@ fn an_agent_fault_keeps_the_current_failure_class() {
         parent::Request::Faulted { client: Token::new(1), fault: host::Fault::Rules },
         &mut out,
     );
-    assert!(domain.agent_failed.is_some());
-    parent_request(
-        &mut domain,
-        &env,
-        parent::Request::Gone { client: Token::new(1), end: host::End::Settled, detail: Box::new([]) },
-        &mut out,
-    );
+    assert!(domain.child.failure().is_some());
+    parent_request(&mut domain, &env, crate::fixture::gone(host::End::Settled, Box::new([])), &mut out);
     let Some(Request::Unanswered { .. }) = out.pop() else { panic!("unanswered terminal") };
     let Some(Request::Notice { notice }) = out.pop() else { panic!("failure notice") };
     assert_eq!(
@@ -298,8 +289,8 @@ fn every_message_refusal_ends_the_message_without_failing_the_agent() {
             parent::Request::MessageRefused { client: Token::new(1), name: Token::new(3), reason },
             &mut out,
         );
-        assert!(domain.agent_failed.is_none());
-        assert_eq!(domain.chat.phase, State::Running);
+        assert!(domain.child.failure().is_none());
+        assert!(domain.chat.phase.is_running());
         let Some(Request::Notice { notice }) = out.pop() else { panic!("message terminal notice") };
         assert_eq!(notice, Notice::NotDelivered { line: Some(Token::new(3)), why: Undelivered::Refused(reason) });
         assert!(out.is_empty());
@@ -315,8 +306,8 @@ fn unread_names_reach_the_parent_without_an_agent_failure_or_another_activation(
         parent::Request::Unread { client: Token::new(1), names: Box::from([Token::new(3)]) },
         &mut out,
     );
-    assert!(domain.agent_failed.is_none());
-    assert_eq!(domain.chat.phase, State::Running);
+    assert!(domain.child.failure().is_none());
+    assert!(domain.chat.phase.is_running());
     assert!(out.is_empty());
 }
 
@@ -343,14 +334,10 @@ fn a_message_refused_after_the_last_word_keeps_the_single_transcript_reload() {
     parent_request(
         &mut domain,
         &env,
-        parent::Request::Gone {
-            client: Token::new(1),
-            end: host::End::Exited {
-                exit: Some(smith_host_domain::Exit::Code(0)),
-                forced: smith_host_domain::Forced::No,
-            },
-            detail: Box::default(),
-        },
+        crate::fixture::gone(
+            host::End::Exited { exit: Some(smith_host_domain::Exit::Code(0)), forced: smith_host_domain::Forced::No },
+            Box::default(),
+        ),
         &mut out,
     );
     parent_request(
@@ -379,8 +366,8 @@ fn a_message_refused_after_the_last_word_keeps_the_single_transcript_reload() {
         Notice::NotDelivered { line: Some(Token::new(3)), why: Undelivered::Refused(host::MessageRefusal::Ending) }
     );
     assert!(out.is_empty());
-    assert_eq!(domain.chat.phase, State::Loading);
-    assert!(domain.agent_failed.is_none());
+    assert!(domain.chat.phase.is_loading());
+    assert!(domain.child.failure().is_none());
 }
 
 #[test]
@@ -389,11 +376,7 @@ fn gone_without_an_answer_fails_after_retained_turns_are_saved() {
     parent_request(
         &mut domain,
         &env,
-        parent::Request::Gone {
-            client: Token::new(1),
-            end: host::End::Unspawned,
-            detail: b"unavailable".as_slice().into(),
-        },
+        crate::fixture::gone(host::End::Unspawned, b"unavailable".as_slice().into()),
         &mut out,
     );
     let Some(Request::Unanswered { cause: crate::EndCause::Agent { ended: None }, turns: 0, spent: 0, read: None }) =
@@ -536,26 +519,25 @@ fn answer_with_a_late_state_save(gone_first: bool) {
         },
         &mut out,
     );
-    assert_eq!(domain.chat.phase, State::Answered);
-    assert_eq!(domain.agent_life, ChildState::Starting);
-    let gone = parent::Request::Gone {
-        client: Token::new(1),
-        end: host::End::Exited { exit: Some(host::Exit::Code(0)), forced: host::Forced::No },
-        detail: Box::new([]),
-    };
+    assert!(domain.chat.phase.is_answered());
+    assert!(!domain.child.is_gone());
+    let gone = crate::fixture::gone(
+        host::End::Exited { exit: Some(host::Exit::Code(0)), forced: host::Forced::No },
+        Box::new([]),
+    );
     if gone_first {
         parent_request(&mut domain, &env, gone, &mut out);
-        assert_eq!(domain.chat.phase, State::Answered);
-        assert_eq!(domain.agent_life, ChildState::Gone);
+        assert!(domain.chat.phase.is_answered());
+        assert!(domain.child.is_gone());
         super::state_saved(&mut domain, &env, &mut out);
     } else {
         super::state_saved(&mut domain, &env, &mut out);
-        assert_eq!(domain.chat.phase, State::Answered);
+        assert!(domain.chat.phase.is_answered());
         parent_request(&mut domain, &env, gone, &mut out);
     }
-    assert_eq!(domain.chat.phase, State::Loading);
+    assert!(domain.chat.phase.is_loading());
     assert_eq!(domain.lines.carry()[0].name, Token::new(1));
-    assert!(!domain.chat.state_pending);
+    assert!(!domain.chat.state_pending());
 }
 
 #[test]
@@ -583,18 +565,17 @@ fn gone_after_a_late_turn_save_shows_the_answer_once() {
         &mut out,
     );
     super::turn_saved(&mut domain, &env, 1, &mut out);
-    assert_eq!(domain.chat.phase, State::Answered);
+    assert!(domain.chat.phase.is_answered());
     parent_request(
         &mut domain,
         &env,
-        parent::Request::Gone {
-            client: Token::new(1),
-            end: host::End::Exited { exit: Some(host::Exit::Code(0)), forced: host::Forced::No },
-            detail: Box::new([]),
-        },
+        crate::fixture::gone(
+            host::End::Exited { exit: Some(host::Exit::Code(0)), forced: host::Forced::No },
+            Box::new([]),
+        ),
         &mut out,
     );
-    assert_eq!(domain.chat.phase, State::Loading);
+    assert!(domain.chat.phase.is_loading());
     assert_eq!(shown_requests(&mut out), 1);
 }
 
@@ -639,11 +620,10 @@ fn gone_fills_the_agents_first_cause_with_the_exit_the_kit_reported() {
     parent_request(
         &mut domain,
         &env,
-        parent::Request::Gone {
-            client: Token::new(1),
-            end: host::End::Exited { exit: Some(host::Exit::Signal(9)), forced: host::Forced::Killed },
-            detail: Box::default(),
-        },
+        crate::fixture::gone(
+            host::End::Exited { exit: Some(host::Exit::Signal(9)), forced: host::Forced::Killed },
+            Box::default(),
+        ),
         &mut out,
     );
     assert_eq!(domain.end_cause(), Some(crate::EndCause::Agent { ended: Some(host::Exit::Signal(9)) }));
@@ -676,12 +656,7 @@ fn gone_fills_the_agents_first_cause_with_the_exit_the_kit_reported() {
 fn gone_without_observed_process_evidence_keeps_ended_absent() {
     for end in [host::End::Unspawned, host::End::Settled, host::End::Exited { exit: None, forced: host::Forced::No }] {
         let (mut domain, env, mut out) = running(crate::tests::config());
-        parent_request(
-            &mut domain,
-            &env,
-            parent::Request::Gone { client: Token::new(1), end, detail: Box::default() },
-            &mut out,
-        );
+        parent_request(&mut domain, &env, crate::fixture::gone(end, Box::default()), &mut out);
         assert_eq!(domain.end_cause(), Some(crate::EndCause::Agent { ended: None }));
         let mut completed = 0_u32;
         for _ in 0..out.len() {
@@ -711,11 +686,10 @@ fn after_an_answered_agents_forced_exit(result: host::RunResult) -> Queue<Reques
     parent_request(
         &mut domain,
         &env,
-        parent::Request::Gone {
-            client: Token::new(1),
-            end: host::End::Exited { exit: Some(host::Exit::Signal(9)), forced: host::Forced::Killed },
-            detail: Box::new([]),
-        },
+        crate::fixture::gone(
+            host::End::Exited { exit: Some(host::Exit::Signal(9)), forced: host::Forced::Killed },
+            Box::new([]),
+        ),
         &mut out,
     );
     out
@@ -764,12 +738,7 @@ fn the_host_answer_clock_precedes_teardown_and_durable_saves() {
     assert!(out.is_empty());
     let answered_at = Some(env.wall);
     env.wall = Wall::from_nanos(39_600_000_000_000);
-    parent_request(
-        &mut domain,
-        &env,
-        parent::Request::Gone { client: Token::new(1), end: host::End::Settled, detail: Box::default() },
-        &mut out,
-    );
+    parent_request(&mut domain, &env, crate::fixture::gone(host::End::Settled, Box::default()), &mut out);
     assert_eq!(domain.answer_wall(), answered_at);
     assert!(out.is_empty());
     crate::step(&mut domain, &env, Event::StateSaved, &mut out);
@@ -818,7 +787,7 @@ mod older {
             let mut out = Queue::uncapped();
             let reason = crate::StoreFailure::OlderBuild { why };
             crate::step(&mut domain, &env, Event::StoreFailed { turn: None, reason }, &mut out);
-            assert_eq!(domain.end_cause, Some(crate::EndCause::Host { turn: None, reason }));
+            assert_eq!(domain.ending.cause(), Some(crate::EndCause::Host { turn: None, reason }));
             let Some(Request::Notice { notice: Notice::Failure(Failure::Store { turn: None, reason: found }) }) =
                 out.pop()
             else {
@@ -832,4 +801,51 @@ mod older {
             assert!(out.is_empty());
         }
     }
+}
+
+#[test]
+fn a_late_metadata_save_cannot_show_an_answer_before_its_turn_is_durable() {
+    let (mut domain, env, mut out) = running(crate::tests::config());
+    crate::step(&mut domain, &env, Event::Line { text: b"follow-up".as_slice().into() }, &mut out);
+    let turn = crate::fixture::turn();
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Turn {
+            client: Token::new(1),
+            turn: host::Turn {
+                opens_window: true,
+                number: 1,
+                read: None,
+                spent: 0,
+                body: host::TurnValue::new(turn, crate::tests::host_limits().turn_bytes).expect("bounded native turn"),
+            },
+        },
+        &mut out,
+    );
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Answered {
+            client: Token::new(1),
+            answer: host::Answer { read: None, turns: 1, spent: 0, result: host::RunResult::Parked },
+            detail: Box::default(),
+        },
+        &mut out,
+    );
+    parent_request(&mut domain, &env, crate::fixture::gone(host::End::Settled, Box::default()), &mut out);
+    drop(crate::tests::drain_requests(&mut out));
+    crate::step(&mut domain, &env, Event::StateSaved, &mut out);
+    assert!(out.is_empty());
+    assert!(domain.chat.phase.is_answered());
+    crate::step(&mut domain, &env, Event::TurnSaved { number: 1 }, &mut out);
+    let requests = crate::tests::drain_requests(&mut out);
+    let mut answered = 0_u32;
+    for request in requests {
+        if let Request::Answered { .. } = request {
+            answered += 1;
+        }
+    }
+    assert_eq!(answered, 1);
+    assert!(domain.chat.phase.is_loading());
 }
