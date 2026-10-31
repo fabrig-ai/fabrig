@@ -88,6 +88,7 @@ fn generated() -> (engine::Config, engine::Limits) {
             landing: settings.landing,
             forge_charter: settings.charter,
             under_box: false,
+            machine: None,
         },
         limits,
     )

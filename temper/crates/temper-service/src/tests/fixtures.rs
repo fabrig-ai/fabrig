@@ -430,6 +430,7 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
         forges: Box::new([]),
         under_box: false,
         demo: None,
+        machine: None,
     };
     (
         root::Domain::new(config, &limits).expect("valid engine configuration"),
