@@ -12,7 +12,7 @@ use crate::turns::Turns;
 
 /// The host child domain's state.
 #[derive(Debug)]
-pub struct Domain {
+pub struct Hub {
     pub(crate) sources: crate::sources::Domain,
     /// The run slots.
     pub(crate) hosted: Slab<Hosted>,
@@ -30,12 +30,12 @@ pub struct Domain {
     pub(crate) refusals_lost: u64,
 }
 
-impl Domain {
+impl Hub {
     /// A domain with room for `limits`.
     #[must_use]
-    pub fn new(limits: &Limits) -> Domain {
-        let calls = limits::calls(limits).expect("valid accepted the limits");
-        Domain {
+    pub fn new(limits: &Limits) -> Hub {
+        let calls = limits::calls(limits).expect("valid_hub accepted the limits");
+        Hub {
             sources: crate::sources::Domain::new(limits.program_sources),
             hosted: Slab::with_capacity(limits.slots),
             names: Map::with_capacity(limits.slots),
@@ -229,25 +229,31 @@ impl Domain {
 }
 
 /// Handles one event and emits its requests.
-pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::SourceAnswered { owner, answer } => {
             crate::sources::answered(&mut domain.sources, env, owner, answer, out);
         }
         Event::SourceLost => crate::sources::lost(&mut domain.sources),
-        Event::Called { owner, call, ask } => hosted::called(domain, env, owner, call, ask, out),
-        Event::Withdrawn { owner, call } => hosted::withdrawn(domain, owner, call, out),
-        Event::Turn { owner, turn } => hosted::turned(domain, env, owner, turn, out),
-        Event::Piece { owner, piece } => crate::live::reported(domain, env, owner, piece),
-        Event::Activity { owner, activity } => crate::activity::reported(domain, owner, activity),
-        Event::Unauthorized { owner, account, generation } => {
+        Event::Agent(crate::FromAgent::Called { owner, call, ask }) => {
+            hosted::called(domain, env, owner, call, ask, out);
+        }
+        Event::Agent(crate::FromAgent::Withdrawn { owner, call }) => hosted::withdrawn(domain, owner, call, out),
+        Event::Agent(crate::FromAgent::Turn { owner, turn }) => hosted::turned(domain, env, owner, turn, out),
+        Event::Agent(crate::FromAgent::Piece { owner, piece }) => crate::live::reported(domain, env, owner, piece),
+        Event::Agent(crate::FromAgent::Activity { owner, activity }) => {
+            crate::activity::reported(domain, owner, activity);
+        }
+        Event::Agent(crate::FromAgent::Unauthorized { owner, account, generation }) => {
             crate::activity::unauthorized(domain, owner, account, generation, out);
         }
-        Event::Limited { owner, account, reset } => crate::activity::limited(domain, owner, account, reset, out),
-        Event::AccountRefused { owner, account, code, reason } => {
+        Event::Agent(crate::FromAgent::Limited { owner, account, reset }) => {
+            crate::activity::limited(domain, owner, account, reset, out);
+        }
+        Event::Agent(crate::FromAgent::AccountRefused { owner, account, code, reason }) => {
             crate::activity::account_refused(domain, owner, account, code, reason, out);
         }
-        Event::Finished { owner, turns, spent, read, finish } => {
+        Event::Agent(crate::FromAgent::Finished { owner, turns, spent, read, finish }) => {
             hosted::finished(domain, env, owner, turns, spent, finish, read, out);
         }
         Event::RelayCancelled { run, attempt, call } => hosted::relay_cancelled(domain, run, attempt, &call, out),
@@ -262,12 +268,16 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Prepared { owner, workspace } => hosted::prepared(domain, owner, workspace, out),
         Event::Unprepared { owner, failure, detail } => hosted::unprepared(domain, env, owner, failure, detail, out),
-        Event::Started { owner, agent } => hosted::started(domain, env, owner, agent, out),
-        Event::StartRefused { owner, why, cause } => hosted::start_refused(domain, env, owner, why, cause, out),
-        Event::Refused { owner, name, reason } => hosted::refused_message(domain, owner, name, reason, out),
-        Event::Yielded { owner } => hosted::yielded(domain, owner, out),
-        Event::Faulted { owner, fault } => hosted::faulted(domain, env, owner, fault, out),
-        Event::Gone { owner, detail } => hosted::gone(domain, env, owner, detail, out),
+        Event::Agent(crate::FromAgent::Started { owner, agent }) => hosted::started(domain, env, owner, agent, out),
+        Event::Agent(crate::FromAgent::StartRefused { owner, why, cause }) => {
+            hosted::start_refused(domain, env, owner, why, cause, out);
+        }
+        Event::Agent(crate::FromAgent::Refused { owner, name, reason }) => {
+            hosted::refused_message(domain, owner, name, reason, out);
+        }
+        Event::Agent(crate::FromAgent::Yielded { owner }) => hosted::yielded(domain, owner, out),
+        Event::Agent(crate::FromAgent::Faulted { owner, fault }) => hosted::faulted(domain, env, owner, fault, out),
+        Event::Agent(crate::FromAgent::Gone { owner, detail }) => hosted::gone(domain, env, owner, detail, out),
         Event::Delivered { owner, delivery } => hosted::delivered(domain, owner, delivery, out),
         Event::Saved { owner, at } => hosted::saved(domain, owner, at, out),
         Event::Down(down) => match down {
@@ -291,26 +301,26 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 
 /// Cancels a run on the ready list, if one is, for its `CancelAll` reason.
 /// Also fires due source checks, independently of the run slots.
-pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub fn resume(domain: &mut Hub, env: &Env<Limits>, out: &mut Queue<Request>) {
     resume_runs(domain, env, out);
     fire_sources(domain, env, out);
 }
 
 /// Cancels a run on the ready list, if one is: `resume` without the
 /// source checks, for a root that admits those as new work.
-pub fn resume_runs(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub fn resume_runs(domain: &mut Hub, env: &Env<Limits>, out: &mut Queue<Request>) {
     hosted::resume(domain, env, out);
 }
 
 /// Fires the source checks that are due: new work, which a root admits
 /// at its watermark; a check not fired stays due.
-pub fn fire_sources(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub fn fire_sources(domain: &mut Hub, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::sources::fire(&mut domain.sources, env, out);
 }
 
 /// Whether a source check is due at `now`.
 #[must_use]
-pub fn sources_due(domain: &Domain, now: skein_lib::Time) -> bool {
+pub fn sources_due(domain: &Hub, now: skein_lib::Time) -> bool {
     match domain.sources.next_deadline() {
         Some(deadline) => deadline <= now,
         None => false,

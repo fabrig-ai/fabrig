@@ -4,7 +4,7 @@ use jig_client_domain::contract::*;
 use skein_lib::{Time, Token, Wall};
 #[test]
 fn person_owner_public_read_preserves_whole_optional_results_and_original_object_identity() {
-    let value = crate::owner_person_task::tests::value();
+    let value = source();
     let mut engine = Engine::new(script(), 37).expect("ordinary fixture admitted");
     let commit = engine
         .act(
@@ -42,7 +42,7 @@ fn person_owner_public_read_preserves_whole_optional_results_and_original_object
 
 #[test]
 fn person_owner_public_read_preserves_reserved_offers_and_nested_result_admissions_above_rows() {
-    let mut value = crate::owner_person_task::tests::value();
+    let mut value = source();
     value.acts = skein_lib::List::with_capacity(MAX_OFFERED_ACTS);
     for (act, admission) in [
         (ActKind::HandBack, Admission::Proposed { to: Recipient::Task(u64::MAX) }),
@@ -106,4 +106,23 @@ fn person_owner_public_read_preserves_reserved_offers_and_nested_result_admissio
         MAX_OFFERED_ACTS
     );
     assert_eq!(value, original);
+}
+
+fn source() -> OwnerPersonTask {
+    let mut value = crate::owner_person_task::tests::value();
+    value.task.details = Box::new(super::chip_details(OwnerChipPhase::Person {
+        address: value.address,
+        taken_by: value.taken_by,
+        since: value.since,
+    }));
+    for index in 0..value.results.len() {
+        let row = value.results.get_mut(index).expect("bounded result");
+        if let OwnerTaskLink::Live(chip) | OwnerTaskLink::Retained { chip, .. } = &mut row.task {
+            *chip.details = super::chip_details(OwnerChipPhase::Ended);
+        }
+        if let Some(result) = &mut row.result {
+            *result.task.details = super::chip_details(OwnerChipPhase::Ended);
+        }
+    }
+    value
 }

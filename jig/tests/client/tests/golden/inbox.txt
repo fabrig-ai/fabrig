@@ -42,34 +42,106 @@ Inbox:
   2 updates not read
 Needs you:
   ## Needs you
-  - Waiting 1000013153015 min
+  - Task proposer: 10 / proposal: 1
+    Project: 1
+    Waiting 16 min
+    Stored task 10
+    Stored status unavailable
     - Proposal:
         ## Proposal
         In project 1
         * Open
-        By task 10
-        Waiting 1000013153015 min
-        Why this is proposed
-        Resolve the incident
-        Effect
-        * Cannot show this part
-        Budget 1
-        Delegation depth 1
-        Tasks allowed 1
-        Funds 1; 1 left now, 0 after
-        By party 7
-        Waiting for party 7
+        Pending proposal:
+          Proposal number: 1
+          Proposal project: 1
+          By task 10
+          Not proposed as holder
+          Waiting holder
+          Holder person: 7
+          Waiting since: 0
+          Proposal reason
+          Resolve the incident
+          Proposed effect
+          Effect reference:
+            Connector 1
+            Effect reference
+            Part number 1
+            - Family item:
+                * Unknown family object
+                * Unknown family object
+            Tool bits: 0
+            Delegate tasks: 1
+            Delegate depth: 1
+            Spend ceiling: 1
+            Note scope bits: 0
+            Keep default models
+            Grants
+            Allowed delegation executors
+            Note resources
+          Effect attempt: 1
+          Effect completion: 1
+          Effect position: 1
+          Effect purpose: 1
+          Supplied funding offers
+          Funded by pool in project 1, person 7, period 3
+          Funding needed: 1
+          Funding left: 1
+          Funding after: 0
         [18] Accept
-  - Waiting 1000013153015 min
+  - Escalation revision: 1
+    Project: 1
+    Waiting 16 min
+    Stored task 9
+    Stored status unavailable
     - Escalation:
         ## Escalation
         In project 1
         * Open
         Task 9: Chat nine:
           [19] Task 9: Chat nine
-          Agent
-          Held: stopped by Pat at 0
-          Since 0
+          Agent charter 1
+          Held
+          Held stopped
+          Current revision 4
+        Project: 1:
+          Project: 1
+          Agent charter 1
+          Phase since: 0
+          Attempt: 1
+          Wake policy:
+            Words
+            Does not wake
+            Notices
+            Does not wake
+            News
+            Does not wake
+            Delegate results do not wake
+            Questions do not wake
+            Answers do not wake
+            Timers do not wake
+          Held stopped
+          Hold revision: 4
+          Prior stage running attempt: 1
+          Transient tries: 0
+          Permanent tries: 0
+          Run tries: 0
+          Agent tries: 0
+          Lost tries: 0
+          Invalid tries: 0
+          Hold wait began: 0
+          Budget: 1:
+            Budget: 1
+            Spent directly: 0
+            Settled spend below: 0
+            Reserved for funded work: 0
+            Left: 1
+            Funded by
+            Funded by pool in project 1, person 7, period 3
+          Activity through: 0
+          Resource holder and writer facts unavailable
+          Live delegates: 0
+          Closing connectors unavailable
+          Run work unobserved
         spec
         instructions
         Result expected
@@ -106,47 +178,69 @@ Needs you:
           Allowed delegation executors
           Note resources
         [20] Release
-  - Waiting 1000013153015 min
+  - Question message: 1
+    Project: 1
+    Waiting 16 min
+    Stored task 9
+    Stored status unavailable
     - Question:
         ## Question
         In project 1
         * Open
         Task 9: Chat nine:
           [21] Task 9: Chat nine
-          Agent
-          * Cannot show this part
+          Agent charter 1
+          Active attempt 1
         Question from person 7
         Which option?
-        Waiting 1000013153015 min
-  - Waiting 1000013153015 min
+        Waiting 16 min
+  - Person task
+    Project: 1
+    Waiting 16 min
+    Stored task 10
+    Stored status unavailable
     - Person task:
         ## Person task
         In project 1
         * Open
-        Task 10: Chat nine:
-          [22] Task 10: Chat nine
-          Person
-          * Cannot show this part
-        By party 7
-        spec
-        Waiting for party 7
-        Since 0
+        Person task:
+          Task 10: Chat nine:
+            [22] Task 10: Chat nine
+            Person 7
+            Person 7
+            Since 0
+          Person revision: 1
+          Requested by person 7
+          spec
+          Person destination: 7
+          Taker not supplied
+          Waiting since: 0
+          Stall duration not supplied
+          Deadline not supplied
+          Shown results:
+          Report word byte limit 32
   Start of the list
   End of the list
 Updates:
   ## Updates
-  - New
+  - Reply message: 6
+    Project: 1
+    Stored task 9
+    Stored status unavailable
     - Reply:
         ## Reply
         In project 1
         * Open
         Task 9: Chat nine:
           [23] Task 9: Chat nine
-          Agent
-          * Cannot show this part
+          Agent charter 1
+          Active attempt 1
         Hello
         [24] Open at first reply not read: 1
-  - New
+  - Result position: 5
+    Project: 1
+    Stored task 11
+    Stored status unavailable
     - Result:
         ## Result
         In project 1
@@ -154,8 +248,8 @@ Updates:
         Task 11: Chat nine:
           Task 11: Chat nine:
             [25] Task 11: Chat nine
-            Agent
-            * Cannot show this part
+            Agent charter 1
+            Ended
           Completed
           At 0
           Finished

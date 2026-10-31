@@ -13,7 +13,7 @@ store calls `unsent` for that step's sends. `record_key` identifies records;
 callback values into the referee's vocabulary, without reading root state.
 
 `window_changed` decodes the person's own filter, fold, read-more and
-navigation acts (QUESTIONS 34). It defaults to false; applications with those
+navigation acts. It defaults to false; applications with those
 acts implement it. `WindowChanged` and `LeftPage` clear only that client's
 prior card visibility checks. Request, durable-write, words, revision and
 link obligations remain. `Seen::HiddenPage` explains a whole privacy,
@@ -40,19 +40,18 @@ faults, dropped old-epoch callbacks, trace and heap evidence. Configure
 `Settings` at construction; story fixtures may call `randomness` and
 `measure_heap_within` with the scenario's measured ceiling before admitting clients;
 worlds without a ceiling retain the per-client guards' sum. Random people wait between actions
-using the configured latency, so they act on delivered pages. Heap-counted
-binaries install `skein_world::domain::heap::Counting` as their allocator.
+using the configured latency, so they act on delivered pages. Heap-counted binaries track live allocations with `skein_world::domain::heap::Counting`.
 
 `stories` exposes the bounded truth fixtures; `random` replays six starting
 states and random whole task/family documents. The focused binaries retain
 all scripted stories, fourteen separate faults, both incident variants,
 negative referee cases, shell/store and memory cases. `suite::fuzzy::client` keeps
-six independent 16-seed story sweeps and one 32-seed random-truth sweep.
+a 16-seed chat sweep and five 2-seed story sweeps. Its six random-truth
+sweeps partition the same 32 seeds by their assigned start.
 
 The test application's root holds `jig_client::Client`, passes its transport
 requests out in order, and routes tells by asker. The reference UI's bridge
-counts kept requests per party; until jig 21.4, foreign work leaves when that
-party signs in. The client keeps only its own table records; the UI and family
+counts kept requests per party; foreign work leaves when that party signs in. The client keeps only its own table records; the UI and family
 keep their records separately under their own keys.
 
 The scripted test family carries its complete requests, subjects, documents

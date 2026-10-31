@@ -1,7 +1,11 @@
+use jig_domain_host::FromAgent;
+use jig_domain_host::ToAgent;
 use jig_domain_host::{LinkDown, LinkUp};
 use std::collections::{BTreeMap, BTreeSet};
 
-use jig_domain_host::{self as host, AgentFailure, Event, Fact, Failure, Limits, Reason, Reply, Request, RunFailure};
+use jig_domain_host::{
+    self as host, AgentFailure, CallAnswer, Event, Fact, Failure, Limits, Reason, Request, RunFailure,
+};
 use skein_lib::{Duration, Rng, Time, Token};
 use skein_world::domain::{Ledger, Schedule, Span, Stage};
 
@@ -312,7 +316,7 @@ pub struct World {
     /// Draws the latencies.
     rng: Rng,
     settings: Settings,
-    host: host::Domain,
+    host: host::Hub,
     stage: Stage<Limits, Arrival, Request>,
     engine: Engine,
     parent: Parent,
@@ -353,7 +357,7 @@ impl World {
     }
 
     fn start(settings: &Settings, trace: Trace) -> World {
-        assert!(host::valid(&settings.host), "domain limits are valid");
+        assert!(host::valid_hub(&settings.host), "hub limits are representable");
         let mut rng = Rng::new(settings.seed);
         let engine = Engine::new(settings.engine, settings.host, rng.next_u64());
         let parent = Parent::new(settings.parent, settings.host, rng.next_u64());
@@ -362,7 +366,7 @@ impl World {
             now: Time::ZERO,
             rng: latencies,
             settings: *settings,
-            host: host::Domain::new(&settings.host),
+            host: host::Hub::new(&settings.host),
             stage: Stage::uncapped(settings.host),
             engine,
             parent,
@@ -510,7 +514,7 @@ impl World {
                     // the step answers it is judged as such.
                     let mut left = Vec::from_iter(leaving);
                     for request in &requests {
-                        if let Request::Stop { agent } = request {
+                        if let Request::Agent(ToAgent::Cancel { agent }) = request {
                             self.leave(*agent);
                             left.push(*agent);
                             if let Taken::Started { owner, agent: started } = taken
@@ -574,7 +578,7 @@ impl World {
             matches!(
                 request,
                 Request::Up(LinkUp::Answer {
-                    answer: host::Answer { ending: host::Ending::Refused(host::Refusal::Busy), .. },
+                    answer: host::RunAnswer { ending: host::Ending::Refused(host::Refusal::Busy), .. },
                     ..
                 })
             ),
@@ -595,20 +599,20 @@ impl World {
             Event::Down(LinkDown::Assign { assignment }) => {
                 Taken::Assign { run: assignment.assignment.run, attempt: assignment.assignment.attempt }
             }
-            Event::Started { owner, agent } => Taken::Started { owner: *owner, agent: *agent },
-            Event::Called { owner, call, ask } => {
+            Event::Agent(FromAgent::Started { owner, agent }) => Taken::Started { owner: *owner, agent: *agent },
+            Event::Agent(FromAgent::Called { owner, call, ask }) => {
                 let delivery = match ask {
                     host::Ask::Deliver { .. } => true,
                     host::Ask::Relay { .. } => false,
                 };
                 Taken::Called { owner: *owner, call: crate::fixtures::callback(call), delivery }
             }
-            Event::Gone { owner, detail: _ } => Taken::Gone { owner: *owner },
+            Event::Agent(FromAgent::Gone { owner, detail: _ }) => Taken::Gone { owner: *owner },
             Event::Delivered { owner, delivery: _ } => Taken::Delivered { call: *owner },
             Event::Saved { owner, at: _ } => Taken::Saved { owner: *owner },
             Event::Prepared { owner, workspace: _ } => Taken::Prepared { owner: *owner, prepared: true },
             Event::Unprepared { owner, .. } => Taken::Prepared { owner: *owner, prepared: false },
-            Event::Finished { owner, finish, .. } => {
+            Event::Agent(FromAgent::Finished { owner, finish, .. }) => {
                 let limits = &self.settings.host;
                 let word = match finish {
                     host::Finish::Ended { outcome } if len(outcome) > limits.outcome_bytes => {
@@ -644,18 +648,20 @@ impl World {
                 | LinkDown::Relayed { .. }
                 | LinkDown::TurnKept { .. },
             )
-            | Event::Piece { .. }
-            | Event::Activity { .. }
-            | Event::Unauthorized { .. }
-            | Event::Limited { .. }
-            | Event::AccountRefused { .. }
-            | Event::RelayCancelled { .. }
-            | Event::Withdrawn { .. }
-            | Event::Refused { .. }
-            | Event::StartRefused { .. }
-            | Event::Yielded { .. }
-            | Event::Turn { .. }
-            | Event::Faulted { .. } => Taken::Other,
+            | Event::Agent(
+                FromAgent::Piece { .. }
+                | FromAgent::Activity { .. }
+                | FromAgent::Unauthorized { .. }
+                | FromAgent::Limited { .. }
+                | FromAgent::AccountRefused { .. }
+                | FromAgent::Withdrawn { .. }
+                | FromAgent::Refused { .. }
+                | FromAgent::StartRefused { .. }
+                | FromAgent::Yielded { .. }
+                | FromAgent::Turn { .. }
+                | FromAgent::Faulted { .. },
+            )
+            | Event::RelayCancelled { .. } => Taken::Other,
         }
     }
 
@@ -762,16 +768,18 @@ impl World {
                 | LinkUp::Turn { .. },
             )
             | Request::CancelRelay { .. }
-            | Request::Grant { .. }
+            | Request::Agent(
+                ToAgent::Grant { .. }
+                | ToAgent::Start { .. }
+                | ToAgent::Message { .. }
+                | ToAgent::Answer { .. }
+                | ToAgent::Cancel { .. }
+                | ToAgent::Acknowledge { .. },
+            )
             | Request::Hello { .. }
             | Request::Abort { .. }
-            | Request::Start { .. }
-            | Request::Message { .. }
-            | Request::Reply { .. }
-            | Request::Stop { .. }
             | Request::Deliver { .. }
             | Request::Save { .. }
-            | Request::AcknowledgeAgentTurn { .. }
             | Request::Release { .. } => panic!("an assignment is refused or prepared: {request:?}"),
         }
     }
@@ -827,7 +835,7 @@ impl World {
                 assert!(self.relays.insert((run, attempt, call.clone())), "a relay starts once");
                 self.send_engine(request);
             }
-            Request::Up(LinkUp::Turn { .. }) | Request::AcknowledgeAgentTurn { .. } => {
+            Request::Up(LinkUp::Turn { .. }) | Request::Agent(ToAgent::Acknowledge { .. }) => {
                 panic!("turns are exercised by turn_world")
             }
             Request::CancelRelay { run, attempt, call } => {
@@ -837,7 +845,7 @@ impl World {
                 }
             }
             Request::Hello { hello } => self.hello(&hello),
-            Request::Message { agent, ref words, .. } => {
+            Request::Agent(ToAgent::Message { agent, ref words, .. }) => {
                 let owner = *self.agents.get(&agent).expect("a delivery is to a started agent");
                 let len = u64::try_from(words.len()).expect("fits");
                 assert!(len <= self.settings.host.event_bytes, "an event within the limits");
@@ -848,30 +856,33 @@ impl World {
                 hosted.delivered = Some(place);
                 self.parcel(request);
             }
-            Request::Reply { agent, ref call, ref reply } => {
+            Request::Agent(ToAgent::Answer { agent, ref call, answer: ref reply }) => {
                 let call = crate::fixtures::callback(call);
                 self.calls.end((agent, call));
                 if self.kept.remove(&(agent, call)) {
                     self.path("deliveries settled during a stop");
                     match reply {
-                        Reply::Delivered(_) => {}
-                        Reply::Relayed { .. } | Reply::Unavailable | Reply::Busy | Reply::Withdrawn => {
+                        CallAnswer::Delivered(_) => {}
+                        CallAnswer::Relayed { .. }
+                        | CallAnswer::Unavailable
+                        | CallAnswer::Busy
+                        | CallAnswer::Withdrawn => {
                             panic!("a delivery kept through the stop says how it went: {reply:?}")
                         }
                     }
                 } else if self.left.contains(&agent) {
-                    assert_eq!(*reply, Reply::Unavailable, "a call of a run that has left live is unavailable");
+                    assert_eq!(*reply, CallAnswer::Unavailable, "a call of a run that has left live is unavailable");
                 }
                 match reply {
-                    Reply::Unavailable => self.stats.unavailable += 1,
-                    Reply::Busy => self.stats.busy += 1,
-                    Reply::Relayed { .. } | Reply::Delivered(_) | Reply::Withdrawn => {}
+                    CallAnswer::Unavailable => self.stats.unavailable += 1,
+                    CallAnswer::Busy => self.stats.busy += 1,
+                    CallAnswer::Relayed { .. } | CallAnswer::Delivered(_) | CallAnswer::Withdrawn => {}
                 }
                 self.parcel(request);
             }
-            Request::Stop { agent } => {
+            Request::Agent(ToAgent::Cancel { agent }) => {
                 assert!(self.left.contains(&agent), "a stop is of a run that leaves live");
-                self.parcel(Request::Stop { agent });
+                self.parcel(Request::Agent(ToAgent::Cancel { agent }));
             }
             Request::Prepare { .. } => {
                 assert!(!self.shut, "a worker shutting down admits no more runs");
@@ -882,13 +893,14 @@ impl World {
                 assert!(hosted.prepared.is_none(), "an abort is of a prepare in flight");
                 self.parcel(request);
             }
-            Request::Start { owner, .. } => {
+            Request::Agent(ToAgent::Start { owner, .. }) => {
                 self.hosted.get_mut(&owner).expect("a start is of a hosted run").launch = Launch::Asked;
                 self.parcel(request);
             }
-            Request::Deliver { .. } | Request::Save { .. } | Request::Release { .. } | Request::Grant { .. } => {
-                self.parcel(request);
-            }
+            Request::Deliver { .. }
+            | Request::Save { .. }
+            | Request::Release { .. }
+            | Request::Agent(ToAgent::Grant { .. }) => self.parcel(request),
         }
     }
 

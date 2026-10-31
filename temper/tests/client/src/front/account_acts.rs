@@ -358,8 +358,8 @@ pub fn kept(front: &mut Joint) -> u32 {
             }
         })
         .expect("key reached its component");
-    assert_eq!(front.transport.carried()[&carried].expose(), b"test-private-key");
-    front.transport.unused(carried);
+    assert_eq!(front.component.carried[&carried].expose(), b"test-private-key");
+    front.component.carried.remove(&carried);
     front.engine.send(engine::Event::Account(a::Event::Component(a::FromComponent::Granted {
         account: source,
         generation: 1,
@@ -383,7 +383,7 @@ pub fn signing(front: &Joint) -> u32 {
         .expect("sign-in reached its component")
 }
 pub fn assert_no_carried(front: &Joint) {
-    assert!(front.transport.carried().is_empty(), "adopted and unused carriers were released");
+    assert!(front.component.carried.is_empty(), "adopted and unused carriers were released");
 }
 
 /// A chat explicitly funded by the account whose row the story exercises.

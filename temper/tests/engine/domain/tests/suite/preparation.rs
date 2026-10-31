@@ -71,7 +71,7 @@ fn failed_preparation(run: &engine::Assignment, preparation: engine::Preparation
         detail: Box::new([]),
         work: host::Work { left: None, saved: None },
     };
-    let answer = host::Answer { read: None, refused: Box::new([]), turns: 0, spent: 1, ending };
+    let answer = host::RunAnswer { read: None, refused: Box::new([]), turns: 0, spent: 1, ending };
     let parts = engine::Parts { saved: None, pushed: Box::new([]), preparation: Some(preparation) };
     let up = host::LinkUp::Answer { run: Token::new(run.task), attempt: Token::new(run.attempt), answer };
     protocol::up(Token::new(7), up, parts)

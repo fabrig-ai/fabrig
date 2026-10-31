@@ -376,7 +376,7 @@ impl Worker {
         })));
     }
 
-    pub fn take_answer(&mut self) -> host::Answer {
+    pub fn take_answer(&mut self) -> host::RunAnswer {
         let mut found = None;
         for _ in 0..self.out.len() {
             if let Some(Request::Link(host::LinkUp::Answer { answer, .. })) = self.out.pop() {

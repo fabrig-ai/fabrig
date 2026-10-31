@@ -3,12 +3,14 @@
 //! fake store commits turns before acknowledging them. The link may lose
 //! contact and replays the host's retained turns before its held answer.
 
+use jig_domain_host::FromAgent;
+use jig_domain_host::ToAgent;
 use jig_domain_host::{LinkDown, LinkUp};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use jig_domain_host::{
-    self as host, Answer, AnsweredCall, Ask, Assignment, Delivery, DeliveryOutcome, Ending, Event, Finish, Limits,
-    Reason, Request, RunAssignment, Turn, Workspace,
+    self as host, AnsweredCall, Ask, Assignment, Delivery, DeliveryOutcome, Ending, Event, Finish, Limits, Reason,
+    Request, RunAnswer, RunAssignment, Turn, Workspace,
 };
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
@@ -65,7 +67,7 @@ pub struct ReceivedMessage {
 pub struct World {
     limits: Limits,
     env: Env<Limits>,
-    host: host::Domain,
+    host: host::Hub,
     out: Queue<Request>,
     events: VecDeque<Event>,
     connected: bool,
@@ -76,7 +78,7 @@ pub struct World {
     stop_pending: bool,
     has_workspace: bool,
     space_live: bool,
-    answer: Option<Answer>,
+    answer: Option<RunAnswer>,
     answer_seen: Option<String>,
     answer_acked: bool,
     seen: BTreeMap<u32, Turn>,
@@ -88,7 +90,7 @@ pub struct World {
     answered_call: Option<Box<[u8]>>,
     received_message: Option<ReceivedMessage>,
     hello: Option<host::Hello>,
-    reply: Option<host::Reply>,
+    reply: Option<host::CallAnswer>,
     next_relay: Option<host::Relayed>,
     received_grant: Option<host::Grant>,
     prepare_waits: bool,
@@ -117,11 +119,11 @@ impl World {
         limits.turn_queue_bytes = 64;
         limits.told = told;
         limits.piece_bytes = piece_bytes;
-        assert!(host::valid(&limits));
+        assert!(host::valid_hub(&limits));
         Self {
             limits,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            host: host::Domain::new(&limits),
+            host: host::Hub::new(&limits),
             out: Queue::uncapped(),
             events: VecDeque::new(),
             connected: true,
@@ -166,7 +168,7 @@ impl World {
     }
 
     #[must_use]
-    pub fn answer(&self) -> Option<&Answer> {
+    pub fn answer(&self) -> Option<&RunAnswer> {
         self.answer.as_ref()
     }
 
@@ -186,7 +188,7 @@ impl World {
     }
 
     #[must_use]
-    pub fn reply(&self) -> Option<&host::Reply> {
+    pub fn reply(&self) -> Option<&host::CallAnswer> {
         self.reply.as_ref()
     }
 
@@ -212,7 +214,7 @@ impl World {
             grants: Box::new([]),
         };
         host::step(&mut self.host, &self.env, crate::fixtures::assign(assignment), &mut self.out);
-        let Some(Request::Up(LinkUp::Answer { answer: Answer { ending: Ending::Refused(refusal), .. }, .. })) =
+        let Some(Request::Up(LinkUp::Answer { answer: RunAnswer { ending: Ending::Refused(refusal), .. }, .. })) =
             self.out.pop()
         else {
             panic!("assignment should be refused")
@@ -352,11 +354,11 @@ impl World {
             read,
             body: Box::from(body),
         };
-        self.send(Event::from_agent(host::FromAgent::Turn { owner: self.owner.expect("assigned"), turn }));
+        self.send(Event::Agent(host::FromAgent::Turn { owner: self.owner.expect("assigned"), turn }));
     }
 
     pub fn refuse(&mut self, name: Token, reason: host::MessageRefusal) {
-        self.send(Event::from_agent(host::FromAgent::Refused { owner: self.owner.expect("assigned"), name, reason }));
+        self.send(Event::Agent(host::FromAgent::Refused { owner: self.owner.expect("assigned"), name, reason }));
     }
     pub fn relay_message(&mut self, name: Token) {
         self.send(Event::Down(LinkDown::Message {
@@ -384,14 +386,14 @@ impl World {
     pub fn lost_refusals(&self) -> u64 {
         self.host.refusals_lost()
     }
-    pub fn activity(&mut self, activity: host::Activity) {
+    pub fn activity(&mut self, activity: host::AgentActivity) {
         self.agent_report(host::FromAgent::Activity { owner: self.owner.expect("assigned"), activity });
     }
     pub fn piece(&mut self, piece: host::Piece) {
         self.agent_report(host::FromAgent::Piece { owner: self.owner(), piece });
     }
     pub fn agent_report(&mut self, report: host::FromAgent) {
-        self.send(Event::from_agent(report));
+        self.send(Event::Agent(report));
     }
     #[must_use]
     pub fn owner(&self) -> Token {
@@ -413,24 +415,24 @@ impl World {
     }
 
     pub fn deliver(&mut self) {
-        self.send(Event::Called {
+        self.send(Event::Agent(FromAgent::Called {
             owner: self.owner.expect("assigned"),
             call: Box::from(Token::new(71).raw().to_be_bytes()),
             ask: Ask::Deliver { title: Box::from(&b"title"[..]), body: Box::from(&b"body"[..]) },
-        });
+        }));
     }
 
     pub fn relay(&mut self) {
-        self.send(Event::Called {
+        self.send(Event::Agent(FromAgent::Called {
             owner: self.owner.expect("assigned"),
             call: Box::from(Token::new(72).raw().to_be_bytes()),
             ask: crate::fixtures::relay(Box::from(&b"read"[..])),
-        });
+        }));
     }
 
     /// The agent calls an engine host tool under its opaque name.
     pub fn call(&mut self, writes: bool) {
-        self.send(Event::Called {
+        self.send(Event::Agent(FromAgent::Called {
             owner: self.owner.expect("assigned"),
             call: Box::from(&b"call-one"[..]),
             ask: Ask::Relay {
@@ -439,7 +441,7 @@ impl World {
                 input: Box::from(&b"input words"[..]),
                 deadline: Duration::from_nanos(37),
             },
-        });
+        }));
     }
 
     /// The engine sends a named message with its label and words.
@@ -460,22 +462,22 @@ impl World {
 
     pub fn finish(&mut self, turns: u32, parked: bool) {
         let finish = if parked { Finish::Parked } else { Finish::Ended { outcome: Box::from(&b"done"[..]) } };
-        self.send(Event::Finished {
+        self.send(Event::Agent(FromAgent::Finished {
             read: self.last_read,
             owner: self.owner.expect("assigned"),
             turns,
             spent: u64::from(turns) * 17,
             finish,
-        });
+        }));
     }
     pub fn fail(&mut self, turns: u32, failure: host::RunFailure) {
-        self.send(Event::Finished {
+        self.send(Event::Agent(FromAgent::Finished {
             read: self.last_read,
             owner: self.owner.expect("assigned"),
             turns,
             spent: u64::from(turns) * 17,
             finish: Finish::Failed { failure },
-        });
+        }));
     }
 
     /// A stop can be held to check that saving waits for the agent's exit.
@@ -487,7 +489,7 @@ impl World {
         assert!(self.stop_pending && self.agent_live);
         self.stop_pending = false;
         self.agent_live = false;
-        self.send(Event::Gone { owner: self.owner.expect("assigned"), detail: Box::new([]) });
+        self.send(Event::Agent(FromAgent::Gone { owner: self.owner.expect("assigned"), detail: Box::new([]) }));
     }
 
     pub fn cancel_contact(&mut self) {
@@ -612,25 +614,23 @@ impl World {
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }),
-            ) => {
-                self.receive_report(record);
-            }
+            ) => self.receive_report(record),
             Request::Up(LinkUp::Call { run, attempt, call, tool, writes, input, deadline }) => {
                 assert_eq!((run, attempt), (RUN, ATTEMPT));
                 self.answer_relay(RelayedCall { name: call, tool, writes, input, deadline });
             }
-            Request::Reply { agent, call, reply } => {
+            Request::Agent(ToAgent::Answer { agent, call, answer: reply }) => {
                 assert_eq!(agent, AGENT);
 
                 self.reply = Some(reply);
                 self.answered_call = Some(call);
                 self.stats.replies += 1;
             }
-            Request::Message { agent, name, sender, words, finish_requested } => {
+            Request::Agent(ToAgent::Message { agent, name, sender, words, finish_requested }) => {
                 assert_eq!(agent, AGENT);
                 self.received_message = Some(ReceivedMessage { finish_requested, name, sender, words });
             }
-            Request::Start { owner, start } => {
+            Request::Agent(ToAgent::Start { owner, start }) => {
                 self.refusals.admitted(owner, RUN, ATTEMPT);
                 self.start(owner, *start);
             }
@@ -649,7 +649,7 @@ impl World {
                     self.receive_turn(turn);
                 }
             }
-            Request::AcknowledgeAgentTurn { agent, .. } => {
+            Request::Agent(ToAgent::Acknowledge { agent, .. }) => {
                 assert_eq!(agent, AGENT);
                 self.reading = true;
             }
@@ -663,13 +663,16 @@ impl World {
                 });
             }
 
-            Request::Stop { agent } => {
+            Request::Agent(ToAgent::Cancel { agent }) => {
                 assert_eq!(agent, AGENT);
                 self.stop_pending = true;
                 if !self.stop_waits {
                     self.stop_pending = false;
                     self.agent_live = false;
-                    self.events.push_back(Event::Gone { owner: self.owner.expect("assigned"), detail: Box::new([]) });
+                    self.events.push_back(Event::Agent(FromAgent::Gone {
+                        owner: self.owner.expect("assigned"),
+                        detail: Box::new([]),
+                    }));
                 }
             }
             Request::Save { owner, workspace } => {
@@ -699,7 +702,7 @@ impl World {
                 );
                 self.hello = Some(hello);
             }
-            Request::Grant { agent, grant } => self.receive_grant(agent, grant),
+            Request::Agent(ToAgent::Grant { agent, grant }) => self.receive_grant(agent, grant),
             Request::CancelRelay { .. } | Request::Abort { .. } => {
                 panic!("unscripted request: {request:?}")
             }
@@ -734,7 +737,7 @@ impl World {
         self.agent_live = true;
         self.reading = true;
         self.started_state = Some(StartedState { live, identity, messages, activation, turns, answered });
-        self.events.push_back(Event::Started { owner, agent: AGENT });
+        self.events.push_back(Event::Agent(FromAgent::Started { owner, agent: AGENT }));
     }
 
     fn receive_turn(&mut self, turn: Turn) {
@@ -757,7 +760,7 @@ impl World {
         }
     }
 
-    fn receive_answer(&mut self, answer: &Answer) {
+    fn receive_answer(&mut self, answer: &RunAnswer) {
         self.link_words.push("answer");
         assert_eq!(usize::try_from(answer.turns).expect("bounded"), self.seen.len(), "turns precede their answer");
         match &answer.ending {
@@ -775,7 +778,7 @@ impl World {
     fn drain_facts(&mut self) {
         if self.connected {
             while let Some(record) = self.host.pop_activity() {
-                if !matches!(record, LinkUp::Activity { activity: host::Activity::Phase(_), .. }) {
+                if !matches!(record, LinkUp::Activity { activity: host::AgentActivity::Phase(_), .. }) {
                     self.stats.facts += 1;
                 }
                 self.receive_report(record);

@@ -23,7 +23,7 @@ fn fact(world: &mut World) {
         up: host::LinkUp::Activity {
             run: fixtures::RUN_SEVEN,
             attempt: fixtures::ATTEMPT_TWO,
-            activity: host::Activity::LongDone,
+            activity: host::AgentActivity::LongDone,
         },
         parts: Box::new([]),
     });

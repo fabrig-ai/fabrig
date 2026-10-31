@@ -12,7 +12,7 @@ use jig_client_world::{
     Settings, World,
     harness::{CardKey, CardSeen, Seen},
     observe,
-    stories::{frame, party, proposal, task, text},
+    stories::{decided_proposal, frame, proposal, task, text, turn_event},
 };
 use jig_ops_client_domain::{Address, infrastructure as infra, observability as obs};
 use jig_ops_domain_connectors::{Connector, number};
@@ -144,23 +144,37 @@ pub fn incident_world(seed: u64) -> ClientWorld {
         truth.sign_ins.insert(party, party);
     }
     let mut p = proposal();
-    p.action = ProposalAction::Effect {
-        part: Part::OwnerEffect { connector: number(Connector::Infrastructure), proposal: p.key.number },
+    p.action = OwnerProposalAction::Effect {
+        part: OwnerPart {
+            connector: number(Connector::Infrastructure),
+            kind: OwnerPartKind::Effect,
+            key: OwnerPartKey::Number(p.key.number),
+        },
+        authority: task().authority,
+        attempt: 1,
+        completion: 1,
+        position: 1,
+        purpose: 1,
     };
-    p.why = text(b"Restart checkout in production");
+    p.reason = DocumentText::complete(text(b"Restart checkout in production"));
     let mut lead = task();
     lead.chip.title = DocumentText::complete(text(b"I incident lead"));
-    *lead.chip.details = ChipPhase::Idle {
-        wake: WakePolicy { words: false, results: false, topics: list([]), subscriptions: list([]) },
-    };
+    if let ChipPhase::Owner { phase, .. } = lead.chip.details.as_mut() {
+        *phase = OwnerChipPhase::Active(RunStage::Idle);
+    }
     let mut restart = task();
     restart.chip.task = 10;
     restart.chip.title = DocumentText::complete(text(b"R restart checkout"));
     restart.requester = OwnerRequester::Task(9);
     restart.proposals = list([p.key]);
     restart.chip.executor = Executor::Procedure { connector: number(Connector::Infrastructure), kind: 1 };
-    *restart.chip.details =
-        ChipPhase::Procedure { panel: Part::Panel { connector: number(Connector::Infrastructure), task: 10 } };
+    if let ChipPhase::Owner { details, .. } = restart.chip.details.as_mut() {
+        details.procedure = Some(OwnerPart {
+            connector: number(Connector::Infrastructure),
+            kind: OwnerPartKind::Procedure,
+            key: OwnerPartKey::Number(10),
+        });
+    }
     restart.context.as_mut().expect("supplied task context").parts =
         list([Part::Panel { connector: number(Connector::Infrastructure), task: 10 }]);
     lead.delegates = list([LiveDelegate { chip: restart.chip.clone(), takeover_budget: 1 }]);
@@ -168,39 +182,27 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     for (key, value) in [
         (ObjectKey::Task(9), ReadValue::Task(Box::new(lead.clone()))),
         (ObjectKey::Task(10), ReadValue::Task(Box::new(restart.clone()))),
-        (ObjectKey::Proposal(p.key), ReadValue::Proposal(Box::new(p.clone()))),
+        (ObjectKey::Proposal(p.key), ReadValue::OwnerProposal(Box::new(p.clone()))),
     ] {
         truth.object_projects.insert(key, 1);
         truth.objects.insert(key, value);
     }
-    let counts =
-        PhaseCounts { waiting: 0, running: 2, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0, ended: 0 };
     truth.trees.insert(
         9,
-        Tree {
-            task: 9,
-            nodes: list([
-                TreeNode {
-                    chip: lead.chip.clone(),
-                    parent: None,
-                    dependencies: list([]),
-                    proposals: list([]),
-                    spend: 0,
-                    folded: counts,
-                    held_below: 0,
-                },
-                TreeNode {
-                    chip: restart.chip.clone(),
-                    parent: Some(9),
-                    dependencies: list([]),
-                    proposals: list([p.key]),
-                    spend: 0,
-                    folded: counts,
-                    held_below: 0,
-                },
-            ]),
-            folded: counts,
+        OwnerTree {
+            root: lead.chip.clone(),
+            rows: list([OwnerTreeRow {
+                chip: restart.chip.clone(),
+                parent: 9,
+                depth: 1,
+                dependencies: list([]),
+                proposals: list([p.key]),
+                spent: 0,
+                cut: false,
+            }]),
+            folded: list([]),
             held_below: 0,
+            next: None,
         },
     );
     truth.sources.push(jig_client_scripted_engine::Source {
@@ -209,9 +211,11 @@ pub fn incident_world(seed: u64) -> ClientWorld {
         rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
             position: 1,
             at: Wall::EPOCH,
-            event: Activity::Turn {
-                name: TurnName { attempt: 1, number: 1 },
-                turn: TurnRead::Decoded(Turn {
+            event: turn_event(
+                9,
+                1,
+                TurnName { attempt: 1, number: 1 },
+                TurnRead::Decoded(Turn {
                     messages: list([Message {
                         speaker: Speaker::Assistant,
                         blocks: list([Block::Call(Call {
@@ -229,24 +233,20 @@ pub fn incident_world(seed: u64) -> ClientWorld {
                     read_through: None,
                     cut: false,
                 }),
-            },
+            ),
         }]),
     });
     truth.sources.push(jig_client_scripted_engine::Source {
         party: 7,
         read: Read::Inbox { group: InboxReadGroup::Needs, project: None, kind: None, goal: None, after: None },
-        rows: jig_client_scripted_engine::Rows::Inbox(vec![InboxEntry {
-            reply: None,
-            lineage: list([]),
-            goal: None,
-            recipient: Some(Recipient::Party(7)),
-            stall: None,
-            object: ObjectKey::Proposal(p.key),
-            project: 1,
-            group: InboxGroup::Proposals,
-            position: 1,
-            at: Wall::EPOCH,
-        }]),
+        rows: jig_client_scripted_engine::Rows::Inbox(vec![inbox_entry(
+            ObjectKey::Proposal(p.key),
+            1,
+            InboxGroup::Proposals,
+            1,
+            Wall::EPOCH,
+            None,
+        )]),
     });
     let mut ops = OpsScript::default();
     let incident = incident_document();
@@ -292,21 +292,25 @@ pub fn incident_world(seed: u64) -> ClientWorld {
             },
         }))),
     );
-    let mut decided = p.clone();
-    decided.ending =
-        Some(Ending::Decided { by: 7, party: Some(party(7)), how: Some(Decision::Accepted), at: Wall::EPOCH });
+    let decided = decided_proposal(&p, OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(7) });
     let rule = jig_client_scripted_engine::Rule {
         party: Some(7),
         ask: Ask::Decide {
             project: 1,
             on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
         },
-        answer: Answer::Done(Outcome::Decided { by: Actor::Party(7), how: Decision::Accepted, at: Wall::EPOCH }),
+        answer: Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+            proposal: p.key,
+            by: 7,
+            choice: OwnerProposalChoice::Accepted,
+            at: Wall::EPOCH,
+            repeated: false,
+        })),
         changes: vec![
             jig_client_scripted_engine::Change::Object {
                 project: 1,
                 key: ObjectKey::Proposal(p.key),
-                value: ReadValue::Proposal(Box::new(decided)),
+                value: ReadValue::Historical(Box::new(decided)),
             },
             jig_client_scripted_engine::Change::Source(jig_client_scripted_engine::Source {
                 party: 7,
@@ -377,21 +381,33 @@ pub fn environment_world(seed: u64) -> ClientWorld {
     }
     let mut chat = task();
     chat.chip.title = DocumentText::complete(text(b"Q staging chat"));
-    *chat.chip.details = ChipPhase::Idle {
-        wake: WakePolicy { words: false, results: false, topics: list([]), subscriptions: list([]) },
-    };
+    if let ChipPhase::Owner { phase, .. } = chat.chip.details.as_mut() {
+        *phase = OwnerChipPhase::Active(RunStage::Idle);
+    }
     let mut p = proposal();
-    p.why = text(b"Provision staging for one week");
-    p.funding = Budget { total: 40, own: 40, ended: 0, reserved: 0, left: 40, funder: Actor::Party(7) };
-    p.action = ProposalAction::Effect {
-        part: Part::OwnerEffect { connector: number(Connector::Infrastructure), proposal: p.key.number },
+    p.reason = DocumentText::complete(text(b"Provision staging for one week"));
+    p.funding = list([OwnerFundingOffer {
+        source: Funder::Pool { project: 1, person: 7, period: 3 },
+        needed: 40,
+        left: Some(40),
+        after: Some(0),
+    }]);
+    p.action = OwnerProposalAction::Effect {
+        part: OwnerPart {
+            connector: number(Connector::Infrastructure),
+            kind: OwnerPartKind::Effect,
+            key: OwnerPartKey::Number(p.key.number),
+        },
+        authority: task().authority,
+        attempt: 1,
+        completion: 1,
+        position: 1,
+        purpose: 1,
     };
     chat.proposals = list([p.key]);
     let ask = jig_client::shapes::chat(&truth.frames[&7], 1, text(b"staging for one week"))
         .expect("fixture offers the chat template");
-    let mut accepted = p.clone();
-    accepted.ending =
-        Some(Ending::Decided { by: 7, party: Some(party(7)), how: Some(Decision::Accepted), at: Wall::EPOCH });
+    let accepted = decided_proposal(&p, OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(7) });
     let rule = jig_client_scripted_engine::Rule {
         party: Some(7),
         ask,
@@ -403,9 +419,11 @@ pub fn environment_world(seed: u64) -> ClientWorld {
                 rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
                     position: 1,
                     at: Wall::EPOCH,
-                    event: Activity::Turn {
-                        name: TurnName { attempt: 1, number: 1 },
-                        turn: TurnRead::Decoded(Turn {
+                    event: turn_event(
+                        9,
+                        1,
+                        TurnName { attempt: 1, number: 1 },
+                        TurnRead::Decoded(Turn {
                             messages: list([Message {
                                 speaker: Speaker::Assistant,
                                 blocks: list([Block::Call(Call {
@@ -423,7 +441,7 @@ pub fn environment_world(seed: u64) -> ClientWorld {
                             read_through: None,
                             cut: false,
                         }),
-                    },
+                    ),
                 }]),
             }),
             jig_client_scripted_engine::Change::Object {
@@ -434,7 +452,7 @@ pub fn environment_world(seed: u64) -> ClientWorld {
             jig_client_scripted_engine::Change::Object {
                 project: 1,
                 key: ObjectKey::Proposal(p.key),
-                value: ReadValue::Proposal(Box::new(p.clone())),
+                value: ReadValue::OwnerProposal(Box::new(p.clone())),
             },
         ],
     };
@@ -444,11 +462,17 @@ pub fn environment_world(seed: u64) -> ClientWorld {
             project: 1,
             on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
         },
-        answer: Answer::Done(Outcome::Decided { by: Actor::Party(7), how: Decision::Accepted, at: Wall::EPOCH }),
+        answer: Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+            proposal: p.key,
+            by: 7,
+            choice: OwnerProposalChoice::Accepted,
+            at: Wall::EPOCH,
+            repeated: false,
+        })),
         changes: vec![jig_client_scripted_engine::Change::Object {
             project: 1,
             key: ObjectKey::Proposal(p.key),
-            value: ReadValue::Proposal(Box::new(accepted)),
+            value: ReadValue::Historical(Box::new(accepted)),
         }],
     };
     let mut ops = OpsScript::default();
@@ -545,3 +569,39 @@ pub(super) fn list<T>(rows: impl IntoIterator<Item = T>) -> skein_lib::List<T> {
 }
 
 use jig_client::contract::DecideOn;
+
+fn inbox_entry(
+    object: ObjectKey,
+    project: u32,
+    group: InboxGroup,
+    position: u64,
+    at: Wall,
+    reply: Option<Box<TaskLine>>,
+) -> OwnerInboxEntry {
+    let (task, object) = match object {
+        ObjectKey::Question { task, message } => (task, OwnerInboxObject::Question { message }),
+        ObjectKey::Proposal(key) => (
+            match key.proposer {
+                Proposer::Task(n) | Proposer::Party(n) => n,
+            },
+            OwnerInboxObject::Proposal { proposer: key.proposer, number: key.number },
+        ),
+        ObjectKey::Escalation(task) => (task, OwnerInboxObject::Escalation { revision: 1 }),
+        ObjectKey::PersonTask(task) => (task, OwnerInboxObject::PersonTask),
+        ObjectKey::Task(task) => (task, OwnerInboxObject::Reply { message: position }),
+        ObjectKey::Result(task) => (task, OwnerInboxObject::Result { position }),
+        ObjectKey::Note { .. } => unreachable!("notes have no inbox row"),
+    };
+    let row = OwnerInboxEntry {
+        reply,
+        task: OwnerTaskLink::Stored { number: task, status: None },
+        project: Some(project),
+        object,
+        activity: None,
+        at: Some(at),
+        unread: None,
+        cursor: OwnerInboxCursor::Number { number: position },
+    };
+    assert_eq!(row.group(), group);
+    row
+}

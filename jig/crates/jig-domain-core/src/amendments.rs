@@ -161,18 +161,14 @@ impl Core {
 
     /// Return whether to stop a current run and whether widening must be
     /// offered to a policy holder as a proposal.
-    #[expect(clippy::too_many_arguments, reason = "one amendment carries its authenticated party, task and limits")]
-    pub fn amend_admit(
+    pub(crate) fn amend_admit(
         &self,
-        person: u64,
-        role: Option<people::Role>,
-        project: u32,
-        task: u64,
+        party: crate::compound::PartyTask,
         amendment: &tasks::Amendment,
         depth: u32,
         limits: &tasks::Limits,
     ) -> Result<bool, people::Refusal> {
-        crate::acts::bounds::amendment_admit(self, person, role, project, task, amendment, depth, limits)
+        crate::acts::bounds::amendment_admit(self, party, amendment, depth, limits)
     }
 }
 

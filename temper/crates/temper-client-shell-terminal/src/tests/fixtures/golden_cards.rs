@@ -9,11 +9,15 @@ const WINDOW: u32 = 2;
 const TRIES: u32 = 2;
 pub fn proposal(builder: &mut Builder) {
     let mut proposal = jig_client_world::stories::proposal();
-    proposal.why = jig_client_world::stories::text(b"It touches sign-in.");
-    proposal.action = c::ProposalAction::Batch { tasks: List::with_capacity(0), own: true };
-    proposal.needs.budget = BUDGET;
-    proposal.funding.left = LEFT;
-    let page = c::ReadValue::Proposal(Box::new(proposal));
+    proposal.reason = c::DocumentText::complete(jig_client_world::stories::text(b"It touches sign-in."));
+    proposal.action = c::OwnerProposalAction::Batch(List::with_capacity(0));
+    proposal.funding = jig_client_world::test::list([c::OwnerFundingOffer {
+        source: c::Funder::Pool { project: 1, person: 7, period: 3 },
+        needed: BUDGET,
+        left: Some(LEFT),
+        after: Some(LEFT - BUDGET),
+    }]);
+    let page = c::ReadValue::OwnerProposal(Box::new(proposal));
     let words = super::page_words();
     temper_client_view::cards::proposal_at(builder, &page, &words, WINDOW, temper_client_view::cards::Place::Inbox);
 }

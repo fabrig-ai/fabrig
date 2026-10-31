@@ -38,7 +38,7 @@ impl Turns {
             .checked_mul(limits.turns)
             .expect("checked per-run capacity")
             .checked_mul(2)
-            .expect("valid accepted turn capacity");
+            .expect("valid_hub accepted turn capacity");
         Turns { pending: Map::with_capacity(capacity), abandoned: 0 }
     }
 
@@ -111,7 +111,7 @@ impl Turns {
             let pending = self.pending.get_mut(&name).expect("staged turn exists");
             pending.admitted = true;
             out.push(crate::Request::Up(crate::LinkUp::Turn { run, attempt, turn: copy(&pending.turn) }));
-            out.push(crate::Request::AcknowledgeAgentTurn { agent: pending.agent, turn: name.turn });
+            out.push(crate::Request::Agent(crate::ToAgent::Acknowledge { agent: pending.agent, turn: name.turn }));
         }
     }
 

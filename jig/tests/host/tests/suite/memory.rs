@@ -1,7 +1,9 @@
 //! Saturated fleet lifecycle, refusals and exact ownership observations.
 
+use jig_domain_host::FromAgent;
+use jig_domain_host::ToAgent;
 use jig_domain_host::{
-    AgentFailure, Ask, Delivery, DeliveryOutcome, Domain, Ending, Event, Finish, Grant, Invalid, Limits, Preparation,
+    AgentFailure, Ask, Delivery, DeliveryOutcome, Ending, Event, Finish, Grant, Hub, Invalid, Limits, Preparation,
     Reason, Refusal, Request, RunAssignment, Workspace, resume, step,
 };
 use jig_domain_host::{LinkDown, LinkUp};
@@ -44,7 +46,7 @@ enum Asked {
     Relay { call: Box<[u8]> },
     Save { owner: Token },
     RunEnding { answer: Ending },
-    Answer { answer: jig_domain_host::Answer },
+    Answer { answer: jig_domain_host::RunAnswer },
     Turn,
     Hosting { runs: usize },
     Other,
@@ -52,7 +54,7 @@ enum Asked {
 
 /// The host and its scenario inputs and requests.
 struct Measured {
-    domain: Domain,
+    domain: Hub,
     env: Env<Limits>,
     out: Queue<Request>,
     meter: Meter,
@@ -63,7 +65,7 @@ impl Measured {
         // The output queue belongs to the parent, not the measured child.
         let out = Queue::uncapped();
         let meter = Meter::new();
-        let domain = Domain::new(&limits);
+        let domain = Hub::new(&limits);
         Measured { domain, env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, out, meter }
     }
 
@@ -109,7 +111,7 @@ impl Measured {
                         Asked::Answer { answer }
                     }
                 }
-                Request::Start { .. } => Asked::Start,
+                Request::Agent(ToAgent::Start { .. }) => Asked::Start,
                 Request::Prepare { owner, .. } => Asked::Prepare { owner },
                 Request::Save { owner, .. } => Asked::Save { owner },
                 Request::Hello { hello } => Asked::Hosting { runs: hello.hosting.len() },
@@ -118,12 +120,14 @@ impl Measured {
                     continue;
                 }
                 Request::Abort { .. }
-                | Request::Message { .. }
-                | Request::Reply { .. }
-                | Request::Stop { .. }
-                | Request::Release { .. }
-                | Request::Grant { .. }
-                | Request::AcknowledgeAgentTurn { .. } => Asked::Other,
+                | Request::Agent(
+                    ToAgent::Message { .. }
+                    | ToAgent::Answer { .. }
+                    | ToAgent::Cancel { .. }
+                    | ToAgent::Grant { .. }
+                    | ToAgent::Acknowledge { .. },
+                )
+                | Request::Release { .. } => Asked::Other,
             });
         }
 
@@ -197,10 +201,10 @@ fn fill(limits: Limits) {
         assert_eq!(host.step(Event::Prepared { owner: *owner, workspace }), [Asked::Start]);
         let agent = Token::new(index);
         assert_eq!(
-            host.step(Event::Started { owner: *owner, agent }).len(),
+            host.step(Event::Agent(FromAgent::Started { owner: *owner, agent })).len(),
             usize::try_from(limits.held).expect("fits")
         );
-        assert!(host.step(Event::Yielded { owner: *owner }).is_empty(), "waiting");
+        assert!(host.step(Event::Agent(FromAgent::Yielded { owner: *owner })).is_empty(), "waiting");
         let [Asked::Delivery { owner: delivery }] = host.step(jig_host_world::fixtures::called(
             *owner,
             Token::new(1),
@@ -245,9 +249,12 @@ fn fill(limits: Limits) {
         };
         let finish = Finish::Ended { outcome: bytes(limits.outcome_bytes) };
         assert!(!host.step(jig_host_world::fixtures::finished(*owner, finish)).is_empty(), "stopped");
-        assert!(host.step(Event::Faulted { owner: *owner, fault: AgentFailure::WallTime }).is_empty(), "decided");
+        assert!(
+            host.step(Event::Agent(FromAgent::Faulted { owner: *owner, fault: AgentFailure::WallTime })).is_empty(),
+            "decided"
+        );
         let detail = bytes(u64::from(limits.detail_bytes) + 1);
-        let gone = host.step(Event::Gone { owner: *owner, detail });
+        let gone = host.step(Event::Agent(FromAgent::Gone { owner: *owner, detail }));
         if let Some(delivery) = delivery {
             assert!(gone.is_empty(), "the delivery in flight is waited for");
             pending.push(delivery);
@@ -322,7 +329,7 @@ fn paths(limits: Limits) {
     assert_eq!(host.step(unprepared).len(), 1, "answered");
     for owner in owners.iter().skip(1) {
         assert_eq!(host.step(Event::Prepared { owner: *owner, workspace: *owner }), [Asked::Start]);
-        assert!(host.step(Event::Started { owner: *owner, agent: *owner }).is_empty());
+        assert!(host.step(Event::Agent(FromAgent::Started { owner: *owner, agent: *owner })).is_empty());
     }
     assert!(host.step(Event::CancelAll { reason: Reason::Contact }).is_empty());
     while host.domain.is_ready() {
@@ -332,7 +339,9 @@ fn paths(limits: Limits) {
         let index = u64::try_from(index).expect("fits");
         let cancel = Event::Down(LinkDown::Cancel { run: Token::new(index), attempt: Token::new(index + 1000) });
         assert!(host.step(cancel).is_empty(), "decided");
-        let [Asked::Save { owner: saving }] = host.step(Event::Gone { owner: *owner, detail: bytes(10) })[..] else {
+        let [Asked::Save { owner: saving }] =
+            host.step(Event::Agent(FromAgent::Gone { owner: *owner, detail: bytes(10) }))[..]
+        else {
             panic!("saved");
         };
         let saved = host.step(Event::Saved { owner: saving, at: Some(Token::new(7)) });
@@ -344,9 +353,13 @@ fn paths(limits: Limits) {
         panic!("admitted");
     };
     assert_eq!(host.step(Event::Prepared { owner, workspace: owner }), [Asked::Start]);
-    assert!(host.step(Event::Started { owner, agent: owner }).is_empty());
-    assert_eq!(host.step(Event::Faulted { owner, fault: AgentFailure::NoProgress }).len(), 1, "stopped");
-    assert_eq!(host.step(Event::Gone { owner, detail: bytes(10) }).len(), 1, "saved");
+    assert!(host.step(Event::Agent(FromAgent::Started { owner, agent: owner })).is_empty());
+    assert_eq!(
+        host.step(Event::Agent(FromAgent::Faulted { owner, fault: AgentFailure::NoProgress })).len(),
+        1,
+        "stopped"
+    );
+    assert_eq!(host.step(Event::Agent(FromAgent::Gone { owner, detail: bytes(10) })).len(), 1, "saved");
 }
 
 #[test]
@@ -384,7 +397,7 @@ fn transcripts_and_delivery_feedback_keep_their_order() {
     assert!(host.meter.held() >= u64::from(limits.slots) * (limits.charter_bytes + limits.transcript_bytes));
     for owner in owners {
         assert_eq!(host.step(Event::Prepared { owner, workspace: owner }), [Asked::Start]);
-        assert!(host.step(Event::Started { owner, agent: owner }).is_empty());
+        assert!(host.step(Event::Agent(FromAgent::Started { owner, agent: owner })).is_empty());
         let [Asked::Delivery { owner: call }] = host.step(jig_host_world::fixtures::called(
             owner,
             Token::new(51),
@@ -396,7 +409,7 @@ fn transcripts_and_delivery_feedback_keep_their_order() {
         assert_eq!(host.step(Event::Delivered { owner: call, delivery }), [Asked::Other]);
         fill_refusals(&mut host, owner, limits.inbox);
         assert_eq!(
-            host.step(Event::Turn {
+            host.step(Event::Agent(FromAgent::Turn {
                 owner,
                 turn: Turn {
                     opens_window: false,
@@ -406,12 +419,12 @@ fn transcripts_and_delivery_feedback_keep_their_order() {
                     read: None,
                     body: bytes(limits.turn_bytes)
                 }
-            }),
+            })),
             [Asked::Turn, Asked::Other]
         );
-        host.step(Event::Finished { read: None, owner, turns: 1, spent: 29, finish: Finish::Parked });
+        host.step(Event::Agent(FromAgent::Finished { read: None, owner, turns: 1, spent: 29, finish: Finish::Parked }));
         let [Asked::Save { owner: saving }] =
-            host.step(Event::Gone { owner, detail: bytes(u64::from(limits.detail_bytes)) })[..]
+            host.step(Event::Agent(FromAgent::Gone { owner, detail: bytes(u64::from(limits.detail_bytes)) }))[..]
         else {
             panic!("save ordinary unfinished work")
         };
@@ -428,11 +441,11 @@ fn transcripts_and_delivery_feedback_keep_their_order() {
 fn fill_refusals(host: &mut Measured, owner: Token, inbox: u32) {
     for name in 0..inbox {
         assert!(
-            host.step(Event::Refused {
+            host.step(Event::Agent(FromAgent::Refused {
                 owner,
                 name: Token::new(u64::from(name)),
                 reason: jig_domain_host::MessageRefusal::Full
-            })
+            }))
             .is_empty()
         );
     }
@@ -444,7 +457,7 @@ fn source_replacement_at_capacity_completes_every_check() {
     let limits = Limits { slots: 0, ..LIMITS };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
-    let mut domain = Domain::new(&limits);
+    let mut domain = Hub::new(&limits);
     let names: Box<[_]> = (0..limits.program_sources)
         .map(|index| SourceName::new(format!("{index:032}").as_bytes()).expect("full source name"))
         .collect();
@@ -468,16 +481,18 @@ fn source_replacement_at_capacity_completes_every_check() {
                 other @ (Request::SourceFault
                 | Request::Up(_)
                 | Request::Hello { .. }
-                | Request::Message { .. }
-                | Request::Reply { .. }
-                | Request::Start { .. }
-                | Request::AcknowledgeAgentTurn { .. }
+                | Request::Agent(
+                    ToAgent::Message { .. }
+                    | ToAgent::Answer { .. }
+                    | ToAgent::Start { .. }
+                    | ToAgent::Acknowledge { .. }
+                    | ToAgent::Cancel { .. }
+                    | ToAgent::Grant { .. },
+                )
                 | Request::Deliver { .. }
                 | Request::CancelRelay { .. }
                 | Request::Prepare { .. }
                 | Request::Abort { .. }
-                | Request::Stop { .. }
-                | Request::Grant { .. }
                 | Request::Save { .. }
                 | Request::Release { .. }) => panic!("unexpected source output: {other:?}"),
             }
@@ -491,7 +506,7 @@ fn source_replacement_at_capacity_completes_every_check() {
 
 #[test]
 fn maximum_input_pieces_keep_their_payloads_and_order() {
-    use jig_domain_host::{Activity, LiveAsk, LiveKind, Piece};
+    use jig_domain_host::{AgentActivity, LiveAsk, LiveKind, Piece};
     let limits = Limits { told: 64, ..LIMITS };
     let mut host = Measured::new(limits);
     let mut assignment = assignment(1, &limits);
@@ -500,7 +515,7 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
         panic!("prepare")
     };
     assert_eq!(host.step(Event::Prepared { owner, workspace: owner }), [Asked::Start]);
-    assert!(host.step(Event::Started { owner, agent: owner }).is_empty());
+    assert!(host.step(Event::Agent(FromAgent::Started { owner, agent: owner })).is_empty());
     while host.domain.pop_activity().is_some() {}
     let before = host.meter.held();
     for offset in 0..limits.told / 2 {
@@ -511,12 +526,12 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
             offset: u64::from(offset),
             bytes: bytes(u64::from(limits.piece_bytes)),
         };
-        assert!(host.step(Event::Piece { owner, piece }).is_empty());
+        assert!(host.step(Event::Agent(FromAgent::Piece { owner, piece })).is_empty());
     }
     let payloads = u64::from(limits.told / 2) * (u64::from(limits.piece_bytes) + 256 + 64);
     assert!(host.meter.held() >= before + payloads, "all maximum input payloads stay owned by the hub");
     for _ in limits.told / 2..limits.told {
-        assert!(host.step(Event::Activity { owner, activity: Activity::LongDone }).is_empty());
+        assert!(host.step(Event::Agent(FromAgent::Activity { owner, activity: AgentActivity::LongDone })).is_empty());
     }
     let mut pieces = 0;
     let mut activity = 0;

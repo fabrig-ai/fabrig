@@ -450,7 +450,7 @@ fn the_roots_facts_are_drained_and_counted_after_each_step() {
     let up = host::LinkUp::Answer {
         run: Token::new(run.task),
         attempt: Token::new(run.attempt),
-        answer: host::Answer {
+        answer: host::RunAnswer {
             read: None,
             refused: Box::new([]),
             turns: 0,

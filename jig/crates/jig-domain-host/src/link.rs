@@ -1,5 +1,5 @@
 //! The engine link's vocabulary (domain/hosts.md, sections 2 and 6.1).
-use crate::{Answer, Assignment, Grant, Login, SignOutResult, SourceName, Turn};
+use crate::{Assignment, Grant, Login, RunAnswer, SignOutResult, SourceName, Turn};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Token};
 
@@ -35,7 +35,7 @@ pub enum LinkUp {
     Activity {
         run: Token,
         attempt: Token,
-        activity: crate::Activity,
+        activity: crate::AgentActivity,
     },
     Unauthorized {
         run: Token,
@@ -73,7 +73,7 @@ pub enum LinkUp {
     Answer {
         run: Token,
         attempt: Token,
-        answer: Answer,
+        answer: RunAnswer,
     },
 }
 

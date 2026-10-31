@@ -26,7 +26,7 @@ pub struct Limits {
 pub fn valid(limits: &Limits) -> bool {
     smith::check(&limits.agent).is_ok()
         && host::valid_program_endpoints(&limits.bounds.program_endpoints)
-        && host::valid(&limits.hub)
+        && host::valid_hub(&limits.hub)
         && limits.hub.slots <= limits.agent.agents
         && limits.hub.slots.checked_mul(limits.agent.calls).is_some()
 }

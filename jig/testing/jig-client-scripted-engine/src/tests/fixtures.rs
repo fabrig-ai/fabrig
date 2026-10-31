@@ -127,18 +127,18 @@ pub(super) fn span_proposal() -> (Script, Ask) {
         priority: None,
         cut: false,
     };
-    value.action = ProposalAction::Batch { tasks: list(vec![task]), own: false };
+    value.action = OwnerProposalAction::Batch(list(vec![task]));
     let ask = Ask::Decide {
         project: 1,
         on: DecideOn::Proposal { proposal: value.key, decision: Decision::Accepted, running: None },
     };
-    setup.truth.objects.insert(ObjectKey::Proposal(value.key), ReadValue::Proposal(Box::new(value)));
+    setup.truth.objects.insert(ObjectKey::Proposal(value.key), ReadValue::OwnerProposal(Box::new(value)));
     setup.truth.frames.get_mut(&1).unwrap().projects.get_mut(0).unwrap().creating.as_mut().unwrap().within.latest =
         Some(Wall::from_nanos(20_000_000_000));
     setup.rules.push(Rule {
         party: Some(1),
         ask: ask.clone(),
-        answer: Answer::Done(Outcome::Changed),
+        answer: Answer::Done(Outcome::Owner(OwnerOutcome::Amended { task: 8 })),
         changes: vec![],
     });
     (setup, ask)

@@ -2,7 +2,7 @@
 use super::*;
 
 pub(super) fn meets_bound(driver: &mut Driver, run: &engine::Assignment, bound: host::Bound) {
-    let answer = host::Answer {
+    let answer = host::RunAnswer {
         read: None,
         refused: Box::new([]),
         turns: 0,

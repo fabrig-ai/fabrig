@@ -1,5 +1,6 @@
 use super::*;
 use jig_client_world::harness::{App, Duty};
+use jig_client_world::joint::transport::Watched;
 use skein_lib::{Env, Queue};
 
 const CLIENT: ClientId = ClientId(0);
@@ -288,4 +289,44 @@ fn qa_a_panel_dropped_before_its_first_record_keeps_loading_until_jig_reopens_it
         }
     }
     panic!("jig's retry must deliver the known change panel");
+}
+
+#[test]
+fn the_joint_world_delivers_the_components_owner_documents() {
+    use jig_client::contract as c;
+    let limits = fixtures::domain_limits();
+    let mut front = Joint::new(fixtures::SEED, limits);
+    front.bind(CLIENT, fixtures::PARTY);
+    front.callbacks.clear();
+    for (number, subject) in [
+        (91, c::Subject::Inbox { window: limits.client.domain.rows }),
+        (92, c::Subject::Deployment),
+        (93, c::Subject::Accounts),
+    ] {
+        front.request(
+            CLIENT,
+            Request::Client {
+                request: jig_client::Request::Down {
+                    down: jig_client::Down::Open {
+                        watch: Token::new(number),
+                        subject: jig_client::Watchable::Jig(subject),
+                    },
+                },
+            },
+        );
+    }
+    let mut callbacks = Vec::new();
+    for tick in 0..10 {
+        callbacks.extend(front.poll(Time::from_nanos(tick * 1_000_000), WALL));
+    }
+    for number in [91, 92, 93] {
+        assert!(callbacks.iter().any(|(client, event)| {
+            *client == CLIENT && matches!(event,
+                Event::Root(RootEvent::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched {
+                    watch, event: c::WatchEvent::Delivered(delivery)
+                } } }) if *watch == Token::new(number) && matches!((number, delivery),
+                    (91, c::Delivery::OwnerInbox(_)) | (92, c::Delivery::OwnerDeployment(_)) | (93, c::Delivery::OwnerAccounts(_)))
+            )
+        }), "component document {number}: {callbacks:?}");
+    }
 }

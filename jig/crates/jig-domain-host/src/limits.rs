@@ -61,7 +61,7 @@ pub(crate) fn calls(limits: &Limits) -> Option<u32> {
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub fn valid(limits: &Limits) -> bool {
+pub fn valid_hub(limits: &Limits) -> bool {
     if limits.turns > 0 && (limits.turn_bytes == 0 || limits.turn_queue_bytes < limits.turn_bytes) {
         return false;
     }

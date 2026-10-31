@@ -407,7 +407,10 @@ impl Expectations for Rules {
                 self.started(client, judge);
             }
             Observation::Bounded { heap, bound } => {
-                judge.check(heap <= bound, "bounded: client and view exceeded the heap envelope");
+                judge.check(
+                    heap <= bound,
+                    format!("bounded: client and view exceeded the heap envelope: {heap} bytes exceeds {bound}"),
+                );
             }
         }
     }
@@ -428,13 +431,13 @@ impl Checks {
         self.check.delivered(Delivered::Read(value));
         let key = match value {
             ReadValue::Task(value) => ObjectKey::Task(value.chip.task),
-            ReadValue::Escalation(value) => ObjectKey::Escalation(value.task.task),
             ReadValue::OwnerEscalation(value) => ObjectKey::Escalation(value.task.chip.task),
-            ReadValue::PersonTask(value) => ObjectKey::PersonTask(value.task.task),
             ReadValue::OwnerPersonTask(value) => ObjectKey::PersonTask(value.task.task),
-            ReadValue::Proposal(value) => ObjectKey::Proposal(value.key),
             ReadValue::OwnerProposal(value) => ObjectKey::Proposal(value.key),
-            ReadValue::Me(_)
+            ReadValue::Escalation(_)
+            | ReadValue::PersonTask(_)
+            | ReadValue::Proposal(_)
+            | ReadValue::Me(_)
             | ReadValue::Tasks(_)
             | ReadValue::Historical(_)
             | ReadValue::Question(_)

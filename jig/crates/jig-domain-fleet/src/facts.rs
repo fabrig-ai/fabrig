@@ -7,8 +7,6 @@
 //! no room in `out`, and when the queue is full they are dropped and counted.
 //! Nothing the fleet decides depends on whether a fact was kept.
 
-use skein_lib::Queue;
-
 use crate::boundary::{Answer, Refusal};
 
 /// Something that happened.
@@ -49,32 +47,4 @@ pub enum Fact {
     /// channel not in contact, or beyond what a hello may list; or a reply
     /// for an attempt gone, was dropped.
     Dropped,
-}
-
-/// The facts not yet drained, and how many did not fit.
-#[derive(Debug)]
-pub(crate) struct Facts {
-    queue: Queue<Fact>,
-    lost: u64,
-}
-
-impl Facts {
-    pub(crate) fn with_capacity(capacity: u32) -> Facts {
-        Facts { queue: Queue::with_capacity(capacity), lost: 0 }
-    }
-
-    /// Keeps `fact` if there is room for it, and counts it otherwise.
-    pub(crate) fn push(&mut self, fact: Fact) {
-        if self.queue.try_push(fact).is_err() {
-            self.lost = self.lost.saturating_add(1);
-        }
-    }
-
-    pub(crate) fn pop(&mut self) -> Option<Fact> {
-        self.queue.pop()
-    }
-
-    pub(crate) fn lost(&self) -> u64 {
-        self.lost
-    }
 }

@@ -2,9 +2,8 @@
 use super::{held_chat, proposal_world, task, text};
 use crate::{Scripted, Test, World, test};
 use jig_client_domain::contract::{
-    self as c, Actor, Count, DocumentText, Ending, Executor, InboxEntry, InboxGroup, InboxReadGroup, Needs, ObjectKey,
-    OwnerEscalation, OwnerRequester, PersonContract, PersonTask, Phase, Question, Read, ReadValue, Recipient,
-    ResultValue, Revision, TaskLine,
+    self as c, Count, DocumentText, Ending, Executor, InboxGroup, InboxReadGroup, Needs, ObjectKey, OwnerEscalation,
+    OwnerRequester, Phase, Question, Read, ReadValue, ResultValue, Revision, TaskLine,
 };
 use jig_client_scripted_engine::{Change, Rows, Source};
 use skein_lib::{Time, Wall};
@@ -52,24 +51,36 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
     let mut person_chip = task.chip.clone();
     person_chip.task = 10;
     person_chip.executor = Executor::Party { party: 7 };
-    let person = PersonTask {
+    person_chip.details = Box::new(super::owner_chip(
+        c::OwnerChipPhase::Person { address: c::PersonAddress::Party(7), taken_by: None, since: Some(Wall::EPOCH) },
+        None,
+    ));
+    if let c::ChipPhase::Owner { details, .. } = person_chip.details.as_mut() {
+        details.executor = c::OwnerExecutor::Person(c::PersonAddress::Party(7));
+    }
+    let person = c::OwnerPersonTask {
         task: person_chip,
         revision: Revision { value: 1 },
-        requester: Actor::Party(7),
+        requester: OwnerRequester::Person(7),
         spec: task.spec.clone(),
-        contract: PersonContract::Words,
-        inputs: test::list([]),
-        addressed: Recipient::Party(7),
-        taken: None,
+        address: c::PersonAddress::Party(7),
+        taken_by: None,
         since: Some(Wall::EPOCH),
         stall: None,
         deadline: None,
+        contract: c::TaskContractDocument::Report { words: 32 },
+        results: test::list([]),
+        cut: false,
         acts: test::list([]),
-        ending: None,
     };
     let mut result_chip = task.chip.clone();
     result_chip.task = 11;
     result_chip.phase = Phase::Done;
+    result_chip.details = Box::new(super::owner_chip(c::OwnerChipPhase::Ended, None));
+    if let c::ChipPhase::Owner { details, .. } = result_chip.details.as_mut() {
+        details.ended_at = Some(Wall::EPOCH);
+        details.ending = Some(c::OwnerChipEnding::Done(ResultValue::Report(DocumentText::complete(text(b"Finished")))));
+    }
     let result = c::Result {
         task: result_chip,
         ending: Ending::Done,
@@ -84,7 +95,7 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
             ObjectKey::Escalation(9),
             ReadValue::OwnerEscalation(Box::new(OwnerEscalation { acts: held.acts.clone(), task: held })),
         ),
-        (ObjectKey::PersonTask(10), ReadValue::PersonTask(Box::new(person))),
+        (ObjectKey::PersonTask(10), ReadValue::OwnerPersonTask(Box::new(person))),
         (ObjectKey::Result(11), ReadValue::Result(Box::new(result))),
     ] {
         world
@@ -93,6 +104,9 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
             .act(Time::ZERO, Wall::EPOCH, Change::Object { project: 1, key, value })
             .expect("golden object fits");
     }
+    reply(task)
+}
+fn reply(task: c::Task) -> TaskLine {
     TaskLine {
         chip: {
             let mut chip = task.chip;
@@ -141,17 +155,15 @@ fn rows(world: &mut World<Test, Scripted>, reply: &TaskLine) {
         .into_iter()
         .enumerate()
         .filter(|(_, (kind, _))| InboxReadGroup::of(*kind) == group)
-        .map(|(n, (kind, object))| InboxEntry {
-            reply: (kind == InboxGroup::Replies).then(|| Box::new(reply.clone())),
-            lineage: test::list([]),
-            goal: None,
-            recipient: Some(Recipient::Party(7)),
-            stall: None,
-            object,
-            project: 1,
-            group: kind,
-            position: u64::try_from(n).expect("six rows") + 1,
-            at: Wall::EPOCH,
+        .map(|(n, (kind, object))| {
+            crate::stories::inbox_entry(
+                object,
+                1,
+                kind,
+                u64::try_from(n).expect("six rows") + 1,
+                Wall::EPOCH,
+                (kind == InboxGroup::Replies).then(|| Box::new(reply.clone())),
+            )
         })
         .collect();
         world

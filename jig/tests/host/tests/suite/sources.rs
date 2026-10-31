@@ -9,7 +9,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 const SOURCE_CAPACITY: u32 = 2;
 
 struct World {
-    host: host::Domain,
+    host: host::Hub,
     env: Env<host::Limits>,
     out: Queue<host::Request>,
 }
@@ -19,7 +19,7 @@ impl World {
         limits.program_sources = SOURCE_CAPACITY;
         limits.slots = 0;
         Self {
-            host: host::Domain::new(&limits),
+            host: host::Hub::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
         }

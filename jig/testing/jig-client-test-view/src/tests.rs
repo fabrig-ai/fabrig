@@ -194,22 +194,6 @@ fn owner_authority() -> OwnerAuthorityDocument {
         cut: false,
     }
 }
-fn authority() -> Authority {
-    Authority {
-        models: None,
-        budget: 1,
-        grants: list([]),
-        task_kinds: list([]),
-        depth: 1,
-        tasks: 1,
-        deadline: None,
-        tools: list([]),
-        note_scopes: list([]),
-    }
-}
-fn budget() -> Budget {
-    Budget { total: 1, own: 0, ended: 0, reserved: 0, left: 1, funder: Actor::Party(7) }
-}
 fn task() -> Task {
     Task {
         dependency_facts: List::with_capacity(0),
@@ -301,22 +285,30 @@ fn task() -> Task {
         })),
     }
 }
-fn proposal(key: ProposalKey) -> Proposal {
-    Proposal {
+fn proposal(key: ProposalKey) -> OwnerProposal {
+    OwnerProposal {
         key,
         project: 3,
-        proposer: key.proposer,
-        why: text(&[b'w'; 32]),
-        action: ProposalAction::Effect {
-            part: Part::Effect { connector: jig_client_test_domain::FIRST, proposal: key },
+        reason: DocumentText::complete(text(&[b'w'; 32])),
+        action: OwnerProposalAction::Effect {
+            part: OwnerPart {
+                connector: jig_client_test_domain::FIRST,
+                kind: OwnerPartKind::Effect,
+                key: OwnerPartKey::Number(key.number),
+            },
+            authority: owner_authority(),
+            attempt: 1,
+            completion: 1,
+            position: 1,
+            purpose: 1,
         },
-        needs: authority(),
-        funding: budget(),
-        waiting: Recipient::Roles { project: 3, roles: list([1, 2]) },
-        trail: list([]),
-        since: Wall::EPOCH,
+        as_holder: false,
+        funding: list([]),
+        waiting: OwnerProposalWaiting {
+            holder: OwnerHistoryHolder::Policy { project: 3, kind: OwnerMessageProposalKind::Effect },
+            since: Wall::EPOCH,
+        },
         acts: list([]),
-        ending: None,
     }
 }
 fn load_cards(root: &mut Domain, rows: Vec<Request>) {
@@ -328,7 +320,7 @@ fn load_cards(root: &mut Domain, rows: Vec<Request>) {
         {
             let value = match what {
                 Read::Task { .. } => ReadValue::Task(Box::new(task())),
-                Read::Proposal { proposal: key } => ReadValue::Proposal(Box::new(proposal(key))),
+                Read::Proposal { proposal: key } => ReadValue::OwnerProposal(Box::new(proposal(key))),
                 _ => continue,
             };
             let parts = drive(
@@ -388,7 +380,7 @@ fn a_family_page_holding_jig_cards_holding_parts_fits_and_diffs_to_nothing() {
     assert!(!patches(&mut view, &root).is_empty());
     assert!(contains(&view, b"Task 9"));
     assert!(contains(&view, b"Family part revision 1"));
-    assert!(contains(&view, b"Waiting at policy roles"));
+    assert!(contains(&view, b"Holder policy"));
     assert!(view.tree().len() <= view.limits().tree.nodes);
     assert!(!view.tree().nodes().iter().any(|node| node.states.as_slice().contains(&skein_ui::State::Busy)));
     assert_eq!(
