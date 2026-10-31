@@ -42,8 +42,8 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
         None => 0,
     };
     if llm.model.is_empty()
-        || llm.model.len() > 128
-        || effort_bytes > 32
+        || llm.model.len() > crate::llm::MODEL_BYTES
+        || effort_bytes > crate::llm::EFFORT_BYTES
         || llm.window == 0
         || llm.output == 0
         || llm.prices.unit == 0

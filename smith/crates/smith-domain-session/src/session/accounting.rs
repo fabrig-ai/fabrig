@@ -37,15 +37,32 @@ pub(super) fn completion_price(spending: &Spending, usage: Usage) -> Option<u64>
     spending.prices.price(usage)
 }
 
+/// The shared admission result used before decoding calls and when accepting them.
+pub(super) struct Accepted {
+    pub(super) price: u64,
+    own: u64,
+    inclusive: u64,
+    cumulative: Usage,
+    reported: Usage,
+    turns: u32,
+}
+
+pub(super) fn accepted(conversation: &Conversation, usage: Usage) -> Result<Accepted, End> {
+    let price = completion_price(&conversation.spending, usage).ok_or(End::PriceOverflow)?;
+    Ok(Accepted {
+        price,
+        own: conversation.spending.own.checked_add(price).ok_or(End::PriceOverflow)?,
+        inclusive: conversation.spending.total.checked_add(price).ok_or(End::PriceOverflow)?,
+        cumulative: checked_usage(conversation.usage, usage)?,
+        reported: checked_reported(conversation.reported, usage).ok_or(End::UsageOverflow)?,
+        turns: conversation.turns.checked_add(1).ok_or(End::UsageOverflow)?,
+    })
+}
+
 /// Counts a completion that came back, and tells the opener.
 pub(super) fn used(conversation: &mut Conversation, usage: Usage, out: &mut Queue<Request>) -> Result<(), End> {
-    let price = completion_price(&conversation.spending, usage).ok_or(End::PriceOverflow)?;
-    let own = conversation.spending.own.checked_add(price).ok_or(End::PriceOverflow)?;
-    let inclusive = conversation.spending.total.checked_add(price).ok_or(End::PriceOverflow)?;
-    let cumulative = checked_usage(conversation.usage, usage)?;
-    let reported = checked_reported(conversation.reported, usage).ok_or(End::UsageOverflow)?;
-    let next_turn = conversation.turns.checked_add(1).ok_or(End::UsageOverflow)?;
-    conversation.turns = next_turn;
+    let Accepted { price, own, inclusive, cumulative, reported, turns } = accepted(conversation, usage)?;
+    conversation.turns = turns;
     conversation.usage = cumulative;
     conversation.reported = reported;
     conversation.spending.reservation = None;

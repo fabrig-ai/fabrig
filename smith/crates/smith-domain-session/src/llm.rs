@@ -16,6 +16,12 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, Token};
 use smith_domain_tools as tools;
 
+/// Longest provider model name retained in session observations.
+pub(crate) const MODEL_BYTES: usize = 128;
+
+/// Longest reasoning effort name retained in session observations.
+pub(crate) const EFFORT_BYTES: usize = 32;
+
 /// A provider endpoint the protocol layer is configured with: which provider,
 /// where, with which credentials. The domain only names it.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

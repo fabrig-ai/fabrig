@@ -144,9 +144,8 @@ mod retry;
 mod tell;
 
 use accounting::{
-    charge, checked_reported, checked_usage, completion_price, count, delegated_credit, len, owned_credit,
-    payload_cost, receive_completion, receive_result, release_provider, replay_cost, reservation, reserve_provider,
-    returned_cost, spec_cost, used,
+    charge, count, delegated_credit, len, owned_credit, payload_cost, receive_completion, receive_result,
+    release_provider, replay_cost, reservation, reserve_provider, returned_cost, spec_cost, used,
 };
 pub(crate) use accounting::{content_cost, provider_reserve};
 use restore::restore;
@@ -574,18 +573,11 @@ pub(crate) fn completed(
     conclude(domain, env, id, out, mark);
 }
 
-/// Check one completion before the parent decodes any of its calls. The same
-/// arithmetic is repeated when the session commits the completion.
+/// Check one completion before the parent decodes any of its calls, using
+/// the same admission calculation as the accepted completion.
 pub fn preview_completion(domain: &Domain, owner: Token, usage: Usage) -> Result<u64, End> {
     let session = domain.sessions.get(Id::from_token(owner)).expect("completion retains its session");
-    let conversation = &session.conversation;
-    let price = completion_price(&conversation.spending, usage).ok_or(End::PriceOverflow)?;
-    conversation.spending.own.checked_add(price).ok_or(End::PriceOverflow)?;
-    conversation.spending.total.checked_add(price).ok_or(End::PriceOverflow)?;
-    checked_usage(conversation.usage, usage)?;
-    checked_reported(conversation.reported, usage).ok_or(End::UsageOverflow)?;
-    conversation.turns.checked_add(1).ok_or(End::UsageOverflow)?;
-    Ok(price)
+    Ok(accounting::accepted(&session.conversation, usage)?.price)
 }
 
 /// Check the maximum completion charge against this session's spend allowance.
@@ -1931,11 +1923,11 @@ fn admit(
     limits: &Limits,
     now: Time,
 ) -> Option<(Conversation, tools::Authority)> {
-    if spec.model.len() > 128
+    if spec.model.len() > crate::llm::MODEL_BYTES
         || match &spec.effort {
             Some(effort) => effort.len(),
             None => 0,
-        } > 32
+        } > crate::llm::EFFORT_BYTES
         || spec.output == 0
         || spec.protocol_allowance > limits.protocol_allowance
         || spec.progress.head == Duration::ZERO
