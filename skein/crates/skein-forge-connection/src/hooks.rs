@@ -176,11 +176,7 @@ impl Hooks {
                 Closing::Open | Closing::Pending => Some(c.deadline),
                 Closing::Graceful | Closing::Aborted => None,
             };
-            if let Some(deadline) = deadline
-                && (earliest.is_none() || Some(deadline) < earliest)
-            {
-                earliest = Some(deadline);
-            }
+            earliest = skein_lib::earliest(earliest, deadline);
         }
         earliest
     }

@@ -16,6 +16,6 @@ io_resume 10
 earliest 1
 lifecycle 2
 growth_floor 1
-pop_loop 12
+pop_loop 9
 hex_decimal 6
 forwarding_host 3
