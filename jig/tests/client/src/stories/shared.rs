@@ -19,10 +19,10 @@ pub fn signing_in_and_starting_a_chat<F: Front<Test>>(world: &mut World<Test, F>
             Step::See { find: Find::named(Role::Button, b"Sign in with Test"), within: WITHIN },
             Step::Press { find: Find::named(Role::Button, b"Sign in with Test") },
             Step::See { find: Find::named(Role::TextArea, b"First words"), within: WITHIN },
-            Step::See { find: Find::text(b"Earlier"), within: WITHIN },
+            Step::See { find: Find::named(Role::Link, b"Earlier"), within: WITHIN },
             Step::Type { find: Find::named(Role::TextArea, b"First words"), words: b"Hello".as_slice().into() },
             Step::Press { find: Find::named(Role::Button, b"Start a conversation") },
-            Step::See { find: Find::text(b"Hello"), within: WITHIN },
+            Step::See { find: Find::named(Role::Link, b"Hello"), within: WITHIN },
         ],
     );
     let outcome = world.run(Until::Done);
