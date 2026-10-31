@@ -7,13 +7,14 @@ use temper_engine_domain::{CoreRange, Key, Range};
 
 /// Startup selects stored families; writer rules are proved by store oracles
 /// (temper/docs/design/domain/root.md, 9.1).
-pub(super) fn restarting(range: &Range) -> bool {
+pub(super) fn starting(range: &Range) -> bool {
     match range {
         Range::Core(
             CoreRange::Deployment
             | CoreRange::Settings
             | CoreRange::Accounts
             | CoreRange::People
+            | CoreRange::Sweep
             | CoreRange::Tasks
             | CoreRange::RunProofs
             | CoreRange::Calls,
@@ -85,6 +86,7 @@ pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store:
             | CoreRange::Settings
             | CoreRange::Accounts
             | CoreRange::People
+            | CoreRange::Sweep
             | CoreRange::Tasks
             | CoreRange::Calls
             | CoreRange::RunProofs => store::Restore::Jig(Box::from(range.restore_ranges())),

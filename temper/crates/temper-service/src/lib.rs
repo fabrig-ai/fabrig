@@ -42,7 +42,7 @@ mod start_refusal;
 mod stop;
 pub use start_refusal::refused_start;
 mod tools;
-pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind, RestoreFailure};
+pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 /// How the service ended (protocol/README.md, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum End {
@@ -64,26 +64,24 @@ pub enum Stop {
         number: u64,
     },
     Start(Problems),
-    /// A startup page failed its store load or root validation.
-    RestoreLoad(RestoreFailure),
-    /// The restart refused a known step without a more specific child failure.
-    RestoreStep {
-        step: jig_domain_core::RestartStep,
+    /// jig's start refused a fit at `phase` (jig engine.md 6).
+    StartRefused {
+        phase: Option<jig_domain_core::start::Phase>,
+        failure: jig_domain_core::start::Failure,
     },
-    /// The forge's own restored set exceeded its configured bound.
+    /// A startup page could not be read: the root's range kind, and the store's
+    /// typed cause where the store gave one (jig-protocol-store `restore::Failure`).
+    RestorePage {
+        range: RestoreRangeKind,
+        failure: Option<jig_protocol_store::restore::Failure>,
+    },
+    /// The forge's restored records do not fit its limits, at `phase`.
     ForgeFit {
-        step: jig_domain_core::RestartStep,
+        phase: Option<jig_domain_core::start::Phase>,
         failure: temper_engine_domain_forge::RestoreFit,
     },
-    /// A child refused restored records before the store switch.
-    Unresolved {
-        child: jig_domain_core::RestoreChild,
-        records: u32,
-    },
-    /// The forge refused restored records before the store switch.
-    ForgeUnresolved {
-        records: u32,
-    },
+    /// The deployment's namespace binding was refused.
+    Binding,
     /// The store refuses this start (jig's protocol/store.md, 5.3 and 10).
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,
