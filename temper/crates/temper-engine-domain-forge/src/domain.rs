@@ -118,6 +118,8 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) machine: Option<crate::Machine>,
+    pub(crate) records: Map<u16, crate::ForgeRecord>,
+    pub(crate) forge_number: u16,
     pub(crate) configured: Map<u16, crate::Configured>,
     pub(crate) under_box: bool,
     pub(crate) demo: Option<crate::DemoConfig>,
@@ -195,7 +197,8 @@ pub struct Domain {
 impl Domain {
     /// Before the first input, size the volatile routing tables by the connection component's bounds.
     /// The product of the connection bounds must fit the installation row count.
-    pub fn connection_limits(&mut self, forges: u32, installations: u32) {
+    pub fn connection_limits(&mut self, _forges: u32, installations: u32) {
+        let forges = self.records.capacity();
         assert!(self.connections.is_empty() && self.installations.is_empty(), "connection limits before inputs");
         assert!(crate::limits::connection_valid(forges, installations), "connection bounds");
         self.connections = Map::with_capacity(forges);
@@ -204,7 +207,7 @@ impl Domain {
         self.apps = Map::with_capacity(forges);
         self.installations = Map::with_capacity(forges.checked_mul(installations).expect("connection bounds"));
     }
-    /// Public startup configuration; never restored from records.
+    /// Public forge configuration, with kept records taking precedence.
     #[must_use]
     pub fn configured(&self, forge: u16) -> Option<&crate::Configured> {
         self.configured.get(&forge)
@@ -505,15 +508,7 @@ impl Domain {
         {
             return Err(skein_forge::api::Error::TooLarge);
         }
-        let mut configured = Map::with_capacity(l.client.repositories);
-        for forge in forges {
-            if forge.git.len() > usize::try_from(crate::PULL_ADDRESS_BYTES).expect("u32 fits usize") {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-            if configured.insert(forge.number, forge.clone()).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-        }
+        let (configured, forge_number) = crate::forges::document(l.forges, forges)?;
         let mut credentials = Map::with_capacity(l.repositories);
         for identity in identities {
             if credentials.insert(identity.forge, identity.credential).is_err() {
@@ -528,6 +523,8 @@ impl Domain {
         }
         Ok(Domain {
             machine: None,
+            records: Map::with_capacity(l.forges),
+            forge_number,
             configured,
             under_box,
             demo: None,
@@ -536,10 +533,10 @@ impl Domain {
             demo_acts: Map::with_capacity(crate::demo_act_bound(l).expect("validated act bound")),
             demo_pending: Map::with_capacity(l.applications),
             demo_answers: Map::with_capacity(l.applications),
-            connections: Map::with_capacity(l.client.repositories),
-            first: Map::with_capacity(l.client.repositories),
-            ended: Map::with_capacity(l.client.repositories),
-            apps: Map::with_capacity(l.client.repositories),
+            connections: Map::with_capacity(l.forges),
+            first: Map::with_capacity(l.forges),
+            ended: Map::with_capacity(l.forges),
+            apps: Map::with_capacity(l.forges),
             setup_answers: Map::with_capacity(l.applications),
             setup_pending: Map::with_capacity(l.applications),
             connect: crate::connect::State::new(l.applications),
@@ -4823,12 +4820,17 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         return;
     }
     match record {
-        // t-forge-map keeps it
-        Stored::Forge(_)
-        // t-forge-map keeps it
-        | Stored::ForgeNumber { .. }
-        // t-forge-map keeps it
-        | Stored::Playground(_) => {
+        Stored::Forge(record) => {
+            d.configured
+                .insert(record.number, crate::forges::configured_of(&record))
+                .expect("restored configured forge fits");
+            d.records.insert(record.number, record).expect("restored forge fits");
+        }
+        Stored::ForgeNumber { last } => {
+            d.forge_number = d.forge_number.max(last);
+        }
+        Stored::Playground(_) => {
+            // t-forge-map keeps it
         }
         Stored::Landing(row) => {
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
@@ -4957,6 +4959,11 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
         }
     }
     child(d, env, skein_forge_client::Event::PauseOutbox, out);
+    for (_, record) in &d.records {
+        if !d.forge_ended(record.number) {
+            emit(out, Request::ForgeKept(record.clone()));
+        }
+    }
     emit(out, Request::RestartDone { stage: RestartStage::Restored });
 }
 
@@ -5313,11 +5320,8 @@ impl Domain {
                 }
                 (position, inserted)
             }
-            // t-forge-map keeps it
             Stored::Forge(_)
-            // t-forge-map keeps it
             | Stored::ForgeNumber { .. }
-            // t-forge-map keeps it
             | Stored::Playground(_)
             | Stored::Client(_)
             | Stored::Flight { .. }
@@ -5341,6 +5345,10 @@ impl Domain {
         use crate::reconcile::Need;
         let index = usize::try_from(row).expect("row ordinal fits usize");
         let key = match kind {
+            RecordKind::Forge => {
+                let (key, _) = self.records.iter().nth(index).expect("restored forge retained");
+                Key::Forge(*key)
+            }
             RecordKind::Call => {
                 let (key, _) = self.named_calls.iter().nth(index).expect("restored link row retained");
                 Key::Call(*key)

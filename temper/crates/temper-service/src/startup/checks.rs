@@ -673,6 +673,7 @@ pub fn root(
         forge,
         identities,
         forge_charter: engine.charter,
+        machine: None,
         forges: super::application::configured(engine),
         under_box: false,
     };

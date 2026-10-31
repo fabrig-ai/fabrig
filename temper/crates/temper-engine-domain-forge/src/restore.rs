@@ -139,13 +139,8 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
     use RecordKind as K;
     use RestoreSet::Rows;
     match row {
-        // t-forge-map keeps it
-        Stored::Forge(_)
-        // t-forge-map keeps it
-        | Stored::ForgeNumber { .. }
-        // t-forge-map keeps it
-        | Stored::Playground(_) => {
-            Ok(())
+        Stored::Forge(record) => {
+            room(K::Forge, Rows(K::Forge), d.records.len(), l.forges, d.records.contains_key(&record.number))
         }
         Stored::Landing(row) => {
             field(
@@ -285,7 +280,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::Demo(_) | Stored::Client(_) => Ok(()),
+        Stored::ForgeNumber { .. } | Stored::Playground(_) | Stored::Demo(_) | Stored::Client(_) => Ok(()),
     }
 }
 

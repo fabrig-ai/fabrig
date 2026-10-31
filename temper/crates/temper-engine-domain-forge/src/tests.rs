@@ -17,6 +17,7 @@ mod panel;
 mod projection;
 mod purpose;
 mod reconcile;
+mod records;
 mod restore_fit;
 mod runs;
 mod stopping;
@@ -131,7 +132,7 @@ fn domain() -> Domain {
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
         &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
+        &configured()[..1],
         false,
     )
     .expect("valid connector")
@@ -1190,7 +1191,7 @@ fn routing_domain() -> Domain {
         4,
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
+        &configured(),
         false,
     )
     .unwrap()
@@ -1440,8 +1441,8 @@ fn configured_forges_are_bounded_at_construction() {
     fn config() -> skein_forge_client::Config {
         skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) }
     }
-    let count = usize::try_from(LIMITS.client.repositories).unwrap();
-    let mut forges = skein_lib::List::with_capacity(LIMITS.client.repositories.checked_add(1).unwrap());
+    let count = usize::try_from(LIMITS.forges).unwrap();
+    let mut forges = skein_lib::List::with_capacity(LIMITS.forges.checked_add(1).unwrap());
     for number in 0..=count {
         forges
             .push(Configured { owned: None, number: u16::try_from(number).unwrap(), ..configured()[0].clone() })
