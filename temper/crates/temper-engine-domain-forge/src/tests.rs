@@ -2271,3 +2271,44 @@ fn release_failed(requests: &[Request], task: u64) -> bool {
     }
     false
 }
+
+#[test]
+fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
+    let mut d = domain();
+    d.identities.remove(&1);
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Forge(ForgeRecord {
+                number: 1,
+                kind: Kind::Forgejo,
+                mode: Mode::Managed,
+                state: ForgeState::Kept,
+                place: Place {
+                    api: Address {
+                        host: b"forge.example".as_slice().into(),
+                        port: 443,
+                        tls: Some(b"forge.example".as_slice().into()),
+                    },
+                    git: b"https://forge.example".as_slice().into(),
+                    web: None,
+                },
+                read_only: false,
+                bot: Bot { login: b"temper".as_slice().into(), name: b"Temper".as_slice().into(), email: Box::new([]) },
+                asked: false,
+                first: None,
+            }),
+        },
+    );
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let item = d
+        .workspace_item(items::Seed {
+            task: 7,
+            parent: None,
+            repository: REPO,
+            run_branch: b"temper/7/r7".as_slice().into(),
+            saved_branch: None,
+        })
+        .expect("kept forge's workspace");
+    assert_eq!(item.credential, Some(1));
+}

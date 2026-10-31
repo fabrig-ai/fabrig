@@ -121,7 +121,24 @@ impl Caller {
         let mut sign_in = Command::new(&[b"sign-in", b"-"]);
         sign_in.input = link.into();
         caller.commands.push_back(sign_in);
-        caller.commands.push_back(Command::new(words));
+        if crate::stories::first_start() {
+            caller.commands.push_back(Command::new(&[
+                b"forge",
+                b"connect",
+                b"forgejo-admin",
+                b"/setup/admin.token",
+                b"--api",
+                b"127.0.0.1:3000",
+                b"--git",
+                b"http://127.0.0.1:3000",
+                b"--key",
+                b"world-forge",
+            ]));
+            caller.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"connected:1"]));
+        }
+        if crate::stories::needs_settings() || crate::stories::held_change() {
+            caller.commands.push_back(Command::new(words));
+        }
         caller.closed = true;
         caller.close_root = None;
         caller.expected = Some(Exit::Code(0));
