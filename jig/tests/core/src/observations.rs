@@ -361,15 +361,7 @@ impl Observer {
                 );
             }
         }
-        // Enumerate the finite configured kind vocabulary rather than reuse an
-        // authority decision function when checking a later observed effect.
-        for &(connector, given) in policy.kinds.keys() {
-            for &(other, needed) in policy.kinds.keys() {
-                if connector == other && given != needed && deployment.implies.allows(connector, needed, given) {
-                    policy.implications.insert((connector, given, needed));
-                }
-            }
-        }
+        configured_implications(&mut policy, &deployment.implies);
         Self {
             referee: r::Referee::new(policy),
             policy_generation: 0,
@@ -1305,6 +1297,17 @@ impl Heap {
     #[must_use]
     pub fn observed(&self) -> r::Observed {
         r::Observed::Heap { held: self.meter.held(), maximum: self.maximum }
+    }
+}
+
+fn configured_implications(policy: &mut r::Policy, implies: &authority::Implies) {
+    // Enumerate the configured vocabulary independently of effect admission.
+    for &(connector, given) in policy.kinds.keys() {
+        for &(other, needed) in policy.kinds.keys() {
+            if connector == other && given != needed && implies.allows(connector, needed, given) {
+                policy.implications.insert((connector, given, needed));
+            }
+        }
     }
 }
 
