@@ -56,6 +56,7 @@ mod settings_reads;
 mod simulation;
 mod start;
 mod start_inbox;
+mod start_projections;
 mod stopping;
 mod store;
 mod store_adapter;

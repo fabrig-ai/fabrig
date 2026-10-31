@@ -1,6 +1,7 @@
 //! Load, link and sweep before durable opening (jig/docs/design/domain/engine.md, 6).
 mod inbox;
 mod links;
+pub(crate) mod projections;
 mod script;
 use crate::{Core, HeldLimit, Key, Wall, settings};
 use jig_domain_accounts as accounts;
@@ -101,6 +102,7 @@ pub(crate) struct Script {
     waiting: Option<Continuation>,
     pub(crate) held: crate::Queue<crate::Request>,
     waiting_tasks: crate::Queue<tasks::Request>,
+    pub(crate) projections: Option<skein_lib::Map<u64, projections::Assembly>>,
 }
 
 impl Script {
@@ -116,6 +118,7 @@ impl Script {
             waiting: None,
             held: crate::Queue::uncapped(),
             waiting_tasks: crate::Queue::uncapped(),
+            projections: None,
         }
     }
 }
