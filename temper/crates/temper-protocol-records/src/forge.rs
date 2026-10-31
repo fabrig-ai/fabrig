@@ -65,6 +65,10 @@ impl Rows {
     pub fn new() -> Self {
         Self { forges: Map::with_capacity(FORGES) }
     }
+    /// Drop every loaded secret of a removed forge (temper/docs/design/draft/playground-reset.md, 4).
+    pub fn remove(&mut self, forge: u16) {
+        self.forges.remove(&forge);
+    }
     /// Only numbers below CARRIED are records; no value at or above it is read.
     pub fn push(&mut self, number: u64, bytes: Secret, value_bytes: u32) {
         if number >= CARRIED || number >> 48_u32 != u64::from(FAMILY_FORGE) {
