@@ -43,7 +43,7 @@ impl Store {
                 self.phase = State::Closing;
                 Self::io(file::Request::Close { owner: self.owner, file: self.root }, now, out);
             }
-            State::Selecting
+            State::Selecting(_)
             | State::Compatibility(_)
             | State::Load(_)
             | State::Fresh(_)

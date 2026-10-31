@@ -30,7 +30,7 @@ use write::{AfterWrite, Writing};
 #[derive(Debug)]
 enum State {
     Idle,
-    Selecting,
+    Selecting(Selection),
     Compatibility(Compatibility),
     Load(Loading),
     Fresh(Fresh),
@@ -48,8 +48,6 @@ pub struct Store {
     descriptor: kernel::Fd,
     chats_root: Token,
     chats_descriptor: kernel::Fd,
-    selection: Option<Selection>,
-    opened_descriptor: Option<kernel::Fd>,
     limits: StoreLimits,
     endpoints: Endpoints,
     phase: State,
@@ -82,8 +80,6 @@ impl Store {
             descriptor,
             chats_root: root,
             chats_descriptor: descriptor,
-            selection: None,
-            opened_descriptor: None,
             limits,
             endpoints,
             phase: State::Idle,
@@ -114,7 +110,7 @@ impl Store {
     fn idle(&self) -> bool {
         match self.phase {
             State::Idle => true,
-            State::Selecting
+            State::Selecting(_)
             | State::Compatibility(_)
             | State::Load(_)
             | State::Fresh(_)
@@ -129,10 +125,7 @@ impl Store {
     pub fn request(&mut self, request: StoreRequest, now: Time, out: &mut Queue<Action>) {
         assert!(self.takes(), "the service reserves a serial store slot");
         self.phase = match request {
-            StoreRequest::SelectChat { name, create } => {
-                self.select_chat(name, create, now, out);
-                return;
-            }
+            StoreRequest::SelectChat { name, create } => self.select_chat(name, create, out),
             StoreRequest::Load if self.ephemeral.is_some() => Self::empty(out),
             StoreRequest::Load => {
                 self.versions = Map::with_capacity(self.versions.capacity());
@@ -197,15 +190,12 @@ impl Store {
     pub fn from_io(&mut self, event: file::Event, now: Time, out: &mut Queue<Action>) {
         assert_eq!(event.owner(), self.owner, "store IO echoes its owner");
         match self.phase {
-            State::Selecting => {
-                self.selection_event(event, now, out);
-                return;
-            }
             State::Cleaning => {
                 self.cleanup_event(event, now, out);
                 return;
             }
             State::Idle
+            | State::Selecting(_)
             | State::Compatibility(_)
             | State::Load(_)
             | State::Fresh(_)
@@ -213,15 +203,15 @@ impl Store {
             | State::Closing
             | State::Closed => {}
         }
-        let event = terminal(event);
         let state = replace(&mut self.phase, State::Closed);
         self.phase = match state {
-            State::Compatibility(state) => self.compatibility_event(state, event, out),
-            State::Load(state) => self.load_event(state, event, out),
-            State::Fresh(state) => self.fresh_event(state, event, out),
-            State::Write(writing) => self.write_event(writing, event, out),
-            State::Closing => self.close_event(event, out),
-            State::Idle | State::Selecting | State::Cleaning | State::Closed => {
+            State::Selecting(state) => self.selection_event(state, event, out),
+            State::Compatibility(state) => self.compatibility_event(state, terminal(event), out),
+            State::Load(state) => self.load_event(state, terminal(event), out),
+            State::Fresh(state) => self.fresh_event(state, terminal(event), out),
+            State::Write(writing) => self.write_event(writing, terminal(event), out),
+            State::Closing => self.close_event(terminal(event), out),
+            State::Idle | State::Cleaning | State::Closed => {
                 unreachable!("IO terminal has an outstanding request")
             }
         };
@@ -234,7 +224,7 @@ impl Store {
                 self.versions.remove(&entries.get(*index).expect("selected removal").name);
             }
             State::Idle
-            | State::Selecting
+            | State::Selecting(_)
             | State::Compatibility(_)
             | State::Load(_)
             | State::Fresh(_)
@@ -244,6 +234,7 @@ impl Store {
             | State::Closed => {}
         }
         let request = match &self.phase {
+            State::Selecting(state) => Some(self.selection_request(state)),
             State::Compatibility(state) => Some(self.compatibility_request(state)),
             State::Load(state) => Some(self.load_request(state)),
             State::Fresh(state) => Some(self.fresh_request(state)),
@@ -262,7 +253,7 @@ impl Store {
                 }
                 None
             }
-            State::Selecting | State::Cleaning | State::Closed => None,
+            State::Cleaning | State::Closed => None,
         };
         if let Some(request) = request {
             Self::io(request, now, out);
@@ -338,11 +329,6 @@ impl Store {
 
     fn remove_file(&self, name: Box<[u8]>) -> file::Request {
         file::Request::Remove { owner: self.owner, root: self.descriptor, name, directory: false }
-    }
-
-    fn finish(&mut self, event: local::Event, now: Time, out: &mut Queue<Action>) {
-        self.phase = Self::finished(event, out);
-        self.follow(now, out);
     }
 
     fn finished(event: local::Event, out: &mut Queue<Action>) -> State {
