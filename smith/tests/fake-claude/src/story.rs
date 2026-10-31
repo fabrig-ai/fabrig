@@ -123,7 +123,8 @@ fn records(bytes: &[u8]) -> Vec<serde_json::Value> {
 /// Reads the newline-separated records in `fake-claude.observations`.
 /// Malformed records fail the test that reads them.
 pub fn observations(bytes: &[u8]) -> Vec<Observation> {
-    records(bytes).into_iter()
+    records(bytes)
+        .into_iter()
         .filter(|value| value.get("arguments").is_some())
         .map(|value| serde_json::from_value(value).expect("invocation observation"))
         .collect()
@@ -307,7 +308,8 @@ pub enum Seen {
 /// Reads control and settings observations, skipping invocations and selections.
 /// Use [`selections`] for the per-turn script observations.
 pub fn seen(bytes: &[u8]) -> Vec<Seen> {
-    records(bytes).into_iter()
+    records(bytes)
+        .into_iter()
         .filter_map(|value| value.get("seen").cloned())
         .map(|value| serde_json::from_value(value).expect("seen record"))
         .collect()
@@ -315,7 +317,8 @@ pub fn seen(bytes: &[u8]) -> Vec<Seen> {
 
 /// Reads per-turn script selections, skipping invocation and control records.
 pub fn selections(bytes: &[u8]) -> Vec<Seen> {
-    records(bytes).into_iter()
+    records(bytes)
+        .into_iter()
         .filter_map(|value| value.get("selection").cloned())
         .map(|value| serde_json::from_value(value).expect("selection record"))
         .collect()
@@ -334,7 +337,5 @@ pub enum Decision {
 
 /// User messages independently decoded when the fake accepts each input line.
 pub fn received(bytes: &[u8]) -> Vec<serde_json::Value> {
-    records(bytes).into_iter()
-        .filter_map(|mut value| value.get_mut("received").map(serde_json::Value::take))
-        .collect()
+    records(bytes).into_iter().filter_map(|mut value| value.get_mut("received").map(serde_json::Value::take)).collect()
 }

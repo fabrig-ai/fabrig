@@ -168,7 +168,8 @@ fn effective_header(configuration: &config::Configuration) -> Result<List<smith_
         &configuration.service.limits,
         &configuration.service.channel_endpoints,
         &configuration.service.llm_endpoints,
-    ).map_err(config::ConfigurationRefusal::detail)
+    )
+    .map_err(config::ConfigurationRefusal::detail)
 }
 
 #[cfg(unix)]
@@ -474,7 +475,9 @@ impl Host for Agent {
 
 #[cfg(unix)]
 fn read_configuration(path: &Path, errors: &mut dyn Write) -> Result<config::Configuration, String> {
-    config::read(path).inspect_err(|why| diagnostic(errors, why))
+    config::read_decoded(path)
+        .and_then(|decoded| decoded.resolve(errors).map_err(config::ConfigurationRefusal::detail))
+        .inspect_err(|why| diagnostic(errors, why))
 }
 
 /// The operator's line for one destination IO gave up, naming it and why in
@@ -503,12 +506,16 @@ fn diagnostic(errors: &mut dyn Write, line: &str) {
 /// Run the shipped agent command with its kernel, clock and startup resources.
 #[cfg(unix)]
 pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
-    let configuration = read_configuration(path, errors.as_mut())?;
-    let seed = skein_shell::seed()
-        .map_err(|errno| format!("kernel seed failed (errno {errno})"))
-        .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let decoded = config::read_decoded(path).inspect_err(|why| diagnostic(errors.as_mut(), why))?;
     let signals = skein_shell::open_termination_signals()
         .map_err(|errno| format!("termination signals cannot open (errno {errno})"))
+        .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let configuration = decoded
+        .resolve(errors.as_mut())
+        .map_err(config::ConfigurationRefusal::detail)
+        .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let seed = skein_shell::seed()
+        .map_err(|errno| format!("kernel seed failed (errno {errno})"))
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
     let programs = match configuration.programs.get(&config::ProgramName::ClaudeCode) {
         Some(program) => Some(open_program(program, errors.as_mut())?),

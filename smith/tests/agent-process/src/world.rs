@@ -550,8 +550,14 @@ impl skein_world::Machine for Machine {
         self.files.close(skein_fake_machine::Opened::new(root.raw()));
     }
 
-    fn open_append(&mut self, root: skein_sim::Handle, path: &[u8], mode: u32) -> Result<skein_sim::Handle, kernel::Error> {
-        self.files.open(skein_fake_machine::Opened::new(root.raw()), path, skein_fake_machine::How::Append { mode })
+    fn open_append(
+        &mut self,
+        root: skein_sim::Handle,
+        path: &[u8],
+        mode: u32,
+    ) -> Result<skein_sim::Handle, kernel::Error> {
+        self.files
+            .open(skein_fake_machine::Opened::new(root.raw()), path, skein_fake_machine::How::Append { mode })
             .map(|file| skein_sim::Handle::new(file.raw()))
             .map_err(skein_fake_machine::kernel_error)
     }
@@ -1227,15 +1233,17 @@ impl World {
                 operations: crate::limits().routes.checked_add(8).expect("routes, startup trace and inherited closes"),
             },
             unused_roots,
-            |spawn| if Setup::read(spawn).tracing.is_some() {
-                vec![skein_world::StartupAppend {
-                    name: b"trace".as_slice().into(),
-                    root: b"event-trace".as_slice().into(),
-                    path: b"events.jsonl".as_slice().into(),
-                    mode: 0o600,
-                }]
-            } else {
-                Vec::new()
+            |spawn| {
+                if Setup::read(spawn).tracing.is_some() {
+                    vec![skein_world::StartupAppend {
+                        name: b"trace".as_slice().into(),
+                        root: b"event-trace".as_slice().into(),
+                        path: b"events.jsonl".as_slice().into(),
+                        mode: 0o600,
+                    }]
+                } else {
+                    Vec::new()
+                }
             },
         );
         world.spawn_root(skein_sim::Handle::new(root.raw()), |root| {

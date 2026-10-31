@@ -58,7 +58,8 @@ impl Tracing {
                 programs: None,
             },
             Box::new(errors),
-        ).expect("observed shipped agent");
+        )
+        .expect("observed shipped agent");
         Self {
             agent: bridge.host(agent),
             pressure: None,

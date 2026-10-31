@@ -169,11 +169,7 @@ pub(super) struct Endpoint {
     #[serde(default)]
     pub(super) trust_der: Option<String>,
     #[serde(default)]
-    #[cfg(unix)]
     pub(super) trust: Option<TrustDocument>,
-    #[serde(default)]
-    #[cfg(not(unix))]
-    pub(super) trust: Option<serde_json::Value>,
     #[serde(default)]
     pub(super) headers: Vec<HeaderField>,
     #[serde(default)]
@@ -189,7 +185,6 @@ pub(super) struct HeaderField {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-#[cfg(unix)]
 pub(super) struct TrustDocument {
     #[serde(default = "system_trust")]
     pub(super) system: bool,
@@ -199,7 +194,6 @@ pub(super) struct TrustDocument {
     pub(super) pem: Vec<String>,
 }
 
-#[cfg(unix)]
 const fn system_trust() -> bool {
     true
 }

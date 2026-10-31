@@ -193,12 +193,11 @@ impl Parent {
                 if self.invocations.front().expect("invocation").terminate {
                     self.signal_at = Some(now.saturating_add(Duration::from_millis(20)));
                 }
-                self.state =
-                    if self.input_closed || self.invocations.front().expect("invocation").stream {
-                        State::Stdout
-                    } else {
-                        State::Input
-                    };
+                self.state = if self.input_closed || self.invocations.front().expect("invocation").stream {
+                    State::Stdout
+                } else {
+                    State::Input
+                };
             }
             State::Input => {
                 let Done::Count(count) = result else { panic!("input write") };
