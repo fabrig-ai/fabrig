@@ -361,3 +361,143 @@ fn demo_end_diagnostics_reach_serves_named_notes() {
     }
     assert!(engine.notes.is_empty());
 }
+
+#[test]
+fn box_group_writes_start_with_its_kind() {
+    use temper_engine_domain_forge::BoxKind;
+    for (kind, line) in [(BoxKind::Owned, b"start 7 owned\n".as_slice()), (BoxKind::Fake, b"start 7 fake\n")] {
+        let mut service = super::fixtures::ready();
+        let engine = service.engine.as_mut().unwrap();
+        crate::route::request(engine, temper_engine_domain::Request::BoxGroup { forge: FORGE, kind, request: REQUEST });
+        assert_eq!(engine.box_link.write.take().as_deref(), Some(line));
+        let Some(temper_engine_domain::Event::Forge(event)) = engine.events.iter().last() else {
+            panic!("a group start answers its request")
+        };
+        assert_eq!(
+            **event,
+            temper_engine_domain_forge::Event::SetUpAnswered {
+                forge: FORGE,
+                request: REQUEST,
+                answer: temper_engine_domain_forge::SetUpAnswer::SettingUp,
+            }
+        );
+    }
+}
+
+#[test]
+fn remove_writes_remove_and_removed_answers_box_removed() {
+    let mut service = super::fixtures::ready();
+    let engine = service.engine.as_mut().unwrap();
+    engine.box_link = Link::new(LINE_BYTES, true);
+    crate::route::request(engine, temper_engine_domain::Request::BoxRemove { forge: FORGE });
+    assert_eq!(engine.box_link.write.take().as_deref(), Some(b"remove 7\n".as_slice()));
+    let mut out = Queue::with_capacity(OUTPUTS);
+    for (line, message) in [
+        (b"removed 8\n".as_slice(), b"box link: dropped removed for forge 8, not asked".as_slice()),
+        (b"started 7\n", b"box link: dropped started for forge 7, not asked"),
+        (b"stopped 7\n", b"box link: dropped stopped for forge 7, not asked"),
+    ] {
+        engine.box_link.read(line, &mut out);
+        tells(&mut out, &[named(message)]);
+    }
+    let before = engine.events.len();
+    engine.box_link.read(b"removed 7\n", &mut out);
+    crate::route::box_link::drain(engine, &mut out);
+    assert_eq!(engine.events.len(), before + 1);
+    let Some(temper_engine_domain::Event::Forge(event)) = engine.events.iter().last() else {
+        panic!("a completed removal reaches the forge")
+    };
+    assert_eq!(**event, temper_engine_domain_forge::Event::BoxRemoved { forge: FORGE });
+    engine.box_link.ask(FORGE, REQUEST, &mut out);
+    tells(&mut out, &accepted());
+}
+
+#[test]
+fn a_failed_remove_answers_nothing() {
+    let mut service = super::fixtures::ready();
+    let engine = service.engine.as_mut().unwrap();
+    engine.box_link = Link::new(LINE_BYTES, true);
+    crate::route::request(engine, temper_engine_domain::Request::BoxRemove { forge: FORGE });
+    engine.box_link.write.take().unwrap();
+    let before = engine.events.len();
+    let mut out = Queue::with_capacity(OUTPUTS);
+    engine.box_link.read(b"failed 7 remove exited 1\n", &mut out);
+    crate::route::box_link::drain(engine, &mut out);
+    assert_eq!(
+        engine.notes.pop(),
+        Some(crate::Note::BoxLink { line: b"box link: remove failed for forge 7: remove exited 1".as_slice().into() })
+    );
+    assert_eq!(engine.events.len(), before);
+    engine.box_link.ask(FORGE, REQUEST, &mut out);
+    tells(&mut out, &accepted());
+}
+
+#[test]
+fn a_remove_drops_a_held_start_of_its_forge() {
+    use temper_engine_domain_forge::BoxKind;
+    for same_forge in [false, true] {
+        let (mut link, mut out) = asked();
+        link.group(OTHER, BoxKind::Fake, OTHER_REQUEST, &mut out);
+        discard(&mut out);
+        let removed = if same_forge { OTHER } else { FORGE };
+        link.remove(removed, &mut out);
+        tells(&mut out, &[]);
+        link.read(b"started 7\n", &mut out);
+        let command = if same_forge { b"remove 8\n".as_slice() } else { b"remove 7\n" };
+        tells(&mut out, &[Out::Started { forge: FORGE }, Out::Write(command.into())]);
+        let reply = if same_forge { b"removed 8\n".as_slice() } else { b"removed 7\n" };
+        link.read(reply, &mut out);
+        if same_forge {
+            tells(&mut out, &[Out::Removed { forge: OTHER }]);
+        } else {
+            tells(&mut out, &[Out::Removed { forge: FORGE }, Out::Write(b"start 8 fake\n".as_slice().into())]);
+        }
+    }
+}
+
+#[test]
+fn a_held_box_group_keeps_its_kind_and_maps_start_replies() {
+    use temper_engine_domain_forge::BoxKind;
+    for (kind, command) in [(BoxKind::Owned, b"start 8 owned\n".as_slice()), (BoxKind::Fake, b"start 8 fake\n")] {
+        for ending in [b"started 8\n".as_slice(), b"failed 8 run exited 1\n"] {
+            let (mut link, mut out) = asked();
+            link.group(OTHER, kind, OTHER_REQUEST, &mut out);
+            tells(
+                &mut out,
+                &[
+                    Out::SettingUp { forge: OTHER, step: None },
+                    Out::Answered { forge: OTHER, request: OTHER_REQUEST, answer: Ok(()) },
+                ],
+            );
+            link.read(b"started 7\n", &mut out);
+            tells(&mut out, &[Out::Started { forge: FORGE }, Out::Write(command.into())]);
+            link.read(b"step 8 run\n", &mut out);
+            tells(&mut out, &[Out::SettingUp { forge: OTHER, step: Some(Step::Run) }]);
+            link.read(ending, &mut out);
+            let expected = if ending.starts_with(b"started") {
+                Out::Started { forge: OTHER }
+            } else {
+                Out::Failed { forge: OTHER, why: b"run exited 1".as_slice().into() }
+            };
+            tells(&mut out, &[expected]);
+        }
+    }
+}
+
+#[test]
+fn closing_the_pipe_drops_active_and_held_removes_without_answering_them() {
+    for active in [false, true] {
+        let mut link = Link::new(LINE_BYTES, true);
+        let mut out = Queue::with_capacity(OUTPUTS);
+        if !active {
+            link.ask(OTHER, OTHER_REQUEST, &mut out);
+        }
+        link.remove(FORGE, &mut out);
+        discard(&mut out);
+        link.closed(&mut out);
+        tells(&mut out, &[named(b"box link: the box closed the pipe"), Out::Closed]);
+        link.read(b"removed 7\nstarted 8\n", &mut out);
+        link.remove(FORGE, &mut out);
+        tells(&mut out, &[]);
+    }
+}
