@@ -1,9 +1,9 @@
 //! The run's data check is pure; the core world only tests routing.
-#![allow(
+#![expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,
     clippy::disallowed_methods,
-    reason = "small input tables are ordinary Rust tests"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::*;
 const TASK: u64 = 1;
