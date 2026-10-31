@@ -439,16 +439,15 @@ pub(super) fn untag(mut event: io::Event) -> io::Event {
 impl Clients {
     pub fn root_event(&mut self, value: &root::Event) -> Option<Token> {
         match value {
-            root::Event::StartBegin { .. } | root::Event::StartDone(_) => {
-                unreachable!("the start driver is not selected here")
-            }
             root::Event::Core(value) => translation::watcher(value),
             root::Event::WatchApplication { watcher, .. } => Some(*watcher),
             root::Event::Committed { number, .. } => {
                 self.committed(*number);
                 None
             }
-            root::Event::Link { .. }
+            root::Event::StartBegin { .. }
+            | root::Event::StartDone(_)
+            | root::Event::Link { .. }
             | root::Event::ResultRead { .. }
             | root::Event::Stop
             | root::Event::ReadApplication { .. }
@@ -555,9 +554,6 @@ fn ended(key: &root::Key) -> Option<u64> {
 impl Clients {
     pub fn not_ready(&mut self, value: root::Event) {
         let event = match value {
-            root::Event::StartBegin { .. } | root::Event::StartDone(_) => {
-                unreachable!("the start driver is not selected here")
-            }
             root::Event::Core(value) => translation::starting(value),
             root::Event::Application { reply_to, .. } => {
                 Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) })
@@ -568,7 +564,9 @@ impl Clients {
             root::Event::WatchApplication { watcher, .. } => {
                 Some(kit::Event::WatchRefused { watcher, why: core::WatchRefusal::Busy })
             }
-            root::Event::Link { .. }
+            root::Event::StartBegin { .. }
+            | root::Event::StartDone(_)
+            | root::Event::Link { .. }
             | root::Event::ResultRead { .. }
             | root::Event::Stop
             | root::Event::WriterRead { .. }

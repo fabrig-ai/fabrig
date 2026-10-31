@@ -3,15 +3,24 @@ use super::*;
 use crate::tests::fixtures;
 use skein_lib::{Duration, bytes};
 
+fn finish_start(service: &mut crate::Service) {
+    for _ in 0_u32..64 {
+        fixtures::turn(service);
+        if fixtures::engine(service).domain.ready() {
+            assert!(fixtures::engine(service).store.component.mark_durable());
+            return;
+        }
+    }
+    panic!("account fixture start completes before serving requests");
+}
+
 #[test]
 fn a_revoked_record_waits_for_erased_and_coalesces_a_sign_out() {
     for (notifications, expected_signed_out, removing) in
         [(&[][..], None, false), (&[true, true][..], Some(true), true), (&[false, false][..], Some(false), true)]
     {
         let mut service = fixtures::started(&fixtures::accounts_document());
-        for _ in 0_u32..8 {
-            fixtures::turn(&mut service);
-        }
+        finish_start(&mut service);
         let engine = fixtures::engine(&mut service);
         let mut accounts = engine.accounts.take().expect("accounts runtime");
         let mut events = Queue::with_capacity(16);
@@ -152,9 +161,7 @@ fn pump_accounts(accounts: &mut Accounts, engine: &mut crate::Engine) -> List<do
 #[test]
 fn llm_key_work_reaches_the_store_and_the_workers_table_through_the_service() {
     let mut service = fixtures::started(&fixtures::accounts_document());
-    for _ in 0_u32..8 {
-        fixtures::turn(&mut service);
-    }
+    finish_start(&mut service);
     let engine = fixtures::engine(&mut service);
     let mut accounts = engine.accounts.take().expect("accounts component");
     let carried = carry_llm_key(engine, b"first-llm-key");
@@ -180,9 +187,7 @@ fn llm_key_work_reaches_the_store_and_the_workers_table_through_the_service() {
 #[test]
 fn service_restart_restores_an_llm_key_before_want_and_sweeps_only_unnamed_sources() {
     let mut service = fixtures::started(&fixtures::accounts_document());
-    for _ in 0_u32..8 {
-        fixtures::turn(&mut service);
-    }
+    finish_start(&mut service);
     let engine = fixtures::engine(&mut service);
     let mut accounts = engine.accounts.take().expect("accounts component");
     let carried = carry_llm_key(engine, b"kept-llm-key");
@@ -255,9 +260,7 @@ fn has_llm_key_grant(heard: &List<domain::FromComponent>, wanted: u64) -> bool {
 #[test]
 fn aborting_does_not_submit_an_llm_key_adoption_to_the_closing_store() {
     let mut service = fixtures::started(&fixtures::accounts_document());
-    for _ in 0_u32..8 {
-        fixtures::turn(&mut service);
-    }
+    finish_start(&mut service);
     let engine = fixtures::engine(&mut service);
     let mut accounts = engine.accounts.take().expect("accounts component");
     let carried = carry_llm_key(engine, b"aborted-llm-key");
@@ -285,9 +288,7 @@ fn aborting_does_not_submit_an_llm_key_adoption_to_the_closing_store() {
 fn restarted_signed_in_source(want: bool) -> (crate::Service, Accounts) {
     use jig_protocol_accounts_world::{fixtures as account_fixtures, world::Story};
     let mut service = fixtures::started(&fixtures::accounts_document());
-    for _ in 0_u32..8 {
-        fixtures::turn(&mut service);
-    }
+    finish_start(&mut service);
     let engine = fixtures::engine(&mut service);
     let limits = engine.accounts.as_ref().expect("accounts component").env.limits;
     let mut saved = account_fixtures::kept();
@@ -434,9 +435,7 @@ fn a_restored_sources_wrong_kind_stops_the_engine() {
         (domain::Kind::SignIn, store::SecretValue::Key(Secret::new(Box::from(b"key".as_slice())))),
     ] {
         let mut service = fixtures::started(&fixtures::accounts_document());
-        for _ in 0_u32..8 {
-            fixtures::turn(&mut service);
-        }
+        finish_start(&mut service);
         let engine = fixtures::engine(&mut service);
         let mut accounts = engine.accounts.take().expect("accounts runtime");
         engine

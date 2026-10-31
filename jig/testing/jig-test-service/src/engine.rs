@@ -309,7 +309,7 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     }
     if engine.begin {
         engine.begin = false;
-        engine.step(root::Event::RestartBegin { pending: engine.store.pending });
+        engine.step(root::Event::StartBegin { pending: engine.store.pending });
     } else if !engine.blocked && !engine.held.is_empty() {
         // A refused retry remains ahead of every younger held remainder.
         let mut younger = ::core::mem::replace(&mut engine.held, Queue::uncapped());
@@ -397,6 +397,7 @@ fn release(engine: &mut Engine) {
         } else {
             empty = 0;
         }
+        route::count_restart_reads(engine);
         for _ in 0..engine.requests.len() {
             let request = engine.requests.pop().expect("bounded root output");
             route::request(engine, request);

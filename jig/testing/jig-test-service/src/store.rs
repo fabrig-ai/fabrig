@@ -101,13 +101,11 @@ impl Store {
         let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let [store, secrets, transcripts] = &mut drivers;
         let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], seed);
+        let mut component =
+            protocol::Store::on_directory(limits, jig_test_store::application(&application.connector), models, seeded);
+        component.start_restore();
         Self {
-            component: protocol::Store::on_directory(
-                limits,
-                jig_test_store::application(&application.connector),
-                models,
-                seeded,
-            ),
+            component,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
             routes,
             above: Queue::uncapped(),
@@ -486,9 +484,6 @@ pub(super) fn answer(engine: &mut crate::Engine) {
     for _ in 0..engine.store.above.len() {
         let event = engine.store.above.pop().expect("store terminals");
         match event {
-            protocol::Event::Page { .. } | protocol::Event::PageRefused { .. } => {
-                unreachable!("a start's pages need a start-mode store")
-            }
             protocol::Event::Opened { installation, pending, .. } => {
                 engine.store.installation = installation;
                 engine.store.pending = pending;
@@ -500,7 +495,24 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             }
             // This shell prints no per-open progress lines.
             protocol::Event::Patched { .. } => {}
-            protocol::Event::OpenRefused { .. } => crate::stop::unavailable(engine, b"deployment"),
+            protocol::Event::OpenRefused { why, .. } => {
+                let failure = engine
+                    .store
+                    .component
+                    .start_open_failure()
+                    .cloned()
+                    .unwrap_or(protocol::restore::OpenFailure::Refused(why));
+                engine.end = Some(crate::End::Stopped(crate::Stop::StoreOpen {
+                    phase: engine.domain.core_mut().start_phase(),
+                    failure,
+                }));
+            }
+            protocol::Event::PageRefused { failure, .. } => {
+                engine.end = Some(crate::End::Stopped(crate::Stop::StorePage {
+                    phase: engine.domain.core_mut().start_phase(),
+                    failure,
+                }));
+            }
             event @ (protocol::Event::SecretsNotReady { owner }
             | protocol::Event::Kept { owner }
             | protocol::Event::Stale { owner }
@@ -514,28 +526,46 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                     engine.store.secrets.push(event);
                 }
             }
+            protocol::Event::Restored { .. } | protocol::Event::Corrupt { .. } => {
+                unreachable!("the service opens its store in start mode")
+            }
             // This shell never hands patch sets; routing answers Site with NoSite.
-            other @ (protocol::Event::Site { .. }
+            other @ (protocol::Event::Page { .. }
+            | protocol::Event::Site { .. }
             | protocol::Event::Committed { .. }
             | protocol::Event::Failed { .. }
             | protocol::Event::FrameTooLarge { .. }
-            | protocol::Event::Restored { .. }
             | protocol::Event::Loaded { .. }
             | protocol::Event::Read { .. }
             | protocol::Event::Got { .. }
             | protocol::Event::Turns { .. }
-            | protocol::Event::Unread { .. }
-            | protocol::Event::Corrupt { .. }) => route::up(&mut engine.store.routes, other, &mut engine.store.routed),
+            | protocol::Event::Unread { .. }) => route::up(&mut engine.store.routes, other, &mut engine.store.routed),
+        }
+        if engine.end.is_some() {
+            return;
         }
     }
+    answer_routed(engine);
+}
+
+fn answer_routed(engine: &mut crate::Engine) {
     for _ in 0..engine.store.routed.len() {
         let up = engine.store.routed.pop().expect("store routing");
+        // A sweep erase and its held continuation must finish before the next
+        // row or page. Commit terminals still pass the paused walk.
+        if engine.domain.core_mut().start_phase() == Some(jig_domain_core::start::Phase::Sweep)
+            && !engine.domain.quiescent()
+            && match &up {
+                Up::Root(root::Event::Committed { .. } | root::Event::Failed { .. }) => false,
+                Up::Restore(_) | Up::Ask(_) | Up::Root(_) => true,
+            }
+        {
+            engine.store.routed.push(up);
+            continue;
+        }
         match up {
             Up::Root(root::Event::Failed { number }) => crate::stop::failed(engine, number),
-            Up::Root(
-                event @ (root::Event::RestartDone(_)
-                | root::Event::Core(jig_domain_core::Event::People(jig_domain_people::Event::Restored))),
-            ) => engine.events.push(event),
+            Up::Root(event @ root::Event::StartDone(_)) => engine.events.push(event),
             Up::Root(event) => {
                 engine.blocked = false;
                 engine.step(event);
@@ -545,11 +575,12 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                     engine.first_periods.truncate(0);
                 }
                 engine.root_steps = engine.root_steps.wrapping_add(1);
-                if !root::restore_record(&mut engine.domain, &engine.env, row) {
-                    crate::stop::invalid_restore(engine);
-                }
+                root::start_record(&mut engine.domain, &engine.env, row);
             }
             Up::Ask(request) => engine.store.ask(request),
+        }
+        if engine.domain.start_failure().is_some() {
+            crate::stop::invalid_restore(engine);
         }
         if engine.end.is_some() {
             break;
