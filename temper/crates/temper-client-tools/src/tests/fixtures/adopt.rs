@@ -221,7 +221,7 @@ pub(crate) fn branch_part_read() -> (Harness, u32, c::Task, Box<[u8]>) {
     for word in [b"forge".as_slice(), b"example.com", b"o", b"n", b"branch", &segment, &segment] {
         path.push(Box::from(word)).expect("bounded branch path");
     }
-    let resource = task.resources.get_mut(EMPTY).expect("one resource") else { panic!("owner resource") };
+    let resource = task.resources.get_mut(EMPTY).expect("one resource");
     resource.part.key = c::OwnerPartKey::Path(path);
     let length = segment.len().checked_mul(2).expect("two segments").checked_add(1).expect("separator");
     let mut expected = skein_lib::Writer::new(length);

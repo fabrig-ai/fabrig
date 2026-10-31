@@ -868,7 +868,7 @@ fn asked_resources_have_a_meta_row_only_when_there_are_parts() {
     let mut found = false;
     for node in subtree(&tree, meta) {
         for run in &node.text {
-            found |= run.text.as_ref() == b"Shown on the forge.";
+            found |= run.text.as_ref() == b"acme/shop on forge.example";
         }
     }
     assert!(found);
@@ -1328,10 +1328,8 @@ fn a_rows_spend_is_its_supplied_spent() {
     assert_eq!(parts.as_slice().last(), Some(&spend));
     assert_eq!(tree.nodes()[parts.as_slice()[2]].role, Role::Status);
     let mut row = row();
-    *row.chip.details = f::document().chip.details.as_ref().clone();
-    for node in plan_with_row(row).nodes() {
-        assert!(!node.styles.as_slice().contains(&look::PLAN_SPEND));
-    }
+    row.chip.details.details.budget.numbers.spent = 0;
+    assert!(fixtures::find(&plan_with_row(row), Role::Paragraph, b"0 spent").is_some());
 }
 fn dependency_row() -> c::OwnerTreeRow {
     let mut row = row();
@@ -1612,7 +1610,8 @@ fn the_plan_omits_the_goal_and_its_hold_and_keep_its_folds() {
             held_below: 0,
         })
         .expect("root fold");
-    for delivery in [owner] {
+    {
+        let delivery = owner;
         let mut builder = Builder::new(&fixtures::tree_limits());
         crate::pages::task::plan(
             &mut builder,

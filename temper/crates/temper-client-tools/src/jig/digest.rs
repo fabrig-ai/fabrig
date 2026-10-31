@@ -41,6 +41,7 @@ pub(crate) fn inbox(delivery: &jig_client::contract::Delivery) -> Part<'_> {
         | Delivery::Tasks(_)
         | Delivery::Task(_)
         | Delivery::OwnerTree(_)
+        | Delivery::Run(_)
         | Delivery::RunState(_)
         | Delivery::OwnerProject(_)
         | Delivery::OwnerProposal(_)

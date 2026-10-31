@@ -1,4 +1,5 @@
 //! Owner document fixtures for Temper's client consumers.
+//! See temper/docs/design/client/README.md, 10.
 use jig_client::contract as c;
 use skein_lib::{List, Wall};
 

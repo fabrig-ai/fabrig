@@ -571,9 +571,7 @@ fn chat_cards_are_items_of_the_cards_list_after_the_log() {
     assert!(named_position(tree.nodes(), Role::Log, None).expect("log") < cards);
 }
 
-pub(super) fn structured_thread() -> Thread {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 128 });
-    thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+fn structured_messages() -> List<c::Message> {
     let mut messages = List::with_capacity(4);
     for speaker in [c::Speaker::Person, c::Speaker::Assistant, c::Speaker::Tool, c::Speaker::System] {
         let mut blocks = List::with_capacity(2);
@@ -597,13 +595,19 @@ pub(super) fn structured_thread() -> Thread {
             .expect("result");
         messages.push(c::Message { speaker, blocks }).expect("message");
     }
+    messages
+}
+pub(super) fn structured_thread() -> Thread {
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 128 });
+    thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    let messages = structured_messages();
     let mut rows = List::with_capacity(5);
     for (position, event) in [
         (
             5,
             crate::tests::documents::line(
                 1,
-                skein_lib::Wall::EPOCH,
+                Wall::EPOCH,
                 jig_client::contract::OwnerActivity::RunEnded {
                     attempt: ATTEMPT,
                     end: jig_client::contract::OwnerRunEnd::Finished,
@@ -615,7 +619,7 @@ pub(super) fn structured_thread() -> Thread {
             4,
             crate::tests::documents::turn(
                 1,
-                skein_lib::Wall::EPOCH,
+                Wall::EPOCH,
                 c::TurnName { attempt: ATTEMPT, number: 1 },
                 c::TurnRead::Decoded(c::Turn {
                     messages,
@@ -630,7 +634,7 @@ pub(super) fn structured_thread() -> Thread {
             3,
             crate::tests::documents::line(
                 1,
-                skein_lib::Wall::EPOCH,
+                Wall::EPOCH,
                 jig_client::contract::OwnerActivity::Words {
                     message: 1,
                     by: jig_client::contract::OwnerRequester::Person(
@@ -650,7 +654,7 @@ pub(super) fn structured_thread() -> Thread {
             2,
             crate::tests::documents::line(
                 1,
-                skein_lib::Wall::EPOCH,
+                Wall::EPOCH,
                 jig_client::contract::OwnerActivity::RunBegan {
                     attempt: ATTEMPT,
                     why: jig_client::contract::OwnerRunWhy::Made,
@@ -1265,7 +1269,8 @@ fn result_view_at(result: c::TaskResult, at: Option<Wall>) -> crate::View {
     // Keep Message offered: the same result which draws the end must suppress the whole foot.
     task.requester = c::OwnerRequester::Person(PARTY);
     task.result = Some(result);
-    if let c::ChipPhase { details, .. } = task.chip.details.as_mut() {
+    {
+        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
         details.ended_at = at;
     }
     fixtures::root_event(
@@ -1506,7 +1511,7 @@ fn timed_thread(events: &[(u64, jig_client::contract::ActivityLine)]) -> Thread 
 fn timed_words() -> jig_client::contract::ActivityLine {
     crate::tests::documents::line(
         1,
-        skein_lib::Wall::EPOCH,
+        Wall::EPOCH,
         jig_client::contract::OwnerActivity::Words {
             message: MESSAGE,
             by: jig_client::contract::OwnerRequester::Person(
@@ -1569,7 +1574,7 @@ fn timed_style_positions(tree: &skein_ui::Tree, style: skein_ui::Style) -> List<
 fn turn_clocks_follow_separately_named_speakers_on_both_paths() {
     let thread = timed_thread(&[(TURN_NOON, timed_words()), (TURN_NOON + 60, timed_turn())]);
     for projected in [true, false] {
-        for (person, label) in [(Some(PARTY), b"You".as_slice()), (None, b"Pat".as_slice())] {
+        for (person, label) in [(Some(PARTY), b"You".as_slice()), (None, b"Person".as_slice())] {
             let (tree, _) = timed_tree(&thread, timed_drawing(projected), person, TURN_NOON);
             let roles = timed_style_positions(&tree, crate::look::WHO);
             for (index, (name, clock)) in roles.iter().zip([(label, b"12:00"), (b"Temper".as_slice(), b"12:01")]) {
@@ -1608,7 +1613,7 @@ fn pending_words_and_provisional_text_have_no_clock_or_day() {
 fn the_request_uses_the_first_timed_line_and_shares_its_day() {
     let began = crate::tests::documents::line(
         1,
-        skein_lib::Wall::EPOCH,
+        Wall::EPOCH,
         jig_client::contract::OwnerActivity::RunBegan {
             attempt: ATTEMPT,
             why: jig_client::contract::OwnerRunWhy::Made,
@@ -1682,7 +1687,7 @@ fn an_undecodable_turn_keeps_its_clock_and_day_on_both_paths() {
         TURN_NOON,
         crate::tests::documents::turn(
             1,
-            skein_lib::Wall::EPOCH,
+            Wall::EPOCH,
             c::TurnName { attempt: ATTEMPT, number: TURN },
             c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
         ),

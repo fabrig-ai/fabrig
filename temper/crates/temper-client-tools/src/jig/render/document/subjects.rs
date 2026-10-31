@@ -34,9 +34,10 @@ pub(crate) fn encode_as(
 
         Part::OwnerTree(value) => super::encode_owner_tree(value, out, &mut cut),
 
+        Part::Run(value) => super::encode_run_text(value, out, &mut cut),
         Part::RunState(value) => super::encode_run_state(value, out, &mut cut),
         Part::OwnerInbox(_) | Part::OwnerInboxPage(_) | Part::Tasks(_) | Part::TaskPage(_) => {
-            rows(part, limits, out, &mut cut)
+            rows(part, limits, out, &mut cut);
         }
     }
 }
@@ -68,7 +69,7 @@ fn rows(part: &Part<'_>, limits: &Limits, out: &mut Encoder, cut: &mut Cut) {
                 super::encode_task_line(row, out, cut);
             }
         }
-        Part::Me(_) | Part::Task(_) | Part::OwnerTree(_) | Part::RunState(_) => {
+        Part::Me(_) | Part::Task(_) | Part::OwnerTree(_) | Part::Run(_) | Part::RunState(_) => {
             unreachable!("list subject")
         }
     }

@@ -1,6 +1,7 @@
 //! Mockup documents, answered through the same windows as the engine.
 //! First-run records follow temper/docs/design/draft/playground-reset.md, 3 and 6.
 #[path = "../../../testing/client_documents.rs"]
+#[expect(dead_code, reason = "shared document fixtures also supply the other client suites")]
 mod documents;
 mod github;
 use crate::driver::{answer, deliver, limits, step};

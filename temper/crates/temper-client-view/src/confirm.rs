@@ -167,7 +167,6 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
                 dangerous: jig_client::facts::dangerous(ActKind::Cancel),
                 effect: jig_client::facts::effect(task.acts.as_slice(), ActKind::Cancel).copied(),
                 funding: skein_lib::List::with_capacity(0),
-                funds: None,
             };
             for fact in &jig_client::words::decision(&facts, &words.book, words.language) {
                 crate::cards::text(b, Role::Paragraph, fact);

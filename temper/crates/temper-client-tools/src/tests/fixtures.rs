@@ -356,6 +356,7 @@ pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
     task.chip.phase = c::Phase::Running;
     task.priority = Some(2);
     task.project = PROJECT;
+    task.chip.details.details.project = PROJECT;
     task.requester = c::OwnerRequester::Person(PARTY);
     task.spec.specification.words = document_text(b"Add a /health endpoint that reports the store's state");
     task.budget.numbers.spent = 120;

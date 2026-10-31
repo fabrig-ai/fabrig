@@ -121,9 +121,7 @@ pub(crate) fn holds(
 pub(crate) fn tree_at(chip: c::Chip) -> client::Latest {
     owner_tree_at(chip)
 }
-pub(crate) fn phase_counts() -> c::PhaseCounts {
-    c::PhaseCounts { ended: 0, running: 0, waiting: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 }
-}
+
 pub(crate) fn owner_tree_at(chip: c::Chip) -> client::Latest {
     client::Latest::Jig(c::Delivery::OwnerTree(Box::new(c::OwnerTree {
         root: chip,
@@ -319,6 +317,7 @@ pub(crate) fn changed_delivery(mut delivery: c::Delivery) -> c::Delivery {
         | c::Delivery::OwnerProposal(_)
         | c::Delivery::Chips(_)
         | c::Delivery::OwnerDeployment(_)
+        | c::Delivery::Run(_)
         | c::Delivery::OwnerAccounts(_) => panic!("fixture subject"),
     }
     delivery

@@ -358,7 +358,7 @@ pub fn inbox_entries(root: &mut crate::Domain, watch: Token, rows: List<contract
 }
 pub fn inbox_entry(
     object: contract::ObjectKey,
-    group: contract::InboxGroup,
+    _group: contract::InboxGroup,
     project: u32,
     position: u64,
 ) -> contract::OwnerInboxEntry {

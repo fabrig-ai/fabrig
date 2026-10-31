@@ -62,7 +62,7 @@ fn a_proposable_act_prints_to_whom() {
             to: 9,
         }),
     );
-    assert_eq!(root.answer(call).expect("proposed").stdout.as_ref(), b"proposed: p73/17, to party 91\n");
+    assert_eq!(root.answer(call).expect("proposed").stdout.as_ref(), b"proposed: p73/17, to role 9 in project 1\n");
 }
 #[test]
 fn chat_checks_both_sides_of_its_bounds() {
@@ -129,13 +129,13 @@ fn each_kept_request_prints_its_operation_without_keys() {
         (
             fixtures::restored_message(fixtures::PARTY),
             true,
-            b"{\"operation\":\"message\",\"outcome\":{\"done\":\"changed\"}}\n".as_slice(),
+            b"{\"operation\":\"message\",\"outcome\":{\"done\":{\"owner\":{\"amended\":{\"task\":9}}}}}\n".as_slice(),
         ),
         (fixtures::kept(fixtures::RESTORED_PREFIX), false, b"kept: stop, done: task 41, stop\n".as_slice()),
         (
             fixtures::kept(fixtures::RESTORED_PREFIX),
             true,
-            b"{\"operation\":\"stop\",\"outcome\":{\"done\":\"changed\"}}\n".as_slice(),
+            b"{\"operation\":\"stop\",\"outcome\":{\"done\":{\"owner\":{\"amended\":{\"task\":9}}}}}\n".as_slice(),
         ),
     ] {
         let mut root = fixtures::started_with(records, fixtures::SEED, json);
@@ -432,15 +432,15 @@ fn an_owner_proposal_uses_the_returned_role_in_the_original_request_project() {
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "ordinary test checks rendered bytes; testing-strategy.md, step tests")]
-fn a_restored_owner_proposals_kept_output_retains_identity_and_omits_original_recipient() {
+fn a_restored_owner_proposals_kept_output_retains_its_supplied_facts() {
     for json in [false, true] {
         let mut root = fixtures::started_with(fixtures::restored_chat(), fixtures::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
         root.done(fixtures::EMPTY, c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: 17, to: 9 }));
         let line = root.kept_lines.get(0).expect("kept line");
         if json {
-            assert!(line.windows(b"\"number\":17".len()).any(|piece| piece == b"\"number\":17"));
-            assert!(!line.windows(b"\"to\"".len()).any(|piece| piece == b"\"to\""));
+            assert!(line.windows(b"\"proposal\":17".len()).any(|piece| piece == b"\"proposal\":17"));
+            assert!(line.windows(b"\"to\":9".len()).any(|piece| piece == b"\"to\":9"));
         } else {
             assert_eq!(line.as_ref(), b"kept: chat, proposed: p73/17\n");
         }
@@ -568,7 +568,6 @@ fn a_cut_question_is_answered_as_any_other() {
     };
     question.words.cut = true;
     root.serve(call, c::ReadResult::Value(c::ReadValue::Question(question)));
-    root.serve(call, fixtures::task_result(fixtures::offered(&[c::ActKind::Answer])));
     let (_, _, ask) = root.sends.get(&call).expect("answer sent despite cut words");
     assert_eq!(
         ask,

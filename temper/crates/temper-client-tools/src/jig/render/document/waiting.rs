@@ -66,6 +66,7 @@ pub(super) fn text(
                 }
             }
 
+            c::Delivery::Run(_) => super::super::activity::run(delivery, None, out),
             c::Delivery::RunState(run) => super::super::activity::run(delivery, run.writing.as_ref(), out),
             c::Delivery::OwnerProject(_)
             | c::Delivery::OwnerProposal(_)
@@ -86,6 +87,7 @@ pub(super) fn text(
             Part::Me(_)
             | Part::Task(_)
             | Part::OwnerTree(_)
+            | Part::Run(_)
             | Part::RunState(_)
             | Part::OwnerInboxPage(_)
             | Part::TaskPage(_) => false,

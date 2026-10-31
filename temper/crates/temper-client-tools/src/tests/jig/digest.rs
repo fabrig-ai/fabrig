@@ -93,10 +93,10 @@ fn an_inbox_read_cut_before_updates_digests_the_watchs_first_window() {
     let expected = digest::part(&Part::OwnerInbox(&watched), &fixtures::limits()).hex();
     assert!(skein_lib::bytes::find(&printed.stdout, &expected).is_some());
     assert_eq!(
-        fixtures::occurrences(&printed.stdout, b"\"group\":\"questions\""),
+        fixtures::occurrences(&printed.stdout, br#""question":{"message":2}"#),
         usize::try_from(fixtures::SHORT_WINDOW).expect("row count fits")
     );
-    assert!(skein_lib::bytes::find(&printed.stdout, b"\"group\":\"results\"").is_none());
+    assert!(skein_lib::bytes::find(&printed.stdout, br#""result":{"position"#).is_none());
     assert!(skein_lib::bytes::find(&printed.stdout, b"inbox --after 01").is_some());
 }
 #[test]
@@ -238,9 +238,9 @@ fn an_owner_rows_raw_identity_moves_its_digest() {
 fn inbox_watch_counts_stay_outside_the_digest() {
     let (mut page, mut watched) = fixtures::inbox_first_window(fixtures::OVER_WINDOW);
     let before = digest::part(&Part::OwnerInbox(&watched), &fixtures::limits());
-    watched.needs.proposals = fixtures::FULL_WINDOW;
-    watched.updates.value = fixtures::FULL_WINDOW;
-    watched.updates.limited = true;
+    watched.cached_needs = fixtures::FULL_WINDOW;
+    watched.cached_updates.value = fixtures::FULL_WINDOW;
+    watched.cached_updates.limited = true;
     watched.results_seen = fixtures::OTHER_TASK;
     page.before = Some(fixtures::cursor());
     page.after = Some(

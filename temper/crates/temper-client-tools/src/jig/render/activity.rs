@@ -56,7 +56,7 @@ fn line(row: &c::ActivityLine, task: u64, call: &Call, limits: &Limits, out: &mu
     }
 }
 fn owner(row: &c::OwnerActivityLine, out: &mut Text) {
-    out.number(row.source.position);
+    out.number(row.position);
     out.put(b" \xc2\xb7 ");
     match &row.line {
         c::OwnerActivity::Words { words, .. } => out.words(words.bytes()),
@@ -109,16 +109,7 @@ pub(super) fn chat(thread: &Thread, call: &Call, limits: &Limits, out: &mut Text
                 out.words(text);
                 out.put(b"\n");
             }
-            Line::RunBegan { attempt } => {
-                out.put(b"run ");
-                out.number(attempt);
-                out.put(b" began\n");
-            }
-            Line::RunEnded { attempt } => {
-                out.put(b"run ");
-                out.number(attempt);
-                out.put(b" ended\n");
-            }
+
             Line::Activity { line: row } => line(row, thread.task, call, limits, out),
             Line::Left { lines } => {
                 out.number(u64::from(lines));
@@ -137,6 +128,10 @@ pub(super) fn chat(thread: &Thread, call: &Call, limits: &Limits, out: &mut Text
 pub(super) fn run(delivery: &c::Delivery, text: Option<&c::RunText>, out: &mut Text) {
     out.put(b"run: ");
     match delivery {
+        c::Delivery::Run(run) => {
+            out.number(run.attempt);
+            out.put(b"\n");
+        }
         c::Delivery::RunState(run) => {
             match run.attempt {
                 Some(attempt) => out.number(attempt),

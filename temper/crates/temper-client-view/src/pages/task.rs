@@ -757,11 +757,7 @@ impl<'a> Plan<'a> {
             Some(_) | None => None,
         };
         let goal = if word == Word::Plan && page.ended.is_some() {
-            let mut live = 0;
-            {
-                let c::ChipPhase { details, .. } = task.chip.details.as_ref();
-                live = details.live_delegates;
-            }
+            let live = task.chip.details.details.live_delegates;
             Some((page.filter, live))
         } else {
             None
@@ -861,7 +857,21 @@ pub(crate) fn plan(
             has_tree_content |= folded(b, &[], tree.held_below, words);
         }
 
-        None => {}
+        Some(
+            c::Delivery::Settings(_)
+            | c::Delivery::OwnerProject(_)
+            | c::Delivery::Me(_)
+            | c::Delivery::Task(_)
+            | c::Delivery::OwnerProposal(_)
+            | c::Delivery::Chips(_)
+            | c::Delivery::OwnerInbox(_)
+            | c::Delivery::Tasks(_)
+            | c::Delivery::RunState(_)
+            | c::Delivery::Run(_)
+            | c::Delivery::OwnerDeployment(_)
+            | c::Delivery::OwnerAccounts(_),
+        )
+        | None => {}
     }
     has_tree_content |= ended_rows.before(b, None, root, words, bindings, rows);
     b.close();
@@ -906,7 +916,21 @@ impl<'a> EndedRows<'a> {
                 }
             }
 
-            None => {}
+            Some(
+                c::Delivery::Settings(_)
+                | c::Delivery::OwnerProject(_)
+                | c::Delivery::Me(_)
+                | c::Delivery::Task(_)
+                | c::Delivery::OwnerProposal(_)
+                | c::Delivery::Chips(_)
+                | c::Delivery::OwnerInbox(_)
+                | c::Delivery::Tasks(_)
+                | c::Delivery::RunState(_)
+                | c::Delivery::Run(_)
+                | c::Delivery::OwnerDeployment(_)
+                | c::Delivery::OwnerAccounts(_),
+            )
+            | None => {}
         }
         result
     }
@@ -1050,7 +1074,7 @@ pub(crate) fn controls(
     }
 }
 fn owner_folds(b: &mut Builder, tree: &c::OwnerTree, parent: u64, words: &Words) -> bool {
-    use c::Phase as P;
+    use jig_client::contract::Phase as P;
     let mut shown = false;
     for fold in &tree.folded {
         if fold.parent == parent {
@@ -1076,24 +1100,7 @@ fn owner_folds(b: &mut Builder, tree: &c::OwnerTree, parent: u64, words: &Words)
     }
     shown
 }
-fn counts(b: &mut Builder, f: c::PhaseCounts, held: u32, words: &Words) -> bool {
-    use c::Phase as P;
-    folded(
-        b,
-        &[
-            (P::Ended, f.ended),
-            (P::Waiting, f.waiting),
-            (P::Running, f.running),
-            (P::Held, f.held),
-            (P::Closing, f.closing),
-            (P::Done, f.done),
-            (P::Failed, f.failed),
-            (P::Cancelled, f.cancelled),
-        ],
-        held,
-        words,
-    )
-}
+
 pub(crate) fn latest(b: &mut Builder, page: Option<&c::ActivityPage>, words: &Words, bindings: &mut Bindings) {
     region(b, Word::Latest, words);
     b.style(look::TASK_CARD);

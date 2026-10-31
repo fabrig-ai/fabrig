@@ -177,7 +177,8 @@ pub fn activity(dark: bool, landed: bool, turn_text: u32) -> c::ActivityPage {
     rows.push(owner(task, 2, c::OwnerActivity::RunBegan { attempt, why: c::OwnerRunWhy::Made, resumed: false }))
         .expect("began");
     rows.push(owner(task, 1, c::OwnerActivity::Milestone { position: 1 })).expect("initial milestone");
-    for row in rows.as_mut_slice() {
+    for index in 0..rows.len() {
+        let row = rows.get_mut(index).expect("bounded activity");
         row.source.task = task;
         if let Some(decoded) = &mut row.decoded {
             decoded.task = task;

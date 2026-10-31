@@ -33,6 +33,9 @@ pub(super) fn text(
                 | c::ReadValue::Revisions(_)),
             )) => super::settings::text(value, crate::jig::call::number(call, 0), limits, out),
 
+            Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::OwnerProposal(_))) => {
+                super::proposal::text(value, reading, limits, out);
+            }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
                 super::task_text(task, me, book, vocabulary, out);
                 vocabulary.task_next(task, out);
@@ -128,6 +131,9 @@ pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budg
                 | c::ReadValue::Revisions(_)),
             )) => super::settings::encode(value, out),
 
+            Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::OwnerProposal(_))) => {
+                super::proposal::encode(value, reading, out, budget);
+            }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
                 if compound {
                     out.key(b"task");
@@ -207,7 +213,7 @@ fn encode_documents(reading: &Reading, limits: &Limits, compound: bool, out: &mu
             c::Delivery::OwnerTree(tree) => {
                 super::subjects::encode(&super::super::Part::OwnerTree(tree), limits, true, out);
             }
-            c::Delivery::RunState(_) => {
+            c::Delivery::Run(_) | c::Delivery::RunState(_) => {
                 super::subjects::encode(
                     &super::super::Part::delivery(document).expect("run form"),
                     limits,

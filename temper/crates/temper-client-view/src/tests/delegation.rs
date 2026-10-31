@@ -240,7 +240,7 @@ fn activity(called: &[u64], heard: bool) -> c::ActivityPage {
         rows.push({
             let mut line = crate::tests::documents::result(
                 1,
-                skein_lib::Wall::EPOCH,
+                Wall::EPOCH,
                 c::Result {
                     task: task.chip,
                     ending: c::Ending::Done,
@@ -387,7 +387,10 @@ fn a_live_delegate_without_its_document_shows_nothing_after_the_conversation() {
     assert_eq!(change_cards(&view), 0);
     let last = last_turn(&view);
     assert_eq!(last[1].role, Role::Paragraph);
-    assert_eq!(last[1].name.as_deref(), Some(LATER), "the last region is still the conversation's line");
+    assert!(
+        skein_lib::bytes::find(&fixtures::nodes_text(last), LATER).is_some(),
+        "the last region is still the conversation's line"
+    );
 }
 #[test]
 fn a_running_change_shows_its_card_at_its_call() {
@@ -770,9 +773,7 @@ fn csv_chat_hears_its_result(turn_text: u32) {
     for line in &activity.rows {
         if line.source.position <= 6 {
             let mut line = line.clone();
-            if let c::ActivityLine { source, .. } = line
-                && let c::OwnerActivity::Heard(word) = &mut source.line
-            {
+            if let c::OwnerActivity::Heard(word) = &mut line.source.line {
                 word.words = run::text(b"1d0b14e4db018fed000000000000000300000000");
             }
             rows.push(line).expect("before resumed turn");

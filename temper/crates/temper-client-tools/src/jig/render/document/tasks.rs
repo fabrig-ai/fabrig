@@ -265,13 +265,6 @@ pub(super) fn encode_task_context(
     budget: &mut super::Cut,
 ) {
     out.object_start();
-    out.key(b"escalation");
-    match &value.escalation {
-        Some(item_1) => {
-            super::encode_escalation(item_1, out, budget);
-        }
-        None => out.null(),
-    }
     out.key(b"parts");
     out.array_start();
     for item_2 in &value.parts {

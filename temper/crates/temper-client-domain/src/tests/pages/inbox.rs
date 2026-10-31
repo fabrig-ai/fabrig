@@ -150,7 +150,7 @@ fn a_filter_by_goal_shows_only_entries_below_it() {
     );
     assert_eq!(root.pages().inbox().expect("home").cards.len(), 0, "owner membership comes from the filtered query");
     let handle = root.pages().inbox().expect("home").queries[0];
-    let page = jig_client::contract::OwnerInboxPage {
+    let page = contract::OwnerInboxPage {
         cut: false,
         rows: rows(ObjectKey::PersonTask(BELOW_TASK), InboxGroup::PersonTasks, PROJECT),
         before: None,
@@ -386,7 +386,7 @@ fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
                     after: None,
                 }))
             } else {
-                contract::ReadValue::OwnerInbox(Box::new(jig_client::contract::OwnerInboxPage {
+                contract::ReadValue::OwnerInbox(Box::new(contract::OwnerInboxPage {
                     cut: index == 1,
                     rows: List::with_capacity(0),
                     before: None,

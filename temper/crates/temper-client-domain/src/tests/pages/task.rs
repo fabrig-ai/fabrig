@@ -624,7 +624,7 @@ fn a_runs_heading_follows_its_chips_phase() {
     }
     let mut task = agent_document();
     task.chip.details.phase = c::OwnerChipPhase::Active(c::RunStage::Preparing);
-    assert_eq!(run(&task), None);
+    assert_eq!(run(&task), Some(Run::NoRun));
 }
 #[test]
 fn an_ended_tasks_historical_document_keeps_its_result() {

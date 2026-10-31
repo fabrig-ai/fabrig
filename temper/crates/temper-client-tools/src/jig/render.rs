@@ -25,6 +25,7 @@ pub enum Part<'a> {
     TaskPage(&'a contract::TaskPage),
     Task(&'a contract::Task),
     OwnerTree(&'a contract::OwnerTree),
+    Run(&'a contract::RunText),
     RunState(&'a contract::RunState),
 }
 impl<'a> Part<'a> {
@@ -66,6 +67,7 @@ impl<'a> Part<'a> {
 
             Delivery::OwnerTree(value) => Some(Self::OwnerTree(value)),
 
+            Delivery::Run(value) => Some(Self::Run(value)),
             Delivery::RunState(value) => Some(Self::RunState(value)),
             Delivery::OwnerProject(_)
             | Delivery::OwnerProposal(_)
@@ -143,7 +145,7 @@ impl Part<'_> {
             Self::TaskPage(value) => value.live.len(),
 
             Self::OwnerTree(value) => value.rows.len(),
-            Self::Me(_) | Self::Task(_) | Self::RunState(_) => 1,
+            Self::Me(_) | Self::Task(_) | Self::Run(_) | Self::RunState(_) => 1,
         };
         usize::try_from(rows).expect("row count fits")
     }
@@ -156,7 +158,7 @@ impl Part<'_> {
             Self::Tasks(value) => value.more,
             Self::TaskPage(value) => value.live_after.is_some(),
             Self::OwnerTree(value) => value.next.is_some(),
-            Self::Me(_) | Self::Task(_) | Self::RunState(_) => false,
+            Self::Me(_) | Self::Task(_) | Self::Run(_) | Self::RunState(_) => false,
         }
     }
 }
@@ -366,10 +368,10 @@ pub(crate) fn reads(
 
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {
     match (call.tool, local, value) {
-        (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::OwnerProject(_)) => {
-            Ok(())
-        }
-        (2, 1, ReadValue::Tasks(_))
+        (1, _, ReadValue::OwnerInbox(_))
+        | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::OwnerProposal(_))
+        | (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::OwnerProject(_))
+        |(2, 1, ReadValue::Tasks(_))
         | (3, 1, ReadValue::Task(_))
         | (3, 2, ReadValue::Activity(_))
         | (4 | 5, 1, ReadValue::Activity(_))

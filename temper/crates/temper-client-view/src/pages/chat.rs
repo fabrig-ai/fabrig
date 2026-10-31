@@ -601,19 +601,14 @@ pub(crate) fn conversation_with_times(
             }
             Line::Provisional { text, cut, .. } => provisional(b, text, cut, words, text_limit),
             Line::Undecoded { why, .. } => undecoded(b, why, words, clock.as_deref()),
-            Line::RunBegan { attempt } => {
-                b.style(look::MARKER);
-                text(b, Role::Paragraph, &words.say(Word::RunBegan, &[Hole::Number(attempt)]));
-            }
-            Line::RunEnded { attempt } => {
-                b.style(look::MARKER);
-                text(b, Role::Paragraph, &words.say(Word::RunEnded, &[Hole::Number(attempt)]));
-            }
+
             Line::Left { lines } => {
                 b.style(look::MARKER);
                 text(b, Role::Status, &words.say(Word::LinesLeft, &[Hole::Number(u64::from(lines))]));
             }
-            Line::Activity { line } => owner_line(b, &line.source.line, projected, speakers.person, words),
+            Line::Activity { line } => {
+                owner_line(b, &line.source.line, projected, speakers.person, words, clock.as_deref());
+            }
         }
         b.close();
     }
@@ -664,11 +659,18 @@ fn line_time(line: &Line<'_>) -> Option<skein_lib::Wall> {
     match line {
         Line::Words { at, .. } => *at,
         Line::Turn { at, .. } | Line::Undecoded { at, .. } => Some(*at),
-        Line::Activity { .. }
-        | Line::Provisional { .. }
-        | Line::RunBegan { .. }
-        | Line::RunEnded { .. }
-        | Line::Left { .. } => None,
+        Line::Activity { line } => match line.source.line {
+            c::OwnerActivity::Words { .. } => Some(line.source.at),
+            c::OwnerActivity::Heard(_)
+            | c::OwnerActivity::Notified { .. }
+            | c::OwnerActivity::RunBegan { .. }
+            | c::OwnerActivity::RunEnded { .. }
+            | c::OwnerActivity::Turn { .. }
+            | c::OwnerActivity::Decided { .. }
+            | c::OwnerActivity::Milestone { .. }
+            | c::OwnerActivity::Kept { .. } => None,
+        },
+        Line::Provisional { .. } | Line::Left { .. } => None,
     }
 }
 fn turn_time(
@@ -735,7 +737,14 @@ fn provisional(b: &mut Builder, message: &[u8], cut: bool, words: &Words, text_l
     b.close();
     b.close();
 }
-fn owner_line(b: &mut Builder, line: &c::OwnerActivity, projected: bool, person: Option<u64>, words: &Words) {
+fn owner_line(
+    b: &mut Builder,
+    line: &c::OwnerActivity,
+    projected: bool,
+    person: Option<u64>,
+    words: &Words,
+    clock: Option<&[u8]>,
+) {
     if projected
         && let c::OwnerActivity::Heard(c::OwnerWord {
             kind: c::OwnerMessageKind::QuestionAnswered { question }, ..
@@ -744,7 +753,7 @@ fn owner_line(b: &mut Builder, line: &c::OwnerActivity, projected: bool, person:
         text(b, Role::Paragraph, &words.say(Word::QuestionAnswered, &[Hole::Number(*question)]));
         return;
     }
-    if projected && let c::OwnerActivity::Words { by, words: message, .. } = line {
+    if let c::OwnerActivity::Words { by, words: message, .. } = line {
         let (label, side) = match by {
             c::OwnerRequester::Person(by) => (
                 if Some(*by) == person { words.say_card(P::You, &[]) } else { words.say_card(P::Person, &[]) },
@@ -756,14 +765,13 @@ fn owner_line(b: &mut Builder, line: &c::OwnerActivity, projected: bool, person:
                 return;
             }
         };
-        words_message(b, &label, message.bytes(), WordState::Read { message: 0 }, side, words, None);
+        words_message(b, &label, message.bytes(), WordState::Read { message: 0 }, side, words, clock);
         return;
     }
     super::task::owner_activity(b, line, words);
 }
 fn hidden_line(line: &Line<'_>, projected: bool, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
     match line {
-        Line::RunBegan { .. } | Line::RunEnded { .. } => projected,
         Line::Activity { line } => hidden(line, projected, delegations),
         Line::Words { .. }
         | Line::Turn { .. }

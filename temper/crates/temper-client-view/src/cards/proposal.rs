@@ -98,7 +98,7 @@ fn why(b: &mut Builder, page: &c::ReadValue) {
 pub(super) fn facts(b: &mut Builder, page: &c::ReadValue, words: &Words, rows: u32, place: super::Place) {
     if let Some(tasks) = batch(page) {
         title(b, tasks, words, place);
-        batch_facts(b, page, tasks, words, rows, place);
+        batch_facts(b, page, tasks, words, rows);
         return;
     }
     match page {
@@ -157,7 +157,6 @@ fn batch_facts(
     tasks: &skein_lib::List<c::ProposedTask>,
     words: &Words,
     rows: u32,
-    place: super::Place,
 ) {
     b.open(Role::Slot);
     b.style(crate::look::PROPOSAL_FACTS);
@@ -176,18 +175,7 @@ fn batch_facts(
     text(b, Role::Term, &words.say(Word::ProposalBudget, &[]));
     b.open(Role::Description);
     b.open(Role::Paragraph);
-    let mut facts = jig_client::facts::decision(Some(page), c::ActKind::Accept);
-    // A confirmation retains each supplied funding fact for the deciding act.
-    if place != super::Place::Confirmation
-        && owns(page)
-        && facts.funds.is_none()
-        && facts.funding.len() == 1
-        && let Some(offer) = facts.funding.get(0)
-        && let (Some(left), Some(after)) = (offer.left, offer.after)
-    {
-        facts.funds = Some(jig_client::facts::Funds { needed: offer.needed, left, after });
-        facts.funding.clear();
-    }
+    let facts = jig_client::facts::decision(Some(page), c::ActKind::Accept);
     let mut first = true;
     for fact in &jig_client::words::decision(&facts, &words.book, words.language) {
         if !first {
@@ -231,11 +219,7 @@ fn owns(page: &c::ReadValue) -> bool {
     false
 }
 fn task_hold(b: &mut Builder, task: &c::Task, words: &Words, rows: u32) {
-    match &task.hold {
-        Some(hold) => held(b, task.chip.task, hold, words, rows),
-
-        None => {}
-    }
+    if let Some(hold) = &task.hold { held(b, task.chip.task, hold, words, rows); }
 }
 fn held(b: &mut Builder, task: u64, hold: &c::OwnerChipHold, words: &Words, _rows: u32) {
     super::hold(b, task, &hold.reason, words);
@@ -367,9 +351,7 @@ fn authority_facts(b: &mut Builder, document: &c::OwnerAuthorityDocument, words:
         }
     }
 }
-fn pattern(b: &mut Builder, pattern: &c::OwnerPattern, words: &Words, rows: u32) {
-    pattern_facts(b, pattern, words, rows, false);
-}
+
 fn pattern_facts(b: &mut Builder, pattern: &c::OwnerPattern, words: &Words, _rows: u32, inline: bool) {
     for segment in &pattern.segments {
         fact(b, words, P::PatternSegment, &[super::name(segment)], inline);

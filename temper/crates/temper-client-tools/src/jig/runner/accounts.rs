@@ -76,6 +76,7 @@ fn build(reading: &reads::Reading) -> Result<acts::Request, &'static [u8]> {
             | c::Delivery::Chips(_)
             | c::Delivery::OwnerInbox(_)
             | c::Delivery::Tasks(_)
+            | c::Delivery::Run(_)
             | c::Delivery::RunState(_)
             | c::Delivery::Settings(_) => {}
         }

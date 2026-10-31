@@ -67,6 +67,7 @@ pub(super) fn tree(delivery: &c::Delivery, project: Option<u32>, book: &Phrasebo
         | c::Delivery::Chips(_)
         | c::Delivery::OwnerInbox(_)
         | c::Delivery::Tasks(_)
+        | c::Delivery::Run(_)
         | c::Delivery::RunState(_)
         | c::Delivery::Settings(_)
         | c::Delivery::OwnerDeployment(_)
@@ -74,7 +75,7 @@ pub(super) fn tree(delivery: &c::Delivery, project: Option<u32>, book: &Phrasebo
     }
 }
 // The owner's counters retain their field order, independently of visible rows.
-fn tree_cut(tree: &c::OwnerTree, project: Option<u32>, book: &Phrasebook, out: &mut Text) {
+fn tree_cut(tree: &c::OwnerTree, _project: Option<u32>, book: &Phrasebook, out: &mut Text) {
     let mut counts = [0u64; 10];
     for fold in &tree.folded {
         let p = fold.phases;

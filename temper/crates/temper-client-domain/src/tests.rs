@@ -1,4 +1,5 @@
 #[path = "../../../testing/client_documents.rs"]
+#[expect(dead_code, reason = "shared document fixtures also supply the other client suites")]
 pub mod documents;
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;

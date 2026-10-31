@@ -72,6 +72,7 @@ pub fn holds(condition: &Condition, facts: &Facts<'_>) -> Option<bool> {
         | c::Delivery::OwnerProposal(_)
         | c::Delivery::Chips(_)
         | c::Delivery::Tasks(_)
+        | c::Delivery::Run(_)
         | c::Delivery::Settings(_)
         | c::Delivery::OwnerDeployment(_) => None,
     }

@@ -74,14 +74,7 @@ pub(super) fn encode_task_hold(
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
-    out.object_start();
-    if let Some(placed) = value.placed() {
-        out.key(b"placed");
-        super::placed_hold::encode(placed, out, budget);
-    }
     super::encode_owner_chip_hold(value, out, budget);
-
-    out.object_end();
 }
 
 pub(super) fn encode_task_resource(

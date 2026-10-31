@@ -437,11 +437,7 @@ fn has_facts(page: &ReadValue) -> bool {
         | ReadValue::OwnerDeployment(_) => false,
     };
     let decision = jig_client::facts::decision(Some(page), jig_client::contract::ActKind::Accept);
-    proposal
-        || decision.dangerous
-        || decision.effect.is_some()
-        || !decision.funding.is_empty()
-        || decision.funds.is_some()
+    proposal || decision.dangerous || decision.effect.is_some() || !decision.funding.is_empty()
 }
 fn title(b: &mut Builder, value: &[u8]) {
     b.open(Role::Heading { level: 3 });

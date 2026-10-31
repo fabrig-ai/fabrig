@@ -219,7 +219,7 @@ pub(crate) fn inbox_rows(group: c::InboxReadGroup, count: u32, more: bool) -> c:
     let mut rows = List::with_capacity(count);
     for index in 0..count {
         let task = TASK.checked_add(u64::from(index)).expect("fixture task number");
-        let (object, kind) = match group {
+        let (object, _kind) = match group {
             c::InboxReadGroup::Needs => (c::ObjectKey::Question { task, message: 2 }, c::InboxGroup::Questions),
             c::InboxReadGroup::Updates => {
                 (c::ObjectKey::Result(task.checked_add(1).expect("different updated task")), c::InboxGroup::Results)
@@ -230,7 +230,7 @@ pub(crate) fn inbox_rows(group: c::InboxReadGroup, count: u32, more: bool) -> c:
     }
     c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(jig_client::contract::OwnerInboxPage {
         cut: false,
-        rows: rows,
+        rows,
         before: None,
         after: if more { Some(cursor()) } else { None },
         selection: None,

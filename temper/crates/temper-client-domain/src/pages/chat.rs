@@ -223,6 +223,16 @@ impl Chat {
                 }));
             }
 
+            Some(Latest::Jig(c::Delivery::Run(text))) => {
+                let fallback = c::RunState {
+                    task: self.task,
+                    attempt: Some(text.attempt),
+                    committed_turn: 0,
+                    writing: None,
+                    call: None,
+                };
+                self.thread.run(self.current_run.as_deref().unwrap_or(&fallback), client.text(handle));
+            }
             _ => {}
         }
     }
@@ -372,8 +382,6 @@ impl Chat {
                 jig_client::thread::Line::Words { .. }
                 | jig_client::thread::Line::Undecoded { .. }
                 | jig_client::thread::Line::Provisional { .. }
-                | jig_client::thread::Line::RunBegan { .. }
-                | jig_client::thread::Line::RunEnded { .. }
                 | jig_client::thread::Line::Left { .. } => continue,
             };
             for message in turn.messages.iter().rev() {
@@ -657,7 +665,6 @@ impl Chat {
     }
     pub(crate) fn see(&mut self, serial: &mut u64, out: &mut Queue<Request>) {
         let mut newest = 0;
-        // Backlog for jig: non-owner turns carry no reply number.
         for row in &self.thread.lines.rows {
             if let c::OwnerActivity::Turn { reply, .. } = row.source.line {
                 newest = newest.max(reply);

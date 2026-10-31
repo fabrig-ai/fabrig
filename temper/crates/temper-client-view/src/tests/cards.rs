@@ -162,7 +162,7 @@ fn a_proposals_title_and_labelled_facts_follow_the_mockup() {
         (b"Why".as_slice(), b"Make a goal".as_slice()),
         (b"Goal", b"Agent charter 2"),
         (b"Landing", b"branch main of robin/tally on github.com"),
-        (b"Budget", b"Funds 40 from your pool"),
+        (b"Budget", b"Funding needed: 40"),
     ] {
         let at = super::chat::named_position(tree.nodes(), Role::Term, Some(label)).unwrap();
         let description = at + usize::try_from(tree.nodes()[at].size).unwrap();
@@ -185,7 +185,7 @@ fn document_proposal() -> c::ReadValue {
             })
             .expect("one funding source");
         c::OwnerProposal {
-            key: key,
+            key,
             project: fixtures::PROJECT,
             reason: c::DocumentText::complete(fixtures::first_run::text(b"It touches sign-in.")),
             action: c::OwnerProposalAction::Batch(skein_lib::List::with_capacity(0)),
@@ -240,7 +240,7 @@ fn proposal_titles_head_the_cards_and_funding_is_said_once_in_both_pages() {
                 )
                 .expect("proposal title heads the card");
                 assert!(title < budget);
-                for expected in [b"Funds 40 from your pool".as_slice(), b"120 left", b"80 after"] {
+                for expected in [b"Funding needed: 40".as_slice(), b"Funding left: 120", b"Funding after: 80"] {
                     assert!(skein_lib::bytes::find(&fixtures::node_text(tree, description), expected).is_some());
                     assert_eq!(occurrences(tree, expected), 1);
                 }
@@ -248,7 +248,7 @@ fn proposal_titles_head_the_cards_and_funding_is_said_once_in_both_pages() {
                     assert_eq!(occurrences(tree, expected), 0);
                 }
             } else {
-                let funding = b"Funds 40 from your pool \xc2\xb7 120 left, 80 after";
+                let funding = b"Funding needed: 40";
                 assert!(skein_lib::bytes::find(&fixtures::node_text(tree, description), funding).is_some());
                 assert_eq!(occurrences(tree, funding), 1);
                 for expected in [b"May spend 40".as_slice(), b"May delegate 1 task, depth 1"] {
@@ -319,8 +319,16 @@ fn proposal_facts_are_labelled_joined_and_contained_in_their_rows() {
     task.authority.authority.delegation.depth = 0;
     target.action = c::OwnerProposalAction::Batch(tasks);
     for (page, _delegation, budget) in [
-        (owner, "1 task, depth 1", "Funds 40 from your pool · 120 left, 80 after"),
-        (document, "0 tasks, depth 0", "Funds 40 from your pool · 120 left, 80 after"),
+        (
+            owner,
+            "1 task, depth 1",
+            "Funded by pool in project 1, person 73, period 1 · Funding needed: 40 · Funding left: 120 · Funding after: 80",
+        ),
+        (
+            document,
+            "0 tasks, depth 0",
+            "Funded by pool in project 1, person 73, period 1 · Funding needed: 40 · Funding left: 120 · Funding after: 80",
+        ),
     ] {
         let mut builder = Builder::new(&fixtures::tree_limits());
         crate::cards::proposal(&mut builder, &page, &fixtures::words(), 4);

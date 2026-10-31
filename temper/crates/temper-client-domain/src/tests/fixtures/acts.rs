@@ -4,14 +4,6 @@ use jig_client::contract::*;
 const TEXT_BYTES: u32 = 32;
 const ONE_OFFER: u32 = 1;
 const EMPTY_LIST: u32 = 0;
-const NO_TOOLS: u64 = 0;
-const NO_DELEGATION: u32 = 0;
-const NO_SPEND: u64 = 0;
-const NO_NOTES: u8 = 0;
-const NO_BUDGET: u64 = 0;
-const NO_TASKS: u32 = 0;
-const NO_RUNS: u32 = 0;
-const NO_PROPOSALS: u32 = 0;
 const OUTPUTS: u32 = 32;
 const SENDS: u32 = 4;
 const AUTH: [u8; 40] = [7; 40];
@@ -52,7 +44,7 @@ pub fn proposal(act: ActKind, admission: Admission) -> ReadValue {
     }))
 }
 pub fn chip() -> Chip {
-    let mut chip = super::chat::task().chip;
+    let mut chip = chat::task().chip;
     chip.executor = Executor::Party { party: PARTY };
     chip.phase = Phase::Held;
     chip
@@ -94,7 +86,7 @@ pub fn person(act: ActKind) -> ReadValue {
     }))
 }
 pub fn held(act: ActKind) -> ReadValue {
-    let mut task = super::chat::task();
+    let mut task = chat::task();
     task.hold = Some(Box::new(OwnerChipHold {
         placed: None,
         words: None,
