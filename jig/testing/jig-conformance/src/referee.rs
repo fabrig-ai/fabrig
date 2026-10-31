@@ -8,6 +8,7 @@ mod compound;
 mod conversations;
 mod positions;
 mod proposals;
+mod removal;
 mod revisions;
 mod settings;
 pub use application::{ApplicationAnswer, ApplicationKey};
@@ -241,6 +242,8 @@ pub struct PlacedHold {
 /// One atomic committed view, supplied by the store adapter.
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct Snapshot {
+    /// Durable rows naming each project, excluding funding and retained answers.
+    pub naming: BTreeMap<u32, u32>,
     /// The newest settings revision in the committed view.
     pub newest: u32,
     pub tasks: BTreeMap<u64, Task>,
@@ -292,6 +295,8 @@ pub struct Policy {
 #[expect(clippy::large_enum_variant, reason = "durable observations own the complete atomic snapshot")]
 #[derive(Clone, Debug)]
 pub enum Observed {
+    /// A party or deployment received the project removal answer.
+    ProjectRemoved { project: u32 },
     /// A decision names the specification or hold it saw.
     Named { task: u64, revision: Revision },
     /// A party, run or terminal explicitly asked to propose (domain/testing.md, 6).
@@ -355,6 +360,8 @@ pub enum Observed {
 /// Which externally observable promise failed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Promise {
+    /// An answered project removal leaves no rows once the world settles.
+    Erasure,
     /// Permission from policy and the complete authority chain.
     Authority,
     /// Reservations, charges and independent expenses.
@@ -383,6 +390,7 @@ pub struct Violation {
 /// Persistent observer state; restart clears none of its evidence or deadlines.
 #[derive(Clone, Debug)]
 pub struct Referee {
+    removal: removal::Removal,
     proposals: proposals::Proposals,
     revisions: revisions::Revisions,
     applications: application::Applications,
@@ -420,6 +428,7 @@ impl Referee {
     #[must_use]
     pub fn new(policy: Policy) -> Self {
         Self {
+            removal: removal::Removal::default(),
             proposals: proposals::Proposals::default(),
             revisions: revisions::Revisions::default(),
             applications: application::Applications::default(),
@@ -615,6 +624,7 @@ impl Referee {
                 )?;
             }
         }
+        self.removal.durable(&self.last, &snapshot)?;
         self.proposals.durable(&snapshot)?;
         self.revisions.durable(&self.last, &snapshot)?;
         for (budget, spent, below, reserved) in &snapshot.balances {
@@ -921,6 +931,7 @@ impl Referee {
     #[expect(clippy::too_many_lines, reason = "one total dispatch owns the referee's outside observations")]
     pub fn observe(&mut self, now: u64, observed: Observed) -> Result<(), Violation> {
         match observed {
+            Observed::ProjectRemoved { project } => self.removal.answered(project),
             Observed::Named { task, revision } => self.revisions.named(task, revision),
             Observed::ProposeAsked { proposer } => self.proposals.asked(proposer),
             Observed::ProposeRefused { proposer } => self.proposals.refused(proposer),
@@ -938,6 +949,7 @@ impl Referee {
             }
             Observed::Drained { at } => {
                 require(at == self.commit, Promise::Commit, "drain preceded its durable commit barrier")?;
+                self.removal.check(&self.last)?;
                 self.drained = Some(at);
                 self.drained_receipts = Some(self.last.receipts.clone());
             }
@@ -1068,7 +1080,11 @@ impl Referee {
             }
             Observed::ColdStore { receipts } => {
                 if let Some(drained) = self.drained_receipts.take() {
-                    require(drained.is_subset(&receipts), Promise::Commit, "cold store lost a drained receipt")?;
+                    require(
+                        drained.iter().all(|receipt| self.removal.receipt(receipt) || receipts.contains(receipt)),
+                        Promise::Commit,
+                        "cold store lost a drained receipt",
+                    )?;
                 }
                 for receipt in &self.seen {
                     let must_keep = match receipt {
@@ -1087,7 +1103,7 @@ impl Referee {
                         Receipt::SignIn(_) | Receipt::Party(..) | Receipt::Outbox(..) | Receipt::Word(..) => false,
                     };
                     require(
-                        !must_keep || receipts.contains(receipt),
+                        !must_keep || self.removal.receipt(receipt) || receipts.contains(receipt),
                         Promise::Commit,
                         format!("cold store lost an observed prerequisite: {receipt:?}"),
                     )?;
@@ -1111,16 +1127,22 @@ impl Referee {
                 )?;
             }
         }
-        self.check_at(now)
+        self.deadlines(now)
     }
 
-    /// Check outstanding deliveries and uncertain effects, including after restart.
+    /// Check erasure once the world is quiescent, and outstanding deadlines.
     ///
     /// # Errors
-    /// Returns the first missed scenario deadline.
+    /// Returns unfinished project erasure or the first missed scenario deadline.
     pub fn check_at(&self, now: u64) -> Result<(), Violation> {
+        self.removal.check(&self.last)?;
+        self.deadlines(now)
+    }
+
+    fn deadlines(&self, now: u64) -> Result<(), Violation> {
         for (receipt, deadline) in &self.waiting {
-            let satisfied = self.reached.contains(receipt)
+            let satisfied = self.removal.receipt(receipt)
+                || self.reached.contains(receipt)
                 || match receipt {
                     Receipt::Word(task, _) => self.last.tasks.get(task).is_some_and(Task::closed),
                     Receipt::Task(_)
@@ -1160,7 +1182,8 @@ impl Referee {
         self.waiting
             .iter()
             .filter(|(receipt, _)| {
-                !self.reached.contains(*receipt)
+                !self.removal.receipt(receipt)
+                    && !self.reached.contains(*receipt)
                     && !matches!(receipt, Receipt::Word(task, _) if self.last.tasks.get(task).is_some_and(Task::closed))
             })
             .map(|(receipt, deadline)| (Obligation::Delivery(receipt.clone()), *deadline))

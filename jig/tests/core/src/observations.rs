@@ -4,6 +4,7 @@
 //! (`domain/testing.md`, 4, 6).
 pub mod acceptance;
 pub mod intents;
+pub mod naming;
 mod projects;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -265,6 +266,8 @@ pub struct Observer {
     decisions_by_role: BTreeMap<(u32, u32), u8>,
     applied: u64,
     application_requests: bool,
+    task_projects: BTreeMap<u64, u32>,
+    removed_projects: BTreeSet<u32>,
     activity: BTreeMap<(u64, u64), tasks::ActivityLine>,
     effects: [usize; 2],
     reads: [usize; 2],
@@ -286,6 +289,7 @@ pub struct Observer {
 impl Observer {
     /// Capture policy from scenario configuration before constructing the root.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one observer captures independent scenario policy and evidence")]
     pub fn new(configuration: &root::Config) -> Self {
         let deployment = &configuration.core.defaults.rules;
         let mut policy = r::Policy {
@@ -375,6 +379,8 @@ impl Observer {
             decisions_by_role,
             applied: 0,
             application_requests: false,
+            task_projects: BTreeMap::new(),
+            removed_projects: BTreeSet::new(),
             activity: BTreeMap::new(),
             effects: [0; 2],
             reads: [0; 2],
@@ -395,6 +401,9 @@ impl Observer {
 
     /// Submit one translated observation, identifying the first broken promise.
     pub fn observe(&mut self, now: u64, observed: r::Observed) {
+        if let r::Observed::ProjectRemoved { project } = &observed {
+            self.removed_projects.insert(*project);
+        }
         if let Some(recorded) = &mut self.recorded {
             recorded.push(observed);
         } else {
@@ -758,7 +767,8 @@ impl Observer {
                 self.policy_change(project, &change);
             }
         }
-        let mut snapshot = r::Snapshot::default();
+        let mut snapshot =
+            r::Snapshot { naming: naming::naming(store, &mut self.task_projects), ..r::Snapshot::default() };
         let mut decisions = Vec::new();
         let mut task_acceptances = Vec::new();
         let mut authority_acceptances = Vec::new();
@@ -1050,6 +1060,9 @@ impl Observer {
             }
         }
         for ((task, position), kept) in &self.activity {
+            if self.task_projects.get(task).is_some_and(|project| self.removed_projects.contains(project)) {
+                continue;
+            }
             let key = root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task: *task, position: *position }));
             assert!(
                 matches!(store.rows.get(&key), Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(row)))) if row == kept),
@@ -1081,6 +1094,11 @@ impl Observer {
         }
         let mut requires = Vec::new();
         match delivery {
+            root::Delivery::Core(core::Held::Acted {
+                outcome: people::Outcome::ProjectRemoved { project }, ..
+            }) => {
+                self.observe(now, r::Observed::ProjectRemoved { project: *project });
+            }
             root::Delivery::Assigned { assignment, .. } => {
                 self.observe(
                     now,
@@ -1124,7 +1142,7 @@ impl Observer {
                 );
             }
             root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
-                self.reply_receipts(to, reply, &mut requires);
+                self.reply_receipts(now, to, reply, &mut requires);
             }
             root::Delivery::Message { task: run, word, .. } => {
                 requires.push(r::Receipt::Word(*run, word.number));
@@ -1167,7 +1185,13 @@ impl Observer {
         self.observe(now, r::Observed::Released { requires });
     }
 
-    fn reply_receipts(&mut self, to: &mut skein_lib::ReplyTo, reply: &people::Reply, requires: &mut Vec<r::Receipt>) {
+    fn reply_receipts(
+        &mut self,
+        now: u64,
+        to: &mut skein_lib::ReplyTo,
+        reply: &people::Reply,
+        requires: &mut Vec<r::Receipt>,
+    ) {
         match reply {
             people::Reply::SignedIn { sign_in, .. } => requires.push(r::Receipt::SignIn(*sign_in)),
             people::Reply::Signer(_)
@@ -1180,7 +1204,10 @@ impl Observer {
                     self.requests.remove(&to);
                 }
             }
-            people::Reply::Outcome(_) => {
+            people::Reply::Outcome(outcome) => {
+                if let people::Outcome::ProjectRemoved { project } = outcome {
+                    self.observe(now, r::Observed::ProjectRemoved { project: *project });
+                }
                 let to = destination(to);
                 if let Some((person, key, seen)) = self.requests.remove(&to) {
                     if let Some(fence) = seen {
