@@ -27,6 +27,7 @@ pub struct Config {
     pub scenario: Option<Scenario>,
     limits: root::Limits,
     fault: negative::Fault,
+    deletion: bool,
 }
 
 impl Config {
@@ -42,6 +43,7 @@ impl Config {
             // not use this field, so constructing a second fixture adds nothing.
             limits: jig_core_world::world::limits(),
             fault: negative::Fault::None,
+            deletion: false,
         };
         config.limits = config.root().1;
         config
@@ -51,6 +53,14 @@ impl Config {
     #[must_use]
     pub fn broken(mut self, fault: negative::Fault) -> Self {
         self.fault = fault;
+        self
+    }
+
+    /// Grant the testing connector the deployment's project removal act.
+    #[must_use]
+    pub fn deleting(mut self) -> Self {
+        self.deletion = true;
+        self.limits = self.root().1;
         self
     }
 
@@ -128,6 +138,27 @@ impl Config {
                     .rules()
                     .clone();
         }
+        if self.deletion {
+            limits.core.tasks.tasks = 5;
+            limits.core.tasks.project_tasks = 5;
+            limits.core.tasks.tree_tasks = 5;
+            limits.core.tasks.batch = 2;
+            limits.core.authority.batch = 2;
+            limits.core.people.operations = 4;
+            limits.core.fleet.slots = 3;
+            limits.core.tasks.inbox_messages = 5;
+            limits.core.tasks.inbox_bytes = 512;
+            limits.core.people.inbox_recipients = 24;
+            config.core.defaults.rules.ceiling.notes = authority::Scopes::PROJECT;
+            config.core.seed_projects[0].policy.policy.ceiling.notes = authority::Scopes::PROJECT;
+            for role in &mut config.core.seed_projects[0].policy.policy.roles {
+                role.authority.notes = authority::Scopes::PROJECT;
+            }
+            config.core.grants = Box::new([people::ActGrant {
+                connector: 1,
+                may: Box::new([people::ActKind::RemoveProject, people::ActKind::Adopt]),
+            }]);
+        }
         jig_core_world::peers::journal(&mut limits);
         (config, limits)
     }
@@ -166,6 +197,7 @@ pub struct Neighbours {
     account_ready: bool,
     pub assignments: Vec<(u64, u64)>,
     pub answers: u64,
+    pub acts: Vec<people::Outcome>,
     pub drained: Vec<u64>,
     pub busy_events: Vec<std::rc::Rc<root::Event>>,
     pub start_phases: Vec<core::start::Phase>,
@@ -351,6 +383,7 @@ impl Application for Testing {
             account_ready: false,
             assignments: Vec::new(),
             answers: 0,
+            acts: Vec::new(),
             drained: Vec::new(),
             busy_events: Vec::new(),
             start_phases: Vec::new(),
@@ -591,6 +624,10 @@ impl Application for Testing {
                 peers.assignments.push((assignment.task, assignment.attempt));
                 Vec::new()
             }
+            root::Delivery::Core(core::Held::Acted { outcome, .. }) => {
+                peers.acts.push(outcome);
+                Vec::new()
+            }
             root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
                 peers.answers += 1;
                 peers.peers.reply(to, &reply);
@@ -764,3 +801,5 @@ fn run_budget_script() -> Box<[Script]> {
     script.push(Script::Park);
     script.into_boxed_slice()
 }
+
+pub mod deletion;

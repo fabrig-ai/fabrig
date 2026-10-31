@@ -1,5 +1,6 @@
 //! Read-only construction from bounded authenticated owner rows.
 //! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Deployment period spend includes removed projects (jig/docs/design/domain/people.md, 5.2).
 use super::vocabulary::{row_bytes, row_owner, row_visible};
 use super::{Answer, Cursor, Filter, Group, Historical, Page, PageRow, Past, Position, Range, Read, Row, Scope, Why};
 use crate::documents::{self, Document, Missing, Proposer};
@@ -234,7 +235,11 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                             Some(Cursor::Store { .. }) | None => None,
                         },
                     };
-                    Some(Cursor::Store { scope, after })
+                    if value.cached_needs != 0 || value.cached_updates != documents::Count::Known(0) {
+                        Some(Cursor::Store { scope, after })
+                    } else {
+                        None
+                    }
                 }
             };
             Answer::Page(Box::new(Page {
@@ -951,7 +956,11 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
                 return Ok(None);
             };
             match value.funder {
-                tasks::Funder::Period { project: owner, .. } if owner == *project => Ok(Some(PageRow::Spend(*value))),
+                tasks::Funder::Period { project: owner, .. }
+                    if *project == jig_domain_people::DEPLOYMENT || owner == *project =>
+                {
+                    Ok(Some(PageRow::Spend(*value)))
+                }
                 tasks::Funder::Period { .. }
                 | tasks::Funder::Task(_)
                 | tasks::Funder::Pool { .. }
@@ -1543,7 +1552,19 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
                     | Key::Accounts(_) => false,
                 },
                 Scope::EndedTasks | Scope::TaskRows { .. } | Scope::SettingsHistory { .. } => false,
-                Scope::Spend { project } => kind == KeyKind::Ledger(*project),
+                Scope::Spend { project } => match kind {
+                    KeyKind::Ledger(owner) => *project == jig_domain_people::DEPLOYMENT || owner == *project,
+                    KeyKind::Ended(_)
+                    | KeyKind::Live(_)
+                    | KeyKind::History(_)
+                    | KeyKind::Milestone(_)
+                    | KeyKind::Activity(_)
+                    | KeyKind::PersonProposal(_)
+                    | KeyKind::Escalation(_)
+                    | KeyKind::Turn { .. }
+                    | KeyKind::Note
+                    | KeyKind::Unsupported => false,
+                },
                 Scope::Inbox { group, .. } => group.updates() && super::indexed::is_update(key),
             }
         }

@@ -19,6 +19,9 @@ pub(crate) struct Acted {
 }
 
 impl Acted {
+    pub(super) const fn outcome(&self) -> &Outcome {
+        &self.outcome
+    }
     pub(super) fn project_deadline(&mut self, env: &Env<Limits>) -> Time {
         self.due = deadline(env, answer_expiry(self.at, &env.limits));
         self.due
@@ -175,7 +178,11 @@ pub(super) fn decided(
     let replies = core::mem::replace(&mut flight.replies, List::with_capacity(0));
     domain.pending.retire(id);
     assert!(domain.act_flights.remove(&key) == Some(id), "act has one index");
-    if permanent(&outcome) {
+    let gone = match super::deletion::act_project(&act) {
+        Some(project) => !domain.has_project(project) && !domain.deletions.contains_key(&project),
+        None => false,
+    };
+    if permanent(&outcome) && !(gone && outcome == Outcome::Refused(Refusal::Unknown)) {
         save(domain, env, key, act, outcome.clone(), env.wall, out);
     }
     for to in replies.into_boxed() {

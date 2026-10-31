@@ -2433,6 +2433,70 @@ fn valid_refuses_each_unrepresentable_limit() {
 mod start;
 
 #[test]
+fn a_deleting_projects_seen_chat_can_end_before_it_is_forgotten() {
+    let mut test = Test::new(LIMITS);
+    test.member();
+    test.send(Event::ChatState {
+        party: 1,
+        project: 1,
+        task: 9,
+        last_reply: 2,
+        live: true,
+        seen: None,
+        replies: Box::new([]),
+    });
+    let request = route(&test.request(10, 1, Ask::MarkSeen { seen: Seen::Conversation { task: 9, through: 1 } }));
+    test.send(Event::ConversationSeen { request, project: 1, last_reply: 2 });
+    test.send(Event::Deleting { project: 1, step: Some(DeletionStep::Tasks) });
+    test.send(Event::CloseProject { project: 1 });
+    test.send(Event::ChatState {
+        party: 1,
+        project: 1,
+        task: 9,
+        last_reply: 2,
+        live: false,
+        seen: None,
+        replies: Box::new([]),
+    });
+    test.send(Event::Forget { task: 9, project: 1, party: Some(1), last_reply: 2 });
+    assert_eq!(test.d.chat_owner(9), None);
+}
+
+#[test]
+fn deleting_projects_frees_their_bounded_inbox_census_places() {
+    let limits = Limits { people: 1, projects: 1, ..LIMITS };
+    let mut test = Test::new(limits);
+    test.member();
+    for project in [1, 2] {
+        test.send(Event::Roles { project, holdings: Box::new([Holding { person: 1, role: Role::Member }]) });
+        test.send(Event::ChatState {
+            party: 1,
+            project,
+            task: u64::from(project),
+            last_reply: 1,
+            live: false,
+            seen: None,
+            replies: Box::new([]),
+        });
+        test.d.remember_result(
+            &limits,
+            1,
+            ResultRef {
+                task: u64::from(project),
+                project,
+                at: Wall::EPOCH,
+                position: u64::from(project),
+                forgettable: None,
+            },
+        );
+        assert_eq!(test.d.counts(&limits, 1), Some(Counts { needs: 0, unread: 2, more_unread: false }));
+        test.send(Event::CloseProject { project });
+        test.send(Event::ForgetProject { project });
+        assert_eq!(test.d.counts(&limits, 1), Some(Counts { needs: 0, unread: 0, more_unread: false }));
+    }
+}
+
+#[test]
 fn an_owners_remove_project_ask_routes_before_the_deletion_is_kept() {
     let mut test = Test::new(LIMITS);
     test.signin(1, 10, identity(0, 1));

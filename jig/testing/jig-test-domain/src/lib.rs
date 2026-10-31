@@ -344,6 +344,7 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 /// The root's live components and one commit barrier.
 #[derive(Debug)]
 pub struct Domain {
+    scripted_project_releases: Option<Queue<(u16, u32)>>,
     pieces_dropped: u64,
     core: core::Core,
     first: connector::Domain,
@@ -372,6 +373,17 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Let a world supply connector release answers (jig/docs/design/domain/people.md, 5.2).
+    pub fn script_project_releases(&mut self) {
+        if self.scripted_project_releases.is_none() {
+            self.scripted_project_releases = Some(Queue::uncapped());
+        }
+    }
+
+    /// One configured connector asked to release a project during this start.
+    pub fn take_project_release(&mut self) -> Option<(u16, u32)> {
+        self.scripted_project_releases.as_mut()?.pop()
+    }
     /// Configure the composed core before the testing application's first step.
     pub fn core_mut(&mut self) -> &mut core::Core {
         &mut self.core
@@ -477,6 +489,7 @@ impl Domain {
     pub fn new(config: Config, limits: &Limits) -> Domain {
         assert!(limits.routes > 0, "synchronous route bound is positive");
         Domain {
+            scripted_project_releases: None,
             pieces_dropped: 0,
             core: core::Core::new(config.core, &limits.core).expect("fixture core configuration"),
             first: connector::Domain::new(config.first, &limits.connector),
@@ -1294,6 +1307,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
             | connector::Request::Document { .. }
             | connector::Request::ReadAnswered { .. }
             | connector::Request::Marked { .. }
+            | connector::Request::ProjectReleased { .. }
             | connector::Request::Closed { .. }
             | connector::Request::Verdict { .. }
             | connector::Request::Step { .. }
