@@ -32,17 +32,7 @@ pub fn decision(value: &DecisionFacts, book: &Phrasebook, language: u16) -> List
             }
         }
     }
-    if let Some(funds) = value.funds {
-        push(
-            &mut out,
-            say(
-                book,
-                language,
-                P::Funds,
-                &[Hole::Amount(funds.needed), Hole::Amount(funds.left), Hole::Amount(funds.after)],
-            ),
-        );
-    }
+
     out
 }
 fn say(book: &Phrasebook, language: u16, phrase: P, holes: &[Hole]) -> Box<[u8]> {

@@ -545,7 +545,7 @@ fn owner_chip_fixture(number: u64) -> Chip {
         title: DocumentText::complete(Text::new(Box::from(*b"task"), 4).unwrap()),
         executor: Executor::Agent { charter: u32::MAX },
         phase: Phase::Waiting,
-        details: Box::new(ChipPhase::Owner {
+        details: Box::new(ChipPhase {
             phase: OwnerChipPhase::Waiting { dependencies: List::with_capacity(2), more: true, holds: false },
             details: Box::new(owner),
         }),
@@ -579,7 +579,7 @@ fn deployment_whole_owner_chip_resources_terminal_result_observation_and_nested_
     round_trip(value.clone());
     let mut oversized = value;
     let OwnerTaskLink::Live(chip) = &mut oversized.attempts.get_mut(0).unwrap().task else { unreachable!() };
-    let ChipPhase::Owner { details, .. } = chip.details.as_mut() else { unreachable!() };
+    let ChipPhase { details, .. } = chip.details.as_mut();
     details.resources = List::with_capacity(3);
     assert!(oversized.heap(&bounds).is_none());
 }

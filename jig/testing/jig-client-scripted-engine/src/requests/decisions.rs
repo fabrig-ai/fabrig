@@ -61,23 +61,15 @@ pub(super) fn decided(
         | ReadValue::Historical(_)
         | ReadValue::Me(_)
         | ReadValue::Turn(_)
-        | ReadValue::Proposal(_)
-        | ReadValue::Escalation(_)
         | ReadValue::Question(_)
-        | ReadValue::PersonTask(_)
         | ReadValue::OwnerPersonTask(_)
         | ReadValue::Result(_)
-        | ReadValue::Ended(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerSpend(_)
-        | ReadValue::Project(_)
         | ReadValue::Notes(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => None,
     }
 }
@@ -186,11 +178,10 @@ fn task_released(mut value: Box<jig_client_domain::contract::Task>, ask: &Ask) -
     let Ask::Release { task, .. } = ask else { return None };
     value.hold = None;
     if let Some(context) = &mut value.context {
-        context.escalation = None;
         context.runtime = Runtime::Starting;
     }
     value.chip.phase = Phase::Due;
-    let ChipPhase::Owner { phase, details } = value.chip.details.as_mut() else { return None };
+    let ChipPhase { phase, details } = value.chip.details.as_mut();
     *phase = OwnerChipPhase::Active(RunStage::Due);
     details.hold = None;
     Some((ReadValue::Task(value), OwnerOutcome::Released { task: *task }))

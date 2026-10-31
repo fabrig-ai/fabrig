@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn both_task_hold_forms_keep_every_placed_fact_and_their_independent_revisions() {
+fn task_owner_holds_keep_every_placed_fact_and_their_independent_revisions() {
     let limits = fixtures::limits();
     for full in [false, true] {
         let number = if full { u64::MAX } else { 0 };
@@ -34,17 +34,14 @@ fn both_task_hold_forms_keep_every_placed_fact_and_their_independent_revisions()
             },
         )
         .unwrap();
-        let mut document = fixtures::read_wire_hold().into_parts();
-        document.placed = Some(placed.clone());
-        let document = w::Hold::new(&w::CEILINGS, document).unwrap();
         let mut owner = jig_client_test_records::hold_record().into_parts();
         owner.placed = Some(placed.clone());
         let owner = w::OwnerChipHold::new(&w::CEILINGS, owner).unwrap();
-        let document = c::TaskHold::Document(Box::new(translate::documents::hold_fields(&document, &limits).unwrap()));
-        let owner =
-            w::TaskHold::Owner(w::TaskHoldOwner::new(&w::CEILINGS, w::TaskHoldOwnerParts { value: owner }).unwrap());
-        let owner = translate::documents::task_hold_fields(&owner, &limits).unwrap();
-        for hold in [document, owner] {
+        let mut task = fixtures::task_record().into_parts();
+        task.hold = Some(owner);
+        let task = w::Task::new(&w::CEILINGS, task).unwrap();
+        let hold = translate::documents::task(task, &limits).unwrap().hold.unwrap();
+        {
             let value = hold.placed().expect("placed accessor");
             assert_eq!(value.number, number);
             assert_eq!(value.revision.value, number);

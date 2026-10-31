@@ -14,6 +14,32 @@ mod limits;
 mod start;
 mod translate;
 
+#[test]
+fn call_room_counts_pending_calls_and_allows_retained_replay_at_capacity() {
+    let limits = limits();
+    let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
+    let pending = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
+    let retained = CallKey { position: 1, ..pending };
+    let fresh = CallKey { position: 2, ..pending };
+    assert_eq!(limits.call_records, 2);
+    assert!(core.call_room(pending));
+    assert!(core.call_room(fresh));
+
+    core.pending_calls.insert(pending, true).expect("first call fits");
+    assert!(!core.call_room(pending));
+    assert!(core.call_room(retained));
+    core.call_parts.insert(retained, CallPart::Controlled).expect("second call fits");
+    assert!(!core.call_room(pending));
+    assert!(core.call_room(retained));
+    assert!(!core.call_room(fresh));
+    assert_eq!(core.pending_calls.len(), 1);
+    assert_eq!(core.call_parts.len(), 1);
+
+    assert_eq!(core.pending_calls.remove(&pending), Some(true));
+    assert!(core.call_room(fresh));
+    assert!(core.call_room(retained));
+}
+
 pub(crate) fn limits() -> Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let tasks = tasks::Limits {

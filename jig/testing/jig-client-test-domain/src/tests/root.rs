@@ -8,8 +8,7 @@
 )]
 use crate::{Address, Domain, Event, Request, first, unlinked};
 use jig_client::Link;
-use jig_client::contract;
-use jig_client::contract::{Answer, Outcome, WatchEnd, WatchEvent};
+use jig_client::contract::{self, Answer, Delivery, Outcome, WatchEnd, WatchEvent};
 use skein_lib::{Duration, List, Queue, RequestEnvelope, Time, Token};
 #[test]
 fn keyed_requests_leave_only_through_the_table_after_their_records() {
@@ -53,7 +52,7 @@ fn a_final_answer_reaches_the_child_that_asked_unread_and_once() {
             _ => None,
         })
         .unwrap();
-    let answer = Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 1 }));
+    let answer = Answer::Done(Outcome::Owner(contract::OwnerOutcome::AccountChanged));
     let rows = drive(
         &mut root,
         Event::Client {
@@ -130,7 +129,7 @@ fn a_reload_parks_kept_requests_until_jig_confirms_their_party() {
                         attempt,
                         envelope: RequestEnvelope::Final,
                         answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
-                            jig_client::contract::OwnerOutcome::Released { task: 1 }
+                            contract::OwnerOutcome::AccountChanged
                         )))),
                         why: None
                     }
@@ -281,7 +280,6 @@ fn family_page(root: &mut Domain) -> Vec<Request> {
     );
     drive(root, Event::Went { place: crate::Place::Address(Address::First(first::Address { project: 3, item: 5 })) })
 }
-
 #[test]
 fn a_family_page_hands_its_task_and_proposal_to_jigs_working_set() {
     let mut root = ready(22);
@@ -633,7 +631,7 @@ fn restored_own_scope_sends_and_retires_each_final_request_once() {
                         attempt,
                         envelope: RequestEnvelope::Final,
                         answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
-                            jig_client::contract::OwnerOutcome::Released { task: 1 },
+                            contract::OwnerOutcome::AccountChanged,
                         )))),
                         why: None,
                     },

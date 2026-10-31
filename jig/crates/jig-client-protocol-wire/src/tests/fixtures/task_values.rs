@@ -1,7 +1,7 @@
 use super::*;
 
 pub fn task(limits: &Limits) -> Task {
-    let rows = chip_facts(limits, ChipPhaseFields::Starting);
+    let rows = chip_facts(limits, chip_phase_owner_fields(limits));
     Task::new(
         limits,
         TaskParts {

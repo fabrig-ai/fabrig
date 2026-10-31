@@ -12,7 +12,7 @@ fn a_stopped_task_s_hold_reads_in_jig_s_words() {
         story.run_until(|s| s.chat_document().is_some_and(|doc| doc.chip.phase == contract::Phase::Held), PROOF_WAIT)
     );
     let document = story.chat_document().expect("held task document delivered");
-    let contract::ChipPhase::Owner { phase: contract::OwnerChipPhase::Held { reason, .. }, .. } =
+    let contract::ChipPhase { phase: contract::OwnerChipPhase::Held { reason, .. }, .. } =
         document.chip.details.as_ref()
     else {
         panic!("held task's reason: {:?}", document.chip);

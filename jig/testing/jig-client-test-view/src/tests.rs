@@ -219,45 +219,7 @@ fn task() -> Task {
             title: DocumentText::complete(text(&[b't'; 32])),
             executor: Executor::Procedure { connector: jig_client_test_domain::FIRST, kind: 1 },
             phase: Phase::Running,
-            details: Box::new(ChipPhase {
-                phase: OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
-                details: Box::new(OwnerChipDetails {
-                    dependencies: list([]),
-                    project: 3,
-                    executor: OwnerExecutor::Procedure { connector: jig_client_test_domain::FIRST, code: 1 },
-                    phase_since: Wall::EPOCH,
-                    run_since: None,
-                    attempt: Some(1),
-                    retry: None,
-                    wake: OwnerWakePolicy {
-                        words: WakeRule::Never,
-                        notices: WakeRule::Never,
-                        news: WakeRule::Never,
-                        results: ResultsWake::Never,
-                        questions: false,
-                        answers: false,
-                        timers: false,
-                    },
-                    person_wait: None,
-                    hold: None,
-                    budget: OwnerBudget {
-                        numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
-                        left: 1,
-                        funder: Funder::Task(9),
-                        deadline: None,
-                    },
-                    activity: 0,
-                    resources: list([]),
-                    resources_cut: false,
-                    resources_observed: false,
-                    procedure: None,
-                    live_delegates: 0,
-                    closing_connectors: None,
-                    ending: None,
-                    ended_at: None,
-                    observation: None,
-                }),
-            }),
+            details: Box::new(procedure_phase()),
         },
         goal: None,
         priority: Some(1),
@@ -307,7 +269,6 @@ fn task() -> Task {
         delegates: list([]),
 
         context: Some(Box::new(TaskContext {
-            escalation: None,
             parts: list([]),
             closing: None,
             spend: list([]),
@@ -617,11 +578,6 @@ fn a_family_entrance_refusal_shows_its_budget_and_keeps_the_object_present() {
 }
 
 #[test]
-fn outbox_family_keys_keep_scope_entry_and_effect_proposal_distinct() {
-    check_outbox_family_keys_keep_scope_entry_and_effect_proposal_distinct();
-}
-
-#[test]
 fn raw_owner_effect_keys_keep_full_scope_and_numbers_separate_from_equal_core_makers() {
     let reference = u64::MAX;
     let mut keys = Vec::new();
@@ -896,5 +852,47 @@ fn family_request(ask: first::Ask) -> jig_client::Family {
         family: jig_client_test_domain::FIRST,
         version: jig_client_test_protocol_wire::VERSION,
         bytes: jig_client_test_protocol_wire::codec::family::request_record(project, value),
+    }
+}
+
+fn procedure_phase() -> ChipPhase {
+    ChipPhase {
+        phase: OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
+        details: Box::new(OwnerChipDetails {
+            dependencies: list([]),
+            project: 3,
+            executor: OwnerExecutor::Procedure { connector: jig_client_test_domain::FIRST, code: 1 },
+            phase_since: Wall::EPOCH,
+            run_since: None,
+            attempt: Some(1),
+            retry: None,
+            wake: OwnerWakePolicy {
+                words: WakeRule::Never,
+                notices: WakeRule::Never,
+                news: WakeRule::Never,
+                results: ResultsWake::Never,
+                questions: false,
+                answers: false,
+                timers: false,
+            },
+            person_wait: None,
+            hold: None,
+            budget: OwnerBudget {
+                numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+                left: 1,
+                funder: Funder::Period { project: 3, period: 1 },
+                deadline: None,
+            },
+            activity: 0,
+            resources: list([]),
+            resources_cut: false,
+            resources_observed: false,
+            procedure: None,
+            live_delegates: 0,
+            closing_connectors: None,
+            ending: None,
+            ended_at: None,
+            observation: None,
+        }),
     }
 }

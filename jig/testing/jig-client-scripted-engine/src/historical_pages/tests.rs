@@ -11,7 +11,7 @@ fn chip() -> Chip {
         title: doc(b""),
         executor: Executor::Party { party: u64::MAX },
         phase: Phase::Ended,
-        details: Box::new(ChipPhase::Ended { how: Ending::Done, at: Wall::EPOCH }),
+        details: Box::new(crate::tests::chip_details(OwnerChipPhase::Ended)),
     }
 }
 fn page(ended: OwnerChipEnding, at: Option<Wall>) -> OwnerEndedPage {
@@ -183,22 +183,26 @@ fn historical_ended_whole_chip_metadata_prices_reserved_resources_connectors_and
         },
         None,
     );
-    let plain = ended_bytes(&source, &bounds).expect("plain whole page");
+    let initial = ended_bytes(&source, &bounds).expect("initial whole page");
+    let initial_metadata = crate::owner_chip::bytes(&source.rows.get(0).expect("row").chip.details.details, &bounds)
+        .expect("initial metadata");
     *source.rows.get_mut(0).expect("row").chip.details =
-        ChipPhase::Owner { phase: OwnerChipPhase::Ended, details: Box::new(metadata.clone()) };
+        ChipPhase { phase: OwnerChipPhase::Ended, details: Box::new(metadata.clone()) };
     let whole = ended_bytes(&source, &bounds).expect("complete metadata page");
     assert_eq!(
         whole,
-        plain.checked_add(crate::owner_chip::bytes(&metadata, &bounds).expect("whole metadata")).expect("whole sum")
+        initial
+            .checked_sub(initial_metadata)
+            .expect("metadata included")
+            .checked_add(crate::owner_chip::bytes(&metadata, &bounds).expect("whole metadata"))
+            .expect("whole sum")
     );
     let original = source.clone();
     assert!(ended_fits(&source, &Bounds { document_bytes: whole, ..bounds }));
     assert!(!ended_fits(&source, &Bounds { document_bytes: whole.checked_sub(1).expect("nonzero"), ..bounds }));
     assert_eq!(source, original);
     let mut over = source.clone();
-    let ChipPhase::Owner { details, .. } = over.rows.get_mut(0).expect("row").chip.details.as_mut() else {
-        panic!("source owner metadata")
-    };
+    let ChipPhase { details, .. } = over.rows.get_mut(0).expect("row").chip.details.as_mut();
     details.resources = List::with_capacity(4);
     assert!(!ended_fits(&over, &bounds));
     assert_eq!(source, original);

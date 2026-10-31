@@ -66,6 +66,8 @@ pub enum Delivery {
     Tasks(Box<super::Tasks>),
     /// Whole current run, including a call independent of provisional writing.
     RunState(Box<RunState>),
+    /// Provisional text delivered by the stream, independent of owner documents.
+    Run(Box<RunText>),
     /// Whole deployment-owned facts and diagnostics.
     OwnerDeployment(Box<super::OwnerDeployment>),
     /// Whole party account facts.

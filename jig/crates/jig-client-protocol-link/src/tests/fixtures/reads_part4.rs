@@ -8,20 +8,8 @@ pub fn read_value_history_page() -> c::HistoryPage {
     c::HistoryPage { cut: false, rows: List::with_capacity(0), before: None, after: None }
 }
 
-pub fn read_value_inbox_page() -> c::InboxPage {
-    c::InboxPage { cut: false, rows: List::with_capacity(0), before: None, after: None }
-}
-
-pub fn read_value_spend_page() -> c::SpendPage {
-    c::SpendPage { cut: false, rows: List::with_capacity(0), before: None, after: None }
-}
-
 pub fn read_value_note_page() -> c::NotePage {
     c::NotePage { cut: false, rows: List::with_capacity(0), before: None, after: None }
-}
-
-pub fn read_value_object_page() -> c::ObjectPage {
-    c::ObjectPage { cut: false, rows: List::with_capacity(0), before: None, after: None }
 }
 
 pub fn read_value_owner_ended_page() -> c::OwnerEndedPage {

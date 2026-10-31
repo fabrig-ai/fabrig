@@ -4,7 +4,7 @@ const FIRST_MESSAGE: u64 = 19;
 fn bounded_release() -> (Script, Ask, Answer) {
     let mut setup = live_script();
     let mut row = task();
-    row.hold = Some(TaskHold::Owner(Box::new(owner_hold(HoldCategory::Stopped, 7))));
+    row.hold = Some(Box::new(owner_hold(HoldCategory::Stopped, 7)));
     row.acts = list(vec![Offered {
         effect: None,
         act: ActKind::Amend,

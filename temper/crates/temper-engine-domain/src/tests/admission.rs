@@ -5,12 +5,12 @@ use jig_domain_host as host;
 use skein_lib::{ReplyTo, Token};
 
 #[test]
-fn a_full_payload_slab_returns_payload_records_but_takes_metadata() {
+fn a_full_payload_table_returns_payload_records_but_takes_metadata() {
     let (mut domain, env) = root();
     while crate::link::room(&domain) {
-        domain.payloads.insert(None).unwrap();
+        domain.hub_link.retain(crate::boundary::Payload::Busy);
     }
-    let full = domain.payloads.len();
+    let full = domain.hub_link.payload_count();
     for input in [
         WorkerInput::Link {
             channel: Token::new(7),
@@ -60,7 +60,7 @@ fn a_full_payload_slab_returns_payload_records_but_takes_metadata() {
             crate::try_step(&mut domain, &env, Event::Worker(input)).is_err(),
             "payload ownership stays with the caller"
         );
-        assert_eq!(domain.payloads.len(), full, "the slab cap stays");
+        assert_eq!(domain.hub_link.payload_count(), full, "the payload cap stays");
     }
     for up in [
         host::LinkUp::Logins { logins: Box::new([]) },
@@ -81,7 +81,7 @@ fn a_full_payload_slab_returns_payload_records_but_takes_metadata() {
         )
         .expect("non-retaining records need no payload slot");
     }
-    assert_eq!(domain.payloads.len(), full);
+    assert_eq!(domain.hub_link.payload_count(), full);
 }
 
 #[test]

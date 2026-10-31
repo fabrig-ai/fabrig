@@ -68,12 +68,10 @@ impl Check {
             Delivered::Note(value) => {
                 self.record(&Object::Note { scope: value.scope.clone(), note: value.number }, value.revision);
             }
-
             Delivered::Read(value) => match value {
                 ReadValue::Task(value) => self.delivered(Delivered::Task(value)),
                 ReadValue::OwnerEscalation(value) => self.delivered(Delivered::Escalation(value)),
                 ReadValue::OwnerPersonTask(value) => self.delivered(Delivered::PersonTask(value)),
-
                 ReadValue::Notes(value) => {
                     for note in &value.rows {
                         self.delivered(Delivered::Note(note));

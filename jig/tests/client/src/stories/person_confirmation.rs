@@ -47,7 +47,7 @@ fn chip(_form: Form) -> Chip {
     let mut chip = super::task().chip;
     chip.executor = Executor::Party { party: 7 };
     chip.phase = Phase::Active;
-    chip.details = Box::new(ChipPhase::Owner {
+    chip.details = Box::new(ChipPhase {
         phase: OwnerChipPhase::Person { address: PersonAddress::Party(7), taken_by: Some(7), since: Some(Wall::EPOCH) },
         details: Box::new(OwnerChipDetails {
             dependencies: skein_lib::List::with_capacity(0),

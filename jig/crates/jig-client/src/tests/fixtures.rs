@@ -420,7 +420,7 @@ pub fn me() -> contract::Me {
 }
 pub fn facts_chip(phase: contract::OwnerChipPhase, work: Option<contract::OwnerChipWork>) -> contract::Chip {
     let mut chip = facts_task().chip;
-    let contract::ChipPhase::Owner { details, .. } = chip.details.as_mut() else { panic!("owner fixture") };
+    let contract::ChipPhase { details, .. } = chip.details.as_mut();
     details.phase_since = PHASE_SINCE;
     details.ended_at = Some(ENDED_AT);
     details.retry = Some(RETRY_NOTICE);
@@ -435,7 +435,7 @@ pub fn facts_chip(phase: contract::OwnerChipPhase, work: Option<contract::OwnerC
         });
     }
     let details = details.clone();
-    chip.details = Box::new(contract::ChipPhase::Owner { phase, details });
+    chip.details = Box::new(contract::ChipPhase { phase, details });
     chip
 }
 pub const PHASE_SINCE: Wall = Wall::from_nanos(11);

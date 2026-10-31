@@ -39,6 +39,25 @@ impl OwnerChipHold {
     /// Only the supplied uncertain-effect hold requires a repeat decision.
     #[must_use]
     pub fn uncertain(&self) -> bool {
-        matches!(self.reason, HoldCategory::Uncertain { .. })
+        match self.reason {
+            HoldCategory::Uncertain { .. } => true,
+            HoldCategory::Exceeded(_)
+            | HoldCategory::Failures { .. }
+            | HoldCategory::Stalled
+            | HoldCategory::Dependency { .. }
+            | HoldCategory::Stopped
+            | HoldCategory::Placed { .. }
+            | HoldCategory::Drift
+            | HoldCategory::Effects
+            | HoldCategory::EffectFailed
+            | HoldCategory::Budget
+            | HoldCategory::Deadline
+            | HoldCategory::HoldsWaited
+            | HoldCategory::ResourceUnavailable
+            | HoldCategory::ResourceAccess
+            | HoldCategory::PoolLost { .. }
+            | HoldCategory::Circle
+            | HoldCategory::Procedure => false,
+        }
     }
 }

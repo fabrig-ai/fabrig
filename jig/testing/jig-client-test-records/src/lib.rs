@@ -47,24 +47,9 @@ pub fn wire_text(value: &[u8]) -> w::DocumentText {
 }
 #[must_use]
 pub fn chip_record() -> w::Chip {
-    chip_phase_record(w::ChipPhaseFields::Starting)
+    owner_waiting_chip_record()
 }
-#[must_use]
-pub fn chip_phase_record(phase: w::ChipPhaseFields) -> w::Chip {
-    let lim = limits();
 
-    let root = chip_root_fact();
-    let child = w::Fact::ChipPhase(
-        w::ChipPhaseRow::new(&lim, w::ChipPhaseRowParts { parent: Some(0), value: phase })
-            .expect("literal fixture fits"),
-    );
-    let first = fact_bytes(&root);
-    let second = fact_bytes(&child);
-    let mut rows = Writer::new(first.len().checked_add(second.len()).expect("literal fixture fits"));
-    rows.put(&first).expect("literal fixture fits");
-    rows.put(&second).expect("literal fixture fits");
-    w::Chip::new(&lim, w::ChipParts { rows: rows.finish() }).expect("literal fixture fits")
-}
 #[must_use]
 pub fn chip_pieces(count: u32) -> Box<[u8]> {
     let row = chip_record();
