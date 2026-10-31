@@ -2,6 +2,7 @@
 mod inbox;
 mod links;
 pub(crate) mod projections;
+mod runs;
 mod script;
 use crate::{Core, HeldLimit, Key, Wall, settings};
 use jig_domain_accounts as accounts;
@@ -57,6 +58,8 @@ pub enum LiveSet {
     Census,
     PeopleBound(people::RestoreBound),
     TasksBound(tasks::RestoreBound),
+    /// Restored worker claims past the attempts the fleet can adopt (`limits.fleet.attempts`).
+    WorkerClaims,
 }
 
 /// A journal release identity, holding no row or output payload.

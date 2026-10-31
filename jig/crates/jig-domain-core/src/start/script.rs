@@ -54,7 +54,21 @@ impl Core {
             Phase::Switch => Phase::Wires,
             Phase::Wires => return self.start_commit(Phase::AdoptRuns),
             Phase::AdoptRuns => {
-                assert!(self.adopted.is_empty(), "restored claims delivered before reads");
+                if let Some(claim) = self.adopted.iter().next() {
+                    #[expect(
+                        clippy::wildcard_enum_match_arm,
+                        reason = "the adoption queue contains only restored claims"
+                    )]
+                    let task = match claim {
+                        crate::fleet::Event::Adopt { run, .. } | crate::fleet::Event::Cross { run, .. } => run.raw(),
+                        _ => unreachable!("adopted queue contains restored claims"),
+                    };
+                    assert!(
+                        self.adopted.is_empty(),
+                        "{:?} restored claim delivered before reads",
+                        Key::Tasks(tasks::Key::Live(task))
+                    );
+                }
                 match self.connectors.first() {
                     Some(&connector) => Phase::ReadAfresh { connector },
                     None => Phase::Open,
@@ -72,6 +86,7 @@ impl Core {
                 None => Phase::Open,
             },
             Phase::Open => {
+                self.opened = true;
                 self.start.phase = None;
                 return Action::Idle;
             }
@@ -123,10 +138,10 @@ impl Core {
 
     pub fn start_resume(&mut self, env: &Env<Limits>, continuation: Continuation, out: &mut Queue<Request>) -> Action {
         self.start_input();
+        assert!(self.start.waiting.as_ref() == Some(&continuation), "stale or out-of-order start continuation");
         if let Some(failure) = self.start_failure() {
             return Action::Refused(failure);
         }
-        assert!(self.start.waiting.as_ref() == Some(&continuation), "stale or out-of-order start continuation");
         self.start.waiting = None;
         match continuation.phase {
             Phase::AdoptRuns => {
@@ -146,6 +161,16 @@ impl Core {
                 for _ in 0..activated.len() {
                     let request = activated.pop().expect("bounded restored activation outputs");
                     out.push(request);
+                }
+                if let Some((task, held)) = self.restored_worker_claims()
+                    && held > u64::from(self.restart_attempts)
+                {
+                    return self.start_refuse(Failure::LiveSet {
+                        set: LiveSet::WorkerClaims,
+                        key: Key::Tasks(tasks::Key::Live(task)),
+                        held,
+                        limit: u64::from(self.restart_attempts),
+                    });
                 }
             }
             Phase::LoadInbox | Phase::Sweep => {}
