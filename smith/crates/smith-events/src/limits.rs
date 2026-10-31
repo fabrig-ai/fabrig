@@ -824,8 +824,11 @@ fn size_tool_started(capture: &Capture, limits: &Limits) -> Option<u64> {
     length = length.checked_add(10)?.checked_add(size_effect(capture, limits)?)?;
     length = length.checked_add(15)?.checked_add(20_u64)?;
     length = length.checked_add(15)?.checked_add(20_u64)?;
-    if *capture != Capture::None {
-        length = length.checked_add(9)?.checked_add(u64::from(limits.content).checked_mul(6)?.checked_add(2)?)?;
+    match capture {
+        Capture::None | Capture::Unknown(_) => {}
+        Capture::Calls | Capture::Everything => {
+            length = length.checked_add(9)?.checked_add(u64::from(limits.content).checked_mul(6)?.checked_add(2)?)?;
+        }
     }
     Some(length)
 }

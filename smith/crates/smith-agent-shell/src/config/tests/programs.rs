@@ -161,3 +161,20 @@ fn the_program_startup_pool_prices_declarations_independently() {
     assert_eq!(program.service.domain.programs.len(), 1);
     assert!(program.service.domain.valid(&program.service.limits.domain));
 }
+
+#[test]
+fn an_unsafe_program_directory_logs_its_startup_refusal_once() {
+    let scratch = skein_scratch::Scratch::new("program-diagnostic");
+    let directory = scratch.path().join("not-a-directory");
+    std::fs::write(&directory, b"fixture").expect("non-directory fixture");
+    let mut document = document();
+    document["programs"]["claude_code"]["directory"] = directory.to_str().expect("fixture path").into();
+    let path = scratch.path().join("configuration.json");
+    std::fs::write(&path, serde_json::to_vec(&document).expect("configuration")).expect("configuration file");
+    let diagnostic = scratch.path().join("diagnostic");
+    #[expect(clippy::disallowed_types, reason = "the test reads the owned diagnostic file after run returns")]
+    let errors = std::fs::File::create(&diagnostic).expect("diagnostic file");
+    let why = crate::run(&path, Box::new(errors)).expect_err("unsafe directory refused");
+    assert!(why.contains("not a directory"), "the directory refusal identifies its cause: {why}");
+    assert_eq!(std::fs::read_to_string(diagnostic).expect("diagnostic text"), format!("smith: {why}\n"));
+}

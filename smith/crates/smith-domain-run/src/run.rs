@@ -1429,7 +1429,7 @@ pub(crate) fn ended(
     detail: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
-    let Domain { rng: _, runs, conversations, calls, alarms, facts, ready } = domain;
+    let Domain { rng: _, runs, conversations, calls: _, alarms: _, facts, ready } = domain;
     let id = Id::<Conversation>::from_token(conversation);
     let Some(conversation) = conversations.get_mut(id) else {
         return;
@@ -1470,43 +1470,93 @@ pub(crate) fn ended(
         run.state = hard_stop(state, conversations, failure, out);
     }
     run.conversations = run.conversations.checked_sub(1).expect("a run counts its conversations");
-    // A sub-agent's end is its call's return.
-    if let Some(asker) = asker {
-        assert!(run.children.remove(&id), "a child is retained until its terminal");
-        let finishing = match &mut run.wind_down {
-            Some(phase) => phase.child_ended(),
-            None => false,
-        };
-        if writing {
-            run.lease.child_returned(asker);
-        }
-        let left = crate::budget::left(&snapshot);
-        let call = calls.get_mut(asker).expect("a sub-agent's call lives until it has ended");
-        let result = match &mut call.work {
-            Work::Child(child) => {
-                let end = match budget_close {
-                    Some(exhausted) if end == End::Closed => End::Budget(exhausted),
-                    Some(_) | None => end,
-                };
-                agent::ended(child, end, used, left)
-            }
-            Work::Landing(_) | Work::Host(_) => unreachable!("a sub-agent serves a sub-agent's call"),
-        };
-        let told = tells_budget(&result);
-        if told || unaccounted.turns > 0 || changed {
-            let call = if told { Some(call.owner) } else { None };
-            facts.push(FactKind::Budget { run: run_id.token(), standing: snapshot, call });
-        }
-        crate::facts::child_returned(facts, run_id.token(), call.owner, &result, used);
-        out.push(Request::Return { spent: bill, call: call.owner, result });
-        retire_call(calls, alarms, conversations, asker);
-        if finishing {
-            ready.keep(run_id);
-            child_ready(run, out);
-        }
-        return;
+    let budget_changed = unaccounted.turns > 0 || changed;
+    match asker {
+        Some(asker) => child_ended(
+            domain,
+            run_id,
+            id,
+            asker,
+            end,
+            budget_close,
+            writing,
+            used,
+            snapshot,
+            bill,
+            budget_changed,
+            out,
+        ),
+        None => main_ended(domain, run_id, id, end, failure, detail, snapshot, budget_changed, out),
     }
-    if unaccounted.turns > 0 || changed {
+}
+
+#[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
+fn child_ended(
+    domain: &mut Domain,
+    run_id: Id<Run>,
+    id: Id<Conversation>,
+    asker: Id<Call>,
+    end: End,
+    budget_close: Option<Exhausted>,
+    writing: bool,
+    used: crate::facts::Used,
+    snapshot: crate::facts::Standing,
+    bill: u64,
+    budget_changed: bool,
+    out: &mut Queue<Request>,
+) {
+    let Domain { rng: _, runs, conversations, calls, alarms, facts, ready } = domain;
+    let run = runs.get_mut(run_id).expect("a run lives until its conversations have ended");
+    assert!(run.children.remove(&id), "a child is retained until its terminal");
+    let finishing = match &mut run.wind_down {
+        Some(phase) => phase.child_ended(),
+        None => false,
+    };
+    if writing {
+        run.lease.child_returned(asker);
+    }
+    let left = crate::budget::left(&snapshot);
+    let call = calls.get_mut(asker).expect("a sub-agent's call lives until it has ended");
+    let result = match &mut call.work {
+        Work::Child(child) => {
+            let end = match budget_close {
+                Some(exhausted) if end == End::Closed => End::Budget(exhausted),
+                Some(_) | None => end,
+            };
+            agent::ended(child, end, used, left)
+        }
+        Work::Landing(_) | Work::Host(_) => unreachable!("a sub-agent serves a sub-agent's call"),
+    };
+    let told = tells_budget(&result);
+    if told || budget_changed {
+        let call = if told { Some(call.owner) } else { None };
+        facts.push(FactKind::Budget { run: run_id.token(), standing: snapshot, call });
+    }
+    crate::facts::child_returned(facts, run_id.token(), call.owner, &result, used);
+    out.push(Request::Return { spent: bill, call: call.owner, result });
+    retire_call(calls, alarms, conversations, asker);
+    if finishing {
+        ready.keep(run_id);
+        child_ready(run, out);
+    }
+    follow(runs, alarms, facts, ready, run_id);
+}
+
+#[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
+fn main_ended(
+    domain: &mut Domain,
+    run_id: Id<Run>,
+    id: Id<Conversation>,
+    end: End,
+    failure: Option<Failure>,
+    detail: Box<[u8]>,
+    snapshot: crate::facts::Standing,
+    budget_changed: bool,
+    out: &mut Queue<Request>,
+) {
+    let Domain { rng: _, runs, conversations: _, calls: _, alarms, facts, ready } = domain;
+    let run = runs.get_mut(run_id).expect("a run lives until its conversations have ended");
+    if budget_changed {
         facts.push(FactKind::Budget { run: run_id.token(), standing: snapshot, call: None });
     }
     let state = mem::replace(&mut run.state, State::Closed);

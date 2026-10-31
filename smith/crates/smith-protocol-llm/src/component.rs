@@ -752,7 +752,26 @@ impl Component {
     }
 
     fn local_failure(owner: Token, failure: llm::Failure, maximum: u32, to_domain: &mut Queue<ToDomain>) {
-        let detail = b"credential or endpoint unavailable";
+        let detail: &[u8] = match &failure {
+            llm::Failure::Unauthorized => b"credential unavailable",
+            llm::Failure::Invalid => b"invalid local completion configuration or owner",
+            llm::Failure::ApplicationLimit => b"completion exceeds local capacity",
+            llm::Failure::Limit { which: llm::Limit::Pool { .. }, .. } => b"connection pool memory limit exceeded",
+            llm::Failure::Limit { .. } => b"local receiving limit exceeded",
+            llm::Failure::Protocol
+            | llm::Failure::Cancelled
+            | llm::Failure::Overloaded
+            | llm::Failure::RateLimited { .. }
+            | llm::Failure::Unavailable
+            | llm::Failure::TimedOut { .. }
+            | llm::Failure::ContextTooLong
+            | llm::Failure::SignedOut
+            | llm::Failure::Program { .. }
+            | llm::Failure::SessionGone
+            | llm::Failure::Refused
+            | llm::Failure::Unsupported
+            | llm::Failure::Exhausted { .. } => b"local completion failed",
+        };
         let length = detail.len().min(usize::try_from(maximum).expect("u32 fits usize"));
         to_domain.push(ToDomain::Failed {
             owner,
@@ -783,5 +802,39 @@ fn observed_prompt(
             Ok(Some(prompt))
         }
         None => Ok(None),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_failure_diagnostics_name_the_failure_class_and_keep_the_bound() {
+        for (failure, expected) in [
+            (llm::Failure::Invalid, b"invalid local completion configuration or owner".as_slice()),
+            (llm::Failure::ApplicationLimit, b"completion exceeds local capacity".as_slice()),
+            (llm::Failure::Unauthorized, b"credential unavailable".as_slice()),
+            (
+                llm::Failure::Limit { which: llm::Limit::Pool { reservation: 100 }, bound: 99 },
+                b"connection pool memory limit exceeded".as_slice(),
+            ),
+        ] {
+            for maximum in [0, 5, 128] {
+                let mut out = Queue::uncapped();
+                Component::local_failure(Token::new(7), failure, maximum, &mut out);
+                let Some(ToDomain::Failed { owner, failure: reported, evidence, detail, .. }) = out.pop() else {
+                    panic!("local failure terminal");
+                };
+                assert_eq!(owner, Token::new(7));
+                assert_eq!(reported, failure);
+                assert_eq!(evidence, llm::Evidence::Unsent);
+                assert_eq!(
+                    detail.as_ref(),
+                    &expected[..expected.len().min(usize::try_from(maximum).expect("test cap"))]
+                );
+                assert!(out.is_empty());
+            }
+        }
     }
 }

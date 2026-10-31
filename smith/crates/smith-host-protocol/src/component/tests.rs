@@ -324,3 +324,44 @@ fn a_refresh_whose_value_disagrees_with_its_grant_is_refused() {
         assert!(below.is_empty());
     }
 }
+
+#[test]
+fn malformed_records_name_the_record_in_their_refusal() {
+    for (kind, expected) in [
+        (0x0111, b"invalid message refusal".as_slice()),
+        (0x0107, b"invalid call".as_slice()),
+        (0x0108, b"invalid withdrawal".as_slice()),
+        (0x010a, b"invalid waiting record".as_slice()),
+        (0x0109, b"invalid turn".as_slice()),
+        (0x010f, b"invalid fact".as_slice()),
+        (0x010d, b"invalid account notice".as_slice()),
+        (0x010e, b"invalid account notice".as_slice()),
+        (0x0113, b"invalid account notice".as_slice()),
+        (0x010b, b"invalid long operation".as_slice()),
+        (0x0110, b"invalid answer".as_slice()),
+    ] {
+        let (mut component, mut above, mut below) = admitted_channel();
+        receive(&mut component, kind, Box::new([255]), &mut above, &mut below);
+        assert!(above.is_empty(), "malformed record never reaches the domain");
+        let Some(Lower::Write(stream::OutputDown::Room { right, .. })) = below.pop() else {
+            panic!("refusal requests output room");
+        };
+        component.from_below(
+            LowerEvent::Write(stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted }),
+            &mut above,
+            &mut below,
+        );
+        let Some(Lower::Write(stream::OutputDown::Send { bytes, .. })) = below.pop() else {
+            panic!("refusal frame");
+        };
+        let header = skein_channel::parse_header(&bytes[..HEADER_BYTES]).expect("refusal header");
+        let control =
+            skein_channel::decode_control(header.kind, &bytes[HEADER_BYTES..], &crate::tests::process_limits().channel)
+                .expect("refusal control");
+        let Control::Refuse { reason, text } = control else {
+            panic!("refusal control");
+        };
+        assert_eq!(reason, super::RULES);
+        assert_eq!(text.as_ref(), expected, "kind {kind:#06x}");
+    }
+}

@@ -383,3 +383,19 @@ fn program_detail_escapes_terminal_controls() {
     failure.detail = Some(b"first\x1b[2J\t\x7f\nignored\x1b".as_slice().into());
     assert_eq!(crate::words(&failure, None, None).as_ref(), b"claude could not run: first\\x1b[2J\\x09\\x7f");
 }
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "a frozen wire fixture checks capture without sharing the writer")]
+fn an_unknown_capture_policy_omits_tool_input_like_none() {
+    let limits = Limits { string: 64, content: 1024, items: 4 };
+    let record = read(include_bytes!("../golden/v4/tool_started_calls.jsonl"), &limits)
+        .expect("tool record")
+        .expect("known event");
+    let unknown = Capture::Unknown(Box::from(b"future".as_slice()));
+    let hidden = write(&record, &Capture::None, &limits).expect("no capture");
+    assert_eq!(write(&record, &unknown, &limits).expect("unknown capture"), hidden);
+    assert_eq!(
+        crate::limits::largest_size(&record.event, &unknown, &limits),
+        crate::limits::largest_size(&record.event, &Capture::None, &limits),
+    );
+}

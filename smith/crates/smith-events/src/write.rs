@@ -1944,11 +1944,14 @@ fn encode_tool_started(json: &mut Encoder, value: &ToolStarted, capture: &Captur
     }
     json.key(b"input_bytes");
     json.unsigned(value.input_bytes);
-    if *capture != Capture::None
-        && let Some(item) = &value.input
-    {
-        json.key(b"input");
-        json.string(item);
+    match capture {
+        Capture::None | Capture::Unknown(_) => {}
+        Capture::Calls | Capture::Everything => {
+            if let Some(item) = &value.input {
+                json.key(b"input");
+                json.string(item);
+            }
+        }
     }
 }
 
