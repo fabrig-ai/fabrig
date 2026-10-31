@@ -7,7 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_fake_forge_domain as domain;
-use skein_lib::{Duration, Env, ReplyTo, Wall, bytes};
+use skein_lib::{Decimal, Duration, Env, ReplyTo, Wall, bytes};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Heads {
     pub expires: Option<Wall>,
@@ -203,9 +203,6 @@ pub(crate) fn attach(outcome: Outcome, rate: Option<Heads>) -> Outcome {
     }
 }
 
-fn decimal(value: u64) -> Box<[u8]> {
-    bytes::copy_of(skein_lib::Decimal::of(value).as_bytes())
-}
 /// Appends core rate fields, optional person-token expiry and Retry-After; reserve seven slots.
 pub fn headers(heads: Heads, refused: bool, headers: &mut skein_lib::List<skein_http::Header>) {
     if let Some(expires) = heads.expires {
@@ -223,12 +220,18 @@ pub fn headers(heads: Heads, refused: bool, headers: &mut skein_lib::List<skein_
             .expect("expiry header slot");
     }
     for (name, value) in [
-        (b"X-RateLimit-Limit".as_slice(), decimal(u64::from(heads.rate.limit))),
-        (b"X-RateLimit-Remaining", decimal(u64::from(heads.rate.limit.saturating_sub(heads.rate.used)))),
-        (b"X-RateLimit-Used", decimal(u64::from(heads.rate.used))),
+        (b"X-RateLimit-Limit".as_slice(), bytes::copy_of(Decimal::of(u64::from(heads.rate.limit)).as_bytes())),
+        (
+            b"X-RateLimit-Remaining",
+            bytes::copy_of(Decimal::of(u64::from(heads.rate.limit.saturating_sub(heads.rate.used))).as_bytes()),
+        ),
+        (b"X-RateLimit-Used", bytes::copy_of(Decimal::of(u64::from(heads.rate.used)).as_bytes())),
         (
             b"X-RateLimit-Reset",
-            decimal(heads.rate.reset.as_nanos().checked_div(1_000_000_000).expect("nonzero seconds")),
+            bytes::copy_of(
+                Decimal::of(heads.rate.reset.as_nanos().checked_div(1_000_000_000).expect("nonzero seconds"))
+                    .as_bytes(),
+            ),
         ),
         (b"X-RateLimit-Resource", bytes::copy_of(b"core")),
     ] {
@@ -246,7 +249,10 @@ pub fn headers(heads: Heads, refused: bool, headers: &mut skein_lib::List<skein_
     if let Some(after) = after {
         let seconds = after.as_nanos().div_ceil(1_000_000_000);
         headers
-            .push(skein_http::Header { name: bytes::copy_of(b"Retry-After"), value: decimal(seconds) })
+            .push(skein_http::Header {
+                name: bytes::copy_of(b"Retry-After"),
+                value: bytes::copy_of(Decimal::of(seconds).as_bytes()),
+            })
             .expect("retry header slot");
     }
 }
