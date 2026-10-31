@@ -18,6 +18,11 @@ const KEY_EXCHANGE: u64 = 1_u64 << 33;
 #[derive(Debug)]
 pub enum Event {
     Request(domain::Request),
+    /// The owner's browser location for a sign-in callback.
+    Return {
+        source: u32,
+        location: Box<[u8]>,
+    },
     Io(io::Event),
     Store(store::Event),
     /// The store has acknowledged this start's durable mark.
@@ -1173,6 +1178,7 @@ impl Component {
         self.clock(env.now, env.wall);
         match event {
             Event::Request(request) => self.request(request),
+            Event::Return { source, location } => self.down(driver::Request::Return { account: source, location }),
             Event::Io(event) => self.up(event),
             Event::Store(event) if self.aborting => {
                 drop(event);
