@@ -1,8 +1,9 @@
 //! temper's Open chat wiring; jig owns the lifecycle's exhaustive proofs.
 use super::*;
 use jig_client::{contract as c, shapes};
-use jig_client_world::joint::wire;
+use jig_client_protocol_wire::v19 as w;
 use jig_domain_core::{documents as d, reads};
+use jig_protocol_engine_clients as clients;
 use temper_engine_domain_world::{fixtures, walking};
 
 const CHANNEL: Token = Token::new(7);
@@ -145,16 +146,64 @@ fn read(driver: &mut Driver, read: reads::Read) -> reads::Answer {
 fn client_me(driver: &mut Driver) -> c::Me {
     let reads::Answer::Document(document) = read(driver, reads::Read::Frame) else { panic!("party frame") };
     let d::Document::Frame(frame) = *document else { panic!("frame document") };
-    let configuration = open_config(91);
-    wire::owner::frame(&frame, &client_limits(), &walking::models(), &configuration.core.settings.llm_providers)
-        .expect("whole client frame")
+    let frame = clients::translate::owner::frame(&frame, &client_models(), &w::CEILINGS).expect("encoded frame");
+    let limits = jig_client_protocol_link::Limits::new(client_limits(), 8).expect("client bounds");
+    jig_client_protocol_link::translate::documents::frame(frame, &limits).expect("client frame")
 }
 
 fn open_ask(driver: &mut Driver, words: &[u8]) -> people::Ask {
     let me = client_me(driver);
     let chat = shapes::chat(&me, 1, c::Text::new(words.into(), u32::MAX).expect("bounded words"))
         .expect("offered Open template");
-    wire::asks::ask(&chat, &walking::models()).expect("client chat translates")
+    client_request(&chat)
+}
+
+fn client_models() -> Box<[clients::Model]> {
+    walking::models()
+        .iter()
+        .map(|model| clients::Model {
+            name: model.name.clone(),
+            provider: None,
+            window: model.window,
+            output: model.output,
+            efforts: model.efforts.clone(),
+            description: None,
+            prices: clients::Prices {
+                input: model.input_price,
+                cached: model.cached_price,
+                cache_write: model.cache_write_price,
+                output: model.output_price,
+                unit: model.price_unit,
+            },
+        })
+        .collect()
+}
+
+fn client_request(ask: &c::Ask) -> people::Ask {
+    let mut settings = jig_engine_clients_world::fixtures::settings();
+    settings.models = client_models();
+    let mut peer = jig_engine_clients_world::Peer::signed_in(&settings, 1);
+    let ask = jig_client_protocol_link::translate::asks::ask(ask, &w::CEILINGS).expect("encoded client ask");
+    let mut out = skein_lib::Writer::new(usize::try_from(ask.measure()).expect("ask size"));
+    ask.encode(&mut out).expect("ask bytes");
+    let keyed = w::Keyed::new(
+        &w::CEILINGS,
+        w::KeyedParts {
+            key: [1; 16],
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            request: out.finish(),
+            value: None,
+        },
+    )
+    .expect("keyed request");
+    let mut out = skein_lib::Writer::new(usize::try_from(keyed.measure()).expect("request size"));
+    keyed.encode(&mut out).expect("keyed bytes");
+    peer.authenticated_post(b"/jig/v1/request", out.finish());
+    let Some(jig_domain_core::Event::People(people::Event::Ask { ask, .. })) = peer.take_core() else {
+        panic!("component decoded ask")
+    };
+    ask
 }
 
 fn client_limits() -> jig_client::DomainLimits {
@@ -261,10 +310,10 @@ fn closing_an_open_chat_keeps_its_turns_and_settles_its_delegates() {
         c::Text::new(REASON.into(), u32::MAX).expect("bounded reason"),
     )
     .expect("offered Close");
-    let request = wire::asks::request(&close, &walking::models()).expect("client Close translates");
+    let request = client_request(&close);
     let before_assignments = assignments(&driver);
     let at = driver.env.wall;
-    ask(&mut driver, 63, request.ask);
+    ask(&mut driver, 63, request);
     let row = ended(&driver, run.task).expect("chat ended without advancing time");
     assert!(
         matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Cancelled { reason, result: None, .. }) if reason.as_ref() == REASON)

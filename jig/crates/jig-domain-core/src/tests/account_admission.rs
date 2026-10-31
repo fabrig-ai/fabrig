@@ -56,7 +56,12 @@ fn a_party_amendment_uses_its_targets_financial_payer() {
     let mut edit = fixtures::unchanged(b"choose");
     edit.llm = Some(choice());
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 2, &edit, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 2 },
+            &edit,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Err(people::Refusal::Account { account: ACCOUNT, why: people::AccountWhy::Uses })
     );
 }

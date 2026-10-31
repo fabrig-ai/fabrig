@@ -10,7 +10,7 @@
 //! typed activity and live pieces share a bounded queue until the parent can
 //! send them. Pieces use at most its first half, leaving room for activity.
 
-use skein_lib::{Queue, Token};
+use skein_lib::{Lossy, Token};
 
 use crate::boundary::Failure;
 use crate::{AgentActivity, LinkUp, Phase};
@@ -39,21 +39,19 @@ pub enum Fact {
 /// The facts not yet drained, and how many did not fit.
 #[derive(Debug)]
 pub(crate) struct Facts {
-    queue: Queue<Fact>,
-    activity: Queue<LinkUp>,
-    activity_lost: u64,
+    queue: Lossy<Fact>,
+    activity: Lossy<LinkUp>,
+    piece_limit: u32,
     pieces_lost: u64,
     pieces_fenced: u64,
-    lost: u64,
 }
 
 impl Facts {
     pub(crate) fn with_capacity(capacity: u32, activity: u32) -> Facts {
         Facts {
-            queue: Queue::with_capacity(capacity),
-            activity: Queue::with_capacity(activity),
-            lost: 0,
-            activity_lost: 0,
+            queue: Lossy::with_capacity(capacity),
+            activity: Lossy::with_capacity(activity),
+            piece_limit: activity / 2,
             pieces_lost: 0,
             pieces_fenced: 0,
         }
@@ -61,19 +59,15 @@ impl Facts {
 
     /// Keeps `fact` if there is room for it, and counts it otherwise.
     pub(crate) fn push(&mut self, fact: Fact) {
-        if self.queue.try_push(fact).is_err() {
-            self.lost = self.lost.saturating_add(1);
-        }
+        self.queue.push(fact);
     }
 
     pub(crate) fn activity(&mut self, activity: LinkUp) {
-        if self.activity.try_push(activity).is_err() {
-            self.activity_lost = self.activity_lost.saturating_add(1);
-        }
+        self.activity.push(activity);
     }
 
     pub(crate) fn piece(&mut self, piece: LinkUp) {
-        if self.activity.len() >= self.activity.capacity() / 2 {
+        if self.activity.len() >= self.piece_limit {
             self.pieces_lost = self.pieces_lost.saturating_add(1);
         } else {
             self.activity.push(piece);
@@ -107,7 +101,7 @@ impl Facts {
         self.activity.pop()
     }
     pub(crate) const fn activity_lost(&self) -> u64 {
-        self.activity_lost
+        self.activity.lost()
     }
 
     pub(crate) fn pop(&mut self) -> Option<Fact> {
@@ -115,7 +109,7 @@ impl Facts {
     }
 
     pub(crate) fn lost(&self) -> u64 {
-        self.lost
+        self.queue.lost()
     }
 }
 

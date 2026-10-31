@@ -4,6 +4,7 @@
 //! revisions take precedence over archived decisions, as in the former chain.
 
 use super::PersonEscalation;
+use super::party::{Party, Routed};
 use super::refusals::pool_refused;
 use crate::routing::Work;
 use crate::{Core, Event, GoalRoute, Limits, Now, PersonProposalRoute, Request};
@@ -11,30 +12,26 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Queue, ReplyTo, Token};
+use people::{LimitKind, Refusal};
+use skein_lib::{Env, ReplyTo};
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one holder decision checks and schedules its complete action atomically"
-)]
 pub(super) fn goal_decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    _role: Option<people::Role>,
-    project: u32,
+    routed: &mut Routed,
+    party: Party,
     proposer: u64,
     number: u64,
     choice: people::ProposalDecision,
 ) {
+    let Party { request, person, project, .. } = party;
+
     let Some(proposal) = core.tasks.person_proposal(proposer, number) else {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, Refusal::Unknown);
         return;
     };
     if proposal.project != project {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, Refusal::Unknown);
         return;
     }
     if let Err(why) = crate::acts::proposal(
@@ -46,21 +43,21 @@ pub(super) fn goal_decide(
         number,
         env.wall,
     ) {
-        pool_refused(work, request, why);
+        pool_refused(&mut routed.work, request, why);
         return;
     }
     let event = match choice {
         people::ProposalDecision::Accept => {
-            if super::proposal_revisions::party(core, work, request, &proposal) {
+            if super::proposal_revisions::party(core, &mut routed.work, request, &proposal) {
                 return;
             }
             let (source, _) = core.person_pool(project, person);
             let (period, pool) = core.open_person_pool(project, person);
             if let Some(event) = period {
-                work.push(Work::Event(Event::Tasks(event)));
+                routed.work.push(Work::Event(Event::Tasks(event)));
             }
             if let Some(event) = pool {
-                work.push(Work::Event(Event::Tasks(event)));
+                routed.work.push(Work::Event(Event::Tasks(event)));
             }
             let event = match proposal.action {
                 tasks::PersonAction::Settings { .. } => unreachable!("settings acceptance has its own decision"),
@@ -74,7 +71,7 @@ pub(super) fn goal_decide(
                 }
                 tasks::PersonAction::Amend { task, amendment, .. } => {
                     let Some(current) = core.tasks.task(task) else {
-                        pool_refused(work, request, people::Refusal::Unknown);
+                        pool_refused(&mut routed.work, request, Refusal::Unknown);
                         return;
                     };
                     let before = crate::translate::tasks_authority(&current.authority);
@@ -82,7 +79,7 @@ pub(super) fn goal_decide(
                         crate::translate::tasks_authority(amendment.authority.as_ref().unwrap_or(&current.authority));
                     let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
                     let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-                        pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+                        pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
                         return;
                     };
                     tasks::Event::Amend {
@@ -102,7 +99,7 @@ pub(super) fn goal_decide(
         }
         people::ProposalDecision::Reject { reason } => {
             let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-                pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+                pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
                 return;
             };
             let request = core.fly_goal(request, GoalRoute::Deciding { proposer, proposal: number, by: person });
@@ -117,32 +114,30 @@ pub(super) fn goal_decide(
             }
         }
         people::ProposalDecision::Pass => {
-            pool_refused(work, request, people::Refusal::NoFurther);
+            pool_refused(&mut routed.work, request, Refusal::NoFurther);
             return;
         }
     };
-    work.push(Work::Event(Event::Tasks(event)));
+    routed.work.push(Work::Event(Event::Tasks(event)));
 }
 
-#[expect(clippy::too_many_arguments, reason = "a keyed proposal decision carries its holder and exact live proposal")]
 pub(super) fn person_proposal_decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    _role: Option<people::Role>,
-    project: u32,
+    routed: &mut Routed,
+    party: Party,
     proposer: u64,
     number: u64,
     choice: people::ProposalDecision,
 ) {
+    let Party { request, person, project, .. } = party;
+
     let Some(proposal) = core.tasks.proposal(proposer, number) else {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, Refusal::Unknown);
         return;
     };
     if proposal.project != project {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, Refusal::Unknown);
         return;
     }
     if let Err(why) = crate::acts::proposal(
@@ -154,7 +149,7 @@ pub(super) fn person_proposal_decide(
         number,
         env.wall,
     ) {
-        pool_refused(work, request, why);
+        pool_refused(&mut routed.work, request, why);
         return;
     }
     let current = match proposal.state {
@@ -165,7 +160,7 @@ pub(super) fn person_proposal_decide(
     };
     let next = match choice {
         people::ProposalDecision::Accept => {
-            person_proposal_accept(core, work, request, person, proposal, env.wall);
+            person_proposal_accept(core, routed, party, proposal, env.wall);
             return;
         }
         people::ProposalDecision::Reject { reason } => tasks::ProposalDecision::Reject { reason },
@@ -174,7 +169,7 @@ pub(super) fn person_proposal_decide(
                 holder: tasks::ProposalHolder::Policy { project, kind: Core::proposal_kind(&proposal.action).0 },
             },
             tasks::ProposalHolder::Policy { .. } => {
-                pool_refused(work, request, people::Refusal::NoFurther);
+                pool_refused(&mut routed.work, request, Refusal::NoFurther);
                 return;
             }
             tasks::ProposalHolder::Task(_) => unreachable!("person standing checked"),
@@ -184,7 +179,7 @@ pub(super) fn person_proposal_decide(
         tasks::ProposalDecision::Reject { .. } => match crate::fresh(&mut core.counters, crate::Family::Message) {
             Some(message) => Some(message),
             None => {
-                pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+                pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
                 return;
             }
         },
@@ -198,7 +193,7 @@ pub(super) fn person_proposal_decide(
         by: person,
         moved: None,
     });
-    work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
+    routed.work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
         reply_to: ReplyTo::new(request),
         proposer,
         proposal: number,
@@ -211,18 +206,19 @@ pub(super) fn person_proposal_decide(
 #[expect(clippy::too_many_lines, reason = "one exhaustive authenticated person proposal dispatcher")]
 pub(super) fn person_proposal_accept(
     core: &mut Core,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
+    routed: &mut Routed,
+    party: Party,
     proposal: tasks::Proposal,
     decision: skein_lib::Wall,
 ) {
-    if super::proposal_revisions::person(core, work, request, person, &proposal) {
+    let Party { request, person, .. } = party;
+
+    if super::proposal_revisions::person(core, &mut routed.work, request, person, &proposal) {
         return;
     }
     if crate::proposals::placed_release(&proposal.action) {
         let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-            pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+            pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
             return;
         };
         let request = core.fly_person_proposal(PersonProposalRoute::Deciding {
@@ -232,7 +228,7 @@ pub(super) fn person_proposal_accept(
             by: person,
             moved: None,
         });
-        work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
+        routed.work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
             reply_to: ReplyTo::new(request),
             proposer: proposal.proposer,
             proposal: proposal.number,
@@ -244,17 +240,17 @@ pub(super) fn person_proposal_accept(
     }
     let source = tasks::Funder::Pool { project: proposal.project, person, period: core.period(proposal.project) };
     if let Err(why) = core.action_accounts(&proposal.action, source) {
-        pool_refused(work, request, core.account_refusal(why));
+        pool_refused(&mut routed.work, request, core.account_refusal(why));
         return;
     }
     match &proposal.action {
         tasks::ProposalAction::Amend { .. } | tasks::ProposalAction::Widen { .. } => {
             let (period, pool) = core.open_person_pool(proposal.project, person);
             if let Some(event) = period {
-                work.push(Work::Event(Event::Tasks(event)));
+                routed.work.push(Work::Event(Event::Tasks(event)));
             }
             if let Some(event) = pool {
-                work.push(Work::Event(Event::Tasks(event)));
+                routed.work.push(Work::Event(Event::Tasks(event)));
             }
         }
         tasks::ProposalAction::Settings { .. }
@@ -267,7 +263,7 @@ pub(super) fn person_proposal_accept(
     let result_followups = core.tasks.result_proposal(proposal.proposer, proposal.number);
     match proposal.action {
         tasks::ProposalAction::Effect { connector, .. } | tasks::ProposalAction::ProcedureEffect { connector, .. } => {
-            work.push(Work::Event(Event::EffectStart {
+            routed.work.push(Work::Event(Event::EffectStart {
                 owner: request,
                 connector,
                 origin: crate::EffectOrigin::Accept {
@@ -298,17 +294,17 @@ pub(super) fn person_proposal_accept(
                 None => false,
             };
             if proposal.as_holder && !held {
-                pool_refused(work, request, people::Refusal::NoEscalationHolder);
+                pool_refused(&mut routed.work, request, Refusal::NoEscalationHolder);
                 return;
             }
             let creator =
                 if proposal.as_holder { tasks::Party::Person(person) } else { tasks::Party::Task(proposal.proposer) };
             let (period, pool) = core.open_person_pool(proposal.project, person);
             if let Some(event) = period {
-                work.push(Work::Event(Event::Tasks(event)));
+                routed.work.push(Work::Event(Event::Tasks(event)));
             }
             if let Some(event) = pool {
-                work.push(Work::Event(Event::Tasks(event)));
+                routed.work.push(Work::Event(Event::Tasks(event)));
             }
             for member in &mut batch {
                 member.funder =
@@ -327,15 +323,15 @@ pub(super) fn person_proposal_accept(
         }
         tasks::ProposalAction::Amend { task, amendment, .. } => {
             if let Err(why) = core.amendment_accept_revision(proposal.proposer, task, amendment.release) {
-                pool_refused(work, request, why);
+                pool_refused(&mut routed.work, request, why);
                 return;
             }
             let Some(current) = core.tasks.delegation(task) else {
-                pool_refused(work, request, people::Refusal::Unknown);
+                pool_refused(&mut routed.work, request, Refusal::Unknown);
                 return;
             };
             let Some(amend_message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-                pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+                pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
                 return;
             };
             let after = crate::translate::tasks_authority(amendment.authority.as_ref().unwrap_or(&current.authority));
@@ -354,7 +350,7 @@ pub(super) fn person_proposal_accept(
         }
         tasks::ProposalAction::Widen { task, authority } => {
             let Some(amend_message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-                pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+                pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
                 return;
             };
             tasks::Event::Amend {
@@ -389,7 +385,7 @@ pub(super) fn person_proposal_accept(
         }
     };
     let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-        pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+        pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
         return;
     };
     let request = core.fly_person_proposal(PersonProposalRoute::Accepting {
@@ -399,34 +395,32 @@ pub(super) fn person_proposal_accept(
         proposal: proposal.number,
         message,
     });
-    work.push(Work::Event(Event::Tasks(crate::flight::bind(event, request))));
+    routed.work.push(Work::Event(Event::Tasks(crate::flight::bind(event, request))));
 }
 
-#[expect(clippy::too_many_arguments, reason = "one keyed held choice carries its person and exact semantic revision")]
 pub(super) fn person_escalation_decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    _role: Option<people::Role>,
-    project: u32,
+    routed: &mut Routed,
+    party: Party,
     task: u64,
     revision: u64,
     decision: people::EscalationDecision,
 ) {
+    let Party { request, person, project, .. } = party;
+
     if let people::EscalationDecision::Reject { reason } = &decision
         && reason.len() > usize::try_from(env.limits.escalation_reason_bytes).expect("reason bound fits usize")
     {
-        pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Words });
+        pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Words });
         return;
     }
     let Some(context) = core.tasks.escalation(task) else {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, Refusal::Unknown);
         return;
     };
     if context.project != project {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, Refusal::Unknown);
         return;
     }
     let pending = match context.escalation {
@@ -436,7 +430,7 @@ pub(super) fn person_escalation_decide(
         }
     };
     if !pending {
-        pool_refused(work, request, people::Refusal::NotWaiting);
+        pool_refused(&mut routed.work, request, Refusal::NotWaiting);
         return;
     }
     let act = match &decision {
@@ -445,7 +439,7 @@ pub(super) fn person_escalation_decide(
         people::EscalationDecision::Pass => crate::acts::Act::PassUp,
     };
     if let Err(why) = crate::acts::escalation(core, &env.limits, person, act, task) {
-        pool_refused(work, request, why);
+        pool_refused(&mut routed.work, request, why);
         return;
     }
     let semantic = match &decision {
@@ -453,7 +447,7 @@ pub(super) fn person_escalation_decide(
         people::EscalationDecision::Reject { reason } => tasks::EscalationDecision::Reject { reason: reason.clone() },
         people::EscalationDecision::Pass => {
             let Some(holder) = core.escalation_fallback(project) else {
-                pool_refused(work, request, people::Refusal::NoFurther);
+                pool_refused(&mut routed.work, request, Refusal::NoFurther);
                 return;
             };
             tasks::EscalationDecision::Pass { holder }
@@ -463,7 +457,7 @@ pub(super) fn person_escalation_decide(
         tasks::EscalationDecision::Pass { .. } => match crate::fresh(&mut core.counters, crate::Family::Message) {
             Some(entry) => Some(entry),
             None => {
-                pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+                pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
                 return;
             }
         },
@@ -478,7 +472,7 @@ pub(super) fn person_escalation_decide(
         revision,
         decision,
     }));
-    work.push(Work::Event(Event::Tasks(tasks::Event::DecideEscalation {
+    routed.work.push(Work::Event(Event::Tasks(tasks::Event::DecideEscalation {
         reply_to: ReplyTo::new(request),
         task,
         revision,
@@ -498,21 +492,16 @@ pub(super) fn current_person_escalation(core: &Core, task: u64, revision: u64) -
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn proposal_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    role: Option<people::Role>,
-    out: &mut Queue<Request>,
-    proposer: people::Proposer,
-    proposal: u64,
-    decision: people::ProposalDecision,
-    running: Option<people::Running>,
+    routed: &mut Routed,
+    party: Party,
+    choice: super::party::Proposal,
 ) {
+    let super::party::Proposal { proposer, number: proposal, decision, running } = choice;
+    let Party { request, person, project, .. } = party;
+
     match proposer {
         people::Proposer::Party(number) => {
             if let Some(row) = core.tasks.person_proposal(number, proposal) {
@@ -523,15 +512,15 @@ pub(super) fn proposal_request(
                 let accepts = decision == people::ProposalDecision::Accept;
                 if running.is_some() != (settings && accepts) {
                     pool_refused(
-                        work,
+                        &mut routed.work,
                         request,
-                        people::Refusal::NotWellFormed { at: 0, why: people::Malformed::Running },
+                        Refusal::NotWellFormed { at: 0, why: people::Malformed::Running },
                     );
                     return;
                 }
                 if settings && accepts {
                     if row.project != project {
-                        pool_refused(work, request, people::Refusal::Unknown);
+                        pool_refused(&mut routed.work, request, Refusal::Unknown);
                         return;
                     }
                     if let Err(why) = crate::acts::proposal(
@@ -543,25 +532,18 @@ pub(super) fn proposal_request(
                         proposal,
                         env.wall,
                     ) {
-                        pool_refused(work, request, why);
+                        pool_refused(&mut routed.work, request, why);
                         return;
                     }
                     let key =
                         (people::Proposer::Party(number), u32::try_from(proposal).expect("settings proposal identity"));
-                    let outcome = super::settings::accept(
-                        core,
-                        env,
-                        work,
-                        out,
-                        person,
-                        key,
-                        running.expect("settings acceptance"),
-                    );
+                    let outcome =
+                        super::settings::accept(core, env, routed, person, key, running.expect("settings acceptance"));
                     match outcome {
                         Ok(revision) => {
                             let request =
                                 core.fly_goal(request, GoalRoute::Deciding { proposer: number, proposal, by: person });
-                            work.push(Work::Event(Event::Tasks(tasks::Event::DecidePersonProposal {
+                            routed.work.push(Work::Event(Event::Tasks(tasks::Event::DecidePersonProposal {
                                 reply_to: ReplyTo::new(request),
                                 proposer: number,
                                 proposal,
@@ -571,14 +553,14 @@ pub(super) fn proposal_request(
                                 decision: tasks::ProposalDecision::Accept,
                             })));
                         }
-                        Err(why) => work.push(Work::Event(Event::People(people::Event::Decided {
+                        Err(why) => routed.work.push(Work::Event(Event::People(people::Event::Decided {
                             request,
                             outcome: people::Outcome::Refused(why),
                         }))),
                     }
                     return;
                 }
-                goal_decide(core, env, work, request, person, role, project, number, proposal, decision);
+                goal_decide(core, env, routed, party, number, proposal, decision);
                 return;
             }
         }
@@ -586,38 +568,39 @@ pub(super) fn proposal_request(
             if let Some(row) = core.tasks.proposal(number, proposal)
                 && let tasks::ProposalAction::Settings { .. } = row.action
             {
-                task_settings_decide(core, env, work, out, (request, person, project), row, (decision, running));
+                task_settings_decide(core, env, routed, party, row, (decision, running));
                 return;
             }
             if running.is_some() {
-                pool_refused(work, request, people::Refusal::NotWellFormed { at: 0, why: people::Malformed::Running });
+                pool_refused(
+                    &mut routed.work,
+                    request,
+                    Refusal::NotWellFormed { at: 0, why: people::Malformed::Running },
+                );
                 return;
             }
             if core.tasks.proposal(number, proposal).is_some() {
-                person_proposal_decide(core, env, work, request, person, role, project, number, proposal, decision);
+                person_proposal_decide(core, env, routed, party, number, proposal, decision);
                 return;
             }
         }
     }
-    out.push(Request::Now(Box::new(Now::HistoricalProposal { request, person, project, proposer, proposal })));
+    routed.out.push(Request::Now(Box::new(Now::HistoricalProposal { request, person, project, proposer, proposal })));
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn escalation_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    role: Option<people::Role>,
-    out: &mut Queue<Request>,
+    routed: &mut Routed,
+    party: Party,
     task: u64,
     revision: u64,
     decision: people::EscalationDecision,
 ) {
+    let Party { request, person, project, role, .. } = party;
+
     if current_person_escalation(core, task, revision) {
-        person_escalation_decide(core, env, work, request, person, role, project, task, revision, decision);
+        person_escalation_decide(core, env, routed, party, task, revision, decision);
         return;
     }
 
@@ -627,22 +610,26 @@ pub(super) fn escalation_request(
         }
         people::EscalationDecision::Release | people::EscalationDecision::Pass => false,
     } {
-        pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Words });
+        pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Words });
         return;
     }
     if let Some(context) = core.tasks.escalation(task)
         && (context.project != project || !core.escalation_visible(&context, person, role))
     {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, Refusal::Unknown);
         return;
     }
     if let Some(context) = core.tasks.escalation(task)
         && context.escalation.revision() != revision
     {
-        pool_refused(work, request, crate::revisions::moved_hold(context.escalation.revision(), context.why));
+        pool_refused(
+            &mut routed.work,
+            request,
+            crate::revisions::moved_hold(context.escalation.revision(), context.why),
+        );
         return;
     }
-    out.push(Request::Now(Box::new(Now::HistoricalEscalation { request, person, project, task, revision })));
+    routed.out.push(Request::Now(Box::new(Now::HistoricalEscalation { request, person, project, task, revision })));
 }
 
 fn proposal_act(choice: &people::ProposalDecision) -> crate::acts::Act {
@@ -656,20 +643,24 @@ fn proposal_act(choice: &people::ProposalDecision) -> crate::acts::Act {
 fn task_settings_decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    caller: (Token, u64, u32),
+    routed: &mut Routed,
+    party: Party,
     row: tasks::Proposal,
     choice: (people::ProposalDecision, Option<people::Running>),
 ) {
-    let (request, person, project) = caller;
+    let Party { request, person, project, .. } = party;
+
     let (choice, running) = choice;
     let accepts = choice == people::ProposalDecision::Accept;
     if running.is_some() != accepts {
-        return pool_refused(work, request, people::Refusal::NotWellFormed { at: 0, why: people::Malformed::Running });
+        return pool_refused(
+            &mut routed.work,
+            request,
+            Refusal::NotWellFormed { at: 0, why: people::Malformed::Running },
+        );
     }
     if project != people::DEPLOYMENT {
-        return pool_refused(work, request, people::Refusal::Unknown);
+        return pool_refused(&mut routed.work, request, Refusal::Unknown);
     }
     if let Err(why) = crate::acts::proposal(
         core,
@@ -680,15 +671,15 @@ fn task_settings_decide(
         row.number,
         env.wall,
     ) {
-        return pool_refused(work, request, why);
+        return pool_refused(&mut routed.work, request, why);
     }
     let reason = match &choice {
         people::ProposalDecision::Reject { reason } => reason.clone(),
         people::ProposalDecision::Accept => Box::new([]),
-        people::ProposalDecision::Pass => return pool_refused(work, request, people::Refusal::NoFurther),
+        people::ProposalDecision::Pass => return pool_refused(&mut routed.work, request, Refusal::NoFurther),
     };
     if reason.len() > usize::try_from(env.limits.tasks.message_bytes).expect("message bound") {
-        return pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Words });
+        return pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Words });
     }
     let messages = u64::from(env.limits.tasks.tasks)
         .checked_mul(2)
@@ -698,14 +689,14 @@ fn task_settings_decide(
         .checked_add(1)
         .expect("outcome message");
     if core.counters.deployment().messages.checked_add(messages).is_none() {
-        return pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+        return pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
     }
     let outcome = if accepts {
         let key =
             (people::Proposer::Task(row.proposer), u32::try_from(row.number).expect("settings proposal identity"));
-        match super::settings::accept(core, env, work, out, person, key, running.expect("acceptance running choice")) {
+        match super::settings::accept(core, env, routed, person, key, running.expect("acceptance running choice")) {
             Ok(revision) => tasks::SettingsOutcome::Accepted { revision },
-            Err(why) => return pool_refused(work, request, why),
+            Err(why) => return pool_refused(&mut routed.work, request, why),
         }
     } else {
         tasks::SettingsOutcome::Rejected
@@ -719,7 +710,7 @@ fn task_settings_decide(
         by: person,
         moved: None,
     });
-    work.push(Work::Event(Event::Tasks(tasks::Event::DecideSettingsProposal {
+    routed.work.push(Work::Event(Event::Tasks(tasks::Event::DecideSettingsProposal {
         reply_to: Some(ReplyTo::new(request)),
         decision: tasks::SettingsDecision {
             proposer: row.proposer,

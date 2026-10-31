@@ -12,7 +12,7 @@ fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceilin
     let limits = world::limits();
     let bound = SCENARIO_FAMILY_HEAP_CEILING;
     let configuration = world::config(91);
-    let mut observer = jig_core_world::observations::Observer::new(&configuration);
+    let mut observer = jig_core_world::conformance::Observer::new(&configuration);
     let config = configuration.core;
     let meter = Meter::new();
     meter.start();

@@ -1,6 +1,5 @@
 //! Revisions explicitly named at peer boundaries and in durable procedure steps.
 use super::{core, people, r, tasks};
-use jig_test_connector as connector;
 use std::collections::{BTreeMap, BTreeSet};
 
 fn named(task: u64, revision: r::Revision) -> r::Observed {
@@ -80,71 +79,34 @@ fn run_priority(amendment: &tasks::Amendment) -> bool {
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct Names {
-    pending: BTreeMap<u64, Vec<(u16, connector::ProcedureState)>>,
-    programs: BTreeMap<(u16, u16), Box<[connector::ProcedureAction]>>,
+    pending: BTreeMap<u64, Vec<super::super::NamedRevision>>,
     seen: BTreeSet<(u16, u64, u16)>,
 }
-
 impl Names {
-    pub(super) fn configured(configuration: &jig_test_domain::Config) -> Self {
-        let mut names = Self::default();
-        for (number, config) in [(1, &configuration.first), (2, &configuration.second)] {
-            for spec in &config.procedures {
-                names.programs.insert((number, spec.number), spec.actions.clone());
-            }
-        }
-        names
-    }
-
-    pub(super) fn submitted(&mut self, store: &crate::Store) {
+    pub(super) fn submitted(&mut self, store: &super::super::Store<'_>) {
         if let Some(commit) = store.pending.back() {
-            let states = commit
-                .writes
-                .iter()
-                .filter_map(|write| {
-                    if let jig_test_domain::Write::Save(jig_test_domain::Record::Connector {
-                        number,
-                        record: connector::Record::Procedure(state),
-                    }) = write
-                    {
-                        return Some((*number, state.clone()));
-                    }
-                    None
-                })
-                .collect();
-            self.pending.insert(commit.number, states);
+            self.pending.insert(commit.number, store.named.clone());
         }
     }
-
     pub(super) fn durable(&mut self, applied: u64) -> Vec<r::Observed> {
         let mut observed = Vec::new();
         while let Some((&number, _)) = self.pending.first_key_value() {
             if number > applied {
                 break;
             }
-            for (connector, state) in self.pending.remove(&number).expect("pending commit") {
-                observed.extend(self.procedure(connector, &state));
+            for revision in self.pending.remove(&number).expect("pending commit") {
+                if self.seen.insert((revision.connector, revision.owner, revision.step)) {
+                    observed.extend(spec(revision.task, revision.revision, revision.priority));
+                }
             }
         }
         observed
-    }
-
-    fn procedure(&mut self, number: u16, state: &connector::ProcedureState) -> Vec<r::Observed> {
-        if state.awaiting
-            && let Some(task) = state.delegate
-            && let Some(actions) = self.programs.get(&(number, state.number))
-            && let Some(connector::ProcedureAction::Amend { priority, .. }) = actions.get(usize::from(state.index))
-            && self.seen.insert((number, state.task, state.steps))
-        {
-            return spec(task, state.revision, priority.is_some());
-        }
-        Vec::new()
     }
 }
 
 // A placed-hold revision names releases of the tasks that record currently holds.
 // Derive these names from the peer's explicit ask and the previous durable rows.
-pub(super) fn placed_party(store: &crate::Store, ask: &people::Ask) -> Vec<r::Observed> {
+pub(super) fn placed_party(store: &super::super::Store<'_>, ask: &people::Ask) -> Vec<r::Observed> {
     if let people::Ask::Lift { hold, revision, with_tasks: true } = ask {
         return placed_names(store, *hold, *revision, None);
     }
@@ -159,7 +121,7 @@ pub(super) fn placed_party(store: &crate::Store, ask: &people::Ask) -> Vec<r::Ob
     }
     Vec::new()
 }
-pub(super) fn placed_run(store: &crate::Store, event: &core::Event) -> Vec<r::Observed> {
+pub(super) fn placed_run(store: &super::super::Store<'_>, event: &core::Event) -> Vec<r::Observed> {
     if let core::Event::NamedAction {
         action: core::NamedAction::DecideProposal { proposer, proposal, choice: core::ProposalChoice::Accept },
         ..
@@ -170,9 +132,9 @@ pub(super) fn placed_run(store: &crate::Store, event: &core::Event) -> Vec<r::Ob
         Vec::new()
     }
 }
-fn proposal_names(store: &crate::Store, proposer: u64, proposal: u64) -> Vec<r::Observed> {
-    let key = jig_test_domain::Key::Core(core::Key::Tasks(tasks::Key::Live(proposer)));
-    if let Some(jig_test_domain::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))) = store.rows.get(&key)
+fn proposal_names(store: &super::super::Store<'_>, proposer: u64, proposal: u64) -> Vec<r::Observed> {
+    let key = core::Key::Tasks(tasks::Key::Live(proposer));
+    if let Some(core::Record::Tasks(tasks::Stored::Live(row))) = store.rows.get(&key)
         && let Some(p) = &row.proposal
         && p.number == proposal
         && let tasks::ProposalAction::ReleasePlaced { task, hold, revision } = p.action
@@ -181,11 +143,9 @@ fn proposal_names(store: &crate::Store, proposer: u64, proposal: u64) -> Vec<r::
     }
     Vec::new()
 }
-fn placed_names(store: &crate::Store, number: u64, revision: u64, only: Option<u64>) -> Vec<r::Observed> {
-    let key = jig_test_domain::Key::Core(core::Key::Tasks(tasks::Key::PlacedHold(number)));
-    let Some(jig_test_domain::Record::Core(core::Record::Tasks(tasks::Stored::PlacedHold(hold)))) =
-        store.rows.get(&key)
-    else {
+fn placed_names(store: &super::super::Store<'_>, number: u64, revision: u64, only: Option<u64>) -> Vec<r::Observed> {
+    let key = core::Key::Tasks(tasks::Key::PlacedHold(number));
+    let Some(core::Record::Tasks(tasks::Stored::PlacedHold(hold))) = store.rows.get(&key) else {
         return Vec::new();
     };
     if hold.revision != revision || hold.lifted {
@@ -196,7 +156,7 @@ fn placed_names(store: &crate::Store, number: u64, revision: u64, only: Option<u
         .rows
         .values()
         .filter_map(|row| {
-            if let jig_test_domain::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row
+            if let core::Record::Tasks(tasks::Stored::Live(row)) = row
                 && row.placed == Some(number)
                 && (whole || only == Some(row.number))
                 && (only == Some(row.number)
