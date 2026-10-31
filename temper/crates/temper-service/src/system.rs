@@ -103,7 +103,8 @@ impl Service {
         assert!(
             self.is_empty()
                 || self.work_pending(now)
-                || self.next_deadline().is_some()
+                || self.next_mechanism_deadline().is_some()
+                || self.next_policy_deadline().is_some()
                 || self.kernel.has_operations()
                 || !self.submissions.is_empty(),
             "service would wait forever with nothing in flight: end={:?}; state={:?}; pending={:?}",
