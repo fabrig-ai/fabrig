@@ -1690,8 +1690,40 @@ fn admit_ask(
     if session.expires <= env.wall || session.due <= env.now {
         return signed_out(to, out);
     }
-    if ask == (Ask::RemoveProject { project: project(&ask) }) {
-        return refused(to, Refusal::NotOffered, out);
+    match &ask {
+        Ask::RemoveProject { .. } => return refused(to, Refusal::NotOffered, out),
+        Ask::ChangeSettings { .. }
+        | Ask::MoveToNewest { .. }
+        | Ask::Compound { .. }
+        | Ask::Create { .. }
+        | Ask::MarkSeen { .. }
+        | Ask::Application { .. }
+        | Ask::EditNote { .. }
+        | Ask::MakeService { .. }
+        | Ask::Adopt { .. }
+        | Ask::Propose { .. }
+        | Ask::Withdraw { .. }
+        | Ask::Stop { .. }
+        | Ask::Cancel { .. }
+        | Ask::Release { .. }
+        | Ask::Lift { .. }
+        | Ask::TakePerson { .. }
+        | Ask::HandBackPerson { .. }
+        | Ask::AnswerPerson { .. }
+        | Ask::Move { .. }
+        | Ask::DecideProposal { .. }
+        | Ask::Say { .. }
+        | Ask::AnswerQuestion { .. }
+        | Ask::Amend { .. }
+        | Ask::SetRoles { .. }
+        | Ask::ChangePolicy { .. }
+        | Ask::Rename { .. }
+        | Ask::MakeProject { .. }
+        | Ask::SetPool { .. }
+        | Ask::DecideEscalation { .. }
+        | Ask::AccountSignIn { .. }
+        | Ask::AccountSignOut { .. }
+        | Ask::AccountChange { .. } => {}
     }
     let key = RequestKey { person: session.person, key: bytes };
     if !valid_ask(&env.limits, &ask) || !crate::valid_model_context(&ask, &models) {
@@ -2100,7 +2132,7 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
             let saved = domain.roles.insert(project, holdings);
             assert!(saved.is_ok(), "restored roles admitted");
         }
-        Stored::Deletion { .. } => {},
+        Stored::Deletion { .. } => {}
         Stored::Policy { .. } | Stored::EndedRead { .. } => {
             unreachable!("root does not restore on-demand records into people")
         }
