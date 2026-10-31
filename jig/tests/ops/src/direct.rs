@@ -55,7 +55,6 @@ impl Driver {
         }
         world.settle();
         for event in [
-            core::Event::People(people::Event::Roles { project: 1, holdings: Box::new([]) }),
             core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
             core::Event::Account(accounts::Event::Want),
             core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {

@@ -251,7 +251,6 @@ fn a_connector_read_answer_uses_the_door_and_makes_no_commit() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 #[expect(clippy::too_many_lines, reason = "the full typed start sequence includes every store and journal terminal")]
 fn cold_restart_loads_every_child_before_opening_decisions() {
     use core::start::Phase;
@@ -417,7 +416,6 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
 
 #[expect(clippy::too_many_lines, reason = "the held sign-in field extends the existing complete chat fixture")]
 fn started_chat() -> (Domain, Env<Limits>, Token) {
-    use jig_domain_fleet as fleet;
     use jig_domain_people as people;
     let (mut domain, env) = fixture();
     step(&mut domain, &env, Event::Restart { pending: false });
@@ -427,9 +425,7 @@ fn started_chat() -> (Domain, Env<Limits>, Token) {
     }
     settle(&mut domain, &env);
     for event in [
-        core::Event::People(people::Event::Roles { project: 1, holdings: Box::new([]) }),
         core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
-        core::Event::Fleet(fleet::Event::Loaded),
         core::Event::Account(accounts::Event::Want),
         core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
             form: accounts::Form::Credential(accounts::Scheme::Bearer),
@@ -534,7 +530,6 @@ fn call_name(activation: u64, completion: u32, position: u32) -> Box<[u8]> {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_committed_chat_assignment_starts_its_agent_through_the_engine_hub() {
     started_chat();
 }
@@ -996,7 +991,6 @@ fn stopping_ignores_the_starts_mark_continuations() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_new_task_timer_stays_due_at_the_watermark() {
     use jig_domain_tasks as tasks;
     use skein_lib::ReplyTo;
@@ -1044,7 +1038,6 @@ fn a_new_task_timer_stays_due_at_the_watermark() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_retained_turn_retry_fires_at_the_watermark() {
     const RUN: Token = Token::new(1);
     const ATTEMPT: Token = Token::new(1);

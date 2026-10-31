@@ -107,15 +107,10 @@ pub(crate) fn done(
             }
         }
     }
-    let opened = match action {
-        core::start::Action::Idle => phase == core::start::Phase::Open,
-        core::start::Action::Step(_) | core::start::Action::Commit(_) | core::start::Action::Refused(_) => false,
-    };
-    if opened {
-        domain.start.state = crate::domain::StartState::Opened;
-        if let Some(bytes) = domain.start.fill.take() {
-            work.push(Work::Core(core::Event::Fill { bytes }));
-        }
+    if domain.core.start_opened()
+        && let Some(bytes) = domain.start.fill.take()
+    {
+        work.push(Work::Core(core::Event::Fill { bytes }));
     }
     crate::route::core_out(domain, env, decision, core::Requests::Out(out), work);
     work.push(Work::Start(action));
