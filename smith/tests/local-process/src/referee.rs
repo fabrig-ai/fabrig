@@ -267,7 +267,7 @@ impl Meeting {
         );
         let private = borrowed_text.and_then(|line| shown.strip_suffix(line)).unwrap_or(&shown);
         judge.check(
-            !contains(&private, b"refresh") && !contains(&private, b"token"),
+            !contains(private, b"refresh") && !contains(private, b"token"),
             "terminal never reveals credentials",
         );
         if self.require_facts && !matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
@@ -440,7 +440,7 @@ impl SignIn {
         }
         if self.start.is_none() {
             let suffix = shown.get(self.search..).expect("terminal observations append");
-            if let Some(at) = skein_lib::bytes::find(&suffix, b"Sign in: ") {
+            if let Some(at) = skein_lib::bytes::find(suffix, b"Sign in: ") {
                 self.start = Some(self.search + at + 9);
             } else {
                 self.search = shown.len().saturating_sub(8);

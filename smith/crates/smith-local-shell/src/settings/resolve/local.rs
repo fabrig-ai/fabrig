@@ -106,11 +106,7 @@ pub(super) fn build(
             .iter()
             .find(|entry| entry.name == account_name)
             .ok_or_else(|| input::refuse(settings, &account_field, "account is not configured"))?;
-        configured.push(model.local(
-            endpoint.number,
-            endpoint.dialect,
-            (account.source() != crate::settings::resolve::AccountSource::Nothing).then_some(account.number),
-        ));
+        configured.push(model.local(endpoint.number, endpoint.dialect, account.credential_number()));
         let native = agent
             .service
             .domain
@@ -190,11 +186,7 @@ pub(super) fn build(
         live_text: false,
         mode: local::Mode::Chat { waiting: Duration::from_secs(input::number(settings, "waiting_seconds")?) },
         resume: true,
-        accounts: accounts
-            .iter()
-            .filter(|account| account.source() != crate::settings::resolve::AccountSource::Nothing)
-            .map(|account| account.number)
-            .collect(),
+        accounts: accounts.iter().filter_map(Account::credential_number).collect(),
         workspace: Some(run::Workspace { directories: directories.into_boxed_slice() }),
         push,
     })

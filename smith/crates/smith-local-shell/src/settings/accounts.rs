@@ -24,7 +24,7 @@ pub enum AccountSource {
 /// A provider's preset registration, independent of the selected endpoint.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Provider {
-    /// OpenAI's registered plan sign-in.
+    /// `OpenAI`'s registered plan sign-in.
     OpenAi,
     /// Anthropic's program or key source.
     Anthropic,
@@ -70,6 +70,17 @@ impl Account {
         Self { name, number, fields, source, provider }
     }
 
+    pub(crate) const fn credential_number(&self) -> Option<u32> {
+        match self.source {
+            AccountSource::Nothing => None,
+            AccountSource::Unspecified
+            | AccountSource::SignIn
+            | AccountSource::Env
+            | AccountSource::Key
+            | AccountSource::Program => Some(self.number),
+        }
+    }
+
     /// The validated source choice, absent accounts included.
     #[must_use]
     pub const fn source(&self) -> AccountSource {
@@ -87,7 +98,7 @@ pub(crate) fn accounts(settings: &Settings) -> BTreeMap<String, Account> {
     let mut grouped = BTreeMap::<String, BTreeMap<String, Sourced>>::new();
     for (key, value) in &settings.values {
         if let Some(rest) = key.strip_prefix("accounts.") {
-            let (name, field) = super::named_field(rest).expect("validated account key");
+            let (name, field) = named_field(rest).expect("validated account key");
             grouped.entry(name).or_default().insert(field.into(), value.clone());
         }
     }

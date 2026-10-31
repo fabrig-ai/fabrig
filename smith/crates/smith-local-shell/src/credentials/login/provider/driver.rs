@@ -158,7 +158,7 @@ impl Host for Login {
         self.outcome.is_some() && self.driver.closed()
     }
     fn operations(&self) -> u32 {
-        self.states
+        self.operations
     }
     fn exit(&self) -> Option<kernel::Exit> {
         self.outcome.map(|outcome| kernel::Exit::Code(outcome.code()))

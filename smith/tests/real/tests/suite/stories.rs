@@ -50,11 +50,11 @@ fn a_chat_ends_with_a_commit_in_place() {
             String::from_utf8_lossy(output)
         );
         if name == b"search" {
-            assert!(contains(&output, b"original.txt"), "rg output names the matched file");
-            assert!(contains(&output, b"original"), "rg output contains the matched text");
+            assert!(contains(output, b"original.txt"), "rg output names the matched file");
+            assert!(contains(output, b"original"), "rg output contains the matched text");
         }
         if name == b"read" {
-            assert!(contains(&output, b"original"), "file bytes reached the provider");
+            assert!(contains(output, b"original"), "file bytes reached the provider");
         }
         if name == b"shell" {
             assert!(output.starts_with(b"exit code 0"), "the real command exited successfully");

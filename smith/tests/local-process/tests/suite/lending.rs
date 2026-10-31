@@ -16,6 +16,6 @@ fn a_key_account_lends_its_key_to_the_run() {
     let mut world = World::lending(45, &files, Lending::Key);
     world.settle();
     assert!(!world.queries().is_empty(), "the key grant reaches the provider");
-    assert!(!contains(&world.shown(), b"key-for-work"), "no key in output");
+    assert!(!contains(world.shown(), b"key-for-work"), "no key in output");
     world.assert_ended(Ending::Report(b"First answer".to_vec()));
 }

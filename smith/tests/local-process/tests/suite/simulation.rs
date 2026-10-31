@@ -90,7 +90,7 @@ fn a_chat_resumes_from_its_files_across_runs_of_the_binary() {
     assert!(
         second.queries()[0].messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
             matches!(part, skein_fake_llm_domain::api::Part::ToolCall { name, arguments, .. }
-            if name.as_ref() == b"finish" && contains(&arguments, b"First answer"))
+            if name.as_ref() == b"finish" && contains(arguments, b"First answer"))
         }),
         "the provider saw the previous finish result"
     );
@@ -133,7 +133,7 @@ fn an_interrupt_in_the_middle_of_a_turn_cancels_the_run() {
         let files = Files::new();
         let mut world = World::interrupted(4, &files, placement);
         world.settle();
-        assert!(contains(&world.shown(), b"interrupted: the run was cancelled"));
+        assert!(contains(world.shown(), b"interrupted: the run was cancelled"));
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
         assert_eq!(world.queries().len(), 1);
     }
@@ -255,7 +255,7 @@ fn an_interrupt_with_a_line_unread_shows_it_not_delivered() {
     ];
     world.settle();
     world.assert_ended(Ending::Cancelled);
-    assert!(contains(&world.shown(), b"Line 2 not delivered"));
+    assert!(contains(world.shown(), b"Line 2 not delivered"));
     assert_eq!(world.facts().iter().filter(|fact| matches!(fact, smith_local_domain::Fact::Started { .. })).count(), 1);
 }
 
@@ -293,13 +293,13 @@ fn slash_new_starts_a_chat_and_slash_resume_reopens_it() {
             }
         })
         .collect();
-    assert!(calls.iter().any(|call| contains(&call, b"First answer")));
-    assert!(!calls.iter().any(|call| contains(&call, b"Second answer")));
+    assert!(calls.iter().any(|call| contains(call, b"First answer")));
+    assert!(!calls.iter().any(|call| contains(call, b"Second answer")));
     assert!(queries[2].messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
-        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if contains(&text, b"main hello"))
+        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if contains(text, b"main hello"))
     }));
     assert!(!queries[2].messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
-        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if contains(&text, b"new hello"))
+        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if contains(text, b"new hello"))
     }));
     assert!(
         !queries
@@ -336,7 +336,7 @@ fn no_waiting_notice_shows_while_a_line_is_unread_in_both_placements() {
         let mut world = World::waiting(23, &files, placement);
         world.settle();
         world.assert_ended(Ending::Report(b"Read follow-up".to_vec()));
-        let read = skein_lib::bytes::find(&world.shown(), b"Read follow-up").expect("follow-up read");
+        let read = skein_lib::bytes::find(world.shown(), b"Read follow-up").expect("follow-up read");
         assert!(!contains(&world.shown()[..read], b"Waiting for a message"));
         assert!(world.facts().iter().any(|fact| {
             matches!(fact, smith_local_domain::Fact::Answered { read: Some(name), .. } if name.raw() == 2)
@@ -437,7 +437,7 @@ fn an_accepted_answer_after_several_tools_reaches_the_host_before_teardown() {
     world.settle();
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
     assert_eq!(world.queries().len(), 4);
-    assert!(!contains(&world.shown(), b"Agent process failed"));
+    assert!(!contains(world.shown(), b"Agent process failed"));
     let records = world.agent_records();
     assert!(records.iter().any(
         |record| matches!(&record.event, Event::RunCompleted(end) if end.status == smith_events::Status::Accepted)
@@ -500,9 +500,9 @@ fn a_forced_exit_after_an_accepted_answer_is_shown_as_a_warning() {
         ];
         world.settle();
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
-        assert!(contains(&world.shown(), b"First answer"));
+        assert!(contains(world.shown(), b"First answer"));
         assert_eq!(
-            contains(&world.errors(), b"warning: agent forced to exit after answering"),
+            contains(world.errors(), b"warning: agent forced to exit after answering"),
             placement == Placement::Spawned
         );
     }

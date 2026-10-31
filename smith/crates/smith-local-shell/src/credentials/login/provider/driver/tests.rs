@@ -109,7 +109,7 @@ impl Exchange {
                 driver,
                 name: "work".into(),
                 outcome: None,
-                operation: if revocation.is_some() { Stage::SignOut } else { Stage::SignIn },
+                state: if revocation.is_some() { State::SignOut } else { State::SignIn },
                 closing: false,
                 notice: false,
                 others: Vec::new(),
