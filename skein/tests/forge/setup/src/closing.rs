@@ -61,10 +61,18 @@ impl Closing {
         );
     }
     fn pump(&mut self) {
+        let mut completions = Queue::with_capacity(0);
         for _ in 0..64 {
             self.io.reclaim();
             if self.io.is_ready() {
-                skein_io::resume(&mut self.io, &self.env, &mut self.events, &mut self.subs);
+                skein_io::stage::up(
+                    &mut self.io,
+                    &self.env,
+                    &mut completions,
+                    &mut self.events,
+                    &mut self.subs,
+                    self.env.now,
+                );
                 continue;
             }
             if let Some(submit) = self.subs.pop() {

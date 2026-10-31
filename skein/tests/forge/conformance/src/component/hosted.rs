@@ -250,33 +250,28 @@ impl Host for Hosted {
         self.env.wall = wall;
         self.io_env.now = now;
         self.io_env.wall = wall;
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
-        while let Some(c) = self.complete.pop() {
-            skein_io::up(&mut self.io, &self.io_env, c, &mut self.events, &mut self.submit);
-            while self.io.is_ready() {
-                skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-            }
-        }
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
+        skein_io::stage::up(&mut self.io, &self.io_env, &mut self.complete, &mut self.events, &mut self.submit, now);
         while let Some(e) = self.events.pop() {
             self.component.up(&self.env, e, &mut self.above, &mut self.below);
         }
         if self.component.next_deadline().is_some_and(|at| at <= now) {
             self.component.fire(&self.env, &mut self.above, &mut self.below);
         }
-        while self.io.takes() {
-            let Some(r) = self.below.pop() else {
-                break;
-            };
-            if let skein_io::Request::Stream { down: Down::Send(bytes), .. } = &r {
-                self.sent += sent_requests(bytes);
-            }
-            skein_io::down(&mut self.io, &self.io_env, r, &mut self.submit);
-        }
+        let queued_sends = |requests: &Queue<skein_io::Request>| {
+            requests
+                .iter()
+                .map(|request| {
+                    if let skein_io::Request::Stream { down: Down::Send(bytes), .. } = request {
+                        sent_requests(bytes)
+                    } else {
+                        0
+                    }
+                })
+                .sum::<u64>()
+        };
+        let before = queued_sends(&self.below);
+        skein_io::stage::down(&mut self.io, &self.io_env, &mut self.below, &mut self.submit);
+        self.sent += before.checked_sub(queued_sends(&self.below)).expect("the stage only consumes requests");
         while let Some(e) = self.above.pop() {
             match e {
                 Event::Installation { .. } | Event::Fact { .. } | Event::GitToken { .. } => panic!("Forgejo fixture"),
@@ -304,8 +299,8 @@ impl Host for Hosted {
             || !self.below.is_empty()
             || self.component.next_deadline().is_some_and(|at| at <= now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.io.next_deadline().into_iter().chain(self.component.next_deadline()).min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.component.next_deadline()
