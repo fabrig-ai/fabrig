@@ -456,6 +456,8 @@ commented as such. Its crate has one module per part of this document:
 A new application copies it, replaces `ops`'s connectors with its own,
 and lets the compiler list the arms to fill.
 
+Its link between the core's fleet and its own hub is jig's `jig-domain-hub-link`, so the reference root holds no map of the hub's.
+
 ## 13. The world
 
 The root has no world of its own beyond its application's: the
