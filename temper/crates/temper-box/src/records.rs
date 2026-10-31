@@ -114,7 +114,7 @@ impl Records {
     }
     pub fn pending(&self) -> bool {
         self.files.pending()
-            || !self.waiting && self.phase != Phase::Idle && self.notice.is_none() && self.answer.is_none()
+            || !self.waiting && (self.phase != Phase::Idle || self.notice.is_some() || self.answer.is_some())
     }
     pub fn write(&mut self, forge: u16) {
         assert!(self.ready(), "one group records at a time");

@@ -1004,7 +1004,6 @@ impl Service {
             && self.deferred.is_empty()
             && (self.terminal.takes(1) || self.terminal.failed())
             && self.phase == Phase::Running
-            && self.records.ready()
     }
     fn take_control_line(&mut self) {
         if !self.control_ready() {

@@ -52,6 +52,11 @@ enum Phase {
     Cleanup,
     Closed,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Announcement {
+    Waiting,
+    Said,
+}
 #[derive(Debug)]
 pub(crate) struct Logs {
     files: List<Log>,
@@ -71,7 +76,7 @@ pub(crate) struct Logs {
     record: Option<Box<[u8]>>,
     written: u32,
     done: bool,
-    announced: bool,
+    announcement: Announcement,
 }
 impl Logs {
     pub fn new(steps: &[Placed], data: &[u8], bound: u32) -> Self {
@@ -116,7 +121,7 @@ impl Logs {
             record: None,
             written: 0,
             done: false,
-            announced: false,
+            announcement: Announcement::Waiting,
         }
     }
     pub fn rebind(&mut self, step: usize, name: &[u8]) {
@@ -254,30 +259,18 @@ impl Logs {
                 no_replace: false,
             },
             Phase::Make => Op::MakeDirectory { dir: self.directory_fd(), name: bytes::copy_of(b"logs"), mode: 0o700 },
-            Phase::Rebind => {
-                let mut retiring = None;
-                for index in 0..self.files.len() {
-                    if let Some(fd) = self.files.get_mut(index).expect("log index").retiring.take() {
-                        retiring = Some(fd);
-                        break;
-                    }
+            Phase::Rebind => match self.retiring() {
+                Some(fd) => Op::Close { fd },
+                None => {
+                    self.phase = Phase::Create;
+                    self.at = 0;
+                    return;
                 }
-                match retiring {
-                    Some(fd) => Op::Close { fd },
-                    None => {
-                        self.phase = Phase::Create;
-                        self.at = 0;
-                        return;
-                    }
-                }
-            }
+            },
             Phase::Create => {
                 if self.at == self.files.len() {
                     self.phase = Phase::Idle;
-                    if !self.announced {
-                        self.announced = true;
-                        self.notice = Some(joined(&[b"Logs: ", &self.directory(), b"\n"]));
-                    }
+                    self.announce_logs();
                     return;
                 }
                 if !self.log().enabled || self.log().fd.is_some() {
@@ -329,6 +322,20 @@ impl Logs {
         };
         out.push(Submit { op: OP, kind });
         self.waiting = true;
+    }
+    fn announce_logs(&mut self) {
+        if self.announcement == Announcement::Waiting {
+            self.announcement = Announcement::Said;
+            self.notice = Some(joined(&[b"Logs: ", &self.directory(), b"\n"]));
+        }
+    }
+    fn retiring(&mut self) -> Option<Fd> {
+        for index in 0..self.files.len() {
+            if let Some(fd) = self.files.get_mut(index).expect("log index").retiring.take() {
+                return Some(fd);
+            }
+        }
+        None
     }
     fn cleanup_fd(&mut self) -> Option<Fd> {
         for index in 0..self.files.len() {

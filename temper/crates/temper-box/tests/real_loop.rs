@@ -524,6 +524,14 @@ struct RemoveJudge {
     settled: bool,
     wake: Option<Time>,
 }
+fn all_closed(procs: &[Proc]) -> bool {
+    for proc in procs {
+        if !proc.is_empty() {
+            return false;
+        }
+    }
+    true
+}
 impl Referee<Proc> for RemoveJudge {
     fn act(&mut self, _now: Time, procs: &mut [Proc]) {
         self.wake = None;
@@ -531,12 +539,10 @@ impl Referee<Proc> for RemoveJudge {
             self.controls.signal(BOX_HOST, ServiceSignal::Terminate);
             self.stopping = true;
         }
-        self.settled = self.stopping && procs.iter().all(Host::is_empty);
+        self.settled = self.stopping && all_closed(procs);
     }
     fn observe(&mut self, now: Time, procs: &[Proc]) {
-        if !self.stopping && contains(&capture(procs).received, b"removed 17\n")
-            || self.stopping && procs.iter().all(Host::is_empty)
-        {
+        if !self.stopping && contains(&capture(procs).received, b"removed 17\n") || self.stopping && all_closed(procs) {
             self.wake = Some(now);
         }
     }

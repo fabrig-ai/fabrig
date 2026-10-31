@@ -107,10 +107,15 @@ enum Phase {
     Grace { at: Time, second: bool },
     Stopped,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Role {
+    Command,
+    Remover,
+}
 #[derive(Debug)]
 pub(crate) struct State {
     kind: Kind,
-    remover: bool,
+    role: Role,
     ready: bool,
     notice: Option<Fact>,
     waiting: bool,
@@ -194,9 +199,15 @@ impl Machine {
             states
                 .push(State {
                     kind: step.step.kind(),
-                    remover: match step.asked {
-                        Some(asked) => asked.remover,
-                        None => false,
+                    role: match step.asked {
+                        Some(asked) => {
+                            if asked.remover {
+                                Role::Remover
+                            } else {
+                                Role::Command
+                            }
+                        }
+                        None => Role::Command,
                     },
                     ready: step.step.ready().is_some(),
                     notice: (!step.step.started_notice().is_empty()).then_some(Fact::Started { step: index }),
@@ -232,7 +243,7 @@ impl Machine {
                 }
             }
             for first in 0..self.states.len() {
-                if !self.states.get(first).expect("step").remover && self.chain(first).is_none() {
+                if self.states.get(first).expect("step").role == Role::Command && self.chain(first).is_none() {
                     self.spawn(first, self.successor(first), orders);
                     break;
                 }
@@ -411,7 +422,7 @@ impl Machine {
             | Input::RemoveFailed { .. } => return false,
         };
         let Some(state) = self.states.get_mut(step) else { return false };
-        if !state.remover {
+        if state.role != Role::Remover {
             return false;
         }
         let index = state.group.expect("remover slot");
@@ -469,7 +480,7 @@ impl Machine {
     #[expect(clippy::manual_find, reason = "the programming model uses explicit loops rather than closures")]
     fn successor(&self, step: usize) -> Option<usize> {
         for next in step.saturating_add(1)..self.states.len() {
-            if !self.states.get(next).expect("step").remover && self.chain(step) == self.chain(next) {
+            if self.states.get(next).expect("step").role == Role::Command && self.chain(step) == self.chain(next) {
                 return Some(next);
             }
         }
@@ -518,7 +529,9 @@ impl Machine {
             Input::Remove { forge } => self.remove(now, forge, orders),
             Input::Removed { forge } => {
                 self.known.remove(&forge);
-                if let Some(index) = self.group(forge) {
+                if let Some(index) = self.group(forge)
+                    && self.groups.get(index).expect("group").kind.is_some()
+                {
                     let group = self.groups.get_mut(index).expect("group");
                     group.status = Status::Dormant;
                     group.bound = None;
@@ -538,22 +551,7 @@ impl Machine {
             Input::Ask { forge } => self.ask(forge, orders),
             Input::Stop { forge } => self.stop_group(now, forge, orders),
             Input::Written { forge } => self.written(forge, orders),
-            Input::NotWritten { forge } => {
-                if self.outcome.is_none()
-                    && let Some(group) = self.group(forge)
-                    && match self.groups.get(group).expect("group").status {
-                        Status::Recording { .. } | Status::Writing => true,
-                        Status::Dormant
-                        | Status::Removing
-                        | Status::Starting
-                        | Status::Started
-                        | Status::Failing { .. }
-                        | Status::Stopping => false,
-                    }
-                {
-                    self.fail(group, Why::NotWritten, orders);
-                }
-            }
+            Input::NotWritten { forge } => self.not_written(forge, orders),
             Input::Line { step } => self.line(step, orders),
             Input::Started { step } => self.started(now, step, orders),
             Input::Ready { step } => {
@@ -616,6 +614,22 @@ impl Machine {
         if self.stop_notice == StopNotice::Requested && self.is_idle() {
             self.stop_notice = StopNotice::Reported;
             orders.push(Order::Terminal { fact: Fact::Stopped });
+        }
+    }
+    fn not_written(&mut self, forge: u16, orders: &mut Queue<Order>) {
+        if self.outcome.is_none()
+            && let Some(group) = self.group(forge)
+            && match self.groups.get(group).expect("group").status {
+                Status::Recording { .. } | Status::Writing => true,
+                Status::Dormant
+                | Status::Removing
+                | Status::Starting
+                | Status::Started
+                | Status::Failing { .. }
+                | Status::Stopping => false,
+            }
+        {
+            self.fail(group, Why::NotWritten, orders);
         }
     }
     // A withdrawal or late spawn failure is a teardown end, with no failure cause.

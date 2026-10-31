@@ -167,7 +167,7 @@ impl GroupFiles {
                     Phase::List { dir } => {
                         Request::List { owner, root: self.io.descriptor(dir).expect("groups directory") }
                     }
-                    Phase::ListClose { dir } => Request::Close { owner, file: dir },
+                    Phase::ListClose { dir } | Phase::UnlinkClose { dir, .. } => Request::Close { owner, file: dir },
                     Phase::Load => {
                         let Some(forge) = self.names.get(self.at) else {
                             self.phase = Phase::Idle;
@@ -208,12 +208,14 @@ impl GroupFiles {
                         name: bytes::copy_of(Decimal::of(u64::from(forge)).as_bytes()),
                         directory: false,
                     },
-                    Phase::UnlinkClose { dir, .. } => Request::Close { owner, file: dir },
                 };
                 self.waiting = true;
                 file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.raw);
             }
         }
+        self.publish(subs);
+    }
+    fn publish(&mut self, subs: &mut Queue<Submit>) {
         for _ in 0..self.raw.len() {
             if subs.room() == 0 {
                 break;
@@ -275,38 +277,7 @@ impl GroupFiles {
                 | Phase::Unlink { .. }
                 | Phase::UnlinkClose { .. } => unreachable!("an open owns its terminal"),
             },
-            Event::Listed { entries, .. } => {
-                let dir = match self.phase {
-                    Phase::List { dir } => dir,
-                    Phase::Open
-                    | Phase::ListClose { .. }
-                    | Phase::Load
-                    | Phase::Probe { .. }
-                    | Phase::ProbeClose { .. }
-                    | Phase::Idle
-                    | Phase::RootClose
-                    | Phase::Closed
-                    | Phase::MakeBox { .. }
-                    | Phase::MakeGroups { .. }
-                    | Phase::Store { .. }
-                    | Phase::UnlinkOpen { .. }
-                    | Phase::Unlink { .. }
-                    | Phase::UnlinkClose { .. } => unreachable!("listing groups"),
-                };
-                if entries.len() > usize::try_from(self.names.capacity()).expect("group bound fits") {
-                    self.notice = Some(bytes::copy_of(b"box: box/groups exceeds box.groups\n"));
-                    self.phase = Phase::ListClose { dir };
-                    return;
-                }
-                for entry in entries {
-                    if let Some(forge) = pipe::number(&entry.name) {
-                        if self.names.room() > 0 {
-                            self.names.push(forge).expect("group file bound");
-                        }
-                    }
-                }
-                self.phase = Phase::ListClose { dir };
-            }
+            Event::Listed { entries, .. } => self.listed(entries),
             Event::Loaded { bytes, .. } => {
                 let forge = *self.names.get(self.at).expect("loading group");
                 match parse_group_file(&bytes) {
@@ -317,29 +288,7 @@ impl GroupFiles {
                     }
                 }
             }
-            Event::Closed { .. } => match self.phase {
-                Phase::RootClose => self.phase = Phase::Closed,
-                Phase::ListClose { .. } => self.phase = Phase::Load,
-                Phase::ProbeClose { forge, kind, .. } => {
-                    self.remember(forge, kind, true);
-                    self.next();
-                }
-                Phase::UnlinkClose { forge, started, error, .. } => match error {
-                    Some(error) => self.failed(forge, error, true),
-                    None => self.unlinked(forge, started),
-                },
-                Phase::Open
-                | Phase::List { .. }
-                | Phase::Load
-                | Phase::Probe { .. }
-                | Phase::Idle
-                | Phase::Closed
-                | Phase::MakeBox { .. }
-                | Phase::MakeGroups { .. }
-                | Phase::Store { .. }
-                | Phase::UnlinkOpen { .. }
-                | Phase::Unlink { .. } => unreachable!("a close owns its terminal"),
-            },
+            Event::Closed { .. } => self.closed_event(),
             Event::Made { .. } => self.made(),
             Event::Stored { .. } => {
                 let forge = match self.phase {
@@ -384,7 +333,7 @@ impl GroupFiles {
             }
             Event::Failed { error, .. } => self.error(error),
             Event::TooLarge { .. } | Event::Refused { .. } | Event::Conflict { .. } | Event::Cancelled { .. } => {
-                self.error(Error::InvalidArgument)
+                self.error(Error::InvalidArgument);
             }
             Event::Locked { .. }
             | Event::Busy { .. }
@@ -395,6 +344,63 @@ impl GroupFiles {
             | Event::Cut { .. }
             | Event::Synced { .. }
             | Event::Renamed { .. } => unreachable!("only group file requests"),
+        }
+    }
+    fn listed(&mut self, entries: Box<[file::Entry]>) {
+        let dir = match self.phase {
+            Phase::List { dir } => dir,
+            Phase::Open
+            | Phase::ListClose { .. }
+            | Phase::Load
+            | Phase::Probe { .. }
+            | Phase::ProbeClose { .. }
+            | Phase::Idle
+            | Phase::RootClose
+            | Phase::Closed
+            | Phase::MakeBox { .. }
+            | Phase::MakeGroups { .. }
+            | Phase::Store { .. }
+            | Phase::UnlinkOpen { .. }
+            | Phase::Unlink { .. }
+            | Phase::UnlinkClose { .. } => unreachable!("listing groups"),
+        };
+        if entries.len() > usize::try_from(self.names.capacity()).expect("group bound fits") {
+            self.notice = Some(bytes::copy_of(b"box: box/groups exceeds box.groups\n"));
+            self.phase = Phase::ListClose { dir };
+            return;
+        }
+        for entry in entries {
+            if let Some(forge) = pipe::number(&entry.name)
+                && self.names.room() > 0
+            {
+                self.names.push(forge).expect("group file bound");
+            }
+        }
+        self.phase = Phase::ListClose { dir };
+    }
+    fn closed_event(&mut self) {
+        match self.phase {
+            Phase::RootClose => self.phase = Phase::Closed,
+            Phase::ListClose { .. } => self.phase = Phase::Load,
+            Phase::ProbeClose { forge, kind, .. } => {
+                self.remember(forge, kind, true);
+                self.next();
+            }
+            Phase::UnlinkClose { forge, started, error, .. } => match error {
+                Some(error) => self.failed(forge, error, true),
+                None => self.unlinked(forge, started),
+            },
+            Phase::Open
+            | Phase::List { .. }
+            | Phase::Load
+            | Phase::Probe { .. }
+            | Phase::Idle
+            | Phase::Closed
+            | Phase::MakeBox { .. }
+            | Phase::MakeGroups { .. }
+            | Phase::Store { .. }
+            | Phase::UnlinkOpen { .. }
+            | Phase::Unlink { .. } => unreachable!("a close owns its terminal"),
         }
     }
     fn made(&mut self) {
@@ -456,7 +462,7 @@ impl GroupFiles {
             }
             Phase::MakeBox { .. } | Phase::MakeGroups { .. } if error == Error::Exists => self.made(),
             Phase::MakeBox { forge, .. } | Phase::MakeGroups { forge, .. } | Phase::Store { forge, .. } => {
-                self.failed(forge, error, false)
+                self.failed(forge, error, false);
             }
             Phase::UnlinkOpen { forge, started } if error == Error::NotFound => self.unlinked(forge, started),
             Phase::UnlinkOpen { forge, .. } | Phase::UnlinkClose { forge, .. } => self.failed(forge, error, true),

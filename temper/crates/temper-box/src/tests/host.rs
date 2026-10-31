@@ -1404,9 +1404,9 @@ fn a_kind_start_writes_then_runs_and_removal_unlinks_both_records() {
 #[test]
 fn a_failed_remover_reports_its_exit_and_preserves_both_records_for_retry() {
     use skein_fake_machine::How;
+    use temper_forge_setup::FORGE_ARGUMENT;
     let mut steps = super::fixtures::kind_steps();
-    steps.asked.get_mut(0).unwrap().remover =
-        Some(once(b"remove", &[b"exit", b"7", temper_forge_setup::FORGE_ARGUMENT]));
+    steps.asked.get_mut(0).unwrap().remover = Some(once(b"remove", &[b"exit", b"7", FORGE_ARGUMENT]));
     let mut h = Harness::grouped(steps, &[], true);
     h.run_until_idle();
     h.ask(b"start 17 fake\n");
@@ -1515,6 +1515,28 @@ fn a_kind_can_run_when_its_log_directory_is_unavailable() {
     h.write_child(child, 2, b"diagnostic\n");
     h.run_until_idle();
     assert!(Harness::contains(&h.stderr(), b"fake-forge-17: diagnostic\n"));
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+
+#[test]
+fn an_absent_group_file_does_not_reset_a_numbered_groups_live_state() {
+    let mut h = Harness::grouped(grouped_steps(), &[], true);
+    h.run_until_idle();
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    h.replies.clear();
+    h.ask(b"remove 3\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"removed 3\n");
+    h.replies.clear();
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"started 3\n");
+    assert_eq!(h.spawn_times(b"forgejo 3").len(), 1);
     h.terminate();
     assert_eq!(h.run_to_end(), Exit::Code(0));
     h.sim.assert_quiescent(h.pid);
