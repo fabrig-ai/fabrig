@@ -42,26 +42,11 @@ pub fn decode(
         b"sub_agent" if offered(served, Kind::SubAgent) => Kind::SubAgent,
         _ => return llm::Decoded::Invalid { problem: llm::Problem::UnknownTool },
     };
-    let document = match Json::from_bytes(
-        input,
-        &crate::limits::document_limits(
-            &limits.client,
-            u32::try_from(input.len()).unwrap_or(u32::MAX).min(limits.client.input),
-        ),
-    ) {
+    let document = match admit(input, limits) {
         Ok(document) => document,
-        Err(DocumentError::TooLarge { which: _, bound: _ }) => return invalid(llm::Problem::TooLarge),
-        Err(DocumentError::Malformed | DocumentError::Missing | DocumentError::WrongType) => {
-            return invalid(llm::Problem::NotAnObject);
-        }
+        Err(problem) => return invalid(problem),
     };
     let tokens = document.document();
-    if match tokens.token(0) {
-        Some(record) => record.kind != JsonKind::ObjectStart,
-        None => true,
-    } {
-        return invalid(llm::Problem::NotAnObject);
-    }
     match kind {
         Kind::SubAgent if field(tokens, b"agents").is_some() => return invalid(llm::Problem::Nesting),
         Kind::SubAgent
@@ -262,60 +247,13 @@ fn bad_value(name: &[u8]) -> llm::Problem {
     llm::Problem::BadValue { field: name.into() }
 }
 
-// Skein admits the grammar. Inspect only direct application members through
-// borrowed compact records; no token tree or string copy is reconstructed.
+// The document owns admitted grammar; application code selects direct fields.
 fn field(document: &Document, name: &[u8]) -> Option<Compact> {
-    let mut depth = 0_u32;
-    for index in 0..document.len() {
-        let record = document.token(index)?;
-        match record.kind {
-            JsonKind::ObjectStart | JsonKind::ArrayStart => depth = depth.checked_add(1)?,
-            JsonKind::ObjectEnd | JsonKind::ArrayEnd => depth = depth.checked_sub(1)?,
-            JsonKind::Key if depth == 1 => {
-                if document.text(record)? == name {
-                    return Some(*document.token(index.checked_add(1)?)?);
-                }
-            }
-            JsonKind::Key
-            | JsonKind::String
-            | JsonKind::Number
-            | JsonKind::True
-            | JsonKind::False
-            | JsonKind::Null
-            | JsonKind::Long => {}
-        }
-    }
-    None
-}
-
-/// A direct member's value index in one admitted compact object.
-fn member(document: &Document, start: u32, name: &[u8]) -> Option<u32> {
-    let mut depth = 0_u32;
-    for index in start..document.len() {
-        let record = document.token(index)?;
-        match record.kind {
-            JsonKind::ObjectStart | JsonKind::ArrayStart => depth = depth.checked_add(1)?,
-            JsonKind::ObjectEnd | JsonKind::ArrayEnd => {
-                depth = depth.checked_sub(1)?;
-                if depth == 0 {
-                    return None;
-                }
-            }
-            JsonKind::Key if depth == 1 && document.text(record)? == name => return index.checked_add(1),
-            JsonKind::Key
-            | JsonKind::String
-            | JsonKind::Number
-            | JsonKind::True
-            | JsonKind::False
-            | JsonKind::Null
-            | JsonKind::Long => {}
-        }
-    }
-    None
+    document.token(document.member(0, name)?).copied()
 }
 
 fn replacement_string(document: &Document, start: u32, name: &[u8]) -> Result<Box<[u8]>, llm::Problem> {
-    let index = member(document, start, name).ok_or(missing(name))?;
+    let index = document.member(start, name).ok_or(missing(name))?;
     let record = document.token(index).ok_or(llm::Problem::NotAnObject)?;
     match record.kind {
         JsonKind::String => Ok(document.text(record).ok_or(llm::Problem::NotAnObject)?.into()),
@@ -333,7 +271,7 @@ fn replacement_string(document: &Document, start: u32, name: &[u8]) -> Result<Bo
 }
 
 fn replacement(document: &Document, start: u32) -> Result<tools::Replacement, llm::Problem> {
-    let occurrences = match member(document, start, b"all") {
+    let occurrences = match document.member(start, b"all") {
         Some(index) => match document.token(index).ok_or(llm::Problem::NotAnObject)?.kind {
             JsonKind::True => tools::Occurrences::All,
             JsonKind::False => tools::Occurrences::Once,
@@ -357,7 +295,7 @@ fn replacement(document: &Document, start: u32) -> Result<tools::Replacement, ll
 }
 
 fn replacements(document: &Document) -> Result<Box<[tools::Replacement]>, llm::Problem> {
-    let start = member(document, 0, b"edits").ok_or(missing(b"edits"))?;
+    let start = document.member(0, b"edits").ok_or(missing(b"edits"))?;
     if document.token(start).ok_or(llm::Problem::NotAnObject)?.kind != JsonKind::ArrayStart {
         return Err(wrong_type(b"edits"));
     }
@@ -569,4 +507,24 @@ fn families(document: &Document) -> Result<run::charter::Families, llm::Problem>
         }
     }
     Ok(run::charter::Families { tools: run::charter::Tools { inspect, modify, shell }, agents: false })
+}
+
+pub(crate) fn admit(input: &[u8], limits: &Limits) -> Result<Json, llm::Problem> {
+    let document = match Json::from_bytes(
+        input,
+        &crate::limits::document_limits(
+            &limits.client,
+            u32::try_from(input.len()).unwrap_or(u32::MAX).min(limits.client.input),
+        ),
+    ) {
+        Ok(document) => document,
+        Err(DocumentError::TooLarge { which: _, bound: _ }) => return Err(llm::Problem::TooLarge),
+        Err(DocumentError::Malformed | DocumentError::Missing | DocumentError::WrongType) => {
+            return Err(llm::Problem::NotAnObject);
+        }
+    };
+    match document.document().token(0) {
+        Some(record) if record.kind == JsonKind::ObjectStart => Ok(document),
+        Some(_) | None => Err(llm::Problem::NotAnObject),
+    }
 }

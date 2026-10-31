@@ -9,7 +9,6 @@ use alloc::boxed::Box;
 use skein_json::writer::{self, Encoder};
 use skein_json::{Document, Kind as JsonKind};
 use skein_lib::List;
-use skein_llm::{DocumentError, Json};
 use smith_domain::{llm, run};
 
 use crate::{Error, Limits};
@@ -217,7 +216,7 @@ fn required(json: &mut Encoder, names: &[&[u8]]) {
 /// Shape and aggregate policy are validated by the run after this translation.
 #[must_use]
 pub fn decode_finish(input: &[u8], _contract: &run::outcome::OutcomeSpec, limits: &Limits) -> llm::Decoded {
-    let document = match object(input, limits) {
+    let document = match crate::decode::admit(input, limits) {
         Ok(document) => document,
         Err(problem) => return llm::Decoded::Invalid { problem },
     };
@@ -233,7 +232,7 @@ pub fn decode_finish(input: &[u8], _contract: &run::outcome::OutcomeSpec, limits
 /// Decode the separately granted delivery's host fields.
 #[must_use]
 pub fn decode_deliver(input: &[u8], _change: &run::outcome::ChangeSpec, limits: &Limits) -> llm::Decoded {
-    let document = match object(input, limits) {
+    let document = match crate::decode::admit(input, limits) {
         Ok(document) => document,
         Err(problem) => return llm::Decoded::Invalid { problem },
     };
@@ -242,26 +241,6 @@ pub fn decode_deliver(input: &[u8], _change: &run::outcome::ChangeSpec, limits: 
         Err(problem) => return llm::Decoded::Invalid { problem },
     };
     llm::Decoded::Served { ask: run::Ask::Deliver { change: run::outcome::Change { fields } } }
-}
-
-fn object(input: &[u8], limits: &Limits) -> Result<Json, llm::Problem> {
-    let document = match Json::from_bytes(
-        input,
-        &crate::limits::document_limits(
-            &limits.client,
-            u32::try_from(input.len()).unwrap_or(u32::MAX).min(limits.client.input),
-        ),
-    ) {
-        Ok(document) => document,
-        Err(DocumentError::TooLarge { which: _, bound: _ }) => return Err(llm::Problem::TooLarge),
-        Err(DocumentError::Malformed | DocumentError::Missing | DocumentError::WrongType) => {
-            return Err(llm::Problem::NotAnObject);
-        }
-    };
-    match document.document().token(0) {
-        Some(record) if record.kind == JsonKind::ObjectStart => Ok(document),
-        Some(_) | None => Err(llm::Problem::NotAnObject),
-    }
 }
 
 fn declared(document: &Document, value: Value) -> Result<run::outcome::Declared, llm::Problem> {
@@ -359,51 +338,17 @@ fn required_string(document: &Document, object: Value, name: &[u8]) -> Result<Bo
 }
 
 fn required_value(document: &Document, object: Value, name: &[u8]) -> Result<Value, llm::Problem> {
-    let mut cursor = object.start.checked_add(1).ok_or(llm::Problem::TooLarge)?;
-    for _ in object.start..object.end {
-        match kind(document, cursor) {
-            Some(JsonKind::Key) => {
-                let start = cursor.checked_add(1).ok_or(llm::Problem::TooLarge)?;
-                let end = value_end(document, start, object.end).ok_or(llm::Problem::NotAnObject)?;
-                if text(document, cursor)? == name {
-                    return Ok(Value { start, end });
-                }
-                cursor = end;
-            }
-            Some(JsonKind::ObjectEnd) => return Err(llm::Problem::Missing { field: name.into() }),
-            Some(_) | None => return Err(llm::Problem::NotAnObject),
-        }
-    }
-    Err(llm::Problem::NotAnObject)
+    let start = document.member(object.start, name).ok_or(llm::Problem::Missing { field: name.into() })?;
+    let end = value_end(document, start, object.end).ok_or(llm::Problem::NotAnObject)?;
+    Ok(Value { start, end })
 }
 
 fn value_end(document: &Document, start: u32, bound: u32) -> Option<u32> {
-    match kind(document, start)? {
-        JsonKind::String | JsonKind::Number | JsonKind::True | JsonKind::False | JsonKind::Null => start.checked_add(1),
-        JsonKind::ObjectStart | JsonKind::ArrayStart => {
-            let mut depth = 0_u32;
-            for index in start..bound {
-                match kind(document, index)? {
-                    JsonKind::ObjectStart | JsonKind::ArrayStart => depth = depth.checked_add(1)?,
-                    JsonKind::ObjectEnd | JsonKind::ArrayEnd => {
-                        depth = depth.checked_sub(1)?;
-                        if depth == 0 {
-                            return index.checked_add(1);
-                        }
-                    }
-                    JsonKind::Key
-                    | JsonKind::String
-                    | JsonKind::Number
-                    | JsonKind::True
-                    | JsonKind::False
-                    | JsonKind::Null
-                    | JsonKind::Long => {}
-                }
-            }
-            None
-        }
-        JsonKind::ObjectEnd | JsonKind::ArrayEnd | JsonKind::Key | JsonKind::Long => None,
+    if kind(document, start) == Some(JsonKind::Long) {
+        return None;
     }
+    let end = document.value_end(start)?;
+    if end <= bound { Some(end) } else { None }
 }
 
 fn kind(document: &Document, index: u32) -> Option<JsonKind> {
