@@ -1,12 +1,9 @@
-//! The Forges page, navigation dot and setup strip (client/forge.md, 5.4; client/README.md, 5.1, 5.3, 5.6).
+//! Kept forges and their navigation dot (temper/docs/design/draft/playground-reset.md, 3, 6.1).
 use super::{
     Demo, connect,
     forges::{Connection, Mode, Row, State},
 };
-use crate::{
-    Domain, Step,
-    pages::{accounts, welcome},
-};
+use crate::Domain;
 use skein_lib::List;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,31 +13,16 @@ pub enum Dot {
     Red,
 }
 #[must_use]
-pub fn personal(row: &Row, demo: Option<&Demo>) -> bool {
-    if row.mode == Mode::Fake {
-        return false;
-    }
-    if let Some(demo) = demo
-        && demo.forge == row.number
-    {
-        return false;
-    }
-    match row.connection {
-        Connection::NotConnected | Connection::NotSetUp => false,
-        Connection::SettingUp { .. }
-        | Connection::SetUpFailed { .. }
-        | Connection::Connecting
-        | Connection::Connected { .. }
-        | Connection::Stopped { .. } => true,
-    }
+pub fn personal(row: &Row, playground: Option<u16>) -> bool {
+    row.mode != Mode::Fake || playground == Some(row.number)
 }
 /// The decoder keeps these rows in increasing forge number order.
 #[must_use]
-pub fn rows<'a>(state: &'a State, demo: Option<&Demo>) -> List<&'a Row> {
+pub fn rows(state: &State, playground: Option<u16>) -> List<&Row> {
     let mut listed = List::with_capacity(super::forges::ROWS);
     if let State::Rows(rows) = state {
         for row in rows {
-            if personal(row, demo) {
+            if personal(row, playground) {
                 listed.push(row).expect("bounded forge rows");
             }
         }
@@ -48,9 +30,9 @@ pub fn rows<'a>(state: &'a State, demo: Option<&Demo>) -> List<&'a Row> {
     listed
 }
 #[must_use]
-pub fn dot(state: &State, demo: Option<&Demo>) -> Dot {
+pub fn dot(state: &State, playground: Option<u16>) -> Dot {
     let mut dot = Dot::None;
-    for row in &rows(state, demo) {
+    for row in &rows(state, playground) {
         if row.ended.is_some() {
             return Dot::Red;
         }
@@ -86,49 +68,4 @@ pub fn playground(root: &Domain) -> Option<(&Demo, &Row)> {
         }
     }
     None
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Setup {
-    pub playground: bool,
-    pub forge: bool,
-    pub model: bool,
-    pub step: Step,
-}
-#[must_use]
-pub fn setup(root: &Domain) -> Option<Setup> {
-    if !root.demo_answered()
-        || root.forge().demo_running()
-        || match welcome::decision(root) {
-            Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) => false,
-            Some(welcome::FirstRun::Whole) | None => true,
-        }
-    {
-        return None;
-    }
-    let owner = accounts::current_me(root.client())?.deployment_role == Some(jig_client::contract::HeldRole::Owner);
-    let mut connected = false;
-    let mut started = false;
-    let mut personal_connected = false;
-    for row in &rows(root.forges(), root.forge().demo()) {
-        if let Connection::Connected { .. } = row.connection {
-            personal_connected = true;
-            connected |= !connect::underway(row) && !connect::failed(row);
-            started = true;
-        }
-        started |= connect::underway(row);
-    }
-    let model = !welcome::model_usable(root)?;
-    let step = if owner && !started {
-        Step::Forge { forge: None }
-    } else if model {
-        Step::Model { way: None }
-    } else {
-        Step::Ready
-    };
-    Some(Setup {
-        playground: !personal_connected && root.forge().demo().is_some(),
-        forge: owner && !connected,
-        model,
-        step,
-    })
 }

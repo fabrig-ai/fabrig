@@ -1,23 +1,29 @@
-//! Pure facts for connecting a forge (client/forge.md, 5.4).
-use super::{
-    Demo,
-    forges::{Connection, Kind, Mode, Offer, Row, State},
-};
-use crate::Choice;
+//! Forge choices and unfinished records (temper/docs/design/draft/playground-reset.md, 3, 6.4).
+use super::forges::{Connection, Kind, Mode, Offer, Row, State};
+use crate::Choice as AddressChoice;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Choice {
+    GitHub,
+    Owned,
+    Managed,
+}
+#[must_use]
+pub fn playground(side: &super::Side) -> Option<u16> {
+    Some(side.demo()?.forge)
+}
 use skein_lib::List;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shown {
     Choose,
-    Details(Choice),
+    Unfinished(u16),
+    Details(AddressChoice),
     SettingUp(u16),
     Ready(u16),
 }
 #[must_use]
 #[expect(clippy::manual_find, reason = "step code uses bounded loops without closures")]
-pub fn row<'a>(number: u16, rows: &'a State, demo: Option<&Demo>) -> Option<&'a Row> {
-    if let Some(demo) = demo
-        && demo.forge == number
-    {
+pub fn row(number: u16, rows: &State, playground: Option<u16>) -> Option<&Row> {
+    if playground == Some(number) {
         return None;
     }
     let State::Rows(rows) = rows else { return None };
@@ -29,23 +35,25 @@ pub fn row<'a>(number: u16, rows: &'a State, demo: Option<&Demo>) -> Option<&'a 
     None
 }
 #[must_use]
-pub fn step(choice: Option<Choice>, rows: &State, demo: Option<&Demo>) -> Shown {
+pub fn step(choice: Option<AddressChoice>, rows: &State, playground: Option<u16>) -> Shown {
     match choice {
         None => Shown::Choose,
-        Some(Choice::Elsewhere) => Shown::Details(Choice::Elsewhere),
-        Some(Choice::Forge(number)) => {
-            let Some(row) = row(number, rows, demo) else { return Shown::Choose };
+        Some(
+            choice @ (AddressChoice::GitHub | AddressChoice::Owned | AddressChoice::Managed | AddressChoice::Elsewhere),
+        ) => Shown::Details(choice),
+        Some(AddressChoice::Forge(number)) => {
+            let Some(row) = row(number, rows, playground) else { return Shown::Choose };
             if row.admin && admin_stopped(row) {
-                return Shown::Details(Choice::Forge(number));
+                return Shown::Details(AddressChoice::Forge(number));
             }
             if failed(row) {
                 return Shown::SettingUp(number);
             }
             match &row.connection {
-                Connection::Stopped { .. } if row.kind == Kind::GitHub => Shown::Details(Choice::Forge(number)),
+                Connection::Stopped { .. } if row.kind == Kind::GitHub => Shown::Details(AddressChoice::Forge(number)),
                 Connection::NotSetUp | Connection::NotConnected => {
                     if offered(row) {
-                        Shown::Details(Choice::Forge(number))
+                        Shown::Details(AddressChoice::Forge(number))
                     } else {
                         Shown::Choose
                     }
@@ -75,14 +83,19 @@ pub fn at_once(row: &Row) -> bool {
         && row.offer == Offer::Offered
 }
 #[must_use]
-pub fn welcome_step(choice: Option<Choice>, rows: &State, demo: Option<&Demo>) -> Shown {
-    if let Some(Choice::Forge(number)) = choice
-        && let Some(row) = row(number, rows, demo)
+pub fn welcome_step(choice: Option<AddressChoice>, rows: &State, playground: Option<u16>) -> Shown {
+    if choice.is_none()
+        && let Some(row) = unfinished(rows, playground)
+    {
+        return Shown::Unfinished(row.number);
+    }
+    if let Some(AddressChoice::Forge(number)) = choice
+        && let Some(row) = row(number, rows, playground)
         && at_once(row)
     {
         return Shown::Choose;
     }
-    step(choice, rows, demo)
+    step(choice, rows, playground)
 }
 #[must_use]
 pub(crate) fn admin_stopped(row: &Row) -> bool {
@@ -117,38 +130,75 @@ fn offered(row: &Row) -> bool {
         }
     }
 }
+/// The deployment fact supplies availability before any owned record exists.
 #[must_use]
-pub fn choices(rows: &State, demo: Option<&Demo>) -> List<Choice> {
-    let mut choices = List::with_capacity(temper_client_protocol_wire::FORGES.checked_add(1).expect("choices fit"));
+pub fn choices(rows: &State, playground: Option<u16>, under_box: bool) -> List<Choice> {
+    let mut choices = List::with_capacity(3);
+    if playground.is_some() {
+        return choices;
+    }
+    let mut owned = under_box;
     if let State::Rows(rows) = rows {
-        for kind in [Kind::GitHub, Kind::Forgejo] {
-            // The forges decoder admits rows in increasing number order.
-            for row in rows {
-                let demo = match demo {
-                    Some(demo) => row.number == demo.forge,
-                    None => false,
-                };
-                if row.kind == kind && row.mode != Mode::Fake && !demo && offered(row) {
-                    choices.push(Choice::Forge(row.number)).expect("bounded rows");
-                }
+        for row in rows {
+            if row.mode == Mode::Owned {
+                owned = row.offer == Offer::Offered;
+                break;
             }
         }
     }
-    choices.push(Choice::Elsewhere).expect("one extra choice");
+    choices.push(Choice::GitHub).expect("three choices");
+    if owned {
+        choices.push(Choice::Owned).expect("three choices");
+    }
+    choices.push(Choice::Managed).expect("three choices");
     choices
+}
+
+/// A real record is unfinished until connected with its first repository adopted.
+#[must_use]
+pub fn unfinished(rows: &State, playground: Option<u16>) -> Option<&Row> {
+    let State::Rows(rows) = rows else { return None };
+    for row in rows {
+        if row.mode == Mode::Fake || playground == Some(row.number) {
+            continue;
+        }
+        if !complete(row) {
+            return Some(row);
+        }
+    }
+    None
+}
+#[must_use]
+pub fn complete(row: &Row) -> bool {
+    if let Connection::Connected { .. } = row.connection {
+        return !row.repositories.is_empty();
+    }
+    false
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnfinishedAct {
+    GoOn,
+    StartOver,
+}
+#[must_use]
+pub fn unfinished_acts(row: &Row) -> List<UnfinishedAct> {
+    let mut acts = List::with_capacity(2);
+    if row.kind == Kind::GitHub && row.app.is_some() {
+        acts.push(UnfinishedAct::GoOn).expect("two acts");
+    }
+    acts.push(UnfinishedAct::StartOver).expect("two acts");
+    acts
 }
 
 /// The welcome follows the person's forge once its setup has started.
 #[must_use]
-pub fn personal<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Row> {
+pub fn personal(rows: &State, playground: Option<u16>) -> Option<&Row> {
     let State::Rows(rows) = rows else { return None };
     for row in rows {
         if row.mode == Mode::Fake {
             continue;
         }
-        if let Some(demo) = demo
-            && row.number == demo.forge
-        {
+        if playground == Some(row.number) {
             continue;
         }
         if row.admin && admin_stopped(row) {
@@ -199,15 +249,13 @@ pub fn failed(row: &Row) -> bool {
 }
 /// A setup line remains visible even when another forge is already connected.
 #[must_use]
-pub fn underway_forge<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Row> {
+pub fn underway_forge(rows: &State, playground: Option<u16>) -> Option<&Row> {
     let State::Rows(rows) = rows else { return None };
     for row in rows {
         if row.mode == Mode::Fake || !underway(row) {
             continue;
         }
-        if let Some(demo) = demo
-            && row.number == demo.forge
-        {
+        if playground == Some(row.number) {
             continue;
         }
         return Some(row);
@@ -232,10 +280,8 @@ pub enum Name {
     Playground,
 }
 #[must_use]
-pub fn name(row: &Row, demo: Option<&Demo>) -> Name {
-    if let Some(demo) = demo
-        && demo.forge == row.number
-    {
+pub fn name(row: &Row, playground: Option<u16>) -> Name {
+    if playground == Some(row.number) {
         return Name::Playground;
     }
     match row.kind {

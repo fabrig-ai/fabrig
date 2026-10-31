@@ -78,10 +78,11 @@ fn steps(b: &mut Builder, root: &Domain, w: &Words, current: Step) {
                 Some(row) => match temper_client_domain::forge::connect::step(
                     Some(temper_client_domain::Choice::Forge(row.number)),
                     root.forges(),
-                    root.forge().demo(),
+                    temper_client_domain::forge::connect::playground(root.forge()),
                 ) {
                     temper_client_domain::forge::connect::Shown::Ready(_) => true,
-                    temper_client_domain::forge::connect::Shown::Choose
+                    temper_client_domain::forge::connect::Shown::Unfinished(_)
+                    | temper_client_domain::forge::connect::Shown::Choose
                     | temper_client_domain::forge::connect::Shown::Details(_)
                     | temper_client_domain::forge::connect::Shown::SettingUp(_) => false,
                 },
@@ -225,7 +226,7 @@ fn legacy_ready(
         let ready = temper_client_domain::forge::connect::step(
             Some(temper_client_domain::Choice::Forge(row.number)),
             root.forges(),
-            root.forge().demo(),
+            temper_client_domain::forge::connect::playground(root.forge()),
         );
         if row.first.is_some() && ready == temper_client_domain::forge::connect::Shown::Ready(row.number) {
             connect::ready_card(b, root, w, bindings, forge, row, sign_in);

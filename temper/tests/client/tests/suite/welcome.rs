@@ -112,7 +112,7 @@ fn a_first_run_welcome_without_a_demo() {
 }
 
 #[test]
-fn a_configured_model_hides_the_banner_and_the_strips_model_half() {
+fn a_configured_model_hides_the_account_banner() {
     let (mut front, mut root) = accounts::welcome_fixture(fixtures::SEED);
     let person = root.person();
     assert!(person.demo_answered());
@@ -130,9 +130,6 @@ fn a_configured_model_hides_the_banner_and_the_strips_model_half() {
         &mut root,
         d::Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) }.into(),
     );
-    let setup = d::forge::listed::setup(root.person()).expect("forge setup remains");
-    assert!(setup.forge);
-    assert!(!setup.model);
     let limits = fixtures::domain_limits();
     let words = fixtures::phrasebooks(&limits);
     let bounds = fixtures::view_bounds(&limits, &words);
@@ -141,14 +138,12 @@ fn a_configured_model_hides_the_banner_and_the_strips_model_half() {
     let nodes = view.tree().nodes();
     assert!(!nodes.iter().any(|node| node.name.as_deref() == Some(b"Agents need an LLM account to run.")));
     assert!(!nodes.iter().any(|node| node.name.as_deref() == Some(b"temper has no model yet.")));
-    assert!(nodes.iter().any(|node| node.name.as_deref() == Some(b"temper has no forge yet.")));
     front.engine.send(temper_engine_domain::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
         forge: 1,
         state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
     })));
     accounts::settle(&mut front, &mut root);
     assert_eq!(d::pages::welcome::decision(root.person()), Some(d::pages::welcome::FirstRun::Whole));
-    assert!(d::forge::listed::setup(root.person()).is_none());
 }
 
 #[test]
