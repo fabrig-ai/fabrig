@@ -5,7 +5,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use skein_json::Token;
-use skein_lib::{Duration, List, Queue, Time, Wall, Writer, bytes};
+use skein_lib::{Duration, List, Queue, Time, Wall, Writer, bytes, hex};
 use skein_oauth::{
     HttpEvidence, HttpRequest, HttpResponse, Json, Limits as DocumentLimits, OAuthError, TokenResponse, challenge,
     encode_error, encode_response,
@@ -684,8 +684,8 @@ fn percent_decode(value: &[u8], cap: u32) -> Result<Box<[u8]>, Error> {
     while at < value.len() {
         let byte = *value.get(at).ok_or(Error::Plan)?;
         if byte == b'%' {
-            let high = hex(*value.get(at.saturating_add(1)).ok_or(Error::Plan)?).ok_or(Error::Plan)?;
-            let low = hex(*value.get(at.saturating_add(2)).ok_or(Error::Plan)?).ok_or(Error::Plan)?;
+            let high = hex::value(*value.get(at.saturating_add(1)).ok_or(Error::Plan)?).ok_or(Error::Plan)?;
+            let low = hex::value(*value.get(at.saturating_add(2)).ok_or(Error::Plan)?).ok_or(Error::Plan)?;
             writer.put(&[(high << 4_u32) | low]).expect("measured decode");
             at = at.saturating_add(3);
         } else {
@@ -699,13 +699,4 @@ fn percent_decode(value: &[u8], cap: u32) -> Result<Box<[u8]>, Error> {
 fn copy_optional(value: Option<&[u8]>) -> Option<Box<[u8]>> {
     let value = value?;
     Some(bytes::copy_of(value))
-}
-
-const fn hex(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte.wrapping_sub(b'0')),
-        b'a'..=b'f' => Some(byte.wrapping_sub(b'a').wrapping_add(10)),
-        b'A'..=b'F' => Some(byte.wrapping_sub(b'A').wrapping_add(10)),
-        _ => None,
-    }
 }
