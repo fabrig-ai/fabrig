@@ -266,18 +266,18 @@ fn failure(failure: host::Failure, parts: &[Part], limits: &wire::v9::Limits) ->
         }
     })
 }
-fn activity(activity: host::Activity, limits: &wire::v9::Limits) -> Option<wire::FactValue> {
+fn activity(activity: host::AgentActivity, limits: &wire::v9::Limits) -> Option<wire::FactValue> {
     Some(match activity {
-        host::Activity::Phase(value) => {
+        host::AgentActivity::Phase(value) => {
             let value = phase(value);
             wire::FactValue::Phase(wire::PhaseValue::new(limits, wire::PhaseValueParts { value }).ok()?)
         }
-        host::Activity::Long { operation: op, span } => {
+        host::AgentActivity::Long { operation: op, span } => {
             let operation = operation(op);
             wire::FactValue::Long(wire::Long::new(limits, wire::LongParts { operation, span }).ok()?)
         }
-        host::Activity::LongDone => wire::FactValue::LongDone,
-        host::Activity::Count { kind, elapsed, count } => {
+        host::AgentActivity::LongDone => wire::FactValue::LongDone,
+        host::AgentActivity::Count { kind, elapsed, count } => {
             let kind = count_kind(kind);
             wire::FactValue::Count(wire::Count::new(limits, wire::CountParts { kind, elapsed, value: count }).ok()?)
         }
@@ -365,11 +365,11 @@ fn cancel_reason(value: host::Reason) -> wire::CancelReason {
         host::Reason::Shutdown => wire::CancelReason::Shutdown,
     }
 }
-fn operation(value: host::Operation) -> wire::Operation {
+fn operation(value: host::AgentOperation) -> wire::Operation {
     match value {
-        host::Operation::Checks => wire::Operation::Checks,
-        host::Operation::Completion => wire::Operation::Completion,
-        host::Operation::Command => wire::Operation::Command,
+        host::AgentOperation::Checks => wire::Operation::Checks,
+        host::AgentOperation::Completion => wire::Operation::Completion,
+        host::AgentOperation::Command => wire::Operation::Command,
     }
 }
 fn count_kind(value: host::CountKind) -> wire::CountKind {

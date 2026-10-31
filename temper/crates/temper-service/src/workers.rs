@@ -127,7 +127,7 @@ impl Workers {
                     up: host::LinkUp::Answer {
                         run: Token::new(task),
                         attempt: Token::new(attempt),
-                        answer: host::Answer {
+                        answer: host::RunAnswer {
                             read: None,
                             refused: Box::default(),
                             turns: 0,

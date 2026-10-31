@@ -353,18 +353,20 @@ fn end(ending: &host::Ending) -> tasks::End {
     }
 }
 
-fn report(activity: host::Activity) -> fleet::Report {
+fn report(activity: host::AgentActivity) -> fleet::Report {
     match activity {
-        host::Activity::Phase(phase) => fleet::Report::Activity(match phase {
+        host::AgentActivity::Phase(phase) => fleet::Report::Activity(match phase {
             host::Phase::Preparing => fleet::Activity::Preparing,
             host::Phase::Starting => fleet::Activity::Starting,
             host::Phase::Active => fleet::Activity::Active,
             host::Phase::Waiting => fleet::Activity::Waiting,
             host::Phase::Ending | host::Phase::Answered => fleet::Activity::Ending,
         }),
-        host::Activity::Long { operation, span } => fleet::Report::Activity(fleet::Activity::Long { operation, span }),
-        host::Activity::LongDone => fleet::Report::Activity(fleet::Activity::Active),
-        host::Activity::Count { kind, elapsed, count } => fleet::Report::Count { kind, elapsed, count },
+        host::AgentActivity::Long { operation, span } => {
+            fleet::Report::Activity(fleet::Activity::Long { operation, span })
+        }
+        host::AgentActivity::LongDone => fleet::Report::Activity(fleet::Activity::Active),
+        host::AgentActivity::Count { kind, elapsed, count } => fleet::Report::Count { kind, elapsed, count },
     }
 }
 

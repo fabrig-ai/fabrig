@@ -495,7 +495,7 @@ fn every_worker_call_entrance_classes_read_only_calls_as_new() {
     let root::Event::Agent(agent) = worker_call(FIRST, false) else { unreachable!() };
     for input in [
         worker_call(FIRST, false),
-        root::Event::Host(host::Event::from_agent(agent)),
+        root::Event::Host(host::Event::Agent(agent)),
         root::Event::Core(core::Event::Fleet(fleet::Event::Relay {
             channel: FIRST,
             run: FIRST,

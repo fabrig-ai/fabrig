@@ -13,7 +13,7 @@
 use skein_lib::{Queue, Token};
 
 use crate::boundary::Failure;
-use crate::{Activity, LinkUp, Phase};
+use crate::{AgentActivity, LinkUp, Phase};
 
 /// Something that happened to the hosted run `run`'s attempt `attempt`.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -99,7 +99,7 @@ impl Facts {
     pub(crate) fn phase(&mut self, run: Token, attempt: Token, previous: &mut Option<Phase>, phase: Phase) {
         if *previous != Some(phase) {
             *previous = Some(phase);
-            self.activity(LinkUp::Activity { run, attempt, activity: Activity::Phase(phase) });
+            self.activity(LinkUp::Activity { run, attempt, activity: AgentActivity::Phase(phase) });
         }
     }
 

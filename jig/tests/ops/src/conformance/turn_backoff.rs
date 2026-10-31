@@ -95,7 +95,7 @@ impl World {
     }
 
     pub fn turn(&mut self, number: u32) {
-        self.send(root::Event::Host(host::Event::Turn {
+        self.send(root::Event::Host(host::Event::Agent(host::FromAgent::Turn {
             owner: self.owner,
             turn: host::Turn {
                 turn: number,
@@ -105,7 +105,7 @@ impl World {
                 refused: Box::new([]),
                 body: Box::new([u8::try_from(number).expect("small world turn")]),
             },
-        }));
+        })));
     }
 
     pub fn take(&mut self) -> Vec<root::Output> {

@@ -210,7 +210,7 @@ fn event_in(
             );
             observability_out(domain, env, decision, &mut out, work);
         }
-        Event::Agent(report) => work.push(Work::Host(host::Event::from_agent(report))),
+        Event::Agent(report) => work.push(Work::Host(host::Event::Agent(report))),
         Event::AgentContent { owner, content } => agent_content(domain, env, decision, work, owner, content),
     }
 }
@@ -1554,121 +1554,113 @@ pub(crate) fn host_out(
 ) {
     for _ in 0..out.len() {
         let request = out.pop().expect("host requests");
-        match request.to_agent() {
-            Ok(request) => held(decision, Output::Agent(request)),
-            Err(request) => match request {
-                host::Request::Source { .. }
-                | host::Request::SourceFault
-                | host::Request::Up(host::LinkUp::Logins { .. } | host::LinkUp::SignedOut { .. }) => {
-                    unreachable!("engine hub has no program sources")
-                }
-                host::Request::Up(host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline }) => {
-                    domain
-                        .host_calls
-                        .insert(call.clone(), crate::domain::HostCall { run, attempt })
-                        .expect("host bounded its relays");
-                    work.push(Work::Core(core::Event::Fleet(fleet::Event::Relay {
-                        channel: Token::new(0),
-                        run,
-                        attempt,
-                        call: fleet::Call { name: call, tool, writes, input, deadline },
-                    })));
-                }
-                host::Request::Up(host::LinkUp::Turn { run, attempt, turn, .. }) => {
-                    let body = domain.payload(Payload::Turn {
-                        task: run.raw(),
-                        attempt: attempt.raw(),
-                        turn: turn.turn,
-                        spent: turn.spent,
-                        read: match turn.read {
-                            Some(read) => Some(read.raw()),
-                            None => None,
-                        },
-                        body: turn.body,
-                        opens_window: turn.opens_window,
-                        refused: crate::assemble::refusals(turn.refused),
-                    });
-                    work.push(Work::Core(core::Event::Fleet(fleet::Event::Turn {
-                        channel: Token::new(0),
-                        run,
-                        attempt,
-                        turn: match domain.payloads.get(&body).expect("turn token") {
-                            Payload::Turn { turn, .. } => *turn,
-                            Payload::Answer { .. } | Payload::Word(_) | Payload::Settled(_) => {
-                                unreachable!("turn token family");
-                            }
-                        },
-                        body,
-                    })));
-                }
-                host::Request::Up(host::LinkUp::Answer { run, attempt, answer, .. }) => {
-                    let payload = domain.payload(Payload::Answer {
-                        task: run.raw(),
-                        attempt: attempt.raw(),
-                        spent: answer.spent,
-                        ending: answer.ending,
-                        read: crate::assemble::message_read(answer.read),
-                        refused: crate::assemble::refusals(answer.refused),
-                    });
-                    work.push(Work::Core(core::Event::Fleet(fleet::Event::Answer {
-                        channel: Token::new(0),
-                        run,
-                        attempt,
-                        answer: fleet::Answer::Ended,
-                        payload,
-                    })));
-                }
-                host::Request::Up(host::LinkUp::Unauthorized { run, attempt, account, generation }) => {
-                    work.push(Work::Core(core::Event::Fleet(fleet::Event::Unauthorized {
-                        channel: Token::new(0),
-                        run,
-                        attempt,
-                        account,
-                        generation,
-                    })));
-                }
-                host::Request::Up(host::LinkUp::Limited { run, attempt, account, reset }) => {
-                    work.push(Work::Core(core::Event::Fleet(fleet::Event::Limited {
-                        channel: Token::new(0),
-                        run,
-                        attempt,
-                        account,
-                        reset,
-                    })));
-                }
-                host::Request::Up(host::LinkUp::AccountRefused { run, attempt, account, code, reason }) => {
-                    work.push(Work::Core(core::Event::Fleet(fleet::Event::AccountRefused {
-                        channel: Token::new(0),
-                        run,
-                        attempt,
-                        account,
-                        code,
-                        reason,
-                    })));
-                }
-                host::Request::Up(host::LinkUp::Activity { .. }) => unreachable!("activity is drained separately"),
-                host::Request::CancelRelay { run, attempt, call } => {
-                    domain.host_calls.remove(&call);
-                    work.push(Work::Host(host::Event::RelayCancelled { run, attempt, call }));
-                }
+        match request {
+            host::Request::Agent(request) => held(decision, Output::Agent(request)),
+            host::Request::Source { .. }
+            | host::Request::SourceFault
+            | host::Request::Up(host::LinkUp::Logins { .. } | host::LinkUp::SignedOut { .. }) => {
+                unreachable!("engine hub has no program sources")
+            }
+            host::Request::Up(host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline }) => {
+                domain
+                    .host_calls
+                    .insert(call.clone(), crate::domain::HostCall { run, attempt })
+                    .expect("host bounded its relays");
+                work.push(Work::Core(core::Event::Fleet(fleet::Event::Relay {
+                    channel: Token::new(0),
+                    run,
+                    attempt,
+                    call: fleet::Call { name: call, tool, writes, input, deadline },
+                })));
+            }
+            host::Request::Up(host::LinkUp::Turn { run, attempt, turn, .. }) => {
+                let body = domain.payload(Payload::Turn {
+                    task: run.raw(),
+                    attempt: attempt.raw(),
+                    turn: turn.turn,
+                    spent: turn.spent,
+                    read: match turn.read {
+                        Some(read) => Some(read.raw()),
+                        None => None,
+                    },
+                    body: turn.body,
+                    opens_window: turn.opens_window,
+                    refused: crate::assemble::refusals(turn.refused),
+                });
+                work.push(Work::Core(core::Event::Fleet(fleet::Event::Turn {
+                    channel: Token::new(0),
+                    run,
+                    attempt,
+                    turn: match domain.payloads.get(&body).expect("turn token") {
+                        Payload::Turn { turn, .. } => *turn,
+                        Payload::Answer { .. } | Payload::Word(_) | Payload::Settled(_) => {
+                            unreachable!("turn token family");
+                        }
+                    },
+                    body,
+                })));
+            }
+            host::Request::Up(host::LinkUp::Answer { run, attempt, answer, .. }) => {
+                let payload = domain.payload(Payload::Answer {
+                    task: run.raw(),
+                    attempt: attempt.raw(),
+                    spent: answer.spent,
+                    ending: answer.ending,
+                    read: crate::assemble::message_read(answer.read),
+                    refused: crate::assemble::refusals(answer.refused),
+                });
+                work.push(Work::Core(core::Event::Fleet(fleet::Event::Answer {
+                    channel: Token::new(0),
+                    run,
+                    attempt,
+                    answer: fleet::Answer::Ended,
+                    payload,
+                })));
+            }
+            host::Request::Up(host::LinkUp::Unauthorized { run, attempt, account, generation }) => {
+                work.push(Work::Core(core::Event::Fleet(fleet::Event::Unauthorized {
+                    channel: Token::new(0),
+                    run,
+                    attempt,
+                    account,
+                    generation,
+                })));
+            }
+            host::Request::Up(host::LinkUp::Limited { run, attempt, account, reset }) => {
+                work.push(Work::Core(core::Event::Fleet(fleet::Event::Limited {
+                    channel: Token::new(0),
+                    run,
+                    attempt,
+                    account,
+                    reset,
+                })));
+            }
+            host::Request::Up(host::LinkUp::AccountRefused { run, attempt, account, code, reason }) => {
+                work.push(Work::Core(core::Event::Fleet(fleet::Event::AccountRefused {
+                    channel: Token::new(0),
+                    run,
+                    attempt,
+                    account,
+                    code,
+                    reason,
+                })));
+            }
+            host::Request::Up(host::LinkUp::Activity { .. }) => unreachable!("activity is drained separately"),
+            host::Request::CancelRelay { run, attempt, call } => {
+                domain.host_calls.remove(&call);
+                work.push(Work::Host(host::Event::RelayCancelled { run, attempt, call }));
+            }
 
-                host::Request::Up(host::LinkUp::Piece { .. }) | host::Request::Hello { .. } => {}
-                host::Request::Prepare { owner, .. } => work.push(Work::Host(host::Event::Unprepared {
-                    owner,
-                    failure: host::Preparation::Permanent { resource: None },
-                    detail: Box::new([]),
-                })),
-                host::Request::Deliver { .. }
-                | host::Request::Abort { .. }
-                | host::Request::Save { .. }
-                | host::Request::Release { .. } => unreachable!("engine hub has no workspace capability"),
-                host::Request::Message { .. }
-                | host::Request::Reply { .. }
-                | host::Request::Start { .. }
-                | host::Request::AcknowledgeAgentTurn { .. }
-                | host::Request::Stop { .. }
-                | host::Request::Grant { .. } => unreachable!("to_agent classified the agent capability"),
-            },
+            host::Request::Up(host::LinkUp::Piece { .. }) | host::Request::Hello { .. } => {}
+            host::Request::Prepare { owner, .. } => work.push(Work::Host(host::Event::Unprepared {
+                owner,
+                failure: host::Preparation::Permanent { resource: None },
+                detail: Box::new([]),
+            })),
+            host::Request::Deliver { .. }
+            | host::Request::Abort { .. }
+            | host::Request::Save { .. }
+            | host::Request::Release { .. } => unreachable!("engine hub has no workspace capability"),
         }
     }
     crate::host_activity::drain(&mut domain.host, env.limits.host.told, work);

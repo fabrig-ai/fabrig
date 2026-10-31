@@ -85,7 +85,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
         Event::Activity { owner, activity } => {
             domain.facts_out = domain.facts_out.saturating_sub(1);
             if let Some(activity) = activity {
-                host_step(domain, env, host::Event::Activity { owner, activity });
+                host_step(domain, env, host::Event::Agent(host::FromAgent::Activity { owner, activity }));
             }
         }
         Event::Done { owner, done } => checkout_step(domain, env, checkout::Event::Done { owner, done }),
@@ -105,7 +105,7 @@ fn live(domain: &mut Domain, env: &Env<Limits>, source: Token, piece: host::Piec
     }
     let Some(owner) = owner else { return };
     agent_step(domain, env, agent::Input::Process(agent::process::Event::Progress { owner: source }));
-    host_step(domain, env, host::Event::Piece { owner, piece });
+    host_step(domain, env, host::Event::Agent(host::FromAgent::Piece { owner, piece }));
 }
 
 /// An assignment from the engine. One the hub hosts already, or whose answer
@@ -163,8 +163,13 @@ fn words(why: &[u8], limit: u32) -> Box<[u8]> {
 
 /// The root's own refusal: it goes once, and holds nothing.
 fn refuse(run: Token, attempt: Token, refusal: host::Refusal, out: &mut Queue<Request>) {
-    let answer =
-        host::Answer { read: None, refused: Box::new([]), turns: 0, spent: 0, ending: host::Ending::Refused(refusal) };
+    let answer = host::RunAnswer {
+        read: None,
+        refused: Box::new([]),
+        turns: 0,
+        spent: 0,
+        ending: host::Ending::Refused(refusal),
+    };
     let work = wire::Work { landed: Box::new([]), saved: None };
     out.push(Request::Answer { run, attempt, answer, work, preparation: None });
 }
@@ -221,10 +226,6 @@ pub(crate) fn agent_step(domain: &mut Domain, env: &Env<Limits>, event: agent::I
 
 /// One of the host's requests: to the engine, or to a capability.
 fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
-    let request = match request.to_agent() {
-        Ok(request) => return agents::to_agent(domain, env, request, out),
-        Err(request) => request,
-    };
     match request {
         host::Request::Source { owner, name, operation, deadline } => {
             out.push(Request::Source { owner, name, operation, deadline });
@@ -254,18 +255,13 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
         }
         host::Request::Save { owner, workspace } => workspace::save(domain, env, owner, workspace),
         host::Request::Release { workspace } => workspace::release(domain, env, workspace),
-        host::Request::Message { .. }
-        | host::Request::Reply { .. }
-        | host::Request::Start { .. }
-        | host::Request::Grant { .. }
-        | host::Request::AcknowledgeAgentTurn { .. }
-        | host::Request::Stop { .. } => unreachable!("the agent capability's requests were taken above"),
+        host::Request::Agent(request) => agents::to_agent(domain, env, request, out),
     }
 }
 
 /// A run's answer, from the hub, with temper's parts beside it. A refusal
 /// keeps nothing: its items go.
-fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: host::Answer, out: &mut Queue<Request>) {
+fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: host::RunAnswer, out: &mut Queue<Request>) {
     let (work, preparation) = workspace::parts(domain, &answer);
     let refused = match answer.ending {
         host::Ending::Refused(_) => true,

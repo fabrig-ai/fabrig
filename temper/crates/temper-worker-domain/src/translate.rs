@@ -193,11 +193,11 @@ pub(crate) const fn refusal(refusal: agent::MessageRefusal) -> host::MessageRefu
 }
 
 /// A long operation smith reports, as jig's activity names it.
-pub(crate) const fn operation(operation: agent::Operation) -> host::Operation {
+pub(crate) const fn operation(operation: agent::Operation) -> host::AgentOperation {
     match operation {
-        agent::Operation::Checks => host::Operation::Checks,
-        agent::Operation::Completion => host::Operation::Completion,
-        agent::Operation::Command => host::Operation::Command,
+        agent::Operation::Checks => host::AgentOperation::Checks,
+        agent::Operation::Completion => host::AgentOperation::Completion,
+        agent::Operation::Command => host::AgentOperation::Command,
     }
 }
 

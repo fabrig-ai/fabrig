@@ -64,7 +64,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
             agent,
             grant: translate::grant(grant).expect("the hub forwards only account grants"),
         },
-        host::ToAgent::Answer { agent, call: name, reply } => {
+        host::ToAgent::Answer { agent, call: name, answer: reply } => {
             let mut found = None;
             for (key, call) in &domain.calls {
                 if call.agent == agent && call.name.as_deref() == Some(name.as_ref()) {
@@ -92,7 +92,7 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
         smith::parent::Request::Admitted { client } => {
             let bound = domain.agents.get_mut(&client).expect("started before admitted");
             bound.admitted = true;
-            host::Event::Started { owner: client, agent: bound.agent }
+            host::Event::Agent(host::FromAgent::Started { owner: client, agent: bound.agent })
         }
         smith::parent::Request::Turn { client, turn } => {
             domain.pending.push(Pending::Turn { owner: client });
@@ -105,7 +105,7 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             let Some(entry) = domain.calls.get_mut(&(client, call)) else { return };
             entry.withdrawn = true;
             let Some(name) = &entry.name else { return };
-            host::Event::Withdrawn { owner: client, call: name.clone() }
+            host::Event::Agent(host::FromAgent::Withdrawn { owner: client, call: name.clone() })
         }
         smith::parent::Request::Answered { client, answer, detail: _ } => {
             let smith::Answer { read, turns, spent, result } = answer;
@@ -116,37 +116,43 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             domain.facts_out = domain.facts_out.saturating_add(1);
             return out.push(Request::Fact { owner: client, body });
         }
-        smith::parent::Request::Waiting { client, read: _ } => host::Event::Yielded { owner: client },
-        smith::parent::Request::Long { client, operation, span } => host::Event::Activity {
+        smith::parent::Request::Waiting { client, read: _ } => {
+            host::Event::Agent(host::FromAgent::Yielded { owner: client })
+        }
+        smith::parent::Request::Long { client, operation, span } => host::Event::Agent(host::FromAgent::Activity {
             owner: client,
-            activity: host::Activity::Long { operation: translate::operation(operation), span },
-        },
+            activity: host::AgentActivity::Long { operation: translate::operation(operation), span },
+        }),
         smith::parent::Request::LongDone { client } => {
-            host::Event::Activity { owner: client, activity: host::Activity::LongDone }
+            host::Event::Agent(host::FromAgent::Activity { owner: client, activity: host::AgentActivity::LongDone })
         }
         smith::parent::Request::Unauthorized { client, account, generation } => {
-            host::Event::Unauthorized { owner: client, account, generation }
+            host::Event::Agent(host::FromAgent::Unauthorized { owner: client, account, generation })
         }
         smith::parent::Request::Limited { client, account, reset } => {
-            host::Event::Limited { owner: client, account, reset }
+            host::Event::Agent(host::FromAgent::Limited { owner: client, account, reset })
         }
         smith::parent::Request::Refused { client, account, code, reason } => {
-            host::Event::AccountRefused { owner: client, account, code, reason }
+            host::Event::Agent(host::FromAgent::AccountRefused { owner: client, account, code, reason })
         }
         smith::parent::Request::Faulted { client, fault } => {
             // Before its run is admitted, the agent's end answers for it.
             if !admitted(domain, client) {
                 return;
             }
-            host::Event::Faulted { owner: client, fault: translate::fault(fault) }
+            host::Event::Agent(host::FromAgent::Faulted { owner: client, fault: translate::fault(fault) })
         }
         smith::parent::Request::MessageRefused { client, name, reason } => {
-            host::Event::Refused { owner: client, name, reason: translate::refusal(reason) }
+            host::Event::Agent(host::FromAgent::Refused { owner: client, name, reason: translate::refusal(reason) })
         }
         smith::parent::Request::Unread { client, names } => {
             if admitted(domain, client) {
                 for name in names {
-                    let refused = host::Event::Refused { owner: client, name, reason: host::MessageRefusal::Ending };
+                    let refused = host::Event::Agent(host::FromAgent::Refused {
+                        owner: client,
+                        name,
+                        reason: host::MessageRefusal::Ending,
+                    });
                     route::host_step(domain, env, refused);
                 }
             }
@@ -213,7 +219,11 @@ fn called(
 pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, start: Result<Box<smith::Start>, Invalid>) {
     let Some(hosting) = domain.host.hosting(owner) else { return };
     if hosting.phase != host::Phase::Starting {
-        return route::host_step(domain, env, host::Event::Gone { owner, detail: Box::new([]) });
+        return route::host_step(
+            domain,
+            env,
+            host::Event::Agent(host::FromAgent::Gone { owner, detail: Box::new([]) }),
+        );
     }
     let event = match start {
         Ok(mut start) => {
@@ -247,7 +257,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, star
             host::FromAgent::StartRefused { owner, cause: host::StartCause::Other, why: Box::from(why) }
         }
     };
-    route::host_step(domain, env, host::Event::from_agent(event));
+    route::host_step(domain, env, host::Event::Agent(event));
 }
 
 /// A payload handed out came back: what it was for goes on. An agent that
@@ -258,8 +268,10 @@ pub(crate) fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, enco
     match pending {
         Pending::Turn { .. } => {
             let event = match encoded {
-                Encoded::Turn(turn) => host::Event::Turn { owner, turn },
-                Encoded::Undecodable => host::Event::Faulted { owner, fault: host::AgentFailure::Rules },
+                Encoded::Turn(turn) => host::Event::Agent(host::FromAgent::Turn { owner, turn }),
+                Encoded::Undecodable => {
+                    host::Event::Agent(host::FromAgent::Faulted { owner, fault: host::AgentFailure::Rules })
+                }
                 Encoded::CallName(_) | Encoded::Result(_) => unreachable!("a hand-out comes back as it went"),
             };
             route::host_step(domain, env, event);
@@ -298,7 +310,7 @@ pub(crate) fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, enco
                 },
                 Encoded::Turn(_) | Encoded::CallName(_) => unreachable!("a hand-out comes back as it went"),
             };
-            route::host_step(domain, env, host::Event::from_agent(event));
+            route::host_step(domain, env, host::Event::Agent(event));
         }
     }
     if !hand_out_pending(domain, owner)
@@ -319,7 +331,11 @@ fn named(domain: &mut Domain, env: &Env<Limits>, owner: Token, call: Token, enco
             let entry = domain.calls.remove(&(owner, call)).expect("a call waits for its name");
             let answer = smith::parent::Event::Answer { agent: entry.agent, call, reply: smith::Reply::Unavailable };
             route::agent_step(domain, env, smith::Input::Parent(answer));
-            return route::host_step(domain, env, host::Event::Faulted { owner, fault: host::AgentFailure::Rules });
+            return route::host_step(
+                domain,
+                env,
+                host::Event::Agent(host::FromAgent::Faulted { owner, fault: host::AgentFailure::Rules }),
+            );
         }
         Encoded::Turn(_) | Encoded::Result(_) => unreachable!("a hand-out comes back as it went"),
     };
@@ -332,10 +348,10 @@ fn named(domain: &mut Domain, env: &Env<Limits>, owner: Token, call: Token, enco
         Asked::Deliver { title, body } => host::Ask::Deliver { title, body },
     };
     if withdrawn {
-        route::host_step(domain, env, host::Event::Called { owner, call: name.clone(), ask });
-        route::host_step(domain, env, host::Event::Withdrawn { owner, call: name });
+        route::host_step(domain, env, host::Event::Agent(host::FromAgent::Called { owner, call: name.clone(), ask }));
+        route::host_step(domain, env, host::Event::Agent(host::FromAgent::Withdrawn { owner, call: name }));
     } else {
-        route::host_step(domain, env, host::Event::Called { owner, call: name, ask });
+        route::host_step(domain, env, host::Event::Agent(host::FromAgent::Called { owner, call: name, ask }));
     }
 }
 
@@ -361,7 +377,7 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
     assert!(started || unstarted, "an agent that ran started first");
     if let Some(why) = translate::unstarted(end) {
         let refused = host::FromAgent::StartRefused { owner, cause: host::StartCause::Other, why: Box::from(why) };
-        route::host_step(domain, env, host::Event::from_agent(refused));
+        route::host_step(domain, env, host::Event::Agent(refused));
     } else if hand_out_pending(domain, owner) {
         let old = domain.gone.insert(owner, detail).expect("room for every agent's end");
         assert!(old.is_none(), "an agent goes once");
@@ -375,6 +391,6 @@ fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail: Box<[u8]>)
     if let Some(hosting) = domain.host.hosting(owner)
         && hosting.phase != host::Phase::Answered
     {
-        route::host_step(domain, env, host::Event::Gone { owner, detail });
+        route::host_step(domain, env, host::Event::Agent(host::FromAgent::Gone { owner, detail }));
     }
 }

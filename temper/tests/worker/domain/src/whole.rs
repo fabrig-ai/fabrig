@@ -68,7 +68,7 @@ struct World {
     call: Option<Box<[u8]>>,
     replies: Vec<smith_channel::Reply>,
     unsent: u32,
-    answer: Option<(host::Answer, wire::Work, Option<wire::Preparation>)>,
+    answer: Option<(host::RunAnswer, wire::Work, Option<wire::Preparation>)>,
     /// The workstreams the last hello named.
     workstreams: Box<[u64]>,
     stops: u32,
