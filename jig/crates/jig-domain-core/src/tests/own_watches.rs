@@ -392,7 +392,7 @@ fn an_application_wait_permits_idle_while_its_effect_is_unanswered() {
         },
     );
     let mut application = None;
-    for row in out.iter_mut() {
+    for row in &mut out {
         if let Request::Ask { ask: Ask::Application { request, token, .. }, .. } = row {
             application = Some((*request, *token));
         }

@@ -122,15 +122,13 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::Adopt { request, .. } => {
-            let application = domain.core.application_part_request(request);
-            let located = match application {
-                Some(application) if connector == domain.config.forge_connector => {
-                    match domain.forge.applying(application) {
-                        Some(repository) => Some((application, repository)),
-                        None => None,
-                    }
-                }
-                Some(_) | None => None,
+            let located = if connector == domain.config.forge_connector
+                && let Some(application) = domain.core.application_part_request(request)
+                && let Some(repository) = domain.forge.applying(application)
+            {
+                Some((application, repository))
+            } else {
+                None
             };
             match located {
                 Some((application, repository)) if domain.adoption_restore.len() < env.limits.forge.adoptions => {
