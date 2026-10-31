@@ -427,7 +427,7 @@ impl Component {
                                     to_service,
                                 );
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid message refusal", below),
                         }
                     }
                     0x0107 if self.phase == Phase::Admitted => {
@@ -437,7 +437,7 @@ impl Component {
                                 if self.calls_by_name.contains_key(&key)
                                     || self.calls_by_name.len() >= self.calls_by_name.capacity()
                                 {
-                                    self.refuse_rules(b"invalid answer", below);
+                                    self.refuse_rules(b"duplicate call or call capacity exhausted", below);
                                 } else {
                                     match decode_ask(&record) {
                                         Ok(Some(ask)) => {
@@ -448,7 +448,7 @@ impl Component {
                                                     if self.calls_by_name.insert(key, call).is_err()
                                                         || self.calls_by_token.insert(call, key).is_err()
                                                     {
-                                                        self.refuse_rules(b"invalid answer", below);
+                                                        self.refuse_rules(b"call capacity exhausted", below);
                                                     } else {
                                                         self.deliver(
                                                             OpenEvent::Call {
@@ -461,14 +461,14 @@ impl Component {
                                                         );
                                                     }
                                                 }
-                                                None => self.refuse_rules(b"invalid answer", below),
+                                                None => self.refuse_rules(b"call identifiers exhausted", below),
                                             }
                                         }
-                                        Ok(None) | Err(_) => self.refuse_rules(b"invalid answer", below),
+                                        Ok(None) | Err(_) => self.refuse_rules(b"invalid call request", below),
                                     }
                                 }
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid call", below),
                         }
                     }
                     0x0108 if self.phase == Phase::Admitted => {
@@ -484,7 +484,7 @@ impl Component {
                                     None => self.machine.down(Request::Read, &mut self.events, below),
                                 }
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid withdrawal", below),
                         }
                     }
                     0x010a if self.phase == Phase::Admitted => {
@@ -496,7 +496,7 @@ impl Component {
                                 };
                                 self.deliver(OpenEvent::Waiting { read }, to_service);
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid waiting record", below),
                         }
                     }
                     0x0109 if self.phase == Phase::Admitted => {
@@ -534,10 +534,10 @@ impl Component {
                                             to_service,
                                         );
                                     }
-                                    None => self.refuse_rules(b"invalid answer", below),
+                                    None => self.refuse_rules(b"invalid turn", below),
                                 }
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid turn", below),
                         }
                     }
                     0x0112 => {
@@ -570,7 +570,7 @@ impl Component {
                             Ok(_) => {
                                 self.deliver(OpenEvent::Fact { body }, to_service);
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid fact", below),
                         }
                     }
                     0x010d | 0x010e | 0x0113 if self.phase == Phase::Admitted => {
@@ -578,7 +578,7 @@ impl Component {
                             Ok(notice) => {
                                 self.deliver(notice, to_service);
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid account notice", below),
                         }
                     }
                     0x010b if self.phase == Phase::Admitted && self.long_open < u32::MAX => {
@@ -592,7 +592,7 @@ impl Component {
                                 self.long_open = self.long_open.checked_add(1).expect("bounded active operations");
                                 self.deliver(OpenEvent::Long { operation, span: long.span() }, to_service);
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid long operation", below),
                         }
                     }
                     0x010c if self.phase == Phase::Admitted && self.long_open > 0 => {
@@ -601,7 +601,7 @@ impl Component {
                                 self.long_open = self.long_open.checked_sub(1).expect("one begun operation ends");
                                 self.deliver(OpenEvent::LongDone, to_service);
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid long-operation terminal", below),
                         }
                     }
                     0x0106 if self.phase == Phase::Started => {
@@ -610,7 +610,7 @@ impl Component {
                                 self.phase = Phase::Admitted;
                                 self.deliver(OpenEvent::Admitted, to_service);
                             }
-                            Err(_) => self.refuse_rules(b"invalid answer", below),
+                            Err(_) => self.refuse_rules(b"invalid admission", below),
                         }
                     }
                     0x0110 => match smith_channel::Answer::decode(&self.bodies, &mut Reader::new(&body)) {
@@ -630,12 +630,12 @@ impl Component {
                                     Err(_) => self.refuse_rules(b"invalid answer", below),
                                 }
                             } else {
-                                self.refuse_rules(b"invalid answer", below);
+                                self.refuse_rules(b"unexpected answer", below);
                             }
                         }
                         Err(_) => self.refuse_rules(b"invalid answer", below),
                     },
-                    _ => self.refuse_rules(b"invalid answer", below),
+                    _ => self.refuse_rules(b"unexpected channel record", below),
                 },
                 Some(Event::Closed { why }) => self.end(why, to_service),
                 Some(Event::Ended) => {
