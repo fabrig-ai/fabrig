@@ -5,6 +5,7 @@ mod account_capacity;
 mod account_changes;
 mod acts;
 mod compound;
+mod deletion;
 mod memory;
 mod referee;
 mod restore_open;
