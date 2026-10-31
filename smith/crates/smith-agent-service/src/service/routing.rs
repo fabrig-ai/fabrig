@@ -73,7 +73,7 @@ pub(super) fn route_io_event(service: &mut Service, event: io::Event) {
         | io::Event::Closed { .. } => {}
     }
     if let Some(events) = &mut service.events {
-        match io_event_owner(&event) {
+        match event.owner() {
             Some(owner) if events.sinks.owns(owner) => {
                 events.sinks.up(service.io_env.now, event);
                 return;
@@ -132,24 +132,9 @@ pub(super) fn route_io_event(service: &mut Service, event: io::Event) {
 
 pub(super) fn route_owned_io(service: &mut Service, event: io::Event) {
     let Some(event) = program::pipe_event(service, event) else { return };
-    let owner = io_event_owner(&event).expect("only signal events lack owner");
+    let owner = event.owner().expect("only signal events lack owner");
     if service.pipe_routes.contains_key(&owner) {
-        let closed = match &event {
-            io::Event::Closed { .. } => true,
-            io::Event::Listening { .. }
-            | io::Event::Accepted { .. }
-            | io::Event::Connecting { .. }
-            | io::Event::Connected { .. }
-            | io::Event::Stream { .. }
-            | io::Event::Output { .. }
-            | io::Event::Spawned { .. }
-            | io::Event::Exited { .. }
-            | io::Event::Usage { .. }
-            | io::Event::Resized
-            | io::Event::Window { .. }
-            | io::Event::Failed { .. }
-            | io::Event::Shutdown { .. } => false,
-        };
+        let closed = event.is_closed();
         service.machine.from_below(
             &service.machine_env,
             machine::BelowEvent::Pipe(event),
@@ -163,29 +148,14 @@ pub(super) fn route_owned_io(service: &mut Service, event: io::Event) {
     }
     let id = Id::<Owner>::from_token(Token::new(owner.raw() & !COMPONENT_OWNER_BIT));
     let route = *service.owners.get(id).expect("IO event has a live component route");
-    let closed = match &event {
-        io::Event::Closed { .. } => true,
-        io::Event::Listening { .. }
-        | io::Event::Accepted { .. }
-        | io::Event::Connecting { .. }
-        | io::Event::Connected { .. }
-        | io::Event::Stream { .. }
-        | io::Event::Output { .. }
-        | io::Event::Spawned { .. }
-        | io::Event::Exited { .. }
-        | io::Event::Usage { .. }
-        | io::Event::Failed { .. }
-        | io::Event::Resized
-        | io::Event::Window { .. }
-        | io::Event::Shutdown { .. } => false,
-    };
+    let closed = event.is_closed();
     match route {
         Owner::Llm(original) => {
-            let event = remap_io_owner(event, original);
+            let event = event.with_owner(original);
             service.llm.from_below(&service.llm_env, event, &mut service.llm_events, &mut service.llm_below);
         }
         Owner::Program(original) => {
-            let event = remap_io_owner(event, original);
+            let event = event.with_owner(original);
             program::io_event(service, event);
         }
         Owner::Machine(original) => {
@@ -194,7 +164,7 @@ pub(super) fn route_owned_io(service: &mut Service, event: io::Event) {
                     service.pipe_routes.insert(*pipe, original).expect("bounded process pipes");
                 }
             }
-            let event = remap_io_owner(event, original);
+            let event = event.with_owner(original);
             service.machine.from_below(
                 &service.machine_env,
                 machine::BelowEvent::Process(event),
@@ -208,45 +178,9 @@ pub(super) fn route_owned_io(service: &mut Service, event: io::Event) {
     }
 }
 
-pub(super) fn io_event_owner(event: &io::Event) -> Option<Token> {
-    match event {
-        io::Event::Listening { owner, .. }
-        | io::Event::Accepted { owner, .. }
-        | io::Event::Connecting { owner, .. }
-        | io::Event::Connected { owner }
-        | io::Event::Stream { owner, .. }
-        | io::Event::Output { owner, .. }
-        | io::Event::Spawned { owner, .. }
-        | io::Event::Exited { owner, .. }
-        | io::Event::Window { owner, .. }
-        | io::Event::Usage { owner, .. }
-        | io::Event::Failed { owner, .. }
-        | io::Event::Closed { owner } => Some(*owner),
-        io::Event::Resized | io::Event::Shutdown { .. } => None,
-    }
-}
-
 pub(super) fn component_owner(route: Token) -> Token {
     assert!(route.raw() & COMPONENT_OWNER_BIT == 0, "one process cannot exhaust the component owner namespace");
     Token::new(route.raw() | COMPONENT_OWNER_BIT)
-}
-
-fn remap_io_owner(event: io::Event, owner: Token) -> io::Event {
-    match event {
-        io::Event::Listening { listener, addr, .. } => io::Event::Listening { owner, listener, addr },
-        io::Event::Accepted { socket, peer, .. } => io::Event::Accepted { owner, socket, peer },
-        io::Event::Connecting { socket, .. } => io::Event::Connecting { owner, socket },
-        io::Event::Connected { .. } => io::Event::Connected { owner },
-        io::Event::Stream { up, .. } => io::Event::Stream { owner, up },
-        io::Event::Output { up, .. } => io::Event::Output { owner, up },
-        io::Event::Spawned { child, pipes, .. } => io::Event::Spawned { owner, child, pipes },
-        io::Event::Exited { exit, .. } => io::Event::Exited { owner, exit },
-        io::Event::Usage { usage, .. } => io::Event::Usage { owner, usage },
-        io::Event::Window { window, .. } => io::Event::Window { owner, window },
-        io::Event::Failed { error, .. } => io::Event::Failed { owner, error },
-        io::Event::Closed { .. } => io::Event::Closed { owner },
-        io::Event::Resized | io::Event::Shutdown { .. } => unreachable!("signals have no component owner"),
-    }
 }
 
 pub(super) fn io_down(service: &mut Service) {

@@ -3,7 +3,7 @@
 //! choose a domain outcome. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use super::down::drain_facts;
-use super::routing::{io_event_owner, route_io_event};
+use super::routing::route_io_event;
 use super::teardown::Teardown;
 use super::{COMPONENT_OWNER_BIT, Failure, Operation, Owner, PendingMessage, Service, credential, program, teardown};
 use skein_io::{self as io, file_layer, kernel};
@@ -121,7 +121,7 @@ fn machine_up(service: &mut Service) {
 }
 
 fn llm_io(service: &Service, event: &io::Event) -> bool {
-    let Some(owner) = io_event_owner(event) else { return false };
+    let Some(owner) = event.owner() else { return false };
     if service.pipe_routes.contains_key(&owner) || owner.raw() & COMPONENT_OWNER_BIT == 0 {
         return false;
     }

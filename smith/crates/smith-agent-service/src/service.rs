@@ -20,7 +20,7 @@ pub(crate) mod tests;
 pub use effects::Effects;
 
 use down::{channel_takes, component_down, domain_down};
-use routing::{component_owner, io_down, io_event_owner};
+use routing::{component_owner, io_down};
 use up::{component_up, domain_up, io_up, lower_events};
 
 #[path = "program.rs"]

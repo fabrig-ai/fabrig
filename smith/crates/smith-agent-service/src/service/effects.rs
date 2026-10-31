@@ -3,7 +3,7 @@
 //! channel. Contract: smith/docs/design/domain/host.md, section 9; smith/docs/design/protocol/hosts.md, section 5.6.
 
 use super::down::{component_down, domain_down};
-use super::routing::{io_down, io_event_owner};
+use super::routing::io_down;
 use super::up::{component_up, io_up, lower_events};
 use super::{
     COMPONENT_OWNER_BIT, Config, ConfigError, Failure, Service, USAGE_OWNER, clocks, credential, done, effects_valid,
@@ -214,7 +214,7 @@ impl Effects {
     #[must_use]
     pub fn owns_io(&self, event: &io::Event) -> bool {
         let service = &self.service;
-        let Some(owner) = io_event_owner(event) else { return false };
+        let Some(owner) = event.owner() else { return false };
         if owner == USAGE_OWNER || service.pipe_routes.contains_key(&owner) {
             return true;
         }

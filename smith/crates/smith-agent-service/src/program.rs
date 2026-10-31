@@ -460,27 +460,12 @@ pub(super) fn file_event(service: &mut Service, event: file::Event) -> Option<fi
 }
 
 pub(super) fn pipe_event(service: &mut Service, event: io::Event) -> Option<io::Event> {
-    let owner = super::io_event_owner(&event)?;
+    let owner = event.owner()?;
     let program = match &mut service.program {
         Some(program) if program.pipes.contains_key(&owner) => program,
         Some(_) | None => return Some(event),
     };
-    let closed = match &event {
-        io::Event::Closed { .. } => true,
-        io::Event::Listening { .. }
-        | io::Event::Accepted { .. }
-        | io::Event::Connecting { .. }
-        | io::Event::Connected { .. }
-        | io::Event::Stream { .. }
-        | io::Event::Output { .. }
-        | io::Event::Spawned { .. }
-        | io::Event::Exited { .. }
-        | io::Event::Usage { .. }
-        | io::Event::Window { .. }
-        | io::Event::Failed { .. }
-        | io::Event::Resized
-        | io::Event::Shutdown { .. } => false,
-    };
+    let closed = event.is_closed();
     if closed {
         program.pipes.remove(&owner);
     }
