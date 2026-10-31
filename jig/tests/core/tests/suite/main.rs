@@ -59,6 +59,7 @@ mod start_connectors;
 mod start_inbox;
 mod start_projections;
 mod start_settings;
+mod start_runs;
 mod stopping;
 mod store;
 mod store_adapter;
