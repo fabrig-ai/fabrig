@@ -601,7 +601,11 @@ impl World {
         if self.events.front().is_some_and(|(due, _)| *due <= self.iteration) {
             let (_, event) = self.events.pop_front().expect("due input");
             self.trace.push(format!("input {event:?}"));
-            engine::step(&mut self.domain, &self.environment, event);
+            if crate::waits_for_open(&self.domain, &event) {
+                self.queue(event, 0);
+            } else {
+                engine::step(&mut self.domain, &self.environment, event);
+            }
             engine::release(&mut self.domain, &self.environment, &mut self.out);
             self.observe();
         }
@@ -1011,7 +1015,6 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "committed result reaches person once: \"person received result twice\"")]
-    #[ignore = "needs core-inbox"]
     fn a_queued_late_result_prevents_settlement_and_reaches_the_referee() {
         let mut world = World::new(Settings::calm(66));
         world.run();

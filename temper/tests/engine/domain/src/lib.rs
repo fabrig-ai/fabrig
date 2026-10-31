@@ -40,3 +40,16 @@ pub fn poll(
         temper_engine_domain::release(root, env, out);
     }
 }
+
+/// Workers and credential sources wait for open (temper/docs/design/domain/root.md, 9.1).
+pub(crate) fn waits_for_open(root: &temper_engine_domain::Domain, event: &temper_engine_domain::Event) -> bool {
+    !root.ready()
+        && matches!(
+            event,
+            temper_engine_domain::Event::Credential { .. }
+                | temper_engine_domain::Event::Worker(temper_engine_domain::WorkerInput::Link {
+                    link: temper_engine_domain::Link::Hello { .. },
+                    ..
+                })
+        )
+}
