@@ -1,5 +1,5 @@
-//! The same fake as an executable (protocol/programs.md, section 8;
-//! testing.md, sections 2.2, 2.3 and 4). All process state stays in scratch.
+//! The same fake as an executable (smith/docs/design/protocol/programs.md, section 8;
+//! smith/docs/design/testing.md, sections 2.2, 2.3 and 4). All process state stays in scratch.
 
 use std::{
     fs,

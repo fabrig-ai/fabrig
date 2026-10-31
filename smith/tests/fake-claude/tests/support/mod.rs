@@ -1,5 +1,5 @@
 //! A parent invoking the sign-in fake through pipes in a simulated world
-//! (protocol/programs.md, section 8; testing.md, section 4).
+//! (smith/docs/design/protocol/programs.md, section 8; smith/docs/design/testing.md, section 4).
 
 pub mod print;
 pub mod relay;
@@ -509,29 +509,23 @@ fn make_fake(spawn: &Spawn, inherited: &Inherited) -> Process {
 }
 
 pub struct Run {
-    #[allow(dead_code)]
     pub peaks: Option<Vec<u64>>,
     pub records: Vec<Record>,
     pub login: Option<Vec<u8>>,
     pub config_exists: bool,
     pub observations: Option<Vec<u8>>,
     pub signalled: bool,
-    #[allow(dead_code)]
     pub files: Vec<File>,
-    #[allow(dead_code)]
     pub calls: Vec<String>,
-    #[allow(dead_code)]
     pub server_exit: Option<Exit>,
 }
 
-#[allow(dead_code)]
 pub struct File {
     pub path: Vec<u8>,
     pub bytes: Option<Vec<u8>>,
 }
 
 impl Run {
-    #[allow(dead_code)]
     pub fn file(&self, path: &[u8]) -> Option<&[u8]> {
         self.files.iter().find(|file| file.path == path).and_then(|file| file.bytes.as_deref())
     }

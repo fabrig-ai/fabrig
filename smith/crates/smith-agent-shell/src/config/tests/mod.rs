@@ -413,10 +413,10 @@ fn all_product_models(mut document: serde_json::Value) -> serde_json::Value {
 }
 
 #[test]
-fn native_validated_dense_prompts_fit_the_actual_joint_receiving_ceiling() {
-    let configured = parse_value(&product_document()).expect("actual product startup");
+fn native_validated_dense_prompts_fit_the_seen_joint_receiving_ceiling() {
+    let configured = parse_value(&product_document()).expect("product startup");
     let client = configured.service.limits.llm.adapter.client;
-    let events = configured.service.limits.events.expect("actual product destination");
+    let events = configured.service.limits.events.expect("product destination");
     let ceiling = events.sinks.line_ceiling(Capture::Everything).expect("joint ceiling");
     let credential = shared::Credential {
         value: b"secret-prompt-bound-token".as_slice().into(),
@@ -442,15 +442,13 @@ fn native_validated_dense_prompts_fit_the_actual_joint_receiving_ceiling() {
             max_output_tokens: None,
         };
         let measured = shared::client::measure(&native, Some(&credential), &shared::Endpoint::codex(), &client)
-            .expect("the actual native writer admits the complete source payload");
+            .expect("the native writer admits the complete source payload");
         assert!(measured.body <= client.request, "native body stays within its owning cap");
         let mut messages = List::with_capacity(count);
         for _ in 0..count {
             let mut blocks = List::with_capacity(1);
-            blocks.push(smith_events::Block::Text { text: text.clone() }).expect("one actual block");
-            messages
-                .push(smith_events::Message { role: smith_events::Role::User, blocks })
-                .expect("actual admitted history");
+            blocks.push(smith_events::Block::Text { text: text.clone() }).expect("one block");
+            messages.push(smith_events::Message { role: smith_events::Role::User, blocks }).expect("admitted history");
         }
         let record = smith_events::Record {
             t_ms: u64::MAX,
@@ -487,7 +485,7 @@ fn native_validated_dense_prompts_fit_the_actual_joint_receiving_ceiling() {
             ceiling,
         )
         .expect("source-admitted prompt fits both semantic and joint caps")
-        .expect("actual response start is emitted");
+        .expect("response start is emitted");
         assert!(
             line.len() > if dense { 1_000_000 } else { 12_000_000 },
             "exercise dense framing and escaped payload maxima"

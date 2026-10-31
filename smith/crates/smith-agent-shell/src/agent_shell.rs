@@ -1,4 +1,4 @@
-//! Shared agent startup and shell pass (protocol/agent.md, sections 4–6).
+//! Shared agent startup and shell pass (smith/docs/design/protocol/agent.md, sections 4–6).
 //! It keeps the service, startup header, inherited mount descriptors and error
 //! output. It never keeps credentials outside the service or knows the driving
 //! kernel, simulator or neighbours. `Agent::read` reads startup settings;
@@ -19,7 +19,7 @@ use smith_agent_service as service;
 
 use crate::config;
 
-/// Program resources supplied by the binary or a hosted process world (programs.md, 5.1).
+/// Program resources supplied by the binary or a hosted process world (smith/docs/design/protocol/programs.md, 5.1).
 pub struct ProgramResources {
     pub relay: std::path::PathBuf,
     pub entropy: Secret,
@@ -473,7 +473,7 @@ fn read_configuration(path: &Path, errors: &mut dyn Write) -> Result<config::Con
 }
 
 /// The operator's line for one destination IO gave up, naming it and why in
-/// IO's terms; every shell prints it once per destination (protocol/events.md,
+/// IO's terms; every shell prints it once per destination (smith/docs/design/protocol/events.md,
 /// section 5.2).
 #[must_use]
 pub fn given_up_line(given_up: service::GivenUp) -> String {
@@ -495,7 +495,7 @@ fn diagnostic(errors: &mut dyn Write, line: &str) {
     drop(writeln!(errors, "smith: {line}"));
 }
 
-/// Run the shipped agent command; startup and final failures are already logged.
+/// Run the shipped agent command with its kernel, clock and startup resources.
 #[cfg(unix)]
 pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
     let configuration = read_configuration(path, errors.as_mut())?;

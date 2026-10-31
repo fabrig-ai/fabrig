@@ -1,7 +1,7 @@
-//! Typed fixture wiring between the copied scripts and the agent conversation
-//! (domain/session.md, section 12; domain/run.md, section 14). This test-only
+//! Typed fixture wiring between the scripted fixtures and the agent conversation
+//! (smith/docs/design/domain/session.md, section 5; smith/docs/design/domain/run.md, section 13). This test-only
 //! adapter recognizes the scripts' finite arguments. It owns no production
-//! provider schema adapter; migration 05s5 supplies those. Opaque host inputs
+//! provider schema adapter. Opaque host inputs
 //! are supplied as bounded, attested typed values by the scripted fake. Tool results keep
 //! call IDs and diagnostic bytes, allowing the provider to check transcript
 //! pairing and the tests to inspect feedback on subsequent requests.
@@ -313,11 +313,9 @@ fn finish(arguments: &[u8]) -> Option<run::outcome::Declared> {
     Some(Declared::Verdict(Verdict { name, text: body, items: children, fields: Box::new([]) }))
 }
 
-/// The copied scripts use unescaped string fields. This recognizes that finite
+/// The scripted fixtures use unescaped string fields. This recognizes that finite
 /// fixture language, never arbitrary JSON or production provider documents.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
-// The copied scripts supply unescaped positive decimal fields. This is a
+// The scripted fixtures supply unescaped positive decimal fields. This is a
 // finite fixture language; arbitrary provider input is tested in protocol-llm.
 fn quota(arguments: &[u8], name: &[u8]) -> Option<u32> {
     let prefix = [b"\"", name, b"\":"].concat();

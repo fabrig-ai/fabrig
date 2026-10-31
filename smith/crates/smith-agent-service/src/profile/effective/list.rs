@@ -1,5 +1,5 @@
 //! Counted effective inventory of the agent's own layers, with no retained state.
-//! Contract: protocol/limits.md, sections 2 and 9.
+//! Contract: smith/docs/design/protocol/limits.md, sections 2 and 9.
 
 use super::super::{Configuration, Profile};
 use super::{Layer, Limit, LimitName, Per, Value};

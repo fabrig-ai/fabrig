@@ -1,4 +1,4 @@
-//! Hosted program starts beside the shipped agent and relay (programs.md, 3, 5).
+//! Hosted program starts beside the shipped agent and relay (smith/docs/design/protocol/programs.md, 3, 5).
 //! The shared channel parent speaks only wire records; fixture files belong to
 //! the simulated machine, never a person's home or configuration directory.
 
@@ -431,7 +431,6 @@ pub struct Run {
     pub events: Vec<smith_events::Record>,
     /// Final bytes of the writable fixture, read after the run settles.
     pub workspace_file: Option<Vec<u8>>,
-    /// Whether the fixture's empty directory still exists.
     pub workspace_empty_directory: bool,
     /// The world changed the file after its snapshot settled.
     pub snapshot_changed: bool,

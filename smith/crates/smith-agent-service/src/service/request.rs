@@ -1,6 +1,6 @@
 //! Translation of one typed domain request to its component or host channel.
 //! The service retains delivery and observation state; translation never chooses
-//! a domain result. Contract: protocol/agent.md, sections 4–6.
+//! a domain result. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use super::up::live_step;
 use super::{Failure, Service, program, teardown};

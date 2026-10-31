@@ -53,7 +53,7 @@ fn the_smallest_declared_model_bounds_every_host_and_offer() {
 }
 
 #[test]
-fn smith_filling_the_room_names_the_model_and_actual_threshold() {
+fn smith_filling_the_room_names_the_model_and_seen_threshold() {
     let refusal = room(&standard(), &declarations(10_000, 1000), 6000, 0).expect_err("own fills room");
     assert_eq!(refusal.check(), Some(Check::FreshWindow));
     assert_eq!(crate::profile::words(&refusal).as_ref(),
@@ -145,7 +145,7 @@ fn configured_options_are_charged_only_to_their_endpoint() {
     second.number = 8;
     second.option_bytes = 10_000;
     configuration.endpoints = Box::new([configuration.endpoints.into_vec().pop().expect("one endpoint"), second]);
-    let parts = room(&standard(), &configuration, 2000, 0).expect("each actual endpoint owns enough room");
+    let parts = room(&standard(), &configuration, 2000, 0).expect("each endpoint owns enough room");
     assert_eq!(parts.room, 14_000);
     assert_eq!(parts.own, 12_000);
     assert_eq!(parts.host + parts.messages, 11_000);

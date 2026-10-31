@@ -177,7 +177,7 @@ impl Driver {
                 assert_eq!(
                     found.iter().map(|hit| hit.path.len() + hit.text.len()).sum::<usize>(),
                     usize::try_from(byte_cap).expect("bounded requested path plus text cap"),
-                    "actual lower search result attains the full aggregate path and text bound"
+                    "lower search result attains the full aggregate path and text bound"
                 );
                 self.seen[6] += 1;
                 Done::Found { hits: found, more: 1, timed_out: false }
@@ -193,9 +193,9 @@ fn completion_cell() -> u64 {
 }
 
 /// Price every original provider field, replay and decoded owning value, plus
-/// all translated cells. This boundary check precedes the actual step call.
+/// All translated cells. This boundary check precedes the step call.
 pub(super) fn completion_owned(completion: &Completion) -> (u64, u64) {
-    let mut owned = completion_cell() * u64::try_from(completion.content.len()).expect("bounded actual cells");
+    let mut owned = completion_cell() * u64::try_from(completion.content.len()).expect("bounded cells");
     let mut decoded = 0;
     for block in &completion.content {
         let payload = match block {

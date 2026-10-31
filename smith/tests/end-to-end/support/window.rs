@@ -149,7 +149,7 @@ impl Story {
     pub(super) fn budget(self, sign_in: bool) -> Duration {
         match self {
             // Widths are this story's subject, so its referee uses the world's
-            // patience (testing-strategy.md, 2.8; director 1294).
+            // patience (skein/docs/foundation/testing-strategy.md, 2.9).
             Self::Resize => WORLD_PATIENCE,
             Self::ProgramRun | Self::ProgramCheck => Duration::from_secs(30),
             Self::None | Self::Modes => Duration::from_secs(if sign_in { 5 } else { 1 }),

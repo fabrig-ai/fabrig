@@ -1,4 +1,4 @@
-//! Program budgets and stop order through the shipped composition (programs.md 5.7).
+//! Program budgets and stop order through the shipped composition (smith/docs/design/protocol/programs.md 5.7).
 use serde_json::json;
 use skein_lib::{Duration, Reader, Writer};
 use smith_agent_process_world::{

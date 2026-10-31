@@ -1,4 +1,4 @@
-//! Fake Claude, shipped relay and real MCP server (programs.md, 5.3, 5.4, 9).
+//! Fake Claude, shipped relay and real MCP server (smith/docs/design/protocol/programs.md, 5.3, 5.4, 9).
 use crate::support::relay::{self, Run};
 use serde_json::{Value, json};
 use smith_fake_claude::{End, Step, Story, Turn};

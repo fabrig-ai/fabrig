@@ -58,12 +58,12 @@ fn maximum_run_context_and_provider_completion_fit_each_process_at_every_iterati
     completion.observe_facts(smith_agent_process_world::TraceCase::Accepted, 4);
     completion.check_memory();
     assert!(completion.settle());
-    assert!(completion.peer_replied(), "the actual maximum completion was emitted");
+    assert!(completion.peer_replied(), "the maximum completion was emitted");
     let client = limits().llm.adapter.client;
     assert_eq!(
         completion.provider_answer_shape(),
         (usize::try_from(client.output_items).expect("parts"), usize::try_from(client.answer).expect("payload")),
-        "both maximum parts and total provider answer bytes including actual ID/phase metadata reached the host transcript; answer={:?}; records={:?}",
+        "both maximum parts and total provider answer bytes including ID/phase metadata reached the host transcript; answer={:?}; records={:?}",
         completion.answer(),
         completion.records()
     );
@@ -129,7 +129,7 @@ fn full_pool() -> (List<skein_llm_connection::Endpoint>, skein_llm_connection::L
     let measured = skein_llm::client::measure(&call.prompt, call.credential.as_ref(), &client.llm, &client.limits)
         .expect("fixture fits");
     // A gzip body is compressed only while it and its room fit the request
-    // bound (skein llm.md, 4.8), so the bound holds both.
+    // bound (skein/docs/design/llm.md, 4.8), so the bound holds both.
     client.limits.request = measured.body + measured.compressed;
     let reservation = skein_llm::client::reservation(measured, &client.limits).expect("reservation");
     let mut pool = configured.limits.llm.connection;

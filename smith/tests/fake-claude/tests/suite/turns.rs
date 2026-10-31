@@ -1,5 +1,5 @@
 //! Print conversations through the simulated process face, per
-//! protocol/programs.md, sections 5 and 8.
+//! smith/docs/design/protocol/programs.md, sections 5 and 8.
 
 use crate::support;
 
@@ -567,8 +567,6 @@ fn control_input() -> Value {
     json!({"type":"control_request","request_id":"probe-1","request":{"subtype":"interrupt"}})
 }
 
-/// Lower test of binary::the_binary_keeps_reading_after_a_control_interrupt
-/// (top tiers test wiring only).
 #[test]
 fn a_control_interrupt_ends_a_turn_and_keeps_reading() {
     let user = json!({"type":"user","message":{"role":"user","content":"hello"}});

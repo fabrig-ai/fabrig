@@ -1,10 +1,10 @@
-//! Provider arguments awaiting an actual tool start in the same conversation.
+//! Provider arguments awaiting a tool start in the same conversation.
 //! One bounded completion per conversation supplies inputs; valid calls keep
 //! their original arguments after decoding. Invalid and historical calls never
 //! acquire a start. `received` replaces the prior batch, `take` moves one input
 //! into its event, and `ended` releases anything the session did not start.
 //! This book never holds tool results or replay envelopes.
-//! Contracts: protocol/events.md, sections 3.6 and 5.3; domain/session.md, section 6.
+//! Contracts: smith/docs/design/protocol/events.md, sections 3.6 and 5.3; smith/docs/design/domain/session.md, section 6.
 
 use alloc::boxed::Box;
 
@@ -78,7 +78,7 @@ impl Book {
                 llm::Said::Opaque { .. } | llm::Said::Refusal { .. } | llm::Said::Text { .. } => {}
             }
         }
-        let old = self.conversations.insert(owner, inputs).expect("actual conversations fit the source session bound");
+        let old = self.conversations.insert(owner, inputs).expect("conversations fit the source session bound");
         assert!(old.is_none(), "the prior pending batch was released above");
     }
 
@@ -87,11 +87,11 @@ impl Book {
         for index in 0..inputs.len() {
             let input = inputs.get_mut(index).expect("within the retained batch");
             if input.call == metadata.id && input.tool == metadata.name {
-                let text = input.text.take().expect("an actual provider call starts once in its batch");
+                let text = input.text.take().expect("a provider call starts once in its batch");
                 assert_eq!(
                     u64::try_from(text.len()).expect("bounded input length"),
                     metadata.input_bytes,
-                    "the actual start keeps its provider arguments"
+                    "the start keeps its provider arguments"
                 );
                 return Some(text);
             }

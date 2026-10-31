@@ -1,4 +1,4 @@
-//! Profile construction stays with the service whose limits it selects.
+//! Service projection, teardown and profile checks with shared startup fixtures.
 
 #![allow(
     clippy::disallowed_macros,
@@ -28,8 +28,8 @@ fn every_settled_check_exit_preserves_its_kind_and_only_zero_passes() {
         (run::Exit::Unstarted, CheckExit::Unstarted, false),
         (run::Exit::Cancelled, CheckExit::Cancelled, false),
     ];
-    for (actual, expected, passed) in cases {
-        assert_eq!(crate::check_exit(actual), (expected, passed));
+    for (seen, expected, passed) in cases {
+        assert_eq!(crate::check_exit(seen), (expected, passed));
     }
 }
 
@@ -122,7 +122,7 @@ fn standard_profile_admits_the_priced_shell_run_defaults() {
     assert!(limits.session.budget.time >= Duration::from_secs(3600));
 }
 
-fn actual_entrance_answer(
+fn seen_entrance_answer(
     charter: smith_domain::run::Charter,
     limits: &smith_domain::run::Limits,
 ) -> smith_domain::run::Answer {
@@ -147,14 +147,14 @@ fn actual_entrance_answer(
         },
         &mut out,
     );
-    let Some(run::Request::Answer { answer, read, .. }) = out.pop() else { panic!("the actual start refuses") };
+    let Some(run::Request::Answer { answer, read, .. }) = out.pop() else { panic!("the start refuses") };
     assert_eq!(read, None);
     assert!(out.is_empty(), "a refused entrance emits no admission, conversation or provider request");
     answer
 }
 
 #[test]
-fn actual_reserve_refusals_keep_their_part_through_every_capture() {
+fn seen_reserve_refusals_keep_their_part_through_every_capture() {
     use skein_lib::Duration;
     use smith_domain::run;
     let mut profile = crate::profile::standard();
@@ -167,7 +167,7 @@ fn actual_reserve_refusals_keep_their_part_through_every_capture() {
     time.reserve.time = time.budget.time;
     let mut spend = priced_charter();
     spend.reserve.turns = 2;
-    spend.budget.spend = run::reserve_spend(spend.reserve, &spend.llm).expect("representable actual reserve");
+    spend.budget.spend = run::reserve_spend(spend.reserve, &spend.llm).expect("representable reserve");
     let mut empty = priced_charter();
     empty.budget.turns = 0;
     for (charter, refusal, which) in [
@@ -176,7 +176,7 @@ fn actual_reserve_refusals_keep_their_part_through_every_capture() {
         (spend, run::BudgetRefusal::Reserve(run::Part::Spend), b"budget_reserve_spend".as_slice()),
         (empty, run::BudgetRefusal::Empty(run::Part::Turns), b"budget".as_slice()),
     ] {
-        let answer = actual_entrance_answer(charter, &limits);
+        let answer = seen_entrance_answer(charter, &limits);
         assert_eq!(answer, run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Budget(refusal))));
         for (capture, wire_capture) in [
             (crate::sinks::Capture::None, smith_events::Capture::None),
@@ -200,9 +200,9 @@ fn actual_reserve_refusals_keep_their_part_through_every_capture() {
                 (projected.turns, projected.spent, projected.read, projected.result.as_ref()),
                 (0, 0, None, None)
             );
-            let failure = projected.failure.as_ref().expect("actual invalid refusal");
+            let failure = projected.failure.as_ref().expect("invalid refusal");
             assert_eq!(failure.class, smith_events::AnswerClass::Invalid);
-            assert_eq!(failure.which.as_deref(), Some(which), "preserve the actual reserve part");
+            assert_eq!(failure.which.as_deref(), Some(which), "preserve the reserve part");
             assert_eq!(failure.reason, None, "content-free classification, not provider prose");
             let record = smith_events::Record { t_ms: 0, event: smith_events::Event::RunCompleted(projected) };
             let receiving = smith_events::Limits { string: 64, content: 128, items: 4 };
@@ -210,7 +210,7 @@ fn actual_reserve_refusals_keep_their_part_through_every_capture() {
                 .expect("bounded wire")
                 .expect("authoritative refusal");
             assert_eq!(
-                smith_events::read_with_ceiling(&wire, &receiving, 4096).expect("actual codec").expect("known record"),
+                smith_events::read_with_ceiling(&wire, &receiving, 4096).expect("codec").expect("known record"),
                 record
             );
         }
@@ -287,7 +287,7 @@ fn scalar_event_projection_preserves_subsecond_child_time_and_absent_requests() 
                 time_set: run::Set::Deadline,
             },
         };
-        let fields = crate::child_share(kind).expect("actual child role");
+        let fields = crate::child_share(kind).expect("child role");
         assert_eq!(fields.requested, smith_events::Requested { turns: None, seconds: None });
         assert_eq!(fields.share.time_ms, millis);
         assert_eq!(
@@ -314,7 +314,7 @@ fn scalar_event_projection_preserves_subsecond_child_time_and_absent_requests() 
 }
 
 #[test]
-fn actual_root_budget_facts_encode_without_content_under_every_capture() {
+fn seen_root_budget_facts_encode_without_content_under_every_capture() {
     use smith_domain::{Fact, run};
     use smith_events::{Capture, Event};
     let mut world = smith_agent_world::World::new(smith_agent_world::Settings::calm(34));
@@ -331,7 +331,7 @@ fn actual_root_budget_facts_encode_without_content_under_every_capture() {
                 .expect("valid bounded event fixture");
             assert_eq!(smith_events::read(&line, &limits).expect("valid bounded event fixture"), Some(record.clone()));
             let Event::Budget(value) = &record.event else { panic!("budget projection") };
-            let run::facts::FactKind::Budget { standing, .. } = fact.kind else { panic!("actual budget fact") };
+            let run::facts::FactKind::Budget { standing, .. } = fact.kind else { panic!("budget fact") };
             assert_eq!(
                 value.time_ms.used,
                 standing.time.as_nanos() / 1_000_000,
@@ -365,7 +365,7 @@ fn a_budget_record_names_the_provider_id_of_its_call() {
         },
     };
     let record = crate::budget_record(&fact, skein_lib::Time::ZERO, 1, Some(b"provider-child-7".as_slice().into()))
-        .expect("actual budget fact");
+        .expect("budget fact");
     let Event::Budget(value) = &record.event else { panic!("budget projection") };
     assert_eq!(value.call.as_deref(), Some(b"provider-child-7".as_slice()));
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
@@ -717,10 +717,10 @@ fn stream_limits() -> smith_events::Limits {
     crate::sinks::tests::limits(0).records
 }
 
-fn assert_stream_record(actual: &smith_events::Record, literal: &[u8]) {
+fn assert_stream_record(seen: &smith_events::Record, literal: &[u8]) {
     let limits = stream_limits();
     let expected = smith_events::read(literal, &limits).unwrap().unwrap();
-    assert_eq!(*actual, expected);
+    assert_eq!(*seen, expected);
 }
 
 fn compaction_intent(book: &mut crate::responses::Book, owner: skein_lib::Token, window: u32) {

@@ -1,5 +1,5 @@
 //! Model quantities are checked at the root entrance before provider work.
-//! Contract: domain/run.md, section 4; protocol/charter.md, sections 2 and 5.
+//! Contract: smith/docs/design/domain/run.md, section 4; smith/docs/design/protocol/charter.md, sections 2 and 5.
 
 use smith_agent_world::{Job, Settings, scripted_charter, world};
 use smith_domain::run;

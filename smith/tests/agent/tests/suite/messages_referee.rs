@@ -1,6 +1,6 @@
-//! Positive-first mutations of actual root/shared-fake chat output. The oracle
+//! Positive-first mutations of root/shared-fake chat output. The oracle
 //! uses public input, provider terminals and emitted Turn/Waiting/Answer only.
-//! Contract: domain/run.md, sections 6/13; testing-strategy.md, section 7.
+//! Contract: smith/docs/design/domain/run.md, sections 6/13; skein/docs/foundation/testing-strategy.md, section 7.
 
 use skein_fake_llm_domain::api::Part;
 use skein_lib::{Duration, Time, Token};
@@ -37,9 +37,9 @@ fn observed() -> Vec<(Time, Seen)> {
         b"second".as_slice().into(),
     );
     world.run(2000);
-    let actual = world.messages_seen().to_vec();
-    assert_eq!(judge(&actual), Verdict::Passed, "positive comes from actual forwarded root output");
-    actual
+    let seen = world.messages_seen().to_vec();
+    assert_eq!(judge(&seen), Verdict::Passed, "positive comes from forwarded root output");
+    seen
 }
 
 fn judge(observations: &[(Time, Seen)]) -> Verdict {
@@ -69,13 +69,13 @@ fn chat_positive_and_omitted_reordered_or_corrupted_turns() {
                         .messages
                         .iter_mut()
                         .find(|message| message.role == smith_domain::llm::Role::Assistant)
-                        .expect("actual assistant");
-                    let actual_call = assistant
+                        .expect("assistant");
+                    let seen_call = assistant
                         .content
                         .iter_mut()
                         .find(|block| matches!(block, smith_domain::session::llm::Block::ToolCall { .. }))
-                        .expect("actual wait call");
-                    match actual_call {
+                        .expect("wait call");
+                    match seen_call {
                         smith_domain::session::llm::Block::ToolCall { id, .. } => {
                             *id = b"invented-id".as_slice().into();
                         }
@@ -83,7 +83,7 @@ fn chat_positive_and_omitted_reordered_or_corrupted_turns() {
                         | smith_domain::session::llm::Block::Refusal { .. }
                         | smith_domain::session::llm::Block::Opaque { .. }
                         | smith_domain::session::llm::Block::ToolResult { .. } => {
-                            panic!("third completion actually calls wait")
+                            panic!("third completion calls wait")
                         }
                     }
                 }
@@ -101,10 +101,8 @@ fn premature_waiting_wrong_wake_text_and_wrong_final_count_or_park_time_are_reje
         let mut bad = good.clone();
         match corruption {
             0 => {
-                let pending = bad
-                    .iter()
-                    .position(|(_, seen)| matches!(seen, Seen::Completed { .. }))
-                    .expect("actual provider terminal");
+                let pending =
+                    bad.iter().position(|(_, seen)| matches!(seen, Seen::Completed { .. })).expect("provider terminal");
                 bad.insert(pending, (bad[pending].0, Seen::Waiting { read: None }));
             }
             1 => {
@@ -112,11 +110,11 @@ fn premature_waiting_wrong_wake_text_and_wrong_final_count_or_park_time_are_reje
                     Seen::Prompt { query } if query.messages.last().is_some_and(|message| matches!(message.parts.as_ref(), [Part::Text { text }] if text.as_ref() == b"person: first")) => Some(query),
                     Seen::Started { .. } | Seen::Admitted | Seen::Input { .. } | Seen::Prompt { .. } | Seen::Completed { .. }
                     | Seen::CompletionEnded | Seen::ParentCancelled | Seen::Turn { .. } | Seen::Waiting { .. } | Seen::Answer { .. } => None,
-                }).expect("actual first wake request");
+                }).expect("first wake request");
                 prompt.messages.last_mut().expect("wake").parts[0] =
                     Part::Text { text: b"person: second".as_slice().into() };
             }
-            2 => match &mut bad.last_mut().expect("actual final word").1 {
+            2 => match &mut bad.last_mut().expect("final word").1 {
                 Seen::Answer { turns, .. } => *turns -= 1,
                 Seen::Started { .. }
                 | Seen::Admitted
@@ -127,26 +125,25 @@ fn premature_waiting_wrong_wake_text_and_wrong_final_count_or_park_time_are_reje
                 | Seen::ParentCancelled
                 | Seen::Turn { .. }
                 | Seen::Waiting { .. } => {
-                    panic!("actual final output")
+                    panic!("final output")
                 }
             },
             3 => {
-                let waiting =
-                    bad.iter().rfind(|(_, seen)| matches!(seen, Seen::Waiting { .. })).expect("actual final wait").0;
-                bad.last_mut().expect("actual final word").0 = waiting;
+                let waiting = bad.iter().rfind(|(_, seen)| matches!(seen, Seen::Waiting { .. })).expect("final wait").0;
+                bad.last_mut().expect("final word").0 = waiting;
             }
             4 => {
                 let turn = bad
                     .iter()
                     .position(|(_, seen)| matches!(seen, Seen::Turn { number: 1, .. }))
-                    .expect("actual first wait result");
+                    .expect("first wait result");
                 let (_, _, turn) = turn_fields(&mut bad[turn].1);
                 let block = turn
                     .messages
                     .iter_mut()
                     .flat_map(|message| &mut message.content)
                     .find(|block| matches!(block, smith_domain::session::llm::Block::ToolResult { .. }))
-                    .expect("actual settled wait");
+                    .expect("settled wait");
                 match block {
                     smith_domain::session::llm::Block::ToolResult { result, .. } => {
                         *result = smith_domain::session::llm::Returned::NotRun {
@@ -159,7 +156,7 @@ fn premature_waiting_wrong_wake_text_and_wrong_final_count_or_park_time_are_reje
                     | smith_domain::session::llm::Block::ToolCall { .. } => panic!("selected result"),
                 }
             }
-            5 => match &mut bad.last_mut().expect("actual final word").1 {
+            5 => match &mut bad.last_mut().expect("final word").1 {
                 Seen::Answer { read, .. } => *read = Some(Token::new(0)),
                 Seen::Started { .. }
                 | Seen::Admitted
@@ -169,7 +166,7 @@ fn premature_waiting_wrong_wake_text_and_wrong_final_count_or_park_time_are_reje
                 | Seen::CompletionEnded
                 | Seen::ParentCancelled
                 | Seen::Turn { .. }
-                | Seen::Waiting { .. } => panic!("actual final answer"),
+                | Seen::Waiting { .. } => panic!("final answer"),
             },
             _ => unreachable!("six changes"),
         }
@@ -216,9 +213,8 @@ fn awaiting_before_the_first_turn_is_valid_and_a_provider_request_before_work_is
         .iter()
         .position(|(_, seen)| matches!(seen, Seen::Waiting { read: None }))
         .expect("awaiting notice without fence");
-    let input = good.iter().position(|(_, seen)| matches!(seen, Seen::Input { .. })).expect("actual first work");
-    let prompt =
-        good.iter().position(|(_, seen)| matches!(seen, Seen::Prompt { .. })).expect("actual first provider request");
+    let input = good.iter().position(|(_, seen)| matches!(seen, Seen::Input { .. })).expect("first work");
+    let prompt = good.iter().position(|(_, seen)| matches!(seen, Seen::Prompt { .. })).expect("first provider request");
     assert!(waiting < input && input < prompt);
     let mut bad = good.clone();
     bad.insert(waiting + 1, (good[waiting].0, good[prompt].1.clone()));
@@ -226,7 +222,7 @@ fn awaiting_before_the_first_turn_is_valid_and_a_provider_request_before_work_is
 }
 
 #[test]
-fn a_late_wait_after_actual_parent_cancel_has_not_run_and_requires_that_observation() {
+fn a_late_wait_after_seen_parent_cancel_has_not_run_and_requires_that_observation() {
     let calm = Settings::calm(33178);
     let mut world = World::new(Settings {
         job: Job::Waiting,
@@ -279,7 +275,7 @@ fn a_late_wait_after_actual_parent_cancel_has_not_run_and_requires_that_observat
             | Seen::Waiting { .. }
             | Seen::Answer { .. } => false,
         }),
-        "an actual late completion contains the unstarted wait terminal"
+        "a late completion contains the unstarted wait terminal"
     );
     assert_eq!(judge(good), Verdict::Passed);
     let mut bad = good.to_vec();

@@ -1,4 +1,4 @@
-//! The fake and its MCP child hosted together, per protocol/programs.md,
+//! The fake and its MCP child hosted together, per smith/docs/design/protocol/programs.md,
 //! sections 5 and 8. Referee signals reach the fake rather than its peer.
 
 use crate::support;
@@ -228,7 +228,7 @@ fn a_late_server_answer_is_dropped() {
 }
 
 // T1 measured a relay tools/list line of 25,566 bytes. A long tool name
-// exercises that scale through the hosted fake and its actual I/O driver.
+// exercises that scale through the hosted fake and its I/O driver.
 const RELAY_LIST_BYTES: usize = 25_566;
 
 #[test]

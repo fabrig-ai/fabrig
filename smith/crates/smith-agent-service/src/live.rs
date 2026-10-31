@@ -1,10 +1,10 @@
-//! Best effort main-conversation text and tool input (protocol/channel.md 7; limits.md 3.6).
+//! Best effort main-conversation text and tool input (smith/docs/design/protocol/channel.md 7; smith/docs/design/protocol/limits.md 3.6).
 use skein_channel::Lower;
 use skein_lib::{Duration, Map, Queue, Time, Token};
 use smith_domain::llm;
 use smith_protocol_channel::{self as channel, Piece};
 
-/// Held payload bound, independent of provider delta size (limits.md 3.6).
+/// Held payload bound, independent of provider delta size (smith/docs/design/protocol/limits.md 3.6).
 const HELD: u32 = 16_384;
 const PIECE: u32 = 4096;
 
@@ -322,7 +322,7 @@ mod tests {
     const PIECE_BOUND: usize = 4096;
     const OWNER: Token = Token::new(7);
     const RETRY_OWNER: Token = Token::new(8);
-    // limits.md 3.6: 16 KiB held, cut into four 4096-byte pieces.
+    // smith/docs/design/protocol/limits.md 3.6: 16 KiB held, cut into four 4096-byte pieces.
     const HELD: usize = 16_384;
     const LARGE_DELTA: usize = 10_000;
     static AT_BOUND: [u8; HELD] = [b'a'; HELD];

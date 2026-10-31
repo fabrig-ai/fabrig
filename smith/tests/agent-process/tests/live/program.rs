@@ -1,4 +1,4 @@
-//! Opt-in checks of the real program's interrupt and resume contracts (programs.md 5.7, 8).
+//! Opt-in checks of the real program's interrupt and resume contracts (smith/docs/design/protocol/programs.md 5.7, 8).
 use skein_lib::Duration;
 use skein_world::{Deadline, Expired};
 use std::{

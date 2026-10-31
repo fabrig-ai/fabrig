@@ -1,5 +1,5 @@
-//! The test's scripts and recorded invocation names (protocol/programs.md,
-//! sections 5 and 8; testing.md, section 4); no environment values are retained.
+//! The test's scripts and recorded invocation names (smith/docs/design/protocol/programs.md,
+//! sections 5 and 8; smith/docs/design/testing.md, section 4); no environment values are retained.
 
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +11,7 @@ pub struct Story {
     pub logout: Logout,
     #[serde(default)]
     pub init: Init,
-    /// Legacy fallback turns, counted from this process's first user message.
+    /// Fallback turns, counted from this process's first user message.
     #[serde(default)]
     pub turns: Vec<Turn>,
     /// Record the MCP tool inventory received at startup for admission stories.
@@ -144,7 +144,7 @@ impl Default for Init {
     }
 }
 
-// Owner's Claude Code 2.1.311 probe: reports/live-claude-shapes.md, system/init.
+// Initialization reports the configured tools and servers.
 fn capabilities() -> Vec<String> {
     [
         "interrupt_receipt_v1",

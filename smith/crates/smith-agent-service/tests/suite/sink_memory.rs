@@ -1,5 +1,5 @@
 //! Two slow event destinations retain maximal escaped call identities while
-//! every owning step is checked by Skein's allocator (events.md, section 5.3).
+//! every owning step is checked by Skein's allocator (smith/docs/design/protocol/events.md, section 5.3).
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -54,13 +54,13 @@ mod tests {
         };
         let limits = profile::derive(&profile, &declarations).expect("source-admitted product fixture");
         smith_agent_service::EventLimits::derive(&limits, Capture::Everything, 1, 3, &[], profile.policy.write_deadline)
-            .expect("actual joint product bounds")
+            .expect("joint product bounds")
             .sinks
     }
 
     #[test]
-    #[expect(clippy::print_stdout, reason = "retain independent actual allocation and output-bound figures")]
-    fn an_actual_full_escaped_prompt_fits_sink_output_and_allocation_at_every_chunk() {
+    #[expect(clippy::print_stdout, reason = "retain independent allocation and output-bound figures")]
+    fn an_seen_full_escaped_prompt_fits_sink_output_and_allocation_at_every_chunk() {
         // Peak 24_577_858 B on 2026-10-28; a quarter of headroom, rounded up.
         const PROMPT_SINK_CEILING: u64 = 31_000_000;
 
@@ -74,10 +74,8 @@ mod tests {
         let mut messages = List::with_capacity(8);
         for _ in 0_u32..8 {
             let mut blocks = List::with_capacity(1);
-            blocks
-                .push(smith_events::Block::Text { text: vec![0; 256_000].into_boxed_slice() })
-                .expect("actual blocks");
-            messages.push(smith_events::Message { role: smith_events::Role::User, blocks }).expect("actual message");
+            blocks.push(smith_events::Block::Text { text: vec![0; 256_000].into_boxed_slice() }).expect("blocks");
+            messages.push(smith_events::Message { role: smith_events::Role::User, blocks }).expect("message");
         }
         let record = Record {
             t_ms: 1,
@@ -113,7 +111,7 @@ mod tests {
         let meter = Meter::new();
         meter.start();
         let mut sinks = Sinks::new(&limits, Capture::Everything, 65536, skein_lib::Duration::from_secs(30));
-        sinks.add(Destination::Trace, token, Delivery::Complete).expect("actual trace destination");
+        sinks.add(Destination::Trace, token, Delivery::Complete).expect("trace destination");
         assert!(sinks.takes());
         sinks.record(&record);
         assert!(!sinks.takes(), "the full prompt consumes its one ordinary observation credit");
@@ -146,7 +144,7 @@ mod tests {
         }
         assert!(sinks.closed());
         assert!(sent > 12_000_000 && sent <= usize::try_from(limits.output).expect("output fits usize"));
-        assert!(peak > 12_000_000, "the allocator reaches actual retained escaped output");
+        assert!(peak > 12_000_000, "the allocator reaches retained escaped output");
         println!("PROMPT_SINK_MEMORY peak={peak} bound={bound} sent={sent} output_cap={}", limits.output);
         assert!(requests.is_empty());
         drop((sinks, requests));
@@ -217,7 +215,7 @@ mod tests {
                     }
                     io::Request::Stream { stream: owner, down: stream::Down::Send(bytes) } => {
                         assert!(bytes.len() <= 4096);
-                        let index = tokens.iter().position(|token| *token == owner).expect("actual writer");
+                        let index = tokens.iter().position(|token| *token == owner).expect("writer");
                         sent[index] += bytes.len();
                         drop(bytes);
                     }

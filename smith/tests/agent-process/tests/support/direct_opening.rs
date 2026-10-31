@@ -22,7 +22,7 @@ pub fn direct(seed: u64, anthropic: bool) -> smith_agent_process_world::World {
         world.answer()
     );
     let queries = world.peer_queries();
-    let [query] = queries.as_slice() else { panic!("one actual native request") };
+    let [query] = queries.as_slice() else { panic!("one native request") };
     assert!(query.system.starts_with(INSTRUCTIONS));
     let system = std::str::from_utf8(&query.system).expect("system text");
     assert!(!system.contains("## Request") && !system.contains("## Context"));

@@ -1,5 +1,5 @@
-//! Agent obligations preserved from temper `25ac2ad` on an explicit scripted
-//! host (domain/run.md, sections 13 and 14; domain/host.md, section 2).
+//! Agent obligations on an explicit scripted
+//! host (smith/docs/design/domain/run.md, section 13; smith/docs/design/domain/host.md, section 2).
 //! The host snapshots landed bytes, not forge commits or engine decisions.
 
 use skein_lib::Duration;
@@ -56,7 +56,7 @@ fn checks_said_to_start_and_end_bracket_the_long_operation() {
         let (started, begin) = span[0];
         let (ended, finish) = span[1];
         assert!(begin && !finish, "every check has one start and one end notice");
-        assert!(started <= *terminal && *terminal <= ended, "the actual terminal is inside its notice span");
+        assert!(started <= *terminal && *terminal <= ended, "the terminal is inside its notice span");
     }
 }
 
@@ -349,7 +349,7 @@ fn separately_granted_mid_delivery_continues_to_a_report() {
             skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: false, .. }
             if output.as_ref() == expected_feedback)
         });
-    assert!(receipt_reached_llm, "actual receipts are continuation feedback");
+    assert!(receipt_reached_llm, "receipts are continuation feedback");
 }
 
 #[test]
@@ -386,7 +386,7 @@ fn five_host_terminals_preserve_report_only_contract_and_stale_ends_it() {
 #[test]
 fn mid_landing_during_explicit_shutdown_preserves_receipts_and_spend() {
     // Deterministic zero-latency provider/IO except the host terminal: choose a
-    // cancellation within that actual pending operation by replaying its observed
+    // cancellation within that pending operation by replaying its observed
     // submission timestamp, never by inspecting private state.
     let baseline = settled(&Settings { job: Job::MidReport, ..Settings::calm(43) });
     let submitted = baseline.delivery_names()[0].1;

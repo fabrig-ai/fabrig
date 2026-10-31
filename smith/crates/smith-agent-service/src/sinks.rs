@@ -3,9 +3,7 @@
 //! IO gives it up, why. No provider syntax or credential is known here. `record`
 //! accepts typed records; `up` and `down` meet Skein IO at the owner's clock, and
 //! `pop_given_up` supplies the shell diagnostic.
-//! Contracts: protocol/events.md, sections 5.1–5.3; protocol/agent.md, sections 5–6.
-
-#![expect(clippy::manual_let_else, reason = "bounded production entrances use explicit matches")]
+//! Contracts: smith/docs/design/protocol/events.md, sections 5.1–5.3; smith/docs/design/protocol/agent.md, sections 5–6.
 
 use alloc::boxed::Box;
 
@@ -25,7 +23,7 @@ pub enum Destination {
     Output,
 }
 
-/// Why IO gave a destination up, in IO's terms (protocol/events.md, section 5.2).
+/// Why IO gave a destination up, in IO's terms (smith/docs/design/protocol/events.md, section 5.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Why {
     /// It stayed behind past the write deadline, as the sink's own clock tells.
@@ -41,7 +39,6 @@ pub enum Why {
 pub struct GivenUp {
     /// The destination given up; it gets nothing more.
     pub destination: Destination,
-    /// Why IO gave it up.
     pub why: Why,
 }
 
@@ -103,7 +100,7 @@ pub struct SinkLimits {
     pub metadata_items: u32,
     /// Largest accepted answer or native failure detail, excluding prompt payload.
     pub scalar_content: u32,
-    /// Joint line bound for actual observed content, including its envelope and newline.
+    /// Joint line bound for observed content, including its envelope and newline.
     pub observation_line: u32,
     /// Captured payload and block framing beyond two scalar records from one fact.
     pub fact_extra: u32,
@@ -199,7 +196,7 @@ pub struct Sinks {
     line: u32,
     reserve: u32,
     ordinary: u32,
-    /// IO's actual output cap: a full-credit grant proves the previous chunk drained.
+    /// IO's output cap: a full-credit grant proves the previous chunk drained.
     io_output: u32,
     /// The write deadline IO keeps on each destination; past it a failed one was behind.
     write_deadline: Duration,
@@ -216,7 +213,7 @@ const AUTHORITATIVE: u32 = 4;
 const LINE_SLOTS: u32 = 6;
 
 impl Sinks {
-    /// Construct the destinations with a checked bound, the actual adopted IO output cap,
+    /// Construct the destinations with a checked bound, the adopted IO output cap,
     /// and the write deadline IO keeps on each destination.
     #[must_use]
     pub fn new(limits: &SinkLimits, capture: Capture, io_output: u32, write_deadline: Duration) -> Sinks {
@@ -385,7 +382,7 @@ impl Sinks {
         true
     }
 
-    /// Retain the actual opening's identity and model before its first request.
+    /// Retain the opening's identity and model before its first request.
     /// The owner projects this value from the run's opening and configured endpoint.
     pub fn conversation(&mut self, at: Time, origin: Time, owner: Token, opened: smith_events::ConversationOpened) {
         self.responses.opened(at, owner, &opened);
@@ -403,7 +400,7 @@ impl Sinks {
         self.responses.scope(owner)
     }
 
-    /// Assign one response identity at the actual hand-off to the LLM component.
+    /// Assign one response identity at the hand-off to the LLM component.
     /// Everything keeps its start until the component observes the translated prompt.
     pub fn request(
         &mut self,
@@ -421,7 +418,7 @@ impl Sinks {
             }
             Capture::None | Capture::Calls | Capture::Everything => {
                 let previous = self.pending.insert(owner, record).expect("one pending start per admitted conversation");
-                assert!(previous.is_none(), "one actual hand-off per owner");
+                assert!(previous.is_none(), "one hand-off per owner");
                 if observation == Capture::Everything {
                     Some(self.responses.observation(owner))
                 } else {
@@ -431,7 +428,7 @@ impl Sinks {
         }
     }
 
-    /// Drain an actual component observation before its domain terminal is consumed.
+    /// Drain a component observation before its domain terminal is consumed.
     pub(crate) fn measure(&mut self, origin: Time, measure: smith_protocol_llm::Measure) {
         match measure {
             smith_protocol_llm::Measure::Call { .. } | smith_protocol_llm::Measure::Arguments { .. } => {}
@@ -446,7 +443,7 @@ impl Sinks {
                 self.responses.measured(owner, measures);
             }
             smith_protocol_llm::Measure::Prompt { at, owner, prompt } => {
-                let mut record = self.pending.remove(&owner).expect("observed prompt follows its actual hand-off");
+                let mut record = self.pending.remove(&owner).expect("observed prompt follows its hand-off");
                 record.t_ms = crate::responses::millis(at, origin);
                 self.responses.prompt_started(at, owner);
                 let messages = match &mut record.event {
@@ -456,7 +453,7 @@ impl Sinks {
                         } else {
                             None
                         };
-                        u32::try_from(started.messages).expect("actual prompt count fits admitted history")
+                        u32::try_from(started.messages).expect("prompt count fits admitted history")
                     }
                     Event::SessionStarted(_)
                     | Event::SessionEnded(_)
@@ -495,11 +492,9 @@ impl Sinks {
     }
 
     /// A failure before prompt translation still tells its handed-off start exactly once.
-    #[expect(clippy::single_match, reason = "bounded production entries keep explicit Option matches")]
     pub(crate) fn attempt_ready(&mut self, owner: Token) {
-        match self.pending.remove(&owner) {
-            Some(record) => self.record(&record),
-            None => {}
+        if let Some(record) = self.pending.remove(&owner) {
+            self.record(&record);
         }
     }
 
@@ -538,7 +533,7 @@ impl Sinks {
         self.responses.starting();
     }
 
-    /// Keep an actual root terminal until the gathered session facts have drained.
+    /// Keep a root terminal until the gathered session facts have drained.
     pub fn conversation_ended(&mut self, at: Time, owner: Token, end: smith_domain::run::facts::EndKind) {
         self.responses.root_ended(at, owner, end);
     }
@@ -554,7 +549,7 @@ impl Sinks {
         }
     }
 
-    /// Join actual session terminals and their accepted Usage/charge to a handed-off response.
+    /// Join session terminals and their accepted Usage/charge to a handed-off response.
     /// One fact yields at most two records, reserved by takes before the caller drains it.
     pub fn session(&mut self, origin: Time, fact: &smith_domain::session::Fact) {
         let records = self.responses.fact(origin, fact);
@@ -603,15 +598,14 @@ impl Sinks {
             | Event::Notice(_)
             | Event::Budget(_) => self.capture.encoded(),
         };
-        let bytes = match smith_events::write_with_ceiling(record, &capture, &self.limits.records, self.line)
+        let Some(bytes) = smith_events::write_with_ceiling(record, &capture, &self.limits.records, self.line)
             .expect("typed sources fit startup's receiving bounds")
-        {
-            Some(bytes) => bytes,
-            None => return,
+        else {
+            return;
         };
         assert!(
             u32::try_from(bytes.len()).expect("encoded line fits u32") <= self.line,
-            "actual source projection fits its owned record bound"
+            "source projection fits its owned record bound"
         );
         let index = kind(&record.event);
         let count = self.counts.get_mut(index).expect("the event has a fixed vocabulary index");
@@ -675,7 +669,7 @@ impl Sinks {
 
     /// Abort each stream that still owes its terminal after the authoritative end.
     /// A teardown's abort is the end, not a failure: it gives no destination up
-    /// (protocol/events.md, section 5.2; protocol/agent.md, section 6).
+    /// (smith/docs/design/protocol/events.md, section 5.2; smith/docs/design/protocol/agent.md, section 6).
     pub fn abort(&mut self, out: &mut Queue<io::Request>) {
         for index in 0..self.writers.len() {
             let writer = self.writers.get_mut(index).expect("bounded destinations");
@@ -1079,10 +1073,7 @@ fn names(index: usize) -> &'static [u8] {
 }
 
 fn answer_bytes(answer: &smith_events::RunCompleted) -> u64 {
-    let result = match &answer.result {
-        Some(result) => result,
-        None => return 0,
-    };
+    let Some(result) = &answer.result else { return 0 };
     let mut bytes = match &result.text {
         Some(text) => u64::try_from(text.len()).expect("accepted text length fits u64"),
         None => 0,
@@ -1138,7 +1129,7 @@ pub(crate) fn largest_line(
     }
 }
 
-/// Whether receiving vocabulary and output credit fit (programming-model.md, 6.3).
+/// Whether receiving vocabulary and output credit fit (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &SinkLimits, capture: Capture) -> bool {
     receiving_valid(limits, capture).is_some()
@@ -1275,12 +1266,12 @@ pub(crate) mod tests {
 
     #[test]
     fn only_everything_captures_the_exact_accepted_report_text_and_fields() {
-        let actual = smith_domain::run::Answer::Accepted {
+        let seen = smith_domain::run::Answer::Accepted {
             outcome: smith_domain::run::outcome::Declared::Report(smith_domain::run::outcome::Report {
                 text: b"Frozen task token: ALPHA.\n\"quoted\"".to_vec().into(),
                 fields: Box::new([smith_domain::run::outcome::Field {
                     name: b"source".to_vec().into(),
-                    value: b"actual\nreport".to_vec().into(),
+                    value: b"\nreport".to_vec().into(),
                 }]),
             }),
             spent: smith_domain::run::Spend {
@@ -1307,7 +1298,7 @@ pub(crate) mod tests {
                     unread: 1,
                     elapsed: Duration::from_millis(29),
                 },
-                &actual,
+                &seen,
                 capture,
             );
             sinks.record(&Record { t_ms: 37, event: Event::RunCompleted(answer) });
@@ -1335,7 +1326,7 @@ pub(crate) mod tests {
                 assert_eq!(result.text.as_deref(), Some(b"Frozen task token: ALPHA.\n\"quoted\"".as_slice()));
                 assert_eq!(
                     result.fields.as_ref().unwrap().as_slice(),
-                    &[smith_events::Field { name: b"source".to_vec().into(), text: b"actual\nreport".to_vec().into() }]
+                    &[smith_events::Field { name: b"source".to_vec().into(), text: b"\nreport".to_vec().into() }]
                 );
             } else {
                 assert_eq!(result.text, None);
@@ -1379,7 +1370,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn settled_end_preserves_read_or_unread_resources_and_the_actual_exit() {
+    fn settled_end_preserves_read_or_unread_resources_and_the_seen_exit() {
         let measured = io::kernel::Usage {
             own: io::kernel::Resources {
                 user: Duration::from_nanos(1_000_000),
@@ -1666,7 +1657,7 @@ pub(crate) mod tests {
             sinks.record(&record);
             expected.push(record);
         }
-        assert!(!sinks.takes(), "the actual output cap holds the next fact");
+        assert!(!sinks.takes(), "the output cap holds the next fact");
         let completed = golden(include_bytes!("../../smith-events/golden/v4/run_completed_none.jsonl"), &limits);
         sinks.record(&completed);
         expected.push(completed);
@@ -1710,7 +1701,7 @@ pub(crate) mod tests {
         let mut out = Queue::with_capacity(2);
         sinks.down(Time::ZERO, &mut out);
         let Some(io::Request::Stream { down: stream::Down::Demand { .. }, .. }) = out.pop() else {
-            panic!("actual full-credit demand")
+            panic!("full-credit demand")
         };
         grant(&mut sinks, token);
         sinks.down(Time::ZERO, &mut out);

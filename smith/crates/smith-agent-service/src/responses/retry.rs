@@ -1,4 +1,4 @@
-//! Renewal of a response owned by one program Complete (protocol/events.md 3.5).
+//! Renewal of a response owned by one program Complete (smith/docs/design/protocol/events.md 3.5).
 //! Retains scalar request metadata only. A retry closes the prior response with
 //! unknown transport measures and opens the next attempt under the same owner.
 

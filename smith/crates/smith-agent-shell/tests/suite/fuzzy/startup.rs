@@ -1,13 +1,6 @@
 //! Random startup declarations preserve capacities and named refusals.
 
 #![cfg(test)]
-#![allow(
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    clippy::unwrap_used,
-    clippy::missing_assert_message,
-    reason = "programming-model.md section 10.2: deterministic test fixtures use ordinary Rust"
-)]
 
 use smith_agent_service as service;
 use smith_agent_service::sinks::Capture;

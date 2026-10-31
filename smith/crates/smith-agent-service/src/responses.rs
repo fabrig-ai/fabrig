@@ -1,6 +1,6 @@
-//! Bounded joins between logical session facts and actual LLM hand-offs.
+//! Bounded joins between logical session facts and LLM hand-offs.
 //! Each live conversation keeps its opening model, current intent and at most
-//! one provider attempt and one temporary compaction scope. Actual hand-offs
+//! one provider attempt and one temporary compaction scope. Hand-offs
 //! retain their public conversation number until their terminal. Intents can be
 //! revised before hand-off; only `request`
 //! assigns a run-wide response number. Raw usage is counted before accounting;
@@ -8,16 +8,12 @@
 //! A content cursor skips already recorded completions; original completion
 //! blocks and observed transport measures wait for their terminal. Unknown
 //! measures remain absent, and observed zero durations remain zero. No provider
-//! replay bytes are retained. Typed diagnostics join the actual request terminal,
+//! replay bytes are retained. Typed diagnostics join the request terminal,
 //! then its conversation and failed main answer; child diagnostics never supply
 //! the main failure. Capture none keeps no provider diagnostic content.
-//! Contracts: protocol/events.md, sections 3.4–3.5, 3.10–3.11 and 4.
+//! Contracts: smith/docs/design/protocol/events.md, sections 3.4–3.5, 3.10–3.11 and 4.
 
-#![expect(
-    clippy::manual_let_else,
-    clippy::manual_map,
-    reason = "the strict subset keeps bounded entries explicit and uses no closures"
-)]
+#![expect(clippy::manual_map, reason = "the strict subset keeps bounded entries explicit and uses no closures")]
 
 mod retry;
 
@@ -30,7 +26,7 @@ use smith_events::{
     ResponseCompleted, ResponseStarted, Stop, Usage,
 };
 
-/// Public stream identity of one actual internal conversation owner.
+/// Public stream identity of one internal conversation owner.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Scope {
     pub(crate) run: u64,
@@ -115,7 +111,7 @@ struct Received {
     blocks: u64,
 }
 
-/// The actual hand-off's one terminal, completed only after accepted accounting.
+/// The hand-off's one terminal, completed only after accepted accounting.
 #[derive(Debug)]
 enum Attempt {
     /// No provider request was handed off, or its terminal was already recorded.
@@ -204,24 +200,20 @@ impl Book {
         let mut owner = None;
         for (name, conversation) in &self.conversations {
             if conversation.thread == u64::from(prompt.affinity.thread) {
-                assert!(owner.is_none(), "one live conversation per actual affinity ordinal");
+                assert!(owner.is_none(), "one live conversation per affinity ordinal");
                 owner = Some(*name);
             }
         }
-        let owner = owner.expect("the opening fact is drained before its actual request");
+        let owner = owner.expect("the opening fact is drained before its request");
         let conversation = self.conversations.get_mut(&owner).expect("found above");
-        assert_eq!(
-            conversation.model.model.as_ref(),
-            prompt.model.as_ref(),
-            "the actual request uses its opening's model"
-        );
+        assert_eq!(conversation.model.model.as_ref(), prompt.model.as_ref(), "the request uses its opening's model");
         match &conversation.attempt {
             Attempt::Idle => {}
             Attempt::Started(_) | Attempt::Answered { .. } | Attempt::Failed { .. } => {
                 unreachable!("a conversation hands off one provider request at a time")
             }
         }
-        let intent = conversation.intent.take().expect("each actual request has a surviving logical intent");
+        let intent = conversation.intent.take().expect("each request has a surviving logical intent");
         let number = self.next;
         self.next = self.next.checked_add(1).expect("a process cannot exhaust response names");
         conversation.attempts = u64::from(intent.retry).checked_add(1).expect("u32 retry count plus one fits u64");
@@ -259,7 +251,7 @@ impl Book {
                 attempt: u64::from(intent.retry),
                 window: u64::from(intent.window),
                 model: conversation.model.clone(),
-                messages: u64::try_from(prompt.messages.len()).expect("admitted actual prompt messages"),
+                messages: u64::try_from(prompt.messages.len()).expect("admitted prompt messages"),
                 output_tokens: u64::from(prompt.max_tokens),
                 tool_choice: crate::request_tool_choice(&prompt.choice),
                 prompt: None,
@@ -291,7 +283,7 @@ impl Book {
         capture: crate::sinks::Capture,
         report: &llm::Report,
     ) {
-        let owner = self.owner_for(request_owner).expect("failure belongs to an actual request");
+        let owner = self.owner_for(request_owner).expect("failure belongs to a request");
         let conversation = self.conversations.get_mut(&owner).expect("found above");
         let mut observed = completion_failure(failure, evidence);
         observed.field = provider_field(&report.field);
@@ -303,27 +295,21 @@ impl Book {
         };
         match &mut conversation.attempt {
             Attempt::Started(started) => {
-                assert!(started.failure.is_none(), "one actual failure observation per terminal");
+                assert!(started.failure.is_none(), "one failure observation per terminal");
                 started.failure = Some(observed);
             }
             Attempt::Idle | Attempt::Answered { .. } | Attempt::Failed { .. } => {
-                unreachable!("actual failure precedes its domain fact")
+                unreachable!("failure precedes its domain fact")
             }
         }
     }
 
     pub(crate) fn answer_failure(&mut self, record: &mut smith_events::RunCompleted) {
-        let observed = match self.main_failure.take() {
-            Some(observed) => observed,
-            None => return,
-        };
+        let Some(observed) = self.main_failure.take() else { return };
         if observed.run != record.run {
             return;
         }
-        let failure = match &mut record.failure {
-            Some(failure) => failure,
-            None => return,
-        };
+        let Some(failure) = &mut record.failure else { return };
         match &failure.class {
             smith_events::AnswerClass::Model => {}
             smith_events::AnswerClass::Budget
@@ -337,14 +323,11 @@ impl Book {
             | smith_events::AnswerClass::Invalid
             | smith_events::AnswerClass::Unknown(_) => return,
         }
-        let completion = match &failure.completion {
-            Some(completion) => completion,
-            None => return,
-        };
-        assert_eq!(completion.class, observed.failure.class, "the actual main terminal supplies the failed answer");
+        let Some(completion) = &failure.completion else { return };
+        assert_eq!(completion.class, observed.failure.class, "the main terminal supplies the failed answer");
         assert_eq!(
             completion.evidence, observed.failure.evidence,
-            "the main answer agrees with its actual transport evidence"
+            "the main answer agrees with its transport evidence"
         );
         failure.endpoint = Some(observed.model.endpoint);
         failure.model = Some(observed.model.model);
@@ -353,7 +336,7 @@ impl Book {
     }
 
     pub(crate) fn observation(&mut self, request_owner: Token) -> smith_protocol_llm::Observation {
-        let owner = self.owner_for(request_owner).expect("actual request retains its conversation");
+        let owner = self.owner_for(request_owner).expect("request retains its conversation");
         let conversation = self.conversations.get_mut(&owner).expect("found above");
         if let Attempt::Started(started) = &mut conversation.attempt {
             started.observed = true;
@@ -375,12 +358,12 @@ impl Book {
     }
 
     pub(crate) fn prompt_recorded(&mut self, request_owner: Token, messages: u32) {
-        let owner = self.owner_for(request_owner).expect("prompt belongs to an actual request");
+        let owner = self.owner_for(request_owner).expect("prompt belongs to a request");
         self.conversations.get_mut(&owner).expect("found above").recorded = Some(messages);
     }
 
     pub(crate) fn completion(&mut self, request_owner: Token, completion: smith_events::Completion) {
-        let owner = self.owner_for(request_owner).expect("completion belongs to an actual request");
+        let owner = self.owner_for(request_owner).expect("completion belongs to a request");
         let conversation = self.conversations.get_mut(&owner).expect("found above");
         let started = match &mut conversation.attempt {
             Attempt::Started(started) => started,
@@ -388,12 +371,12 @@ impl Book {
                 unreachable!("capture precedes the domain terminal")
             }
         };
-        assert!(started.completion.is_none(), "one observed completion per actual request");
+        assert!(started.completion.is_none(), "one observed completion per request");
         started.completion = Some(completion);
     }
 
     pub(crate) fn measured(&mut self, request_owner: Token, measures: smith_protocol_llm::Measures) {
-        let owner = self.owner_for(request_owner).expect("transport measures belong to an actual request");
+        let owner = self.owner_for(request_owner).expect("transport measures belong to a request");
         let conversation = self.conversations.get_mut(&owner).expect("found above");
         let started = match &mut conversation.attempt {
             Attempt::Started(started) => started,
@@ -401,12 +384,12 @@ impl Book {
                 unreachable!("transport measures precede the domain terminal")
             }
         };
-        assert!(started.measures.is_none(), "one connection terminal per actual request");
+        assert!(started.measures.is_none(), "one connection terminal per request");
         started.measures = Some(measures);
     }
 
     pub(crate) fn delta(&self, at: Time, origin: Time, request_owner: Token, block: u32, text: Box<[u8]>) -> Record {
-        let owner = self.owner_for(request_owner).expect("delta belongs to an actual request");
+        let owner = self.owner_for(request_owner).expect("delta belongs to a request");
         let conversation = self.conversations.get(&owner).expect("found above");
         let (response, response_conversation) = match &conversation.attempt {
             Attempt::Started(started) => (started.number, started.conversation),
@@ -447,7 +430,7 @@ impl Book {
         match &mut conversation.attempt {
             Attempt::Started(started) => {
                 let (oversized, cut) = rejected_calls(completion);
-                assert!(started.received.is_none(), "one typed component answer per actual hand-off");
+                assert!(started.received.is_none(), "one typed component answer per hand-off");
                 let blocks = u64::try_from(completion.content.len())
                     .expect("bounded blocks")
                     .checked_add(u64::try_from(completion.reasoning_dropped.len()).expect("bounded drops"))
@@ -618,10 +601,10 @@ impl Book {
                     .expect("one compaction terminal");
             }
             session::FactKind::Opened { opener } => {
-                self.conversations.get_mut(&opener).expect("session admission follows actual opening").admitted = true;
+                self.conversations.get_mut(&opener).expect("session admission follows opening").admitted = true;
             }
             session::FactKind::CompletionStarted { opener, attempt, window, .. } => {
-                let turn = fact.response.expect("intent carries its actual session turn").number;
+                let turn = fact.response.expect("intent carries its session turn").number;
                 let conversation = self.conversations.get_mut(&opener).expect("intent follows opening");
                 conversation.intent = Some(Intent { turn, retry: attempt, window });
             }
@@ -639,7 +622,7 @@ impl Book {
                             invalid: u64::from(invalid),
                         }
                     }
-                    None => unreachable!("a provider answer follows an actual hand-off"),
+                    None => unreachable!("a provider answer follows a hand-off"),
                 }
             }
             session::FactKind::Used { opener, usage } => {
@@ -668,11 +651,11 @@ impl Book {
                             Some(observed) => {
                                 assert_eq!(
                                     observed.class, projected.class,
-                                    "the domain fact preserves the actual failure class"
+                                    "the domain fact preserves the failure class"
                                 );
                                 assert_eq!(
                                     observed.evidence, projected.evidence,
-                                    "the domain fact preserves actual transport evidence"
+                                    "the domain fact preserves transport evidence"
                                 );
                                 observed
                             }
@@ -681,13 +664,13 @@ impl Book {
                         conversation.last_failure = Some(observed.clone());
                         conversation.attempt = Attempt::Failed { started, at: fact.at, failure: observed };
                     }
-                    None => unreachable!("a component failure follows an actual hand-off"),
+                    None => unreachable!("a component failure follows a hand-off"),
                 }
             }
             session::FactKind::CompletionRetried { opener, delay, .. } => {
                 let conversation = self.conversations.get_mut(&opener).expect("retry follows opening");
                 let record = terminal(conversation, origin, unknown_usage(), 0, Some(delay.as_nanos() / 1_000_000))
-                    .expect("a retry follows one pending actual failure");
+                    .expect("a retry follows one pending failure");
                 records.push(record).expect("one response terminal");
             }
             session::FactKind::CompletionCancelled { opener } => {
@@ -699,10 +682,7 @@ impl Book {
                 }
             }
             session::FactKind::Ended { opener, end, turns, usage: _ } => {
-                let mut conversation = match self.conversations.remove(&opener) {
-                    Some(conversation) => conversation,
-                    None => return records,
-                };
+                let Some(mut conversation) = self.conversations.remove(&opener) else { return records };
                 if let Some(record) = terminal(&mut conversation, origin, unknown_usage(), 0, None) {
                     records.push(record).expect("one pending terminal before end");
                 }
@@ -797,7 +777,7 @@ fn take_started(attempt: &mut Attempt) -> Option<Started> {
     match core::mem::replace(attempt, Attempt::Idle) {
         Attempt::Started(started) => Some(started),
         Attempt::Idle => None,
-        Attempt::Answered { .. } | Attempt::Failed { .. } => unreachable!("one terminal per actual provider attempt"),
+        Attempt::Answered { .. } | Attempt::Failed { .. } => unreachable!("one terminal per provider attempt"),
     }
 }
 
@@ -811,7 +791,7 @@ fn terminal(
     let (started, at, outcome, stop, blocks, calls, invalid, failure) =
         match core::mem::replace(&mut conversation.attempt, Attempt::Idle) {
             Attempt::Idle => return None,
-            Attempt::Started(_) => unreachable!("a session end follows its actual provider terminal"),
+            Attempt::Started(_) => unreachable!("a session end follows its provider terminal"),
             Attempt::Answered { started, at, stop, blocks, calls, invalid } => {
                 (started, at, Outcome::Completed, Some(stop), blocks, calls, invalid, None)
             }
@@ -1044,7 +1024,7 @@ fn limit_name(which: llm::Limit) -> &'static [u8] {
     }
 }
 
-/// A derived window limit keeps the native failure that caused it (protocol/events.md, 3.10).
+/// A derived window limit keeps the native failure that caused it (smith/docs/design/protocol/events.md, 3.10).
 fn end_failure(mut projected: CompletionFailure, observed: CompletionFailure) -> CompletionFailure {
     match &projected.limit {
         Some(limit) if limit.which.as_ref() == b"window" => {
@@ -1249,7 +1229,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn revised_unsent_intent_and_retry_join_once_to_actual_hand_offs() {
+    fn revised_unsent_intent_and_retry_join_once_to_seen_hand_offs() {
         let mut book = Book::new(2);
         let owner = Token::new(11);
         book.opened(at(1), Token::new(11), &opened(11, 0));
@@ -1257,7 +1237,7 @@ pub(crate) mod tests {
         intent(&mut book, owner, session::Choice::Only, 0);
         let first = book.request(at(3), Time::ZERO, Token::new(99), &prompt(0));
         let Event::ResponseStarted(first) = first.event else {
-            panic!("actual hand-off");
+            panic!("hand-off");
         };
         assert_eq!((first.response, first.turn, first.attempt), (1, 1, 0));
         assert_eq!(first.tool_choice, smith_events::ToolChoice::Only);
@@ -1291,14 +1271,14 @@ pub(crate) mod tests {
         intent(&mut book, owner, session::Choice::Only, 1);
         let second = book.request(at(37), Time::ZERO, Token::new(100), &prompt(0));
         let Event::ResponseStarted(second) = second.event else {
-            panic!("actual retry hand-off");
+            panic!("retry hand-off");
         };
         assert_eq!((second.response, second.turn, second.attempt), (2, 1, 1));
         book.opened(at(38), Token::new(12), &opened(12, 1));
         intent(&mut book, Token::new(12), session::Choice::Only, 0);
         let child = book.request(at(39), Time::ZERO, Token::new(101), &prompt(1));
         let Event::ResponseStarted(child) = child.event else {
-            panic!("actual second conversation");
+            panic!("second conversation");
         };
         assert_eq!(child.response, 3);
     }
@@ -1310,14 +1290,14 @@ pub(crate) mod tests {
         let mut opening = opened(0, 0);
         opening.run = 77;
         book.opened(at(1), owner, &opening);
-        let scope = book.scope(owner).expect("actual owner joined");
+        let scope = book.scope(owner).expect("owner joined");
         assert_eq!((scope.run, scope.conversation), (77, 0));
         assert!(book.scope(Token::new(0)).is_none(), "public ordinal is not the internal owner");
         intent(&mut book, owner, session::Choice::Auto, 0);
         let record = book.request(at(3), Time::ZERO, Token::new(99), &prompt(0));
-        let Event::ResponseStarted(record) = record.event else { panic!("actual hand-off") };
+        let Event::ResponseStarted(record) = record.event else { panic!("hand-off") };
         assert_eq!((record.run, record.conversation), (77, 0));
-        let completion = actual_completion();
+        let completion = seen_completion();
         book.received(Token::new(99), &completion);
         drop(book.fact(
             Time::ZERO,
@@ -1336,7 +1316,7 @@ pub(crate) mod tests {
         ));
         let records = book
             .fact(Time::ZERO, &fact(7, session::FactKind::Used { opener: owner, usage: completion.usage }, 1, Some(3)));
-        let Event::ResponseCompleted(record) = &records.as_slice()[0].event else { panic!("actual terminal") };
+        let Event::ResponseCompleted(record) = &records.as_slice()[0].event else { panic!("terminal") };
         assert_eq!((record.run, record.conversation), (77, 0));
         let records = book.fact(
             Time::ZERO,
@@ -1352,12 +1332,12 @@ pub(crate) mod tests {
                 None,
             ),
         );
-        let Event::ConversationClosed(record) = &records.as_slice()[0].event else { panic!("actual conversation end") };
+        let Event::ConversationClosed(record) = &records.as_slice()[0].event else { panic!("conversation end") };
         assert_eq!((record.run, record.conversation), (77, 0));
         assert!(book.scope(owner).is_none());
     }
 
-    pub(crate) fn actual_completion() -> llm::Completion {
+    pub(crate) fn seen_completion() -> llm::Completion {
         llm::Completion {
             reasoning_dropped: Box::new([]),
             content: Box::new([
@@ -1396,7 +1376,7 @@ pub(crate) mod tests {
             book.fact(Time::ZERO, &fact(2, session::FactKind::Opened { opener: owner }, 1, None));
             intent(&mut book, owner, session::Choice::Only, 0);
             book.request(at(3), Time::ZERO, Token::new(99), &prompt(0));
-            let completion = actual_completion();
+            let completion = seen_completion();
             book.received(Token::new(99), &completion);
             book.fact(
                 Time::ZERO,
@@ -1529,7 +1509,7 @@ pub(crate) mod tests {
                 book.measured(request, measures);
                 let records = match outcome {
                     Outcome::Completed => {
-                        let completion = actual_completion();
+                        let completion = seen_completion();
                         book.received(request, &completion);
                         book.fact(
                             Time::ZERO,
@@ -1581,10 +1561,10 @@ pub(crate) mod tests {
                     }
                     Outcome::Cancelled => book
                         .fact(Time::ZERO, &fact(5, session::FactKind::CompletionCancelled { opener: owner }, 1, None)),
-                    Outcome::Unknown(_) => unreachable!("the fixture names the three actual terminals"),
+                    Outcome::Unknown(_) => unreachable!("the fixture names the three terminals"),
                 };
                 let Event::ResponseCompleted(response) = &records.as_slice()[0].event else {
-                    panic!("one actual response terminal");
+                    panic!("one response terminal");
                 };
                 assert_eq!(records.len(), 1);
                 assert_eq!(response.outcome, outcome);
@@ -1649,10 +1629,10 @@ pub(crate) mod tests {
                     );
                     let terminal =
                         book.fact(Time::ZERO, &fact(5, session::FactKind::Used { opener: owner, usage }, 1, Some(7)));
-                    let Event::ResponseCompleted(actual) = &terminal.get(0).unwrap().event else {
-                        panic!("actual provider report")
+                    let Event::ResponseCompleted(seen) = &terminal.get(0).unwrap().event else {
+                        panic!("provider report")
                     };
-                    assert_eq!(actual.usage, crate::reported_usage(usage));
+                    assert_eq!(seen.usage, crate::reported_usage(usage));
                 }
             }
             let records = book.fact(
@@ -1670,7 +1650,7 @@ pub(crate) mod tests {
                 ),
             );
             let Event::ConversationClosed(ended) = &records.get(0).unwrap().event else {
-                panic!("one actual conversation end")
+                panic!("one conversation end")
             };
             assert_eq!(ended.spent, if reported { 14 } else { 0 });
             assert_eq!(
@@ -1772,7 +1752,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn actual_failure_joins_keep_retry_identity_and_child_diagnostics_out_of_the_run() {
+    fn seen_failure_joins_keep_retry_identity_and_child_diagnostics_out_of_the_run() {
         for kind in [smith_events::ConversationKind::Main, smith_events::ConversationKind::Child] {
             for capture in
                 [crate::sinks::Capture::None, crate::sinks::Capture::Calls, crate::sinks::Capture::Everything]
@@ -1804,9 +1784,7 @@ pub(crate) mod tests {
                         None,
                     ),
                 );
-                let Event::ResponseCompleted(last) = &records.get(0).unwrap().event else {
-                    panic!("last actual response")
-                };
+                let Event::ResponseCompleted(last) = &records.get(0).unwrap().event else { panic!("last response") };
                 let Event::ConversationClosed(closed) = &records.get(1).unwrap().event else { panic!("conversation") };
                 assert_eq!(last.failure, closed.failure);
                 let observed = last.failure.as_ref().unwrap();

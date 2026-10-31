@@ -219,7 +219,7 @@ impl Host for Tracing {
     }
 }
 
-/// Receiving bounds derived from the same actual producer configuration.
+/// Receiving bounds derived from the same producer configuration.
 pub(super) fn event_limits(limits: &agent::Limits) -> agent::EventLimits {
     let configuration = crate::configuration();
     let header = effective_header(limits, &configuration.channel_endpoints, &configuration.llm_endpoints);

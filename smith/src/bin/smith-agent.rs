@@ -1,6 +1,6 @@
 //! The spawned agent's glue: configuration path, inherited channel and exit.
 //! It keeps no service state or credentials; `smith_agent_shell::run` owns
-//! startup and progression. Contract: protocol/agent.md, section 6.
+//! startup and progression. Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use skein_io::kernel::Exit;
 use std::env;

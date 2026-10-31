@@ -1,4 +1,4 @@
-//! Heap returns after a window's use ends (protocol/limits.md, sections 5 and 11).
+//! Heap returns after a window's use ends (smith/docs/design/protocol/limits.md, sections 5 and 11).
 
 use skein_lib::Duration;
 use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};

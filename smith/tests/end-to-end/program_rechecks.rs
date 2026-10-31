@@ -1,4 +1,4 @@
-//! Program account checks before runs (domain/host.md, section 8).
+//! Program account checks before runs (smith/docs/design/domain/host.md, section 8).
 use super::{program_check, support};
 use serde_json::{Value, json};
 use smith_local_process_world::terminal::Action;

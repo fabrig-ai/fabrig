@@ -1,6 +1,6 @@
 //! Keeps bounded scalar joins and endpoint names; never learns credentials.
 //! `fact` precedes `request`; the service supplies its exact `answer`.
-//! Contracts: protocol/events.md, sections 3–5; domain/run.md, section 11.
+//! Contracts: smith/docs/design/protocol/events.md, sections 3–5; smith/docs/design/domain/run.md, section 11.
 
 #![expect(clippy::manual_map, reason = "bounded production entries use explicit matches without closures")]
 
@@ -9,7 +9,6 @@ use skein_lib::{Duration, List, Time, Token};
 use smith_domain::{self as domain, run};
 use smith_events::{Event, Record};
 use smith_protocol_channel as channel;
-use smith_protocol_llm as llm;
 
 use crate::sinks::{Capture, SinkLimits, Sinks};
 
@@ -177,12 +176,7 @@ impl Producer {
     pub fn configured(config: &crate::Config) -> Option<Producer> {
         match config.limits.events {
             Some(_) => {
-                let mut producer = Producer::new(
-                    &config.limits,
-                    config.channel_endpoints.clone(),
-                    &config.llm_endpoints,
-                    &config.domain.endpoints,
-                );
+                let mut producer = Producer::new(&config.limits, config.channel_endpoints.clone());
                 producer.programs = match crate::service::bound(config.program.as_ref()) {
                     Some(program) => program.endpoints.clone(),
                     None => Box::default(),
@@ -193,12 +187,7 @@ impl Producer {
         }
     }
 
-    pub(crate) fn new(
-        limits: &crate::Limits,
-        names: channel::Endpoints,
-        _endpoints: &llm::Endpoints,
-        _declared: &[run::charter::Endpoint],
-    ) -> Producer {
+    pub(crate) fn new(limits: &crate::Limits, names: channel::Endpoints) -> Producer {
         let events = limits.events.expect("event configuration exists");
         Producer {
             sinks: Sinks::with_front(
@@ -346,7 +335,7 @@ impl Producer {
             run::facts::FactKind::Admitted { run: _, resumed } => {
                 self.admitted = Some(self.activation());
                 self.admitted_at = Some(fact.at);
-                let start = self.start.take().expect("actual Start retained before its admission");
+                let start = self.start.take().expect("Start retained before its admission");
                 Event::RunStarted(smith_events::RunStarted {
                     run: self.activation(),
                     resumed,
@@ -358,17 +347,17 @@ impl Producer {
                 })
             }
             run::facts::FactKind::Opened { run: _, conversation, kind } => {
-                let opening = opening.as_ref().expect("actual Run::Open metadata accompanied the fact");
-                assert_eq!(opening.activation, self.activation(), "opening carries this actual Start activation");
+                let opening = opening.as_ref().expect("Run::Open metadata accompanied the fact");
+                assert_eq!(opening.activation, self.activation(), "opening carries this Start activation");
                 let number = self.sinks.next_conversation(self.activation());
                 let (kind, parent, call, requested, share, clamped) = match kind {
                     run::facts::Kind::Main => {
                         (smith_events::ConversationKind::Main, None, None, None, None, List::with_capacity(0))
                     }
                     run::facts::Kind::Child { parent, call, granted, .. } => {
-                        let parent = self.sinks.scope(parent).expect("actual parent conversation precedes child");
+                        let parent = self.sinks.scope(parent).expect("parent conversation precedes child");
                         let id = self.calls.child_opened(conversation, number, call, parent, granted, fact.at);
-                        let share = crate::child_share(kind).expect("actual child share");
+                        let share = crate::child_share(kind).expect("child share");
                         (
                             smith_events::ConversationKind::Child,
                             Some(parent.conversation),
@@ -404,7 +393,7 @@ impl Producer {
                 return;
             }
             run::facts::FactKind::Called { conversation, call, ask, .. } => {
-                let scope = self.sinks.scope(conversation).expect("actual asker conversation remains alive");
+                let scope = self.sinks.scope(conversation).expect("asker conversation remains alive");
                 self.calls.called(call, scope, ask);
                 return;
             }
@@ -467,7 +456,7 @@ impl Producer {
     }
 
     fn activation(&self) -> u64 {
-        self.activation.expect("actual decoded Start precedes run observations")
+        self.activation.expect("decoded Start precedes run observations")
     }
 
     fn model(&self, model: &run::charter::Llm) -> smith_events::Model {
@@ -512,7 +501,7 @@ impl Producer {
 
     pub(crate) fn answer(&mut self, now: Time, started: Time, answer: &run::Answer, read: Option<Token>) {
         self.messages.clear();
-        assert!(self.answer_at.is_none(), "one actual answer per invocation");
+        assert!(self.answer_at.is_none(), "one answer per invocation");
         self.answer_at = Some(now);
         let mut record = crate::answer_record(
             crate::AnswerMeta {
@@ -564,7 +553,7 @@ impl Producer {
             None => false,
         };
         self.messages.clear();
-        assert!(self.answer_at.is_none(), "one actual answer per run");
+        assert!(self.answer_at.is_none(), "one answer per run");
         self.answer_at = Some(now);
         let mut record = smith_events::RunCompleted {
             run: self.activation(),
@@ -613,7 +602,7 @@ fn message_refusal(reason: run::MessageRefusal) -> smith_events::MessageRefusal 
     }
 }
 
-/// Whether configured event sinks and joins fit (programming-model.md, 6.3).
+/// Whether configured event sinks and joins fit (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &crate::Limits) -> bool {
     match limits.events {
@@ -634,7 +623,7 @@ mod tests {
     )]
 
     use super::*;
-    use crate::responses::tests::{actual_completion, at, fact, opened, prompt};
+    use crate::responses::tests::{at, fact, opened, prompt, seen_completion};
     use crate::sinks::tests::{drain_ready, limits};
     use smith_domain::session;
 
@@ -697,7 +686,7 @@ mod tests {
             producer.sinks.conversation(at(1), Time::ZERO, owner, opened(11, 0));
             drop(drain_ready(&mut producer.sinks, destination));
             for turn in 1..=if overflow { 2 } else { 1 } {
-                let mut completion = actual_completion();
+                let mut completion = seen_completion();
                 if overflow {
                     completion.usage.input_tokens = Some(if turn == 1 { u64::MAX - 1 } else { 2 });
                 }
@@ -719,8 +708,8 @@ mod tests {
                 );
                 producer.sinks.request(at(3), Time::ZERO, Token::new(99), &prompt(0));
                 drop(drain_ready(&mut producer.sinks, destination));
-                let actual_owner = producer.sinks.received(Token::new(99), &completion);
-                producer.received(actual_owner, &completion);
+                let seen_owner = producer.sinks.received(Token::new(99), &completion);
+                producer.received(seen_owner, &completion);
                 producer.sinks.session(
                     Time::ZERO,
                     &fact(
@@ -752,7 +741,7 @@ mod tests {
                 let records = drain_ready(&mut producer.sinks, destination);
                 if !(overflow && turn == 1) {
                     let Event::ConversationClosed(closed) = &records.last().unwrap().event else {
-                        panic!("actual conversation terminal")
+                        panic!("conversation terminal")
                     };
                     assert_eq!(closed.usage.input_tokens, if overflow { None } else { Some(17) });
                     assert_eq!(closed.usage.output_tokens, Some(if overflow { 38 } else { 19 }));
@@ -774,7 +763,7 @@ mod tests {
                 None,
             );
             let records = drain_ready(&mut producer.sinks, destination);
-            let Event::RunCompleted(answer) = &records[0].event else { panic!("actual wire answer") };
+            let Event::RunCompleted(answer) = &records[0].event else { panic!("wire answer") };
             assert_eq!(answer.usage.input_tokens, if overflow { None } else { Some(17) });
             assert_eq!(answer.usage.output_tokens, Some(if overflow { 38 } else { 19 }));
             assert_eq!(answer.usage.cache_read_tokens, None);

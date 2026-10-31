@@ -1,4 +1,4 @@
-//! Cross-process bounds from the agent's own limits (protocol/limits.md,
+//! Cross-process bounds from the agent's own limits (smith/docs/design/protocol/limits.md,
 //! section 4). These pure queries know no run, provider activity or host policy.
 use crate::Limits;
 use skein_lib::Duration;

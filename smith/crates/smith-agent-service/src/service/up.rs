@@ -1,6 +1,6 @@
 //! Upward passes from IO completions through components to the domain.
 //! Queued terminals and observations stay in the service; these passes never
-//! choose a domain outcome. Contract: protocol/agent.md, sections 4–6.
+//! choose a domain outcome. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use super::down::drain_facts;
 use super::routing::{io_event_owner, route_io_event};
@@ -23,10 +23,7 @@ pub(super) fn io_up(service: &mut Service) {
         }
     }
     for _ in 0..service.completions.capacity() {
-        let complete = match service.completions.pop() {
-            Some(complete) => complete,
-            None => break,
-        };
+        let Some(complete) = service.completions.pop() else { break };
         let route = service.operations.remove(&complete.op).expect("one route per submitted operation");
         match route {
             Operation::Io(original) | Operation::Signals(original) => {
@@ -66,10 +63,7 @@ pub(super) fn lower_events(service: &mut Service) {
         {
             break;
         }
-        let event = match service.io_events.pop() {
-            Some(event) => event,
-            None => break,
-        };
+        let Some(event) = service.io_events.pop() else { break };
         let signal_ready = match &event {
             io::Event::Shutdown { .. } => service.llm.measures_drained(),
             io::Event::Listening { .. }
@@ -97,18 +91,12 @@ pub(super) fn lower_events(service: &mut Service) {
         route_io_event(service, event);
     }
     for _ in 0..service.limits.queue {
-        let event = match service.file_events.pop() {
-            Some(event) => event,
-            None => break,
-        };
+        let Some(event) = service.file_events.pop() else { break };
         if event.owner() == Token::new(u64::MAX) && service.root_close_pending {
             service.root_close_pending = false;
             continue;
         }
-        let event = match program::file_event(service, event) {
-            Some(event) => event,
-            None => continue,
-        };
+        let Some(event) = program::file_event(service, event) else { continue };
         service.machine.from_below(
             &service.machine_env,
             machine::BelowEvent::File(event),
@@ -120,10 +108,7 @@ pub(super) fn lower_events(service: &mut Service) {
 
 fn machine_up(service: &mut Service) {
     for _ in 0..service.limits.queue {
-        let event = match service.machine_events.pop() {
-            Some(event) => event,
-            None => break,
-        };
+        let Some(event) = service.machine_events.pop() else { break };
         let event = match event {
             machine::ToDomain::Done { owner, done } => domain::Event::Done { owner, done },
             machine::ToDomain::Read { owner, read } => domain::Event::Read { owner, read },
@@ -136,10 +121,7 @@ fn machine_up(service: &mut Service) {
 }
 
 fn llm_io(service: &Service, event: &io::Event) -> bool {
-    let owner = match io_event_owner(event) {
-        Some(owner) => owner,
-        None => return false,
-    };
+    let Some(owner) = io_event_owner(event) else { return false };
     if service.pipe_routes.contains_key(&owner) || owner.raw() & COMPONENT_OWNER_BIT == 0 {
         return false;
     }
@@ -274,17 +256,13 @@ pub(super) fn component_up(service: &mut Service) {
         if !super::channel_event_ready(service) {
             break;
         }
-        let event = match service.channel_events.pop() {
-            Some(event) => event,
-            None => break,
-        };
+        let Some(event) = service.channel_events.pop() else { break };
         channel_event(service, event);
     }
     llm_events_up(service);
     machine_up(service);
 }
 
-#[expect(clippy::single_match, reason = "bounded production entries keep explicit Option matches")]
 fn llm_events_up(service: &mut Service) {
     for _ in 0..service.limits.queue {
         match &service.events {
@@ -298,10 +276,7 @@ fn llm_events_up(service: &mut Service) {
         {
             break;
         }
-        let event = match service.llm_events.pop() {
-            Some(event) => event,
-            None => break,
-        };
+        let Some(event) = service.llm_events.pop() else { break };
         match event {
             llm::ToDomain::ReadVersion { owner, place, version } => {
                 service.domain_events.push(domain::Event::ReadVersion { owner, place, version });
@@ -318,19 +293,15 @@ fn llm_events_up(service: &mut Service) {
                 service.domain_events.push(domain::Event::Completed { owner, completion });
             }
             llm::ToDomain::Failed { owner, failure, evidence, detail, report } => {
-                match &mut service.events {
-                    Some(events) => {
-                        events.sinks.attempt_ready(owner);
-                        events.sinks.failed(owner, failure, evidence, &detail, &report);
-                    }
-                    None => {}
+                if let Some(events) = &mut service.events {
+                    events.sinks.attempt_ready(owner);
+                    events.sinks.failed(owner, failure, evidence, &detail, &report);
                 }
                 service.domain_events.push(domain::Event::Failed { owner, failure, evidence, detail, report });
             }
             llm::ToDomain::Cancelled { owner } => {
-                match &mut service.events {
-                    Some(events) => events.sinks.attempt_ready(owner),
-                    None => {}
+                if let Some(events) = &mut service.events {
+                    events.sinks.attempt_ready(owner);
                 }
                 service.domain_events.push(domain::Event::Cancelled { owner });
             }
@@ -478,10 +449,7 @@ pub(super) fn domain_up(service: &mut Service) {
         {
             break;
         }
-        let event = match service.domain_events.pop() {
-            Some(event) => event,
-            None => break,
-        };
+        let Some(event) = service.domain_events.pop() else { break };
         observe_messages(service, &event);
         domain::step(
             service.domain.as_mut().expect("framed agent owns its domain"),
@@ -509,10 +477,7 @@ pub(super) fn domain_up(service: &mut Service) {
 // A capture copy waits only on this entrance's facts, never in the input
 // queue. The next entrance is held until every prior fact reaches its sinks.
 fn observe_messages(service: &mut Service, event: &domain::Event) {
-    let events = match &mut service.events {
-        Some(events) => events,
-        None => return,
-    };
+    let Some(events) = &mut service.events else { return };
     match event {
         domain::Event::Start { messages, .. } => {
             for message in messages {
@@ -538,7 +503,7 @@ fn observe_messages(service: &mut Service, event: &domain::Event) {
     }
 }
 
-// The root's optional legacy observer is not the typed event stream. Its
+// The root's optional content observer is not the typed event stream. Its
 // standalone API remains available to domain hosts; this composed service
 // captures provider content before decoding and drains each root entrance.
 fn drain_legacy_content(service: &mut Service) {

@@ -1,6 +1,6 @@
 //! Public canonical feedback controls with independently specified exact bytes.
-//! Contract: domain/run.md, sections 5.2, 7, 8 and 10;
-//! testing-strategy.md, section 7.
+//! Contract: smith/docs/design/domain/run.md, sections 5.2, 7, 8 and 10;
+//! skein/docs/foundation/testing-strategy.md, section 7.
 
 use skein_lib::Duration;
 use smith_domain::{Feedback, FeedbackRefusal, feedback, run};
@@ -17,11 +17,11 @@ fn bytes(text: &[u8]) -> Box<[u8]> {
 #[test]
 fn host_moves_without_copy_and_child_prefix_precedes_usage() {
     for error in [false, true] {
-        let text = bytes("actual ✓\n".as_bytes());
+        let text = bytes("✓\n".as_bytes());
         let pointer = text.as_ptr();
         let answer = run::HostAnswer::new(text, error).expect("sealed host text");
         let got = feedback(run::Returned::HostAnswered(answer), 64).expect("compatible cap");
-        assert_eq!(got.text.as_ref(), "actual ✓\n".as_bytes());
+        assert_eq!(got.text.as_ref(), "✓\n".as_bytes());
         assert_eq!(got.text.as_ptr(), pointer);
         assert_eq!(got.error, error);
     }
@@ -60,7 +60,7 @@ fn opaque_receipts_diagnostics_markers_and_check_tail_are_lossless_ascii() {
     let opaque = [0xff, b'"', b'\\', 0, b'\n', b' ', b'a'];
     let encoded = br#""\xff\x22\x5c\x00\x0a a""#;
     let receipts = run::Delivered::new(Box::new([run::Receipt::new(2, bytes(&opaque)).expect("bounded receipt")]))
-        .expect("actual sealed receipts");
+        .expect("seen sealed receipts");
     let got = feedback(run::Returned::Delivered(receipts), 128).expect("full evidence fits");
     assert_eq!(got.text.as_ref(), [b"delivered\nreceipt directory=2 text=".as_slice(), encoded].concat());
     assert!(!got.error);

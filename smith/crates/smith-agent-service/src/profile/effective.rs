@@ -1,6 +1,6 @@
 //! Names and units retained for startup comparisons and effective-limit reporting.
 //! This module keeps no configuration or derived state. Contract:
-//! protocol/limits.md, sections 4, 8 and 9.
+//! smith/docs/design/protocol/limits.md, sections 4, 8 and 9.
 
 use skein_lib::Duration;
 

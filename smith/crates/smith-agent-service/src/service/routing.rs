@@ -1,6 +1,6 @@
 //! IO terminals and kernel submissions routed to their original owners.
 //! The service retains owner and operation routes; this stage never interprets
-//! domain outcomes. Contract: protocol/agent.md, sections 4–6.
+//! domain outcomes. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use super::teardown::{Step, Teardown};
 use super::{COMPONENT_OWNER_BIT, Operation, Owner, Service, USAGE_OWNER, program, teardown};
@@ -131,10 +131,7 @@ pub(super) fn route_io_event(service: &mut Service, event: io::Event) {
 }
 
 pub(super) fn route_owned_io(service: &mut Service, event: io::Event) {
-    let event = match program::pipe_event(service, event) {
-        Some(event) => event,
-        None => return,
-    };
+    let Some(event) = program::pipe_event(service, event) else { return };
     let owner = io_event_owner(&event).expect("only signal events lack owner");
     if service.pipe_routes.contains_key(&owner) {
         let closed = match &event {
@@ -258,10 +255,7 @@ pub(super) fn io_down(service: &mut Service) {
             if !io.takes() {
                 break;
             }
-            let request = match service.io_requests.pop() {
-                Some(request) => request,
-                None => break,
-            };
+            let Some(request) = service.io_requests.pop() else { break };
             io::down(io, &service.io_env, request, &mut service.io_submissions);
         }
     }
@@ -269,20 +263,14 @@ pub(super) fn io_down(service: &mut Service) {
         if service.submissions.room() == 0 || service.operations.len() >= service.operations.capacity() {
             break;
         }
-        let submit = match service.io_submissions.pop() {
-            Some(submit) => submit,
-            None => break,
-        };
+        let Some(submit) = service.io_submissions.pop() else { break };
         route_submission(service, submit, false);
     }
     for _ in 0..service.limits.queue {
         if service.submissions.room() == 0 || service.operations.len() >= service.operations.capacity() {
             break;
         }
-        let submit = match service.file_submissions.pop() {
-            Some(submit) => submit,
-            None => break,
-        };
+        let Some(submit) = service.file_submissions.pop() else { break };
         route_submission(service, submit, true);
     }
 }

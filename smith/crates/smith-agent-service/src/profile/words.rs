@@ -1,7 +1,7 @@
 //! Operator lines retain a refusal's relationship, names and units within the
 //! vocabulary's 512-byte bound. No configuration or provider text is retained.
-//! `words` meets the shell. Contract: protocol/agent.md, section 6;
-//! protocol/limits.md, sections 4 and 8.
+//! `words` meets the shell. Contract: smith/docs/design/protocol/agent.md, section 6;
+//! smith/docs/design/protocol/limits.md, sections 4 and 8.
 
 use alloc::boxed::Box;
 use skein_lib::List;

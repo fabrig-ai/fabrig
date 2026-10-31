@@ -1,12 +1,10 @@
 //! Bounded provider call joins for event starts and terminals.
-//! The book keeps the session-issued owner, actual provider identity, public
+//! The book keeps the session-issued owner, provider identity, public
 //! conversation scope and start time until the terminal fact. It never owns
 //! result content or a rendered result. Selected provider arguments wait in a
-//! bounded input book until their actual start. Workspace caps arrive from
+//! bounded input book until their start. Workspace caps arrive from
 //! the tool's terminal; delegated content remains outside this projection.
-//! Contracts: protocol/events.md, sections 3.1, 3.6 and 5; domain/run.md, section 11.
-
-#![expect(clippy::manual_let_else, reason = "bounded production entries keep explicit Option terminals")]
+//! Contracts: smith/docs/design/protocol/events.md, sections 3.1, 3.6 and 5; smith/docs/design/domain/run.md, section 11.
 
 mod builtin;
 mod jobs;
@@ -31,7 +29,7 @@ struct Call {
     omitted_bytes: u64,
 }
 
-/// Actual session batch capacities and aggregate provider metadata ownership.
+/// Session batch capacities and aggregate provider metadata ownership.
 #[derive(Clone, Copy)]
 struct Bounds {
     slots: u32,
@@ -51,7 +49,7 @@ impl Bounds {
     }
 }
 
-/// One bounded set of actual provider calls which still owe a terminal.
+/// One bounded set of provider calls which still owe a terminal.
 #[derive(Debug)]
 pub(crate) struct Book {
     calls: Map<Token, Call>,
@@ -81,7 +79,7 @@ impl Book {
         self.inputs.received(owner, completion);
     }
 
-    /// Join a validated root ask to its already observed actual provider call.
+    /// Join a validated root ask to its already observed provider call.
     pub(crate) fn called(&mut self, owner: Token, scope: Scope, ask: smith_domain::run::facts::Asked) {
         let call = self.calls.get(&owner).expect("session delegation precedes the causal root ask");
         assert_eq!(call.scope.run, scope.run, "the root call belongs to its provider activation");
@@ -102,7 +100,7 @@ impl Book {
         self.calls.get(&owner).expect("the returning child retains its provider call").metadata.id.clone()
     }
 
-    /// Actual provider identity of the call which opened this child.
+    /// Provider identity of the call which opened this child.
     pub(crate) fn child_opened(
         &mut self,
         owner: Token,
@@ -112,9 +110,9 @@ impl Book {
         granted: smith_domain::run::Granted,
         at: Time,
     ) -> Box<[u8]> {
-        let call = self.calls.get_mut(&call_owner).expect("actual delegated sub-agent call precedes opening");
+        let call = self.calls.get_mut(&call_owner).expect("delegated sub-agent call precedes opening");
         assert_eq!(call.scope.run, parent.run, "the child and its call belong to the same activation");
-        assert_eq!(call.scope.conversation, parent.conversation, "the child keeps its actual provider asker");
+        assert_eq!(call.scope.conversation, parent.conversation, "the child keeps its provider asker");
         call.clamped = lowered(granted.turns_set) || lowered(granted.time_set);
         self.children.opened(owner, number, call_owner, at);
         call.metadata.id.clone()
@@ -132,8 +130,7 @@ impl Book {
         self.children.returned(owner, result);
         match result {
             smith_domain::run::facts::Return::Answered { cut, .. } => {
-                self.calls.get_mut(&owner).expect("actual child retains its enclosing provider call").omitted_bytes =
-                    cut;
+                self.calls.get_mut(&owner).expect("child retains its enclosing provider call").omitted_bytes = cut;
             }
             smith_domain::run::facts::Return::Crossed
             | smith_domain::run::facts::Return::Waited
@@ -160,14 +157,14 @@ impl Book {
             self.landing = None;
         }
         if let Some(delivery) = returned_delivery(result) {
-            let call = self.calls.get_mut(&owner).expect("root terminal keeps its actual provider call");
+            let call = self.calls.get_mut(&owner).expect("root terminal keeps its provider call");
             call.delivery = Some(delivery);
         }
     }
 
     /// Root deliveries are serialized main writes; no name or text parser joins them.
     pub(crate) fn delivered(&mut self, status: smith_domain::run::DeliveryStatus) {
-        let owner = self.landing.expect("actual delivery belongs to the exclusive main landing");
+        let owner = self.landing.expect("delivery belongs to the exclusive main landing");
         let call = self.calls.get_mut(&owner).expect("landing retains its provider call");
         call.delivery = Some(match status {
             smith_domain::run::DeliveryStatus::Delivered => smith_events::Delivered::Delivered,
@@ -178,21 +175,15 @@ impl Book {
         });
     }
 
-    /// Project only a fact with actual provider metadata; kit lifecycle is not a call.
+    /// Project only a fact with provider metadata; kit lifecycle is not a call.
     pub(crate) fn fact(&mut self, origin: Time, fact: &session::Fact, sinks: &mut Sinks) {
         self.children.session(fact);
         if self.builtin.fact(origin, fact, &mut self.inputs, sinks) {
             return;
         }
-        let opener = match self.call_opener(fact) {
-            Some(opener) => opener,
-            None => return,
-        };
-        let metadata = match &fact.call {
-            Some(metadata) => metadata,
-            None => return,
-        };
-        let scope = sinks.scope(opener).expect("actual conversation opening precedes its provider call");
+        let Some(opener) = self.call_opener(fact) else { return };
+        let Some(metadata) = &fact.call else { return };
+        let scope = sinks.scope(opener).expect("conversation opening precedes its provider call");
         match fact.kind {
             session::FactKind::Tools { fact: tools::FactKind::Started { .. }, .. }
             | session::FactKind::DelegateStarted { .. } => {
@@ -202,7 +193,7 @@ impl Book {
                 fact: tools::FactKind::Answered { verdict, bytes, job, omitted_bytes, clamped, .. },
                 ..
             } => {
-                // An entrance refusal settles the session's actual call in
+                // An entrance refusal settles the session's call in
                 // the same step, without a lower work-start fact or IO.
                 if !self.calls.contains_key(&metadata.owner) {
                     sinks.record(&self.started(origin, fact.at, opener, scope, metadata));
@@ -254,7 +245,7 @@ impl Book {
                     | tools::FactKind::JobEnded { .. }
                     | tools::FactKind::Closed { .. },
                 ..
-            } => unreachable!("only selected actual call facts reach projection"),
+            } => unreachable!("only selected call facts reach projection"),
         }
     }
 
@@ -302,7 +293,7 @@ impl Book {
         let input = self.inputs.take(opener, metadata);
         let bytes = metadata_bytes(metadata);
         self.bytes = self.bytes.checked_add(bytes).expect("bounded call identity sum fits");
-        assert!(self.bytes <= self.bound, "actual source batches bound copied provider identity");
+        assert!(self.bytes <= self.bound, "source batches bound copied provider identity");
         let old = self
             .calls
             .insert(
@@ -310,7 +301,7 @@ impl Book {
                 Call { metadata: metadata.clone(), scope, at, delivery: None, clamped: false, omitted_bytes: 0 },
             )
             .expect("source session run slab bounds active event calls");
-        assert!(old.is_none(), "one provider start per actual session call owner");
+        assert!(old.is_none(), "one provider start per session call owner");
         let source = match metadata.source {
             session::ToolSource::Workspace => smith_events::Source::Workspace,
             session::ToolSource::Run => smith_events::Source::Run,
@@ -337,7 +328,7 @@ impl Book {
     }
 
     fn completed(&mut self, origin: Time, at: Time, metadata: &session::ToolCall, terminal: Terminal) -> Record {
-        let call = self.calls.remove(&metadata.owner).expect("actual terminal follows its one start");
+        let call = self.calls.remove(&metadata.owner).expect("terminal follows its one start");
         assert_eq!(call.metadata, *metadata, "terminal keeps its exact parent call metadata");
         self.bytes = self.bytes.checked_sub(metadata_bytes(&call.metadata)).expect("identity was retained at start");
         Record {
@@ -351,10 +342,7 @@ impl Book {
                 exit: terminal.exit,
                 job: terminal.job,
                 bytes: terminal.bytes,
-                omitted_bytes: terminal
-                    .omitted_bytes
-                    .checked_add(call.omitted_bytes)
-                    .expect("bounded actual tool omissions"),
+                omitted_bytes: terminal.omitted_bytes.checked_add(call.omitted_bytes).expect("bounded tool omissions"),
                 clamped: terminal.clamped || call.clamped,
                 duration_ms: millis(at, call.at),
                 child: self.children.take(metadata.owner),
@@ -493,7 +481,7 @@ fn verdict_kind(verdict: tools::Verdict) -> smith_events::Verdict {
     }
 }
 
-/// Whether call joins and their metadata counter fit (programming-model.md, 6.3).
+/// Whether call joins and their metadata counter fit (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub(crate) fn valid(limits: &session::Limits) -> bool {
     Bounds::derive(limits).is_some() && builtin::valid(limits)
@@ -582,7 +570,7 @@ mod tests {
         let metadata = session::ToolCall {
             owner: Token::new(43),
             id: b"provider-\"id".as_slice().into(),
-            name: b"actual-tool".as_slice().into(),
+            name: b"tool".as_slice().into(),
             source: session::ToolSource::Workspace,
             effect: tools::Effect::Read,
             deadline: Time::from_nanos(103_000_000),
@@ -632,7 +620,7 @@ mod tests {
     }
 
     #[test]
-    fn a_running_shell_terminal_names_its_actual_job() {
+    fn a_running_shell_terminal_names_its_seen_job() {
         let source = source();
         let (mut book, mut sinks, destination, opener, metadata) = fixture(&source, Capture::None);
         book.fact(Time::ZERO, &running_fact(opener, metadata), &mut sinks);
@@ -727,7 +715,7 @@ mod tests {
     }
 
     #[test]
-    fn actual_workspace_terminals_keep_scalar_measurements_and_provider_identity_under_every_capture() {
+    fn seen_workspace_terminals_keep_scalar_measurements_and_provider_identity_under_every_capture() {
         let source = source();
         for capture in [Capture::None, Capture::Calls, Capture::Everything] {
             for (verdict, expected, exit, omitted, clamped) in [
@@ -787,9 +775,7 @@ mod tests {
                     },
                 );
                 let records = drain(&mut sinks, destination);
-                let [started, completed, _] = records.as_slice() else {
-                    panic!("one actual start and one completed record")
-                };
+                let [started, completed, _] = records.as_slice() else { panic!("one start and one completed record") };
                 let Event::ToolStarted(started) = &started.event else { panic!("start") };
                 let Event::ToolCompleted(completed) = &completed.event else { panic!("completed") };
                 assert_eq!((started.run, started.conversation, completed.run, completed.conversation), (77, 0, 77, 0));
@@ -814,9 +800,9 @@ mod tests {
     #[test]
     #[expect(
         clippy::too_many_lines,
-        reason = "one15-case child control keeps the actual three-layer typed source join together"
+        reason = "one 15-case child control keeps the three-layer typed source join together"
     )]
-    fn actual_child_terminals_join_public_identity_reported_usage_and_omissions_under_every_capture() {
+    fn seen_child_terminals_join_public_identity_reported_usage_and_omissions_under_every_capture() {
         use smith_domain::run;
         let source = source();
         let used = run::facts::Used { turns: 2, spend: 18, time: Duration::from_millis(13) };
@@ -873,7 +859,7 @@ mod tests {
                 let scope = sinks.scope(opener).unwrap();
                 book.called(metadata.owner, scope, run::facts::Asked::SubAgent);
                 let child = Token::new(92);
-                let actual_id = book.child_opened(
+                let seen_id = book.child_opened(
                     child,
                     19,
                     metadata.owner,
@@ -887,7 +873,7 @@ mod tests {
                     },
                     Time::from_nanos(5_000_000),
                 );
-                assert_eq!(actual_id, metadata.id);
+                assert_eq!(seen_id, metadata.id);
                 for (number, charge, usage) in [
                     (
                         1,
@@ -1007,7 +993,7 @@ mod tests {
         }
     }
     #[test]
-    fn actual_main_deliveries_keep_the_exclusive_provider_call_under_every_capture() {
+    fn seen_main_deliveries_keep_the_exclusive_provider_call_under_every_capture() {
         use smith_domain::run;
         let source = source();
         for capture in [Capture::None, Capture::Calls, Capture::Everything] {
@@ -1070,7 +1056,7 @@ mod tests {
                     );
                     let records = drain(&mut sinks, destination);
                     let [_, terminal, _] = records.as_slice() else { panic!("paired provider call and process end") };
-                    let Event::ToolCompleted(completed) = &terminal.event else { panic!("actual provider terminal") };
+                    let Event::ToolCompleted(completed) = &terminal.event else { panic!("provider terminal") };
                     assert_eq!(completed.call, metadata.id);
                     assert_eq!(completed.tool, metadata.name);
                     assert_eq!(completed.delivery, Some(expected.clone()));

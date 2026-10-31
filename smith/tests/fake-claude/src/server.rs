@@ -1,4 +1,4 @@
-//! The scripted MCP peer for protocol/programs.md, sections 5 and 8. Keeps
+//! The scripted MCP peer for smith/docs/design/protocol/programs.md, sections 5 and 8. Keeps
 //! a script and verdict cursor; knows no login. `served` and `server_main`
 //! drive the same line machine, which settles on input EOF or termination.
 

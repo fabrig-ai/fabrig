@@ -1,4 +1,4 @@
-//! Projection of program call facts (protocol/events.md, section 3.6).
+//! Projection of program call facts (smith/docs/design/protocol/events.md, section 3.6).
 //! Only start times are held; terminal facts carry the session's same identity.
 //! The common session issuer names these calls without retaining result text.
 
@@ -12,7 +12,7 @@ pub(super) struct Book {
     started: Map<Token, Time>,
 }
 
-/// Whether every owed program call can be named (programming-model.md, 6.3).
+/// Whether every owed program call can be named (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub(super) fn valid(limits: &session::Limits) -> bool {
     limits.sessions.checked_mul(limits.completion_blocks).is_some()

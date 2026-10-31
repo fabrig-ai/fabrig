@@ -1,4 +1,4 @@
-//! Program declarations and endpoint bindings (protocol/agent.md, section 4).
+//! Program declarations and endpoint bindings (smith/docs/design/protocol/agent.md, section 4).
 //! Keeps paths and adapter names only; it never opens or runs a program.
 
 use std::{collections::BTreeMap, path::PathBuf};
@@ -8,14 +8,14 @@ use smith_agent_service::profile::{Layer, LimitName, Per, Refusal};
 
 use super::{ConfigurationRefusal, Endpoint};
 
-/// A program the agent may run as a backend (protocol/agent.md, section 4).
+/// A program the agent may run as a backend (smith/docs/design/protocol/agent.md, section 4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ProgramName {
     /// Claude Code, selected by the configuration for program sources.
     ClaudeCode,
 }
 
-/// A program's executable and directory of source configurations (programs.md, 4.2).
+/// A program's executable and directory of source configurations (smith/docs/design/protocol/programs.md, 4.2).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Program {
     pub path: PathBuf,

@@ -701,7 +701,7 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
 #[test]
 fn an_answer_is_taken_past_the_watermark() {
     let mut service = at_watermark();
-    // These advance previously admitted work and can increase the backlog.
+    // These advance admitted work and can increase the backlog.
     let relay = run::RelayName { owner: Token::new(5), attempt: 1 };
     service
         .channel_events

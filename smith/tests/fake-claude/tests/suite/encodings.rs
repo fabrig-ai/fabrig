@@ -1,5 +1,5 @@
-//! Story and observation records (protocol/programs.md, section 8;
-//! testing.md, section 4).
+//! Story and observation records (smith/docs/design/protocol/programs.md, section 8;
+//! smith/docs/design/testing.md, section 4).
 
 use smith_fake_claude::{Login, Logout, Observation, Status, Story, observations};
 

@@ -1,4 +1,4 @@
-//! The sink's typed live view (protocol/events.md, section 5.2).
+//! The sink's typed live view (smith/docs/design/protocol/events.md, section 5.2).
 //! Only displayed fields are copied; prompts, completions and tool inputs never
 //! enter its queue. Destinations continue to receive the original record.
 use alloc::boxed::Box;

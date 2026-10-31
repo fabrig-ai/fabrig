@@ -6,9 +6,9 @@ use skein_lib::{List, Reader, Writer};
 use smith_agent_process_world::{World, charter};
 
 // The end-to-end regression repeats this twenty-byte line 160 times: 3,200
-// content bytes, beyond its former 2,048-byte tool-input bound.
+// content bytes across a 2,048-byte input threshold.
 const CODING_LINES: usize = 160;
-const FORMER_INPUT: usize = 2048;
+const INPUT_THRESHOLD: usize = 2048;
 // Seven provider turns: large write, two reads, edit, replacement, shell, finish.
 const CALLS: usize = 7;
 const OUTPUT: u32 = 32_768;
@@ -63,12 +63,11 @@ fn coding_charter() -> Box<[u8]> {
     bytes.finish()
 }
 
-/// Lower test of smith's `end_to_end::standard_profile_runs_a_large_coding_write_and_the_following_checks` (top tiers test wiring only).
 #[test]
 fn a_standard_coding_write_reaches_following_calls_and_checks() {
     let content = "// coding regression\n".repeat(CODING_LINES);
     let large = serde_json::to_vec(&serde_json::json!({"path":"result.txt", "content":content})).expect("write input");
-    assert!(large.len() > FORMER_INPUT, "the regression crosses the former input bound");
+    assert!(large.len() > INPUT_THRESHOLD, "the write crosses the input threshold");
     let mut calls = vec![(b"write".as_slice(), large)];
     calls.extend(
         [

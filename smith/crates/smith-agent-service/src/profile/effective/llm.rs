@@ -1,5 +1,5 @@
 //! Named projections of admitted layer limits, without retained state.
-//! Contract: protocol/limits.md, section 9.
+//! Contract: smith/docs/design/protocol/limits.md, section 9.
 
 use super::list::Inventory;
 use super::{Layer, Value};

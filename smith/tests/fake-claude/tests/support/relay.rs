@@ -1,6 +1,4 @@
-//! The real run server and shipped relay around the fake (programs.md, 5.3, 9).
-
-#![allow(dead_code, reason = "shared support is compiled by integration binaries that exercise other scenarios")]
+//! The real run server and shipped relay around the fake (smith/docs/design/protocol/programs.md, 5.3).
 
 use serde_json::{Value, json};
 use skein_fake_machine::{Item, Machine as Files};

@@ -1,5 +1,5 @@
 //! Optional workspace and mixed mounts on the typed fake LLM world.
-//! Contract: domain/run.md, sections 3 and 8; domain/tools.md, sections 2–4.
+//! Contract: smith/docs/design/domain/run.md, sections 3 and 8; smith/docs/design/domain/tools.md, sections 2–4.
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Script, Turn};
@@ -68,7 +68,7 @@ fn mixed_scripts() -> Box<[Script]> {
                 calls(vec![call(b"write", br#"{"path":".git/HEAD","content":"forbidden"}"#)], 1),
                 calls(vec![call(b"sub_agent", br#"{"brief":"@mixed-read","tools":["inspect"]}"#)], 1),
                 calls(vec![call(b"sub_agent", br#"{"brief":"@mixed-write","tools":["inspect","modify"]}"#)], 1),
-                calls(vec![call(b"deliver", br#"{"ticket":"mixed-actual-tree"}"#)], 1),
+                calls(vec![call(b"deliver", br#"{"ticket":"mixed-tree"}"#)], 1),
                 calls(vec![call(b"finish", br#"{"report":"Mixed directories handled.","source":"workspace"}"#)], 1),
             ]
             .into(),
@@ -181,7 +181,7 @@ fn mixed_git_plain_and_readonly_mounts_share_discovery_and_child_authority() {
             break;
         }
     }
-    assert_eq!(world.delivery_submissions().len(), 1, "actual parent delivery reached");
+    assert_eq!(world.delivery_submissions().len(), 1, "parent delivery reached");
     assert_eq!(world.checked(), [true, true]);
     assert_eq!(world.disk().content(b"work/data.txt"), Some(b"child-git".as_slice()));
     assert_eq!(world.disk().content(b"notes/data.txt"), Some(b"child".as_slice()));
@@ -195,7 +195,7 @@ fn mixed_git_plain_and_readonly_mounts_share_discovery_and_child_authority() {
         run::Receipt::new(2, b"notes: changed plain files kept".as_slice().into()).expect("plain receipt"),
     ]))
     .expect("exact changed writable ordinals");
-    world.return_delivery(owner, run::Delivery::Delivered(receipts)).expect("one actual terminal");
+    world.return_delivery(owner, run::Delivery::Delivered(receipts)).expect("one terminal");
     world.run(10_000);
     assert!(matches!(world.answer(), run::Answer::Accepted { outcome: run::outcome::Declared::Report(_), .. }));
     let discovery = world
@@ -229,7 +229,7 @@ fn mixed_git_plain_and_readonly_mounts_share_discovery_and_child_authority() {
     assert_eq!(checks, [roots[0], roots[2]], "readonly executable files never become checks");
     for query in world.prompts() {
         for name in [b"work".as_slice(), b"archive", b"notes", b"reference"] {
-            assert!(contains(&query.system, &[b"guide-", name].concat()), "same actual guides in main and children");
+            assert!(contains(&query.system, &[b"guide-", name].concat()), "same guides in main and children");
         }
         for metadata in [
             b"`work`, which you may change, a git working tree".as_slice(),

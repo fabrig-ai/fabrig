@@ -1,5 +1,4 @@
-//! One scripted host workspace, copied from temper `25ac2ad` without forge
-//! metadata (domain/run.md, section 14). The fake checkout owns bytes and
+//! One scripted host workspace without forge metadata (smith/docs/design/domain/run.md, section 13). The fake checkout owns bytes and
 //! process scripts; neither this fixture nor the agent contacts a filesystem.
 
 use skein_fake_checkout::{Checkout, Exit, Program};

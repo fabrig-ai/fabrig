@@ -1,7 +1,7 @@
 //! Declared deployment and model quantities retained at startup. This module
 //! knows no transport destinations or derived byte limits. `standard` supplies
 //! the standard deployment bundle; the service composes derivation separately.
-//! Contracts: protocol/limits.md, section 2; protocol/agent.md, section 4.
+//! Contracts: smith/docs/design/protocol/limits.md, section 2; smith/docs/design/protocol/agent.md, section 4.
 
 use alloc::boxed::Box;
 use skein_lib::Duration;
@@ -23,13 +23,11 @@ pub struct Fraction {
 /// Deployment quantities from which the service derives ownership bounds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Declared {
-    /// Open conversations across a run tree.
     pub conversations: u32,
     /// Bytes exchanged in one tool piece.
     pub tool_payload: u32,
     /// Largest file the tools hold whole, in bytes.
     pub file_bytes: u32,
-    /// Tool calls one response may make.
     pub calls_per_response: u32,
     /// Jobs held by one session, including ended jobs not yet read.
     pub jobs: u32,
@@ -58,27 +56,18 @@ pub struct Declared {
 /// Count and duration ceilings selected by the deployment profile.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Policy {
-    /// Maximum charter turns.
     pub max_turns: u32,
     /// Maximum charter spend, in the host unit.
     pub max_spend: u64,
-    /// Maximum charter wall time.
     pub max_time: Duration,
-    /// Maximum charter waiting time.
     pub max_waiting: Duration,
-    /// Maximum brief sections.
     pub sections: u32,
-    /// Maximum charter host tools.
     pub host_tools: u32,
-    /// Maximum outcome verdicts.
     pub verdicts: u32,
-    /// Maximum outcome items.
     pub items: u32,
-    /// Maximum outcome fields.
     pub fields: u32,
     /// Unread messages per run.
     pub inbox: u32,
-    /// Maximum unacknowledged channel turns.
     pub unacknowledged: u32,
     /// Window share at which compaction begins.
     pub compaction_threshold: Fraction,
@@ -100,7 +89,6 @@ pub struct Policy {
     pub wrap_up: Duration,
     /// Duration of each command group stop step.
     pub group_stop: Duration,
-    /// IO close deadline.
     pub close: Duration,
     /// Event stream write deadline.
     pub write_deadline: Duration,
@@ -110,7 +98,7 @@ pub struct Policy {
     pub exit_grace: Duration,
     /// Lead before access-token expiry at which the local host refreshes a sign-in record.
     pub refresh_lead: Duration,
-    /// Longest hold before projecting live bytes (protocol/limits.md 2.3).
+    /// Longest hold before projecting live bytes (smith/docs/design/protocol/limits.md 2.3).
     pub live_interval: Duration,
 }
 
@@ -145,7 +133,7 @@ pub struct Endpoint {
     pub number: u32,
     /// The dialect whose limits are derived for this destination.
     pub provider: skein_llm::Provider,
-    /// Actual configured option and identity bytes added to Smith's own part.
+    /// Configured option and identity bytes added to Smith's own part.
     pub option_bytes: u64,
     pub connect: Duration,
     pub handshake: Duration,
@@ -162,7 +150,7 @@ pub struct Configuration {
     pub endpoints: Box<[Endpoint]>,
 }
 
-/// The standard deployment and policy values of shell.md, sections 6.3 and 6.5.
+/// The standard deployment and policy values of smith/docs/design/shell.md, sections 6.3 and 6.5.
 #[must_use]
 pub const fn standard() -> Profile {
     Profile {

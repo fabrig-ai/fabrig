@@ -4,7 +4,6 @@ use smith_agent_process_world::{TraceCase, World, charter};
 use smith_channel::RunResult;
 use smith_events::{Event, RunCompleted, Status};
 
-/// Lower test of smith's `end_to_end::the_agents_trace_header_carries_its_effective_limits` (top tiers test wiring only).
 #[test]
 fn the_trace_header_carries_exact_effective_memory_and_history_limits() {
     let mut world = World::new(81, &charter());
@@ -53,7 +52,7 @@ fn terminal(world: &World) -> &RunCompleted {
             | Event::Notice(_) => None,
         })
         .collect();
-    assert_eq!(terminals.len(), 1, "one typed actual answer, including an entrance refusal");
+    assert_eq!(terminals.len(), 1, "one typed answer, including an entrance refusal");
     assert_eq!(world.trace_loss(), 0, "trace room is independent of channel room");
     assert!(matches!(world.records().first().expect("header").event, Event::SessionStarted(_)));
     let Event::SessionEnded(end) = &world.records().last().expect("end").event else { panic!("end is last") };
@@ -93,7 +92,7 @@ fn a_host_slow_to_acknowledge_loses_projected_facts_and_the_trace_keeps_them() {
     let wide_projected = wide.observed().iter().filter(|frame| frame.kind == 0x010f).count();
     assert!(
         projected < wide_projected,
-        "the constrained channel loses actual projected facts: narrow={projected}/loss{} wide={wide_projected}/loss{}",
+        "the constrained channel loses projected facts: narrow={projected}/loss{} wide={wide_projected}/loss{}",
         narrow.channel_loss(),
         wide.channel_loss()
     );
@@ -161,12 +160,12 @@ fn every_answer_kind_reaches_the_trace_with_its_terminal_fact_once() {
     clippy::wildcard_enum_match_arm,
     reason = "the test selects three typed records from a checked complete stream"
 )]
-fn a_real_child_joins_its_actual_opening_response_usage_and_enclosing_tool_terminal() {
+fn a_real_child_joins_its_seen_opening_response_usage_and_enclosing_tool_terminal() {
     let mut world = World::new(19, &charter());
     world.observe_facts(TraceCase::ChildAnswered, 4);
     world.check_memory();
     assert!(world.settle());
-    assert!(matches!(world.answer().expect("actual host answer").result(), RunResult::Accepted(_)));
+    assert!(matches!(world.answer().expect("host answer").result(), RunResult::Accepted(_)));
     world.assert_event_conformance();
     let children: Vec<_> = world
         .records()
@@ -176,12 +175,12 @@ fn a_real_child_joins_its_actual_opening_response_usage_and_enclosing_tool_termi
             _ => None,
         })
         .collect();
-    assert_eq!(children.len(), 1, "one actual delegated opening");
+    assert_eq!(children.len(), 1, "one delegated opening");
     let child = children[0];
     assert_eq!(child.parent, Some(0));
     assert!(child.call.is_some());
-    assert_eq!(child.requested.as_ref().expect("actual child ask").turns, Some(2));
-    assert_eq!(child.requested.as_ref().expect("actual child ask").seconds, Some(30));
+    assert_eq!(child.requested.as_ref().expect("child ask").turns, Some(2));
+    assert_eq!(child.requested.as_ref().expect("child ask").seconds, Some(30));
     let completions: Vec<_> = world
         .records()
         .iter()
@@ -193,10 +192,10 @@ fn a_real_child_joins_its_actual_opening_response_usage_and_enclosing_tool_termi
     assert_eq!(completions.len(), 1);
     let completed = completions[0];
     assert_eq!(Some(&completed.call), child.call.as_ref());
-    let actual = completed.child.as_ref().expect("actual child terminal");
-    assert_eq!(actual.conversation, child.conversation);
-    assert_eq!(actual.stop, smith_events::ChildStop::End);
-    assert_eq!(actual.turns, 1);
+    let seen = completed.child.as_ref().expect("child terminal");
+    assert_eq!(seen.conversation, child.conversation);
+    assert_eq!(seen.stop, smith_events::ChildStop::End);
+    assert_eq!(seen.turns, 1);
     let responses: Vec<_> = world
         .records()
         .iter()
@@ -206,9 +205,9 @@ fn a_real_child_joins_its_actual_opening_response_usage_and_enclosing_tool_termi
         })
         .collect();
     assert_eq!(responses.len(), 1);
-    assert_eq!(actual.usage, responses[0].usage);
-    assert_eq!(actual.spent, responses[0].spent);
-    assert_eq!(completed.omitted_bytes, 0, "short actual answer fits its tool cap");
+    assert_eq!(seen.usage, responses[0].usage);
+    assert_eq!(seen.spent, responses[0].spent);
+    assert_eq!(completed.omitted_bytes, 0, "short answer fits its tool cap");
     world.assert_agent_clean();
 }
 
@@ -217,7 +216,7 @@ fn a_real_child_joins_its_actual_opening_response_usage_and_enclosing_tool_termi
     clippy::wildcard_enum_match_arm,
     reason = "the native source control selects one message receipt from the complete stream"
 )]
-fn initial_task_receipt_carries_the_actual_channel_label_and_text() {
+fn initial_task_receipt_carries_the_seen_channel_label_and_text() {
     let mut world = World::new(31, &charter());
     world.initial_message(901, b"task", b"Read the guide. Keep \"quotes\" and a newline.\nALPHA");
     world.observe_facts(TraceCase::Accepted, 4);
@@ -263,7 +262,7 @@ fn child_usage(world: &World, parent: u64, call: &[u8]) -> String {
             }
         }
     }
-    panic!("child result in main's next actual request");
+    panic!("child result in main's next request");
 }
 
 #[test]
@@ -277,7 +276,7 @@ fn a_child_usage_line_tells_the_budget_record_naming_its_call() {
         .iter()
         .filter_map(|record| if let Event::ConversationOpened(child) = &record.event { Some(child) } else { None })
         .find(|child| child.kind == smith_events::ConversationKind::Child)
-        .expect("one actual child");
+        .expect("one child");
     let call = child.call.as_ref().expect("provider call");
     let told: Vec<_> = world
         .records()
@@ -290,7 +289,7 @@ fn a_child_usage_line_tells_the_budget_record_naming_its_call() {
     let turns = budget.turns.limit.saturating_sub(budget.turns.used).saturating_sub(budget.reserve.turns);
     let seconds =
         budget.time_ms.limit.saturating_sub(budget.time_ms.used).saturating_sub(budget.reserve.time_ms) / 1000;
-    let usage = child_usage(&world, child.parent.expect("the actual child names its parent"), call);
+    let usage = child_usage(&world, child.parent.expect("the child names its parent"), call);
     let expected = format!("; ordinary left {turns} turns and {seconds} seconds.");
     assert!(usage.contains(&expected));
 }
