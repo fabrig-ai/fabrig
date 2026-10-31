@@ -32,7 +32,7 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
         w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 19, request: encoded, value: None },
     )
     .expect("settings envelope");
-    let mut writer = skein_lib::Writer::new(usize::try_from(keyed.measure()).expect("settings measure"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure()));
     keyed.encode(&mut writer).expect("settings envelope");
     exchange.send(crate::Message::Request(writer.finish()));
     exchange.authenticate();
@@ -73,7 +73,7 @@ fn resets_and_removals_translate_and_bad_pieces_reach_no_core() {
     for edit in [w::SettingEdit::Reset, w::SettingEdit::Removed] {
         let item = w::SettingItem::new(&limits, w::SettingItemParts { setting: w::Setting::Rules, edit })
             .expect("settings fixture");
-        let mut writer = skein_lib::Writer::new(usize::try_from(item.measure()).expect("settings fixture"));
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(item.measure()));
         item.encode(&mut writer).expect("settings fixture");
         rows.push(writer.finish()).expect("settings fixture");
     }
@@ -280,7 +280,7 @@ fn proposal_envelope(request: Box<[u8]>, limits: &w::Limits) -> Box<[u8]> {
     let keyed =
         w::Keyed::new(limits, w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 19, request, value: None })
             .expect("whole proposal envelope");
-    let mut writer = skein_lib::Writer::new(usize::try_from(keyed.measure()).expect("wire size"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure()));
     keyed.encode(&mut writer).expect("measured envelope");
     writer.finish()
 }

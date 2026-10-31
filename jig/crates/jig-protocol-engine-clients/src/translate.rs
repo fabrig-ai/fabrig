@@ -50,7 +50,7 @@ fn pieces(rows: &List<Box<[u8]>>, bound: u32, path: w::Path) -> Result<Box<[u8]>
             return Err(w::Problem { path, reason: skein_codec::Reason::Bound });
         }
     }
-    let mut out = Writer::new(usize::try_from(size).expect("u32 pieces fit usize"));
+    let mut out = Writer::new(skein_lib::length::usize_of(size));
     for row in rows {
         match skein_codec::piece::write(&mut out, row) {
             Ok(()) => (),

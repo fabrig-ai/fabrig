@@ -169,7 +169,7 @@ impl Component {
         let Some(owner) = self.owner(exchange) else { return };
         match answer {
             Ok(value) => {
-                let mut bytes = Writer::new(usize::try_from(value.measure()).expect("wire measure fits"));
+                let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
                 value.encode(&mut bytes).expect("measured read answer");
                 self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::Record(bytes.finish()));
             }

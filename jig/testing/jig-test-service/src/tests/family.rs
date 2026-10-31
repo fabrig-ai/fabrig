@@ -108,7 +108,10 @@ fn an_application_outcome_retains_every_terminal_and_its_facts() {
 }
 #[test]
 fn a_document_above_each_receiving_bound_is_refused() {
-    let value = d::ClientDocument::Project { project: f::PROJECT, resources: f::list([f::resource()]) };
+    let value = d::ClientDocument::Project {
+        project: f::PROJECT,
+        resources: skein_lib::List::from_boxed([f::resource()].into()),
+    };
     let record = codec::document(&value);
     for (label, limits) in [
         ("resources", d::Limits { resources: 0, ..f::limits() }),

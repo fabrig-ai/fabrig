@@ -61,7 +61,7 @@ pub fn encode(moved: &Moved, limits: &Limits) -> Result<Secret, Unread> {
         (moved.subject.as_ref(), wire_limits.moved_subject),
         (moved.display.as_ref(), wire_limits.moved_display),
     ] {
-        if field.len() > usize::try_from(cap).expect("schema ceiling fits usize") {
+        if field.len() > skein_lib::length::usize_of(cap) {
             return Err(Unread::TooLarge);
         }
     }

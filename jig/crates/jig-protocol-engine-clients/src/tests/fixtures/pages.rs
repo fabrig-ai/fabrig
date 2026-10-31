@@ -1,5 +1,5 @@
 //! Core page literals independent of the shared wire records.
-use super::{inbox_document, list};
+use super::inbox_document;
 use jig_domain_core::{documents as d, reads};
 use jig_domain_tasks as t;
 use skein_lib::{List, Wall};
@@ -8,17 +8,20 @@ pub fn page(rows: List<reads::PageRow>) -> reads::Page {
     reads::Page { rows, before: None, next: None, cut: true, inbox_selection: None }
 }
 pub fn activity_page() -> reads::Page {
-    let mut page = page(list([
-        reads::PageRow::Activity {
-            line: activity_line(13, 31, 37),
-            turn: Some(reads::PageTurn::Carried(turn_record(31, 37, 19, Some(0), 23, &[255, 0, 1]))),
-        },
-        reads::PageRow::Activity {
-            line: activity_line(11, 41, 43),
-            turn: Some(reads::PageTurn::Carried(turn_record(41, 43, 29, None, 47, &[128, 254]))),
-        },
-        reads::PageRow::Activity { line: activity_line(7, 53, 59), turn: Some(reads::PageTurn::Unread) },
-    ]));
+    let mut page = page(skein_lib::List::from_boxed(
+        [
+            reads::PageRow::Activity {
+                line: activity_line(13, 31, 37),
+                turn: Some(reads::PageTurn::Carried(turn_record(31, 37, 19, Some(0), 23, &[255, 0, 1]))),
+            },
+            reads::PageRow::Activity {
+                line: activity_line(11, 41, 43),
+                turn: Some(reads::PageTurn::Carried(turn_record(41, 43, 29, None, 47, &[128, 254]))),
+            },
+            reads::PageRow::Activity { line: activity_line(7, 53, 59), turn: Some(reads::PageTurn::Unread) },
+        ]
+        .into(),
+    ));
     page.next = Some(reads::Cursor::Store {
         scope: reads::Scope::Activity { task: 7 },
         after: Some(reads::Position::Owner(jig_domain_core::Key::Tasks(t::Key::Activity { task: 7, position: 7 }))),
@@ -53,30 +56,41 @@ fn turn_record(
     }
 }
 pub fn oversized_turn_page() -> reads::Page {
-    page(list([reads::PageRow::Activity {
-        line: activity_line(13, 31, 37),
-        turn: Some(reads::PageTurn::TooLarge { spent: 19, read: Some(0), at: Wall::from_nanos(23), bytes: 8_388_609 }),
-    }]))
+    page(skein_lib::List::from_boxed(
+        [reads::PageRow::Activity {
+            line: activity_line(13, 31, 37),
+            turn: Some(reads::PageTurn::TooLarge {
+                spent: 19,
+                read: Some(0),
+                at: Wall::from_nanos(23),
+                bytes: 8_388_609,
+            }),
+        }]
+        .into(),
+    ))
 }
 pub fn history_page() -> reads::Page {
-    page(list([
-        reads::PageRow::History(d::HistoryLine {
-            task: 7,
-            revision: 19,
-            by: t::Party::Person(23),
-            change: jig_domain_tasks::Change::Amended,
-            reason: d::Text { bytes: Box::from("é".as_bytes()), cut: true },
-            proposal: None,
-            amendment: None,
-            at: None,
-        }),
-        reads::PageRow::Milestone(d::MilestoneLine {
-            task: 7,
-            position: 31,
-            phase: d::MilestonePhase::Waiting,
-            at: Some(Wall::from_nanos(37)),
-        }),
-    ]))
+    page(skein_lib::List::from_boxed(
+        [
+            reads::PageRow::History(d::HistoryLine {
+                task: 7,
+                revision: 19,
+                by: t::Party::Person(23),
+                change: jig_domain_tasks::Change::Amended,
+                reason: d::Text { bytes: Box::from("é".as_bytes()), cut: true },
+                proposal: None,
+                amendment: None,
+                at: None,
+            }),
+            reads::PageRow::Milestone(d::MilestoneLine {
+                task: 7,
+                position: 31,
+                phase: d::MilestonePhase::Waiting,
+                at: Some(Wall::from_nanos(37)),
+            }),
+        ]
+        .into(),
+    ))
 }
 pub fn inbox_page(updates: bool) -> reads::Page {
     let source = inbox_document();
@@ -90,23 +104,26 @@ pub fn inbox_page(updates: bool) -> reads::Page {
     page
 }
 pub fn notes_page() -> reads::Page {
-    page(list([reads::PageRow::Note(d::Note {
-        number: 7,
-        revision: 11,
-        scope: d::NoteLocation::Resources {
-            project: 13,
-            scope: d::NoteScope {
-                connector: 17,
-                segments: list([Box::from([255, b'/', 0])]),
-                last: d::PatternEnd::Open(Box::from([128, 0])),
+    page(skein_lib::List::from_boxed(
+        [reads::PageRow::Note(d::Note {
+            number: 7,
+            revision: 11,
+            scope: d::NoteLocation::Resources {
+                project: 13,
+                scope: d::NoteScope {
+                    connector: 17,
+                    segments: skein_lib::List::from_boxed([Box::from([255, b'/', 0])].into()),
+                    last: d::PatternEnd::Open(Box::from([128, 0])),
+                },
             },
-        },
-        description: d::Text { bytes: Box::from("é".as_bytes()), cut: false },
-        body: d::Text { bytes: Box::from(b"body".as_slice()), cut: true },
-        writer: jig_domain_notes::Author::Task { task: 19, attempt: 23 },
-        tasks: list([29, 31]),
-        changed: Some(Wall::from_nanos(37)),
-        acts: List::with_capacity(0),
-        cut: true,
-    })]))
+            description: d::Text { bytes: Box::from("é".as_bytes()), cut: false },
+            body: d::Text { bytes: Box::from(b"body".as_slice()), cut: true },
+            writer: jig_domain_notes::Author::Task { task: 19, attempt: 23 },
+            tasks: skein_lib::List::from_boxed([29, 31].into()),
+            changed: Some(Wall::from_nanos(37)),
+            acts: List::with_capacity(0),
+            cut: true,
+        })]
+        .into(),
+    ))
 }

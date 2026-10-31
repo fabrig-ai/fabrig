@@ -188,9 +188,7 @@ fn failed(
     detail: &[u8],
     bound: u32,
 ) -> jig::Event {
-    let detail = Box::from(
-        detail.get(..detail.len().min(usize::try_from(bound).expect("detail bound"))).expect("bounded detail"),
-    );
+    let detail = Box::from(detail.get(..detail.len().min(skein_lib::length::usize_of(bound))).expect("bounded detail"));
     let answer = match operation {
         sources::Operation::Check => sources::Answer::Checked(jig::LoginState::Failed { reason, detail }),
         sources::Operation::SignOut => sources::Answer::SignedOut(jig::SignOutResult::Failed { reason, detail }),

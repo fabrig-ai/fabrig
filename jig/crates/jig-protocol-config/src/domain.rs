@@ -110,7 +110,7 @@ pub(crate) fn owners(
             if !known {
                 problems.push(path.member(b"provider"), What::Refers);
             }
-            if subject.len() > usize::try_from(engine.limits.core.people.identity_bytes).expect("identity bound") {
+            if subject.len() > skein_lib::length::usize_of(engine.limits.core.people.identity_bytes) {
                 problems.push(path.member(b"subject"), What::Bound);
             }
             let identity = IdentityKey { provider, subject };
@@ -213,7 +213,7 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     } {
         problems.push(Path::root().member(b"limits").member(b"journal.writes"), What::Bound);
     }
-    if engine.projects.len() >= usize::try_from(limits.people.projects).expect("project capacity fits usize") {
+    if engine.projects.len() >= skein_lib::length::usize_of(limits.people.projects) {
         problems.push(Path::root().member(b"projects"), What::Bound);
     }
     operations(limits, problems);

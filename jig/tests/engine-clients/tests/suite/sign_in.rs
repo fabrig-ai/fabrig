@@ -428,7 +428,7 @@ fn a_reserved_link_answers_its_secret_busy_and_another_refused_without_drawing()
     assert_eq!(decoded(&peer, crossed), w::SignInAnswer::Busy);
     let other = w::LinkSignIn::new(&w::CEILINGS, w::LinkSignInParts { secret: Box::new([0; 32]) })
         .expect("real-length link secret");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(other.measure()).expect("short link record"));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(other.measure()));
     other.encode(&mut bytes).expect("measured link record");
     let wrong = peer.post(b"/jig/v1/sign-in/link", bytes.finish(), None);
     assert_eq!(decoded(&peer, wrong), w::SignInAnswer::Refused);

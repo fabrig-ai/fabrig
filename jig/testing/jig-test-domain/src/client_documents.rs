@@ -51,7 +51,7 @@ pub(crate) fn document(
     };
     let mut requests = core::step(
         &mut domain.core,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+        &env.with(env.limits.core),
         core::Event::View(views::Event::Made { watcher, outcome }),
     );
     for _ in 0..requests.len() {
@@ -142,7 +142,7 @@ pub(crate) fn read(
     let mut out = Queue::uncapped();
     connector::step(
         crate::numbered(domain, number),
-        &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
+        &env.with(env.limits.connector),
         connector::Event::ReadDocument { scope, read, party, window: self::window(window) },
         &mut out,
     );

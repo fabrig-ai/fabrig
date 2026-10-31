@@ -37,14 +37,14 @@ pub fn provider_issuer(
         return Err(Problem { path: path.clone(), what: reason(error) });
     }
     let mut clients = List::with_capacity(bounds.clients);
-    if provider.clients.is_empty() || provider.clients.len() > usize::try_from(bounds.clients).expect("u32 fits") {
+    if provider.clients.is_empty() || provider.clients.len() > skein_lib::length::usize_of(bounds.clients) {
         return Err(Problem { path: path.member(b"clients"), what: What::Bound });
     }
     for (index, configured) in provider.clients.iter().enumerate() {
         let at = path.member(b"clients").child(Segment::Index(u32::try_from(index).expect("bounded clients")));
         let secret = contents(files, &configured.secret, &at.member(b"secret"))?;
         let secret = crate::secret(bytes::copy_of(secret.expose()));
-        if configured.id.is_empty() || configured.id.len() > usize::try_from(bounds.client_bytes).expect("u32 fits") {
+        if configured.id.is_empty() || configured.id.len() > skein_lib::length::usize_of(bounds.client_bytes) {
             return Err(Problem { path: at.member(b"id"), what: What::Bound });
         }
         for byte in &configured.id {
@@ -58,7 +58,7 @@ pub fn provider_issuer(
                 return Err(Problem { path: at.member(b"id"), what: What::Unique });
             }
         }
-        if secret.is_empty() || secret.len() > usize::try_from(bounds.client_bytes).expect("u32 fits") {
+        if secret.is_empty() || secret.len() > skein_lib::length::usize_of(bounds.client_bytes) {
             return Err(Problem { path: at.member(b"secret"), what: What::Bound });
         }
         // Use the issuer's URL rules too; no second reading of its address grammar.

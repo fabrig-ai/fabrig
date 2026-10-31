@@ -197,7 +197,7 @@ fn link_body(engine: &mut crate::Engine) -> Box<[u8]> {
     let value =
         w::LinkSignIn::new(&engine.clients.as_ref().expect("clients").env.limits.wire, w::LinkSignInParts { secret });
     let value = value.expect("bounded sign-in record");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("record bytes"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured record");
     writer.finish()
 }
@@ -513,9 +513,8 @@ fn credential() -> (Box<[u8]>, jig_protocol_engine_clients::Kept) {
     for word in io::digest::digest(&token).0 {
         digest.put(&word.to_be_bytes()).expect("digest word");
     }
-    let mut bearer = Writer::new(
-        usize::try_from(base64::encoded_len(Alphabet::Url, 40).expect("encoded bearer size")).expect("small bearer"),
-    );
+    let mut bearer =
+        Writer::new(skein_lib::length::usize_of(base64::encoded_len(Alphabet::Url, 40).expect("encoded bearer size")));
     base64::encode(Alphabet::Url, &token, &mut bearer).expect("bearer bytes");
     (
         bearer.finish(),
@@ -552,14 +551,14 @@ fn application_read(engine: &crate::Engine) -> Box<[u8]> {
         },
     )
     .expect("family record");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("record bytes"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured family record");
     let record = w::Owned::new(
         limits,
         w::OwnedParts { owner, version: jig_client_test_protocol_wire::VERSION, record: writer.finish() },
     )
     .expect("test owned read");
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("read bytes"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured read");
     writer.finish()
 }
@@ -712,7 +711,7 @@ fn a_call_past_the_mounts_room_is_answered_busy() {
     assert!(clients.refused.is_empty());
     assert_eq!(clients.mount.room(), 0);
     // Retired connections leave their mounted calls until the mount handles the queued ends.
-    for (_, owner, _) in peers.iter().take(usize::try_from(capacity).expect("capacity")) {
+    for (_, owner, _) in peers.iter().take(skein_lib::length::usize_of(capacity)) {
         clients.server.up(io::Event::Closed { owner: *owner }, &mut clients.server_out);
     }
     clients.server_requests();

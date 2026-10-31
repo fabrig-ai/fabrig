@@ -35,7 +35,7 @@ fn check(input: &[u8], limits: &Limits, seed: u64, case: u32) -> bool {
 fn arbitrary_moved_files_never_panic_and_round_trip_when_they_decode() {
     let limits = limits();
     let mut buffer =
-        bytes::zeroed(usize::try_from(moved::bound(&limits)).expect("small bound").checked_add(1).expect("one past"));
+        bytes::zeroed(skein_lib::length::usize_of(moved::bound(&limits)).checked_add(1).expect("one past"));
     for seed in [0x6d6f_7665_0001, 0x6d6f_7665_0002] {
         let mut rng = Rng::new(seed);
         for case in 0..2_000_u32 {

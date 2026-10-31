@@ -138,7 +138,6 @@ impl Component {
         }
     }
 }
-#[expect(clippy::disallowed_methods, reason = "the protocol validates the application identity text (client.md, 8)")]
 fn identity_fits(identity: &people::Identity, bound: u32) -> bool {
     let length = identity.key.subject.len().checked_add(identity.login.len());
     let length = match length {
@@ -147,9 +146,9 @@ fn identity_fits(identity: &people::Identity, bound: u32) -> bool {
     };
     match length {
         Some(length) => {
-            length <= usize::try_from(bound).expect("u32 fits")
-                && ::core::str::from_utf8(&identity.login).is_ok()
-                && ::core::str::from_utf8(&identity.name).is_ok()
+            length <= skein_lib::length::usize_of(bound)
+                && skein_lib::bytes::is_utf8(&identity.login)
+                && skein_lib::bytes::is_utf8(&identity.name)
         }
         None => false,
     }

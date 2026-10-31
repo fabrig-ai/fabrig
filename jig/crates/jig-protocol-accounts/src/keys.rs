@@ -87,7 +87,7 @@ impl Keys {
             self.discard_unkept(source);
             return Some(failed(source));
         };
-        if value.len() > usize::try_from(self.token_bytes).expect("token bound fits usize") {
+        if value.len() > skein_lib::length::usize_of(self.token_bytes) {
             self.discard_unkept(source);
             return Some(Next::Child(accounts::FromComponent::KeepFailed {
                 account: source,
@@ -142,7 +142,6 @@ impl Keys {
         Some(event(source, held.generation, now))
     }
     /// Loads a named LLM key at generation one; only Want announces the grant.
-    #[expect(clippy::manual_map, reason = "step code does not use closures")]
     pub fn restore(
         &mut self,
         source: u32,
@@ -154,7 +153,7 @@ impl Keys {
             None => None,
         };
         let readable = match &value {
-            Some(value) => value.len() <= usize::try_from(self.token_bytes).expect("token bound"),
+            Some(value) => value.len() <= skein_lib::length::usize_of(self.token_bytes),
             None => false,
         };
         self.sources

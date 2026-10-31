@@ -218,7 +218,6 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code wraps owned remainders without closures")]
 fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
     match event {
         Event::Connector {
@@ -376,12 +375,12 @@ mod expiry_tests {
         ] {
             people::step(
                 &mut domain.core.people,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
+                &env.with(env.limits.core.people),
                 people::Event::Restore { record },
                 &mut ignored,
             );
         }
-        let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
+        let people_env = env.with(env.limits.core.people);
         assert!(domain.core.people.start_link(&people_env));
         domain.core.people.start_sweep();
         assert!(domain.core.people.start_complete(&people_env));

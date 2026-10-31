@@ -8,7 +8,7 @@ use skein_lib::{List, Writer};
 macro_rules! encoded {
     ($value:expr) => {{
         let value = $value;
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured fixture");
         writer.finish()
     }};

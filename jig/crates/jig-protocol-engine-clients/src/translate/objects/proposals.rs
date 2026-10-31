@@ -242,7 +242,7 @@ pub(super) fn proposed_task_pieces(
 ) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
@@ -254,7 +254,7 @@ pub(super) fn proposed_task_pieces(
 pub(super) fn part_pieces(rows: &List<w::Part>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),

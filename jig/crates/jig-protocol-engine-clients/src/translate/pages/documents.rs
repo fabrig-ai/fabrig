@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code carries optional owner facts without closures")]
 //! Each original page's whole owner rows (protocol/client.md, 3).
 use super::super::{activity, chips, history, inbox, objects, w};
 use super::rows;

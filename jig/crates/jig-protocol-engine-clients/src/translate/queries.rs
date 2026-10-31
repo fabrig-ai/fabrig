@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional query facts without closures")]
 //! Task queries and lines preserve the engine's keys and supplied order.
 use super::{chips, live, me, owner, w};
 use jig_domain_core::documents::{self as d, WaitsOn};
@@ -117,7 +116,7 @@ pub(crate) fn lines(value: &d::Lines, limits: &w::Limits) -> Result<w::Tasks, w:
     let mut rows = List::with_capacity(value.lines.len());
     for row in &value.lines {
         let row = line(row, limits)?;
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured task line");
         rows.push(writer.finish()).expect("same line count");
     }

@@ -128,7 +128,7 @@ fn result_bytes(form: wire::Form, label: Option<Box<[u8]>>, fields: skein_lib::L
         },
     )
     .expect("bounded result");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured size fits usize"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured encoding");
     writer.finish()
 }
@@ -230,7 +230,7 @@ fn a_verdict_with_items_does_not_decode() {
         },
     )
     .expect("bounded result");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured size fits usize"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured encoding");
     assert_eq!(crate::result(&writer.finish()), Err(crate::Unreadable::Form));
 }

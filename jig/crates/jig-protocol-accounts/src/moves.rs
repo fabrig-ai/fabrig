@@ -56,7 +56,7 @@ impl Moves {
     #[must_use]
     pub fn new(application: Box<[u8]>, room: u32) -> Self {
         assert!(
-            !application.is_empty() && application.len() <= usize::try_from(moved::APPLICATION).expect("bound"),
+            !application.is_empty() && application.len() <= skein_lib::length::usize_of(moved::APPLICATION),
             "the root supplies a nonempty application name within the moved-file bound"
         );
         Self {

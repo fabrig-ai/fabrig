@@ -42,26 +42,34 @@ pub fn create_ask() -> (w::Ask, p::Ask) {
 }
 fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::NewTask, p::Member) {
     let l = wire();
-    let dependencies = list([
-        w::TaskRef::Member(w::TaskRefMember::new(&l, w::TaskRefMemberParts { value: 1 }).unwrap()),
-        w::TaskRef::Task(w::TaskRefTask::new(&l, w::TaskRefTaskParts { value: u64::MAX }).unwrap()),
-    ]);
+    let dependencies = skein_lib::List::from_boxed(
+        [
+            w::TaskRef::Member(w::TaskRefMember::new(&l, w::TaskRefMemberParts { value: 1 }).unwrap()),
+            w::TaskRef::Task(w::TaskRefTask::new(&l, w::TaskRefTaskParts { value: u64::MAX }).unwrap()),
+        ]
+        .into(),
+    );
     let spec = w::Specification::new(
         &l,
         w::SpecificationParts {
             asks: false,
             words: b"new words".as_slice().into(),
-            parameters: list([w::Parameter::Number(
-                w::ParameterNumber::new(&l, w::ParameterNumberParts { name: 9, value: 12 }).unwrap(),
-            )]),
-            inputs: list([77]),
+            parameters: skein_lib::List::from_boxed(
+                [w::Parameter::Number(
+                    w::ParameterNumber::new(&l, w::ParameterNumberParts { name: 9, value: 12 }).unwrap(),
+                )]
+                .into(),
+            ),
+            inputs: skein_lib::List::from_boxed([77].into()),
         },
     )
     .unwrap();
     let field = w::FieldRule::new(&l, w::FieldRuleParts { name: b"field".as_slice().into(), max: 13 }).unwrap();
-    let choice =
-        w::VerdictChoice::new(&l, w::VerdictChoiceParts { code: 5, words: 16, followups: 2, fields: list([field]) })
-            .unwrap();
+    let choice = w::VerdictChoice::new(
+        &l,
+        w::VerdictChoiceParts { code: 5, words: 16, followups: 2, fields: skein_lib::List::from_boxed([field].into()) },
+    )
+    .unwrap();
     let executor = if role {
         w::Executor::Person(
             w::ExecutorPerson::new(
@@ -85,7 +93,11 @@ fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::Ne
             executor,
             spec,
             contract: w::NewContract::Verdict(
-                w::ContractVerdict::new(&l, w::ContractVerdictParts { choices: list([choice]) }).unwrap(),
+                w::ContractVerdict::new(
+                    &l,
+                    w::ContractVerdictParts { choices: skein_lib::List::from_boxed([choice].into()) },
+                )
+                .unwrap(),
             ),
             authority: authority.clone(),
             budget: w::NewBudget::AsAllowed(
@@ -167,7 +179,6 @@ pub fn careful_and_quick(l: &w::Limits) -> w::LlmChoice {
     llm_choice(l, b"careful", Some(b"high"), b"quick")
 }
 /// A main model and effort, and one sub-agent model at its default effort, by name.
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn llm_choice(l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &[u8]) -> w::LlmChoice {
     let main = w::ModelEffort::new(
         l,
@@ -181,7 +192,11 @@ pub fn llm_choice(l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &
     )
     .unwrap();
     let subagent = w::ModelEffort::new(l, w::ModelEffortParts { model: subagent.into(), effort: None }).unwrap();
-    w::LlmChoice::new(l, w::LlmChoiceParts { account: None, main, subagents: list([subagent]) }).unwrap()
+    w::LlmChoice::new(
+        l,
+        w::LlmChoiceParts { account: None, main, subagents: skein_lib::List::from_boxed([subagent].into()) },
+    )
+    .unwrap()
 }
 
 pub fn create_refusals() -> [(&'static str, p::Refusal, w::Refusal); 5] {

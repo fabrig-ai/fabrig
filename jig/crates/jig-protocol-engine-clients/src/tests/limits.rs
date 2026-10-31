@@ -17,7 +17,7 @@ const MESSAGES: [MessageCase; 8] = [
 fn a_message_past_the_component_bound_is_refused_before_credential_lookup() {
     for (name, message) in MESSAGES {
         let mut exchange = Exchange::new();
-        let bytes = usize::try_from(f::MESSAGE_BYTES.checked_add(1).expect("past bound")).expect("fits");
+        let bytes = skein_lib::length::usize_of(f::MESSAGE_BYTES.checked_add(1).expect("past bound"));
         let owner = exchange.send(message(f::message_bytes(bytes)));
         assert_eq!(exchange.response(owner), (400, b"".as_slice()), "{name}");
         assert!(exchange.out.is_empty(), "{name}");
@@ -28,7 +28,7 @@ fn a_message_past_the_component_bound_is_refused_before_credential_lookup() {
 #[test]
 fn a_message_at_the_component_bound_reaches_credential_lookup() {
     let mut exchange = Exchange::new();
-    let bytes = usize::try_from(f::MESSAGE_BYTES).expect("fits");
+    let bytes = skein_lib::length::usize_of(f::MESSAGE_BYTES);
     exchange.send(Message::Read(f::message_bytes(bytes)));
     let Some(Request::Secrets(SecretsRequest::Get { owner })) = exchange.out.pop() else {
         panic!("credential lookup");

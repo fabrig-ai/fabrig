@@ -1,5 +1,4 @@
 //! Whole single-read documents, exhaustive over the core vocabulary (protocol/client.md, 3 and 6).
-#![expect(clippy::manual_map, reason = "step code matches optional owner facts without closures")]
 use super::{deployment, owner, task, w};
 use alloc::boxed::Box;
 use jig_domain_core::{documents as d, reads};

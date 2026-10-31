@@ -154,7 +154,6 @@ impl Component {
             .expect("code room checked");
         go(&env.limits, location)
     }
-    #[expect(clippy::manual_map, reason = "step code matches optional headers without closures")]
     pub(super) fn redeem(
         &mut self,
         env: &Env<Limits>,
@@ -194,7 +193,6 @@ impl Component {
             .expect("every code reserved a token slot");
         ProviderAnswer { status: 200, challenge: None, body: Secret::new(body) }
     }
-    #[expect(clippy::manual_map, reason = "step code matches optional headers without closures")]
     pub(super) fn claims(&mut self, env: &Env<Limits>, authorization: Option<&Secret>) -> ProviderAnswer {
         self.provider.sweep(env.now);
         let Some(issuer) = &self.settings.provider else {
@@ -234,18 +232,14 @@ fn draw(rng: &mut skein_lib::CryptoRng) -> Secret {
 fn answer(value: skein_oauth_issuer::Answer) -> ProviderAnswer {
     ProviderAnswer { status: value.status, challenge: value.challenge, body: Secret::new(value.body) }
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the provider protocol must refuse identities whose claims are not UTF-8 (client.md, 18)"
-)]
 fn person(signer: people::Signer, addresses: &[u16], limits: &Limits) -> Option<Person> {
     if signer.kind != people::Kind::Person {
         return None;
     }
     let identity = signer.identity;
-    let bound = usize::try_from(limits.identity_bytes).expect("u32 fits");
+    let bound = skein_lib::length::usize_of(limits.identity_bytes);
     for value in [&identity.key.subject, &identity.login, &identity.name] {
-        if value.len() > bound || core::str::from_utf8(value).is_err() {
+        if value.len() > bound || !skein_lib::bytes::is_utf8(value) {
             return None;
         }
     }

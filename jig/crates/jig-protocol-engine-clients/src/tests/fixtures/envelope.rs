@@ -2,7 +2,7 @@ use super::*;
 pub fn family_request(record: Box<[u8]>) -> Box<[u8]> {
     let value =
         w::FamilyRequest::new(&wire(), w::FamilyRequestParts { scope: w::Scope::Own, record }).expect("family request");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured family request");
     writer.finish()
 }
@@ -10,7 +10,7 @@ pub fn family_record(record: Box<[u8]>) -> Box<[u8]> {
     let window = w::Window::new(&wire(), w::WindowParts { rows: 3, after: None }).expect("window");
     let value = w::FamilyRecord::new(&wire(), w::FamilyRecordParts { scope: w::Scope::Own, window, record })
         .expect("family record");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured family record");
     writer.finish()
 }

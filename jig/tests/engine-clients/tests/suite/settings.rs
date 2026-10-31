@@ -6,11 +6,11 @@ use skein_lib::{List, Reader, Writer};
 
 fn encoded(read: &w::Read) -> Box<[u8]> {
     let limits = fixtures::limits().wire;
-    let mut bytes = Writer::new(usize::try_from(read.measure()).expect("read measure"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(read.measure()));
     read.encode(&mut bytes).expect("read bytes");
     let value = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
         .expect("read owner");
-    let mut bytes = Writer::new(usize::try_from(value.measure()).expect("owned measure"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("owned bytes");
     bytes.finish()
 }

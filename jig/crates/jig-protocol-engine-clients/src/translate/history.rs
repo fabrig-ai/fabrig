@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code carries optional owner facts without closures")]
 //! Original history revisions, snapshots and lifecycle facts (protocol/client.md, 3).
 use super::{objects, owner, w};
 use jig_domain_core::documents as d;

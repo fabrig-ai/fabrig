@@ -203,7 +203,7 @@ pub fn link_path(settings: &Settings, secret: &Secret) -> Box<[u8]> {
             .len()
             .checked_add(route.len())
             .expect("path")
-            .checked_add(usize::try_from(encoded).expect("u32 fits"))
+            .checked_add(skein_lib::length::usize_of(encoded))
             .expect("path"),
     );
     path.put(&settings.prefix).expect("prefix");
