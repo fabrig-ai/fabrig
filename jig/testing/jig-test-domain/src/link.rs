@@ -291,7 +291,8 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
             let _removed = domain.links.remove(&channel);
             return Delivery::Core(core::Held::Refuse { channel });
         }
-        other @ (Delivery::Link { .. }
+        other @ (Delivery::Start(_)
+        | Delivery::Link { .. }
         | Delivery::Message { .. }
         | Delivery::CallBusy { .. }
         | Delivery::CallAnswer { .. }

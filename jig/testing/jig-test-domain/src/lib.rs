@@ -87,6 +87,8 @@ pub enum Delivery {
     Message { channel: Token, task: u64, attempt: u64, word: tasks::Word },
     /// Perform this step of the core-owned restart script.
     Restart(core::RestartStep),
+    /// The start's continuation, released with the writes of its decision.
+    Start(core::start::Continuation),
     /// Core-held party, host, task or view output.
     Core(core::Held),
     /// An answer with its original opaque call name and durability class.
@@ -142,6 +144,8 @@ pub enum Request {
     Busy { event: Box<Event> },
     /// First cold load, before the deployment counter is known.
     Restart(core::RestartStep),
+    /// Load this phase's records or switch the store.
+    Start { phase: core::start::Phase, census: Option<core::Census> },
     /// Apply one numbered transaction as a whole.
     Commit { number: u64, writes: Queue<Write> },
     /// Release one output only after its prerequisite commit.
@@ -215,6 +219,12 @@ pub enum Event {
     /// The generation is active; commit the start’s mark.
     Switched,
     RestartDone(core::RestartStep),
+    /// Begin jig's start (engine.md 6) at this event's wall time.
+    StartBegin {
+        pending: bool,
+    },
+    /// The host finished the phase requested with `Request::Start`.
+    StartDone(core::start::Phase),
     /// Drive one due child timer through the same decision barrier.
     Timer(core::Timer),
     /// A party, host, account or other event in jig's vocabulary.
@@ -430,6 +440,12 @@ impl Domain {
     pub fn restore_failure(&self) -> Option<core::RestartRequest> {
         self.core.restore_failure()
     }
+    /// The start's refusal with the phase it refused at.
+    #[must_use]
+    pub fn start_failure(&self) -> Option<(Option<core::start::Phase>, core::start::Failure)> {
+        self.core.start_failure().map(|failure| (self.core.start_phase(), failure))
+    }
+
     /// Project each child's original elapsed deadline and the saved people
     /// wall expiry at the supplied clocks. The loop sends the owner's Timer.
     #[must_use]
@@ -562,6 +578,7 @@ use link::Work;
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     let Ok(event) = stopping::defer(domain, event) else { return };
     match event {
+        Event::StartBegin { .. } | Event::StartDone(_) => unreachable!("start driver requires its phase dispatcher"),
         Event::Link { channel, link } => decide(domain, env, Work::Link { channel, link }),
         Event::ResultRead { payload, end } => link::read(domain, env, payload, end),
         Event::Stop => decide(domain, env, Work::Core(core::Event::Stopping)),
@@ -957,6 +974,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     for _ in 0..ready.len() {
         let delivery = ready.pop().expect("release count");
         match delivery {
+            Delivery::Start(_) => unreachable!("start driver requires its phase dispatcher"),
             Delivery::Core(core::Held::MakeEffect { connector, entry }) => {
                 step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
             }
@@ -1166,6 +1184,10 @@ pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) ->
             false
         };
     }
+    restore_row(domain, env, record)
+}
+
+fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
     match record {
         Record::Core(core::Record::Core(row)) => match domain.core.restore_core(row, &env.limits.core) {
             core::Restored::Deployment { commits } => {
@@ -1219,6 +1241,16 @@ pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) ->
         }
         Record::Connector { number, record } => restore_connector(domain, env, number, record),
     }
+}
+
+/// One row of the phase being loaded, or a people row for the sweep.
+pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
+    assert!(restore_row(domain, env, record), "start row fits its selected entrance");
+}
+
+/// A store page's missing owner.
+pub fn start_missing(domain: &mut Domain, record: core::Key, target: core::Key) {
+    domain.core.start_missing(record, target);
 }
 
 fn relay_message(domain: &mut Domain, task: u64, attempt: u64, word: tasks::Word) -> Event {

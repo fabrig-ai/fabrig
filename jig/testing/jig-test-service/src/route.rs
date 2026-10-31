@@ -15,6 +15,7 @@ pub(super) fn request(engine: &mut Engine, request: root::Request) {
                 jig_test_store::StoreOut::Commit { number, writes: crate::store::writes(writes) },
             );
         }
+        root::Request::Start { .. } => unreachable!("the start driver is not selected here"),
         root::Request::Restart(step) => restart(engine, step),
         root::Request::Deliver(delivery) => deliver(engine, delivery),
         root::Request::Now(now) => immediate(engine, now),
@@ -32,6 +33,7 @@ pub(super) fn request(engine: &mut Engine, request: root::Request) {
 
 fn deliver(engine: &mut Engine, delivery: root::Delivery) {
     match delivery {
+        root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
         root::Delivery::ProjectMade { .. } => {}
         root::Delivery::Restart(step) => restart(engine, step),
         root::Delivery::System { connector: number, call } => {

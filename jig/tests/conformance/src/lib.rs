@@ -448,6 +448,7 @@ impl Application for Testing {
                     rows.extend(std::mem::take(&mut domain.journal).into_vec().into_iter().map(root::Write::Save));
                     Output::Commit { number, writes: rows.into_boxed_slice() }
                 }
+                root::Request::Start { .. } => unreachable!("the start driver is not selected here"),
                 root::Request::Restart(core::RestartStep::LoadInbox)
                 | root::Request::Deliver(root::Delivery::Restart(core::RestartStep::LoadInbox)) => {
                     Output::Deliver(Delivery::Census(root::inbox_census(domain, &config.limits)))
@@ -478,6 +479,7 @@ impl Application for Testing {
         let delivery = negative::delivery(peers.fault, delivery);
         let Delivery::Held(mut delivery) = delivery else {
             return match delivery {
+                root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
                 Delivery::Now(core::Now::Call { to, run, attempt, call }) => {
                     peers.peers.opaque_answer(to, run, attempt, &call).into_iter().map(Input::Event).collect()
                 }
