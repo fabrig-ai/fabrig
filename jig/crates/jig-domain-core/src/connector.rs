@@ -1,4 +1,5 @@
 //! Connector vocabulary crossing the application's root in jig's terms.
+//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
 //! The root translates numbered connectors' own types to these values;
 //! connector-owned payloads remain with their owner (domain/connectors.md, 2).
 
@@ -381,6 +382,9 @@ impl Core {
     /// funding and the deployment's maximum run spend.
     #[must_use]
     pub fn connector_repair_authority(&self, project: u32) -> Option<authority::Authority> {
+        if !self.open_project(project) {
+            return None;
+        }
         let policy = self.authority.policy(project)?;
         let mut given = policy.ceiling.clone();
         let period = self.period(project);
@@ -418,7 +422,7 @@ impl Core {
     #[must_use]
     pub fn connector_project(&self, task: u64, project: u32) -> bool {
         match self.tasks.delegation(task) {
-            Some(context) => context.project == project,
+            Some(context) => self.open_project(project) && context.project == project,
             None => false,
         }
     }

@@ -1,5 +1,6 @@
 //! Connector-owned keyed requests and their synchronous party parts
 //! (`domain/connectors.md`, section 5.5; `domain/core.md`, section 5).
+//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
 
 use crate::{Ask, Core, Event, Family, Held, Limits, Request, Requests, fresh};
 use alloc::boxed::Box;
@@ -37,6 +38,22 @@ pub(super) fn start(
     digest: [u8; 32],
     input: Input,
 ) -> Requests {
+    let closed = match scope {
+        people::ApplicationScope::Project(project) => !core.open_project(project),
+        people::ApplicationScope::Own | people::ApplicationScope::Deployment => false,
+    };
+    if closed && core.people.person(sign_in, env.now, env.wall).is_some() {
+        let mut out = Queue::uncapped();
+        out.push(Request::Held(Box::new(Held::PeopleReply {
+            to: reply_to,
+            reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Role { held: None })),
+        })));
+        if core.connectors.contains(&input.connector) {
+            out.push(Request::Ask { connector: input.connector, ask: Ask::DropApplication { owner: input.owner } });
+        }
+        out.push(Request::Decided);
+        return first(input.carried, Requests::Out(out));
+    }
     assert!(core.application_input.is_none(), "one admission at a time");
     core.application_input = Some(input);
     let connector = input.connector;
