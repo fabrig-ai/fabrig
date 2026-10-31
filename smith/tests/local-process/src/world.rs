@@ -18,10 +18,8 @@ use smith_local_domain as local;
 use smith_local_shell::local_host::token_limits;
 use smith_local_world::git::History;
 use std::cell::RefCell;
-use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 mod composition;
 mod key;
@@ -29,8 +27,6 @@ mod lending;
 pub use key::provider as key_provider;
 pub(crate) use lending::login_token;
 pub use lending::{Lending, login_at};
-
-static NEXT: AtomicU64 = AtomicU64::new(1);
 
 /// Both placements enter the same shell and local policy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -52,30 +48,22 @@ pub enum Authentication {
 
 /// Files surviving separate invocations of the shared shell.
 pub struct Files {
-    path: PathBuf,
+    scratch: skein_scratch::Scratch,
 }
 
 impl Files {
     #[must_use]
     pub fn new() -> Self {
-        let index = NEXT.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir().join(format!("smith-local-process-{}-{index}", std::process::id()));
-        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&path).expect("fixture directory");
-        Self { path }
+        Self { scratch: skein_scratch::Scratch::new("smith-local-process") }
     }
     #[must_use]
     pub fn path(&self) -> &Path {
-        &self.path
+        self.scratch.path()
     }
 }
 impl Default for Files {
     fn default() -> Self {
         Self::new()
-    }
-}
-impl Drop for Files {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
     }
 }
 
@@ -664,10 +652,10 @@ impl World {
         let Behaviour { interrupt_on_query, discard_facts, change } = behaviour;
         let keep_facts = !discard_facts;
         let mut disk = Filesystem::for_user(skein_shell::effective_user());
-        std::fs::create_dir_all(files.path.join("chat")).expect("chat fixture");
+        std::fs::create_dir_all(files.path().join("chat")).expect("chat fixture");
         let mut items =
             vec![skein_fake_machine::Item::directory(b".smith-test"), skein_fake_machine::Item::directory(b"chat")];
-        for entry in std::fs::read_dir(files.path.join("chat")).expect("previous chat") {
+        for entry in std::fs::read_dir(files.path().join("chat")).expect("previous chat") {
             let entry = entry.expect("chat entry");
             let path = [b"chat/".as_slice(), entry.file_name().as_encoded_bytes()].concat();
             items.push(if entry.path().is_dir() {
@@ -693,7 +681,7 @@ impl World {
             })),
             None,
         );
-        let token_directory = files.path.join("tokens");
+        let token_directory = files.path().join("tokens");
         let tokens = credential_fixture::Tokens::new(&token_directory, token_limits()).expect("token directory");
         if tokens.load(0).expect("token record").is_none() {
             let saved = skein_oauth::SavedToken {
@@ -734,7 +722,7 @@ impl World {
                     traced: false,
                     authenticated: false,
                     lending: None,
-                    state_directory: files.path.join("chat"),
+                    state_directory: files.path().join("chat"),
                     token_directory,
                     root_path: ".".into(),
                 },
@@ -753,7 +741,7 @@ impl World {
                 master,
                 checkout: checkout.clone(),
                 commands: Vec::new(),
-                chat_path: files.path.join("chat"),
+                chat_path: files.path().join("chat"),
             }),
             checkout,
             memory: Memory::Unchecked,

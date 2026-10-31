@@ -6,7 +6,7 @@ use std::fmt::Write;
 
 #[test]
 fn the_report_names_provider_source_number_place() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let mut resolved = resolved_source(&files, "none");
     resolved.accounts.clear();
     let states = ProgramStates::from([(
@@ -14,10 +14,10 @@ fn the_report_names_provider_source_number_place() {
         Credential::ProgramNotSignedIn { program: smith_agent_shell::config::ProgramName::ClaudeCode },
     )]);
     let rows = [
-        ("sign_in", Some(json!({"kind":"file","at":files.0.join("tokens/work")}))),
-        ("key", Some(json!({"kind":"file","at":files.0.join("keys/work")}))),
+        ("sign_in", Some(json!({"kind":"file","at":files.path().join("tokens/work")}))),
+        ("key", Some(json!({"kind":"file","at":files.path().join("keys/work")}))),
         ("env", Some(json!({"kind":"variable","at":"SMITH_REPORT_TEST_KEY"}))),
-        ("program", Some(json!({"kind":"directory","at":files.0.join("programs/work")}))),
+        ("program", Some(json!({"kind":"directory","at":files.path().join("programs/work")}))),
         ("none", None),
     ];
     for (source, kept) in rows {
@@ -55,7 +55,7 @@ fn the_report_names_provider_source_number_place() {
 
 #[test]
 fn the_report_omits_a_place_without_a_credentials_directory() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let mut places = BTreeMap::new();
     for source in ["sign_in", "key", "program"] {
         let mut resolved = resolved_source(&files, source);

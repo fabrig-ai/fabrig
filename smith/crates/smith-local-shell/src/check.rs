@@ -447,7 +447,7 @@ mod tests {
 
     #[test]
     fn a_small_declared_memory_checks() {
-        let files = crate::credentials::tests::Files::new();
+        let files = crate::credentials::tests::Files::new("smith-credentials");
         crate::credentials::tests::private_key(&files);
         let certificate = crate::fixture::trust();
         let text = format!(
@@ -455,19 +455,19 @@ mod tests {
              [deployment]\nmemory=1\n[environment]\ninherit=['PATH']\n\
              [accounts.codex]\nsource='key'\n[endpoints.codex]\n\
              trust.system=false\ntrust.der=['{}']\n[trace]\npath='unopened-events'\n",
-            files.0.display(),
+            files.path().display(),
             certificate.display()
         );
         let mut settings = crate::fixture::ready(settings::merge(
             &command::Shared::default(),
-            files.0.clone(),
-            &[settings::Source { layer: settings::Layer::User, path: files.0.join("check.toml"), text }],
+            files.path().to_path_buf(),
+            &[settings::Source { layer: settings::Layer::User, path: files.path().join("check.toml"), text }],
         ));
         settings.paths.path = Some("/usr/bin:/bin".into());
         let execution = command::Exec {
             shared: command::Shared::default(),
             prompt: command::Prompt::Argument(b"hello".as_slice().into()),
-            output: Some(files.0.join("unopened-result")),
+            output: Some(files.path().join("unopened-result")),
             ephemeral: true,
             deliver: false,
             json: true,
@@ -485,8 +485,8 @@ mod tests {
                 .expect("emitted memory declaration");
             assert_eq!(declaration["value"], 1);
         }
-        assert!(!files.0.join("unopened-result").exists());
-        assert!(!files.0.join("unopened-events").exists());
+        assert!(!files.path().join("unopened-result").exists());
+        assert!(!files.path().join("unopened-events").exists());
     }
 
     #[test]

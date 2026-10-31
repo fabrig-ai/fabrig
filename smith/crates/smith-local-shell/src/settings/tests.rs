@@ -179,9 +179,9 @@ fn gpt_six_one_sol_is_declared_with_its_list_prices() {
 
 pub(super) fn selection(text: &str) -> Result<super::resolve::Selection, super::Refusal> {
     let mut settings = settings(&[source(Layer::User, text)])?;
-    let files = crate::credentials::tests::Files::new();
+    let files = crate::credentials::tests::Files::new("smith-credentials");
     settings.values.entry("credentials".into()).or_insert(super::Sourced {
-        value: toml::Value::String(files.0.display().to_string()),
+        value: toml::Value::String(files.path().display().to_string()),
         origin: Origin::BuiltIn,
     });
     super::resolve::select(&settings)
@@ -682,11 +682,10 @@ fn an_openai_endpoint_is_written_with_its_number() {
 }
 
 /// A fresh directory under the system's temporary directory, one per test process.
-fn scratch(label: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!("smith-dirs-{label}-{}", std::process::id()));
-    drop(std::fs::remove_dir_all(&path));
-    std::fs::create_dir_all(path.join("work")).expect("scratch working directory");
-    path
+fn scratch(label: &str) -> skein_scratch::Scratch {
+    let scratch = skein_scratch::Scratch::new(label);
+    std::fs::create_dir_all(scratch.path().join("work")).expect("scratch working directory");
+    scratch
 }
 
 fn dir(name: &str, path: PathBuf, writable: bool) -> crate::command::Dir {
@@ -718,16 +717,18 @@ fn rows(resolved: &super::resolve::Resolved) -> Vec<(String, bool, bool)> {
 
 #[test]
 fn without_dir_the_workspace_is_one_writable_row_named_workspace() {
-    let root = scratch("default");
-    let resolved = crate::fixture::ready(with_dirs(&root, "", Vec::new()));
+    let scratch = scratch("default");
+    let root = scratch.path();
+    let resolved = crate::fixture::ready(with_dirs(root, "", Vec::new()));
     assert_eq!(rows(&resolved), [("workspace".into(), true, false)]);
 }
 
 #[test]
 fn a_dir_follows_the_working_directory_named_by_its_last_component() {
-    let root = scratch("rows");
+    let scratch = scratch("rows");
+    let root = scratch.path();
     std::fs::create_dir_all(root.join("plan")).unwrap();
-    let resolved = crate::fixture::ready(with_dirs(&root, "", vec![dir("plan", root.join("work/../plan"), false)]));
+    let resolved = crate::fixture::ready(with_dirs(root, "", vec![dir("plan", root.join("work/../plan"), false)]));
     assert_eq!(rows(&resolved), [("work".into(), true, false), ("plan".into(), false, false)]);
     let workspace = resolved.local.workspace.as_ref().unwrap();
     let canonical = root.canonicalize().unwrap();
@@ -741,7 +742,8 @@ fn three_dirs_start_beside_the_working_directory() {
     use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
     use smith_domain::run;
 
-    let root = scratch("four");
+    let scratch = scratch("four");
+    let root = scratch.path();
     for name in ["plan", "kit", "log"] {
         std::fs::create_dir_all(root.join(name)).unwrap();
     }
@@ -792,31 +794,34 @@ fn three_dirs_start_beside_the_working_directory() {
 
 #[test]
 fn a_dir_inside_a_git_working_tree_is_a_repository() {
-    let root = scratch("git");
+    let scratch = scratch("git");
+    let root = scratch.path();
     std::fs::create_dir_all(root.join("kit/.git")).unwrap();
     std::fs::create_dir_all(root.join("kit/src")).unwrap();
-    let resolved = crate::fixture::ready(with_dirs(&root, "", vec![dir("kit", root.join("kit/src"), true)]));
+    let resolved = crate::fixture::ready(with_dirs(root, "", vec![dir("kit", root.join("kit/src"), true)]));
     assert_eq!(rows(&resolved), [("work".into(), true, false), ("kit".into(), true, true)]);
 }
 
 #[test]
 fn dir_flags_replace_a_workspace_directories_setting() {
-    let root = scratch("replace");
+    let scratch = scratch("replace");
+    let root = scratch.path();
     std::fs::create_dir_all(root.join("plan")).unwrap();
     let setting = "[[workspace.directories]]\nname='main'\npath='.'\n";
-    let resolved = crate::fixture::ready(with_dirs(&root, setting, vec![dir("plan", root.join("plan"), true)]));
+    let resolved = crate::fixture::ready(with_dirs(root, setting, vec![dir("plan", root.join("plan"), true)]));
     assert_eq!(rows(&resolved), [("work".into(), true, false), ("plan".into(), true, false)]);
 }
 
 #[test]
 fn a_dir_the_workspace_cannot_hold_is_refused_at_the_flag() {
-    let root = scratch("refused");
+    let scratch = scratch("refused");
+    let root = scratch.path();
     for name in ["a", "b", "c", "d"] {
         std::fs::create_dir_all(root.join(name)).unwrap();
     }
     std::fs::write(root.join("file"), b"text").unwrap();
     let refused = |dirs: Vec<crate::command::Dir>| {
-        let refusal = with_dirs(&root, "", dirs).err().expect("a refusal");
+        let refusal = with_dirs(root, "", dirs).err().expect("a refusal");
         assert_eq!(refusal.origin, Origin::Flag { flag: "--dir".into() });
         assert_eq!(refusal.key, "workspace.directories");
         refusal.line()
@@ -829,7 +834,7 @@ fn a_dir_the_workspace_cannot_hold_is_refused_at_the_flag() {
     assert!(line.contains("is not a directory"), "{line}");
     let line = refused(vec![dir("a", root.join("absent"), true)]);
     assert!(line.contains("is not a directory"), "{line}");
-    let limits = &with_dirs(&root, "", Vec::new()).unwrap().agent.service.limits.domain;
+    let limits = &with_dirs(root, "", Vec::new()).unwrap().agent.service.limits.domain;
     let bound = limits.run.directories.min(limits.session.tools.repos);
     assert_eq!(bound, 4);
     let names = ["a", "b", "c", "d"];

@@ -41,7 +41,7 @@ fn every_key_request_lends_a_fresh_generation() {
 
 #[test]
 fn every_program_request_lends_a_fresh_generation() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let prepared = prepare(
         &resolved_source(&files, "program"),
         Wall::EPOCH,
@@ -78,7 +78,7 @@ fn generations_advance_per_account() {
 
 #[test]
 fn an_account_without_a_value_answers_missing() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let prepared =
         prepare(&resolved_source(&files, "none"), Wall::EPOCH, false, &ProgramStates::new()).expect("nothing startup");
     let mut lent = Lent::new(prepared.lendable);
@@ -98,11 +98,11 @@ fn the_last_generation_lends_before_overflow_answers_missing() {
 
 #[test]
 fn a_key_removed_after_start_still_lends_its_first_bytes() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     private_key(&files);
     let prepared =
         prepare(&resolved_source(&files, "key"), Wall::EPOCH, false, &ProgramStates::new()).expect("key startup");
-    std::fs::remove_file(files.0.join("keys/codex")).expect("removed after startup");
+    std::fs::remove_file(files.path().join("keys/codex")).expect("removed after startup");
     let mut lent = Lent::new(prepared.lendable);
     for generation in [1, 2] {
         assert_lend(lent.answer(0), 0, generation, &key_value());

@@ -251,11 +251,11 @@ fn a_replacement_subject_keeps_the_saved_bytes() {
 
 #[test]
 fn declined_plan_scope_is_saved_and_reported_unavailable() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let mut exchange = Exchange::new(None, SUBJECT, false, None);
     assert_eq!(exchange.finish(), LoginOutcome::Unavailable, "declining plan usage maps to exit 3");
     let bytes = exchange.record().expect("the declined-scope record is kept");
-    let file = files.0.join("record");
+    let file = files.path().join("record");
     keep(&file, &bytes);
     let state = sign_in::inspect(&file, Wall::EPOCH, Some(b"chatgpt.tokens.use.direct"));
     assert_eq!(
@@ -268,8 +268,8 @@ fn declined_plan_scope_is_saved_and_reported_unavailable() {
 
 #[test]
 fn a_duplicate_subject_rolls_back_only_the_new_account() {
-    let files = Files::new();
-    let first = files.0.join("first");
+    let files = Files::new("smith-credentials");
+    let first = files.path().join("first");
     let prior = saved(SUBJECT);
     keep(&first, &prior);
     let mut exchange = Exchange::new(None, SUBJECT, true, None);

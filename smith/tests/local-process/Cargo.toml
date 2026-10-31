@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-scratch.workspace = true
 smith-local-protocol = { path = "../../crates/smith-local-protocol" }
 skein-shell.workspace = true
 skein-channel.workspace = true

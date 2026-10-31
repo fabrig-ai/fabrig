@@ -132,8 +132,8 @@ mod tests {
 
     fn invocation(files: &Files, declarations: &[&str]) -> Shared {
         Shared {
-            directory: Some(files.0.clone()),
-            overrides: std::iter::once(format!("credentials='{}'", files.0.join("unopened").display()))
+            directory: Some(files.path().to_path_buf()),
+            overrides: std::iter::once(format!("credentials='{}'", files.path().join("unopened").display()))
                 .chain(declarations.iter().map(|declaration| (*declaration).into()))
                 .collect(),
             ..Shared::default()
@@ -142,13 +142,13 @@ mod tests {
 
     #[test]
     fn an_unknown_account_is_refused_without_creating_credentials() {
-        let files = Files::new();
+        let files = Files::new("smith-credentials");
         let shared = invocation(&files, &["accounts.work.source='none'"]);
         let error =
             run(&shared, "missing", false, &Clock::new(), &Environment::default()).expect_err("unknown account");
         assert_eq!(error, "unknown account missing", "lookup diagnostic");
         let mut arguments: Vec<std::ffi::OsString> =
-            vec!["smith".into(), "login".into(), "missing".into(), "-C".into(), files.0.clone().into()];
+            vec!["smith".into(), "login".into(), "missing".into(), "-C".into(), files.path().to_path_buf().into()];
         for declaration in &shared.overrides {
             arguments.extend(["-c".into(), declaration.into()]);
         }
@@ -157,18 +157,18 @@ mod tests {
             Some(2),
             "credential command refusal code"
         );
-        assert!(!files.0.join("unopened").exists(), "lookup starts no credential store");
+        assert!(!files.path().join("unopened").exists(), "lookup starts no credential store");
     }
 
     #[test]
     fn account_only_login_needs_no_main_model() {
-        let files = Files::new();
+        let files = Files::new("smith-credentials");
         let shared = invocation(
             &files,
             &["accounts.work.source='none'", "endpoints.custom.preset='codex'", "endpoints.custom.account='work'"],
         );
         let outcome = run(&shared, "work", false, &Clock::new(), &Environment::default()).expect("account command");
         assert_eq!(outcome, LoginOutcome::Usable, "account selection does not select a run model");
-        assert!(!files.0.join("unopened").exists(), "a none source starts no credential store");
+        assert!(!files.path().join("unopened").exists(), "a none source starts no credential store");
     }
 }
