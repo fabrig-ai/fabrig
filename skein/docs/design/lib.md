@@ -78,11 +78,14 @@ them (testing.md, section 6).
   `#[must_use]`: replying consumes it, so a second reply does not
   compile. A missing one is the simulator's to catch.
 
+`Name<N>` is a name of at most `N` bytes held inline, checked once when it is made, against its maker's grammar, and copied freely after: a source's or a method's name, never text a person reads.
+
 ## 5. Containers
 
 | Container | What | Over |
 |---|---|---|
 | `Queue<T>` | the records between stages, first in first out | a ring buffer grown as it fills |
+| `Lossy<T>` | facts a reader may miss: kept up to a cap, the rest dropped and counted | a capped `Queue` and a count |
 | `List<T>` | a sequence a step appends to | a buffer costing what it holds |
 | `Map<K, V>` | a table keyed by value, ordered by key | a B-tree, priced in tree nodes |
 | `Set<K>` | a `Map` without values | a B-tree, priced in tree nodes |
