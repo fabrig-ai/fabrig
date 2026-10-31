@@ -41,7 +41,7 @@ Its stdout carries only sign-in links, one a line; its stderr, its startup notes
 
 `temper box [DIRECTORIES] --fake-backends [--bundle BUNDLE]`
 
-Run a deployment on this machine as one box: the forge's setup steps, then temper serve, each a child process.
+Run a deployment as one box: the setup steps of each forge it sets up, then temper serve, each a child process.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `--echo`: none prints the box's own lines and a failed step's log; steps prints every step's lines too, prefixed by its name.
@@ -91,6 +91,17 @@ Run an owned forge's Forgejo or its runner.
 - `FORGE`: A forge's number in the configuration.
 
 Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child.
+
+## temper forge remove
+
+`temper forge remove [DIRECTORIES] FORGE`
+
+Remove a stopped box slot's forge directory, keeping the cache.
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- `FORGE`: A forge's number in the configuration.
+
+Reads the slot's kind from box/groups/FORGE and refuses a directory outside data or in the cache.
 
 ## temper forge sign-in
 

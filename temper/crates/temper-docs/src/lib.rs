@@ -434,7 +434,7 @@ pub static PAGES: [Page; 53] = [
         name: "ctl-playground",
         kind: Kind::Reference,
         title: "temper ctl playground",
-        summary: "The playground: start the demo.",
+        summary: "The playground: start it, or end it and set up temper.",
         text: include_str!("../../../docs/help/reference/ctl-playground.md"),
     },
     Page {
