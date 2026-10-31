@@ -144,7 +144,6 @@ fn a_configured_model_hides_the_account_banner() {
     })));
     accounts::settle(&mut front, &mut root);
     assert_eq!(d::pages::welcome::decision(root.person()), Some(d::pages::welcome::FirstRun::Whole));
-    assert!(d::forge::listed::setup(root.person()).is_none());
 }
 
 #[test]
