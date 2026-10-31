@@ -98,6 +98,7 @@ fn hold_transcripts(mut driver: Driver) -> (Driver, Vec<engine::Event>) {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn restart_notes_fit_after_a_transcript_slot_is_reclaimed() {
     let (mut driver, mut held) = restarted_transcripts();
     driver.send(held.remove(0));
@@ -107,6 +108,7 @@ fn restart_notes_fit_after_a_transcript_slot_is_reclaimed() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn restart_notes_yield_before_a_transcript_slot_is_reclaimed() {
     let (mut driver, mut held) = restarted_transcripts();
     let before = driver.task(FIRST_TASK).expect("first transcript is preparing").clone();

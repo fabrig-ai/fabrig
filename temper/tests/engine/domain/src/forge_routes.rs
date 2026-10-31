@@ -953,6 +953,7 @@ impl World {
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    self.events.extend(self.store.take_missing(owner).into_iter().map(engine::Event::Store));
                     self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
                         owner,
                         rows,

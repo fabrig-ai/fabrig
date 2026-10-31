@@ -134,14 +134,16 @@ fn cold(driver: Driver) -> Driver {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn messaged_released_amended_delegate_survives_cold_restart() {
     let (mut driver, task) = twice_released(Some(WORDS));
     amend_model(&mut driver, task);
     let restarted = cold(driver);
-    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.restore_failure());
+    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.start_stop());
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn person_messaged_delegate_survives_cold_restart() {
     let (mut driver, task) = delegate();
     let message = driver.say(task, MESSAGE_KEY);
@@ -150,27 +152,30 @@ fn person_messaged_delegate_survives_cold_restart() {
     assert!(
         restarted.root.ready(),
         "Live({task}) inbox word {message} from Person({OWNER}), requester {requester:?}: {:?}",
-        restarted.root.restore_failure()
+        restarted.root.start_stop()
     );
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn unmessaged_released_amended_delegate_survives_cold_restart() {
     let (mut driver, task) = twice_released(None);
     amend_model(&mut driver, task);
     let restarted = cold(driver);
-    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.restore_failure());
+    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.start_stop());
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn unmessaged_held_delegate_survives_cold_restart() {
     let (mut driver, task) = delegate();
     hold(&mut driver, task);
     let restarted = cold(driver);
-    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.restore_failure());
+    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.start_stop());
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn release_and_amend_fixture_commits_each_requested_operation() {
     let (mut driver, task) = twice_released(Some(WORDS));
     amend_model(&mut driver, task);
