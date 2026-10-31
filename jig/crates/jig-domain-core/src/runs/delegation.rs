@@ -111,7 +111,7 @@ impl Core {
         let Some(context) = self.tasks.delegation(task) else {
             return Err(crate::routing::effect::procedure::problem(task, tasks::Refusal::Batch));
         };
-        if batch.is_empty() || batch.len() > usize::try_from(limits.batch).expect("bounded batch") {
+        if batch.is_empty() || batch.len() > skein_lib::length::usize_of(limits.batch) {
             return Err(crate::routing::effect::procedure::problem(task, tasks::Refusal::Batch));
         }
         let mut asked = List::with_capacity(limits.batch);
@@ -184,7 +184,7 @@ impl Core {
         let Some(context) = self.tasks.delegation(key.task) else {
             return Err(delegate_refused(Some(key.task), tasks::Refusal::Unknown));
         };
-        if batch.is_empty() || batch.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+        if batch.is_empty() || batch.len() > skein_lib::length::usize_of(limits.batch) {
             return Err(delegate_refused(None, tasks::Refusal::Batch));
         }
         let mut asked = List::with_capacity(limits.batch);
@@ -247,13 +247,11 @@ impl Core {
         let Some(context) = self.tasks.delegation(key.task) else {
             return Err(delegate_refused(Some(key.task), tasks::Refusal::Unknown));
         };
-        let capacity = batch
-            .len()
-            .checked_mul(usize::try_from(limits.inputs).expect("u32 fits usize"))
-            .expect("bounded batch input count");
+        let capacity =
+            batch.len().checked_mul(skein_lib::length::usize_of(limits.inputs)).expect("bounded batch input count");
         let mut ids = List::with_capacity(u32::try_from(capacity).expect("bounded input IDs"));
         for member in batch {
-            if member.spec.inputs.len() > usize::try_from(limits.inputs).expect("u32 fits usize") {
+            if member.spec.inputs.len() > skein_lib::length::usize_of(limits.inputs) {
                 return Err(delegate_refused(None, tasks::Refusal::Inputs));
             }
             for &input in &member.spec.inputs {

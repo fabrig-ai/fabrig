@@ -161,7 +161,6 @@ pub(super) fn needs_store(read: &Read, document: &Document) -> bool {
     }
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses an exhaustive match rather than a closure")]
 #[expect(clippy::too_many_lines, reason = "the exhaustive live-to-store seam keeps each document family visible")]
 pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, document: Document) -> Answer {
     let mut rows = List::with_capacity(limits.documents.rows);
@@ -420,7 +419,7 @@ fn owner_rows(
     next: Option<Position>,
     wall: skein_lib::Wall,
 ) -> Answer {
-    if raw.len() > usize::try_from(range.rows).expect("row bound fits") {
+    if raw.len() > skein_lib::length::usize_of(range.rows) {
         return Answer::None(Why::Busy);
     }
     if !positions::grouped(range, &raw) {
@@ -436,12 +435,10 @@ fn owner_rows(
             return Answer::None(Why::Busy);
         };
         total = sum;
-        if row.linked.len()
-            > usize::try_from(linked_limit(limits).expect("linked cap fits")).expect("linked count fits")
-        {
+        if row.linked.len() > skein_lib::length::usize_of(linked_limit(limits).expect("linked cap fits")) {
             return Answer::None(Why::Busy);
         }
-        if total > range.bytes || row.ancestors.len() > usize::try_from(limits.tasks.depth).expect("depth fits") {
+        if total > range.bytes || row.ancestors.len() > skein_lib::length::usize_of(limits.tasks.depth) {
             return Answer::None(Why::Busy);
         }
         let Some(key) = row_key(row) else {
@@ -524,7 +521,6 @@ fn ended_answer(value: EndedValue, at: Option<skein_lib::Wall>, by: Option<tasks
     Answer::Ended(Box::new(Ended { value, at, by }))
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses an exhaustive match rather than a function pointer")]
 fn result_actor(row: &tasks::TaskRecord) -> Option<tasks::Party> {
     match &row.phase {
         tasks::Phase::Ended(tasks::Ending::Cancelled { by, .. }) => Some(*by),
@@ -539,7 +535,6 @@ fn result_actor(row: &tasks::TaskRecord) -> Option<tasks::Party> {
     }
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses exhaustive matches rather than closures")]
 #[expect(clippy::too_many_lines, reason = "exhaustive read construction keeps each owner conversion visible")]
 fn object(
     core: &Core,

@@ -413,7 +413,7 @@ pub(crate) fn person_escalation_decide(
     let Party { request, person, project, .. } = party;
 
     if let people::EscalationDecision::Reject { reason } = &decision
-        && reason.len() > usize::try_from(env.limits.escalation_reason_bytes).expect("reason bound fits usize")
+        && reason.len() > skein_lib::length::usize_of(env.limits.escalation_reason_bytes)
     {
         pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Words });
         return;
@@ -615,7 +615,7 @@ pub(crate) fn escalation_request(
 
     if match &decision {
         people::EscalationDecision::Reject { reason } => {
-            reason.len() > usize::try_from(env.limits.escalation_reason_bytes).expect("reason bound fits usize")
+            reason.len() > skein_lib::length::usize_of(env.limits.escalation_reason_bytes)
         }
         people::EscalationDecision::Release | people::EscalationDecision::Pass => false,
     } {
@@ -687,7 +687,7 @@ fn task_settings_decide(
         people::ProposalDecision::Accept => Box::new([]),
         people::ProposalDecision::Pass => return pool_refused(&mut routed.work, request, Refusal::NoFurther),
     };
-    if reason.len() > usize::try_from(env.limits.tasks.message_bytes).expect("message bound") {
+    if reason.len() > skein_lib::length::usize_of(env.limits.tasks.message_bytes) {
         return pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Words });
     }
     let messages = u64::from(env.limits.tasks.tasks)

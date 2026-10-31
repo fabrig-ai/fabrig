@@ -112,7 +112,7 @@ fn check(
                 &env.limits.tasks,
                 admission,
             )?;
-            if reason.len() > usize::try_from(env.limits.tasks.result_bytes).expect("u32 fits usize") {
+            if reason.len() > skein_lib::length::usize_of(env.limits.tasks.result_bytes) {
                 return Err(people::Refusal::Limit { which: people::LimitKind::Words });
             }
             if let tasks::Phase::Ended(ending) = &row.phase {

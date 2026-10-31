@@ -470,7 +470,7 @@ fn move_tasks(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, from
 fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32, items: Box<[s::Item]>) {
     core.proposed_input = Some(if !s::changes_current(&core.current, &items) {
         Err(people::Malformed::SettingsUnchanged)
-    } else if items.len() > usize::try_from(jig_domain_tasks::SETTINGS_ITEMS).expect("settings item bound") {
+    } else if items.len() > skein_lib::length::usize_of(jig_domain_tasks::SETTINGS_ITEMS) {
         Err(people::Malformed::Settings {
             setting: items.first().expect("past item bound").setting,
             fault: s::Fault::Count,

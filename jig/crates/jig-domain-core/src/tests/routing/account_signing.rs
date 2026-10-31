@@ -36,7 +36,7 @@ fn signed_in(core: &mut Core, env: &Env<Limits>) {
         login: b"party".as_slice().into(),
         name: b"A Party".as_slice().into(),
     };
-    let env = Env { now: env.now, wall: env.wall, limits: env.limits.people };
+    let env = env.with(env.limits.people);
     let mut out = Queue::uncapped();
     let person = people::Stored::Person { number: 1, identity: identity.clone() };
     people::step(&mut core.people, &env, people::Event::Restore { record: person }, &mut out);

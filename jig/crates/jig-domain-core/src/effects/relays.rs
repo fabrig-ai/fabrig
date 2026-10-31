@@ -6,7 +6,7 @@ pub(crate) fn room(core: &Core, task: u64, most: u32) -> bool {
     if proof.terminal.is_some() {
         return false;
     }
-    proof.outstanding.len() < usize::try_from(most).expect("run inbox fits usize")
+    proof.outstanding.len() < skein_lib::length::usize_of(most)
 }
 
 pub(crate) fn next(core: &mut Core, task: u64, most: u32) -> Option<Held> {

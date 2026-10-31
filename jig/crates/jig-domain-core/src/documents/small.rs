@@ -9,17 +9,10 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, bytes::copy_of};
 
-#[expect(clippy::disallowed_methods, reason = "client/domain/contract.md, 5.3 requires UTF-8 text validation")]
 pub(crate) fn text(bytes: &[u8], maximum: u32) -> Text {
-    let source = core::str::from_utf8(bytes).expect("source text is UTF-8 at the engine entrance");
-    let mut length = bytes.len().min(usize::try_from(maximum).expect("text bound fits usize"));
-    for _ in 0_u8..3 {
-        if source.is_char_boundary(length) {
-            break;
-        }
-        length = length.saturating_sub(1);
-    }
-    Text { bytes: copy_of(bytes.get(..length).expect("bounded prefix")), cut: length < bytes.len() }
+    assert!(skein_lib::bytes::is_utf8(bytes), "source text is UTF-8 at the engine entrance");
+    let prefix = skein_lib::bytes::utf8_prefix(bytes, skein_lib::length::usize_of(maximum));
+    Text { bytes: copy_of(prefix), cut: prefix.len() < bytes.len() }
 }
 
 pub(super) fn visible(core: &Core, party: u64, number: u64) -> Result<&tasks::TaskRecord, Missing> {
@@ -54,7 +47,6 @@ pub(super) fn chip_with_core(
     Ok(chip)
 }
 
-#[expect(clippy::manual_map, reason = "step code explicitly selects readiness without closures")]
 pub(super) fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, Missing> {
     let number = row.number;
     let first = skein_lib::bytes::find(&row.spec.words, b"\n").unwrap_or(row.spec.words.len());
@@ -67,12 +59,11 @@ pub(super) fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<
     let phase = match &row.phase {
         tasks::Phase::Waiting => {
             let mut dependencies = List::with_capacity(limits.documents.lines);
-            for number in row.waiting_on.iter().take(usize::try_from(limits.documents.lines).expect("line count fits"))
-            {
+            for number in row.waiting_on.iter().take(skein_lib::length::usize_of(limits.documents.lines)) {
                 dependencies.push(*number).expect("bounded dependency lines");
             }
             PhaseLine::Waiting {
-                more: usize::try_from(dependencies.len()).expect("line count fits") < row.waiting_on.len(),
+                more: skein_lib::length::usize_of(dependencies.len()) < row.waiting_on.len(),
                 dependencies,
                 holds: !row.holds_taken && !row.holdings.is_empty(),
             }
@@ -95,7 +86,6 @@ pub(super) fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<
     Ok(Chip { number, title, executor, phase, details: Box::new(super::chip_phase::from_row(limits, row)?) })
 }
 
-#[expect(clippy::manual_map, reason = "step code explicitly matches optional owner ledgers without closures")]
 pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, Missing> {
     let identity = core.people.identity(party).ok_or(Missing::Unknown)?;
     let roles = core.people.project_roles(party).ok_or(Missing::Unknown)?;

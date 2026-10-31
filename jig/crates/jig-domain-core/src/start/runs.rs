@@ -13,7 +13,6 @@ impl Core {
     }
 
     /// Count every restored worker claim before any reaches the fleet.
-    #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
     pub(crate) fn restored_worker_claims(&self) -> Option<(u64, u64)> {
         let mut first = None;
         let mut held = 0_u64;

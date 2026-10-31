@@ -1651,7 +1651,7 @@ fn an_approval_reaches_its_asking_procedure_connector_as_the_whole_durable_input
 #[test]
 fn approval_state_and_explanation_share_the_person_answer_byte_bound() {
     let (mut world, parent, task, revision) = approval_world(457);
-    let bound = usize::try_from(person_world_fixture(457).1.core.people.words).expect("small bound");
+    let bound = skein_lib::length::usize_of(person_world_fixture(457).1.core.people.words);
     let state = b"state\x00\xff";
     ask(
         &mut world,

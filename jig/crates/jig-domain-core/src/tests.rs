@@ -2773,7 +2773,6 @@ fn read_answer(core: &mut Core, limits: &Limits, sign_in: u64, read: crate::read
     held
 }
 
-#[expect(clippy::manual_map, reason = "the test helper follows the exhaustive option style")]
 pub(crate) fn stored_row(value: Record, owner: Option<tasks::TaskRecord>) -> crate::reads::Row {
     crate::reads::Row {
         value,
@@ -3495,7 +3494,7 @@ fn startup_accepts_the_worker_name_byte_bound() {
 }
 
 fn configured_worker_name(length: u32) -> Box<[u8]> {
-    let mut name = skein_lib::bytes::zeroed(usize::try_from(length).expect("fixture name bound"));
+    let mut name = skein_lib::bytes::zeroed(skein_lib::length::usize_of(length));
     name.fill(b'a');
     name
 }

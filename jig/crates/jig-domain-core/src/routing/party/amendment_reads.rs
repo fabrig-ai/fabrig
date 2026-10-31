@@ -68,7 +68,7 @@ pub(crate) fn missing(
 ) -> Option<u64> {
     let old = core.tasks.task(target)?;
     let dependencies = dependencies?;
-    if dependencies.len() > usize::try_from(limits.dependencies).expect("u32 fits usize") {
+    if dependencies.len() > skein_lib::length::usize_of(limits.dependencies) {
         return None;
     }
     for &dependency in dependencies {
