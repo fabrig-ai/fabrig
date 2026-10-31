@@ -56,19 +56,19 @@ pub(crate) enum CallRoute {
 pub enum Heard {
     /// Framing and terms have been agreed at this version.
     Opened { version: u16 },
-    /// A structurally valid Start with its charter translated before domain admission.
+    /// Decoded Start whose mounts, live settings and reply right the service resolves before domain admission.
     Start { start: Box<DecodedStart> },
-    /// A host-labelled message for the admitted run.
+    /// A host-labelled message awaiting the service's admitted run name.
     Message { finish_requested: bool, name: Token, label: Box<[u8]>, text: Box<[u8]> },
     /// A translated host-tool or delivery terminal ready for the agent domain.
     Event { event: Box<smith_domain::Event> },
     /// A delivery frame never entered the stream; service settles its IO operation.
     DeliveryUnsent { owner: Token },
-    /// The host durably kept this numbered turn and its preceding prefix.
+    /// The host kept this turn and prefix; the service supplies the admitted run name.
     Acknowledged { turn: u32 },
-    /// A refreshed credential name and validity, without its value.
+    /// A refreshed credential the service installs below the domain before granting its name.
     Grant { grant: smith_domain::Grant },
-    /// The host asked the admitted run to stop politely once.
+    /// The host asked to stop politely; the service resolves or awaits the admitted run name.
     Cancel,
     /// Independent write failure; input and terminal rights may still continue.
     WriteFailed,

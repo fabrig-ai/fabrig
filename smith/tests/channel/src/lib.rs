@@ -334,16 +334,16 @@ impl Peer {
                     output.push(Observation::HostMessageRefused { name, reason });
                 }
                 host::Received::Message { message: smith_host_domain::Up::Admitted } => {
-                    output.push(Observation::HostAdmitted)
+                    output.push(Observation::HostAdmitted);
                 }
                 host::Received::Message { message: smith_host_domain::Up::Waiting { read } } => {
-                    output.push(Observation::HostWaiting { read })
+                    output.push(Observation::HostWaiting { read });
                 }
                 host::Received::Message { message: smith_host_domain::Up::Long { operation, span } } => {
-                    output.push(Observation::HostLong { operation, span })
+                    output.push(Observation::HostLong { operation, span });
                 }
                 host::Received::Message { message: smith_host_domain::Up::LongDone } => {
-                    output.push(Observation::HostLongDone)
+                    output.push(Observation::HostLongDone);
                 }
                 host::Received::Message { message: smith_host_domain::Up::Turn { turn } } => {
                     output.push(Observation::HostTurn {
@@ -357,7 +357,7 @@ impl Peer {
                             &test_endpoints(),
                         )
                         .expect("store codec"),
-                    })
+                    });
                 }
                 host::Received::Live { turn, retry, kind, offset, bytes, call } => {
                     output.push(Observation::HostLive { turn, retry, kind, offset, bytes, call });
@@ -386,7 +386,7 @@ impl Peer {
                     output.push(Observation::HostCall { call, name, deadline, ask: Box::new(ask) });
                 }
                 host::Received::Message { message: smith_host_domain::Up::Withdraw { call } } => {
-                    output.push(Observation::HostWithdraw { call })
+                    output.push(Observation::HostWithdraw { call });
                 }
                 host::Received::Message { message: smith_host_domain::Up::Answer { .. } } => {
                     unreachable!("answer retains its audit record")

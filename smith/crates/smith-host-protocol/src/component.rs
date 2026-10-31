@@ -19,6 +19,7 @@ mod notices;
 mod receive;
 
 use smith_channel::reason::{LIMITS, RULES};
+
 const CHILD_TRANSITIONS: u8 = 8;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
