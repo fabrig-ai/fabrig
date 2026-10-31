@@ -2,30 +2,10 @@
 //! claim and hosting channel fence them; none changes placement or scheduling.
 
 use crate::facts::Fact;
+use crate::{CountKind, Operation};
 use crate::{Domain, Limits, Request};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Token, Wall};
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Operation {
-    Checks,
-    Completion,
-    Command,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum CountKind {
-    Admitted,
-    Ended,
-    LlmStarted,
-    LlmRetried,
-    LlmFinished,
-    ToolStarted,
-    ToolFinished,
-    CheckStarted,
-    CheckFinished,
-    TextArrived,
-}
 
 /// What the host last reported, independent of assignment/adoption time.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

@@ -38,7 +38,7 @@ fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(
                 stop_bound: Duration::ZERO,
                 slots: 1,
                 workstreams: Box::new([]),
-                hosting: Box::new([fleet::Hosted { run, attempt, phase: fleet::Phase::Active }]),
+                hosting: Box::new([fleet::Hosting { run, attempt, phase: fleet::Phase::Active }]),
             },
         }),
     );

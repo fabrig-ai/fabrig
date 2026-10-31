@@ -279,7 +279,7 @@ fn an_attempt_acknowledgement_leaves_an_accounts_watch_unmarked() {
 fn listed_host() -> fleet::Event {
     let fleet::Event::Hello { channel, worker, mut hello } = hello() else { panic!("hello fixture") };
     hello.hosting =
-        Box::new([fleet::Hosted { run: Token::new(90), attempt: Token::new(92), phase: fleet::Phase::Active }]);
+        Box::new([fleet::Hosting { run: Token::new(90), attempt: Token::new(92), phase: fleet::Phase::Active }]);
     fleet::Event::Hello { channel, worker, hello }
 }
 

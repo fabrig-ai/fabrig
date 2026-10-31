@@ -1681,7 +1681,7 @@ fn a_restart_adopts_a_live_run_on_its_old_version() {
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
-            hosting: Box::new([fleet::Hosted {
+            hosting: Box::new([fleet::Hosting {
                 run: Token::new(goal),
                 attempt: Token::new(attempt),
                 phase: fleet::Phase::Active,

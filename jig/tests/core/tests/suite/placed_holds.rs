@@ -284,7 +284,7 @@ fn pending_release_proposals_and_placed_holds_survive_a_restart() {
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: 3,
             workstreams: Box::new([]),
-            hosting: Box::new([jig_domain_fleet::Hosted {
+            hosting: Box::new([jig_domain_fleet::Hosting {
                 run: Token::new(s.coordinator.0),
                 attempt: Token::new(s.coordinator.1),
                 phase: jig_domain_fleet::Phase::Active,

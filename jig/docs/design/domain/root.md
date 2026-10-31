@@ -67,9 +67,10 @@ are connectors.md. What is still open is listed in section 14.
   encoded (section 5). It is the union of its children's, wrapped: an
   exhaustive enum per direction, with one variant per child.
 - **Its children are siblings,** sharing no types (programming-model.md,
-  4.5). `jig-domain-workers` is a shared leaf value crate, like skein-lib:
-  it owns the checked `SourceName`, `Worker` and immutable configured-membership
-  minter. It knows no fleet or accounts state. The core knows each connector
+  4.5). `jig-domain-link` is a shared leaf value crate, like skein-lib:
+  it owns the link's values (hosts.md, 6.1), the checked `SourceName`, `Worker`
+  and the immutable configured-membership minter among them, which the fleet,
+  the hub and accounts share. It knows no fleet, hub or accounts state. The core knows each connector
   by a number the root gives it in configuration; each connector knows nothing
   of the core.
 - **No root above it.** In one process, an engine's root and its

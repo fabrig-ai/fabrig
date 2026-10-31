@@ -35,7 +35,7 @@ fn hello(world: &mut World) {
     let hosting = world
         .assignments
         .iter()
-        .map(|(task, attempt)| fleet::Hosted {
+        .map(|(task, attempt)| fleet::Hosting {
             run: Token::new(*task),
             attempt: Token::new(*attempt),
             phase: fleet::Phase::Active,

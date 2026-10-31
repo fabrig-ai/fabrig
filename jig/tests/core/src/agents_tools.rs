@@ -75,7 +75,7 @@ fn reconnect(world: &mut World, key: core::CallKey) {
             stop_bound: Duration::from_millis(100),
             slots: crate::world::limits().core.fleet.slots,
             workstreams: Box::new([]),
-            hosting: Box::new([fleet::Hosted {
+            hosting: Box::new([fleet::Hosting {
                 run: Token::new(key.task),
                 attempt: Token::new(key.attempt),
                 phase: fleet::Phase::Active,

@@ -27,30 +27,8 @@ fn report(activity: host::Activity) -> fleet::Report {
             host::Phase::Waiting => fleet::Activity::Waiting,
             host::Phase::Ending | host::Phase::Answered => fleet::Activity::Ending,
         }),
-        host::Activity::Long { operation, span } => fleet::Report::Activity(fleet::Activity::Long {
-            operation: match operation {
-                host::Operation::Checks => fleet::Operation::Checks,
-                host::Operation::Completion => fleet::Operation::Completion,
-                host::Operation::Command => fleet::Operation::Command,
-            },
-            span,
-        }),
+        host::Activity::Long { operation, span } => fleet::Report::Activity(fleet::Activity::Long { operation, span }),
         host::Activity::LongDone => fleet::Report::Activity(fleet::Activity::Active),
-        host::Activity::Count { kind, elapsed, count } => fleet::Report::Count {
-            kind: match kind {
-                host::CountKind::Admitted => fleet::CountKind::Admitted,
-                host::CountKind::Ended => fleet::CountKind::Ended,
-                host::CountKind::LlmStarted => fleet::CountKind::LlmStarted,
-                host::CountKind::LlmRetried => fleet::CountKind::LlmRetried,
-                host::CountKind::LlmFinished => fleet::CountKind::LlmFinished,
-                host::CountKind::ToolStarted => fleet::CountKind::ToolStarted,
-                host::CountKind::ToolFinished => fleet::CountKind::ToolFinished,
-                host::CountKind::CheckStarted => fleet::CountKind::CheckStarted,
-                host::CountKind::CheckFinished => fleet::CountKind::CheckFinished,
-                host::CountKind::TextArrived => fleet::CountKind::TextArrived,
-            },
-            elapsed,
-            count,
-        },
+        host::Activity::Count { kind, elapsed, count } => fleet::Report::Count { kind, elapsed, count },
     }
 }

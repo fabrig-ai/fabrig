@@ -195,17 +195,6 @@ pub(super) fn charter(
     for call in value.answered {
         answered.push(replay(call)).ok()?;
     }
-    let mut grants = List::with_capacity(u32::try_from(value.grants.len()).ok()?);
-    for grant in value.grants {
-        grants
-            .push(host::Grant {
-                form: host_form(grant.form),
-                account: grant.account,
-                generation: grant.generation,
-                valid: grant.valid,
-            })
-            .ok()?;
-    }
     Some(host::Assignment {
         assignment: host::RunAssignment {
             run: Token::new(value.task),
@@ -215,7 +204,7 @@ pub(super) fn charter(
             save: false,
             live: host::LiveAsk { text: value.live.text, reasoning: value.live.reasoning, input: value.live.input },
             charter: encoded,
-            grants: grants.into_boxed(),
+            grants: value.grants,
         },
         turns: value.transcript,
         answered: answered.into_boxed(),
@@ -297,18 +286,5 @@ fn family(name: &[u8]) -> u64 {
         b"note" => jig.note.0,
         b"recall" => jig.recall.0,
         _ => 0,
-    }
-}
-
-fn host_form(form: jig_domain_accounts::Form) -> jig_domain_host::Form {
-    match form {
-        jig_domain_accounts::Form::Credential(scheme) => jig_domain_host::Form::Credential(match scheme {
-            jig_domain_accounts::Scheme::Bearer => jig_domain_host::Scheme::Bearer,
-            jig_domain_accounts::Scheme::Key => jig_domain_host::Scheme::Key,
-        }),
-        jig_domain_accounts::Form::Application => jig_domain_host::Form::Application,
-        jig_domain_accounts::Form::Program(name) => jig_domain_host::Form::Program(
-            jig_domain_host::SourceName::new(name.as_bytes()).expect("source name follows the same rules"),
-        ),
     }
 }

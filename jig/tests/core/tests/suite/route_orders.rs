@@ -328,8 +328,8 @@ fn reconnect_with_stale_attempt(driver: &mut Driver, task: u64, attempt: u64) {
             slots: HOSTED,
             workstreams: Box::new([]),
             hosting: Box::new([
-                fleet::Hosted { run: Token::new(task), attempt: Token::new(attempt), phase: fleet::Phase::Active },
-                fleet::Hosted { run: STALE_RUN, attempt: STALE_ATTEMPT, phase: fleet::Phase::Active },
+                fleet::Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: fleet::Phase::Active },
+                fleet::Hosting { run: STALE_RUN, attempt: STALE_ATTEMPT, phase: fleet::Phase::Active },
             ]),
         },
     })));

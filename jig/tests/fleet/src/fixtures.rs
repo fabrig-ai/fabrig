@@ -23,9 +23,12 @@ pub fn hosting_pair(
     a1: skein_lib::Token,
     r2: skein_lib::Token,
     a2: skein_lib::Token,
-) -> Vec<jig_domain_fleet::Hosted> {
-    use jig_domain_fleet::{Hosted, Phase};
-    vec![Hosted { run: r1, attempt: a1, phase: Phase::Active }, Hosted { run: r2, attempt: a2, phase: Phase::Answered }]
+) -> Vec<jig_domain_fleet::Hosting> {
+    use jig_domain_fleet::{Hosting, Phase};
+    vec![
+        Hosting { run: r1, attempt: a1, phase: Phase::Active },
+        Hosting { run: r2, attempt: a2, phase: Phase::Answered },
+    ]
 }
 
 /// The account granted to the fleet world's scripted attempts.
