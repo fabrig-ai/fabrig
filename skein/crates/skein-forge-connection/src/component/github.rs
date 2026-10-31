@@ -31,7 +31,7 @@ enum Progress {
 }
 impl Component {
     pub(super) fn github_token_refused(&mut self, at: u32, installation: u64, token_revision: u64, env: &Env<Limits>) {
-        if self.closed || !super::ready(*self.starts.get(at).expect("forge start")) {
+        if !self.ending.live() || !super::ready(*self.starts.get(at).expect("forge start")) {
             return;
         }
         let gh = self.github.get_mut(at).expect("forge slot").as_mut().expect("GitHub state");
@@ -878,17 +878,17 @@ impl Component {
         self.github.get_mut(at).expect("forge slot").as_mut().expect("GitHub state").fire(env.now);
         let gh = self.github.get_mut(at).expect("forge slot").as_mut().expect("GitHub state");
         gh.puller.admitted();
-        if !self.closed && super::ready(*self.starts.get(at).expect("forge start")) {
+        if self.ending.live() && super::ready(*self.starts.get(at).expect("forge start")) {
             let _started = gh.puller.fire(env);
         }
         if let Some((until, next)) = backoff(*self.starts.get(at).expect("forge start"))
             && until <= env.now
-            && !self.closed
+            && self.ending.live()
         {
             *self.starts.get_mut(at).expect("forge start") = Start::Listing { next };
         }
         for turn in 0..64_u32 {
-            if !self.closed && self.local_output_pending(at) {
+            if self.ending.live() && self.local_output_pending(at) {
                 let progressed = self.github_local(at, env, up);
                 assert!(progressed, "pending local output advances before remote work");
                 if turn == 63 {
@@ -896,7 +896,7 @@ impl Component {
                 }
                 continue;
             }
-            if !self.closed && self.github_local(at, env, up) {
+            if self.ending.live() && self.github_local(at, env, up) {
                 if turn == 63 {
                     self.wake = Some(env.now);
                 }
@@ -909,12 +909,12 @@ impl Component {
                 Read::Idle | Read::Changes(_) | Read::Waiting { .. } => false,
             };
             let active = github_active(state) || reading || self.github_log_active(at) || self.github_log_selected(at);
-            if !self.closed && active && self.own_plans.get(at).expect("forge plan").is_none() {
+            if self.ending.live() && active && self.own_plans.get(at).expect("forge plan").is_none() {
                 self.github_begin(at, state, env, up);
                 continue;
             }
             let mut token = *self.own_tokens.get(at).expect("forge token");
-            if !self.closed && active && token.is_none() && self.connections.len() < self.connections.capacity() {
+            if self.ending.live() && active && token.is_none() && self.connections.len() < self.connections.capacity() {
                 token = Some(self.open_own(at, env, io));
             }
             let Some(token) = token else {
@@ -922,11 +922,11 @@ impl Component {
             };
             let id = *self.connections.get(&token).expect("own connection");
             let c = self.connection_slab.get_mut(id).expect("own connection");
-            if self.closed || !active {
+            if !self.ending.live() || !active {
                 if c.deadline.is_none() && c.phase == Phase::Idle {
                     c.deadline = Some(env.now.saturating_add(env.limits.idle));
                 }
-                if self.closed || c.phase != Phase::Idle || c.deadline <= Some(env.now) {
+                if !self.ending.live() || c.phase != Phase::Idle || c.deadline <= Some(env.now) {
                     c.close(c.in_flight(), io);
                 }
                 break;

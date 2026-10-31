@@ -275,3 +275,55 @@ fn a_verified_delivery_without_an_event_is_answered_204_without_a_hint() {
     h.write(b"{}");
     assert_eq!((h.status(), h.hints(), h.closed()), (Some(204), 0, false));
 }
+
+#[test]
+fn abort_after_close_aborts_a_webhook_connection_closing_gracefully_and_the_listener_closes_once() {
+    const SOCKET: Token = Token::new(91);
+    let mut h = Listening::new();
+    h.bound();
+    assert!(h.up.pop().is_some(), "the bind is announced");
+    let peer = skein_io::Addr::Ip(([127, 0, 0, 1], 40000).into());
+    h.component.up(&h.env, skein_io::Event::Accepted { owner: h.owner, socket: SOCKET, peer }, &mut h.up, &mut h.io);
+    let hook = match h.io.pop() {
+        Some(skein_io::Request::Bind { socket, owner }) => {
+            assert_eq!(socket, SOCKET);
+            owner
+        }
+        other => panic!("bind the accepted socket: {other:?}"),
+    };
+    h.component.up(
+        &h.env,
+        skein_io::Event::Failed { owner: hook, error: skein_io::Error::Refused },
+        &mut h.up,
+        &mut h.io,
+    );
+    assert_eq!(past_streams(&mut h.io), Some(skein_io::Request::Close { entity: SOCKET }), "a graceful close");
+    h.component.down(&h.env, Request::Close, &mut h.up, &mut h.io);
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Close { entity: LISTENER }));
+    assert!(h.io.is_empty(), "the close leaves the graceful close as it is");
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: SOCKET }), "the abort turns it into an abort");
+    assert!(h.io.is_empty(), "the listener's close stands");
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    assert!(h.io.is_empty(), "a second abort changes nothing");
+    h.component.up(&h.env, skein_io::Event::Closed { owner: hook }, &mut h.up, &mut h.io);
+    assert!(h.up.is_empty(), "the listener is still open");
+    h.component.up(&h.env, skein_io::Event::Closed { owner: h.owner }, &mut h.up, &mut h.io);
+    match h.up.pop() {
+        Some(Event::Closed) => {}
+        other => panic!("closed once io settled: {other:?}"),
+    }
+    assert!(h.up.is_empty());
+    assert_eq!(h.component.next_deadline(), None);
+}
+
+/// The first request to io that is not the connection's stream traffic.
+fn past_streams(io: &mut Queue<skein_io::Request>) -> Option<skein_io::Request> {
+    for _ in 0..io.len() {
+        match io.pop() {
+            Some(skein_io::Request::Stream { .. }) => {}
+            other => return other,
+        }
+    }
+    None
+}

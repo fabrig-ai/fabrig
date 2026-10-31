@@ -92,6 +92,24 @@ impl Waiting {
         }
     }
 }
+/// The component's own lifecycle (programming-model.md, 5.2): `Closing` after the
+/// owner's close, `Aborting` after its abort, `Closed` once `Event::Closed` is up.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Ending {
+    Live,
+    Closing,
+    Aborting,
+    Closed,
+}
+impl Ending {
+    /// Whether the owner has neither closed nor aborted the component.
+    fn live(self) -> bool {
+        match self {
+            Self::Live => true,
+            Self::Closing | Self::Aborting | Self::Closed => false,
+        }
+    }
+}
 #[derive(Debug)]
 pub(crate) struct Held {
     pub answer: Answered,
@@ -110,7 +128,7 @@ pub struct Component {
     calls: Map<Token, Id<Waiting>>,
     held: Map<Token, Held>,
     holders: Map<Token, Token>,
-    closed: bool,
+    ending: Ending,
     diagnostics: Diagnostics,
     shared: Shared,
     connections: Map<Token, Id<Connection>>,
@@ -119,7 +137,6 @@ pub struct Component {
     own_plans: List<Option<OwnPlan>>,
     next_token: u64,
     wake: Option<Time>,
-    ended: bool,
 }
 impl Component {
     pub fn new(settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
@@ -171,7 +188,7 @@ impl Component {
             calls: Map::with_capacity(shared.calls),
             held: Map::with_capacity(shared.calls),
             holders: Map::with_capacity(shared.calls),
-            closed: false,
+            ending: Ending::Live,
             diagnostics: Diagnostics { long_bodies: 0, malformed: 0 },
             shared: *shared,
             connections: Map::with_capacity(limits.connections.checked_add(reserved).expect("checked connections")),
@@ -182,7 +199,6 @@ impl Component {
             own_plans,
             next_token: 1,
             wake: None,
-            ended: false,
         })
     }
     #[cfg(test)]
@@ -217,7 +233,7 @@ impl Component {
     }
     /// Opens each forge's start within its connection slots.
     pub fn begin(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
-        if self.closed {
+        if !self.ending.live() {
             return;
         }
         if let Some(settings) = &self.settings.webhooks {
@@ -238,8 +254,15 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
-        if self.closed {
-            return;
+        match self.ending {
+            Ending::Live => {}
+            Ending::Closing => {
+                if let Request::Abort = request {
+                    self.abort(env, up, io);
+                }
+                return;
+            }
+            Ending::Aborting | Ending::Closed => return,
         }
         match request {
             Request::Connect { forge, access } => {
@@ -298,28 +321,52 @@ impl Component {
                 self.drive(env, up, io);
             }
             Request::Close => {
+                self.shed();
+                self.ending = Ending::Closing;
+                self.hooks.close();
+                self.drive(env, up, io);
+            }
+            Request::Abort => {
                 for _ in 0..self.calls.len() {
                     let Some((call, id)) = self.calls.first() else {
                         break;
                     };
                     let (call, id) = (*call, *id);
-                    self.waiting.retire(id);
-                    let _removed: Option<Id<Waiting>> = self.calls.remove(&call);
+                    self.expire(call, id, up, io);
                 }
-                self.held = Map::with_capacity(self.held.capacity());
-                self.holders = Map::with_capacity(self.holders.capacity());
-                for at in 0..self.starts.len() {
-                    self.settings.forges.get_mut(at).expect("forge").access = None;
-                    if let Some(github) = self.github.get_mut(at).expect("forge slot") {
-                        github.forget();
-                    }
-                    *self.own_plans.get_mut(at).expect("forge plan") = None;
-                }
-                self.closed = true;
-                self.hooks.close();
-                self.drive(env, up, io);
+                self.shed();
+                self.abort(env, up, io);
             }
         }
+    }
+    /// Ends each open call with no answer and drops what the component holds for the
+    /// owner and each forge (forge-connection.md, 8.5).
+    fn shed(&mut self) {
+        for _ in 0..self.calls.len() {
+            let Some((call, id)) = self.calls.first() else {
+                break;
+            };
+            let (call, id) = (*call, *id);
+            self.waiting.retire(id);
+            let _removed: Option<Id<Waiting>> = self.calls.remove(&call);
+        }
+        self.held = Map::with_capacity(self.held.capacity());
+        self.holders = Map::with_capacity(self.holders.capacity());
+        for at in 0..self.starts.len() {
+            self.settings.forges.get_mut(at).expect("forge").access = None;
+            if let Some(github) = self.github.get_mut(at).expect("forge slot") {
+                github.forget();
+            }
+            *self.own_plans.get_mut(at).expect("forge plan") = None;
+        }
+    }
+    /// A close that does not wait (programming-model.md, 5.2), once the calls are ended
+    /// and the rest shed: every connection and the webhooks are aborted, a graceful
+    /// close already sent among them.
+    fn abort(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+        self.ending = Ending::Aborting;
+        self.hooks.abort(io);
+        self.drive(env, up, io);
     }
     fn offer_pullers(&mut self) {
         for at in 0..self.github.len() {
@@ -479,7 +526,7 @@ impl Component {
                 if let Some(id) = self.connections.remove(&owner) {
                     let closing = self.connection_slab.get(id).expect("indexed connection").closing;
                     if let Some(call) = self.holders.remove(&owner)
-                        && !self.closed
+                        && self.ending.live()
                     {
                         let call_id = *self.calls.get(&call).expect("holding call");
                         let c = self.connection_slab.get(id).expect("closed connection");
@@ -509,7 +556,7 @@ impl Component {
                 if self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::Forgejo {
                     *self.own_plans.get_mut(at).expect("configured forge") = None;
                 }
-                if !self.closed && !closing {
+                if self.ending.live() && !closing {
                     match self.settings.forges.get(at).expect("forge").kind {
                         crate::settings::Kind::Forgejo => {
                             self.start_heard(at, skein_forge::forgejo::plans::start::Heard::Unanswered, env, up);
@@ -521,7 +568,7 @@ impl Component {
         }
     }
     pub fn fire(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
-        if self.closed {
+        if !self.ending.live() {
             self.drive(env, up, io);
             return;
         }
@@ -570,7 +617,7 @@ impl Component {
                 earliest = Some(time);
             }
         }
-        if !self.closed {
+        if self.ending.live() {
             for state in &self.starts {
                 if let Some((until, _)) = backoff(*state)
                     && (earliest.is_none() || Some(until) < earliest)
@@ -629,12 +676,12 @@ impl Component {
         let state = self.starts.get_mut(at).expect("configured start");
         if let Some((until, next)) = backoff(*state)
             && until <= env.now
-            && !self.closed
+            && self.ending.live()
         {
             *state = Start::Checking { next };
         }
         let mut token = *self.own_tokens.get(at).expect("configured slot");
-        if !self.closed
+        if self.ending.live()
             && token.is_none()
             && start_read(*state).is_some()
             && self.call_connections() < env.limits.connections
@@ -650,7 +697,7 @@ impl Component {
                 .connection_slab
                 .get_mut(*self.connections.get(&token).expect("indexed token"))
                 .expect("indexed connection");
-            if self.closed {
+            if !self.ending.live() {
                 *self.own_plans.get_mut(at).expect("configured forge") = None;
                 c.close(c.in_flight(), io);
                 break;
@@ -721,14 +768,25 @@ impl Component {
         }
     }
     fn drive(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+        if self.ending == Ending::Aborting {
+            // Each pass, so that a connection whose socket io names later is aborted too.
+            for (_, id) in &self.connections {
+                self.connection_slab.get_mut(*id).expect("indexed connection").abort(io);
+            }
+        }
         if self.settings.webhooks.is_some() {
             self.hooks.drive(env, &self.settings, up, io);
         }
         self.drive_own(env, up, io);
         self.drive_calls(env, up, io);
-        if self.closed && self.connections.is_empty() && self.hooks.closed() && !self.ended {
-            self.ended = true;
-            up.push(Event::Closed);
+        match self.ending {
+            Ending::Closing | Ending::Aborting => {
+                if self.connections.is_empty() && self.hooks.closed() {
+                    self.ending = Ending::Closed;
+                    up.push(Event::Closed);
+                }
+            }
+            Ending::Live | Ending::Closed => {}
         }
     }
     fn call_connections(&self) -> u32 {
