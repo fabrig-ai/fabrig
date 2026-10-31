@@ -25,7 +25,7 @@ const PROOFS: [Coverage; 3] = [
 ];
 
 fn fixture(rows: Vec<Stored>) -> World {
-    let mut world = World::with(providers(vec![provider(PROVIDER, true, true)]), &[]);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, true)]), &[]);
     world.restore(rows);
     world.step(Event::Want);
     world
@@ -208,7 +208,8 @@ fn a_none_source_is_chosen_without_a_grant() {
     // These are the ordinary counter's first account and source, rather than sentinels.
     const NONE_ACCOUNT: u32 = 0;
     const NONE_SOURCE: u32 = 1;
-    let mut world = World::with(providers(vec![provider(PROVIDER, false, false)]), &[]);
+    let mut world =
+        World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, false, false)]), &[]);
     world.step(Event::Want);
     let proof = [Coverage { account: NONE_ACCOUNT, serves: true }];
     assert_eq!(
@@ -308,8 +309,11 @@ fn a_removed_preference_allows_fresh_account_choice() {
 #[test]
 fn a_changed_main_provider_allows_fresh_account_choice() {
     const NEW_PROVIDER: u32 = 2;
-    let mut world =
-        World::with(providers(vec![provider(PROVIDER, false, true), provider(NEW_PROVIDER, false, true)]), &[]);
+    let mut world = World::with_start(
+        jig_accounts_world::LIMITS,
+        providers(vec![provider(PROVIDER, false, true), provider(NEW_PROVIDER, false, true)]),
+        &[],
+    );
     world.restore(vec![
         account(OWN, PROVIDER, Holder::Party(ALICE), b""),
         source(OWN, FIRST, 0, Kind::Key),

@@ -5,7 +5,7 @@
 //! makes an account, the holder's own renews it with this source in its signed-in source's
 //! place, and anything else is refused and the new record revoked. Plan usage declined keeps
 //! the sign-in and refuses the source. A sign-out removes the source at once, and its account
-//! with its last source, since the store keeps no account without one (`restore::finish`); the
+//! with its last source (accounts.md, 5); the
 //! party is answered when the component says whether the provider confirmed the revocation.
 use crate::checks::room_for_sign_in;
 use crate::domain::{Account, Hold, Source, changed, stored};

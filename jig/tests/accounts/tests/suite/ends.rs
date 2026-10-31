@@ -13,7 +13,7 @@ fn started() -> World {
 fn started_with_plan(plan: bool) -> World {
     let mut offered = provider(PROVIDER, true, false);
     offered.signed_in_plan = plan;
-    let mut world = World::with(providers(vec![offered]), &[]);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, providers(vec![offered]), &[]);
     world.step(Event::Want);
     world
 }
