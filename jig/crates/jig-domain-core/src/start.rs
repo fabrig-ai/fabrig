@@ -3,7 +3,8 @@ mod inbox;
 mod links;
 pub(crate) mod projections;
 mod script;
-use crate::{Core, HeldLimit, Key, Wall, settings};
+mod settings;
+use crate::{Core, HeldLimit, Key, Wall, settings as core_settings};
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -25,7 +26,7 @@ pub enum Phase {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Failure {
-    Settings { failure: settings::Failure, changed: bool },
+    Settings { failure: core_settings::Failure, changed: bool },
     ProjectPolicy { project: u32 },
     HeldPastLimit { which: HeldLimit, held: u32, limit: u32 },
     AccountsPastLimit { failure: accounts::RestoreLimit },

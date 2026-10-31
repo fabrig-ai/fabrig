@@ -175,27 +175,37 @@ fn check_set(
 }
 pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
-        Value::Charter(value) => {
-            setting == Setting::Charter(value.number)
-                && value.number != 0
-                && match crate::memory::policy_owned_bytes(&value.policy) {
-                    Some(bytes) => bytes <= u64::from(limits.run_bytes),
-                    None => false,
-                }
-        }
+        Value::Charter(value) => setting == Setting::Charter(value.number) && value.number != 0,
         Value::Template(value) => {
             setting == Setting::Template(value.number)
                 && value.number != 0
-                && value.name.len() <= usize::try_from(limits.documents.text_bytes).expect("text bound")
                 && tasks::valid_contract(&limits.tasks, &value.contract)
         }
+        Value::Policy(_) => match setting {
+            Setting::Policy(number) => number != 0,
+            Setting::Charter(_) | Setting::Template(_) | Setting::Rules => false,
+        },
+        Value::Rules(value) => setting == Setting::Rules && authority::valid_rules(value, &limits.authority),
+    };
+    if !valid {
+        return Err(Failure { setting, fault: Fault::Shape });
+    }
+    restore_fit(setting, value, limits)
+}
+
+/// Stored values retain their byte and count bounds without judging their writer.
+pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
+    let valid = match value {
+        Value::Charter(value) => match crate::memory::policy_owned_bytes(&value.policy) {
+            Some(bytes) => bytes <= u64::from(limits.run_bytes),
+            None => false,
+        },
+        Value::Template(value) => {
+            value.name.len() <= usize::try_from(limits.documents.text_bytes).expect("text bound")
+                && contract_fits(&value.contract, &limits.tasks)
+        }
         Value::Policy(value) => {
-            let numbered = match setting {
-                Setting::Policy(number) => number != 0,
-                Setting::Charter(_) | Setting::Template(_) | Setting::Rules => false,
-            };
-            numbered
-                && value.permissions.len() <= usize::try_from(limits.settings.permissions).expect("permission bound")
+            value.permissions.len() <= usize::try_from(limits.settings.permissions).expect("permission bound")
                 && value.templates.len() <= usize::try_from(limits.templates).expect("template override bound")
                 && match crate::policy::snapshot(&value.policy, &value.permissions, &value.templates) {
                     Some(value) => match people::policy_bytes(&value) {
@@ -205,9 +215,104 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
                     None => false,
                 }
         }
-        Value::Rules(value) => setting == Setting::Rules && authority::valid_rules(value, &limits.authority),
+        Value::Rules(value) => {
+            let bound = &limits.authority;
+            value.ceiling.grants.len() <= usize::try_from(bound.grants).expect("grant bound")
+                && value.ceiling.note_resources.len() <= usize::try_from(bound.grants).expect("scope bound")
+                && value.ceiling.delegation.kinds.len() <= usize::try_from(bound.executors).expect("executor bound")
+                && value.requirements.len() <= usize::try_from(bound.requirements).expect("requirement bound")
+                && value.implies.len() <= bound.implications
+                && rules_patterns_fit(value, bound)
+        }
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape }) }
+}
+
+fn rules_patterns_fit(value: &authority::Rules, limits: &authority::Limits) -> bool {
+    for grant in &value.ceiling.grants {
+        if !pattern_fits(&grant.pattern, limits) {
+            return false;
+        }
+    }
+    for scope in &value.ceiling.note_resources {
+        if !pattern_fits(&scope.pattern, limits) {
+            return false;
+        }
+    }
+    for requirement in &value.requirements {
+        if !pattern_fits(&requirement.pattern, limits) {
+            return false;
+        }
+    }
+    true
+}
+
+fn pattern_fits(value: &authority::Pattern, limits: &authority::Limits) -> bool {
+    if value.segments.len() > usize::try_from(limits.segments).expect("segment bound") {
+        return false;
+    }
+    let bound = usize::try_from(limits.segment_bytes).expect("segment byte bound");
+    for segment in &value.segments {
+        if segment.len() > bound {
+            return false;
+        }
+    }
+    match &value.last {
+        authority::Last::Exact(bytes) | authority::Last::Open(bytes) => bytes.len() <= bound,
+    }
+}
+
+fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
+    match value {
+        tasks::Contract::Report { words } | tasks::Contract::Change { words, .. } => *words <= limits.result_bytes,
+        tasks::Contract::Approval { state, part } => {
+            if state.len() > usize::try_from(limits.result_bytes).expect("result bound") {
+                return false;
+            }
+            match &part.key {
+                tasks::PartKey::Number(_) => true,
+                tasks::PartKey::Path(segments) => {
+                    if segments.len() > limits.hold_segments || segments.capacity() > limits.hold_segments {
+                        return false;
+                    }
+                    let mut bytes = 0_usize;
+                    for segment in segments {
+                        let Some(total) = bytes.checked_add(segment.len()) else {
+                            return false;
+                        };
+                        bytes = total;
+                    }
+                    bytes <= usize::try_from(limits.hold_bytes).expect("hold byte bound")
+                }
+            }
+        }
+        tasks::Contract::Verdict { choices } => {
+            if choices.len() > usize::try_from(limits.contract_choices).expect("choice bound") {
+                return false;
+            }
+            for choice in choices {
+                if choice.fields.len() > usize::try_from(limits.result_bytes).expect("field bound")
+                    || choice.followups > limits.batch
+                {
+                    return false;
+                }
+                let mut bytes = u64::from(choice.words);
+                for field in &choice.fields {
+                    let Some(total) = bytes.checked_add(u64::try_from(field.name.len()).expect("field bytes")) else {
+                        return false;
+                    };
+                    let Some(total) = total.checked_add(u64::from(field.max)) else {
+                        return false;
+                    };
+                    bytes = total;
+                }
+                if bytes > u64::from(limits.result_bytes) {
+                    return false;
+                }
+            }
+            true
+        }
+    }
 }
 fn charter_fault(charter: &crate::Charter, settings: &Settings, limits: &Limits) -> Option<Fault> {
     let policy = &charter.policy;
