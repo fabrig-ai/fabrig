@@ -64,11 +64,11 @@ impl LongWorld {
                     self.wire.agent_admits();
                     self.wire.settle();
                 }
-                AgentRequest::Read { owner, .. } => {
-                    self.step(AgentEvent::Read { owner, read: agent::run::Read::Missing });
+                AgentRequest::Lower(smith_domain::Lower::Read { owner, .. }) => {
+                    self.step(AgentEvent::Below(smith_domain::Below::Read { owner, read: agent::run::Read::Missing }));
                 }
-                AgentRequest::Probe { owner, .. } => {
-                    self.step(AgentEvent::Probed { owner, executable: false });
+                AgentRequest::Lower(smith_domain::Lower::Probe { owner, .. }) => {
+                    self.step(AgentEvent::Below(smith_domain::Below::Probed { owner, executable: false }));
                 }
                 AgentRequest::Long { operation, until, .. } => {
                     let span = until.saturating_since(self.env.now);
@@ -84,10 +84,12 @@ impl LongWorld {
                     self.wire.settle();
                     self.host.up(Up::LongDone);
                 }
-                AgentRequest::Complete { owner, .. } => self.completion = Some(owner),
-                AgentRequest::Io { owner, op: agent::tools::Op::Spawn { .. }, .. } => self.command = Some(owner),
-                AgentRequest::Job { .. } => unreachable!("the tools issue no job act yet"),
-                AgentRequest::CancelIo { owner } => {
+                AgentRequest::Lower(smith_domain::Lower::Complete { owner, .. }) => self.completion = Some(owner),
+                AgentRequest::Lower(smith_domain::Lower::Io { owner, op: agent::tools::Op::Spawn { .. }, .. }) => {
+                    self.command = Some(owner);
+                }
+                AgentRequest::Lower(smith_domain::Lower::Job { .. }) => unreachable!("the tools issue no job act yet"),
+                AgentRequest::Lower(smith_domain::Lower::CancelIo { owner }) => {
                     assert_eq!(Some(owner), self.command);
                     self.cancelled = true;
                 }
@@ -157,7 +159,7 @@ fn an_observed_command_crosses_the_channel_and_outlasts_no_progress_until_its_te
         }]),
     });
     let owner = world.completion.take().expect("observed provider request");
-    world.step(AgentEvent::Completed {
+    world.step(AgentEvent::Below(smith_domain::Below::Completed {
         owner,
         completion: agent::llm::Completion {
             reasoning_dropped: Box::default(),
@@ -178,7 +180,7 @@ fn an_observed_command_crosses_the_channel_and_outlasts_no_progress_until_its_te
                 },
             }]),
         },
-    });
+    }));
     let command = world.command.expect("observed command IO was issued");
     assert_eq!(world.notices, [Some(agent::Operation::Completion), None, Some(agent::Operation::Command)]);
     world.env.now = Time::ZERO.saturating_add(Duration::from_secs(11));
@@ -188,7 +190,7 @@ fn an_observed_command_crosses_the_channel_and_outlasts_no_progress_until_its_te
     world.ready();
     assert!(world.cancelled);
     assert_eq!(world.notices.len(), 3, "a cancel request is not the command terminal");
-    world.step(AgentEvent::Done { owner: command, done: agent::tools::Done::Cancelled });
+    world.step(AgentEvent::Below(smith_domain::Below::Done { owner: command, done: agent::tools::Done::Cancelled }));
     world.ready();
     assert_eq!(world.notices, [Some(agent::Operation::Completion), None, Some(agent::Operation::Command), None]);
     assert!(matches!(

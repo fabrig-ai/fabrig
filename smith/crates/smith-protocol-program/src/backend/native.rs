@@ -3,6 +3,7 @@
 //! reads hold Allow; allowed writes and edits hold their result. Failed loads
 //! teach nothing. Closing waits for the load's terminal before private cleanup.
 
+use super::Complete;
 use super::Owner;
 use super::{Backend, Below, State, policy, stop};
 use crate::mcp::{self, json};
@@ -10,7 +11,7 @@ use alloc::boxed::Box;
 use skein_io::{digest, file};
 use skein_lib::{Queue, Time, Token};
 use smith_domain::tools::{Place, Version};
-use smith_protocol_llm::{FromDomain, ToDomain};
+use smith_protocol_llm::ToDomain;
 
 pub(super) enum After {
     Allow { call: mcp::CallId, input: Box<[u8]> },
@@ -60,9 +61,9 @@ impl Backend {
 
     pub(super) fn begin_snapshot(&mut self, owner: Token, place: Place, after: After) {
         assert!(self.native.is_none(), "one native snapshot at a time");
-        let deadline = match &self.request {
-            Some(FromDomain::Complete { deadlines, .. }) => deadlines.whole,
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {
+        let deadline = match self.current.request() {
+            Some(Complete { deadlines, .. }) => deadlines.whole,
+            None => {
                 unreachable!("snapshot belongs to an allowed completion")
             }
         };

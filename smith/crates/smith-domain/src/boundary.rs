@@ -14,9 +14,9 @@
 //!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 10).
 //!   [`Request::Long`] and [`Request::LongDone`] bracket checks,
 //!   provider completions and commands, from issuance to their terminal.
-//! - LLM providers, for the sessions: a [`Request::Complete`] is ended by one
-//!   of [`Event::Completed`], [`Event::Failed`] or, after a
-//!   [`Request::Cancel`] that won its race, [`Event::Cancelled`]. Its prompt
+//! - LLM providers, for the sessions: a [`Lower::Complete`] is ended by one
+//!   of [`Below::Completed`], [`Below::Failed`] or, after a
+//!   [`Lower::Cancel`] that won its race, [`Below::Cancelled`]. Its prompt
 //!   and its completion are in the conversation vocabulary ([`crate::llm`]):
 //!   a prompt's messages hold text, tool calls sent back as the LLM wrote
 //!   them, and their results (the tools' outcome, the run's answer to a tool
@@ -24,12 +24,12 @@
 //!   completion holds text and tool calls, each decoded into a call to the
 //!   session's own tools, an ask of a tool the run serves, or a problem.
 //! - io, in two families of records for now: the file and process operations
-//!   of the sessions' tools, as the tools define them (a [`Request::Io`] is
-//!   ended by [`Event::Done`], with `Cancelled` if a [`Request::CancelIo`]
+//!   of the sessions' tools, as the tools define them (a [`Lower::Io`] is
+//!   ended by [`Below::Done`], with `Cancelled` if a [`Lower::CancelIo`]
 //!   won its race), and the run's own looks in its checkout and
-//!   its checks (a [`Request::Read`] by [`Event::Read`], a [`Request::Probe`]
-//!   by [`Event::Probed`], a [`Request::Check`] by [`Event::Checked`], or
-//!   after a [`Request::Abort`] by [`Event::Aborted`] if the abort won). They
+//!   its checks (a [`Lower::Read`] by [`Below::Read`], a [`Lower::Probe`]
+//!   by [`Below::Probed`], a [`Lower::Check`] by [`Below::Checked`], or
+//!   after a [`Lower::Abort`] by [`Below::Aborted`] if the abort won). They
 //!   share a shape (a command run as a contained process, in a root, with a
 //!   deadline, is a check for the run and a shell call for the tools), and
 //!   become one vocabulary once the io layer is designed. Every io request
@@ -172,53 +172,8 @@ pub enum Event {
     /// mounts; stale callback generations are inert.
     Delivered { owner: Token, delivery: run::Delivery },
 
-    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).
-    BuiltinResult { owner: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
-    /// Terminal for `Complete`: the LLM produced its next message.
-    Completed {
-        owner: Token,
-        /// Provider completion, validated and charged once before its tools run.
-        completion: Completion,
-    },
-    /// Terminal for `Complete`: the call produced no message.
-    Failed {
-        owner: Token,
-        failure: Failure,
-        report: crate::llm::Report,
-
-        evidence: crate::llm::Evidence,
-
-        /// Bounded exact shared-client diagnostic, consumed and dropped by policy.
-        /// It never controls text-based retry decisions or enters saved history.
-        detail: Box<[u8]>,
-    },
-    /// Terminal for `Complete`, after `Cancel`: the call was abandoned.
-    Cancelled { owner: Token },
-    /// Terminal for `Io`.
-    Done { owner: Token, done: tools::Done },
-    /// Terminal for `Read`.
-    Read {
-        owner: Token,
-        /// IO's one terminal for the run's pending text read.
-        read: run::Read,
-    },
-    /// Terminal for `Probe`: whether an executable file is at the place. A
-    /// failure or a deadline passed reads as not.
-    Probed {
-        owner: Token,
-        /// Whether IO found an executable within the named root before its deadline.
-        executable: bool,
-    },
-    /// Terminal for `Check`: what the checks' process did.
-    Checked {
-        owner: Token,
-        /// Checks' process terminal, including its bounded diagnostic tail.
-        ran: run::Ran,
-    },
-    /// Terminal for `Check`, after `Abort`: the checks were stopped.
-    Aborted { owner: Token },
-    /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
-    ReadVersion { owner: Token, place: tools::Place, version: tools::Version },
+    /// The closed provider and machine face.
+    Below(Below),
 }
 
 /// Owned host notices and calls, provider calls and IO operations emitted by
@@ -323,6 +278,89 @@ pub enum Request {
         change: run::outcome::Change,
     },
 
+    /// Provider authentication rejected this exact credential generation; a notice
+    /// to the host, with no terminal owed. Repeated rejection of that generation is suppressed.
+    Unauthorized { grant: GrantName },
+    /// The provider reports its account allowance spent.
+    Limited {
+        account: u32,
+        /// The reset, absent when the provider did not say.
+        reset: Option<Duration>,
+    },
+    /// The provider refused an account; its diagnostic reason is not conversation content.
+    Refused { account: u32, code: Box<[u8]>, reason: Box<[u8]> },
+
+    /// The closed provider and machine face.
+    Lower(Lower),
+}
+
+/// Work below the run, reported to its host with its own deadline
+/// (smith/docs/design/domain/host.md, section 4; smith/docs/design/protocol/channel.md, section 4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Operation {
+    /// The run reports its checks before a delivery; their terminal ends this span.
+    Checks,
+    /// The root reports an issued provider completion; its terminal ends this span.
+    Completion,
+    /// The root reports an issued session command; its IO terminal ends this span.
+    Command,
+}
+
+/// Provider and machine terminals returned to the root or its inline owner.
+#[derive(PartialEq, Eq, Debug)]
+pub enum Below {
+    /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
+    ReadVersion { owner: Token, place: tools::Place, version: tools::Version },
+    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).
+    BuiltinResult { owner: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
+    /// Terminal for `Complete`: the LLM produced its next message.
+    Completed {
+        owner: Token,
+        /// Provider completion, validated and charged once before its tools run.
+        completion: Completion,
+    },
+    /// Terminal for `Complete`: the call produced no message.
+    Failed {
+        owner: Token,
+        failure: Failure,
+        report: crate::llm::Report,
+
+        evidence: crate::llm::Evidence,
+
+        /// Bounded exact shared-client diagnostic, consumed and dropped by policy.
+        /// It never controls text-based retry decisions or enters saved history.
+        detail: Box<[u8]>,
+    },
+    /// Terminal for `Complete`, after `Cancel`: the call was abandoned.
+    Cancelled { owner: Token },
+    /// Terminal for `Io`.
+    Done { owner: Token, done: tools::Done },
+    /// Terminal for `Read`.
+    Read {
+        owner: Token,
+        /// IO's one terminal for the run's pending text read.
+        read: run::Read,
+    },
+    /// Terminal for `Probe`: whether an executable file is at the place. A
+    /// failure or a deadline passed reads as not.
+    Probed {
+        owner: Token,
+        /// Whether IO found an executable within the named root before its deadline.
+        executable: bool,
+    },
+    /// Terminal for `Check`: what the checks' process did.
+    Checked {
+        owner: Token,
+        /// Checks' process terminal, including its bounded diagnostic tail.
+        ran: run::Ran,
+    },
+    /// Terminal for `Check`, after `Abort`: the checks were stopped.
+    Aborted { owner: Token },
+}
+
+/// Provider and machine operations emitted by the root or its inline owner.
+#[derive(PartialEq, Eq, Debug)]
+pub enum Lower {
     /// Ask an LLM for its next message, ended by one completion or call terminal.
     Complete {
         /// Session's opaque token, shared with its provider terminals and captured content.
@@ -353,17 +391,6 @@ pub enum Request {
         /// completion, included by the adapter in its full translated byte bound.
         decoded_call_bytes: u64,
     },
-    /// Provider authentication rejected this exact credential generation; a notice
-    /// to the host, with no terminal owed. Repeated rejection of that generation is suppressed.
-    Unauthorized { grant: GrantName },
-    /// The provider reports its account allowance spent.
-    Limited {
-        account: u32,
-        /// The reset, absent when the provider did not say.
-        reset: Option<Duration>,
-    },
-    /// The provider refused an account; its diagnostic reason is not conversation content.
-    Refused { account: u32, code: Box<[u8]>, reason: Box<[u8]> },
     /// Abandon the `Complete` in flight for `owner`. Its terminal event still
     /// comes: `Cancelled`, or whichever outcome won the race.
     Cancel { owner: Token },
@@ -405,16 +432,4 @@ pub enum Request {
     /// Stop the `Check` in flight for `owner`. Its terminal still comes:
     /// `Aborted`, or `Checked` if the checks ended first.
     Abort { owner: Token },
-}
-
-/// Work below the run, reported to its host with its own deadline
-/// (smith/docs/design/domain/host.md, section 4; smith/docs/design/protocol/channel.md, section 4).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Operation {
-    /// The run reports its checks before a delivery; their terminal ends this span.
-    Checks,
-    /// The root reports an issued provider completion; its terminal ends this span.
-    Completion,
-    /// The root reports an issued session command; its IO terminal ends this span.
-    Command,
 }

@@ -296,12 +296,12 @@ fn measure_turn(number: u32) {
         }
         for _ in 0..out.len() {
             let request = out.pop().unwrap();
-            if let smith_domain::Request::Read { owner, .. } = request {
-                events.push(smith_domain::Event::Read { owner, read: run::Read::Missing });
-            } else if let smith_domain::Request::Probe { owner, .. } = request {
-                events.push(smith_domain::Event::Probed { owner, executable: false });
-            } else if let smith_domain::Request::Complete { owner, .. } = request {
-                events.push(smith_domain::Event::Completed {
+            if let smith_domain::Request::Lower(smith_domain::Lower::Read { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::Read { owner, read: run::Read::Missing }));
+            } else if let smith_domain::Request::Lower(smith_domain::Lower::Probe { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::Probed { owner, executable: false }));
+            } else if let smith_domain::Request::Lower(smith_domain::Lower::Complete { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::Completed {
                     owner,
                     completion: smith_domain::llm::Completion {
                         reasoning_dropped: Box::default(),
@@ -318,7 +318,7 @@ fn measure_turn(number: u32) {
                             reasoning_tokens: Some(0),
                         },
                     },
-                });
+                }));
             } else if let smith_domain::Request::Turn { .. } = request {
                 turns = turns.checked_add(1).unwrap();
             } else if let smith_domain::Request::Answer { answer: run::Answer::Refused(reason), .. } = request {

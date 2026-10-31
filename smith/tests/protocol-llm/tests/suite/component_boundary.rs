@@ -338,7 +338,9 @@ fn every_shared_failure_class_keeps_each_evidence_and_detail() {
                 shared::Report::none(),
             )
             .expect("matching terminal");
-            let smith_domain::Event::Failed { owner, failure, evidence, detail, report } = event else {
+            let smith_domain::Event::Below(smith_domain::Below::Failed { owner, failure, evidence, detail, report }) =
+                event
+            else {
                 panic!("failed event")
             };
             let observed = Some((owner, failure, evidence, detail, report));
@@ -509,7 +511,9 @@ fn a_response_failure_keeps_its_status_in_the_evidence() {
         shared::Report::none(),
     )
     .expect("matching terminal");
-    let smith_domain::Event::Failed { failure, evidence, .. } = terminal else { panic!("failure terminal") };
+    let smith_domain::Event::Below(smith_domain::Below::Failed { failure, evidence, .. }) = terminal else {
+        panic!("failure terminal")
+    };
     assert_eq!(failure, llm::Failure::Unavailable);
     assert_eq!(evidence, llm::Evidence::Response { status: Some(503) });
 }
@@ -548,7 +552,9 @@ fn skeins_report_reaches_the_session_whole() {
             report,
         )
         .expect("matching terminal");
-        let smith_domain::Event::Failed { report, .. } = terminal else { panic!("failed event") };
+        let smith_domain::Event::Below(smith_domain::Below::Failed { report, .. }) = terminal else {
+            panic!("failed event")
+        };
         let received = Some(report);
         assert_eq!(received, Some(expected));
     }

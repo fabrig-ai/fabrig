@@ -12,6 +12,7 @@ use crate::STATUS_BYTES;
 const READ_BYTES: u32 = 4096;
 
 /// A caller's executable, arguments, whole environment and working directory.
+#[derive(Clone)]
 pub struct Launch {
     pub program: Box<[u8]>,
     pub arguments: Box<[Box<[u8]>]>,

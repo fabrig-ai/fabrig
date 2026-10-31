@@ -54,7 +54,7 @@ fn an_open_result_completes_text_and_keeps_input_open() {
     assert_eq!(completion.stop, llm::Stop::EndTurn);
     let llm::Said::Text { text, .. } = &completion.content[0] else { panic!("text reply") };
     assert_eq!(text.as_ref(), b"Hello.");
-    assert_eq!(backend.pipes.input, Some(Token::new(31)));
+    assert_eq!(backend.process.pipes().input, Some(Token::new(31)));
     assert_eq!(
         backend
             .io
@@ -77,7 +77,7 @@ fn a_listening_message_writes_one_new_user_line() {
         llm::Message { role: llm::Role::Assistant, content: Box::default() },
         user(b"new host message"),
     ]);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     let line = backend.outgoing.as_ref().expect("new user line");
     let message: serde_json::Value = serde_json::from_slice(line).expect("stream JSON");
     assert_eq!(message["message"]["content"], "new host message\n");
@@ -131,7 +131,7 @@ fn an_open_final_request_enters_the_wind_down() {
     let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
     prompt.choice = llm::ToolChoice::None;
     prompt.messages = Box::new([user(b"Reply now with what you have")]);
-    backend.resume(&env(0), next, &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
+    backend.resume(&env(0), Complete::from_request(next), &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
     assert!(backend.winding == stop::WindDown::Finishing);
     assert_eq!(backend.state, State::Running);
     let line: serde_json::Value =
@@ -155,7 +155,7 @@ fn a_host_message_uses_input_room_not_tool_reply_room() {
     let mut next = request(&backend);
     let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
     prompt.messages = Box::new([user(b"a longer host message")]);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     let line: serde_json::Value =
         serde_json::from_slice(backend.outgoing.as_ref().expect("host input fits")).expect("user line");
     assert_eq!(line["message"]["content"], "a longer host message\n");
@@ -195,7 +195,7 @@ fn a_yield_explains_the_next_finishing_note() {
     let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
     prompt.choice = llm::ToolChoice::None;
     prompt.messages = Box::new([user(b"Reply now with what you have")]);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     let note: serde_json::Value =
         serde_json::from_slice(backend.outgoing.as_ref().expect("finishing input")).expect("user line");
     assert_eq!(
@@ -207,8 +207,8 @@ fn a_yield_explains_the_next_finishing_note() {
 #[test]
 fn a_yield_without_an_outstanding_completion_is_ignored() {
     let (mut backend, mut up, mut below) = running_with_queues();
-    backend.owner = None;
-    backend.request = None;
+    fixtures::answered_completion(&mut backend);
+    fixtures::clear_completion(&mut backend);
     backend.from_domain(&env(0), FromDomain::Yield { owner: COMPLETION }, &mut up, &mut below);
     assert!(up.is_empty());
     assert!(below.is_empty());

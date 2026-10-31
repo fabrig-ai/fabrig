@@ -372,7 +372,7 @@ impl Backend for Protocol {
     }
     fn start(&mut self, request: Request, now: Time, wall: Wall) -> Vec<fake::api::Query> {
         self.at(now, wall);
-        let Request::Complete {
+        let Request::Lower(smith_domain::Lower::Complete {
             owner,
             grant,
             prompt,
@@ -382,7 +382,7 @@ impl Backend for Protocol {
             max_failure_bytes,
             decoded_call_bytes,
             ..
-        } = request
+        }) = request
         else {
             panic!("backend accepts Complete")
         };
@@ -450,13 +450,19 @@ impl Backend for Protocol {
         self.drain_measures();
         while let Some(event) = self.above.pop() {
             let (owner, event, observed) = match event {
-                ToDomain::Completed { owner, completion } => {
-                    (owner, Event::Completed { owner, completion }, Terminal::Completed(owner))
+                ToDomain::Completed { owner, completion } => (
+                    owner,
+                    Event::Below(smith_domain::Below::Completed { owner, completion }),
+                    Terminal::Completed(owner),
+                ),
+                ToDomain::Failed { owner, failure, evidence, detail, report } => (
+                    owner,
+                    Event::Below(smith_domain::Below::Failed { owner, failure, evidence, detail, report }),
+                    Terminal::Failed(owner),
+                ),
+                ToDomain::Cancelled { owner } => {
+                    (owner, Event::Below(smith_domain::Below::Cancelled { owner }), Terminal::Cancelled(owner))
                 }
-                ToDomain::Failed { owner, failure, evidence, detail, report } => {
-                    (owner, Event::Failed { owner, failure, evidence, detail, report }, Terminal::Failed(owner))
-                }
-                ToDomain::Cancelled { owner } => (owner, Event::Cancelled { owner }, Terminal::Cancelled(owner)),
                 ToDomain::Text { .. } => continue,
                 other => panic!("unexpected component terminal: {other:?}"),
             };

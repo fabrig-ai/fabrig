@@ -1,9 +1,9 @@
 //! Resume admission and recoverable teardown (protocol/programs.md 5.8).
 //! Reuses the stopped invocation's storage; never reads the session database.
 //! A resumed assistant wait identifies a parked held turn (smith/docs/design/protocol/programs.md 5.9).
+use super::Complete;
 use super::{Backend, State, tail};
 use smith_domain::llm;
-use smith_protocol_llm::FromDomain;
 
 pub(super) fn restartable(failure: llm::Failure) -> bool {
     match failure {
@@ -38,10 +38,8 @@ impl Backend {
         // A retry of an already recorded invocation has consumed this tail.
         // Only a newly restored window needs the parked-wait explanation.
         let restored = self.recorded_session.is_none() || self.recorded_session != self.running_session;
-        let (prompt, capture) = match self.request.as_mut()? {
-            FromDomain::Complete { prompt, observation, .. } => (prompt, observation.is_some()),
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => return None,
-        };
+        let Complete { prompt, observation, .. } = self.current.request_mut()?;
+        let capture = observation.is_some();
         let prefix = if restored && parked_wait(prompt) {
             b"(The agent paused your last turn: the run was parked and has resumed.)\n".as_slice()
         } else {
@@ -70,7 +68,7 @@ impl Backend {
         {
             return llm::Failure::SessionGone;
         }
-        llm::Failure::Program { exit: self.exit }
+        llm::Failure::Program { exit: self.process.exit() }
     }
 }
 

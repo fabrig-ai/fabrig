@@ -23,14 +23,14 @@ use teardown::{Answer, Close};
 #[test]
 fn a_colocated_host_gets_typed_machine_terminals_without_an_agent_channel() {
     let mut effects = Effects::new(configuration(), 1).expect("bounded effects");
-    effects.request(domain::Request::Probe {
+    effects.request(smith_domain::Lower::Probe {
         owner: Token::new(17),
         at: run::Place { root: Token::new(19), path: Box::from(b"checks".as_slice()) },
         deadline: Time::from_nanos(50),
     });
     effects.iterate(Time::ZERO, Wall::EPOCH);
     effects.iterate(Time::ZERO, Wall::EPOCH);
-    let Some(domain::Event::Probed { owner, executable: false }) = effects.event() else {
+    let Some(smith_domain::Below::Probed { owner, executable: false }) = effects.event() else {
         panic!("typed machine terminal")
     };
     assert_eq!(owner, Token::new(17));
@@ -94,7 +94,7 @@ fn machine_terminal_and_channel_message_keep_their_domain_names() {
     enter(&mut service, Input::Machine(machine::ToDomain::Probed { owner, executable: true }));
     component_up(&mut service.stages, Some(&mut service.frame));
     match service.stages.domain_events.pop().expect("terminal") {
-        domain::Event::Probed { owner: observed, executable } => {
+        domain::Event::Below(smith_domain::Below::Probed { owner: observed, executable }) => {
             assert_eq!(observed, owner);
             assert!(executable);
         }
@@ -132,7 +132,7 @@ fn llm_and_host_terminals_reach_the_domain_with_their_owners() {
     enter(&mut service, Input::Provider(llm::ToDomain::Cancelled { owner }));
     component_up(&mut service.stages, Some(&mut service.frame));
     match service.stages.domain_events.pop().expect("LLM terminal") {
-        domain::Event::Cancelled { owner: observed } => assert_eq!(observed, owner),
+        domain::Event::Below(smith_domain::Below::Cancelled { owner: observed }) => assert_eq!(observed, owner),
         other => panic!("unexpected LLM terminal: {other:?}"),
     }
     let relay = run::RelayName { owner: Token::new(5), attempt: 1 };
@@ -343,7 +343,7 @@ fn effects_report_their_handoffs_backlog() {
     let mut effects = Effects::new(configuration(), 1).expect("bounded effects");
     let owner = Token::new(17);
     assert_eq!(effects.backlog(), 0);
-    effects.request(domain::Request::Cancel { owner });
+    effects.request(smith_domain::Lower::Cancel { owner });
     assert_eq!(effects.backlog(), 1, "one domain request waits for the lower stages");
     effects.io_event(io::Event::Resized);
     assert_eq!(effects.backlog(), 2, "one IO event waits for routing");
@@ -473,7 +473,8 @@ fn an_answer_is_taken_past_the_watermark() {
     let Some(domain::Event::Cancel { .. }) = service.stages.domain_events.pop() else {
         panic!("cancellation advances")
     };
-    let Some(domain::Event::Cancelled { owner }) = service.stages.domain_events.pop() else {
+    let Some(domain::Event::Below(smith_domain::Below::Cancelled { owner })) = service.stages.domain_events.pop()
+    else {
         panic!("provider terminal advances")
     };
     assert_eq!(owner, Token::new(73));
@@ -515,14 +516,14 @@ fn a_one_entry_watermark_keeps_the_host_edge_capped_and_effects_progressing() {
     let mut config = configuration();
     config.limits.queue = 1;
     let mut effects = Effects::new(config, 1).expect("one-entry effects builds");
-    effects.request(domain::Request::Probe {
+    effects.request(smith_domain::Lower::Probe {
         owner: Token::new(17),
         at: run::Place { root: Token::new(19), path: Box::from(b"checks".as_slice()) },
         deadline: Time::from_nanos(50),
     });
     effects.iterate(Time::ZERO, Wall::EPOCH);
     effects.iterate(Time::ZERO, Wall::EPOCH);
-    let Some(domain::Event::Probed { owner, executable: false }) = effects.event() else {
+    let Some(smith_domain::Below::Probed { owner, executable: false }) = effects.event() else {
         panic!("one-entry effects reaches its typed terminal")
     };
     assert_eq!(owner, Token::new(17));

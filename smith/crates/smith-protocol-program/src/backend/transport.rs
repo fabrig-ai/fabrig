@@ -4,7 +4,7 @@
 
 use super::{Backend, Below, Owner, PIPE_BYTES, Pipes, State};
 use alloc::boxed::Box;
-use skein_io::{self as io, kernel};
+use skein_io as io;
 use skein_lib::{Env, Queue, Token, stream};
 use smith_protocol_llm::{self as protocol, ToDomain};
 
@@ -35,16 +35,14 @@ impl Backend {
         }
         match event {
             io::Event::Spawned { child, pipes, .. } => {
-                self.spawning = false;
-                self.child = Some(child);
-                self.interrupt_sequence = 0;
-                self.pipes = Pipes::from_spawn(&pipes);
+                self.process.spawned(child, Pipes::from_spawn(&pipes));
+                self.interrupt.restart(&mut self.io);
                 self.read_stdout();
-                if let Some(pipe) = self.pipes.errors {
+                if let Some(pipe) = self.process.pipes().errors {
                     Self::demand(pipe, PIPE_BYTES, &mut self.io);
                 }
                 if self.state == State::Ending {
-                    self.io.push(io::Request::Close { entity: self.pipes.input.expect("stdin") });
+                    self.io.push(io::Request::Close { entity: self.process.pipes().input.expect("stdin") });
                     if self.stopping > 0
                         || match self.deadline {
                             Some(deadline) => env.now >= deadline,
@@ -59,29 +57,11 @@ impl Backend {
                 }
             }
             io::Event::Exited { exit, .. } => {
-                self.drain_deadline = Some(env.now.saturating_add(self.settings.grace));
-                self.exit = Some(match exit {
-                    kernel::Exit::Code(code) => u32::from(code),
-                    kernel::Exit::Signal(signal) => 128_u32.checked_add(signal).expect("signal code"),
-                });
-                if let Some(child) = self.child {
-                    self.io.push(io::Request::Close { entity: child });
-                }
-                if let Some(input) = self.pipes.input {
-                    self.io.push(io::Request::Close { entity: input });
-                }
+                self.process.exited(exit, env.now.saturating_add(self.settings.grace), &mut self.io);
             }
             io::Event::Closed { owner } => {
-                if owner == self.token(Owner::Program) {
-                    self.child = None;
-                }
-                self.pipes.closed(owner);
-                if self.child.is_none()
-                    && !self.spawning
-                    && self.pipes == Pipes::CLOSED
-                    && self.state != State::Ending
-                    && !self.switching
-                {
+                self.process.closed(owner, self.token(Owner::Program));
+                if self.process.settled() && self.state != State::Ending && !self.switching {
                     let detail = self.error_tail();
                     let failure = self.exit_failure();
                     self.fail(env, failure, &detail, up, below);
@@ -89,17 +69,17 @@ impl Backend {
             }
             io::Event::Failed { owner, .. } => {
                 if owner == self.token(Owner::Program) {
-                    self.spawning = false;
+                    self.process.failed();
                 }
                 self.fail_program(env, b"smith: the program could not start", up, below);
             }
             io::Event::Stream { owner, up: stream::Up::Bytes(bytes) } => {
-                if self.pipes.errors == Some(owner) {
+                if self.process.pipes().errors == Some(owner) {
                     self.keep_error(&bytes);
                     Self::demand(owner, PIPE_BYTES, &mut self.io);
                 } else {
                     self.stdout_demanding = false;
-                    self.completion_deadline(env, false);
+                    self.completion_deadline(env, false, up);
                     assert!(self.intake.is_empty(), "one outstanding stdout read");
                     for byte in bytes {
                         self.intake.push(byte).expect("stdout demand is 4096 bytes");
@@ -115,17 +95,12 @@ impl Backend {
                 if self.state != State::Ending || self.stop == super::stop::Stop::Parking {
                     match outcome {
                         stream::OutputOutcome::Granted => {
-                            if self.exit.is_some() || self.pipes.input.is_none() {
+                            if self.process.exit().is_some() || self.process.pipes().input.is_none() {
                                 self.fail_program(env, b"smith: the program input closed", up, below);
                                 return;
                             }
                             if right == super::INTERRUPT_RIGHT {
-                                if let Some(bytes) = self.interrupt_line.take() {
-                                    self.io.push(io::Request::Output {
-                                        stream: self.pipes.input.expect("interrupt write"),
-                                        down: stream::OutputDown::Send { right, bytes },
-                                    });
-                                }
+                                self.interrupt.send(self.process.pipes().input.expect("interrupt write"), &mut self.io);
                             } else if let Some(bytes) = &self.outgoing {
                                 let start = usize::try_from(self.written).expect("input cursor");
                                 let end = start
@@ -136,7 +111,7 @@ impl Backend {
                                 self.written = u32::try_from(end).expect("input ceiling");
                                 let finished = end == bytes.len();
                                 self.io.push(io::Request::Output {
-                                    stream: self.pipes.input.expect("input write"),
+                                    stream: self.process.pipes().input.expect("input write"),
                                     down: stream::OutputDown::Send { right, bytes: chunk },
                                 });
                                 if finished {
@@ -176,7 +151,7 @@ impl Backend {
     pub(super) fn read_stdout(&mut self) {
         if !self.stdout_demanding
             && self.intake.is_empty()
-            && let Some(pipe) = self.pipes.output
+            && let Some(pipe) = self.process.pipes().output
         {
             Self::demand(pipe, PIPE_BYTES, &mut self.io);
             self.stdout_demanding = true;
@@ -186,7 +161,7 @@ impl Backend {
     pub(super) fn send_input(&mut self) {
         if let Some(bytes) = &self.outgoing {
             self.io.push(io::Request::Output {
-                stream: self.pipes.input.expect("spawned input"),
+                stream: self.process.pipes().input.expect("spawned input"),
                 down: stream::OutputDown::Room {
                     right: super::INPUT_RIGHT,
                     bytes: u32::try_from(bytes.len())

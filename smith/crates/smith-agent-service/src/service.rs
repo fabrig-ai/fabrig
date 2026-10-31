@@ -189,6 +189,7 @@ pub(crate) struct Stages {
     machine_events: Queue<machine::ToDomain>,
     machine_below: Queue<machine::Below>,
     domain_events: Queue<domain::Event>,
+    lower_events: Queue<domain::Below>,
     domain_requests: Queue<domain::Request>,
     io_events: Queue<io::Event>,
     io_requests: Queue<io::Request>,

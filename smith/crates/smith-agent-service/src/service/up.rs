@@ -102,17 +102,25 @@ pub(super) fn lower_events(service: &mut Stages, mut frame: Option<&mut Frame>) 
     }
 }
 
-fn machine_up(service: &mut Stages) {
+fn lower_event(service: &mut Stages, framed: bool, event: domain::Below) {
+    if framed {
+        service.domain_events.push(domain::Event::Below(event));
+    } else {
+        service.lower_events.push(event);
+    }
+}
+
+fn machine_up(service: &mut Stages, framed: bool) {
     for _ in 0..service.limits.queue {
         let Some(event) = service.machine_events.pop() else { break };
         let event = match event {
-            machine::ToDomain::Done { owner, done } => domain::Event::Done { owner, done },
-            machine::ToDomain::Read { owner, read } => domain::Event::Read { owner, read },
-            machine::ToDomain::Probed { owner, executable } => domain::Event::Probed { owner, executable },
-            machine::ToDomain::Checked { owner, ran } => domain::Event::Checked { owner, ran },
-            machine::ToDomain::Aborted { owner } => domain::Event::Aborted { owner },
+            machine::ToDomain::Done { owner, done } => domain::Below::Done { owner, done },
+            machine::ToDomain::Read { owner, read } => domain::Below::Read { owner, read },
+            machine::ToDomain::Probed { owner, executable } => domain::Below::Probed { owner, executable },
+            machine::ToDomain::Checked { owner, ran } => domain::Below::Checked { owner, ran },
+            machine::ToDomain::Aborted { owner } => domain::Below::Aborted { owner },
         };
-        service.domain_events.push(event);
+        lower_event(service, framed, event);
     }
 }
 
@@ -261,8 +269,9 @@ pub(super) fn component_up(service: &mut Stages, mut frame: Option<&mut Frame>) 
             channel_event(service, frame, event);
         }
     }
+    let framed = frame.is_some();
     llm_events_up(service, frame);
-    machine_up(service);
+    machine_up(service, framed);
 }
 
 fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
@@ -273,10 +282,10 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
         let Some(event) = service.llm_events.pop() else { break };
         match event {
             llm::ToDomain::ReadVersion { owner, place, version } => {
-                service.domain_events.push(domain::Event::ReadVersion { owner, place, version });
+                lower_event(service, frame.is_some(), domain::Below::ReadVersion { owner, place, version });
             }
             llm::ToDomain::BuiltinResult { owner, id, text, error } => {
-                service.domain_events.push(domain::Event::BuiltinResult { owner, id, text, error });
+                lower_event(service, frame.is_some(), domain::Below::BuiltinResult { owner, id, text, error });
             }
             llm::ToDomain::Completed { owner, completion } => {
                 if let Some(events) = &mut service.events {
@@ -284,20 +293,24 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
                     let conversation = events.sinks().received(owner, &completion);
                     events.received(conversation, &completion);
                 }
-                service.domain_events.push(domain::Event::Completed { owner, completion });
+                lower_event(service, frame.is_some(), domain::Below::Completed { owner, completion });
             }
             llm::ToDomain::Failed { owner, failure, evidence, detail, report } => {
                 if let Some(events) = &mut service.events {
                     events.sinks().attempt_ready(owner);
                     events.sinks().failed(owner, failure, evidence, &detail, &report);
                 }
-                service.domain_events.push(domain::Event::Failed { owner, failure, evidence, detail, report });
+                lower_event(
+                    service,
+                    frame.is_some(),
+                    domain::Below::Failed { owner, failure, evidence, detail, report },
+                );
             }
             llm::ToDomain::Cancelled { owner } => {
                 if let Some(events) = &mut service.events {
                     events.sinks().attempt_ready(owner);
                 }
-                service.domain_events.push(domain::Event::Cancelled { owner });
+                lower_event(service, frame.is_some(), domain::Below::Cancelled { owner });
             }
             llm::ToDomain::Text { owner: _, bytes } => {
                 let Some(frame) = frame.as_deref_mut() else { continue };
@@ -444,16 +457,18 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         | domain::Event::Grant { .. }
         | domain::Event::Cancel { .. }
         | domain::Event::Delivered { .. }
-        | domain::Event::Completed { .. }
-        | domain::Event::Failed { .. }
-        | domain::Event::Cancelled { .. }
-        | domain::Event::Done { .. }
-        | domain::Event::Read { .. }
-        | domain::Event::Probed { .. }
-        | domain::Event::Checked { .. }
-        | domain::Event::BuiltinResult { .. }
-        | domain::Event::ReadVersion { .. }
-        | domain::Event::Aborted { .. } => {}
+        | domain::Event::Below(
+            smith_domain::Below::Completed { .. }
+            | smith_domain::Below::Failed { .. }
+            | smith_domain::Below::Cancelled { .. }
+            | smith_domain::Below::Done { .. }
+            | smith_domain::Below::Read { .. }
+            | smith_domain::Below::Probed { .. }
+            | smith_domain::Below::Checked { .. }
+            | smith_domain::Below::BuiltinResult { .. }
+            | smith_domain::Below::ReadVersion { .. }
+            | smith_domain::Below::Aborted { .. },
+        ) => {}
     }
 }
 

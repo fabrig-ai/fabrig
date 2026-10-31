@@ -30,13 +30,13 @@ pub fn failed(
         client::Evidence::Unknown => llm::Evidence::Unknown,
         client::Evidence::Response { status } => llm::Evidence::Response { status: Some(status) },
     };
-    Ok(Event::Failed {
+    Ok(Event::Below(smith_domain::Below::Failed {
         owner: context.owner,
         failure,
         evidence,
         detail,
         report: llm::Report { code: report.code, request: report.request, field: report.field },
-    })
+    }))
 }
 
 /// Each shared failure keeps its session class (domain/session.md, section 4).
@@ -73,7 +73,7 @@ pub(crate) fn class(failure: skein_llm::Failure) -> llm::Failure {
 /// won Completed/Failed terminals keep their values and consume context instead.
 #[must_use]
 pub fn cancelled(context: Context) -> Event {
-    Event::Cancelled { owner: context.owner }
+    Event::Below(smith_domain::Below::Cancelled { owner: context.owner })
 }
 
 /// Reports a preparation refusal as an unsent root terminal; no wire call existed.
@@ -92,7 +92,13 @@ pub fn refusal(owner: Token, error: Error, max_failure_bytes: u32) -> Event {
     };
     let length = text.len().min(usize::try_from(max_failure_bytes).expect("u32 fits usize"));
     let detail = bytes::copy_of(text.get(..length).expect("clipped fixed local diagnostic"));
-    Event::Failed { owner, failure, evidence: llm::Evidence::Unsent, detail, report: llm::Report::none() }
+    Event::Below(smith_domain::Below::Failed {
+        owner,
+        failure,
+        evidence: llm::Evidence::Unsent,
+        detail,
+        report: llm::Report::none(),
+    })
 }
 
 pub(crate) fn problem(problem: llm::Problem, maximum: u32) -> Result<Box<[u8]>, Error> {

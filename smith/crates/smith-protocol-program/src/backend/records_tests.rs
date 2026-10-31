@@ -39,7 +39,7 @@ fn a_nudge_after_stdin_closes_fails_with_the_exit() {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: b"continue".as_slice().into(), replay: None }]),
     }]);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("exit terminal") };
     assert_eq!(failure, llm::Failure::Program { exit: Some(7) });
 }
@@ -111,7 +111,7 @@ fn a_delivered_assistant_is_not_charged_again_at_result() {
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     feed(&mut backend, json!({"type":"result","is_error":false}), &mut up, &mut below);
     assert!(up.is_empty(), "result has no second API message");
-    assert_eq!(backend.owner, Some(COMPLETION));
+    assert_eq!(backend.current.owner(), Some(COMPLETION));
     assert!(backend.outgoing.is_some(), "pending Complete resumes the ended program turn");
 }
 #[test]
@@ -221,7 +221,7 @@ fn a_result_before_resume_does_not_charge_another_completion() {
     feed(&mut backend, json!({"type":"result","is_error":false}), &mut up, &mut below);
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     assert!(up.is_empty());
-    assert_eq!(backend.owner, Some(COMPLETION));
+    assert_eq!(backend.current.owner(), Some(COMPLETION));
     assert!(backend.outgoing.is_some());
 }
 
@@ -234,7 +234,7 @@ fn stdout_progress_replaces_the_head_with_an_idle_deadline() {
     deadlines.idle = Duration::from_secs(2);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     assert_eq!(backend.next_deadline(), Some(env(3).now));
     backend.from_io(
         &env(2),
@@ -285,8 +285,8 @@ fn failure_never_accepts_an_unjudged_finish() {
 #[test]
 fn an_input_grant_after_stdin_closes_fails_without_writing() {
     let mut backend = active();
-    backend.pipes.input = None;
-    backend.exit = Some(7);
+    fixtures::attach_pipes(Pipes { input: None, ..backend.process.pipes() }, &mut backend);
+    fixtures::exited_process(Some(7), &mut backend);
     backend.outgoing = Some(b"pending".as_slice().into());
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
@@ -342,7 +342,7 @@ fn accepting_one_finish_does_not_accept_an_unjudged_finish() {
 fn bytes_after_init_in_the_same_read_start_the_idle_deadline() {
     let mut backend = active();
     backend.state = State::Starting;
-    let Some(FromDomain::Complete { deadlines, .. }) = &mut backend.request else { panic!("completion") };
+    let Some(Complete { deadlines, .. }) = backend.current.request_mut() else { panic!("completion") };
     deadlines.head = Duration::from_secs(30);
     deadlines.idle = Duration::from_secs(2);
     deadlines.whole = env(60).now;

@@ -59,38 +59,15 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                 }
                 stop::finish(agent, env.now, id, out);
             }
-            smith::Request::Complete {
-                owner,
-                name,
-                grant,
-                prompt,
-                deadlines,
-                max_completion_bytes,
-                max_completion_blocks,
-                max_failure_bytes,
-                decoded_call_bytes,
-            } => {
+            smith::Request::Lower(request @ Lower::Complete { owner, .. }) => {
                 assert!(
                     slot.completions.insert(owner, false).expect("root bounds live completions").is_none(),
                     "root output preserves its scoped identity and single right"
                 );
-                out.push(Output::Lower {
-                    agent: id.token(),
-                    request: Lower::Complete {
-                        owner,
-                        name,
-                        grant,
-                        prompt,
-                        deadlines,
-                        max_completion_bytes,
-                        max_completion_blocks,
-                        max_failure_bytes,
-                        decoded_call_bytes,
-                    },
-                });
+                out.push(Output::Lower { agent: id.token(), request });
             }
-            smith::Request::Yield { .. } => {}
-            smith::Request::Cancel { owner } => match slot.completions.get_mut(&owner) {
+            smith::Request::Lower(Lower::Yield { .. }) => {}
+            smith::Request::Lower(Lower::Cancel { owner }) => match slot.completions.get_mut(&owner) {
                 Some(cancelled) => {
                     if !*cancelled {
                         *cancelled = true;
@@ -191,21 +168,25 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                     },
                 }));
             }
-            smith::Request::Io { owner, op, deadline } => {
+            smith::Request::Lower(Lower::Io { owner, op, deadline }) => {
                 crate::workspace::io(slot, id.token(), owner, op, deadline, out);
             }
-            smith::Request::Job { owner, act } => crate::workspace::job(slot, id.token(), owner, act, out),
-            smith::Request::CancelIo { owner } => crate::workspace::cancel_io(slot, id.token(), owner, out),
-            smith::Request::Read { owner, at, max, deadline } => {
+            smith::Request::Lower(Lower::Job { owner, act }) => {
+                crate::workspace::job(slot, id.token(), owner, act, out);
+            }
+            smith::Request::Lower(Lower::CancelIo { owner }) => {
+                crate::workspace::cancel_io(slot, id.token(), owner, out);
+            }
+            smith::Request::Lower(Lower::Read { owner, at, max, deadline }) => {
                 crate::workspace::read(slot, id.token(), owner, at, max, deadline, out);
             }
-            smith::Request::Probe { owner, at, deadline } => {
+            smith::Request::Lower(Lower::Probe { owner, at, deadline }) => {
                 crate::workspace::probe(slot, id.token(), owner, at, deadline, out);
             }
-            smith::Request::Check { owner, program, deadline, tail } => {
+            smith::Request::Lower(Lower::Check { owner, program, deadline, tail }) => {
                 crate::workspace::check(slot, id.token(), owner, program, deadline, tail, out);
             }
-            smith::Request::Abort { owner } => crate::workspace::abort(slot, id.token(), owner, out),
+            smith::Request::Lower(Lower::Abort { owner }) => crate::workspace::abort(slot, id.token(), owner, out),
         }
     }
     assert!(agent.lower.is_empty(), "each root's requests are routed to its own slot before the next entrance");

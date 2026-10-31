@@ -251,10 +251,10 @@ pub(super) fn active() -> Backend {
 /// Keep caller-selected limits and attach the standard running completion.
 pub(super) fn running(mut backend: Backend) -> Backend {
     backend.state = State::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
-    backend.owner = Some(COMPLETION);
-    backend.request = Some(request(&backend));
+    attach_process(Some(Token::new(30)), &mut backend);
+    attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
+    claim_completion(COMPLETION, &mut backend);
+    retain_request(request(&backend), &mut backend);
     backend
 }
 
@@ -265,16 +265,14 @@ pub(super) fn records() -> Backend {
 
 pub(super) fn records_with(backend: Backend) -> Backend {
     let mut backend = running(backend);
-    backend.pipes = Pipes { input: Some(Token::new(31)), ..Pipes::CLOSED };
+    attach_pipes(Pipes { input: Some(Token::new(31)), ..Pipes::CLOSED }, &mut backend);
     backend
 }
 
 /// A running completion with the deterministic window identity installed.
 pub(super) fn window() -> Backend {
     let mut backend = active();
-    let FromDomain::Complete { prompt, .. } = backend.request.as_ref().expect("completion") else {
-        panic!("completion");
-    };
+    let Complete { prompt, .. } = backend.current.request().expect("completion");
     let session::Opening::New { id } = session::opening(prompt, None, None) else {
         panic!("new window");
     };
@@ -285,8 +283,8 @@ pub(super) fn window() -> Backend {
 /// A window whose program pipes have settled before the relay terminal.
 pub(super) fn drained_window() -> Backend {
     let mut backend = window();
-    backend.child = Some(backend.token(Owner::Program));
-    backend.pipes = Pipes::CLOSED;
+    attach_process(Some(backend.token(Owner::Program)), &mut backend);
+    attach_pipes(Pipes::CLOSED, &mut backend);
     backend
 }
 
@@ -326,7 +324,7 @@ pub(super) fn prompt_with(messages: Box<[llm::Message]>) -> llm::Prompt {
 pub(super) fn spawning() -> Backend {
     let mut backend = backend();
     backend.state = State::Starting;
-    backend.spawning = true;
+    backend.process.spawn();
     backend
 }
 
@@ -335,7 +333,7 @@ pub(super) fn starting() -> Backend {
     let mut backend = active();
     backend.state = State::Starting;
     backend.deadline = Some(env(30).now);
-    backend.child = Some(backend.token(Owner::Program));
+    attach_process(Some(backend.token(Owner::Program)), &mut backend);
     backend
 }
 
@@ -343,7 +341,7 @@ pub(super) fn starting() -> Backend {
 pub(super) fn running_child() -> Backend {
     let mut backend = backend();
     backend.state = State::Running;
-    backend.child = Some(Token::new(30));
+    attach_process(Some(Token::new(30)), &mut backend);
     backend
 }
 
@@ -351,7 +349,7 @@ pub(super) fn running_child() -> Backend {
 pub(super) fn input(bytes: Box<[u8]>) -> Backend {
     let mut backend = backend();
     backend.state = State::Running;
-    backend.pipes.input = Some(Token::new(31));
+    attach_pipes(Pipes { input: Some(Token::new(31)), ..backend.process.pipes() }, &mut backend);
     backend.outgoing = Some(bytes);
     backend.send_input();
     backend
@@ -361,8 +359,8 @@ pub(super) fn input(bytes: Box<[u8]>) -> Backend {
 pub(super) fn observed(observe: bool) -> Backend {
     let mut backend = backend();
     backend.state = State::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
+    attach_process(Some(Token::new(30)), &mut backend);
+    attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
     let mut request = request(&backend);
     let FromDomain::Complete { prompt, observation, deltas, .. } = &mut request else { panic!("complete") };
     *observation = if observe { Some(protocol::Observation { first: true, messages: 0 }) } else { None };
@@ -373,9 +371,9 @@ pub(super) fn observed(observe: bool) -> Backend {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: b"start text".as_slice().into(), replay: None }]),
     }]);
-    backend.begin_prompt(&request);
-    backend.request = Some(request);
-    backend.owner = Some(COMPLETION);
+    begin_prompt(&request, &mut backend);
+    retain_request(request, &mut backend);
+    claim_completion(COMPLETION, &mut backend);
     backend
 }
 
@@ -424,6 +422,47 @@ pub(super) fn resumable() -> Backend {
     let session::Opening::Resume { id } = session::opening(prompt, None, None) else { panic!("resume") };
     backend.names.session = session::uuid(id);
     backend.resuming = true;
-    backend.request = Some(request);
+    retain_request(request, &mut backend);
     backend
+}
+
+/// Attach the scenario's child while retaining its pipe and exit snapshot.
+pub(super) fn attach_process(child: Option<Token>, backend: &mut Backend) {
+    backend.process = process::Process::attached(child, backend.process.pipes(), backend.process.exit());
+}
+
+/// Supply the scenario's remaining pipe resources.
+pub(super) fn attach_pipes(pipes: Pipes, backend: &mut Backend) {
+    backend.process = process::Process::attached(backend.process.child(), pipes, backend.process.exit());
+}
+
+/// A recorded exit whose drain grace has already settled in the scenario.
+pub(super) fn exited_process(exit: Option<u32>, backend: &mut Backend) {
+    backend.process = process::Process::attached(backend.process.child(), backend.process.pipes(), exit);
+}
+
+/// Admit the scenario's callback through the current-completion lifecycle.
+pub(super) fn claim_completion(owner: Token, backend: &mut Backend) {
+    backend.current.claim(owner, &mut Queue::uncapped());
+}
+
+/// Retain the scenario's admitted Complete context.
+pub(super) fn retain_request(request: FromDomain, backend: &mut Backend) {
+    backend.current.retain(Complete::from_request(request), &mut Queue::uncapped());
+}
+
+/// An answered callback retains its program context without owing another terminal.
+pub(super) fn answered_completion(backend: &mut Backend) {
+    if backend.current.owner().is_some() {
+        backend.current.settle(current::Terminal::Cancelled, &mut Queue::uncapped());
+    }
+}
+
+pub(super) fn clear_completion(backend: &mut Backend) {
+    backend.current.clear(&mut Queue::uncapped());
+}
+
+pub(super) fn begin_prompt(request: &FromDomain, backend: &mut Backend) {
+    let FromDomain::Complete { observation, .. } = request else { panic!("completion fixture") };
+    backend.begin_prompt(observation.is_some());
 }

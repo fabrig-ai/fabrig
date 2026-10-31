@@ -73,13 +73,13 @@ pub(crate) fn check(
         Some(total) if total <= guard.line => return None,
         Some(_) | None => {}
     }
-    Some(Event::Failed {
+    Some(Event::Below(smith_domain::Below::Failed {
         owner,
         failure: llm::Failure::ContextTooLong,
         evidence: llm::Evidence::Unsent,
         detail: detail(guard, measured, max_failure_bytes),
         report: llm::Report::none(),
-    })
+    }))
 }
 
 fn detail(guard: llm::Guard, measured: u64, maximum: u32) -> Box<[u8]> {

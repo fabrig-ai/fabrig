@@ -1008,8 +1008,10 @@ impl<B: Backend> World<B> {
                     self.check_notices.push((self.now, false));
                 }
             }
-            request @ Request::Complete { .. } => {
-                let Request::Complete { owner, ref prompt, grant, .. } = request else { unreachable!("completion") };
+            request @ Request::Lower(smith_domain::Lower::Complete { .. }) => {
+                let Request::Lower(smith_domain::Lower::Complete { owner, ref prompt, grant, .. }) = request else {
+                    unreachable!("completion")
+                };
                 if prompt.asker == llm::Asker::Child
                     && (prompt.tools.modify || prompt.tools.shell)
                     && self.writing_opened.insert(prompt.affinity.thread)
@@ -1055,12 +1057,12 @@ impl<B: Backend> World<B> {
                     self.record_query(query);
                 }
             }
-            Request::Cancel { owner } => {
+            Request::Lower(smith_domain::Lower::Cancel { owner }) => {
                 if !self.backend.cancel(owner, self.now, self.stage.env.wall) {
-                    self.cancel(Family::Completion, owner, Event::Cancelled { owner });
+                    self.cancel(Family::Completion, owner, Event::Below(smith_domain::Below::Cancelled { owner }));
                 }
             }
-            Request::Io { owner, op, deadline } => {
+            Request::Lower(smith_domain::Lower::Io { owner, op, deadline }) => {
                 if self.start_job(owner, &op, deadline) {
                     return;
                 }
@@ -1092,9 +1094,11 @@ impl<B: Backend> World<B> {
                                     Some(key);
                                 return;
                             }
-                            Err(done) => {
-                                Delivery::Terminal { family: Family::Io, owner, event: Event::Done { owner, done } }
-                            }
+                            Err(done) => Delivery::Terminal {
+                                family: Family::Io,
+                                owner,
+                                event: Event::Below(smith_domain::Below::Done { owner, done }),
+                            },
                         }
                     }
                     op @ (tools::Op::Load { .. }
@@ -1105,14 +1109,18 @@ impl<B: Backend> World<B> {
                 };
                 self.schedule_flight(Family::Io, owner, delivery);
             }
-            Request::Job { owner, act } => self.job_act(owner, act),
-            Request::CancelIo { owner } => {
+            Request::Lower(smith_domain::Lower::Job { owner, act }) => self.job_act(owner, act),
+            Request::Lower(smith_domain::Lower::CancelIo { owner }) => {
                 if self.cancel_job(owner) {
                     return;
                 }
-                self.cancel(Family::Io, owner, Event::Done { owner, done: tools::Done::Cancelled });
+                self.cancel(
+                    Family::Io,
+                    owner,
+                    Event::Below(smith_domain::Below::Done { owner, done: tools::Done::Cancelled }),
+                );
             }
-            Request::Read { owner, at, max, deadline } => {
+            Request::Lower(smith_domain::Lower::Read { owner, at, max, deadline }) => {
                 self.boundaries.push((self.now, Boundary::Read { at: at.clone() }));
                 let complete = self.now.saturating_add(self.settings.network.draw(&mut self.rng));
                 let read = if complete > deadline {
@@ -1125,14 +1133,18 @@ impl<B: Backend> World<B> {
                 };
                 let key = self.schedule.send(
                     complete.min(deadline),
-                    Delivery::Terminal { family: Family::Read, owner, event: Event::Read { owner, read } },
+                    Delivery::Terminal {
+                        family: Family::Read,
+                        owner,
+                        event: Event::Below(smith_domain::Below::Read { owner, read }),
+                    },
                 );
                 self.flights.open(
                     (Family::Read, owner),
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
-            Request::Probe { owner, at, deadline } => {
+            Request::Lower(smith_domain::Lower::Probe { owner, at, deadline }) => {
                 self.boundaries.push((self.now, Boundary::Probe { at: at.clone() }));
                 let complete = self.now.saturating_add(self.settings.network.draw(&mut self.rng));
                 let executable = complete <= deadline
@@ -1142,14 +1154,18 @@ impl<B: Backend> World<B> {
                         .is_ok_and(|(content, _)| content.starts_with(b"#!"));
                 let key = self.schedule.send(
                     complete.min(deadline),
-                    Delivery::Terminal { family: Family::Probe, owner, event: Event::Probed { owner, executable } },
+                    Delivery::Terminal {
+                        family: Family::Probe,
+                        owner,
+                        event: Event::Below(smith_domain::Below::Probed { owner, executable }),
+                    },
                 );
                 self.flights.open(
                     (Family::Probe, owner),
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
-            Request::Check { owner, program, deadline, tail } => {
+            Request::Lower(smith_domain::Lower::Check { owner, program, deadline, tail }) => {
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
                 assert_eq!(&*program.path, fixture::CHECKS, "the host explicitly selected its Temper fixture checks");
@@ -1166,7 +1182,9 @@ impl<B: Backend> World<B> {
                 );
                 self.flights.get_mut((Family::Check, owner)).expect("the check is pending").key = Some(key);
             }
-            Request::Abort { owner } => self.cancel(Family::Check, owner, Event::Aborted { owner }),
+            Request::Lower(smith_domain::Lower::Abort { owner }) => {
+                self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }));
+            }
             Request::Deliver { host_run, owner, change, name, deadline } => {
                 // Title/body are this fixture host's final-Change policy only.
                 // The Report-only mid-run fixture instead requires opaque ticket.
@@ -1318,7 +1336,7 @@ impl<B: Backend> World<B> {
             Request::MessageRefused { .. }
             | Request::Refused { .. }
             | Request::Limited { .. }
-            | Request::Yield { .. } => {}
+            | Request::Lower(smith_domain::Lower::Yield { .. }) => {}
         }
     }
 
@@ -1388,7 +1406,7 @@ impl<B: Backend> World<B> {
             Delivery::Terminal { family, owner, event } => self.terminal(family, owner, event),
             Delivery::Io { owner, op, deadline } => {
                 let done = if self.now > deadline { tools::Done::TimedOut } else { io::perform(&mut self.disk, op) };
-                self.terminal(Family::Io, owner, Event::Done { owner, done });
+                self.terminal(Family::Io, owner, Event::Below(smith_domain::Below::Done { owner, done }));
             }
             Delivery::Command { owner, process, head, tail, timed_out } => {
                 if !timed_out {
@@ -1396,7 +1414,7 @@ impl<B: Backend> World<B> {
                 }
                 let exit = if timed_out { None } else { Some(process.program.exit) };
                 let done = io::exited(exit, &process.program.output, head, tail);
-                self.terminal(Family::Io, owner, Event::Done { owner, done });
+                self.terminal(Family::Io, owner, Event::Below(smith_domain::Below::Done { owner, done }));
             }
             Delivery::Job { owner } => self.job_tick(owner),
             Delivery::Check { owner, passed, output, timed_out, tail } => {
@@ -1408,7 +1426,7 @@ impl<B: Backend> World<B> {
                     output: output[cut..].into(),
                     cut: u64::try_from(cut).expect("fixture output fits"),
                 };
-                self.terminal(Family::Check, owner, Event::Checked { owner, ran });
+                self.terminal(Family::Check, owner, Event::Below(smith_domain::Below::Checked { owner, ran }));
             }
         }
     }
@@ -1445,26 +1463,30 @@ impl<B: Backend> World<B> {
     /// Usage is the exact typed callback value. No event or completion body is cloned.
     fn observe_completion_terminal(&mut self, index: usize, event: &Event) {
         let outcome = match event {
-            Event::Completed { completion, .. } => {
+            Event::Below(smith_domain::Below::Completed { completion, .. }) => {
                 let usage = completion.usage;
                 CompletionTerminal::Completed(usage)
             }
-            Event::Failed { .. } => CompletionTerminal::Failed,
-            Event::Cancelled { .. } => CompletionTerminal::Cancelled,
-            Event::BuiltinResult { .. }
-            | Event::ReadVersion { .. }
-            | Event::HostReturned { .. }
+            Event::Below(smith_domain::Below::Failed { .. }) => CompletionTerminal::Failed,
+            Event::Below(smith_domain::Below::Cancelled { .. }) => CompletionTerminal::Cancelled,
+            Event::HostReturned { .. }
             | Event::Start { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Delivered { .. }
-            | Event::Done { .. }
-            | Event::Read { .. }
-            | Event::Probed { .. }
-            | Event::Checked { .. }
-            | Event::Aborted { .. } => panic!("completion flight receives only provider terminals"),
+            | Event::Below(
+                smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::ReadVersion { .. }
+                | smith_domain::Below::Done { .. }
+                | smith_domain::Below::Read { .. }
+                | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::Checked { .. }
+                | smith_domain::Below::Aborted { .. },
+            ) => {
+                panic!("completion flight receives only provider terminals")
+            }
         };
         assert!(self.completions[index].terminal.replace((self.now, outcome)).is_none());
     }
@@ -1476,7 +1498,7 @@ impl<B: Backend> World<B> {
             self.observe_completion_terminal(index, &event);
         }
         match &event {
-            Event::Completed { completion, .. } => {
+            Event::Below(smith_domain::Below::Completed { completion, .. }) => {
                 self.observe_host_call(completion, flight.completion_message);
                 let index = flight.completion_index.expect("completion observation");
                 let prices = self.model_prices[&self.completions[index].model];
@@ -1495,8 +1517,10 @@ impl<B: Backend> World<B> {
                     },
                 });
             }
-            Event::Failed { .. } | Event::Cancelled { .. } => self.observe(Seen::CompletionEnded { owner }),
-            Event::Checked { ran, .. } => {
+            Event::Below(smith_domain::Below::Failed { .. } | smith_domain::Below::Cancelled { .. }) => {
+                self.observe(Seen::CompletionEnded { owner });
+            }
+            Event::Below(smith_domain::Below::Checked { ran, .. }) => {
                 self.checked.push(ran.exit == (run::Exit::Code { code: 0 }));
                 self.check_terminals.push(self.now);
                 self.observe(Seen::Checked { owner, exit: Some(ran.exit) });
@@ -1510,46 +1534,50 @@ impl<B: Backend> World<B> {
                 }
                 self.observe(Seen::Delivered { owner, push: push.clone(), tree: landed });
             }
-            Event::Aborted { .. } => {
+            Event::Below(smith_domain::Below::Aborted { .. }) => {
                 self.check_terminals.push(self.now);
                 self.observe(Seen::Checked { owner, exit: None });
             }
-            Event::BuiltinResult { .. }
-            | Event::ReadVersion { .. }
-            | Event::HostReturned { .. }
+            Event::HostReturned { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Start { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
-            | Event::Done { .. }
-            | Event::Read { .. }
-            | Event::Probed { .. } => {}
+            | Event::Below(
+                smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::ReadVersion { .. }
+                | smith_domain::Below::Done { .. }
+                | smith_domain::Below::Read { .. }
+                | smith_domain::Below::Probed { .. },
+            ) => {}
         }
         match &event {
-            Event::Completed { completion, .. } => self.messages_seen.push((
+            Event::Below(smith_domain::Below::Completed { completion, .. }) => self.messages_seen.push((
                 self.now,
                 crate::messages_referee::Seen::Completed {
                     parts: crate::messages_referee::completion_parts(&completion.content),
                 },
             )),
-            Event::Failed { .. } | Event::Cancelled { .. } => {
+            Event::Below(smith_domain::Below::Failed { .. } | smith_domain::Below::Cancelled { .. }) => {
                 self.messages_seen.push((self.now, crate::messages_referee::Seen::CompletionEnded));
             }
-            Event::BuiltinResult { .. }
-            | Event::ReadVersion { .. }
-            | Event::Cancel { .. }
+            Event::Cancel { .. }
             | Event::Start { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Grant { .. }
             | Event::HostReturned { .. }
             | Event::Delivered { .. }
-            | Event::Read { .. }
-            | Event::Probed { .. }
-            | Event::Checked { .. }
-            | Event::Aborted { .. }
-            | Event::Done { .. } => {}
+            | Event::Below(
+                smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::ReadVersion { .. }
+                | smith_domain::Below::Read { .. }
+                | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::Checked { .. }
+                | smith_domain::Below::Aborted { .. }
+                | smith_domain::Below::Done { .. },
+            ) => {}
         }
         self.stage.push(event);
     }

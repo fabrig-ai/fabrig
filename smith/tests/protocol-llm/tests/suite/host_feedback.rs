@@ -56,17 +56,17 @@ fn host_boundary(world: &World, expected_arguments: &[u8], tool_name: &[u8]) {
     let read = world
         .trace()
         .iter()
-        .position(|line| line.contains("agent -> Read {"))
+        .position(|line| line.contains("agent -> Lower(Read {"))
         .expect("observed discovery Read request");
     let returned = world
         .trace()
         .iter()
-        .position(|line| line.contains("agent <- Read {"))
+        .position(|line| line.contains("agent <- Below(Read {"))
         .expect("observed discovery Read terminal");
     let complete = world
         .trace()
         .iter()
-        .position(|line| line.contains("agent -> Complete {"))
+        .position(|line| line.contains("agent -> Lower(Complete {"))
         .expect("observed root Complete request");
     assert!(
         read < returned && returned < complete,

@@ -298,19 +298,21 @@ impl Harness {
                 | Request::WithdrawHost { .. }
                 | Request::Admitted { .. }
                 | Request::Deliver { .. }
-                | Request::Complete { .. }
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
                 | Request::Limited { .. }
-                | Request::Cancel { .. }
-                | Request::Yield { .. }
-                | Request::Io { .. }
-                | Request::Job { .. }
-                | Request::CancelIo { .. }
-                | Request::Read { .. }
-                | Request::Probe { .. }
-                | Request::Check { .. }
-                | Request::Abort { .. }
+                | Request::Lower(
+                    crate::Lower::Complete { .. }
+                    | crate::Lower::Cancel { .. }
+                    | crate::Lower::Yield { .. }
+                    | crate::Lower::Io { .. }
+                    | crate::Lower::Job { .. }
+                    | crate::Lower::CancelIo { .. }
+                    | crate::Lower::Read { .. }
+                    | crate::Lower::Probe { .. }
+                    | crate::Lower::Check { .. }
+                    | crate::Lower::Abort { .. },
+                )
                 | Request::MessageRefused { .. }
                 | Request::Waiting { .. }) => {
                     requests.push(request);
@@ -351,15 +353,18 @@ impl Harness {
             charter,
             transcript: None,
         });
-        let [Request::Admitted { host_run: _, run }, Request::Read { owner, .. }] = &*emitted else {
+        let [Request::Admitted { host_run: _, run }, Request::Lower(crate::Lower::Read { owner, .. })] = &*emitted
+        else {
             panic!("expected an admitted run, got {emitted:?}");
         };
         assert_eq!(owner, run);
         let run = *run;
-        let emitted = self.step(Event::Read { owner: run, read: run::Read::Missing });
+        let emitted = self.step(Event::Below(crate::Below::Read { owner: run, read: run::Read::Missing }));
         let prepared = match emitted.as_ref() {
-            [Request::Probe { owner, .. }] => self.step(Event::Probed { owner: *owner, executable: false }),
-            [Request::Complete { .. }] => emitted,
+            [Request::Lower(crate::Lower::Probe { owner, .. })] => {
+                self.step(Event::Below(crate::Below::Probed { owner: *owner, executable: false }))
+            }
+            [Request::Lower(crate::Lower::Complete { .. })] => emitted,
             _ => panic!("expected convention probe or prepared main, got {emitted:?}"),
         };
         let (main, prompt, name) = completion_retry::named(prepared);
@@ -369,7 +374,7 @@ impl Harness {
     /// The session `owner`'s LLM answers with `content`, stopping for tools.
     fn answer(&mut self, owner: Token, content: Box<[Said]>) -> Box<[Request]> {
         let completion = Completion { reasoning_dropped: Box::default(), content, stop: Stop::ToolUse, usage: USAGE };
-        self.step(Event::Completed { owner, completion })
+        self.step(Event::Below(crate::Below::Completed { owner, completion }))
     }
 
     /// The session `owner`'s LLM ends its turn saying `text`.
@@ -380,7 +385,7 @@ impl Harness {
             stop: Stop::EndTurn,
             usage: USAGE,
         };
-        self.step(Event::Completed { owner, completion })
+        self.step(Event::Below(crate::Below::Completed { owner, completion }))
     }
 }
 
@@ -595,12 +600,14 @@ fn oversized_resume_history_is_refused_when_the_conversation_opens() {
         charter: Charter { resume: true, ..charter() },
         transcript: Some(transcript),
     });
-    let [Request::Admitted { run, .. }, Request::Read { .. }] = &*emitted else {
+    let [Request::Admitted { run, .. }, Request::Lower(crate::Lower::Read { .. })] = &*emitted else {
         panic!("expected an admitted run: {emitted:?}")
     };
-    let emitted = h.step(Event::Read { owner: *run, read: run::Read::Missing });
+    let emitted = h.step(Event::Below(crate::Below::Read { owner: *run, read: run::Read::Missing }));
     let emitted = match emitted.as_ref() {
-        [Request::Probe { owner, .. }] => h.step(Event::Probed { owner: *owner, executable: false }),
+        [Request::Lower(crate::Lower::Probe { owner, .. })] => {
+            h.step(Event::Below(crate::Below::Probed { owner: *owner, executable: false }))
+        }
         _ => emitted,
     };
     let [Request::Answer { answer, .. }] = &*emitted else { panic!("expected history refusal: {emitted:?}") };
@@ -678,7 +685,7 @@ fn completing(emitted: Box<[Request]>) -> (Token, Prompt) {
     let Ok(one) = Box::<[Request; 1]>::try_from(emitted) else {
         panic!("expected one request");
     };
-    let [Request::Complete { owner, prompt, deadlines, grant: _, .. }] = *one else {
+    let [Request::Lower(crate::Lower::Complete { owner, prompt, deadlines, grant: _, .. })] = *one else {
         panic!("expected a call to an LLM");
     };
     assert_eq!(deadlines.head, Duration::from_secs(60));
@@ -700,9 +707,9 @@ fn opaque_reasoning_returns_in_its_position_without_becoming_text() {
         owned(b"r", Call::Read { path: path(false, &[b"src"]), offset: 1, window: tools::Budget::Default }),
     ]);
     let emitted = h.answer(owner, content);
-    let [Request::Io { owner: tool, .. }] = &*emitted else { panic!("expected read") };
+    let [Request::Lower(crate::Lower::Io { owner: tool, .. })] = &*emitted else { panic!("expected read") };
     let done = tools::Done::Loaded { content: bytes(b"line"), version: tools::Version::new([1; 4]) };
-    let (_, prompt) = completing(h.step(Event::Done { owner: *tool, done }));
+    let (_, prompt) = completing(h.step(Event::Below(crate::Below::Done { owner: *tool, done })));
     let assistant = prompt.messages.get(1).expect("assistant message kept");
     let Some(Block::Opaque { bytes: value }) = assistant.content.first() else { panic!("opaque block preserved") };
     assert_eq!(value.as_ref(), b"provider reasoning");
@@ -749,39 +756,39 @@ fn grant_updates_do_not_change_a_call_in_flight_and_rejections_are_once_per_gene
     };
     assert!(h.step(Event::Grant { grant: next }).is_empty());
     assert_eq!(
-        &*h.step(Event::Failed {
+        &*h.step(Event::Below(crate::Below::Failed {
             owner,
             failure: crate::llm::Failure::Unauthorized,
             evidence: crate::llm::Evidence::Unknown,
             detail: Box::default(),
             report: crate::llm::Report::none(),
-        }),
+        })),
         &[Request::Unauthorized { grant: crate::GrantName { account: 0, generation: 0 } }]
     );
     h.env.now = h.domain.next_deadline().expect("unauthorized retry backoff");
     let emitted = h.fire();
-    let [Request::Complete { grant, .. }] = &*emitted else { panic!("expected retry") };
+    let [Request::Lower(crate::Lower::Complete { grant, .. })] = &*emitted else { panic!("expected retry") };
     assert_eq!(*grant, Some(next.name));
     assert_eq!(
-        &*h.step(Event::Failed {
+        &*h.step(Event::Below(crate::Below::Failed {
             owner,
             failure: crate::llm::Failure::Unauthorized,
             evidence: crate::llm::Evidence::Unknown,
             detail: Box::default(),
             report: crate::llm::Report::none(),
-        }),
+        })),
         &[Request::Unauthorized { grant: next.name }]
     );
     h.env.now = h.domain.next_deadline().expect("second retry");
     drop(h.fire());
     assert!(
-        h.step(Event::Failed {
+        h.step(Event::Below(crate::Below::Failed {
             owner,
             failure: crate::llm::Failure::Unauthorized,
             evidence: crate::llm::Evidence::Unknown,
             detail: Box::default(),
             report: crate::llm::Report::none(),
-        })
+        }))
         .is_empty()
     );
 }
@@ -809,13 +816,13 @@ fn no_grant_fails_locally_and_exhaustion_reports_the_account() {
     let mut h = Harness::new();
     let (_, owner, _) = h.admit(7, charter());
     let retry_after = Duration::from_secs(30);
-    let emitted = h.step(Event::Failed {
+    let emitted = h.step(Event::Below(crate::Below::Failed {
         owner,
         failure: crate::llm::Failure::Exhausted { retry_after: Some(retry_after) },
         evidence: crate::llm::Evidence::Unknown,
         detail: Box::default(),
         report: crate::llm::Report::none(),
-    });
+    }));
     let Some(Request::Limited { account: 0, reset: span }) = emitted.first() else { panic!("exhaustion notice") };
     assert_eq!(*span, Some(retry_after));
     let mut failed = false;
@@ -866,8 +873,10 @@ fn a_run_opens_main_as_a_session_through_to_its_first_call_to_the_llm() {
     let relative = Call::Read { path: path(false, &[b"src", b"lib.rs"]), offset: 1, window: tools::Budget::Default };
     let absolute = Call::Read { path: path(true, &[b"temper", b"README"]), offset: 1, window: tools::Budget::Default };
     let emitted = h.answer(main, Box::new([owned(b"c1", relative), owned(b"c2", absolute)]));
-    let [Request::Io { op: Op::Load { at: first, .. }, .. }, Request::Io { op: Op::Load { at: second, .. }, .. }] =
-        &*emitted
+    let [
+        Request::Lower(crate::Lower::Io { op: Op::Load { at: first, .. }, .. }),
+        Request::Lower(crate::Lower::Io { op: Op::Load { at: second, .. }, .. }),
+    ] = &*emitted
     else {
         panic!("expected two loads, got {emitted:?}");
     };
@@ -950,14 +959,14 @@ fn an_opening_larger_than_a_session_holds_refuses_main_as_invalid() {
         charter: Charter { instructions: brief, ..charter() },
         transcript: None,
     });
-    let [Request::Admitted { run, .. }, Request::Read { .. }] = &*emitted else {
+    let [Request::Admitted { run, .. }, Request::Lower(crate::Lower::Read { .. })] = &*emitted else {
         panic!("expected an admitted run, got {emitted:?}");
     };
-    let emitted = h.step(Event::Read { owner: *run, read: run::Read::Missing });
-    let [Request::Probe { .. }] = &*emitted else {
+    let emitted = h.step(Event::Below(crate::Below::Read { owner: *run, read: run::Read::Missing }));
+    let [Request::Lower(crate::Lower::Probe { .. })] = &*emitted else {
         panic!("writable directory probes checks before opening: {emitted:?}");
     };
-    let emitted = h.step(Event::Probed { owner: *run, executable: false });
+    let emitted = h.step(Event::Below(crate::Below::Probed { owner: *run, executable: false }));
     let [Request::Answer { to: _, answer, read: _, detail: _ }] = &*emitted else {
         panic!("expected the run's answer, got {emitted:?}");
     };
@@ -1120,7 +1129,11 @@ fn side_by_side_with(limits: &Limits, text: u32) -> (Harness, Token, Box<[Reques
 
 /// The sub-agents `emitted` opened, whose sessions call their LLMs.
 fn children(emitted: &[Request]) -> Option<[Token; 2]> {
-    let [Request::Complete { owner: first, .. }, Request::Complete { owner: second, .. }] = emitted else {
+    let [
+        Request::Lower(crate::Lower::Complete { owner: first, .. }),
+        Request::Lower(crate::Lower::Complete { owner: second, .. }),
+    ] = emitted
+    else {
         return None;
     };
     Some([*first, *second])
@@ -1137,7 +1150,7 @@ fn filler(len: u32) -> Box<[u8]> {
 fn assert_no_provider_completion(emitted: &[Request]) {
     for request in emitted {
         match request {
-            Request::Complete { .. } => {
+            Request::Lower(crate::Lower::Complete { .. }) => {
                 panic!("no room for another provider receiving reserve after the exact result edge")
             }
             Request::MessageRefused { .. }
@@ -1153,15 +1166,17 @@ fn assert_no_provider_completion(emitted: &[Request]) {
             | Request::Unauthorized { .. }
             | Request::Refused { .. }
             | Request::Limited { .. }
-            | Request::Cancel { .. }
-            | Request::Yield { .. }
-            | Request::Io { .. }
-            | Request::Job { .. }
-            | Request::CancelIo { .. }
-            | Request::Read { .. }
-            | Request::Probe { .. }
-            | Request::Check { .. }
-            | Request::Abort { .. } => {}
+            | Request::Lower(
+                crate::Lower::Cancel { .. }
+                | crate::Lower::Yield { .. }
+                | crate::Lower::Io { .. }
+                | crate::Lower::Job { .. }
+                | crate::Lower::CancelIo { .. }
+                | crate::Lower::Read { .. }
+                | crate::Lower::Probe { .. }
+                | crate::Lower::Check { .. }
+                | crate::Lower::Abort { .. },
+            ) => {}
         }
     }
 }
@@ -1219,7 +1234,7 @@ fn the_asks_of_an_answer_that_yields_are_forgotten() {
         usage: USAGE,
     };
     // The run nudges at once: the session is continued within the step.
-    let (owner, prompt) = completing(h.step(Event::Completed { owner: main, completion }));
+    let (owner, prompt) = completing(h.step(Event::Below(crate::Below::Completed { owner: main, completion })));
     assert_eq!(owner, main);
     assert_eq!(h.domain.tickets(), 0, "the call that did not run left no ticket");
     let [_, _, Message { role: Role::User, content }] = &*prompt.messages else {
@@ -1265,10 +1280,10 @@ fn the_runs_deadline_fires_before_the_sessions_expiry_at_the_same_instant() {
     // The run winds down: its close of main waits for the next iteration, and
     // main's own expiry fires meanwhile.
     assert!(h.fire().is_empty());
-    assert_eq!(&*h.fire(), &[Request::Cancel { owner: main }]);
+    assert_eq!(&*h.fire(), &[Request::Lower(crate::Lower::Cancel { owner: main })]);
     assert!(!h.domain.is_due(h.env.now));
     assert!(h.next().is_empty(), "the close finds main closing already");
-    let emitted = h.step(Event::Cancelled { owner: main });
+    let emitted = h.step(Event::Below(crate::Below::Cancelled { owner: main }));
     let [Request::Answer { to: _, answer: run::Answer::Failed { failure, spent: _, .. }, read: _, detail: _ }] =
         &*emitted
     else {
@@ -1504,7 +1519,9 @@ fn convention_main(harness: &mut Harness, selected: Option<run::Conventions>) ->
             valid: Duration::from_secs(3600),
         }]),
     });
-    let [Request::Admitted { run, .. }, Request::Read { owner, at, max, deadline }] = emitted.as_ref() else {
+    let [Request::Admitted { run, .. }, Request::Lower(crate::Lower::Read { owner, at, max, deadline })] =
+        emitted.as_ref()
+    else {
         panic!("admitted discovery: {emitted:?}");
     };
     let run = *run;
@@ -1527,25 +1544,28 @@ fn convention_main(harness: &mut Harness, selected: Option<run::Conventions>) ->
     }
     let text = found.expect("fake guide path exists");
     assert_eq!(at.path, guide_path);
-    let emitted = harness.step(Event::Read { owner: run, read: run::Read::Text { text: bytes(text), whole: false } });
-    let [Request::Probe { owner, at, deadline }] = emitted.as_ref() else {
+    let emitted = harness.step(Event::Below(crate::Below::Read {
+        owner: run,
+        read: run::Read::Text { text: bytes(text), whole: false },
+    }));
+    let [Request::Lower(crate::Lower::Probe { owner, at, deadline })] = emitted.as_ref() else {
         panic!("only writable directory has a check probe: {emitted:?}");
     };
     assert_eq!(*owner, run);
     assert_eq!(at.root, Token::new(900));
     assert_eq!(at.path, check_path);
     assert_eq!(*deadline, Time::ZERO.saturating_add(LIMITS.run.io_timeout));
-    let emitted = harness.step(Event::Probed { owner: run, executable: true });
-    let [Request::Read { owner, at, .. }] = emitted.as_ref() else {
+    let emitted = harness.step(Event::Below(crate::Below::Probed { owner: run, executable: true }));
+    let [Request::Lower(crate::Lower::Read { owner, at, .. })] = emitted.as_ref() else {
         panic!("readonly mount still supplies a guide: {emitted:?}");
     };
     assert_eq!(*owner, run);
     assert_eq!(at.root, Token::new(901));
     assert_eq!(at.path, guide_path);
-    let (main, prompt) = completing(harness.step(Event::Read {
+    let (main, prompt) = completing(harness.step(Event::Below(crate::Below::Read {
         owner: run,
         read: run::Read::Text { text: bytes(b"Caller-selected readonly guide"), whole: true },
-    }));
+    })));
     let system = prompt.system.as_ref();
     for fragment in [
         b"Caller-selected writable guide".as_slice(),
@@ -1587,7 +1607,7 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
             Box::new([served(b"finish-convention", Ask::Finish { outcome: Declared::Change(change.clone()) })]),
         );
         let [
-            Request::Check { owner, program, deadline, tail },
+            Request::Lower(crate::Lower::Check { owner, program, deadline, tail }),
             Request::Long { host_run, operation: crate::Operation::Checks, until: said },
         ] = emitted.as_ref()
         else {
@@ -1600,10 +1620,10 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
         assert_eq!(*tail, LIMITS.run.check_tail);
         assert_eq!(*deadline, Time::ZERO.saturating_add(LIMITS.run.check_timeout));
         let owner = *owner;
-        let emitted = harness.step(Event::Checked {
+        let emitted = harness.step(Event::Below(crate::Below::Checked {
             owner,
             ran: run::Ran { exit: run::Exit::Code { code: 0 }, output: bytes(b"check passed"), cut: 0 },
-        });
+        }));
         let [Request::LongDone { host_run }, Request::Deliver { owner: delivered_owner, change: delivered_change, .. }] =
             emitted.as_ref()
         else {
@@ -1637,18 +1657,21 @@ fn custom_check_cancellation_waits_for_the_abort_terminal() {
             Ask::Finish { outcome: Declared::Change(Change { fields: Box::new([]) }) },
         )]),
     );
-    let [Request::Check { owner, .. }, Request::Long { .. }] = emitted.as_ref() else {
+    let [Request::Lower(crate::Lower::Check { owner, .. }), Request::Long { .. }] = emitted.as_ref() else {
         panic!("custom Check: {emitted:?}");
     };
     let owner = *owner;
     assert!(harness.step(Event::Cancel { run }).is_empty());
     let emitted = harness.next();
-    let [Request::Abort { owner: aborted }] = emitted.as_ref() else {
+    let [Request::Lower(crate::Lower::Abort { owner: aborted })] = emitted.as_ref() else {
         panic!("one check abort request: {emitted:?}");
     };
     assert_eq!(*aborted, owner);
     assert!(harness.next().is_empty(), "cancel requests no settlement or delivery");
-    assert_eq!(harness.step(Event::Aborted { owner }).as_ref(), &[Request::LongDone { host_run: Token::new(77) }]);
+    assert_eq!(
+        harness.step(Event::Below(crate::Below::Aborted { owner })).as_ref(),
+        &[Request::LongDone { host_run: Token::new(77) }]
+    );
     let emitted = harness.next();
     let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] =
         emitted.as_ref()
@@ -1726,12 +1749,12 @@ fn settle_default_convention_control(harness: &mut Harness, run: Token, main: To
         cancelled.push(request);
     }
     let cancelled = collected_requests(cancelled);
-    let [Request::Cancel { owner }] = cancelled.as_ref() else {
+    let [Request::Lower(crate::Lower::Cancel { owner })] = cancelled.as_ref() else {
         panic!("positive default control cancels its provider request: {cancelled:?}");
     };
     assert_eq!(*owner, main);
     let mut ended = Queue::uncapped();
-    for request in harness.step(Event::Cancelled { owner: main }) {
+    for request in harness.step(Event::Below(crate::Below::Cancelled { owner: main })) {
         ended.push(request);
     }
     for request in harness.next() {
@@ -1742,6 +1765,10 @@ fn settle_default_convention_control(harness: &mut Harness, run: Token, main: To
     else {
         panic!("positive default control settles its original Start: {ended:?}");
     };
+}
+
+fn whole_guide(owner: Token, text: &[u8]) -> Event {
+    Event::Below(crate::Below::Read { owner, read: run::Read::Text { text: bytes(text), whole: true } })
 }
 
 #[test]
@@ -1806,17 +1833,15 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
                 valid: Duration::from_secs(3600),
             }]),
         });
-        let [Request::Admitted { run, .. }, Request::Read { .. }] = emitted.as_ref() else {
+        let [Request::Admitted { run, .. }, Request::Lower(crate::Lower::Read { .. })] = emitted.as_ref() else {
             panic!("valid maximum paths admit before opening size is known: {emitted:?}");
         };
         let run = *run;
-        let emitted = harness
-            .step(Event::Read { owner: run, read: run::Read::Text { text: bytes(b"Small guide"), whole: true } });
-        let [Request::Read { .. }] = emitted.as_ref() else {
+        let emitted = harness.step(whole_guide(run, b"Small guide"));
+        let [Request::Lower(crate::Lower::Read { .. })] = emitted.as_ref() else {
             panic!("both admitted guide requests occur before opening refusal: {emitted:?}");
         };
-        let emitted = harness
-            .step(Event::Read { owner: run, read: run::Read::Text { text: bytes(b"Small guide"), whole: true } });
+        let emitted = harness.step(whole_guide(run, b"Small guide"));
         if maximum_paths {
             let [
                 Request::Answer {
@@ -1882,12 +1907,14 @@ fn scalar_prepared(charter: Charter) -> (Harness, Box<[Request]>) {
         charter,
         transcript: None,
     });
-    let [Request::Admitted { run, .. }, Request::Read { .. }] = emitted.as_ref() else {
+    let [Request::Admitted { run, .. }, Request::Lower(crate::Lower::Read { .. })] = emitted.as_ref() else {
         panic!("run admission: {emitted:?}");
     };
-    let emitted = harness.step(Event::Read { owner: *run, read: run::Read::Missing });
+    let emitted = harness.step(Event::Below(crate::Below::Read { owner: *run, read: run::Read::Missing }));
     let prepared = match emitted.as_ref() {
-        [Request::Probe { owner, .. }] => harness.step(Event::Probed { owner: *owner, executable: false }),
+        [Request::Lower(crate::Lower::Probe { owner, .. })] => {
+            harness.step(Event::Below(crate::Below::Probed { owner: *owner, executable: false }))
+        }
         _ => emitted,
     };
     let mut prepared = prepared;
@@ -1958,7 +1985,7 @@ fn a_provider_charge_above_its_reserved_maximum_fails_without_recording_it() {
         stop: Stop::EndTurn,
         usage: Usage { output_tokens: Some(100_000), ..Usage::ZERO },
     };
-    let emitted = harness.step(Event::Completed { owner: main, completion });
+    let emitted = harness.step(Event::Below(crate::Below::Completed { owner: main, completion }));
     let emitted = if emitted.is_empty() { harness.next() } else { emitted };
     let [Request::Answer { answer: run::Answer::Failed { failure, spent, turns }, .. }] = emitted.as_ref() else {
         panic!("overbound terminal fails the run: {emitted:?}");
@@ -2075,17 +2102,19 @@ fn the_selected_model_progress_reaches_the_original_root_completion() {
             transcript: None,
             answered: Box::default(),
         });
-        let [Request::Admitted { run, .. }, Request::Read { owner, .. }] = emitted.as_ref() else {
+        let [Request::Admitted { run, .. }, Request::Lower(crate::Lower::Read { owner, .. })] = emitted.as_ref() else {
             panic!("original root discovery: {emitted:?}");
         };
         assert_eq!(run, owner);
-        let emitted = harness.step(Event::Read { owner: *owner, read: run::Read::Missing });
+        let emitted = harness.step(Event::Below(crate::Below::Read { owner: *owner, read: run::Read::Missing }));
         let prepared = match emitted.as_ref() {
-            [Request::Probe { owner, .. }] => harness.step(Event::Probed { owner: *owner, executable: false }),
-            [Request::Complete { .. }] => emitted,
+            [Request::Lower(crate::Lower::Probe { owner, .. })] => {
+                harness.step(Event::Below(crate::Below::Probed { owner: *owner, executable: false }))
+            }
+            [Request::Lower(crate::Lower::Complete { .. })] => emitted,
             _ => panic!("original root preparation: {emitted:?}"),
         };
-        let [Request::Complete { deadlines, .. }] = prepared.as_ref() else {
+        let [Request::Lower(crate::Lower::Complete { deadlines, .. })] = prepared.as_ref() else {
             panic!("original root completion: {prepared:?}");
         };
         assert_eq!((deadlines.head, deadlines.idle), (declared.head, declared.idle));
@@ -2127,7 +2156,7 @@ fn root_awaiting_opens_no_session_or_provider_call_until_the_first_message() {
         label: bytes(b"person"),
         text: bytes(b"real coding task"),
     });
-    let [Request::Complete { prompt, .. }] = emitted.as_ref() else {
+    let [Request::Lower(crate::Lower::Complete { prompt, .. })] = emitted.as_ref() else {
         panic!("one direct provider completion: {emitted:?}")
     };
     assert_eq!(prompt.messages.len(), 1);
@@ -2204,7 +2233,9 @@ fn first_message_after_awaiting_restores_history_and_absent_host_answers_once() 
         label: bytes(b"person"),
         text: bytes(b"new coding task"),
     });
-    let [Request::Complete { prompt, .. }] = emitted.as_ref() else { panic!("restored completion: {emitted:?}") };
+    let [Request::Lower(crate::Lower::Complete { prompt, .. })] = emitted.as_ref() else {
+        panic!("restored completion: {emitted:?}")
+    };
     assert_eq!(prompt.messages.len(), 3);
     assert_eq!(prompt.messages[0].content.as_ref(), [Block::Text { text: bytes(b"old task"), replay: None }]);
     assert_eq!(prompt.messages[1].content.as_ref(), [Block::Text { text: bytes(b"old response"), replay: None }]);
@@ -2244,7 +2275,7 @@ fn missing_provider_usage_settles_the_root_reservation_and_keeps_the_raw_fact() 
         // full reservation to 31, independent of this fixture's prompt size.
         assert!(
             harness
-                .step(Event::Completed {
+                .step(Event::Below(crate::Below::Completed {
                     owner: main,
                     completion: Completion {
                         reasoning_dropped: Box::default(),
@@ -2252,7 +2283,7 @@ fn missing_provider_usage_settles_the_root_reservation_and_keeps_the_raw_fact() 
                         stop: Stop::ToolUse,
                         usage: raw,
                     },
-                })
+                }))
                 .is_empty()
         );
         let emitted = harness.next();
@@ -2308,7 +2339,7 @@ fn command_span_ends_at_the_seen_io_terminal_after_cancel() {
             },
         )]),
     );
-    let [Request::Io { owner: command, op: Op::Spawn { .. }, .. }] = emitted.as_ref() else {
+    let [Request::Lower(crate::Lower::Io { owner: command, op: Op::Spawn { .. }, .. })] = emitted.as_ref() else {
         panic!("shell IO: {emitted:?}");
     };
     let command = *command;
@@ -2316,10 +2347,10 @@ fn command_span_ends_at_the_seen_io_terminal_after_cancel() {
     assert_eq!(h.domain.commands.len(), 1);
     h.env.now = Time::ZERO.saturating_add(Duration::from_secs(11));
     assert!(h.step(Event::Cancel { run }).is_empty());
-    assert_eq!(h.next().as_ref(), &[Request::CancelIo { owner: command }]);
+    assert_eq!(h.next().as_ref(), &[Request::Lower(crate::Lower::CancelIo { owner: command })]);
     assert_eq!(h.domain.commands.len(), 1, "cancellation leaves IO outstanding");
     assert_eq!(h.long.len(), 3, "no long terminal before IO settlement");
-    let ended = h.step(Event::Done { owner: command, done: tools::Done::Cancelled });
+    let ended = h.step(Event::Below(crate::Below::Done { owner: command, done: tools::Done::Cancelled }));
     assert_eq!(h.domain.commands.len(), 0);
     assert_eq!(h.long.as_slice(), &[Some(crate::Operation::Completion), None, Some(crate::Operation::Command), None]);
     let ended = if ended.is_empty() { h.next() } else { ended };
@@ -2359,13 +2390,13 @@ fn an_unchecked_charter_effort_is_refused_before_any_run_work() {
 fn a_refused_account_raises_one_notice_with_its_reason() {
     let mut harness = Harness::new();
     let (_, owner, _) = harness.admit(7, charter());
-    let emitted = harness.step(Event::Failed {
+    let emitted = harness.step(Event::Below(crate::Below::Failed {
         owner,
         failure: crate::llm::Failure::Refused,
         evidence: crate::llm::Evidence::Unknown,
         detail: bytes(b"provider reason"),
         report: crate::llm::Report { code: bytes(b"not-eligible"), request: Box::default(), field: Box::default() },
-    });
+    }));
     let notices = account_notices(&emitted).into_boxed();
     assert_eq!(
         &*notices,
@@ -2378,13 +2409,13 @@ fn a_refused_account_raises_one_notice_with_its_reason() {
 fn an_unsupported_request_raises_no_notice() {
     let mut harness = Harness::new();
     let (_, owner, _) = harness.admit(7, charter());
-    let emitted = harness.step(Event::Failed {
+    let emitted = harness.step(Event::Below(crate::Below::Failed {
         owner,
         failure: crate::llm::Failure::Unsupported,
         evidence: crate::llm::Evidence::Unknown,
         detail: bytes(b"unsupported field"),
         report: crate::llm::Report::none(),
-    });
+    }));
     assert_eq!(account_notices(&emitted).len(), 0);
 }
 
@@ -2414,17 +2445,21 @@ fn a_key_race_uses_the_new_generation_then_ends_on_its_own_policy() {
         // Repeated or older refreshes cannot replace the usable generation or its policy.
         assert!(h.step(Event::Grant { grant: crate::Grant { renewable: true, ..next } }).is_empty());
         assert!(h.step(Event::Grant { grant: first }).is_empty());
-        let failed = || Event::Failed {
-            owner,
-            failure: crate::llm::Failure::Unauthorized,
-            evidence: crate::llm::Evidence::Response { status: Some(401) },
-            detail: Box::default(),
-            report: crate::llm::Report::none(),
+        let failed = || {
+            Event::Below(crate::Below::Failed {
+                owner,
+                failure: crate::llm::Failure::Unauthorized,
+                evidence: crate::llm::Evidence::Response { status: Some(401) },
+                detail: Box::default(),
+                report: crate::llm::Report::none(),
+            })
         };
         assert_eq!(&*h.step(failed()), &[Request::Unauthorized { grant: first.name }]);
         h.env.now = h.domain.next_deadline().expect("retry of the old attempt");
         let emitted = h.fire();
-        let [Request::Complete { grant, .. }] = emitted.as_ref() else { panic!("retry on newer generation") };
+        let [Request::Lower(crate::Lower::Complete { grant, .. })] = emitted.as_ref() else {
+            panic!("retry on newer generation")
+        };
         assert_eq!(*grant, Some(next.name));
         let terminal = h.step(failed());
         let [Request::Unauthorized { grant }, Request::Answer { answer, .. }] = terminal.as_ref() else {

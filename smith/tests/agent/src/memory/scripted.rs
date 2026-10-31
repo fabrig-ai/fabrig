@@ -100,8 +100,12 @@ impl Memory {
                     .position(|asked| matches!(asked, Asked::Read { .. } | Asked::Probe { .. }));
                 if let Some(at) = preparation {
                     let event = match self.driver.asked.swap_remove(at) {
-                        Asked::Read { owner } => Event::Read { owner, read: smith_domain::run::Read::Missing },
-                        Asked::Probe { owner } => Event::Probed { owner, executable: false },
+                        Asked::Read { owner } => {
+                            Event::Below(smith_domain::Below::Read { owner, read: smith_domain::run::Read::Missing })
+                        }
+                        Asked::Probe { owner } => {
+                            Event::Below(smith_domain::Below::Probed { owner, executable: false })
+                        }
                         Asked::Complete { .. }
                         | Asked::Io { .. }
                         | Asked::Check { .. }
@@ -174,7 +178,7 @@ impl Memory {
 
     /// Answer a completion and run to its next request.
     pub fn answer(&mut self, owner: Token, completion: Completion) {
-        self.step(Event::Completed { owner, completion });
+        self.step(Event::Below(smith_domain::Below::Completed { owner, completion }));
         self.settle();
     }
 }

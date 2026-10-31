@@ -365,7 +365,9 @@ fn agent_terminal(domain: &mut Domain, env: &Env<Limits>, agent: Token, terminal
         | smith_inline_agent::Below::Read { .. }
         | smith_inline_agent::Below::Probed { .. }
         | smith_inline_agent::Below::Checked { .. }
-        | smith_inline_agent::Below::Aborted { .. } => false,
+        | smith_inline_agent::Below::Aborted { .. }
+        | smith_inline_agent::Below::ReadVersion { .. }
+        | smith_inline_agent::Below::BuiltinResult { .. } => false,
     };
     if completion && domain.turns.unsaved.room() == 0 {
         domain.held.push(Held { agent, terminal });
@@ -433,7 +435,8 @@ fn route_agent(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
                 | smith_inline_agent::Lower::Read { .. }
                 | smith_inline_agent::Lower::Probe { .. }
                 | smith_inline_agent::Lower::Check { .. }
-                | smith_inline_agent::Lower::Abort { .. }) => out.push(Request::Lower { agent, request }),
+                | smith_inline_agent::Lower::Abort { .. }
+                | smith_inline_agent::Lower::Yield { .. }) => out.push(Request::Lower { agent, request }),
             },
             Some(Output::Process(request)) => out.push(Request::Process(request)),
             None => break,
@@ -647,7 +650,9 @@ fn held_completion(domain: &Domain, owner: Token) -> bool {
             | smith_inline_agent::Below::Read { .. }
             | smith_inline_agent::Below::Probed { .. }
             | smith_inline_agent::Below::Checked { .. }
-            | smith_inline_agent::Below::Aborted { .. } => unreachable!("only completion terminals are held"),
+            | smith_inline_agent::Below::Aborted { .. }
+            | smith_inline_agent::Below::ReadVersion { .. }
+            | smith_inline_agent::Below::BuiltinResult { .. } => unreachable!("only completion terminals are held"),
         };
         if pending == owner {
             return true;
