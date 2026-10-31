@@ -918,15 +918,8 @@ struct Probe {
     settled: bool,
 }
 impl Referee<Binary> for Probe {
-    fn act(&mut self, _now: Time, _hosts: &mut [Binary]) {}
     fn observe(&mut self, _now: Time, hosts: &[Binary]) {
         self.settled = hosts.iter().all(Host::is_empty);
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         self.settled

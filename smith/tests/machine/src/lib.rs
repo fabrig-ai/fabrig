@@ -405,7 +405,6 @@ impl Expectation<Application> for Terminal {
 }
 
 impl Referee<Application> for Expectations<Application, Terminal> {
-    fn act(&mut self, _now: Time, _procs: &mut [Application]) {}
     fn observe(&mut self, now: Time, procs: &[Application]) {
         assert!(procs[0].terminals.len() <= procs[0].expected, "one terminal per act throughout settlement");
         Expectations::observe(self, now, procs);

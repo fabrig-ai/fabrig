@@ -50,15 +50,8 @@ struct Judge {
     settled: bool,
 }
 impl skein_world::Referee<super::Process> for Judge {
-    fn act(&mut self, _now: skein_lib::Time, _procs: &mut [super::Process]) {}
     fn observe(&mut self, _now: skein_lib::Time, procs: &[super::Process]) {
         self.settled = procs.iter().all(skein_shell::Host::is_empty);
-    }
-    fn next_deadline(&self) -> Option<skein_lib::Time> {
-        None
-    }
-    fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         self.settled

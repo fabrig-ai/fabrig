@@ -144,9 +144,6 @@ impl Referee<Process> for Judge {
     fn next_deadline(&self) -> Option<Time> {
         if self.cleanup || self.settled { None } else { self.deadline.until() }
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         self.settled
     }
@@ -364,9 +361,6 @@ impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.deadline.until() }
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         self.settled
@@ -683,9 +677,6 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         } else {
             [self.deadline.until(), self.next_release, self.restart_at].into_iter().flatten().min()
         }
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         self.settled

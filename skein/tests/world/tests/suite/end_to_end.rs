@@ -114,9 +114,6 @@ impl Referee<Process> for Judge {
     fn next_deadline(&self) -> Option<Time> {
         self.act_at
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         !self.signal || self.sent
     }
@@ -287,12 +284,6 @@ impl Referee<Process> for TreeJudge {
         }
     }
     fn observe(&mut self, _now: Time, _procs: &[Process]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         !self.end || self.sent
     }

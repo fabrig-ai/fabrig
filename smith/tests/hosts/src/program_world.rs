@@ -279,14 +279,10 @@ struct Judge {
 }
 
 impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
     fn observe(&mut self, _now: Time, procs: &[Process]) {
         let Process::Parent(parent) = procs.first().expect("parent") else { unreachable!("parent first") };
         assert!(parent.answers.len() <= self.expected, "one answer per ask");
         self.met = parent.answers.len() == self.expected;
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        None
     }
     fn overdue(&self, now: Time) -> Option<String> {
         if now > Time::ZERO.saturating_add(Duration::from_secs(1)) { Some("source settles".into()) } else { None }

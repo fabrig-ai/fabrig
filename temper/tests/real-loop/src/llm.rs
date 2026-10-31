@@ -159,9 +159,6 @@ impl skein_world::Referee<Peer> for Bound {
     fn next_deadline(&self) -> Option<Time> {
         self.wake
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         self.seen
     }

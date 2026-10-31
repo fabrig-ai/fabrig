@@ -82,9 +82,6 @@ impl Referee<Process> for PeerJudge {
     fn next_deadline(&self) -> Option<Time> {
         Some(self.wake)
     }
-    fn overdue(&self, _: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         self.stopping
     }
@@ -422,14 +419,7 @@ impl Fixture {
 
 struct VisitJudge;
 impl Referee<Process> for VisitJudge {
-    fn act(&mut self, _: Time, _: &mut [Process]) {}
     fn observe(&mut self, _: Time, _: &[Process]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }

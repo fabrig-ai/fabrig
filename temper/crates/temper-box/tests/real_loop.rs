@@ -411,9 +411,6 @@ impl Referee<Proc> for Judge {
             self.wake.into_iter().chain(until).min()
         }
     }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         self.settled
     }

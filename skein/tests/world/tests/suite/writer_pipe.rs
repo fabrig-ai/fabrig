@@ -147,14 +147,7 @@ fn simulated(seed: u64) -> skein_world::Outcome<Process, RootMachine> {
 }
 
 impl skein_world::Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
     fn observe(&mut self, _now: Time, _procs: &[Process]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }
