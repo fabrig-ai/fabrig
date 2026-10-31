@@ -463,7 +463,7 @@ pub fn language(normal: Language) -> Language {
 /// the entire owner wall value; callers may load and select other checked languages.
 pub fn english(text: u32) -> Result<Words, Invalid> {
     let mut english = language(jig_client_view::phrases::english::language());
-    english.span_unit = SpanUnit::Nanos;
+    english.span_unit = SpanUnit::Minutes;
     english.wall = WallFormat::Nanos;
     english.plural = PluralRule::English;
     let count = u32::try_from(english.phrases.len()).expect("composed phrases fit");
@@ -493,4 +493,21 @@ pub fn english(text: u32) -> Result<Words, Invalid> {
         &PhraseLimits { languages: 1, phrases: count, holes: 4, segments, text_bytes, hole_bytes: text },
     )?;
     Ok(Words::new(book, 0, 0))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn waiting_span_says_the_supplied_minutes() {
+        let words = super::english(64).expect("checked English");
+        assert_eq!(
+            words
+                .say(
+                    jig_client_view::phrases::jig::JigPhrase::WaitingSpan,
+                    &[skein_ui::phrases::Hole::Span(skein_lib::Duration::from_secs(120))]
+                )
+                .as_ref(),
+            b"Waiting 2 min"
+        );
+    }
 }
