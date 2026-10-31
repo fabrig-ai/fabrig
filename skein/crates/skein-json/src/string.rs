@@ -6,7 +6,7 @@
 //! the scan's maximum, anywhere in a character or an escape: the state
 //! between two pieces is a [`Text`].
 
-use skein_lib::List;
+use skein_lib::{List, hex};
 
 use crate::tokenizer::Error;
 use crate::utf8::Utf8;
@@ -161,7 +161,7 @@ pub(crate) fn next(text: Text, byte: u8) -> Result<Decoded, Error> {
         }
         Text::Escape => escape(byte),
         Text::Unicode { digits, unit } => {
-            let unit = hex(unit, byte)?;
+            let unit = unit.wrapping_shl(4) | u16::from(hex::value(byte).ok_or(Error::Escape)?);
             match count(digits) {
                 4 => unit_escaped(unit),
                 digits => Ok(Decoded::empty(Some(Text::Unicode { digits, unit }))),
@@ -176,7 +176,7 @@ pub(crate) fn next(text: Text, byte: u8) -> Result<Decoded, Error> {
             _ => Err(Error::Surrogate),
         },
         Text::Low { high, digits, unit } => {
-            let unit = hex(unit, byte)?;
+            let unit = unit.wrapping_shl(4) | u16::from(hex::value(byte).ok_or(Error::Escape)?);
             match count(digits) {
                 4 => pair_escaped(high, unit),
                 digits => Ok(Decoded::empty(Some(Text::Low { high, digits, unit }))),
@@ -254,18 +254,6 @@ fn scalar(point: u32) -> Decoded {
     let mut bytes = [0; 4];
     let length = u8::try_from(character.encode_utf8(&mut bytes).len()).expect("at most four bytes");
     Decoded { after: Some(Text::Plain), bytes, length, room: length }
-}
-
-/// `unit` with the hex digit `byte` appended.
-fn hex(unit: u16, byte: u8) -> Result<u16, Error> {
-    let value = match byte {
-        b'0'..=b'9' => byte.wrapping_sub(b'0'),
-        b'a'..=b'f' => byte.wrapping_sub(b'a').wrapping_add(10),
-        b'A'..=b'F' => byte.wrapping_sub(b'A').wrapping_add(10),
-        _ => return Err(Error::Escape),
-    };
-    // At most three digits are in `unit`, so nothing is shifted out.
-    Ok(unit.wrapping_shl(4) | u16::from(value))
 }
 
 /// The digits read, one more.
