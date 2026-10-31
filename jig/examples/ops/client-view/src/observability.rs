@@ -5,7 +5,7 @@ use crate::{
     drawing,
     words::{Word, Words},
 };
-use jig_client::contract::{ObjectKey, ApplicationPart, Proposer};
+use jig_client::contract::{ApplicationPart, ObjectKey, Proposer};
 use jig_client_view::Owner;
 use jig_ops_client_domain::{
     Action,
@@ -79,7 +79,13 @@ fn document_view(builder: &mut Builder, document: &Document, words: &Words, bind
     let Document::Value(document) = document;
     show_document(builder, document, words, bindings);
 }
-pub fn part(builder: &mut Builder, side: &observability::Side, part: &ApplicationPart, words: &Words, bindings: &mut Bindings) {
+pub fn part(
+    builder: &mut Builder,
+    side: &observability::Side,
+    part: &ApplicationPart,
+    words: &Words,
+    bindings: &mut Bindings,
+) {
     if !side.contains(part) {
         words.status(builder, Word::Unshowable, &[]);
         return;

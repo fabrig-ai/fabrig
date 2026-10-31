@@ -2,7 +2,7 @@
 //! Replace: incident/service vocabulary and the application objects its pages name.
 //! Observability owns incident history and health (examples.md, 3 and 8).
 use alloc::boxed::Box;
-use jig_client::contract::{ObjectKey, ApplicationPart, ProposalKey};
+use jig_client::contract::{ApplicationPart, ObjectKey, ProposalKey};
 use skein_lib::List;
 /// Scope supplied with every read and watch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -153,9 +153,14 @@ pub fn subject(part: &ApplicationPart, scope: Scope) -> Option<Subject> {
         ApplicationPart::Project { project, .. } => {
             return Some(Subject { scope: Scope::Project(*project), kind: Kind::Project(*project) });
         }
-        ApplicationPart::Deployment { .. } => return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment }),
+        ApplicationPart::Deployment { .. } => {
+            return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment });
+        }
         // Connector proposal numbers do not name this side's typed maker effects.
-        ApplicationPart::OwnerEffect { .. } | ApplicationPart::Connector { .. } | ApplicationPart::Resource { .. } | ApplicationPart::Kind { .. } => return None,
+        ApplicationPart::OwnerEffect { .. }
+        | ApplicationPart::Connector { .. }
+        | ApplicationPart::Resource { .. }
+        | ApplicationPart::Kind { .. } => return None,
     };
     Some(Subject { scope, kind })
 }

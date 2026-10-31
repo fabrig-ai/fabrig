@@ -2,13 +2,12 @@
 use super::Scripted;
 use crate::{stories as fixture, test::list};
 use jig_client_domain::contract::{
-    ActKind, DecodedActivityLine, Admission, Answer, AnswerOn, Ask, Beyond, Block, Call, DecideOn, Decision, DocumentText,
-    Ending, ChipExecutor, HeldRole, HoldCategory, InboxGroup, InboxReadGroup, Message, ObjectKey, Offered, Outcome,
-    Activity, ActivityLine, ChipEnding, ChipPhase, Ended, EndedValue,
-    HistoryHolder, MessageKind, MessageProposalKind, DocumentOutcome, ProposalAction,
-    ProposalChoice, ProposalHistoryState, Requester, RunEnd, RunWhy, PersonAddress,
-    PersonAnswer, Phase, ProposeAction, Proposer, Read, ReadValue, Recipient, Result, ResultValue, RunStage, Runtime,
-    Speaker, Task, Turn, TurnName, TurnRead, Usage,
+    ActKind, Activity, ActivityLine, Admission, Answer, AnswerOn, Ask, Beyond, Block, Call, ChipEnding, ChipExecutor,
+    ChipPhase, DecideOn, Decision, DecodedActivityLine, DocumentOutcome, DocumentText, Ended, EndedValue, Ending,
+    HeldRole, HistoryHolder, HoldCategory, InboxGroup, InboxReadGroup, Message, MessageKind, MessageProposalKind,
+    ObjectKey, Offered, Outcome, PersonAddress, PersonAnswer, Phase, ProposalAction, ProposalChoice,
+    ProposalHistoryState, ProposeAction, Proposer, Read, ReadValue, Recipient, Requester, Result, ResultValue, RunEnd,
+    RunStage, RunWhy, Runtime, Speaker, Task, Turn, TurnName, TurnRead, Usage,
 };
 use jig_client_scripted_engine::{Change, Rows, Rule, Source};
 use skein_lib::{Time, Wall};
@@ -183,11 +182,7 @@ fn proposal_for(front: &mut Scripted, proposer: u64, holders: &[u64], words: &[u
     let turn = proposal_turn(words, key);
     for change in [
         Change::Object { project: 1, key: ObjectKey::Task(task.chip.task), value: ReadValue::Task(Box::new(task)) },
-        Change::Object {
-            project: 1,
-            key: ObjectKey::Proposal(key),
-            value: ReadValue::Proposal(Box::new(proposal)),
-        },
+        Change::Object { project: 1, key: ObjectKey::Proposal(key), value: ReadValue::Proposal(Box::new(proposal)) },
         Change::Source(Source {
             party: 1,
             read: Read::Inbox { group: InboxReadGroup::Needs, project: None, kind: None, goal: None, after: None },
@@ -384,11 +379,7 @@ fn choice(front: &mut Scripted) {
     document.spec.specification.words = DocumentText::complete(fixture::text(b"first report or second report"));
     document.acts = list([Offered { effect: None, act: ActKind::Take, admission: Admission::Allowed }]);
     for change in [
-        Change::Object {
-            project: 1,
-            key: ObjectKey::PersonTask(2),
-            value: ReadValue::PersonTask(Box::new(document)),
-        },
+        Change::Object { project: 1, key: ObjectKey::PersonTask(2), value: ReadValue::PersonTask(Box::new(document)) },
         Change::Source(Source {
             party: 2,
             read: Read::Inbox { group: InboxReadGroup::Needs, project: None, kind: None, goal: None, after: None },
@@ -417,8 +408,7 @@ fn role_request(front: &mut Scripted, party: u64, ask: &Ask) {
     if !front.chat_projects.contains(&(party, *project)) {
         return;
     }
-    let Some(ReadValue::PersonTask(document)) = front.engine.truth().objects.get(&ObjectKey::PersonTask(*task))
-    else {
+    let Some(ReadValue::PersonTask(document)) = front.engine.truth().objects.get(&ObjectKey::PersonTask(*task)) else {
         return;
     };
     let mut document = document.as_ref().clone();
@@ -470,10 +460,7 @@ fn role_request(front: &mut Scripted, party: u64, ask: &Ask) {
                         key: ObjectKey::PersonTask(*task),
                         value: ReadValue::Ended(Box::new(Ended {
                             key: ObjectKey::PersonTask(*task),
-                            value: EndedValue::PersonTask {
-                                document: Box::new(document),
-                                result: Box::new(result),
-                            },
+                            value: EndedValue::PersonTask { document: Box::new(document), result: Box::new(result) },
                             at: Some(Wall::EPOCH),
                             by: Some(Requester::Person(party)),
                         })),
