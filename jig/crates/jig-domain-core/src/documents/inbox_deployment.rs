@@ -130,7 +130,7 @@ fn reply_activity(core: &Core, task: u64, object: InboxObject) -> Option<u64> {
 fn archived_conversation(core: &Core, limits: &Limits, party: u64, task: u64) -> Option<TaskLine> {
     let archive = core.archived_chats.get(&task)?;
     if archive.party != party
-        || !core.open_project(archive.project)
+        || (archive.project != people::DEPLOYMENT && !core.open_project(archive.project))
         || core.people.role(party, archive.project).is_none()
     {
         return None;
@@ -224,7 +224,9 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
         }
     }
     for entry in &entries {
-        if !core.open_project(entry.project) || core.people.role(party, entry.project).is_none() {
+        if (entry.project != people::DEPLOYMENT && !core.open_project(entry.project))
+            || core.people.role(party, entry.project).is_none()
+        {
             continue;
         }
         let value = object(core, entry.task, entry.kind);
@@ -251,7 +253,8 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
                 true,
             ),
         };
-        if !core.open_project(project) || core.people.role(party, project).is_none() {
+        if (project != people::DEPLOYMENT && !core.open_project(project)) || core.people.role(party, project).is_none()
+        {
             continue;
         }
         let cursor = Cursor::Inbox { task, object: value, at: Some(at) };
