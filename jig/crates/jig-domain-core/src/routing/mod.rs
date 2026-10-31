@@ -343,13 +343,12 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
                     | Event::Tasks(tasks::Event::Restore { .. }) => {
                         assert!(core.start_loading(), "rows load before Link and outside a seed commit");
                     }
-Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
+                    Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
                     Event::EffectConnector(crate::connector::Event::Resource { name, .. }) => {
                         assert!(
                             matches_restore_connector(phase, name.connector),
                             "connector resources load before Link"
                         );
-
                     }
                     _ => unreachable!("operational input requires durable Wires"),
                 }
