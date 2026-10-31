@@ -514,7 +514,9 @@ impl World {
         if self.events.front().is_some_and(|(due, _)| *due <= self.iteration) {
             let (_, event) = self.events.pop_front().expect("one due scripted event");
             self.trace.push(format!("input {event:?}"));
-            if let Err(event) = engine::try_step(&mut self.domain, &self.environment, event) {
+            if crate::waits_for_open(&self.domain, &event) {
+                self.queue(event, 0);
+            } else if let Err(event) = engine::try_step(&mut self.domain, &self.environment, event) {
                 self.queue(event, 1);
             }
             engine::release(&mut self.domain, &self.environment, &mut self.out);
