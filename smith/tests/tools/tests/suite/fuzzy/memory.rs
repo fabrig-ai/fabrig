@@ -1,4 +1,4 @@
-//! Memory stays under scenario ceilings (programming-model.md, section 6.3), measured by
+//! Memory stays under scenario ceilings (skein/docs/foundation/programming-model.md, section 6.3), measured by
 //! a counting allocator: the tools child domain driven at random through every
 //! terminal io may give, its peak measured in every step.
 
@@ -204,11 +204,11 @@ fn random_done(limits: &Limits, rng: &mut Rng, asked: Asked) -> Done {
 }
 
 // Peak 8,331 bytes measured 2026-10-29: random tools with default limits, maximum over all 20 seeds.
-// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+// Ceiling adds a quarter, rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, section 6).
 const RANDOM_TOOLS_CEILING: u64 = 11_000;
 
 // Peak 13,847 bytes measured 2026-10-29: random tools with four small kits, maximum over all 20 seeds.
-// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+// Ceiling adds a quarter, rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, section 6).
 const SMALL_RANDOM_TOOLS_CEILING: u64 = 18_000;
 
 #[test]

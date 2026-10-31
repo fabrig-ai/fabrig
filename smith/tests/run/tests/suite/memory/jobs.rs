@@ -1,4 +1,4 @@
-//! A waiting writer owns one opening under its run's lease (domain/run.md, 5.3).
+//! A waiting writer owns one opening under its run's lease (smith/docs/design/domain/run.md, 5.3).
 
 use super::{
     Ask, Asked, BUDGET, Domain, Env, Event, Families, LIMITS, Limits, Meter, Queue, Read, ReplyTo, Request, Time,
@@ -13,11 +13,11 @@ const LARGE_HOST_PART: u64 = SMALL_HOST_PART + 65_536;
 const SMALL_BRIEF: u64 = 1;
 const LARGE_BRIEF: u64 = SMALL_BRIEF + 65_536;
 
-// Peak ceiling for a waiting writer with a one-byte brief (programming-model.md, section 6.3).
+// Peak ceiling for a waiting writer with a one-byte brief (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 8_470 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const SMALL_WRITER_CEILING: u64 = 11_000;
 
-// Peak ceiling for a waiting writer with a 65537-byte brief (programming-model.md, section 6.3).
+// Peak ceiling for a waiting writer with a 65537-byte brief (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 139_542 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const LARGE_WRITER_CEILING: u64 = 180_000;
 

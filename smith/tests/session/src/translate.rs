@@ -13,8 +13,6 @@ use smith_domain_tools::{Call, Effect, Exit, Grants, Namespace, Outcome};
 
 /// The tools the agent's side offers, by name: the family that grants each,
 /// and its schema.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 const TOOLS: [(&[u8], Family, &[u8]); 6] = [
     (b"read", Family::Inspect, br#"{"path":"string"}"#),
     (b"list", Family::Inspect, br#"{"path":"string"}"#),
@@ -34,8 +32,6 @@ enum Family {
 /// The provider's query for an agent's prompt, its tickets resolved in
 /// `tickets`: the live tools the opener serves. Concrete results are rendered directly. There is one
 /// provider, so the endpoint names nothing.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 #[must_use]
 pub fn query(prompt: agent::Prompt, tickets: &Tickets) -> provider::Query {
     let agent::Prompt {
@@ -82,8 +78,6 @@ pub fn query(prompt: agent::Prompt, tickets: &Tickets) -> provider::Query {
 /// The agent's terminal event for the provider's answer to the call of `owner`,
 /// a call of the session of `opener` that offered the tools of `served`. A
 /// call to one of those is kept in `tickets`, as the top level would keep it.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 #[must_use]
 pub fn outcome(
     owner: Token,
@@ -105,8 +99,6 @@ pub fn outcome(
 }
 
 /// The schemas of the tools `grants` allows.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 fn offer(grants: Grants) -> Box<[provider::ToolSpec]> {
     let granted = |family: Family| match family {
         Family::Inspect => grants.inspect,
@@ -195,8 +187,6 @@ fn block(part: provider::Part, tickets: &mut Tickets, opener: u64, served: &[age
 }
 
 /// The tool of `served` named `name`, if the call is to one of them.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 fn delegated(name: &[u8], served: &[agent::Descriptor], tickets: &Tickets) -> Option<(&'static [u8], Effect, Token)> {
     served.iter().find_map(|descriptor| match tickets.resolve(descriptor.ticket) {
         Ticketed::Tool { name: tool, effect, .. } => (*tool == name).then_some((*tool, *effect, descriptor.ticket)),
@@ -220,8 +210,6 @@ fn failure(error: provider::Error) -> agent::Failure {
 
 /// The call the LLM made to the tool `name` with `arguments`, as the agent's
 /// protocol layer decodes it: or what keeps it from being one.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 #[must_use]
 pub fn decode(name: &[u8], arguments: &[u8]) -> agent::Decoded {
     match call(name, arguments) {
@@ -257,8 +245,6 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
 }
 
 /// The text the LLM reads for what came of a call, and whether it failed.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 #[must_use]
 pub fn render(result: &agent::Returned) -> (Box<[u8]>, bool) {
     render_with_namespace(result, &Namespace::One)

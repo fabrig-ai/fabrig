@@ -1,5 +1,5 @@
-//! A child answers its final turn through actual session boundaries.
-//! Contract: domain/session.md, section 7.
+//! A child answers its final turn through session boundaries.
+//! Contract: smith/docs/design/domain/session.md, section 7.
 
 use skein_lib::{Duration, Token};
 use smith_domain_session::{self as session, llm};

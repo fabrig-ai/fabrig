@@ -1,5 +1,5 @@
-//! Actual narrowed requests and concrete not-run replay through the session domain.
-//! Contract: domain/session.md, section 5; protocol/llm.md, section 5.
+//! narrowed requests and concrete not-run replay through the session domain.
+//! Contract: smith/docs/design/domain/session.md, section 5; smith/docs/design/protocol/llm.md, section 5.
 
 use skein_lib::Token;
 use smith_domain_session::{self as session, llm};

@@ -543,7 +543,7 @@ fn a_yielded_call_tail_becomes_not_run_only_after_the_continue() {
         .iter()
         .flat_map(|message| message.content.iter())
         .find_map(|block| if let Block::ToolCall { id, .. } = block { Some(id) } else { None })
-        .expect("the actual truncated provider payload retained its unanswered call");
+        .expect("the truncated provider payload retained its unanswered call");
     assert!(
         !records[0]
             .messages
@@ -556,7 +556,7 @@ fn a_yielded_call_tail_becomes_not_run_only_after_the_continue() {
         matches!(&records[1].messages[0].content[0], Block::ToolResult {
         id, result: Returned::NotRun { why: smith_domain_session::llm::NotRun::Stopped },
     } if id == pending),
-        "the actual Continue carries exact NotRun before the waking assistant"
+        "the Continue carries exact NotRun before the waking assistant"
     );
     assert_eq!(
         (world.stats().ops, world.stats().delegates, world.stats().continues),

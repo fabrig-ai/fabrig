@@ -27,7 +27,6 @@ impl World {
     }
 
     /// Machine job acts in dispatch order, with their injected time and spawn owner.
-    /// World contract: domain/tools.md, section 5, Reading it.
     #[must_use]
     pub fn job_acts(&self) -> &[(Time, Token, JobAct)] {
         &self.job_acts

@@ -1,5 +1,5 @@
-//! Positive-first mutations of actual ordinary-pool child openings.
-//! Contract: domain/run.md, sections 5.3, 9.1 and 13.
+//! Positive-first mutations of ordinary-pool child openings.
+//! Contract: smith/docs/design/domain/run.md, sections 5.3, 9.1 and 13.
 
 use skein_lib::Duration;
 use skein_world::domain::Verdict;
@@ -16,7 +16,7 @@ fn a_child_share_crossing_any_ordinary_part_is_rejected() {
     let mut world = World::new(settings);
     world.run(1_000_000);
     let good = world.share_seen();
-    assert!(!good.is_empty(), "the real run actually opens children");
+    assert!(!good.is_empty(), "the real run opens children");
     assert_eq!(judge(good), Verdict::Passed);
     for part in 0..3 {
         let mut bad = good.to_vec();
@@ -59,7 +59,7 @@ fn a_sub_agent_asking_more_than_is_left_above_the_reserve_is_clamped() {
 }
 
 #[test]
-fn actual_facts_tell_child_shares_and_budget_without_deciding_work() {
+fn seen_facts_tell_child_shares_and_budget_without_deciding_work() {
     use smith_domain_run::facts::{FactKind, Kind};
     use smith_run_world::facts_referee::{Seen, judge};
 
@@ -117,7 +117,7 @@ fn actual_facts_tell_child_shares_and_budget_without_deciding_work() {
                         && standing.turns == charged.spent.turns
                         && standing.spend == charged.spent.units
                 })
-                .expect("every actual charge has a standing fact");
+                .expect("every charge has a standing fact");
             (*charged_at, Seen { charged: *charged, standing: *standing })
         })
         .collect();
@@ -157,10 +157,10 @@ fn check_child_returns(world: &World) {
                 (opened_call == call).then_some(conversation)
             })
             .expect("the child's enclosing call opened it");
-        let (ended_at, expected) = world.child_usage_seen(child).expect("actual child terminal callback");
+        let (ended_at, expected) = world.child_usage_seen(child).expect("child terminal callback");
         assert_eq!(fact.at, ended_at);
         assert_eq!(used, expected, "child usage follows its own callbacks and injected elapsed time");
         returns += 1;
     }
-    assert!(returns > 0, "the story actually settles a child result");
+    assert!(returns > 0, "the story settles a child result");
 }

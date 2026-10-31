@@ -10,7 +10,6 @@ use smith_session_world::{Ended, World, noisy, submit_noisily};
 const ITERATIONS: u32 = 100_000;
 
 /// Every original scheduled ending class remains mandatory across the full sweep.
-/// World contract: domain/session.md, sections 4, 6, 10 and 12.
 const EXPECTED_ENDS: [&str; 11] =
     ["busy", "invalid", "closed", "failed", "timed out", "Turns", "Input", "Output", "CacheRead", "CacheWrite", "Time"];
 

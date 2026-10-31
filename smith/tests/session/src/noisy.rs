@@ -12,8 +12,6 @@ use crate::{BUDGET, Count, Settings, Span, World, spec};
 
 /// Settings drawn from `seed`: small limits, faults, latencies that race the
 /// deadlines, and an opener that nudges, dawdles and abandons.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 #[must_use]
 pub fn noisy(seed: u64) -> Settings {
     let mut rng = Rng::new(seed);
@@ -90,10 +88,9 @@ pub fn noisy(seed: u64) -> Settings {
         serving: Span::millis(10, 3_000),
         ..calm
     };
-    // Keep the original 2000..8000 draw and every RNG operation above. The
-    // original draw pressures retained payload; canonical terminals additionally
-    // require pre-effect provider/result credit (domain/session.md, sections 3, 5
-    // and 12). This checked envelope retains the original receiving maxima.
+    // The 2000..8000 draw pressures retained payload; provider/result credit
+    // reserves additional room before effects (smith/docs/design/domain/session.md, 3 and 5).
+    // The receiving maxima and seeded draw order stay fixed.
     settings.agent.history_bytes = settings
         .agent
         .history_bytes
@@ -106,8 +103,6 @@ pub fn noisy(seed: u64) -> Settings {
 /// a budget of its own, small enough to run out in any dimension, now and then
 /// empty in one, and now and then more than the limits allow; and room for
 /// short answers only.
-///
-/// World contract: domain/session.md, sections 10 and 12; testing-strategy.md, section 2.2.
 pub fn submit_noisily(world: &mut World, settings: &Settings, seed: u64) {
     let mut rng = Rng::new(seed.wrapping_add(2));
     let most = settings.agent.budget;

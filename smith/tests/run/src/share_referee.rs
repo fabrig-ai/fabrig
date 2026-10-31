@@ -1,12 +1,12 @@
-//! Independent effective-share oracle at actual child openings.
+//! Independent effective-share oracle at child openings.
 //! The world reconstructs ordinary credit from host budgets, time and usage.
-//! Contract: domain/run.md, sections 5.3, 9.1 and 13.
+//! Contract: smith/docs/design/domain/run.md, sections 5.3, 9.1 and 13.
 
 use skein_lib::{Duration, Time};
 use skein_world::domain::{Expectations, Judge, Referee, Verdict};
 use smith_domain_run::Budget;
 
-/// An actual child share and independently observed ordinary credit when asked.
+/// An child share and independently observed ordinary credit when asked.
 #[derive(Clone, Copy, Debug)]
 pub struct Seen {
     pub ordinary: Budget,
@@ -15,7 +15,7 @@ pub struct Seen {
     pub call_left: Duration,
 }
 
-/// No domain state: each actual opening must fit its observed ordinary credit.
+/// No domain state: each opening must fit its observed ordinary credit.
 #[derive(Default)]
 pub struct Meeting;
 
@@ -40,7 +40,7 @@ impl Expectations for Meeting {
     }
 }
 
-/// Judge the actual opening observations with Skein's referee.
+/// Judge the opening observations with Skein's referee.
 #[must_use]
 pub fn judge(seen: &[(Time, Seen)]) -> Verdict {
     let mut referee = Referee::new(Meeting);
