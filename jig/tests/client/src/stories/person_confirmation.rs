@@ -4,7 +4,7 @@ use super::*;
 /// Person verdict and report contracts with their editable forms.
 #[derive(Clone, Copy)]
 pub enum Form {
-    Choice,
+    NativeChoice,
     Choice,
     Report,
     Words,
@@ -15,7 +15,7 @@ impl Form {
     #[must_use]
     pub fn choice(self) -> Option<&'static [u8]> {
         match self {
-            Self::Choice | Self::Choice => Some(b"Choice code: 2"),
+            Self::NativeChoice | Self::Choice => Some(b"Choice code: 2"),
             Self::Report | Self::Words => None,
         }
     }
@@ -23,7 +23,7 @@ impl Form {
     #[must_use]
     pub fn ask(self) -> Ask {
         let answer = match self {
-            Self::Choice | Self::Choice => PersonAnswer::Choice { option: 2, reason: text(b"second report") },
+            Self::NativeChoice | Self::Choice => PersonAnswer::Choice { option: 2, reason: text(b"second report") },
             Self::Report | Self::Words => PersonAnswer::Words(text(b"my complete answer")),
         };
         Ask::Answer { project: 1, on: AnswerOn::Person { task: 9, revision: Revision { value: 17 }, answer } }
@@ -105,7 +105,7 @@ fn document(form: Form) -> ReadValue {
         stall: Some(Duration::from_secs(120)),
         deadline: None,
         contract: match form {
-            Form::Choice | Form::Choice => TaskContractDocument::Verdict {
+            Form::NativeChoice | Form::Choice => TaskContractDocument::Verdict {
                 choices: list([
                     VerdictChoice { code: 1, words: 32, followups: 0, fields: list([]) },
                     VerdictChoice { code: 2, words: 32, followups: 0, fields: list([]) },

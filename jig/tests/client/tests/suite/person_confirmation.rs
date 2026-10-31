@@ -69,7 +69,7 @@ fn answer(form: Form, seed: u64) {
 
 #[test]
 fn a_native_choice_card_and_confirmation_keep_one_platform_reason_input() {
-    answer(Form::Choice, 9311);
+    answer(Form::NativeChoice, 9311);
 }
 #[test]
 fn a_choice_card_and_confirmation_keep_one_platform_reason_input() {

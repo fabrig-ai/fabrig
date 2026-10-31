@@ -5,7 +5,7 @@ use crate::{
     drawing,
     words::{Word, Words},
 };
-use jig_client::contract::{ObjectKey, Part, Proposer};
+use jig_client::contract::{ObjectKey, ApplicationPart, Proposer};
 use jig_client_view::Owner;
 use jig_ops_client_domain::{
     Action,
@@ -79,34 +79,34 @@ fn document_view(builder: &mut Builder, document: &Document, words: &Words, bind
     let Document::Value(document) = document;
     show_document(builder, document, words, bindings);
 }
-pub fn part(builder: &mut Builder, side: &observability::Side, part: &Part, words: &Words, bindings: &mut Bindings) {
+pub fn part(builder: &mut Builder, side: &observability::Side, part: &ApplicationPart, words: &Words, bindings: &mut Bindings) {
     if !side.contains(part) {
         words.status(builder, Word::Unshowable, &[]);
         return;
     }
     match part {
-        Part::Connector { .. } => words.text(
+        ApplicationPart::Connector { .. } => words.text(
             builder,
             Word::Connector,
             &[Hole::Number(u64::from(jig_ops_domain_connectors::number(
                 jig_ops_domain_connectors::Connector::Observability,
             )))],
         ),
-        Part::Resource { path, .. } => {
+        ApplicationPart::Resource { path, .. } => {
             words.text(builder, Word::Resource, &[Hole::Name(skein_lib::bytes::copy_of(b""))]);
             for segment in path {
                 jig_client_view::literal_segment::render(builder, segment);
             }
         }
-        Part::Kind { kind, .. } => words.text(builder, Word::Kind, &[Hole::Number(u64::from(*kind))]),
-        Part::Panel { .. }
-        | Part::Result { .. }
-        | Part::OwnerEffect { .. }
-        | Part::Effect { .. }
-        | Part::Outbox { .. }
-        | Part::Hold { .. }
-        | Part::Project { .. }
-        | Part::Deployment { .. } => match side.part(part) {
+        ApplicationPart::Kind { kind, .. } => words.text(builder, Word::Kind, &[Hole::Number(u64::from(*kind))]),
+        ApplicationPart::Panel { .. }
+        | ApplicationPart::Result { .. }
+        | ApplicationPart::OwnerEffect { .. }
+        | ApplicationPart::Effect { .. }
+        | ApplicationPart::Outbox { .. }
+        | ApplicationPart::Hold { .. }
+        | ApplicationPart::Project { .. }
+        | ApplicationPart::Deployment { .. } => match side.part(part) {
             Some(object) => match &object.value {
                 Value::Loading => words.status(builder, Word::Loading, &[]),
                 Value::Unknown => words.status(builder, Word::Unknown, &[]),
