@@ -324,6 +324,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     if let Some(accounts) = &mut engine.accounts {
         accounts.iterate(now, wall, &mut engine.values, &mut engine.events, &mut engine.store);
     }
+    crate::forge::gone::advance(engine);
     crate::forge::records::advance(engine);
     if engine.store.component.mark_durable()
         && (!engine.forge_records.loading() || engine.end.is_some() || stop::requested(engine))

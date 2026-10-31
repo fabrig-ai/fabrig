@@ -179,3 +179,19 @@ fn a_forge_with_no_runtime_or_records_is_erased_and_answered() {
     assert_eq!(service.engine.as_ref().unwrap().store.erases, 10);
     answered(&mut service, 100);
 }
+
+#[test]
+fn a_restored_removal_waits_for_the_durable_start_mark() {
+    let mut service = service();
+    let engine = service.engine.as_mut().unwrap();
+    engine.store = fixtures::memory_store();
+    request(&mut service, 1);
+    let engine = service.engine.as_mut().unwrap();
+    assert_eq!(engine.store.erases, 0);
+    assert!(engine.store.above.is_empty());
+    fixtures::mark_store(&mut engine.store);
+    gone::advance(engine);
+    complete(&mut service);
+    answered(&mut service, 1);
+    assert!(service.engine.as_ref().unwrap().forge.erase_waiting.is_empty());
+}

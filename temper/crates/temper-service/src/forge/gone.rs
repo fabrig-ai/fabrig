@@ -12,6 +12,10 @@ pub(crate) fn owns(owner: Token) -> bool {
 }
 
 pub(crate) fn request(engine: &mut Engine, forge: u16) {
+    if !engine.store.component.mark_durable() {
+        engine.forge.erase_waiting.insert(forge, ()).expect("bounded restored removals");
+        return;
+    }
     match engine.forge.erasing.get(&forge) {
         Some(Some(_)) => return,
         Some(None) => {
@@ -36,6 +40,18 @@ pub(crate) fn request(engine: &mut Engine, forge: u16) {
     engine.forge_records.rows.remove(forge);
     engine.forge.erasing.insert(forge, Some(Item::AdminToken)).expect("bounded removed forges");
     erase(engine, forge);
+}
+
+/// A restored removal waits for this start's durable store mark.
+pub(crate) fn advance(engine: &mut Engine) {
+    if !engine.store.component.mark_durable() {
+        return;
+    }
+    for _ in 0..engine.forge.erase_waiting.len() {
+        let forge = *engine.forge.erase_waiting.iter().next().expect("waiting erase").0;
+        engine.forge.erase_waiting.remove(&forge);
+        request(engine, forge);
+    }
 }
 
 fn erase(engine: &mut Engine, forge: u16) {
