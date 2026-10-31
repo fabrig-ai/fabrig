@@ -31,7 +31,7 @@ pub fn schemas_for_contract(
         (prompt.tools.shell, tools::Tool::Job, b"job"),
     ] {
         if granted {
-            add(&mut descriptors, owned(tool, name, stated, &prompt.namespace));
+            add(&mut descriptors, owned(tool, name, stated, &prompt.namespace))?;
         }
     }
     for offered in &prompt.served {
@@ -44,7 +44,7 @@ pub fn schemas_for_contract(
             }
             llm::Served::Finish => finishing(crate::contract::finish_schema(outcome, maximum)?),
         };
-        add(&mut descriptors, descriptor);
+        add(&mut descriptors, descriptor)?;
     }
     Ok(descriptors.into_boxed())
 }
@@ -136,8 +136,8 @@ fn finishing(schema: Box<[u8]>) -> ToolSchema {
     }
 }
 
-fn add(descriptors: &mut List<ToolSchema>, schema: ToolSchema) {
-    descriptors.push(schema).expect("ten fixed tool slots");
+fn add(descriptors: &mut List<ToolSchema>, schema: ToolSchema) -> Result<(), Error> {
+    descriptors.push(schema).or(Err(Error::Limit))
 }
 
 fn descriptor(kind: ToolKind, name: &[u8], description: &[u8], schema: &[u8]) -> ToolSchema {

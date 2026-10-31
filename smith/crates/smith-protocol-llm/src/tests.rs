@@ -967,3 +967,27 @@ fn removal_renders_success_and_the_nonempty_refusal() {
         );
     }
 }
+
+#[test]
+fn schema_inventory_at_capacity_fits_and_one_more_is_refused() {
+    use smith_domain::{llm, run::outcome};
+    let mut prompt = described_prompt();
+    prompt.served = Box::new([llm::Served::Finish, llm::Served::Deliver, llm::Served::SubAgent, llm::Served::Wait]);
+    let stated = crate::Stated::from_tools(&tools(), 4096).expect("fixture stated quantities");
+    let delivery = outcome::ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
+    let contract = crate::fixture::contract();
+    let inventory = crate::schemas_for_contract(&prompt, &stated, &contract, Some(&delivery), u32::MAX)
+        .expect("eight workspace and four run tools fit");
+    assert_eq!(inventory.len(), 12);
+    prompt.served = Box::new([
+        llm::Served::Finish,
+        llm::Served::Deliver,
+        llm::Served::SubAgent,
+        llm::Served::Wait,
+        llm::Served::Wait,
+    ]);
+    assert_eq!(
+        crate::schemas_for_contract(&prompt, &stated, &contract, Some(&delivery), u32::MAX),
+        Err(crate::Error::Limit)
+    );
+}
