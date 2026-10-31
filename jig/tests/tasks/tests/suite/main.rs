@@ -4,6 +4,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod activity;
 mod added;
 mod circles;
+mod close_project;
 mod exceeded;
 mod funding;
 mod holds;

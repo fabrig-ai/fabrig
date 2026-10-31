@@ -4,7 +4,7 @@ use jig_domain_tasks::{
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 
-fn recurring(number: u64, overlap: RecurringOverlap) -> New {
+pub(super) fn recurring(number: u64, overlap: RecurringOverlap) -> New {
     let mut member = task(1, &[]);
     member.numbers.budget = 30;
     member.authority.budget.spend = 30;
