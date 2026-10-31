@@ -2841,6 +2841,7 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
         store.seed(rows.into_values().collect(), Box::new([]));
         let mut restarted = Driver::new(store);
         if executor.is_some() {
+            restarted.broken("the fixture names a charter absent from the task's settings");
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 restarted.settle();
             }))
@@ -2850,7 +2851,7 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
             assert!(restarted.switches.is_empty());
             assert!(restarted.delivered.is_empty());
         } else {
-            restarted.settle();
+            restarted.pump();
             assert!(restarted.root.ready());
             let loaded = restarted.root.tasks().task(assignment.task).expect("linked task serves");
             assert_eq!(loaded.requester, expected.requester);
@@ -4670,6 +4671,7 @@ fn restart_refuses_live_tasks_or_claims_past_lowered_limits_without_dropping_the
     ] {
         let store = driver.store.fork();
         let mut restarted = Driver::configured(store, [sharing_config(91), sharing_config(91)], &bounds);
+        restarted.broken("the fixture lowers limits below its retained live set");
         for _ in 0..100 {
             restarted.advance(true);
         }
