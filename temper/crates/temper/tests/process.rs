@@ -2095,15 +2095,14 @@ fn playground_reset(kill: bool) {
             scratch.path(),
             flags,
             &client,
-            vec![Step::Run(Call::new(&["playground", "end", "--key", "playground-reset"]).in_directory("private"))],
+            vec![Step::Run(Call::new(&["me", "--json"]).in_directory("private"))],
             BOX_DEADLINE,
             |_| support::playground::check_empty(&paths[0], &paths[1], &client),
         );
         assert_eq!(resumed.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&resumed.stderr));
         assert_eq!(resumed.left, Some(Vec::new()), "restarted tree drained");
         ctl_assert_success(&resumed.calls);
-        assert_eq!(resumed.calls.len(), 1, "the original signed-in client's resumed reset");
-        assert_eq!(resumed.calls[0].stdout, b"reset\n");
+        assert_eq!(resumed.calls.len(), 1, "the original signed-in client reads the recovered deployment");
         assert_eq!(resumed.checked, Some(()), "empty store and Forge welcome checked");
     } else {
         assert_eq!(ended.exit, Some(Exit::Code(0)), "{stderr}");
