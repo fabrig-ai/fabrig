@@ -43,3 +43,6 @@ pub(crate) fn check(disk: &Checkout, root: u64) -> (bool, Vec<u8>) {
     let output = if passed { b"ok: src/lib.rs\n".as_slice() } else { b"FAILED: src/lib.rs does not hold 43\n" };
     (passed, output.to_vec())
 }
+
+/// Scripted provider turns shared with the session world.
+pub use smith_session_world::fixture::{calls, says};

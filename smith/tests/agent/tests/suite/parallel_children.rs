@@ -2,14 +2,14 @@
 //! Contract: smith/docs/design/domain/run.md, sections 4, 5.3 and 13; smith/docs/design/protocol/limits.md, section 6.
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Script, Turn};
 use skein_lib::Token;
 use skein_world::domain::Span;
 use smith_agent_world::{Boundary, CompletionTerminal, Job, Settings, World, scripted_charter};
 use smith_domain::{run, tools};
 
 fn calls(lines: Vec<Line>) -> Turn {
-    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: 1 }
+    smith_agent_world::fixture::calls(lines.into(), 1)
 }
 
 #[test]
@@ -33,11 +33,10 @@ fn four_inspect_only_sub_agents_in_parallel_are_each_answered() {
                     name: b"read".as_slice().into(),
                     arguments: br#"{"path":"README.md"}"#.as_slice().into(),
                 }]),
-                Turn {
-                    lines: Box::new([Line::Text { text: format!("child {index} inspected").into_bytes().into() }]),
-                    finish: Finish::Stop,
-                    tokens: 1,
-                },
+                smith_agent_world::fixture::says(
+                    Box::new([Line::Text { text: format!("child {index} inspected").into_bytes().into() }]),
+                    1,
+                ),
             ]),
         });
     }

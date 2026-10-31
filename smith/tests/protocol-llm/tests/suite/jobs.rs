@@ -1,6 +1,6 @@
 //! Offered jobs cross each native dialect and the real tools domain.
 use skein_fake_checkout::{Checkout, Exit, Program};
-use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Script, Turn};
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
 use smith_domain::{llm, run, tools};
@@ -12,11 +12,10 @@ const STOP: &[u8] = br#"{"job":1,"stop":true}"#;
 const READ: &[u8] = br#"{"job":1,"wait_seconds":5}"#;
 
 fn call(name: &[u8], arguments: &[u8]) -> Turn {
-    Turn {
-        lines: Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
-        finish: Finish::ToolCalls,
-        tokens: 1,
-    }
+    smith_protocol_llm_world::fixture::calls(
+        Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
+        1,
+    )
 }
 
 fn world(configuration: client_peer::Configuration, job_input: &[u8]) -> World {

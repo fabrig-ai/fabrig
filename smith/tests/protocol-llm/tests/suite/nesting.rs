@@ -1,7 +1,7 @@
 //! Observed provider calls refuse nesting through main and child sessions.
 //! Contract: protocol/llm.md, section 4; domain/run.md, sections 5.3 and 13.
 
-use skein_fake_llm_domain::api::{Finish, Line, Part, Turn};
+use skein_fake_llm_domain::api::{Line, Part};
 use smith_domain::{run, session::llm};
 use smith_protocol_llm_world::{Job, Settings, World, client_peer, codec, script};
 
@@ -19,15 +19,14 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
                     .as_slice()
                     .into(),
         }]);
-        let mut turns = vec![Turn {
-            lines: Box::new([Line::Call {
+        let mut turns = vec![smith_protocol_llm_world::fixture::calls(
+            Box::new([Line::Call {
                 name: b"sub_agent".as_slice().into(),
                 arguments:
                     br#"{"brief":"@explore Never opened.","tools":["inspect"],"agents":false}"#.as_slice().into(),
             }]),
-            finish: Finish::ToolCalls,
-            tokens: 4,
-        }];
+            4,
+        )];
         turns.extend(std::mem::take(&mut main.turns).into_vec());
         main.turns = turns.into_boxed_slice();
         let mut bounds =

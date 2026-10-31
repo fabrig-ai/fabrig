@@ -5,7 +5,7 @@
 //! skein/docs/foundation/testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Query, Script, Turn};
 use skein_lib::Token;
 use skein_world::domain::Span;
 use smith_agent_world::{Boundary, Job, Settings, World};
@@ -155,11 +155,11 @@ fn call(name: &[u8], arguments: &[u8]) -> Line {
 }
 
 fn calls(lines: Vec<Line>, tokens: u64) -> Turn {
-    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens }
+    smith_agent_world::fixture::calls(lines.into(), tokens)
 }
 
 fn says(text: &[u8], tokens: u64) -> Turn {
-    Turn { lines: Box::new([Line::Text { text: text.into() }]), finish: Finish::Stop, tokens }
+    smith_agent_world::fixture::says(Box::new([Line::Text { text: text.into() }]), tokens)
 }
 
 fn typed_scripts() -> Box<[Script]> {

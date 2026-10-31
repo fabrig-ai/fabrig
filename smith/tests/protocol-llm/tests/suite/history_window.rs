@@ -1,7 +1,7 @@
 //! Derived history ownership at its boundary, through an observed shared Client.
 //! Contract: protocol/limits.md, section 3.2; domain/session.md, section 4.
 
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script};
 use skein_lib::{Duration, Queue, Token};
 use smith_domain::{Event, llm, session};
 use smith_protocol_llm_world::{
@@ -177,11 +177,10 @@ fn history_edge(provider: skein_llm::Provider) {
 fn scripts(system: &[u8]) -> Box<[Script]> {
     Box::new([Script {
         cue: system.into(),
-        turns: Box::new([Turn {
-            lines: Box::new([Line::Text { text: b"done".as_slice().into() }]),
-            finish: Finish::Stop,
-            tokens: 1,
-        }]),
+        turns: Box::new([smith_protocol_llm_world::fixture::says(
+            Box::new([Line::Text { text: b"done".as_slice().into() }]),
+            1,
+        )]),
     }])
 }
 

@@ -2233,7 +2233,7 @@ impl World<Typed> {
 #[cfg(test)]
 mod bridge_tests {
     use super::*;
-    use provider::api::{Finish, Line, Script, Turn};
+    use provider::api::{Line, Script};
 
     #[test]
     fn a_caller_start_and_host_reply_cross_the_parent_bridge() {
@@ -2305,22 +2305,17 @@ mod bridge_tests {
         let scripts = Box::new([Script {
             cue: b"@hosttools".as_slice().into(),
             turns: Box::new([
-                Turn {
-                    lines: Box::new([Line::Call {
-                        name: b"message".as_slice().into(),
-                        arguments: b"{}".as_slice().into(),
-                    }]),
-                    finish: Finish::ToolCalls,
-                    tokens: 8,
-                },
-                Turn {
-                    lines: Box::new([Line::Call {
+                crate::fixture::calls(
+                    Box::new([Line::Call { name: b"message".as_slice().into(), arguments: b"{}".as_slice().into() }]),
+                    8,
+                ),
+                crate::fixture::calls(
+                    Box::new([Line::Call {
                         name: b"finish".as_slice().into(),
                         arguments: br#"{"report":"Host completed.","source":"host"}"#.as_slice().into(),
                     }]),
-                    finish: Finish::ToolCalls,
-                    tokens: 8,
-                },
+                    8,
+                ),
             ]),
         }]);
         let mut world = World::with_workspace_scripts_start(settings, Checkout::new(), scripts, start);

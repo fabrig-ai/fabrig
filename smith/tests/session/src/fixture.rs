@@ -156,3 +156,15 @@ pub fn bytes(text: &[u8]) -> Box<[u8]> {
 pub fn said(text: &[u8]) -> Box<[smith_domain_session::llm::Block]> {
     Box::new([smith_domain_session::llm::Block::Text { text: bytes(text), replay: None }])
 }
+
+/// A scripted provider turn offering its calls with the supplied token charge.
+#[must_use]
+pub fn calls(lines: Box<[skein_fake_llm_domain::api::Line]>, tokens: u64) -> skein_fake_llm_domain::api::Turn {
+    skein_fake_llm_domain::api::Turn { lines, finish: skein_fake_llm_domain::api::Finish::ToolCalls, tokens }
+}
+
+/// A scripted provider turn stopping after its supplied lines and token charge.
+#[must_use]
+pub fn says(lines: Box<[skein_fake_llm_domain::api::Line]>, tokens: u64) -> skein_fake_llm_domain::api::Turn {
+    skein_fake_llm_domain::api::Turn { lines, finish: skein_fake_llm_domain::api::Finish::Stop, tokens }
+}

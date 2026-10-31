@@ -1,6 +1,6 @@
 //! Absent native usage remains absent at the root boundary
 //! (smith/docs/design/protocol/llm.md, sections 6 and 10).
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script};
 use skein_fake_llm_protocol::documents::{UsageField, UsageFields};
 use smith_domain::run;
 use smith_protocol_llm_world::{CompletionTerminal, Job, World, client_peer, fixture};
@@ -11,20 +11,18 @@ fn script() -> Box<[Script]> {
     Box::new([Script {
         cue: b"@report".as_slice().into(),
         turns: Box::new([
-            Turn {
-                lines: Box::new([Line::Text { text: b"First native answer.".as_slice().into() }]),
-                finish: Finish::Stop,
-                tokens: 3,
-            },
-            Turn {
-                lines: Box::new([Line::Call {
+            smith_protocol_llm_world::fixture::says(
+                Box::new([Line::Text { text: b"First native answer.".as_slice().into() }]),
+                3,
+            ),
+            smith_protocol_llm_world::fixture::calls(
+                Box::new([Line::Call {
                     name: b"finish".as_slice().into(),
                     arguments:
                         br#"{"form":"report","text":"Native answer.","fields":{"source":"peer"}}"#.as_slice().into(),
                 }]),
-                finish: Finish::ToolCalls,
-                tokens: 7,
-            },
+                7,
+            ),
         ]),
     }])
 }

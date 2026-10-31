@@ -5,7 +5,7 @@
 //! Contract: domain/run.md, sections 6,
 //! 9, 10 and 13; domain/session.md, section 3; testing-strategy.md, sections 2.3 and 6.
 
-use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Query, Role, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Message, Part, Query, Role, Script, Turn};
 use skein_lib::{Duration, Time, Token};
 use skein_world::domain::Span;
 use smith_domain::{Answered, AnsweredCall, Transcript, run, session::llm};
@@ -70,36 +70,33 @@ fn fixtures() -> [Fixture; 2] {
 }
 
 fn waiting_turn(opaque: &[u8]) -> Turn {
-    Turn {
-        lines: Box::new([
+    smith_protocol_llm_world::fixture::calls(
+        Box::new([
             Line::Opaque { bytes: opaque.into() },
             Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
         ]),
-        finish: Finish::ToolCalls,
-        tokens: 17,
-    }
+        17,
+    )
 }
 
 fn resumed_turn() -> Turn {
-    Turn {
-        lines: Box::new([
+    smith_protocol_llm_world::fixture::calls(
+        Box::new([
             Line::Text { text: RESUMED.into() },
             Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
         ]),
-        finish: Finish::ToolCalls,
-        tokens: 11,
-    }
+        11,
+    )
 }
 
 fn text_turn(text: &[u8], tokens: u64) -> Turn {
-    Turn {
-        lines: Box::new([
+    smith_protocol_llm_world::fixture::calls(
+        Box::new([
             Line::Text { text: text.into() },
             Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
         ]),
-        finish: Finish::ToolCalls,
         tokens,
-    }
+    )
 }
 
 fn scripts(fixture: &Fixture, tail: bool) -> Box<[Script]> {

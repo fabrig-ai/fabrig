@@ -99,3 +99,6 @@ impl Dialect {
         }
     }
 }
+
+/// Scripted provider turns shared with the typed agent world.
+pub use smith_agent_world::fixture::{calls, says};

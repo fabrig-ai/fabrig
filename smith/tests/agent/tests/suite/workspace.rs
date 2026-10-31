@@ -2,7 +2,7 @@
 //! Contract: smith/docs/design/domain/run.md, sections 3 and 8; smith/docs/design/domain/tools.md, sections 2–4.
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Query, Script, Turn};
 use skein_lib::Token;
 use smith_agent_world::{Boundary, Job, Settings, World};
 use smith_domain::run;
@@ -12,11 +12,11 @@ fn call(name: &[u8], arguments: &[u8]) -> Line {
 }
 
 fn calls(lines: Vec<Line>, tokens: u64) -> Turn {
-    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens }
+    smith_agent_world::fixture::calls(lines.into(), tokens)
 }
 
 fn says(text: &[u8], tokens: u64) -> Turn {
-    Turn { lines: Box::new([Line::Text { text: text.into() }]), finish: Finish::Stop, tokens }
+    smith_agent_world::fixture::says(Box::new([Line::Text { text: text.into() }]), tokens)
 }
 
 fn contains(bytes: &[u8], part: &[u8]) -> bool {

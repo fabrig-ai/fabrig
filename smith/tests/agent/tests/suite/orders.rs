@@ -5,7 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script, Turn};
 use skein_lib::{Duration, ReplyTo, Time, Token};
 use skein_world::domain::Span;
 use smith_agent_world::orders::{Entrance, EntranceObservation, HandoffRequest};
@@ -47,7 +47,7 @@ fn charter(settings: &Settings, instructions: &[u8]) -> run::Charter {
 }
 
 fn calls(lines: Vec<Line>) -> Turn {
-    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: 1 }
+    smith_agent_world::fixture::calls(lines.into(), 1)
 }
 
 fn call(name: &[u8], arguments: &[u8]) -> Line {
@@ -59,7 +59,7 @@ fn read() -> Turn {
 }
 
 fn stopped() -> Turn {
-    Turn { lines: Box::new([Line::Text { text: b"child settled".as_slice().into() }]), finish: Finish::Stop, tokens: 1 }
+    smith_agent_world::fixture::says(Box::new([Line::Text { text: b"child settled".as_slice().into() }]), 1)
 }
 
 fn child(cue: &str, model: Option<&str>) -> Line {

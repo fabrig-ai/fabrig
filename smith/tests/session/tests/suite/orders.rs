@@ -5,7 +5,7 @@ use smith_session_world::bytes;
 use std::collections::BTreeSet;
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script};
 use skein_lib::{Duration, Time, Token};
 use smith_domain_session::{self as session, llm};
 use smith_domain_tools::{self as tools, Budget, Call, Done, JobEnd, JobNumber, Op, Outcome};
@@ -94,7 +94,7 @@ fn scripted(mut settings: Settings, lines: Vec<Line>, tokens: u64) -> World {
     settings.provider.latency_max = Duration::from_millis(1);
     let script = Script {
         cue: bytes(b"You are a coding agent."),
-        turns: Box::new([Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens }]),
+        turns: Box::new([smith_session_world::fixture::calls(lines.into(), tokens)]),
     };
     World::with_scripts(settings, Box::new([script]))
 }

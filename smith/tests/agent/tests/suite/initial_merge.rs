@@ -9,7 +9,7 @@ use skein_fake_checkout::{
     Checkout,
     git::{self, CommitFailure, Created, Fault, Pushed, Remote, Tree, Want},
 };
-use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Script, Turn};
 use skein_lib::Token;
 use smith_agent_world::{Boundary, Job, Settings, World};
 use smith_domain::{run, session::llm, tools};
@@ -110,7 +110,7 @@ fn call(name: &[u8], arguments: &[u8]) -> Line {
 }
 
 fn calls(lines: Vec<Line>) -> Turn {
-    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: 1 }
+    smith_agent_world::fixture::calls(lines.into(), 1)
 }
 
 fn scripts() -> Box<[Script]> {
@@ -146,13 +146,10 @@ fn scripts() -> Box<[Script]> {
             cue: b"@initial-reader".as_slice().into(),
             turns: Box::new([
                 calls(vec![call(b"read", br#"{"path":"conflict.txt"}"#)]),
-                Turn {
-                    lines: Box::new([Line::Text {
-                        text: b"Initial markers observed without git writes.".as_slice().into(),
-                    }]),
-                    finish: Finish::Stop,
-                    tokens: 1,
-                },
+                smith_agent_world::fixture::says(
+                    Box::new([Line::Text { text: b"Initial markers observed without git writes.".as_slice().into() }]),
+                    1,
+                ),
             ]),
         },
     ])

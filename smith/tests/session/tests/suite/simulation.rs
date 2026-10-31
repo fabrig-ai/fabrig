@@ -95,7 +95,7 @@ fn malformed_calls_are_answered_with_their_problem_and_the_conversation_goes_on(
 /// the limits allow, a write alone, and the results back in call order.
 #[test]
 fn reads_in_one_answer_run_side_by_side_and_writes_alone() {
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use skein_fake_llm_domain::api::{Line, Script};
 
     let calm = Settings::calm(19);
     let settings = Settings {
@@ -112,7 +112,7 @@ fn reads_in_one_answer_run_side_by_side_and_writes_alone() {
         scripted_call(b"read", br#"{"path":"src/lib.rs"}"#),
         scripted_call(b"write", br#"{"path":"README.md","content":"README.md: rewritten"}"#),
     ];
-    let turn = Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: 48 };
+    let turn = smith_session_world::fixture::calls(lines.into(), 48);
     let script = Script { cue: bytes(b"You are a coding agent."), turns: vec![turn; 4].into() };
     let mut world = World::with_scripts(settings, Box::new([script]));
     let openers: Vec<u64> = (0..4).map(|_| world.submit(Time::ZERO, spec(b"fix the build"))).collect();
@@ -643,7 +643,7 @@ fn no_prompt_holds_a_kept_detail() {
 
 #[test]
 fn more_adjacent_reads_than_parallel_tools_run_in_the_next_batch() {
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use skein_fake_llm_domain::api::{Line, Script};
 
     let calm = Settings::calm(119);
     let settings = Settings {
@@ -652,7 +652,7 @@ fn more_adjacent_reads_than_parallel_tools_run_in_the_next_batch() {
         ..calm
     };
     let line = Line::Call { name: bytes(b"read"), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() };
-    let turn = Turn { lines: vec![line; 5].into(), finish: Finish::ToolCalls, tokens: 40 };
+    let turn = smith_session_world::fixture::calls(vec![line; 5].into(), 40);
     let script = Script { cue: bytes(b"You are a coding agent."), turns: Box::new([turn]) };
     let mut world = World::with_scripts(settings, Box::new([script]));
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
@@ -699,7 +699,7 @@ fn a_guarded_request_past_the_line_is_refused_by_the_world() {
 }
 
 fn batched_change(old: &str) -> (World, u64) {
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use skein_fake_llm_domain::api::{Line, Script};
     const SCRIPT_CALLS: u32 = 6;
     const TURN_TOKENS: u64 = 48;
     let scripted_call = |name: &[u8], arguments: &[u8]| Line::Call { name: name.into(), arguments: arguments.into() };
@@ -715,7 +715,7 @@ fn batched_change(old: &str) -> (World, u64) {
     let settings = Settings { provider: Config { calls_per_answer: SCRIPT_CALLS, ..calm.provider }, ..calm };
     let script = Script {
         cue: bytes(b"You are a coding agent."),
-        turns: vec![Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: TURN_TOKENS }].into(),
+        turns: vec![smith_session_world::fixture::calls(lines.into(), TURN_TOKENS)].into(),
     };
     let mut world = World::with_scripts(settings, Box::new([script]));
     let mut selected = spec(b"fix the build");

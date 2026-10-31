@@ -677,20 +677,13 @@ fn the_most_output_just_within_the_line_then_compacts_within_the_window() {
     const WINDOW: u32 = 1_520;
     const OUTPUT: u32 = 1_024;
     const SUMMARY_TOKENS: u64 = 8;
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
-    let read = Turn {
-        finish: Finish::ToolCalls,
-        tokens: u64::from(OUTPUT),
-        lines: Box::new([Line::Call {
-            name: bytes(b"read"),
-            arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into(),
-        }]),
-    };
-    let summary = Turn {
-        finish: Finish::Stop,
-        tokens: SUMMARY_TOKENS,
-        lines: Box::new([Line::Text { text: bytes(b"summary") }]),
-    };
+    use skein_fake_llm_domain::api::{Line, Script};
+    let read = smith_session_world::fixture::calls(
+        Box::new([Line::Call { name: bytes(b"read"), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() }]),
+        u64::from(OUTPUT),
+    );
+    let summary =
+        smith_session_world::fixture::says(Box::new([Line::Text { text: bytes(b"summary") }]), SUMMARY_TOKENS);
     let script = Script { cue: bytes(b"You are a coding agent."), turns: Box::new([read.clone(), read, summary]) };
     let mut world = Simulated::with_scripts(Settings::calm(104), Box::new([script]));
     let opener = world.submit(

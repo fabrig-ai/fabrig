@@ -1,6 +1,6 @@
 //! Charter-driven schema generation and typed finish/deliver inputs.
 
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script};
 use skein_lib::Token;
 use smith_domain::{llm, run};
 use smith_protocol_llm_world::client_peer;
@@ -150,11 +150,10 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
         .expect("contract schema admitted before provider work");
         let scripts = Box::new([Script {
             cue: b"@contract-schema".as_slice().into(),
-            turns: Box::new([Turn {
-                lines: Box::new([Line::Text { text: b"ready".as_slice().into() }]),
-                finish: Finish::Stop,
-                tokens: 1,
-            }]),
+            turns: Box::new([smith_protocol_llm_world::fixture::says(
+                Box::new([Line::Text { text: b"ready".as_slice().into() }]),
+                1,
+            )]),
         }]);
         let mut peer = skein_llm_world::fake::Exchange::prepared(
             prepared.client,
@@ -204,10 +203,11 @@ fn root_finish_uses_the_admitted_contract_and_corrects_the_fixture_grammar() {
                 br#"{"form":"report","text":"production grammar","fields":{"evidence":"peer"}}"#,
             ]
             .into_iter()
-            .map(|arguments| Turn {
-                lines: Box::new([Line::Call { name: b"finish".as_slice().into(), arguments: arguments.into() }]),
-                finish: Finish::ToolCalls,
-                tokens: 1,
+            .map(|arguments| {
+                smith_protocol_llm_world::fixture::calls(
+                    Box::new([Line::Call { name: b"finish".as_slice().into(), arguments: arguments.into() }]),
+                    1,
+                )
             })
             .collect(),
         }]);

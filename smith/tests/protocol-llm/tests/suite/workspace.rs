@@ -3,7 +3,7 @@
 //! Contract: domain/run.md, sections 3, 6, 8 and 13; domain/tools.md, sections 2–4.
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Role, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Message, Part, Role, Script, Turn};
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
 use smith_domain::{Transcript, run};
@@ -26,11 +26,11 @@ fn call(name: &[u8], arguments: &[u8]) -> Line {
 }
 
 fn calls(lines: Vec<Line>, tokens: u64) -> Turn {
-    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens }
+    smith_protocol_llm_world::fixture::calls(lines.into(), tokens)
 }
 
 fn says(text: &[u8], tokens: u64) -> Turn {
-    Turn { lines: Box::new([Line::Text { text: text.into() }]), finish: Finish::Stop, tokens }
+    smith_protocol_llm_world::fixture::says(Box::new([Line::Text { text: text.into() }]), tokens)
 }
 
 fn native_script() -> Box<[Script]> {
