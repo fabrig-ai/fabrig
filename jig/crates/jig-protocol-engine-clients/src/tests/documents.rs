@@ -365,3 +365,35 @@ fn task_settings_revisions_cross_into_the_wire_document() {
         }
     }
 }
+
+#[test]
+fn an_owner_is_offered_remove_project_and_a_member_is_not() {
+    use jig_domain_core::acts::{Act, Admission, Offered};
+    use skein_lib::{List, Reader};
+    let limits = fixtures::wire_limits();
+    // The protocol preserves the party-specific offers supplied by the core
+    // (jig/docs/design/domain/people.md, 5.2).
+    for owner in [true, false] {
+        let mut project = fixtures::project_document();
+        project.acts = List::with_capacity(2);
+        if owner {
+            for act in [Act::Rename, Act::RemoveProject] {
+                project.acts.push(Offered { act, admission: Admission::Allowed, effect: None }).expect("owner offers");
+            }
+        }
+        let record = translate::objects::project(&[], &project, &limits).expect("project document");
+        let mut input = Reader::new(record.acts());
+        let mut acts = List::with_capacity(2);
+        while !input.is_empty() {
+            let length = input.u32().expect("offer size");
+            let bytes = input.bytes(length).expect("offer bytes");
+            let offer = w::Offered::decode(&limits, &mut Reader::new(bytes)).expect("offer");
+            assert_eq!(offer.admission(), &w::Admission::Allowed);
+            acts.push(offer.act().clone()).expect("project offers");
+        }
+        assert_eq!(acts.len(), if owner { 2 } else { 0 });
+        assert_eq!(acts.as_slice().contains(&w::ActKind::RemoveProject), owner);
+        assert_eq!(acts.as_slice().contains(&w::ActKind::Rename), owner);
+        assert!(input.is_empty());
+    }
+}

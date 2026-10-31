@@ -226,6 +226,7 @@ impl Payload for Ask {
             Self::MakeService { project, name, role } => {
                 sum(&[project.heap(bounds), name.heap(bounds), role.heap(bounds)])
             }
+            Self::RemoveProject { project } => project.heap(bounds),
             Self::Rename { project, name } => sum(&[project.heap(bounds), name.heap(bounds)]),
             Self::MakeProject { name, policy } => sum(&[name.heap(bounds), policy.heap(bounds)]),
             Self::SetPool { project, party, budget } => {
@@ -508,6 +509,7 @@ impl Payload for ActKind {
             | Self::ChangePolicy
             | Self::SetRoles
             | Self::MakeService
+            | Self::RemoveProject
             | Self::Rename
             | Self::SetPool
             | Self::Withdraw => Some(0),

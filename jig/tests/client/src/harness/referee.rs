@@ -541,6 +541,7 @@ fn decisions(ask: &Ask) -> Vec<(ObjectKey, ActKind)> {
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::Lift { .. }
         | Ask::ChangeSettings(_)

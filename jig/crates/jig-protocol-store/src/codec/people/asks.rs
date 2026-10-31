@@ -297,6 +297,10 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 #[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
+        domain::Ask::RemoveProject { project } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
+            limits,
+            wire::AskRemoveProjectParts { project: *project },
+        )?),
         domain::Ask::MoveToNewest { revision } => wire::Ask::MoveToNewest(wire::AskMoveToNewest::new(
             limits,
             wire::AskMoveToNewestParts { revision: *revision },
@@ -513,6 +517,7 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
 #[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask, wire::Problem> {
     Ok(match value {
+        wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject { project: value.project() },
         wire::Ask::MoveToNewest(value) => domain::Ask::MoveToNewest { revision: value.revision() },
         wire::Ask::ChangeSettings(value) => {
             domain::Ask::ChangeSettings { against: value.against(), digest: *value.digest() }

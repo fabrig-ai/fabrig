@@ -14,7 +14,7 @@ use skein_lib::{Env, Queue, ReplyTo};
 
 pub(super) fn lifted(core: &mut Core, env: &Env<Limits>, reply_to: ReplyTo, released: u32, out: &mut Queue<Request>) {
     let token = reply_to.into_token();
-    let Some(Flight::PersonTask { request, route: PersonTaskRoute::Lift(hold) }) = core.land(token) else {
+    let Some(Flight::PersonTask { request, route: PersonTaskRoute::Lift(hold) }) = core.land_task(token) else {
         return;
     };
     append_people(
@@ -60,6 +60,7 @@ pub(super) fn sent(
         SentRoute::Call { request, key, message } => {
             call_decision(core, out, ReplyTo::new(request), key, CallPart::Sent { message });
         }
+        SentRoute::Stale => {}
         SentRoute::Person(event) => append_people(core, env, *event, out),
     }
 }
@@ -108,7 +109,7 @@ pub(super) fn writer_waiting(
 
 pub(super) fn acknowledged(core: &mut Core, reply_to: ReplyTo, task: u64, attempt: u64, out: &mut Queue<Request>) {
     let token = reply_to.into_token();
-    match core.land(token) {
+    match core.land_task(token) {
         Some(Flight::Internal(Internal::Acknowledge)) => {}
         Some(_) | None => out.push(Request::Now(Box::new(Now::DropPayload { payload: token }))),
     }

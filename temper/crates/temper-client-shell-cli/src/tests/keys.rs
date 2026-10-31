@@ -223,3 +223,33 @@ fn an_admin_token_refuses_empty_and_oversized_files_without_printing_them() {
         no_admin_token(&f);
     }
 }
+
+#[test]
+fn new_forge_connections_load_and_carry_their_credential_file() {
+    let new_app =
+        &[b"forge".as_slice(), b"connect", b"github-app", b"4242", b"/linked-parent/link-file", b"--key", b"app"];
+    let new_admin = &[
+        b"forge".as_slice(),
+        b"connect",
+        b"forgejo-admin",
+        b"/linked-parent/link-file",
+        b"--api",
+        b"127.0.0.1:3000",
+        b"--git",
+        b"http://127.0.0.1:3000",
+        b"--key",
+        b"admin",
+    ];
+    for (words, item) in [(new_app.as_slice(), 10), (new_admin.as_slice(), 0)] {
+        let mut f = fixtures::Frame::act(words);
+        f.link = ADMIN_TOKEN;
+        f.sign_in_then_deliver_me();
+        assert_eq!(f.carried_keys.len(), 1);
+        let mut expected = vec![0, 1, item];
+        expected.extend_from_slice(&u32::try_from(ADMIN_TOKEN.len()).expect("fixture token").to_be_bytes());
+        expected.extend_from_slice(ADMIN_TOKEN);
+        assert_eq!(f.carried_keys[0].expose(), expected);
+        assert!(f.stdout().is_empty());
+        assert!(f.stderr().is_empty());
+    }
+}

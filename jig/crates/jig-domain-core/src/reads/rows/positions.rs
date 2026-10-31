@@ -4,7 +4,9 @@ use super::{Key, Position, Range, Row, Scope, notes, tasks};
 fn subtree(scope: &Scope) -> bool {
     match scope {
         Scope::History { subtree: true, .. } => true,
-        Scope::Task { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }

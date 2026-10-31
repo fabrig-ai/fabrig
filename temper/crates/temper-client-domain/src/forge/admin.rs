@@ -1,4 +1,4 @@
-//! A site admin's one-shot token and first repository (client/forge.md, 5.4).
+//! A managed forge, its one-shot admin token and first repository (temper/docs/design/draft/playground-reset.md, 3, 6.4).
 use super::{Limits, Request, Served, Side, forges, github};
 use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};
@@ -26,6 +26,7 @@ impl Field {
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the view reads presentation; the token stays private")]
 pub struct Draft {
+    pub place: PlaceDraft,
     pub fields: [Box<[u8]>; 4],
     pub written: [u64; 4],
     pub token_written: u64,
@@ -37,6 +38,7 @@ pub struct Draft {
 impl Draft {
     pub(crate) fn new() -> Self {
         Self {
+            place: PlaceDraft::new(),
             fields: [
                 b"work".as_slice().into(),
                 b"hello".as_slice().into(),
@@ -74,6 +76,97 @@ impl Draft {
         self.too_long = false;
         self.token_written = self.token_written.checked_add(1).expect("token writes fit");
     }
+}
+/// Public address fields stay in the domain draft while the view renders them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlaceField {
+    Host,
+    Port,
+    Tls,
+    Git,
+    Web,
+}
+impl PlaceField {
+    #[must_use]
+    pub const fn index(self) -> usize {
+        match self {
+            Self::Host => 0,
+            Self::Port => 1,
+            Self::Tls => 2,
+            Self::Git => 3,
+            Self::Web => 4,
+        }
+    }
+}
+#[derive(Debug)]
+pub struct PlaceDraft {
+    pub fields: [Box<[u8]>; 5],
+    pub written: [u64; 5],
+    pub checked: bool,
+}
+impl PlaceDraft {
+    fn new() -> Self {
+        Self {
+            fields: [Box::default(), b"443".as_slice().into(), Box::default(), Box::default(), Box::default()],
+            written: [0; 5],
+            checked: false,
+        }
+    }
+    #[must_use]
+    pub fn port(&self) -> Option<u16> {
+        let bytes = self.fields.get(PlaceField::Port.index())?;
+        if bytes.is_empty() {
+            return None;
+        }
+        let mut port = 0_u16;
+        for byte in bytes {
+            if !byte.is_ascii_digit() {
+                return None;
+            }
+            port = port.checked_mul(10)?.checked_add(u16::from(byte.checked_sub(b'0')?))?;
+        }
+        if port == 0 { None } else { Some(port) }
+    }
+    #[must_use]
+    pub fn place(&self) -> Option<forges::Managed> {
+        let host = self.fields.get(PlaceField::Host.index())?;
+        if host.is_empty() {
+            return None;
+        }
+        let tls = self.fields.get(PlaceField::Tls.index())?;
+        let tls = if tls.is_empty() { None } else { Some(tls.clone()) };
+        let web = self.fields.get(PlaceField::Web.index())?;
+        let web = if web.is_empty() { None } else { Some(web.clone()) };
+        Some(forges::Managed {
+            host: host.clone(),
+            port: self.port()?,
+            tls,
+            git: self.fields.get(PlaceField::Git.index())?.clone(),
+            web,
+        })
+    }
+}
+pub(crate) fn place_write(side: &mut Side, limits: Limits, field: PlaceField, text: Box<[u8]>) {
+    if busy(side) || text.len() > usize::try_from(limits.field_bytes).expect("field bound fits") {
+        return;
+    }
+    let draft = &mut side.admin_form.place;
+    *draft.fields.get_mut(field.index()).expect("five address fields") = text;
+    let written = draft.written.get_mut(field.index()).expect("five address fields");
+    *written = written.checked_add(1).expect("writes fit");
+    draft.checked = false;
+    side.changed();
+}
+pub(crate) fn connect_managed(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+    if busy(side) {
+        return;
+    }
+    side.admin_form.place.checked = true;
+    let Some(place) = side.admin_form.place.place() else {
+        side.changed();
+        return;
+    };
+    send_new(side, limits, place, out);
 }
 #[derive(Debug)]
 pub struct Pending {
@@ -119,22 +212,39 @@ pub(crate) fn write(side: &mut Side, limits: Limits, field: Field, text: Box<[u8
     side.changed();
 }
 pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<Request>) {
+    send_target(side, limits, forge, None, out);
+}
+pub(crate) fn send_new(side: &mut Side, limits: Limits, place: forges::Managed, out: &mut Queue<Request>) {
+    if !forges::can_make(side)
+        || !place.valid()
+        || busy(side)
+        || side.playground_running()
+        || side.party.is_none()
+        || side.served == Served::OutOfDate
+    {
+        return;
+    }
+    send_target(side, limits, 0, Some(place), out);
+}
+fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges::Managed>, out: &mut Queue<Request>) {
     let Some(party) = side.party else { return };
     if busy(side) || side.served == Served::OutOfDate {
         return;
     }
-    let Some(row) = super::connect::row(forge, &side.forges, side.demo()) else { return };
-    if !row.admin || row.kind != forges::Kind::Forgejo {
-        return;
-    }
-    match row.connection {
-        forges::Connection::NotConnected | forges::Connection::Stopped { .. } => {}
-        forges::Connection::Connected { .. } if super::connect::failed(row) => {}
-        forges::Connection::NotSetUp
-        | forges::Connection::SettingUp { .. }
-        | forges::Connection::SetUpFailed { .. }
-        | forges::Connection::Connecting
-        | forges::Connection::Connected { .. } => return,
+    if forge != 0 {
+        let Some(row) = super::connect::row(forge, &side.forges, super::connect::playground(side)) else { return };
+        if !row.admin || row.kind != forges::Kind::Forgejo {
+            return;
+        }
+        match row.connection {
+            forges::Connection::NotConnected | forges::Connection::Stopped { .. } => {}
+            forges::Connection::Connected { .. } if super::connect::failed(row) => {}
+            forges::Connection::NotSetUp
+            | forges::Connection::SettingUp { .. }
+            | forges::Connection::SetUpFailed { .. }
+            | forges::Connection::Connecting
+            | forges::Connection::Connected { .. } => return,
+        }
     }
     let draft = &mut side.admin_form;
     draft.checked = true;
@@ -148,6 +258,22 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<
         return;
     }
     let bounds = super::wire_limits(&limits).expect("checked limits");
+    let target = if let Some(place) = place {
+        let value = w::ManagedForge::new(
+            &bounds,
+            w::ManagedForgeParts { host: place.host, port: place.port, tls: place.tls, git: place.git, web: place.web },
+        );
+        let Ok(value) = value else { return };
+        let Ok(new) = w::NewForge::new(&bounds, w::NewForgeParts { forge: w::ForgeAsk::Managed(value) }) else {
+            return;
+        };
+        forges::new_record(side, forges::Kind::Forgejo, forges::Mode::Managed);
+        w::Making::New(new)
+    } else {
+        let Some(target) = forges::making(side, forge, &bounds) else { return };
+        target
+    };
+    let draft = &mut side.admin_form;
     let project = forges::SetUpProject::New(draft.fields[2].clone());
     let first = w::FirstAsk::new(
         &bounds,
@@ -168,7 +294,8 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<
     let how = w::How::ForgejoAdmin(
         w::ForgejoAdmin::new(&bounds, w::ForgejoAdminParts { first: Some(first) }).expect("first fits"),
     );
-    let request = w::Request::Connect(w::Connect::new(&bounds, w::ConnectParts { forge, how }).expect("connect fits"));
+    let request =
+        w::Request::Connect(w::Connect::new(&bounds, w::ConnectParts { forge: target, how }).expect("connect fits"));
     let record = w::Requesting::new(&bounds, w::RequestingParts { request }).expect("request fits");
     let request = Ask::Family {
         scope: c::Scope::Deployment,
@@ -185,7 +312,7 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<
     );
     side.set_up = Some(Box::new(forges::SetUp {
         playground: false,
-        forge,
+        forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
         party,
         org: draft.fields[0].clone(),
         repository: draft.fields[1].clone(),
@@ -205,7 +332,7 @@ pub(crate) fn told(
     client: &jig_client::Client,
     told: &Told,
     limits: Limits,
-    _out: &mut Queue<Request>,
+    out: &mut Queue<Request>,
 ) -> bool {
     let Some(pending) = &mut side.admin else { return false };
     let answer = match told {
@@ -232,6 +359,14 @@ pub(crate) fn told(
     if pending.answer.is_none() {
         pending.answer = Some(answer.unwrap_or(github::Answer::Unknown));
         side.admin_form.clear();
+        if pending.forge == 0
+            && pending.answer == Some(github::Answer::Connecting)
+            && let Some(new) = &mut side.setup_form.making
+            && new.kind == forges::Kind::Forgejo
+        {
+            new.accepted = true;
+        }
+        forges::maybe_adopt(side, limits, out);
         side.changed();
     }
     true

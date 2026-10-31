@@ -22,6 +22,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -63,6 +64,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -121,12 +123,8 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
             }
             Some(Refusal::Role { held: None })
         }
-        Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
-            if role == Some(Role::Owner) {
-                None
-            } else {
-                Some(Refusal::Role { held: role })
-            }
+        Ask::RemoveProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
+            if role == Some(Role::Owner) { None } else { Some(Refusal::Role { held: role }) }
         }
         Ask::Application { scope, .. } => {
             if *scope == crate::ApplicationScope::Own || role.is_some() {

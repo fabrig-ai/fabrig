@@ -329,6 +329,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-domain-notes",
                 // Reuse the actual root/store/workers/systems and referee, not a harness copy.
                 "jig-core-world",
+                "jig-test-profile",
                 // Scripted parties remain beside the real joint protocol peer.
                 "jig-fake-parties",
                 "jig-fake-workers",
@@ -770,4 +771,30 @@ fn accounts_cannot_depend_on_fleet() {
     let source = "[package]\nname = \"jig-domain-accounts\"\n[dependencies]\njig-domain-fleet.workspace = true\n";
     let manifest = parse_manifest(PathBuf::from("accounts/Cargo.toml"), source);
     assert_eq!(core_breaches(&[manifest]), ["accounts/Cargo.toml: jig-domain-fleet"]);
+}
+
+#[test]
+fn engine_hub_link_joins_only_core_host_and_link_vocabularies() {
+    let crates: Vec<_> = manifests().into_iter().filter(|m| m.name.as_deref() == Some("jig-domain-hub-link")).collect();
+    assert_eq!(crates.len(), 1, "one engine hub link");
+    for dependency in &crates[0].dependencies {
+        assert!(
+            [
+                "skein-lib",
+                "jig-domain-core",
+                "jig-domain-host",
+                "jig-domain-link",
+                "jig-domain-accounts",
+                "jig-domain-authority",
+                "jig-domain-brief",
+                "jig-domain-fleet",
+                "jig-domain-tasks"
+            ]
+            .contains(&dependency.as_str()),
+            "engine hub link dependency: {dependency}"
+        );
+    }
+    let source = fs::read_to_string(kit_root().join("crates/jig-domain-hub-link/src/lib.rs")).expect("hub link source");
+    assert!(source.contains("cfg_attr(not(test), no_std)"));
+    assert!(source.contains("forbid(unsafe_code)"));
 }

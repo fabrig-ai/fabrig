@@ -1,9 +1,15 @@
 //! The box's private started records (protocol/setup.md, 7.1).
 //! `MakeDirectory` names one entry, so started is made beneath an opened box.
-use crate::{layout::Placed, lines::joined, machine::Input};
+use crate::{
+    group_records::{Group, GroupFiles},
+    layout::Placed,
+    lines::joined,
+    machine::Input,
+};
 use alloc::boxed::Box;
 use skein_io::kernel::{Complete, Done, Error, Fd, Op, OpenHow, Submit};
-use skein_lib::{Decimal, List, Queue, Token, bytes};
+use skein_lib::{Decimal, List, Queue, Time, Token, bytes};
+use temper_forge_setup::machine::BoxKind;
 const PROBE_OPEN: Token = Token::new(u64::MAX - 1);
 const PROBE_CLOSE: Token = Token::new(u64::MAX - 2);
 const MAKE_BOX: Token = Token::new(u64::MAX - 3);
@@ -26,6 +32,7 @@ enum Phase {
 }
 #[derive(Debug)]
 pub(crate) struct Records {
+    files: GroupFiles,
     forges: List<u16>,
     recorded: List<u16>,
     at: u32,
@@ -35,18 +42,28 @@ pub(crate) struct Records {
     answer: Option<Input>,
 }
 impl Records {
-    pub fn new(steps: &[Placed]) -> Self {
+    pub fn new(steps: &[Placed], groups: u32) -> Self {
         let count = u32::try_from(steps.len()).expect("bounded steps");
         let mut forges = List::with_capacity(count);
         for step in steps {
             if let Some(asked) = step.asked
                 && asked.recorded
+                && asked.kind.is_none()
                 && !forges.as_slice().contains(&asked.forge)
             {
                 forges.push(asked.forge).expect("bounded groups");
             }
         }
+        let mut kinds = false;
+        for step in steps {
+            if let Some(asked) = step.asked
+                && asked.kind.is_some()
+            {
+                kinds = true;
+            }
+        }
         Self {
+            files: GroupFiles::new(groups, kinds),
             forges,
             recorded: List::with_capacity(count),
             at: 0,
@@ -56,32 +73,60 @@ impl Records {
             answer: None,
         }
     }
+    pub fn close_root(&mut self) {
+        self.files.close_root();
+    }
+    pub fn closed(&self) -> bool {
+        self.files.closed()
+    }
+    pub fn groups(&self) -> &[Group] {
+        self.files.groups()
+    }
+    pub fn write_group(&mut self, forge: u16, kind: BoxKind) {
+        self.files.write(forge, kind);
+    }
+    pub fn unlink(&mut self, forge: u16) {
+        self.files.unlink(forge);
+    }
+    pub fn deadline(&self) -> Option<Time> {
+        self.files.deadline()
+    }
     pub fn recorded(&self) -> &[u16] {
         self.recorded.as_slice()
     }
     pub fn has_notice(&self) -> bool {
-        self.notice.is_some()
+        self.notice.is_some() || self.files.has_notice()
     }
     pub fn take_notice(&mut self) -> Option<Box<[u8]>> {
-        self.notice.take()
+        match self.notice.take() {
+            Some(notice) => Some(notice),
+            None => self.files.take_notice(),
+        }
     }
     pub fn take_answer(&mut self) -> Option<Input> {
-        self.answer.take()
+        match self.answer.take() {
+            Some(answer) => Some(answer),
+            None => self.files.take_answer(),
+        }
     }
     pub fn ready(&self) -> bool {
-        self.phase == Phase::Idle && self.notice.is_none() && self.answer.is_none()
+        self.phase == Phase::Idle && self.notice.is_none() && self.answer.is_none() && self.files.ready()
     }
     pub fn pending(&self) -> bool {
-        !self.waiting && !self.ready()
+        self.files.pending()
+            || !self.waiting && (self.phase != Phase::Idle || self.notice.is_some() || self.answer.is_some())
     }
     pub fn write(&mut self, forge: u16) {
         assert!(self.ready(), "one group records at a time");
         self.phase = Phase::Box { forge };
     }
     pub fn owns(op: Token) -> bool {
-        [PROBE_OPEN, PROBE_CLOSE, MAKE_BOX, MAKE_STARTED, CREATE, RECORD_CLOSE, BOX_OPEN, BOX_CLOSE].contains(&op)
+        GroupFiles::owns(op)
+            || [PROBE_OPEN, PROBE_CLOSE, MAKE_BOX, MAKE_STARTED, CREATE, RECORD_CLOSE, BOX_OPEN, BOX_CLOSE]
+                .contains(&op)
     }
-    pub fn tick(&mut self, root: Fd, subs: &mut Queue<Submit>) {
+    pub fn tick(&mut self, root: Fd, now: Time, subs: &mut Queue<Submit>) {
+        self.files.tick(root, now, subs);
         if self.waiting || self.notice.is_some() || self.answer.is_some() || subs.room() == 0 {
             return;
         }
@@ -112,6 +157,10 @@ impl Records {
         self.waiting = true;
     }
     pub fn complete(&mut self, complete: Complete) {
+        if GroupFiles::owns(complete.op) {
+            self.files.complete(complete);
+            return;
+        }
         self.waiting = false;
         match self.phase {
             Phase::Probe => {
@@ -188,7 +237,7 @@ impl Records {
         self.answer = Some(Input::NotWritten { forge });
     }
 }
-fn path(forge: u16) -> Box<[u8]> {
+pub(crate) fn path(forge: u16) -> Box<[u8]> {
     joined(&[b"box/started/", Decimal::of(u64::from(forge)).as_bytes()])
 }
 fn diagnostic(forge: u16, operation: &[u8], error: Error) -> Box<[u8]> {

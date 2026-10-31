@@ -153,6 +153,7 @@ impl Offers {
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
+            | Ask::RemoveProject { .. }
             | Ask::Rename { .. }
             | Ask::Lift { .. }
             | Ask::ChangeSettings(_)

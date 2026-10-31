@@ -59,11 +59,11 @@ pub(crate) fn document(
         match request {
             core::Request::Held(held) => match *held {
                 core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } => {
-                    assert!(due == watcher && owner == number && named == subject, "construction keeps its owner");
+                    assert!(owner == number && named == subject, "construction keeps its owner");
                     let document = value.take().expect("ready construction owns its whole document");
                     crate::hold(
                         decision,
-                        Delivery::ApplicationDocument { watcher, number, document: Box::new(document) },
+                        Delivery::ApplicationDocument { watcher: due, number, document: Box::new(document) },
                     );
                 }
                 held @ (core::Held::ApplicationWatchEnded { .. }
@@ -162,6 +162,7 @@ pub(crate) fn read(
             | connector::Request::ApplicationAgain { .. }
             | connector::Request::ApplicationRelease { .. }
             | connector::Request::Resource { .. }
+            | connector::Request::ProjectReleased { .. }
             | connector::Request::Closed { .. }
             | connector::Request::Verdict { .. }
             | connector::Request::Step { .. }

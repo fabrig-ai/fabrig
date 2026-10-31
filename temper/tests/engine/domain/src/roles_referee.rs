@@ -96,6 +96,7 @@ impl Referee {
         let mut keys = BTreeSet::new();
         for write in writes {
             let key = match write {
+                Write::DropTranscript { .. } => write.key(),
                 Write::Wires => Key::Wires,
                 Write::Save(record) => record.key(),
                 Write::Erase(key) => key.clone(),
@@ -123,6 +124,7 @@ impl Referee {
                             | people::Stored::EndedRead { .. }
                             | people::Stored::SignIn { .. }
                             | people::Stored::Acted { .. }
+                            | people::Stored::Deletion { .. }
                             | people::Stored::Policy { .. }
                             | people::Stored::Answer { .. },
                         )
@@ -145,6 +147,7 @@ impl Referee {
                 )
                 | Write::Erase(_)
                 | Write::Wires
+                | Write::DropTranscript { .. }
                 | Write::CopySettingsRevision(_) => None,
             })
             .collect();
@@ -173,6 +176,7 @@ impl Referee {
                             | people::Stored::SignIn { .. }
                             | people::Stored::Roles { .. }
                             | people::Stored::Acted { .. }
+                            | people::Stored::Deletion { .. }
                             | people::Stored::Policy { .. },
                         )
                         | jig_domain_core::Record::Tasks(_)
@@ -194,6 +198,7 @@ impl Referee {
                 )
                 | Write::Erase(_)
                 | Write::Wires
+                | Write::DropTranscript { .. }
                 | Write::CopySettingsRevision(_) => None,
             })
             .collect();
@@ -268,6 +273,7 @@ impl Referee {
                     )
                     | Write::Erase(_)
                     | Write::Wires
+                    | Write::DropTranscript { .. }
                     | Write::CopySettingsRevision(_) => None,
                 });
                 if found.is_none() {
@@ -309,7 +315,9 @@ impl Referee {
         }
         for write in writes {
             match write {
-                Write::Wires | Write::Erase(Key::Wires) => return Err("role administration changed wires"),
+                Write::DropTranscript { .. } | Write::Wires | Write::Erase(Key::Wires) => {
+                    return Err("role administration changed wires");
+                }
                 Write::CopySettingsRevision(_) => return Err("role administration changed settings"),
                 Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(record)))) => {
                     if replacement.is_none_or(|replacement| !replacement.tasks.contains_key(&record.number)) {
@@ -366,7 +374,7 @@ impl Referee {
         }
         for write in writes {
             match write {
-                Write::Wires | Write::CopySettingsRevision(_) => {
+                Write::DropTranscript { .. } | Write::Wires | Write::CopySettingsRevision(_) => {
                     unreachable!("role administration settings write refused above")
                 }
                 Write::Save(record) => {

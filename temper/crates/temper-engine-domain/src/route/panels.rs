@@ -41,7 +41,8 @@ pub(crate) fn document(
         if let core::Request::Held(held) = &request
             && let core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } = &**held
         {
-            assert!(*due == watcher && *owner == connector && *named == subject, "document keeps its subject");
+            assert!(*owner == connector && *named == subject, "document keeps its subject");
+            let watcher = *due;
             emit(
                 decision,
                 &env.limits,

@@ -20,7 +20,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use temper_fake::check::{self, Reason};
-use temper_forge_setup::setup::Mode;
 
 const COMMAND: &str = "temper fake forge check";
 
@@ -34,7 +33,7 @@ pub(crate) struct Outcome {
 
 /// Reads the document, the observations and the store's copy, and judges.
 pub(crate) fn outcome(directories: &Directories, check: &Check) -> Outcome {
-    let limits = match configuration(directories, check.forge) {
+    let limits = match configuration(directories) {
         Ok(limits) => limits,
         Err(why) => {
             return Outcome {
@@ -76,12 +75,12 @@ pub(crate) fn outcome(directories: &Directories, check: &Check) -> Outcome {
     let output = check::verdict(&judge.verdict(), evidence.complete);
     Outcome { status: output.status, stdout: output.stdout, stderr: stderr.into_boxed_slice() }
 }
-fn configuration(directories: &Directories, forge: u16) -> Result<temper_service::startup::StoreLimits, String> {
+fn configuration(directories: &Directories) -> Result<temper_service::startup::StoreLimits, String> {
     let document = directories.document();
     let bytes = skein_shell::read_file(&document, crate::CONFIG_BYTES)
         .map_err(|why| format!("configuration {}: {}", document.display(), crate::unread(why)))?;
     let jig = directories.jig();
-    let crate::setup::Deployment { checked, named, .. } = crate::setup::check(&bytes, &jig)?;
+    let crate::setup::Deployment { named, .. } = crate::setup::check(&bytes, &jig)?;
     let agent = named
         .worker
         .as_ref()
@@ -89,12 +88,7 @@ fn configuration(directories: &Directories, forge: u16) -> Result<temper_service
         .transpose()?;
     let limits = temper_service::startup::store_limits(&bytes, &jig, agent.as_ref())
         .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
-    let entry = checked.setup.entry(forge).ok_or_else(|| format!("forge {forge}: the setup has no entry for it"))?;
-    match &entry.mode {
-        Mode::Fake(_) => Ok(limits),
-        Mode::Managed { .. } => Err(format!("forge {forge}: it is managed, not fake")),
-        Mode::Owned(_) => Err(format!("forge {forge}: it is owned, not fake")),
-    }
+    Ok(limits)
 }
 fn undecided(reason: Reason, mut stderr: Vec<u8>, why: Option<&str>) -> Outcome {
     if let Some(why) = why {

@@ -567,6 +567,7 @@ dependencies = [
  "jig-protocol-engine-clients-http",
  "jig-test-connector",
  "jig-test-domain",
+ "jig-test-profile",
  "jig-test-service",
  "skein-fake-machine",
  "skein-fake-person",
@@ -659,7 +660,7 @@ dependencies = [
 name = "jig-client-test-records"
 version = "0.0.0"
 dependencies = [
- "jig-client",
+ "jig-client-domain",
  "jig-client-protocol-wire",
  "skein-codec",
  "skein-lib",
@@ -720,16 +721,10 @@ dependencies = [
 name = "jig-client-wire-world"
 version = "0.0.0"
 dependencies = [
- "jig-client-domain",
  "jig-client-protocol-wire",
- "jig-client-test-domain",
- "jig-client-test-protocol-wire",
- "jig-client-test-records",
- "jig-core-world",
  "skein-codegen",
  "skein-lib",
  "skein-scratch",
- "skein-world",
 ]
 
 [[package]]
@@ -763,6 +758,7 @@ dependencies = [
  "jig-protocol-transcript",
  "jig-test-connector",
  "jig-test-domain",
+ "jig-test-profile",
  "sha2",
  "skein-fake-person",
  "skein-lib",
@@ -816,6 +812,7 @@ dependencies = [
  "jig-test-connector",
  "jig-test-connector-world",
  "jig-test-domain",
+ "jig-test-profile",
  "jig-test-store",
  "jig-test-system",
  "sha2",
@@ -851,6 +848,7 @@ dependencies = [
  "jig-test-connector-world",
  "jig-test-domain",
  "jig-test-patches-smith",
+ "jig-test-profile",
  "jig-test-store",
  "jig-test-store-files",
  "jig-test-system",
@@ -914,6 +912,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-domain-hub-link"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-brief",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-host",
+ "jig-domain-link",
+ "jig-domain-tasks",
+ "skein-lib",
+]
+
+[[package]]
 name = "jig-domain-link"
 version = "0.0.0"
 dependencies = [
@@ -969,6 +982,7 @@ dependencies = [
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
  "jig-test-domain",
+ "jig-test-profile",
  "jig-test-service",
  "serde_json",
  "skein-http",
@@ -1049,7 +1063,6 @@ dependencies = [
  "jig-client-protocol-world",
  "jig-client-shell-native",
  "jig-conformance",
- "jig-core-world",
  "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-host",
@@ -1131,13 +1144,13 @@ dependencies = [
 name = "jig-ops-domain"
 version = "0.0.0"
 dependencies = [
- "jig-core-world",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1145,10 +1158,10 @@ dependencies = [
  "jig-ops-domain-connectors",
  "jig-ops-domain-infrastructure",
  "jig-ops-domain-observability",
- "jig-ops-world",
  "jig-protocol-charter",
  "jig-protocol-tools",
  "jig-test-domain",
+ "jig-test-profile",
  "skein-lib",
  "smith-charter",
 ]
@@ -1218,6 +1231,7 @@ dependencies = [
  "jig-protocol-tools",
  "jig-protocol-transcript",
  "jig-test-domain",
+ "jig-test-profile",
  "jig-test-service",
  "sha2",
  "skein-fake-person",
@@ -1354,7 +1368,6 @@ name = "jig-protocol-engine-clients-http"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
- "jig-protocol-config",
  "jig-protocol-engine-clients",
  "skein-http",
  "skein-lib",
@@ -1385,8 +1398,6 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
- "jig-protocol-config",
- "jig-store-world",
  "jig-test-patches",
  "jig-test-patches-jig",
  "jig-test-patches-smith",
@@ -1418,7 +1429,6 @@ name = "jig-protocol-transcript"
 version = "0.0.0"
 dependencies = [
  "jig-client-domain",
- "jig-client-test-domain",
  "skein-lib",
  "smith-transcript",
 ]
@@ -1482,6 +1492,7 @@ dependencies = [
  "jig-test-patches",
  "jig-test-patches-jig",
  "jig-test-patches-smith",
+ "jig-test-profile",
  "skein-codec",
  "skein-fake-machine",
  "skein-heap",
@@ -1510,7 +1521,6 @@ dependencies = [
  "jig-client-protocol-world",
  "jig-client-shell-native",
  "jig-client-test-records",
- "jig-core-world",
  "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-host",
@@ -1571,6 +1581,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1608,6 +1619,25 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-scratch",
+]
+
+[[package]]
+name = "jig-test-profile"
+version = "0.0.0"
+dependencies = [
+ "jig-client-test-records",
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-brief",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "jig-test-connector",
+ "jig-test-domain",
+ "skein-lib",
 ]
 
 [[package]]
@@ -1665,19 +1695,15 @@ dependencies = [
 name = "jig-test-store"
 version = "0.0.0"
 dependencies = [
- "jig-core-world",
  "jig-domain-core",
  "jig-domain-notes",
  "jig-domain-people",
- "jig-domain-tasks",
  "jig-protocol-store",
  "jig-protocol-transcript",
  "jig-test-connector",
  "jig-test-connector-world",
  "jig-test-domain",
- "jig-test-store-files",
  "skein-codec",
- "skein-io",
  "skein-kv",
  "skein-lib",
 ]
@@ -1687,11 +1713,15 @@ name = "jig-test-store-files"
 version = "0.0.0"
 dependencies = [
  "jig-conformance",
- "jig-core-world",
  "jig-domain-core",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-protocol-store",
  "jig-test-connector",
+ "jig-test-connector-world",
  "jig-test-domain",
+ "jig-test-profile",
  "jig-test-store",
  "skein-fake-machine",
  "skein-io",
@@ -4264,7 +4294,6 @@ name = "temper-conformance-world"
 version = "0.0.0"
 dependencies = [
  "jig-conformance",
- "jig-core-world",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
@@ -4273,6 +4302,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-fake-workers",
+ "jig-test-profile",
  "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",
@@ -4302,6 +4332,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -4373,7 +4404,6 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-world",
  "jig-conformance",
- "jig-core-world",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -4391,6 +4421,7 @@ dependencies = [
  "jig-protocol-store",
  "jig-tasks-world",
  "jig-test-domain",
+ "jig-test-profile",
  "jig-test-store-files",
  "serde_json",
  "skein-fake-forge-domain",
@@ -4648,7 +4679,6 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-shell-native",
  "jig-conformance",
- "jig-core-world",
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
@@ -4770,6 +4800,7 @@ dependencies = [
  "skein-fake-oauth",
  "skein-fake-peers",
  "skein-forge",
+ "skein-forge-connection",
  "skein-http",
  "skein-io",
  "skein-json",
@@ -4796,6 +4827,7 @@ dependencies = [
  "temper-fake-git",
  "temper-fake-git-hosted",
  "temper-github-app",
+ "temper-protocol-records",
  "temper-protocol-store",
  "temper-service",
  "temper-worker-domain",
@@ -4897,7 +4929,6 @@ dependencies = [
 name = "temper-system-world"
 version = "0.0.0"
 dependencies = [
- "jig-core-world",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -4909,6 +4940,7 @@ dependencies = [
  "jig-fake-parties",
  "jig-protocol-charter",
  "jig-protocol-config",
+ "jig-test-profile",
  "skein-fake-checkout",
  "skein-fake-forge-domain",
  "skein-fake-llm-domain",

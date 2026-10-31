@@ -19,7 +19,7 @@ impl Story {
         Self::account_sign_in_with_owner(seed, true, OTHER_FIRST_OWNER, false)
     }
     fn account_sign_in_with_owner(seed: u64, offered: bool, owner: u64, second: bool) -> Self {
-        let mut config = jig_core_world::world::config(seed);
+        let mut config = jig_test_profile::config(seed);
         for initial in &mut config.core.owners {
             initial.identity.subject = owner.to_be_bytes().into();
         }
@@ -159,7 +159,7 @@ impl Story {
     /// Public program requests have no secret-bearing component below accounts.
     #[must_use]
     pub fn program_sources(seed: u64) -> Self {
-        let mut config = jig_core_world::world::config(seed);
+        let mut config = jig_test_profile::config(seed);
         config.core.worker_names = Box::new([b"unavailable".as_slice().into()]);
         config.core.settings.llm_providers = accounts::Providers {
             providers: Box::new([accounts::Provider {

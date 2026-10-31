@@ -1,4 +1,5 @@
 //! The machine on skein-io, with one bounded chunk per child pipe.
+//! Kind files and removers follow temper/docs/design/draft/playground-reset.md, 3 and 4.
 use crate::{
     layout::{self, Placed},
     limits::{Limits, Unfit},
@@ -43,7 +44,6 @@ pub struct Settings {
 }
 /// Serve URL payload cap (LF excluded); diagnostic pieces share the read cap.
 pub const LINE_BYTES: u32 = 4096;
-const ROOT_CLOSE: Token = Token::new(u64::MAX);
 #[derive(Debug)]
 struct Pipe {
     token: Option<Token>,
@@ -141,6 +141,8 @@ pub struct Service {
     env: Env<io::Limits>,
     machine: Machine,
     steps: Box<[Placed]>,
+    templates: Box<[Placed]>,
+    bound_names: Box<[Option<u16>]>,
     records: Records,
     logs: Logs,
     record_wall: Wall,
@@ -174,9 +176,17 @@ impl Service {
     /// Checks the policy limits and adopts the binary's descriptors.
     pub fn new(limits: &Limits, steps: Steps, settings: Settings) -> Result<Self, Unfit> {
         let reply_entries = reply_entries(&steps);
-        let steps = layout::flatten(steps);
+        let mut steps = layout::flatten(steps);
+        let templates = steps.clone();
+        for placed in &mut steps {
+            if let Some(asked) = placed.asked
+                && asked.kind.is_some()
+            {
+                placed.step = layout::bound(&placed.step, u16::MAX);
+            }
+        }
         let machine = Machine::new(limits, &steps)?;
-        let records = Records::new(&steps);
+        let records = Records::new(&steps, limits.groups);
         let logs = Logs::new(&steps, &settings.data, limits.log_bytes);
         let count = u32::try_from(steps.len()).expect("steps fit u32");
         let mut bounds = io_limits(count);
@@ -193,7 +203,9 @@ impl Service {
             .max(terminal::failure_bytes(&steps, &settings.data))
             .max(LINE_BYTES.checked_add(1).expect("URL LF"));
         let mut children = List::with_capacity(count);
+        let mut bound_names = List::with_capacity(count);
         for placed in &steps {
+            bound_names.push(None).expect("one binding per step");
             let step = &placed.step;
             bounds.output = bounds.output.max(
                 LINE_BYTES
@@ -216,6 +228,8 @@ impl Service {
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds },
             machine,
+            bound_names: bound_names.into_boxed(),
+            templates,
             steps,
             records,
             logs,
@@ -314,8 +328,9 @@ impl Service {
                 | Order::Wait { .. }
                 | Order::Signal { .. }
                 | Order::Close { .. }
-                | Order::Record { .. },
+                | Order::RunRemover { .. },
             ) => true,
+            Some(Order::Record { .. } | Order::WriteGroup { .. } | Order::Unlink { .. }) => self.records.ready(),
             None => false,
         }
     }
@@ -617,6 +632,12 @@ impl Service {
             }
             Order::Terminal { fact } => self.terminal_fact(fact, wall),
             Order::Record { forge } => self.records.write(forge),
+            Order::WriteGroup { forge, kind } => self.records.write_group(forge, kind),
+            Order::Unlink { forge } => self.records.unlink(forge),
+            Order::RunRemover { slot, .. } => {
+                let step = self.machine.remover(slot).expect("slot remover");
+                self.children.get_mut(step).expect("remover child").spawn = true;
+            }
             Order::Say { said } => {
                 if let Some(control) = &mut self.control {
                     let line = match said {
@@ -626,6 +647,7 @@ impl Service {
                         }
                         Said::Started { forge } => pipe::started(forge),
                         Said::Stopped { forge } => pipe::stopped(forge),
+                        Said::Removed { forge } => pipe::removed(forge),
                         Said::Failed { forge, why } => {
                             let why = terminal::why(why, &self.steps);
                             pipe::failed(forge, &why, self.line_bytes)
@@ -724,7 +746,8 @@ impl Service {
                 | Order::Wait { .. }
                 | Order::Signal { .. }
                 | Order::Close { .. }
-                | Order::Record { .. } => return true,
+                | Order::RunRemover { .. } => return true,
+                Order::Record { .. } | Order::WriteGroup { .. } | Order::Unlink { .. } => return self.records.ready(),
             }
         }
         false
@@ -765,9 +788,38 @@ impl Service {
             stdin.tick(true, &mut self.requests);
         }
     }
+    fn bindings_pending(&self) -> bool {
+        for step in 0..self.steps.len() {
+            if let Some(forge) = self.machine.bound(step)
+                && self.bound_names.get(step).expect("binding step") != &Some(forge)
+            {
+                return true;
+            }
+        }
+        false
+    }
+    fn sync_bindings(&mut self) {
+        if !self.bindings_pending() || !self.logs.settled() {
+            return;
+        }
+        for step in 0..self.steps.len() {
+            if let Some(forge) = self.machine.bound(step)
+                && self.bound_names.get(step).expect("binding step") != &Some(forge)
+            {
+                let placed = self.steps.get_mut(step).expect("binding step");
+                placed.step = layout::bound(&self.templates.get(step).expect("template step").step, forge);
+                if let Some(asked) = &mut placed.asked {
+                    asked.forge = forge;
+                }
+                self.logs.rebind(step, placed.step.name());
+                *self.bound_names.get_mut(step).expect("binding step") = Some(forge);
+            }
+        }
+    }
     fn children(&mut self) {
         self.withdrawn();
         let failure = self.failure;
+        let bindings_pending = self.bindings_pending();
         let deferred = !self.deferred.is_empty();
         for step in 0..self.children.len() {
             if self.requests.room() < 8 {
@@ -827,7 +879,12 @@ impl Service {
             if description.name() == self.settings.serve.as_ref() {
                 settled &= self.closing_control == [None, None];
             }
-            if state.spawn && settled && self.logs.takes() && failure.is_none() && !withdraw_queued(&self.orders, step)
+            if state.spawn
+                && settled
+                && self.logs.takes()
+                && !bindings_pending
+                && failure.is_none()
+                && !withdraw_queued(&self.orders, step)
             {
                 state.spawn = false;
                 state.tail.reset();
@@ -932,7 +989,10 @@ impl Service {
                 &mut self.order_walls,
             );
         }
-        self.records.tick(self.settings.root, &mut self.submissions);
+        self.records.tick(self.settings.root, self.env.now, &mut self.submissions);
+        if self.records.closed() {
+            self.root = Root::Closed;
+        }
     }
     fn control_ready(&self) -> bool {
         let Some(control) = &self.control else {
@@ -959,6 +1019,8 @@ impl Service {
             Line::Whole(line) => match pipe::command(&line) {
                 Command::Start(forge) => self.input(Input::Ask { forge }),
                 Command::Stop(forge) => self.input(Input::Stop { forge }),
+                Command::StartKind { forge, kind } => self.input(Input::AskKind { forge, kind }),
+                Command::Remove(forge) => self.input(Input::Remove { forge }),
                 Command::Unknown => {
                     if !self.terminal.failed() {
                         self.terminal.push(self.formatter.notice(b"box: serve: unknown pipe line\n", self.env.wall));
@@ -1041,7 +1103,7 @@ impl Service {
             self.listeners_closing = self.listeners_closing.saturating_add(1);
         }
         if self.root == Root::Open && self.submissions.room() > 0 {
-            self.submissions.push(Submit { op: ROOT_CLOSE, kind: kernel::Op::Close { fd: self.settings.root } });
+            self.records.close_root();
             self.root = Root::Closing;
         }
     }
@@ -1183,8 +1245,6 @@ impl skein_shell::Host for Service {
                 } else if Records::owns(complete.op) {
                     self.record_wall = wall;
                     self.records.complete(complete);
-                } else if complete.op == ROOT_CLOSE {
-                    self.root = Root::Closed;
                 } else {
                     io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
                 }
@@ -1201,6 +1261,9 @@ impl skein_shell::Host for Service {
         self.record_work();
         self.log_work();
         if self.phase == Phase::New && self.logs.ready() && self.records.ready() {
+            for group in self.records.groups() {
+                self.machine.restore(group.forge, group.kind, group.started);
+            }
             self.machine.start(now, self.records.recorded(), &mut self.orders);
             stamp_orders(&self.orders, &mut self.order_walls, wall);
             self.phase = Phase::Running;
@@ -1241,6 +1304,7 @@ impl skein_shell::Host for Service {
         self.failure_work();
         self.deferred_work();
         self.order_work();
+        self.sync_bindings();
         self.children();
         self.control_work();
         self.record_work();
@@ -1284,7 +1348,8 @@ impl skein_shell::Host for Service {
         {
             return true;
         }
-        if self.failure_ready()
+        if self.bindings_pending() && self.logs.settled()
+            || self.failure_ready()
             || self.logs.pending()
             || self.logs.has_notice() && self.notice_room()
             || !self.deferred.is_empty() && self.failure.is_none() && (self.terminal.takes(1) || self.terminal.failed())
@@ -1350,6 +1415,7 @@ impl skein_shell::Host for Service {
             if state.spawn
                 && settled
                 && self.logs.takes()
+                && !self.bindings_pending()
                 && self.failure.is_none()
                 && !withdraw_queued(&self.orders, step)
             {
@@ -1359,7 +1425,15 @@ impl skein_shell::Host for Service {
         false
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        if self.submissions.room() >= io::MAX_OUT_FIRE.submissions { self.io.next_deadline() } else { None }
+        if self.submissions.room() >= io::MAX_OUT_FIRE.submissions {
+            match (self.io.next_deadline(), self.records.deadline()) {
+                (Some(a), Some(b)) => Some(a.min(b)),
+                (Some(a), None) | (None, Some(a)) => Some(a),
+                (None, None) => None,
+            }
+        } else {
+            None
+        }
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         if !self.policy_timers_ready() {
@@ -1399,7 +1473,10 @@ impl skein_shell::Host for Service {
         Some(Exit::Code(u8::from(self.failed || self.machine.outcome() != Some(Outcome::Stopped))))
     }
     fn operations(&self) -> u32 {
-        io::operations(&self.env.limits).expect("io operations").checked_add(3).expect("root, records, logger")
+        io::operations(&self.env.limits)
+            .expect("io operations")
+            .checked_add(5)
+            .expect("root, records, group files, logger")
     }
 }
 

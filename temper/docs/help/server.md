@@ -34,13 +34,13 @@ the rest kept:
 - `application.clients`: `listener` `{"socket": "127.0.0.1:8367"}`,
   `public` `"https://temper.example.com"`;
   `application.webhooks.listener`: `{"socket": "127.0.0.1:8368"}`;
-- the owned forge: `api` `{"socket": "127.0.0.1:3000"}`, `git`
-  `"http://127.0.0.1:3000"`; its setup's `forgejo` `"fetched"`, its
-  `runner` `{"binary": "fetched", "labels":
+- `application.machine.owned`, the owned Forgejo's: `listen`
+  `{"socket": "127.0.0.1:3000"}`, `remote` `"http://127.0.0.1:3000"`,
+  `forgejo` `"fetched"`, `runner` `{"binary": "fetched", "labels":
   ["w1-jobs:docker://docker.io/library/debian:trixie-slim"],
   "capacity": 1, "path": "/usr/bin:/bin"}` or `null` for no CI,
-  `listen` `{"socket": "127.0.0.1:3000"}`, `person` your Forgejo login
-  and address, `public` `"https://git.example.com"`;
+  `person` your Forgejo login and address, `public`
+  `"https://git.example.com"`;
 - `engine.providers` gains `{"number": 3, "kind": "application"}`,
   Google's; `engine.owners`: `[{"provider": 3, "subject":
   "sam@example.com"}]`;

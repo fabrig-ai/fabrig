@@ -1,6 +1,6 @@
-use jig_core_world::effects::Setup;
 use jig_core_world::fixtures::two_projects;
-use jig_core_world::{effects::World, world};
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -29,9 +29,9 @@ fn ledger(world: &World, funder: tasks::Funder) -> &tasks::FundingRecord {
 
 #[test]
 fn a_role_raise_after_reserved_cuts_and_chat_end_answers_and_allows_a_later_act() {
-    let (_, limits) = jig_core_world::effects::fixture(611, false);
+    let (_, limits) = jig_core_world::world::fixture(611, false);
     let mut world =
-        World::new(Setup { seed: 611, configuration: Some(world::config(611)), limits, ..Setup::default() });
+        World::new(Setup { seed: 611, configuration: Some(jig_test_profile::config(611)), limits, ..Setup::default() });
     let period = tasks::Funder::Period { project: 1, period: 1 };
     let pool = tasks::Funder::Pool { project: 1, person: 1, period: 1 };
     jig_core_world::fixtures::finish_chat(&mut world, 25, b"earlier settled chat");
@@ -102,14 +102,14 @@ fn two_projects_with_different_spends_fund_their_own_periods() {
 
 #[test]
 fn a_chat_takes_the_most_that_fits_under_its_persons_role() {
-    let mut config = world::config(602);
-    world::edit_role(&mut config.core, |role| {
+    let mut config = jig_test_profile::config(602);
+    jig_test_profile::edit_role(&mut config.core, |role| {
         role.authority.tools = authority::Tools(513);
         role.authority.budget.spend = 80;
         role.period_spend = 90;
         role.authority.delegation.tasks = 3;
     });
-    let mut limits = world::limits();
+    let mut limits = jig_test_profile::limits();
     limits.core.tasks.tree_tasks = 4;
     jig_core_world::peers::journal(&mut limits);
     let mut world = World::new(Setup { seed: 602, configuration: Some(config), limits, ..Setup::default() });
@@ -132,8 +132,8 @@ fn a_chat_takes_the_most_that_fits_under_its_persons_role() {
 fn a_whole_role_edit_resizes_the_open_pool_and_the_next() {
     let mut world = World::new(Setup {
         seed: 603,
-        configuration: Some(world::config(603)),
-        limits: world::limits(),
+        configuration: Some(jig_test_profile::config(603)),
+        limits: jig_test_profile::limits(),
         ..Setup::default()
     });
     let initial = tasks::Funder::Pool { project: 1, person: 1, period: 1 };
@@ -146,7 +146,7 @@ fn a_whole_role_edit_resizes_the_open_pool_and_the_next() {
         1,
         b"next period".as_slice().into(),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
+        jig_test_profile::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
     );
     ask(&mut world, 4, funded_goal);
     assert_eq!(ledger(&world, tasks::Funder::Pool { project: 1, person: 1, period: 2 }).numbers.budget, 175);
@@ -178,10 +178,14 @@ fn changed_role() -> people::PolicyRole {
 
 #[test]
 fn a_raised_project_funds_its_next_chat() {
-    let mut config = world::config(604);
+    let mut config = jig_test_profile::config(604);
     config.core.seed_projects[0].policy.policy.period_spend = 500;
-    let mut world =
-        World::new(Setup { seed: 604, configuration: Some(config), limits: world::limits(), ..Setup::default() });
+    let mut world = World::new(Setup {
+        seed: 604,
+        configuration: Some(config),
+        limits: jig_test_profile::limits(),
+        ..Setup::default()
+    });
     let period = tasks::Funder::Period { project: 1, period: 1 };
     let before = *ledger(&world, period);
     assert_eq!(before.numbers.reserved, 500);
@@ -231,8 +235,8 @@ fn a_raised_project_funds_its_next_chat() {
 fn a_cut_below_what_is_used_funds_nothing_more_and_takes_nothing_back() {
     let mut world = World::new(Setup {
         seed: 605,
-        configuration: Some(world::config(605)),
-        limits: world::limits(),
+        configuration: Some(jig_test_profile::config(605)),
+        limits: jig_test_profile::limits(),
         ..Setup::default()
     });
     jig_core_world::fixtures::finish_chat(&mut world, 25, b"finished chat");
@@ -270,10 +274,14 @@ fn a_cut_below_what_is_used_funds_nothing_more_and_takes_nothing_back() {
 
 #[test]
 fn a_raise_survives_a_restart() {
-    let mut config = world::config(606);
+    let mut config = jig_test_profile::config(606);
     config.core.seed_projects[0].policy.policy.period_spend = 500;
-    let mut world =
-        World::new(Setup { seed: 606, configuration: Some(config), limits: world::limits(), ..Setup::default() });
+    let mut world = World::new(Setup {
+        seed: 606,
+        configuration: Some(config),
+        limits: jig_test_profile::limits(),
+        ..Setup::default()
+    });
     let period = tasks::Funder::Period { project: 1, period: 1 };
     let mut expected = *ledger(&world, period);
     expected.numbers.budget = 1000;
@@ -282,7 +290,7 @@ fn a_raise_survives_a_restart() {
         12,
         people::Ask::ChangePolicy { project: 1, change: people::PolicyChange::ProjectSpend { period_spend: 1000 } },
     );
-    let mut config = world::config(606);
+    let mut config = jig_test_profile::config(606);
     config.core.seed_projects[0].policy.policy.period_spend = 500;
     world.restart_with(config);
     assert_eq!(*ledger(&world, period), expected);
@@ -296,11 +304,15 @@ fn a_raise_survives_a_restart() {
 
 #[test]
 fn a_roles_raise_resizes_its_parties_pools_one_set_by_hand_among_them() {
-    let mut config = world::config(607);
+    let mut config = jig_test_profile::config(607);
     config.core.seed_projects[0].policy.policy.period_spend = 750;
-    world::edit_role(&mut config.core, |role| role.period_spend = 400);
-    let mut world =
-        World::new(Setup { seed: 607, configuration: Some(config), limits: world::limits(), ..Setup::default() });
+    jig_test_profile::edit_role(&mut config.core, |role| role.period_spend = 400);
+    let mut world = World::new(Setup {
+        seed: 607,
+        configuration: Some(config),
+        limits: jig_test_profile::limits(),
+        ..Setup::default()
+    });
     jig_core_world::fixtures::second_party(&mut world, b"second-party", people::Role::Owner);
     ask(&mut world, 14, people::Ask::SetPool { project: 1, person: 3, budget: 250 });
     ask(
@@ -342,10 +354,14 @@ fn a_roles_raise_resizes_its_parties_pools_one_set_by_hand_among_them() {
 
 #[test]
 fn a_roles_raise_past_the_periods_room_is_refused_whole_and_writes_nothing() {
-    let mut config = world::config(608);
-    world::edit_role(&mut config.core, |role| role.period_spend = 400);
-    let mut world =
-        World::new(Setup { seed: 608, configuration: Some(config), limits: world::limits(), ..Setup::default() });
+    let mut config = jig_test_profile::config(608);
+    jig_test_profile::edit_role(&mut config.core, |role| role.period_spend = 400);
+    let mut world = World::new(Setup {
+        seed: 608,
+        configuration: Some(config),
+        limits: jig_test_profile::limits(),
+        ..Setup::default()
+    });
     let owner = world.sign_in;
     jig_core_world::fixtures::second_party(&mut world, b"second-party", people::Role::Owner);
     world.sign_in = owner;
@@ -402,8 +418,8 @@ fn a_roles_raise_past_the_periods_room_is_refused_whole_and_writes_nothing() {
 fn a_roles_cut_keeps_each_pool_at_what_it_used() {
     let mut world = World::new(Setup {
         seed: 609,
-        configuration: Some(world::config(609)),
-        limits: world::limits(),
+        configuration: Some(jig_test_profile::config(609)),
+        limits: jig_test_profile::limits(),
         ..Setup::default()
     });
     jig_core_world::fixtures::finish_chat(&mut world, 25, b"finished chat");
@@ -448,10 +464,14 @@ fn a_roles_cut_keeps_each_pool_at_what_it_used() {
 
 #[test]
 fn a_roles_cut_funds_a_hand_set_pools_raise_from_another_pools_cut() {
-    let mut config = world::config(610);
+    let mut config = jig_test_profile::config(610);
     config.core.seed_projects[0].policy.policy.period_spend = 750;
-    let mut world =
-        World::new(Setup { seed: 610, configuration: Some(config), limits: world::limits(), ..Setup::default() });
+    let mut world = World::new(Setup {
+        seed: 610,
+        configuration: Some(config),
+        limits: jig_test_profile::limits(),
+        ..Setup::default()
+    });
     jig_core_world::fixtures::second_party(&mut world, b"second-party", people::Role::Owner);
     ask(&mut world, 22, people::Ask::SetPool { project: 1, person: 1, budget: 250 });
     ask(&mut world, 23, people::Ask::SetPool { project: 1, person: 3, budget: 500 });

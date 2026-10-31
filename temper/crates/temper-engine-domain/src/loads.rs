@@ -445,7 +445,7 @@ fn read_cursor(entry: &Entry, empty: bool, previous: Option<&Key>, cursor: &Key)
             | crate::CoreRange::Sweep
             | crate::CoreRange::RunProofs
             | crate::CoreRange::Calls
-            | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. }),
+            | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. }),
         )
         | Range::Census(_)
         | Range::Forge => {}
@@ -502,7 +502,7 @@ fn valid_range(range: &Range) -> bool {
             | crate::CoreRange::Sweep
             | crate::CoreRange::RunProofs
             | crate::CoreRange::Calls
-            | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. }),
+            | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. }),
         )
         | Range::Census(_)
         | Range::Forge => true,

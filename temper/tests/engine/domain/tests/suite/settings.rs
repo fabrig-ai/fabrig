@@ -628,7 +628,7 @@ fn settings_agent(allowed: bool) -> (Driver, engine::Assignment) {
         sign_in: driver.session(),
         key: [92; 16],
         ask: walking::configured_chat(
-            &jig_core_world::fixtures::Creating::new(&walking::config(SEED).core, walking::limits().tasks.tree_tasks),
+            &jig_test_profile::fixtures::Creating::new(&walking::config(SEED).core, walking::limits().tasks.tree_tasks),
             &driver.store.rows,
             driver.env.limits.tasks.tree_tasks,
             1,

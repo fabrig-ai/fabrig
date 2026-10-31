@@ -211,6 +211,16 @@ impl Store {
     fn apply(&mut self, commit: &Commit, limits: &codec::View) {
         for write in &commit.writes {
             match write {
+                root::Write::DropTranscript { task } => {
+                    self.lengths.remove(task);
+                    self.rows.retain(|key, _| {
+                        if let root::Key::Core(core::Key::Core(core::CoreKey::Turn { task: owner, .. })) = key {
+                            owner != task
+                        } else {
+                            true
+                        }
+                    });
+                }
                 root::Write::Wires => {}
                 root::Write::CopySettingsRevision(number) => {
                     let key =
@@ -280,6 +290,8 @@ impl Store {
                 skein_kv::Op::Erase { key } => {
                     if let Some(key) = keys::decode(&key) {
                         writes.push(root::Write::Erase(root::Key::Core(key)));
+                    } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(&key) {
+                        writes.push(root::Write::DropTranscript { task });
                     } else if key.first() == Some(&keys::APPLICATION) {
                         let (number, key) =
                             jig_test_store::keys::decode(&key[1..], connector).expect("real application key");

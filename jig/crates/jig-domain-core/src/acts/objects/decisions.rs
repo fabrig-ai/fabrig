@@ -76,6 +76,7 @@ pub(crate) fn proposal(
                 | Act::EditNote
                 | Act::DeleteNote
                 | Act::Adopt
+                | Act::RemoveProject
                 | Act::Rename
                 | Act::ChangePolicy
                 | Act::SetRoles
@@ -115,6 +116,7 @@ pub(crate) fn proposal(
                     | Act::EditNote
                     | Act::DeleteNote
                     | Act::Adopt
+                    | Act::RemoveProject
                     | Act::Rename
                     | Act::ChangePolicy
                     | Act::SetRoles
@@ -180,6 +182,7 @@ pub(crate) fn proposal(
                 | Act::EditNote
                 | Act::DeleteNote
                 | Act::Adopt
+                | Act::RemoveProject
                 | Act::Rename
                 | Act::ChangePolicy
                 | Act::SetRoles
@@ -242,6 +245,7 @@ pub(crate) fn escalation(
         | Act::EditNote
         | Act::DeleteNote
         | Act::Adopt
+        | Act::RemoveProject
         | Act::Rename
         | Act::ChangePolicy
         | Act::SetRoles

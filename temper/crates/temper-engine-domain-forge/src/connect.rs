@@ -23,7 +23,7 @@ impl State {
             previous: Map::with_capacity(bound),
         }
     }
-    fn answer(&mut self, request: Token, token: Token, answer: Answered, out: &mut Queue<Request>) {
+    pub(crate) fn answer(&mut self, request: Token, token: Token, answer: Answered, out: &mut Queue<Request>) {
         if self.answers.len() == self.answers.capacity() && !self.answers.contains_key(&token) {
             let oldest = *self.answers.first().expect("full answers").0;
             self.answers.remove(&oldest);
@@ -41,23 +41,50 @@ pub(crate) fn start(
     carried: Option<Carried>,
     out: &mut Queue<Request>,
 ) {
+    let ask = match resolve(d, ask, role, carried, out) {
+        Ok(ask) => ask,
+        Err(why) => {
+            refused(d, request, token, Answered::Connect(ConnectAnswer::Refused(why)), carried, out);
+            return;
+        }
+    };
+    let answer = match &ask {
+        Ask::RemoveForge { .. } => Some(Answered::RemoveForge(crate::RemoveAnswer::Refused(ForgeRefusal::NoSuchForge))),
+        Ask::StartPlayground => Some(Answered::StartPlayground(crate::StartAnswer::NotOffered)),
+        Ask::EndPlayground => Some(Answered::EndPlayground(crate::EndAnswer::NotOffered)),
+        Ask::Connect { .. }
+        | Ask::Adopt(_)
+        | Ask::SetUp { .. }
+        | Ask::Install { .. }
+        | Ask::Accept { .. }
+        | Ask::Reachable { .. } => None,
+    };
+    if let Some(answer) = answer {
+        refused(d, request, token, answer, carried, out);
+        return;
+    }
     if let Ask::Reachable { forge, installation, page } = ask {
         reachable(d, request, token, forge, installation, page, role, carried, out);
         return;
     }
-    if let Ask::Connect { forge, how: how @ crate::How::ForgejoAdmin { .. } } = ask {
+    if let Ask::Connect { forge: crate::Making::Kept(forge), how: how @ crate::How::ForgejoAdmin { .. } } = ask {
         admin(d, request, token, forge, how, role, carried, out);
         return;
     }
     let (forge, install, manifest) = match &ask {
-        Ask::Connect { forge, how: crate::How::GitHubApp { .. } } => (*forge, false, false),
-        Ask::Connect { forge, how: crate::How::GitHubManifest { .. } } => (*forge, false, true),
+        Ask::Connect { forge: crate::Making::Kept(forge), how: crate::How::GitHubApp { .. } } => (*forge, false, false),
+        Ask::Connect { forge: crate::Making::Kept(forge), how: crate::How::GitHubManifest { .. } } => {
+            (*forge, false, true)
+        }
         Ask::Install { forge, .. } | Ask::Accept { forge, .. } => (*forge, true, false),
-        Ask::Connect { how: crate::How::ForgejoAdmin { .. }, .. }
+        Ask::Connect { forge: crate::Making::New(_), .. }
+        | Ask::Connect { how: crate::How::ForgejoAdmin { .. }, .. }
         | Ask::Reachable { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo => unreachable!("connect admission"),
+        | Ask::RemoveForge { .. }
+        | Ask::StartPlayground
+        | Ask::EndPlayground => unreachable!("connect admission"),
     };
     let (connected, connecting) = match d.connection(forge) {
         Connection::Connected { .. } => (true, false),
@@ -110,6 +137,114 @@ pub(crate) fn start(
     d.connect.pending.insert(request, token).expect("room checked");
     send(d, request, forge, ask, carried, out);
 }
+fn refused(
+    d: &mut Domain,
+    request: Token,
+    token: Token,
+    answer: Answered,
+    carried: Option<Carried>,
+    out: &mut Queue<Request>,
+) {
+    if let Some(value) = carried {
+        out.push(Request::CarriedUnused { number: value.number });
+    }
+    d.connect.answer(request, token, answer, out);
+}
+fn resolve(
+    d: &mut Domain,
+    ask: Ask,
+    role: Option<Role>,
+    carried: Option<Carried>,
+    out: &mut Queue<Request>,
+) -> Result<Ask, ForgeRefusal> {
+    match ask {
+        Ask::Connect { forge: crate::Making::New(forge), how } => {
+            let forge = make(d, forge, &how, role, carried, out)?;
+            Ok(Ask::Connect { forge: crate::Making::Kept(forge), how })
+        }
+        ask @ (Ask::Connect { forge: crate::Making::Kept(_), .. }
+        | Ask::RemoveForge { .. }
+        | Ask::StartPlayground
+        | Ask::EndPlayground
+        | Ask::Adopt(_)
+        | Ask::SetUp { .. }
+        | Ask::Install { .. }
+        | Ask::Accept { .. }
+        | Ask::Reachable { .. }) => Ok(ask),
+    }
+}
+/// Admission precedes the first save (temper/docs/design/draft/playground-reset.md, 3, 6.4).
+fn make(
+    d: &mut Domain,
+    forge: crate::ForgeAsk,
+    how: &crate::How,
+    role: Option<Role>,
+    carried: Option<Carried>,
+    out: &mut Queue<Request>,
+) -> Result<u16, ForgeRefusal> {
+    if role != Some(Role::Owner) {
+        return Err(ForgeRefusal::Role);
+    }
+    let (kind, mode, place) = match forge {
+        crate::ForgeAsk::GitHub => {
+            let Some(machine) = &d.machine else { return Err(ForgeRefusal::NoSuchForge) };
+            match how {
+                crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } => {}
+                crate::How::ForgejoAdmin { .. } => return Err(ForgeRefusal::NotTaken),
+            }
+            (crate::Kind::GitHub, crate::Mode::Connected, machine.github.clone())
+        }
+        crate::ForgeAsk::Managed { place } => {
+            match how {
+                crate::How::ForgejoAdmin { .. } => {}
+                crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } => {
+                    return Err(ForgeRefusal::NotTaken);
+                }
+            }
+            (crate::Kind::Forgejo, crate::Mode::Managed, place)
+        }
+        crate::ForgeAsk::Owned => return Err(ForgeRefusal::NotTaken),
+    };
+    if d.connect.pending.len() == d.connect.pending.capacity()
+        || d.connect.running.len() == d.connect.running.capacity()
+    {
+        return Err(ForgeRefusal::Busy);
+    }
+    let first = match how {
+        crate::How::GitHubApp { .. } => {
+            if carried.is_none() {
+                return Err(ForgeRefusal::NoKey);
+            }
+            None
+        }
+        crate::How::GitHubManifest { .. } => None,
+        crate::How::ForgejoAdmin { first } => {
+            if carried.is_none() {
+                return Err(ForgeRefusal::NoKey);
+            }
+            match first {
+                Some(first) => {
+                    if first.org.eq_ignore_ascii_case(b"temper") {
+                        return Err(ForgeRefusal::FirstIsBot);
+                    }
+                    Some(crate::FirstIntent {
+                        playground: false,
+                        org: first.org.clone(),
+                        repository: first.repository.clone(),
+                        project: first.project.clone(),
+                        label: first.label.clone(),
+                    })
+                }
+                None => None,
+            }
+        }
+    };
+    match crate::forges::make(d, kind, mode, place, crate::domain::make::bot(), false, first, out) {
+        Some(forge) => Ok(forge),
+        None => Err(ForgeRefusal::Busy),
+    }
+}
+
 fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Carried>, out: &mut Queue<Request>) {
     match ask {
         Ask::Connect { how: how @ crate::How::GitHubApp { .. }, .. } => {
@@ -144,7 +279,32 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
         | Ask::Reachable { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo => unreachable!("connect admission"),
+        | Ask::RemoveForge { .. }
+        | Ask::StartPlayground
+        | Ask::EndPlayground => unreachable!("connect admission"),
+    }
+}
+#[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
+fn with_intent(d: &Domain, forge: u16, how: crate::How) -> crate::How {
+    match how {
+        crate::How::ForgejoAdmin { first: None } => {
+            let first = match d.record(forge) {
+                Some(record) => match &record.first {
+                    Some(first) => Some(crate::FirstAsk {
+                        org: first.org.clone(),
+                        repository: first.repository.clone(),
+                        project: first.project.clone(),
+                        label: first.label.clone(),
+                    }),
+                    None => None,
+                },
+                None => None,
+            };
+            crate::How::ForgejoAdmin { first }
+        }
+        how @ (crate::How::ForgejoAdmin { first: Some(_) }
+        | crate::How::GitHubApp { .. }
+        | crate::How::GitHubManifest { .. }) => how,
     }
 }
 /// Admission for the string-managed Forgejo form (client/README.md, 8).
@@ -159,6 +319,7 @@ fn admin(
     carried: Option<Carried>,
     out: &mut Queue<Request>,
 ) {
+    let how = with_intent(d, forge, how);
     let previous = d.connection(forge);
     let config = d.configured.get(&forge);
     let occupied = match &previous {
@@ -228,8 +389,28 @@ fn admin(
                 .expect("configured forges bound first repositories");
         }
     }
+    keep_first(d, forge, out);
     out.push(Request::MarkedForges);
     out.push(Request::Connect { forge, request, how, carried });
+}
+#[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
+fn keep_first(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
+    if let Some(record) = d.record(forge) {
+        let mut record = record.clone();
+        record.first = match d.first.get(&forge) {
+            Some(first) => Some(crate::FirstIntent {
+                playground: first.playground,
+                org: first.org.clone(),
+                repository: first.repository.clone(),
+                project: first.project.clone(),
+                label: first.label.clone(),
+            }),
+            None => None,
+        };
+        if d.record(forge) != Some(&record) {
+            crate::forges::save(d, record, out);
+        }
+    }
 }
 pub(crate) fn connected(d: &mut Domain, forge: u16, request: Token, answer: ConnectAnswer, out: &mut Queue<Request>) {
     if let Some(token) = d.connect.pending.remove(&request) {

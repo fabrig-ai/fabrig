@@ -1,5 +1,5 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::World;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 const CHILD: u64 = 2;
 const REQUESTER: u64 = 1;
 const EFFECT: u64 = 1;
@@ -131,7 +131,8 @@ fn an_amend_naming_its_spec_revision_is_done_with_the_next() {
 
 #[test]
 fn agents_tools_scenario_family() {
-    use jig_core_world::{agents_tools::STORIES, effects::Cut};
+    use jig_core_world::agents_tools::STORIES;
+    use jig_core_world::world::Cut;
     for story in STORIES {
         let commits = (story.run)(&mut World::new(Setup { seed: 190, ..Setup::default() }), None);
         for cut in [Cut::Submitted(commits), Cut::Durable(commits)] {
@@ -309,7 +310,7 @@ fn a_partys_amendment_proposal_accepted_after_its_spec_moved_is_stale() {
     world.hold_procedures = true;
     world.delegate();
     let sign_in = world.sign_in.expect("party");
-    let mut amendment = jig_core_world::fixtures::person_unchanged(b"evidence");
+    let mut amendment = jig_test_profile::fixtures::person_unchanged(b"evidence");
     amendment.spec = Some(people::Spec {
         asks: false,
         words: b"proposed".as_slice().into(),

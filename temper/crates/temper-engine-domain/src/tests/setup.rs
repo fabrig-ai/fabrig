@@ -80,8 +80,12 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                     crate::try_step(domain, env, Event::Store(StoreInput::Committed { number, fill: 0 })).unwrap();
                 }
                 Request::ToChild(released) => crate::try_step(domain, env, Event::Released(released)).unwrap(),
-                request @ (Request::StopGroup { .. }
-                | Request::SetUpGroup { .. }
+                request @ (Request::ForgeKept(_)
+                | Request::ForgeGone { .. }
+                | Request::BoxGroup { .. }
+                | Request::PlaygroundActs { .. }
+                | Request::ResetAct { .. }
+                | Request::BoxRemove { .. }
                 | Request::SetUp { .. }
                 | Request::Bound { .. }
                 | Request::Return { .. }
@@ -117,7 +121,7 @@ fn setup(key: u8) -> Event {
         carried: None,
         request: crate::Application::Forge(forge::Ask::SetUp {
             playground: false,
-            forge: 1,
+            forge: forge::Making::Kept(1),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             project: forge::SetUpProject::Existing(1),
@@ -235,9 +239,7 @@ fn a_party_without_a_deployment_role_cannot_watch_forges_or_ask_the_box() {
     };
     crate::try_step(&mut domain, &env, setup(1)).unwrap();
     for request in settle(&mut domain, &env) {
-        if let Request::SetUpGroup { .. } | Request::SetUp { .. } | Request::Bound { .. } | Request::Return { .. } =
-            request
-        {
+        if let Request::SetUp { .. } | Request::Bound { .. } | Request::Return { .. } = request {
             panic!("a party without a deployment role never reaches the box")
         }
     }
@@ -285,7 +287,7 @@ fn public_connect_preserves_the_admitted_owner_and_carry_then_root_orders_its_er
         &env,
         public_request(
             forge::Ask::Connect {
-                forge: 1,
+                forge: forge::Making::Kept(1),
                 how: forge::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap() },
             },
             Some(carried),
@@ -371,7 +373,7 @@ fn public_connect_refuses_other_deployment_roles_and_names_their_carry_unused_on
             &env,
             public_request(
                 forge::Ask::Connect {
-                    forge: 1,
+                    forge: forge::Making::Kept(1),
                     how: forge::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap() },
                 },
                 Some(carried),
@@ -435,7 +437,8 @@ fn a_new_binding_answers_only_after_its_commit_is_durable() {
             };
             assert!(writes.iter().any(|write| match write {
                 crate::Write::Save(crate::Record::Forge { row }) => row.as_ref() == &binding,
-                crate::Write::Wires
+                crate::Write::DropTranscript { .. }
+                | crate::Write::Wires
                 | crate::Write::CopySettingsRevision(_)
                 | crate::Write::Save(_)
                 | crate::Write::Erase(_) => false,
@@ -655,7 +658,7 @@ fn admin_connect_routes_the_whole_how_and_erases_at_both_ends() {
             crate::try_step(
                 &mut domain,
                 &env,
-                public_request(forge::Ask::Connect { forge: 1, how: how.clone() }, Some(carried)),
+                public_request(forge::Ask::Connect { forge: forge::Making::Kept(1), how: how.clone() }, Some(carried)),
             )
             .unwrap();
             let requests = settle(&mut domain, &env);
@@ -741,7 +744,7 @@ fn admin_connect_role_refusals_deliver_the_carried_value_unused() {
             &mut domain,
             &env,
             public_request(
-                forge::Ask::Connect { forge: 1, how: forge::How::ForgejoAdmin { first: None } },
+                forge::Ask::Connect { forge: forge::Making::Kept(1), how: forge::How::ForgejoAdmin { first: None } },
                 Some(carried),
             ),
         )

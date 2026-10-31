@@ -305,6 +305,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::SignIn { .. }
             | Ask::AccountChange { .. }
             | Ask::SignOut { .. }
+            | Ask::RemoveProject { .. }
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
@@ -364,6 +365,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::SetRoles { .. }
                 | Ask::MakeService { .. }
                 | Ask::Withdraw { .. }
+                | Ask::RemoveProject { .. }
                 | Ask::Rename { .. }
                 | Ask::ChangeSettings(_)
                 | Ask::MoveToNewest(_)
@@ -453,6 +455,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
+            | Ask::RemoveProject { .. }
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
@@ -643,6 +646,7 @@ fn target(ask: &Ask) -> Option<Target> {
         Ask::ChangePolicy { project, .. } => (Some(*project), None, ActKind::ChangePolicy, None),
         Ask::SetRoles { project, .. } => (Some(*project), None, ActKind::SetRoles, None),
         Ask::MakeService { project, .. } => (Some(*project), None, ActKind::MakeService, None),
+        Ask::RemoveProject { project } => (Some(*project), None, ActKind::RemoveProject, None),
         Ask::Rename { project, .. } => (Some(*project), None, ActKind::Rename, None),
         Ask::SetPool { project, .. } => (Some(*project), None, ActKind::SetPool, None),
     })

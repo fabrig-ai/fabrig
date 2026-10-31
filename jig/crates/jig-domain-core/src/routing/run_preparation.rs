@@ -28,7 +28,8 @@ pub(super) fn brief_assembled(core: &mut Core, work: &mut Queue<Work>, task: u64
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
     };
-    assert!(core.workspace_pending.insert(task, attempt) == Ok(None), "one workspace flight per task");
+    assert!(core.workspace_flight(task).is_none(), "one workspace flight per task");
+    core.fly(crate::flight::Flight::Workspace { task, attempt });
     out.push(Request::Now(Box::new(Now::WorkspaceRequest { task, attempt, context })));
     out
 }
@@ -48,7 +49,15 @@ pub(super) fn workspace_prepared(
     credentials: Box<[u32]>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    if core.workspace_pending.remove(&task) != Some(attempt) {
+    let pending = core.workspace_flight(task);
+    if let Some((token, _)) = pending {
+        drop(core.land_kind(token, crate::flight::Kind::Workspace));
+    }
+    let issued = match pending {
+        Some((_, issued)) => Some(issued),
+        None => None,
+    };
+    if issued != Some(attempt) {
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
     }

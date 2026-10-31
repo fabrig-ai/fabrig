@@ -317,19 +317,26 @@ fn the_test_clients_family_revision_and_durable_outcome_are_observed() {
     use jig_client_test_domain::family;
     let mut w = jig_client_world::stories::chat_ready(20);
     let subject = family::Subject { scope: family::Scope::Project(1), kind: family::Kind::Item(1) };
-    let mut state = jig_client_world::scripted::Family::default();
-    state.documents.insert(
-        subject,
-        family::Document::Item(family::Item {
-            project: 1,
-            key: 1,
-            revision: jig_client_domain::contract::Revision { value: 7 },
-            state: family::ItemState::Ready,
-            value: 1,
+    w.front().compositions.insert(
+        jig_client_test_domain::first::Address { project: 1, item: 1 },
+        jig_client_test_domain::family::PageComposition {
             task: 9,
             second: None,
             proposals: jig_client_world::test::list([]),
-            touchable: true,
+        },
+    );
+    let mut state = jig_client_world::scripted::Family::default();
+    state.documents.insert(
+        subject,
+        family::Document::Connector(jig_client_test_domain::connector_values::ConnectorDocument {
+            subject: jig_client_test_domain::family::Subject {
+                scope: jig_client_test_domain::family::Scope::Project(1),
+                kind: jig_client_test_domain::family::Kind::Item(1),
+            },
+            value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                object: 1,
+                now: jig_client_test_domain::connector_values::ApplicationObject { revision: 7, value: 1 },
+            }),
         }),
     );
     w.front()
@@ -343,9 +350,9 @@ fn the_test_clients_family_revision_and_durable_outcome_are_observed() {
     w.person(
         c,
         vec![
-            Step::See { find: Find::named(Role::Button, b"Touch"), within: Duration::from_secs(1) },
-            Step::Press { find: Find::named(Role::Button, b"Touch") },
-            Step::See { find: Find::named(Role::Status, b"Touched revision 8"), within: Duration::from_secs(1) },
+            Step::See { find: Find::named(Role::Button, b"Apply parameters"), within: Duration::from_secs(1) },
+            Step::Press { find: Find::named(Role::Button, b"Apply parameters") },
+            Step::See { find: Find::text(b"Object changed"), within: Duration::from_secs(1) },
         ],
     );
     let result = w.run(Until::Done);

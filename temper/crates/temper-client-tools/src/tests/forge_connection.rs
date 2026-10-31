@@ -64,7 +64,7 @@ fn connect_carries_the_bundle_once_without_saving_it() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(CONNECT, Some(Secret::new(pem.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        assert_eq!(connect.forge(), 3);
+        assert_eq!(connect.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()));
         let w::How::GithubApp(app) = connect.into_parts().how else { panic!("pasted App") };
         assert_eq!(app.id(), 4242);
         assert_eq!(root.sent_name(call), Some(f::named("app")));
@@ -269,7 +269,7 @@ fn manifest_connect_sends_no_back_or_carried_value() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(MANIFEST);
     let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-    assert_eq!(connect.forge(), 3);
+    assert_eq!(connect.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()));
     let w::How::GithubManifest(manifest) = connect.how() else { panic!("manifest") };
     assert_eq!(manifest.back(), &None);
     assert!(root.carried.is_empty());
@@ -771,5 +771,106 @@ fn an_accept_recovers_its_durable_answer_with_its_own_operation_name() {
             b"kept: forge-accept accepted: installation 22 on forge 3\ntemper ctl DIR forge repositories 3 --installation 22\n"
         };
         assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected)]);
+    }
+}
+
+#[test]
+fn forge_connect_admin_with_an_api_sends_a_new_managed_forge() {
+    for optional in [false, true] {
+        let mut words = skein_lib::List::with_capacity(23);
+        for word in [
+            "forge",
+            "connect",
+            "forgejo-admin",
+            "token",
+            "--api",
+            "forge.invalid:3000",
+            "--git",
+            "https://forge.invalid/git",
+            "--key",
+            "admin",
+        ] {
+            words.push(word).unwrap();
+        }
+        if optional {
+            for word in [
+                "--tls",
+                "forge.invalid",
+                "--web",
+                "https://forge.invalid",
+                "--first",
+                "team/widget",
+                "--project",
+                "3",
+                "--label",
+                "linux",
+            ] {
+                words.push(word).unwrap();
+            }
+        }
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit_value(words.as_slice(), Some(Secret::new(TOKEN.into())));
+        let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
+        let w::Making::New(new) = connect.forge() else { panic!("new forge") };
+        let w::ForgeAsk::Managed(managed) = new.forge() else { panic!("managed forge") };
+        assert_eq!(managed.host(), b"forge.invalid");
+        assert_eq!(managed.port(), 3000);
+        assert_eq!(managed.git(), b"https://forge.invalid/git");
+        assert_eq!(managed.tls().as_deref(), optional.then_some(b"forge.invalid".as_slice()));
+        assert_eq!(managed.web().as_deref(), optional.then_some(b"https://forge.invalid".as_slice()));
+        let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin") };
+        assert_eq!(admin.first().is_some(), optional);
+    }
+}
+#[test]
+fn github_forms_without_a_number_send_a_new_github_forge() {
+    for words in [
+        &["forge", "connect", "github", "--key", "manifest"][..],
+        &["forge", "connect", "github-app", "4242", "app.pem", "--key", "app"],
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let value = if words.contains(&"github-app") { Some(Secret::new(PEM.into())) } else { None };
+        let call = root.submit_value(words, value);
+        let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
+        let w::Making::New(new) = connect.forge() else { panic!("new forge") };
+        assert_eq!(new.forge(), &w::ForgeAsk::Github);
+        match connect.how() {
+            w::How::GithubApp(app) => assert_eq!(app.id(), 4242),
+            w::How::GithubManifest(_) => assert!(words.contains(&"github")),
+            other @ w::How::ForgejoAdmin(_) => panic!("unexpected {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn new_managed_forge_refuses_bad_addresses_before_sending() {
+    for api in [
+        "forge.invalid",
+        ":3000",
+        "forge.invalid:",
+        "forge.invalid:0",
+        "forge.invalid:65536",
+        "forge.invalid:+30",
+        "forge.invalid:3a",
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit_value(
+            &[
+                "forge",
+                "connect",
+                "forgejo-admin",
+                "token",
+                "--api",
+                api,
+                "--git",
+                "http://forge.invalid",
+                "--key",
+                "admin",
+            ],
+            Some(Secret::new(TOKEN.into())),
+        );
+        let printed = root.answer(call).expect("invalid address refused locally");
+        assert_eq!(printed.status, 1);
+        assert!(root.sends.is_empty());
     }
 }

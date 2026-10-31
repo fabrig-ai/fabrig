@@ -23,7 +23,8 @@ pub(super) fn start(
         people::Act::MakeProject { .. }
         | people::Act::Close { .. }
         | people::Act::RemoveAccount { .. }
-        | people::Act::Adopt { .. } => None,
+        | people::Act::Adopt { .. }
+        | people::Act::RemoveProject { .. } => None,
     };
     let valid = match carried {
         Some(carried) => digest == Some(carried.digest),
@@ -46,7 +47,7 @@ pub(super) fn start(
     super::application_routes::first(unused, routed)
 }
 
-pub(super) fn route(
+pub(crate) fn route(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
@@ -55,10 +56,18 @@ pub(super) fn route(
     act: people::Act,
 ) {
     match act {
+        people::Act::RemoveProject { project } => {
+            if let Err(why) = crate::deletion::begin(core, env, work, out, request, project) {
+                refused(work, request, why);
+            }
+        }
         people::Act::MakeProject { maker, name, policy } => {
             super::projects::make_project_act(core, env, work, out, request, maker, name, policy);
         }
         people::Act::Close { project, task, grace, reason } => {
+            if !core.open_project(project) {
+                return refused(work, request, people::Refusal::Unknown);
+            }
             if core.tasks.task(task).is_none() {
                 return super::result_reads::closed_subject(core, work, out, request, project, task);
             }
@@ -67,13 +76,13 @@ pub(super) fn route(
             }
         }
         people::Act::AddKey { provider, join, digest } => {
-            account(core, work, request, people::AccountChange::AddKey { provider, join, digest });
+            account(core, work, out, request, people::AccountChange::AddKey { provider, join, digest });
         }
         people::Act::RemoveAccount { account: number } => {
-            account(core, work, request, people::AccountChange::Remove { account: number });
+            account(core, work, out, request, people::AccountChange::Remove { account: number });
         }
         people::Act::Adopt { project, adoption } => {
-            if !core.projects.as_slice().contains(&project) {
+            if !core.open_project(project) {
                 return refused(work, request, people::Refusal::Unknown);
             }
             out.push(Request::Ask {
@@ -83,11 +92,26 @@ pub(super) fn route(
         }
     }
 }
-fn account(core: &mut Core, work: &mut Queue<Work>, request: Token, change: people::AccountChange) {
+fn account(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    out: &mut Queue<Request>,
+    request: Token,
+    change: people::AccountChange,
+) {
     let holder = accounts::Holder::Deployment;
+    let request = core.fly(crate::flight::Flight::Key { request, route: None });
     match super::key_routes::admitted(core, request, holder, None, change) {
         Ok(change) => work.push(Work::Event(Event::Account(accounts::Event::Change { request, holder, change }))),
-        Err(why) => refused(work, request, why),
+        Err(why) => {
+            let outcome = people::Outcome::Refused(why);
+            let (request, unused) =
+                super::key_routes::finished(core, request, &outcome).expect("admitted account continuation");
+            if let Some(number) = unused {
+                out.push(super::application_routes::unused(number));
+            }
+            work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
+        }
     }
 }
 fn refused(work: &mut Queue<Work>, request: Token, why: people::Refusal) {

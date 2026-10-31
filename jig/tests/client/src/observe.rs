@@ -40,9 +40,7 @@ pub fn sent(request: &Request) -> Option<Sent> {
         jig_client::Ask::Jig(ask) => return Some(jig_sent(*attempt, *k, ask)),
         jig_client::Ask::Family { record, .. } => {
             let ask = crate::test::family_request(record);
-            let family::Ask::Touch { project, item, revision, .. } = ask else {
-                unreachable!("decoded optional request")
-            };
+            let family::Ask::ChangeObject { project, object: item, revision, .. } = ask;
             (
                 Some(CardKey::of(jig_client_test_view::family_key(&jig_client_test_domain::family::Subject {
                     scope: family::Scope::Project(project),
@@ -106,6 +104,7 @@ pub fn jig_sent(attempt: skein_lib::Token, request_key: [u8; 16], ask: &Ask) -> 
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::Lift { .. }
         | Ask::ChangeSettings(_)
@@ -177,11 +176,7 @@ fn frame(frame: &Me, watch: Option<Token>) -> Vec<Receipt> {
     vec![Receipt::Party { party: frame.party.number, watch }]
 }
 fn family(doc: &family::Document) -> Receipt {
-    let revision = match doc {
-        family::Document::Item(item) => Some(item.revision),
-        family::Document::Part(part) => Some(part.parameters.map_or(part.revision, |p| p.revision)),
-        family::Document::Connector(_) => doc.revision(),
-    };
+    let revision = doc.revision();
     Receipt::Card {
         key: CardKey::of(jig_client_test_view::family_key(&doc.subject())),
         revisions: revision.map_or_else(Vec::new, |revision| vec![(0, revision.value)]),
@@ -427,10 +422,7 @@ fn visible(tree: &Tree, include_test_family: bool) -> Vec<Seen> {
             let leaving = contains(tree, at, end, Role::Status, b"Leaving");
             let looking = contains(tree, at, end, Role::Status, b"Leaving")
                 && contains(tree, at, end, Role::Text, b"Finding how this ended");
-            let done = contains(tree, at, end, Role::Status, b"Touched")
-                || contains(tree, at, end, Role::Status, b"Moved to revision")
-                || contains(tree, at, end, Role::Status, b"Gone")
-                || (include_test_family && contains(tree, at, end, Role::Status, b"Application outcome"));
+            let done = include_test_family && contains(tree, at, end, Role::Status, b"Application outcome");
             let state = if leaving && !looking {
                 CardSeen::Left { reason: explained(tree, at, end) }
             } else if deciding || looking {
@@ -640,11 +632,11 @@ mod tests {
     #[test]
     fn family_requests_keep_their_card_and_revision() {
         let (project, value) =
-            jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::Touch {
+            jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::ChangeObject {
                 project: PROJECT,
-                item: TASK,
+                object: TASK,
                 revision: c::Revision { value: 5 },
-                parameters: None,
+                value: 0,
             });
         let sent = super::sent(&send(jig_client::Ask::Family {
             scope: c::Scope::Project(project),
@@ -690,13 +682,13 @@ mod tests {
         builder.open(Role::Item);
         builder.key(Key { owner: (Owner::Application { number: 77 }).opaque(), kind: 2, a: 1, b: 5 });
         builder.open(Role::Status);
-        builder.name(b"Gone");
+        builder.name(b"Application outcome");
         builder.close();
         builder.close();
         builder.close();
         builder.close();
         view.finish(builder, 1, &mut Queue::with_capacity(limits.patches));
-        let seen = jig_seen(view.tree());
+        let seen = super::seen(view.tree());
         assert!(
             matches!(seen.as_slice(), [Seen::Card { key, state: CardSeen::Waiting, revision: None }] if *key == CardKey::of(card))
         );

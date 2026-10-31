@@ -9,8 +9,9 @@ fn drain(out: &mut Queue<top::Request>) {
     }
 }
 
-// Measured peak: 3,626 bytes; 25% headroom, rounded up to two significant digits.
-const CONNECTOR_HEAP_CEILING: u64 = 4_600;
+// Measured peak including the kept-forge record map: 4,874 bytes;
+// 25% headroom, rounded up to two significant digits.
+const CONNECTOR_HEAP_CEILING: u64 = 6_100;
 
 #[test]
 fn bounded_connector_tables_and_client_fit_the_declared_heap() {
@@ -56,7 +57,18 @@ fn connector(limits: &top::Limits) -> top::Domain {
             writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author: 1 }]),
         },
         &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-        &[],
+        &[top::Configured {
+            number: REPO.forge,
+            kind: top::Kind::Forgejo,
+            mode: top::Mode::Connected,
+            admin_connect: false,
+            bot: Box::new([]),
+            owned: None,
+            git: Box::new([]),
+            web: None,
+            read_only: false,
+            asked: false,
+        }],
         false,
     )
     .expect("admitted limits")

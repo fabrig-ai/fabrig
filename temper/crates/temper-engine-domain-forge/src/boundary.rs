@@ -151,9 +151,11 @@ pub struct Adoption {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Ask {
     Adopt(Adoption),
-    SetUp { forge: u16, org: Box<[u8]>, repository: Box<[u8]>, project: SetUpProject, playground: bool },
-    StartDemo,
-    Connect { forge: u16, how: How },
+    SetUp { forge: Making, org: Box<[u8]>, repository: Box<[u8]>, project: SetUpProject, playground: bool },
+    RemoveForge { forge: u16 },
+    StartPlayground,
+    EndPlayground,
+    Connect { forge: Making, how: How },
     Install { forge: u16, back: Option<Box<[u8]>> },
     Accept { forge: u16, installation: core::num::NonZeroU64 },
     Reachable { forge: u16, installation: Option<u64>, page: u32 },
@@ -184,7 +186,9 @@ pub enum AppWay {
 pub enum Answered {
     Adopt(ApplicationOutcome),
     SetUp(SetUpAnswer),
-    StartDemo(StartAnswer),
+    RemoveForge(RemoveAnswer),
+    StartPlayground(StartAnswer),
+    EndPlayground(EndAnswer),
     Connect(ConnectAnswer),
     Install(InstallAnswer),
     Accept(AcceptAnswer),
@@ -258,12 +262,17 @@ pub enum StartFailure {
     Adoption,
     NotConnected,
 }
-/// The demo's fake LLM, forge and project (protocol/setup.md, 8.4).
+/// The playground's scripted provider and start deadline (temper/docs/design/draft/playground-reset.md, 6.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct DemoConfig {
+pub struct PlaygroundConfig {
     pub provider: u32,
-    pub adoption: Adoption,
     pub deadline: skein_lib::Duration,
+}
+/// The reset's acts (temper/docs/design/draft/playground-reset.md, 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ResetAct {
+    RemoveProject { project: u32 },
+    RemoveAccount { account: u32 },
 }
 /// The setup request's one answer, independent of its later course.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -311,6 +320,117 @@ pub struct Configured {
     /// The configuration's `start: asked`; false is the ordinary automatic start.
     pub asked: bool,
 }
+/// Where a forge's API is reached (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Address {
+    pub host: Box<[u8]>,
+    pub port: u16,
+    pub tls: Option<Box<[u8]>>,
+}
+/// A forge's API, remote base and pages (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Place {
+    pub api: Address,
+    pub git: Box<[u8]>,
+    pub web: Option<Box<[u8]>>,
+}
+/// The machine's places (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Machine {
+    pub owned: Option<Place>,
+    pub fake: Option<Place>,
+    pub github: Place,
+}
+/// The bot's login and commit author (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Bot {
+    pub login: Box<[u8]>,
+    pub name: Box<[u8]>,
+    pub email: Box<[u8]>,
+}
+/// The first repository's intent (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct FirstIntent {
+    pub playground: bool,
+    pub org: Box<[u8]>,
+    pub repository: Box<[u8]>,
+    pub project: SetUpProject,
+    pub label: Box<[u8]>,
+}
+/// A forge kept in the connector's store (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ForgeRecord {
+    pub number: u16,
+    pub kind: Kind,
+    pub mode: Mode,
+    pub state: ForgeState,
+    pub place: Place,
+    pub read_only: bool,
+    pub bot: Bot,
+    /// The setup entry's `start: asked` (protocol/setup.md, 8).
+    pub asked: bool,
+    pub first: Option<FirstIntent>,
+}
+/// Kept, or ended with removal's answers (temper/docs/design/draft/playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ForgeState {
+    Kept,
+    Ended { secrets_erased: bool, box_removed: bool },
+}
+/// A kept forge or a new one numbered next (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Making {
+    Kept(u16),
+    New(ForgeAsk),
+}
+/// A new forge's input, completed by the machine's places (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ForgeAsk {
+    GitHub,
+    Owned,
+    Managed { place: Place },
+}
+/// The box group's kind (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BoxKind {
+    Owned,
+    Fake,
+}
+/// The playground's row; no row is none (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Playground {
+    pub state: PlaygroundState,
+    pub forge: u16,
+    pub project: Option<u32>,
+    pub account: Option<u32>,
+}
+/// The playground's progress (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PlaygroundState {
+    Starting,
+    Running,
+    Resetting(ResetStep),
+}
+/// The reset's ordered acts (temper/docs/design/draft/playground-reset.md, 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ResetStep {
+    Project,
+    Forge,
+    Account,
+}
+/// Removal's answer (temper/docs/design/draft/playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RemoveAnswer {
+    Removed,
+    Refused(ForgeRefusal),
+}
+/// Reset's answer (temper/docs/design/draft/playground-reset.md, 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum EndAnswer {
+    Reset,
+    NotOffered,
+}
+
 /// The row's setup offer, also used to admit `SetUp` (domain/forge.md, 4.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Offer {
@@ -850,15 +970,11 @@ pub enum Stored {
     },
     /// A forge's writer, kept before any restored effect (domain/forge.md, 4.1).
     Writer(skein_forge_client::Writer),
-    /// The demo's state, kept by its forge (protocol/setup.md, 8.4): no record is not started.
-    Demo(Demo),
     /// First Google subject for a member address (protocol/sign-in.md, 5).
     Binding {
         address: Box<[u8]>,
         subject: Box<[u8]>,
     },
-    /// An end act awaiting a saved answer (protocol/setup.md, 8.4).
-    DemoAct(DemoAct),
     /// A sent write not yet settled (domain/forge.md, 6; protocol/store.md, 2).
     Flight {
         task: u64,
@@ -869,6 +985,14 @@ pub enum Stored {
         key: ReceiptKey,
         receipt: Receipt,
     },
+    /// A forge's durable setup and removal state (temper/docs/design/draft/playground-reset.md, 3 and 4).
+    Forge(ForgeRecord),
+    /// The last forge number given (temper/docs/design/draft/playground-reset.md, 3).
+    ForgeNumber {
+        last: u16,
+    },
+    /// The playground's durable progress (temper/docs/design/draft/playground-reset.md, 6.1).
+    Playground(Playground),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -886,16 +1010,10 @@ pub enum Key {
     Repository(skein_forge::api::Repository),
     Hold(Name),
     Names(u64),
-    Subscription {
-        task: u64,
-        topic: Topic,
-    },
+    Subscription { task: u64, topic: Topic },
     BranchHead(Name),
     PullState(Name),
-    Ci {
-        repository: skein_forge::api::Repository,
-        head: skein_forge::api::Commit,
-    },
+    Ci { repository: skein_forge::api::Repository, head: skein_forge::api::Commit },
     Landed(skein_forge::api::Commit),
     Entry(u64),
     Client(skein_forge_client::Key),
@@ -904,16 +1022,13 @@ pub enum Key {
     Release(u64),
     Application(u64),
     Writer(u16),
-    /// The demo's forge, application.demo.forge.
-    Demo(u16),
     Binding(Box<[u8]>),
-    DemoAct([u8; 16]),
-    Flight {
-        task: u64,
-        entry: u64,
-    },
+    Flight { task: u64, entry: u64 },
     Landing(u64),
     Receipt(ReceiptKey),
+    Forge(u16),
+    ForgeNumber,
+    Playground,
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -990,6 +1105,19 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Release adoptions after the project's tasks are erased
+    /// (temper/docs/design/draft/playground-reset.md, 5).
+    ReleaseProject {
+        project: u32,
+        request: Token,
+    },
+    /// Removal completions (temper/docs/design/draft/playground-reset.md, 4).
+    SecretsErased {
+        forge: u16,
+    },
+    BoxRemoved {
+        forge: u16,
+    },
     OrderLanding {
         task: u64,
         changes: Box<[u64]>,
@@ -1024,16 +1152,16 @@ pub enum Event {
         address: Box<[u8]>,
         subject: Box<[u8]>,
     },
-    DemoActs {
-        acts: Box<[DemoAct]>,
+    PlaygroundMade {
+        project: u32,
+        account: u32,
     },
-    DemoActAnswered {
+    PlaygroundFailed {
+        why: StartFailure,
+    },
+    ResetActAnswered {
         key: [u8; 16],
         keep: bool,
-    },
-    SendDemoActs,
-    DemoAnswered {
-        answer: StartAnswer,
     },
     /// The box ended its pipe (domain/forge.md, 4.1).
     BoxClosed,
@@ -1354,6 +1482,26 @@ pub enum Event {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// The project's adoption erasures precede this post-commit reply.
+    ProjectReleased {
+        request: Token,
+    },
+    /// Make or refresh the runtime (temper/docs/design/draft/playground-reset.md, 3).
+    ForgeKept(ForgeRecord),
+    /// Drop the runtime and erase secrets (temper/docs/design/draft/playground-reset.md, 4).
+    ForgeGone {
+        forge: u16,
+    },
+    /// Start a box group by kind (temper/docs/design/draft/playground-reset.md, 3).
+    BoxGroup {
+        forge: u16,
+        kind: BoxKind,
+        request: Token,
+    },
+    /// Remove the box group (temper/docs/design/draft/playground-reset.md, 4).
+    BoxRemove {
+        forge: u16,
+    },
     LandingDecision {
         task: u64,
         decision: landing::Decision,
@@ -1369,20 +1517,15 @@ pub enum Request {
         request: Token,
         answer: BindAnswer,
     },
-    /// Select the live chats and deployment account in this decision.
-    ListDemoActs,
-    SendDemoAct(DemoAct),
-    /// Stop the ended demo's box group; no request waits for its answer.
-    StopGroup {
+    /// Make the playground's ordinary records (temper/docs/design/draft/playground-reset.md, 6.1).
+    PlaygroundActs {
+        request: Token,
         forge: u16,
     },
-    /// Start the demo's box group.
-    SetUpGroup {
-        forge: u16,
-        request: Token,
-    },
-    DemoStart {
-        request: Token,
+    /// Send the reset's kept act (temper/docs/design/draft/playground-reset.md, 6.2).
+    ResetAct {
+        key: [u8; 16],
+        act: ResetAct,
     },
     /// Ask the box link to set up the forge (protocol/forge.md, 2.8).
     SetUp {
@@ -1608,19 +1751,6 @@ pub enum Request {
     },
 }
 
-/// The demo's durable state (protocol/setup.md, 8.4).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Demo {
-    pub forge: u16,
-    pub state: DemoState,
-}
-/// No record is not started.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DemoState {
-    Running,
-    Ended,
-}
-
 /// Whether this member address belongs to the presented Google subject.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BindAnswer {
@@ -1628,17 +1758,6 @@ pub enum BindAnswer {
     Another,
     /// Every binding row is taken: rows outlive their members (protocol/sign-in.md, 5).
     Full,
-}
-/// The end's selection, kept before asking the core (protocol/store.md, 2).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct DemoAct {
-    pub key: [u8; 16],
-    pub act: DemoActKind,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DemoActKind {
-    Close { project: u32, task: u64 },
-    RemoveAccount { account: u32 },
 }
 
 /// A sent entry still without its outcome when the client’s stop bound passed.

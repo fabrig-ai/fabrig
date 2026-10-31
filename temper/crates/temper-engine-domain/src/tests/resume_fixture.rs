@@ -348,9 +348,10 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         // worlds name at start (D10).
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: 1,
-        forges: Box::new([]),
+        machine: None,
+        forges: configured_forges(),
         under_box: false,
-        demo: None,
+        playground: None,
     }
 }
 
@@ -448,6 +449,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 const FORGE_LIMITS: forge::Limits = forge::Limits {
+    forges: 4,
     repositories: 2,
     tasks: 8,
     holds: 8,
@@ -631,6 +633,7 @@ impl StartStore {
     pub fn apply(&mut self, writes: &[engine::Write]) {
         for write in writes {
             match write {
+                engine::Write::DropTranscript { .. } => {}
                 engine::Write::Wires => self.wires = self.wires.checked_add(1).unwrap(),
                 engine::Write::Save(row) => {
                     self.rows.insert(row.key(), row.clone());
@@ -721,8 +724,12 @@ impl StartStore {
                     engine::Request::Stop => panic!("start stopped: {:?}", root.start_stop()),
                     request @ (engine::Request::Unsettled(_)
                     | engine::Request::Bound { .. }
-                    | engine::Request::StopGroup { .. }
-                    | engine::Request::SetUpGroup { .. }
+                    | engine::Request::BoxRemove { .. }
+                    | engine::Request::BoxGroup { .. }
+                    | engine::Request::ForgeKept(_)
+                    | engine::Request::ForgeGone { .. }
+                    | engine::Request::PlaygroundActs { .. }
+                    | engine::Request::ResetAct { .. }
                     | engine::Request::Return { .. }
                     | engine::Request::SetUp { .. }
                     | engine::Request::Connect { .. }
@@ -764,4 +771,19 @@ fn start_position(range: &engine::Range, key: &engine::Key) -> (u32, engine::Key
         (engine::Range::Forge, key) => (0, key.clone()),
         _ => panic!("startup key belongs to its range"),
     }
+}
+
+fn configured_forges() -> Box<[forge::Configured]> {
+    Box::new([forge::Configured {
+        number: 1,
+        kind: forge::Kind::Forgejo,
+        mode: forge::Mode::Connected,
+        admin_connect: false,
+        bot: Box::new([]),
+        owned: None,
+        git: Box::new([]),
+        web: None,
+        read_only: false,
+        asked: false,
+    }])
 }

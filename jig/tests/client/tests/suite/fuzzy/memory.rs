@@ -170,6 +170,14 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
         .engine
         .act(Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::Me(frame))
         .expect("full frame fits");
+    w.front().compositions.insert(
+        jig_client_test_domain::first::Address { project: 1, item: 1 },
+        jig_client_test_domain::family::PageComposition {
+            task: 9,
+            second: None,
+            proposals: jig_client_world::test::list([]),
+        },
+    );
     let mut family = jig_client_world::scripted::Family::default();
     for n in 1..=8 {
         let subject = jig_client_test_domain::family::Subject {
@@ -178,12 +186,18 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
         };
         family.documents.insert(
             subject,
-            jig_client_test_domain::family::Document::Part(jig_client_test_domain::family::PartDocument {
-                subject,
-                revision: jig_client_domain::contract::Revision { value: 1 },
-                value: n,
-                parameters: None,
-            }),
+            jig_client_test_domain::family::Document::Connector(
+                jig_client_test_domain::connector_values::ConnectorDocument {
+                    subject,
+                    value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Panel {
+                        task: n,
+                        procedure: None,
+                        result: Some(u16::try_from(n).expect("small result")),
+                        resources: jig_client_world::test::list([]),
+                        effects: jig_client_world::test::list([]),
+                    }),
+                },
+            ),
         );
     }
     let subject = jig_client_test_domain::family::Subject {
@@ -192,17 +206,18 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
     };
     family.documents.insert(
         subject,
-        jig_client_test_domain::family::Document::Item(jig_client_test_domain::family::Item {
-            project: 1,
-            key: 1,
-            revision: jig_client_domain::contract::Revision { value: 1 },
-            state: jig_client_test_domain::family::ItemState::Ready,
-            value: 1,
-            task: 9,
-            second: None,
-            proposals: jig_client_world::test::list([]),
-            touchable: true,
-        }),
+        jig_client_test_domain::family::Document::Connector(
+            jig_client_test_domain::connector_values::ConnectorDocument {
+                subject: jig_client_test_domain::family::Subject {
+                    scope: jig_client_test_domain::family::Scope::Project(1),
+                    kind: jig_client_test_domain::family::Kind::Item(1),
+                },
+                value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                    object: 1,
+                    now: jig_client_test_domain::connector_values::ApplicationObject { revision: 1, value: 1 },
+                }),
+            },
+        ),
     );
     w.front()
         .engine

@@ -279,15 +279,15 @@ pub fn check(l: &Limits, s: &Shared, settings: &Settings) -> Result<(), Unusable
 }
 // Socket slots, Forgejo staging and GitHub log pages are derived capacities,
 // independent of the price of their backing allocations.
-fn capacity_bound(l: &Limits, s: &Shared, forges: Forges) -> Option<()> {
-    l.connections.checked_add(forges.github)?;
+fn capacity_bound(l: &Limits, s: &Shared, _forges: Forges) -> Option<()> {
+    l.connections.checked_add(l.forges)?;
     if l.body_bytes_in == u32::MAX || l.hook_body_bytes == u32::MAX {
         return None;
     }
-    if forges.forgejo > 0 {
+    if l.forges > 0 {
         s.op_bytes.checked_div(8)?.checked_add(l.inner)?;
     }
-    if forges.github > 0 {
+    if l.forges > 0 {
         log_page_bytes(l)?;
     }
     Some(())

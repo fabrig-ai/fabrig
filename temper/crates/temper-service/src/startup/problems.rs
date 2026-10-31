@@ -190,16 +190,8 @@ fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mu
         super::Listener::Demo => b"application.demo.llm.listen".as_slice(),
         super::Listener::Clients => b"application.clients.listener".as_slice(),
         super::Listener::Webhooks => b"application.webhooks.listener".as_slice(),
-        super::Listener::Owned(index) => {
-            put(writer, length, measuring, b"application.setup[");
-            put(writer, length, measuring, Decimal::of(u64::from(index)).as_bytes());
-            b"].mode.owned.listen".as_slice()
-        }
-        super::Listener::Fake(index) => {
-            put(writer, length, measuring, b"application.setup[");
-            put(writer, length, measuring, Decimal::of(u64::from(index)).as_bytes());
-            b"].mode.fake.listen".as_slice()
-        }
+        super::Listener::Owned(_) => b"application.machine.owned.listen".as_slice(),
+        super::Listener::Fake(_) => b"application.machine.fake.listen".as_slice(),
     };
     put(writer, length, measuring, name);
 }

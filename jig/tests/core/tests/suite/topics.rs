@@ -1,6 +1,6 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::{World, fixture};
 use jig_core_world::fixtures::live_row;
+use jig_core_world::world::Setup;
+use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;

@@ -1,6 +1,6 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::World;
 use jig_core_world::fixtures::{ask_as, delegate, inbox_objects, live_row, member, refusal, second_party};
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -281,7 +281,7 @@ fn pending_release_proposals_and_placed_holds_survive_a_restart() {
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: 3,
             workstreams: Box::new([]),
@@ -357,7 +357,7 @@ fn a_maintainer_cannot_release_an_owners_hold_as_part_of_an_amendment() {
     let sign_in = s.owner_sign_in;
     let number = stop(&mut s, sign_in);
     let before = live_row(&s.world, s.goal).clone();
-    let amendment = jig_core_world::fixtures::person_unchanged(b"resume");
+    let amendment = jig_test_profile::fixtures::person_unchanged(b"resume");
     ask_as(
         &mut s.world,
         maintainer,

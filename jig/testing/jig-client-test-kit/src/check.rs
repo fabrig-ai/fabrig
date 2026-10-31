@@ -214,6 +214,7 @@ pub fn named(ask: &Ask) -> Vec<(Object, Revision)> {
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)

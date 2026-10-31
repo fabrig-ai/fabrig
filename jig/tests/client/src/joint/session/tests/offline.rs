@@ -26,7 +26,7 @@ fn a_reload_bootstrap_survives_the_engine_restart_before_its_first_poll() {
     session.poll(now, wall).expect("signed in");
     session.reload(client, now, wall);
     let until = now.saturating_add(Duration::from_secs(1));
-    session.restart(jig_core_world::world::config(8455), now, wall, until).expect("restart");
+    session.restart(jig_test_profile::config(8455), now, wall, until).expect("restart");
     let callbacks = session.poll(now, wall).expect("new epoch bootstrap");
     assert!(callbacks.iter().any(|(owner, event)| *owner == client
         && matches!(event, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedIn } })));

@@ -1,6 +1,8 @@
 //! Final task facts cross the routing world's durable delivery path.
 
-use jig_core_world::{effects::World, fixtures, watches};
+use jig_core_world::fixtures;
+use jig_core_world::watches;
+use jig_core_world::world::World;
 use jig_domain_core::documents::{Document, PhaseLine, Watched};
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
@@ -61,7 +63,7 @@ fn an_ended_childs_tree_finishes_while_its_parents_tree_stays_live() {
     watches::open(&mut world, 5, Watched::Tree { task: child });
     let Document::Tree(tree) = watches::latest(&world, 5) else { panic!("live child") };
     assert!(!matches!(tree.root.phase, PhaseLine::Ended));
-    jig_core_world::stories::reads::request(
+    crate::read_support::request(
         &mut world,
         40,
         jig_domain_people::Ask::Cancel {

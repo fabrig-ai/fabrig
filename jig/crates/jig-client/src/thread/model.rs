@@ -260,6 +260,7 @@ fn number(value: &OwnerOutcome, task: u64, place: u32) -> Option<u64> {
         | OwnerOutcome::AccountRemoved { .. }
         | OwnerOutcome::AccountSignInStarted { .. }
         | OwnerOutcome::AccountSignedOut { .. }
+        | OwnerOutcome::ProjectRemoved { .. }
         | OwnerOutcome::Renamed { .. }
         | OwnerOutcome::ProjectMade { .. }
         | OwnerOutcome::PoolSet { .. }

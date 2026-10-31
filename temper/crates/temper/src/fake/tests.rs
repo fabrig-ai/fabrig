@@ -5,6 +5,60 @@ use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 
 #[test]
+fn fake_forge_reads_its_kind_from_the_group_file() {
+    let directory = std::env::temp_dir().join(format!("temper-fake-kind-{}", std::process::id()));
+    crate::directories::make_private(&directory.join("box/groups"), skein_shell::effective_user())
+        .expect("private fixture");
+    let directories = check_directories(
+        directory.to_str().expect("fixture path"),
+        directory.to_str().expect("fixture path"),
+        directory.to_str().expect("fixture path"),
+        Origin::Flag,
+    );
+    let bytes = serde_json::to_vec(&serde_json::json!({"application":{"machine":{"fake":{
+        "listen":{"socket":"127.0.0.1:3007"},
+        "remote":"http://127.0.0.1:3007",
+        "git":"playground/bin/git"
+    }}}}))
+    .expect("machine document");
+    let group = directory.join("box/groups/7");
+    fs::write(&group, b"fake\n").expect("fake group");
+    let entry = forge_entry(&bytes, &directories, 7).expect("fake entry");
+    assert_eq!(entry.forge, 7);
+    assert_eq!(crate::path(&entry.directory), directory.join("playground-7"));
+    let temper_forge_setup::setup::Mode::Fake(fake) = entry.mode else { panic!("fake kind") };
+    assert_eq!(fake.listen, "127.0.0.1:3007".parse().expect("fixture address"));
+    assert_eq!(crate::path(&fake.git), directory.join("playground/bin/git"));
+    assert_eq!(fake.owner.as_ref(), b"playground");
+    assert_eq!(fake.repositories.len(), 1);
+    assert_eq!(fake.repositories[0].name.as_ref(), b"widget");
+    assert_eq!(fake.repositories[0].landing.as_ref(), b"main");
+    for word in [b"unknown\n".as_slice(), b"fake", b"fake\nextra\n"] {
+        fs::write(&group, word).expect("invalid group");
+        assert!(
+            forge_entry(&bytes, &directories, 7).expect_err("invalid group refused").contains("invalid group kind")
+        );
+    }
+    fs::write(&group, b"owned\n").expect("owned group");
+    assert_eq!(
+        forge_entry(&bytes, &directories, 7).expect_err("absent machine kind"),
+        "the machine has no entry for it"
+    );
+    fs::remove_file(&group).expect("remove group");
+    assert!(forge_entry(&bytes, &directories, 7).expect_err("missing group refused").contains("box/groups/7"));
+    fs::remove_dir_all(directory).expect("remove fixture");
+}
+
+#[test]
+fn fake_forge_requires_the_machine_and_a_group_file() {
+    let directories = crate::tests::configuration::directories(std::path::Path::new("/fixture"));
+    let mut value = crate::tests::configuration::old_form_check_document(std::path::Path::new("/fixture"));
+    value["application"].as_object_mut().expect("application").remove("machine");
+    let bytes = serde_json::to_vec(&value).expect("document");
+    assert_eq!(forge_entry(&bytes, &directories, 1).expect_err("no machine"), "application.machine: missing member");
+}
+
+#[test]
 fn retained_seed_outputs_survive_later_refusal_and_rollback() {
     let directory = std::env::temp_dir().join(format!("temper-seed-reuse-{}", std::process::id()));
     crate::directories::make_private(&directory, skein_shell::effective_user()).expect("private fixture");

@@ -74,6 +74,7 @@ pub fn act(value: acts::Act) -> Result<w::ActKind, w::Problem> {
         acts::Act::EditNote => w::ActKind::EditNote,
         acts::Act::DeleteNote => w::ActKind::DeleteNote,
         acts::Act::Adopt => w::ActKind::Adopt,
+        acts::Act::RemoveProject => w::ActKind::RemoveProject,
         acts::Act::Rename => w::ActKind::Rename,
         acts::Act::ChangePolicy => w::ActKind::ChangePolicy,
         acts::Act::SetRoles => w::ActKind::SetRoles,

@@ -15,14 +15,18 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
     chat.acts = list([Offered { effect: None, act: ActKind::Cancel, admission: Admission::Allowed }]);
     let mut cancelled = task();
     cancelled.chip.task = CANCELLED;
+    cancelled.chip.title = DocumentText::complete(text(b"Cancelled delegate"));
     cancelled.requester = OwnerRequester::Task(CHAT);
     let mut moved = task();
     moved.chip.task = MOVED;
+    moved.chip.title = DocumentText::complete(text(b"Moved delegate"));
     moved.requester = OwnerRequester::Task(CHAT);
     chat.delegates = list([
         LiveDelegate { chip: cancelled.chip.clone(), takeover_budget: TAKEOVER_BUDGET },
         LiveDelegate { chip: moved.chip.clone(), takeover_budget: TAKEOVER_BUDGET },
     ]);
+    let ChipPhase { details, .. } = chat.chip.details.as_mut();
+    details.live_delegates = 2;
     for value in [chat.clone(), cancelled.clone(), moved.clone()] {
         world
             .front()
@@ -54,10 +58,16 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
         by: OwnerRequester::Person(PARTY),
         at: Wall::EPOCH,
     })));
+    let ChipPhase { phase, details } = cancelled.chip.details.as_mut();
+    *phase = OwnerChipPhase::Ended;
+    let Some(TaskResult::Ending(ending)) = &cancelled.result else { unreachable!("cancelled delegate") };
+    details.ending = Some(*ending.clone());
+    details.ended_at = Some(Wall::EPOCH);
     moved.requester = OwnerRequester::Person(PARTY);
     chat.chip.phase = Phase::Closing;
-    let ChipPhase { phase, .. } = chat.chip.details.as_mut();
+    let ChipPhase { phase, details } = chat.chip.details.as_mut();
     *phase = OwnerChipPhase::Closing(ClosingStage::Delegates);
+    details.live_delegates = 0;
     chat.delegates.clear();
     world
         .front()

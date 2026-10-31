@@ -133,10 +133,10 @@ pub(crate) fn progress(
     }
     let row = match address {
         crate::Address::ConnectForge { forge: Some(crate::Choice::Forge(forge)) } => {
-            super::connect::row(*forge, &side.forges, side.demo.answer.as_ref())
+            super::connect::row(*forge, &side.forges, super::connect::playground(side))
         }
         crate::Address::Welcome { step: crate::Step::Forge { .. } } => {
-            super::connect::personal(&side.forges, side.demo.answer.as_ref())
+            super::connect::personal(&side.forges, super::connect::playground(side))
         }
         crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
@@ -154,7 +154,7 @@ pub(crate) fn progress(
         && row.kind == forges::Kind::GitHub
         && row.repositories.is_empty()
         && let super::connect::Shown::Ready(_) =
-            super::connect::step(Some(crate::Choice::Forge(row.number)), &side.forges, side.demo.answer.as_ref())
+            super::connect::step(Some(crate::Choice::Forge(row.number)), &side.forges, super::connect::playground(side))
     {
         let forge = row.number;
         shown = Some(forge);

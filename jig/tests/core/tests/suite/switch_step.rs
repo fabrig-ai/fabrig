@@ -1,7 +1,7 @@
 //! The start's switch and mark follow durable restores (engine.md, 6).
 
-use jig_core_world::effects::Setup;
-use jig_core_world::{effects::World, world};
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_protocol_store::{Wire, codec, component_v3};
 use jig_test_domain as root;
@@ -38,7 +38,7 @@ fn at_switch(sets: jig_protocol_store::PatchSets) -> World {
 }
 
 fn release_config() -> root::Config {
-    let mut config = jig_core_world::effects::fixture(f::SEED, false).0;
+    let mut config = jig_core_world::world::fixture(f::SEED, false).0;
     config.core.defaults.templates[0].grace = Some(Duration::from_secs(6));
     config
 }
@@ -119,9 +119,9 @@ fn a_start_with_nothing_pending_takes_the_switch_step_and_commits_its_wires() {
 #[test]
 fn a_first_start_takes_the_switch_step() {
     let mut world = World::new(Setup {
-        configuration: Some(world::config(f::SEED)),
-        limits: world::limits(),
-        boot: jig_core_world::effects::Boot::Empty,
+        configuration: Some(jig_test_profile::config(f::SEED)),
+        limits: jig_test_profile::limits(),
+        boot: jig_core_world::world::Boot::Empty,
         rows: Some(Box::new([])),
         ..Setup::default()
     });
@@ -141,10 +141,10 @@ fn a_live_set_past_lowered_limits_leaves_the_old_generation_active() {
     let source = world.store.generation_contents(b"generations/1");
     let rows = world.store.rows.clone();
     let last = world.store.applied;
-    let mut limits = world::limits();
+    let mut limits = jig_test_profile::limits();
     limits.core.authority.projects = 0;
     world.store.patch_sets(f::AFTER);
-    let mut config = jig_core_world::effects::fixture(f::SEED, false).0;
+    let mut config = jig_core_world::world::fixture(f::SEED, false).0;
     // Projects already exist in the store; this build seeds no new policies.
     config.core.seed_projects = Box::new([]);
     config.core.defaults.policies = skein_lib::Map::with_capacity(0);

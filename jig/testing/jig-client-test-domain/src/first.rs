@@ -10,7 +10,7 @@ pub use crate::family::{Answer, Ask, ReadResult, WatchEnd, WatchEvent};
 use jig_client::Link;
 use jig_client::contract::{Part, Revision};
 use skein_lib::{Env, Id, List, Map, Queue, RequestProgress, Slab, Time, Token};
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Address {
     pub project: u32,
     pub item: u64,
@@ -19,7 +19,7 @@ pub struct Address {
 pub enum Act {
     Go { address: Address },
     Proposal(proposal::Act),
-    Touch { object: Token, revision: Revision },
+    ChangeObject { object: Token, revision: Revision },
     Parameters { object: Token, revision: Revision, value: u64 },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -45,6 +45,7 @@ pub enum Fact {
 }
 #[derive(Debug)]
 pub enum Event {
+    Compose { address: Address, composition: family::PageComposition },
     Show { part: Part, scope: Scope },
     PartsLeft,
     Went { address: Address },
@@ -176,6 +177,7 @@ pub struct Side {
     watch_ids: Map<Id<Watching>, ()>,
     pending: Slab<Pending>,
     address: Option<Address>,
+    compositions: Map<Address, family::PageComposition>,
     generation: u32,
     link: Link,
     party: Option<u64>,
@@ -197,6 +199,7 @@ impl Side {
             watch_ids: Map::with_capacity(limits.watches),
             pending: Slab::with_capacity(limits.requests),
             address: None,
+            compositions: Map::with_capacity(limits.objects),
             generation: 0,
             link: Link::Starting,
             party: None,
@@ -216,6 +219,10 @@ impl Side {
     #[must_use]
     pub const fn address(&self) -> Option<Address> {
         self.address
+    }
+    #[must_use]
+    pub fn composition(&self) -> Option<&family::PageComposition> {
+        self.compositions.get(&self.address?)
     }
     #[must_use]
     pub const fn generation(&self) -> u32 {
@@ -272,6 +279,18 @@ pub const fn shown(side: &Side) -> u64 {
 }
 pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Compose { address, composition } => {
+            if composition.proposals.capacity() > env.limits.rows
+                || side.compositions.insert(address, composition).is_err()
+            {
+                full(out);
+                return;
+            }
+            if side.address == Some(address) {
+                name_page(side, out);
+            }
+            side.changed();
+        }
         Event::Show { part, scope } => {
             if !part_fits(&part, env.limits.segments, env.limits.text) {
                 full(out);
@@ -297,6 +316,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
         }
         Event::Went { address } => {
             side.address = Some(address);
+            name_page(side, out);
             side.generation = side.generation.checked_add(1).expect("page generation fits");
             prune(side, out);
             side.changed();
@@ -312,7 +332,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
         Event::Act { act } => match act {
             Act::Proposal(act) => proposal::act(side, act, out),
             Act::Go { address } => out.push(Request::Show { address }),
-            Act::Touch { object, revision } => touch(side, Id::from_token(object), revision, out),
+            Act::ChangeObject { object, revision } => change_object(side, Id::from_token(object), revision, out),
             Act::Parameters { object, revision, value } => {
                 let id = Id::from_token(object);
                 if let Some(object) = side.objects.get_mut(id)
@@ -348,13 +368,8 @@ fn save(side: &mut Side, out: &mut Queue<Request>) {
         out.push(Request::Save { record });
     }
 }
-#[expect(clippy::manual_map, reason = "step code matches optional values explicitly")]
 fn parameters_revision(value: &Value) -> Option<Revision> {
     match value {
-        Value::Known(Document::Part(part)) => match part.parameters {
-            Some(parameters) => Some(parameters.revision),
-            None => None,
-        },
         Value::Known(Document::Connector(value)) => match value.value.as_ref() {
             crate::connector_values::ClientDocument::Object { now, .. } => Some(Revision { value: now.revision }),
             crate::connector_values::ClientDocument::Panel { .. }
@@ -365,7 +380,7 @@ fn parameters_revision(value: &Value) -> Option<Revision> {
             | crate::connector_values::ClientDocument::Project { .. }
             | crate::connector_values::ClientDocument::Deployment { .. } => None,
         },
-        Value::Known(Document::Item(_)) | Value::Loading | Value::Unknown | Value::Unsupported => None,
+        Value::Loading | Value::Unknown | Value::Unsupported => None,
     }
 }
 fn hold(side: &mut Side, env: &Env<Limits>, subject: Subject, out: &mut Queue<Request>) {
@@ -441,7 +456,6 @@ fn received(side: &mut Side, env: &Env<Limits>, subject: Subject, document: Docu
         Document::Connector(value) => {
             value.matches_subject() && crate::connector_bounds::document_fits(value, &env.limits.connector)
         }
-        Document::Item(_) | Document::Part(_) => document.fits(env.limits.rows),
     };
     if document.subject() != subject || !fits {
         out.push(Request::Out(Out::Fact { fact: Fact::InvalidDocument }));
@@ -476,13 +490,7 @@ fn received(side: &mut Side, env: &Env<Limits>, subject: Subject, document: Docu
         Card::Open | Card::Deciding { .. } | Card::Refused { .. } | Card::Done { .. } => {}
     }
     if side.page() == Some(id) {
-        let object = side.objects.get(id).expect("page object exists");
-        match &object.value {
-            Value::Known(document) => {
-                out.push(Request::Named { objects: document.objects(env.limits.rows), sections: document.sections() });
-            }
-            Value::Loading | Value::Unknown | Value::Unsupported => {}
-        }
+        name_page(side, out);
     }
     side.changed();
 }
@@ -612,6 +620,8 @@ fn sync(side: &mut Side, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     if side.link != Link::Live {
         hide(side, out);
+    } else if side.party.is_some() && side.address.is_some() {
+        name_page(side, out);
     }
 }
 fn ended(side: &mut Side, env: &Env<Limits>, id: Id<Watching>, end: WatchEnd, out: &mut Queue<Request>) {
@@ -671,68 +681,14 @@ fn ended(side: &mut Side, env: &Env<Limits>, id: Id<Watching>, end: WatchEnd, ou
     }
     side.changed();
 }
-fn touch(side: &mut Side, id: Id<Object>, revision: Revision, out: &mut Queue<Request>) {
-    let Some(party) = side.party else {
-        return;
+fn name_page(side: &Side, out: &mut Queue<Request>) {
+    let (objects, sections) = match side.composition() {
+        Some(composition) => (composition.objects(), composition.sections()),
+        None => (List::with_capacity(0), List::with_capacity(0)),
     };
-    let Some(object) = side.object(id) else {
-        return;
-    };
-    if unavailable(object) {
-        return;
-    }
-    match object.card {
-        Card::Deciding { .. } | Card::Unknown => return,
-        Card::Open | Card::Refused { .. } | Card::Done { .. } => {}
-    }
-    let document = match &object.value {
-        Value::Known(document) => document,
-        Value::Loading | Value::Unknown | Value::Unsupported => return,
-    };
-    match document {
-        Document::Connector(_) => {
-            connector_touch(side, id, revision, party, out);
-            return;
-        }
-        Document::Item(_) | Document::Part(_) => {}
-    }
-    let (project, item, current, allowed) = match document {
-        Document::Item(item) => (item.project, item.key, item.revision, item.touchable),
-        Document::Part(part) => {
-            let Some(parameters) = part.parameters else {
-                return;
-            };
-            let project = match part.subject.scope {
-                Scope::Project(project) => project,
-                Scope::Deployment => return,
-            };
-            (project, parameters.item, parameters.revision, parameters.amendable)
-        }
-        Document::Connector(_) => return,
-    };
-    if current != revision {
-        side.objects.get_mut(id).expect("named object exists").card =
-            Card::Refused { answer: Answer::Moved { item, revision: current } };
-        side.changed();
-        return;
-    }
-    if !allowed {
-        return;
-    }
-    let parameters = object.draft;
-    let Ok(request) = side.pending.insert(Pending { live: true, object: id }) else {
-        full(out);
-        return;
-    };
-    side.objects.get_mut(id).expect("named object exists").card =
-        Card::Deciding { request: request.token(), progress: RequestProgress::Parked };
-    out.push(Request::Send {
-        request: request.token(),
-        scope: party,
-        ask: Ask::Touch { project, item, revision, parameters },
-    });
-    side.changed();
+    out.push(Request::Named { objects, sections });
 }
+
 fn full(out: &mut Queue<Request>) {
     out.push(Request::Out(Out::Fact { fact: Fact::Full }));
 }
@@ -850,8 +806,7 @@ fn answered(side: &mut Side, _env: &Env<Limits>, request: Token, answer: Answer,
         side.pending.retire(id);
         if let Some(object) = side.objects.get_mut(object) {
             object.card = match &answer {
-                Answer::Touched { .. } => Card::Done { answer: answer.clone() },
-                Answer::Moved { .. } | Answer::Gone | Answer::Refused(_) => Card::Refused { answer: answer.clone() },
+                Answer::Refused(_) => Card::Refused { answer: answer.clone() },
                 Answer::Connector(value) => match value.value {
                     crate::connector_values::ApplicationOutcome::Changed { .. } => Card::Done { answer },
                     crate::connector_values::ApplicationOutcome::Moved { .. }
@@ -916,13 +871,21 @@ fn part_fits(part: &Part, segments: u32, text: u32) -> bool {
     }
 }
 
-fn connector_touch(side: &mut Side, id: Id<Object>, revision: Revision, party: u64, out: &mut Queue<Request>) {
+fn change_object(side: &mut Side, id: Id<Object>, revision: Revision, out: &mut Queue<Request>) {
+    let Some(party) = side.party else { return };
     let Some(object) = side.object(id) else {
         return;
     };
+    if unavailable(object) {
+        return;
+    }
+    match object.card {
+        Card::Deciding { .. } | Card::Unknown => return,
+        Card::Open | Card::Refused { .. } | Card::Done { .. } => {}
+    }
     let document = match &object.value {
         Value::Known(Document::Connector(value)) => value,
-        Value::Known(Document::Item(_) | Document::Part(_)) | Value::Loading | Value::Unknown | Value::Unsupported => {
+        Value::Loading | Value::Unknown | Value::Unsupported => {
             return;
         }
     };

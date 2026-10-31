@@ -436,6 +436,18 @@ and refuse unknown or cyclic task chains without writing anything.
   provision for its own authorized users, billed to the key's owner
   (providers.md, 3.1). A key that should pay for more than a plan's
   account may is an account of its own.
+- **A project in a key's uses** pays for all the work inside that
+  project: the project's own automatic work, and every party's work
+  there, whoever the payer. It pays for nothing outside it, the same
+  party's work in another project included. The payer stays the payer:
+  spend and budgets are counted to it as for any account (authority.md,
+  section 7). A key whose uses name one project alone thus serves that
+  project and no other. A plan account's uses are unchanged: a project
+  named there covers only the project's own work, since a plan may not
+  name a project with another party (above). Tested by
+  `a_key_naming_a_project_pays_for_a_persons_work_in_it_and_nowhere_else`
+  and `a_plan_naming_a_project_still_does_not_cover_another_persons_work_in_it`
+  (`jig/crates/jig-domain-core/src/tests/coverage.rs`).
 - **A shared project's automatic work** is so paid by a key: the
   deployment's, or a person's whose uses name the project. No plan pays
   for it (above).
@@ -450,7 +462,8 @@ account a preferred number or an endpoint default.
 
 - **With the run's check.** As the core checks that a task's run may
   start (authority.md, 8.3; engine.md, 7.1, step 1), it takes, for its
-  main model's LLM provider, the accounts whose uses cover the payer:
+  main model's LLM provider, the accounts whose uses cover the payer,
+  or, for a key, the task's project (4.2):
   the account its task keeps, or its creator named, if it has one; else
   the payer's own, in their order, then those that name it, then the
   deployment's. It takes the first with a source usable (3.4) on a host
@@ -467,7 +480,8 @@ account a preferred number or an endpoint default.
   payer (a move to another requester, a widening or an acceptance
   funded by another party: tasks.md, section 7; authority.md, section
   7) or its main model's LLM provider, its next run's check takes the
-  kept account only if its uses still cover the payer and its LLM
+  kept account only if its uses still cover the payer (or, for a key,
+  the task's project) and its LLM
   provider is still the main model's, and chooses again otherwise.
 - **A task whose account is unusable waits** for it, saying why
   (authority.md, 8.3). A limited task never moves to another of its

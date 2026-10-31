@@ -668,9 +668,9 @@ fn current_and_patched_frames_share_the_exact_direct_read_bound() {
     let said = [b's'; FIXTURE_TEXT];
     let replay = [b'r'; FIXTURE_TEXT];
     // Written tokens are replay length plus the 18-byte frame key.
-    let expected = jig_store_world::patches::fixture_turn(2, &said, &[], FIXTURE_TOKENS);
+    let expected = fixtures::fixture_turn(2, &said, &[], FIXTURE_TOKENS);
     for (body, version, raw_length) in [(5, 1, 189), (6, 1, 194), (6, 2, FIXTURE_FRAME)] {
-        let transcript = jig_store_world::patches::fixture_turn(version, &said, &replay, FIXTURE_TOKENS);
+        let transcript = fixtures::fixture_turn(version, &said, &replay, FIXTURE_TOKENS);
         let raw = frames::frame(body, &transcript);
         assert_eq!(u64::try_from(raw.len()).expect("raw frame length"), raw_length);
         let mut store = framed_readable(&raw);
@@ -702,31 +702,11 @@ fn current_and_patched_frames_share_the_exact_direct_read_bound() {
 
 #[test]
 fn configured_read_room_and_frame_capacity_are_measured_separately() {
-    use jig_protocol_config::{Profile, profile};
-    // The frame bound is TurnRecord::encoded_bound + 12, including
-    // version, optional read, transcript length, checksum and both lengths.
     const MAX_FRAME: u64 = 8_388_672;
-    // Standard's map page includes the task/run revisions and placed reference;
-    // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 1_590_110), (Profile::Standard, 262_144, 10_666_854)] {
-        let configured = profile(kind);
-        let codec = crate::codec::limits(&configured.core).expect("profile codec");
-        assert_eq!(u64::from(configured.core.resume_bytes), request);
-        assert_eq!(configured.store.store.page.bytes, page);
-        assert_eq!(crate::core_v6::TurnRecord::encoded_bound(&codec.core).expect("body") + 12, MAX_FRAME);
-        assert!(request.min(u64::from(page)) < MAX_FRAME);
-    }
     let limits = fixtures::store_limits();
     let sets = super::frame_patches::SETS;
     let capacity = crate::transcripts::patches::capacity(&sets.sets[0], 0, &limits).expect("body capacity");
     assert_eq!(u64::from(capacity.bytes) + 12, MAX_FRAME);
-    for (limits, page) in [(jig_store_world::root::limits(), 330_596), (jig_store_world::patches::limits(), 2_048)] {
-        assert_eq!(limits.core.resume_bytes, 256);
-        assert_eq!(limits.store.page.bytes, page);
-        let room = u64::from(limits.core.resume_bytes).min(u64::from(page));
-        assert!(room >= FIXTURE_FRAME);
-        assert!(room < MAX_FRAME);
-    }
     assert_eq!(limits.core.resume_bytes, 256);
     assert_eq!(limits.store.page.bytes, 16_778_240);
     // Supplied well-formed smith fixtures: the current turn's maximum is

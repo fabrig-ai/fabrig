@@ -1,5 +1,6 @@
 //! Connector-owned keyed requests and their synchronous party parts
 //! (`domain/connectors.md`, section 5.5; `domain/core.md`, section 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 
 use super::party::{Party, Routed};
 use crate::routing::Work;
@@ -39,6 +40,21 @@ pub(super) fn start(
     digest: [u8; 32],
     input: Input,
 ) -> Queue<Request> {
+    let closed = match scope {
+        people::ApplicationScope::Project(project) => !core.open_project(project),
+        people::ApplicationScope::Own | people::ApplicationScope::Deployment => false,
+    };
+    if closed && core.people.person(sign_in, env.now, env.wall).is_some() {
+        let mut out = Queue::uncapped();
+        out.push(Request::Held(Box::new(Held::PeopleReply {
+            to: reply_to,
+            reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Role { held: None })),
+        })));
+        if core.connectors.contains(&input.connector) {
+            out.push(Request::Ask { connector: input.connector, ask: Ask::DropApplication { owner: input.owner } });
+        }
+        return first(input.carried, out);
+    }
     assert!(core.application_input.is_none(), "one admission at a time");
     core.application_input = Some(input);
     let connector = input.connector;
@@ -134,10 +150,8 @@ pub(super) fn admitted(
         return;
     };
     let token = Token::new(number);
-    assert!(
-        core.applications.insert(request, Flight { connector, token, part: false, carried }).is_ok(),
-        "one application per people flight"
-    );
+    let request = core
+        .fly(crate::flight::Flight::Application { request, route: Flight { connector, token, part: false, carried } });
     routed.out.push(Request::Ask {
         connector,
         ask: Ask::Application {
@@ -159,16 +173,17 @@ pub(super) fn part(
     request: Token,
     ask: people::Ask,
 ) -> Queue<Request> {
-    let Some(flight) = core.applications.get_mut(&request) else { return empty() };
+    let Some((original, flight)) = core.application_mut(request) else { return empty() };
     assert!(!flight.part, "one synchronous core part at a time");
     let connector = flight.connector;
-    let admitted = people::application_part(&mut core.people, &env.with(env.limits.people), request, ask);
+    let original = core.people_request(original).expect("application party route");
+    let admitted = people::application_part(&mut core.people, &env.with(env.limits.people), original, ask);
     match admitted {
         Ok(route) => {
-            flight.part = true;
+            core.application_mut(request).expect("application part owner").1.part = true;
             let mut child = Queue::uncapped();
             child.push(route);
-            super::people_routes::tag_people(core, env, child, work)
+            super::people_routes::tag_people_part(core, env, child, work, Some((request, original, connector)))
         }
         Err(outcome) => answer(connector, request, outcome),
     }
@@ -187,7 +202,7 @@ pub(super) fn finished(
     request: Token,
     outcome: Result<Token, people::Again>,
 ) -> Queue<Request> {
-    let Some(flight) = core.applications.remove(&request) else { return empty() };
+    let Some((request, flight)) = core.take_application(request) else { return empty() };
     assert!(!flight.part, "core part settled before whole outcome");
     let (outcome, unused) = match outcome {
         Ok(token) => {

@@ -1,8 +1,10 @@
 //! The public linked client, native client wire, real core and applied store.
 use jig_client::{self as client, contract as c};
 use jig_client_protocol_wire::v19 as w;
-use jig_core_world::effects::Setup;
-use jig_core_world::{effects::World, fixtures, reads};
+use jig_core_world::fixtures;
+use jig_core_world::reads;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -40,7 +42,7 @@ impl Party {
 
     fn new(world: &mut World, sign_in: u64, person: u64) -> Self {
         let mut settings = wire::settings();
-        let model = jig_core_world::world::scripted_model();
+        let model = jig_test_profile::scripted_model();
         settings.models[0].name = model.name;
         settings.models[0].efforts = model.efforts;
         settings.models[0].window = model.window;

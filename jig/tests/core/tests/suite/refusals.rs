@@ -1,5 +1,5 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::World;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -131,7 +131,7 @@ fn deciding_an_escalation_of_an_unseen_project_is_unknown() {
 
 fn policy_without_effect_approvers() -> (root::Config, root::Limits) {
     use jig_domain_authority as authority;
-    let (mut config, limits) = jig_core_world::effects::fixture(155, false);
+    let (mut config, limits) = jig_core_world::world::fixture(155, false);
 
     let rules = config.core.defaults.rules.clone();
     let mut policy = config.core.seed_projects[0].policy.policy.clone();

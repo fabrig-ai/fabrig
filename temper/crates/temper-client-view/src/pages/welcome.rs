@@ -1,4 +1,4 @@
-//! The first run's welcome and shared account ways (client/README.md, 3.5, 5.6).
+//! First-run pages (temper/docs/design/draft/playground-reset.md, 6.1–6.3).
 use crate::{
     frame::Bindings,
     look,
@@ -78,10 +78,11 @@ fn steps(b: &mut Builder, root: &Domain, w: &Words, current: Step) {
                 Some(row) => match temper_client_domain::forge::connect::step(
                     Some(temper_client_domain::Choice::Forge(row.number)),
                     root.forges(),
-                    root.forge().demo(),
+                    temper_client_domain::forge::connect::playground(root.forge()),
                 ) {
                     temper_client_domain::forge::connect::Shown::Ready(_) => true,
-                    temper_client_domain::forge::connect::Shown::Choose
+                    temper_client_domain::forge::connect::Shown::Unfinished(_)
+                    | temper_client_domain::forge::connect::Shown::Choose
                     | temper_client_domain::forge::connect::Shown::Details(_)
                     | temper_client_domain::forge::connect::Shown::SettingUp(_) => false,
                 },
@@ -132,12 +133,14 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::WELCOME);
     steps(b, root, w, step);
-    let playground = root.demo_answered() && root.forge().demo().is_some() && !real_forge_connected(root);
+    let playground = temper_client_domain::pages::welcome::decision(root)
+        == Some(temper_client_domain::pages::welcome::FirstRun::Empty);
     match step {
         Step::Welcome => {
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeTitle);
             if let Some(page) = root.pages().welcome()
                 && page.decided
+                && playground
             {
                 lead(b, w);
                 b.open(Role::Slot);
@@ -225,7 +228,7 @@ fn legacy_ready(
         let ready = temper_client_domain::forge::connect::step(
             Some(temper_client_domain::Choice::Forge(row.number)),
             root.forges(),
-            root.forge().demo(),
+            temper_client_domain::forge::connect::playground(root.forge()),
         );
         if row.first.is_some() && ready == temper_client_domain::forge::connect::Shown::Ready(row.number) {
             connect::ready_card(b, root, w, bindings, forge, row, sign_in);
@@ -298,22 +301,6 @@ fn model_line(
         }
         b.close();
     }
-}
-fn real_forge_connected(root: &Domain) -> bool {
-    if let temper_client_domain::forge::forges::State::Rows(rows) = root.forges() {
-        for row in rows {
-            if row.mode != temper_client_domain::forge::forges::Mode::Fake
-                && let Connection::Connected { .. } = row.connection
-                && match root.forge().demo() {
-                    Some(demo) => row.number != demo.forge,
-                    None => true,
-                }
-            {
-                return true;
-            }
-        }
-    }
-    false
 }
 fn ready_heading(b: &mut Builder, root: &Domain, w: &Words) {
     if let Some(row) = crate::forge::connect::personal(root)

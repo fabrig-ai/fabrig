@@ -453,8 +453,12 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 Request::Drained => drains += 1,
                 Request::Party(crate::PartyRequest::Deliver(crate::Delivery::WebReply { .. })) => {}
                 other @ (Request::Setup { .. }
-                | Request::StopGroup { .. }
-                | Request::SetUpGroup { .. }
+                | Request::ForgeKept(_)
+                | Request::ForgeGone { .. }
+                | Request::BoxGroup { .. }
+                | Request::PlaygroundActs { .. }
+                | Request::ResetAct { .. }
+                | Request::BoxRemove { .. }
                 | Request::Connect { .. }
                 | Request::Manifest { .. }
                 | Request::Reachable { .. }

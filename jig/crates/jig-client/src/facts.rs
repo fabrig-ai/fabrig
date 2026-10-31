@@ -142,7 +142,7 @@ pub fn offer(offers: &[Offered], act: ActKind) -> Option<&Admission> {
 #[must_use]
 pub const fn dangerous(act: ActKind) -> bool {
     match act {
-        ActKind::Cancel | ActKind::Reject | ActKind::DeleteNote => true,
+        ActKind::Cancel | ActKind::Reject | ActKind::DeleteNote | ActKind::RemoveProject => true,
         ActKind::Message
         | ActKind::Answer
         | ActKind::Take

@@ -15,6 +15,7 @@ pub mod conversations;
 pub mod goals;
 pub mod own_proposal;
 pub mod person_confirmation;
+pub mod shared;
 pub mod text_pages;
 /// Creates a bounded fixture word sequence.
 #[must_use]
@@ -1046,29 +1047,39 @@ fn incident_world_with_second(seed: u64, second: Option<u64>) -> World<Test, Scr
     ] {
         world.front().engine.act(skein_lib::Time::ZERO, Wall::EPOCH, change).expect("incident task facts fit");
     }
+    world.front().compositions.insert(
+        jig_client_test_domain::first::Address { project: 1, item: 1 },
+        f::PageComposition { task: 9, second, proposals: list([]) },
+    );
     let mut family = world.front().engine.application().clone();
     let item = f::Subject { scope: f::Scope::Project(1), kind: f::Kind::Item(1) };
     family.documents.insert(
         item,
-        f::Document::Item(f::Item {
-            project: 1,
-            key: 1,
-            revision: Revision { value: 1 },
-            state: f::ItemState::Ready,
-            value: 1,
-            task: 9,
-            second,
-            proposals: list([]),
-            touchable: false,
+        f::Document::Connector(jig_client_test_domain::connector_values::ConnectorDocument {
+            subject: jig_client_test_domain::family::Subject {
+                scope: jig_client_test_domain::family::Scope::Project(1),
+                kind: jig_client_test_domain::family::Kind::Item(1),
+            },
+            value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                object: 1,
+                now: jig_client_test_domain::connector_values::ApplicationObject { revision: 1, value: 1 },
+            }),
         }),
     );
-    for (kind, value) in [(f::Kind::Panel(10), 31), (f::Kind::Effect(proposal().key), 21)] {
-        let subject = f::Subject { scope: f::Scope::Project(1), kind };
-        family.documents.insert(
+    let subject = f::Subject { scope: f::Scope::Project(1), kind: f::Kind::Panel(10) };
+    family.documents.insert(
+        subject,
+        f::Document::Connector(jig_client_test_domain::connector_values::ConnectorDocument {
             subject,
-            f::Document::Part(f::PartDocument { subject, revision: Revision { value: 1 }, value, parameters: None }),
-        );
-    }
+            value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Panel {
+                task: 10,
+                procedure: None,
+                result: Some(31),
+                resources: list([]),
+                effects: list([]),
+            }),
+        }),
+    );
     world
         .front()
         .engine
