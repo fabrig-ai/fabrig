@@ -166,7 +166,10 @@ pub fn receipts(fact: &Received) -> Vec<Receipt> {
             },
         },
         Received::Delivery(c::Delivery::Me(value)) => {
-            return vec![Receipt::Party { party: value.party.number, watch: None }];
+            return vec![
+                Receipt::Party { party: value.party.number, watch: None },
+                Receipt::Document { value: Box::new(c::ReadValue::Me(value.clone())) },
+            ];
         }
         Received::Delivery(value) => Event::Client {
             event: jig_client::Event::Up {

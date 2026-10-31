@@ -15,6 +15,8 @@ pub enum Seed {
     PendingGoal { words: Box<[u8]>, budget: u64 },
     /// Authenticated project roles and their independently seeded work.
     Roles { story: RoleStory },
+    /// Project facts shared by person stories.
+    Project(crate::stories::shared::b_seed::Facts),
     /// An existing conversation belonging to a configured project member.
     Conversation { party: u64, project: u32, words: Box<[u8]> },
 }
@@ -23,6 +25,10 @@ pub enum Seed {
 /// The core fixture supplies project 1 and its first owner, party 1.
 pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
     use jig_fake_parties::{Act, Ask, Party, Role};
+    if let Seed::Project(facts) = seed {
+        crate::stories::shared::b_seed::core(driver, now, wall, facts);
+        return;
+    }
     if let Seed::ChatResult { report } = seed {
         driver.world.peers.as_mut().expect("ordinary core peers").workers =
             vec![jig_fake_workers::Worker::new(1, 1, vec![Box::new([jig_fake_workers::Script::Finish { report }])])];
@@ -47,7 +53,8 @@ pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
     assert_eq!(*project, 1, "the configured core project");
     assert!([1, 3].contains(party), "the configured owner or member");
     match seed {
-        Seed::ChatProject { .. }
+        Seed::Project(_)
+        | Seed::ChatProject { .. }
         | Seed::OwnerProfile
         | Seed::ChatResult { .. }
         | Seed::PendingGoal { .. }

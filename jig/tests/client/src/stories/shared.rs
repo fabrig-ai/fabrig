@@ -38,3 +38,14 @@ mod a_tests;
 pub mod a_proposals;
 
 pub mod a_roles;
+pub mod b_config;
+pub mod b_conversations;
+pub mod b_effects;
+pub mod b_family;
+pub mod b_goals;
+pub mod b_held;
+pub mod b_proposals;
+mod b_runner;
+pub mod b_scenarios;
+pub mod b_scripted;
+pub mod b_seed;

@@ -1,47 +1,5 @@
-use jig_client_protocol_world::{fixtures, protocol};
+use jig_client_protocol_world::fixtures;
 use jig_client_world::{Until, stories};
-#[test]
-fn a_person_signs_in_by_the_printed_link_and_starts_a_chat() {
-    let mut w = protocol::world(fixtures::SEED);
-    let c = w.client(fixtures::FIRST_OWNER, stories::conversation());
-    w.person(c, fixtures::sign_in_then(stories::start_chat_steps()));
-    let outcome = w.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed);
-    assert_eq!(w.front().chats_made(), 1);
-}
-
-#[test]
-fn a_person_s_part_request_is_answered_from_the_connector_s_outcome() {
-    use skein_fake_person::{Find, Step};
-    use skein_ui::Role;
-    let mut w = fixtures::family_world(fixtures::SEED);
-    let c = w.client(fixtures::FIRST_OWNER, stories::conversation());
-    let parameters = Find::named(Role::TextField, b"Parameters");
-    w.person(
-        c,
-        fixtures::sign_in_then(vec![
-            Step::See { find: Find::text(b"Signed in as Person"), within: skein_lib::Duration::from_secs(1) },
-            Step::Go {
-                address: jig_client_test_domain::Address::First(jig_client_test_domain::first::Address {
-                    project: 1,
-                    item: 1,
-                }),
-            },
-            Step::See { find: parameters.clone(), within: skein_lib::Duration::from_secs(1) },
-            Step::Type { find: parameters, words: b"42".as_slice().into() },
-            Step::Press { find: Find::named(Role::Button, b"Apply parameters") },
-            Step::See { find: Find::text(b"Object changed"), within: skein_lib::Duration::from_secs(1) },
-            Step::See { find: Find::text(b"Value: 42"), within: skein_lib::Duration::from_secs(1) },
-        ]),
-    );
-    let outcome = w.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed);
-    assert_eq!(
-        w.front().application_objects(),
-        vec![(1, jig_test_connector::ApplicationObject { revision: 1, value: 42 })]
-    );
-}
-
 #[test]
 fn a_family_place_record_round_trips_through_its_owner_s_small_store_bytes() {
     use jig_client_test_domain::first::{Address, Record};
@@ -158,22 +116,6 @@ fn a_person_s_words_reach_a_running_run_through_bytes() {
 }
 
 #[test]
-fn an_engine_outside_the_client_s_versions_shows_out_of_date() {
-    use jig_client_protocol_world::stories as bytes;
-    use skein_fake_person::{Find, Step};
-    for &seed in bytes::SEEDS {
-        let (mut world, client) = bytes::ready(seed);
-        world.fault(jig_client_world::FrontFault::Versions);
-        world.person(
-            client,
-            vec![Step::See { find: Find::text(b"Out of date"), within: skein_lib::Duration::from_secs(2) }],
-        );
-        bytes::finish(&mut world);
-        assert_eq!(world.front().chats_made(), 1, "versions seed {seed}");
-    }
-}
-
-#[test]
 fn actual_busy_not_ready_restart_and_dropped_watch_retry_the_same_request() {
     use jig_client_protocol_world::stories as bytes;
     use jig_client_world::FrontFault;
@@ -255,8 +197,3 @@ fn cancelling_a_task_says_what_ends_before_it_is_sent() {
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
     assert_eq!(world.front().requests_made(), before);
 }
-
-#[path = "../client/conversations.rs"]
-mod conversations;
-#[path = "../client/goals.rs"]
-mod goals;
