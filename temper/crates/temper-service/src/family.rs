@@ -54,7 +54,7 @@ pub fn to_root(
                         carried,
                         request: temper_engine_domain::Application::Forge(forge::Ask::SetUp {
                             playground: value.playground,
-                            forge: forge::Making::Kept(value.forge),
+                            forge: making(value.forge),
                             org: value.org,
                             repository: value.repository,
                             project: match value.project {
@@ -123,7 +123,7 @@ pub fn to_root(
                                     forge::How::GitHubManifest { back }
                                 }
                             };
-                            forge::Ask::Connect { forge: forge::Making::Kept(value.forge), how }
+                            forge::Ask::Connect { forge: making(value.forge), how }
                         }
                         w::Request::Accept(value) => {
                             let value = value.into_parts();
@@ -149,6 +149,9 @@ pub fn to_root(
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
+                        | w::Request::RemoveForge(_)
+                        | w::Request::StartPlayground
+                        | w::Request::EndPlayground
                         | w::Request::StartDemo => {
                             unreachable!("connect or install")
                         }
@@ -161,6 +164,39 @@ pub fn to_root(
                         digest,
                         carried,
                         request: root::Application::Forge(request),
+                    }));
+                }
+                w::Request::RemoveForge(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::RemoveForge { forge: value.forge() }),
+                    }));
+                }
+                w::Request::StartPlayground => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::StartPlayground),
+                    }));
+                }
+                w::Request::EndPlayground => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::EndPlayground),
                     }));
                 }
                 w::Request::StartDemo => {
@@ -614,36 +650,21 @@ pub fn answer(
             root::ApplicationAnswer::Accept(forge::AcceptAnswer::Refused(why))
             | root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Refused(why))
             | root::ApplicationAnswer::Connect(forge::ConnectAnswer::Refused(why))
-            | root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(why))
             | root::ApplicationAnswer::Install(forge::InstallAnswer::Refused(why)),
         ) => w::Outcome::ConnectRefused(
-            w::ConnectRefused::new(
-                limits,
-                w::ConnectRefusedParts {
-                    why: match why {
-                        forge::ForgeRefusal::Role => w::ForgeRefusal::Role,
-                        forge::ForgeRefusal::NoSuchForge => w::ForgeRefusal::NoSuchForge,
-                        forge::ForgeRefusal::NotTaken => w::ForgeRefusal::NotTaken,
-                        forge::ForgeRefusal::Connected => w::ForgeRefusal::Connected,
-                        forge::ForgeRefusal::NotConnected => w::ForgeRefusal::NotConnected,
-                        forge::ForgeRefusal::Busy => w::ForgeRefusal::Busy,
-                        forge::ForgeRefusal::NoKey => w::ForgeRefusal::NoKey,
-                        forge::ForgeRefusal::FirstIsBot => w::ForgeRefusal::FirstIsBot,
-                    },
-                },
-            )
-            .ok()?,
+            w::ConnectRefused::new(limits, w::ConnectRefusedParts { why: forge_refusal(why) }).ok()?,
         ),
         Some(root::ApplicationAnswer::StartDemo(answer) | root::ApplicationAnswer::StartPlayground(answer)) => {
             start_answer(answer, limits)?
         }
-        Some(
-            root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed)
-            | root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset),
-        ) => w::Outcome::Unknown,
-        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => {
-            start_answer(forge::StartAnswer::NotOffered, limits)?
-        }
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed)) => w::Outcome::Removed,
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(why))) => w::Outcome::RemoveRefused(
+            w::RemoveRefused::new(limits, w::RemoveRefusedParts { why: forge_refusal(why) }).ok()?,
+        ),
+        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)) => w::Outcome::Reset,
+        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => w::Outcome::EndRefused(
+            w::EndRefused::new(limits, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).ok()?,
+        ),
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(why))) => {
             w::Outcome::SetUpRefused(
@@ -1113,5 +1134,38 @@ fn landing_phase(phase: &forge::LandingPhase) -> w::LandingPhase {
         forge::LandingPhase::Landed => w::LandingPhase::Landed,
         forge::LandingPhase::Held { .. } => w::LandingPhase::Held,
         forge::LandingPhase::Cancelled => w::LandingPhase::Cancelled,
+    }
+}
+
+// temper/docs/design/draft/playground-reset.md, 3: a new forge carries its whole place.
+fn making(value: w::Making) -> forge::Making {
+    match value {
+        w::Making::Kept(value) => forge::Making::Kept(value.forge()),
+        w::Making::New(value) => forge::Making::New(match value.into_parts().forge {
+            w::ForgeAsk::Github => forge::ForgeAsk::GitHub,
+            w::ForgeAsk::Owned => forge::ForgeAsk::Owned,
+            w::ForgeAsk::Managed(value) => {
+                let value = value.into_parts();
+                forge::ForgeAsk::Managed {
+                    place: forge::Place {
+                        api: forge::Address { host: value.host, port: value.port, tls: value.tls },
+                        git: value.git,
+                        web: value.web,
+                    },
+                }
+            }
+        }),
+    }
+}
+fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
+    match value {
+        forge::ForgeRefusal::Role => w::ForgeRefusal::Role,
+        forge::ForgeRefusal::NoSuchForge => w::ForgeRefusal::NoSuchForge,
+        forge::ForgeRefusal::NotTaken => w::ForgeRefusal::NotTaken,
+        forge::ForgeRefusal::Connected => w::ForgeRefusal::Connected,
+        forge::ForgeRefusal::NotConnected => w::ForgeRefusal::NotConnected,
+        forge::ForgeRefusal::Busy => w::ForgeRefusal::Busy,
+        forge::ForgeRefusal::NoKey => w::ForgeRefusal::NoKey,
+        forge::ForgeRefusal::FirstIsBot => w::ForgeRefusal::FirstIsBot,
     }
 }

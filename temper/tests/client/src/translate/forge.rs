@@ -118,6 +118,7 @@ pub fn digest(value: &forge::Adoption) -> [u8; 32] {
     writer.finish().as_ref().try_into().expect("32-byte SHA-256")
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive match translates the forge family requests")]
 pub fn request(
     transport: &mut Transport,
     who: ClientId,
@@ -152,7 +153,12 @@ pub fn request(
                 request: engine::Application::Forge(owner::Ask::Install { forge: value.forge, back: value.back }),
             });
         }
-        v1::Request::Accept(_) | v1::Request::Reachable(_) | v1::Request::StartDemo => {
+        v1::Request::RemoveForge(_)
+        | v1::Request::StartPlayground
+        | v1::Request::EndPlayground
+        | v1::Request::Accept(_)
+        | v1::Request::Reachable(_)
+        | v1::Request::StartDemo => {
             panic!("client sends no demo start yet")
         }
         v1::Request::Connect(connect) => {
@@ -266,7 +272,7 @@ fn admin_request(
         digest: skein_lib::sha256::digest(&ask.bytes),
         carried,
         request: engine::Application::Forge(owner::Ask::Connect {
-            forge: owner::Making::Kept(connect.forge),
+            forge: kept_forge(connect.forge),
             how: owner::How::ForgejoAdmin { first },
         }),
     })
@@ -582,7 +588,7 @@ fn set_up_request(
         carried: None,
         request: temper_engine_domain::Application::Forge(owner::Ask::SetUp {
             playground: setup.playground,
-            forge: owner::Making::Kept(setup.forge),
+            forge: kept_forge(setup.forge),
             org: setup.org,
             repository: setup.repository,
             project: match setup.project {
@@ -653,6 +659,13 @@ fn delivered_forges(
             },
         },
     ))
+}
+
+fn kept_forge(value: temper_client_protocol_wire::v1::Making) -> owner::Making {
+    match value {
+        temper_client_protocol_wire::v1::Making::Kept(value) => owner::Making::Kept(value.forge()),
+        temper_client_protocol_wire::v1::Making::New(_) => panic!("client world sends kept forges"),
+    }
 }
 
 #[cfg(test)]
