@@ -1,7 +1,3 @@
-#![expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "ordinary fixture selects event kinds; the shared referee checks every variant"
-)]
 use serde_json::json;
 use smith_agent_process_world::{
     charter, events, program,

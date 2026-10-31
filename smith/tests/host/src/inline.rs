@@ -368,10 +368,6 @@ impl World {
         assert!(self.schedule.is_empty());
     }
 
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "diagnostics capture routing identities and long notices; the shared parent referee owns all requests"
-    )]
     fn record_route(&mut self, request: &Output) {
         match request {
             Output::Parent(parent::Request::Called { client, logical_run, .. }) => {

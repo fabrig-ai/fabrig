@@ -42,7 +42,6 @@ fn seen_anthropic_live_text_joins_the_native_completion_blocks() {
     reconstruct(true);
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "select content from an independently checked complete stream")]
 fn reconstruct(anthropic: bool) {
     let mut world = World::new(37, &charter());
     world.private_grant();
@@ -138,10 +137,6 @@ fn reconstruct(anthropic: bool) {
 }
 
 #[test]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "check capture fields across independently checked complete native streams"
-)]
 fn native_capture_policies_keep_execution_and_select_only_their_content() {
     use smith_protocol_events::sinks::Capture;
     let mut queries = None;
@@ -199,7 +194,6 @@ fn native_capture_policies_keep_execution_and_select_only_their_content() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "select starts and terminals from the independently checked stream")]
 fn three_conversations_starting_completions_in_one_pass_are_each_recorded() {
     let mut world = World::new(39, &charter());
     world.initial_message(904, b"task", b"ALPHA");
@@ -268,21 +262,7 @@ fn native_provider_failure_keeps_status_and_capture_selected_detail_in_every_ter
                 Event::ResponseCompleted(value) => response = value.failure.as_ref(),
                 Event::ConversationClosed(value) => conversation = value.failure.as_ref(),
                 Event::RunCompleted(value) => run = value.failure.as_ref(),
-                Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::ConversationOpened(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
         let failure = response.expect("provider failure");
@@ -410,24 +390,7 @@ fn a_runs_model_names_its_account_and_backend() {
         .iter()
         .filter_map(|record| match &record.event {
             Event::RunStarted(started) => Some((started.main.account, started.main.backend.clone())),
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::ToolCompleted(_)
-            | Event::JobEnded(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => None,
+            _ => None,
         })
         .collect::<Vec<_>>();
     assert_eq!((settled, models), (true, vec![(Some(0), smith_events::Backend::Direct)]));

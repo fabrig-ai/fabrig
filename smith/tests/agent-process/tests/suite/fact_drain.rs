@@ -32,24 +32,7 @@ fn terminal(world: &World) -> &RunCompleted {
         .iter()
         .filter_map(|record| match &record.event {
             Event::RunCompleted(answer) => Some(answer),
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunStarted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => None,
+            _ => None,
         })
         .collect();
     assert_eq!(terminals.len(), 1, "one typed answer, including an entrance refusal");
@@ -156,10 +139,6 @@ fn every_answer_kind_reaches_the_trace_with_its_terminal_fact_once() {
 }
 
 #[test]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the test selects three typed records from a checked complete stream"
-)]
 fn a_real_child_joins_its_seen_opening_response_usage_and_enclosing_tool_terminal() {
     let mut world = World::new(19, &charter());
     world.observe_facts(TraceCase::ChildAnswered, 4);
@@ -212,10 +191,6 @@ fn a_real_child_joins_its_seen_opening_response_usage_and_enclosing_tool_termina
 }
 
 #[test]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the native source control selects one message receipt from the complete stream"
-)]
 fn initial_task_receipt_carries_the_seen_channel_label_and_text() {
     let mut world = World::new(31, &charter());
     world.initial_message(901, b"task", b"Read the guide. Keep \"quotes\" and a newline.\nALPHA");

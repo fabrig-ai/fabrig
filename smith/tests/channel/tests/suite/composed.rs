@@ -20,7 +20,6 @@ mod long;
     clippy::too_many_lines,
     reason = "one composed story follows both domains and both wire halves to final cleanup"
 )]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the story rejects every request outside its scripted path")]
 fn the_host_start_enters_the_agent_domain_and_its_answer_returns_to_the_host_domain() {
     let Composed { mut host_world, mut wire, mut domain, mut env, mut out } = composed_start();
     let mut run = None;
@@ -208,7 +207,6 @@ fn composed_charter() -> host::Charter {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the composed story selects its one provider boundary request")]
 fn carried_start_messages_cross_the_wire_in_order_and_an_overfull_start_is_refused_atomically() {
     for count in [2_u64, 3] {
         let mut start = smith_host_world::start();
@@ -326,7 +324,6 @@ fn configuration() -> agent::Config {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the story rejects every request outside the awaiting path")]
 fn an_empty_start_waits_without_a_fence_and_the_first_wire_message_opens_main() {
     let mut charter = composed_charter().into_value();
     charter.grants.wait = true;
