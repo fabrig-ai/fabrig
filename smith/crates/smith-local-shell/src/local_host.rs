@@ -436,6 +436,7 @@ impl Local {
                         domain::Notice::Waiting
                         | domain::Notice::Checking(_)
                         | domain::Notice::NotDelivered { .. }
+                        | domain::Notice::Choice(_)
                         | domain::Notice::ChatRefused { .. } => {
                             unreachable!("only operator notices reach the shell")
                         }

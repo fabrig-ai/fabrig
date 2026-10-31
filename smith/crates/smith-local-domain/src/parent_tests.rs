@@ -660,7 +660,7 @@ fn gone_fills_the_agents_first_cause_with_the_exit_the_kit_reported() {
         },
         &mut out,
     );
-    assert_eq!(domain.end_cause(), Some(crate::EndCause::Agent { ended: Some(smith_events::AgentExit::Signal(9)) }));
+    assert_eq!(domain.end_cause(), Some(crate::EndCause::Agent { ended: Some(host::Exit::Signal(9)) }));
     let mut notices = 0_u32;
     let mut completed = 0_u32;
     for _ in 0..out.len() {
@@ -675,8 +675,7 @@ fn gone_fills_the_agents_first_cause_with_the_exit_the_kit_reported() {
                 notices = notices.checked_add(1).expect("bounded output");
             }
             Some(Request::Unanswered {
-                cause: crate::EndCause::Agent { ended: Some(smith_events::AgentExit::Signal(9)) },
-                ..
+                cause: crate::EndCause::Agent { ended: Some(host::Exit::Signal(9)) }, ..
             }) => {
                 completed = completed.checked_add(1).expect("bounded output");
             }

@@ -13,7 +13,6 @@ fixture = []
 [dependencies]
 skein-lib.workspace = true
 smith-domain.workspace = true
-smith-events.workspace = true
 smith-inline-agent.workspace = true
 smith-host-domain.workspace = true
 

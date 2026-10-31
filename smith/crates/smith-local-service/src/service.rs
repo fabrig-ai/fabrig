@@ -366,13 +366,18 @@ impl Service {
     pub fn effort_notice(&self, notice: &local::Notice) -> Option<Box<[u8]>> {
         match notice {
             local::Notice::Failure(local::Failure::Refused(host::Refusal::Invalid(host::RunInvalid::Effort))) => {
-                Some(self.local.effort_words())
+                Some(protocol::choice_text(
+                    &self.local.refused_effort(),
+                    self.local.chat_name(),
+                    self.limits.local.show_bytes,
+                ))
             }
             local::Notice::Failure(_)
             | local::Notice::Warning(_)
             | local::Notice::Waiting
             | local::Notice::Checking(_)
             | local::Notice::NotDelivered { .. }
+            | local::Notice::Choice(_)
             | local::Notice::ChatRefused { .. } => None,
         }
     }
@@ -1027,6 +1032,7 @@ impl Service {
             | local::Notice::Waiting
             | local::Notice::Checking(_)
             | local::Notice::NotDelivered { .. }
+            | local::Notice::Choice(_)
             | local::Notice::ChatRefused { .. } => false,
         };
         if !handed && !self.local.headless() {
@@ -1049,6 +1055,7 @@ impl Service {
             local::Notice::Waiting
             | local::Notice::Checking(_)
             | local::Notice::NotDelivered { .. }
+            | local::Notice::Choice(_)
             | local::Notice::ChatRefused { .. } => {}
         }
     }

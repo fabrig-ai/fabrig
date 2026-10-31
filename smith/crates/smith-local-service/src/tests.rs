@@ -683,7 +683,7 @@ fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
         while let Some(output) = service.output().pop() {
             text.extend_from_slice(&output);
         }
-        command_crossed |= skein_lib::bytes::find(text, COMMAND_REFUSAL).is_some();
+        command_crossed |= skein_lib::bytes::find(&text, COMMAND_REFUSAL).is_some();
         if message_receipts(&trace_records(&machine, trace, &events)) != 0 {
             assert!(command_crossed, "the message fact reached the trace before the command Show crossed");
         }

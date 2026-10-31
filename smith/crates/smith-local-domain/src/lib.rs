@@ -63,7 +63,7 @@ pub use boundary::{
     DeliveryState, Event, ExitStatus, Failure, GitOp, GitResult, IntentDirectory, Notice, Older, Reading, Request,
     StoreFailure, StoreFamily, Undelivered, Warning,
 };
-pub use choices::Slash;
+pub use choices::{ChoiceNotice, Slash};
 pub use config::{Config, Contract, Invalid, Mode, PushTarget, charter};
 pub use delivery::{commit_receipt, delivery_trailer};
 pub use domain::{Domain, fire, resume, step};

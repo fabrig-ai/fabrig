@@ -277,6 +277,8 @@ pub enum Reading {
 /// A local host notice rendered by the terminal (protocol/hosts.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Notice {
+    /// Feedback for a local choice, rendered without entering the agent.
+    Choice(crate::ChoiceNotice),
     /// A local chat selection was refused, without sending a message to the run.
     ChatRefused { name: Box<[u8]>, reason: ChatRefusal },
     /// The run is waiting for a person message.

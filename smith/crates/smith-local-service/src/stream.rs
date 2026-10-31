@@ -57,7 +57,11 @@ pub fn unanswered(
         }
         smith_local_domain::EndCause::Agent { ended } => {
             let mut failure = failure(AnswerClass::Agent, None);
-            failure.ended = ended;
+            failure.ended = match ended {
+                Some(host::Exit::Code(code)) => Some(smith_events::AgentExit::Code(i64::from(code))),
+                Some(host::Exit::Signal(signal)) => Some(smith_events::AgentExit::Signal(u64::from(signal))),
+                None => None,
+            };
             failure
         }
     };

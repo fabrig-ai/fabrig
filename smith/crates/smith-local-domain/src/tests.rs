@@ -670,8 +670,9 @@ fn slash_effort_with_no_declared_names_accepts_a_bounded_name() {
 
 #[test]
 fn slash_effort_refuses_a_name_outside_the_declared_list_in_words() {
-    let (mut domain, env, mut out) = idle_chat(11);
-    domain.config.efforts[0] = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
+    let mut config = config();
+    config.efforts[0] = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
+    let (mut domain, env, mut out) = idle_config(config, 11);
     crate::step(
         &mut domain,
         &env,
@@ -679,12 +680,14 @@ fn slash_effort_refuses_a_name_outside_the_declared_list_in_words() {
         &mut out,
     );
     assert!(domain.charter().0.llm.effort.is_none());
-    let outputs = drain_requests(&mut out);
-    let text = outputs
-        .iter()
-        .find_map(|request| if let Request::Show { text } = request { Some(text) } else { None })
-        .expect("refusal words");
-    assert!(text.as_ref() == b"Effort mystery is not declared; accepted: low, high");
+    let Some(Request::Notice {
+        notice: crate::Notice::Choice(crate::ChoiceNotice::Effort { effort, choices, dropped: false }),
+    }) = out.pop()
+    else {
+        panic!("typed effort refusal")
+    };
+    assert_eq!(effort.as_ref(), b"mystery");
+    assert_eq!(choices.as_ref(), &[Box::<[u8]>::from(b"low".as_slice()), Box::from(b"high".as_slice())]);
 }
 
 #[test]
@@ -692,12 +695,14 @@ fn slash_effort_without_a_list_still_refuses_more_than_32_bytes() {
     let (mut domain, env, mut out) = idle_chat(11);
     crate::step(&mut domain, &env, Event::Slash(crate::Slash::Effort { level: Box::new([b'x'; 33]) }), &mut out);
     assert!(domain.charter().0.llm.effort.is_none());
-    let outputs = drain_requests(&mut out);
-    let text = outputs
-        .iter()
-        .find_map(|request| if let Request::Show { text } = request { Some(text) } else { None })
-        .expect("refusal words");
-    assert!(text.ends_with(b"any effort within 32 bytes"));
+    let Some(Request::Notice {
+        notice: crate::Notice::Choice(crate::ChoiceNotice::Effort { effort, choices, dropped: false }),
+    }) = out.pop()
+    else {
+        panic!("typed effort refusal")
+    };
+    assert_eq!(effort.as_ref(), &[b'x'; 33]);
+    assert!(choices.is_empty());
 }
 
 #[test]
@@ -723,12 +728,12 @@ fn slash_model_on_another_endpoint_names_the_kept_chats_invocation() {
         &mut out,
     );
     assert_eq!(domain.chat.state.identity, identity);
-    let outputs = drain_requests(&mut out);
-    let text = outputs
-        .iter()
-        .find_map(|request| if let Request::Show { text } = request { Some(text) } else { None })
-        .expect("refusal words");
-    assert!(text.as_ref() == b"Model elsewhere/model needs another invocation: smith --chat main -m elsewhere/model");
+    let Some(Request::Notice { notice: crate::Notice::Choice(crate::ChoiceNotice::ModelElsewhere { model }) }) =
+        out.pop()
+    else {
+        panic!("typed model refusal")
+    };
+    assert_eq!(model.as_ref(), b"elsewhere/model");
 }
 
 #[test]

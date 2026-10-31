@@ -225,15 +225,14 @@ impl Domain {
         &self.config.chat
     }
 
-    /// Render the sent charter's refused effort using startup's model declaration.
+    /// The sent charter's refused effort and its startup model declaration.
     #[must_use]
-    pub fn effort_words(&self) -> Box<[u8]> {
-        smith_events::effort_words(
-            self.effort.as_deref().unwrap_or_default(),
-            self.config.efforts.get(self.main_model).expect("selected startup efforts"),
-            self.show_bytes,
-            false,
-        )
+    pub fn refused_effort(&self) -> crate::ChoiceNotice {
+        crate::ChoiceNotice::Effort {
+            effort: self.effort.as_deref().unwrap_or_default().into(),
+            choices: self.config.efforts.get(self.main_model).expect("selected startup efforts").clone(),
+            dropped: false,
+        }
     }
 
     /// Whether initial loading or the child has deferred work.
@@ -1227,11 +1226,7 @@ fn gone(domain: &mut Domain, end: host::End, detail: Box<[u8]>, out: &mut Queue<
                     }
                 }
             }
-            match exit {
-                Some(host::Exit::Code(code)) => Some(smith_events::AgentExit::Code(i64::from(code))),
-                Some(host::Exit::Signal(signal)) => Some(smith_events::AgentExit::Signal(u64::from(signal))),
-                None => None,
-            }
+            exit
         }
         host::End::Busy | host::End::Invalid(_) | host::End::Unspawned | host::End::Settled => None,
     };

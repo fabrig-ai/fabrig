@@ -3484,7 +3484,6 @@ dependencies = [
  "skein-lib",
  "smith-agent-world",
  "smith-domain",
- "smith-events",
  "smith-host-domain",
  "smith-inline-agent",
 ]
