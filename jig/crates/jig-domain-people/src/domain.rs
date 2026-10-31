@@ -11,6 +11,7 @@ mod ended;
 mod inbox;
 pub use ended::EndedMark;
 pub(crate) mod acts;
+mod deletion;
 mod parties;
 mod start;
 use inbox::{conversation_seen_decision, mark_seen, prune_unheld_roles, replace_waiting};
@@ -566,6 +567,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
         .max(limits.sign_ins.saturating_add(1))
         .max(limits.holdings.saturating_add(1))
         .max(limits.people.saturating_add(1))
+        .max(limits.requests)
 }
 
 /// Apply one root-issued `event` with iteration clocks and immutable configured bounds in `env`
@@ -578,7 +580,9 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.touched = true;
     match event {
-        Event::Deleting { .. } | Event::CloseProject { .. } | Event::ForgetProject { .. } => {}
+        Event::Deleting { project, step } => deletion::keep(domain, project, step, out),
+        Event::CloseProject { project } => deletion::close(domain, project, out),
+        Event::ForgetProject { project } => deletion::forget(domain, project, out),
         Event::Act { reply_to, connector, key, act } => {
             acts::admit(domain, env, reply_to, crate::ActKey { connector, key }, *act, out);
         }
@@ -1513,6 +1517,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Roles(u32, bool),
         Policy(u32),
         Rename(u32),
+        RemoveProject(u32),
         MakeProject,
         ChangeSettings,
         MoveToNewest,
@@ -1531,7 +1536,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
     }
 
     let expected = match ask {
-        Ask::RemoveProject { .. } => return false,
+        Ask::RemoveProject { project } => Expected::RemoveProject(*project),
         Ask::Compound { project, operations } => Expected::Compound(*project, operations.len()),
         Ask::MarkSeen { seen } => Expected::MarkSeen(*seen),
         Ask::Application { connector, .. } => Expected::Application(*connector),
@@ -1631,6 +1636,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Outcome::RolesSet { project } => expected == Expected::Roles(project, true),
         Outcome::PolicyChanged { project } => expected == Expected::Policy(project),
         Outcome::Renamed { project } => expected == Expected::Rename(project),
+        Outcome::ProjectRemoved { project } => expected == Expected::RemoveProject(project),
         Outcome::MovedToNewest { newest, .. } => expected == Expected::MoveToNewest && newest != 0,
         Outcome::SettingsChanged { revision } => expected == Expected::ChangeSettings && revision != 0,
         Outcome::ProjectMade { project } => expected == Expected::MakeProject && project != crate::DEPLOYMENT,
@@ -1657,7 +1663,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Outcome::AccountRemoved { .. } => expected == Expected::AccountRemoved,
         Outcome::AccountSignedOut { .. } => expected == Expected::AccountSignOut,
         Outcome::Refused(_) => true,
-        Outcome::Again(_) | Outcome::SignedOut | Outcome::ProjectRemoved { .. } => false,
+        Outcome::Again(_) | Outcome::SignedOut => false,
     }
 }
 
@@ -1668,44 +1674,6 @@ fn role(domain: &Domain, person: u64, project: u32) -> Option<Role> {
         }
     }
     None
-}
-
-fn request_offered(ask: &Ask) -> bool {
-    match ask {
-        Ask::RemoveProject { .. } => false,
-        Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. }
-        | Ask::Compound { .. }
-        | Ask::Create { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::Application { .. }
-        | Ask::EditNote { .. }
-        | Ask::MakeService { .. }
-        | Ask::Adopt { .. }
-        | Ask::Propose { .. }
-        | Ask::Withdraw { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Release { .. }
-        | Ask::Lift { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Move { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::Amend { .. }
-        | Ask::SetRoles { .. }
-        | Ask::ChangePolicy { .. }
-        | Ask::Rename { .. }
-        | Ask::MakeProject { .. }
-        | Ask::SetPool { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => true,
-    }
 }
 
 #[expect(clippy::too_many_arguments, reason = "one keyed request includes its canonical original model context")]
@@ -1727,9 +1695,6 @@ fn admit_ask(
     };
     if session.expires <= env.wall || session.due <= env.now {
         return signed_out(to, out);
-    }
-    if !request_offered(&ask) {
-        return refused(to, Refusal::NotOffered, out);
     }
     let key = RequestKey { person: session.person, key: bytes };
     if !valid_ask(&env.limits, &ask) || !crate::valid_model_context(&ask, &models) {
@@ -1766,6 +1731,12 @@ fn admit_ask(
         }
         flight.replies.push(to).expect("bounded list room checked");
         return;
+    }
+    if let Some(project) = deletion::ask_project(&ask)
+        && project != crate::DEPLOYMENT
+        && !domain.has_project(project)
+    {
+        return refused(to, Refusal::Unknown, out);
     }
     let written = written_place(domain, key.person, &ask);
     // A move is admitted whole; Written transfers its already reserved place.
@@ -2052,7 +2023,7 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Que
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive table restores each admitted people row")]
+#[expect(clippy::too_many_lines, reason = "one exhaustive legacy record fit and restore table")]
 fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
     match domain.phase {
         Phase::Ready => {
@@ -2096,7 +2067,9 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         Stored::Roles { project, holdings } => {
             valid_roles(domain, &env.limits, *project, holdings).is_ok() && !domain.roles.contains_key(project)
         }
-        Stored::Deletion { .. } => return,
+        Stored::Deletion { project, .. } => {
+            !domain.deletions.contains_key(project) && domain.deletions.len() < domain.deletions.capacity()
+        }
         Stored::Policy { .. } | Stored::EndedRead { .. } => false,
         Stored::Answer { key, ask, models, outcome, at } => {
             valid_ask(&env.limits, ask)
@@ -2139,7 +2112,9 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
             let saved = domain.roles.insert(project, holdings);
             assert!(saved.is_ok(), "restored roles admitted");
         }
-        Stored::Deletion { .. } => {}
+        Stored::Deletion { project, step } => {
+            domain.deletions.insert(project, step).expect("deletion fit checked");
+        }
         Stored::Policy { .. } | Stored::EndedRead { .. } => {
             unreachable!("root does not restore on-demand records into people")
         }
@@ -2432,12 +2407,8 @@ fn admission(domain: &Domain, person: u64, _project: u32, role: Option<Role>, as
             }
             Some(Refusal::Role { held: None })
         }
-        Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
-            if role == Some(Role::Owner) {
-                None
-            } else {
-                Some(Refusal::Role { held: role })
-            }
+        Ask::RemoveProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
+            if role == Some(Role::Owner) { None } else { Some(Refusal::Role { held: role }) }
         }
         Ask::Application { scope, .. } => {
             if *scope == crate::ApplicationScope::Own || role.is_some() {
@@ -2459,7 +2430,6 @@ fn admission(domain: &Domain, person: u64, _project: u32, role: Option<Role>, as
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
-        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::SetPool { .. }
