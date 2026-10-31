@@ -417,7 +417,7 @@ pub fn form(manifest: &[u8]) -> Box<[u8]> {
         } else {
             encoded.push(b'%').expect("fixture form");
             for nibble in [byte.wrapping_shr(4), byte & 15] {
-                encoded.push(*b"0123456789ABCDEF".get(usize::from(nibble)).expect("hex")).expect("fixture form");
+                encoded.push(skein_lib::hex::digit(nibble).to_ascii_uppercase()).expect("fixture form");
             }
         }
     }
