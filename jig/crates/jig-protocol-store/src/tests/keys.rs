@@ -170,3 +170,19 @@ fn settings_subfamilies_and_history_follow_their_domain_order() {
         previous = bytes;
     }
 }
+
+#[test]
+fn a_deletion_key_round_trips_under_tag_nine() {
+    use jig_domain_people::Key as PeopleKey;
+    for project in [0, 1, u32::MAX] {
+        let key = Key::People(PeopleKey::Deletion(project));
+        let bytes = keys::encode(&key, fixtures::KEY_LIMIT).expect("bounded deletion key");
+        assert_eq!(bytes.get(2), Some(&9));
+        assert_eq!(keys::decode(&bytes), Some(key.clone()));
+        assert!(
+            PeopleKey::Acted(jig_domain_people::ActKey { connector: u16::MAX, key: [255; 16] })
+                < PeopleKey::Deletion(project)
+        );
+        assert!(PeopleKey::Deletion(project).live());
+    }
+}
