@@ -18,4 +18,4 @@ lifecycle 2
 growth_floor 1
 pop_loop 12
 hex_decimal 6
-forwarding_host 3
+forwarding_host 1

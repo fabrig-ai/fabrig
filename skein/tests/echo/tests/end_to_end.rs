@@ -5,64 +5,31 @@
 use skein_echo_world::proc::Proc;
 use skein_echo_world::scenarios::{client_limits, plan};
 use skein_io::Addr;
-use skein_io::kernel::{Complete, Exit, Signal, Submit};
-use skein_lib::{Duration, Queue, Time, Wall};
+use skein_io::kernel::{Exit, Signal};
+use skein_lib::{Duration, Time};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Command, Mode, StartError};
-use skein_world::{Deadline, Expired, Host, Referee, real};
+use skein_world::{Deadline, Expired, Forward, Host, Referee, real};
 
 #[derive(Debug)]
 enum Process {
-    Echo(Binary),
+    Echo(Box<Binary>),
     Client(Proc),
 }
 
-impl Process {
+impl Forward for Process {
     fn host(&self) -> &dyn Host {
         match self {
-            Self::Echo(binary) => binary,
+            Self::Echo(binary) => binary.as_ref(),
             Self::Client(client) => client,
         }
     }
 
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
-            Self::Echo(binary) => binary,
+            Self::Echo(binary) => binary.as_mut(),
             Self::Client(client) => client,
         }
-    }
-}
-
-impl Host for Process {
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 
@@ -90,8 +57,8 @@ impl Referee<Process> for Judge {
         {
             for process in &mut *procs {
                 match process {
-                    Process::Client(Proc::Client { client, .. }) => client.dial(addr),
-                    Process::Client(Proc::Echo { .. }) => unreachable!("the binary is the only echo"),
+                    Process::Client(Proc::Client(client)) => client.client.dial(addr),
+                    Process::Client(Proc::Echo(_)) => unreachable!("the binary is the only echo"),
                     Process::Echo(_) => {}
                 }
             }
@@ -208,7 +175,7 @@ fn sigterm_with_idle_clients_exits_at_once_with_success() {
         now: start,
         deadline: start.saturating_add(Duration::from_secs(2)),
     });
-    world.spawn_with_fds(binary.descriptors(), || Process::Echo(binary));
+    world.spawn_with_fds(binary.descriptors(), || Process::Echo(Box::new(binary)));
     for seed in [7, 11] {
         let plans = [skein_echo_client::Plan { then: skein_echo_client::Then::Linger, ..plan(start, seed) }];
         world.spawn(|| Process::Client(Proc::client(client_limits(1), &plans)));

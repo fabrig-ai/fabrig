@@ -45,8 +45,8 @@ fn answers_and_shuts_down(backend: Backend) {
     world.spawn_signals(|signal| {
         let mut proc = Proc::echo(limits, listen, rng.next_u64());
         match &mut proc {
-            Proc::Echo { svc, .. } => svc.svc.adopt_signals(signal).expect("signal slot"),
-            Proc::Client { .. } => unreachable!("echo"),
+            Proc::Echo(svc) => svc.svc.adopt_signals(signal).expect("signal slot"),
+            Proc::Client(_) => unreachable!("echo"),
         }
         proc
     });
