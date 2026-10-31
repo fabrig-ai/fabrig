@@ -1,4 +1,5 @@
 //! The forge family's client records (client/README.md, sections 4.6 and 8).
+//! Forge creation and playground reads: temper/docs/design/draft/playground-reset.md, 3 and 6.1.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -53,7 +54,7 @@ pub const CONNECT_WHY_BYTES: u32 = 256;
 /// The box's maximum setup failure line length (client/README.md, 4.6).
 pub const SET_UP_WHY_BYTES: u32 = 256;
 
-/// The demo's maximum number of suggested requests (client/README.md, 4.6).
+/// The demo and playground's maximum number of suggested requests (client/README.md, 4.6).
 pub const CUES: u32 = 8;
 /// Each suggested request's maximum UTF-8 byte length (client/README.md, 4.6).
 pub const CUE_BYTES: u32 = 256;
@@ -120,6 +121,14 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         change_panel_branch: bounds.field_bytes,
         change_panel_landing: bounds.field_bytes,
         change_panel_gates: GATES,
+        managed_forge_host: 255,
+        managed_forge_tls_some: 255,
+        managed_forge_git: ADDRESS_BYTES,
+        managed_forge_web_some: ADDRESS_BYTES,
+        playground_answer_owner: bounds.field_bytes,
+        playground_answer_name: bounds.field_bytes,
+        playground_answer_cues: CUES,
+        playground_answer_cues_item: CUE_BYTES,
         demo_answer_owner: bounds.field_bytes,
         demo_answer_name: bounds.field_bytes,
         demo_answer_cues: CUES,
@@ -207,6 +216,29 @@ pub fn decode_demo_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::DemoA
     Some(record)
 }
 
+/// Encode the playground's answer; no playground is represented by no record.
+#[must_use]
+pub fn playground_answer(record: &v1::PlaygroundAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode a complete playground answer, refusing empty cues (temper/docs/design/draft/playground-reset.md, 6.1).
+#[must_use]
+pub fn decode_playground_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::PlaygroundAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::PlaygroundAnswer::decode(limits, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    for cue in record.cues() {
+        if cue.is_empty() {
+            return None;
+        }
+    }
+    Some(record)
+}
+
 /// Encode which of the family's subjects is watched (client/README.md, 4.6).
 #[must_use]
 pub fn watching(record: &v1::Watching) -> Box<[u8]> {
@@ -253,17 +285,27 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         return None;
     }
     match record.request() {
-        v1::Request::Connect(connect) => match connect.how() {
-            v1::How::GithubApp(app) if app.id() == 0 => return None,
-            v1::How::GithubApp(_) | v1::How::GithubManifest(_) => {}
-            v1::How::ForgejoAdmin(admin) => {
-                if let Some(first) = admin.first()
-                    && !runner_label(first.label())
-                {
-                    return None;
+        v1::Request::Connect(connect) => {
+            if !valid_making(connect.forge()) {
+                return None;
+            }
+            match connect.how() {
+                v1::How::GithubApp(app) if app.id() == 0 => return None,
+                v1::How::GithubApp(_) | v1::How::GithubManifest(_) => {}
+                v1::How::ForgejoAdmin(admin) => {
+                    if let Some(first) = admin.first()
+                        && !runner_label(first.label())
+                    {
+                        return None;
+                    }
                 }
             }
-        },
+        }
+        v1::Request::SetUp(value) => {
+            if !valid_making(value.forge()) {
+                return None;
+            }
+        }
         v1::Request::Accept(value) if value.installation() == 0 => return None,
         v1::Request::Reachable(value) if value.page() == 0 => return None,
         v1::Request::Reachable(_)
@@ -271,10 +313,28 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Install(_)
         | v1::Request::Return(_)
         | v1::Request::Adopt(_)
-        | v1::Request::SetUp(_)
+        | v1::Request::RemoveForge(_)
+        | v1::Request::StartPlayground
+        | v1::Request::EndPlayground
         | v1::Request::StartDemo => {}
     }
     Some(record)
+}
+
+// temper/docs/design/draft/playground-reset.md, 3: managed addresses enter whole.
+fn valid_making(making: &v1::Making) -> bool {
+    match making {
+        v1::Making::Kept(_) => true,
+        v1::Making::New(value) => match value.forge() {
+            v1::ForgeAsk::Github | v1::ForgeAsk::Owned => true,
+            v1::ForgeAsk::Managed(value) => {
+                !value.host().is_empty()
+                    && !value.host().contains(&0)
+                    && !value.host().contains(&b'/')
+                    && value.port() != 0
+            }
+        },
+    }
 }
 
 /// Encode the family's forges (client/README.md, 4.6).
