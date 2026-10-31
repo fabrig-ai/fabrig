@@ -2,7 +2,6 @@
 use super::*;
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_armed_timer_survives_a_fresh_director_run_and_its_helpers_cancellation() {
     let (mut configuration, bounds) = batch_settings(2, 1, 500, false, false, false);
     for config in &mut configuration {

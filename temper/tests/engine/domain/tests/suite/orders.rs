@@ -33,7 +33,6 @@ fn fill_commits(driver: &mut Driver) {
 /// O1: a load's callbacks, left in the root's work queue at the
 /// backlog watermark, run before a later party change.
 #[test]
-#[ignore = "needs core-inbox"]
 fn completed_history_callbacks_precede_a_later_party_change() {
     let seed = 9204;
     // This fixture runs escalation's completed history, then gives the saved
@@ -140,7 +139,6 @@ fn keyed_replies(driver: &Driver) -> Vec<(Token, people::Reply)> {
 /// O2: two read answers, taken at the backlog watermark, answer in
 /// the order they arrived.
 #[test]
-#[ignore = "needs core-inbox"]
 fn queued_read_answers_keep_their_arrival_order_under_load() {
     let (mut driver, assignment) = Driver::chat();
     driver.send(protocol::turn(WORKER, assignment.task, assignment.attempt, 1, 3, None, TURN_TEXT));
@@ -213,7 +211,6 @@ fn read_replies(driver: &Driver) -> Vec<Token> {
 /// O3: a turn kept before its final answer is acknowledged before it,
 /// even when new work waits at the backlog watermark.
 #[test]
-#[ignore = "needs core-inbox"]
 fn turn_kept_precedes_terminal_acknowledgement_under_callback_pressure() {
     let (mut driver, assignment) = Driver::chat();
     driver.send(protocol::turn(WORKER, assignment.task, assignment.attempt, 1, 3, None, TURN_TEXT));
@@ -293,7 +290,6 @@ fn turn_kept_precedes_terminal_acknowledgement_under_callback_pressure() {
 /// O4: a worker channel's records apply in send order under load, including
 /// its turns, terminal and subsequent channel loss.
 #[test]
-#[ignore = "needs core-inbox"]
 fn one_channels_records_apply_in_order_under_load() {
     let (mut driver, assignment) = Driver::chat();
     assert!(assignment.workspace.repositories.is_empty(), "this chat holds no forge writer");
@@ -353,7 +349,6 @@ fn one_channels_records_apply_in_order_under_load() {
 /// O5: a deferred new call cannot act for its attempt after that attempt's
 /// terminal commits, whether the call or the terminal passes admission first.
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_call_held_at_the_watermark_does_not_act_for_an_attempt_that_ended_behind_it() {
     const CALL: u64 = 970;
     let (mut driver, assignment) = Driver::chat();
@@ -430,7 +425,6 @@ fn a_call_held_at_the_watermark_does_not_act_for_an_attempt_that_ended_behind_it
 /// O6: completions offered at the watermark release their worker notices
 /// and result only after the commits that make them durable.
 #[test]
-#[ignore = "needs core-inbox"]
 fn completions_taken_at_the_watermark_release_nothing_before_their_commit() {
     let (mut driver, assignment) = Driver::chat();
     driver.sign_in();
@@ -520,7 +514,6 @@ fn settle_retaining(driver: &mut Driver) {
 
 /// Edge, kept by the old watermark: the store's commits in flight
 #[test]
-#[ignore = "needs core-inbox"]
 fn the_root_sends_no_more_commits_than_the_store_takes_in_flight() {
     // Three store credits and 22 door outputs give the default mark of 25.
     let mut limits = temper_engine_domain_world::walking::limits();

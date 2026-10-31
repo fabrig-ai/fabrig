@@ -73,7 +73,6 @@ fn watch(driver: &mut Driver, watcher: Token) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_panel_before_its_change_ends_gone_and_a_fresh_watch_reads_the_change() {
     let mut driver = before_change();
     watch(&mut driver, EARLY);

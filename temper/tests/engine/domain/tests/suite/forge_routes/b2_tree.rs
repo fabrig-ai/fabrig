@@ -106,7 +106,6 @@ fn stock_world() -> (World, engine::Assignment) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stock_goal_cannot_modify_but_its_change_producer_can() {
     let (mut world, chat) = stock_world();
     let task = goal(&mut world, &chat, false);
@@ -401,7 +400,6 @@ fn land_change_with_words(world: &mut World, work: &engine::Assignment, words: &
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn b2s_tree_admits_every_run_under_the_stock() {
     // protocol/configuration.md, 13.4: W has its run and two 5K changes.
     const WORK_RUNS: u64 = 11;
@@ -521,7 +519,6 @@ fn tree(world: &mut World, chat: &engine::Assignment) -> Tree {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_advisors_report_at_the_deployments_result_bound_reaches_the_work() {
     let (mut world, chat) = stock_world();
     let work_task = goal(&mut world, &chat, false);
@@ -543,7 +540,6 @@ fn an_advisors_report_at_the_deployments_result_bound_reaches_the_work() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn b2s_tree_fits_the_boxs_limits() {
     let (mut world, chat) = stock_world();
     tree(&mut world, &chat);
@@ -682,7 +678,6 @@ fn ended_row(world: &mut World, person: u64, parent: u64, expected: &ReadRow) ->
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn every_row_of_b2s_tree_reads_whole_on_small() {
     let (mut world, chat) = stock_world();
     let tree = tree(&mut world, &chat);
@@ -793,7 +788,6 @@ fn person_answers_with(world: &mut World, chat: u64, question: u64, words: &[u8]
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chats_forged_answer_is_refused_by_name() {
     let (mut world, chat, work, question) = questioning_goal();
     // The goal was position one in this completion. The forged answer is a
@@ -833,7 +827,6 @@ fn a_chats_forged_answer_is_refused_by_name() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn the_persons_inbox_answer_reaches_the_goal_with_no_chat_call() {
     let (mut world, chat, work, question) = questioning_goal();
     let calls = world.answers.len();
@@ -856,7 +849,6 @@ fn the_persons_inbox_answer_reaches_the_goal_with_no_chat_call() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goals_early_finish_parks_until_the_answer_then_lands() {
     let (mut world, chat, work, question) = questioning_goal();
     answer(&mut world, &chat, CHAT_TURNS, tasks::End::Parked);
@@ -881,7 +873,6 @@ fn a_goals_early_finish_parks_until_the_answer_then_lands() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agreed_goal_finishing_before_asking_is_parked_then_woken_and_asks() {
     let (mut world, chat) = stock_world();
     let task = goal(&mut world, &chat, false);
@@ -938,7 +929,6 @@ fn an_agreed_goal_finishing_before_asking_is_parked_then_woken_and_asks() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agreed_goal_changes_once_answered() {
     let (mut world, chat, work, question) = questioning_goal();
     answer(&mut world, &chat, CHAT_TURNS, tasks::End::Parked);
@@ -948,7 +938,6 @@ fn an_agreed_goal_changes_once_answered() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_declined_agreed_goal_reports_and_changes_nothing() {
     let (mut world, chat, work, question) = questioning_goal();
     person_answers_with(&mut world, chat.task, question, b"No; leave it alone");
@@ -964,7 +953,6 @@ fn a_declined_agreed_goal_reports_and_changes_nothing() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chats_plain_change_request_calls_change() {
     const REQUEST: &[u8] = b"Add CSV export to widget";
     let defaults = defaults();

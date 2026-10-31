@@ -272,7 +272,6 @@ fn assert_reported(world: &World, chat: u64, goal: u64) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_with_a_long_request_and_nine_tasks_reports_and_its_issue_fits() {
     const REPORTS_PER_READ: usize = 3; // Three results plus one reserved slot fit the box's eight messages.
     let (mut world, chat, goal) = world(false);
@@ -319,7 +318,6 @@ fn a_goal_with_a_long_request_and_nine_tasks_reports_and_its_issue_fits() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_projection_that_keeps_failing_holds_neither_the_goal_nor_its_close() {
     let (mut world, chat, goal) = world(true);
     // Keep the same goal feed alive for multiple policy intervals.
@@ -343,7 +341,6 @@ fn a_projection_that_keeps_failing_holds_neither_the_goal_nor_its_close() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_refused_projection_holds_neither_the_goal_nor_its_close() {
     let mut defaults = defaults();
     defaults.policies.get_mut(&PROJECT).expect("stock policy").policy.projections = Box::new([]);
@@ -356,7 +353,6 @@ fn a_refused_projection_holds_neither_the_goal_nor_its_close() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_pending_closing_projection_finishes_after_a_cold_restart() {
     use temper_engine_domain_world::forge_routes::HoldWrite;
     let (mut world, chat, goal) = world(false);
@@ -456,7 +452,6 @@ fn seed_failed_history(world: &mut World, row: forge::IssueRow) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn failed_unfinished_issue_history_restores_after_goal_end_and_home_change() {
     let (mut world, goal, unfinished) = ended_failed_goal();
     assert!(unfinished.desired.as_ref().expect("writer's active view").finished.is_none());
@@ -467,7 +462,6 @@ fn failed_unfinished_issue_history_restores_after_goal_end_and_home_change() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn failed_issue_history_without_desired_restores_after_goal_end_and_home_change() {
     let (mut world, goal, _) = ended_failed_goal();
     let mut row = issue(&world, goal).clone();

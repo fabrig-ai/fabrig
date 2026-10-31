@@ -115,6 +115,10 @@ impl Driver {
     /// Offer one input through admission; an input the journal cannot take
     /// is handed back to the world, which keeps it (jig's `domain/root.md`, 3).
     pub fn send(&mut self, event: engine::Event) {
+        if crate::waits_for_start(&self.root, &event) {
+            self.events.push_back(event);
+            return;
+        }
         if let Err(event) = engine::try_step(&mut self.root, &self.env, event) {
             self.returned += 1;
             self.events.push_back(event);
@@ -128,6 +132,10 @@ impl Driver {
     /// waits ahead of later root inputs (temper-service's `engine.rs:124`,
     /// retried at `engine.rs:320`). Store terminals can still advance durability.
     pub fn send_retaining(&mut self, event: engine::Event) {
+        if crate::waits_for_start(&self.root, &event) {
+            self.events.push_back(event);
+            return;
+        }
         if let Err(event) = engine::try_step(&mut self.root, &self.env, event) {
             self.returned += 1;
             self.events.push_front(event);
@@ -242,7 +250,8 @@ impl Driver {
             self.period_sent = true;
             self.period();
         }
-        if let Some(event) = self.events.pop_front() {
+        if let Some(index) = self.events.iter().position(|event| !crate::waits_for_start(&self.root, event)) {
+            let event = self.events.remove(index).expect("eligible queued input");
             self.send(event);
         }
         if apply && !self.store.pending.is_empty() {

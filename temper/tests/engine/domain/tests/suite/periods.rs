@@ -75,7 +75,6 @@ fn reserve_in_a_chat(d: &mut Driver) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_period_is_renewed_at_its_next_start() {
     let mut d = driver(10401);
     assert_eq!(d.root.next_deadline(&d.env), Some(skein_lib::Time::from_nanos(next(&d, 1, 1).as_nanos())));
@@ -98,7 +97,6 @@ fn a_period_is_renewed_at_its_next_start() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_start_past_a_next_start_opens_one_period_from_the_starts_time() {
     let mut d = driver(10402);
     reserve_in_a_chat(&mut d);
@@ -118,7 +116,6 @@ fn a_start_past_a_next_start_opens_one_period_from_the_starts_time() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_first_period_with_no_next_start_after_a_crash_is_given_one() {
     let mut d = driver(10403);
     let mut first = ledger(&d, 1, 1);
@@ -132,7 +129,6 @@ fn a_first_period_with_no_next_start_after_a_crash_is_given_one() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn two_projects_due_at_once_are_renewed_in_one_decision() {
     let mut limits = limits();
     limits.authority.projects = 2;
@@ -165,7 +161,6 @@ fn two_projects_due_at_once_are_renewed_in_one_decision() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn nothing_is_armed_while_stopping() {
     let mut d = driver(10405);
     assert!(d.root.next_deadline(&d.env).is_some());
@@ -179,7 +174,6 @@ fn nothing_is_armed_while_stopping() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_raised_spend_is_the_next_periods_budget() {
     let configs = [config(10406), config(10406)].map(|mut config| {
         let policy = &mut config.core.seed_projects[0].policy.policy;

@@ -128,7 +128,6 @@ fn keeps(d: &Driver) -> usize {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_start_adds_the_deployments_account_and_adopts_the_repository_once() {
     let (mut d, sign_in) = driver(true, false);
     start(&mut d, sign_in, 81, true);
@@ -154,7 +153,6 @@ fn demo_start_adds_the_deployments_account_and_adopts_the_repository_once() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_start_replays_its_retained_answer_without_repeating_acts() {
     let (mut d, sign_in) = driver(true, false);
     start(&mut d, sign_in, 81, true);
@@ -168,7 +166,6 @@ fn demo_start_replays_its_retained_answer_without_repeating_acts() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_start_fails_when_its_account_is_refused_or_the_key_is_missing() {
     for carry in [false, true] {
         let (mut d, sign_in) = driver(true, false);
@@ -183,7 +180,6 @@ fn demo_start_fails_when_its_account_is_refused_or_the_key_is_missing() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_start_fails_when_its_adoption_is_refused() {
     let (mut d, sign_in) = driver(true, false);
     d.forge = Some(ForgeStand::with(&[(b"org", b"another", 3)]));
@@ -196,7 +192,6 @@ fn demo_start_fails_when_its_adoption_is_refused() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_start_names_the_groups_failure_and_truncates_its_reason() {
     let (mut d, sign_in) = driver(false, true);
     start(&mut d, sign_in, 81, true);
@@ -212,7 +207,6 @@ fn demo_start_names_the_groups_failure_and_truncates_its_reason() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_start_waits_for_connection_until_the_configured_deadline() {
     let (mut d, sign_in) = driver(false, false);
     start(&mut d, sign_in, 81, true);
@@ -226,7 +220,6 @@ fn demo_start_waits_for_connection_until_the_configured_deadline() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_restart_asks_the_group_makes_no_act_and_forgets_the_start_answer() {
     let (mut d, sign_in) = driver(true, true);
     start(&mut d, sign_in, 81, true);
@@ -248,7 +241,6 @@ fn demo_restart_asks_the_group_makes_no_act_and_forgets_the_start_answer() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_start_skips_an_existing_account_but_still_adopts() {
     let (mut d, sign_in) = driver(false, false);
     start(&mut d, sign_in, 81, true);
@@ -265,7 +257,6 @@ fn demo_start_skips_an_existing_account_but_still_adopts() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_start_skips_an_existing_repository_but_still_adds_the_account() {
     let (mut d, sign_in) = driver(true, false);
     d.send(engine::Event::Party(engine::PartyInput::Application {
@@ -287,7 +278,6 @@ fn demo_start_skips_an_existing_repository_but_still_adds_the_account() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn simultaneous_demo_starts_share_one_pair_of_acts_and_return_unused_keys() {
     let (mut d, sign_in) = driver(false, false);
     start(&mut d, sign_in, 81, true);
@@ -300,7 +290,6 @@ fn simultaneous_demo_starts_share_one_pair_of_acts_and_return_unused_keys() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_busy_box_link_fails_the_demo_start_with_the_groups_reason() {
     let (mut d, sign_in) = driver(false, true);
     start(&mut d, sign_in, 81, true);
@@ -332,7 +321,6 @@ fn a_busy_box_link_fails_the_demo_start_with_the_groups_reason() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn another_connected_forge_ends_the_demo_persists_and_stops_once_and_restart_asks_no_group() {
     let (mut d, sign_in) = driver(true, true);
     start(&mut d, sign_in, 81, true);
@@ -393,7 +381,6 @@ fn another_connected_forge_ends_the_demo_persists_and_stops_once_and_restart_ask
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn another_forge_connecting_answers_a_held_demo_start_not_offered() {
     let (mut d, sign_in) = driver(false, true);
     start(&mut d, sign_in, 81, true);
@@ -558,7 +545,6 @@ fn assert_erased(d: &Driver, rows: &[forge::DemoAct]) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_end_closes_chats_with_delegates_and_removes_its_account_erasing_answered_rows() {
     use jig_domain_tasks as tasks;
     let (mut d, task, _sign_in) = live_demo(true);
@@ -610,7 +596,6 @@ fn demo_end_closes_chats_with_delegates_and_removes_its_account_erasing_answered
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_end_selects_only_persons_live_conversations_and_never_chats_opened_afterward() {
     let (mut d, task, sign_in) = live_demo(false);
     let parent = d.last_assignment();
@@ -667,7 +652,6 @@ fn demo_end_selects_only_persons_live_conversations_and_never_chats_opened_after
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_end_without_a_deployment_account_asks_only_for_the_chat() {
     let (mut d, task, _sign_in) = live_demo(false);
     end(&mut d);
@@ -686,7 +670,6 @@ fn demo_end_without_a_deployment_account_asks_only_for_the_chat() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_end_committed_before_its_answer_is_resent_with_the_same_key_and_closed_once() {
     let (mut d, task, _sign_in) = live_demo(false);
     end(&mut d);
@@ -708,7 +691,6 @@ fn demo_end_committed_before_its_answer_is_resent_with_the_same_key_and_closed_o
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_end_unknown_and_ended_answers_erase_the_kept_act() {
     let (mut d, task, _sign_in) = live_demo(false);
     end(&mut d);
@@ -745,7 +727,6 @@ fn demo_end_unknown_and_ended_answers_erase_the_kept_act() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_end_without_the_grant_serves_keeps_names_and_resends_until_a_granted_restart() {
     let (mut d, task, _sign_in) = demo_with_chat(true, false);
     assert!(d.root.ready());
@@ -766,7 +747,6 @@ fn demo_end_without_the_grant_serves_keeps_names_and_resends_until_a_granted_res
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_end_does_not_act_on_a_chat_already_closing() {
     let (mut d, task, sign_in) = live_demo(false);
     d.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -792,7 +772,6 @@ fn pending_demo_end() -> (Driver, forge::DemoAct) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_end_without_a_first_owner_keeps_and_names_the_act() {
     let (mut d, row) = pending_demo_end();
     let mut configuration = config(false);
@@ -803,7 +782,6 @@ fn demo_end_without_a_first_owner_keeps_and_names_the_act() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_bad_release_template_stops_before_a_demo_end_is_replayed() {
     let (mut d, row) = pending_demo_end();
     let mut configuration = config(false);
@@ -827,7 +805,6 @@ fn a_bad_release_template_stops_before_a_demo_end_is_replayed() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn demo_end_reads_the_owners_changed_conversation_grace() {
     let (mut d, task, sign_in) = live_demo(false);
     let mut template = config(false).core.defaults.templates[0].clone();

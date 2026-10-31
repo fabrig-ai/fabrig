@@ -3,7 +3,6 @@
 use super::*;
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chats_plain_change_request_calls_change() {
     const WORDS: &[u8] = b"Add CSV export to widget";
     let (mut world, chat) = change_tool::chat_world_with_words(true, WORDS);
