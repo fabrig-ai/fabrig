@@ -14,6 +14,8 @@ use skein_lib::{Decision, Env, Journal, Queue, Token};
 /// Configuration is handed to the child that owns each value.
 #[derive(Debug)]
 pub struct Config {
+    /// Reason used by the deployment's environment-close acts.
+    pub environment_closed_reason: Box<[u8]>,
     /// Core rules and its children.
     pub core: core::Config,
     /// Agent capability supplied by its configuration, checked by the fleet.
@@ -49,9 +51,10 @@ pub(crate) struct Start {
 }
 
 /// Children, one journal, and opaque child-requested continuation bindings.
-/// No root-owned record or policy is stored (domain/root.md, 2).
+/// No root-owned record is stored (domain/root.md, 2).
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) environment_closed_reason: Box<[u8]>,
     pub(crate) deployment: [u8; 16],
     pub(crate) core: core::Core,
     pub(crate) observability: observability::Domain,
@@ -122,7 +125,10 @@ impl Domain {
             &Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits.core.tasks },
             jig_domain_tasks::Event::Kinds {
                 connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
-                kinds: crate::translate::hold_kinds(jig_ops_domain_connectors::number(Connector::Infrastructure)),
+                kinds: crate::translate::hold_kinds(
+                    jig_ops_domain_connectors::number(Connector::Infrastructure),
+                    &limits.infrastructure.vocabulary,
+                ),
             },
             &mut configured,
         );
@@ -142,6 +148,7 @@ impl Domain {
         );
         hub_link.connect(Token::new(0));
         Ok(Self {
+            environment_closed_reason: config.environment_closed_reason,
             deployment,
             core,
             observability: observability::Domain::with_templates(&limits.observability, config.triage_templates)

@@ -134,6 +134,7 @@ pub(crate) fn read_answer(
 
 pub(crate) fn connector_read(
     domain: &mut Domain,
+    env: &Env<Limits>,
     to: ReplyTo,
     task: u64,
     tool: Box<[u8]>,
@@ -142,7 +143,7 @@ pub(crate) fn connector_read(
 ) {
     let binding = jig_domain_hub_link::ReadCall { to: to.into_token(), tool };
     let number = jig_ops_domain_connectors::number(Connector::Observability);
-    let description = crate::translate::read_description(number, &read);
+    let description = crate::translate::read_description(number, &read, &env.limits.observability.vocabulary);
     let mut findings = Queue::uncapped();
     if domain.core.connector_read_admit(task, description, &mut findings) == jig_domain_authority::Answer::Allow {
         let token = domain.token();

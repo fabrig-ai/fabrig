@@ -48,6 +48,29 @@ pub(crate) enum Internal {
 }
 
 impl Core {
+    // Party requests may wait on external actions; their active work has separate flights.
+    pub(crate) fn flights_idle(&self) -> bool {
+        for (_, flight) in &self.flights {
+            match flight.kind() {
+                Kind::Party | Kind::Key | Kind::Application | Kind::Watch => {}
+                Kind::Workspace
+                | Kind::ProcedureCreation
+                | Kind::Task
+                | Kind::EndedMark
+                | Kind::ResultRead
+                | Kind::CreatingInputs
+                | Kind::Creating
+                | Kind::AwaitingResources
+                | Kind::CreatingDelegates
+                | Kind::EffectStaging
+                | Kind::Effect
+                | Kind::Note
+                | Kind::SettingsOffering => return false,
+            }
+        }
+        true
+    }
+
     pub(crate) fn person_task_flights(&self) -> u32 {
         let mut count = 0_u32;
         for (_, flight) in &self.flights {
@@ -387,6 +410,16 @@ impl Core {
 }
 
 impl Core {
+    /// The parent application request naming connector state while this party part
+    /// awaits its answer (jig/docs/design/domain/connectors.md, 5.5).
+    #[must_use]
+    pub fn application_part_request(&self, token: Token) -> Option<Token> {
+        match self.flights.get(Id::from_token(token)) {
+            Some(Flight::PartyPart { application, .. }) => Some(*application),
+            Some(_) | None => None,
+        }
+    }
+
     pub(crate) fn people_request(&self, token: Token) -> Option<Token> {
         match self.flights.get(Id::from_token(token)) {
             Some(Flight::Party { request }) => Some(*request),

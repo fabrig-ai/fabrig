@@ -19,6 +19,7 @@ pub struct Domain {
     closes: Map<[u8; 16], (u32, u64)>,
     refresh: Map<Resource, bool>,
     pub(crate) backend: Backend,
+    pub(crate) vocabulary: crate::Vocabulary,
     pub(crate) services: Map<Service, ServiceFact>,
     pub(crate) environments: Map<Environment, Option<EnvironmentFact>>,
     pub(crate) pools: Map<Pool, (u32, u32)>,
@@ -63,6 +64,7 @@ impl Domain {
                     .expect("retained creation resources"),
             ),
             backend,
+            vocabulary: limits.vocabulary,
             services: Map::with_capacity(limits.services),
             environments: Map::with_capacity(limits.environments),
             pools: Map::with_capacity(limits.pools),
@@ -119,10 +121,10 @@ fn effect_valid(effect: &Effect, limits: &Limits) -> bool {
     }
 }
 
-pub(crate) fn describe(effect: &Effect, backend: Backend) -> Description {
+pub(crate) fn describe(effect: &Effect, backend: Backend, vocabulary: &crate::Vocabulary) -> Description {
     match effect {
         Effect::Restart { service, operation } => Description {
-            kind: 1,
+            kind: vocabulary.restart_effect,
             resources: Box::from([Resource::Service(service.clone())]),
             condition: false,
             form: Form::Transition,
@@ -131,7 +133,7 @@ pub(crate) fn describe(effect: &Effect, backend: Backend) -> Description {
             state: *operation,
         },
         Effect::Scale { service, from: _, to } => Description {
-            kind: 2,
+            kind: vocabulary.scale_effect,
             resources: Box::from([Resource::Service(service.clone())]),
             condition: true,
             form: Form::Set,
@@ -140,7 +142,7 @@ pub(crate) fn describe(effect: &Effect, backend: Backend) -> Description {
             state: u64::from(*to),
         },
         Effect::Rollback { service, from: _, to: _ } => Description {
-            kind: 3,
+            kind: vocabulary.rollback_effect,
             resources: Box::from([Resource::Service(service.clone())]),
             condition: true,
             form: Form::Transition,
@@ -149,7 +151,7 @@ pub(crate) fn describe(effect: &Effect, backend: Backend) -> Description {
             state: 0,
         },
         Effect::CreateEnvironment { environment, until, price } => Description {
-            kind: 4,
+            kind: vocabulary.create_environment_effect,
             resources: Box::from([
                 Resource::Environment(environment.clone()),
                 Resource::Pool(Pool(environment.pool.clone())),
@@ -161,7 +163,7 @@ pub(crate) fn describe(effect: &Effect, backend: Backend) -> Description {
             state: *until,
         },
         Effect::TearDown { environment, created_by: _ } => Description {
-            kind: 5,
+            kind: vocabulary.tear_down_effect,
             resources: Box::from([Resource::Environment(environment.clone())]),
             condition: true,
             form: Form::Transition,
@@ -512,7 +514,7 @@ fn applied(domain: &mut Domain, key: Key, attempt: u32, result: ApplyResult, out
         }
         ApplyResult::Uncertain => {
             if attempt == entry.attempt && entry.phase == Phase::Sent {
-                let recovery = describe(&entry.effect, domain.backend).recovery;
+                let recovery = describe(&entry.effect, domain.backend, &domain.vocabulary).recovery;
                 if recovery == Recovery::Unrecoverable {
                     entry.phase = Phase::Held;
                     out.push(Request::Save { record: Record::Outbox(entry.clone()) });
@@ -854,7 +856,7 @@ fn decide(
 
 fn stage(domain: &mut Domain, env: &Env<Limits>, token: Token, effect: Effect, out: &mut Queue<Request>) {
     if effect_valid(&effect, &env.limits) && domain.staged.len() < env.limits.staged {
-        let description = describe(&effect, domain.backend);
+        let description = describe(&effect, domain.backend, &domain.vocabulary);
         let waits_for_dependencies = match &effect {
             Effect::Restart { .. }
             | Effect::Scale { .. }
@@ -873,6 +875,18 @@ fn stage(domain: &mut Domain, env: &Env<Limits>, token: Token, effect: Effect, o
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the complete connector vocabulary")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::ProcedureAdmission { task, answer } => {
+            let signal = match answer {
+                crate::Admission::Allow => ProcedureSignal::EffectMade,
+                crate::Admission::Wait => ProcedureSignal::EffectWaiting,
+                crate::Admission::Propose | crate::Admission::Refuse => ProcedureSignal::EffectFailed,
+            };
+            procedure(domain, env, task, signal, out);
+        }
+        Event::ResourceChanged { resource } => wake_readers(domain, &resource, out),
+        Event::ObservedServiceChanged { environment, name } => {
+            wake_readers(domain, &Resource::Service(Service::new(environment, name)), out);
+        }
         Event::Closed { key, outcome } => match outcome {
             crate::CloseOutcome::NotOffered | crate::CloseOutcome::NoOwner | crate::CloseOutcome::Again => {}
             crate::CloseOutcome::Closed | crate::CloseOutcome::Ended | crate::CloseOutcome::Refused => {
@@ -1205,7 +1219,7 @@ fn restart_complete(domain: &mut Domain, out: &mut Queue<Request>) {
 impl Domain {
     /// Procedures whose own facts depend on this resource.
     #[must_use]
-    pub fn readers(&self, resource: &Resource) -> Box<[u64]> {
+    fn readers(&self, resource: &Resource) -> Box<[u64]> {
         let mut tasks = List::with_capacity(self.procedures.len());
         for (task, state) in &self.procedures {
             let named = match &state.procedure {
@@ -1254,4 +1268,26 @@ fn creation_room(domain: &Domain, limits: &Limits, environment: &Environment) ->
         }
     }
     reserved < limits.made
+}
+
+fn wake_readers(domain: &Domain, resource: &Resource, out: &mut Queue<Request>) {
+    for task in domain.readers(resource) {
+        out.push(Request::Wake { task });
+    }
+}
+
+/// Translate an outbox outcome into its owning procedure's input.
+#[must_use]
+pub fn procedure_outcome(key: Key, outcome: Outcome) -> Option<Event> {
+    match key.origin {
+        crate::Purpose::Procedure { .. } => {
+            let signal = match outcome {
+                Outcome::Made => ProcedureSignal::EffectMade,
+                Outcome::Failed | Outcome::Skipped => ProcedureSignal::EffectFailed,
+                Outcome::Uncertain => ProcedureSignal::Step,
+            };
+            Some(Event::Procedure { task: key.task, signal })
+        }
+        crate::Purpose::Call { .. } | crate::Purpose::Projection { .. } => None,
+    }
 }

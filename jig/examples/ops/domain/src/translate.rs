@@ -83,6 +83,7 @@ pub(crate) fn observability_description(
     number: u16,
     value: observability::Effect,
     waits_for_dependencies: bool,
+    vocabulary: &observability::Vocabulary,
 ) -> core::effects::connector::EffectDescription {
     core::effects::connector::EffectDescription {
         waits_for_dependencies,
@@ -92,7 +93,7 @@ pub(crate) fn observability_description(
         recovery: core::effects::connector::Recovery::Keyed,
         effect: authority::Effect {
             connector: number,
-            kind: 1,
+            kind: vocabulary.silence_effect,
             name: authority::Name { segments: observability::Resource::AlertRule(value.rule).segments() },
             state: state(value.until),
             price: None,
@@ -139,150 +140,17 @@ pub(crate) fn service(names: &[authority::Name]) -> Option<observability::Servic
 }
 
 /// Ops names its two requirements in its connector vocabulary.
-pub(crate) const fn requirement(number: u16) -> Option<observability::Requirement> {
-    match number {
-        1 => Some(observability::Requirement::HealthyReplicaElsewhere),
-        2 => Some(observability::Requirement::LoadBelow { percent: 20, for_seconds: 1800 }),
-        _ => None,
+pub(crate) const fn requirement(number: u16, policy: &crate::Policy) -> Option<observability::Requirement> {
+    if number == policy.healthy_replica_requirement {
+        Some(observability::Requirement::HealthyReplicaElsewhere)
+    } else if number == policy.low_load_requirement {
+        Some(observability::Requirement::LoadBelow {
+            percent: policy.scale_down_load_percent,
+            for_seconds: policy.scale_down_load_seconds,
+        })
+    } else {
+        None
     }
-}
-
-/// Ops's procedure parameters are typed spec carriers, never root policy.
-pub(crate) fn spec_service(spec: &tasks::Spec) -> Option<infrastructure::Service> {
-    let mut environment = None;
-    let mut name = None;
-    for parameter in &spec.parameters {
-        match parameter {
-            tasks::Parameter::Bytes { name: 1, value } => environment = Some(value.clone()),
-            tasks::Parameter::Bytes { name: 2, value } => name = Some(value.clone()),
-            tasks::Parameter::Bytes { .. } | tasks::Parameter::Number { .. } | tasks::Parameter::Resource { .. } => {}
-        }
-    }
-    Some(infrastructure::Service::new(environment?, name?))
-}
-pub(crate) fn spec_number(spec: &tasks::Spec, number: u32) -> Option<u64> {
-    for parameter in &spec.parameters {
-        match parameter {
-            tasks::Parameter::Number { name, value } => {
-                if *name == number {
-                    return Some(*value);
-                }
-            }
-            tasks::Parameter::Bytes { .. } | tasks::Parameter::Resource { .. } => {}
-        }
-    }
-    None
-}
-fn spec_environment(spec: &tasks::Spec) -> Option<infrastructure::Environment> {
-    let mut pool = None;
-    let mut name = None;
-    for parameter in &spec.parameters {
-        match parameter {
-            tasks::Parameter::Bytes { name: 1, value } => pool = Some(value.clone()),
-            tasks::Parameter::Bytes { name: 2, value } => name = Some(value.clone()),
-            tasks::Parameter::Bytes { .. } | tasks::Parameter::Number { .. } | tasks::Parameter::Resource { .. } => {}
-        }
-    }
-    Some(infrastructure::Environment::new(pool?, name?))
-}
-pub(crate) fn procedure(code: u32, spec: &tasks::Spec, deployment: [u8; 16]) -> Option<infrastructure::Procedure> {
-    if code == infrastructure::PROVISION_CODE {
-        return Some(infrastructure::Procedure::Provision {
-            environment: spec_environment(spec)?,
-            until: spec_number(spec, 3)?,
-            price: spec_number(spec, 4)?,
-            deadline: spec_number(spec, 5)?,
-        });
-    }
-    if code == infrastructure::TEAR_DOWN_CODE {
-        return Some(infrastructure::Procedure::TearDown {
-            environment: spec_environment(spec)?,
-            created_by: infrastructure::Key::procedure(deployment, spec_number(spec, 3)?, spec_number(spec, 4)?),
-            deadline: spec_number(spec, 5)?,
-        });
-    }
-    let service = spec_service(spec)?;
-    match code {
-        1 => Some(infrastructure::Procedure::Scale {
-            service,
-            replicas: u32::try_from(spec_number(spec, 3)?).ok()?,
-            deadline: spec_number(spec, 4)?,
-        }),
-        2 => Some(infrastructure::Procedure::Remediate {
-            service,
-            operation: spec_number(spec, 3)?,
-            deadline: spec_number(spec, 4)?,
-        }),
-        _ => None,
-    }
-}
-pub(crate) fn holdings(number: u16, executor: tasks::Executor, spec: &tasks::Spec) -> Option<Box<[tasks::Holding]>> {
-    match jig_ops_domain_connectors::connector(number) {
-        Some(jig_ops_domain_connectors::Connector::Infrastructure) => {}
-        Some(jig_ops_domain_connectors::Connector::Observability) | None => return Some(Box::new([])),
-    }
-    match executor {
-        tasks::Executor::Procedure { connector, code } => match jig_ops_domain_connectors::connector(connector) {
-            Some(jig_ops_domain_connectors::Connector::Infrastructure) => {
-                if code == infrastructure::TEAR_DOWN_CODE {
-                    return Some(Box::new([tasks::Holding::Write {
-                        resource: tasks::Name {
-                            connector: number,
-                            path: infrastructure::Resource::Environment(spec_environment(spec)?).segments(),
-                        },
-                        kind: 2,
-                    }]));
-                }
-                if code == infrastructure::PROVISION_CODE {
-                    let environment = spec_environment(spec)?;
-                    return Some(Box::from([
-                        tasks::Holding::Write {
-                            resource: tasks::Name {
-                                connector: number,
-                                path: infrastructure::Resource::Environment(environment.clone()).segments(),
-                            },
-                            kind: 2,
-                        },
-                        tasks::Holding::Slot {
-                            pool: tasks::Name {
-                                connector: number,
-                                path: infrastructure::Resource::Pool(infrastructure::Pool(environment.pool)).segments(),
-                            },
-                            kind: 3,
-                        },
-                    ]));
-                }
-            }
-            Some(jig_ops_domain_connectors::Connector::Observability) | None => return Some(Box::new([])),
-        },
-        tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => return Some(Box::new([])),
-    }
-    match spec_service(spec) {
-        Some(service) => Some(Box::new([tasks::Holding::Write {
-            resource: tasks::Name { connector: number, path: infrastructure::Resource::Service(service).segments() },
-            kind: 1,
-        }])),
-        None => {
-            if spec.parameters.is_empty() {
-                Some(Box::new([]))
-            } else {
-                None
-            }
-        }
-    }
-}
-pub(crate) fn decimal(bytes: &[u8]) -> Option<u64> {
-    let mut value = 0_u64;
-    if bytes.is_empty() {
-        return None;
-    }
-    for byte in bytes {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(value)
 }
 
 pub(crate) const fn news_class(value: observability::Class) -> tasks::NewsClass {
@@ -310,8 +178,12 @@ pub(crate) fn alert_words(alert: &observability::Alert) -> Box<[u8]> {
 pub(crate) fn health_words(_service: &observability::Service, healthy: bool) -> Box<[u8]> {
     if healthy { Box::from(&b"healthy"[..]) } else { Box::from(&b"unhealthy"[..]) }
 }
-pub(crate) fn triage(delegate: &[u8], alerts: &[u64]) -> Option<Box<[core::Delegate]>> {
-    let mut batch = jig_protocol_tools::batch(delegate, &template_limits()).ok()?;
+pub(crate) fn triage(
+    delegate: &[u8],
+    alerts: &[u64],
+    limits: &jig_protocol_tools::Limits,
+) -> Option<Box<[core::Delegate]>> {
+    let mut batch = jig_protocol_tools::batch(delegate, limits).ok()?;
     if batch.len() != 1 {
         return None;
     }
@@ -333,11 +205,21 @@ pub(crate) fn triage(delegate: &[u8], alerts: &[u64]) -> Option<Box<[core::Deleg
 }
 
 /// Read kinds and resources belong to the application's connector vocabulary.
-pub(crate) fn read_description(number: u16, read: &observability::Read) -> authority::Effect {
+pub(crate) fn read_description(
+    number: u16,
+    read: &observability::Read,
+    vocabulary: &observability::Vocabulary,
+) -> authority::Effect {
     let (kind, resource) = match read {
-        observability::Read::Logs { service, .. } => (2, observability::Resource::Logs(service.clone())),
-        observability::Read::Series { service, .. } => (3, observability::Resource::Metrics(service.clone())),
-        observability::Read::Fired { service, .. } => (4, observability::Resource::Service(service.clone())),
+        observability::Read::Logs { service, .. } => {
+            (vocabulary.logs_read, observability::Resource::Logs(service.clone()))
+        }
+        observability::Read::Series { service, .. } => {
+            (vocabulary.series_read, observability::Resource::Metrics(service.clone()))
+        }
+        observability::Read::Fired { service, .. } => {
+            (vocabulary.fired_read, observability::Resource::Service(service.clone()))
+        }
     };
     authority::Effect {
         connector: number,
@@ -361,99 +243,13 @@ pub(crate) const fn resource_role(role: infrastructure::ResourceRole) -> core::e
     }
 }
 
-/// Connector-local service/environment write and pool-slot kinds, also used at cold restore.
-pub(crate) fn hold_kinds(number: u16) -> Box<[tasks::Kind]> {
-    Box::new([
-        tasks::Kind { connector: number, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
-        tasks::Kind { connector: number, kind: 2, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
-        tasks::Kind { connector: number, kind: 3, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
-    ])
-}
-
 /// The owner templates always request one delegate, matching the outcome's one child.
-pub(crate) fn lead(delegate: &[u8]) -> Option<Box<[core::Delegate]>> {
-    let batch = jig_protocol_tools::batch(delegate, &template_limits()).ok()?;
+pub(crate) fn lead(delegate: &[u8], limits: &jig_protocol_tools::Limits) -> Option<Box<[core::Delegate]>> {
+    let batch = jig_protocol_tools::batch(delegate, limits).ok()?;
     if batch.len() != 1 {
         return None;
     }
     Some(batch)
-}
-
-/// The closed result shape is handed to its owner, without its explanation.
-pub(crate) fn watch_result(
-    child: u64,
-    result: &tasks::ResultKind,
-    limits: &observability::Limits,
-) -> observability::WatchMessage {
-    let verdict = match result {
-        tasks::ResultKind::Verdict { code: 1, fields } if fields.is_empty() => {
-            Some(observability::TriageVerdict::Noise)
-        }
-        tasks::ResultKind::Verdict { code: 2, fields } => triage_fields(fields, limits),
-        tasks::ResultKind::Verdict { .. } => None,
-        tasks::ResultKind::Approved { .. }
-        | tasks::ResultKind::Report
-        | tasks::ResultKind::Change { .. }
-        | tasks::ResultKind::Failed
-        | tasks::ResultKind::Cancelled => return observability::WatchMessage::Ended { child },
-    };
-    match verdict {
-        Some(verdict) => observability::WatchMessage::Triage { child, verdict },
-        None => observability::WatchMessage::InvalidTriage { child },
-    }
-}
-
-// Ops's declared machine-field vocabulary. These are explicit result values,
-// never task numbers derived from report text or from the alerts they cover.
-fn triage_fields(
-    fields: &[tasks::ResultField],
-    limits: &observability::Limits,
-) -> Option<observability::TriageVerdict> {
-    if fields.len() != 4 {
-        return None;
-    }
-    let mut alerts = None;
-    let mut environment = None;
-    let mut service = None;
-    let mut severity = None;
-    for field in fields {
-        match field.name.as_ref() {
-            b"alerts" if alerts.is_none() => {
-                let mut numbers = List::with_capacity(limits.alerts_per_batch);
-                let mut start = 0;
-                for (end, byte) in field.value.iter().enumerate() {
-                    if *byte == b' ' {
-                        numbers.push(decimal(field.value.get(start..end)?)?).ok()?;
-                        start = end.checked_add(1)?;
-                    }
-                }
-                numbers.push(decimal(field.value.get(start..)?)?).ok()?;
-                alerts = Some(numbers.into_boxed());
-            }
-            b"environment" if environment.is_none() => environment = Some(field.value.clone()),
-            b"service" if service.is_none() => service = Some(field.value.clone()),
-            b"severity" if severity.is_none() => severity = Some(u8::try_from(decimal(&field.value)?).ok()?),
-            _ => return None,
-        }
-    }
-    let environment = environment?;
-    let service = service?;
-    if environment.is_empty()
-        || service.is_empty()
-        || u32::try_from(environment.len()).ok()? > limits.name_bytes
-        || u32::try_from(service.len()).ok()? > limits.name_bytes
-    {
-        return None;
-    }
-    Some(observability::TriageVerdict::Incident {
-        alerts: alerts?,
-        service: observability::Service::new(environment, service),
-        severity: severity?,
-    })
-}
-
-const fn template_limits() -> jig_protocol_tools::Limits {
-    jig_protocol_tools::Limits { input_bytes: 65536, words: 65536, batch: 2, depth: 16 }
 }
 
 pub(crate) fn infrastructure_added(values: Box<[tasks::Added]>) -> Box<[infrastructure::Added]> {
@@ -467,4 +263,121 @@ pub(crate) fn infrastructure_added(values: Box<[tasks::Added]>) -> Box<[infrastr
         added.push(infrastructure::Added { task: value.task, at: value.at, by }).expect("one row per dependency");
     }
     added.into_boxed()
+}
+
+pub(crate) fn infrastructure_spec(spec: &tasks::Spec) -> infrastructure::Spec {
+    let mut parameters = List::with_capacity(u32::try_from(spec.parameters.len()).expect("spec parameter bound"));
+    for parameter in &spec.parameters {
+        parameters
+            .push(match parameter {
+                tasks::Parameter::Bytes { name, value } => {
+                    infrastructure::Parameter::Bytes { name: *name, value: value.clone() }
+                }
+                tasks::Parameter::Number { name, value } => {
+                    infrastructure::Parameter::Number { name: *name, value: *value }
+                }
+                tasks::Parameter::Resource { .. } => infrastructure::Parameter::Resource,
+            })
+            .expect("one parameter per carrier");
+    }
+    infrastructure::Spec { parameters: parameters.into_boxed() }
+}
+pub(crate) fn observability_spec(spec: &tasks::Spec) -> observability::Spec {
+    let mut parameters = List::with_capacity(u32::try_from(spec.parameters.len()).expect("spec parameter bound"));
+    for parameter in &spec.parameters {
+        parameters
+            .push(match parameter {
+                tasks::Parameter::Bytes { name, value } => {
+                    observability::Parameter::Bytes { name: *name, value: value.clone() }
+                }
+                tasks::Parameter::Number { name, value } => {
+                    observability::Parameter::Number { name: *name, value: *value }
+                }
+                tasks::Parameter::Resource { .. } => observability::Parameter::Resource,
+            })
+            .expect("one parameter per carrier");
+    }
+    observability::Spec { parameters: parameters.into_boxed() }
+}
+pub(crate) const fn infrastructure_executor(executor: tasks::Executor) -> infrastructure::Executor {
+    match executor {
+        tasks::Executor::Procedure { connector, code } => infrastructure::Executor::Procedure { connector, code },
+        tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => infrastructure::Executor::Other,
+    }
+}
+pub(crate) fn holdings(number: u16, values: Option<Box<[infrastructure::Holding]>>) -> Option<Box<[tasks::Holding]>> {
+    let values = values?;
+    let mut holdings = List::with_capacity(u32::try_from(values.len()).expect("holding count"));
+    for value in values {
+        holdings
+            .push(match value {
+                infrastructure::Holding::Write { resource, kind } => tasks::Holding::Write {
+                    resource: tasks::Name { connector: number, path: resource.segments() },
+                    kind,
+                },
+                infrastructure::Holding::Slot { pool, kind } => tasks::Holding::Slot {
+                    pool: tasks::Name { connector: number, path: infrastructure::Resource::Pool(pool).segments() },
+                    kind,
+                },
+            })
+            .expect("one holding per value");
+    }
+    Some(holdings.into_boxed())
+}
+pub(crate) fn hold_kinds(number: u16, vocabulary: &infrastructure::Vocabulary) -> Box<[tasks::Kind]> {
+    let values = infrastructure::hold_kinds(vocabulary);
+    let mut kinds = List::with_capacity(u32::try_from(values.len()).expect("hold kinds"));
+    for value in values {
+        let hold = match value.hold {
+            infrastructure::Hold::None => tasks::HoldKind::Shared,
+            infrastructure::Hold::ExclusiveWait => tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
+            infrastructure::Hold::PooledWait => tasks::HoldKind::Pooled { taken: tasks::Taken::Waits },
+        };
+        kinds.push(tasks::Kind { connector: number, kind: value.kind, hold }).expect("one kind per value");
+    }
+    kinds.into_boxed()
+}
+pub(crate) const fn admission(answer: authority::Answer) -> infrastructure::Admission {
+    match answer {
+        authority::Answer::Allow => infrastructure::Admission::Allow,
+        authority::Answer::Wait => infrastructure::Admission::Wait,
+        authority::Answer::Propose => infrastructure::Admission::Propose,
+        authority::Answer::Refuse => infrastructure::Admission::Refuse,
+    }
+}
+pub(crate) fn watch_inputs(inbox: Box<[tasks::Word]>) -> Box<[observability::WatchInput]> {
+    let mut inputs = List::with_capacity(u32::try_from(inbox.len()).expect("offered inbox bound"));
+    for word in inbox {
+        let input = match word.kind.procedure_input() {
+            Some(tasks::ProcedureInput::News) => Some(observability::WatchInput::News),
+            Some(tasks::ProcedureInput::Result(result)) => {
+                let child = match word.from {
+                    tasks::Party::Task(child) => Some(child),
+                    tasks::Party::Person(_) | tasks::Party::Deployment { .. } => None,
+                };
+                let result = match result {
+                    tasks::ResultKind::Verdict { code, fields } => {
+                        let mut values = List::with_capacity(u32::try_from(fields.len()).expect("verdict field bound"));
+                        for field in fields {
+                            values
+                                .push(observability::ResultField { name: field.name, value: field.value })
+                                .expect("one result field");
+                        }
+                        observability::ResultKind::Verdict { code, fields: values.into_boxed() }
+                    }
+                    tasks::ResultKind::Approved { .. }
+                    | tasks::ResultKind::Report
+                    | tasks::ResultKind::Change { .. }
+                    | tasks::ResultKind::Failed
+                    | tasks::ResultKind::Cancelled => observability::ResultKind::Ended,
+                };
+                Some(observability::WatchInput::Result { child, result })
+            }
+            None => None,
+        };
+        if let Some(input) = input {
+            inputs.push(input).expect("one input per inbox word");
+        }
+    }
+    inputs.into_boxed()
 }

@@ -45,7 +45,7 @@ fn queued_read_answers_keep_their_arrival_order_under_load() {
     let replies = read_replies(&driver);
     assert_eq!(replies.iter().map(|(reply, _)| *reply).collect::<Vec<_>>(), [READ_A, READ_B]);
     for (_, answer) in replies {
-        let reads::Answer::Ended(past) = answer else { panic!("historical turn: {answer:?}") };
+        let reads::Answer::Ended(past) = answer else { panic!("ended turn: {answer:?}") };
         let reads::EndedValue::Turn(row) = &past.value else { panic!("requested turn") };
         assert_eq!((row.task, row.attempt, row.turn), (task, attempt, TURN));
         assert_eq!(row.transcript.as_ref(), TURN_TEXT);
@@ -168,7 +168,7 @@ fn read_turn(driver: &mut World, reply: Token) -> root::Event {
             driver.commit_one();
         }
     }
-    panic!("historical read issues a store load within the step budget");
+    panic!("ended read issues a store load within the step budget");
 }
 
 fn read_replies(driver: &World) -> Vec<(Token, &reads::Answer)> {

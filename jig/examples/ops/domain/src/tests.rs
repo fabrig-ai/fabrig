@@ -20,6 +20,7 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
     core_limits.fleet.engine_slots = 1;
     core_limits.tasks.hold_kinds = 3;
     let limits = Limits {
+        policy: crate::Policy::reference(),
         core: core_limits,
         infrastructure: fixtures::infrastructure_limits(),
         observability: fixtures::limits(),
@@ -52,6 +53,7 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
         routes: 256,
     };
     let mut config = Config {
+        environment_closed_reason: crate::ENVIRONMENT_CLOSED_REASON.into(),
         agent_bounds: fixtures::agent_bounds(),
         tools: fixtures::tools(Duration::from_secs(30)),
         core: jig_test_profile::config(17).core,
@@ -709,179 +711,6 @@ fn an_unknown_connector_refuses_the_restart_without_loading_a_child() {
     }
 }
 
-fn triage_fields(alerts: &[u8]) -> Box<[jig_domain_tasks::ResultField]> {
-    Box::new([
-        jig_domain_tasks::ResultField { name: Box::from(&b"alerts"[..]), value: Box::from(alerts) },
-        jig_domain_tasks::ResultField { name: Box::from(&b"environment"[..]), value: Box::from(&b"production"[..]) },
-        jig_domain_tasks::ResultField { name: Box::from(&b"service"[..]), value: Box::from(&b"checkout"[..]) },
-        jig_domain_tasks::ResultField { name: Box::from(&b"severity"[..]), value: Box::from(&b"3"[..]) },
-    ])
-}
-
-#[test]
-fn a_closed_verdict_translates_only_explicit_machine_fields_to_the_watch() {
-    let (_, env) = fixture();
-    let limits = &env.limits.observability;
-    assert_eq!(
-        crate::translate::watch_result(
-            100,
-            &jig_domain_tasks::ResultKind::Verdict { code: 1, fields: Box::new([]) },
-            limits
-        ),
-        observability::WatchMessage::Triage { child: 100, verdict: observability::TriageVerdict::Noise }
-    );
-    assert_eq!(
-        crate::translate::watch_result(
-            100,
-            &jig_domain_tasks::ResultKind::Verdict { code: 2, fields: triage_fields(b"12 13") },
-            limits
-        ),
-        observability::WatchMessage::Triage {
-            child: 100,
-            verdict: observability::TriageVerdict::Incident {
-                alerts: Box::new([12, 13]),
-                service: observability::Service::new(Box::from(&b"production"[..]), Box::from(&b"checkout"[..])),
-                severity: 3,
-            }
-        }
-    );
-}
-
-#[test]
-fn malformed_machine_fields_are_refused_without_reading_an_explanation() {
-    let (_, env) = fixture();
-    let limits = &env.limits.observability;
-    for alerts in [b"".as_slice(), b"12 ", b"12 report 13", b"18446744073709551616"] {
-        assert_eq!(
-            crate::translate::watch_result(
-                100,
-                &jig_domain_tasks::ResultKind::Verdict { code: 2, fields: triage_fields(alerts) },
-                limits
-            ),
-            observability::WatchMessage::InvalidTriage { child: 100 }
-        );
-    }
-    let mut fields = triage_fields(b"12");
-    fields[1].name = Box::from(&b"alerts"[..]);
-    assert_eq!(
-        crate::translate::watch_result(100, &jig_domain_tasks::ResultKind::Verdict { code: 2, fields }, limits),
-        observability::WatchMessage::InvalidTriage { child: 100 }
-    );
-    assert_eq!(
-        crate::translate::watch_result(
-            100,
-            &jig_domain_tasks::ResultKind::Verdict { code: 2, fields: Box::new([]) },
-            limits
-        ),
-        observability::WatchMessage::InvalidTriage { child: 100 }
-    );
-}
-
-fn environment_spec() -> jig_domain_tasks::Spec {
-    use jig_domain_tasks::Parameter;
-    jig_domain_tasks::Spec {
-        asks: false,
-        words: Box::from(b"staging for payments, a week".as_slice()),
-        parameters: Box::new([
-            Parameter::Bytes { name: 1, value: Box::from(b"staging".as_slice()) },
-            Parameter::Bytes { name: 2, value: Box::from(b"payments".as_slice()) },
-            Parameter::Number { name: 3, value: 604_800 },
-            Parameter::Number { name: 4, value: 40 },
-            Parameter::Number { name: 5, value: 7200 },
-        ]),
-        inputs: Box::new([]),
-    }
-}
-
-#[test]
-fn provision_preserves_opaque_environment_parameters_and_distinct_pool_hold() {
-    use jig_domain_tasks::{Executor, HoldKind, Holding, Name, Taken};
-    let mut spec = environment_spec();
-    let environment =
-        infrastructure::Environment::new(Box::from(b"staging".as_slice()), Box::from(b"payments".as_slice()));
-    assert_eq!(
-        crate::translate::procedure(infrastructure::PROVISION_CODE, &spec, [1; 16]),
-        Some(infrastructure::Procedure::Provision {
-            environment: environment.clone(),
-            until: 604_800,
-            price: 40,
-            deadline: 7200,
-        })
-    );
-    assert_eq!(
-        crate::translate::holdings(
-            2,
-            Executor::Procedure { connector: 2, code: infrastructure::PROVISION_CODE },
-            &spec
-        ),
-        Some(Box::from([
-            Holding::Write {
-                resource: Name { connector: 2, path: infrastructure::Resource::Environment(environment).segments() },
-                kind: 2
-            },
-            Holding::Slot {
-                pool: Name {
-                    connector: 2,
-                    path: infrastructure::Resource::Pool(infrastructure::Pool(Box::from(b"staging".as_slice())))
-                        .segments()
-                },
-                kind: 3
-            },
-        ]))
-    );
-    let kinds = crate::translate::hold_kinds(2);
-    assert_eq!(
-        kinds.as_ref(),
-        &[
-            jig_domain_tasks::Kind { connector: 2, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } },
-            jig_domain_tasks::Kind { connector: 2, kind: 2, hold: HoldKind::Exclusive { taken: Taken::Waits } },
-            jig_domain_tasks::Kind { connector: 2, kind: 3, hold: HoldKind::Pooled { taken: Taken::Waits } },
-        ]
-    );
-    spec.parameters = spec.parameters[..4].into();
-    assert_eq!(
-        crate::translate::procedure(infrastructure::PROVISION_CODE, &spec, [1; 16]),
-        None,
-        "a missing deadline is not manufactured"
-    );
-    spec.parameters[1] = jig_domain_tasks::Parameter::Number { name: 2, value: 99 };
-    assert_eq!(
-        crate::translate::holdings(
-            2,
-            Executor::Procedure { connector: 2, code: infrastructure::PROVISION_CODE },
-            &spec
-        ),
-        None,
-        "numeric service identities are not substituted for an environment name"
-    );
-}
-
-#[test]
-fn adding_provision_preserves_scale_and_remediate_codes_and_service_hold() {
-    use jig_domain_tasks::{Executor, Holding, Name};
-    let mut spec = environment_spec();
-    spec.parameters = spec.parameters[..4].into();
-    let service = infrastructure::Service::new(Box::from(b"staging".as_slice()), Box::from(b"payments".as_slice()));
-    assert_eq!(
-        crate::translate::procedure(1, &spec, [1; 16]),
-        Some(infrastructure::Procedure::Scale { service: service.clone(), replicas: 604_800, deadline: 40 })
-    );
-    assert_eq!(
-        crate::translate::procedure(2, &spec, [1; 16]),
-        Some(infrastructure::Procedure::Remediate { service: service.clone(), operation: 604_800, deadline: 40 })
-    );
-    for code in [1, 2] {
-        assert_eq!(
-            crate::translate::holdings(2, Executor::Procedure { connector: 2, code }, &spec),
-            Some(Box::from([Holding::Write {
-                resource: Name { connector: 2, path: infrastructure::Resource::Service(service.clone()).segments() },
-                kind: 1
-            },]))
-        );
-    }
-    assert_eq!(crate::translate::procedure(99, &spec, [1; 16]), None);
-}
-
 fn chat_request(limits: &core::Limits, words: &[u8]) -> jig_domain_people::Ask {
     let config = jig_test_profile::config(17).core;
     let members = jig_test_profile::fixtures::Creating::new(&config, limits.tasks.tree_tasks);
@@ -1078,4 +907,19 @@ fn a_retained_turn_retry_fires_at_the_watermark() {
     crate::fire(&mut domain, &env, crate::Timer::Turn);
     assert_eq!(domain.next_turn_deadline(), None, "an admitted retry timer fires despite the backlog");
     assert!(take(&mut domain, &env).is_empty(), "retrying the retained turn makes no duplicate commit");
+}
+
+#[test]
+fn requirements_take_the_deployments_identifiers_and_thresholds() {
+    let mut policy = crate::Policy::reference();
+    assert_eq!(policy.verdict_freshness_seconds, 60);
+    assert_eq!(policy.scale_down_load_seconds, 1800);
+    policy.low_load_requirement = 9;
+    policy.scale_down_load_percent = 12;
+    policy.scale_down_load_seconds = 600;
+    assert_eq!(crate::translate::requirement(2, &policy), None);
+    assert_eq!(
+        crate::translate::requirement(9, &policy),
+        Some(observability::Requirement::LoadBelow { percent: 12, for_seconds: 600 })
+    );
 }

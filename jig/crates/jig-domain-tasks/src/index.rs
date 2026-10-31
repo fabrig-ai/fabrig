@@ -73,7 +73,7 @@ pub enum Key {
     Pool(u64),
     /// A person-origin proposal.
     PersonProposal(u64),
-    /// Logical historical ended-task row.
+    /// Logical retained ended-task row.
     Ended(u64),
     /// A past funding period.
     ClosedLedger(crate::Funder),
