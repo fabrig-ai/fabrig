@@ -114,7 +114,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             effects_settled: true,
             releasing: true,
         }),
-        RecordKind::Client | RecordKind::Demo => panic!("no own table"),
+        RecordKind::Forge | RecordKind::Client | RecordKind::Demo => panic!("no own table"),
     }
 }
 fn application(token: u64, until: Wall) -> Stored {

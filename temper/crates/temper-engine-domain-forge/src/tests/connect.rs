@@ -997,7 +997,7 @@ fn accept_requires_the_owner_a_real_connected_github_and_a_free_writing_slot() {
 }
 
 #[test]
-fn a_new_forge_is_refused_until_records_land() {
+fn a_new_github_is_refused_without_the_machines_place() {
     refused(
         &mut github(Kind::GitHub, Mode::Connected),
         Ask::Connect { forge: Making::New(ForgeAsk::GitHub), how: How::GitHubApp { app: NonZeroU64::new(7).unwrap() } },

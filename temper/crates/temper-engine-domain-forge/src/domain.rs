@@ -13,6 +13,8 @@ use crate::{
 use crate::{adoption, brief, held, topics};
 
 mod hints;
+#[path = "make.rs"]
+pub(crate) mod make;
 #[path = "restore.rs"]
 mod restore;
 pub use restore::{RestoreFit, RestoreSet};
@@ -1187,84 +1189,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             crate::Ask::StartDemo => crate::demo::start(d, request, token, out),
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
-            crate::Ask::SetUp { forge: crate::Making::New(_), .. } => {
-                if let Some(value) = carried {
-                    out.push(Request::CarriedUnused { number: value.number });
-                }
-                d.connect.answer(
-                    request,
-                    token,
-                    crate::Answered::SetUp(crate::SetUpAnswer::Refused(crate::SetUpRefusal::NotOffered)),
-                    out,
-                );
-            }
-            crate::Ask::SetUp { forge: crate::Making::Kept(forge), org, repository, project, playground } => {
-                let mut expired = None;
-                for (token, (until, _)) in &d.setup_answers {
-                    if *until <= env.wall {
-                        expired = Some(*token);
-                        break;
-                    }
-                }
-                if let Some(token) = expired {
-                    d.setup_answers.remove(&token);
-                }
-                if d.setup_pending.len().saturating_add(d.setup_answers.len()) >= env.limits.applications {
-                    out.push(Request::ApplicationAgain { request, why: jig_domain_people::Again::Busy });
-                } else {
-                    d.setup_pending.insert(request, (token, retention)).expect("setup answer room checked");
-                    let invalid_project = match &project {
-                        crate::SetUpProject::New(name) => {
-                            name.is_empty()
-                                || name.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
-                        }
-                        crate::SetUpProject::Existing(_) => false,
-                    };
-                    let refusal = if !setup_login(&org)
-                        || !setup_repository(&repository)
-                        || org.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
-                        || repository.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
-                        || invalid_project
-                        || (playground && (org.as_ref() != b"playground" || repository.as_ref() != b"widget"))
-                    {
-                        Some(crate::SetUpRefusal::Invalid)
-                    } else {
-                        match d.offer(forge) {
-                            crate::Offer::NotOffered => Some(crate::SetUpRefusal::NotOffered),
-                            crate::Offer::NotUnderTheBox => Some(crate::SetUpRefusal::NotUnderTheBox),
-                            crate::Offer::Offered => {
-                                let mut busy = false;
-                                for (_, (state, _)) in &d.connections {
-                                    if let crate::Connection::SettingUp { .. } = state {
-                                        busy = true;
-                                    }
-                                }
-                                if busy { Some(crate::SetUpRefusal::Busy) } else { None }
-                            }
-                        }
-                    };
-                    match refusal {
-                        Some(why) => d.setup_answer(env, request, crate::SetUpAnswer::Refused(why), out),
-                        None => {
-                            d.first
-                                .insert(
-                                    forge,
-                                    crate::First {
-                                        playground,
-                                        org: org.clone(),
-                                        repository: repository.clone(),
-                                        project,
-                                        state: crate::FirstState::Making,
-                                        label: Box::from(b"temper-host".as_slice()),
-                                    },
-                                )
-                                .expect("configured forges bound first repositories");
-                            out.push(Request::MarkedForges);
-                            out.push(Request::SetUp { forge, request, org, repository, playground });
-                        }
-                    }
-                }
-            }
+            ask @ crate::Ask::SetUp { .. } => make::setup(d, env, request, token, retention, ask, carried, out),
         },
         Event::ApplicationAnswered { request, outcome } => adoption::answered(d, env, request, outcome, out),
         Event::ForgetProjection { goal } => {
@@ -4830,6 +4755,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
     }
     match record {
         Stored::Forge(record) => {
+            make::restore_first(d, &record);
             d.configured
                 .insert(record.number, crate::forges::configured_of(&record))
                 .expect("restored configured forge fits");
