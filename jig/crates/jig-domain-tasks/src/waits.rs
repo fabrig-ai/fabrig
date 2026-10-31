@@ -606,8 +606,7 @@ impl Judge {
             Witness::Task(task) => return task,
             Witness::Resource(at) => at,
         };
-        let holding =
-            rows(view, number).holdings.get(usize::try_from(at).expect("resource ordinal")).expect("chosen resource");
+        let holding = rows(view, number).holdings.get(skein_lib::length::usize_of(at)).expect("chosen resource");
         let name = crate::holds::name(holding);
         if view.batch.is_empty() {
             for ((_, holder), ()) in view.domain.waits.holders.range((name.clone(), 0)..=(name.clone(), u64::MAX)) {
@@ -634,7 +633,7 @@ impl Judge {
             Witness::Resource(at) => at,
         };
         let holdings = rows(view, number).holdings;
-        let holding = holdings.get(usize::try_from(at).expect("bounded resource ordinal")).expect("chosen resource");
+        let holding = holdings.get(skein_lib::length::usize_of(at)).expect("chosen resource");
         let mut left = threshold(view.domain, holding).expect("stuck resource");
         let name = crate::holds::name(holding);
         if view.batch.is_empty() {

@@ -226,12 +226,7 @@ fn out_of_bounds_acts_are_unsaved_with_the_partys_refusal() {
                 project: PROJECT,
                 task: TASK,
                 grace: None,
-                reason: vec![
-                    0;
-                    usize::try_from(jig_people_world::LIMITS.words + 1)
-                        .expect("bounded deployment act fixture")
-                ]
-                .into(),
+                reason: vec![0; skein_lib::length::usize_of(jig_people_world::LIMITS.words + 1)].into(),
             },
             Refusal::Limit { which: LimitKind::Words },
         ),
@@ -246,8 +241,7 @@ fn out_of_bounds_acts_are_unsaved_with_the_partys_refusal() {
             project: PROJECT,
             task: TASK,
             grace: Some(Duration::from_secs(9999)),
-            reason: vec![0; usize::try_from(jig_people_world::LIMITS.words).expect("bounded deployment act fixture")]
-                .into(),
+            reason: vec![0; skein_lib::length::usize_of(jig_people_world::LIMITS.words)].into(),
         },
     );
     world.decide_acts(&DECIDED);
@@ -259,8 +253,7 @@ fn out_of_bounds_acts_are_unsaved_with_the_partys_refusal() {
 fn adoption_bounds_refuse_before_retaining_a_key() {
     use jig_domain_people::{Adoption, ResourceName, ResourceRole};
     let mut world = world();
-    let path_bytes = usize::try_from(jig_people_world::LIMITS.amendment_bytes).expect("bounded deployment act fixture")
-        - size_of::<Box<[u8]>>();
+    let path_bytes = skein_lib::length::usize_of(jig_people_world::LIMITS.amendment_bytes) - size_of::<Box<[u8]>>();
     let adoption = |bytes| Act::Adopt {
         project: PROJECT,
         adoption: Adoption {

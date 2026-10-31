@@ -46,9 +46,7 @@ pub(super) fn valid_identity(limits: &Limits, identity: &Identity) -> bool {
         return false;
     };
     match first.checked_add(identity.name.len()) {
-        Some(bytes) => {
-            !identity.key.subject.is_empty() && bytes <= usize::try_from(limits.identity_bytes).expect("u32 fits usize")
-        }
+        Some(bytes) => !identity.key.subject.is_empty() && bytes <= skein_lib::length::usize_of(limits.identity_bytes),
         None => false,
     }
 }
@@ -162,7 +160,7 @@ pub(super) fn apply_roles(
 }
 
 pub(super) fn valid_roles(domain: &Domain, limits: &Limits, project: u32, holdings: &[Holding]) -> Result<(), Outcome> {
-    if holdings.len() > usize::try_from(limits.holdings).expect("u32 fits usize") {
+    if holdings.len() > skein_lib::length::usize_of(limits.holdings) {
         return Err(Outcome::Refused(Refusal::Limit { which: LimitKind::Roles }));
     }
     if !domain.roles.contains_key(&project) && domain.roles.len() >= limits.projects {
@@ -292,7 +290,7 @@ pub(super) fn make_service(
         Outcome::Refused(Refusal::Limit { which: LimitKind::Identity })
     } else if domain.people.len() >= env.limits.people
         || match holdings {
-            Some(rows) => rows.len() >= usize::try_from(env.limits.holdings).expect("u32 fits usize"),
+            Some(rows) => rows.len() >= skein_lib::length::usize_of(env.limits.holdings),
             None => true,
         }
     {
@@ -407,9 +405,7 @@ pub(super) fn signin(
                 let Some(holdings) = domain.roles.get(&owner.project) else {
                     return refused(to, Refusal::Unknown, out);
                 };
-                if holdings.len() >= usize::try_from(env.limits.holdings).expect("u32 fits usize")
-                    && !has_person(holdings, person)
-                {
+                if holdings.len() >= skein_lib::length::usize_of(env.limits.holdings) && !has_person(holdings, person) {
                     return again(to, Again::Busy, out);
                 }
             }

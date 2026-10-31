@@ -59,6 +59,7 @@
 //! before delegation.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 mod activity;
 mod admission;

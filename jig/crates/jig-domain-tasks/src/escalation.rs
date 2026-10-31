@@ -461,7 +461,7 @@ fn validate(
             }
         }
         EscalationDecision::Reject { reason } => {
-            if reason.len() <= usize::try_from(limits.result_bytes).expect("u32 fits usize") {
+            if reason.len() <= skein_lib::length::usize_of(limits.result_bytes) {
                 EscalationOutcome::Rejected
             } else {
                 EscalationOutcome::Limit

@@ -48,7 +48,7 @@ pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
             if *task == 0 {
                 return Err(Refusal::Unknown);
             }
-            if reason.len() > usize::try_from(limits.words).expect("u32 fits usize") {
+            if reason.len() > skein_lib::length::usize_of(limits.words) {
                 return Err(Refusal::Limit { which: LimitKind::Words });
             }
         }

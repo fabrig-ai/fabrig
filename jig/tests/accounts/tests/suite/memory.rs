@@ -7,7 +7,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 const KINDS: [Kind; 3] = [Kind::SignIn, Kind::Key, Kind::Program];
 /// Bytes at their longest, distinct for each account.
 fn longest(length: u32, account: u32) -> Box<[u8]> {
-    let mut bytes = vec![b'a'; usize::try_from(length).expect("a small length")];
+    let mut bytes = vec![b'a'; skein_lib::length::usize_of(length)];
     bytes[0] = b'a' + u8::try_from(account).expect("a small number");
     bytes.into_boxed_slice()
 }
@@ -20,7 +20,7 @@ fn number(account: u32, place: Option<u32>) -> u32 {
     }
 }
 fn kind(place: u32) -> Kind {
-    KINDS[usize::try_from(place).expect("a small place") % KINDS.len()]
+    KINDS[skein_lib::length::usize_of(place) % KINDS.len()]
 }
 fn granted(source: u32) -> FromComponent {
     FromComponent::Granted {

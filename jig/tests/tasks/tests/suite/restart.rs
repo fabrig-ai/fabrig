@@ -238,7 +238,7 @@ fn waiting_restore_keeps_saved_recipient_entry_and_time_without_routing() {
     ];
     for state in states {
         for elapsed in [false, true] {
-            let mut env = skein_lib::Env { limits: LIMITS, now: source.env.now, wall: source.env.wall };
+            let mut env = source.env.with(LIMITS);
             env.wall =
                 Wall::from_nanos(since.as_nanos() + if elapsed { LIMITS.escalation_stall.as_nanos() } else { 1 });
             let mut domain = jig_tasks_world::domain(&LIMITS, 37);
@@ -381,7 +381,7 @@ fn restore_fits_payload_and_collection_bounds_and_keeps_failure_sticky() {
                 limit: u64::from(LIMITS.dependencies),
             },
             apply: |row| {
-                row.waiting_on = vec![1; usize::try_from(LIMITS.dependencies + 1).expect("count")].into_boxed_slice();
+                row.waiting_on = vec![1; skein_lib::length::usize_of(LIMITS.dependencies + 1)].into_boxed_slice();
             },
         },
         Case {
@@ -392,7 +392,7 @@ fn restore_fits_payload_and_collection_bounds_and_keeps_failure_sticky() {
                 limit: u64::from(LIMITS.spec_bytes),
             },
             apply: |row| {
-                row.spec.words = vec![b'x'; usize::try_from(LIMITS.spec_bytes + 1).expect("bytes")].into_boxed_slice();
+                row.spec.words = vec![b'x'; skein_lib::length::usize_of(LIMITS.spec_bytes + 1)].into_boxed_slice();
             },
         },
         Case {
@@ -406,7 +406,7 @@ fn restore_fits_payload_and_collection_bounds_and_keeps_failure_sticky() {
                 row.escalation = jig_domain_tasks::Escalation::Rejected {
                     revision: 1,
                     by: 1,
-                    reason: vec![b'x'; usize::try_from(LIMITS.result_bytes + 1).expect("bytes")].into_boxed_slice(),
+                    reason: vec![b'x'; skein_lib::length::usize_of(LIMITS.result_bytes + 1)].into_boxed_slice(),
                 }
             },
         },

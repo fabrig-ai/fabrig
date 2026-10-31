@@ -38,9 +38,7 @@ pub(crate) fn check_finish(
 ) -> Result<FinishPlan, Refusal> {
     let Finish { number, by, until, message } = finish;
     let old = staged.record(domain, number).ok_or(Refusal::Unknown)?;
-    if message == 0
-        || message <= old.last_message
-        || words.len() > usize::try_from(env.limits.result_bytes).expect("reason bound")
+    if message == 0 || message <= old.last_message || words.len() > skein_lib::length::usize_of(env.limits.result_bytes)
     {
         return Err(Refusal::Read);
     }
