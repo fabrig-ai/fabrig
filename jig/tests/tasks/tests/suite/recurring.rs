@@ -367,3 +367,22 @@ fn recurring_lifetime_funding_exceeds_live_capacity_and_restores_before_retireme
     world.restart();
     assert_eq!(world.record(17).funder, Funder::Recurring { project: 1, task: 9, period: 2 });
 }
+
+#[test]
+fn a_recurring_fire_makes_its_batch_without_a_reply() {
+    let mut world = World::new(218, LIMITS);
+    assert_eq!(
+        world.make(Party::Deployment { project: 1 }, vec![recurring(9, RecurringOverlap::Skip)]),
+        Reply::Made(vec![9])
+    );
+    world.open_period(1, 100_000);
+    let replies = world.replies.clone();
+    world.send(Event::TickRecurring { task: 9, period: 1 });
+    world.stage(Event::RecurringBatch { task: 9, period: 1, numbers: Box::new([10]) });
+    assert!(world.staged_requests().iter().any(|request| matches!(request, tasks::Request::Save { .. })));
+    assert!(!world.staged_requests().iter().any(|request| matches!(request, tasks::Request::Made { .. })));
+    world.durable();
+    world.deliver();
+    assert_eq!(world.replies, replies);
+    assert_eq!(world.record(9).delegates.as_ref(), [10]);
+}

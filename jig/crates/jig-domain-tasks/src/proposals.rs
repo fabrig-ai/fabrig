@@ -614,19 +614,28 @@ pub(crate) fn propose(
     if let Some(problem) = admission_problem(domain, &env.limits, &proposal) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
-    install(domain, env, proposal, false, out);
+    apply_proposal(domain, env, proposal, out);
     out.push(Request::Done { reply_to: to });
 }
 
 /// Shared admission for standalone proposals and compound procedure steps.
 pub(crate) fn admission_problem(domain: &Domain, limits: &Limits, proposal: &Proposal) -> Option<crate::Problem> {
+    admission_problem_staged(domain, &crate::compound::Staged::new(0), limits, proposal)
+}
+
+pub(crate) fn admission_problem_staged(
+    domain: &Domain,
+    staged: &crate::compound::Staged,
+    limits: &Limits,
+    proposal: &Proposal,
+) -> Option<crate::Problem> {
     if proposal.number == 0
         || proposal.proposer == 0
         || proposal.reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize")
     {
         return Some(proposal_problem(proposal.proposer, Refusal::Read));
     }
-    let Some(task) = record(domain, proposal.proposer) else {
+    let Some(task) = staged.record(domain, proposal.proposer) else {
         return Some(proposal_problem(proposal.proposer, Refusal::Unknown));
     };
     let same_scope = proposal_scope(task.project, proposal);
@@ -653,8 +662,9 @@ pub(crate) fn admission_problem(domain: &Domain, limits: &Limits, proposal: &Pro
         }
         return Some(proposal_problem(proposal.proposer, Refusal::Busy));
     }
-    if !crate::inbox::room(
+    if !crate::inbox::room_staged(
         domain,
+        staged,
         limits,
         proposal.proposer,
         1,
@@ -786,6 +796,10 @@ pub(crate) fn check_result(domain: &Domain, env: &Env<Limits>, task: u64, propos
 /// Install a preflighted result proposal in the same decision that takes its verdict.
 pub(crate) fn propose_result(domain: &mut Domain, env: &Env<Limits>, proposal: Proposal, out: &mut Queue<Request>) {
     install(domain, env, proposal, true, out);
+}
+
+pub(crate) fn apply_proposal(domain: &mut Domain, env: &Env<Limits>, proposal: Proposal, out: &mut Queue<Request>) {
+    install(domain, env, proposal, false, out);
 }
 
 fn install(domain: &mut Domain, env: &Env<Limits>, proposal: Proposal, result: bool, out: &mut Queue<Request>) {
