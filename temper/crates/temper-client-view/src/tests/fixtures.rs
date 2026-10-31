@@ -1472,10 +1472,10 @@ fn playground_read_answer(root: &mut temper_client_domain::Domain, read: Token, 
 pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::DemoState) {
     match state {
         w::DemoState::NotStarted => {
-            deliver_playground(root, read, w::PlaygroundState::Starting, wire::FORGE, Some(project))
+            deliver_playground(root, read, w::PlaygroundState::Starting, wire::FORGE, Some(project));
         }
         w::DemoState::Running => {
-            deliver_playground(root, read, w::PlaygroundState::Running, wire::FORGE, Some(project))
+            deliver_playground(root, read, w::PlaygroundState::Running, wire::FORGE, Some(project));
         }
         w::DemoState::Ended => deliver_no_playground(root, read),
     }
