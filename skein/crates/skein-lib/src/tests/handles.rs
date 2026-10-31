@@ -75,3 +75,86 @@ fn a_slab_hands_out_slots_in_the_order_it_did() {
     }
     assert_eq!(slab.get(reused_second), Some(&'d'), "a reused slot keeps its generation across growth");
 }
+
+#[test]
+fn slab_iteration_skips_retired_and_vacant_slots_and_uses_current_handles() {
+    let mut slab = Slab::with_capacity(5);
+    let first = slab.insert(10_u32).expect("fresh slot");
+    let second = slab.insert(20).expect("fresh slot");
+    let third = slab.insert(30).expect("fresh slot");
+    let fourth = slab.insert(40).expect("fresh slot");
+    let fifth = slab.insert(50).expect("fresh slot");
+    slab.retire(first);
+    slab.retire(third);
+    assert_eq!(slab.get(first), Some(&10), "retirement still permits lookup");
+    assert_eq!(slab.iter().count(), 3, "retired entities are absent before reclaim");
+    slab.reclaim();
+    assert_eq!(slab.get(first), None);
+    assert_eq!(slab.get(third), None);
+    let reused = slab.insert(60).expect("reuse first slot, leaving third vacant");
+    assert_eq!(reused.slot(), first.slot());
+    assert_ne!(reused, first);
+    slab.retire(fifth);
+
+    let mut iter: crate::slab::Iter<'_, u32> = slab.iter();
+    for (id, expected) in [(reused, 60), (second, 20), (fourth, 40)] {
+        let (visited, value) = iter.next().expect("one item per live slot");
+        assert_eq!((visited, *value), (id, expected));
+        assert_eq!(slab.get(visited), Some(value), "the yielded handle names this entity");
+    }
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn mutable_slab_iteration_changes_only_live_entities_in_slot_order() {
+    let mut slab = Slab::with_capacity(5);
+    let first = slab.insert(10_u32).expect("fresh slot");
+    let second = slab.insert(20).expect("fresh slot");
+    let third = slab.insert(30).expect("fresh slot");
+    let fourth = slab.insert(40).expect("fresh slot");
+    let fifth = slab.insert(50).expect("fresh slot");
+    slab.retire(first);
+    slab.retire(third);
+    slab.reclaim();
+    let reused = slab.insert(60).expect("reuse first slot, leaving third vacant");
+    slab.retire(fifth);
+
+    let mut iter: crate::slab::IterMut<'_, u32> = slab.iter_mut();
+    let (a_id, a) = iter.next().expect("reused first slot");
+    let (b_id, b) = iter.next().expect("second slot");
+    let (c_id, c) = iter.next().expect("fourth slot after the vacant third");
+    assert_eq!((a_id, b_id, c_id), (reused, second, fourth));
+    assert_eq!((*a, *b, *c), (60, 20, 40));
+    assert_eq!(iter.next(), None, "retired fifth slot is skipped");
+    assert_eq!(iter.next(), None);
+    // Items from different next calls remain usable together.
+    *a = 61;
+    *b = 21;
+    *c = 41;
+
+    assert_eq!(slab.get(reused), Some(&61));
+    assert_eq!(slab.get(second), Some(&21));
+    assert_eq!(slab.get(fourth), Some(&41));
+    assert_eq!(slab.get(first), None);
+    assert_eq!(slab.get(third), None);
+    assert_eq!(slab.get(fifth), Some(&50), "retired storage was untouched");
+}
+
+#[test]
+fn slab_walks_are_empty_without_live_entities() {
+    for capacity in [0_u32, 3] {
+        let mut slab = Slab::<u32>::with_capacity(capacity);
+        assert_eq!(slab.iter().next(), None);
+        assert_eq!(slab.iter_mut().next(), None);
+        if capacity > 0 {
+            let id = slab.insert(7).expect("one slot");
+            slab.retire(id);
+            assert_eq!(slab.iter().next(), None);
+            assert_eq!(slab.iter_mut().next(), None);
+            slab.reclaim();
+            assert_eq!(slab.iter().next(), None);
+            assert_eq!(slab.iter_mut().next(), None);
+        }
+    }
+}

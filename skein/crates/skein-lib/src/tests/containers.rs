@@ -163,6 +163,38 @@ fn a_queue_is_fifo_and_bounded() {
 }
 
 #[test]
+fn clearing_a_queue_keeps_its_capacity_and_allows_a_fifo_refill() {
+    for capacity in [0_u32, 1, 3, 5, 9] {
+        let mut queue = Queue::with_capacity(capacity);
+        queue.clear();
+        for item in 0..capacity {
+            queue.push(item);
+        }
+        // Move the head before clearing, so the grown ring can be wrapped.
+        if capacity > 0 {
+            assert_eq!(queue.pop(), Some(0));
+            queue.push(capacity);
+        }
+        queue.clear();
+        queue.clear();
+        assert!(queue.is_empty());
+        assert_eq!(queue.len(), 0);
+        assert_eq!(queue.room(), capacity);
+        assert_eq!(queue.capacity(), capacity);
+        assert_eq!(queue.pop(), None);
+        assert_eq!(queue.iter().next(), None);
+        for item in 0..capacity {
+            queue.try_push(item).expect("refill fits the retained capacity");
+        }
+        assert_eq!(queue.try_push(capacity), Err(capacity));
+        for item in 0..capacity {
+            assert_eq!(queue.pop(), Some(item));
+        }
+        assert!(queue.is_empty());
+    }
+}
+
+#[test]
 #[should_panic(expected = "the loop reserves room for every output")]
 fn pushing_past_the_reservation_is_a_bug() {
     let mut queue = Queue::with_capacity(0);
@@ -183,6 +215,33 @@ fn a_stack_is_lifo_and_bounded() {
     assert_eq!(stack.pop(), Some('a'));
     assert_eq!(stack.pop(), None);
     assert!(stack.is_empty());
+}
+
+#[test]
+fn clearing_a_stack_keeps_its_capacity_and_allows_a_lifo_refill() {
+    for capacity in [0_u32, 1, 3, 5, 9] {
+        let mut stack = Stack::with_capacity(capacity);
+        stack.clear();
+        for item in 0..capacity {
+            stack.push(item).expect("room below the cap");
+        }
+        stack.clear();
+        stack.clear();
+        assert!(stack.is_empty());
+        assert_eq!(stack.len(), 0);
+        assert_eq!(stack.capacity(), capacity);
+        assert_eq!(stack.pop(), None);
+        assert_eq!(stack.top(), None);
+        assert_eq!(stack.top_mut(), None);
+        for item in 0..capacity {
+            stack.push(item).expect("refill fits the retained capacity");
+        }
+        assert_eq!(stack.push(capacity), Err(capacity));
+        for item in (0..capacity).rev() {
+            assert_eq!(stack.pop(), Some(item));
+        }
+        assert!(stack.is_empty());
+    }
 }
 
 #[test]
