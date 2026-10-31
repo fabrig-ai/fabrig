@@ -1,6 +1,9 @@
 //! Script transitions and journal release identities (jig/docs/design/domain/engine.md, 6).
-use super::{Action, Continuation, Failure, LiveSet, Phase, SweepInput};
-use crate::{Core, Key, Limits, Queue, Request, Write, people, tasks};
+use crate::{
+    Core, Key, Limits, Queue, Request, Write, people,
+    start::{Action, Continuation, Failure, LiveSet, Phase, SweepInput},
+    tasks,
+};
 use skein_lib::Env;
 
 impl Core {
@@ -30,13 +33,13 @@ impl Core {
                 if let Some(failure) = self.start_settings_finish(env) {
                     return Action::Refused(failure);
                 }
-                if !crate::deletion::restored(self) {
+                if !crate::admission::deletion::restored(self) {
                     self.start_collect_failure();
                     return Action::Refused(self.start_failure().expect("named project policy failure"));
                 }
                 self.counters.finish_restore();
                 if self.counters.dirty() {
-                    crate::routing::first_start::start_seed(self, env, out);
+                    super::first::start_seed(self, env, out);
                     self.start_collect_failure();
                     if let Some(failure) = self.start_failure() {
                         return Action::Refused(failure);

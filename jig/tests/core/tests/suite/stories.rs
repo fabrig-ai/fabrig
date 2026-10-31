@@ -778,11 +778,11 @@ fn re_adopting_a_resource_as_context_refuses_the_existing_tasks_next_effect() {
         number: 1,
         event: connector::Event::Names { task, project: 1, resources: Box::new([resource.clone()]) },
     });
-    world.send(root::Event::Core(core::Event::EffectConnector(core::connector::Event::Resource {
+    world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
         project: 2,
         name: tasks::Name { connector: 1, path: resource.segments().into() },
-        role: core::connector::ResourceRole::Context,
-        hold: core::connector::HoldKind::Exclusive { wait: true },
+        role: core::effects::connector::ResourceRole::Context,
+        hold: core::effects::connector::HoldKind::Exclusive { wait: true },
     })));
     world.send(root::Event::Connector {
         number: 1,

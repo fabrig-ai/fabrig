@@ -42,16 +42,16 @@ pub fn failed_result() -> d::ResultDoc {
         cut: true,
     }
 }
-pub fn historical_task() -> reads::Historical {
-    reads::Historical {
-        value: reads::Past::Task { document: Box::new(task_with_hold()), result: Box::new(failed_result()) },
+pub fn historical_task() -> reads::Ended {
+    reads::Ended {
+        value: reads::EndedValue::Task { document: Box::new(task_with_hold()), result: Box::new(failed_result()) },
         at: Some(Wall::from_nanos(67)),
         by: Some(t::Party::Person(71)),
     }
 }
-pub fn decided_escalation(decision: jig_domain_people::EscalationDecision) -> reads::Historical {
-    reads::Historical {
-        value: reads::Past::Escalation {
+pub fn decided_escalation(decision: jig_domain_people::EscalationDecision) -> reads::Ended {
+    reads::Ended {
+        value: reads::EndedValue::Escalation {
             task: Box::new(task_with_hold()),
             decision: jig_domain_core::EscalationDecisionRecord {
                 project: 7,

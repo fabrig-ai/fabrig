@@ -1,8 +1,10 @@
 //! The core owns the start's record families and child sequencing (domain/engine.md, 6).
-use super::{
-    Action, Core, Env, Phase, Queue, Request, SweepInput, Time, Wall, config, limits, people, step_phase, tasks,
+use crate::{
+    CoreRecord, Record, Restore, Write, accounts,
+    tests::start::{
+        Action, Core, Env, Phase, Queue, Request, SweepInput, Time, Wall, config, limits, people, step_phase, tasks,
+    },
 };
-use crate::{CoreRecord, Record, Restore, Write, accounts};
 
 fn loading() -> (Core, Env<crate::Limits>) {
     let limits = limits();
@@ -65,8 +67,8 @@ fn notes_rows_keep_no_restored_state() {
 
 #[test]
 fn a_task_row_restores_the_child_and_its_run_correlation() {
-    let (mut source, limits) = super::super::tree_core();
-    super::super::make_task(&mut source, &limits, 1);
+    let (mut source, limits) = crate::tests::tree_core();
+    crate::tests::make_task(&mut source, &limits, 1);
     let mut row = source.tasks.task(1).expect("source task").clone();
     row.attempt = 3;
     let (mut core, env) = loading();
@@ -78,7 +80,8 @@ fn a_task_row_restores_the_child_and_its_run_correlation() {
 #[test]
 fn a_policy_row_restores_the_project_and_its_name() {
     let (mut core, env) = loading();
-    let value = crate::policy::snapshot(&config(401).seed_projects[0].policy.policy, &[], &[]).expect("stored policy");
+    let value = crate::admission::policy::snapshot(&config(401).seed_projects[0].policy.policy, &[], &[])
+        .expect("stored policy");
     assert_eq!(
         core.restore(&env, Record::People(people::Stored::Policy { project: 1, name: "Project 1".into(), value })),
         Restore::Kept

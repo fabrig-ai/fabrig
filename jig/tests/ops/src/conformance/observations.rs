@@ -1,11 +1,10 @@
 //! Durable-row translations and independent production evidence for jig's referee.
 use jig_conformance::referee as r;
-use jig_domain_people as people;
 use jig_ops_domain as root;
 use jig_ops_domain_infrastructure as infra;
 use jig_ops_domain_observability as obs;
 use r::EffectKey;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 pub fn fact(observed: &mut Vec<r::Observed>, event: &obs::SystemEvent) {
     if let obs::SystemEvent::Fact { service, fact } = event {
@@ -84,52 +83,24 @@ pub fn resource(service: &infra::Service, connector: u16) -> r::Name {
     }
 }
 
-pub fn policy(seed: u64, environment_chat: bool) -> r::Policy {
+pub fn observer(seed: u64, environment_chat: bool) -> jig_conformance::core::Observer {
     let (configuration, _) = super::config::root_for(seed, environment_chat);
-    let rules = &configuration.core.defaults.rules;
-    let ceiling = jig_conformance::core::scope(&rules.ceiling);
-    let mut policy = r::Policy {
-        deployment: ceiling.clone(),
-        projects: BTreeMap::from([(1, ceiling)]),
-        projections: BTreeMap::new(),
-        people: BTreeMap::from([(
-            (1, 1),
-            jig_conformance::core::scope(&if environment_chat {
-                super::config::environment_authority(500, true)
-            } else {
-                super::config::authority(500, true)
-            }),
-        )]),
-        effect_accepters: BTreeSet::from([(1, 1)]),
-        requirements: Vec::new(),
-        implications: BTreeSet::new(),
-        kinds: BTreeMap::from([
-            ((2, 1), r::Kind { recovery: r::Recovery::Keyed, price: 0 }),
-            ((2, 2), r::Kind { recovery: r::Recovery::Conditional, price: 0 }),
-        ]),
-        owned: vec![(2, r::Pattern { base: vec![b"env".to_vec()], terminal: Vec::new(), open: true })],
-        participating: BTreeSet::new(),
-        mechanics: BTreeSet::new(),
-        delivery_bound: 60_000_000_000,
-        uncertainty_bound: 60_000_000_000,
-        story_steps: 2000,
-    };
+    let mut kinds = BTreeMap::from([
+        ((2, 1), r::Kind { recovery: r::Recovery::Keyed, price: 0 }),
+        ((2, 2), r::Kind { recovery: r::Recovery::Conditional, price: 0 }),
+    ]);
+    let mut owned = vec![(2, r::Pattern { base: vec![b"env".to_vec()], terminal: Vec::new(), open: true })];
     if environment_chat {
-        policy.kinds.insert((2, 4), r::Kind { recovery: r::Recovery::Keyed, price: 40 });
-        policy.kinds.insert((2, 5), r::Kind { recovery: r::Recovery::Conditional, price: 0 });
-        policy.owned.push((2, r::Pattern { base: vec![b"pool".to_vec()], terminal: Vec::new(), open: true }));
+        kinds.insert((2, 4), r::Kind { recovery: r::Recovery::Keyed, price: 40 });
+        kinds.insert((2, 5), r::Kind { recovery: r::Recovery::Conditional, price: 0 });
+        owned.push((2, r::Pattern { base: vec![b"pool".to_vec()], terminal: Vec::new(), open: true }));
     }
-    for kind in [1, 2] {
-        policy.requirements.push(r::Requirement {
-            project: None,
-            connector: 2,
-            kind,
-            pattern: r::Pattern { base: vec![b"env".to_vec()], terminal: Vec::new(), open: true },
-            judge: 1,
-            freshness: Some(30_000_000_000),
-        });
-    }
-    policy
+    let mut observer = jig_conformance::core::Observer::new(
+        &configuration.core,
+        jig_conformance::core::ConnectorPolicy { kinds, owned },
+    );
+    observer.record();
+    observer
 }
 
 pub use super::store::Store;
@@ -145,32 +116,35 @@ pub(super) fn core_store(store: &Store) -> jig_conformance::core::Store<'_> {
                 root::Record::Infrastructure(_) | root::Record::Observability(_) => None,
             })
             .collect(),
+        pending: store
+            .pending
+            .iter()
+            .map(|pending| jig_conformance::core::Commit {
+                number: pending.number,
+                writes: pending
+                    .writes
+                    .iter()
+                    .map(|write| match write {
+                        jig_fake_store::Write::Save { row: root::Record::Core(row), .. } => {
+                            jig_conformance::core::Write::Save(row)
+                        }
+                        jig_fake_store::Write::Erase(root::Key::Core(key)) => {
+                            jig_conformance::core::Write::Erase(key.clone())
+                        }
+                        jig_fake_store::Write::Save { .. } | jig_fake_store::Write::Erase(_) => {
+                            jig_conformance::core::Write::Other
+                        }
+                    })
+                    .collect(),
+            })
+            .collect(),
+        effects: effects(store),
         ..jig_conformance::core::Store::default()
     }
 }
 
-pub fn inbound(
-    intents: &mut jig_conformance::core::intents::Intents,
-    store: &Store,
-    event: &mut root::Event,
-) -> Vec<r::Observed> {
-    if let root::Event::Core(event) = event {
-        return intents.inbound_core(&core_store(store), event);
-    }
-    if let root::Event::Effect { key, proposal: Some(_), .. } = event {
-        return intents.propose(*key);
-    }
-    Vec::new()
-}
-
-pub fn intents(intents: &mut jig_conformance::core::intents::Intents, store: &Store) -> Vec<r::Observed> {
-    intents.durable(&core_store(store))
-}
-
-pub fn snapshot(store: &Store) -> r::Snapshot {
-    let records = core_store(store).rows;
-    let mut snapshot = jig_conformance::core::snapshot(&records);
-    let decisions = jig_conformance::core::proposal_decisions(&records);
+pub fn effects(store: &Store) -> jig_conformance::core::Effects {
+    let mut snapshot = jig_conformance::core::Effects::default();
     for record in store.rows.values() {
         match record {
             root::Record::Infrastructure(infra::Record::Outbox(row)) => {
@@ -195,21 +169,24 @@ pub fn snapshot(store: &Store) -> r::Snapshot {
                     accepted_by: None,
                 });
             }
+            root::Record::Infrastructure(infra::Record::Proposal { number, effect, .. }) => {
+                let (kind, _, _, target) = parts(effect);
+                snapshot
+                    .proposals
+                    .insert(*number, (2, jig_conformance::core::Effect { kind, target, purpose: target }));
+            }
             root::Record::Core(_) | root::Record::Infrastructure(_) | root::Record::Observability(_) => {}
         }
     }
-    for accepted in decisions {
-        for decision in &mut snapshot.decisions {
-            if let people::Proposer::Task(task) = accepted.proposer
-                && decision.key.task == task
-            {
-                decision.accepted_by = Some(r::Source::Person(accepted.by));
-                snapshot.acceptances.insert(
-                    (2, decision.key),
-                    r::Acceptance { proposal: accepted.proposal, by: r::Source::Person(accepted.by) },
-                );
-            }
-        }
-    }
+    snapshot
+}
+
+pub fn snapshot(store: &Store) -> r::Snapshot {
+    let view = core_store(store);
+    let mut snapshot = jig_conformance::core::snapshot(&view.rows);
+    snapshot.receipts.extend(view.effects.receipts);
+    snapshot.attempts.extend(view.effects.attempts);
+    snapshot.held_effects.extend(view.effects.held_effects);
+    snapshot.decisions = view.effects.decisions;
     snapshot
 }

@@ -1121,10 +1121,10 @@ fn a_revision_leaves_memory_as_its_last_holder_ends() {
     assert!(decision.iter().any(|write| matches!(write, root::Write::Erase(address) if *address == key(settings::Key::Charter { charter: 1, revision: 1 }))));
     assert!(!world.store.rows.contains_key(&key(settings::Key::Held(1))));
     assert!(!world.store.rows.contains_key(&key(settings::Key::Charter { charter: 1, revision: 1 })));
-    let reads::Answer::Historical(past) = client_read(&mut world, signed, reads::Read::Task { task: goal }) else {
+    let reads::Answer::Ended(past) = client_read(&mut world, signed, reads::Read::Task { task: goal }) else {
         panic!("ended task")
     };
-    let reads::Past::Task { document, .. } = past.value else { panic!("ended task document") };
+    let reads::EndedValue::Task { document, .. } = past.value else { panic!("ended task document") };
     assert!(document.instructions.is_none(), "a released revision supplies no charter fields");
     assert_eq!(revision(&world, 1, true).head.number, 1);
     assert_eq!(inventory(&mut world, signed).held.iter().map(|row| row.head.number).collect::<Vec<_>>(), [2]);
@@ -2021,10 +2021,10 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
     assert_eq!(reply, people::Reply::Outcome(people::Outcome::Cancelled { task: goal }));
     assert!(!world.store.rows.contains_key(&key(settings::Key::Held(1))));
     assert!(!world.store.rows.contains_key(&key(settings::Key::Charter { charter: 1, revision: 1 })));
-    let reads::Answer::Historical(past) = client_read(&mut world, signed, reads::Read::Task { task: goal }) else {
+    let reads::Answer::Ended(past) = client_read(&mut world, signed, reads::Read::Task { task: goal }) else {
         panic!("ended task")
     };
-    let reads::Past::Task { document, .. } = past.value else { panic!("ended task document") };
+    let reads::EndedValue::Task { document, .. } = past.value else { panic!("ended task document") };
     assert_eq!(document.executor, jig_domain_tasks::Executor::Agent { charter: 1 });
     assert_eq!(document.settings, Some(documents::TaskSettings { task: 1, run: None, newest: 2 }));
     assert!(document.instructions.is_none());

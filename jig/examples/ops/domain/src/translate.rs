@@ -39,7 +39,7 @@ pub(crate) fn infrastructure_description(
     number: u16,
     value: infrastructure::Description,
     waits_for_dependencies: bool,
-) -> core::connector::EffectDescription {
+) -> core::effects::connector::EffectDescription {
     let mut names = List::with_capacity(u32::try_from(value.resources.len()).expect("bounded resources"));
     for resource in value.resources {
         names.push(authority::Name { segments: resource.segments() }).expect("one resource name");
@@ -51,17 +51,17 @@ pub(crate) fn infrastructure_description(
             .expect("additional names");
     }
     let form = match value.form {
-        infrastructure::Form::Creation => core::connector::EffectForm::Creation,
-        infrastructure::Form::Transition => core::connector::EffectForm::Transition,
-        infrastructure::Form::Set => core::connector::EffectForm::Set,
+        infrastructure::Form::Creation => core::effects::connector::EffectForm::Creation,
+        infrastructure::Form::Transition => core::effects::connector::EffectForm::Transition,
+        infrastructure::Form::Set => core::effects::connector::EffectForm::Set,
     };
     let recovery = match value.recovery {
-        infrastructure::Recovery::Keyed => core::connector::Recovery::Keyed,
-        infrastructure::Recovery::Conditional => core::connector::Recovery::Conditional,
+        infrastructure::Recovery::Keyed => core::effects::connector::Recovery::Keyed,
+        infrastructure::Recovery::Conditional => core::effects::connector::Recovery::Conditional,
 
-        infrastructure::Recovery::Unrecoverable => core::connector::Recovery::Unrecoverable,
+        infrastructure::Recovery::Unrecoverable => core::effects::connector::Recovery::Unrecoverable,
     };
-    core::connector::EffectDescription {
+    core::effects::connector::EffectDescription {
         waits_for_dependencies,
         connector: number,
         purpose: value.state,
@@ -84,13 +84,13 @@ pub(crate) fn observability_description(
     value: observability::Effect,
     waits_for_dependencies: bool,
     vocabulary: &observability::Vocabulary,
-) -> core::connector::EffectDescription {
-    core::connector::EffectDescription {
+) -> core::effects::connector::EffectDescription {
+    core::effects::connector::EffectDescription {
         waits_for_dependencies,
         connector: number,
         purpose: value.until,
-        form: core::connector::EffectForm::Set,
-        recovery: core::connector::Recovery::Keyed,
+        form: core::effects::connector::EffectForm::Set,
+        recovery: core::effects::connector::Recovery::Keyed,
         effect: authority::Effect {
             connector: number,
             kind: vocabulary.silence_effect,
@@ -103,19 +103,19 @@ pub(crate) fn observability_description(
         },
     }
 }
-pub(crate) const fn infrastructure_outcome(value: infrastructure::Outcome) -> core::connector::OutboxOutcome {
+pub(crate) const fn infrastructure_outcome(value: infrastructure::Outcome) -> core::effects::connector::OutboxOutcome {
     match value {
-        infrastructure::Outcome::Made => core::connector::OutboxOutcome::Made,
-        infrastructure::Outcome::Failed => core::connector::OutboxOutcome::Failed,
-        infrastructure::Outcome::Skipped => core::connector::OutboxOutcome::NotMade,
-        infrastructure::Outcome::Uncertain => core::connector::OutboxOutcome::Uncertain,
+        infrastructure::Outcome::Made => core::effects::connector::OutboxOutcome::Made,
+        infrastructure::Outcome::Failed => core::effects::connector::OutboxOutcome::Failed,
+        infrastructure::Outcome::Skipped => core::effects::connector::OutboxOutcome::NotMade,
+        infrastructure::Outcome::Uncertain => core::effects::connector::OutboxOutcome::Uncertain,
     }
 }
-pub(crate) const fn observability_outcome(value: observability::Outcome) -> core::connector::OutboxOutcome {
+pub(crate) const fn observability_outcome(value: observability::Outcome) -> core::effects::connector::OutboxOutcome {
     match value {
-        observability::Outcome::Made => core::connector::OutboxOutcome::Made,
-        observability::Outcome::Failed => core::connector::OutboxOutcome::Failed,
-        observability::Outcome::Uncertain => core::connector::OutboxOutcome::Uncertain,
+        observability::Outcome::Made => core::effects::connector::OutboxOutcome::Made,
+        observability::Outcome::Failed => core::effects::connector::OutboxOutcome::Failed,
+        observability::Outcome::Uncertain => core::effects::connector::OutboxOutcome::Uncertain,
     }
 }
 pub(crate) const fn verdict(value: observability::Verdict, wall: Wall) -> (authority::Verdict, Wall) {
@@ -234,12 +234,12 @@ pub(crate) fn read_description(
 }
 
 /// The connector owns adoption roles; the root carries them into core admission.
-pub(crate) const fn resource_role(role: infrastructure::ResourceRole) -> core::connector::ResourceRole {
+pub(crate) const fn resource_role(role: infrastructure::ResourceRole) -> core::effects::connector::ResourceRole {
     match role {
-        infrastructure::ResourceRole::Owned => core::connector::ResourceRole::Owned,
-        infrastructure::ResourceRole::Participant => core::connector::ResourceRole::Participant,
-        infrastructure::ResourceRole::Context => core::connector::ResourceRole::Context,
-        infrastructure::ResourceRole::Unavailable => core::connector::ResourceRole::Unavailable,
+        infrastructure::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
+        infrastructure::ResourceRole::Participant => core::effects::connector::ResourceRole::Participant,
+        infrastructure::ResourceRole::Context => core::effects::connector::ResourceRole::Context,
+        infrastructure::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
     }
 }
 

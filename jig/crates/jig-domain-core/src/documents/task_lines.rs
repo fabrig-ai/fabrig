@@ -1,6 +1,8 @@
 //! The shared task line, constructed from a live or loaded ended owner row.
-use super::{BudgetLine, Chip, Count, Missing, PhaseCounts, WaitsOn};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{BudgetLine, Chip, Count, Missing, PhaseCounts, WaitsOn},
+};
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
 

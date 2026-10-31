@@ -167,8 +167,8 @@ fn queued_read_answers_keep_their_arrival_order_under_load() {
     );
     for delivery in &driver.delivered {
         if let Delivery::Read { answer, .. } = delivery {
-            let reads::Answer::Historical(past) = answer else { panic!("authenticated historical read: {answer:?}") };
-            let reads::Past::Turn(turn) = &past.value else { panic!("the requested historical turn") };
+            let reads::Answer::Ended(past) = answer else { panic!("authenticated historical read: {answer:?}") };
+            let reads::EndedValue::Turn(turn) = &past.value else { panic!("the requested historical turn") };
             assert_eq!(turn.transcript.as_ref(), TURN_TEXT, "authenticated read returned the durable turn");
         }
     }

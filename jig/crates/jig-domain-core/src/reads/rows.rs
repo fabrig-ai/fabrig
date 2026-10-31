@@ -1,10 +1,14 @@
 //! Read-only construction from bounded authenticated owner rows.
 //! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! Deployment period spend includes removed projects (jig/docs/design/domain/people.md, 5.2).
-use super::vocabulary::{row_bytes, row_owner, row_visible};
-use super::{Answer, Cursor, Filter, Group, Historical, Page, PageRow, Past, Position, Range, Read, Row, Scope, Why};
-use crate::documents::{self, Document, Missing, Proposer};
-use crate::{Core, CoreKey, CoreRecord, Key, Limits, Record};
+use crate::{
+    Core, CoreKey, CoreRecord, Key, Limits, Record,
+    documents::{self, Document, Missing, Proposer},
+    reads::{
+        Answer, Cursor, Ended, EndedValue, Filter, Group, Page, PageRow, Position, Range, Read, Row, Scope, Why,
+        vocabulary::{row_bytes, row_owner, row_visible},
+    },
+};
 use alloc::boxed::Box;
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
@@ -516,8 +520,8 @@ fn owner_rows(
     }
 }
 
-fn historical(value: Past, at: Option<skein_lib::Wall>, by: Option<tasks::Party>) -> Answer {
-    Answer::Historical(Box::new(Historical { value, at, by }))
+fn ended_answer(value: EndedValue, at: Option<skein_lib::Wall>, by: Option<tasks::Party>) -> Answer {
+    Answer::Ended(Box::new(Ended { value, at, by }))
 }
 
 #[expect(clippy::manual_map, reason = "the strict subset uses an exhaustive match rather than a function pointer")]
@@ -560,8 +564,8 @@ fn object(
                 documents::result_from_row(core, limits, range.party, owner, wall)?,
             )?;
             let answer = match range.scope {
-                Scope::Task { .. } => historical(
-                    Past::Task {
+                Scope::Task { .. } => ended_answer(
+                    EndedValue::Task {
                         document: Box::new(hydrate_task(
                             core,
                             limits,
@@ -574,8 +578,8 @@ fn object(
                     owner.ended_at,
                     result_actor(owner),
                 ),
-                Scope::PersonTask { .. } => historical(
-                    Past::PersonTask {
+                Scope::PersonTask { .. } => ended_answer(
+                    EndedValue::PersonTask {
                         document: Box::new(hydrate_person(
                             core,
                             limits,
@@ -619,7 +623,9 @@ fn object(
                 }
                 let made = documents::history_from_row(limits, value)?;
                 Ok(match made.proposal {
-                    Some(proposal) => Some(historical(Past::Proposal(proposal), Some(value.at), Some(value.by))),
+                    Some(proposal) => {
+                        Some(ended_answer(EndedValue::Proposal(proposal), Some(value.at), Some(value.by)))
+                    }
                     None => None,
                 })
             }
@@ -672,7 +678,7 @@ fn object(
                         (Some(*at), Some(tasks::Party::Person(value.proposer)))
                     }
                 };
-                Ok(Some(historical(Past::PersonProposal { proposal: value.clone(), decision }, at, by)))
+                Ok(Some(ended_answer(EndedValue::PersonProposal { proposal: value.clone(), decision }, at, by)))
             }
             Record::Tasks(
                 tasks::Stored::Live(_)
@@ -712,8 +718,8 @@ fn object(
                 },
                 None => None,
             };
-            Ok(Some(historical(
-                Past::Escalation {
+            Ok(Some(ended_answer(
+                EndedValue::Escalation {
                     task: Box::new(documents::task_from_row(core, limits, range.party, owner, wall)?),
                     decision: decision.clone(),
                     hold,
@@ -788,8 +794,8 @@ fn object(
             } else {
                 None
             };
-            Ok(Some(historical(
-                Past::Question {
+            Ok(Some(ended_answer(
+                EndedValue::Question {
                     question: documents::Question {
                         acts: List::with_capacity(0),
                         task: documents::chip_from_row_with_core(core, limits, owner)?,
@@ -814,7 +820,7 @@ fn object(
             }
             match &line.line {
                 tasks::Line::Notified { recipient: tasks::Party::Person(person), word } if *person == range.party => {
-                    Ok(Some(historical(Past::Reply(word.clone()), Some(line.at), Some(word.from))))
+                    Ok(Some(ended_answer(EndedValue::Reply(word.clone()), Some(line.at), Some(word.from))))
                 }
                 tasks::Line::Turn { reply, attempt, turn, .. } => {
                     let owner = row_owner(&row).expect("matched reply owner");
@@ -830,7 +836,7 @@ fn object(
                     if value.task != *task || value.attempt != *attempt || value.turn != *turn {
                         return Err(Missing::Unknown);
                     }
-                    Ok(Some(historical(Past::Turn(value.clone()), Some(value.at), None)))
+                    Ok(Some(ended_answer(EndedValue::Turn(value.clone()), Some(value.at), None)))
                 }
                 tasks::Line::Words { .. }
                 | tasks::Line::Heard(_)
@@ -849,7 +855,7 @@ fn object(
             if value.task != *task || value.attempt != *attempt || value.turn != *turn || !owner_matches(&row, *task) {
                 return Ok(None);
             }
-            Ok(Some(historical(Past::Turn(value.clone()), Some(value.at), None)))
+            Ok(Some(ended_answer(EndedValue::Turn(value.clone()), Some(value.at), None)))
         }
         Scope::EndedTasks
         | Scope::TaskRows { .. }

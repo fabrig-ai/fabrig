@@ -31,12 +31,12 @@ fn a_chat_tells_its_person_why_its_change_holds_before_waiting() {
         world.tick();
     }
     assert!(matches!(live_task(&world, chat.task).phase, tasks::Phase::Active(tasks::Active::Idle)));
-    let reads::Answer::Historical(past) =
+    let reads::Answer::Ended(past) =
         world.party_read(reads::Read::Turn { task: chat.task, attempt: resumed.attempt, turn: 1 })
     else {
         panic!("person reads the reply after the chat waits")
     };
-    let reads::Past::Turn(turn) = past.value else { panic!("chat turn") };
+    let reads::EndedValue::Turn(turn) = past.value else { panic!("chat turn") };
     assert_eq!(turn.transcript.as_ref(), reply.as_bytes());
     assert!(turn.transcript.windows(REASON.len()).any(|bytes| bytes == REASON));
 }
