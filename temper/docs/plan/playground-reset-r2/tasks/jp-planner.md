@@ -80,8 +80,10 @@ Not yours: emitting any write (`jp-delete`); `Write::DropTranscript`
    /// indexes and its requester's edge, then `Ended` itself, last.
    pub(crate) fn record_keys(record: &tasks::TaskRecord, out: &mut List<Key>) -> Option<()>;
    /// A row a `TaskRows` read gave: its own key, then any index key the
-   /// core derived from it when it was saved.
-   pub(crate) fn row_keys(row: &Record, out: &mut List<Key>) -> Option<()>;
+   /// core derived from it when it was saved. `requester` is the
+   /// requester of the task being erased (its `Ended` record's), `None`
+   /// for a row read outside a task's erasure.
+   pub(crate) fn row_keys(row: &Record, requester: Option<tasks::Party>, out: &mut List<Key>) -> Option<()>;
    /// The most keys one record or row can plan, to size `out`.
    pub(crate) const MOST_KEYS: u32 = /* the count you find */;
    ```
@@ -95,6 +97,11 @@ Not yours: emitting any write (`jp-delete`); `Write::DropTranscript`
    `row_keys`: `row.key()` (the `Record`'s key), then, for each kind
    `indexes::save` derives an index row from, that index row's key by the
    same derivation.
+   A `Line::Turn` reply takes its `Update`'s party from `requester`
+   where `indexes::save` takes it from the core's live record: a
+   `Party::Person` plans the `Update`; another party, or `None`, plans
+   none. Share the derivation with `indexes::save` (one function taking
+   the line and the requester) rather than repeat it.
 
 2. Tests: the acceptance's. Then, one at a time:
    - `heavy cargo nextest run -p jig-domain-core --lib -E 'test(/erasure/)'`;
@@ -109,3 +116,25 @@ Not yours: emitting any write (`jp-delete`); `Write::DropTranscript`
 The standard report, plus: every row kind the plan covers and how its
 key is derived; any row naming the task you found no derivation for (the
 referee, `jp-referee`, will look for it).
+
+## Answers
+
+2026-10-31. Q: `row_keys(row, out)` cannot derive a `Line::Turn` reply's
+`Update` key, whose party `indexes::save` takes from the live record;
+return the `Update` rows from `TaskRows`, or persist the addressed party
+on the line?
+A: Neither. `row_keys` takes the erased task's requester:
+`row_keys(row, requester: Option<tasks::Party>, out)` (step 1 amended),
+and `jp-erase` passes its held `Ended` record's `requester`. `TaskRows`
+cannot give `Update` rows: their keys start with the party, so a task's
+replies are no key range, only a filtered scan of every party's updates
+per task. A stored-format change is the user's, and not this run's. What
+stays open: replies saved before an adoption moved the task to another
+person (`jig-domain-tasks/src/moving.rs`, `make`) were indexed under the
+earlier requester and are not planned, as retention does not erase them
+either (`protocol/store.md`, 7.4, "An owner erased first"). Test
+`an_activity_reply_plans_its_update` and `the_plan_matches_what_the_core_saved`
+with an unmoved task; add `a_reply_of_a_task_requested_by_a_task_plans_no_update`
+(requester `Party::Task`: the row's key only). Name the adopted-task
+case in the report as a row naming the task with no derivation, for
+`jp-referee`.

@@ -94,7 +94,8 @@ Not yours: notes, decided proposals and the project's own rows
    load `Scope::TaskRows { task }` from its start; with none of the
    project on the page, load the next page from `next` (the cursor held
    in memory only) or, with `next: None`, `enter(.., RemovalStage::Notes, ..)`.
-3. For `TaskRows`: in this decision, erase each row's `row_keys`,
+3. For `TaskRows`: in this decision, erase each row's `row_keys` (with
+   `Some(record.requester)`, the held record's),
    deduplicated within the decision (a key erased twice in one commit is
    one erase); with `next: Some`, load the next page; with `next: None`,
    in the same decision also erase `record_keys(record)` (`Ended` last),

@@ -85,7 +85,7 @@ Not yours: erasing tasks (`jp-erase`); resuming at a start (`jp-delete`).
    `Work::Proposals { after: None }`; load `Scope::DecidedProposals` with
    the page bounds `jp-erase` uses (`after` as `Position::Owner` of the
    last proposal's key).
-2. `rows::loaded`, for `Proposals`: erase `row_keys` of each row of the
+2. `rows::loaded`, for `Proposals`: erase `row_keys` (requester `None`) of each row of the
    project (`PersonProposal.project`), deduplicated; next page from
    `next`, in memory; at the end, `Work::Notes` and load `Scope::Notes {
    project }` (the read that serves a project's notes today).
