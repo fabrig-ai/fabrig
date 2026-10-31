@@ -1565,6 +1565,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "jig-protocol-config",
+ "jig-protocol-store",
  "jig-protocol-tools",
  "jig-test-connector",
  "jig-test-connector-world",

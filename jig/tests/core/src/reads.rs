@@ -62,7 +62,11 @@ impl Parties {
 
     pub fn inbound(&mut self, event: &root::Event) {
         match event {
-            root::Event::StartBegin { .. } | root::Event::StartDone(_) => {
+            root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_) => {
                 unreachable!("the start driver is not selected here")
             }
             root::Event::Core(core::Event::Read { .. }) | root::Event::ReadApplication { .. } => {

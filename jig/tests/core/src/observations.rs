@@ -423,7 +423,11 @@ impl Observer {
             self.observe(now, observed);
         }
         match event {
-            root::Event::StartBegin { .. } | root::Event::StartDone(_) => {
+            root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_) => {
                 unreachable!("the start driver is not selected here")
             }
             root::Event::Core(core::Event::People(people::Event::Ask { models: _, reply_to, sign_in, key, ask })) => {
