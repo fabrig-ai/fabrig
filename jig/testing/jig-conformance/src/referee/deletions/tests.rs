@@ -7,6 +7,28 @@ const AT: u64 = 0;
 const PROJECT: u32 = 1;
 const TASK: u64 = 7;
 
+#[test]
+fn only_ended_deletions_retain_their_proven_acceptance_during_cleanup() {
+    for phase in [Phase::Active, Phase::Ended] {
+        for deleting in [false, true] {
+            let (_, mut before) = baseline();
+            before.tasks.get_mut(&TASK).expect("baseline task").phase = phase;
+            let acceptance = crate::referee::Acceptance { proposal: 1, by: Source::Person(3) };
+            before.accepted_tasks.insert(TASK, acceptance);
+            let mut after = before.clone();
+            after.accepted_tasks.clear();
+            if deleting {
+                after.deleting.insert(PROJECT);
+            }
+            super::Deletions::default().retain_acceptances(&before, &mut after);
+            assert_eq!(
+                after.accepted_tasks.get(&TASK).copied(),
+                (deleting && phase == Phase::Ended).then_some(acceptance)
+            );
+        }
+    }
+}
+
 fn task(number: u64) -> Task {
     Task {
         settings: crate::referee::SettingsRevision::default(),

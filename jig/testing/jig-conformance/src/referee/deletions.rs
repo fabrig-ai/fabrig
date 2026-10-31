@@ -16,6 +16,20 @@ pub(super) struct Deletions {
 }
 
 impl Deletions {
+    /// A proven acceptance stays with an ended owner while deletion erases its evidence.
+    pub(super) fn retain_acceptances(&self, before: &Snapshot, after: &mut Snapshot) {
+        for task in after.tasks.values() {
+            if task.closed()
+                && (before.deleting.contains(&task.project)
+                    || after.deleting.contains(&task.project)
+                    || self.removed_project(task.project))
+                && let Some(accepted) = before.accepted_tasks.get(&task.number)
+            {
+                after.accepted_tasks.entry(task.number).or_insert(*accepted);
+            }
+        }
+    }
+
     pub(super) fn removed(&mut self, project: u32) {
         self.projects.entry(project).or_default().removed = true;
     }

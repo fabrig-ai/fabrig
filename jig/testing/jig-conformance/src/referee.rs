@@ -526,8 +526,9 @@ impl Referee {
         clippy::too_many_lines,
         reason = "one atomic snapshot checks linked task, pool and effect evidence together"
     )]
-    fn durable(&mut self, number: u64, snapshot: Snapshot, now: u64) -> Result<(), Violation> {
+    fn durable(&mut self, number: u64, mut snapshot: Snapshot, now: u64) -> Result<(), Violation> {
         require(number == self.commit + 1, Promise::Commit, "commits apply whole in number order")?;
+        self.deletions.retain_acceptances(&self.last, &mut snapshot);
         self.deletions.durable(&snapshot)?;
         for task in snapshot.tasks.values() {
             let before = self.last.tasks.get(&task.number);

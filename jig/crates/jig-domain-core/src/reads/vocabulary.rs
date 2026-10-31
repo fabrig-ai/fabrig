@@ -65,7 +65,8 @@ pub enum Scope {
     /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store.md, 11.1;
     /// jig/docs/design/domain/people.md, 5.2).
     EndedTasks,
-    /// Task-first history, milestones, activity, terminals, decisions and ended reads
+    /// History, milestones, activity, terminals, decisions, ended reads and the
+    /// party proposal and update rows whose task link names this owner
     /// (jig/docs/design/protocol/store.md, 11.1; jig/docs/design/domain/people.md, 5.2).
     TaskRows { task: u64 },
     /// Dense inclusive revision interval; held newest and tag-9 predecessors.

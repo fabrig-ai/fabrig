@@ -164,10 +164,13 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
         Scope::TaskRows { task } => Box::new([
             numbered_prefix(&[keys::JIG, 0, 5], *task),
             numbered_prefix(&[keys::JIG, 0, 6, 0], *task),
+            Range::prefix(&[keys::JIG, 0, 6, 1]),
             numbered_prefix(&[keys::JIG, 0, 7], *task),
+            Range::prefix(&[keys::JIG, 1, 8]),
             numbered_prefix(&[keys::JIG, 1, 9], *task),
             numbered_prefix(&[keys::JIG, 1, 10], *task),
             numbered_prefix(&[keys::JIG, 1, 11], *task),
+            Range::prefix(&[keys::JIG, 1, 12]),
             numbered_prefix(&[keys::JIG, 2, 7], *task),
         ]),
         Scope::SettingsHistory { first, last, newest, .. } => {
