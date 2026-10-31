@@ -206,8 +206,10 @@ fn forge_and_playground_keys_follow_receipt_and_refuse_malformed_bytes() {
         assert_eq!(bytes.len(), 9);
         assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
         assert_eq!(keys::encode(&Key::Forge(number), 8), None);
-        let mut trailing = bytes.into_vec();
-        trailing.push(0);
+        let mut writer = skein_lib::Writer::new(10);
+        writer.put(&bytes).expect("forge key room");
+        writer.put(&[0]).expect("trailing byte room");
+        let trailing = writer.finish();
         assert_eq!(keys::decode(&trailing, &fixtures::LIMITS), None);
     }
     for (key, tag) in [(Key::ForgeNumber, 26), (Key::Playground, 27)] {

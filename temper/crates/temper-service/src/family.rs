@@ -640,7 +640,8 @@ pub fn answer(
         Some(
             root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed)
             | root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset),
-        ) => w::Outcome::Unknown,
+        )
+        | None => w::Outcome::Unknown,
         Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => {
             start_answer(forge::StartAnswer::NotOffered, limits)?
         }
@@ -662,7 +663,6 @@ pub fn answer(
                 .ok()?,
             )
         }
-        None => w::Outcome::Unknown,
     };
     let answer = w::Answer::new(limits, w::AnswerParts { outcome }).ok()?;
     Some(wire::answer(&answer))
