@@ -24,7 +24,6 @@ const PENDING: &[(&str, &str, &str)] = &[
     ("jig-client-views-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-client-wire-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-client-world", "jig-core-world", "The fixture uses the core world driver and its peers."),
-    ("jig-client-world", "jig-engine-clients-world", "The client fixture reuses engine protocol scenarios."),
     ("jig-client-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-conformance", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-conformance-world", "jig-client-world", "The fixture reuses the shared client harness."),
