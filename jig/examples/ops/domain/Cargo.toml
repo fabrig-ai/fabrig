@@ -21,6 +21,7 @@ jig-domain-brief.workspace = true
 jig-domain-notes.workspace = true
 jig-domain-views.workspace = true
 jig-domain-host.workspace = true
+jig-domain-hub-link.workspace = true
 jig-protocol-charter.workspace = true
 jig-ops-domain-observability.workspace = true
 jig-ops-domain-infrastructure.workspace = true
