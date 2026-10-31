@@ -28,6 +28,13 @@ fn settings(seed: u64) -> Settings {
     settings
 }
 
+#[derive(Debug)]
+enum Mutation {
+    LiveChild,
+    ExtraFinal,
+    PrematureAnswer,
+}
+
 #[test]
 fn a_sub_agent_that_spends_the_ordinary_pool_is_closed_then_main_finishes_in_its_final_turns() {
     let mut accepted = 0;
@@ -102,21 +109,22 @@ fn final_turns_ignored_fail_once_for_the_budget() {
     )));
     assert_eq!(world.wind_down_seen().iter().filter(|(_, _, seen)| matches!(seen, Seen::Final { .. })).count(), 3);
     assert!(judge(world.wind_down_seen()).iter().all(|verdict| *verdict == Verdict::Passed));
-    for violation in 0..3 {
+    for violation in [Mutation::LiveChild, Mutation::ExtraFinal, Mutation::PrematureAnswer] {
         let mut bad = world.wind_down_seen().to_vec();
         let first = bad.iter().position(|(_, _, seen)| matches!(seen, Seen::Final { .. })).expect("final request");
         match violation {
-            0 => bad[first].2 = Seen::Final { main: true, live_children: 1 },
-            1 => {
+            Mutation::LiveChild => bad[first].2 = Seen::Final { main: true, live_children: 1 },
+            Mutation::ExtraFinal => {
                 let extra = bad[first];
                 bad.insert(first, extra);
             }
-            2 => bad[first].2 = Seen::Answer { turns_failure: true, time_failure: false, time_expired: false },
-            _ => unreachable!(),
+            Mutation::PrematureAnswer => {
+                bad[first].2 = Seen::Answer { turns_failure: true, time_failure: false, time_expired: false }
+            }
         }
         assert!(
             judge(&bad).iter().any(|verdict| matches!(verdict, Verdict::Failed(_))),
-            "positive-first final rule {violation}"
+            "positive-first final rule {violation:?}"
         );
     }
 }

@@ -536,6 +536,7 @@ fn derive_domain(
         compaction_material: room::compaction_material(declared.calls_per_response, run::summary_bytes())
             .ok_or(derived(Layer::Run, "compaction_material"))?,
         schema_costs,
+        effort_bytes: smith_charter::CEILINGS.llm_effort_some,
     }) {
         Ok(limits) => limits,
         Err(field) => return Err(derived(Layer::Run, field.name())),

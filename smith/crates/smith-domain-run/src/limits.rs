@@ -52,6 +52,8 @@ pub struct Limits {
     pub compaction_threshold: [u32; 2],
     /// Summary instruction and owed-result markers above each conversation's line.
     pub compaction_material: u64,
+    /// Maximum provider effort-name bytes, supplied by the protocol owner.
+    pub effort_bytes: u32,
     /// Exact protocol renderer projections, measured at startup.
     pub schema_costs: crate::SchemaCosts,
     /// Directories a present workspace may list; empty present workspaces refuse.
@@ -169,6 +171,8 @@ pub struct Derivation {
     pub compaction_threshold: [u32; 2],
     /// Summary instruction and owed-result markers above each conversation's line.
     pub compaction_material: u64,
+    /// Maximum provider effort-name bytes, supplied by the protocol owner.
+    pub effort_bytes: u32,
     pub schema_costs: crate::SchemaCosts,
 }
 
@@ -203,6 +207,7 @@ pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
         room: inputs.room,
         compaction_threshold: inputs.compaction_threshold,
         compaction_material: inputs.compaction_material,
+        effort_bytes: inputs.effort_bytes,
         schema_costs: inputs.schema_costs,
         directories: 4,
         directory_name_bytes: 256,

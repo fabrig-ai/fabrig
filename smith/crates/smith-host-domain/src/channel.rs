@@ -10,9 +10,9 @@ use crate::{Charter, Declared, Delivery, Fields, Transcript, TurnValue};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Time, Token};
 pub use smith_domain::run::{
-    BudgetRefusal, CallName, Cap, Ceiling, CompletionEvidence, CompletionFailure, Exhausted, HostEffect as Effect,
-    Invalid as RunInvalid, Limit, Message, Overflow, Part, Phase, Policy, Rate, ReceivingLimit, Refusal, Report,
-    TranscriptRefusal,
+    BudgetRefusal, CallName, Cap, Ceiling, CompletionEvidence, CompletionFailure, CompletionPhase as Phase, Exhausted,
+    HostEffect as Effect, Invalid as RunInvalid, Limit, Message, Overflow, Part, Policy, Rate, ReceivingLimit, Refusal,
+    Report, TranscriptRefusal,
 };
 
 /// The host asks for live content, one boolean per kind (protocol/channel.md, section 3).

@@ -10,17 +10,7 @@ use smith_run_world::host;
 use smith_run_world::partner::Script;
 use smith_run_world::{Checkouts, Settings, Span, World, noisy};
 
-const ITERATIONS: u32 = 1_000_000;
-
-fn settled(settings: &Settings) -> World {
-    let mut world = World::new(*settings);
-    world.run(ITERATIONS);
-    world
-}
-
-fn answers(world: &World) -> Vec<&Answer> {
-    world.answers().map(|answer| answer.expect("every start is answered")).collect()
-}
+use crate::support::{answers, settled};
 
 fn time_pressure() -> Settings {
     let mut settings = Settings::calm(34);
@@ -257,7 +247,7 @@ fn cancels_find_runs_in_every_state_over_many_seeds_cells() -> BTreeMap<&'static
     let host = host::Script { cancels: 1000, cancel: Span::millis(0, 1_000), recancels: 1000, ..calm.host };
     let checkout = Checkouts { io: Span::millis(3_000, 5_000), ..calm.checkout };
     tally(&settled(&Settings { host, checkout, ..calm }), &mut cancels, &mut deadlines);
-    // Cancelled as changes are checked and pushed, and as the LLM spends past
+    // Cancelled as changes are checked and delivered, and as the LLM spends past
     // its budget.
     for seed in 21..24 {
         let landing = finishing(seed);
@@ -359,7 +349,7 @@ fn deadlines_find_runs_in_every_state_they_run_in_over_many_seeds_cells() -> BTr
         let settings = Settings { host, checkout, partner, hop: Span::millis(0, 1_500), ..calm };
         tally(&settled(&settings), &mut cancels, &mut deadlines);
     }
-    // And as changes are checked and pushed, and as the LLM spends past its
+    // And as changes are checked and delivered, and as the LLM spends past its
     // budget.
     for seed in 50..56 {
         let landing = finishing(seed);

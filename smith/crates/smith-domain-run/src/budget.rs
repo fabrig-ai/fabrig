@@ -405,10 +405,11 @@ pub fn reserve_spend(reserve: Reserve, main: &Llm) -> Option<u64> {
 
 /// Remaining ordinary credit, above main's finishing reserve in each part.
 pub(crate) fn ordinary(budget: &Budget, reserve: Reserve, reserve_spend: u64, spent: Spend, left: Duration) -> Budget {
+    let remaining = budget.remainder(spent, left);
     Budget {
-        turns: budget.turns.saturating_sub(spent.turns).saturating_sub(reserve.turns),
-        spend: budget.spend.saturating_sub(spent.units).saturating_sub(reserve_spend),
-        time: Duration::from_nanos(left.as_nanos().saturating_sub(reserve.time.as_nanos())),
+        turns: remaining.turns.saturating_sub(reserve.turns),
+        spend: remaining.spend.saturating_sub(reserve_spend),
+        time: Duration::from_nanos(remaining.time.as_nanos().saturating_sub(reserve.time.as_nanos())),
     }
 }
 

@@ -36,7 +36,7 @@ pub(crate) struct Call {
 /// What a call is doing.
 #[derive(Debug)]
 pub(crate) enum Work {
-    Host(crate::host::Relay),
+    Host(crate::run::relay::Relay),
     /// A finish, landing its change.
     Landing(Landing),
     /// A sub-agent's.
