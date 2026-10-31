@@ -126,7 +126,11 @@ fn route_ask(
 ) {
     match ask {
         core::Ask::ReleaseProject { project } => {
-            work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
+            if let Some(releases) = &mut domain.scripted_project_releases {
+                releases.push((number, project));
+            } else {
+                work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
+            }
         }
         core::Ask::StepMade { task, step, first, revisions } => {
             domain.procedure_steps.remove(&task);

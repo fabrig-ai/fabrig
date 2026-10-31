@@ -44,6 +44,7 @@ fn cursor_keys() -> Box<[Key]> {
     }
     for key in [
         Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector: 1, key: [0; 16] })),
+        Key::People(jig_domain_people::Key::Deletion(1)),
         Key::Tasks(jig_domain_tasks::Key::PlacedHold(TASK)),
         Key::People(jig_domain_people::Key::Deletion(0)),
         Key::People(jig_domain_people::Key::Deletion(u32::MAX)),
@@ -173,11 +174,11 @@ fn no_restart_interval_holds_a_turn_terminal_or_note() {
 fn each_fixed_scope_holds_the_keys_it_admits_and_no_others() {
     use jig_domain_core::reads;
     let mut rng = Rng::new(0x5701_e006);
-    let mut mappings = skein_lib::List::with_capacity(28);
+    let mut mappings = skein_lib::List::with_capacity(30);
     for scope in fixed_scopes() {
         for party in [1, 2] {
             let intervals = intervals::scope(party, &scope).expect("fixed scope");
-            mappings.push((party, scope.clone(), intervals)).expect("fourteen scopes and two parties");
+            mappings.push((party, scope.clone(), intervals)).expect("fifteen scopes and two parties");
         }
     }
     for _ in samples() {
@@ -193,13 +194,14 @@ fn each_fixed_scope_holds_the_keys_it_admits_and_no_others() {
     }
 }
 
-fn fixed_scopes() -> [jig_domain_core::reads::Scope; 14] {
+fn fixed_scopes() -> [jig_domain_core::reads::Scope; 15] {
     use jig_domain_core::reads::Scope;
     [
         Scope::Proposal { proposer: jig_domain_people::Proposer::Party(1), proposal: 1 },
         Scope::Proposal { proposer: jig_domain_people::Proposer::Party(2), proposal: 1 },
         Scope::SettingsHistory { first: 1, last: 3, newest: 3, whole: false },
         Scope::Spend { project: 1 },
+        Scope::Spend { project: 0 },
         Scope::EndedDelegates { task: 1 },
         Scope::Task { task: 1 },
         Scope::PersonTask { task: 1 },

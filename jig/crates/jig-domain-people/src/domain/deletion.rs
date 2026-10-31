@@ -11,6 +11,7 @@ pub(super) fn keep(domain: &mut Domain, project: u32, step: Option<DeletionStep>
         }
         None => {
             domain.deletions.remove(&project);
+            forget(domain, project, out);
             out.push(Request::Erase { key: Key::Deletion(project) });
         }
     }
@@ -25,6 +26,9 @@ pub(super) fn close(domain: &mut Domain, project: u32, out: &mut Queue<Request>)
 pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let mut answers = List::with_capacity(domain.answers.len());
     for (key, answer) in &domain.answers {
+        if kept_answer(domain, &answer.outcome) {
+            continue;
+        }
         if ask_project(&answer.ask) == Some(project) || made_project(&answer.outcome) == Some(project) {
             answers.push(*key).expect("bounded retained answers");
         }
@@ -36,6 +40,9 @@ pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>
     }
     let mut acts = List::with_capacity(domain.acted.len());
     for (key, answer) in &domain.acted {
+        if kept_answer(domain, answer.outcome()) {
+            continue;
+        }
         if answer.project() == Some(project) {
             acts.push(*key).expect("bounded retained acts");
         }
@@ -45,6 +52,16 @@ pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>
         domain.act_alarms.cancel(key);
         out.push(Request::Erase { key: Key::Acted(key) });
     }
+}
+
+/// A removal's terminal stays until the deletion finishes (temper/docs/design/draft/playground-reset.md, 5).
+pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
+    for (&project, _) in &domain.deletions {
+        if *outcome == (Outcome::ProjectRemoved { project }) {
+            return true;
+        }
+    }
+    false
 }
 
 pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {

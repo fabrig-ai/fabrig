@@ -213,10 +213,16 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
         }
         Scope::EndedDelegates { task } => Box::new([numbered_prefix(&[keys::JIG, 1, 17], *task)]),
         Scope::Tasks { query } => ended_tasks(query),
-        Scope::Spend { project } => Box::new([
-            numbered_prefix(&[keys::JIG, 1, 2, 3], u64::from(*project)),
-            numbered_prefix(&[keys::JIG, 1, 7, 3], u64::from(*project)),
-        ]),
+        Scope::Spend { project } => {
+            if *project == jig_domain_people::DEPLOYMENT {
+                Box::new([Range::prefix(&[keys::JIG, 1, 2, 3]), Range::prefix(&[keys::JIG, 1, 7, 3])])
+            } else {
+                Box::new([
+                    numbered_prefix(&[keys::JIG, 1, 2, 3], u64::from(*project)),
+                    numbered_prefix(&[keys::JIG, 1, 7, 3], u64::from(*project)),
+                ])
+            }
+        }
         Scope::Notes { project } => {
             let project_scope = numbered_prefix(&[keys::JIG, 3, 1, 1], u64::from(*project));
             let goals = numbered_prefix(&[keys::JIG, 3, 1, 2], u64::from(*project));

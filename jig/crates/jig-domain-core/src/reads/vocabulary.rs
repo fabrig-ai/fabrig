@@ -100,7 +100,7 @@ pub enum Scope {
     Notes { project: u32 },
     /// Exact notes owner scope and optional byte substring of its descriptions.
     ScopedNotes { scope: notes::Scope, description: Option<Box<[u8]>> },
-    /// Historical project period ledgers.
+    /// Historical period ledgers; project zero selects the deployment's projects.
     Spend { project: u32 },
 }
 
@@ -231,7 +231,7 @@ pub enum Read {
         description: Option<Box<[u8]>>,
         from: Option<Cursor>,
     },
-    /// Historical period spending.
+    /// Historical period spending; project zero selects the deployment's projects.
     Spend {
         project: u32,
         from: Option<Cursor>,
@@ -494,7 +494,9 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
             }
         }
         Record::Tasks(tasks::Stored::Ledger(ledger) | tasks::Stored::ClosedLedger(ledger)) => match ledger.funder {
-            tasks::Funder::Period { project, .. } => core.people.role(party, project).is_some(),
+            tasks::Funder::Period { project, .. } => {
+                core.people.role(party, project).is_some() || core.people.role(party, people::DEPLOYMENT).is_some()
+            }
             tasks::Funder::Pool { project, person, .. } => {
                 person == party && core.people.role(party, project).is_some()
             }
