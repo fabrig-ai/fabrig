@@ -1,6 +1,6 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary deterministic harness, programming-model.md 10.2")]
 use super::{
-    fixtures::{backend, env, request, resumable as launchable, resume_request as history},
+    fixtures::{env, request, resumable as launchable, resume_request as history},
     *,
 };
 use crate::backend::fixtures::COMPLETION;

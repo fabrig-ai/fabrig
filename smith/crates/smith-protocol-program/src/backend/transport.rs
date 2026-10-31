@@ -6,7 +6,6 @@ use super::{Backend, Below, Owner, PIPE_BYTES, Pipes, State};
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
 use skein_lib::{Env, List, Queue, Token, stream};
-use smith_domain::llm;
 use smith_protocol_llm::{self as protocol, ToDomain};
 
 impl Backend {
@@ -151,7 +150,7 @@ impl Backend {
                             }
                         }
                         stream::OutputOutcome::Cancelled | stream::OutputOutcome::Failed(_) => {
-                            self.fail_program(env, b"smith: the program input failed", up, below)
+                            self.fail_program(env, b"smith: the program input failed", up, below);
                         }
                     }
                 }
