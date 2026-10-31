@@ -220,14 +220,11 @@ pub fn decode(name: &[u8], arguments: &[u8]) -> agent::Decoded {
 
 fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
     let client = skein_llm_world::limits();
-    let limits = smith_protocol_llm::Limits {
+    let limits = smith_protocol_llm::fixture::small(
         client,
-        tool_bytes: 32768,
-        history_bytes: u64::from(client.request),
-        rendered_result: client.strings,
-        stated: smith_protocol_llm::Stated::from_tools(&smith_tools_world::Settings::calm(0).tools, client.input)
+        smith_protocol_llm::Stated::from_tools(&smith_tools_world::Settings::calm(0).tools, client.input)
             .expect("fixture numbers"),
-    };
+    );
     match smith_protocol_llm::decode(
         name,
         arguments,

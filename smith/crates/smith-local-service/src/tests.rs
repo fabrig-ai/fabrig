@@ -74,14 +74,16 @@ pub(crate) fn config() -> Config {
                 close_timeout: Duration::from_secs(1),
                 retry: Duration::from_millis(1),
             },
-            smith_host_protocol::Limits {
-                bodies: agent_limits.channel.bodies,
-                charter: agent_limits.channel.charter,
-                transcript: agent_limits.channel.transcript,
-                endpoints: agent_limits.channel.endpoints,
-                channel: agent_limits.channel.channel,
-                start_bytes: agent_limits.channel.start_bytes,
-                calls: host_limits.calls,
+            {
+                let mut fixture_limits = smith_host_protocol::fixture::small();
+                fixture_limits.bodies = agent_limits.channel.bodies;
+                fixture_limits.charter = agent_limits.channel.charter;
+                fixture_limits.transcript = agent_limits.channel.transcript;
+                fixture_limits.endpoints = agent_limits.channel.endpoints;
+                fixture_limits.channel = agent_limits.channel.channel;
+                fixture_limits.start_bytes = agent_limits.channel.start_bytes;
+                fixture_limits.calls = host_limits.calls;
+                fixture_limits
             },
         )
     };
@@ -319,9 +321,13 @@ fn original_conflict_files_are_read_through_the_services_kernel_routes() {
     let mut host_events = Queue::with_capacity(256);
     let mut host_requests = Queue::with_capacity(256);
     let mut terminal_events = Queue::with_capacity(256);
-    let mut terminal =
-        smith_local_protocol::Terminal::new(smith_local_protocol::TerminalLimits { line_bytes: 256, show_bytes: 1024 })
-            .unwrap();
+    let mut terminal = smith_local_protocol::Terminal::new({
+        let mut fixture_limits = smith_local_protocol::fixture::TERMINAL;
+        fixture_limits.line_bytes = 256;
+        fixture_limits.show_bytes = 1024;
+        fixture_limits
+    })
+    .unwrap();
     process.start_markers(
         Token::new(7),
         0,
@@ -386,9 +392,13 @@ pub(crate) fn settle_file_io(
     let mut host_events = skein_lib::Queue::with_capacity(256);
     let mut host_requests = skein_lib::Queue::with_capacity(256);
     let mut terminal_events = skein_lib::Queue::with_capacity(256);
-    let mut terminal =
-        smith_local_protocol::Terminal::new(smith_local_protocol::TerminalLimits { line_bytes: 256, show_bytes: 1024 })
-            .unwrap();
+    let mut terminal = smith_local_protocol::Terminal::new({
+        let mut fixture_limits = smith_local_protocol::fixture::TERMINAL;
+        fixture_limits.line_bytes = 256;
+        fixture_limits.show_bytes = 1024;
+        fixture_limits
+    })
+    .unwrap();
     for _ in 0..FILE_IO_PASSES {
         sim.reap(pid, process.completions());
         process.io_up(&process.at(sim.now(), sim.wall()));

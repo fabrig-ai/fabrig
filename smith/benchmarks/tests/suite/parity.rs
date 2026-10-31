@@ -49,7 +49,13 @@ fn a_summary_with_a_retried_failure_row_verifies_against_its_own_section() {
         codex_wall_ms: CODEX_FIXTURE_WALL_MS,
         ..Rows::equal()
     });
-    let limits = smith_events::Limits { string: 524_288, content: 4096, items: 512 };
+    let limits = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 524_288;
+        fixture_limits.content = 4096;
+        fixture_limits.items = 512;
+        fixture_limits
+    };
     let mut observer =
         smith_bench::agent::smith::events::Observer::with_ceiling(&limits, 16_384).expect("response bounds");
     observer.feed(include_bytes!("../recorded/retried-failure-17d63afd-02.jsonl")).expect("response excerpt");

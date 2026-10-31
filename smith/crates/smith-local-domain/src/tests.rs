@@ -467,7 +467,6 @@ pub(crate) fn drain_requests(out: &mut Queue<Request>) -> Vec<Request> {
 
 pub(super) fn host_limits() -> smith_host_domain::Limits {
     smith_host_domain::Limits {
-        agents: 1,
         directories: 4,
         conflicts: 16,
         path_bytes: 1024,
@@ -481,7 +480,6 @@ pub(super) fn host_limits() -> smith_host_domain::Limits {
         calls: 8,
         call_bytes: 4096,
         answer_bytes: smith_host_domain::Delivered::owned_bound(),
-        turns: 2,
         turn_bytes: 1_048_576,
         unacknowledged_bytes: 2_097_152,
         fact_bytes: 512,
@@ -489,15 +487,11 @@ pub(super) fn host_limits() -> smith_host_domain::Limits {
         detail_bytes: 512,
         spawn_timeout: Duration::from_secs(5),
         no_progress: Duration::from_secs(60),
-        silence: Duration::ZERO,
         long_span: Duration::from_secs(3600),
-        long_open: 64,
         wall_time: Duration::from_secs(3600),
-        cancel_grace: Duration::from_secs(5),
-        exit_grace: Duration::from_secs(5),
-        teardown: Duration::ZERO,
         kill_after: Duration::from_secs(1),
         facts: 64,
+        ..smith_host_domain::fixture::small()
     }
 }
 

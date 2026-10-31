@@ -221,7 +221,13 @@ fn configured_boundaries_and_unknown_content_kinds_are_checked() {
         .into_iter()
         .find(|(_, value, _)| matches!(value.event, Event::TextDelta(_)))
         .expect("delta");
-    let limits = Limits { string: 32, content: 4, items: 2 };
+    let limits = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 32;
+        fixture_limits.content = 4;
+        fixture_limits.items = 2;
+        fixture_limits
+    };
     if let Event::TextDelta(value) = &mut record.event {
         value.text = Box::from(b"1234".as_slice());
     }
@@ -235,7 +241,13 @@ fn configured_boundaries_and_unknown_content_kinds_are_checked() {
         value.text = Box::from([255_u8].as_slice());
     }
     assert_eq!(write(&record, &Capture::Everything, &limits), Err(Error::Text));
-    let overflowing = Limits { string: u32::MAX, content: u32::MAX, items: u32::MAX };
+    let overflowing = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = u32::MAX;
+        fixture_limits.content = u32::MAX;
+        fixture_limits.items = u32::MAX;
+        fixture_limits
+    };
     assert_eq!(smith_events::largest_record(&overflowing), None);
     assert_eq!(smith_events::codec_bound(&overflowing), None);
     let (_, prompt, _) = fixtures::samples()
@@ -514,7 +526,13 @@ fn message_capture_keeps_identity_size_and_refusal_and_removes_only_label_and_te
 
 #[test]
 fn message_label_text_and_unknown_refusal_obey_their_separate_bounds() {
-    let limits = Limits { string: 4, content: 5, items: 0 };
+    let limits = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 4;
+        fixture_limits.content = 5;
+        fixture_limits.items = 0;
+        fixture_limits
+    };
     // Known refusal spellings are vocabulary, not caller metadata.
     let record = received(Some(smith_events::MessageRefusal::StartRefused), b"1234", b"12345");
     let line = write(&record, &Capture::Everything, &limits).expect("exact bounds").expect("message");
@@ -532,7 +550,13 @@ fn message_label_text_and_unknown_refusal_obey_their_separate_bounds() {
     for record in [received(None, &[0xff], b"text"), received(None, b"label", &[0xff])] {
         assert_eq!(write(&record, &Capture::Everything, &self::limits()), Err(Error::Text));
     }
-    let limits = Limits { string: 32, content: 5, items: 0 };
+    let limits = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 32;
+        fixture_limits.content = 5;
+        fixture_limits.items = 0;
+        fixture_limits
+    };
     let record = received(Some(smith_events::MessageRefusal::Unknown(vec![b'r'; 32].into())), &[b'l'; 32], b"12345");
     let line = write(&record, &Capture::Everything, &limits).expect("exact bounds").expect("message");
     assert_eq!(read(&line, &limits).expect("bounded text"), Some(record));

@@ -543,15 +543,12 @@ impl World {
         let host = Peer::host(
             &host::Limits {
                 bodies: host_bodies,
-                charter: smith_charter::CEILINGS,
-                transcript: smith_transcript::CEILINGS,
-                endpoints: 1,
                 channel,
                 start_bytes: u32::try_from(
                     smith_channel::Start::encoded_bound(&host_bodies).expect("fixture Start bound"),
                 )
                 .expect("fixture frame"),
-                calls: 8,
+                ..smith_host_protocol::fixture::small()
             },
             mode,
         );
@@ -578,14 +575,16 @@ impl World {
     /// Open the two halves at the agent fixture's derived deployment bounds.
     #[must_use]
     pub fn with_agent_limits(limits: agent::Limits, mode: StreamMode) -> World {
-        let mut host_limits = host::Limits {
-            bodies: limits.bodies,
-            charter: limits.charter,
-            transcript: limits.transcript,
-            endpoints: limits.endpoints,
-            channel: limits.channel,
-            start_bytes: limits.start_bytes,
-            calls: limits.calls,
+        let mut host_limits = {
+            let mut fixture_limits = smith_host_protocol::fixture::small();
+            fixture_limits.bodies = limits.bodies;
+            fixture_limits.charter = limits.charter;
+            fixture_limits.transcript = limits.transcript;
+            fixture_limits.endpoints = limits.endpoints;
+            fixture_limits.channel = limits.channel;
+            fixture_limits.start_bytes = limits.start_bytes;
+            fixture_limits.calls = limits.calls;
+            fixture_limits
         };
         host_limits.channel.output_bytes = host::output_bytes(&host_limits).expect("host directional frame");
         World {

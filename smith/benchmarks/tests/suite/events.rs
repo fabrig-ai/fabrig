@@ -199,7 +199,13 @@ fn unknown_types_are_skipped_and_version_or_partial_records_fault() {
     let mut partial = Observer::new(&LIMITS).expect("bounds");
     partial.feed(b"{\"v\":4").expect("partial bytes held");
     assert!(partial.finish().is_err());
-    let invalid = Limits { string: 128, content: 65_536, items: 128 };
+    let invalid = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 128;
+        fixture_limits.content = 65_536;
+        fixture_limits.items = 128;
+        fixture_limits
+    };
     assert!(Observer::new(&invalid).is_err(), "receiving cardinalities must fit the codec bound");
 }
 

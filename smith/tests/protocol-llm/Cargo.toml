@@ -13,7 +13,7 @@ skein-json.workspace = true
 smith-domain.workspace = true
 smith-agent-world.workspace = true
 smith-agent-service.workspace = true
-smith-protocol-events.workspace = true
+smith-protocol-events = { workspace = true, features = ["fixture"] }
 smith-events = { workspace = true, features = ["fixture"] }
 smith-protocol-llm = { workspace = true, features = ["fixture"] }
 smith-session-world.workspace = true
