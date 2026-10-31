@@ -81,7 +81,9 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::PeopleReply { to, reply } => {
             let token = to.into_token();
             let to = skein_lib::ReplyTo::new(token);
-            if super::demo::owns(token) {
+            if domain.playground_replies.contains_key(&token) {
+                super::playground::reply(domain, env, decision, token, reply);
+            } else if super::demo::owns(token) {
                 super::demo::reply(domain, env, decision, to, reply);
             } else {
                 emit(decision, &env.limits, Delivery::WebReply { to, reply });
@@ -169,7 +171,10 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::Applied { to, token, .. } => {
             let right = to.into_token();
             let to = skein_lib::ReplyTo::new(right);
-            if super::demo::owns(right) {
+            if domain.playground_replies.contains_key(&right) {
+                let outcome = domain.forge.application_answer(token);
+                super::playground::adopted(domain, right, outcome);
+            } else if super::demo::owns(right) {
                 let outcome = domain.forge.application_answer(token);
                 super::demo::adopted(domain, env, decision, outcome);
             } else {
@@ -186,7 +191,14 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::NotesWritten { .. } | core::Held::NotesDeleted { .. } => {
             unreachable!("the current application has no note caller")
         }
-        core::Held::Acted { to, outcome } => emit(decision, &env.limits, Delivery::DemoActed { to, outcome }),
+        core::Held::Acted { to, outcome } => {
+            let token = to.into_token();
+            if domain.playground_replies.contains_key(&token) {
+                super::playground::acted(domain, env, decision, token, outcome);
+            } else {
+                emit(decision, &env.limits, Delivery::DemoActed { to: skein_lib::ReplyTo::new(token), outcome });
+            }
+        }
     }
 }
 

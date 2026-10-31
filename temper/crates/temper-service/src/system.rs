@@ -235,6 +235,7 @@ impl Service {
             machine: None,
             forges: configured,
             under_box: box_line_bytes.is_some(),
+            playground: playground_config(demo_config.as_ref()),
             demo: demo_config,
         };
         let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
@@ -1097,6 +1098,18 @@ impl Service {
 // One forge cohort and the end's bounded act answers can be named together.
 fn note_bound(settings: &settings::Engine, root: &temper_engine_domain::Limits) -> Option<u32> {
     settings.limits.forge.forges.checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
+}
+
+#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
+pub(crate) fn playground_config(
+    demo: Option<&temper_engine_domain_forge::DemoConfig>,
+) -> Option<temper_engine_domain_forge::PlaygroundConfig> {
+    match demo {
+        Some(demo) => {
+            Some(temper_engine_domain_forge::PlaygroundConfig { provider: demo.provider, deadline: demo.deadline })
+        }
+        None => None,
+    }
 }
 
 #[cfg(test)]

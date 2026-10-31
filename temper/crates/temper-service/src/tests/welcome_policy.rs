@@ -87,6 +87,7 @@ fn generated() -> (engine::Config, engine::Limits) {
             forge,
             identities,
             forges,
+            playground: crate::system::playground_config(demo.as_ref()),
             demo,
             landing: settings.landing,
             forge_charter: settings.charter,
