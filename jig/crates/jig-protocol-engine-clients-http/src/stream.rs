@@ -16,7 +16,7 @@ pub(crate) struct Stream {
     pub below: Queue<skein_lib::stream::Down>,
 }
 pub(crate) fn env(env: &Env<Limits>) -> Env<sse::Limits> {
-    Env { now: env.now, wall: env.wall, limits: sse::Limits { event: env.limits.event, chunk: env.limits.send } }
+    env.with(sse::Limits { event: env.limits.event, chunk: env.limits.send })
 }
 impl Call {
     pub fn stream_ready(&self) -> bool {

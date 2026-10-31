@@ -196,9 +196,9 @@ impl Owner {
             pending_changes: [None, None],
             move_events: Queue::with_capacity(ROOM),
             moved_file: None,
-            move_input: bytes::zeroed(skein_lib::length::usize_of(jig_protocol_accounts::moved::bound(
-                &limits.client.document,
-            ))),
+            move_input: bytes::zeroed(
+                usize::try_from(jig_protocol_accounts::moved::bound(&limits.client.document)).expect("file bound"),
+            ),
             move_input_len: None,
             carried_move: None,
             lent: Vec::with_capacity(8),

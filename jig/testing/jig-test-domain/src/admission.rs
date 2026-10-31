@@ -353,7 +353,7 @@ mod expiry_tests {
     use crate::{Event, tests::fixtures};
     use jig_domain_core as core;
     use jig_domain_people as people;
-    use skein_lib::{Env, Queue, Time, Wall};
+    use skein_lib::{Queue, Time, Wall};
 
     #[test]
     fn wall_expiry_is_taken_at_the_watermark() {

@@ -239,7 +239,7 @@ fn person(signer: people::Signer, addresses: &[u16], limits: &Limits) -> Option<
     let identity = signer.identity;
     let bound = skein_lib::length::usize_of(limits.identity_bytes);
     for value in [&identity.key.subject, &identity.login, &identity.name] {
-        if value.len() > bound || !skein_lib::bytes::is_utf8(value) {
+        if value.len() > bound || !bytes::is_utf8(value) {
             return None;
         }
     }

@@ -176,7 +176,7 @@ fn a_trailing_byte_is_refused() {
 #[test]
 fn whole_file_bound_is_checked_before_its_version() {
     let oversized =
-        bytes::zeroed(skein_lib::length::usize_of(moved::bound(&limits()).checked_add(1).expect("bound plus one")));
+        bytes::zeroed(usize::try_from(moved::bound(&limits()).checked_add(1).expect("bound plus one")).expect("fits"));
     refused(&oversized, &limits(), Unread::TooLarge, "whole-file bound");
 }
 

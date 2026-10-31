@@ -3,6 +3,7 @@ use jig_client_test_protocol_wire::codec;
 use jig_protocol_engine_clients::{Event, FromApplication, ToApplication};
 use jig_test_connector as d;
 use jig_test_domain as root;
+use skein_lib::List;
 use skein_lib::{ReplyTo, Token};
 
 fn request(record: Box<[u8]>) -> ToApplication {
@@ -108,10 +109,8 @@ fn an_application_outcome_retains_every_terminal_and_its_facts() {
 }
 #[test]
 fn a_document_above_each_receiving_bound_is_refused() {
-    let value = d::ClientDocument::Project {
-        project: f::PROJECT,
-        resources: skein_lib::List::from_boxed([f::resource()].into()),
-    };
+    let value =
+        d::ClientDocument::Project { project: f::PROJECT, resources: List::from_boxed(Box::new([f::resource()])) };
     let record = codec::document(&value);
     for (label, limits) in [
         ("resources", d::Limits { resources: 0, ..f::limits() }),

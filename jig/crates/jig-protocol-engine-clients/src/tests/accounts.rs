@@ -1,80 +1,71 @@
 //! Complete accounts watch translation and independent nested limits.
 use super::fixtures;
 use crate::translate::{accounts, watches};
-use fixtures::list;
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_accounts as a;
 use jig_domain_core::documents as d;
 use jig_domain_people::CapacityAction as A;
 use skein_lib::{Duration, List, Wall};
 fn source_lines() -> List<d::SourceLine> {
-    skein_lib::List::from_boxed(
-        [
-            d::SourceLine {
-                name: None,
-                place: 2,
-                number: 11,
-                kind: a::Kind::SignIn,
-                state: d::AccountState::Granted,
-                usable: true,
-                expiring: false,
-                attention: true,
-                spent_until: Some(Wall::from_nanos(101)),
-            },
-            d::SourceLine {
-                name: None,
-                place: 5,
-                number: 12,
-                kind: a::Kind::Key,
-                state: d::AccountState::Later { until: None },
-                usable: false,
-                expiring: true,
-                attention: false,
-                spent_until: None,
-            },
-        ]
-        .into(),
-    )
+    List::from_boxed(Box::new([
+        d::SourceLine {
+            name: None,
+            place: 2,
+            number: 11,
+            kind: a::Kind::SignIn,
+            state: d::AccountState::Granted,
+            usable: true,
+            expiring: false,
+            attention: true,
+            spent_until: Some(Wall::from_nanos(101)),
+        },
+        d::SourceLine {
+            name: None,
+            place: 5,
+            number: 12,
+            kind: a::Kind::Key,
+            state: d::AccountState::Later { until: None },
+            usable: false,
+            expiring: true,
+            attention: false,
+            spent_until: None,
+        },
+    ]))
 }
 fn document(end: Option<a::End>) -> d::Accounts {
     d::Accounts {
         readiness: List::with_capacity(0),
         readiness_cut: false,
         program_hosts: List::with_capacity(0),
-        accounts: skein_lib::List::from_boxed(
-            [
-                d::AccountLine {
-                    provider_name: None,
-                    manage_usage: None,
-                    number: 7,
-                    place: 3,
-                    uses: Some(skein_lib::List::from_boxed([a::Use::Party(23), a::Use::Project(29)].into())),
-                    plan: true,
-                    provider: Some(3),
-                    display: d::Text { bytes: Box::from(b"Personal".as_slice()), cut: true },
-                    holder: a::Holder::Party(23),
-                    sources: source_lines(),
-                    cut: true,
-                },
-                d::AccountLine {
-                    provider_name: None,
-                    manage_usage: None,
-                    number: 9,
-                    place: 4,
-                    uses: None,
-                    plan: false,
-                    provider: None,
-                    display: d::Text { bytes: Box::from([]), cut: false },
-                    holder: a::Holder::Deployment,
-                    sources: List::with_capacity(0),
-                    cut: false,
-                },
-            ]
-            .into(),
-        ),
-        signing: skein_lib::List::from_boxed(
-            [d::SignInLine { source: 19, provider: 3, holder: a::Holder::Party(23) }].into(),
-        ),
+        accounts: List::from_boxed(Box::new([
+            d::AccountLine {
+                provider_name: None,
+                manage_usage: None,
+                number: 7,
+                place: 3,
+                uses: Some(List::from_boxed(Box::new([a::Use::Party(23), a::Use::Project(29)]))),
+                plan: true,
+                provider: Some(3),
+                display: d::Text { bytes: Box::from(b"Personal".as_slice()), cut: true },
+                holder: a::Holder::Party(23),
+                sources: source_lines(),
+                cut: true,
+            },
+            d::AccountLine {
+                provider_name: None,
+                manage_usage: None,
+                number: 9,
+                place: 4,
+                uses: None,
+                plan: false,
+                provider: None,
+                display: d::Text { bytes: Box::from([]), cut: false },
+                holder: a::Holder::Deployment,
+                sources: List::with_capacity(0),
+                cut: false,
+            },
+        ])),
+        signing: List::from_boxed(Box::new([d::SignInLine { source: 19, provider: 3, holder: a::Holder::Party(23) }])),
         last_end: match end {
             Some(end) => Some(d::LastEnd { source: 11, end }),
             None => None,
@@ -156,7 +147,7 @@ fn deployment_accounts_keep_identity_uses_and_ordered_sources() {
     let mut source = fixtures::deployment_document();
     let account = source.accounts.get_mut(0).expect("fixture account");
     account.place = 3;
-    account.uses = Some(skein_lib::List::from_boxed([a::Use::Party(23), a::Use::Project(29)].into()));
+    account.uses = Some(List::from_boxed(Box::new([a::Use::Party(23), a::Use::Project(29)])));
     account.plan = true;
     account.display = d::Text { bytes: Box::from(b"Personal".as_slice()), cut: true };
     account.holder = a::Holder::Party(23);

@@ -19,7 +19,7 @@ pub fn limits() -> d::Limits {
 }
 pub fn path() -> d::Path {
     d::Path::new(
-        skein_lib::List::from_boxed([b"one".as_slice().into(), [0, 255].as_slice().into()].into()),
+        List::from_boxed(Box::new([b"one".as_slice().into(), [0, 255].as_slice().into()])),
         limits().segment_bytes,
     )
     .expect("literal opaque path")
@@ -82,8 +82,8 @@ pub fn documents() -> [(&'static str, d::ClientDocument); 8] {
                     deadline: Some(Wall::from_nanos(6)),
                 }),
                 result: Some(7),
-                resources: skein_lib::List::from_boxed([resource()].into()),
-                effects: skein_lib::List::from_boxed([entry()].into()),
+                resources: List::from_boxed(Box::new([resource()])),
+                effects: List::from_boxed(Box::new([entry()])),
             },
         ),
         ("result", d::ClientDocument::Result { task: 8, code: u16::MAX }),
@@ -93,21 +93,18 @@ pub fn documents() -> [(&'static str, d::ClientDocument); 8] {
             "hold",
             d::ClientDocument::Hold {
                 task: 11,
-                resources: skein_lib::List::from_boxed([resource()].into()),
-                effects: skein_lib::List::from_boxed([entry()].into()),
+                resources: List::from_boxed(Box::new([resource()])),
+                effects: List::from_boxed(Box::new([entry()])),
             },
         ),
         (
             "project",
-            d::ClientDocument::Project {
-                project: PROJECT,
-                resources: skein_lib::List::from_boxed([resource()].into()),
-            },
+            d::ClientDocument::Project { project: PROJECT, resources: List::from_boxed(Box::new([resource()])) },
         ),
         (
             "deployment",
             d::ClientDocument::Deployment {
-                outbox: skein_lib::List::from_boxed([entry()].into()),
+                outbox: List::from_boxed(Box::new([entry()])),
                 subject_limit: 12,
                 staged_limit: 13,
                 request_budget: d::DiagnosticAvailability::NotKept,
