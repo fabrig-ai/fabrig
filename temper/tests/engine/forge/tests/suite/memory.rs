@@ -69,6 +69,7 @@ const RESTORED_FLIGHTS_HEAP_CEILING: u64 = 720;
 fn restored_flight_nodes_fit_the_counted_entry_bound() {
     const TASK: u64 = 7;
     let mut domain = connector(&LIMITS);
+    domain.restore_begin(Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
     let mut out = Queue::uncapped();
     let meter = Meter::new();

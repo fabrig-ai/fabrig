@@ -128,9 +128,23 @@ fn an_aged_span_past_the_ceiling_makes_no_task() {
 
 #[test]
 fn holder_rechecks_use_their_own_wall() {
+    fn reroute(world: &mut jig_core_world::effects::World, _: u64, _: u64, owner: u64) {
+        jig_core_world::fixtures::ask_as(
+            world,
+            owner,
+            35,
+            p::Ask::SetRoles {
+                project: f::PROJECT,
+                holdings: Box::new([
+                    p::Holding { person: 1, role: p::Role::Member },
+                    p::Holding { person: 3, role: p::Role::Owner },
+                ]),
+            },
+        );
+    }
     type Stimulus = fn(&mut jig_core_world::effects::World, u64, u64, u64);
     for (name, stimulate) in
-        [("pass", f::pass as Stimulus), ("reroute", f::reroute as Stimulus), ("stall", f::stall as Stimulus)]
+        [("pass", f::pass as Stimulus), ("reroute", reroute as Stimulus), ("stall", f::stall as Stimulus)]
     {
         for (seconds, expected) in [
             (30, tasks::ProposalHolder::Policy { project: 1, kind: tasks::ProposalKind::Batch }),

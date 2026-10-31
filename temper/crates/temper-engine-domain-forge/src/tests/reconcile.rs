@@ -535,7 +535,7 @@ fn production_link_keeps_failed_issue_history_without_a_goal() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut d, Event::Restore { record: failed_history(desired) });
         d.reconcile(&empty_tasks());
-        assert_eq!(d.reconciliation(), Ok(()));
+        assert_eq!(d.missing_link(&empty_tasks()), None);
         let out = outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Wall });
         assert!(!has_projection_effect(&out));
         assert!(d.issue(TASK).expect("retained diagnostic").failed);
@@ -557,7 +557,7 @@ fn production_link_preserves_pending_closing_entry_and_flight() {
     let (mut d, _) = closing_history(Some(ENTRY), REPO);
     outputs(&mut d, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
     d.reconcile(&empty_tasks());
-    assert_eq!(d.reconciliation(), Ok(()));
+    assert_eq!(d.missing_link(&empty_tasks()), None);
 }
 
 #[test]
@@ -573,7 +573,7 @@ fn production_link_preserves_retired_demo_owners() {
         outputs(&mut d, Event::Restore { record });
     }
     d.reconcile(&empty_tasks());
-    assert_eq!(d.reconciliation(), Ok(()));
+    assert_eq!(d.missing_link(&empty_tasks()), None);
 }
 
 #[test]
@@ -596,6 +596,14 @@ fn production_link_requires_a_live_unfinished_issues_goal() {
 fn reconcile_panics_on_a_missing_link() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Names { task: TASK, resources: Box::new([]) } });
+    assert_eq!(
+        d.missing_link(&empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::Names,
+            key: Key::Names(TASK),
+            need: Need::Task { task: TASK, retired: None },
+        })
+    );
     d.reconcile(&empty_tasks());
 }
 

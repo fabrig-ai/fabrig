@@ -233,7 +233,13 @@ impl Accounts {
                 | store::SecretValue::Application(_)
                 | store::SecretValue::Held(_),
             ) => {
-                store.above.push(store::Event::Corrupt { owner: Token::new(0) });
+                store.above.push(store::Event::PageRefused {
+                    owner: Token::new(0),
+                    failure: store::restore::Failure {
+                        cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),
+                        row: None,
+                    },
+                });
                 self.abort();
                 return Err(());
             }

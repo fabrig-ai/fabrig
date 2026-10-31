@@ -3,7 +3,7 @@ use crate::{Domain, Key, Limits, Name, Stored, Topic};
 use skein_forge::api::Repository;
 use skein_lib::List;
 
-/// A restored record's family, retained for compatibility diagnostics.
+/// A restored record's family.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RecordKind {
     Call,
@@ -30,14 +30,8 @@ pub enum RecordKind {
     Landing,
     Receipt,
 }
-/// Compatibility diagnostic; missing required links assert during reconciliation.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Unresolved {
-    pub records: u32,
-    pub first: RecordKind,
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Need {
+pub enum Need {
     Forge(u16),
     Demo(u16),
     Repository(Repository),
@@ -52,15 +46,14 @@ pub(crate) struct Reference {
     need: Need,
 }
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct MissingLink {
-    pub(crate) kind: RecordKind,
-    pub(crate) key: Key,
-    pub(crate) need: Need,
+pub struct MissingLink {
+    pub kind: RecordKind,
+    pub key: Key,
+    pub need: Need,
 }
 #[derive(Debug)]
 pub(crate) struct Reconciliation {
     references: List<Reference>,
-    pub(crate) verdict: Result<(), Unresolved>,
 }
 // Retain the opaque client's references too: families can arrive in any order.
 pub(crate) fn capacity(l: &Limits) -> Option<u32> {
@@ -111,7 +104,7 @@ impl Need {
 }
 impl Reconciliation {
     pub(crate) fn new(l: &Limits) -> Self {
-        Self { references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")), verdict: Ok(()) }
+        Self { references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")) }
     }
     fn need(&mut self, kind: RecordKind, need: Need) -> Result<(), crate::RestoreFit> {
         let held = self.references.len();
@@ -258,9 +251,10 @@ impl Domain {
         if let Some(missing) = self.missing_link(tasks) {
             panic!("forge link {:?} -> {:?} for {:?}", missing.kind, missing.need, missing.key);
         }
-        self.reconciliation.verdict = Ok(());
     }
-    pub(crate) fn missing_link(&self, tasks: &jig_domain_tasks::Domain) -> Option<MissingLink> {
+    /// The first required restored link whose target is absent (jig/docs/design/domain/engine.md, 6).
+    #[must_use]
+    pub fn missing_link(&self, tasks: &jig_domain_tasks::Domain) -> Option<MissingLink> {
         if self.restore_fit_failure().is_some() {
             return None;
         }
@@ -280,10 +274,6 @@ impl Domain {
             }
         }
         None
-    }
-    /// Retained compatibility result; missing targets panic before this can report failure.
-    pub const fn reconciliation(&self) -> Result<(), Unresolved> {
-        self.reconciliation.verdict
     }
     fn configured_forge(&self, forge: u16) -> bool {
         self.configured.contains_key(&forge) || self.identities.contains_key(&forge)

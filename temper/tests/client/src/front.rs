@@ -1489,6 +1489,7 @@ impl Front<Temper> for Joint {
                     &limits,
                     fixtures::REPOSITORIES,
                 );
+                self.engine.pump();
                 self.engine.send(temper_engine_domain_world::protocol::hello_slots(
                     fixtures::QUESTION_WORKER,
                     limits.fleet.slots,
