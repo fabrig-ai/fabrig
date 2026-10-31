@@ -27,21 +27,24 @@ pub const GIT_BASE: &[u8] = b"http://forge.test";
 /// The hub's assignment beside the service's workspace and per-repository saves.
 #[must_use]
 pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::Workspace) {
-    let forges = [settings::Forge {
-        mode: temper_engine_domain_forge::Mode::Connected,
-        number: temper_engine_forge_world::REPO.forge,
-        kind: settings::Kind::Forgejo,
-        api: jig_protocol_config::Address::Host { name: b"forge.test".as_slice().into(), port: 80 },
-        transport: settings::Transport::Plaintext,
-        git: GIT_BASE.into(),
-        git_program: None,
-        web: None,
-        app_read_only: false,
-        api_token: Some(Secret::new(Box::new([]))),
-        webhook_secret: None,
-        user: 1,
-        identity: 1,
-    }];
+    let forges = temper_service::forges::Forges::from_document(
+        Box::new([settings::Forge {
+            mode: temper_engine_domain_forge::Mode::Connected,
+            number: temper_engine_forge_world::REPO.forge,
+            kind: settings::Kind::Forgejo,
+            api: jig_protocol_config::Address::Host { name: b"forge.test".as_slice().into(), port: 80 },
+            transport: settings::Transport::Plaintext,
+            git: GIT_BASE.into(),
+            git_program: None,
+            web: None,
+            app_read_only: false,
+            api_token: Some(Secret::new(Box::new([]))),
+            webhook_secret: None,
+            user: 1,
+            identity: 1,
+        }]),
+        1,
+    );
     let items = translate::items(assignment, &forges, &temper_service::forge::tokens::Tokens::empty(), &v1::CEILINGS)
         .expect("world workspace fits the payload");
     let repositories = translate::workspace(items.as_ref());

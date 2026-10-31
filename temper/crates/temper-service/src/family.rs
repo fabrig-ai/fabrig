@@ -26,7 +26,7 @@ const _: () = {
 #[expect(clippy::too_many_lines, reason = "one exhaustive match translates the family's typed requests")]
 pub fn to_root(
     exchange: kit::ToApplication,
-    forges: &[crate::settings::Forge],
+    forges: &crate::forges::Forges,
     demo: Option<&crate::settings::Demo>,
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
@@ -229,13 +229,10 @@ pub fn to_root(
                 w::Request::Adopt(value) => value,
             };
             let a = request.into_parts();
-            let mut host = Box::default();
-            for forge in forges {
-                if forge.number == a.forge {
-                    host = self::host(&forge.git);
-                    break;
-                }
-            }
+            let host = match forges.get(a.forge) {
+                Some(forge) => host(&forge.git),
+                None => Box::default(),
+            };
             Ok(root::Event::Party(root::PartyInput::Application {
                 scope,
                 reply_to,
@@ -338,7 +335,7 @@ pub fn to_root(
 /// Encode the whole retained panel, deriving its public address from configuration
 /// (client/forge.md, 9.2). No domain record carries a deployment's web address.
 #[must_use]
-pub fn panel(value: forge::Panel, forges: &[crate::settings::Forge], limits: &w::Limits) -> Option<Box<[u8]>> {
+pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     let pull = match value.pull {
         Some(number) => {
             Some(w::Pull::new(limits, w::PullParts { number, address: address(&value, number, forges) }).ok()?)
@@ -476,7 +473,7 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
     })
 }
 
-fn address(panel: &forge::Panel, number: u64, forges: &[crate::settings::Forge]) -> Box<[u8]> {
+fn address(panel: &forge::Panel, number: u64, forges: &crate::forges::Forges) -> Box<[u8]> {
     pull_address(panel.forge, &panel.owner, &panel.name, number, forges)
 }
 fn pull_address(
@@ -484,22 +481,17 @@ fn pull_address(
     owner: &[u8],
     name: &[u8],
     number: u64,
-    forges: &[crate::settings::Forge],
+    forges: &crate::forges::Forges,
 ) -> Box<[u8]> {
-    for forge in forges {
-        if forge.number != forge_number {
-            continue;
-        }
-        if forge.mode == forge::Mode::Fake {
-            return Box::default();
-        }
-        let kind = match forge.kind {
-            crate::settings::Kind::GitHub => forge::Kind::GitHub,
-            crate::settings::Kind::Forgejo => forge::Kind::Forgejo,
-        };
-        return forge::pull_address(kind, &forge.git, forge.web.as_deref(), owner, name, number).unwrap_or_default();
+    let Some(forge) = forges.get(forge_number) else { return Box::default() };
+    if forge.mode == forge::Mode::Fake {
+        return Box::default();
     }
-    Box::default()
+    let kind = match forge.kind {
+        crate::settings::Kind::GitHub => forge::Kind::GitHub,
+        crate::settings::Kind::Forgejo => forge::Kind::Forgejo,
+    };
+    forge::pull_address(kind, &forge.git, forge.web.as_deref(), owner, name, number).unwrap_or_default()
 }
 /// Keep the authority of an already checked git URL, including its explicit port.
 #[must_use]
@@ -979,7 +971,7 @@ fn admin_stop(stop: forge::AdminStop, limits: &w::Limits) -> Option<w::AdminStop
 
 /// Encode a whole landing document, with deployment addresses at this boundary.
 #[must_use]
-pub fn document(value: forge::Document, forges: &[crate::settings::Forge], limits: &w::Limits) -> Option<Box<[u8]>> {
+pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     match value {
         forge::Document::Change(value) => panel(value, forges, limits),
         forge::Document::Landing(value) => {
@@ -1059,7 +1051,7 @@ pub fn document(value: forge::Document, forges: &[crate::settings::Forge], limit
 }
 fn landing_member(
     member: forge::LandingMember,
-    forges: &[crate::settings::Forge],
+    forges: &crate::forges::Forges,
     limits: &w::Limits,
 ) -> Option<w::Member> {
     let pull = match member.pull {

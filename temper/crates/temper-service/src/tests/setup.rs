@@ -702,7 +702,10 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     assert_eq!(settings.forges.get(0).unwrap().address, skein_io::Addr::Ip(crate::forge::HELD_ADDRESS));
     lifecycle_tests::app(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    let expected = records::origin(skein_forge_connection::settings::Kind::GitHub, &engine.workers.forges[0].api);
+    let expected = records::origin(
+        skein_forge_connection::settings::Kind::GitHub,
+        &engine.workers.forges.get(1).expect("fixture forge").api,
+    );
     assert!(
         records::access(
             skein_forge_connection::settings::Kind::GitHub,

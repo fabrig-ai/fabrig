@@ -14,10 +14,24 @@ const PROCESS_UPTIME: skein_lib::Time = skein_lib::Time::from_nanos(600_000_000_
 fn a_link_printed_on_the_first_clock_tick_is_live() {
     let mut service = super::fixtures::started();
     let engine = service.engine.as_mut().expect("engine");
-    engine.clients.iterate(PROCESS_UPTIME, skein_lib::Wall::EPOCH, &mut engine.events, &[], None, &mut engine.accounts);
+    engine.clients.iterate(
+        PROCESS_UPTIME,
+        skein_lib::Wall::EPOCH,
+        &mut engine.events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut engine.accounts,
+    );
     let Some(skein_io::Request::Listen { owner, addr }) = engine.clients.io.pop() else { panic!("listen") };
     assert!(engine.clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
-    engine.clients.iterate(PROCESS_UPTIME, skein_lib::Wall::EPOCH, &mut engine.events, &[], None, &mut engine.accounts);
+    engine.clients.iterate(
+        PROCESS_UPTIME,
+        skein_lib::Wall::EPOCH,
+        &mut engine.events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut engine.accounts,
+    );
     let link = engine.clients.links.pop().expect("printed link");
     let body = peer::link_body(engine, &link);
     let mut peer = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
@@ -101,29 +115,71 @@ fn a_released_reply_keeps_its_terminal_and_destination() {
 fn the_component_prints_one_sign_in_link_at_start() {
     let mut clients = super::fixtures::clients();
     let mut events = skein_lib::Queue::uncapped();
-    clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
+    clients.iterate(
+        skein_lib::Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        &mut events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut None,
+    );
     let Some(skein_io::Request::Listen { owner, addr }) = clients.io.pop() else { panic!("listen") };
     assert!(clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
-    clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
+    clients.iterate(
+        skein_lib::Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        &mut events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut None,
+    );
     let link = clients.links.pop().unwrap();
     assert!(link.starts_with(b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret="));
     assert!(clients.links.is_empty());
-    clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
+    clients.iterate(
+        skein_lib::Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        &mut events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut None,
+    );
     assert!(clients.links.is_empty());
 }
 #[test]
 fn closing_a_listener_during_start_closes_the_component() {
     let mut clients = super::fixtures::clients();
     let mut events = skein_lib::Queue::uncapped();
-    clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
+    clients.iterate(
+        skein_lib::Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        &mut events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut None,
+    );
     let Some(skein_io::Request::Listen { owner, addr }) = clients.io.pop() else { panic!("listen") };
     clients.down(kit::Event::Close);
     assert!(clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
-    clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
+    clients.iterate(
+        skein_lib::Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        &mut events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut None,
+    );
     let Some(skein_io::Request::Close { entity }) = clients.io.pop() else { panic!("late listener close") };
     assert_eq!(entity, LISTENER);
     assert!(clients.up(skein_io::Event::Closed { owner }));
-    clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
+    clients.iterate(
+        skein_lib::Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        &mut events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut None,
+    );
     assert!(clients.closed);
 }
 
@@ -172,10 +228,24 @@ fn a_sign_in_ending_waits_for_its_erase_to_commit() {
     clients.commit(3, &[root::Write::Erase(root::Key::Core(core::Key::People(people::Key::SignIn(7))))]);
     assert!(!clients.commit_room());
     let mut events = skein_lib::Queue::uncapped();
-    clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
+    clients.iterate(
+        skein_lib::Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        &mut events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut None,
+    );
     assert!(!clients.commit_room());
     clients.committed(3);
-    clients.iterate(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &[], None, &mut None);
+    clients.iterate(
+        skein_lib::Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        &mut events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut None,
+    );
     assert!(clients.commit_room());
 }
 
@@ -311,7 +381,14 @@ fn failed_clients_bind(opened: bool, closed: bool) {
     let mut service = super::fixtures::started();
     let engine = service.engine.as_mut().expect("engine");
     engine.store.opened = opened;
-    engine.clients.iterate(Time::ZERO, Wall::EPOCH, &mut engine.events, &[], None, &mut engine.accounts);
+    engine.clients.iterate(
+        Time::ZERO,
+        Wall::EPOCH,
+        &mut engine.events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut engine.accounts,
+    );
     let Some(skein_io::Request::Listen { owner, .. }) = engine.clients.io.pop() else { panic!("clients listen") };
     service.told.push(if closed {
         skein_io::Event::Closed { owner }
@@ -383,7 +460,7 @@ fn clients_public_admits_the_public_and_listener_hosts_and_refuses_an_unknown_ho
             skein_lib::Time::ZERO,
             skein_lib::Wall::EPOCH,
             &mut engine.events,
-            &[],
+            &crate::tests::fixtures::forge_table(&[]),
             None,
             &mut engine.accounts,
         );

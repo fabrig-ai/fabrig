@@ -14,11 +14,8 @@ pub(crate) struct Rows {
     unconfigured: Map<u16, ()>,
 }
 impl Rows {
-    fn new(forges: &[crate::settings::Forge]) -> Self {
-        let mut configured = List::with_capacity(u32::try_from(forges.len()).expect("configured forges"));
-        for forge in forges {
-            configured.push(forge.number).expect("configured forges");
-        }
+    fn new(forges: &crate::forges::Forges) -> Self {
+        let configured = forges.numbers();
         Self { values: records::Rows::new(), configured, unconfigured: Map::with_capacity(FORGES) }
     }
     pub(crate) fn push(&mut self, number: u64, bytes: Secret, value_bytes: u32) {
@@ -64,7 +61,7 @@ enum Phase {
     Done,
 }
 impl Loader {
-    pub(crate) fn new(limits: &crate::limits::Limits, forges: &[crate::settings::Forge]) -> Self {
+    pub(crate) fn new(limits: &crate::limits::Limits, forges: &crate::forges::Forges) -> Self {
         Self {
             #[cfg(test)]
             inspected: List::with_capacity(128),
@@ -153,7 +150,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             }
         }
         Phase::Connect { index } => {
-            let Some(forge) = engine.workers.forges.get(index) else {
+            let Some(forge) = engine.workers.forges.nth(index) else {
                 engine.forge_records.phase = Phase::Name { after: 0 };
                 return;
             };
@@ -210,7 +207,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
 #[test]
 fn unconfigured_numbers_resume_at_the_cursor_without_retaining_values() {
     let settings = crate::tests::fixtures::engine();
-    let mut rows = Rows::new(&settings.forges);
+    let mut rows = Rows::new(&crate::tests::fixtures::forge_table(&settings.forges));
     for forge in [u16::MAX, 77, 0, 77] {
         for item in [records::Item::AppKey, records::Item::Origin] {
             rows.push(records::number(forge, item), Secret::new(Box::from([2, 255])), 4096);

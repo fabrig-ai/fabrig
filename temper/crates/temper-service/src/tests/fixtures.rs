@@ -140,6 +140,33 @@ pub fn forges() -> Box<[settings::Forge]> {
     }])
 }
 
+/// A runtime table carrying the document fixture's values.
+pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
+    let mut table = crate::forges::Forges::with_capacity(u32::try_from(forges.len()).unwrap());
+    for forge in forges {
+        assert!(table.insert(settings::Forge {
+            mode: forge.mode,
+            number: forge.number,
+            kind: forge.kind,
+            api: forge.api.clone(),
+            transport: match &forge.transport {
+                settings::Transport::Plaintext => settings::Transport::Plaintext,
+                settings::Transport::Tls { server_name, trust } =>
+                    settings::Transport::Tls { server_name: server_name.clone(), trust: trust.clone() },
+            },
+            git: forge.git.clone(),
+            git_program: forge.git_program.clone(),
+            web: forge.web.clone(),
+            app_read_only: forge.app_read_only,
+            api_token: forge.api_token.clone(),
+            webhook_secret: forge.webhook_secret.clone(),
+            user: forge.user,
+            identity: forge.identity,
+        }));
+    }
+    table
+}
+
 pub const OWNER: Token = Token::new(91);
 pub fn routes() -> crate::store::route::Routes {
     let (root, _, _) = store_limits();
