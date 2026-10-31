@@ -747,7 +747,7 @@ fn proposal() -> c::ReadValue {
                 source: c::Funder::Pool { project: PROJECT, person: 73, period: 1 },
                 needed: 6,
                 left: Some(40),
-                after: Some((40).saturating_sub(6)),
+                after: Some(34),
             })
             .expect("one funding source");
         c::OwnerProposal {
@@ -818,7 +818,7 @@ fn read_value(w: World, what: &c::Read, then: Then) -> Option<c::ReadValue> {
         | c::Read::Deployment => None,
     }
 }
-fn agent_line(words: &str, number: u32, read: Option<u64>) -> jig_client::contract::ActivityLine {
+fn agent_line(words: &str, number: u32, read: Option<u64>) -> c::ActivityLine {
     let mut blocks = List::with_capacity(1);
     let bytes = words.as_bytes();
     let limit = usize::try_from(limits().client.domain.turn_text).expect("turn text limit");
@@ -827,12 +827,7 @@ fn agent_line(words: &str, number: u32, read: Option<u64>) -> jig_client::contra
     blocks.push(c::Block::Text(text)).expect("agent text");
     turn_line(&blocks, number, read, length < bytes.len())
 }
-fn turn_line(
-    source: &List<c::Block>,
-    number: u32,
-    read: Option<u64>,
-    mut cut: bool,
-) -> jig_client::contract::ActivityLine {
+fn turn_line(source: &List<c::Block>, number: u32, read: Option<u64>, mut cut: bool) -> c::ActivityLine {
     let mut blocks = List::with_capacity(limits().client.domain.rows.min(source.len()));
     for block in source {
         if blocks.len() == blocks.capacity() {
@@ -845,7 +840,7 @@ fn turn_line(
     messages.push(c::Message { speaker: c::Speaker::Assistant, blocks }).expect("message");
     documents::turn(
         1,
-        skein_lib::Wall::EPOCH,
+        Wall::EPOCH,
         c::TurnName { attempt: 1, number },
         c::TurnRead::Decoded(c::Turn {
             messages,
@@ -856,7 +851,7 @@ fn turn_line(
         }),
     )
 }
-fn tools_line(calls: &[(&str, u32)], made: &[u64], proposes: bool, number: u32) -> jig_client::contract::ActivityLine {
+fn tools_line(calls: &[(&str, u32)], made: &[u64], proposes: bool, number: u32) -> c::ActivityLine {
     let mut blocks = List::with_capacity(32);
     let mut call_number: u64 = 0;
     for (name, count) in calls {
@@ -1799,6 +1794,15 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
             line.source.position = u64::from(i).checked_add(1).expect("position");
             line.source.at =
                 offset(w, *minutes.get(usize::try_from(i).expect("event index")).expect("transcript time"));
+            line.source.task = task;
+            if let Some(decoded) = &mut line.decoded {
+                decoded.task = task;
+                decoded.cumulative = line.source.position;
+                decoded.at = line.source.at;
+            }
+            if let c::OwnerActivity::Turn { reply, .. } = &mut line.source.line {
+                *reply = line.source.position;
+            }
             line
         })
         .expect("activity row");

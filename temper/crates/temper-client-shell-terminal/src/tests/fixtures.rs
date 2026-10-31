@@ -244,7 +244,7 @@ fn populate_page(
     address: &temper_client_domain::Address,
     out: &mut skein_lib::Queue<client::Request>,
 ) {
-    use jig_client::contract::{Delivery, ReadResult, Subject, WatchEvent};
+    use contract::{Delivery, ReadResult, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
     for _ in 0..128 {
         let Some(request) = out.pop() else {
@@ -351,7 +351,7 @@ pub fn page_words() -> temper_client_view::words::Words {
 }
 
 pub fn inbox_document(group: contract::InboxReadGroup) -> contract::OwnerInboxPage {
-    use contract::{InboxEntry, InboxGroup, ObjectKey};
+    use contract::{InboxGroup, ObjectKey};
     let mut rows = skein_lib::List::with_capacity(6);
     for (kind, object) in [
         (InboxGroup::Questions, ObjectKey::Question { task: 9, message: 1 }),
@@ -369,7 +369,7 @@ pub fn inbox_document(group: contract::InboxReadGroup) -> contract::OwnerInboxPa
                 .expect("six inbox groups");
         }
     }
-    jig_client::contract::OwnerInboxPage { cut: false, rows: rows, before: None, after: None, selection: None }
+    contract::OwnerInboxPage { cut: false, rows, before: None, after: None, selection: None }
 }
 pub fn inbox_page() -> skein_ui::Tree {
     use skein_ui::{Role, Run};
@@ -734,10 +734,10 @@ fn activity_document() -> contract::ActivityPage {
     rows.push(crate::tests::documents::line(
         1,
         skein_lib::Wall::EPOCH,
-        jig_client::contract::OwnerActivity::Words {
+        contract::OwnerActivity::Words {
             message: 1,
-            by: jig_client::contract::OwnerRequester::Person((jig_client_world::stories::party(1)).number),
-            kind: jig_client::contract::OwnerMessageKind::Words,
+            by: contract::OwnerRequester::Person((jig_client_world::stories::party(1)).number),
+            kind: contract::OwnerMessageKind::Words,
             words: jig_client_world::stories::text(b"A fixture conversation"),
         },
     ))

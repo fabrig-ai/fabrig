@@ -219,7 +219,9 @@ fn owns(page: &c::ReadValue) -> bool {
     false
 }
 fn task_hold(b: &mut Builder, task: &c::Task, words: &Words, rows: u32) {
-    if let Some(hold) = &task.hold { held(b, task.chip.task, hold, words, rows); }
+    if let Some(hold) = &task.hold {
+        held(b, task.chip.task, hold, words, rows);
+    }
 }
 fn held(b: &mut Builder, task: u64, hold: &c::OwnerChipHold, words: &Words, _rows: u32) {
     super::hold(b, task, &hold.reason, words);
