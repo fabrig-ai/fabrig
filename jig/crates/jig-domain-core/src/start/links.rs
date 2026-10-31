@@ -213,19 +213,17 @@ impl Core {
                 | people::Outcome::Said { task, .. }
                 | people::Outcome::QuestionAnswered { task, .. }
                 | people::Outcome::Amended { task, .. }
-                | people::Outcome::EscalationDecided { task, .. } => self.link_allocated_task(&source, *task),
+                | people::Outcome::EscalationDecided { task, .. }
+                | people::Outcome::ProposalDecided { proposer: people::Proposer::Task(task), .. }
+                | people::Outcome::MarkedSeen { seen: people::Seen::Conversation { task, .. } } => {
+                    self.link_allocated_task(&source, *task);
+                }
                 people::Outcome::Created { first, last, given } => {
                     self.link_allocated_task(&source, *first);
                     self.link_allocated_task(&source, *last);
                     if let Some(given) = given {
                         self.link_allocated_task(&source, given.task);
                     }
-                }
-                people::Outcome::ProposalDecided { proposer: people::Proposer::Task(task), .. } => {
-                    self.link_allocated_task(&source, *task);
-                }
-                people::Outcome::MarkedSeen { seen: people::Seen::Conversation { task, .. } } => {
-                    self.link_allocated_task(&source, *task);
                 }
                 people::Outcome::MarkedSeen { seen: people::Seen::Results { .. } }
                 | people::Outcome::Compound { .. }
@@ -317,9 +315,10 @@ impl Core {
 
     fn link_settings_proposal(&self, source: &Key, proposer: people::Proposer, number: u64, revision: u32) {
         self.link_revision(source, revision);
-        let Ok(number) = u32::try_from(number) else {
-            panic!("{source:?} links missing settings proposal {proposer:?}/{number}");
-        };
+        let target_number = u32::try_from(number);
+        let linked = target_number.is_ok();
+        assert!(linked, "{source:?} links missing settings proposal {proposer:?}/{number}");
+        let number = target_number.expect("linked settings proposal key");
         let target = crate::settings::Key::Proposal { proposer, proposal: number };
         assert!(
             self.settings_proposals.contains_key(&(proposer, number)),

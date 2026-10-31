@@ -39,7 +39,11 @@ fn restore_person(core: &mut Core, env: &Env<crate::Limits>, record: people::Sto
     assert!(core.restore_people_row(&record));
     let crate::Requests::Out(mut out) = crate::step(core, env, Event::People(people::Event::Restore { record }));
     while let Some(request) = out.pop() {
-        assert!(!matches!(request, Request::Now(now) if matches!(*now, crate::Now::RestoreRefused)));
+        if let Request::Now(now) = request
+            && let crate::Now::RestoreRefused = *now
+        {
+            panic!("selected start emits no RestoreRefused");
+        }
     }
 }
 
@@ -47,7 +51,11 @@ fn restore_task(core: &mut Core, env: &Env<crate::Limits>, record: tasks::Stored
     assert!(core.restore_task_row(&record));
     let crate::Requests::Out(mut out) = crate::step(core, env, Event::Tasks(tasks::Event::Restore { record }));
     while let Some(request) = out.pop() {
-        assert!(!matches!(request, Request::Now(now) if matches!(*now, crate::Now::RestoreRefused)));
+        if let Request::Now(now) = request
+            && let crate::Now::RestoreRefused = *now
+        {
+            panic!("selected start emits no RestoreRefused");
+        }
     }
 }
 
@@ -86,19 +94,16 @@ fn answer(outcome: people::Outcome) -> people::Stored {
 
 #[test]
 fn applied_tokens_are_not_judged_and_missing_connectors_are_links() {
-    for connector in [1, 99] {
+    for (connector, token) in [(1, 0), (1, u64::MAX), (99, 0), (99, u64::MAX)] {
         let (mut core, env) = loaded();
-        let row = answer(people::Outcome::Applied { connector, token: Token::new(u64::MAX) });
+        let row = answer(people::Outcome::Applied { connector, token: Token::new(token) });
         assert!(core.restore_people_row(&row));
         restore_person(&mut core, &env, row);
         let result = catch_unwind(AssertUnwindSafe(|| link(&mut core, &env)));
         if connector == 1 {
-            assert!(matches!(
-                result.expect("configured connector links"),
-                Action::Step(Phase::Sweep) | Action::Commit(_)
-            ));
+            linked(result.expect("configured connector links"));
         } else {
-            assert!(result.is_err());
+            let _panic = result.expect_err("missing link asserts");
             assert_eq!(core.start_phase(), Some(Phase::Link));
         }
         assert_eq!(core.start_failure(), None);
@@ -178,9 +183,8 @@ fn stored_llm_choice_names_the_task_that_configuration_cannot_hold() {
     restore_task(&mut core, &env, period());
     restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row)));
     assert_eq!(core.start_failure(), None);
-    assert!(
-        matches!(link(&mut core, &env), Action::Refused(Failure::LlmChoice { key }) if key == Key::Tasks(tasks::Key::Live(1)))
-    );
+    let Action::Refused(failure) = link(&mut core, &env) else { panic!("configured choice refuses") };
+    assert_eq!(failure, Failure::LlmChoice { key: Key::Tasks(tasks::Key::Live(1)) });
     assert_eq!(core.restart_failure(), None);
 }
 
@@ -199,7 +203,8 @@ fn unknown_introduction_diagnostic_is_retained_and_replayed() {
         }),
     };
     assert_eq!(core.restore_core(CoreRecord::Call(record.clone()), &env.limits), Restored::Live);
-    assert!(matches!(core.replay_call(key), Some(crate::CallReplay::Core(found)) if found == part));
+    let Some(crate::CallReplay::Core(found)) = core.replay_call(key) else { panic!("retained diagnostic replays") };
+    assert_eq!(found, part);
     assert_eq!(core.call_record(key), Some(record));
     assert_eq!(core.start_failure(), None);
 }
@@ -219,7 +224,8 @@ fn missing_ended_read_owner_is_a_link_before_sweep() {
         previous = next;
     }
     step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
-    assert!(catch_unwind(AssertUnwindSafe(|| core.start_done(&env, Phase::Link, &mut out))).is_err());
+    let _panic = catch_unwind(AssertUnwindSafe(|| core.start_done(&env, Phase::Link, &mut out)))
+        .expect_err("missing ended owner asserts");
     assert_eq!(core.start_phase(), Some(Phase::Link));
     assert!(out.is_empty());
 }
@@ -262,7 +268,7 @@ fn recurring_lifetime_allotments_are_not_simultaneous_live_capacity() {
             closed: false,
         }),
     );
-    assert!(matches!(link(&mut core, &env), Action::Step(Phase::Sweep) | Action::Commit(_)));
+    linked(link(&mut core, &env));
     assert_eq!(core.tasks.funding(funder).expect("retained recurring ledger").made, made);
     assert_eq!(core.start_failure(), None);
 }
@@ -307,7 +313,7 @@ fn amendment() -> Box<tasks::Amendment> {
 
 fn unmade(core: &mut Core, env: &Env<crate::Limits>) {
     assert_eq!(core.start_failure(), None);
-    assert!(catch_unwind(AssertUnwindSafe(|| link(core, env))).is_err());
+    let _panic = catch_unwind(AssertUnwindSafe(|| link(core, env))).expect_err("missing link asserts");
     assert_eq!(core.start_phase(), Some(Phase::Link));
     assert_eq!(core.start_failure(), None);
     assert_eq!(core.restart_failure(), None);
@@ -331,7 +337,7 @@ fn every_placed_hold_links_its_project_and_person_owner() {
         };
         restore_task(&mut core, &env, tasks::Stored::PlacedHold(Box::new(hold)));
         if present {
-            assert!(matches!(link(&mut core, &env), Action::Step(Phase::Sweep) | Action::Commit(_)));
+            linked(link(&mut core, &env));
         } else {
             unmade(&mut core, &env);
         }
@@ -468,7 +474,7 @@ fn settings_proposals_link_both_records_and_the_retained_revision() {
             );
         }
         if present {
-            assert!(matches!(link(&mut core, &env), Action::Step(Phase::Sweep) | Action::Commit(_)));
+            linked(link(&mut core, &env));
         } else {
             unmade(&mut core, &env);
         }
@@ -508,7 +514,7 @@ fn projections_link_live_plan_tasks_and_keep_ended_tasks_as_history() {
         if live {
             unmade(&mut core, &env);
         } else {
-            assert!(matches!(link(&mut core, &env), Action::Step(Phase::Sweep) | Action::Commit(_)));
+            linked(link(&mut core, &env));
         }
     }
 }
@@ -532,9 +538,9 @@ fn connector_resource_roles_link_their_projects() {
         step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
         let result = catch_unwind(AssertUnwindSafe(|| core.start_done(&env, Phase::Link, &mut out)));
         if project == 1 {
-            assert!(matches!(result.expect("project links"), Action::Step(Phase::Sweep) | Action::Commit(_)));
+            linked(result.expect("project links"));
         } else {
-            assert!(result.is_err());
+            let _panic = result.expect_err("missing link asserts");
             assert_eq!(core.start_phase(), Some(Phase::Link));
         }
     }
@@ -547,7 +553,7 @@ fn answer_tasks_link_allocated_identities_after_their_live_rows_end() {
         restore_person(&mut core, &env, answer(people::Outcome::Stopped { task }));
         assert!(core.tasks.task(task).is_none());
         if present {
-            assert!(matches!(link(&mut core, &env), Action::Step(Phase::Sweep) | Action::Commit(_)));
+            linked(link(&mut core, &env));
         } else {
             unmade(&mut core, &env);
         }
@@ -555,4 +561,12 @@ fn answer_tasks_link_allocated_identities_after_their_live_rows_end() {
     let (mut core, env) = loaded();
     restore_person(&mut core, &env, answer(people::Outcome::Created { first: 99, last: 101, given: None }));
     unmade(&mut core, &env);
+}
+
+fn linked(action: Action) {
+    match action {
+        Action::Step(phase) => assert_eq!(phase, Phase::Sweep),
+        Action::Commit(_) => {}
+        Action::Idle | Action::Refused(_) => panic!("linked start reaches Sweep"),
+    }
 }

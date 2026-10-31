@@ -29,7 +29,7 @@ impl Harness {
             env: Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits: limits.core },
             out: Queue::uncapped(),
         };
-        phase(h.core.start_begin(false, h.env.wall), Phase::LoadCore);
+        phase(&h.core.start_begin(false, h.env.wall), Phase::LoadCore);
         for range in core::RestoreRange::LIVE {
             for (key, record) in &world.store.rows {
                 if let root::Key::Core(key) = key
@@ -46,7 +46,7 @@ impl Harness {
     fn record(&mut self, record: core::Record) {
         match record {
             core::Record::Core(row) => {
-                assert_ne!(self.core.restore_core(row, &self.env.limits), core::Restored::Rejected)
+                assert_ne!(self.core.restore_core(row, &self.env.limits), core::Restored::Rejected);
             }
             core::Record::Tasks(row) => {
                 assert!(self.core.restore_task_row(&row));
@@ -76,15 +76,15 @@ impl Harness {
     }
 
     fn link(&mut self) -> Action {
-        phase(self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
+        phase(&self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
         let _census = self.core.census(&self.env.limits);
         let mut previous = Phase::LoadInbox;
         for connector in self.core.connectors.clone() {
             let next = Phase::RestoreConnector { connector };
-            phase(self.core.start_done(&self.env, previous, &mut self.out), next);
+            phase(&self.core.start_done(&self.env, previous, &mut self.out), next);
             previous = next;
         }
-        phase(self.core.start_done(&self.env, previous, &mut self.out), Phase::Link);
+        phase(&self.core.start_done(&self.env, previous, &mut self.out), Phase::Link);
         self.core.start_done(&self.env, Phase::Link, &mut self.out)
     }
 
@@ -110,8 +110,8 @@ impl Harness {
     }
 }
 
-fn phase(action: Action, expected: Phase) {
-    assert!(matches!(action, Action::Step(found) if found == expected));
+fn phase(action: &Action, expected: Phase) {
+    assert!(matches!(action, Action::Step(found) if *found == expected));
 }
 
 #[test]
