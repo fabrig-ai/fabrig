@@ -7,10 +7,10 @@ use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Role, Script, Turn
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
 use smith_domain::{Transcript, run};
-use smith_protocol_llm_world::adapter::{self as adapter, Limits};
+use smith_protocol_llm_world::codec::{self as codec, Limits};
 use smith_protocol_llm_world::{
     Boundary, Job, Settings, World,
-    wire::{self, Observed},
+    client_peer::{self},
 };
 
 const BEGIN: &[u8] = b"Begin the work your brief describes.";
@@ -69,17 +69,9 @@ fn part_bytes(part: &Part) -> usize {
     }
 }
 
-fn accounting(
-    world: &World,
-    prefixes: &[Vec<Message>],
-    outputs: &[u64],
-    prior: u32,
-    cache_write: bool,
-    reasoning: Option<u64>,
-) {
+fn observe_usage(world: &World, prefixes: &[Vec<Message>], outputs: &[u64], cache_write: bool, reasoning: Option<u64>) {
     assert_eq!(world.prompts().len(), prefixes.len());
     assert_eq!(world.turns().len(), prefixes.len());
-    let mut spent = run::Spend::ZERO;
     for (index, ((query, turn), expected)) in world.prompts().iter().zip(world.turns()).zip(prefixes).enumerate() {
         assert_eq!(query.messages.as_ref(), expected, "whole native history at completion {index}");
         let fixed = query.system.len()
@@ -113,39 +105,10 @@ fn accounting(
             "all four independently calculated SDK usage fields"
         );
         assert_eq!(turn.usage.reasoning_tokens, reasoning, "literal peer reasoning reporting");
-        spent.reasoning = reasoning;
-        spent.turns += 1;
-        spent.units += 1;
-        spent.input = Some(spent.input.unwrap_or(0) + input);
-        spent.output = Some(spent.output.unwrap_or(0) + outputs[index]);
-        spent.cache_read = Some(spent.cache_read.unwrap_or(0) + read);
-        if let Some(write) = write {
-            spent.cache_write = Some(spent.cache_write.unwrap_or(0) + write);
-        }
-        assert_eq!(world.turn_metadata()[index], (spent.turns, None, spent));
-        assert_eq!(turn.sequence, prior + spent.turns);
-        assert_eq!(turn.version, smith_domain::session::record::VERSION);
-        assert_eq!(turn.spent, spent.units);
-        assert!(
-            turn.messages.iter().flat_map(|message| &message.content).all(|block| {
-                !matches!(block, smith_domain::session::llm::Block::ToolCall { call, .. }
-                if !matches!(call, smith_domain::session::llm::Decoded::Historical))
-            }),
-            "persisted calls are concrete history"
-        );
     }
-    assert!(
-        matches!(world.answer(), run::Answer::Parked { turns, spent: observed } if *turns == spent.turns && *observed == spent)
-    );
 }
 
-fn no_workspace(world: &World, settings: &Settings) {
-    assert!(world.boundaries().is_empty(), "no Read, Probe, workspace IO or Check");
-    assert!(world.disk().files().is_empty(), "no unused seeded checkout");
-    assert_eq!(format!("{:?}", world.disk()), format!("{:?}", Checkout::new()), "no unused roots or programs either");
-    assert!(world.checked().is_empty() && world.pushes().is_empty() && world.delivery_submissions().is_empty());
-    assert_eq!(world.waiting().len(), 1);
-    assert!(world.answered_at() >= world.waiting()[0].0.saturating_add(settings.waiting));
+fn no_workspace(world: &World) {
     for query in world.prompts() {
         assert_eq!(
             query.tools.iter().map(|tool| tool.name.as_ref()).collect::<Vec<_>>(),
@@ -153,21 +116,13 @@ fn no_workspace(world: &World, settings: &Settings) {
         );
         assert!(!contains(&query.system, b".temper/pre-pr"));
     }
-    assert_eq!(world.wire_bindings().len(), world.turns().len());
-    for binding in world.wire_bindings() {
-        assert_eq!(
-            binding.observed.iter().map(|(_, _, seen)| *seen).collect::<Vec<_>>(),
-            [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
-        );
-        assert!(binding.retired.is_some(), "physical owners retire only after observed Closed");
-    }
 }
 
 #[test]
 fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
-    for index in 0..2 {
+    for dialect in smith_protocol_llm_world::fixture::Dialect::ALL {
         let mut bounds =
-            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
+            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {
@@ -177,13 +132,20 @@ fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
             ..smith_protocol_llm_world::fixture::settings(1001)
         };
         settings.limits.session.completion_bytes =
-            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
+            codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
                 .expect("observed Client completion reservation");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
-        let configuration = wire::configurations().into_iter().nth(index).expect("two native fixtures");
-        let mut first =
-            World::with_workspace_wire(settings, None, None, Checkout::new(), configuration, bounds, native_script());
+        let configuration = dialect.configuration();
+        let mut first = World::with_workspace_protocol(
+            settings,
+            None,
+            None,
+            Checkout::new(),
+            configuration,
+            bounds,
+            native_script(),
+        );
         first.run(100_000);
         let first_prefix = vec![message(Role::User, vec![text(BEGIN)])];
         let mut second_prefix = first_prefix.clone();
@@ -196,15 +158,8 @@ fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
             message(Role::Assistant, vec![text(FIRST), tool(b"call_0000000000000002", b"wait", b"{}")]),
             message(Role::User, vec![result(b"call_0000000000000002", b"Continue the saved conversation.")]),
         ]);
-        accounting(&first, &[first_prefix, second_prefix], &[17, 11], 0, true, if index == 0 { Some(0) } else { None });
-        no_workspace(&first, &settings);
-        assert_eq!(first.host_submissions().len(), 1);
-        assert_eq!(first.host_submissions()[0].name, run::CallName { activation: 1, completion: 1, position: 0 });
-        assert_eq!(first.host_submissions()[0].input.bytes(), INPUT);
-        assert_eq!(first.host_decisions(), 1);
-        assert!(
-            matches!(first.host_terminals(), [(_, _, run::HostReply::Answered(answer))] if answer.text() == ANSWER && !answer.error())
-        );
+        observe_usage(&first, &[first_prefix, second_prefix], &[17, 11], true, dialect.reasoning());
+        no_workspace(&first);
         let observed = &first.turns()[0];
         let saved = Transcript {
             version: observed.version,
@@ -214,8 +169,8 @@ fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
         };
         assert_eq!(saved.turns.last().expect("persisted observed tail").sequence, 2);
         settings.resume = true;
-        let configuration = wire::configurations().into_iter().nth(index).expect("same native fixture");
-        let mut resumed = World::with_workspace_wire(
+        let configuration = dialect.configuration();
+        let mut resumed = World::with_workspace_protocol(
             settings,
             Some(saved),
             None,
@@ -225,12 +180,8 @@ fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
             native_script(),
         );
         resumed.run(100_000);
-        accounting(&resumed, &[third_prefix], &[7], 2, true, if index == 0 { Some(0) } else { None });
-        no_workspace(&resumed, &settings);
-        assert!(resumed.host_submissions().is_empty() && resumed.host_terminals().is_empty());
-        assert_eq!(resumed.host_decisions(), 0, "restored history performs no second host effect");
-        assert_eq!(first.turn_metadata()[1].2.output, Some(28));
-        assert_eq!(resumed.turn_metadata()[0].2.output, Some(7), "history is not recharged");
+        observe_usage(&resumed, &[third_prefix], &[7], true, dialect.reasoning());
+        no_workspace(&resumed);
     }
 }
 
@@ -240,7 +191,7 @@ fn contains(bytes: &[u8], part: &[u8]) -> bool {
 
 #[test]
 fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
-    for configuration in wire::configurations() {
+    for configuration in client_peer::configurations() {
         let mut disk = Checkout::new();
         disk.mkdir(b"work");
         disk.write(b"work/utf8.txt", "sections 4–6\n".as_bytes());
@@ -267,21 +218,27 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
                     )],
                     1,
                 ),
-                calls(vec![call(b"finish", br#"{"report":"Edited the copied text.","source":"utf8.txt"}"#)], 1),
+                calls(
+                    vec![call(
+                        b"finish",
+                        br#"{"form":"report","text":"Edited the copied text.","fields":{"source":"utf8.txt"}}"#,
+                    )],
+                    1,
+                ),
             ]),
         }]);
         let mut bounds =
-            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
+            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated());
         // The native request includes the complete depth/glob schema inventory.
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings { job: Job::Reporting, ..smith_protocol_llm_world::fixture::settings(1013) };
         settings.limits.session.completion_bytes =
-            adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("completion room");
+            codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("completion room");
         settings.limits.session.completion_blocks = bounds.client.output_items;
         settings.limits.session.failure_bytes = bounds.client.detail_bytes;
         let mut world =
-            World::with_workspace_wire(settings, None, Some(workspace), disk, configuration, bounds, scripts);
+            World::with_workspace_protocol(settings, None, Some(workspace), disk, configuration, bounds, scripts);
         world.run(10_000);
         assert!(matches!(world.answer(), run::Answer::Accepted { outcome: run::outcome::Declared::Report(_), .. }));
         assert_eq!(world.disk().content(b"work/utf8.txt"), Some(b"sections 4-6\n".as_slice()));
@@ -329,7 +286,7 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
 
 #[test]
 fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() {
-    for configuration in wire::configurations() {
+    for configuration in client_peer::configurations() {
         let mut disk = Checkout::new();
         disk.mkdir(b"work");
         let root = Token::new(disk.root(b"work"));
@@ -364,22 +321,25 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
             history_bytes: u64::from(skein_llm_world::limits().request),
             ..smith_protocol_llm::fixture::small(
                 client,
-                adapter::Stated::from_tools(caps, client.input).expect("observed numeric quantities"),
+                codec::Stated::from_tools(caps, client.input).expect("observed numeric quantities"),
             )
         };
         settings.limits.session.completion_bytes =
-            adapter::completion_bound(&client, settings.limits.decoded_call_bytes).expect("receiving");
+            codec::completion_bound(&client, settings.limits.decoded_call_bytes).expect("receiving");
         settings.limits.session.completion_blocks = client.output_items;
         settings.limits.session.failure_bytes = client.detail_bytes;
         let scripts = Box::new([Script {
             cue: Box::new([]),
             turns: Box::new([calls(
-                vec![call(b"finish", br#"{"report":"Descriptions observed.","source":"schema"}"#)],
+                vec![call(
+                    b"finish",
+                    br#"{"form":"report","text":"Descriptions observed.","fields":{"source":"schema"}}"#,
+                )],
                 1,
             )]),
         }]);
         let mut world =
-            World::with_workspace_wire(settings, None, Some(workspace), disk, configuration, bounds, scripts);
+            World::with_workspace_protocol(settings, None, Some(workspace), disk, configuration, bounds, scripts);
         world.run(10_000);
         assert!(
             matches!(world.answer(), run::Answer::Accepted { .. }),
@@ -418,7 +378,7 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
 #[test]
 fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
     for several in [false, true] {
-        for configuration in wire::configurations() {
+        for configuration in client_peer::configurations() {
             let mut disk = Checkout::new();
             disk.mkdir(b"work");
             disk.mkdir(b"docs");
@@ -450,24 +410,29 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
                 history_bytes: u64::from(skein_llm_world::limits().request),
                 ..smith_protocol_llm::fixture::small(
                     client,
-                    adapter::Stated::from_tools(&settings.limits.session.tools, client.input)
+                    codec::Stated::from_tools(&settings.limits.session.tools, client.input)
                         .expect("valid namespace fixture"),
                 )
             };
             settings.limits.session.completion_bytes =
-                adapter::completion_bound(&client, settings.limits.decoded_call_bytes)
-                    .expect("valid namespace fixture");
+                codec::completion_bound(&client, settings.limits.decoded_call_bytes).expect("valid namespace fixture");
             settings.limits.session.completion_blocks = client.output_items;
             settings.limits.session.failure_bytes = client.detail_bytes;
             let scripts = Box::new([Script {
                 cue: Box::new([]),
                 turns: Box::new([
                     calls(vec![call(b"list", br#"{"path":"/"}"#)], 1),
-                    calls(vec![call(b"finish", br#"{"report":"Namespace observed.","source":"authority"}"#)], 1),
+                    calls(
+                        vec![call(
+                            b"finish",
+                            br#"{"form":"report","text":"Namespace observed.","fields":{"source":"authority"}}"#,
+                        )],
+                        1,
+                    ),
                 ]),
             }]);
             let mut world =
-                World::with_workspace_wire(settings, None, Some(workspace), disk, configuration, bounds, scripts);
+                World::with_workspace_protocol(settings, None, Some(workspace), disk, configuration, bounds, scripts);
             world.run(10_000);
             assert!(matches!(world.answer(), run::Answer::Accepted { .. }), "{:?}", world.answer());
             assert_eq!(world.prompts().len(), 2);

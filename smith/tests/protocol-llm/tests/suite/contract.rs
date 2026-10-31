@@ -3,9 +3,9 @@
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_lib::Token;
 use smith_domain::{llm, run};
-use smith_protocol_llm_world::adapter::{self as adapter};
+use smith_protocol_llm_world::client_peer;
+use smith_protocol_llm_world::codec::{self as codec};
 use smith_protocol_llm_world::fixture::limits;
-use smith_protocol_llm_world::wire;
 
 fn field(name: &[u8], max: u32) -> run::outcome::FieldRule {
     run::outcome::FieldRule { name: name.into(), max }
@@ -51,19 +51,19 @@ fn every_contract_form_yields_a_bounded_json_schema() {
         run::outcome::OutcomeSpec { change: None, verdicts: Box::new([]), report: None, failure: all.failure.clone() },
     ];
     for specification in &forms {
-        let schema = adapter::finish_schema(specification, limits().client.request)
+        let schema = codec::finish_schema(specification, limits().client.request)
             .expect("contract-derived schema fits the dialect");
         let document = skein_llm::Json::from_bytes(&schema, &limits().client.native().request_document())
             .expect("scripted peer accepts a complete JSON object schema");
         assert_eq!(document.document().token(0).map(|record| record.kind), Some(skein_json::Kind::ObjectStart));
         assert!(schema.windows(b"\"maxLength\"".len()).any(|part| part == b"\"maxLength\""));
     }
-    let all_schema = adapter::finish_schema(&all, limits().client.request).expect("four forms");
+    let all_schema = codec::finish_schema(&all, limits().client.request).expect("four forms");
     for literal in [b"approve".as_slice(), b"observation", b"maxItems", b"minItems", b"source"] {
         assert!(all_schema.windows(literal.len()).any(|part| part == literal));
     }
     let delivery =
-        adapter::deliver_schema(all.change.as_ref().expect("separate grant"), 4096).expect("mid-run change fields");
+        codec::deliver_schema(all.change.as_ref().expect("separate grant"), 4096).expect("mid-run change fields");
     assert!(delivery.windows(b"ticket".len()).any(|part| part == b"ticket"));
 }
 
@@ -71,7 +71,7 @@ fn every_contract_form_yields_a_bounded_json_schema() {
 fn a_bad_finish_is_corrected_and_each_declared_form_is_typed() {
     let limits = limits();
     let contract = contract();
-    let invalid = adapter::decode_finish(br#"{"form":"report","fields":{"source":"test"}}"#, &contract, &limits);
+    let invalid = codec::decode_finish(br#"{"form":"report","fields":{"source":"test"}}"#, &contract, &limits);
     assert!(matches!(
         invalid,
         llm::Decoded::Invalid { problem: llm::Problem::Missing { field } } if field.as_ref() == b"text"
@@ -83,7 +83,7 @@ fn a_bad_finish_is_corrected_and_each_declared_form_is_typed() {
         br#"{"form":"failure","reason":"blocked","fields":{"cause":"remote"}}"#,
     ];
     for input in cases {
-        let ask = served(adapter::decode_finish(input, &contract, &limits));
+        let ask = served(codec::decode_finish(input, &contract, &limits));
         let run::Ask::Finish { outcome } = ask else { panic!("finish ask") };
         assert_eq!(run::outcome::judge(&contract, &outcome), Ok(()), "{}", String::from_utf8_lossy(input));
     }
@@ -93,12 +93,12 @@ fn a_bad_finish_is_corrected_and_each_declared_form_is_typed() {
 fn delivery_fields_decode_without_interpreting_host_names() {
     let limits = limits();
     let change = contract().change.expect("separate change rule");
-    let malformed = adapter::decode_deliver(br#"{"fields":{"ticket":12}}"#, &change, &limits);
+    let malformed = codec::decode_deliver(br#"{"fields":{"ticket":12}}"#, &change, &limits);
     assert!(matches!(
         malformed,
         llm::Decoded::Invalid { problem: llm::Problem::WrongType { field } } if field.as_ref() == b"ticket"
     ));
-    let ask = served(adapter::decode_deliver(br#"{"fields":{"ticket":"abc","extra":"kept"}}"#, &change, &limits));
+    let ask = served(codec::decode_deliver(br#"{"fields":{"ticket":"abc","extra":"kept"}}"#, &change, &limits));
     let run::Ask::Deliver { change } = ask else { panic!("delivery ask") };
     assert_eq!(change.fields.len(), 2);
     assert_eq!(change.fields[1].name.as_ref(), b"extra");
@@ -109,7 +109,7 @@ fn delivery_fields_decode_without_interpreting_host_names() {
 fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
     let bounds = limits();
     let rules = contract();
-    for configuration in &wire::configurations() {
+    for configuration in &client_peer::configurations() {
         let prompt = llm::Prompt {
             effort: None,
             purpose: llm::Purpose::Ordinary { guard: None },
@@ -129,8 +129,8 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
             max_tokens: 32,
         };
         let receiving = smith_protocol_llm::fixture::receiving(&bounds.client, 4096).expect("fixture receiving bound");
-        let prepared = adapter::prepare_for_contract(
-            adapter::Input {
+        let prepared = codec::prepare_for_contract(
+            codec::Input {
                 owner: Token::new(91),
                 endpoint_name: prompt.endpoint,
                 prompt,
@@ -140,7 +140,7 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
                     account_id: configuration.credential.account_id.clone(),
                     scheme: skein_llm::Scheme::Bearer,
                 },
-                application: Box::new([]),
+
                 receiving,
             },
             &rules,
@@ -178,5 +178,57 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
         }
         assert!(query.tools[0].parameters.windows(b"observation".len()).any(|part| part == b"observation"));
         assert!(query.tools[1].parameters.windows(b"ticket".len()).any(|part| part == b"ticket"));
+    }
+}
+
+#[test]
+fn root_finish_uses_the_admitted_contract_and_corrects_the_fixture_grammar() {
+    use smith_protocol_llm_world::{Job, World, fixture};
+    for configuration in client_peer::configurations() {
+        let mut settings = fixture::settings(903);
+        settings.job = Job::Reporting;
+        let mut bounds = limits();
+        bounds.client.http.request = 16384;
+        bounds.client.request = 16384;
+        let receiving = smith_protocol_llm::fixture::receiving(&bounds.client, settings.limits.decoded_call_bytes)
+            .expect("receiving bounds");
+        settings.limits.session.completion_bytes = receiving.max_completion_bytes;
+        settings.limits.session.completion_blocks = receiving.max_completion_blocks;
+        settings.limits.session.failure_bytes = receiving.max_failure_bytes;
+        let mut charter = smith_agent_world::scripted_charter(&settings);
+        charter.outcome.report = Some(run::outcome::TextSpec { max: 80, fields: Box::new([field(b"evidence", 20)]) });
+        let scripts = Box::new([Script {
+            cue: b"@report".as_slice().into(),
+            turns: [
+                br#"{"report":"fixture grammar","evidence":"peer"}"#.as_slice(),
+                br#"{"form":"report","text":"production grammar","fields":{"evidence":"peer"}}"#,
+            ]
+            .into_iter()
+            .map(|arguments| Turn {
+                lines: Box::new([Line::Call { name: b"finish".as_slice().into(), arguments: arguments.into() }]),
+                finish: Finish::ToolCalls,
+                tokens: 1,
+            })
+            .collect(),
+        }]);
+        let mut world = World::with_workspace_protocol_charter(
+            settings,
+            None,
+            None,
+            skein_fake_checkout::Checkout::new(),
+            (configuration, bounds),
+            scripts,
+            charter,
+        );
+        world.run(100_000);
+        let run::Answer::Accepted { outcome: run::outcome::Declared::Report(report), .. } = world.answer() else {
+            panic!("production finish accepted: {:?}", world.answer())
+        };
+        assert_eq!(report.text.as_ref(), b"production grammar");
+        assert_eq!(report.fields[0].name.as_ref(), b"evidence");
+        assert_eq!(world.completions().len(), 2);
+        assert!(world.prompts()[0].tools.iter().any(|tool| tool.name.as_ref() == b"finish"
+            && tool.parameters.windows(b"evidence".len()).any(|part| part == b"evidence")));
+        assert!(world.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(|block| matches!(block, smith_domain::session::llm::Block::ToolResult { result: smith_domain::session::llm::Returned::Invalid { problem: llm::Problem::Missing { field } }, .. } if field.as_ref() == b"form")));
     }
 }

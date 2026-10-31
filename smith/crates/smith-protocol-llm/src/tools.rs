@@ -11,40 +11,7 @@ use smith_domain::{llm, tools};
 
 use crate::{Error, ToolKind, ToolSchema};
 
-/// The bounded inventory of Smith tools offered for this prompt.
-/// Host tools are supplied separately by the charter and retain their bytes.
-#[must_use]
-pub fn schemas(prompt: &llm::Prompt, stated: &crate::Stated) -> Box<[ToolSchema]> {
-    let mut descriptors = List::with_capacity(12);
-    if prompt.tools.inspect {
-        add(&mut descriptors, owned(tools::Tool::Read, b"read", stated, &prompt.namespace));
-        add(&mut descriptors, owned(tools::Tool::List, b"list", stated, &prompt.namespace));
-        add(&mut descriptors, owned(tools::Tool::Search, b"search", stated, &prompt.namespace));
-    }
-    if prompt.tools.modify {
-        add(&mut descriptors, owned(tools::Tool::Write, b"write", stated, &prompt.namespace));
-        add(&mut descriptors, owned(tools::Tool::Edit, b"edit", stated, &prompt.namespace));
-        add(&mut descriptors, owned(tools::Tool::Remove, b"remove", stated, &prompt.namespace));
-    }
-    if prompt.tools.shell {
-        add(&mut descriptors, owned(tools::Tool::Shell, b"shell", stated, &prompt.namespace));
-        add(&mut descriptors, owned(tools::Tool::Job, b"job", stated, &prompt.namespace));
-    }
-    for offered in &prompt.served {
-        match offered {
-            llm::Served::Host(_) => {}
-            llm::Served::Wait => add(&mut descriptors, waiting()),
-            llm::Served::SubAgent => add(&mut descriptors, sub_agent(stated.host_part)),
-            llm::Served::Deliver => add(&mut descriptors, delivering()),
-            llm::Served::Finish => add(&mut descriptors, finishing()),
-        }
-    }
-    descriptors.into_boxed()
-}
-
-/// The offered inventory with finish and deliver derived from the charter's
-/// admitted rules. The caller supplies a separate deliver rule only when that
-/// mid-run tool was granted.
+/// The bounded Smith inventory derived from the prompt and admitted charter rules.
 pub fn schemas_for_contract(
     prompt: &llm::Prompt,
     stated: &crate::Stated,
@@ -52,19 +19,34 @@ pub fn schemas_for_contract(
     deliver: Option<&run::outcome::ChangeSpec>,
     maximum: u32,
 ) -> Result<Box<[ToolSchema]>, Error> {
-    let mut inventory = List::with_capacity(12);
-    for mut descriptor in schemas(prompt, stated) {
-        match descriptor.kind {
-            ToolKind::Finish => descriptor.schema = crate::contract::finish_schema(outcome, maximum)?,
-            ToolKind::Deliver => {
-                let change = deliver.ok_or(Error::Invalid)?;
-                descriptor.schema = crate::contract::deliver_schema(change, maximum)?;
-            }
-            ToolKind::Owned(_) | ToolKind::SubAgent | ToolKind::Wait => {}
+    let mut descriptors = List::with_capacity(12);
+    for (granted, tool, name) in [
+        (prompt.tools.inspect, tools::Tool::Read, b"read".as_slice()),
+        (prompt.tools.inspect, tools::Tool::List, b"list"),
+        (prompt.tools.inspect, tools::Tool::Search, b"search"),
+        (prompt.tools.modify, tools::Tool::Write, b"write"),
+        (prompt.tools.modify, tools::Tool::Edit, b"edit"),
+        (prompt.tools.modify, tools::Tool::Remove, b"remove"),
+        (prompt.tools.shell, tools::Tool::Shell, b"shell"),
+        (prompt.tools.shell, tools::Tool::Job, b"job"),
+    ] {
+        if granted {
+            add(&mut descriptors, owned(tool, name, stated, &prompt.namespace))?;
         }
-        inventory.push(descriptor).or(Err(Error::Limit))?;
     }
-    Ok(inventory.into_boxed())
+    for offered in &prompt.served {
+        let descriptor = match offered {
+            llm::Served::Host(_) => continue,
+            llm::Served::Wait => waiting(),
+            llm::Served::SubAgent => sub_agent(stated.host_part),
+            llm::Served::Deliver => {
+                delivering(crate::contract::deliver_schema(deliver.ok_or(Error::Invalid)?, maximum)?)
+            }
+            llm::Served::Finish => finishing(crate::contract::finish_schema(outcome, maximum)?),
+        };
+        add(&mut descriptors, descriptor)?;
+    }
+    Ok(descriptors.into_boxed())
 }
 
 /// Measure Smith's fixed workspace schemas and fixed wait/sub-agent declarations.
@@ -128,34 +110,34 @@ fn sub_agent(host_part: u64) -> ToolSchema {
 }
 
 pub(crate) fn contract_text_bytes() -> Option<[u64; 2]> {
-    let finish = finishing();
-    let deliver = delivering();
+    let finish = finishing(Box::new([]));
+    let deliver = delivering(Box::new([]));
     Some([
         u64::try_from(finish.name.len()).ok()?.checked_add(u64::try_from(finish.description.len()).ok()?)?,
         u64::try_from(deliver.name.len()).ok()?.checked_add(u64::try_from(deliver.description.len()).ok()?)?,
     ])
 }
 
-fn delivering() -> ToolSchema {
-    descriptor(
-        ToolKind::Deliver,
-        b"deliver",
-        b"Offer the checked change to the host under the change contract.",
-        br#"{"type":"object","properties":{"ticket":{"type":"string"}},"required":["ticket"]}"#,
-    )
+fn delivering(schema: Box<[u8]>) -> ToolSchema {
+    ToolSchema {
+        kind: ToolKind::Deliver,
+        name: b"deliver".as_slice().into(),
+        description: b"Offer the checked change to the host under the change contract.".as_slice().into(),
+        schema,
+    }
 }
 
-fn finishing() -> ToolSchema {
-    descriptor(
-                ToolKind::Finish,
-                b"finish",
-                b"Declare the final result under the host's result contract.",
-                br#"{"type":"object","properties":{"title":{"type":"string"},"body":{"type":"string"},"report":{"type":"string"},"source":{"type":"string"},"failure":{"type":"string"},"cause":{"type":"string"},"verdict":{"type":"string"},"children":{"type":"array","items":{"type":"object","properties":{"kind":{"type":"string"},"path":{"type":"string"}},"required":["kind","path"]}}},"anyOf":[{"required":["title","body"]},{"required":["report"]},{"required":["failure"]},{"required":["verdict","body"]}]}"#,
-            )
+fn finishing(schema: Box<[u8]>) -> ToolSchema {
+    ToolSchema {
+        kind: ToolKind::Finish,
+        name: b"finish".as_slice().into(),
+        description: b"Declare the final result under the host's result contract.".as_slice().into(),
+        schema,
+    }
 }
 
-fn add(descriptors: &mut List<ToolSchema>, schema: ToolSchema) {
-    descriptors.push(schema).expect("ten fixed tool slots");
+fn add(descriptors: &mut List<ToolSchema>, schema: ToolSchema) -> Result<(), Error> {
+    descriptors.push(schema).or(Err(Error::Limit))
 }
 
 fn descriptor(kind: ToolKind, name: &[u8], description: &[u8], schema: &[u8]) -> ToolSchema {

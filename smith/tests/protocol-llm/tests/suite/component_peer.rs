@@ -13,7 +13,7 @@ use skein_lib::{Duration, Env, Intake, Queue, Rng, Time, Token};
 use skein_llm::{Credential, Provider};
 use skein_tls_world::{drive::Wire, pki, server::Server};
 use smith_domain::{GrantName, llm, run, tools};
-use smith_protocol_llm_world::adapter::{
+use smith_protocol_llm_world::codec::{
     Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, ToDomain,
 };
 

@@ -2,6 +2,7 @@
 //! The caller supplies its dependency bounds and stated quantities; this crate
 //! owns the remaining admission capacities and their receiving derivation.
 use crate::{ComponentLimits, Limits, Receiving, Stated};
+use alloc::boxed::Box;
 use skein_lib::Duration;
 use skein_llm::client;
 
@@ -30,9 +31,9 @@ pub fn receiving(client: &client::Limits, decoded_call_bytes: u64) -> Option<Rec
 
 /// Two concurrent calls through one endpoint, with the caller's idle policy.
 #[must_use]
-pub fn component(adapter: Limits, idle_keep: Duration) -> Option<ComponentLimits> {
+pub fn component(translation: Limits, idle_keep: Duration) -> Option<ComponentLimits> {
     Some(ComponentLimits {
-        adapter,
+        adapter: translation,
         connection: skein_llm_connection::Limits {
             memory: 1 << 40,
             endpoints: 1,
@@ -54,15 +55,68 @@ pub fn component(adapter: Limits, idle_keep: Duration) -> Option<ComponentLimits
                 retry: Duration::from_millis(10),
             },
             tls: skein_tls::client::Limits {
-                read: client::largest_read(&adapter.client),
+                read: client::largest_read(&translation.client),
                 send: 4096,
                 records: skein_tls::client::MAX_RECORD,
             },
         },
-        receiving: receiving(&adapter.client, 4096)?,
+        receiving: receiving(&translation.client, 4096)?,
         contract_bytes: 4096,
         llms: 1,
         accounts: 1,
         grant_value_bytes: 128,
     })
+}
+
+// Codec entrances are exposed only to fixture builds. Production callers route Component.
+pub use crate::completion::completion;
+pub use crate::failure::{cancelled, failed, refusal};
+pub use crate::prompt::prompt;
+pub use crate::types::Context;
+
+/// Result rules used by codec-only fixtures; root worlds supply their admitted charter.
+#[must_use]
+pub fn contract() -> smith_domain::run::outcome::OutcomeSpec {
+    use smith_domain::run::outcome::{OutcomeSpec, TextSpec};
+    OutcomeSpec {
+        change: None,
+        verdicts: Box::new([]),
+        report: Some(TextSpec { max: u32::MAX, fields: Box::new([]) }),
+        failure: None,
+    }
+}
+
+/// Production schemas for the codec fixture's result rules.
+#[must_use]
+pub fn schemas(prompt: &smith_domain::llm::Prompt, stated: &Stated) -> Box<[crate::ToolSchema]> {
+    let delivery = smith_domain::run::outcome::ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
+    crate::schemas_for_contract(prompt, stated, &contract(), Some(&delivery), u32::MAX)
+        .expect("fixture contract schemas fit")
+}
+
+/// Prepare a codec fixture with production schema generation and decoding.
+/// # Errors
+/// Returns the production prompt or receiving admission refusal.
+pub fn prepare_prompt(
+    owner: skein_lib::Token,
+    prompt: smith_domain::llm::Prompt,
+    receiving: Receiving,
+    limits: &Limits,
+) -> Result<(skein_llm::Prompt, Context), crate::Error> {
+    let delivery = smith_domain::run::outcome::ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
+    crate::prompt::prepare_component(owner, prompt, contract(), Some(delivery), receiving, limits)
+}
+
+/// Prepare a codec fixture with caller-selected result rules.
+/// # Errors
+/// Returns the production prompt or receiving admission refusal.
+pub fn prepare_for_contract(
+    owner: skein_lib::Token,
+    prompt: smith_domain::llm::Prompt,
+    outcome: &smith_domain::run::outcome::OutcomeSpec,
+    deliver: Option<&smith_domain::run::outcome::ChangeSpec>,
+    receiving: Receiving,
+    limits: &Limits,
+) -> Result<(skein_llm::Prompt, Context), crate::Error> {
+    crate::prompt::prepare_component(owner, prompt, outcome.clone(), deliver.cloned(), receiving, limits)
 }

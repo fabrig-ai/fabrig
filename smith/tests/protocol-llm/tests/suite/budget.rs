@@ -3,7 +3,7 @@
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_fake_llm_protocol::documents::{UsageField, UsageFields};
 use smith_domain::run;
-use smith_protocol_llm_world::{CompletionTerminal, Job, World, fixture, wire};
+use smith_protocol_llm_world::{CompletionTerminal, Job, World, client_peer, fixture};
 
 const ITERATIONS: u32 = 100_000;
 
@@ -19,7 +19,8 @@ fn script() -> Box<[Script]> {
             Turn {
                 lines: Box::new([Line::Call {
                     name: b"finish".as_slice().into(),
-                    arguments: br#"{"report":"Native answer.","source":"peer"}"#.as_slice().into(),
+                    arguments:
+                        br#"{"form":"report","text":"Native answer.","fields":{"source":"peer"}}"#.as_slice().into(),
                 }]),
                 finish: Finish::ToolCalls,
                 tokens: 7,
@@ -30,7 +31,7 @@ fn script() -> Box<[Script]> {
 
 #[test]
 fn optional_native_usage_stays_absent_through_the_root() {
-    for mut configuration in wire::configurations() {
+    for mut configuration in client_peer::configurations() {
         configuration.usage_fields = UsageFields::NONE.with(UsageField::Input).with(UsageField::Output);
         let mut settings = fixture::settings(712);
         settings.job = Job::Reporting;
@@ -42,7 +43,7 @@ fn optional_native_usage_stays_absent_through_the_root() {
         settings.limits.session.completion_bytes = receiving.max_completion_bytes;
         settings.limits.session.completion_blocks = receiving.max_completion_blocks;
         settings.limits.session.failure_bytes = receiving.max_failure_bytes;
-        let mut world = World::with_wire(settings, None, configuration, bounds, script());
+        let mut world = World::with_protocol(settings, None, configuration, bounds, script());
         world.run(ITERATIONS);
         assert_eq!(world.completions().len(), 2);
         for (observed, output) in world.completions().iter().zip([3, 7]) {

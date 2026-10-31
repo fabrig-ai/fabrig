@@ -12,11 +12,11 @@ use skein_llm::{self as shared, client};
 use skein_llm_world::{World as RawWorld, events, response, text_response};
 use skein_world::domain::Span;
 use smith_domain::{Event, llm, run, session::llm as recorded, tools};
-use smith_protocol_llm_world::adapter::{self as adapter, Context, Input, Limits, Receiving};
+use smith_protocol_llm_world::codec::{self as codec, Context, Input, Limits, Receiving};
 use smith_protocol_llm_world::fixture::limits;
 use smith_protocol_llm_world::{
-    Job, Settings, World,
-    wire::{self, Configuration, Observed},
+    Job, Settings, Terminal, World,
+    client_peer::{self, Configuration},
 };
 
 // Codex retains known reasoning fields; unknown extensions are scanned and
@@ -110,7 +110,7 @@ fn adopt(
     source: Vec<u8>,
 ) -> (Context, RawWorld) {
     let bounds = limits();
-    let adapter::Prepared { client, context } = adapter::prepare(
+    let codec::Prepared { client, context } = codec::prepare(
         Input {
             owner,
             prompt: prompt(messages),
@@ -121,7 +121,7 @@ fn adopt(
                 account_id: configuration.credential.account_id.clone(),
                 scheme: skein_llm::Scheme::Bearer,
             },
-            application: Box::new([]),
+
             receiving: receiving(&bounds),
         },
         &bounds,
@@ -164,7 +164,7 @@ fn completed(context: Context, peer: &mut RawWorld, expected_owner: Token) -> ll
     };
     assert_eq!(owner, expected_owner);
     let Event::Completed { owner, completion } =
-        adapter::completion(context, owner, completion, Box::new([])).expect("observed owned terminal translates")
+        codec::completion(context, completion).expect("observed owned terminal translates")
     else {
         panic!("completed translation")
     };
@@ -273,7 +273,7 @@ fn native_corruptions(peer: &RawWorld, expected: &[u8], markers: &[&[u8]]) {
 
 #[test]
 fn codex_reasoning_refusal_and_message_identity_continue_exactly() {
-    let configuration = wire::configurations().into_iter().next().expect("literal Codex fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("literal Codex fixture");
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(CODEX_RESPONSE), true);
     let (context, mut peer) = adopt(&configuration, Token::new(0), Box::new([user(b"Start.")]), source);
     let mut completion = completed(context, &mut peer, Token::new(0));
@@ -302,7 +302,7 @@ fn codex_reasoning_refusal_and_message_identity_continue_exactly() {
 
 #[test]
 fn anthropic_all_usage_signed_and_redacted_replay_continue_exactly() {
-    let configuration = wire::configurations().into_iter().nth(1).expect("literal Anthropic fixture");
+    let configuration = client_peer::configurations().into_iter().nth(1).expect("literal Anthropic fixture");
     let source = response(200, "Content-Type: text/event-stream\r\n", ANTHROPIC_RESPONSE, true);
     let (context, mut peer) = adopt(&configuration, Token::new(99), Box::new([user(b"Start.")]), source.clone());
     let mut completion = completed(context, &mut peer, Token::new(99));
@@ -456,26 +456,20 @@ fn corrected_host(world: &World) {
 
 fn retired(world: &World) {
     assert!(matches!(world.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
-    let [first, second, third] = world.wire_bindings() else { panic!("three observed Clients") };
+    let [first, second, third] = world.protocol_calls() else { panic!("three observed Clients") };
     for binding in [first, second] {
-        assert_eq!(
-            binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-            [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
-        );
-        assert!(binding.retired.is_some());
+        assert_eq!(binding.terminal.map(|(_, _, event)| event), Some(Terminal::Completed(binding.owner)));
+        assert!(binding.terminal.is_some());
     }
-    assert_eq!(
-        third.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-        [Observed::Close, Observed::Cancelled(third.owner), Observed::Closed]
-    );
-    assert!(third.retired.is_some());
+    assert_eq!(third.terminal.map(|(_, _, event)| event), Some(Terminal::Cancelled(third.owner)));
+    assert!(third.terminal.is_some());
     assert!(corrected_feedback(&world.prompts()[2]));
     assert_eq!(world.host_submissions().len(), 1);
 }
 
 #[test]
 fn root_malformed_call_has_no_effect_and_corrected_call_runs_once() {
-    let configuration = wire::configurations().into_iter().next().expect("raw-string Codex fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("raw-string Codex fixture");
     let mut bounds = limits();
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
@@ -486,11 +480,11 @@ fn root_malformed_call_has_no_effect_and_corrected_call_runs_once() {
         ..smith_protocol_llm_world::fixture::settings(71)
     };
     settings.limits.session.completion_bytes =
-        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
+        codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("full translated reservation");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
-    let mut world = World::with_wire(settings, None, configuration, bounds, correction_script());
+    let mut world = World::with_protocol(settings, None, configuration, bounds, correction_script());
     world.wall_at(Wall::from_nanos(9000));
     await_query(&mut world, 2);
     assert!(world.host_submissions().is_empty(), "malformed observed call confers no host effect");
@@ -563,9 +557,8 @@ fn observe_failure(
         panic!("provider failure entrance")
     };
     assert_eq!(terminal_owner, owner);
-    let mut event =
-        adapter::failed(context, terminal_owner, terminal_failure, terminal_evidence, terminal_detail, report)
-            .expect("provider failure consumes retained Context");
+    let mut event = codec::failed(context, terminal_failure, terminal_evidence, terminal_detail, report)
+        .expect("provider failure consumes retained Context");
     failure_corruptions(&mut event, owner, failure, evidence, detail);
     if peer.machine.waiting() != client::Waiting::Nothing {
         assert_eq!(peer.machine.waiting(), client::Waiting::Closing);
@@ -582,7 +575,7 @@ fn observe_failure(
 
 #[test]
 fn response_unknown_and_unsent_failures_preserve_full_evidence() {
-    let configuration = wire::configurations().into_iter().next().expect("literal failure fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("literal failure fixture");
     let source = response(
         429,
         "Content-Type: application/json\r\nRetry-After: 4\r\n",
@@ -643,7 +636,7 @@ fn block_peer(configuration: &Configuration, bounds: &Limits, source: Vec<u8>) -
         effect: run::HostEffect::Read,
         timeout: Duration::from_secs(2),
     })]);
-    let adapter::Prepared { client, context } = adapter::prepare(
+    let codec::Prepared { client, context } = codec::prepare(
         Input {
             owner: Token::new(71),
             prompt: requested,
@@ -654,7 +647,7 @@ fn block_peer(configuration: &Configuration, bounds: &Limits, source: Vec<u8>) -
                 account_id: configuration.credential.account_id.clone(),
                 scheme: skein_llm::Scheme::Bearer,
             },
-            application: Box::new([]),
+
             receiving: receiving(bounds),
         },
         bounds,
@@ -675,7 +668,7 @@ const BLOCK_RESPONSE: &[&str] = &[
 
 #[test]
 fn an_oversized_call_beside_an_ordinary_one_completes_with_a_fixable_error() {
-    let configuration = wire::configurations().into_iter().next().expect("Codex fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("Codex fixture");
     let mut bounds = limits();
     bounds.client.input = 16;
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(BLOCK_RESPONSE), true);
@@ -697,7 +690,7 @@ fn an_oversized_call_beside_an_ordinary_one_completes_with_a_fixable_error() {
 
 #[test]
 fn a_cut_call_is_replaced_and_the_next_request_replays() {
-    let configuration = wire::configurations().into_iter().next().expect("Codex fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("Codex fixture");
     let messages = [
         r#"{"type":"response.output_item.added","output_index":0,"item":{"id":"cut","call_id":"cut-call","type":"function_call","name":"host_action","arguments":""}}"#,
         r#"{"type":"response.output_item.done","output_index":0,"item":{"id":"cut","call_id":"cut-call","type":"function_call","name":"host_action","status":"incomplete","arguments":"{broken"}}"#,
@@ -745,7 +738,7 @@ fn a_cut_call_is_replaced_and_the_next_request_replays() {
 
 #[test]
 fn a_reasoning_item_past_its_bound_fails_unless_the_model_drops_it() {
-    let configuration = wire::configurations().into_iter().next().expect("Codex fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("Codex fixture");
     for enabled in [false, true] {
         let mut bounds = limits();
         bounds.client.reasoning = u32::try_from(b"exact-opaque".len() - 1).expect("fixture size");
@@ -756,11 +749,10 @@ fn a_reasoning_item_past_its_bound_fails_unless_the_model_drops_it() {
         peer.run();
         let terminal = take_terminal(&mut peer);
         if enabled {
-            let client::Event::Completed { owner, completion } = terminal else {
+            let client::Event::Completed { owner: _, completion } = terminal else {
                 panic!("drop keeps completion");
             };
-            let Event::Completed { completion, .. } =
-                adapter::completion(context, owner, completion, Box::new([])).expect("drop translates")
+            let Event::Completed { completion, .. } = codec::completion(context, completion).expect("drop translates")
             else {
                 panic!("completed");
             };

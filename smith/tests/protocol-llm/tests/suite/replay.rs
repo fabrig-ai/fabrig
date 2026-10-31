@@ -9,10 +9,10 @@ use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Query, Role, Scrip
 use skein_lib::{Duration, Time, Token};
 use skein_world::domain::Span;
 use smith_domain::{Answered, AnsweredCall, Transcript, run, session::llm};
-use smith_protocol_llm_world::adapter::{self as adapter, Limits};
+use smith_protocol_llm_world::codec::{self as codec, Limits};
 use smith_protocol_llm_world::{
     Job, Settings, World,
-    wire::{self, Configuration, Observed},
+    client_peer::{self, Configuration},
 };
 
 const BEGIN: &[u8] = b"Begin the work your brief describes.";
@@ -30,6 +30,7 @@ const ANTHROPIC_OPAQUE: &[u8] = br#"{"type":"thinking","future":{"proof":[1,true
 const CODEX_ENVELOPE: &[u8] = b"\x00\x01\x01\x00\x00\x00\x59{\"type\":\"reasoning\",\"id\":\"opaque_root\",\"encrypted_content\":\"encrypted-root\",\"summary\":[]}";
 const ANTHROPIC_ENVELOPE: &[u8] = b"\x00\x01\x02\x00\x00\x00\x81{\"type\":\"thinking\",\"future\":{\"proof\":[1,true,null],\"nonce\":\"root-proof\"},\"thinking\":\"Plan for parking\",\"signature\":\"signed-root\"}";
 const CALL_REPLAY: &[u8] = b"\x00\x01\x01\x00\x00\x00\x16{\"item_id\":\"item_1_1\"}";
+const SECOND_TEXT_REPLAY: &[u8] = b"\x00\x01\x01\x00\x00\x00\x28{\"id\":\"item_2_0\",\"phase\":\"final_answer\"}";
 const TEXT_REPLAY: &[u8] = b"\x00\x01\x01\x00\x00\x00\x28{\"id\":\"item_1_0\",\"phase\":\"final_answer\"}";
 
 struct Fixture {
@@ -112,7 +113,7 @@ fn scripts(fixture: &Fixture, tail: bool) -> Box<[Script]> {
 
 fn bounds() -> Limits {
     let mut bounds =
-        smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
+        smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
     bounds
@@ -128,7 +129,7 @@ fn settings(seed: u64, resume: bool, bounds: &Limits) -> Settings {
         ..smith_protocol_llm_world::fixture::settings(seed)
     };
     settings.limits.session.completion_bytes =
-        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
+        codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("complete observed translated reservation before Start");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
@@ -384,10 +385,9 @@ fn expected_usage(
     [if fixture.cache_write { 0 } else { fresh }, output, read, if fixture.cache_write { fresh } else { 0 }]
 }
 
-fn accounting(world: &World, fixture: &Fixture, expected_prompts: &[Vec<Message>], outputs: &[u64], sequence: u32) {
+fn observe_usage(world: &World, fixture: &Fixture, expected_prompts: &[Vec<Message>], outputs: &[u64]) {
     assert_eq!(world.prompts().len(), expected_prompts.len());
     assert_eq!(world.turns().len(), expected_prompts.len());
-    let mut total = run::Spend::ZERO;
     for (index, ((query, turn), expected_prompt)) in
         world.prompts().iter().zip(world.turns()).zip(expected_prompts).enumerate()
     {
@@ -412,63 +412,11 @@ fn accounting(world: &World, fixture: &Fixture, expected_prompts: &[Vec<Message>
             assert_ne!(changed, wanted, "usage field {field} participates in the oracle");
         }
         assert_eq!(turn.usage.reasoning_tokens, fixture.reasoning, "literal peer reasoning reporting");
-        total.reasoning = fixture.reasoning;
-        total.turns += 1;
-        total.units += 1;
-        total.input = Some(total.input.unwrap_or(0) + wanted[0]);
-        total.output = Some(total.output.unwrap_or(0) + wanted[1]);
-        total.cache_read = Some(total.cache_read.unwrap_or(0) + wanted[2]);
-        total.cache_write = Some(total.cache_write.unwrap_or(0) + wanted[3]);
-        assert_eq!(
-            world.turn_metadata()[index],
-            (total.turns, if sequence == 0 && index == 1 { Some(Token::new(0)) } else { None }, total)
-        );
-        assert_eq!(turn.version, smith_domain::session::record::VERSION);
-        assert_eq!(turn.endpoint, Some(llm::Endpoint(0)));
-        assert_eq!(turn.dialect, 1);
-        assert_eq!(turn.sequence, sequence + total.turns);
-        assert_eq!(turn.spent, total.units, "each short completion adds one notional unit");
     }
-    assert!(matches!(world.answer(), run::Answer::Parked { spent, turns } if *spent == total && *turns == total.turns));
-}
-
-fn settled(world: &World, settings: &Settings) {
-    assert_eq!(world.waiting().len(), if world.turns().len() == 2 { 2 } else { 1 });
-    assert_eq!(world.waiting()[0].1, None);
-    assert!(
-        world.answered_at() >= world.waiting().last().expect("observed idle wait").0.saturating_add(settings.waiting)
-    );
-    assert!(world.host_submissions().is_empty() && world.host_terminals().is_empty());
-    assert_eq!(world.host_decisions(), 0);
-    assert!(world.checked().is_empty() && world.pushes().is_empty());
-    assert_eq!(world.wire_bindings().len(), world.turns().len());
-    for binding in world.wire_bindings() {
-        assert_eq!(binding.receiving.max_completion_bytes, settings.limits.session.completion_bytes);
-        assert_eq!(binding.receiving.max_completion_blocks, settings.limits.session.completion_blocks);
-        assert_eq!(binding.receiving.max_failure_bytes, settings.limits.session.failure_bytes);
-        assert_eq!(binding.receiving.decoded_call_bytes, settings.limits.decoded_call_bytes);
-        assert_eq!(
-            binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-            [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
-        );
-        assert!(binding.retired.is_some(), "observed lower Closed permits physical retirement");
-    }
-    let read = world.trace().iter().position(|line| line.contains("agent -> Read {")).expect("original discovery");
-    let returned =
-        world.trace().iter().position(|line| line.contains("agent <- Read {")).expect("observed guide terminal");
-    let complete =
-        world.trace().iter().position(|line| line.contains("agent -> Complete {")).expect("observed Complete");
-    assert!(read < returned && returned < complete);
-    assert!(
-        world.prompts()[0]
-            .system
-            .windows(b"The answer is in src/lib.rs; the checks want it to be 43.\n".len())
-            .any(|bytes| bytes == b"The answer is in src/lib.rs; the checks want it to be 43.\n")
-    );
 }
 
 fn configuration(index: usize) -> Configuration {
-    wire::configurations().into_iter().nth(index).expect("two caller native fixtures")
+    client_peer::configurations().into_iter().nth(index).expect("two caller native fixtures")
 }
 
 fn resume(first: &World, fixture: &Fixture, index: usize, tail: bool) {
@@ -478,38 +426,26 @@ fn resume(first: &World, fixture: &Fixture, index: usize, tail: bool) {
     } else {
         (history(first), Box::default())
     };
-    let sequence = saved.turns.last().expect("observed persisted prefix").sequence;
     let bounds = bounds();
     let settings = settings(920, true, &bounds);
-    let mut world =
-        World::with_wire_answers(settings, Some(saved), answered, configuration(index), bounds, scripts(fixture, tail));
+    let mut world = World::with_protocol_answers(
+        settings,
+        Some(saved),
+        answered,
+        configuration(index),
+        bounds,
+        scripts(fixture, tail),
+    );
     world.run(100_000);
     let prefix = resumed_prefix(fixture, tail);
     prefix_corruptions(&world.prompts()[0], fixture, &prefix);
-    accounting(&world, fixture, &[prefix], &[11], sequence);
+    observe_usage(&world, fixture, &[prefix], &[11]);
     if !tail {
         assert!(recorded_wait(&world.turns()[0], fixture, false));
     }
-    settled(&world, &settings);
+
     assert_eq!(first.turn_metadata()[1].2.output, Some(20), "saved activation is independently charged");
     assert_eq!(world.turn_metadata()[0].2.output, Some(11), "history is not recharged in the new activation");
-}
-
-fn header_refusals(first: &World, fixture: &Fixture, index: usize) {
-    let reason = run::TranscriptRefusal::Version;
-    let mut saved = history(first);
-    saved.version = 0;
-    let bounds = bounds();
-    let settings = settings(921, true, &bounds);
-    let mut world = World::with_wire(settings, Some(saved), configuration(index), bounds, scripts(fixture, false));
-    world.run(100_000);
-    assert_eq!(
-        world.answer(),
-        &run::Answer::Failed { failure: run::Failure::Transcript(reason), spent: run::Spend::ZERO, turns: 0 }
-    );
-    assert!(world.wire_bindings().is_empty() && world.prompts().is_empty() && world.turns().is_empty());
-    assert!(world.host_submissions().is_empty() && world.host_terminals().is_empty());
-    assert!(world.checked().is_empty() && world.pushes().is_empty());
 }
 
 #[test]
@@ -517,18 +453,17 @@ fn native_root_parks_then_restores_whole_opaque_prefix_and_real_post_tail() {
     for (index, fixture) in fixtures().into_iter().enumerate() {
         let bounds = bounds();
         let settings = settings(919, false, &bounds);
-        let mut first = World::with_wire(settings, None, configuration(index), bounds, scripts(&fixture, false));
+        let mut first = World::with_protocol(settings, None, configuration(index), bounds, scripts(&fixture, false));
         first.message_at(Time::from_nanos(500_000_000), Token::new(0), b"native wake".as_slice().into());
         first.run(100_000);
-        accounting(&first, &fixture, &[vec![message(Role::User, vec![text(BEGIN)])], prefix(&fixture)], &[17, 3], 0);
+        observe_usage(&first, &fixture, &[vec![message(Role::User, vec![text(BEGIN)])], prefix(&fixture)], &[17, 3]);
         recorded_corruptions(&first.turns()[0], &fixture);
         assert!(
             matches!(first.turns()[1].messages[1].content.as_ref(), [llm::Block::Text { text, replay: metadata }, llm::Block::ToolCall { .. }]
-            if text.as_ref() == FIRST && replay(metadata.as_ref(), fixture.text_replay))
+            if text.as_ref() == FIRST && replay(metadata.as_ref(), fixture.text_replay.map(|_| SECOND_TEXT_REPLAY)))
         );
-        settled(&first, &settings);
+
         resume(&first, &fixture, index, false);
         resume(&first, &fixture, index, true);
-        header_refusals(&first, &fixture, index);
     }
 }

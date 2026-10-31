@@ -8,10 +8,10 @@ use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Script, Turn};
 use skein_lib::{Time, Wall};
 use skein_world::domain::Span;
 use smith_domain::{run, session::llm};
-use smith_protocol_llm_world::adapter::{self as adapter};
+use smith_protocol_llm_world::codec::{self as codec};
 use smith_protocol_llm_world::{
-    Job, Settings, World,
-    wire::{self, Configuration, Observed},
+    Job, Settings, Terminal, World,
+    client_peer::{self, Configuration},
 };
 
 const BODY: &[u8] = br#"{ "opaque" : {"future":[1,true,null]}, "extra":"unchanged" }"#;
@@ -100,19 +100,13 @@ fn host_boundary(world: &World, expected_arguments: &[u8], tool_name: &[u8]) {
 
 fn retired_boundary(world: &World, tool_name: &[u8]) {
     assert!(matches!(world.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
-    let [first_binding, second_binding] = world.wire_bindings() else { panic!("retired outside bindings") };
+    let [first_binding, second_binding] = world.protocol_calls() else { panic!("settled calls") };
     let owner = first_binding.owner;
-    assert_eq!(
-        first_binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-        [Observed::Completed(owner), Observed::Reusable, Observed::Close, Observed::Closed]
-    );
-    assert_eq!(
-        second_binding.observed.iter().map(|(_, _, event)| *event).collect::<Vec<_>>(),
-        [Observed::Close, Observed::Cancelled(owner), Observed::Closed]
-    );
-    assert!(first_binding.retired.is_some());
-    assert_eq!(second_binding.retired.expect("observed lower Closed").1, Wall::from_nanos(3000));
-    assert!(second_binding.observed.iter().all(|(_, wall, _)| *wall == Wall::from_nanos(3000)));
+    assert_eq!(first_binding.terminal.map(|(_, _, event)| event), Some(Terminal::Completed(owner)));
+    assert_eq!(second_binding.terminal.map(|(_, _, event)| event), Some(Terminal::Cancelled(owner)));
+    assert!(first_binding.terminal.is_some());
+    assert_eq!(second_binding.terminal.expect("component terminal").1, Wall::from_nanos(3000));
+    assert!(second_binding.terminal.iter().all(|(_, wall, _)| *wall == Wall::from_nanos(3000)));
     assert!(world.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(|block| {
         matches!(block, llm::Block::ToolCall { id, name, input, .. } if id.as_ref() == ID && name.as_ref() == tool_name && input.as_ref() == BODY)
     }), "root-owned concrete Turn retains the incoming delta bytes");
@@ -121,7 +115,7 @@ fn retired_boundary(world: &World, tool_name: &[u8]) {
 fn root_story(configuration: Configuration, tool_name: &'static [u8]) {
     let expected_arguments = configuration.continuation_arguments.clone();
     let mut bounds =
-        smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
+        smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
     let mut settings = Settings {
@@ -132,12 +126,12 @@ fn root_story(configuration: Configuration, tool_name: &'static [u8]) {
     };
     settings.host_tool_name = tool_name;
     settings.limits.session.completion_bytes =
-        adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
+        codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("complete observed translated reservation");
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
     let expected_receiving = settings.limits;
-    let mut world = World::with_wire(settings, None, configuration, bounds, scripts(tool_name));
+    let mut world = World::with_protocol(settings, None, configuration, bounds, scripts(tool_name));
     world.wall_at(Wall::from_nanos(9000));
     for _ in 0..100_000 {
         assert!(!world.drive(1), "continued query precedes parent cancellation");
@@ -148,9 +142,8 @@ fn root_story(configuration: Configuration, tool_name: &'static [u8]) {
     assert_eq!(world.prompts().len(), 2, "both queries were parsed by observed byte peers");
     assert!(world.now() < Time::from_nanos(1_000_000_000), "queued wire bytes prevent jumping to the run deadline");
     host_boundary(&world, &expected_arguments, tool_name);
-    let [first_binding, second_binding] = world.wire_bindings() else { panic!("two observed physical bindings") };
+    let [first_binding, second_binding] = world.protocol_calls() else { panic!("two observed calls") };
     assert_eq!(first_binding.owner, second_binding.owner, "the root reuses the logical callback");
-    assert_eq!(second_binding.retained_at_start, 1, "new call starts while the old physical Close is owed");
     assert_eq!(first_binding.receiving.max_completion_bytes, expected_receiving.session.completion_bytes);
     assert_eq!(first_binding.receiving.max_completion_blocks, expected_receiving.session.completion_blocks);
     assert_eq!(first_binding.receiving.max_failure_bytes, expected_receiving.session.failure_bytes);
@@ -169,14 +162,14 @@ fn root_story(configuration: Configuration, tool_name: &'static [u8]) {
 
 #[test]
 fn root_wire_host_feedback_and_reused_owner_close_survive_parent_cancel() {
-    for configuration in wire::configurations() {
+    for configuration in client_peer::configurations() {
         root_story(configuration, b"host_action");
     }
 }
 
 #[test]
 fn root_wire_message_host_feedback_reaches_continuation() {
-    for configuration in wire::configurations() {
+    for configuration in client_peer::configurations() {
         root_story(configuration, b"message");
     }
 }

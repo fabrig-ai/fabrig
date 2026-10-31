@@ -47,20 +47,7 @@ fn numeric_names_resolve_the_complete_destination_and_options() {
     assert_eq!(codex.index, 0);
     assert_eq!(codex.provider, shared::Provider::OpenAiCodex);
     assert_eq!(endpoints.resolve(llm::Endpoint(7)).expect("second name").index, 1);
-    let mut prompt = shared::Prompt {
-        affinity: Some(shared::Affinity { key: [0; 16], thread: 0 }),
-        model: b"model".as_slice().into(),
-        instructions: Box::new([]),
-        tools: Box::new([]),
-        choice: shared::ToolChoice::Auto,
-        messages: Box::new([]),
-        reasoning_effort: None,
-        max_output_tokens: Some(32),
-    };
-    assert_eq!(endpoints.apply(llm::Endpoint(42), &mut prompt), Ok(0));
-    assert_eq!(prompt.reasoning_effort, None);
-    assert_eq!(prompt.affinity, Some(skein_llm::Affinity { key: [0; 16], thread: 0 }));
-    assert_eq!(endpoints.apply(llm::Endpoint(3), &mut prompt), Err(EndpointError::Unknown));
+    assert!(endpoints.resolve(llm::Endpoint(3)).is_none());
     let (destinations, options) = endpoints.into_parts();
     assert_eq!(destinations.len(), 2);
     assert_eq!(options.get(&42).expect("named options").index, 0);
@@ -110,20 +97,25 @@ fn a_refresh_preserves_the_first_call_then_evicts_the_oldest_generation() {
 fn configured_claude_identity_precedes_domain_instructions_only_for_anthropic() {
     let mut anthropic = destination(8, shared::Provider::Anthropic);
     anthropic.identity = smith_protocol_llm::IdentityProfile::ClaudeCode;
-    let endpoints = Endpoints::new(Box::new([anthropic]), 1).expect("provider supports identity");
-    let mut prompt = shared::Prompt {
-        affinity: Some(shared::Affinity { key: [0; 16], thread: 0 }),
-        model: b"model".as_slice().into(),
-        instructions: b"domain system".as_slice().into(),
-        tools: Box::new([]),
-        choice: shared::ToolChoice::Auto,
-        messages: Box::new([]),
-        reasoning_effort: None,
-        max_output_tokens: Some(32),
-    };
-    assert_eq!(endpoints.apply(llm::Endpoint(8), &mut prompt), Ok(0));
-    assert!(prompt.instructions.starts_with(shared::anthropic::identity::CLAUDE_CODE_SYSTEM_IDENTITY));
-    assert!(prompt.instructions.ends_with(b"domain system"));
+    let _endpoints = Endpoints::new(Box::new([anthropic]), 1).expect("provider supports identity");
+    let mut peer = smith_protocol_llm_world::pool_peer::Peer::for_identity(
+        1,
+        1,
+        shared::Provider::Anthropic,
+        smith_protocol_llm::IdentityProfile::ClaudeCode,
+    );
+    peer.start_observed(8, 60, 60, 300);
+    let system = peer
+        .measures
+        .iter()
+        .find_map(|measure| match measure {
+            smith_protocol_llm::Measure::Prompt { prompt, .. } => prompt.system.as_ref(),
+            _ => None,
+        })
+        .expect("production component records translated instructions");
+    assert!(system.starts_with(shared::anthropic::identity::CLAUDE_CODE_SYSTEM_IDENTITY));
+    assert!(system.ends_with(b"timed reasoning"));
+    peer.cancel(8);
     let mut codex = destination(9, shared::Provider::OpenAiCodex);
     codex.identity = smith_protocol_llm::IdentityProfile::ClaudeCode;
     assert!(matches!(Endpoints::new(Box::new([codex]), 1), Err(EndpointError::Identity)));

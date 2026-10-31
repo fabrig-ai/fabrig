@@ -266,7 +266,7 @@ fn declared(document: &Document, value: Value) -> Result<run::outcome::Declared,
     Ok(outcome)
 }
 
-/// An application's indexed object or value range in one admitted document.
+/// An tool's indexed object or value range in one admitted document.
 /// It borrows no text and is kept only during the current decoding call.
 #[derive(Clone, Copy)]
 struct Value {

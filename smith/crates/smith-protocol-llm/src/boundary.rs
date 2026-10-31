@@ -52,7 +52,7 @@ pub enum ToDomain {
     BuiltinResult { owner: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// The completion and its decoded calls.
     Completed { owner: Token, completion: llm::Completion },
-    /// One failure with the shared client's evidence.
+    /// One failure with the skein client's evidence.
     Failed { owner: Token, failure: llm::Failure, evidence: llm::Evidence, detail: Box<[u8]>, report: llm::Report },
     /// The accepted call was cancelled.
     Cancelled { owner: Token },

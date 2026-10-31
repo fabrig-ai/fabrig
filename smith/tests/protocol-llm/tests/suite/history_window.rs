@@ -5,8 +5,8 @@ use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_lib::{Duration, Queue, Token};
 use smith_domain::{Event, llm, session};
 use smith_protocol_llm_world::{
-    adapter,
-    wire::{self, Wire},
+    client_peer::{self, ClientPeer},
+    codec,
 };
 use smith_session_world::recorded::{Scripted, opening};
 
@@ -67,7 +67,7 @@ fn fixture(provider: skein_llm::Provider) -> Fixture {
     .expect("native history derives");
     let decoded = u64::from(client.input)
         + u64::from(client.output_items) * u64::try_from(size_of::<llm::Decoded>()).expect("decoded cell");
-    limits.completion_bytes = adapter::completion_bound(&client, decoded).expect("native completion ownership");
+    limits.completion_bytes = codec::completion_bound(&client, decoded).expect("native completion ownership");
     Fixture { declared, client, limits, decoded, allowance }
 }
 
@@ -127,26 +127,26 @@ fn history_edge(provider: skein_llm::Provider) {
                 }]),
             }]),
         };
-        let adapter_limits = adapter::Limits {
+        let translation_limits = codec::Limits {
             tool_bytes: 1024,
             rendered_result: 1024,
             ..smith_protocol_llm::fixture::small(
                 client,
-                adapter::Stated::from_tools(&tools, client.input).expect("effective numeric descriptions"),
+                codec::Stated::from_tools(&tools, client.input).expect("effective numeric descriptions"),
             )
         };
-        let receiving = adapter::Receiving {
+        let receiving = codec::Receiving {
             max_completion_bytes: limits.completion_bytes,
             max_completion_blocks: limits.completion_blocks,
             decoded_call_bytes: decoded,
             max_failure_bytes: limits.failure_bytes,
         };
-        let mut connection = Wire::prepare(
+        let mut connection = ClientPeer::prepare(
             Token::new(48),
             prompt,
             receiving,
-            &wire::configurations()[configuration],
-            &adapter_limits,
+            &client_peer::configurations()[configuration],
+            &translation_limits,
             scripts(system),
         )
         .expect("admitted history prepares the observed Client");

@@ -404,7 +404,7 @@ fn golden_descriptions_state_batching_and_every_effective_parameter() {
             4,
         ),
     ];
-    let schemas = crate::schemas(&described_prompt(), &stated);
+    let schemas = crate::fixture::schemas(&described_prompt(), &stated);
     assert_eq!(schemas.len(), golden.len());
     for (schema, (words, parameters)) in schemas.iter().zip(golden) {
         assert_eq!(schema.description.as_ref(), words.as_bytes());
@@ -438,7 +438,7 @@ fn golden_descriptions_state_batching_and_every_effective_parameter() {
             _ => panic!("only the eight workspace tools"),
         }
     }
-    assert_eq!(schemas, crate::schemas(&described_prompt(), &stated));
+    assert_eq!(schemas, crate::fixture::schemas(&described_prompt(), &stated));
 }
 
 #[test]
@@ -477,7 +477,7 @@ fn path_descriptions_follow_the_observed_conversation_namespace() {
     ] {
         let mut prompt = described_prompt();
         prompt.namespace = namespace;
-        for schema in crate::schemas(
+        for schema in crate::fixture::schemas(
             &prompt,
             &crate::Stated {
                 host_part: u64::MAX,
@@ -577,7 +577,7 @@ fn fixed_own_schema_measurement_matches_the_complete_fixed_inventory() {
         tools::Namespace::Several { working: tools::Name::new(b"work".as_slice().into()).expect("name") },
     ] {
         prompt.namespace = namespace;
-        let inventory = crate::schemas(&prompt, &stated);
+        let inventory = crate::fixture::schemas(&prompt, &stated);
         let rendered =
             inventory.iter().map(|tool| tool.name.len() + tool.description.len() + tool.schema.len()).sum::<usize>();
         largest = largest.max(rendered);
@@ -969,4 +969,28 @@ fn removal_renders_success_and_the_nonempty_refusal() {
             (text.into(), failed)
         );
     }
+}
+
+#[test]
+fn schema_inventory_at_capacity_fits_and_one_more_is_refused() {
+    use smith_domain::{llm, run::outcome};
+    let mut prompt = described_prompt();
+    prompt.served = Box::new([llm::Served::Finish, llm::Served::Deliver, llm::Served::SubAgent, llm::Served::Wait]);
+    let stated = crate::Stated::from_tools(&tools(), 4096).expect("fixture stated quantities");
+    let delivery = outcome::ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
+    let contract = crate::fixture::contract();
+    let inventory = crate::schemas_for_contract(&prompt, &stated, &contract, Some(&delivery), u32::MAX)
+        .expect("eight workspace and four run tools fit");
+    assert_eq!(inventory.len(), 12);
+    prompt.served = Box::new([
+        llm::Served::Finish,
+        llm::Served::Deliver,
+        llm::Served::SubAgent,
+        llm::Served::Wait,
+        llm::Served::Wait,
+    ]);
+    assert_eq!(
+        crate::schemas_for_contract(&prompt, &stated, &contract, Some(&delivery), u32::MAX),
+        Err(crate::Error::Limit)
+    );
 }
