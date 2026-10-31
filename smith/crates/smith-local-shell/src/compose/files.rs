@@ -420,7 +420,7 @@ impl Host for ResultFile {
             || self.io.is_due(now)
             || (self.state == State::Closing && self.io.takes())
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

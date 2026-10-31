@@ -235,15 +235,11 @@ impl Service {
     pub fn next_policy_deadline(&self) -> Option<Time> {
         self.policy_deadline()
     }
+    /// io's own deadlines, apart from the policy deadline (skein's
+    /// `shell.md`, section 12).
     #[must_use]
-    pub fn next_deadline(&self) -> Option<Time> {
-        match self.io.next_deadline() {
-            Some(deadline) => Some(match self.policy_deadline() {
-                Some(engine) => deadline.min(engine),
-                None => deadline,
-            }),
-            None => self.policy_deadline(),
-        }
+    pub fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {

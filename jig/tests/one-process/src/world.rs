@@ -11,7 +11,7 @@ use jig_channel_world::{
 use jig_client_protocol_world::native::NativeClient;
 use skein_io::kernel::{Complete, Submit};
 use skein_lib::{List, Queue, Time, Wall};
-use skein_shell::Host;
+use skein_shell::{Delegate, Host};
 use skein_world::{Inherited, Memory};
 use std::{cell::RefCell, rc::Rc};
 
@@ -90,8 +90,8 @@ impl Host for ServiceHost {
     fn work_pending(&self, now: Time) -> bool {
         self.service.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.service.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.service.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.service.next_policy_deadline()
@@ -109,7 +109,7 @@ pub(super) enum Proc {
     Agent { host: Box<skein_world::PipeHost<smith_agent_shell::Agent>> },
     Peer(Box<SignalHost<skein_fake_peers::llm::Peer>>),
 }
-impl Proc {
+impl Delegate for Proc {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Service(host) => host.as_ref(),
@@ -125,35 +125,6 @@ impl Proc {
             Self::Agent { host, .. } => host.as_mut(),
             Self::Peer(host) => host.as_mut(),
         }
-    }
-}
-impl Host for Proc {
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 fn service(inherited: &Inherited) -> Proc {

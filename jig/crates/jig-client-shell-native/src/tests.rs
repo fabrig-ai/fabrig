@@ -304,7 +304,7 @@ impl skein_shell::Host for Disk {
     fn work_pending(&self, now: Time) -> bool {
         self.shell.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.shell.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

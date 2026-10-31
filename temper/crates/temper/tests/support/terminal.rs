@@ -2,7 +2,7 @@
 use super::WITHIN;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
-use skein_shell::{Clock, Host};
+use skein_shell::{Clock, Delegate, Host};
 use skein_world::{
     Referee,
     end_to_end::{Binary, Command, Mode, Streams},
@@ -198,7 +198,7 @@ impl Host for Pipes {
                 Action::On { control, words } => typed_control(&self.bytes, control, words).is_some(),
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -236,7 +236,7 @@ enum Process {
     Binary(Box<Binary>),
     Pipes(Box<Pipes>),
 }
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Binary(x) => x.as_ref(),
@@ -248,35 +248,6 @@ impl Process {
             Self::Binary(x) => x.as_mut(),
             Self::Pipes(x) => x.as_mut(),
         }
-    }
-}
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 struct Judge {

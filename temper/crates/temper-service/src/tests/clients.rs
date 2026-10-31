@@ -334,7 +334,8 @@ fn failed_clients_bind(opened: bool, closed: bool) {
     );
     assert!(service.is_empty(), "every child and kernel route closes");
     assert!(!service.work_pending(Time::from_nanos(1)), "the loop needs no further turn");
-    assert_eq!(service.next_deadline(), None, "no timer remains armed");
+    assert_eq!(service.next_mechanism_deadline(), None, "no io timer remains armed");
+    assert_eq!(service.next_policy_deadline(), None, "no policy timer remains armed");
 }
 
 #[test]

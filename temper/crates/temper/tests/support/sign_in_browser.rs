@@ -331,7 +331,7 @@ impl Host for Visitor {
             || !self.completions.is_empty()
             || (self.connected && (!self.answers.is_empty() || !self.calls.is_empty() || !self.below.is_empty()))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

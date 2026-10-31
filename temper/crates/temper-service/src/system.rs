@@ -555,10 +555,11 @@ impl Service {
             None => self.worker.as_mut().expect("worker alone").notes(),
         }
     }
-    /// Root, component and I/O deadlines on the injected clock.
+    /// I/O's own deadlines on the injected clock, apart from the policy
+    /// deadline (skein's shell.md, 12).
     #[must_use]
-    pub fn next_deadline(&self) -> Option<Time> {
-        accounts::earliest(self.next_policy_deadline(), self.io.next_deadline())
+    pub fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     /// Maximum simultaneous kernel operations, for the shell's ring.
     #[must_use]

@@ -118,7 +118,7 @@ impl Host for Input {
     fn work_pending(&self, _now: Time) -> bool {
         !self.completions.is_empty() || !self.requests.is_empty() || !self.events.is_empty() || self.io.is_ready()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

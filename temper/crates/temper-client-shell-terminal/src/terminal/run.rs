@@ -183,8 +183,8 @@ impl Host for Terminal {
             || self.state.terminal.work_pending(now)
             || self.state.next_deadline().is_some_and(|deadline| now >= deadline)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [self.client.next_deadline(), self.io.next_deadline(), self.state.next_deadline()].into_iter().flatten().min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        [self.client.next_mechanism_deadline(), self.io.next_deadline()].into_iter().flatten().min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         [self.client.next_policy_deadline(), self.state.next_deadline()].into_iter().flatten().min()

@@ -532,8 +532,8 @@ impl Host for ServiceHost {
             && (self.state == LifeState::Restarting || self.local_completion || !self.completions.is_empty()))
             || self.service.as_ref().map_or(self.address.is_some() && self.ready(), |service| service.work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.service.as_ref().and_then(temper_service::Service::next_deadline)
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.service.as_ref().and_then(temper_service::Service::next_mechanism_deadline)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.service.as_ref().and_then(temper_service::Service::next_policy_deadline)

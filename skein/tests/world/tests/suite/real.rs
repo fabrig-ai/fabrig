@@ -251,7 +251,7 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
         fn work_pending(&self, _now: Time) -> bool {
             false
         }
-        fn next_deadline(&self) -> Option<Time> {
+        fn next_mechanism_deadline(&self) -> Option<Time> {
             None
         }
         fn next_policy_deadline(&self) -> Option<Time> {

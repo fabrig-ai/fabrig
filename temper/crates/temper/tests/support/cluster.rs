@@ -376,8 +376,8 @@ impl Host for Root {
     fn work_pending(&self, now: Time) -> bool {
         self.host().is_some_and(|h| h.work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().and_then(Host::next_deadline)
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().and_then(Host::next_mechanism_deadline)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().and_then(Host::next_policy_deadline)
@@ -463,7 +463,7 @@ impl Host for Member {
             || self.binary.as_ref().is_some_and(|b| b.work_pending(now))
             || self.stdout.as_ref().is_some_and(|s| s.work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.binary.as_ref().and_then(Host::next_deadline)
     }
     fn next_policy_deadline(&self) -> Option<Time> {

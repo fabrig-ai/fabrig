@@ -141,11 +141,11 @@ impl Host for Writing {
             || self.io.is_due(now)
             || (self.io.takes() && !self.closed && (self.request.is_some() || self.terminal))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        self.io.next_deadline()
+        None
     }
     fn is_empty(&self) -> bool {
         self.closed && self.submissions.is_empty() && self.completions.is_empty() && self.events.is_empty()

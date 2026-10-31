@@ -4,7 +4,7 @@ use skein_io::kernel::{Complete, Exit, Op, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Cleanup, Command, Containment, Mode, StartError};
-use skein_world::{Deadline, Expired, Host, Referee, real};
+use skein_world::{Deadline, Delegate, Expired, Host, Referee, real};
 use skein_world_tests::hosted::{Act, Script};
 
 const WORLD_PATIENCE: Duration = Duration::from_secs(2);
@@ -29,7 +29,7 @@ enum Process {
     Person(Script),
 }
 
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Child(child) => child,
@@ -42,39 +42,6 @@ impl Process {
             Self::Child(child) => child,
             Self::Person(person) => person,
         }
-    }
-}
-
-impl Host for Process {
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 

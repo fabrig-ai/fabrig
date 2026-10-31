@@ -30,8 +30,9 @@
 //! scenario expectations; these utilities are shared by temper and smith.
 //!
 //! A scenario's processes are one type, the scenario's own (an enum of its
-//! service and its fakes, say), implementing [`Host`]; the boundary
-//! contracts are each process's to keep, as its loop is its own.
+//! service and its fakes, say), implementing [`Host`], or [`Delegate`] to
+//! lend the host each variant holds; the boundary contracts are each
+//! process's to keep, as its loop is its own.
 
 extern crate alloc;
 
@@ -59,7 +60,7 @@ mod world;
 pub use heap::Memory;
 pub use outcome::Outcome;
 pub use referee::{Controls, Expectation, Expectations, LastWord, Referee};
-pub use skein_shell::{Host, drive};
+pub use skein_shell::{Delegate, Host, drive};
 pub use skein_sim_world::{Cut, Digests, Killed, StateDigests};
 pub use skein_sim_world::{
     HostedProgram, Inherited, Machine, NoMachine, StartupAppend, StartupAppends, StartupRoot, StartupRoots,

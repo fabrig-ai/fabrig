@@ -550,16 +550,10 @@ impl HostService {
         self.domain_owner.expect("host domain admitted one agent")
     }
 
+    /// io's own deadlines, apart from the policy deadline.
     #[must_use]
-    pub fn next_deadline(&self) -> Option<Time> {
-        [
-            self.domain.next_deadline(),
-            self.io.next_deadline(),
-            self.process.as_ref().and_then(protocol::Process::next_deadline),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
+    pub fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
 
     /// The domain's and the process protocol's deadlines, excluding io's.

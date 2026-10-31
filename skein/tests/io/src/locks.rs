@@ -192,7 +192,7 @@ impl Host for Owner {
                 && self.retry.is_none_or(|at| at <= now)
                 && !matches!(self.phase, Phase::Dormant | Phase::Hold | Phase::Settled))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.retry.or(self.io.next_deadline())
     }
     fn next_policy_deadline(&self) -> Option<Time> {

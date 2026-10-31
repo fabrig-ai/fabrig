@@ -48,8 +48,8 @@ impl Host for Proc {
     fn work_pending(&self, now: Time) -> bool {
         self.kind.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.kind.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.kind.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.kind.next_policy_deadline()
@@ -167,8 +167,8 @@ impl Host for Kind {
         !matches!(self, Self::Llm(llm) if llm.deferred())
             && (matches!(self, Self::Llm(llm) if llm.release.is_some()) || self.host().work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()

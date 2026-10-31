@@ -9,7 +9,7 @@ use std::collections::VecDeque;
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
-use skein_shell::Host;
+use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Machine, Referee};
 use smith_fake_claude::{Fake, Story};
 
@@ -379,8 +379,8 @@ impl Host for Parent {
             || (!self.waiting && !self.signal_waiting && !self.is_empty())
             || self.signal_at.is_some_and(|at| now >= at)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.signal_at
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.signal_at
@@ -399,43 +399,20 @@ pub enum Process {
     Server(Box<smith_fake_claude::Server>),
 }
 
-macro_rules! delegate {
-    ($self:ident, $host:ident, $body:expr) => {
-        match $self {
-            Process::Parent($host) => $body,
-            Process::Fake($host) => $body,
-            Process::Server($host) => $body,
+impl Delegate for Process {
+    fn host(&self) -> &dyn Host {
+        match self {
+            Process::Parent(host) => host.as_ref(),
+            Process::Fake(host) => host.as_ref(),
+            Process::Server(host) => host.as_ref(),
         }
-    };
-}
-
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        delegate!(self, host, host.iterate(now, wall));
     }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        delegate!(self, host, host.completions())
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        delegate!(self, host, host.submissions())
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        delegate!(self, host, host.work_pending(now))
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        delegate!(self, host, host.next_deadline())
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        delegate!(self, host, host.next_policy_deadline())
-    }
-    fn is_empty(&self) -> bool {
-        delegate!(self, host, host.is_empty())
-    }
-    fn exit(&self) -> Option<Exit> {
-        delegate!(self, host, host.exit())
-    }
-    fn operations(&self) -> u32 {
-        delegate!(self, host, host.operations())
+    fn host_mut(&mut self) -> &mut dyn Host {
+        match self {
+            Process::Parent(host) => host.as_mut(),
+            Process::Fake(host) => host.as_mut(),
+            Process::Server(host) => host.as_mut(),
+        }
     }
 }
 

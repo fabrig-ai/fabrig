@@ -1330,8 +1330,8 @@ impl Host for Owner {
                 component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [self.io.next_deadline(), self.next_policy_deadline()].into_iter().flatten().min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         [

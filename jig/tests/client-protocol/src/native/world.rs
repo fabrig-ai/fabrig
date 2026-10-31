@@ -4,7 +4,7 @@ use crate::fixtures;
 use jig_client_world::App;
 use skein_io::kernel::{Complete, Submit};
 use skein_lib::{Duration, Queue, Secret, Time, Wall};
-use skein_shell::Host;
+use skein_shell::{Delegate, Host};
 use skein_world::{Memory, Referee};
 #[path = "config.rs"]
 mod config;
@@ -29,8 +29,8 @@ impl Host for Service {
     fn work_pending(&self, now: Time) -> bool {
         self.0.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.0.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.0.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.0.next_policy_deadline()
@@ -46,7 +46,7 @@ enum Process {
     Service(Box<Service>),
     Client(Box<NativeClient>),
 }
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Service(host) => host.as_ref(),
@@ -58,32 +58,6 @@ impl Process {
             Self::Service(host) => host.as_mut(),
             Self::Client(host) => host.as_mut(),
         }
-    }
-}
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 // The world plays the application calendar child (service.md, 7; ruling 275).

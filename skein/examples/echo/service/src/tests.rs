@@ -250,7 +250,7 @@ fn an_idle_connection_is_closed_at_its_deadline() {
     rig.settle();
     let peer = rig.connect();
     rig.settle();
-    let deadline = rig.svc.next_deadline().expect("the idle deadline runs while reading");
+    let deadline = rig.svc.next_policy_deadline().expect("the idle deadline runs while reading");
     assert_eq!(deadline, Time::ZERO.saturating_add(limits().protocol.idle));
     assert!(!rig.svc.work_pending(rig.now), "nothing to do before it");
     rig.now = deadline;

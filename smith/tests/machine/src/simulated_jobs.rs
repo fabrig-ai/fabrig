@@ -8,7 +8,7 @@ use skein_fake_machine::How;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Spawn, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_sim::{Config, Handle};
-use skein_world::{Expectation, Expectations, Host, HostedProgram, Inherited, Referee};
+use skein_world::{Delegate, Expectation, Expectations, Host, HostedProgram, Inherited, Referee};
 use smith_protocol_machine::{FromDomain, ToDomain};
 use std::rc::Rc;
 
@@ -58,7 +58,7 @@ enum Process {
     Shell(Shell),
 }
 
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Machine(application) => application.as_ref(),
@@ -71,44 +71,6 @@ impl Process {
             Self::Machine(application) => application.as_mut(),
             Self::Shell(shell) => shell,
         }
-    }
-}
-
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-
-    fn exit(&self) -> Option<Exit> {
-        self.host().exit()
-    }
-
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 
@@ -263,8 +225,8 @@ impl Host for Shell {
         !self.completions.is_empty() || (!self.waiting && !self.closed && self.until.is_none_or(|at| now >= at))
     }
 
-    fn next_deadline(&self) -> Option<Time> {
-        self.until
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {

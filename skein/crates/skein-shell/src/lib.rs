@@ -18,6 +18,7 @@
 //! - [`seed`]: the random seed, drawn from the system once at startup.
 //!
 //! [`Host`] adapts the service; [`drive`] runs it until settlement (shell.md, 12 and 13).
+//! [`Delegate`] makes an enum of hosts a host by lending the one it holds.
 //!
 //! This is ordinary Rust (programming-model.md, 10.2). System calls live
 //! in `linux`, including its ring adapter, and `darwin`. The crate's
@@ -64,9 +65,9 @@ mod tests;
 pub use clock::{Clock, Now};
 #[cfg(all(unix, target_os = "macos"))]
 pub(crate) use darwin as system;
-pub use drive::Host;
 #[cfg(unix)]
 pub use drive::drive;
+pub use drive::{Delegate, Host};
 #[cfg(all(unix, target_os = "linux"))]
 pub(crate) use linux as system;
 

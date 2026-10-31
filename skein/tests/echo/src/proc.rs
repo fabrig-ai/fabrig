@@ -90,10 +90,10 @@ impl Host for Proc {
         }
     }
 
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         match self {
-            Proc::Echo { svc, .. } => svc.next_deadline(),
-            Proc::Client { client, .. } => client.next_deadline(),
+            Proc::Echo { svc, .. } => svc.next_mechanism_deadline(),
+            Proc::Client { client, .. } => client.next_mechanism_deadline(),
         }
     }
 

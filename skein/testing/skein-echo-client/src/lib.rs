@@ -14,9 +14,9 @@
 //!
 //! As a service is driven (programming-model.md, section 2): the kernel's
 //! completions into [`Client::completions`], [`iterate`], and
-//! [`Client::submissions`] to the kernel, waiting until
-//! [`Client::next_deadline`] when [`Client::work_pending`] says there is
-//! nothing to do.
+//! [`Client::submissions`] to the kernel, waiting until the earlier of
+//! [`Client::next_mechanism_deadline`] and [`Client::next_policy_deadline`]
+//! when [`Client::work_pending`] says there is nothing to do.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -287,17 +287,10 @@ impl Client {
             || !self.asked.is_empty()
     }
 
-    /// The earliest deadline: io's, or a connection's timer.
+    /// io's settlement deadlines: the mechanism's.
     #[must_use]
-    pub fn next_deadline(&self) -> Option<Time> {
-        let timers = self.deadlines.next();
-        match self.io.next_deadline() {
-            Some(io) => match timers {
-                Some(timer) => Some(io.min(timer)),
-                None => Some(io),
-            },
-            None => timers,
-        }
+    pub fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
 
     /// Its scripted connection delays, excluding io's settlement deadlines.

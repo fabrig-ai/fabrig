@@ -57,8 +57,8 @@ impl<H: Host> Host for SignalHost<H> {
     fn work_pending(&self, now: Time) -> bool {
         self.host.work_pending(now) || (self.signal.is_some() && !self.closing)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host.next_policy_deadline()

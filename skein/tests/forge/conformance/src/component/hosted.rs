@@ -304,8 +304,8 @@ impl Host for Hosted {
             || !self.below.is_empty()
             || self.component.next_deadline().is_some_and(|at| at <= now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.io.next_deadline().into_iter().chain(self.component.next_deadline()).min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.component.next_deadline()

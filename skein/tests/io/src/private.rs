@@ -215,7 +215,7 @@ impl Host for Owner {
     fn work_pending(&self, _now: Time) -> bool {
         !self.completions.is_empty() || (self.io.takes() && !matches!(self.phase, Phase::Waiting | Phase::Settled))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 

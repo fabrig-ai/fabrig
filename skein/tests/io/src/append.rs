@@ -209,7 +209,7 @@ impl Host for Writer {
             || !self.completions.is_empty()
             || matches!(self.phase, Phase::Asking | Phase::Granted)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 

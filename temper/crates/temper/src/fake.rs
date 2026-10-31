@@ -863,10 +863,10 @@ impl skein_shell::Host for Host {
             || !self.submissions.is_empty()
             || (self.signal == Signal::Close && self.cancel == Cancel::Idle)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.peer
             .host()
-            .next_deadline()
+            .next_mechanism_deadline()
             .into_iter()
             .chain(self.control.as_ref().and_then(control::Control::next_deadline))
             .min()
