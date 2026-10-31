@@ -30,7 +30,7 @@ fn the_tail_goes_as_one_user_message() {
 fn stderr_failure(backend: &mut Backend, detail: &[u8]) -> llm::Failure {
     backend.stderr = Tail::with_capacity(128);
     backend.stderr_wrapped = false;
-    backend.pipes.errors = Some(Token::new(33));
+    fixtures::attach_pipes(Pipes { errors: Some(Token::new(33)), ..backend.process.pipes() }, backend);
     backend.io_event(
         &env(0),
         io::Event::Stream { owner: Token::new(33), up: skein_lib::stream::Up::Bytes(detail.into()) },
@@ -44,7 +44,7 @@ fn stderr_failure(backend: &mut Backend, detail: &[u8]) -> llm::Failure {
 fn a_missing_session_is_gone() {
     let mut backend = launchable();
     backend.state = State::Starting;
-    backend.exit = Some(1);
+    fixtures::exited_process(Some(1), &mut backend);
     assert_eq!(
         stderr_failure(&mut backend, b"No conversation found with session ID: example"),
         llm::Failure::SessionGone
@@ -71,8 +71,8 @@ fn a_missing_session_is_gone() {
 fn a_park_while_waiting_interrupts() {
     let mut backend = launchable();
     backend.state = State::Running;
-    backend.child = Some(backend.token(Owner::Program));
-    backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
+    fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
+    fixtures::attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
     backend.owner = None; // The wait completion was delivered; its held RPC remains unanswered.
     backend.turns.result = false;
     let mut held = reply_tests::call(b"wait-id");
@@ -316,8 +316,8 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         backend.resuming = false;
         backend.owner = Some(COMPLETION);
         backend.state = State::Starting;
-        backend.child = Some(backend.token(Owner::Program));
-        backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
+        fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
+        fixtures::attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
         backend.launch_spec().expect("new spawn");
         let mut up = Queue::with_capacity(32);
         let mut below = Queue::with_capacity(64);
@@ -367,10 +367,10 @@ fn a_first_call_retry_resumes_the_recorded_session() {
 fn a_wrapped_missing_prefix_stays_a_program_error() {
     let mut backend = launchable();
     backend.state = State::Starting;
-    backend.exit = Some(1);
+    fixtures::exited_process(Some(1), &mut backend);
     let prefix = b"No conversation found with session ID";
     backend.stderr = Tail::with_capacity(u32::try_from(prefix.len()).expect("prefix length"));
-    backend.pipes.errors = Some(Token::new(33));
+    fixtures::attach_pipes(Pipes { errors: Some(Token::new(33)), ..backend.process.pipes() }, &mut backend);
     for bytes in [[b'x'; b"No conversation found with session ID".len()].as_slice(), prefix.as_slice()] {
         backend.io_event(
             &env(0),

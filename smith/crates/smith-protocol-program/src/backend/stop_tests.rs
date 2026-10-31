@@ -506,7 +506,7 @@ fn a_control_interrupt_keeps_the_process_for_the_note() {
             serde_json::json!({"type":"user","message":{"role":"user","content":"(The agent paused your last turn to send the finishing note.)\nfinish now\n"}}),
         ]
     );
-    assert_eq!(backend.child, Some(Token::new(30)));
+    assert_eq!(backend.process.child(), Some(Token::new(30)));
     assert_eq!(backend.state, State::Running);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert!(!input_closed(&below));

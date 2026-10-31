@@ -14,7 +14,7 @@ fn a_late_spawn_after_grace_is_terminated_as_a_group() {
     let mut below = Queue::with_capacity(64);
     backend.close(&env(0), &mut up, &mut below);
     backend.fire(&env(2), &mut up, &mut below);
-    assert!(backend.spawning);
+    assert!(backend.process.spawning());
     assert!(backend.stopping > 0);
     backend.from_io(
         &env(3),

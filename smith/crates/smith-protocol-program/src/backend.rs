@@ -26,6 +26,7 @@ mod session;
 pub use memory::backend_valid;
 mod permission;
 mod policy;
+mod process;
 mod recovery;
 mod redaction;
 mod replies;
@@ -221,18 +222,14 @@ pub struct Backend {
     files: files::Files,
     native: Option<native::Snapshot>,
     native_writes: Map<Box<[u8]>, smith_domain::tools::Place>,
-    child: Option<Token>,
-    spawning: bool,
-    pipes: Pipes,
+    process: process::Process,
     outgoing: Option<Box<[u8]>>,
     written: u32,
     interrupt_sequence: u64,
     interrupt_pending: Option<u64>,
     interrupt_line: Option<Box<[u8]>>,
-    exit: Option<u32>,
     deadline: Option<Time>,
     eof_deadline: Option<Time>,
-    drain_deadline: Option<Time>,
     stopping: u8,
     stop: stop::Stop,
     winding: stop::WindDown,
@@ -299,18 +296,14 @@ impl Backend {
             files: files::Files::new(),
             native: None,
             native_writes: Map::with_capacity(ledger.capacity()),
-            child: None,
-            spawning: false,
-            pipes: Pipes::CLOSED,
+            process: process::Process::new(),
             outgoing: None,
             written: 0,
             interrupt_sequence: 0,
             interrupt_pending: None,
             interrupt_line: None,
-            exit: None,
             deadline: None,
             eof_deadline: None,
-            drain_deadline: None,
             stopping: 0,
             stop: stop::Stop::None,
             winding: stop::WindDown::Ordinary,
@@ -382,7 +375,7 @@ impl Backend {
             || owner == self.token(Owner::Program)
             || owner == self.token(Owner::Files)
             || owner == self.token(Owner::Native)
-            || self.pipes.all().contains(&Some(owner))
+            || self.process.pipes().all().contains(&Some(owner))
             || match &self.check {
                 Some(check) => check.owns(owner),
                 None => false,
@@ -499,7 +492,7 @@ impl Backend {
         if let Some(server) = &mut self.server {
             server.fire(env.now, &mut self.io);
         }
-        let drain_due = match self.drain_deadline {
+        let drain_due = match self.process.next_deadline() {
             Some(deadline) => env.now >= deadline,
             None => false,
         };
@@ -544,36 +537,26 @@ impl Backend {
     }
 
     fn terminate(&mut self, now: Time) {
-        if self.exit.is_some() {
+        if self.process.exit().is_some() {
             self.deadline = None;
-            match self.drain_deadline {
-                Some(deadline) if now >= deadline => {}
-                Some(_) | None => return,
-            }
-            self.drain_deadline = None;
-            for pipe in self.pipes.all().into_iter().flatten() {
-                self.io.push(io::Request::Abort { entity: pipe });
-            }
-            if let Some(child) = self.child {
-                self.io.push(io::Request::Close { entity: child });
-            }
+            self.process.drain(now, &mut self.io);
             return;
         }
         self.stopping = self.stopping.saturating_add(1).min(2);
-        if let Some(child) = self.child {
+        if let Some(child) = self.process.child() {
             self.io.push(io::Request::Signal {
                 child,
                 to: kernel::Target::Group,
                 signal: if self.stopping == 1 { kernel::Signal::Terminate } else { kernel::Signal::Kill },
             });
             if self.stopping == 2 {
-                for pipe in self.pipes.all().into_iter().flatten() {
+                for pipe in self.process.pipes().all().into_iter().flatten() {
                     self.io.push(io::Request::Abort { entity: pipe });
                 }
                 self.io.push(io::Request::Close { entity: child });
             }
         }
-        if self.child.is_some() || self.spawning {
+        if self.process.child().is_some() || self.process.spawning() {
             self.deadline = Some(now.saturating_add(self.settings.grace));
         }
     }
@@ -593,7 +576,7 @@ impl Backend {
         }
         for at in [
             self.eof_deadline,
-            self.drain_deadline,
+            self.process.next_deadline(),
             match &self.check {
                 Some(check) => check.next_deadline(),
                 None => None,
@@ -694,8 +677,8 @@ impl Backend {
         if let Some(check) = &mut self.check {
             check.fire(Time::from_nanos(u64::MAX), &mut self.io);
         }
-        if self.child.is_none()
-            && !self.spawning
+        if self.process.child().is_none()
+            && !self.process.spawning()
             && let Some(server) = &mut self.server
         {
             server.close(&mut self.io);
@@ -737,7 +720,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        self.fail(env, llm::Failure::Program { exit: self.exit }, detail, up, below);
+        self.fail(env, llm::Failure::Program { exit: self.process.exit() }, detail, up, below);
     }
 
     fn fail(

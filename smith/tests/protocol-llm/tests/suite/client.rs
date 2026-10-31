@@ -84,9 +84,11 @@ fn run_wire(prompt: llm::Prompt, configuration: &Configuration, owner: u64) -> (
     };
     assert!(matches!(
         terminal,
-        Event::Below(smith_domain::Below::Completed { .. })
-            | Event::Below(smith_domain::Below::Failed { .. })
-            | Event::Below(smith_domain::Below::Cancelled { .. })
+        Event::Below(
+            smith_domain::Below::Completed { .. }
+                | smith_domain::Below::Failed { .. }
+                | smith_domain::Below::Cancelled { .. }
+        )
     ));
     let terminal = terminals.pop().expect("one observed terminal");
     assert_eq!(wire.peer.machine.waiting(), skein_llm::client::Waiting::Idle);

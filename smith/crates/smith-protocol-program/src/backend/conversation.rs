@@ -24,7 +24,7 @@ impl Backend {
         };
         self.begin_prompt(&request);
         self.owner = Some(owner);
-        if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
+        if self.process.exit().is_some() || self.process.child().is_none() || self.process.pipes().input.is_none() {
             self.fail_program(env, b"smith: the program is no longer accepting input", up, below);
             return;
         }
@@ -191,7 +191,7 @@ impl Backend {
             let failure = if self.turns.ready.room() == 0 {
                 llm::Failure::Invalid
             } else {
-                llm::Failure::Program { exit: self.exit }
+                llm::Failure::Program { exit: self.process.exit() }
             };
             self.fail(env, failure, b"smith: invalid program message or completion backlog", up, below);
             return;
@@ -213,7 +213,7 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         if self.owner.is_some() && self.turns.result && self.turns.ready.is_empty() && self.turns.message.is_none() {
-            if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
+            if self.process.exit().is_some() || self.process.child().is_none() || self.process.pipes().input.is_none() {
                 self.fail_program(env, b"smith: the program is no longer accepting input", up, below);
                 return;
             }

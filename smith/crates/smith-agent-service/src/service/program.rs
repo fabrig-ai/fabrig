@@ -568,16 +568,18 @@ fn answer_head(service: &Stages) -> bool {
     match service.domain_requests.iter().next() {
         Some(domain::Request::Answer { .. }) => true,
         Some(
-            domain::Request::Lower(smith_domain::Lower::Complete { .. })
-            | domain::Request::Lower(smith_domain::Lower::Cancel { .. })
-            | domain::Request::Lower(smith_domain::Lower::Yield { .. })
-            | domain::Request::Lower(smith_domain::Lower::Io { .. })
-            | domain::Request::Lower(smith_domain::Lower::Job { .. })
-            | domain::Request::Lower(smith_domain::Lower::CancelIo { .. })
-            | domain::Request::Lower(smith_domain::Lower::Read { .. })
-            | domain::Request::Lower(smith_domain::Lower::Probe { .. })
-            | domain::Request::Lower(smith_domain::Lower::Check { .. })
-            | domain::Request::Lower(smith_domain::Lower::Abort { .. })
+            domain::Request::Lower(
+                smith_domain::Lower::Complete { .. }
+                | smith_domain::Lower::Cancel { .. }
+                | smith_domain::Lower::Yield { .. }
+                | smith_domain::Lower::Io { .. }
+                | smith_domain::Lower::Job { .. }
+                | smith_domain::Lower::CancelIo { .. }
+                | smith_domain::Lower::Read { .. }
+                | smith_domain::Lower::Probe { .. }
+                | smith_domain::Lower::Check { .. }
+                | smith_domain::Lower::Abort { .. },
+            )
             | domain::Request::MessageRefused { .. }
             | domain::Request::Waiting { .. }
             | domain::Request::Turn { .. }

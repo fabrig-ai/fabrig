@@ -1468,8 +1468,7 @@ impl<B: Backend> World<B> {
             }
             Event::Below(smith_domain::Below::Failed { .. }) => CompletionTerminal::Failed,
             Event::Below(smith_domain::Below::Cancelled { .. }) => CompletionTerminal::Cancelled,
-            Event::Below(smith_domain::Below::BuiltinResult { .. })
-            | Event::Below(smith_domain::Below::ReadVersion { .. })
+            Event::Below(smith_domain::Below::BuiltinResult { .. } | smith_domain::Below::ReadVersion { .. })
             | Event::HostReturned { .. }
             | Event::Start { .. }
             | Event::Message { .. }
@@ -1477,11 +1476,13 @@ impl<B: Backend> World<B> {
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Delivered { .. }
-            | Event::Below(smith_domain::Below::Done { .. })
-            | Event::Below(smith_domain::Below::Read { .. })
-            | Event::Below(smith_domain::Below::Probed { .. })
-            | Event::Below(smith_domain::Below::Checked { .. })
-            | Event::Below(smith_domain::Below::Aborted { .. }) => {
+            | Event::Below(
+                smith_domain::Below::Done { .. }
+                | smith_domain::Below::Read { .. }
+                | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::Checked { .. }
+                | smith_domain::Below::Aborted { .. },
+            ) => {
                 panic!("completion flight receives only provider terminals")
             }
         };
@@ -1514,7 +1515,7 @@ impl<B: Backend> World<B> {
                     },
                 });
             }
-            Event::Below(smith_domain::Below::Failed { .. }) | Event::Below(smith_domain::Below::Cancelled { .. }) => {
+            Event::Below(smith_domain::Below::Failed { .. } | smith_domain::Below::Cancelled { .. }) => {
                 self.observe(Seen::CompletionEnded { owner })
             }
             Event::Below(smith_domain::Below::Checked { ran, .. }) => {
@@ -1535,17 +1536,18 @@ impl<B: Backend> World<B> {
                 self.check_terminals.push(self.now);
                 self.observe(Seen::Checked { owner, exit: None });
             }
-            Event::Below(smith_domain::Below::BuiltinResult { .. })
-            | Event::Below(smith_domain::Below::ReadVersion { .. })
+            Event::Below(smith_domain::Below::BuiltinResult { .. } | smith_domain::Below::ReadVersion { .. })
             | Event::HostReturned { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Start { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
-            | Event::Below(smith_domain::Below::Done { .. })
-            | Event::Below(smith_domain::Below::Read { .. })
-            | Event::Below(smith_domain::Below::Probed { .. }) => {}
+            | Event::Below(
+                smith_domain::Below::Done { .. }
+                | smith_domain::Below::Read { .. }
+                | smith_domain::Below::Probed { .. },
+            ) => {}
         }
         match &event {
             Event::Below(smith_domain::Below::Completed { completion, .. }) => self.messages_seen.push((
@@ -1554,11 +1556,10 @@ impl<B: Backend> World<B> {
                     parts: crate::messages_referee::completion_parts(&completion.content),
                 },
             )),
-            Event::Below(smith_domain::Below::Failed { .. }) | Event::Below(smith_domain::Below::Cancelled { .. }) => {
+            Event::Below(smith_domain::Below::Failed { .. } | smith_domain::Below::Cancelled { .. }) => {
                 self.messages_seen.push((self.now, crate::messages_referee::Seen::CompletionEnded));
             }
-            Event::Below(smith_domain::Below::BuiltinResult { .. })
-            | Event::Below(smith_domain::Below::ReadVersion { .. })
+            Event::Below(smith_domain::Below::BuiltinResult { .. } | smith_domain::Below::ReadVersion { .. })
             | Event::Cancel { .. }
             | Event::Start { .. }
             | Event::Message { .. }
@@ -1566,11 +1567,13 @@ impl<B: Backend> World<B> {
             | Event::Grant { .. }
             | Event::HostReturned { .. }
             | Event::Delivered { .. }
-            | Event::Below(smith_domain::Below::Read { .. })
-            | Event::Below(smith_domain::Below::Probed { .. })
-            | Event::Below(smith_domain::Below::Checked { .. })
-            | Event::Below(smith_domain::Below::Aborted { .. })
-            | Event::Below(smith_domain::Below::Done { .. }) => {}
+            | Event::Below(
+                smith_domain::Below::Read { .. }
+                | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::Checked { .. }
+                | smith_domain::Below::Aborted { .. }
+                | smith_domain::Below::Done { .. },
+            ) => {}
         }
         self.stage.push(event);
     }

@@ -285,8 +285,8 @@ fn failure_never_accepts_an_unjudged_finish() {
 #[test]
 fn an_input_grant_after_stdin_closes_fails_without_writing() {
     let mut backend = active();
-    backend.pipes.input = None;
-    backend.exit = Some(7);
+    fixtures::attach_pipes(Pipes { input: None, ..backend.process.pipes() }, &mut backend);
+    fixtures::exited_process(Some(7), &mut backend);
     backend.outgoing = Some(b"pending".as_slice().into());
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);

@@ -472,16 +472,18 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         | domain::Event::Grant { .. }
         | domain::Event::Cancel { .. }
         | domain::Event::Delivered { .. }
-        | domain::Event::Below(smith_domain::Below::Completed { .. })
-        | domain::Event::Below(smith_domain::Below::Failed { .. })
-        | domain::Event::Below(smith_domain::Below::Cancelled { .. })
-        | domain::Event::Below(smith_domain::Below::Done { .. })
-        | domain::Event::Below(smith_domain::Below::Read { .. })
-        | domain::Event::Below(smith_domain::Below::Probed { .. })
-        | domain::Event::Below(smith_domain::Below::Checked { .. })
-        | domain::Event::Below(smith_domain::Below::BuiltinResult { .. })
-        | domain::Event::Below(smith_domain::Below::ReadVersion { .. })
-        | domain::Event::Below(smith_domain::Below::Aborted { .. }) => {}
+        | domain::Event::Below(
+            smith_domain::Below::Completed { .. }
+            | smith_domain::Below::Failed { .. }
+            | smith_domain::Below::Cancelled { .. }
+            | smith_domain::Below::Done { .. }
+            | smith_domain::Below::Read { .. }
+            | smith_domain::Below::Probed { .. }
+            | smith_domain::Below::Checked { .. }
+            | smith_domain::Below::BuiltinResult { .. }
+            | smith_domain::Below::ReadVersion { .. }
+            | smith_domain::Below::Aborted { .. },
+        ) => {}
     }
 }
 

@@ -937,11 +937,13 @@ impl Counted {
                 | Request::Refused { .. }
                 | Request::Limited { .. }
                 | Request::MessageRefused { .. }
-                | Request::Lower(smith_domain::Lower::Io { .. })
-                | Request::Lower(smith_domain::Lower::Job { .. })
-                | Request::Lower(smith_domain::Lower::CancelIo { .. })
-                | Request::Lower(smith_domain::Lower::Check { .. })
-                | Request::Lower(smith_domain::Lower::Abort { .. }) => {
+                | Request::Lower(
+                    smith_domain::Lower::Io { .. }
+                    | smith_domain::Lower::Job { .. }
+                    | smith_domain::Lower::CancelIo { .. }
+                    | smith_domain::Lower::Check { .. }
+                    | smith_domain::Lower::Abort { .. },
+                ) => {
                     panic!("this positive Wait/text fixture owes only discovery, provider and parent observations")
                 }
             }

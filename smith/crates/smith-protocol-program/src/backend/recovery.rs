@@ -70,7 +70,7 @@ impl Backend {
         {
             return llm::Failure::SessionGone;
         }
-        llm::Failure::Program { exit: self.exit }
+        llm::Failure::Program { exit: self.process.exit() }
     }
 }
 

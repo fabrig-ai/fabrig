@@ -54,7 +54,7 @@ fn an_open_result_completes_text_and_keeps_input_open() {
     assert_eq!(completion.stop, llm::Stop::EndTurn);
     let llm::Said::Text { text, .. } = &completion.content[0] else { panic!("text reply") };
     assert_eq!(text.as_ref(), b"Hello.");
-    assert_eq!(backend.pipes.input, Some(Token::new(31)));
+    assert_eq!(backend.process.pipes().input, Some(Token::new(31)));
     assert_eq!(
         backend
             .io

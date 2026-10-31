@@ -52,7 +52,7 @@ fn a_relay_without_a_program_exit_fails_at_its_grace() {
 #[test]
 fn buffered_stdout_cannot_clear_the_relay_eof_grace() {
     let mut backend = active();
-    backend.pipes.input = Some(Token::new(31));
+    fixtures::attach_pipes(Pipes { input: Some(Token::new(31)), ..backend.process.pipes() }, &mut backend);
     let until = env(0).now.saturating_add(backend.settings.grace);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);

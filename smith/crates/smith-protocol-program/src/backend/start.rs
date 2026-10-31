@@ -1,8 +1,8 @@
 //! Lazy child startup and private entropy-derived names (smith/docs/design/protocol/programs.md, 3, 5.1).
 //! Keeps no login; the existing status reader classifies subscription use.
 
+use super::Owner;
 use super::{Backend, Below, State};
-use super::{Owner, Pipes};
 use crate::{Command, Ended, Launch, STATUS, Status, configuration_directory, environment, mcp};
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
@@ -126,17 +126,15 @@ impl Backend {
             self.yield_for_wind_down(env, up, below);
         }
         if self.state == State::Ending
-            && self.child.is_none()
-            && !self.spawning
+            && self.process.child().is_none()
+            && !self.process.spawning()
             && let Some(server) = &mut self.server
         {
             server.close(&mut self.io);
         }
         if self.state == State::Ending
             && self.check.is_none()
-            && !self.spawning
-            && self.child.is_none()
-            && self.pipes == Pipes::CLOSED
+            && self.process.settled()
             && (self.server.is_none() || self.server_ended)
         {
             self.cleanup(env.now, below);
@@ -233,7 +231,7 @@ impl Backend {
             self.first_prompt_measure(env.now);
         }
         self.io.push(io::Request::Spawn { owner: self.token(Owner::Program), spawn: launch });
-        self.spawning = true;
+        self.process.spawn();
         self.deadline = Some(env.now.saturating_add(self.settings.startup));
     }
 
@@ -247,7 +245,7 @@ impl Backend {
         if self.switching {
             return;
         }
-        if self.state == State::Running && self.child.is_some() {
+        if self.state == State::Running && self.process.child().is_some() {
             // Relay EOF can precede waitpid. Let the child and stderr settle
             // before choosing its program fault (smith/docs/design/protocol/programs.md, section 5.6).
             let until = env.now.saturating_add(self.settings.grace);

@@ -354,16 +354,18 @@ fn framed_request(service: &mut Stages, frame: &mut Frame, request: domain::Requ
                 service.mark_failed(Failure::Send);
             }
         }
-        domain::Request::Lower(smith_domain::Lower::Complete { .. })
-        | domain::Request::Lower(smith_domain::Lower::Yield { .. })
-        | domain::Request::Lower(smith_domain::Lower::Cancel { .. })
-        | domain::Request::Lower(smith_domain::Lower::Io { .. })
-        | domain::Request::Lower(smith_domain::Lower::Job { .. })
-        | domain::Request::Lower(smith_domain::Lower::CancelIo { .. })
-        | domain::Request::Lower(smith_domain::Lower::Read { .. })
-        | domain::Request::Lower(smith_domain::Lower::Probe { .. })
-        | domain::Request::Lower(smith_domain::Lower::Check { .. })
-        | domain::Request::Lower(smith_domain::Lower::Abort { .. }) => {
+        domain::Request::Lower(
+            smith_domain::Lower::Complete { .. }
+            | smith_domain::Lower::Yield { .. }
+            | smith_domain::Lower::Cancel { .. }
+            | smith_domain::Lower::Io { .. }
+            | smith_domain::Lower::Job { .. }
+            | smith_domain::Lower::CancelIo { .. }
+            | smith_domain::Lower::Read { .. }
+            | smith_domain::Lower::Probe { .. }
+            | smith_domain::Lower::Check { .. }
+            | smith_domain::Lower::Abort { .. },
+        ) => {
             unreachable!("lower requests are dispatched before the framed face")
         }
     }

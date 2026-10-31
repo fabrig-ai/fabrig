@@ -172,10 +172,10 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                 crate::workspace::io(slot, id.token(), owner, op, deadline, out);
             }
             smith::Request::Lower(Lower::Job { owner, act }) => {
-                crate::workspace::job(slot, id.token(), owner, act, out)
+                crate::workspace::job(slot, id.token(), owner, act, out);
             }
             smith::Request::Lower(Lower::CancelIo { owner }) => {
-                crate::workspace::cancel_io(slot, id.token(), owner, out)
+                crate::workspace::cancel_io(slot, id.token(), owner, out);
             }
             smith::Request::Lower(Lower::Read { owner, at, max, deadline }) => {
                 crate::workspace::read(slot, id.token(), owner, at, max, deadline, out);

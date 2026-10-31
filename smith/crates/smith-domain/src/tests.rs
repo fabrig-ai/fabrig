@@ -411,15 +411,17 @@ impl Harness {
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
                 | Request::Limited { .. }
-                | Request::Lower(crate::Lower::Cancel { .. })
-                | Request::Lower(crate::Lower::Yield { .. })
-                | Request::Lower(crate::Lower::Io { .. })
-                | Request::Lower(crate::Lower::Job { .. })
-                | Request::Lower(crate::Lower::CancelIo { .. })
-                | Request::Lower(crate::Lower::Read { .. })
-                | Request::Lower(crate::Lower::Probe { .. })
-                | Request::Lower(crate::Lower::Check { .. })
-                | Request::Lower(crate::Lower::Abort { .. })
+                | Request::Lower(
+                    crate::Lower::Cancel { .. }
+                    | crate::Lower::Yield { .. }
+                    | crate::Lower::Io { .. }
+                    | crate::Lower::Job { .. }
+                    | crate::Lower::CancelIo { .. }
+                    | crate::Lower::Read { .. }
+                    | crate::Lower::Probe { .. }
+                    | crate::Lower::Check { .. }
+                    | crate::Lower::Abort { .. },
+                )
                 | Request::MessageRefused { .. }
                 | Request::Waiting { .. }) => {
                     requests.push(request);
@@ -1273,15 +1275,17 @@ fn assert_no_provider_completion(emitted: &[Request]) {
             | Request::Unauthorized { .. }
             | Request::Refused { .. }
             | Request::Limited { .. }
-            | Request::Lower(crate::Lower::Cancel { .. })
-            | Request::Lower(crate::Lower::Yield { .. })
-            | Request::Lower(crate::Lower::Io { .. })
-            | Request::Lower(crate::Lower::Job { .. })
-            | Request::Lower(crate::Lower::CancelIo { .. })
-            | Request::Lower(crate::Lower::Read { .. })
-            | Request::Lower(crate::Lower::Probe { .. })
-            | Request::Lower(crate::Lower::Check { .. })
-            | Request::Lower(crate::Lower::Abort { .. }) => {}
+            | Request::Lower(
+                crate::Lower::Cancel { .. }
+                | crate::Lower::Yield { .. }
+                | crate::Lower::Io { .. }
+                | crate::Lower::Job { .. }
+                | crate::Lower::CancelIo { .. }
+                | crate::Lower::Read { .. }
+                | crate::Lower::Probe { .. }
+                | crate::Lower::Check { .. }
+                | crate::Lower::Abort { .. },
+            ) => {}
         }
     }
 }

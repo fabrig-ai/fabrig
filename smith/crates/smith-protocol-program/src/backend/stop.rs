@@ -183,7 +183,7 @@ impl Backend {
             Stop::WindDown | Stop::Yielding | Stop::Parking => true,
             Stop::None | Stop::Closing => false,
         };
-        if keeping && active && !waiting && self.child.is_some() {
+        if keeping && active && !waiting && self.process.child().is_some() {
             match self.prepare_interrupt() {
                 Some(()) => {
                     // Finish any user line already being written before this line.
@@ -201,7 +201,7 @@ impl Backend {
             }
         }
         self.stop = if keeping { Stop::WindDown } else { Stop::Closing };
-        if active && let Some(child) = self.child {
+        if active && let Some(child) = self.process.child() {
             if !keeping && (!waiting || was_keeping) {
                 self.io.push(io::Request::Signal {
                     child,
@@ -213,7 +213,7 @@ impl Backend {
             self.finish_stop();
         }
         if !waiting {
-            self.deadline = if self.child.is_some() || self.spawning {
+            self.deadline = if self.process.child().is_some() || self.process.spawning() {
                 Some(env.now.saturating_add(self.settings.grace))
             } else {
                 None
@@ -233,7 +233,7 @@ impl Backend {
     pub(super) fn send_interrupt(&mut self) {
         if let Some(line) = &self.interrupt_line {
             self.io.push(io::Request::Output {
-                stream: self.pipes.input.expect("interrupt input"),
+                stream: self.process.pipes().input.expect("interrupt input"),
                 down: skein_lib::stream::OutputDown::Room {
                     right: super::INTERRUPT_RIGHT,
                     bytes: u32::try_from(line.len()).expect("bounded interrupt line"),
@@ -330,7 +330,7 @@ impl Backend {
         }
         match self.stop {
             Stop::Closing | Stop::Parking => {
-                if let Some(input) = self.pipes.input {
+                if let Some(input) = self.process.pipes().input {
                     self.io.push(io::Request::Close { entity: input });
                 }
             }

@@ -2,8 +2,8 @@
 //! Keeps the last recorded id, never the program's session contents.
 //! Affinity and the first rendered message identify the window.
 
+use super::PIPE_BYTES;
 use super::{Backend, Below, State, compact, turns};
-use super::{PIPE_BYTES, Pipes};
 use skein_lib::{Env, List, Queue, sha256::Sha256};
 use smith_domain::llm::{self, Affinity, Prompt};
 use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
@@ -163,13 +163,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        if self.state == State::Ending
-            || self.native.is_some()
-            || !self.switching
-            || self.child.is_some()
-            || self.spawning
-            || self.pipes != Pipes::CLOSED
-        {
+        if self.state == State::Ending || self.native.is_some() || !self.switching || !self.process.settled() {
             return;
         }
         if !self.server_ended
@@ -187,9 +181,8 @@ impl Backend {
             self.winding = super::stop::WindDown::Ordinary;
         }
         self.stopping = 0;
-        self.exit = None;
+        self.process.reset();
         self.eof_deadline = None;
-        self.drain_deadline = None;
         self.deadline = None;
         self.stdout_demanding = false;
         self.intake = List::with_capacity(PIPE_BYTES);
