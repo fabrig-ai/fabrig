@@ -78,7 +78,6 @@ fn assert_status(event: local::Event, expected: bool) {
     assert_eq!(changed, expected);
 }
 
-/// Lower test of smith-local-service's `tests::plain::an_unknown_plain_capture_completes_and_counts_as_changed`
 /// (top tiers test wiring only).
 #[test]
 fn an_unknown_capture_completes_and_answers_changed_immediately() {
@@ -94,7 +93,6 @@ fn an_unknown_capture_completes_and_answers_changed_immediately() {
     }
 }
 
-/// Lower test of smith-local-service's `tests::plain::a_plain_tree_outgrowing_its_capture_counts_as_changed`
 /// (top tiers test wiring only).
 #[test]
 fn a_tree_outgrowing_its_capture_counts_as_changed() {
@@ -107,7 +105,6 @@ fn a_tree_outgrowing_its_capture_counts_as_changed() {
     }
 }
 
-/// Lower test of smith-local-service's `tests::plain::an_untouched_plain_tree_at_the_bounds_is_unchanged`
 /// (top tiers test wiring only).
 #[test]
 fn an_untouched_tree_at_both_bounds_is_unchanged() {
@@ -119,7 +116,6 @@ fn an_untouched_tree_at_both_bounds_is_unchanged() {
     }
 }
 
-/// Lower test of smith-local-service's `tests::plain::a_fresh_capture_replaces_an_unknown_plain_tree`
 /// (top tiers test wiring only).
 #[test]
 fn a_fresh_capture_replaces_an_unknown_tree() {

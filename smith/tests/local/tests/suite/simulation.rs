@@ -23,7 +23,7 @@ fn a_chat_granted_sub_agents_delegates_a_reading_and_answers() {
             .tool_results()
             .iter()
             .any(|text| text.windows(b"pub fn answer()".len()).any(|part| part == b"pub fn answer()")),
-        "the child receives the actual file read"
+        "the child receives the file read"
     );
     assert!(world.shown().iter().any(|text| text.as_ref() == b"The delegated reading found the answer."));
     assert_eq!(world.saved_turns(), 2, "main's delegate and final answer are durable");
@@ -454,7 +454,7 @@ fn a_chat_keeps_its_identity_across_activations_and_invocations() {
     let identity = first.identity().expect("identity durable before the child starts");
     assert_eq!(first.activation(), 1);
     first.line(b"Another activation in this invocation");
-    assert!(first.drive_to_park(300), "a later activation actually reaches its own park");
+    assert!(first.drive_to_park(300), "a later activation reaches its own park");
     assert_eq!(first.activation(), 2);
     assert_eq!(first.identity(), Some(identity));
     assert!(!first.prompt_affinities().is_empty());
@@ -649,7 +649,7 @@ fn a_slow_store_pauses_the_agent_and_loses_no_turn() {
             break;
         }
     }
-    assert!(parked, "the paused agent parks after its actual store acknowledgements");
+    assert!(parked, "the paused agent parks after its store acknowledgements");
     assert!(world.waiting(), "the run asked to wait before parking");
     assert_eq!(world.saved_turns(), 2, "the exchange and withheld wait each reach the store once");
 }

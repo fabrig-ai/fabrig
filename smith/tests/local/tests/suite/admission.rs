@@ -18,7 +18,6 @@ fn run(seed: u64, turns: u32) -> World {
     world
 }
 
-/// Lower test of smith's `end_to_end::a_one_turn_local_run_is_refused_by_the_actor_before_any_completion` (top tiers test wiring only).
 #[test]
 fn a_one_turn_budget_refuses_before_any_provider_completion() {
     for turns in [ONE_TURN, RESERVE_TURNS] {
@@ -42,7 +41,6 @@ fn a_one_turn_budget_refuses_before_any_provider_completion() {
     }
 }
 
-/// Lower test of smith's `end_to_end::a_one_turn_local_run_is_refused_by_the_actor_before_any_completion` (top tiers test wiring only).
 #[test]
 fn a_budget_above_the_reserve_starts_a_provider_completion() {
     let world = run(64, ADMITTED_TURNS);

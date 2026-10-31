@@ -11,7 +11,7 @@ use smith_host_protocol::OpenEvent;
 /// reasoning and input pieces are never kept.
 pub const LIVE_SLOTS: u32 = 4;
 
-/// Protocol/limits.md, section 3.6: maximum bytes in one live piece.
+/// protocol/limits.md, section 3.6: maximum bytes in one live piece.
 pub const LIVE_BYTES: u32 = smith_channel::CEILINGS.live_bytes;
 
 /// One text piece, sent beside the domain to the shown activation's front.

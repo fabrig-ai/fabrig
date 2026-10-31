@@ -381,7 +381,7 @@ fn a_message_refused_after_the_last_word_keeps_the_single_transcript_reload() {
         },
         &mut out,
     );
-    let Some(Request::Notice { notice }) = out.pop() else { panic!("actual transcript refusal") };
+    let Some(Request::Notice { notice }) = out.pop() else { panic!("transcript refusal") };
     assert_eq!(
         notice,
         Notice::Failure(Failure::Run {

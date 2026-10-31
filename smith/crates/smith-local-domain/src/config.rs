@@ -23,9 +23,7 @@ pub enum Contract {
 /// Where a git workspace directory sends its new commits.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PushTarget {
-    /// Named remote for this directory.
     pub remote: Box<[u8]>,
-    /// Branch on that remote.
     pub branch: Box<[u8]>,
 }
 
@@ -52,7 +50,6 @@ impl Mode {
 /// One configured chat and the policy for each activation.
 #[derive(Debug)]
 pub struct Config {
-    /// Store key for this chat.
     pub chat: Box<[u8]>,
     /// Host-authored role text.
     pub instructions: Box<[u8]>,
@@ -72,7 +69,6 @@ pub struct Config {
     pub budget: run::Budget,
     /// Main's finishing turns and time, kept outside child-opening budgets.
     pub reserve: charter::Reserve,
-    /// Optional guide and check paths.
     pub conventions: Option<run::Conventions>,
     /// Result form; a report is the usual choice.
     pub contract: Contract,
@@ -80,11 +76,9 @@ pub struct Config {
     pub deliver: Option<outcome::ChangeSpec>,
     /// Required change field used as the first commit-message paragraph.
     pub title_field: Box<[u8]>,
-    /// Interactive waiting policy or the headless prompt carried at startup.
     pub mode: Mode,
     /// Ask the spawned agent for text for the terminal presentation.
     pub live_text: bool,
-    /// Whether a saved transcript is supplied on start.
     pub resume: bool,
     /// Accounts for which grants must be fetched before a start.
     pub accounts: Box<[u32]>,
@@ -277,7 +271,6 @@ impl Config {
         Ok(())
     }
 
-    #[expect(clippy::manual_let_else, reason = "strict subset keeps checked construction exhaustive")]
     fn check_models(&self, limits: &Limits) -> Result<(), Invalid> {
         if self.protocol_allowances.len() != self.models.len() || self.efforts.len() != self.models.len() {
             return Err(Invalid::Models);
@@ -289,9 +282,8 @@ impl Config {
         }
         let mut model_bytes = 0_u64;
         for (index, model) in self.models.iter().enumerate() {
-            match model.prices.check() {
-                Ok(()) => {}
-                Err(rate) => return Err(Invalid::Price(rate)),
+            if let Err(rate) = model.prices.check() {
+                return Err(Invalid::Price(rate));
             }
             if model.model.is_empty() || model.window == 0 || model.output == 0 {
                 return Err(Invalid::Models);
@@ -301,12 +293,11 @@ impl Config {
                     return Err(Invalid::Models);
                 }
             }
-            let owned = match smith_domain::ConfiguredModel::owned_bound(
+            let Some(owned) = smith_domain::ConfiguredModel::owned_bound(
                 model.model.len(),
                 self.efforts.get(index).expect("matched effort inventory"),
-            ) {
-                Some(owned) => owned,
-                None => return Err(Invalid::Limits),
+            ) else {
+                return Err(Invalid::Limits);
             };
             model_bytes = match model_bytes.checked_add(owned) {
                 Some(bytes) => bytes,

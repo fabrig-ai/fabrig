@@ -1733,7 +1733,7 @@ mod tests {
         while adapter.io_submissions.pop().is_some() {}
         adapter.terminal_input = Some(terminal);
         adapter.read_window();
-        // Filling IO's one refusal slot holds its actual credit independently
+        // Filling IO's one refusal slot holds its credit independently
         // of the service handoff. No kernel operation is required to release it.
         io::down(
             &mut adapter.io,
@@ -1952,10 +1952,10 @@ mod tests {
             adapter.drain_process(&mut events);
             match events.pop().expect("one read terminal") {
                 host::Input::Process(host::process::Event::Received {
-                    owner: actual,
+                    owner: seen,
                     message: host::Up::Fact { body },
                 }) => {
-                    assert_eq!(actual, owner);
+                    assert_eq!(seen, owner);
                     assert_eq!(&*body, text);
                 }
                 other @ (host::Input::Parent(_) | host::Input::Process(_)) => panic!("fact terminal: {other:?}"),

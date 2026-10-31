@@ -321,7 +321,7 @@ impl Domain {
         }
     }
 
-    /// The actual inline parent message, before its run receipt reaches the service.
+    /// The inline parent message, before its run receipt reaches the service.
     pub fn pop_run_message(&mut self) -> Option<host::Message> {
         self.run_messages.pop()
     }
@@ -1083,7 +1083,7 @@ fn store_failed(
             DeliveryState::Answer(delivery) => delivery,
         };
         if let Some(owner) = owner {
-            deliver_to_agent(domain, env, owner, delivery, out);
+            deliver_to_agent(domain, env, owner, delivery);
         }
     }
     if let Some(run) = domain.run {
@@ -1356,11 +1356,11 @@ fn begin_delivery(
     assert!(domain.delivery.is_none() && domain.saving.is_none(), "one delivery in flight");
     domain.landed = List::with_capacity(agent::run::MAX_DIRECTORIES);
     if let Some(delivery) = crate::delivery::cached(&domain.records, name) {
-        deliver_to_agent(domain, env, owner, delivery, out);
+        deliver_to_agent(domain, env, owner, delivery);
         return;
     }
     if domain.records.get(&name).is_some() {
-        deliver_unknown(domain, env, owner, 0, out);
+        deliver_unknown(domain, env, owner, 0);
         return;
     }
     let rules = match &domain.config.contract {
@@ -1504,11 +1504,7 @@ fn save_intent(domain: &mut Domain, mut in_place: InPlace, out: &mut Queue<Reque
 fn plain_status(domain: &mut Domain, env: &Env<Limits>, owner: Token, changed: bool, out: &mut Queue<Request>) {
     let mut in_place = domain.delivery.take().expect("plain status answers one delivery operation");
     assert!(in_place.owner == owner && in_place.step == Step::Plain, "plain status matches the active request");
-    if changed {
-        in_place.directory(in_place.next, true, None);
-    } else {
-        in_place.directory(in_place.next, false, None);
-    }
+    in_place.directory(in_place.next, changed, None);
     in_place.next = in_place.next.checked_add(1).expect("admitted directory position");
     advance_delivery(domain, env, in_place, out);
 }
@@ -1533,7 +1529,7 @@ fn git_result(domain: &mut Domain, env: &Env<Limits>, owner: Token, mut result: 
         match result {
             GitResult::Inspected { .. } | GitResult::Failed { .. } | GitResult::Uncertain { .. } => {
                 // A trailer proves the local commit, not the configured remote's head.
-                deliver_unknown(domain, env, owner, directory, out);
+                deliver_unknown(domain, env, owner, directory);
             }
             GitResult::Head { .. }
             | GitResult::Status { .. }
@@ -1564,14 +1560,14 @@ fn git_result(domain: &mut Domain, env: &Env<Limits>, owner: Token, mut result: 
                     }
                 }
                 if !unchanged {
-                    deliver_unknown(domain, env, owner, directory, out);
+                    deliver_unknown(domain, env, owner, directory);
                     return;
                 }
                 let (reason, diagnostic) = in_place.uncertainty.take().expect("uncertain write diagnostic");
                 GitResult::NoEffect { reason, diagnostic: Box::new(diagnostic) }
             }
             GitResult::Failed { .. } | GitResult::Uncertain { .. } => {
-                deliver_unknown(domain, env, owner, directory, out);
+                deliver_unknown(domain, env, owner, directory);
                 return;
             }
             GitResult::Head { .. }
@@ -1839,14 +1835,13 @@ fn stale_head(domain: &Domain, directory: u32, head: &[u8]) -> bool {
     }
 }
 
-fn deliver_unknown(domain: &mut Domain, env: &Env<Limits>, owner: Token, directory: u32, out: &mut Queue<Request>) {
+fn deliver_unknown(domain: &mut Domain, env: &Env<Limits>, owner: Token, directory: u32) {
     domain.delivery = None;
     deliver_to_agent(
         domain,
         env,
         owner,
         agent::run::Delivery::Failed(agent::run::DeliveryFailure::new(directory, agent::run::DeliveryReason::Unknown)),
-        out,
     );
 }
 
@@ -1912,7 +1907,7 @@ fn delivery_saved(domain: &mut Domain, env: &Env<Limits>, name: agent::run::Call
         DeliveryState::Answer(delivery) => {
             if let Some(owner) = domain.delivery_owner.take() {
                 observe(domain, Fact::DeliveryReturned { name });
-                deliver_to_agent(domain, env, owner, delivery, out);
+                deliver_to_agent(domain, env, owner, delivery);
             } else {
                 resume_loading(domain, env, out);
             }
@@ -1920,13 +1915,7 @@ fn delivery_saved(domain: &mut Domain, env: &Env<Limits>, name: agent::run::Call
     }
 }
 
-fn deliver_to_agent(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    owner: Token,
-    delivery: agent::run::Delivery,
-    _out: &mut Queue<Request>,
-) {
+fn deliver_to_agent(domain: &mut Domain, env: &Env<Limits>, owner: Token, delivery: agent::run::Delivery) {
     let reply = match crate::agent::delivery_to_host(delivery) {
         Ok(delivery) => host::Reply::Delivery(delivery),
         Err(_) => host::Reply::Unavailable,
