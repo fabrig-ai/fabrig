@@ -179,11 +179,11 @@ impl Transport {
         self.clients.get(&client).expect("bound client").identity.clone()
     }
 
-    pub(super) fn route_reply(&mut self, token: Token, reply: Reply) {
+    pub fn route_reply(&mut self, token: Token, reply: Reply) {
         assert!(self.replies.insert(token, reply).is_none(), "component reply has one route");
     }
 
-    pub(super) fn route_watch(&mut self, token: Token, client: ClientId, native: Token, subject: Watched) {
+    pub fn route_watch(&mut self, token: Token, client: ClientId, native: Token, subject: Watched) {
         assert!(
             self.watches.insert(token, Watch { client, native, subject }).is_none(),
             "component watch has one route"
