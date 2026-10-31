@@ -8,6 +8,8 @@ The max_out form exempts only the exact identifiers in EXEMPT: the four
 kernel submission bounds and the provider wire field max_output_tokens.
 The worst_case form exempts the four reserved old bound names in EXEMPT.
 Identifiers containing an exempt name still count.
+Component-kit counts io_resume outside crates/skein-io/, earliest/lifecycle/
+hex_decimal outside crates/skein-lib/, and growth_floor/pop_loop/host_dispatch.
 Recorded raises and other comments stay in place when counts are rewritten.
 Run from the repository root, using only the Python standard library:
 
@@ -24,6 +26,24 @@ FORMS = {
     'JournalRoom': re.compile(r'\bJournalRoom\b'),
     'takes': re.compile(r'\.takes\(&'),
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
+    'io_resume': re.compile(r'\b(?:skein_)?io::resume\('),
+    'earliest': re.compile(r'\bfn (?:earliest|earlier)\b'),
+    'lifecycle': re.compile(r'\benum Lifecycle\b'),
+    'growth_floor': re.compile(r'\bconst GROWTH_FLOOR\b'),
+    'pop_loop': re.compile(
+        r'\bfor\s+_\s+in\s+0\.\.(?![.=])[^{};]+\{\s*'
+        r'(?:drop\(\s*\w+(?:\.\w+)*\.pop\(\)\s*\)'
+        r'|(?:let\s+_\s*=\s*)?\w+(?:\.\w+)*\.pop\(\))'
+        r'\s*;\s*\}'
+    ),
+    'hex_decimal': re.compile(r'\bfn (?:hex|decimal)\b'),
+    'host_dispatch': re.compile(r'\bfn completions\(&mut self\)[^{;]*\{\s*match self\b'),
+}
+EXCLUDE = {
+    'io_resume': 'crates/skein-io/',
+    'earliest': 'crates/skein-lib/',
+    'lifecycle': 'crates/skein-lib/',
+    'hex_decimal': 'crates/skein-lib/',
 }
 EXEMPT = {
     'worst_case': (
@@ -99,9 +119,11 @@ def counts():
     for path in paths:
         if not path or b'generated' in path.split(b'/'):
             continue
-        source = Path(path.decode('utf-8')).read_text(encoding='utf-8')
-        if not any(marker in source for marker in (*FORMS, 'MAX_OUT')):
-            continue
+        name = path.decode('utf-8')
+        source = Path(name).read_text(encoding='utf-8')
+        identifiers = any(marker in source for marker in (
+            'max_out', 'MAX_OUT', 'JournalRoom', 'worst_case',
+        ))
         source = without_comments(source)
         # Prefilter whole identifiers once: the three identifier patterns
         # otherwise backtrack through every unrelated word in the tree.
@@ -109,10 +131,13 @@ def counts():
             word for word in IDENTIFIER.findall(source)
             if 'max_out' in word or 'MAX_OUT' in word
             or 'JournalRoom' in word or 'worst_case' in word
-        )
+        ) if identifiers else ''
         for form, pattern in FORMS.items():
+            if name.startswith(EXCLUDE.get(form, ())):
+                continue
+            searched = candidates if form in ('max_out', 'JournalRoom', 'worst_case') else source
             totals[form] += sum(
-                1 for match in pattern.finditer(source if form == 'takes' else candidates)
+                1 for match in pattern.finditer(searched)
                 if match.group() not in EXEMPT.get(form, ())
             )
     return totals
