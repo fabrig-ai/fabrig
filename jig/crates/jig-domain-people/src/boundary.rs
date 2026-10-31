@@ -226,7 +226,7 @@ pub enum NoteChange {
     reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
 )]
 pub enum Ask {
-    /// Delete an owned project (temper/docs/design/draft/playground-reset.md, 5).
+    /// Delete an owned project (jig/docs/design/protocol/store.md, 11.1).
     RemoveProject { project: u32 },
     /// Deployment owner changes settings, whose value the core holds during admission.
     ChangeSettings { against: u32, digest: [u8; 32] },
@@ -397,7 +397,7 @@ pub enum EscalationChoice {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
     /// The project is closed and its deletion kept; the rest completes on its own
-    /// (temper/docs/design/draft/playground-reset.md, 5).
+    /// (jig/docs/design/protocol/store.md, 11.1).
     ProjectRemoved {
         project: u32,
     },
@@ -674,7 +674,7 @@ pub enum Act {
         adoption: Adoption,
     },
     /// Delete a project: closed at once, its tasks ended and erased, then its rows
-    /// (temper/docs/design/draft/playground-reset.md, 5). Answered once the project is closed.
+    /// (jig/docs/design/protocol/store.md, 11.1). Answered once the project is closed.
     RemoveProject {
         project: u32,
     },
@@ -688,7 +688,7 @@ pub enum ActKind {
     RemoveAccount,
     Adopt,
     MakeProject,
-    /// Delete a project (temper/docs/design/draft/playground-reset.md, 5).
+    /// Delete a project (jig/docs/design/protocol/store.md, 11.1).
     RemoveProject,
 }
 
@@ -727,7 +727,7 @@ pub enum Key {
     EndedRead { task: u64, party: u64 },
     /// One durable deployment act.
     Acted(ActKey),
-    /// Live deletion, resumed at start (temper/docs/design/draft/playground-reset.md, 5).
+    /// Live deletion, resumed at start (jig/docs/design/protocol/store.md, 11.1).
     Deletion(u32),
 }
 
@@ -754,7 +754,7 @@ impl Key {
 /// bytes are checked when admitted. (domain/people.md, sections 3–5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
-    /// Kept deletion (temper/docs/design/draft/playground-reset.md, 5).
+    /// Kept deletion (jig/docs/design/protocol/store.md, 11.1).
     Deletion { project: u32, step: DeletionStep },
     /// Connector-scoped act and its permanent answer (people.md, 5.3).
     Acted { key: ActKey, act: Act, outcome: Outcome, at: Wall },
@@ -825,7 +825,7 @@ impl Stored {
     }
 }
 
-/// Where a kept deletion stands, resumed at start (temper/docs/design/draft/playground-reset.md, 5).
+/// Where a kept deletion stands, resumed at start (jig/docs/design/protocol/store.md, 11.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DeletionStep {
     /// Its live tasks cancelled and ended, then each ended task erased whole.
@@ -840,11 +840,11 @@ pub enum DeletionStep {
 /// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
-    /// Keep or erase a deletion row (temper/docs/design/draft/playground-reset.md, 5).
+    /// Keep or erase a deletion row (jig/docs/design/protocol/store.md, 11.1).
     Deleting { project: u32, step: Option<DeletionStep> },
-    /// Remove project roles from memory and storage (temper/docs/design/draft/playground-reset.md, 5).
+    /// Remove project roles from memory and storage (jig/docs/design/protocol/store.md, 11.1).
     CloseProject { project: u32 },
-    /// Erase retained project answers and acts (temper/docs/design/draft/playground-reset.md, 5).
+    /// Erase retained project answers and acts (jig/docs/design/protocol/store.md, 11.1).
     ForgetProject { project: u32 },
     /// Admit a connector's deployment act without a sign-in.
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<Act> },

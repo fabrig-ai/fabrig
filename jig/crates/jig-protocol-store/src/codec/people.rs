@@ -1,5 +1,5 @@
 //! People rows translated exhaustively (protocol/store.md, 5.1).
-//! Durable deletion steps follow temper/docs/design/draft/playground-reset.md, 5.
+//! Durable deletion steps follow jig/docs/design/protocol/store.md, 11.1.
 use crate::people_v14 as wire;
 use alloc::boxed::Box;
 use jig_domain_core as core;
