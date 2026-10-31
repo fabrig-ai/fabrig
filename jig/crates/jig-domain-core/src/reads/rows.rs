@@ -20,6 +20,7 @@ fn note_project(scope: &notes::Scope) -> u32 {
 
 pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
     match scope {
+        Scope::EndedTasks | Scope::TaskRows { .. } => false,
         Scope::SettingsHistory { .. } => core.people.role(party, jig_domain_people::DEPLOYMENT).is_some(),
         Scope::Tasks { query } => documents::task_query::admission(core, party, query).is_ok(),
         Scope::Notes { project } | Scope::Spend { project } => core.people.role(party, *project).is_some(),
@@ -317,7 +318,9 @@ pub fn row_key(row: &Row) -> Option<Position> {
 
 fn is_page(scope: &Scope) -> bool {
     match scope {
-        Scope::EndedDelegates { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Activity { .. }
         | Scope::Inbox { .. }
@@ -373,6 +376,7 @@ pub(super) fn from_store(
     wall: skein_lib::Wall,
 ) -> Answer {
     match range.scope {
+        Scope::EndedTasks | Scope::TaskRows { .. } => unreachable!("erasure scopes are core-only"),
         Scope::SettingsHistory { .. } => super::settings::from_store(core, limits, range, raw, next),
         Scope::Tasks { .. }
         | Scope::Task { .. }
@@ -570,7 +574,9 @@ fn object(
                     result_actor(owner),
                 ),
                 Scope::Result { .. } => Answer::Document(Box::new(Document::Result(Box::new(result)))),
-                Scope::Proposal { .. }
+                Scope::EndedTasks
+                | Scope::TaskRows { .. }
+                | Scope::Proposal { .. }
                 | Scope::Escalation { .. }
                 | Scope::Question { .. }
                 | Scope::Reply { .. }
@@ -828,7 +834,9 @@ fn object(
             }
             Ok(Some(historical(Past::Turn(value.clone()), Some(value.at), None)))
         }
-        Scope::EndedDelegates { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Activity { .. }
         | Scope::Inbox { .. }
@@ -940,7 +948,9 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
         }
         Scope::Tasks { query } => super::ended::line(core, limits, range.party, query, &row),
         Scope::Inbox { group, filter } => inbox_row(core, limits, range.party, *group, *filter, row),
-        Scope::Task { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -955,7 +965,9 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
 fn inbox_contexts(scope: &Scope, rows: u32) -> Option<List<documents::InboxSelection>> {
     match &scope {
         Scope::Inbox { .. } => Some(List::with_capacity(rows)),
-        Scope::Task { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -1456,7 +1468,9 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
     match position {
         Position::Inbox { task, object, key, .. } => match scope {
             Scope::Inbox { group, .. } => inbox_key_allowed(*group, *task, *object, key),
-            Scope::Task { .. }
+            Scope::EndedTasks
+            | Scope::TaskRows { .. }
+            | Scope::Task { .. }
             | Scope::Proposal { .. }
             | Scope::Escalation { .. }
             | Scope::Question { .. }
@@ -1515,7 +1529,7 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
                     | Key::People(_)
                     | Key::Accounts(_) => false,
                 },
-                Scope::SettingsHistory { .. } => false,
+                Scope::EndedTasks | Scope::TaskRows { .. } | Scope::SettingsHistory { .. } => false,
                 Scope::Spend { project } => kind == KeyKind::Ledger(*project),
                 Scope::Inbox { group, .. } => group.updates() && super::indexed::is_update(key),
             }

@@ -59,10 +59,17 @@ pub(super) fn person_note_change(change: people::NoteChange) -> notes::Change {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive table tags every note output with its commit")]
 pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Queue<notes::Request>) -> Requests {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("note output count") {
+            notes::Request::ProjectDropped { owner } => {
+                let Requests::Out(mut requests) = crate::deletion::notes_dropped(core, owner);
+                for _ in 0..requests.len() {
+                    out.push(requests.pop().expect("deletion output count"));
+                }
+            }
             notes::Request::Save { record } => out.push(Request::Write(Write::Save(Record::Notes(record)))),
             notes::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Notes(key)))),
             notes::Request::Load { owner, range } => {

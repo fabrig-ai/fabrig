@@ -35,7 +35,9 @@ mod escalation;
 pub mod waits;
 pub use effects::{EffectKey, EffectOrigin, EffectPurpose};
 
+mod deletion;
 mod ended_marks;
+mod erase;
 pub mod forget;
 mod funding;
 mod goal_of;
@@ -286,6 +288,10 @@ pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
     reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
+    #[expect(dead_code, reason = "whole-task erasure state is reserved for its driver")]
+    erasures: erase::Erasures,
+    #[expect(dead_code, reason = "project deletion state is reserved for its driver")]
+    deletions: deletion::Deletions,
     pub(crate) start: start::Script,
     person_answers: bool,
     routes: u32,
@@ -674,6 +680,8 @@ impl Core {
         }
         let authority = authority::Domain::new(current.rules().clone(), limits.authority).expect("configured rules");
         Ok(Core {
+            erasures: erase::Erasures {},
+            deletions: deletion::Deletions {},
             routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
             fill: 0,

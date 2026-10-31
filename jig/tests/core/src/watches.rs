@@ -231,7 +231,8 @@ impl Parties {
                 root::Write::Save(_)
                 | root::Write::Wires
                 | root::Write::Erase(_)
-                | root::Write::CopySettingsRevision(_) => {}
+                | root::Write::CopySettingsRevision(_)
+                | root::Write::DropTranscript { .. } => {}
             }
         }
         for consumer in self.consumers.values_mut() {
@@ -303,7 +304,7 @@ impl Parties {
                     | Watched::Jig(_) => false,
                 },
 
-                root::Write::Save(_) | root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) => false,
+                root::Write::Save(_) | root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => false,
             });
             if touched {
                 consumer.fence.changed(number);

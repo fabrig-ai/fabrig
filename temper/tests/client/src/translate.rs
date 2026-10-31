@@ -112,7 +112,10 @@ fn unsupported_people(event: &people::Event) -> PartyInput {
         people::Event::MoveChat { .. } => panic!("the client kit does not make People::MoveChat"),
         people::Event::ChatState { .. } => panic!("the client kit does not make People::ChatState"),
         people::Event::ConversationSeen { .. } => panic!("the client kit does not make People::ConversationSeen"),
-        people::Event::Forget { .. } => panic!("the client kit does not make People::Forget"),
+        people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
+        | people::Event::Forget { .. } => panic!("the client kit does not make People::Forget"),
         people::Event::MakeService { .. } => panic!("the client kit does not make People::MakeService"),
         people::Event::Seed { .. } => panic!("the client kit does not make People::Seed"),
         people::Event::Waiting { .. } => panic!("the client kit does not make People::Waiting"),

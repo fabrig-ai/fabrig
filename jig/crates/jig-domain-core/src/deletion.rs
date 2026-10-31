@@ -1,0 +1,24 @@
+//! Kept project deletion (temper/docs/design/draft/playground-reset.md, 5).
+use crate::{Core, Limits, Request, Requests};
+use skein_lib::{Env, Queue, Token};
+
+/// Kept deletions' run-time state.
+#[derive(Debug)]
+pub(crate) struct Deletions {}
+
+impl Core {
+    /// Whether a project takes requests (temper/docs/design/draft/playground-reset.md, 5, "Closed at once").
+    #[must_use]
+    pub fn open_project(&self, project: u32) -> bool {
+        self.projects.as_slice().contains(&project)
+    }
+}
+
+/// Continue a project's deletion once its tasks are erased whole.
+#[expect(dead_code, reason = "completion is reserved for the whole-task erasure driver")]
+pub(crate) fn tasks_erased(_core: &mut Core, _env: &Env<Limits>, _out: &mut Queue<Request>, _project: u32) {}
+
+/// Continue a project's deletion once its notes are dropped.
+pub(crate) fn notes_dropped(_core: &mut Core, _owner: Token) -> Requests {
+    Requests::Out(Queue::uncapped())
+}

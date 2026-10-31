@@ -149,7 +149,7 @@ fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
             component: 2,
             core: 6,
             tasks: 9,
-            people: 13,
+            people: 14,
             notes: 1,
             accounts: 2,
             application: temper_protocol_store::STORE_VERSION,
