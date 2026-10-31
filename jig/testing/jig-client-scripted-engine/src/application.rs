@@ -242,7 +242,7 @@ impl<A: Application> Engine<A> {
                 self.truth = original;
                 return Err(Judged::Refused(Refusal::NotOffered));
             };
-            if !crate::payload::fits(ask, &self.bounds) {
+            if crate::codec::ask(ask, &self.bounds).is_err() {
                 self.truth = original;
                 return Err(Judged::Invalid(Invalid::Payload));
             }

@@ -109,7 +109,7 @@ fn person_owner_public_read_preserves_reserved_offers_and_nested_result_admissio
 }
 
 fn source() -> OwnerPersonTask {
-    let mut value = crate::owner_person_task::tests::value();
+    let mut value = super::person_task_fixture::value();
     value.task.details = Box::new(super::chip_details(OwnerChipPhase::Person {
         address: value.address,
         taken_by: value.taken_by,
