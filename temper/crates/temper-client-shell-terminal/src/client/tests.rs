@@ -1,3 +1,4 @@
+use jig_client::contract as c;
 use super::*;
 use crate::tests::fixtures as common;
 mod fixtures;
