@@ -97,17 +97,7 @@ impl Host for Sender {
         if let Some(address) = self.address.take() {
             self.requests.push(io::Request::Connect { owner: OWNER, addr: io::Addr::Ip(address) });
         }
-        for _ in 0..ROOM {
-            if self.io.is_ready() {
-                io::resume(&mut self.io, &env, &mut self.events, &mut self.submissions);
-            } else if let Some(complete) = self.completions.pop() {
-                io::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
-            } else if self.io.is_due(now) {
-                io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
-            } else {
-                break;
-            }
-        }
+        io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         for _ in 0..ROOM {
             let Some(event) = self.events.pop() else { break };
             match event {
@@ -174,13 +164,7 @@ impl Host for Sender {
             let Some(down) = self.below.pop() else { break };
             self.requests.push(io::Request::Stream { stream: self.socket.expect("connected"), down });
         }
-        for _ in 0..ROOM {
-            if !self.io.takes() {
-                break;
-            }
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<kernel::Complete> {

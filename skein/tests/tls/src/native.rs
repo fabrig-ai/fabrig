@@ -619,16 +619,6 @@ impl Driver {
         }
     }
 
-    fn completion(&mut self, completion: Complete) {
-        if !self.released && self.watch_op == Some(completion.op) {
-            assert!(self.held.replace(completion).is_none(), "one retained kernel winner");
-            return;
-        }
-        let submissions = self.submissions.len();
-        skein_io::up(&mut self.io, &self.io_env, completion, &mut self.io_events, &mut self.submissions);
-        self.check_io(submissions, skein_io::MAX_OUT_UP);
-    }
-
     fn io_room(&self, maximum: skein_io::MaxOut) -> bool {
         self.submissions.room() >= maximum.submissions
     }
@@ -638,20 +628,25 @@ impl Driver {
     }
 
     fn iterate(&mut self) {
-        while self.io.is_ready() && self.io_room(skein_io::MAX_OUT_RESUME) {
-            let submissions = self.submissions.len();
-            skein_io::resume(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submissions);
-            self.check_io(submissions, skein_io::MAX_OUT_RESUME);
-        }
-        while self.io_room(skein_io::MAX_OUT_UP) {
+        // The retained kernel winner leaves the queue before io sees it; the
+        // rest go back in order for io's stage.
+        for _ in 0..self.completions.len() {
             let Some(completion) = self.completions.pop() else { break };
-            self.completion(completion);
+            if !self.released && self.watch_op == Some(completion.op) {
+                assert!(self.held.replace(completion).is_none(), "one retained kernel winner");
+                continue;
+            }
+            self.completions.push(completion);
         }
-        while self.io.is_due(self.io_env.now) && self.io_room(skein_io::MAX_OUT_FIRE) {
-            let submissions = self.submissions.len();
-            skein_io::fire(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submissions);
-            self.check_io(submissions, skein_io::MAX_OUT_FIRE);
-        }
+        let now = self.io_env.now;
+        skein_io::stage::up(
+            &mut self.io,
+            &self.io_env,
+            &mut self.completions,
+            &mut self.io_events,
+            &mut self.submissions,
+            now,
+        );
         while let Some(event) = self.io_events.pop() {
             self.io_event(event);
         }
