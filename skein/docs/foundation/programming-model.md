@@ -613,6 +613,12 @@ Layers above see one event.
 - **States are explicit:** an enum per machine, each variant holding
   exactly what that state holds (bytes, handles, a `ReplyTo`). A state and
   what it holds are one value; no field is meaningful in some states only.
+- **One enum per lifecycle.** An owner whose entity lives through several
+  lifecycles at once (a process, its current turn, its stop) holds one
+  state enum per lifecycle, each its own type with its own transitions,
+  never one enum for their product, and never a lifecycle spread over
+  flags and `Option` fields beside the state. Each lifecycle's machine
+  keeps the idiom below, `follow` included.
 - **The table is total.** Every state × event cell is a transition, an
   ignore, or impossible. "Impossible" is only for cells the loop's own
   rules make unreachable (bytes delivered to a state with no read demand),
