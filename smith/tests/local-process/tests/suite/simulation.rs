@@ -379,14 +379,16 @@ fn a_turn_saved_while_a_line_crosses_a_wait_releases_the_next_response() {
         let files = Files::new();
         let mut world = World::waiting(37, &files, placement);
         world.scenario.launch.traced = true;
-        world.scenario.ending = Ending::Report(b"Crossed wait".to_vec());
+        world.scenario.ending = Ending::Report(b"Answer after crossing".to_vec());
+        world.scenario.scripts = Some(smith_local_process_world::world::crossing_scripts(b"Answer after crossing"));
+        world.scenario.line_on_wait = Some(b"follow-up\n".as_slice().into());
         world.scenario.commands = vec![
             Action::Send(b"hello\n".as_slice().into()),
-            Action::Wait(b"Crossed wait".as_slice().into()),
+            Action::Wait(b"Answer after crossing".as_slice().into()),
             Action::Eof,
         ];
         world.settle();
-        review(&world.seen(), &world, Ending::Report(b"Crossed wait".to_vec())).assert_passed(37);
+        review(&world.seen(), &world, Ending::Report(b"Answer after crossing".to_vec())).assert_passed(37);
         assert_eq!(world.queries().len(), 2);
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
         assert_eq!(world.turns(), 2);
@@ -423,14 +425,15 @@ fn a_line_typed_while_the_run_starts_reaches_it_as_a_message() {
         let files = Files::new();
         let mut world = World::waiting(37, &files, placement);
         world.scenario.launch.traced = true;
-        world.scenario.ending = Ending::Report(b"Queued while starting".to_vec());
+        world.scenario.ending = Ending::Report(b"Answer after startup".to_vec());
+        world.scenario.scripts = Some(smith_local_process_world::world::crossing_scripts(b"Answer after startup"));
         world.scenario.commands = vec![
             Action::Send(b"hello\nfollow-up\n".as_slice().into()),
-            Action::Wait(b"Queued while starting".as_slice().into()),
+            Action::Wait(b"Answer after startup".as_slice().into()),
             Action::Eof,
         ];
         world.settle();
-        review(&world.seen(), &world, Ending::Report(b"Queued while starting".to_vec())).assert_passed(37);
+        review(&world.seen(), &world, Ending::Report(b"Answer after startup".to_vec())).assert_passed(37);
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
         let records = match placement {
             Placement::Spawned => world.agent_records(),

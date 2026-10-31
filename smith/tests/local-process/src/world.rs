@@ -99,6 +99,50 @@ fn scripts() -> Box<[api::Script]> {
     Box::new([api::Script { cue: b"@local-shell".as_slice().into(), turns: turns.into() }])
 }
 
+fn reading_scripts() -> Box<[api::Script]> {
+    let mut turns = Vec::new();
+    for _ in 0..3 {
+        turns.push(api::Turn {
+            lines: Box::new([api::Line::Call {
+                name: b"read".as_slice().into(),
+                arguments: br#"{"path":"original.txt"}"#.as_slice().into(),
+            }]),
+            finish: api::Finish::ToolCalls,
+            tokens: 1,
+        });
+    }
+    turns.push(api::Turn {
+        lines: Box::new([
+            api::Line::Text { text: b"Finishing after the reads".as_slice().into() },
+            api::Line::Call {
+                name: b"finish".as_slice().into(),
+                arguments: br#"{"form":"report","text":"After three tools","fields":{}}"#.as_slice().into(),
+            },
+        ]),
+        finish: api::Finish::ToolCalls,
+        tokens: 1,
+    });
+    Box::new([api::Script { cue: b"@local-shell".as_slice().into(), turns: turns.into() }])
+}
+
+/// A wait call in the opening response, followed by the selected report.
+#[must_use]
+pub fn crossing_scripts(text: &[u8]) -> Box<[api::Script]> {
+    let mut scripts = waiting_scripts();
+    let mut turns = scripts[0].turns.to_vec();
+    let wait = turns.remove(1).lines[0].clone();
+    turns[0].lines = Box::new([api::Line::Text { text: b"Starting now".as_slice().into() }, wait]);
+    turns[0].finish = api::Finish::ToolCalls;
+    turns[1].lines = Box::new([api::Line::Call {
+        name: b"finish".as_slice().into(),
+        arguments: format!("{{\"form\":\"report\",\"text\":\"{}\",\"fields\":{{}}}}", String::from_utf8_lossy(text))
+            .into_bytes()
+            .into(),
+    }]);
+    scripts[0].turns = turns.into();
+    scripts
+}
+
 fn waiting_scripts() -> Box<[api::Script]> {
     Box::new([api::Script {
         cue: b"@local-shell".as_slice().into(),
@@ -372,6 +416,14 @@ impl skein_world::Machine for Machine {
     }
 }
 
+/// Choices shared by the world's named story constructors.
+#[derive(Default)]
+struct Behaviour {
+    interrupt_on_query: bool,
+    discard_facts: bool,
+    change: bool,
+}
+
 /// A reusable story and its immutable hosted-launch settings.
 pub struct Scenario {
     pub launch: Launch,
@@ -383,6 +435,10 @@ pub struct Scenario {
     pub linger_agent: bool,
     pub authentication: Option<Authentication>,
     pub scripts: Option<Box<[api::Script]>>,
+    /// Kernel faults are independent of the seed and story text.
+    pub faults: skein_sim::Faults,
+    /// A person line delivered when the agent reaches its wait fence.
+    pub line_on_wait: Option<Box<[u8]>>,
 }
 /// Simulated configuration and the settled shared-harness result.
 pub struct World {
@@ -423,7 +479,7 @@ impl World {
             placement,
             vec![Action::Send(b"hello\n".as_slice().into()), Action::Wait(answer.into()), Action::Eof],
             Ending::Report(answer.to_vec()),
-            (false, true, false),
+            Behaviour::default(),
         )
     }
     /// Three workspace reads followed by an accepted report in the same process.
@@ -438,11 +494,12 @@ impl World {
                 Action::Wait(b"After three tools".as_slice().into()),
                 Action::Eof,
             ],
-            Ending::Report(b"After three tools".to_vec()),
-            (false, true, true),
+            Ending::ReadReport(b"After three tools".to_vec()),
+            Behaviour { change: true, ..Behaviour::default() },
         );
         world.scenario.launch.traced = true;
         world.scenario.launch.read_report = true;
+        world.scenario.scripts = Some(reading_scripts());
         world
     }
 
@@ -500,14 +557,14 @@ impl World {
                 Action::Eof,
             ],
             Ending::Report(b"Second answer".to_vec()),
-            (false, true, false),
+            Behaviour::default(),
         )
     }
 
     /// Send a follow-up across the first turn's wait fence.
     #[must_use]
     pub fn waiting(seed: u64, files: &Files, placement: Placement) -> Self {
-        Self::configured(
+        let mut world = Self::configured(
             seed,
             files,
             placement,
@@ -519,8 +576,10 @@ impl World {
                 Action::Eof,
             ],
             Ending::Report(b"Read follow-up".to_vec()),
-            (false, true, false),
-        )
+            Behaviour::default(),
+        );
+        world.scenario.scripts = Some(waiting_scripts());
+        world
     }
 
     #[must_use]
@@ -535,7 +594,7 @@ impl World {
                 Action::Eof,
             ],
             Ending::Cancelled,
-            (true, true, false),
+            Behaviour { interrupt_on_query: true, ..Behaviour::default() },
         )
     }
 
@@ -571,7 +630,7 @@ impl World {
             placement,
             vec![Action::Send(b"hello\n".as_slice().into()), Action::Wait(answer.into()), Action::Eof],
             Ending::Report(answer.to_vec()),
-            (false, false, false),
+            Behaviour { discard_facts: true, ..Behaviour::default() },
         )
     }
     #[must_use]
@@ -586,7 +645,7 @@ impl World {
                 Action::Eof,
             ],
             Ending::Change { before: format!("{:040x}", 1).into_bytes() },
-            (false, true, true),
+            Behaviour { change: true, ..Behaviour::default() },
         )
     }
     fn configured(
@@ -595,9 +654,10 @@ impl World {
         placement: Placement,
         commands: Vec<Action>,
         ending: Ending,
-        behavior: (bool, bool, bool),
+        behaviour: Behaviour,
     ) -> Self {
-        let (interrupt_on_query, keep_facts, change) = behavior;
+        let Behaviour { interrupt_on_query, discard_facts, change } = behaviour;
+        let keep_facts = !discard_facts;
         let mut disk = Filesystem::for_user(skein_shell::effective_user());
         std::fs::create_dir_all(files.path.join("chat")).expect("chat fixture");
         let mut items =
@@ -680,6 +740,8 @@ impl World {
                 linger_agent: false,
                 authentication: None,
                 scripts: None,
+                faults: skein_sim::Faults::NONE,
+                line_on_wait: None,
             },
             machine: Some(Machine {
                 files: disk,
@@ -756,15 +818,7 @@ impl World {
         let launch = &self.scenario.launch;
         let mut config = skein_sim::Config::calm();
         config.wall = skein_tls_world::pki::VALID;
-        if launch.seed >= 100 {
-            config.faults.latency = 300;
-            config.faults.latency_max = Duration::from_millis(1);
-            config.faults.short_recv = 500;
-            config.faults.short_send = 500;
-            config.faults.short_read = 500;
-            config.faults.short_write = 500;
-            config.faults.cancel_race = 500;
-        }
+        config.faults = self.scenario.faults;
         let mut machine = self.machine.take().expect("one invocation");
         if launch.authenticated {
             machine.files.make_directory(machine.master, b"tokens", 0o700).expect("native keeper directory");
@@ -789,8 +843,8 @@ impl World {
             launch.keep_facts,
             self.scenario.expected_token_posts(),
         );
-        if matches!(&self.scenario.ending, Ending::Report(text) if text.as_slice() == b"Crossed wait") {
-            referee.line_on_wait(b"follow-up\n".as_slice().into());
+        if let Some(line) = &self.scenario.line_on_wait {
+            referee.line_on_wait(line.clone());
         }
         if matches!(self.scenario.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
             referee.fail_turn_at_query(launch.state_directory.clone(), 2);
@@ -1074,57 +1128,10 @@ impl Scenario {
     /// Use the same scripts with the synthetic credential selected by the binary tier.
     #[must_use]
     pub fn provider_with(&self, credential: skein_llm::Credential) -> crate::llm::Peer {
-        let mut provider_scripts = if matches!(&self.ending, Ending::Report(text) if text.as_slice() == b"After three tools")
-            || matches!(self.ending, Ending::Budget)
-        {
-            let mut turns = Vec::new();
-            for _ in 0..3 {
-                turns.push(api::Turn {
-                    lines: Box::new([api::Line::Call {
-                        name: b"read".as_slice().into(),
-                        arguments: br#"{"path":"original.txt"}"#.as_slice().into(),
-                    }]),
-                    finish: api::Finish::ToolCalls,
-                    tokens: 1,
-                });
-            }
-            turns.push(api::Turn {
-                lines: Box::new([
-                    api::Line::Text { text: b"Finishing after the reads".as_slice().into() },
-                    api::Line::Call {
-                        name: b"finish".as_slice().into(),
-                        arguments: br#"{"form":"report","text":"After three tools","fields":{}}"#.as_slice().into(),
-                    },
-                ]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            });
-            Box::new([api::Script { cue: b"@local-shell".as_slice().into(), turns: turns.into() }])
-        } else if self.launch.tools {
+        let mut provider_scripts = if self.launch.tools {
             tool_scripts()
         } else if self.launch.change {
             change_scripts()
-        } else if let Ending::Report(text) = &self.ending
-            && (text.as_slice() == b"Crossed wait" || text.as_slice() == b"Queued while starting")
-        {
-            let mut scripts = waiting_scripts();
-            let mut turns = scripts[0].turns.to_vec();
-            let wait = turns.remove(1).lines[0].clone();
-            turns[0].lines = Box::new([api::Line::Text { text: b"Starting now".as_slice().into() }, wait]);
-            turns[0].finish = api::Finish::ToolCalls;
-            turns[1].lines = Box::new([api::Line::Call {
-                name: b"finish".as_slice().into(),
-                arguments: format!(
-                    "{{\"form\":\"report\",\"text\":\"{}\",\"fields\":{{}}}}",
-                    String::from_utf8_lossy(text)
-                )
-                .into_bytes()
-                .into(),
-            }]);
-            scripts[0].turns = turns.into();
-            scripts
-        } else if matches!(&self.ending, Ending::Report(text) if text.as_slice() == b"Read follow-up") {
-            waiting_scripts()
         } else {
             scripts()
         };

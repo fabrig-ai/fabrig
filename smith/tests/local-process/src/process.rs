@@ -35,32 +35,23 @@ pub struct Launch {
     pub trust_der: Option<PathBuf>,
     pub change: bool,
     /// Include the real-loop tool and mandatory-check story.
-    #[serde(default)]
     pub tools: bool,
     /// Keep the workspace but accept a report after reads.
-    #[serde(default)]
     pub read_report: bool,
     /// Start one unattended run from the fixture's retained prompt.
-    #[serde(default)]
     pub headless: bool,
     /// Select the product's line-mode front on the same local composition.
-    #[serde(default)]
     pub interactive: bool,
     /// Compose the alternate model and model-owned efforts for local-choice stories.
-    #[serde(default)]
     pub choices: bool,
     /// Admit three tool turns, so the fourth would exceed the budget.
-    #[serde(default)]
     pub budget_failure: bool,
     /// A named plain directory whose write authority crosses the local/agent boundary.
-    #[serde(default)]
     pub plain: Option<PlainDirectory>,
     pub placement: crate::Placement,
     pub keep_facts: bool,
-    #[serde(default)]
     pub traced: bool,
     pub authenticated: bool,
-    #[serde(default)]
     pub lending: Option<crate::world::Lending>,
     pub state_directory: PathBuf,
     pub token_directory: PathBuf,

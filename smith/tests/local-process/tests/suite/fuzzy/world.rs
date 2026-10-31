@@ -31,6 +31,16 @@ fn seeded_hosted_and_colocated_runs_settle_and_replay() {
                 } else {
                     World::new(seed, &files, placement, b"First answer")
                 };
+                world.scenario.faults = skein_sim::Faults {
+                    latency: 300,
+                    latency_max: skein_lib::Duration::from_millis(1),
+                    short_recv: 500,
+                    short_send: 500,
+                    short_read: 500,
+                    short_write: 500,
+                    cancel_race: 500,
+                    ..skein_sim::Faults::NONE
+                };
                 let mut rng = skein_lib::Rng::new(seed);
                 let lines = rng.between(1, 3);
                 let mut commands = Vec::new();
