@@ -2,7 +2,7 @@
 use super::{Host, Lane, Submission};
 use crate::{Event, Store, tests::fixtures};
 use skein_fake_machine::{How, Machine, serve};
-use skein_io::kernel::{Fd, Op};
+use skein_io::kernel::{Complete, Error, Fd, Op};
 use skein_lib::{Queue, Token};
 use skein_sim::{Config, Handle, Pid, Sim};
 
@@ -136,4 +136,26 @@ fn close_drains_inflight_adoption_before_closing_the_root() {
     assert!(!world.host.idle());
     world.close();
     assert!(world.above.is_empty());
+}
+
+#[test]
+fn failed_adoption_answers_once_and_can_still_close() {
+    let mut world = World::new();
+    world.adopt();
+    world.host.iterate(&mut world.store, &fixtures::env(), &mut world.above);
+    assert_eq!(world.host.submissions(), 2);
+    while let Some(Submission { lane, submit }) = world.host.pop_submission() {
+        world.host.complete(lane, Complete { op: submit.op, kind: submit.kind, result: Err(Error::Permission) });
+    }
+    world.settle();
+    let Some(Event::OpenRefused { owner, why: crate::OpenRefusal::Failed }) = world.above.pop() else {
+        panic!("failed root clone refuses adoption");
+    };
+    assert_eq!(owner, Token::new(41));
+    assert!(world.above.is_empty(), "one terminal for the adoption");
+    world.close();
+    let mut host = Host::new(&fixtures::store_limits(), 1);
+    host.close();
+    assert!(host.closed());
+    assert_eq!(host.adopt(Fd::new(999), 0, Token::new(42), [0; 16]), Err(Fd::new(999)));
 }

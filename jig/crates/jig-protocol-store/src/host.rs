@@ -296,8 +296,10 @@ impl Host {
                 }
                 if event.owner() == ADOPT {
                     if fd.is_none() {
-                        self.root = None;
-                        above.push(crate::Event::OpenRefused { owner: self.owner, why: crate::OpenRefusal::Failed });
+                        if self.root.take().is_some() {
+                            above
+                                .push(crate::Event::OpenRefused { owner: self.owner, why: crate::OpenRefusal::Failed });
+                        }
                     } else if !self.drivers.get(1).expect("driver index").handles.is_empty()
                         && !self.drivers.get(2).expect("driver index").handles.is_empty()
                         && let Some(fd) = self.root.take()
