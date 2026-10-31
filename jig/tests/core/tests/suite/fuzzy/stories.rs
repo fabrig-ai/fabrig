@@ -1,5 +1,6 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{effects::World, faults::plan_fixture};
+use jig_core_world::faults::plan_fixture;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
@@ -191,7 +192,7 @@ fn random_period_budgets_reset_before_a_standing_template_creates_its_next_batch
 
 fn narrowed_policy_case(seed: u64) {
     let mut rng = Rng::new(seed);
-    let (config, mut limits) = jig_core_world::effects::fixture(seed, true);
+    let (config, mut limits) = jig_core_world::world::fixture(seed, true);
     limits.core.call_records = 8;
     limits.core.people.amendment_bytes = 256;
     limits.core.people.inbox_recipients = 16;
@@ -252,7 +253,7 @@ fn random_policy_changes_leave_a_committed_flight_whole_and_recheck_waiting_prop
 
 #[test]
 fn each_commit_cut_of_an_agents_tool_story_answers_its_call_once() {
-    use jig_core_world::effects::Cut;
+    use jig_core_world::world::Cut;
     for story in jig_core_world::agents_tools::STORIES {
         let commits = (story.run)(&mut World::new(Setup { seed: 190, ..Setup::default() }), None);
         for at in 1..=commits {

@@ -21,11 +21,11 @@ fn adopted(session: &mut Session, now: Time, wall: Wall) {
 }
 fn carrying(attempt: Token, value: &Secret) -> Request {
     let (project, request) =
-        jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::Touch {
+        jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::ChangeObject {
             project: 1,
-            item: 1,
+            object: 1,
             revision: jig_client::contract::Revision { value: 0 },
-            parameters: Some(42),
+            value: 42,
         });
     Request::Client {
         request: jig_client::Request::Down {

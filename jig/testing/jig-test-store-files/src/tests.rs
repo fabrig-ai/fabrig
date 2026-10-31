@@ -78,3 +78,5 @@ fn a_removed_missing_file_answers_not_found() {
         file::Event::Failed { owner: OWNER, error: skein_io::kernel::Error::NotFound, committed: false, residue: None }
     );
 }
+
+mod routes;

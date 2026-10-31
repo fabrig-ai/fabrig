@@ -181,6 +181,7 @@ impl Component {
                     | w::Ask::MoveToNewest(_)
                     | w::Ask::Propose(_)
                     | w::Ask::Release(_)
+                    | w::Ask::RemoveProject(_)
                     | w::Ask::Rename(_)
                     | w::Ask::Seen(_)
                     | w::Ask::SetPool(_)
@@ -320,6 +321,7 @@ fn account_key_digest(ask: &w::Ask) -> Option<[u8; 32]> {
         | w::Ask::ChangePolicy(_)
         | w::Ask::SetRoles(_)
         | w::Ask::MakeService(_)
+        | w::Ask::RemoveProject(_)
         | w::Ask::Rename(_)
         | w::Ask::MakeProject(_)
         | w::Ask::SetPool(_)
@@ -371,6 +373,7 @@ fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes:
         | w::Ask::ChangePolicy(_)
         | w::Ask::SetRoles(_)
         | w::Ask::MakeService(_)
+        | w::Ask::RemoveProject(_)
         | w::Ask::Rename(_)
         | w::Ask::MakeProject(_)
         | w::Ask::SetPool(_)
@@ -444,6 +447,7 @@ fn carried_kind(ask: &people::Ask) -> Option<crate::CarriedKind> {
         | people::Ask::Amend { .. }
         | people::Ask::SetRoles { .. }
         | people::Ask::ChangePolicy { .. }
+        | people::Ask::RemoveProject { .. }
         | people::Ask::Rename { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::SetPool { .. }

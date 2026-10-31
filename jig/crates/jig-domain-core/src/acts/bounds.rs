@@ -394,7 +394,7 @@ pub(crate) fn amendment_admit_places_in(
         let payer = admission
             .payer(task)
             .ok_or(people::Refusal::Authority { lacking: people::Lack::Funding, proposable: None })?;
-        if let Err(why) = core.account_preference(Some(choice), payer, row.kept_account) {
+        if let Err(why) = core.account_preference(Some(choice), payer, row.project, row.kept_account) {
             return Err(core.account_refusal(why));
         }
     }

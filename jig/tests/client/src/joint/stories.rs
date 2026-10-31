@@ -13,6 +13,14 @@ use std::collections::BTreeMap;
 
 use super::fixture::{bounded_world, clock, configured_world, turn, world};
 
+mod shared {
+    #[test]
+    fn signing_in_and_starting_a_chat() {
+        let mut world = super::world(super::turn());
+        crate::stories::shared::signing_in_and_starting_a_chat(&mut world);
+    }
+}
+
 fn report(
     world: &mut World<Test, Joint>,
     assignment: &jig_fake_workers::Assignment,

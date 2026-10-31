@@ -4,7 +4,7 @@ use super::{
 };
 use jig_domain_core::{self as core, documents, reads as transport};
 fn query() -> documents::TaskQuery {
-    jig_core_world::fixtures::OWN_TASKS
+    jig_test_profile::fixtures::OWN_TASKS
 }
 pub(super) fn action(world: &mut World, action: Action) -> Result<(), Violation> {
     match action {

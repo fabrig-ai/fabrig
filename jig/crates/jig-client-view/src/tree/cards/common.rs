@@ -39,6 +39,7 @@ pub const fn act_phrase(act: ActKind) -> JigPhrase {
         ActKind::EditNote => JigPhrase::ActEditNote,
         ActKind::DeleteNote => JigPhrase::ActDeleteNote,
         ActKind::Adopt => JigPhrase::ActAdopt,
+        ActKind::RemoveProject => JigPhrase::ActRemoveProject,
         ActKind::Rename => JigPhrase::ActRename,
         ActKind::ChangePolicy => JigPhrase::ActChangePolicy,
         ActKind::SetRoles => JigPhrase::ActSetRoles,
@@ -72,6 +73,9 @@ pub fn acts(
         );
     }
     for offered in rows {
+        if offered.act == ActKind::RemoveProject {
+            continue;
+        }
         match &offered.admission {
             Admission::Allowed | Admission::Proposed { .. } | Admission::Bounded { .. } => crate::tree::frame::control(
                 b,

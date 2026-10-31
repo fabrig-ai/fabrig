@@ -103,7 +103,7 @@ pub fn observer(seed: u64, environment_chat: bool) -> jig_conformance::core::Obs
     observer
 }
 
-pub type Store = jig_fake_store::Store<root::Key, root::Record>;
+pub use super::store::Store;
 
 pub(super) fn core_store(store: &Store) -> jig_conformance::core::Store<'_> {
     jig_conformance::core::Store {

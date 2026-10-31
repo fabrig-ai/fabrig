@@ -249,8 +249,8 @@ impl Driver {
             | Delivery::NotesLoad { .. }
             | Delivery::ProjectMade { .. }
             | Delivery::Bound { .. }
-            | Delivery::DemoActed { .. }
-            | Delivery::DemoNote { .. }
+            | Delivery::ProjectReleased { .. }
+            | Delivery::PlaygroundNote { .. }
             | Delivery::Panel { .. }
             | Delivery::ForgeDocument { .. }
             | Delivery::Forges { .. }

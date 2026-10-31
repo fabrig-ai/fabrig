@@ -1,7 +1,7 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::World;
 use jig_core_world::fixtures::ask_as;
 use jig_core_world::stories::offers::no_holder_fixture;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -26,7 +26,7 @@ fn a_chats_flags_and_last_activity_survive_a_cold_restart() {
     else {
         panic!("the chat is live after the restart")
     };
-    let templates = jig_core_world::fixtures::templates();
+    let templates = jig_test_profile::fixtures::templates();
     let label = templates.iter().find(|template| template.number == 1).expect("fixture template").label;
     assert_eq!(row.label, label);
     assert_eq!(

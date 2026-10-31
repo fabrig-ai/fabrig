@@ -20,7 +20,7 @@ pub(super) fn escalation_decided(
     out: &mut Queue<Request>,
 ) {
     let token = reply_to.into_token();
-    let flight = match core.land(token) {
+    let flight = match core.land_task(token) {
         Some(Flight::PersonEscalation(flight)) => flight,
         Some(Flight::Call {
             request,

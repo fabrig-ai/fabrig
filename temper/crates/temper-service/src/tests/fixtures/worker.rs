@@ -76,10 +76,15 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
         assignment.workspace.repositories = Box::new([]);
     }
     let values = crate::values::Values::new(2, 8192);
-    let jig_protocol_engine_workers::Event::Down { mut down, mut parts, .. } =
-        crate::assignment::down(assignment, &settings.forges, &encoding, &values, skein_lib::Token::new(1), NOW)
-            .expect("assignment encodes")
-    else {
+    let jig_protocol_engine_workers::Event::Down { mut down, mut parts, .. } = crate::assignment::down(
+        assignment,
+        &crate::tests::fixtures::forge_table(&crate::tests::fixtures::forges()),
+        &encoding,
+        &values,
+        skein_lib::Token::new(1),
+        NOW,
+    )
+    .expect("assignment encodes") else {
         panic!("assignment down")
     };
     if repository {

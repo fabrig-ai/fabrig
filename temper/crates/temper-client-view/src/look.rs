@@ -127,7 +127,7 @@ pub const CHOICE: Style = Style { owner: owner(), token: 59 };
 pub const ACCOUNTS_PAGE: Style = Style { owner: owner(), token: 60 };
 /// The repository adoption page body.
 pub const ADOPTION_PAGE: Style = Style { owner: owner(), token: 61 };
-/// The demo heading, request, suggestions and script note.
+/// The playground heading, request, suggestions and script note.
 pub const INVITATION: Style = Style { owner: owner(), token: 62 };
 /// A supplied refusal, still announced as a status.
 pub const REFUSAL: Style = Style { owner: owner(), token: 63 };
@@ -137,7 +137,7 @@ pub const STEPS: Style = Style { owner: owner(), token: 64 };
 pub const STEP: Style = Style { owner: owner(), token: 65 };
 /// A completed step on a change's delegation card.
 pub const STEP_DONE: Style = Style { owner: owner(), token: 66 };
-/// The demo's project, repository and signed-in role.
+/// The playground's project, repository and signed-in role.
 pub const CONTEXT: Style = Style { owner: owner(), token: 67 };
 /// The existing guidance when the application is unavailable.
 pub const UNAVAILABLE: Style = Style { owner: owner(), token: 68 };
@@ -159,7 +159,7 @@ pub const AGENT_BRIEF: Style = Style { owner: owner(), token: 75 };
 pub const AGENT_RUN: Style = Style { owner: owner(), token: 76 };
 /// An ended agent task's result.
 pub const AGENT_RESULT: Style = Style { owner: owner(), token: 77 };
-/// The demo context line's repository.
+/// The playground context line's repository.
 pub const REPOSITORY: Style = Style { owner: owner(), token: 78 };
 /// A goal's offered acts (client/README.md, 5.11).
 pub const TASK_ACTS: Style = Style { owner: owner(), token: 79 };

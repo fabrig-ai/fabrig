@@ -18,7 +18,7 @@ impl Protocol {
             )],
             Vec::new(),
         );
-        let mut config = jig_core_world::world::config(seed);
+        let mut config = jig_test_profile::config(seed);
         set_run_allowance(&mut config);
         let mut limits = fixtures::owner_limits();
         limits.core.fleet.slots = 2;
@@ -97,7 +97,7 @@ mod tests {
     use skein_lib::Time;
     #[test]
     fn starting_a_chat_assigns_the_chat_templates_label() {
-        let templates = jig_core_world::fixtures::templates();
+        let templates = jig_test_profile::fixtures::templates();
         let label = templates
             .iter()
             .find(|template| template.number == jig_client::shapes::CHAT)
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn setting_a_goal_assigns_the_goal_templates_label() {
         use jig_fake_parties::{Act, Ask, Party, Role};
-        let templates = jig_core_world::fixtures::templates();
+        let templates = jig_test_profile::fixtures::templates();
         let label = templates
             .iter()
             .find(|template| template.number == jig_client::shapes::GOAL)

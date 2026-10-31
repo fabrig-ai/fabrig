@@ -152,7 +152,7 @@ fn keyed(key: [u8; 16], ask: &w::Ask) -> Box<[u8]> {
     keyed.encode(&mut out).expect("keyed bytes");
     out.finish()
 }
-fn route_real_core(peer: &mut Peer, world: &mut jig_core_world::effects::World) -> Vec<[u8; 16]> {
+fn route_real_core(peer: &mut Peer, world: &mut jig_core_world::world::World) -> Vec<[u8; 16]> {
     let mut keys = Vec::new();
     while let Some(event) = peer.take_core() {
         let core::Event::People(people::Event::Ask { models, reply_to, sign_in, key, ask }) = event else {
@@ -185,27 +185,27 @@ fn final_answer(peer: &Peer, socket: skein_lib::Token) -> w::Final {
     w::Final::decode(&limits, &mut skein_lib::Reader::new(answer.record())).expect("owner answer")
 }
 /// A member signed in through the peer, its asks routed to the real core.
-fn member_setup(seed: u64) -> (Peer, jig_core_world::effects::World, Box<[u8]>) {
+fn member_setup(seed: u64) -> (Peer, jig_core_world::world::World, Box<[u8]>) {
     let world = jig_core_world::stories::offers::world(seed, Some(people::Role::Member));
     let mut peer = Peer::started(&real_core_settings());
     let bearer = bearer(&mut peer, world.sign_in.expect("member"), 1);
     (peer, world, bearer)
 }
 /// A member signed in through the peer, with task 2 created in project 1.
-fn amendment_setup(seed: u64) -> (Peer, jig_core_world::effects::World, Box<[u8]>) {
+fn amendment_setup(seed: u64) -> (Peer, jig_core_world::world::World, Box<[u8]>) {
     let (peer, mut world, bearer) = member_setup(seed);
     let sign_in = world.sign_in.expect("member");
     jig_core_world::fixtures::ask_as(
         &mut world,
         sign_in,
         CREATE_TASK,
-        people::Ask::Create { project: 1, batch: Box::new([jig_core_world::fixtures::people_member(b"work", 20)]) },
+        people::Ask::Create { project: 1, batch: Box::new([jig_test_profile::fixtures::people_member(b"work", 20)]) },
     );
     (peer, world, bearer)
 }
 /// A peer's settings naming the core world's configured models, as configuration fills both.
 fn real_core_settings() -> jig_protocol_engine_clients::Settings {
-    let model = jig_core_world::world::scripted_model();
+    let model = jig_test_profile::scripted_model();
     jig_protocol_engine_clients::Settings {
         models: Box::new([jig_protocol_engine_clients::Model {
             name: model.name,

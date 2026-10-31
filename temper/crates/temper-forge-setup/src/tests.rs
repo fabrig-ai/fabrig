@@ -4,15 +4,12 @@ mod fixtures;
 mod given;
 mod golden;
 mod limits;
-mod managed;
-mod members;
+mod machine;
 mod parent;
 mod prepare;
-mod read;
 mod run;
 mod sign_in;
 mod spec;
-mod steps;
 mod upgrade;
 
 #[test]

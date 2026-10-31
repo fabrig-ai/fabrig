@@ -8,7 +8,7 @@ pub(crate) mod amendment_reads;
 pub(crate) mod application_routes;
 pub(crate) mod create;
 pub(crate) mod deadlines;
-mod deployment_acts;
+pub(crate) mod deployment_acts;
 pub(crate) mod key_routes;
 pub(crate) mod party_inputs;
 mod propose;
@@ -60,7 +60,7 @@ pub(crate) mod party;
 mod party_controls;
 mod party_decisions;
 #[path = "people.rs"]
-mod people_routes;
+pub(crate) mod people_routes;
 pub(crate) mod procedure_steps;
 mod projects;
 mod proposal_revisions;
@@ -290,6 +290,7 @@ impl Core {
 /// The parent caller held while the notes child reads its store pages.
 #[derive(Debug)]
 pub(crate) enum NoteRoute {
+    Deletion { project: u32 },
     Call { to: ReplyTo, key: CallKey },
     Person { request: Token },
     Brief { task: u64 },
@@ -305,11 +306,7 @@ pub(crate) enum NoteBrief {
 
 impl Core {
     pub(crate) fn begin_note_route(&mut self, route: NoteRoute) -> Token {
-        let owner = Token::new(self.next_note_owner);
-        self.next_note_owner = self.next_note_owner.checked_add(1).expect("transient note owner space");
-        let previous = self.note_routes.insert(owner, route).expect("notes keeps one pending route plus a refusal");
-        assert!(previous.is_none(), "transient note owners are unique");
-        owner
+        self.fly(crate::flight::Flight::Note(route))
     }
 }
 
@@ -437,6 +434,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut work = Queue::uncapped();
     let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
+    crate::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
     out
 }
@@ -468,6 +466,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             settings::propose_start(core, env, work, reply_to, sign_in, key, digest, *change)
         }
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
+        Event::ProjectReleased { connector, project } => crate::deletion::released(core, env, connector, project),
         Event::Fill { bytes } => {
             core.fill = bytes;
             crate::stopping::empty()
@@ -515,10 +514,17 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             view_routes::open_run(core, env, watcher, sign_in, task, turn, offset)
         }
         Event::Unwatch { watcher } => {
+            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
             route_view(core, env, views::Event::EndWatch { watcher, end: views::End::Unwatched })
         }
-        Event::Delivered { watcher } => route_view(core, env, views::Event::Delivered { watcher }),
-        Event::StreamDelivered { watcher } => view_routes::stream_delivered(core, env, watcher),
+        Event::Delivered { watcher } => {
+            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
+            route_view(core, env, views::Event::Delivered { watcher })
+        }
+        Event::StreamDelivered { watcher } => {
+            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
+            view_routes::stream_delivered(core, env, watcher)
+        }
         Event::RunCall { run, attempt, call } => view_routes::run_call(core, env, run, attempt, call),
         Event::RunInput { run, attempt, turn, retry, offset, id, tool, input } => {
             view_routes::run_input(core, env, run, attempt, turn, retry, offset, id, tool, input)
@@ -526,7 +532,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::RunText { run, attempt, turn, retry, offset, text, call } => {
             view_routes::run_text(core, env, run, attempt, turn, retry, offset, text, call)
         }
-        Event::Tasks(event) => route_tasks(core, env, work, event),
+        Event::Tasks(event) => {
+            let mut out = route_tasks(core, env, work, event);
+            crate::deletion::advance(core, env, &mut out);
+            out
+        }
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
@@ -547,7 +557,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::Holdings { request, connector, holdings } => {
             route_holdings(core, env, work, request, connector, holdings)
         }
-        Event::Fleet(event) => route_fleet(core, env, work, event),
+        Event::Fleet(event) => {
+            let mut out = route_fleet(core, env, work, event);
+            crate::deletion::advance(core, env, &mut out);
+            out
+        }
         Event::TurnPayload { run, attempt, turn, body, read, cumulative, refused } => {
             route_turn_payload(core, work, run, attempt, turn, body, read, refused, cumulative)
         }
@@ -696,6 +710,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             requests
         }
     };
+    crate::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
     out
 }
@@ -707,4 +722,32 @@ pub(crate) fn tag_ended_mark(
     work: &mut Queue<Work>,
 ) -> Queue<Request> {
     people_routes::tag_people(core, env, child, work)
+}
+
+/// Drain deletion's bounded sibling decisions without a new root input or extent.
+pub(crate) fn deletion_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<Request>) {
+    children::append_people(core, env, event, out);
+}
+
+/// Drain deletion's bounded sibling decisions without a new root input or extent.
+pub(crate) fn deletion_event(core: &mut Core, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    let previous = core.deletions.route(true);
+    let mut work = Queue::uncapped();
+    work.push(Work::Event(event));
+    for _ in 0..env.limits.routes {
+        let Some(event) = work.pop() else { break };
+        let mut batch = step_work(core, env, event, &mut work);
+        for _ in 0..batch.len() {
+            let request = batch.pop().expect("deletion child output count");
+            match request {
+                request @ (Request::ProjectMade { .. }
+                | Request::Write(_)
+                | Request::Ask { .. }
+                | Request::Held(_)
+                | Request::Now(_)) => out.push(request),
+            }
+        }
+    }
+    assert!(work.is_empty(), "deletion sibling routes drained");
+    let _previous = core.deletions.route(previous);
 }

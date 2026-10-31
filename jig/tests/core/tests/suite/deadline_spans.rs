@@ -1,11 +1,11 @@
-use jig_core_world::{
-    fixtures::{
-        ask_as,
-        deadlines::{self as f, CREATED},
-        live_row, refusal,
-    },
-    stories::offers::{member_configuration, world_with, world_with_policy},
-};
+use jig_core_world::fixtures::ask_as;
+use jig_core_world::fixtures::deadlines as f;
+use jig_core_world::fixtures::deadlines::CREATED;
+use jig_core_world::fixtures::live_row;
+use jig_core_world::fixtures::refusal;
+use jig_core_world::stories::offers::member_configuration;
+use jig_core_world::stories::offers::world_with;
+use jig_core_world::stories::offers::world_with_policy;
 use jig_domain_people as p;
 use jig_domain_tasks as tasks;
 use skein_lib::Wall;
@@ -132,7 +132,7 @@ fn an_aged_span_past_the_ceiling_makes_no_task() {
 
 #[test]
 fn holder_rechecks_use_their_own_wall() {
-    fn reroute(world: &mut jig_core_world::effects::World, _: u64, _: u64, owner: u64) {
+    fn reroute(world: &mut jig_core_world::world::World, _: u64, _: u64, owner: u64) {
         jig_core_world::fixtures::ask_as(
             world,
             owner,
@@ -146,7 +146,7 @@ fn holder_rechecks_use_their_own_wall() {
             },
         );
     }
-    type Stimulus = fn(&mut jig_core_world::effects::World, u64, u64, u64);
+    type Stimulus = fn(&mut jig_core_world::world::World, u64, u64, u64);
     for (name, stimulate) in
         [("pass", f::pass as Stimulus), ("reroute", reroute as Stimulus), ("stall", f::stall as Stimulus)]
     {

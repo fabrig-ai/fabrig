@@ -112,6 +112,12 @@ struct JsonBody {
     below: bool,
     ended: bool,
 }
+/// Whether a connection still belongs to a configured forge (playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Membership {
+    Configured,
+    Removed,
+}
 /// One connection's machines, socket identity, request and pending output.
 pub(crate) struct Connection {
     pub(crate) forge: u16,
@@ -122,6 +128,7 @@ pub(crate) struct Connection {
     pub(crate) deadline: Option<Time>,
     pub(crate) socket: Option<Token>,
     pub(crate) closing: bool,
+    pub(crate) membership: Membership,
     /// The socket whose graceful close io holds; an abort may still follow it.
     graceful: Option<Token>,
     pub(crate) written: bool,
@@ -181,6 +188,7 @@ impl Connection {
             deadline: Some(deadline),
             socket: None,
             closing: false,
+            membership: Membership::Configured,
             graceful: None,
             written: false,
             http: http::Client::new(&limits::http(l, tls.is_some(), &shared.io)),

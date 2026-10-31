@@ -339,29 +339,27 @@ fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String>
     accounts_runtime::resolve(engine)
 }
 
-fn forges(
-    configured: &[service::startup::Forge],
+/// Resolve the machine's GitHub host once at start (temper/docs/design/draft/playground-reset.md, 3).
+fn github_runtime(
+    machine: Option<&temper_forge_setup::machine::GitHubMachine>,
+    roots: &skein_tls::Config,
     resolve: fn(&config::Address) -> Result<std::net::SocketAddr, String>,
-) -> Result<List<service::ForgeRuntime>, String> {
-    use skein_forge_connection::settings::Transport;
-    let mut runtime = List::with_capacity(u32::try_from(configured.len()).expect("bounded forges"));
-    for (index, forge) in configured.iter().enumerate() {
-        let prefix = format!("application.forges[{index}]");
-        let address = match resolve(&forge.api) {
-            Ok(address) => address,
-            Err(_) if matches!(forge.api, config::Address::Host { .. }) => service::forge::HELD_ADDRESS,
-            Err(why) => return Err(format!("{prefix}.api: {why}")),
-        };
-        let transport = match &forge.transport {
-            service::startup::Transport::Plaintext => Transport::Plaintext { name: None },
-            service::startup::Transport::Tls { server_name: name, trust: file } => {
-                let trust = trust(file.as_deref()).map_err(|why| format!("{prefix}.transport.tls.trust: {why}"))?;
-                Transport::Tls { server_name: server_name(name)?, trust }
+) -> Result<service::ForgeRuntime, String> {
+    let default = config::Address::Host { name: Box::from(b"api.github.com".as_slice()), port: 443 };
+    let api = machine.map_or(&default, |machine| &machine.api);
+    let address = resolve(api).unwrap_or(service::forge::HELD_ADDRESS);
+    let transport = if machine.is_none_or(|machine| machine.tls) {
+        let name = match api {
+            config::Address::Host { name, .. } => server_name(name)?,
+            config::Address::Addr(address) => {
+                server_name(address.socket().ok_or("requires a socket address")?.ip().to_string().as_bytes())?
             }
         };
-        runtime.push(service::ForgeRuntime { number: forge.number, address, transport }).expect("forge count");
-    }
-    Ok(runtime)
+        skein_forge_connection::settings::Transport::Tls { server_name: name, trust: roots.clone() }
+    } else {
+        skein_forge_connection::settings::Transport::Plaintext { name: None }
+    };
+    Ok(service::ForgeRuntime { number: 0, address, transport })
 }
 fn prepare(directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
     prepare_with_store(directories, bytes, owned).map(|(service, _)| service)
@@ -374,7 +372,6 @@ fn prepare_with_store(
     prepare_with_limits(directories, bytes, owned, false, &service::stock::Given::Stock)
         .map(|(service, store, _)| (service, store))
 }
-#[expect(clippy::too_many_lines, reason = "startup opens checked resources in dependency order")]
 fn prepare_with_limits(
     directories: &Directories,
     bytes: &[u8],
@@ -395,28 +392,13 @@ fn prepare_with_limits(
     let engine =
         temper_service::startup::engine_with(&document, member(&document, 0, b"engine"), &directories.jig(), given)
             .expect("named checked engine");
-    let forges = forges(&named.forges, address)?;
+    let machine = box_command::machine(bytes, directories)?;
+    let roots = trust(None)?;
+    let github = github_runtime(machine.github.as_ref(), &roots, address)?;
+    let forges = List::with_capacity(0);
     let agent = named.worker.as_ref().map(|_| agent::preflight(&named)).transpose()?;
     let user = skein_shell::effective_user();
-    let mut named_files = named.files.into_vec();
-    named_files.extend(service::startup::setup_files(&checked));
-    let mut files = read_files_with_asked(named_files.into_boxed_slice(), named.asked_files, user)?;
-    let reads = service::startup::handover_reads_with(bytes, &directories.jig(), &checked, given)
-        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    let mut entries = List::with_capacity(
-        files.entries.len().checked_add(u32::try_from(reads.len()).expect("checked handovers")).expect("checked files"),
-    );
-    for entry in files.entries.into_boxed() {
-        entries.push(entry).expect("checked files");
-    }
-    for read in reads {
-        match host::read_handover(&read) {
-            Ok(Some(value)) => entries.push((read.path, value)).expect("checked handovers"),
-            Ok(None) => {}
-            Err(why) => return Err(format!("{}: the handover is unreadable: {why:?}", path(&read.path).display())),
-        }
-    }
-    files.entries = entries;
+    let files = read_files_with_asked(named.files, named.asked_files, user)?;
     let google = google_runtime::resolve(named.sign_in.as_ref())?;
     let mut bundle = match named.bundle.as_deref() {
         Some(configured) => Some(bundle::read(configured, named.bundle_limits)?),
@@ -424,7 +406,7 @@ fn prepare_with_limits(
     };
     if let Some(bundle) = &mut bundle {
         bundle.fill_sign_in(named.sign_in.is_some()).and_then(|()| {
-            bundle.fill_forge_sign_in(named.sign_in.as_ref(), &named.forges, &checked.setup, named.bundle_limits.bundle_bytes)
+            bundle.fill_forge_sign_in(named.sign_in.as_ref(), &[], &checked.setup, named.bundle_limits.bundle_bytes)
         }).ok_or_else(|| {
             format!(
                 "application.clients.bundle: {}: page needs </head> and room within clients.bundle_bytes for sign-in metadata",
@@ -470,6 +452,7 @@ fn prepare_with_limits(
         given,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
     if let Some(agent) = &agent
         && let Some(program) = agent.programs.first()

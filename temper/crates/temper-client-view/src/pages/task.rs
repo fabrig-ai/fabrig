@@ -63,12 +63,12 @@ pub(crate) fn main(
         b.close();
         let panel = temper_client_domain::forge::change::for_task(root.forge().panel(), task.chip.task);
         let change = super::change::shown(panel);
-        header(b, task, root.pages().me(root.client()), root.forge().demo(), words, bindings, panel);
+        header(b, task, root.pages().me(root.client()), root.forge().playground(), words, bindings, panel);
         if let Some(change) = change {
             // Word capacity prices the full pull address and label; Limits::of
             // guarantees at least this text bound for every view preset.
             let text_bound = words.capacity().expect("checked text capacity");
-            super::change::toolbar(b, change, words, text_bound, root.forge().serves_pages(change.forge()));
+            super::change::toolbar(b, change, words, text_bound, super::serves_pages(root, change.forge()));
         }
         if page.shape == Shape::Tracked {
             if root.pages().confirmation().is_none()
@@ -280,7 +280,7 @@ pub(crate) fn header(
     b: &mut Builder,
     task: &c::Task,
     me: Option<&c::Me>,
-    demo: Option<&temper_client_domain::forge::Demo>,
+    playground: Option<&temper_client_domain::forge::Playground>,
     words: &Words,
     bindings: &mut Bindings,
     panel: Option<&temper_client_domain::forge::panel::Panel>,
@@ -314,7 +314,7 @@ pub(crate) fn header(
         executor(b, task.chip.executor, words);
         b.close();
     }
-    let project = match super::project_name(me, demo, task.project, words) {
+    let project = match super::project_name(me, playground, task.project, words) {
         Some(name) => name,
         None => words.say(Word::Project, &[Hole::Number(u64::from(task.project))]),
     };

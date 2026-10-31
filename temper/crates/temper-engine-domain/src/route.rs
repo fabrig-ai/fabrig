@@ -2,11 +2,11 @@
 mod applications;
 mod asks;
 pub(crate) mod calendar;
-pub(crate) mod demo;
 pub(crate) mod escalation;
 pub(crate) mod forge_route;
 pub(crate) mod held;
 pub(crate) mod host_route;
+pub(crate) mod playground;
 pub use host_route::{HostDelivery, HostRequest};
 mod goal;
 pub(crate) mod landing;
@@ -18,8 +18,8 @@ mod tools;
 use crate::archive::take_read;
 use crate::assemble::{brief_outputs, take_payload};
 use crate::boundary::{
-    Assignment, Call, EscalationChoice, Event, ForgeRepository, ForgeStart, ForgeWorkspace, InputCheck, MessageForm,
-    Payload, PreparedWorkspace, ProposalChoice, ProposedAction, Read, Request, Tool, Work,
+    Call, EscalationChoice, Event, ForgeRepository, ForgeStart, ForgeWorkspace, InputCheck, MessageForm, Payload,
+    PreparedWorkspace, ProposalChoice, ProposedAction, Read, Request, Tool, Work,
 };
 use crate::domain::{
     Domain, close, emit, forge_release_ending, internal, journal_outputs, now, route, save, step_released,
@@ -281,6 +281,9 @@ pub(crate) fn route_core_requests(
                 }
                 let replaced = save(decision, &env.limits, Write::Save(Record::Core(record)));
                 domain.release_bytes(replaced, "replaced write's turn body was held");
+            }
+            core::Request::Write(core::Write::DropTranscript { task }) => {
+                save(decision, &env.limits, Write::DropTranscript { task });
             }
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
                 save(decision, &env.limits, Write::CopySettingsRevision(number));
@@ -563,21 +566,12 @@ pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: 
 }
 
 fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, event: forge::Event) {
-    if let forge::Event::Connection { forge, state: forge::Connection::SetUpFailed { why } } = &event {
-        demo::connection(domain, *forge, why);
-    }
-    if event == forge::Event::BoxClosed
-        && let Some(config) = domain.forge.demo()
-    {
-        demo::connection(domain, config.adoption.forge, b"the box closed the pipe");
-    }
     let mut out = Queue::uncapped();
     forge::step(&mut domain.forge, &environment_forge(env), event, &mut out);
     if refuse_forge_fit(domain) {
         return;
     }
     forge_route::outputs(domain, env, decision, &mut out);
-    demo::progress(domain, env, decision);
 }
 
 // Refuse at the step still waiting for this connector, before any output translation.

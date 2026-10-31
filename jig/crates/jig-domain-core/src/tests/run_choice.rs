@@ -450,9 +450,10 @@ fn a_progress_count_leaves_due_task_watches_unmarked() {
     );
     let subject =
         core.view_names.insert(WatchedSubject { subject: Subject::Task { task: TASK }, watchers: 1 }).unwrap();
-    core.view_subjects
-        .insert(Token::new(99), WatchBinding { party: 1, sign_in: 10, subject, window: window() })
-        .unwrap();
+    core.fly(crate::flight::Flight::Watch {
+        watcher: Token::new(99),
+        binding: WatchBinding { party: 1, sign_in: 10, subject, window: window() },
+    });
     step(
         &mut core,
         &Env { now: Time::ZERO, wall: Wall::from_nanos(1), limits },

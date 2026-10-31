@@ -511,7 +511,7 @@ impl ScenarioApplication for Ops {
                                 parameters: Box::new([]),
                                 inputs: Box::new([]),
                             }),
-                            ..jig_core_world::fixtures::person_unchanged(b"party evidence")
+                            ..jig_test_profile::fixtures::person_unchanged(b"party evidence")
                         },
                     },
                 );
@@ -545,7 +545,7 @@ impl ScenarioApplication for Ops {
                 }));
             }
             Action::Conversation { forgettable } => {
-                let mut member = jig_core_world::stories::reads::conversation_member(forgettable);
+                let mut member = jig_test_profile::fixtures::conversation_member(forgettable);
                 member.words =
                     if forgettable { b"forgettable conversation".as_slice() } else { b"kept conversation".as_slice() }
                         .into();

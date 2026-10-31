@@ -1,7 +1,7 @@
 //! Admitted records and split facts at the watermark (programming-model.md, 7.1–7.2).
 
 use super::admission_support;
-use jig_core_world::effects::World;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_host as host;
 use jig_domain_people::ApplicationScope;

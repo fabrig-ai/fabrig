@@ -27,26 +27,25 @@ pub(super) fn route_people(
     if let people::Event::Forget { task, .. } = &event {
         drop(core.archived_chats.remove(task));
     }
-    let mut unused = None;
     let event = match event {
         people::Event::Decided { request, outcome } => {
-            if let Some(flight) = core.applications.get_mut(&request)
-                && flight.part
-            {
-                flight.part = false;
-                people::application_part_done(&mut core.people, request);
-                return super::application_routes::answer(flight.connector, request, outcome);
-            }
-            if let Some(flight) = core.applications.remove(&request) {
-                unused = flight.carried;
-                if let people::Outcome::Applied { .. } = &outcome {
-                    unused = None;
+            let request = match core.land_kind(request, crate::flight::Kind::Party) {
+                Some(crate::flight::Flight::Party { request }) => request,
+                Some(crate::flight::Flight::PartyPart { application, original, connector }) => {
+                    core.application_mut(application).expect("application part owner").1.part = false;
+                    people::application_part_done(&mut core.people, original);
+                    return super::application_routes::answer(connector, application, outcome);
                 }
-            }
-            let key_unused = super::key_routes::finished(core, request, &outcome);
-            assert!(unused.is_none() || key_unused.is_none(), "one carried owner per people flight");
-            unused = unused.or(key_unused);
+                Some(_) | None => return Queue::uncapped(),
+            };
             people::Event::Decided { request, outcome }
+        }
+        people::Event::ConversationSeen { request, project, last_reply } => {
+            let Some(crate::flight::Flight::Party { request }) = core.land_kind(request, crate::flight::Kind::Party)
+            else {
+                return Queue::uncapped();
+            };
+            people::Event::ConversationSeen { request, project, last_reply }
         }
         people::Event::SignOut { reply_to, sign_in } => {
             if let Some(person) = core.people.person(sign_in, env.now, env.wall) {
@@ -56,7 +55,9 @@ pub(super) fn route_people(
         }
         other @ (people::Event::ChatState { .. }
         | people::Event::MoveChat { .. }
-        | people::Event::ConversationSeen { .. }
+        | people::Event::Deleting { .. }
+        | people::Event::CloseProject { .. }
+        | people::Event::ForgetProject { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
         | people::Event::Seed { .. }
@@ -71,7 +72,7 @@ pub(super) fn route_people(
     };
     let mut child = Queue::uncapped();
     super::step::step_people(core, env, event, &mut child);
-    super::application_routes::first(unused, tag_people(core, env, child, work))
+    tag_people(core, env, child, work)
 }
 
 pub(super) fn sign_in(
@@ -112,12 +113,22 @@ pub(super) fn sign_in(
     }
     out
 }
+pub(crate) fn tag_people(
+    core: &mut Core,
+    env: &Env<Limits>,
+    child: Queue<people::Request>,
+    work: &mut Queue<Work>,
+) -> Queue<Request> {
+    tag_people_part(core, env, child, work, None)
+}
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive party vocabulary routes its bounded child decision")]
-pub(super) fn tag_people(
+pub(super) fn tag_people_part(
     core: &mut Core,
     env: &Env<Limits>,
     mut child: Queue<people::Request>,
     work: &mut Queue<Work>,
+    part: Option<(skein_lib::Token, skein_lib::Token, u16)>,
 ) -> Queue<Request> {
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
@@ -128,6 +139,7 @@ pub(super) fn tag_people(
         let Some(next) = pending.pop() else { break };
         let request = match next {
             people::Request::Act { request, connector: _, act } => {
+                let request = core.fly(crate::flight::Flight::Party { request });
                 super::deployment_acts::route(core, env, &mut routed.work, &mut routed.out, request, *act);
                 continue;
             }
@@ -154,6 +166,7 @@ pub(super) fn tag_people(
                     | people::Key::ReadConversation { .. }
                     | people::Key::SignIn(_)
                     | people::Key::Roles(_)
+                    | people::Key::Deletion(_)
                     | people::Key::Policy(_) => {}
                 }
                 Request::Write(Write::Erase(Key::People(key)))
@@ -201,6 +214,7 @@ pub(super) fn tag_people(
                     | people::Outcome::PolicyChanged { .. }
                     | people::Outcome::Renamed { .. }
                     | people::Outcome::ProjectMade { .. }
+                    | people::Outcome::ProjectRemoved { .. }
                     | people::Outcome::SettingsChanged { .. }
                     | people::Outcome::MovedToNewest { .. }
                     | people::Outcome::PoolSet { .. }
@@ -224,6 +238,12 @@ pub(super) fn tag_people(
                 continue;
             }
             people::Request::Route { request, person, project, role, mut ask, models } => {
+                let request = match part {
+                    Some((application, original, connector)) => {
+                        core.fly(crate::flight::Flight::PartyPart { application, original, connector })
+                    }
+                    None => core.fly(crate::flight::Flight::Party { request }),
+                };
                 if !crate::model_names::resolve(&mut ask, &models, &core.settings.models) {
                     routed.work.push(Work::Event(Event::People(people::Event::Decided {
                         request,
@@ -231,7 +251,12 @@ pub(super) fn tag_people(
                     })));
                     continue;
                 }
-                if let Err(why) = crate::acts::request(core, &env.limits, person, project, role, &ask, env.wall) {
+                let admission = if *ask == (people::Ask::RemoveProject { project }) {
+                    Ok(())
+                } else {
+                    crate::acts::request(core, &env.limits, person, project, role, &ask, env.wall)
+                };
+                if let Err(why) = admission {
                     routed.work.push(Work::Event(Event::People(people::Event::Decided {
                         request,
                         outcome: people::Outcome::Refused(why),
@@ -240,6 +265,21 @@ pub(super) fn tag_people(
                 }
                 let party = super::party::Party { request, person, project, role };
                 match *ask {
+                    people::Ask::RemoveProject { project } => {
+                        let result = if !core.open_project(project) {
+                            Err(people::Refusal::Unknown)
+                        } else if role == Some(people::Role::Owner) {
+                            crate::deletion::begin(core, env, &mut routed.work, &mut routed.out, request, project)
+                        } else {
+                            Err(people::Refusal::Role { held: role })
+                        };
+                        if let Err(why) = result {
+                            routed.work.push(Work::Event(Event::People(people::Event::Decided {
+                                request,
+                                outcome: people::Outcome::Refused(why),
+                            })));
+                        }
+                    }
                     people::Ask::Compound { operations, .. } => {
                         crate::compound::route(core, env, &mut routed.work, party, operations);
                     }
@@ -369,6 +409,7 @@ pub(super) fn tag_people(
                     },
                     people::Ask::AccountChange { holder, change } => {
                         let holder = super::account_requests::holder(holder, person);
+                        let request = core.fly(crate::flight::Flight::Key { request, route: None });
                         match super::key_routes::admitted(core, request, holder, Some(person), change) {
                             Ok(change) => {
                                 routed.work.push(Work::Event(Event::Account(accounts::Event::Change {
@@ -377,14 +418,22 @@ pub(super) fn tag_people(
                                     change,
                                 })));
                             }
-                            Err(why) => routed.work.push(Work::Event(Event::People(people::Event::Decided {
-                                request,
-                                outcome: people::Outcome::Refused(why),
-                            }))),
+                            Err(why) => {
+                                let outcome = people::Outcome::Refused(why);
+                                let (request, unused) = super::key_routes::finished(core, request, &outcome)
+                                    .expect("admitted account continuation");
+                                if let Some(number) = unused {
+                                    routed.out.push(super::application_routes::unused(number));
+                                }
+                                routed
+                                    .work
+                                    .push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
+                            }
                         }
                     }
                     people::Ask::AccountSignIn { holder, provider } => {
                         let holder = super::account_requests::holder(holder, person);
+                        let request = core.fly(crate::flight::Flight::Key { request, route: None });
                         routed.work.push(Work::Event(Event::Account(accounts::Event::SignIn {
                             request,
                             holder,
@@ -394,6 +443,7 @@ pub(super) fn tag_people(
                     }
                     people::Ask::AccountSignOut { holder, source } => {
                         let holder = super::account_requests::holder(holder, person);
+                        let request = core.fly(crate::flight::Flight::Key { request, route: None });
                         routed.work.push(Work::Event(Event::Account(accounts::Event::SignOut {
                             request,
                             holder,
@@ -411,7 +461,10 @@ pub(super) fn tag_people(
                             for result in core.people.cached_results(person).unwrap_or(&[]) {
                                 loading |= result.position <= through
                                     && result.forgettable.is_some()
-                                    && core.people.conversation_mark_loading(result.task, request);
+                                    && core.people.conversation_mark_loading(
+                                        result.task,
+                                        core.people_request(request).expect("party route"),
+                                    );
                             }
                             if loading {
                                 routed.work.push(Work::Event(Event::People(people::Event::Decided {
@@ -450,7 +503,10 @@ pub(super) fn tag_people(
                             }
                         }
                         people::Seen::Conversation { task, .. }
-                            if core.people.conversation_mark_loading(task, request) =>
+                            if core.people.conversation_mark_loading(
+                                task,
+                                core.people_request(request).expect("party route"),
+                            ) =>
                         {
                             routed.work.push(Work::Event(Event::People(people::Event::Decided {
                                 request,

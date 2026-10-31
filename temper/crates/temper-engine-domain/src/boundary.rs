@@ -399,7 +399,9 @@ pub enum Application {
 pub enum ApplicationAnswer {
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
-    StartDemo(forge::StartAnswer),
+    RemoveForge(forge::RemoveAnswer),
+    StartPlayground(forge::StartAnswer),
+    EndPlayground(forge::EndAnswer),
     Connect(forge::ConnectAnswer),
     Install(forge::InstallAnswer),
     Accept(forge::AcceptAnswer),
@@ -536,20 +538,33 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Playground routing (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+    PlaygroundActs {
+        request: Token,
+        forge: u16,
+    },
+    ResetAct {
+        key: [u8; 16],
+        act: forge::ResetAct,
+    },
+    /// Forge runtime routing (temper/docs/design/draft/playground-reset.md, 3–4).
+    ForgeKept(forge::ForgeRecord),
+    ForgeGone {
+        forge: u16,
+    },
+    BoxGroup {
+        forge: u16,
+        kind: forge::BoxKind,
+        request: Token,
+    },
+    BoxRemove {
+        forge: u16,
+    },
     /// A sent forge entry left without its outcome at the stop bound (domain/root.md, 9.2).
     Unsettled(Unsettled),
     Bound {
         request: Token,
         answer: forge::BindAnswer,
-    },
-    /// Stop the ended demo's box group; no request waits for its answer.
-    StopGroup {
-        forge: u16,
-    },
-    /// Start the demo's box group.
-    SetUpGroup {
-        forge: u16,
-        request: Token,
     },
     /// Give this sign-in its checked return path (client/README.md, 8).
     Return {
@@ -725,41 +740,16 @@ pub(crate) struct PreparedWorkspace {
     pub(crate) claim_names: Box<[forge::Name]>,
 }
 
-/// Bodies the fleet names by token while it routes them (jig's `domain/hosts.md`, 6.4).
+pub(crate) use jig_domain_hub_link::Payload;
+
+/// Temper's connector parts beside the link's prepared assignment
+/// (temper/docs/design/domain/root.md, 7.1).
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded call ownership moves whole through the fleet handoff")]
-pub(crate) enum Payload {
-    /// The drain's answer to a relayed call.
-    Busy,
-    Call {
-        key: CallKey,
-        body: Call,
-    },
-    SettledCall(jig_domain_core::SettledCall),
-    /// A refused settlement keeps only core's live reply address.
-    RefusedCall {
-        name: Box<[u8]>,
-    },
-    InboxWord(tasks::Word),
-    Turn {
-        task: u64,
-        attempt: u64,
-        turn: u32,
-        cumulative: u64,
-        read: Option<u64>,
-        transcript: Box<[u8]>,
-        opens_window: bool,
-        refused: Box<[u64]>,
-    },
-    Answer {
-        task: u64,
-        attempt: u64,
-        cumulative: u64,
-        ending: host::Ending,
-        read: Option<u64>,
-        refused: Box<[u64]>,
-        parts: Parts,
-    },
+pub(crate) struct AssignmentParts {
+    pub saved: Box<[u64]>,
+    pub workstream: u64,
+    pub workspace: ForgeWorkspace,
+    pub answered: Box<[crate::CallRecord]>,
 }
 
 /// An ended owner row the core asked the root to load.
@@ -814,7 +804,7 @@ pub struct Released(pub(crate) Delivery);
 pub(crate) fn delivery_output(delivery: Delivery) -> Request {
     match delivery {
         delivery @ (Delivery::ProjectMade { .. }
-        | Delivery::DemoActed { .. }
+        | Delivery::ProjectReleased { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }
@@ -828,7 +818,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Assigned { .. }
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }) => Request::Worker(WorkerRequest::Deliver(delivery)),
-        delivery @ (Delivery::DemoNote { .. }
+        delivery @ (Delivery::PlaygroundNote { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Panel { .. }

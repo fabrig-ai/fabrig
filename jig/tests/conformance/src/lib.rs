@@ -3,7 +3,9 @@
 #![forbid(unsafe_code)]
 use jig_conformance::scenarios::Scenario;
 use jig_conformance::{Application, Clock, Input, Output};
-use jig_core_world::{Store, conformance::Observer, peers::Peers};
+use jig_core_world::Store;
+use jig_core_world::conformance::Observer;
+use jig_core_world::peers::Peers;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -27,6 +29,7 @@ pub struct Config {
     pub scenario: Option<Scenario>,
     limits: root::Limits,
     fault: negative::Fault,
+    deletion: bool,
 }
 
 impl Config {
@@ -40,8 +43,9 @@ impl Config {
             scenario,
             // root() below derives the exact scenario limits. Its input does
             // not use this field, so constructing a second fixture adds nothing.
-            limits: jig_core_world::world::limits(),
+            limits: jig_test_profile::limits(),
             fault: negative::Fault::None,
+            deletion: false,
         };
         config.limits = config.root().1;
         config
@@ -51,6 +55,14 @@ impl Config {
     #[must_use]
     pub fn broken(mut self, fault: negative::Fault) -> Self {
         self.fault = fault;
+        self
+    }
+
+    /// Grant the testing connector the deployment's project removal act.
+    #[must_use]
+    pub fn deleting(mut self) -> Self {
+        self.deletion = true;
+        self.limits = self.root().1;
         self
     }
 
@@ -86,7 +98,7 @@ impl Config {
             limits.core.tasks.inbox_bytes = 512;
             limits.core.tasks.inbox_messages = 5;
             limits.core.people.inbox_recipients = 24;
-            jig_core_world::world::edit_role(&mut config.core, |role| role.authority.budget.spend = 80);
+            jig_test_profile::edit_role(&mut config.core, |role| role.authority.budget.spend = 80);
         }
         if matches!(self.scenario, Some(Scenario::ConversationEndsWhileRead | Scenario::QueryWatchedWhileTasksEnd)) {
             limits.core.fleet.slots = 3;
@@ -128,6 +140,27 @@ impl Config {
                     .rules()
                     .clone();
         }
+        if self.deletion {
+            limits.core.tasks.tasks = 5;
+            limits.core.tasks.project_tasks = 5;
+            limits.core.tasks.tree_tasks = 5;
+            limits.core.tasks.batch = 2;
+            limits.core.authority.batch = 2;
+            limits.core.people.operations = 4;
+            limits.core.fleet.slots = 3;
+            limits.core.tasks.inbox_messages = 5;
+            limits.core.tasks.inbox_bytes = 512;
+            limits.core.people.inbox_recipients = 24;
+            config.core.defaults.rules.ceiling.notes = authority::Scopes::PROJECT;
+            config.core.seed_projects[0].policy.policy.ceiling.notes = authority::Scopes::PROJECT;
+            for role in &mut config.core.seed_projects[0].policy.policy.roles {
+                role.authority.notes = authority::Scopes::PROJECT;
+            }
+            config.core.grants = Box::new([people::ActGrant {
+                connector: 1,
+                may: Box::new([people::ActKind::RemoveProject, people::ActKind::Adopt]),
+            }]);
+        }
         jig_core_world::peers::journal(&mut limits);
         (config, limits)
     }
@@ -166,6 +199,7 @@ pub struct Neighbours {
     account_ready: bool,
     pub assignments: Vec<(u64, u64)>,
     pub answers: u64,
+    pub acts: Vec<people::Outcome>,
     pub drained: Vec<u64>,
     pub busy_events: Vec<std::rc::Rc<root::Event>>,
     pub start_phases: Vec<core::start::Phase>,
@@ -260,7 +294,7 @@ impl Application for Testing {
     }
     fn build(config: &Config) -> Engine {
         let (configuration, limits) = config.root();
-        let fixture = jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers);
+        let fixture = jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers);
         let mut domain = root::Domain::new(configuration, &limits);
         let env = env(config, Clock { now: 0 });
         domain.configure_holds(
@@ -348,13 +382,14 @@ impl Application for Testing {
             )],
         );
         peers.creating =
-            Some(jig_core_world::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks));
+            Some(jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks));
         Neighbours {
             peers,
             observer,
             account_ready: false,
             assignments: Vec::new(),
             answers: 0,
+            acts: Vec::new(),
             drained: Vec::new(),
             busy_events: Vec::new(),
             start_phases: Vec::new(),
@@ -581,6 +616,10 @@ impl Application for Testing {
                 peers.assignments.push((assignment.task, assignment.attempt));
                 Vec::new()
             }
+            root::Delivery::Core(core::Held::Acted { outcome, .. }) => {
+                peers.acts.push(outcome);
+                Vec::new()
+            }
             root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
                 peers.answers += 1;
                 peers.peers.reply(to, &reply);
@@ -765,3 +804,5 @@ fn run_budget_script() -> Box<[Script]> {
     script.push(Script::Park);
     script.into_boxed_slice()
 }
+
+pub mod deletion;

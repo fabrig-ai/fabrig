@@ -1,6 +1,6 @@
 //! A move's completion must remain possible at the retained-answer boundary.
 use super::*;
-use jig_core_world::effects::Setup;
+use jig_core_world::world::Setup;
 
 const SEED: u64 = 211;
 // The fixture's chat, the account sign-in, and its move out each retain one answer.

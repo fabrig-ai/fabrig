@@ -7,21 +7,23 @@ pub(crate) mod box_link;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes root outputs to their components")]
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
-    if let Some(demo) = &mut engine.demo {
-        demo.state = engine.domain.demo_state();
-    }
+    #[expect(clippy::match_same_arms, reason = "each request's arm is filled by its own task")]
     match request {
-        root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
-        root::Request::StopGroup { forge } => {
-            let mut out = skein_lib::Queue::with_capacity(1);
-            engine.box_link.stop(forge, &mut out);
-            box_link::drain(engine, &mut out);
-        }
-        root::Request::SetUpGroup { forge, request } => {
+        root::Request::PlaygroundActs { .. } => {}
+        root::Request::ResetAct { .. } => {}
+        root::Request::ForgeKept(record) => crate::forges::record(engine, record),
+        root::Request::ForgeGone { forge } => crate::forge::gone::request(engine, forge),
+        root::Request::BoxGroup { forge, kind, request } => {
             let mut out = skein_lib::Queue::with_capacity(3);
-            engine.box_link.ask(forge, request, &mut out);
+            engine.box_link.group(forge, kind, request, &mut out);
             box_link::drain(engine, &mut out);
         }
+        root::Request::BoxRemove { forge } => {
+            let mut out = skein_lib::Queue::with_capacity(1);
+            engine.box_link.remove(forge, &mut out);
+            box_link::drain(engine, &mut out);
+        }
+        root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
         root::Request::Return { source, path } => {
             if let Some(request) = account_return(engine, source, &path)
                 && let Some(accounts) = &mut engine.accounts
@@ -33,7 +35,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         root::Request::SetUp { forge, request, org, repository, playground } => {
             crate::setup::lifecycle::first(engine, forge, org, repository, playground);
             let mut out = skein_lib::Queue::with_capacity(3);
-            engine.box_link.ask(forge, request, &mut out);
+            engine.box_link.group(forge, temper_engine_domain_forge::BoxKind::Owned, request, &mut out);
             box_link::drain(engine, &mut out);
         }
         root::Request::Connect { forge, request, how, carried } => match how {
@@ -64,7 +66,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
             }
         }
         root::Request::Forge { call, repository, op } => {
-            if crate::forge::ended(engine, repository.forge) {
+            if engine.domain.forge_ended(repository.forge) {
                 engine.events.push(root::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
                     skein_forge_client::Event::Answered {
                         call,
@@ -128,8 +130,8 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 engine.admission = None;
             }
             let event = match request {
-                root::PartyRequest::Deliver(root::Delivery::DemoNote { line }) => {
-                    engine.notes.push(crate::Note::Demo { line });
+                root::PartyRequest::Deliver(root::Delivery::PlaygroundNote { line }) => {
+                    engine.notes.push(crate::Note::Playground { line });
                     None
                 }
                 root::PartyRequest::Deliver(root::Delivery::Forges { watcher, forges }) => {
@@ -298,8 +300,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                     &mut engine.events,
                 ),
             },
-            root::Delivery::DemoActed { .. }
-            | root::Delivery::DemoNote { .. }
+            root::Delivery::PlaygroundNote { .. }
             | root::Delivery::Procedure { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::Forges { .. }
@@ -313,6 +314,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::SourceSignedOut { .. }
             | root::Delivery::Result { .. }
             | root::Delivery::ProjectMade { .. }
+            | root::Delivery::ProjectReleased { .. }
             | root::Delivery::ForgeCommitted { .. }
             | root::Delivery::ForgeCall { .. }
             | root::Delivery::Bound { .. }

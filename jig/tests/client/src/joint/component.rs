@@ -2,7 +2,7 @@
 //! protocol/client.md, 2). Only transport names and external secrets live here.
 use super::{
     engine::Driver,
-    packets::{Incoming, SignInFailure},
+    session::{Incoming, SignInFailure},
     transport::{KeyedOwner, Reply, Watched},
 };
 use crate::harness::ClientId;

@@ -24,7 +24,7 @@ pub struct Peers {
     pub parties: Vec<parties::Party>,
     pub upstream: Vec<workers::Up>,
     pub requests: Vec<parties::Up>,
-    pub creating: Option<crate::fixtures::Creating>,
+    pub creating: Option<jig_test_profile::fixtures::Creating>,
     party_flights: BTreeMap<u64, usize>,
     party_marks: BTreeMap<usize, (u64, Option<u64>, parties::Role)>,
     call_hosts: BTreeMap<core::CallKey, (u64, u32)>,
@@ -44,7 +44,7 @@ impl Peers {
             party_flights: BTreeMap::new(),
             party_marks: BTreeMap::new(),
             call_hosts: BTreeMap::new(),
-            protocol: crate::protocol::Stand::new(crate::world::limits().core),
+            protocol: crate::protocol::Stand::new(jig_test_profile::limits().core),
             opaque: BTreeMap::new(),
         }
     }
@@ -104,14 +104,14 @@ impl Peers {
                     parties::Ask::SeeConversation { task, through } => {
                         people::Ask::MarkSeen { seen: people::Seen::Conversation { task: task_number(task), through } }
                     }
-                    parties::Ask::Chat { words } => crate::fixtures::create_chat(
+                    parties::Ask::Chat { words } => jig_test_profile::fixtures::create_chat(
                         self.creating.as_ref().expect("fixture creating authority"),
                         project,
                         role_number(self.parties[index].role),
                         words,
                     ),
                     parties::Ask::Goal { words, budget, priority, deadline } => {
-                        let people::Ask::Create { mut batch, .. } = crate::fixtures::create_chat(
+                        let people::Ask::Create { mut batch, .. } = jig_test_profile::fixtures::create_chat(
                             self.creating.as_ref().expect("fixture creating authority"),
                             project,
                             role_number(self.parties[index].role),
@@ -475,7 +475,7 @@ fn end_value(end: workers::End) -> tasks::End {
 #[must_use]
 pub fn fixture(seed: u64, engine_slots: u32) -> (root::Config, root::Limits) {
     use jig_domain_authority as policy;
-    let (mut configuration, mut limits) = crate::effects::fixture(seed, false);
+    let (mut configuration, mut limits) = crate::world::fixture(seed, false);
     limits.core.tasks.tasks = 5;
     limits.core.tasks.project_tasks = 5;
     limits.core.tasks.tree_tasks = 5;

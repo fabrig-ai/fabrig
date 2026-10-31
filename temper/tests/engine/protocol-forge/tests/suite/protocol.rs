@@ -504,11 +504,12 @@ fn land_change(world: &mut Protocol) -> bool {
                 }
                 top::Request::Settled { .. }
                 | top::Request::Bound { .. }
-                | top::Request::ListDemoActs
-                | top::Request::SendDemoAct(_)
-                | top::Request::DemoStart { .. }
-                | top::Request::StopGroup { .. }
-                | top::Request::SetUpGroup { .. }
+                | top::Request::PlaygroundActs { .. }
+                | top::Request::ResetAct { .. }
+                | top::Request::ForgeKept(_)
+                | top::Request::ForgeGone { .. }
+                | top::Request::BoxGroup { .. }
+                | top::Request::BoxRemove { .. }
                 | top::Request::Connect { .. }
                 | top::Request::Manifest { .. }
                 | top::Request::Reachable { .. }
@@ -532,6 +533,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ContinueRelease { .. }
                 | top::Request::EffectsSettled { .. }
                 | top::Request::Released { .. }
+                | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::ProjectionEffect { .. }

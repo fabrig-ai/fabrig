@@ -3,7 +3,6 @@ use jig_client_world::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Role, Tree};
 use temper_client_domain::{Address, Choice, Step};
-use temper_client_protocol_wire::v1 as wire;
 use temper_client_world::{
     app::{Root, Temper, View},
     fixtures,
@@ -134,89 +133,4 @@ fn qa_fifth_setup_step_fails_on_welcome_and_forges() {
     assert!(named(Temper::tree(&view), Role::Button, b"Set up again"), "{}", words(Temper::tree(&view)));
     // Forges draws no set-up steps for any failure yet (the Forges page's own look, not this row's).
     assert!(words(Temper::tree(&view)).contains("making the repository"), "{}", words(Temper::tree(&view)));
-}
-
-fn ended(front: &mut Joint) {
-    let mut parts = front.demo.take().expect("demo fixture").into_parts();
-    parts.state = wire::DemoState::Ended;
-    front.demo = Some(wire::DemoAnswer::new(&wire::CEILINGS, parts).expect("ended answer"));
-}
-
-fn no_playground(front: &mut Joint, root: &mut Root) {
-    for address in [
-        fixtures::chats_page(),
-        Address::Welcome { step: Step::Welcome },
-        Address::Welcome { step: Step::Model { way: None } },
-    ] {
-        harness::event(front, root, Temper::went(address.clone()));
-        let view = draw(root);
-        let tree = Temper::tree(&view);
-        assert!(!words(tree).contains("Try the playground"), "{}", words(tree));
-        assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"Playground")));
-        if address == fixtures::chats_page() {
-            assert!(words(tree).contains("No project yet"), "{}", words(tree));
-            assert!(!named(tree, Role::Button, b"Project 1"));
-        }
-        assert_eq!(root.person().pages().project(), None);
-    }
-}
-
-#[test]
-fn qa_stale_demo_read_cannot_restore_a_retired_playground() {
-    for fresh_first in [false, true] {
-        let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::NotStarted);
-        let reads = front.demo_reads;
-        front.hold_next_demo_read();
-        press(&mut front, &mut root, Role::Button, b"Try the playground");
-        assert_eq!(front.demo_reads, reads + 1, "post-start Running read was sent and held");
-        ended(&mut front);
-        if !fresh_first {
-            front.hold_next_demo_read();
-        }
-        connected(&mut front, &mut root);
-        assert_eq!(front.demo_reads, reads + 2, "retirement sends a newer read");
-        no_playground(&mut front, &mut root);
-        assert!(front.release_demo_read(), "release the older Running answer");
-        harness::settle(&mut front, &mut root);
-        no_playground(&mut front, &mut root);
-        if !fresh_first {
-            assert!(front.release_demo_read(), "release the newer Ended answer");
-            harness::settle(&mut front, &mut root);
-            no_playground(&mut front, &mut root);
-        }
-        assert!(!front.release_demo_read(), "all scripted answers delivered");
-    }
-}
-
-fn surviving_projects(root: &Root) {
-    let view = draw(root);
-    let tree = Temper::tree(&view);
-    for name in [b"Project 2".as_slice(), b"Project 3"] {
-        assert!(named(tree, Role::Button, name), "both real projects remain: {}", words(tree));
-    }
-    for node in tree
-        .nodes()
-        .iter()
-        .filter(|node| node.role == Role::Button && matches!(node.name.as_deref(), Some(b"Project 2" | b"Project 3")))
-    {
-        assert_eq!(
-            node.states.as_slice().contains(&skein_ui::State::Pressed),
-            node.name.as_deref() == Some(b"Project 2")
-        );
-    }
-    assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"Playground")));
-    assert!(!named(tree, Role::Button, b"Project 1"));
-    assert_eq!(root.person().pages().project(), Some(2), "observed choice: first surviving project");
-}
-
-#[test]
-fn qa_retirement_selects_among_two_surviving_projects_live_and_after_reload() {
-    let (mut front, mut root) = harness::demo_fixture_with_projects(fixtures::SEED);
-    harness::event(&mut front, &mut root, Temper::went(fixtures::chats_page()));
-    assert!(named(Temper::tree(&draw(&root)), Role::Button, b"Playground"));
-    ended(&mut front);
-    connected(&mut front, &mut root);
-    surviving_projects(&root);
-    harness::reopen(&mut front, &mut root, fixtures::chats_page(), false);
-    surviving_projects(&root);
 }

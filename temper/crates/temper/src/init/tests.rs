@@ -143,7 +143,7 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
             serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
         let llm: std::net::SocketAddr =
             agent["endpoints"][1]["address"].as_str().expect("LLM address").parse().expect("LLM socket");
-        let forge: std::net::SocketAddr = document["application"]["forges"][0]["api"]["socket"]
+        let forge: std::net::SocketAddr = document["application"]["machine"]["fake"]["listen"]["socket"]
             .as_str()
             .expect("forge address")
             .parse()
@@ -158,9 +158,9 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
             assert_ne!(webhooks.port(), other.port(), "{row}: webhooks reservation differs");
         }
         assert!(TcpListener::bind(webhooks).is_err(), "{row}: webhooks reservation held");
-        assert_eq!(document["application"]["forges"][0]["git"], format!("http://{forge}"), "{row}");
+        assert_eq!(document["application"]["machine"]["fake"]["remote"], format!("http://{forge}"), "{row}");
         assert_eq!(
-            document["application"]["setup"][0]["mode"]["fake"]["listen"],
+            document["application"]["machine"]["fake"]["listen"],
             serde_json::json!({"socket": forge.to_string()}),
             "{row}"
         );
@@ -172,7 +172,7 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
         assert_ne!(address.port(), forge.port(), "{row}: clients and forge reservations differ");
         assert_ne!(address.port(), llm.port(), "{row}: clients and LLM reservations differ");
         assert_ne!(forge.port(), llm.port(), "{row}: forge and LLM reservations differ");
-        let owned: std::net::SocketAddr = document["application"]["forges"][2]["api"]["socket"]
+        let owned: std::net::SocketAddr = document["application"]["machine"]["owned"]["listen"]["socket"]
             .as_str()
             .expect("owned address")
             .parse()
@@ -183,9 +183,9 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
         }
         assert_eq!(owned.port() == preferred[1], !held && !same, "{row}");
         assert!(TcpListener::bind(owned).is_err(), "{row}: owned reservation held");
-        assert_eq!(document["application"]["forges"][2]["git"], format!("http://{owned}"), "{row}");
+        assert_eq!(document["application"]["machine"]["owned"]["remote"], format!("http://{owned}"), "{row}");
         assert_eq!(
-            document["application"]["setup"][1]["mode"]["owned"]["listen"],
+            document["application"]["machine"]["owned"]["listen"],
             serde_json::json!({"socket": owned.to_string()}),
             "{row}"
         );
@@ -321,13 +321,11 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     let written = write(&dirs, &env, &root.join("bin/temper"), [0, 0, 0, 0, 0]).expect("init");
     let bytes = fs::read(dirs.document()).expect("document");
     let deployment = crate::setup::check(&bytes, &dirs.jig()).expect("init document passes setup and named");
-    let owned = deployment.checked.setup.entry(3).expect("init declares the owned forge");
-    assert!(owned.asked, "forge 3 waits for the client");
-    assert!(matches!(owned.mode, temper_forge_setup::setup::Mode::Owned(_)));
+    let machine = crate::box_command::machine(&bytes, &dirs).expect("machine");
+    assert!(machine.owned.is_some());
+    assert!(machine.fake.is_some());
     let demo = deployment.demo.expect("init declares the demo");
     assert_eq!(demo.provider(), 3);
-    assert_eq!(demo.forge(), 1);
-    assert_eq!(demo.project(), 1);
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).expect("cleanup");
 }

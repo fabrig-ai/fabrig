@@ -318,54 +318,24 @@ fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
     scratch.remove();
 }
 #[test]
-fn reconcile_refuses_a_tls_forge_naming_it() {
-    let scratch = support::Scratch::new("reconcile_tls");
-    support::owned::managed(scratch.path());
-    support::owned::configuration_value(scratch.path(), |value| {
-        value["application"]["forges"][0]["transport"] =
-            serde_json::json!({"tls":{"server_name":"forge.example","trust":null}});
-    });
-    support::owned::refused(
-        scratch.path(),
-        "reconcile",
-        b"temper forge reconcile: forge 1: its transport is TLS, and reconcile speaks plaintext to loopback alone\n",
-    );
-    assert!(!scratch.path().join("forge-1").exists());
-    scratch.remove();
-}
-#[test]
-fn reconcile_makes_a_missing_forge_directory_private() {
-    let scratch = support::Scratch::new("reconcile_missing_directory");
-    support::owned::managed(scratch.path());
-    support::owned::refused(
-        scratch.path(),
-        "reconcile",
-        b"temper forge reconcile: forge 1: Forgejo did not answer within 300 ms\n",
-    );
-    assert_eq!(fs::metadata(scratch.path().join("forge-1")).expect("directory").permissions().mode() & 0o777, 0o700);
-    scratch.remove();
-}
-#[test]
-fn reconcile_refuses_a_forge_directory_open_to_others() {
-    let scratch = support::Scratch::new("reconcile_open_directory");
-    support::owned::managed(scratch.path());
-    fs::create_dir(scratch.path().join("forge-1")).expect("open directory");
-    fs::set_permissions(scratch.path().join("forge-1"), fs::Permissions::from_mode(0o755)).expect("open directory");
-    support::owned::refused(scratch.path(), "reconcile", format!("temper forge reconcile: forge 1: {}: must be a private directory of this user's, not reached through a link\n", scratch.path().join("forge-1").display()).as_bytes());
-    assert!(!scratch.path().join("forge-1/state").exists());
-    scratch.remove();
-}
-#[test]
 fn reconcile_refuses_a_forge_the_setup_has_no_entry_for() {
     let scratch = support::Scratch::new("reconcile_no_entry");
-    support::owned::managed(scratch.path());
-    support::owned::configuration_value(scratch.path(), |value| {
-        value["application"]["setup"] = serde_json::json!([]);
-    });
-    support::owned::refused(
+    support::owned::configuration(
         scratch.path(),
-        "reconcile",
-        b"temper forge reconcile: forge 1: the setup has no entry for it\n",
+        &support::owned::Names {
+            forgejo: std::path::Path::new("/usr/bin/false"),
+            runner: None,
+            port: 9,
+            bot: "temper",
+            person: "ada",
+        },
+    );
+    fs::remove_file(scratch.path().join("box/groups/1")).expect("no recorded group");
+    let output = support::owned::reconcile(scratch.path(), 1);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "temper forge reconcile: forge 1: forge 1 is kept by the service: connect it from the client\n"
     );
     assert!(!scratch.path().join("forge-1").exists());
     scratch.remove();
@@ -376,7 +346,7 @@ fn fake_preparation_writes_only_a_private_token_and_keeps_existing_bytes() {
     for existing in [None, Some(b"existing token\n".as_slice())] {
         let scratch = support::Scratch::new("fake_prepare");
         fake_configuration(scratch.path());
-        let directory = scratch.path().join("forge-1");
+        let directory = scratch.path().join("playground-1");
         let token = directory.join("admin_token");
         if let Some(bytes) = existing {
             fs::create_dir(&directory).expect("directory");
@@ -408,7 +378,7 @@ fn fake_preparation_refuses_an_open_directory_and_run_still_refuses_fake() {
     ] {
         let scratch = support::Scratch::new("fake_prepare_refused");
         fake_configuration(scratch.path());
-        let directory = scratch.path().join("forge-1");
+        let directory = scratch.path().join("playground-1");
         fs::create_dir(&directory).expect("directory");
         fs::set_permissions(&directory, fs::Permissions::from_mode(0o755)).expect("open directory");
         let location = if names_directory { format!("{}: ", directory.display()) } else { String::new() };
@@ -424,6 +394,8 @@ fn fake_preparation_refuses_an_open_directory_and_run_still_refuses_fake() {
 
 fn fake_configuration(directory: &std::path::Path) {
     let config = support::configuration::check_document(directory);
+    fs::create_dir_all(directory.join("box/groups")).expect("groups");
+    support::write_private(&directory.join("box/groups/1"), b"fake\n");
     fs::write(directory.join("temper.json"), serde_json::to_vec(&config).expect("document")).expect("document");
 }
 
@@ -432,7 +404,7 @@ fn fake_configuration(directory: &std::path::Path) {
 fn forge_fetch_command() {
     use skein_lib::sha256::Sha256;
     use support::{configuration, owned};
-    for row in ["managed", "fake", "paths", "digest", "present", "missing-roots", "usage"] {
+    for row in ["fake", "paths", "digest", "present", "missing-roots", "usage"] {
         let scratch = support::Scratch::new(&format!("forge-fetch-{row}"));
         owned::configuration(
             scratch.path(),
@@ -447,24 +419,21 @@ fn forge_fetch_command() {
         let path = scratch.path().join("temper.json");
         let mut document: serde_json::Value =
             serde_json::from_slice(&fs::read(&path).expect("document")).expect("JSON");
-        document["application"]["forges"][0]["number"] = 3.into();
-        document["application"]["setup"][0]["forge"] = 3.into();
+        fs::rename(scratch.path().join("box/groups/1"), scratch.path().join("box/groups/3")).expect("numbered group");
         let mut server = None;
         let root = scratch.path().join("root.pem");
         let file = scratch.path().join("forgejo/17.0.0/forgejo");
         match row {
-            "managed" => {
-                document["application"]["setup"][0]["orgs"] = serde_json::json!(["acme"]);
-                document["application"]["setup"][0]["mode"] =
-                    serde_json::json!({"managed":{"admin_token":"admin_token"}});
+            "fake" => {
+                configuration::fake_entry(&mut document["application"]["machine"]["fake"], "127.0.0.1:3001");
+                support::write_private(&scratch.path().join("box/groups/3"), b"fake\n");
             }
-            "fake" => configuration::fake_entry(&mut document["application"]["setup"][0], "127.0.0.1:3000"),
             "digest" | "present" | "missing-roots" => {
-                document["application"]["setup"][0]["mode"]["owned"]["forgejo"] = "fetched".into();
+                document["application"]["machine"]["owned"]["forgejo"] = "fetched".into();
                 if row == "digest" {
                     let peer = support::fetch::server();
                     let origin = format!("https://{}", peer.address);
-                    document["application"]["setup"][0]["mode"]["owned"]["mirror"] =
+                    document["application"]["machine"]["owned"]["mirror"] =
                         serde_json::json!({"forgejo":origin,"runner":origin});
                     server = Some(peer);
                 }
@@ -590,27 +559,24 @@ fn forge_sign_in_prints_the_owned_command_with_public_forge_and_temper_origins()
     forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
     let path = directory.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["application"]["setup"][0]["mode"]["owned"]["public"] = "https://git.example.com".into();
+    value["application"]["machine"]["owned"]["public"] = "https://git.example.com".into();
     value["application"]["clients"]["public"] = "https://temper.example.com".into();
     value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
         "https://git.example.com/user/oauth2/temper/callback".into();
     support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
     let output = forge_sign_in::command(directory).output().expect("sign-in command");
     forge_sign_in::success(&output);
-    let command = format!(
-        "'{}' --work-path '{}' --config '{}' admin auth add-oauth --name temper --provider openidConnect --key 'forgejo' --secret \"$(cat '{}')\" --auto-discover-url 'https://temper.example.com/.well-known/openid-configuration'\n\n# Forgejo app.ini settings:\n",
-        directory.join("forgejo").display(),
-        directory.join("forge-1/forgejo").display(),
-        directory.join("forge-1/forgejo/app.ini").display(),
-        directory.join("forgejo.secret").display()
+    assert_eq!(
+        output.stdout,
+        temper_forge_setup::sign_in::instructions(
+            b"forgejo",
+            None,
+            b"forgejo",
+            directory.join("forgejo.secret").as_os_str().as_encoded_bytes(),
+            b"https://temper.example.com/.well-known/openid-configuration"
+        )
+        .as_ref()
     );
-    let expected = [
-        command.as_bytes(),
-        temper_forge_setup::sign_in::SETTINGS,
-        b"\n# Once the source works, [service] ENABLE_INTERNAL_SIGNIN = false makes it the web's only sign-in.\n",
-    ]
-    .concat();
-    assert_eq!(output.stdout, expected);
     assert!(output.stderr.is_empty());
     scratch.remove();
 }
@@ -630,15 +596,11 @@ fn forge_sign_in_prints_the_owned_command_without_its_private_secret() {
     for bytes in [&output.stdout, &output.stderr] {
         assert!(!bytes.windows(secret.len()).any(|part| part == secret));
     }
-    let place = temper_forge_setup::place::Place {
-        directory: directory.join("forge-1").as_os_str().as_encoded_bytes().into(),
-        user: Box::new([]),
-    };
     assert_eq!(
         output.stdout,
         temper_forge_setup::sign_in::instructions(
-            directory.join("forgejo").as_os_str().as_encoded_bytes(),
-            Some(&place),
+            b"forgejo",
+            None,
             b"forgejo",
             directory.join("forgejo.secret").as_os_str().as_encoded_bytes(),
             b"http://127.0.0.1:31000/.well-known/openid-configuration"

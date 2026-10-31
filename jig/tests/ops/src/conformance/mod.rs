@@ -10,6 +10,7 @@ mod protocol;
 mod scripts;
 pub use scripts::agent_bounds;
 mod scenarios;
+mod store;
 mod systems;
 
 use jig_conformance::referee as r;
@@ -22,7 +23,7 @@ use jig_ops_domain as root;
 use jig_ops_domain_infrastructure as infra;
 use jig_ops_domain_observability as obs;
 use jig_ops_fake_production as production;
-use observations::Store;
+pub use observations::Store;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall};
 pub use systems::Systems;
 
@@ -171,8 +172,8 @@ fn env(config: &Config, clock: Clock) -> Env<root::Limits> {
 
 impl Application for Ops {
     type Domain = root::Domain;
-    type Store = jig_fake_store::Store<root::Key, root::Record>;
-    type Write = jig_fake_store::Write<root::Key, root::Record>;
+    type Store = Store;
+    type Write = root::Write;
     type Config = Config;
     type Systems = Systems;
     type Peers = Peers;
@@ -182,7 +183,7 @@ impl Application for Ops {
     type Delivery = Delivery;
 
     fn store(_: &Config) -> Self::Store {
-        jig_fake_store::Store::new()
+        Store::default()
     }
     fn build(config: &Config) -> root::Domain {
         let mut configuration = config::root_for(config.seed, config.story == Story::Environment).0;
@@ -269,7 +270,7 @@ impl Application for Ops {
     fn start(config: &Config, store: &mut Store) -> Vec<root::Event> {
         if store.rows.is_empty() {
             let configuration = config::root_for(config.seed, config.story == Story::Environment).0;
-            for row in jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers) {
+            for row in jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers) {
                 let jig_test_domain::Record::Core(row) = row else { panic!("account fixture row") };
                 let row = root::Record::Core(row);
                 store.rows.insert(row.key(), row);
@@ -309,11 +310,7 @@ impl Application for Ops {
         };
         root::step(domain, &env(config, clock), event);
     }
-    fn release(
-        domain: &mut root::Domain,
-        config: &Config,
-        clock: Clock,
-    ) -> Vec<Output<jig_fake_store::Write<root::Key, root::Record>, Delivery>> {
+    fn release(domain: &mut root::Domain, config: &Config, clock: Clock) -> Vec<Output<root::Write, Delivery>> {
         let mut queue = Queue::with_capacity(256);
         root::release(domain, &env(config, clock), &mut queue);
         let mut outputs = Vec::new();
@@ -335,12 +332,13 @@ impl Application for Ops {
                                         }
                                     }
                                 }
-                                jig_fake_store::Write::Save { key: row.key(), row }
+                                root::Write::Save(row)
                             }
+                            root::Write::DropTranscript { task } => root::Write::DropTranscript { task },
                             root::Write::CopySettingsRevision(_) => {
                                 unreachable!("this scripted ops world restarts with identical defaults")
                             }
-                            root::Write::Erase(key) => jig_fake_store::Write::Erase(key),
+                            root::Write::Erase(key) => root::Write::Erase(key),
                         });
                     }
                     outputs.push(Output::Commit { number, writes: rows.into_boxed_slice() });

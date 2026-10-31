@@ -28,18 +28,12 @@ fn project_asks_route_with_their_own_scopes_role() {
     }
 }
 #[test]
-fn project_asks_without_a_role_are_left_for_the_core() {
-    for ask in
-        [Ask::MakeProject { name: "Tally".into(), policy: 1 }, Ask::Rename { project: PROJECT, name: "12".into() }]
-    {
-        let mut test = Test::new(LIMITS);
-        test.signin(PARTY, SIGN_IN, identity(0, PARTY));
-        assert!(
-            test.request(SIGN_IN, KEY, ask)
-                .iter()
-                .any(|row| { if let Request::Route { role, .. } = row { role.is_none() } else { false } })
-        );
-    }
+fn an_unknown_project_is_refused_without_saving_or_routing() {
+    let mut test = Test::new(LIMITS);
+    test.signin(PARTY, SIGN_IN, identity(0, PARTY));
+    let rows = test.request(SIGN_IN, KEY, Ask::Rename { project: PROJECT, name: "12".into() });
+    assert_eq!(rows.len(), 1);
+    assert_eq!(reply(&rows), Reply::Refused(Refusal::Unknown));
 }
 
 #[test]

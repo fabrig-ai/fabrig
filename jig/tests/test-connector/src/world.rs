@@ -220,6 +220,7 @@ impl World {
                 | Request::Document { .. }
                 | Request::ReadAnswered { .. }
                 | Request::Marked { .. }
+                | Request::ProjectReleased { .. }
                 | Request::Closed { .. } => {}
             }
         }
@@ -305,6 +306,7 @@ impl World {
                 | Request::Document { .. }
                 | Request::ReadAnswered { .. }
                 | Request::Marked { .. }
+                | Request::ProjectReleased { .. }
                 | Request::Closed { .. } => Vec::new(),
             };
             pending.extend(generated.iter().cloned());

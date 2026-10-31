@@ -404,7 +404,9 @@ pub(crate) fn seen_conversation_loaded(
     row: Option<Box<tasks::TaskRecord>>,
     busy: bool,
 ) -> Queue<crate::Request> {
-    let Some((party, people::Seen::Conversation { task, .. })) = core.people.seen_context(request) else {
+    let Some((party, people::Seen::Conversation { task, .. })) =
+        core.people.seen_context(core.people_request(request).expect("party route"))
+    else {
         return Queue::uncapped();
     };
     let event = if busy {
@@ -418,21 +420,16 @@ pub(crate) fn seen_conversation_loaded(
                 outcome: people::Outcome::Refused(people::Refusal::Role { held: core.people.role(party, row.project) }),
             }
         } else {
-            assert!(
-                core.ended_marks
-                    .insert(
-                        request,
-                        crate::ended_marks::Loaded {
-                            task,
-                            party,
-                            project: row.project,
-                            last_reply: row.last_reply,
-                            owner: crate::forget::Owner::of_row(&row),
-                        }
-                    )
-                    .is_ok(),
-                "one header per pending mark"
-            );
+            let request = core.fly(crate::flight::Flight::EndedMark {
+                request,
+                route: crate::ended_marks::Loaded {
+                    task,
+                    party,
+                    project: row.project,
+                    last_reply: row.last_reply,
+                    owner: crate::forget::Owner::of_row(&row),
+                },
+            });
             let mut out = Queue::uncapped();
             out.push(crate::Request::Held(Box::new(crate::Held::Load(Box::new(crate::Now::LoadEndedRead {
                 request,

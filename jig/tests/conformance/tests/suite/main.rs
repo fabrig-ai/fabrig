@@ -6,6 +6,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod application;
 mod client_settings;
 mod client_settings_proposals;
+mod deletion;
 mod faults;
 mod memory;
 mod referee;
@@ -17,6 +18,7 @@ mod trace;
 
 mod fuzzy {
     mod cuts;
+    mod deletion;
     mod scenarios;
     mod snapshot;
 }

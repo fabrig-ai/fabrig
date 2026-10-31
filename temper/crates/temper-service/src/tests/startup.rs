@@ -84,7 +84,7 @@ fn startup_names_map_sizing_without_inventing_a_records_bound() {
     let mut engine = fixtures::engine();
     engine.jig.limits.store.store.key = 0;
     let mut problems = Problems::empty();
-    crate::startup::checks::records(&engine.jig, &engine.limits, &[], &mut problems);
+    crate::startup::checks::records(&engine.jig, &engine.limits, &mut problems);
     assert_eq!(problems.problems.len(), 1);
     let What::StoreMap(jig_protocol_store::sizes::SizeRefusal::Key { needs, has: 0 }) =
         problems.problems.get(0).unwrap().what
@@ -108,7 +108,7 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
     assert!(read < needs);
 
     let mut problems = Problems::empty();
-    crate::startup::checks::records(&engine.jig, &engine.limits, &[], &mut problems);
+    crate::startup::checks::records(&engine.jig, &engine.limits, &mut problems);
     assert!(problems.is_empty(), "record sizing must leave the driver's check to store admission: {problems:?}");
 }
 
@@ -295,27 +295,8 @@ fn the_template_shaped_demo_reads_into_its_public_fields() {
     let (members, problems) = application(&fixtures::demo_application(), &fixtures::engine().jig);
     assert_eq!(&*lines(&problems), b"");
     let demo = members.unwrap().demo.unwrap();
-    assert_eq!((demo.project, demo.forge, demo.provider), (1, 1, 3));
-    assert_eq!((demo.owner.as_ref(), demo.name.as_ref()), (b"demo".as_slice(), b"widget".as_slice()));
-    assert_eq!(
-        demo.cues.as_ref(),
-        &[
-            Box::from(b"Add CSV export to widget".as_slice()),
-            Box::from(b"Add a dark theme to widget".as_slice()),
-            Box::from(b"Fix widget's empty search state".as_slice()),
-        ]
-    );
-}
-#[test]
-fn a_demo_without_cued_publishes_all_asked() {
-    // Restore the legacy document: its coding script was also suggested.
-    let input = fixtures::demo_application();
-    let input = core::str::from_utf8(&input).unwrap().replace("\"Search\"]}],\n\"cued\":[", "\"Search\"]},");
-    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-    assert_eq!(&*lines(&problems), b"");
-    let cues = members.unwrap().demo.unwrap().cues;
-    assert_eq!(cues.len(), 4);
-    assert_eq!(cues[3].as_ref(), b"Export widget's table as CSV");
+    assert_eq!(demo.provider, 3);
+    assert!(demo.key_file.ends_with(b"llm.key"));
 }
 #[test]
 fn a_null_demo_reads_as_none() {
@@ -329,25 +310,6 @@ fn an_unanswerable_demo_is_refused_at_its_field() {
     let input = fixtures::demo_application();
     let input = core::str::from_utf8(&input).unwrap();
     for (row, from, to, expected) in [
-        (
-            "missing forge",
-            "\"forge\":1,\"project\":1",
-            "\"forge\":2,\"project\":1".into(),
-            "application.demo.forge: unknown reference\n",
-        ),
-        (
-            "missing setup forge",
-            "\"setup\":[{\"forge\":1",
-            "\"setup\":[{\"forge\":2".into(),
-            "application.demo.forge: unknown reference\n",
-        ),
-        ("not fake", "\"fake\":{", "\"managed\":{".into(), "application.demo.forge: invalid form\n"),
-        (
-            "no repository",
-            "[{\"name\":\"widget\",\"landing\":\"main\"},{\"name\":\"other\",\"landing\":\"main\"}]",
-            "[]".into(),
-            "application.setup[0].mode.fake.repositories: invalid form\n",
-        ),
         (
             "cue count at bound",
             "\"asked\":[",
@@ -363,38 +325,14 @@ fn an_unanswerable_demo_is_refused_at_its_field() {
         (
             "cue at bound",
             "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.demo_answer_cues_item).unwrap()),
+            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item).unwrap()),
             "",
         ),
         (
             "cue past bound",
             "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.demo_answer_cues_item + 1).unwrap()),
+            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item + 1).unwrap()),
             "application.demo.llm.asked[0].cue: past its bound\n",
-        ),
-        (
-            "owner at bound",
-            "\"owner\":\"demo\"",
-            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_owner).unwrap()), "\""].concat(),
-            "",
-        ),
-        (
-            "owner past bound",
-            "\"owner\":\"demo\"",
-            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_owner + 1).unwrap()), "\""].concat(),
-            "application.setup[0].mode.fake.owner: past its bound\n",
-        ),
-        (
-            "name at bound",
-            "\"name\":\"widget\"",
-            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_name).unwrap()), "\""].concat(),
-            "",
-        ),
-        (
-            "name past bound",
-            "\"name\":\"widget\"",
-            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_name + 1).unwrap()), "\""].concat(),
-            "application.setup[0].mode.fake.repositories[0].name: past its bound\n",
         ),
     ] {
         let input = input.replace(from, &to);
@@ -447,156 +385,14 @@ fn the_standalone_example_reads_into_its_members() {
     let (members, problems) = application(fixtures::APPLICATION, &jig);
     assert_eq!(&*lines(&problems), b"", "example accepted");
     let members = members.unwrap();
-    assert_eq!(members.forges[0].user, application::User::File(b"secrets/forge-1.user".as_slice().into()));
-    assert_eq!(members.forges[0].git.as_ref(), b"http://127.0.0.1:9");
-    assert_eq!(members.identities[0].author.name.as_ref(), b"Temper");
     assert_eq!(members.workers[0].git.as_deref(), Some(b"/usr/bin/git".as_slice()));
     assert_eq!(members.charter, 1);
-    assert_eq!(application::files(&members, 4096, 8192).len(), 3, "all private files");
+    assert_eq!(application::files(&members).len(), 0, "all private files");
     let resolved = application::resolve(&members, &fixtures::files(), &mut Problems::empty()).unwrap();
-    assert_eq!(resolved.forges[0].api_token.as_ref().unwrap().expose(), b"api-token");
-    assert_eq!(resolved.identities[0].token.expose(), b"git-token");
+    assert!(resolved.webhooks.is_none());
     assert!(!fixtures::document().is_empty(), "complete example bytes");
     let document = fixtures::parsed();
     assert!(!document.is_empty(), "full standalone example is JSON");
-}
-
-fn checked_fake_setup() -> temper_forge_setup::check::Checked {
-    checked_local_setup(false)
-}
-fn checked_local_setup(records: bool) -> temper_forge_setup::check::Checked {
-    use temper_forge_setup::check;
-    let input = br#"[{"forge":1,"directory":"demo/forge","bot":{"login":"temper","email":"temper@example.test"},
-        "mode":{"fake":{"listen":{"socket":"127.0.0.1:9"},"git":"demo/bin/git","owner":"demo",
-        "repositories":[{"name":"widget","landing":"main"}]}}}]"#;
-    let document = config::document(input, &config::DocumentLimits { bytes: 65_536, tokens: 1024, depth: 32 }).unwrap();
-    let mut members = check::Members {
-        forges: Box::new([check::Forge {
-            number: 1,
-            api: Some("127.0.0.1:9".parse().unwrap()),
-            plaintext: true,
-            git: b"http://127.0.0.1:9".as_slice().into(),
-            user: check::User::File(b"/data/demo/forge/user".as_slice().into()),
-            api_token: b"/data/demo/forge/api_token".as_slice().into(),
-            webhook_secret: None,
-            identity_token: b"/data/demo/forge/git_token".as_slice().into(),
-            identity_login: b"temper".as_slice().into(),
-        }]),
-        listeners: Box::new([]),
-    };
-    if records {
-        members.forges[0].api_token = Box::new([]);
-        members.forges[0].user = check::User::Id(0);
-        members.forges[0].identity_token = Box::new([]);
-    }
-    check::checked(
-        &document,
-        0,
-        &config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
-        &members,
-        None,
-        &[],
-    )
-    .unwrap()
-}
-
-fn with_forge_git_program(input: &[u8], value: &str) -> Box<[u8]> {
-    core::str::from_utf8(input)
-        .unwrap()
-        .replace("\"forges\":[{", &format!("\"forges\":[{{\"git_program\":{value},"))
-        .into_bytes()
-        .into_boxed_slice()
-}
-
-#[test]
-fn forge_git_program_reads_data_and_absolute_paths_and_refuses_bad_values() {
-    let jig = fixtures::engine().jig;
-    let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
-    for (value, expected) in [(r#""bin/git""#, b"/data/bin/git".as_slice()), (r#""/opt/git""#, b"/opt/git".as_slice())]
-    {
-        let input = with_forge_git_program(fixtures::APPLICATION, value);
-        let document =
-            config::document(&input, &config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 32 }).unwrap();
-        let mut problems = Problems::empty();
-        let members = application::parse(&document, 0, &jig, &directories, &mut problems).unwrap();
-        assert_eq!(lines(&problems).as_ref(), b"");
-        assert_eq!(members.forges[0].git_program.as_deref(), Some(expected));
-    }
-    for value in ["null", "false", r#""""#, r#""../git""#, r#""bad\u0000path""#] {
-        let input = with_forge_git_program(fixtures::APPLICATION, value);
-        let (_, problems) = application(&input, &jig);
-        assert!(lines(&problems).starts_with(b"application.forges[0].git_program:"), "{value}: {:?}", lines(&problems));
-    }
-}
-
-#[test]
-fn the_forges_git_program_reaches_startup_without_fake_setup() {
-    let input = with_forge_git_program(&fixtures::document(), r#""/opt/custom/git""#);
-    let service = start_with_git_program(&input, None).unwrap();
-    assert_eq!(
-        service.engine.as_ref().unwrap().workers.forges[0].git_program.as_deref(),
-        Some(b"/opt/custom/git".as_slice())
-    );
-}
-
-#[test]
-fn startup_refuses_both_sources_of_a_forges_git_program() {
-    let input = with_forge_git_program(&fixtures::document(), r#""/opt/custom/git""#);
-    let problems = start_with_git_program(&input, Some(&checked_fake_setup())).err().expect("two sources refused");
-    let paths: Box<[_]> = problems.problems.iter().map(|problem| problem.path.clone()).collect();
-    assert_eq!(
-        paths.as_ref(),
-        &[
-            Path::root().member(b"application").member(b"forges").child(Segment::Index(0)).member(b"git_program"),
-            Path::root()
-                .member(b"application")
-                .member(b"setup")
-                .child(Segment::Index(0))
-                .member(b"mode")
-                .member(b"fake")
-                .member(b"git"),
-        ]
-    );
-}
-
-#[test]
-fn the_checked_fake_git_program_reaches_the_services_forge_settings() {
-    let service = start_with_git_program(&fixtures::document(), Some(&checked_fake_setup())).unwrap();
-    let forge = &service.engine.as_ref().expect("engine").workers.forges[0];
-    assert_eq!(forge.mode, temper_engine_domain_forge::Mode::Fake);
-    assert_eq!(forge.git_program.as_deref(), Some(b"/data/demo/bin/git".as_slice()));
-    assert_eq!(forge.git.as_ref(), b"http://127.0.0.1:9");
-}
-
-fn start_with_git_program(
-    input: &[u8],
-    checked: Option<&temper_forge_setup::check::Checked>,
-) -> Result<crate::Service, Problems> {
-    let mut files = fixtures::files();
-    let mut entries = List::with_capacity(files.entries.len().checked_add(1).unwrap());
-    for entry in files.entries.into_boxed() {
-        entries.push(entry).unwrap();
-    }
-    files.entries = entries;
-    files
-        .entries
-        .push((
-            b"/data/demo/forge/admin_token".as_slice().into(),
-            skein_lib::Secret::new(b"0123456789abcdef0123456789abcdef01234567".as_slice().into()),
-        ))
-        .unwrap();
-    crate::startup::with_setup(
-        input,
-        &config::Directories::working(),
-        &files,
-        Some(&fixtures::startup_agent()),
-        &fixtures::seeds(),
-        None,
-        Some(fixtures::worker_runtime()),
-        fixtures::forge_runtime(),
-        checked,
-        None,
-    )
 }
 
 #[test]
@@ -619,23 +415,6 @@ fn refused(input: &[u8]) -> Box<[u8]> {
     let (members, problems) = application(input, &fixtures::engine().jig);
     assert!(members.is_none());
     lines(&problems)
-}
-#[test]
-fn an_unknown_user_member_is_named_by_its_path() {
-    let input = core::str::from_utf8(fixtures::APPLICATION)
-        .unwrap()
-        .replace("\"user\":{\"file\":\"secrets/forge-1.user\"}", "\"usr\":42");
-    assert_eq!(
-        &*refused(input.as_bytes()),
-        b"application.forges[0].user: missing\napplication.forges[0].usr: unknown member\n"
-    );
-}
-#[test]
-fn a_missing_user_member_is_named_by_its_path() {
-    let input = core::str::from_utf8(fixtures::APPLICATION)
-        .unwrap()
-        .replace(",\"user\":{\"file\":\"secrets/forge-1.user\"}", "");
-    assert_eq!(&*refused(input.as_bytes()), b"application.forges[0].user: missing\n");
 }
 #[test]
 fn an_unknown_profile_is_refused_naming_its_path() {
@@ -710,21 +489,6 @@ fn a_landing_rule_reads_jigs_pattern_form() {
     assert_eq!(rule.approvals[0].freshness, temper_engine_domain::Freshness::Clean);
 }
 #[test]
-fn a_git_base_with_a_user_or_a_final_slash_is_refused() {
-    let jig = fixtures::engine().jig;
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap();
-    for (git, expected) in [
-        ("http://user@127.0.0.1:9", "application.forges[0].git: invalid form\n"),
-        ("http://127.0.0.1:9/", "application.forges[0].git: invalid form\n"),
-        ("http://forge.example", "application.forges[0].git: invalid form\n"),
-        ("https://forge.example?token=1", "application.forges[0].git: invalid form\n"),
-    ] {
-        let (members, problems) = application(input.replace("http://127.0.0.1:9", git).as_bytes(), &jig);
-        assert!(members.is_none(), "refused {git}");
-        assert_eq!(&*lines(&problems), expected.as_bytes(), "row {git}");
-    }
-}
-#[test]
 fn problems_print_one_line_each_with_their_path() {
     let mut problems = Problems::empty();
     let forge = Path::root().member(b"application").member(b"forges").child(Segment::Index(0));
@@ -780,24 +544,10 @@ fn members_and_references_are_checked() {
     let input = core::str::from_utf8(&input).unwrap();
     for (from, to, expected) in [
         ("\"charter\":1", "\"charter\":3", "application.charter: unknown reference\n"),
-        ("\"kind\":4", "\"kind\":3", "application.landing.projects[0].rules[0].kind: invalid form\n"),
         ("\"role\":0", "\"role\":1", "application.landing.projects[0].rules[0].approvals[0].role: unknown reference\n"),
         ("\"project\":1", "\"project\":2", "application.landing.projects[0].project: unknown reference\n"),
-        ("\"login\":\"temper\"", "\"login\":\"bad:login\"", "application.identities[0].login: invalid form\n"),
-        ("\"name\":\"Temper\"", "\"name\":\"<Temper>\"", "application.identities[0].author.name: invalid form\n"),
-        ("\"user\":{\"file\":\"secrets/forge-1.user\"}", "\"user\":0", "application.forges[0].user: invalid form\n"),
-        (
-            "\"user\":{\"file\":\"secrets/forge-1.user\"}",
-            "\"user\":{\"file\":\"secrets/forge-1.user\"},\"user\":43",
-            "application.forges[0].user: duplicate\n",
-        ),
         ("\"git\":\"/usr/bin/git\"", "\"git\":\"git\"", "application.workers[0].git: must be an absolute path\n"),
         ("\"git\":\"/usr/bin/git\"", "\"git\":null", ""),
-        (
-            "\"transport\":\"plaintext\"",
-            "\"transport\":{\"tls\":{\"server_name\":\"forge\"}}",
-            "application.forges[0].transport.tls.trust: missing\n",
-        ),
     ] {
         let (members, problems) = application(input.replace(from, to).as_bytes(), &jig);
         assert_eq!(members.is_some(), expected.is_empty(), "row {from}: {to}");
@@ -808,40 +558,13 @@ fn members_and_references_are_checked() {
     }
 }
 #[test]
-fn application_files_keep_paths_bounds_privacy_and_resolution_refusals() {
-    let jig = fixtures::engine().jig;
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(
-        "\"transport\":\"plaintext\"",
-        "\"transport\":{\"tls\":{\"server_name\":\"forge\",\"trust\":\"root.der\"}}",
-    );
-    let (members, problems) = application(input.as_bytes(), &jig);
-    assert_eq!(&*lines(&problems), b"", "TLS file form accepted");
-    let members = members.unwrap();
-    let files = application::files(&members, 4096, 8192);
-    for (index, path, max, private) in [
-        (0, b"secrets/forge-1.api-token".as_slice(), 4096, true),
-        (1, b"secrets/forge-1.user".as_slice(), 21, true),
-        (2, b"root.der".as_slice(), 1_048_576, false),
-        (3, b"secrets/forge-1.git-token".as_slice(), 8192, true),
-    ] {
-        assert_eq!(files[index].path.as_ref(), path, "file {index}");
-        assert_eq!(files[index].max, max, "bound {index}");
-        assert_eq!(files[index].private, private, "privacy {index}");
-    }
-    let mut problems = Problems::empty();
-    assert!(application::resolve(&members, &fixtures::files(), &mut problems).is_none(), "trust file must be read");
-    assert_eq!(&*lines(&problems), b"application.forges[0].transport.tls.trust: not read\n".as_slice());
-}
-#[test]
 fn named_lists_each_file_with_its_bound_and_privacy() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
-    assert_eq!(named.files.len(), 6, "all files listed");
+    assert_eq!(named.files.len(), 3, "all files listed");
     for (name, path, max, private) in [
         (b"secrets/worker-a.digest".as_slice(), b"engine.hosts.workers[0].digest".as_slice(), 65, true),
         (b"worker-secret", b"workers[0].secret", 257, true),
         (fixtures::AGENT_JSON, b"workers[0].agent.configuration", 1_048_576, false),
-        (b"secrets/forge-1.api-token", b"application.forges[0].api_token", 4096, true),
-        (b"secrets/forge-1.git-token", b"application.identities[0].token", 8192, true),
     ] {
         let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
         assert_eq!(file.max, max, "bound {name:?}");
@@ -862,7 +585,7 @@ fn named_returns_the_worker_root_and_the_agent_configuration() {
 #[test]
 fn a_file_named_but_not_given_refuses_the_start_naming_it() {
     let mut files = fixtures::files();
-    files.entries = fixtures::without(files.entries, b"secrets/forge-1.git-token");
+    files.entries = fixtures::without(files.entries, b"worker-secret");
     let refused = crate::startup(
         &fixtures::document(),
         &jig_protocol_config::Directories::working(),
@@ -874,7 +597,7 @@ fn a_file_named_but_not_given_refuses_the_start_naming_it() {
         fixtures::forge_runtime(),
     );
     let Err(problems) = refused else { panic!("a missing token refuses the start") };
-    assert_eq!(&*lines(&problems), b"application.identities[0].token: not read\n".as_slice());
+    assert_eq!(&*lines(&problems), b"workers[0].secret: not read\n".as_slice());
 }
 #[test]
 fn jigs_problems_keep_their_paths_under_engine() {
@@ -979,63 +702,9 @@ fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
 }
 
 #[test]
-fn a_user_file_member_reads_as_a_private_file_of_21_bytes() {
-    let (members, problems) = application(fixtures::APPLICATION, &fixtures::engine().jig);
-    assert_eq!(&*lines(&problems), b"");
-    let files = application::files(&members.unwrap(), 4096, 8192);
-    let file = files.iter().find(|file| file.path.as_ref() == b"secrets/forge-1.user").unwrap();
-    assert_eq!(file.max, 21);
-    assert!(file.private);
-    let mut problems = Problems::empty();
-    problems.push(file.at.clone(), What::Jig(config::What::Missing));
-    assert_eq!(&*lines(&problems), b"application.forges[0].user.file: missing\n");
-}
-#[test]
-fn a_user_file_resolves_to_the_decimal_id_it_holds() {
-    let (members, _) = application(fixtures::APPLICATION, &fixtures::engine().jig);
-    let mut problems = Problems::empty();
-    let resolved = application::resolve(&members.unwrap(), &fixtures::files(), &mut problems).unwrap();
-    assert_eq!(resolved.forges[0].user, 42);
-    assert_eq!(&*lines(&problems), b"");
-}
-#[test]
-fn a_user_file_holding_no_positive_decimal_is_refused_by_path() {
-    let (members, _) = application(fixtures::APPLICATION, &fixtures::engine().jig);
-    let members = members.unwrap();
-    for value in
-        [b"".as_slice(), b"0", b"042", b"-1", b"4 2", b"42\n\n", b"123456789012345678901", b"18446744073709551616"]
-    {
-        let mut files = fixtures::files();
-        files.entries = fixtures::without(files.entries, b"secrets/forge-1.user");
-        files.entries.push((b"secrets/forge-1.user".as_slice().into(), skein_lib::Secret::new(value.into()))).unwrap();
-        let mut problems = Problems::empty();
-        assert!(application::resolve(&members, &files, &mut problems).is_none(), "{value:?}");
-        assert_eq!(&*lines(&problems), b"application.forges[0].user.file: invalid form\n", "{value:?}");
-    }
-}
-fn refused_user(value: &str) -> Box<[u8]> {
-    let input =
-        core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("{\"file\":\"secrets/forge-1.user\"}", value);
-    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-    assert!(members.is_none());
-    lines(&problems)
-}
-#[test]
-fn a_user_object_with_a_missing_file_is_refused() {
-    assert_eq!(&*refused_user("{}"), b"application.forges[0].user.file: missing\n");
-}
-#[test]
-fn a_user_object_with_a_stray_member_is_refused() {
-    assert_eq!(&*refused_user("{\"file\":\"x\",\"stray\":1}"), b"application.forges[0].user.stray: unknown member\n");
-}
-#[test]
-fn a_user_object_with_an_empty_path_is_refused() {
-    assert_eq!(&*refused_user("{\"file\":\"\"}"), b"application.forges[0].user.file: invalid form\n");
-}
-#[test]
 fn a_missing_setup_or_demo_is_refused_naming_its_path() {
     for (member, expected) in [
-        ("\"setup\":[],", b"application.setup: missing\n".as_slice()),
+        ("\"machine\":{},", b"application.machine: missing\n".as_slice()),
         ("\"demo\":null,", b"application.demo: missing\n".as_slice()),
     ] {
         let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(member, "");
@@ -1065,19 +734,6 @@ fn a_setup_or_box_override_is_handed_on_with_its_value() {
     }
 }
 
-#[test]
-fn the_webhook_listener_and_secret_file_are_read() {
-    let named = crate::named(&fixtures::webhook_document(), &jig_protocol_config::Directories::working()).unwrap();
-    let webhooks = named.webhooks.unwrap();
-    let config::Address::Addr(listener) = webhooks.listener else { panic!("socket") };
-    assert_eq!(listener.socket().unwrap(), "127.0.0.1:7200".parse().unwrap());
-    let file = named.files.iter().find(|file| file.path.as_ref() == b"secrets/forge-1.webhook-secret").unwrap();
-    assert_eq!(file.max, 128);
-    assert!(file.private);
-    let mut problems = Problems::empty();
-    problems.push(file.at.clone(), What::Jig(config::What::Missing));
-    assert_eq!(&*lines(&problems), b"application.forges[0].webhook_secret: missing\n");
-}
 // protocol/sign-in.md, 9: a configured provider is admitted, and startup reads its key and
 // client secret as private files, refusing either one missing by its path.
 #[test]
@@ -1104,17 +760,11 @@ fn null_webhook_members_are_read_as_none() {
     assert_eq!(&*lines(&problems), b"");
     let members = members.unwrap();
     assert!(members.webhooks.is_none());
-    assert!(members.forges[0].webhook_secret.is_none());
 }
 #[test]
 fn a_missing_webhooks_member_is_refused_by_path() {
     let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"webhooks\":null,", "");
     assert_eq!(&*refused(input.as_bytes()), b"application.webhooks: missing\n");
-}
-#[test]
-fn a_missing_webhook_secret_is_refused_by_path() {
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"webhook_secret\":null,", "");
-    assert_eq!(&*refused(input.as_bytes()), b"application.forges[0].webhook_secret: missing\n");
 }
 #[test]
 fn an_in_process_webhook_listener_is_refused() {
@@ -1124,16 +774,6 @@ fn an_in_process_webhook_listener_is_refused() {
         &*lines(&crate::named(&input, &jig_protocol_config::Directories::working()).unwrap_err()),
         b"application.webhooks.listener: invalid form\n"
     );
-}
-#[test]
-fn the_webhook_secret_excludes_its_final_newline() {
-    let input = core::str::from_utf8(fixtures::APPLICATION)
-        .unwrap()
-        .replace("\"webhooks\":null", "\"webhooks\":{\"listener\":{\"socket\":\"127.0.0.1:7200\"}}")
-        .replace("\"webhook_secret\":null", "\"webhook_secret\":\"secrets/forge-1.webhook-secret\"");
-    let (members, _) = application(input.as_bytes(), &fixtures::engine().jig);
-    let resolved = application::resolve(&members.unwrap(), &fixtures::files(), &mut Problems::empty()).unwrap();
-    assert_eq!(resolved.forges[0].webhook_secret.as_ref().unwrap().expose(), b"fixture-hook-secret");
 }
 #[test]
 fn the_configured_bundle_is_named_for_the_binary() {
@@ -1210,281 +850,6 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
             assert_eq!(value, expected);
         }
     }
-    for trust in [br#""roots.der""#.as_slice(), br#""/kept/roots.der""#] {
-        let tls = [br#"{"tls":{"server_name":"example.test","trust":"#.as_slice(), trust, b"}}"].concat();
-        let document = fixtures::with(&fixtures::document(), b"application.forges[0].transport", &tls);
-        let named = crate::named(&document, &directories).unwrap();
-        let application::Transport::Tls { trust: Some(value), .. } = &named.forges[0].transport else { panic!("TLS") };
-        assert_eq!(
-            value.as_ref(),
-            if trust == br#""roots.der""# { b"/configuration/roots.der".as_slice() } else { b"/kept/roots.der" }
-        );
-    }
-}
-
-fn github_application() -> Box<str> {
-    github_input(core::str::from_utf8(fixtures::APPLICATION).unwrap())
-}
-pub(super) fn github_input(input: &str) -> Box<str> {
-    input
-                .replace("\"kind\":\"forgejo\"", "\"kind\":\"github\"")
-        .replace("\"api\":{\"socket\":\"127.0.0.1:9\"}", "\"api\":null")
-        .replace("\"transport\":\"plaintext\"", "\"transport\":null")
-        .replace("\"git\":\"http://127.0.0.1:9\"", "\"git\":null,\"web\":null")
-        .replace(",\"webhook_secret\":null,\"api_token\":\"secrets/forge-1.api-token\",\"user\":{\"file\":\"secrets/forge-1.user\"},\"identity\":1", "")
-        .replace("\"token\":\"secrets/forge-1.git-token\",\"login\":\"temper\",\"author\":{\"name\":\"Temper\",\"email\":\"temper@example.test\"}", "\"forge\":1,\"login\":null,\"author\":null").into_boxed_str()
-}
-#[test]
-fn load_refuses_a_record_one_byte_short_of_app_key() {
-    let document = github_input(core::str::from_utf8(&fixtures::document()).unwrap());
-    let needle = "\"overrides\":{\"checkout.name_bytes\"";
-    assert_eq!(document.matches(needle).count(), 1);
-    let document = document.replacen(needle, "\"overrides\":{\"records.value_bytes\":1196,\"checkout.name_bytes\"", 1);
-    let found = crate::named(document.as_bytes(), &config::Directories::working()).unwrap_err();
-    assert_eq!(
-        lines(&found).as_ref(),
-        b"application.limits.overrides.records.value_bytes: must agree with AppKey (forge_component.key_bytes)\n"
-    );
-}
-#[test]
-#[expect(clippy::disallowed_macros, reason = "ordinary tests format input and diagnostics")]
-fn load_refuses_log_limits_naming_both_bounds() {
-    let document = fixtures::document();
-    let document = core::str::from_utf8(&document).unwrap();
-    let needle = "\"overrides\":{\"checkout.name_bytes\"";
-    assert_eq!(document.matches(needle).count(), 1);
-    for (overrides, expected) in [
-        (
-            "\"forges.log_origins\":0",
-            "application.limits.overrides.forges.log_origins: must agree with forges.log_origins (above 0)\n",
-        ),
-        (
-            "\"forge_component.log_origins\":0",
-            "application.limits.overrides.forge_component.log_origins: must agree with forge_component.log_origins (above 0)\napplication.limits.overrides.forges.log_origins: must agree with forge_component.log_origins\n",
-        ),
-        (
-            "\"forge_component.log_poll_ms\":0",
-            "application.limits.overrides.forge_component.log_poll_ms: must agree with forge_component.log_poll_ms (above 0)\n",
-        ),
-        (
-            "\"forge_component.log_catch_up_ms\":0",
-            "application.limits.overrides.forge_component.log_catch_up_ms: must agree with forge_component.log_catch_up_ms (above 0)\napplication.limits.overrides.forge_component.log_catch_up_ms: must agree with forge_component.log_poll_ms\n",
-        ),
-        (
-            "\"forge_component.log_pages\":0",
-            "application.limits.overrides.forge_component.log_pages: must agree with forge_component.log_pages (above 0)\n",
-        ),
-        (
-            "\"forge_component.delivery_bytes\":0",
-            "application.limits.overrides.forge_component.delivery_bytes: must agree with forge_component.delivery_bytes (above 0)\n",
-        ),
-        (
-            "\"forges.log_origins\":5,\"forge_component.log_origins\":5",
-            "application.limits.overrides.forges.log_origins: must agree with forges.log_origins (at most 4)\n",
-        ),
-        (
-            "\"forges.log_origins\":3,\"forge_component.log_origins\":2",
-            "application.limits.overrides.forges.log_origins: must agree with forge_component.log_origins\n",
-        ),
-        (
-            "\"forge_component.log_poll_ms\":86400000,\"forge_component.log_catch_up_ms\":86399999",
-            "application.limits.overrides.forge_component.log_catch_up_ms: must agree with forge_component.log_poll_ms\n",
-        ),
-        (
-            "\"forge_component.log_catch_up_ms\":86400001",
-            "application.limits.overrides.forge_component.log_catch_up_ms: must agree with forge_component.log_catch_up_ms (at most 86400000 ms / 24 h)\n",
-        ),
-    ] {
-        let input = document.replacen(needle, &format!("\"overrides\":{{{overrides},\"checkout.name_bytes\""), 1);
-        let found = crate::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
-        assert_eq!(lines(&found).as_ref(), expected.as_bytes(), "{overrides}");
-    }
-    let overrides = "\"forges.log_origins\":3,\"forge_component.log_origins\":7,\"forge_component.log_poll_ms\":7123,\"forge_component.log_catch_up_ms\":9321,\"forge_component.log_pages\":13,\"forge_component.delivery_bytes\":12345";
-    let input = document.replacen(needle, &format!("\"overrides\":{{{overrides},\"checkout.name_bytes\""), 1);
-    crate::named(input.as_bytes(), &config::Directories::working()).unwrap();
-    // Named checks all relations; inspect the same document through the existing application parser.
-    let parsed =
-        config::document(input.as_bytes(), &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 })
-            .unwrap();
-    let at = config::read::Object::new(&parsed, 0).unwrap().member(&parsed, b"application").unwrap();
-    let jig = fixtures::engine().jig;
-    let mut problems = Problems::empty();
-    let loaded = application::parse(&parsed, at, &jig, &config::Directories::working(), &mut problems).unwrap().limits;
-    assert!(problems.is_empty());
-    assert_eq!((loaded.forges.log_origins, loaded.forge_component.log_origins), (3, 7));
-    assert_eq!(loaded.forge_component.log_poll, skein_lib::Duration::from_millis(7123));
-    assert_eq!(loaded.forge_component.log_catch_up, skein_lib::Duration::from_millis(9321));
-    assert_eq!(loaded.forge_component.log_pages, 13);
-    assert_eq!(loaded.forge_component.delivery_bytes, 12_345);
-}
-#[test]
-fn github_app_read_only_defaults_false_and_resolves_the_configured_boolean() {
-    let jig = fixtures::engine().jig;
-    for (member, expected) in [("", false), (",\"app_read_only\":false", false), (",\"app_read_only\":true", true)] {
-        let input = github_application().replace("\"web\":null", &["\"web\":null", member].concat());
-        let (members, problems) = application(input.as_bytes(), &jig);
-        assert_eq!(lines(&problems).as_ref(), b"");
-        let members = members.unwrap();
-        assert_eq!(members.forges[0].app_read_only, expected);
-        let mut problems = Problems::empty();
-        let resolved =
-            application::resolve(&members, &settings::Files { entries: List::with_capacity(0) }, &mut problems)
-                .unwrap();
-        assert_eq!(lines(&problems).as_ref(), b"");
-        assert_eq!(resolved.forges[0].app_read_only, expected);
-    }
-}
-#[test]
-fn github_app_read_only_refuses_non_booleans_at_its_path() {
-    let input = github_application().replace("\"web\":null", "\"web\":null,\"app_read_only\":\"true\"");
-    let (_, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-    assert_eq!(lines(&problems).as_ref(), b"application.forges[0].app_read_only: wrong value kind\n");
-}
-#[test]
-fn forgejo_refuses_app_read_only_even_when_false() {
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap();
-    for value in ["true", "false"] {
-        let input = input.replace("\"kind\":\"forgejo\"", &["\"kind\":\"forgejo\",\"app_read_only\":", value].concat());
-        let (_, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert_eq!(lines(&problems).as_ref(), b"application.forges[0].app_read_only: invalid form\n");
-    }
-}
-#[test]
-fn github_defaults_and_the_identity_join_need_no_credential_files() {
-    use crate::settings::Kind;
-    let jig = fixtures::engine().jig;
-    let (members, problems) = application(github_application().as_bytes(), &jig);
-    assert_eq!(lines(&problems).as_ref(), b"");
-    let members = members.unwrap();
-    let forge = &members.forges[0];
-    assert_eq!(forge.kind, Kind::GitHub);
-    assert_eq!(forge.api, config::Address::Host { name: Box::from(b"api.github.com".as_slice()), port: 443 });
-    match &forge.transport {
-        application::Transport::Tls { server_name, trust } => {
-            assert_eq!(server_name.as_ref(), b"api.github.com");
-            assert!(trust.is_none());
-        }
-        application::Transport::Plaintext => panic!("GitHub defaults to TLS"),
-    }
-    assert_eq!(forge.git.as_ref(), b"https://github.com");
-    assert_eq!(forge.web.as_deref(), Some(b"https://github.com".as_slice()));
-    assert_eq!(forge.identity, 1);
-    assert_eq!(members.identities[0].forge, Some(1));
-    assert!(application::files(&members, 4096, 8192).is_empty());
-    let resolved =
-        application::resolve(&members, &settings::Files { entries: List::with_capacity(0) }, &mut Problems::empty())
-            .unwrap();
-    assert!(resolved.forges[0].api_token.is_none());
-    assert_eq!(resolved.identities[0].forge, 1);
-    let input = github_application()
-        .replace("\"api\":null", "\"api\":{\"socket\":\"127.0.0.1:9\"}")
-        .replace("\"transport\":null", "\"transport\":\"plaintext\"")
-        .replace("\"web\":null", "\"web\":\"http://127.0.0.1:9/web\"");
-    let (members, problems) = application(input.as_bytes(), &jig);
-    assert_eq!(lines(&problems).as_ref(), b"");
-    assert_eq!(members.unwrap().forges[0].web.as_deref(), Some(b"http://127.0.0.1:9/web".as_slice()));
-}
-#[test]
-fn github_refusals_name_the_configured_member() {
-    let jig = fixtures::engine().jig;
-    for (needle, replacement, path) in [
-        ("\"kind\":\"github\"", "\"kind\":\"other\"", "forges[0].kind"),
-        ("\"web\":null", "\"web\":\"https://bad/\"", "forges[0].web"),
-        ("\"web\":null", "\"web\":null,\"api_token\":\"file\"", "forges[0].api_token"),
-        ("\"web\":null", "\"web\":null,\"user\":42", "forges[0].user"),
-        ("\"web\":null", "\"web\":null,\"webhook_secret\":null", "forges[0].webhook_secret"),
-        ("\"forge\":1", "\"forge\":1,\"token\":null", "identities[0].token"),
-        ("127.0.0.1:7100", "127.0.0.1:0", "clients.listener"),
-        ("\"forge\":1", "\"forge\":2", "forges[0].identity"),
-        ("\"forge\":1,", "", "forges[0].identity"),
-        ("\"web\":null", "\"web\":null,\"identity\":1", "forges[0].identity"),
-        ("\"web\":null", "\"web\":null,\"identity\":0", "forges[0].identity"),
-        (
-            "\"identities\":[",
-            "\"identities\":[{\"number\":2,\"forge\":1,\"login\":null,\"author\":null},",
-            "forges[0].identity",
-        ),
-    ] {
-        let input = github_application().replace(needle, replacement);
-        let (members, problems) = application(input.as_bytes(), &jig);
-        assert!(members.is_none(), "{path}");
-        assert!(core::str::from_utf8(&lines(&problems)).unwrap().contains(path), "{path}: {:?}", lines(&problems));
-    }
-    let input = core::str::from_utf8(fixtures::APPLICATION)
-        .unwrap()
-        .replace("\"kind\":\"forgejo\"", "\"kind\":\"forgejo\",\"web\":\"https://forge.example\"");
-    let (members, problems) = application(input.as_bytes(), &jig);
-    assert!(members.is_none());
-    assert!(core::str::from_utf8(&lines(&problems)).unwrap().contains("forges[0].web"));
-}
-
-#[test]
-fn a_configured_github_forge_without_records_starts_not_connected() {
-    let document = fixtures::document();
-    let document = github_input(core::str::from_utf8(&document).unwrap());
-    let mut service = crate::startup(
-        document.as_bytes(),
-        &config::Directories::working(),
-        &fixtures::files(),
-        &fixtures::startup_agent(),
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
-    )
-    .unwrap();
-    assert_eq!(service.engine.as_ref().expect("engine").workers.forges[0].kind, settings::Kind::GitHub);
-    service.engine.as_mut().expect("engine").store = fixtures::memory_store();
-    let mut face = fixtures::ForgeFace::new();
-    for _ in 0_u8..32 {
-        face.turn(&mut service);
-    }
-    assert_eq!(
-        service.notes().pop(),
-        Some(crate::Note::ForgeNotConnected { number: 1, why: crate::NotConnected::NoRecords })
-    );
-    assert!(service.engine.as_ref().expect("engine").credentials.is_empty());
-    assert!(service.engine.as_ref().expect("engine").forge.starts.is_empty());
-    assert!(service.engine.as_ref().expect("engine").forge_records.done());
-    assert!(service.engine.as_ref().expect("engine").domain.ready());
-    assert_eq!(service.end(), None);
-}
-
-#[test]
-fn an_unresolved_github_forge_starts_not_connected_naming_its_host() {
-    let document = fixtures::document();
-    let document = github_input(core::str::from_utf8(&document).unwrap());
-    let mut runtime = fixtures::forge_runtime();
-    runtime.get_mut(0).unwrap().address = crate::forge::HELD_ADDRESS;
-    let mut service = crate::startup(
-        document.as_bytes(),
-        &config::Directories::working(),
-        &fixtures::files(),
-        &fixtures::startup_agent(),
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
-        runtime,
-    )
-    .unwrap();
-    assert_eq!(service.engine.as_ref().expect("engine").workers.forges[0].kind, settings::Kind::GitHub);
-    service.engine.as_mut().expect("engine").store = fixtures::memory_store();
-    let mut face = fixtures::ForgeFace::new();
-    for _ in 0_u8..32 {
-        face.turn(&mut service);
-    }
-    assert_eq!(
-        service.notes().pop(),
-        Some(crate::Note::ForgeNotConnected {
-            number: 1,
-            why: crate::NotConnected::Unreachable { host: b"api.github.com".as_slice().into() }
-        })
-    );
-    assert!(service.engine.as_ref().expect("engine").credentials.is_empty());
-    assert!(service.engine.as_ref().expect("engine").forge.starts.is_empty());
-    assert!(service.engine.as_ref().expect("engine").forge_records.done());
-    assert!(service.engine.as_ref().expect("engine").domain.ready());
-    assert_eq!(service.end(), None);
 }
 
 #[test]
@@ -1643,64 +1008,6 @@ fn a_worker_alone_checks_its_application_paths_and_its_git_and_channel_limits() 
 }
 
 #[test]
-fn fake_handovers_are_private_and_refused_unless_exactly_40_lowercase_hex_digits() {
-    let checked = checked_fake_setup();
-    let listed = crate::startup::setup_files(&checked);
-    assert_eq!(listed.len(), 1);
-    assert_eq!(listed[0].path.as_ref(), b"/data/demo/forge/admin_token");
-    assert!(listed[0].private);
-    assert_eq!(listed[0].max, 40);
-    for value in [
-        b"".as_slice(),
-        b"0123456789abcdef0123456789abcdef0123456",
-        b"0123456789abcdef0123456789abcdef012345678",
-        b"0123456789abcdef0123456789abcdef0123456A",
-        b"0123456789abcdef0123456789abcdef0123456g",
-        b"0123456789abcdef0123456789abcdef0123456\n",
-        b"0123456789abcdef0123456789abcdef01234567",
-    ] {
-        let mut files = fixtures::files();
-        let mut entries = List::with_capacity(files.entries.len().checked_add(1).unwrap());
-        for entry in files.entries.into_boxed() {
-            entries.push(entry).unwrap();
-        }
-        entries.push((listed[0].path.clone(), skein_lib::Secret::new(value.into()))).unwrap();
-        files.entries = entries;
-        let result = fake_start(&checked, &files);
-        if value == b"0123456789abcdef0123456789abcdef01234567" {
-            assert!(result.is_ok());
-        } else if value.len() > 40 {
-            assert_eq!(lines(&result.err().unwrap()).as_ref(), b"application.setup[0].admin_token: past its bound\n");
-        } else {
-            assert_eq!(
-                lines(&result.err().unwrap()).as_ref(),
-                b"application.setup[0].admin_token: /data/demo/forge/admin_token: admin_token must be exactly 40 lowercase hexadecimal digits\n"
-            );
-        }
-    }
-    let problems = fake_start(&checked, &fixtures::files()).err().unwrap();
-    assert_eq!(lines(&problems).as_ref(), b"application.setup[0].admin_token: not read\n");
-}
-
-fn fake_start(
-    checked: &temper_forge_setup::check::Checked,
-    files: &settings::Files,
-) -> Result<crate::Service, Problems> {
-    crate::startup::with_setup(
-        &fixtures::document(),
-        &config::Directories::working(),
-        files,
-        Some(&fixtures::startup_agent()),
-        &fixtures::seeds(),
-        None,
-        Some(fixtures::worker_runtime()),
-        fixtures::forge_runtime(),
-        Some(checked),
-        None,
-    )
-}
-
-#[test]
 fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     // Linux's IORING_MAX_ENTRIES, the largest submission ring.
     const IORING_MAX_ENTRIES: u32 = 32_768;
@@ -1723,256 +1030,6 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     let service = crate::startup::worker_alone(part, &files, &agent, fixtures::worker_runtime(), 7).unwrap();
     assert!(service.operations() <= IORING_MAX_ENTRIES);
     assert_eq!(service.operations(), operations, "the start's check and the ring agree");
-}
-
-fn owned_start_document(asked: bool) -> Box<[u8]> {
-    let setup = br#"[{"forge":1,"directory":"forge-1","bot":{"login":"temper","email":"temper@example.test"},
-        "start":"asked","mode":{"owned":{"forgejo":"/opt/forgejo","runner":null,
-        "listen":{"socket":"127.0.0.1:9"},"person":{"login":"ada","email":"ada@example.test"}}}}]"#;
-    let input = fixtures::with(&fixtures::document(), b"application.setup", setup);
-    let input = fixtures::with(&input, b"application.forges[0].webhook_secret", br#""secrets/forge-1.webhook-secret""#);
-    let input = fixtures::with(&input, b"application.webhooks", br#"{"listener":{"socket":"127.0.0.1:7102"}}"#);
-    if asked {
-        input
-    } else {
-        core::str::from_utf8(&input).unwrap().replace("\"start\":\"asked\",", "").into_bytes().into_boxed_slice()
-    }
-}
-fn start_owned(asked: bool, files: &settings::Files) -> Result<crate::Service, Problems> {
-    crate::startup(
-        &owned_start_document(asked),
-        &config::Directories::working(),
-        files,
-        &fixtures::startup_agent(),
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
-    )
-}
-fn assert_owned_not_set_up(files: &settings::Files) {
-    let mut service = start_owned(true, files).expect("absent asked files are allowed");
-    let engine = service.engine.as_mut().unwrap();
-    assert_eq!(engine.forge.component.start(1), Some(skein_forge_connection::start::Start::Unconnected));
-    assert!(engine.values.identities.newest(1).is_none(), "no partial identity");
-    engine.store = fixtures::memory_store();
-    let mut face = fixtures::ForgeFace::new();
-    for _ in 0_u8..32 {
-        face.turn(&mut service);
-    }
-    assert_eq!(
-        service.engine.as_ref().unwrap().domain.forge_connection(1),
-        temper_engine_domain_forge::Connection::NotSetUp
-    );
-    assert!(face.sent().is_empty());
-    assert!(service.engine.as_ref().unwrap().forge.starts.is_empty(), "no Connect request");
-    assert!(service.engine.as_ref().unwrap().credentials.is_empty());
-    assert_eq!(service.end(), None);
-}
-#[test]
-fn an_asked_owned_forge_without_any_files_starts_not_set_up() {
-    let mut files = fixtures::files();
-    for name in [
-        b"secrets/forge-1.api-token".as_slice(),
-        b"secrets/forge-1.user",
-        b"secrets/forge-1.git-token",
-        b"secrets/forge-1.webhook-secret",
-    ] {
-        files.entries = fixtures::without(files.entries, name);
-    }
-    assert_owned_not_set_up(&files);
-}
-#[test]
-fn an_asked_owned_forges_partial_files_never_grant_access() {
-    for absent in [
-        b"secrets/forge-1.user".as_slice(),
-        b"secrets/forge-1.api-token",
-        b"secrets/forge-1.git-token",
-        b"secrets/forge-1.webhook-secret",
-    ] {
-        let mut files = fixtures::files();
-        files.entries = fixtures::without(files.entries, absent);
-        assert_owned_not_set_up(&files);
-    }
-}
-#[test]
-fn an_unasked_owned_forges_absent_api_token_still_refuses_startup() {
-    let mut files = fixtures::files();
-    files.entries = fixtures::without(files.entries, b"secrets/forge-1.api-token");
-    assert_eq!(
-        lines(&start_owned(false, &files).err().unwrap()).as_ref(),
-        b"application.forges[0].api_token: not read\n"
-    );
-}
-#[test]
-fn an_asked_owned_forge_with_all_files_starts_from_their_access() {
-    let mut service = start_owned(true, &fixtures::files()).unwrap();
-    let engine = service.engine.as_mut().unwrap();
-    assert_eq!(engine.workers.forges[0].user, 42);
-    assert!(engine.values.identities.newest(1).is_some(), "identity from its file");
-    engine.store = fixtures::memory_store();
-    let mut face = fixtures::ForgeFace::new();
-    face.connected(&mut service);
-    assert!(skein_lib::bytes::find(face.sent(), b"Authorization: token api-token\r\n").is_some());
-    assert_eq!(service.end(), None);
-}
-#[test]
-fn asked_files_keep_the_same_paths_bounds_and_privacy_as_required_files() {
-    let required = crate::startup::named(&owned_start_document(false), &config::Directories::working()).unwrap();
-    let asked = crate::startup::named(&owned_start_document(true), &config::Directories::working()).unwrap();
-    assert_eq!(asked.asked_files.len(), 4);
-    for file in asked.asked_files {
-        let original = required.files.iter().find(|original| original.path == file.path).unwrap();
-        assert_eq!(file.at, original.at);
-        assert_eq!(file.max, original.max);
-        assert_eq!(file.private, original.private);
-        assert!(!asked.files.iter().any(|required| required.path == file.path));
-    }
-}
-#[test]
-fn an_asked_file_present_past_its_bound_still_refuses_startup() {
-    let mut files = fixtures::files();
-    files.entries = fixtures::without(files.entries, b"secrets/forge-1.api-token");
-    files
-        .entries
-        .push((
-            b"secrets/forge-1.api-token".as_slice().into(),
-            skein_lib::Secret::new(Box::from([b'a'; 4097].as_slice())),
-        ))
-        .unwrap();
-    assert_eq!(
-        lines(&start_owned(true, &files).err().unwrap()).as_ref(),
-        b"application.forges[0].api_token: past its bound\n"
-    );
-}
-
-#[test]
-fn forge_configuration_retains_only_git_bases_within_the_pull_address_bound() {
-    let mut settings = fixtures::engine();
-    let base = [b'g'; 2049];
-    for length in [2048, 2049] {
-        settings.forges[0].git = base.get(..length).unwrap().into();
-        let configured = application::configured(&settings);
-        if length == 2048 {
-            assert_eq!(configured[0].git, settings.forges[0].git);
-        } else {
-            assert!(configured[0].git.is_empty(), "an oversized base cannot form a pull address");
-        }
-    }
-}
-
-#[test]
-fn forge_configuration_keeps_kind_mode_and_asked_start() {
-    use temper_engine_domain_forge::{Configured, Kind, Mode};
-    let mut settings = fixtures::engine();
-    for (source, kind) in [(settings::Kind::Forgejo, Kind::Forgejo), (settings::Kind::GitHub, Kind::GitHub)] {
-        settings.forges[0].kind = source;
-        assert_eq!(
-            application::configured(&settings).as_ref(),
-            [Configured {
-                bot: Box::new([]),
-                admin_connect: false,
-                owned: None,
-                git: settings.forges[0].git.clone(),
-                web: None,
-                read_only: false,
-                number: 1,
-                kind,
-                mode: Mode::Connected,
-                asked: false
-            }]
-        );
-    }
-    settings.forges[0].kind = settings::Kind::Forgejo;
-    settings.setup = Box::new([fixtures::owned_setup(1)]);
-    assert_eq!(
-        application::configured(&settings).as_ref(),
-        [Configured {
-            bot: b"temper".as_slice().into(),
-            admin_connect: false,
-            owned: Some(temper_engine_domain_forge::Owned {
-                forgejo: skein_forge::forgejo::pin::VERSION.as_bytes().into(),
-                runner: None,
-                password: b"/data/forge/person_password".as_slice().into(),
-            }),
-            git: settings.forges[0].git.clone(),
-            web: None,
-            read_only: false,
-            number: 1,
-            kind: Kind::Forgejo,
-            mode: Mode::Owned,
-            asked: true,
-        }]
-    );
-    for (admin_token, allowed) in [(None, true), (Some(b"admin-file".as_slice().into()), false)] {
-        settings.setup[0].entry.mode = temper_forge_setup::setup::Mode::Managed { admin_token };
-        let configured = application::configured(&settings);
-        assert_eq!(configured[0].mode, Mode::Managed);
-        assert_eq!(configured[0].admin_connect, allowed);
-    }
-}
-
-#[test]
-fn records_only_local_entries_need_the_checked_boundary_and_name_no_files() {
-    let input = records_only_document();
-    // The inverse join is retained until temper-15; no token member is present.
-    let named = crate::named(&input, &config::Directories::working()).unwrap();
-    assert!(named.files.iter().all(|file| !file.path.is_empty()));
-    assert!(named.files.iter().all(|file| !file.path.starts_with(b"secrets/forge-1")));
-    let checked = checked_local_setup(true);
-    assert!(crate::startup::setup_files(&checked).is_empty());
-    for (setup, admitted) in [(None, false), (Some(&checked), true)] {
-        let result = crate::startup::with_setup(
-            &input,
-            &config::Directories::working(),
-            &fixtures::files(),
-            Some(&fixtures::startup_agent()),
-            &fixtures::seeds(),
-            None,
-            Some(fixtures::worker_runtime()),
-            fixtures::forge_runtime(),
-            setup,
-            None,
-        );
-        assert_eq!(result.is_ok(), admitted, "checked local input: {:?}", result.err());
-    }
-}
-
-fn records_only_document() -> Box<[u8]> {
-    let input = fixtures::document();
-    let input = fixtures::with(&input, b"application.forges[0]", br#"{"number":1,"kind":"forgejo","api":{"socket":"127.0.0.1:9"},"transport":"plaintext","git":"http://127.0.0.1:9","identity":1}"#);
-    fixtures::with(
-        &input,
-        b"application.identities[0]",
-        br#"{"number":1,"login":"temper","author":{"name":"Temper","email":"temper@example.test"}}"#,
-    )
-}
-#[test]
-fn any_old_member_keeps_the_partial_old_forms_missing_member_refusals() {
-    let input = records_only_document();
-    let text = core::str::from_utf8(&input).unwrap();
-    for (member, expected) in [
-        (
-            "\"api_token\":\"old\",",
-            "application.forges[0].webhook_secret: missing\napplication.forges[0].user: missing\n",
-        ),
-        ("\"user\":42,", "application.forges[0].api_token: missing\napplication.forges[0].webhook_secret: missing\n"),
-        ("\"webhook_secret\":null,", "application.forges[0].api_token: missing\napplication.forges[0].user: missing\n"),
-    ] {
-        let partial = text.replace("\"kind\":\"forgejo\",", &[member, "\"kind\":\"forgejo\","].concat());
-        let refused = crate::named(partial.as_bytes(), &config::Directories::working()).unwrap_err();
-        assert_eq!(lines(&refused).as_ref(), expected.as_bytes());
-    }
-    let partial = text.replace("\"number\":1,\"login\"", "\"token\":\"old\",\"number\":1,\"login\"");
-    let refused = crate::named(partial.as_bytes(), &config::Directories::working()).unwrap_err();
-    assert_eq!(lines(&refused).as_ref(), b"application.forges[0].api_token: missing\napplication.forges[0].webhook_secret: missing\napplication.forges[0].user: missing\n");
-}
-
-#[test]
-fn a_records_only_forgejo_identity_still_requires_its_configured_author() {
-    let input = fixtures::with(&records_only_document(), b"application.identities[0].author", b"null");
-    let refused = crate::named(&input, &config::Directories::working()).unwrap_err();
-    assert_eq!(lines(&refused).as_ref(), b"application.identities[0].author: invalid form\n");
 }
 
 #[test]
@@ -2076,95 +1133,6 @@ fn clients_public_bounds_dns_labels_and_the_host() {
     }
 }
 
-#[test]
-fn string_managed_starts_disconnected_without_a_setup_run() {
-    use temper_forge_setup::check;
-    let setup = br#"[{"forge":1,"bot":{"login":"temper","email":"temper@example.test"},"mode":"managed"}]"#;
-    let input = fixtures::with(&records_only_document(), b"application.setup", setup);
-    let document =
-        config::document(&input, &config::DocumentLimits { bytes: 65_536, tokens: 16_384, depth: 32 }).unwrap();
-    let named = crate::named(&input, &config::Directories::working()).unwrap();
-    let application = config::read::Object::new(&document, 0).unwrap().member(&document, b"application").unwrap();
-    let at = config::read::Object::new(&document, application).unwrap().member(&document, b"setup").unwrap();
-    let members = check::Members {
-        forges: Box::new([check::Forge {
-            number: 1,
-            api: Some(([127, 0, 0, 1], 9).into()),
-            plaintext: true,
-            git: named.forges[0].git.clone(),
-            user: check::User::Id(0),
-            api_token: Box::new([]),
-            webhook_secret: None,
-            identity_token: Box::new([]),
-            identity_login: b"temper".as_slice().into(),
-        }]),
-        listeners: Box::new([]),
-    };
-    let checked = check::checked(&document, at, &config::Directories::working(), &members, None, &[]).unwrap();
-    let mut service = crate::startup::with_setup(
-        &input,
-        &config::Directories::working(),
-        &fixtures::files(),
-        Some(&fixtures::startup_agent()),
-        &fixtures::seeds(),
-        None,
-        Some(fixtures::worker_runtime()),
-        fixtures::forge_runtime(),
-        Some(&checked),
-        None,
-    )
-    .unwrap();
-    service.engine.as_mut().unwrap().store = fixtures::records_store();
-    // Drain the startup record reads, then let setup act on their absence.
-    for _ in 0_u32..8 {
-        crate::forge::records::advance(service.engine.as_mut().unwrap());
-    }
-    crate::setup::advance(service.engine.as_mut().unwrap());
-    let engine = service.engine.as_ref().unwrap();
-    let bytes = crate::family::forges(engine.domain.forges(), &temper_client_protocol_wire::v1::CEILINGS).unwrap();
-    let rows = temper_client_protocol_wire::decode_forges(&bytes, &temper_client_protocol_wire::v1::CEILINGS).unwrap();
-    assert_eq!(rows.forges().get(0).unwrap().mode(), &temper_client_protocol_wire::v1::Mode::Managed);
-    assert_eq!(rows.forges().get(0).unwrap().connection(), &temper_client_protocol_wire::v1::Connection::NotConnected);
-    assert!(!engine.setup.busy(1));
-    assert!(engine.setup.staged.is_empty());
-    assert!(engine.setup.io.is_empty());
-}
-
-#[test]
-fn owned_startup_details_keep_the_runner_pin_and_directory_path_and_managed_has_none() {
-    use temper_forge_setup::setup::{Mode, Runner};
-    let mut settings = fixtures::engine();
-    settings.setup = Box::new([fixtures::owned_setup(1)]);
-    settings.setup[0].entry.directory = b"/data/another-forge".as_slice().into();
-    let Mode::Owned(owned) = &mut settings.setup[0].entry.mode else { panic!("owned fixture") };
-    owned.runner = Some(Runner {
-        binary: b"/bin/runner".as_slice().into(),
-        labels: Box::new([]),
-        capacity: 1,
-        path: b"/bin".as_slice().into(),
-    });
-    let rows = application::configured(&settings);
-    let details = rows[0].owned.as_ref().unwrap();
-    assert_eq!(details.forgejo.as_ref(), skein_forge::forgejo::pin::VERSION.as_bytes());
-    assert_eq!(details.runner.as_deref(), Some(skein_forge::forgejo::pin::RUNNER_VERSION.as_bytes()));
-    assert_eq!(details.password.as_ref(), b"/data/another-forge/person_password");
-    settings.setup[0].entry.mode = Mode::Managed { admin_token: Some(b"/fake/admin-token".as_slice().into()) };
-    assert!(application::configured(&settings)[0].owned.is_none());
-}
-
-#[test]
-fn a_turn_project_on_github_is_refused_at_start() {
-    let jig = fixtures::engine().jig;
-    let input = fixtures::with(
-        github_application().as_bytes(),
-        b"landing.projects",
-        br#"[{"project":1,"rules":[],"by":"turn","gates":[{"forge":1,"repository":2}]}]"#,
-    );
-    let (members, problems) = application(&input, &jig);
-    assert!(members.is_none());
-    assert_eq!(lines(&problems).as_ref(), b"application.landing.projects[0].gates[0].repository: invalid form\n");
-}
-
 fn turn_projects(project: u32) -> Box<[u8]> {
     format!(
         r#"[{{"project":{project},"rules":[],"by":"turn","gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true}}]}}]}}]"#
@@ -2224,4 +1192,49 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     let landing = members.landing.landings.get(&1).unwrap();
     assert_eq!(landing.by, temper_engine_domain::Way::Queue);
     assert!(landing.repositories.is_empty());
+}
+
+#[test]
+fn a_document_without_demo_forge_and_project_is_read() {
+    let input = fixtures::demo_application();
+    let input = core::str::from_utf8(&input).unwrap().replace(",\n\"forge\":1,\"project\":1", "");
+    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+    assert_eq!(&*lines(&problems), b"");
+    let demo = members.unwrap().demo.unwrap();
+    assert_eq!(demo.provider, 3);
+    assert_eq!(demo.owner.as_ref(), b"playground");
+    assert_eq!(demo.name.as_ref(), b"widget");
+    assert_eq!(demo.landing.as_ref(), b"main");
+    assert!(demo.key_file.ends_with(b"demo/llm.key"));
+    assert_eq!(demo.cues.len(), 3);
+}
+
+#[test]
+fn a_document_naming_forges_is_refused_by_path() {
+    let input = core::str::from_utf8(&fixtures::document())
+        .unwrap()
+        .replace("\"application\":{", "\"application\":{\"forges\":[],");
+    let found = crate::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
+    assert_eq!(lines(&found).as_ref(), b"application.forges: unknown member\n");
+}
+#[test]
+fn identities_and_setup_are_unknown_members() {
+    for member in ["identities", "setup"] {
+        let input = core::str::from_utf8(&fixtures::document())
+            .unwrap()
+            .replace("\"application\":{", &format!("\"application\":{{\"{member}\":[],"));
+        let found = crate::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
+        assert_eq!(lines(&found).as_ref(), format!("application.{member}: unknown member\n").as_bytes());
+    }
+}
+
+#[test]
+fn demo_refuses_forge_and_project_members() {
+    for member in ["forge", "project"] {
+        let input = fixtures::demo_application();
+        let input = core::str::from_utf8(&input).unwrap().replace("\"demo\":{", &format!("\"demo\":{{\"{member}\":1,"));
+        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+        assert!(members.is_none());
+        assert_eq!(lines(&problems).as_ref(), format!("application.demo.{member}: unknown member\n").as_bytes());
+    }
 }

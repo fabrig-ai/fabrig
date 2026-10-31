@@ -230,6 +230,7 @@ impl World {
                         | people::Stored::EndedRead { .. }
                         | people::Stored::Roles { .. }
                         | people::Stored::Acted { .. }
+                        | people::Stored::Deletion { .. }
                         | people::Stored::Policy { .. }
                         | people::Stored::Answer { .. },
                     )
@@ -550,8 +551,12 @@ impl World {
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
-                | engine::Request::StopGroup { .. }
-                | engine::Request::SetUpGroup { .. }
+                | engine::Request::ForgeKept(_)
+                | engine::Request::ForgeGone { .. }
+                | engine::Request::BoxGroup { .. }
+                | engine::Request::PlaygroundActs { .. }
+                | engine::Request::ResetAct { .. }
+                | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }

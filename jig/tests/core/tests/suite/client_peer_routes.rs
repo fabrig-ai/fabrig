@@ -1,12 +1,12 @@
 use jig_core_world::Fault;
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    client_peer::ClientPeer,
-    conformance::Observer,
-    effects::World,
-    peers::{Peers, fixture},
-    referee::{Observed, Receipt},
-};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::conformance::Observer;
+use jig_core_world::peers::Peers;
+use jig_core_world::peers::fixture;
+use jig_core_world::referee::Observed;
+use jig_core_world::referee::Receipt;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

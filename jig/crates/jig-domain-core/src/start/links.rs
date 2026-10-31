@@ -1,4 +1,5 @@
 //! Cross-child required links before sweep (jig/docs/design/domain/engine.md, 6).
+//! Kept deletions own remaining project rows (jig/docs/design/domain/people.md, 5.2).
 use crate::{Core, CoreKey, Key, accounts, people, tasks};
 
 impl Core {
@@ -251,7 +252,9 @@ impl Core {
     fn link_resource_projects(&self) {
         for (key, _) in &self.resource_roles {
             assert!(
-                key.project == people::DEPLOYMENT || self.authority.policy(key.project).is_some(),
+                key.project == people::DEPLOYMENT
+                    || self.authority.policy(key.project).is_some()
+                    || self.deletions.contains(key.project),
                 "{key:?} links missing project {}",
                 key.project
             );
@@ -304,6 +307,7 @@ impl Core {
                 | people::Outcome::RolesSet { .. }
                 | people::Outcome::PolicyChanged { .. }
                 | people::Outcome::Renamed { .. }
+                | people::Outcome::ProjectRemoved { .. }
                 | people::Outcome::ProjectMade { .. }
                 | people::Outcome::SettingsChanged { .. }
                 | people::Outcome::MovedToNewest { .. }

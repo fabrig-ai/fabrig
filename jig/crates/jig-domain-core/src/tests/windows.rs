@@ -236,7 +236,7 @@ fn assert_closed_prepares(tail_bytes: u32, body: &[u8], expected_tail: &[u8]) {
     append(&mut core, 1, body);
     assert_eq!(tail(&core, tail_bytes).as_ref(), expected_tail);
     let _out = watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, ready: true });
-    let attempt = *core.workspace_pending.get(&1).unwrap();
+    let attempt = core.workspace_flight(1).unwrap().1;
     let out = watch_outputs(
         &mut core,
         &limits,
