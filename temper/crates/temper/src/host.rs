@@ -741,8 +741,8 @@ fn start_failures_name_the_set_key_setting_and_measured_limit() {
     let key = Key::Tasks(jig_domain_tasks::Key::Live(17));
     for (failure, words) in [
         (
-            Failure::LiveSet { set: LiveSet::Tasks, key: key.clone(), held: 5, limit: 4 },
-            "Tasks, key Tasks(Live(17)), held 5, limit 4",
+            Failure::LiveSet { set: LiveSet::RunProofs, key: key.clone(), held: 5, limit: 4 },
+            "RunProofs, key Tasks(Live(17)), held 5, limit 4",
         ),
         (Failure::HeldPastLimit { which: HeldLimit::Revisions, held: 5, limit: 4 }, "Revisions, held 5, limit 4"),
         (Failure::HeldPastLimit { which: HeldLimit::Versions, held: 5, limit: 4 }, "Versions, held 5, limit 4"),
