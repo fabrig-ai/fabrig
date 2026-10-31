@@ -29,6 +29,10 @@ pub enum RecordKind {
     Flight,
     Landing,
     Receipt,
+    Forge,
+    ForgeNumbers,
+    Playground,
+    KeptAct,
 }
 /// Compatibility diagnostic; missing required links assert during reconciliation.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -82,6 +86,7 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.client.repositories)? // Writer: configured forge.
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
         .checked_add(l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)?)?
+        .checked_add(crate::kept_act_bound(l)?)? // KeptAct: durable forge.
         .checked_add(1) // Demo: configured demo's forge.
 }
 impl Reconciliation {
@@ -237,11 +242,17 @@ impl Reconciliation {
                 crate::ApplicationOutcome::CoreRefused(_) | crate::ApplicationOutcome::ForgeRefused(_) => Ok(()),
             },
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
+            Stored::KeptAct(row) => self.need(RecordKind::KeptAct, Need::Forge(row.forge)),
             Stored::Demo(row) => self.need(RecordKind::Demo, Need::Demo(row.forge)),
             // Landing history outlives tasks (domain/forge.md, 7.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
-            Stored::Landed { .. } | Stored::Binding { .. } | Stored::DemoAct(_) => Ok(()),
+            Stored::Forge(_)
+            | Stored::ForgeNumbers { .. }
+            | Stored::Playground(_)
+            | Stored::Landed { .. }
+            | Stored::Binding { .. }
+            | Stored::DemoAct(_) => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
         }
     }
@@ -269,7 +280,13 @@ impl Domain {
                 }
                 Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
             };
-            if !self.reference_resolves(reference.need, live) {
+            let resolves = if reference.kind == RecordKind::KeptAct {
+                let Need::Forge(forge) = reference.need else { unreachable!("kept act forge link") };
+                self.forges.contains_key(&forge)
+            } else {
+                self.reference_resolves(reference.need, live)
+            };
+            if !resolves {
                 return Some(MissingLink {
                     kind: reference.kind,
                     key: self.restored_link_key(
@@ -369,7 +386,13 @@ pub(crate) fn references_resolve(d: &Domain, limits: &Limits, row: &Stored, live
                 return false;
             }
         }
-        if !d.reference_resolves(reference.need, live) {
+        let resolves = if reference.kind == RecordKind::KeptAct {
+            let Need::Forge(forge) = reference.need else { unreachable!("kept act forge link") };
+            d.forges.contains_key(&forge)
+        } else {
+            d.reference_resolves(reference.need, live)
+        };
+        if !resolves {
             return false;
         }
     }

@@ -22,6 +22,8 @@ pub enum RestoreSet {
     LandingAsks,
     LandingEntries,
     NameBytes,
+    DefinitionBytes,
+    ForgeNumber,
 }
 
 /// The first configured bound a restored row or derived set could not fit.
@@ -237,6 +239,45 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.flights.capacity(),
             d.flights.contains_key(&(*task, *entry)),
         ),
+        Stored::Forge(row) => {
+            field(K::Forge, RestoreSet::ForgeNumber, u64::from(row.number), u64::from(u16::MAX - 1))?;
+            if row.number == 0 {
+                return Err(RestoreFit {
+                    family: Some(K::Forge),
+                    set: RestoreSet::ForgeNumber,
+                    held: 0,
+                    additional: 1,
+                    limit: 0,
+                });
+            }
+            field(K::Forge, RestoreSet::DefinitionBytes, count(row.definition.len()), u64::from(l.definition_bytes))?;
+            if let Some(first) = &row.first {
+                for name in [&first.org, &first.repository, &first.label] {
+                    field(K::Forge, RestoreSet::NameBytes, count(name.len()), u64::from(crate::FIRST_NAME_BYTES))?;
+                }
+                match &first.project {
+                    crate::SetUpProject::New(name) => {
+                        field(K::Forge, RestoreSet::NameBytes, count(name.len()), u64::from(crate::FIRST_NAME_BYTES))?;
+                    }
+                    crate::SetUpProject::Existing(_) => {}
+                }
+            }
+            room(K::Forge, Rows(K::Forge), d.forges.len(), d.forges.capacity(), d.forges.contains_key(&row.number))
+        }
+        Stored::ForgeNumbers { next: 0 } => Err(RestoreFit {
+            family: Some(K::ForgeNumbers),
+            set: RestoreSet::ForgeNumber,
+            held: 0,
+            additional: 1,
+            limit: 0,
+        }),
+        Stored::KeptAct(row) => room(
+            K::KeptAct,
+            Rows(K::KeptAct),
+            d.kept_acts.len(),
+            d.kept_acts.capacity(),
+            d.kept_acts.contains_key(&row.key),
+        ),
         Stored::DemoAct(row) => room(
             K::DemoAct,
             Rows(K::DemoAct),
@@ -277,7 +318,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::Demo(_) | Stored::Client(_) => Ok(()),
+        Stored::ForgeNumbers { .. } | Stored::Playground(_) | Stored::Demo(_) | Stored::Client(_) => Ok(()),
     }
 }
 

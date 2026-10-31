@@ -30,6 +30,8 @@ mod gates;
 mod held;
 pub mod items;
 mod judge;
+pub(crate) mod kept;
+pub use kept::Full;
 mod landing;
 mod limits;
 mod panel;
@@ -53,7 +55,8 @@ pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag,
 pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Judges, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{
-    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, demo_act_bound, valid,
+    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, demo_act_bound, kept_act_bound,
+    valid,
 };
 pub use panel::{MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelStep, PanelUsed};
 pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
@@ -247,6 +250,10 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Application { token, .. } => Key::Application(*token),
         Stored::Writer(row) => Key::Writer(row.forge),
         Stored::Demo(row) => Key::Demo(row.forge),
+        Stored::Forge(row) => Key::Forge(row.number),
+        Stored::ForgeNumbers { .. } => Key::ForgeNumbers,
+        Stored::Playground(_) => Key::Playground,
+        Stored::KeptAct(row) => Key::KeptAct(row.key),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
         Stored::DemoAct(row) => Key::DemoAct(row.key),
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
@@ -402,6 +409,20 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(held)
         }
+        Stored::Forge(row) => {
+            let mut held = bytes(&row.definition)?;
+            if let Some(first) = &row.first {
+                held = held
+                    .checked_add(bytes(&first.org)?)?
+                    .checked_add(bytes(&first.repository)?)?
+                    .checked_add(bytes(&first.label)?)?;
+                match &first.project {
+                    SetUpProject::New(name) => held = held.checked_add(bytes(name)?)?,
+                    SetUpProject::Existing(_) => {}
+                }
+            }
+            Some(held)
+        }
         Stored::Binding { address, subject } => bytes(address)?.checked_add(bytes(subject)?),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
@@ -410,6 +431,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         | Stored::Writer(_)
         | Stored::Demo(_)
         | Stored::DemoAct(_)
+        | Stored::ForgeNumbers { .. }
+        | Stored::Playground(_)
+        | Stored::KeptAct(_)
         | Stored::Flight { .. } => Some(0),
         Stored::ProposedEffect(row) => {
             let resource = match &row.resource {
