@@ -380,7 +380,6 @@ impl Store {
         !self.delayed.is_empty() || !self.routes.idle()
     }
     fn open(&mut self) {
-        self.component.as_mut().expect("component exists").start_restore();
         self.patched = 0;
         let root = match &self.disk {
             Some(disk) => disk.root(),
@@ -529,7 +528,7 @@ impl Store {
                 self.route(event, requests);
             }
             Event::OpenRefused { why, .. } => panic!("world store open refused: {why:?}"),
-            event @ (Event::Page { .. } | Event::Restored { .. } | Event::Loaded { .. } | Event::Read { .. })
+            event @ (Event::Page { .. } | Event::Loaded { .. } | Event::Read { .. })
                 if self.page_delay != 0 || self.pages_paused =>
             {
                 self.delayed.push_back(Delayed { event, delay: self.page_delay });
@@ -540,7 +539,6 @@ impl Store {
             }
             // These worlds supply sets without written sites; routing answers NoSite.
             event @ (Event::Site { .. }
-            | Event::Restored { .. }
             | Event::Page { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }

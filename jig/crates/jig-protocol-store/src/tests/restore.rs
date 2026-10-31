@@ -30,12 +30,17 @@ fn live_page(store: &mut Store, after: Option<Cursor>, rows: u32, bytes: u64) ->
 
 fn page(events: Box<[Event]>) -> (Box<[Row]>, Option<Cursor>) {
     let mut events = events.into_iter();
-    let Some(Event::Restored { owner, rows, next }) = events.next() else {
+    let Some(Event::Page { owner, items, next }) = events.next() else {
         panic!("one restored page");
     };
     assert_eq!(owner, OWNER);
     assert!(events.next().is_none());
-    (rows, next)
+    let mut rows = List::with_capacity(u32::try_from(items.len()).expect("page items"));
+    for item in items {
+        let crate::restore::Item::Row(row) = item else { panic!("expected a row") };
+        rows.push(row).expect("one row per item");
+    }
+    (rows.into_boxed(), next)
 }
 
 fn jig_rows(rows: Box<[Row]>) -> Box<[Record]> {
@@ -48,7 +53,7 @@ fn jig_rows(rows: Box<[Row]>) -> Box<[Record]> {
 }
 
 fn assert_corrupt(store: &mut Store, events: &[Event]) {
-    let [Event::Corrupt { owner }] = events else { panic!("one corruption terminal: {events:?}") };
+    let [Event::PageRefused { owner, .. }] = events else { panic!("one corruption terminal: {events:?}") };
     assert_eq!(*owner, OWNER);
     assert_eq!(store.phase, Phase::Stopped);
 }
@@ -227,10 +232,14 @@ fn the_census_hands_up_the_ended_task_its_row_names() {
 }
 
 #[test]
-fn a_census_row_without_its_ended_task_is_corrupt() {
+fn a_census_row_without_its_ended_task_hands_up_the_missing_link() {
     let mut store = census_store(false);
     let events = restore(&mut store, census(), None, 2, 65_536);
-    assert_corrupt(&mut store, &events);
+    let [Event::Page { owner: OWNER, items, next: None }] = events.as_ref() else { panic!("typed page") };
+    let [crate::restore::Item::MissingLink { record, target }] = items.as_ref() else { panic!("missing link") };
+    assert_eq!(*record, fixtures::result_index(ALICE, 1, ENDED).key());
+    assert_eq!(*target, jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Ended(ENDED)));
+    let Phase::Ready { .. } = store.phase else { panic!("ready after missing link") };
 }
 
 #[test]

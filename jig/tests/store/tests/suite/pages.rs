@@ -89,8 +89,10 @@ fn maximum_writer_rows_restore_across_a_crash_above_the_ordinary_read_allowance(
             rows: 1,
             bytes: sizes::restore_bytes(&limits).expect("restart allowance fits"),
         });
-        let [Event::Restored { rows, next, .. }] = events.as_slice() else { panic!("restore page: {events:?}") };
-        let [Row::Application { key, value: found }] = rows.as_ref() else { panic!("one application row") };
+        let [Event::Page { items, next, .. }] = events.as_slice() else { panic!("restore page: {events:?}") };
+        let [jig_protocol_store::restore::Item::Row(Row::Application { key, value: found })] = items.as_ref() else {
+            panic!("one application row")
+        };
         assert_eq!(*key, expected);
         assert_eq!(*found, value);
         assert_eq!(next.is_some(), index == 0);

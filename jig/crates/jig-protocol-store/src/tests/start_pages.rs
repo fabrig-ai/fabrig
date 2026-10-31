@@ -9,11 +9,8 @@ const OWNER: Token = Token::new(5);
 const ROWS: u32 = 8;
 const BYTES: u64 = 65_536;
 
-fn open(selected: bool) -> Store {
+fn open() -> Store {
     let mut store = fixtures::over(fixtures::stores());
-    if selected {
-        store.start_restore();
-    }
     let events = fixtures::run(
         &mut store,
         Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
@@ -56,21 +53,10 @@ fn records(items: Box<[Item]>) -> Box<[Record]> {
     records.into_boxed()
 }
 
-fn restored(event: Event) -> (Box<[Record]>, Option<Cursor>) {
-    let Event::Restored { owner, rows, next } = event else { panic!("untyped page: {event:?}") };
-    assert_eq!(owner, OWNER);
-    let mut records = List::with_capacity(u32::try_from(rows.len()).expect("page count"));
-    for row in rows {
-        let Row::Jig(row) = row else { panic!("jig row") };
-        records.push(row).expect("page count");
-    }
-    (records.into_boxed(), next)
-}
-
 #[test]
 fn load_core_pages_equal_the_unselected_walk_with_the_same_cursors() {
-    let mut selected = open(true);
-    let mut default = open(false);
+    let mut selected = open();
+    let mut default = open();
     for store in [&mut selected, &mut default] {
         fixtures::committed(
             store,
@@ -85,8 +71,9 @@ fn load_core_pages_equal_the_unselected_walk_with_the_same_cursors() {
     let mut after = None;
     for _ in 0..ROWS {
         let (items, next) = page(request(&mut selected, live(), after.clone(), 2));
-        let (rows, default_next) = restored(request(&mut default, live(), after, 2));
-        assert_eq!(records(items), rows);
+        let direct = crate::restore::page(&mut default, live(), after.as_ref(), 2, BYTES).expect("direct live page");
+        let (rows, default_next) = (direct.items, direct.next);
+        assert_eq!(records(items), records(rows));
         assert_eq!(next, default_next);
         if next.is_none() {
             return;
@@ -99,8 +86,8 @@ fn load_core_pages_equal_the_unselected_walk_with_the_same_cursors() {
 #[test]
 fn census_pairs_and_result_joins_equal_the_unselected_walk() {
     let position = Record::People(jig_domain_people::Stored::EndedRead { task: ENDED, party: ALICE, through: 1 });
-    let mut selected = open(true);
-    let mut default = open(false);
+    let mut selected = open();
+    let mut default = open();
     for store in [&mut selected, &mut default] {
         fixtures::committed(
             store,
@@ -115,8 +102,10 @@ fn census_pairs_and_result_joins_equal_the_unselected_walk() {
     let mut after = None;
     for _ in 0..ROWS {
         let (items, next) = page(request(&mut selected, census(), after.clone(), 2));
-        let (rows, default_next) = restored(request(&mut default, census(), after, 2));
-        assert_eq!(records(items), rows);
+        let direct =
+            crate::restore::page(&mut default, census(), after.as_ref(), 2, BYTES).expect("direct census page");
+        let (rows, default_next) = (direct.items, direct.next);
+        assert_eq!(records(items), records(rows));
         assert_eq!(next, default_next);
         if next.is_none() {
             return;
@@ -128,7 +117,7 @@ fn census_pairs_and_result_joins_equal_the_unselected_walk() {
 
 #[test]
 fn a_missing_census_owner_is_a_link_with_both_domain_keys() {
-    let mut store = open(true);
+    let mut store = open();
     let child = fixtures::result_index(ALICE, 1, ENDED);
     fixtures::committed(&mut store, Box::new([fixtures::header(1), fixtures::save(child.clone())]));
     let (items, next) = page(request(&mut store, census(), None, ROWS));
@@ -154,7 +143,6 @@ fn an_undecodable_row_refuses_with_its_family_and_key_and_stops() {
         ],
     );
     let mut store = fixtures::over(stores);
-    store.start_restore();
     let events = fixtures::run(
         &mut store,
         Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
@@ -235,7 +223,7 @@ fn fire(store: &mut Store) {
 
 #[test]
 fn load_core_arms_one_sweep_and_a_second_people_walk_never_restarts_it() {
-    let mut store = open(true);
+    let mut store = open();
     lay_secrets(&mut store, &[4, 5, 6]);
     fixtures::committed(
         &mut store,
@@ -280,14 +268,14 @@ fn load_core_arms_one_sweep_and_a_second_people_walk_never_restarts_it() {
 #[test]
 #[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
 fn selected_pages_share_the_empty_nonterminal_progress_assertion() {
-    let mut store = open(true);
+    let mut store = open();
     fixtures::committed(&mut store, Box::new([fixtures::header(1)]));
     request(&mut store, live(), None, 0);
 }
 
 #[test]
 fn a_connector_page_keeps_its_bytes() {
-    let mut store = open(true);
+    let mut store = open();
     fixtures::committed(
         &mut store,
         Box::new([fixtures::header(1), Write::Put { key: Box::from(b"a1".as_slice()), value: Box::new([7]) }]),
@@ -313,7 +301,6 @@ fn the_sweep_waits_for_the_wires_commits_disk_terminal() {
     }
     disk.crash(2);
     let mut store = disk.store_with_chunk(4096);
-    store.start_restore();
     let events = disk.open(&mut store);
     let [Event::Opened { .. }] = events.as_ref() else { panic!("selected reopen") };
     let (_, next) = page(request(&mut store, live(), None, ROWS));

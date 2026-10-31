@@ -125,13 +125,10 @@ fn each_check_refusal_leaves_the_generation_before_active() {
     let mut live = root::live_task(root::LIVE);
     let jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(task)) = &mut live else { panic!("live task") };
     task.dependencies = Box::new([ENDED]);
-    let read =
-        jig_domain_core::Record::People(jig_domain_people::Stored::EndedRead { task: ENDED, party: 1, through: 1 });
     let key = |row: &jig_domain_core::Record| jig_protocol_store::keys::encode(&row.key(), 64).expect("fixture key");
     for (base_limits, open_limits, rows, why) in [
         (token_limits, token_open, vec![], Check::Large { key: Box::new(0_u64.to_be_bytes()) }),
         (patches::limits(), load_limits, vec![live.clone()], Check::Load { key: key(&live) }),
-        (patches::limits(), patches::limits(), vec![read.clone()], Check::Join { key: key(&read) }),
     ] {
         let records = Records::story();
         let mut world = records.committed_with(SEED, BASE, 1, base_limits, &rows);
@@ -159,7 +156,6 @@ fn selected_open_defers_a_missing_ended_owner_and_refusing_start_keeps_the_sourc
     let mut world = Records::story().committed_with(913, BASE, 1, patches::limits(), core::slice::from_ref(&position));
     let before = patches::source(&mut world);
     world.patch_sets(SETS);
-    world.start_restore();
     world.open().expect("selected open leaves the patched copy pending");
     assert_eq!(world.start_open_failure(), None);
     assert_eq!(world.active(), b"1\n");
@@ -175,14 +171,23 @@ fn selected_open_defers_a_missing_ended_owner_and_refusing_start_keeps_the_sourc
     assert_eq!(*record, position.key());
     assert_eq!(*target, Key::Tasks(jig_domain_tasks::Key::Ended(root::LIVE + 1)));
     patches::kept(&before, &patches::source(&mut world), &"no switch before link");
-    // A root refusing the deferred obligation makes no Switch. The next
-    // process starts with default selection and retains its Join refusal.
+    // A root refusing the deferred obligation makes no Switch. A later
+    // process opens another pending copy and hands up the same obligation.
     world.crash(914);
-    assert_eq!(world.open(), None);
-    assert!(matches!(world.refusal(), Some(OpenRefusal::Check { why: Check::Join { .. } })));
+    world.open().expect("open defers links on every start");
     assert_eq!(world.start_open_failure(), None);
     assert_eq!(world.active(), b"1\n");
-    patches::kept(&before, &patches::source(&mut world), &"refused start");
+    let page = world
+        .restore_page(
+            Restore::Jig(Box::new([RestoreRange::Census(Census { questions: Box::new([]), results: Box::new([]) })])),
+            None,
+            8,
+            65_536,
+        )
+        .expect("typed census after crash");
+    assert!(matches!(page.items.as_ref(), [Item::MissingLink { record, target }]
+        if *record == position.key() && *target == Key::Tasks(jig_domain_tasks::Key::Ended(root::LIVE + 1))));
+    patches::kept(&before, &patches::source(&mut world), &"deferred link after crash");
 }
 
 #[test]
@@ -198,7 +203,6 @@ fn selected_open_still_refuses_an_undecodable_live_row_before_switch() {
     lowered.core.tasks.dependencies = 0;
     world.patch_sets(SETS);
     world.restart_with_limits(916, lowered);
-    world.start_restore();
     assert_eq!(world.open(), None);
     assert_eq!(world.refusal(), Some(&OpenRefusal::Check { why: Check::Load { key: key.clone() } }));
     let Some(OpenFailure::Data(failure)) = world.start_open_failure() else { panic!("typed row failure") };
@@ -229,7 +233,6 @@ fn selected_open_preserves_present_ended_owner_corruption_for_the_census() {
     lowered.core.tasks.spec_bytes = 1;
     world.patch_sets(SETS);
     world.restart_with_limits(918, lowered);
-    world.start_restore();
     world.open().expect("owner decoding belongs to census");
     let failure = world
         .restore_page(
@@ -250,7 +253,6 @@ fn selected_open_keeps_the_fresh_closing_walk_and_source() {
     let mut world = fresh_committed(919, FRESH_WINDOWS, false);
     let before = patches::source(&mut world);
     world.patch_sets(FRESH_AFTER);
-    world.start_restore();
     world.open().expect("selected fresh copy pending");
     assert_eq!(world.active(), b"1\n");
     for (index, window) in FRESH_WINDOWS.iter().enumerate() {
