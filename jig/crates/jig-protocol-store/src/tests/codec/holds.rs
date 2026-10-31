@@ -567,7 +567,7 @@ fn role_spend_round_trips_in_a_stored_answer() {
 }
 
 #[test]
-fn project_spend_answer_bytes_keep_their_layout_in_people_14() {
+fn project_spend_answer_bytes_match_the_current_schema() {
     // people-v14: Row/Answer, key, ChangePolicy/ProjectSpend, no models,
     // PolicyChanged and its project, then the answer's wall time.
     let mut before = skein_lib::Writer::new(58);

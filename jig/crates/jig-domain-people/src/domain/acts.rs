@@ -23,6 +23,12 @@ impl Acted {
         self.due = deadline(env, answer_expiry(self.at, &env.limits));
         self.due
     }
+    pub(super) fn project(&self) -> Option<u32> {
+        if let Some(project) = super::deletion::act_project(&self.act) {
+            return Some(project);
+        }
+        super::deletion::made_project(&self.outcome)
+    }
     pub(super) const fn at(&self) -> Wall {
         self.at
     }
@@ -30,8 +36,11 @@ impl Acted {
 
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
-        // This build does not offer project deletion (jig/docs/design/protocol/store.md, 11.1).
-        Act::RemoveProject { .. } => return Err(Refusal::NotOffered),
+        Act::RemoveProject { project } => {
+            if *project == 0 {
+                return Err(Refusal::Unknown);
+            }
+        }
         Act::Close { task, reason, .. } => {
             if *task == 0 {
                 return Err(Refusal::Unknown);
@@ -258,57 +267,12 @@ fn permanent(outcome: &Outcome) -> bool {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive deployment act and outcome shape table")]
 pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bool {
     if let Outcome::Refused(_) = outcome {
         return true;
     }
     match act {
-        Act::RemoveProject { project } => match outcome {
-            Outcome::ProjectRemoved { project: answered } => answered == project,
-            Outcome::Compound { .. }
-            | Outcome::CompoundRefused { .. }
-            | Outcome::Again(_)
-            | Outcome::SignedOut
-            | Outcome::MarkedSeen { .. }
-            | Outcome::Applied { .. }
-            | Outcome::NoteEdited { .. }
-            | Outcome::ServiceMade { .. }
-            | Outcome::Adopted { .. }
-            | Outcome::RolesSet { .. }
-            | Outcome::PolicyChanged { .. }
-            | Outcome::Renamed { .. }
-            | Outcome::ProjectMade { .. }
-            | Outcome::SettingsChanged { .. }
-            | Outcome::MovedToNewest { .. }
-            | Outcome::PoolSet { .. }
-            | Outcome::Said { .. }
-            | Outcome::QuestionAnswered { .. }
-            | Outcome::Amended { .. }
-            | Outcome::Moved { .. }
-            | Outcome::Stopped { .. }
-            | Outcome::Cancelled { .. }
-            | Outcome::Lifted { .. }
-            | Outcome::Released { .. }
-            | Outcome::Created { .. }
-            | Outcome::Proposed { .. }
-            | Outcome::Withdrawn { .. }
-            | Outcome::PersonTaken { .. }
-            | Outcome::PersonHandedBack { .. }
-            | Outcome::PersonAnswered { .. }
-            | Outcome::EscalationDecided { .. }
-            | Outcome::ProposalDecided { .. }
-            | Outcome::AccountSignInStarted { .. }
-            | Outcome::AccountProgramDeclared { .. }
-            | Outcome::AccountKeyKept { .. }
-            | Outcome::AccountMovingOut { .. }
-            | Outcome::AccountFinishing { .. }
-            | Outcome::AccountMovedIn { .. }
-            | Outcome::AccountChanged
-            | Outcome::AccountRemoved { .. }
-            | Outcome::AccountSignedOut { .. }
-            | Outcome::Refused(_) => false,
-        },
+        Act::RemoveProject { project } => removed_outcome(*project, outcome),
         Act::Close { project, .. } => match outcome {
             Outcome::Compound { project: answered, operations, first_message } => {
                 answered == project && *operations != 0 && *operations <= limits.operations && *first_message != 0
@@ -383,3 +347,51 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
 #[cfg(test)]
 #[path = "../tests/act_charges.rs"]
 mod tests;
+
+fn removed_outcome(project: u32, outcome: &Outcome) -> bool {
+    match outcome {
+        Outcome::ProjectRemoved { project: answered } => *answered == project,
+        Outcome::Compound { .. }
+        | Outcome::CompoundRefused { .. }
+        | Outcome::Again(_)
+        | Outcome::SignedOut
+        | Outcome::MarkedSeen { .. }
+        | Outcome::Applied { .. }
+        | Outcome::NoteEdited { .. }
+        | Outcome::ServiceMade { .. }
+        | Outcome::Adopted { .. }
+        | Outcome::RolesSet { .. }
+        | Outcome::PolicyChanged { .. }
+        | Outcome::Renamed { .. }
+        | Outcome::ProjectMade { .. }
+        | Outcome::SettingsChanged { .. }
+        | Outcome::MovedToNewest { .. }
+        | Outcome::PoolSet { .. }
+        | Outcome::Said { .. }
+        | Outcome::QuestionAnswered { .. }
+        | Outcome::Amended { .. }
+        | Outcome::Moved { .. }
+        | Outcome::Stopped { .. }
+        | Outcome::Cancelled { .. }
+        | Outcome::Lifted { .. }
+        | Outcome::Released { .. }
+        | Outcome::Created { .. }
+        | Outcome::Proposed { .. }
+        | Outcome::Withdrawn { .. }
+        | Outcome::PersonTaken { .. }
+        | Outcome::PersonHandedBack { .. }
+        | Outcome::PersonAnswered { .. }
+        | Outcome::EscalationDecided { .. }
+        | Outcome::ProposalDecided { .. }
+        | Outcome::AccountSignInStarted { .. }
+        | Outcome::AccountProgramDeclared { .. }
+        | Outcome::AccountKeyKept { .. }
+        | Outcome::AccountMovingOut { .. }
+        | Outcome::AccountFinishing { .. }
+        | Outcome::AccountMovedIn { .. }
+        | Outcome::AccountChanged
+        | Outcome::AccountRemoved { .. }
+        | Outcome::AccountSignedOut { .. }
+        | Outcome::Refused(_) => false,
+    }
+}

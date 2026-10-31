@@ -51,6 +51,7 @@ fn a_project_application_request_is_admitted_on_a_role_in_that_project() {
 #[test]
 fn a_project_application_request_without_a_role_there_is_refused() {
     let mut test = signed_in(Some(OTHER_PROJECT));
+    test.send(Event::Roles { project: PROJECT, holdings: Box::new([]) });
     assert_eq!(
         reply(&test.request(SIGN_IN, KEY, application(ApplicationScope::Project(PROJECT)))),
         Reply::Outcome(Outcome::Refused(Refusal::Role { held: None }))

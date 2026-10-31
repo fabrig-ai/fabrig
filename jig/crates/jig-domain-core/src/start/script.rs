@@ -13,6 +13,10 @@ impl Core {
         assert!(self.start.phase == Some(done) && self.start.waiting.is_none(), "start phase completed in order");
         let next = match done {
             Phase::LoadCore => {
+                if !crate::deletion::restored(self) {
+                    self.start_collect_failure();
+                    return Action::Refused(self.start_failure().expect("named project policy failure"));
+                }
                 self.counters.finish_restore();
                 if self.counters.dirty() {
                     crate::routing::first_start::start_seed(self, env, out);

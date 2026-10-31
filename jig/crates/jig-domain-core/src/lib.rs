@@ -288,9 +288,7 @@ pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
     reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
-    #[expect(dead_code, reason = "whole-task erasure state is reserved for its driver")]
     erasures: erase::Erasures,
-    #[expect(dead_code, reason = "project deletion state is reserved for its driver")]
     deletions: deletion::Deletions,
     pub(crate) start: start::Script,
     person_answers: bool,
@@ -680,8 +678,8 @@ impl Core {
         }
         let authority = authority::Domain::new(current.rules().clone(), limits.authority).expect("configured rules");
         Ok(Core {
-            erasures: erase::Erasures {},
-            deletions: deletion::Deletions {},
+            erasures: erase::Erasures::new(),
+            deletions: deletion::Deletions::new(limits.people.projects),
             routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
             fill: 0,
@@ -722,7 +720,7 @@ impl Core {
             view_subjects: Map::with_capacity(limits.views.watchers),
             view_names: skein_lib::Slab::with_capacity(limits.views.watchers),
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
-            reads: skein_lib::Slab::with_capacity(limits.load_slots),
+            reads: skein_lib::Slab::with_capacity(limits.load_slots.saturating_add(2)),
             dependency_results: Map::with_capacity(limits.tasks.tasks),
             made: Map::with_capacity(limits.people.pending),
             goal_routes: Map::with_capacity(limits.people.pending),

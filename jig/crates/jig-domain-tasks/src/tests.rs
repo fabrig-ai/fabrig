@@ -31,6 +31,7 @@ mod refusals;
 mod revisions;
 mod waiting;
 
+mod close_project;
 mod periods;
 
 mod last_batch;

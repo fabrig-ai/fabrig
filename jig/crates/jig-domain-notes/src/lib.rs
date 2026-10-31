@@ -14,6 +14,7 @@ extern crate alloc;
 
 mod boundary;
 mod domain;
+mod drop_project;
 mod limits;
 mod read;
 #[cfg(test)]

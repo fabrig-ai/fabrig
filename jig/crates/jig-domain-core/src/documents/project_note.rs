@@ -1,4 +1,5 @@
 //! Project policy and notes (`client/domain/pages.md`, sections 6.1, 6.4, 6.5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! Notes' bodies are loaded on demand by their child; this module builds a
 //! document from that loaded entry without adding a mutable cache.
 //! Pool edits target the configured period independently of the observed
@@ -311,7 +312,7 @@ pub(super) fn project(
     number: u32,
     decision: Wall,
 ) -> Result<Project, Missing> {
-    if core.people.role(party, number).is_none() {
+    if !core.open_project(number) || core.people.role(party, number).is_none() {
         return Err(Missing::NotAllowed);
     }
     let value = core.authority.policy(number).ok_or(Missing::Unknown)?;
@@ -513,7 +514,7 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
     if core.people.identity(party).is_none() {
         return Err(Missing::Unknown);
     }
-    if core.people.role(party, project).is_none() {
+    if (project != people::DEPLOYMENT && !core.open_project(project)) || core.people.role(party, project).is_none() {
         return Err(Missing::NotAllowed);
     }
     let scope = match &value.scope {

@@ -194,6 +194,7 @@ pub(super) fn refused(value: &c::Ask, configured: &[Model]) -> Result<Option<c::
         | c::Ask::Seen { .. }
         | c::Ask::EditNote { .. }
         | c::Ask::DeleteNote { .. }
+        | c::Ask::RemoveProject { .. }
         | c::Ask::Rename { .. }
         | c::Ask::Lift { .. }
         | c::Ask::ChangeSettings(_)
