@@ -35,7 +35,7 @@ fn r14_writer_refusal_replays_after_explicit_start_without_routing_or_writing() 
         let tasks = world.tasks();
         let records = world.records().clone();
         let committed = world.commit_number();
-        world.restart_start();
+        world.restart();
         let retried = world.request(10, [14; 16], ask.clone());
         world.commit_all();
         assert_eq!(world.reply(retried), Some(reply));
@@ -61,7 +61,7 @@ fn r14_writer_refusal_replays_after_explicit_start_without_routing_or_writing() 
 
 #[test]
 fn explicit_world_runs_the_existing_scenario() {
-    let mut world = World::configured_start(Settings::calm(4), Box::new([]), Box::new([]));
+    let mut world = World::configured(Settings::calm(4), Box::new([]), Box::new([]));
     world.run();
 }
 
@@ -151,7 +151,7 @@ fn explicit_world_sweep_commits_each_page_without_skipping_erased_keys() {
     let routes = world.stats().routes;
     let committed = world.commit_number();
     world.set_wall(Wall::from_nanos(LIMITS.request_retention.as_nanos()));
-    world.restart_start();
+    world.restart();
     assert_eq!(world.commit_number(), committed + 16, "eight sign-ins and eight answers, one durable page each");
     assert_eq!(world.stats().routes, routes);
     assert!(world.records().contains_key(&Key::Person(person)));

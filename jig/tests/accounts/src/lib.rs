@@ -30,45 +30,20 @@ pub struct World {
 }
 impl Default for World {
     fn default() -> World {
-        World::restoring(&[ANALYST])
+        World::with_start(LIMITS, providers(vec![provider(1, true, false)]), &source_rows(&[ANALYST]))
     }
 }
 impl World {
-    /// Explicit durable rows for the source-state stories.
-    #[must_use]
-    pub fn restoring(sources: &[u32]) -> World {
-        let mut rows = Vec::new();
-        for (place, number) in sources.iter().enumerate() {
-            let mut row = account(1_000 + number, 1, Holder::Deployment, b"");
-            if let Stored::Account { place: at, .. } = &mut row {
-                *at = u32::try_from(place).expect("bounded source places");
-            }
-            rows.push(row);
-            rows.push(source(1_000 + number, *number, 0, Kind::SignIn));
-        }
-        Self::with(providers(vec![provider(1, true, false)]), &rows)
-    }
-    #[must_use]
-    pub fn with(providers: Providers, records: &[Stored]) -> World {
-        Self::with_limits(LIMITS, providers, records)
-    }
-    #[must_use]
-    pub fn with_limits(limits: Limits, providers: Providers, records: &[Stored]) -> World {
-        let mut world = World { domain: Domain::new(&limits, providers), limits, now: Time::ZERO, wall: Wall::EPOCH };
-        world.restore(records.to_vec());
-        world
-    }
-    /// Explicit load/fit/link mode; the shared constructors keep default restoration.
+    /// Load stored rows before activation and linking.
     #[must_use]
     pub fn with_start(limits: Limits, providers: Providers, records: &[Stored]) -> World {
         let mut world = World { domain: Domain::new(&limits, providers), limits, now: Time::ZERO, wall: Wall::EPOCH };
-        world.domain.start_restore();
         world.restore(records.to_vec());
         world
     }
     #[must_use]
     pub fn wanting(accounts: &[u32]) -> World {
-        let mut world = Self::restoring(accounts);
+        let mut world = Self::with_start(LIMITS, providers(vec![provider(1, true, false)]), &source_rows(accounts));
         world.step(Event::Want);
         world
     }
@@ -112,6 +87,20 @@ impl World {
         }
         result
     }
+}
+/// Explicit durable rows for the source-state stories.
+#[must_use]
+pub fn source_rows(sources: &[u32]) -> Vec<Stored> {
+    let mut rows = Vec::new();
+    for (place, number) in sources.iter().enumerate() {
+        let mut row = account(1_000 + number, 1, Holder::Deployment, b"");
+        if let Stored::Account { place: at, .. } = &mut row {
+            *at = u32::try_from(place).expect("bounded source places");
+        }
+        rows.push(row);
+        rows.push(source(1_000 + number, *number, 0, Kind::SignIn));
+    }
+    rows
 }
 /// A provider serving one model, offering a sign-in, a key, or neither: the `none` source.
 #[must_use]

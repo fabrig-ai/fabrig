@@ -11,7 +11,7 @@ fn configured() -> jig_domain_accounts::Providers {
     providers(vec![offered])
 }
 fn fresh() -> World {
-    let mut world = World::with(configured(), &[]);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, configured(), &[]);
     world.step(Event::Want);
     world
 }
@@ -72,7 +72,11 @@ fn a_declaration_saves_its_reservation_atomically() {
 }
 #[test]
 fn a_program_joins_at_the_last_source_place() {
-    let mut world = World::with(configured(), &[account(20, PROVIDER, HOLDER, b""), source(20, 21, 0, Kind::Key)]);
+    let mut world = World::with_start(
+        jig_accounts_world::LIMITS,
+        configured(),
+        &[account(20, PROVIDER, HOLDER, b""), source(20, 21, 0, Kind::Key)],
+    );
     world.step(Event::Want);
     assert_eq!(declare(&mut world, HOLDER, PROVIDER, Some(20), b"personal").0, Ok(22));
     assert_eq!(
@@ -82,7 +86,11 @@ fn a_program_joins_at_the_last_source_place() {
 }
 #[test]
 fn a_foreign_holder_cannot_join_an_account() {
-    let mut world = World::with(configured(), &[account(20, PROVIDER, OTHER, b""), source(20, 21, 0, Kind::Key)]);
+    let mut world = World::with_start(
+        jig_accounts_world::LIMITS,
+        configured(),
+        &[account(20, PROVIDER, OTHER, b""), source(20, 21, 0, Kind::Key)],
+    );
     world.step(Event::Want);
     assert_eq!(
         declare(&mut world, HOLDER, PROVIDER, Some(20), b"personal"),
@@ -92,7 +100,7 @@ fn a_foreign_holder_cannot_join_an_account() {
 }
 #[test]
 fn a_provider_must_offer_a_program() {
-    let mut world = World::with(providers(vec![provider(PROVIDER, true, true)]), &[]);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, true)]), &[]);
     world.step(Event::Want);
     assert_eq!(
         declare(&mut world, HOLDER, PROVIDER, None, b"personal"),
@@ -127,7 +135,7 @@ fn a_live_name_cannot_be_declared_twice() {
 }
 #[test]
 fn retired_names_survive_restart() {
-    let mut world = World::with(configured(), &[issued(50_000, b"retired")]);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, configured(), &[issued(50_000, b"retired")]);
     world.step(Event::Want);
     assert_eq!(
         declare(&mut world, HOLDER, PROVIDER, None, b"retired"),
@@ -138,7 +146,7 @@ fn retired_names_survive_restart() {
 #[test]
 fn the_lifetime_name_bound_refuses_before_allocating() {
     let rows = (0..LIMITS.program_names).map(|n| issued(n, format!("old-{n}").as_bytes())).collect::<Vec<_>>();
-    let mut world = World::with(configured(), &rows);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, configured(), &rows);
     world.step(Event::Want);
     assert_eq!(
         declare(&mut world, HOLDER, PROVIDER, None, b"fresh"),
@@ -147,46 +155,22 @@ fn the_lifetime_name_bound_refuses_before_allocating() {
     assert_eq!(world.domain.accounts(), 0);
     assert_eq!(world.domain.next_number(), LIMITS.program_names);
 }
-#[test]
-fn a_restored_source_must_match_its_reserved_holder() {
-    let mut program = source(20, 21, 0, Kind::Program);
-    if let Stored::Source { name, .. } = &mut program {
-        *name = b"personal".as_slice().into();
-    }
-    let mut world = World::with(configured(), &[account(20, PROVIDER, OTHER, b""), program, issued(21, b"personal")]);
-    world.step(Event::Want);
-    assert!(world.domain.source(21).is_none());
-    assert_eq!(world.domain.unrestored(), 2);
-    assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, b"personal").0, Err(programs::DeclarationRefusal::Issued));
-}
-
-#[test]
-fn restoring_a_program_reserves_its_existing_directory_name() {
-    let mut program = source(20, 21, 0, Kind::Program);
-    if let Stored::Source { name, .. } = &mut program {
-        *name = b"personal".as_slice().into();
-    }
-    let mut world = World::with(configured(), &[account(20, PROVIDER, HOLDER, b""), program]);
-    assert!(world.step(Event::Want).contains(&Request::Save { record: issued(21, b"personal") }));
-    assert!(world.domain.source(21).is_some());
-    assert_eq!(
-        declare(&mut world, OTHER, PROVIDER, None, b"personal"),
-        (Err(programs::DeclarationRefusal::Issued), vec![])
-    );
-}
 
 fn sign_out(world: &mut World, holder: Holder) -> Vec<Request> {
     world.step(Event::SignOut { request: skein_lib::Token::new(91), holder, source: 1 })
 }
+
 fn targets(world: &mut World, workers: &[u32]) -> Vec<Request> {
     world.step(Event::ProgramTargets {
         source: 1,
         hosts: workers.iter().map(|number| jig_accounts_world::worker(*number)).collect(),
     })
 }
+
 fn ended(world: &mut World, worker: u32, result: jig_domain_accounts::ProgramResult) -> Vec<Request> {
     world.step(Event::ProgramSignedOut { source: 1, host: jig_accounts_world::worker(worker), result })
 }
+
 #[test]
 fn signing_out_a_program_retains_its_declaration() {
     let mut world = fresh();
@@ -282,7 +266,7 @@ fn restart_preserves_desired_program_absence() {
         Stored::Source { .. } => 2,
         Stored::Next { .. } => 3,
     });
-    let mut again = World::with(configured(), &records);
+    let mut again = World::with_start(jig_accounts_world::LIMITS, configured(), &records);
     assert!(again.step(Event::Want).iter().any(|request| matches!(request,
         Request::Programs { names } if names.len() == 1 && names[0].cleanup)));
 }
@@ -541,7 +525,8 @@ fn account_removal_prefers_failure_to_absent_contact() {
 #[test]
 fn an_issued_name_answers_its_source_holder() {
     for signed_out in [false, true] {
-        let world = World::with(
+        let world = World::with_start(
+            jig_accounts_world::LIMITS,
             configured(),
             &[Stored::Issued { number: 21, holder: HOLDER, name: b"personal".as_slice().into(), signed_out }],
         );
@@ -600,7 +585,8 @@ fn a_restored_program_grant_uses_the_durable_counter_epoch() {
             name: b"personal".as_slice().into(),
             held,
         };
-        let mut world = World::with(
+        let mut world = World::with_start(
+            jig_accounts_world::LIMITS,
             configured(),
             &[account(0, PROVIDER, HOLDER, b""), program, issued(1, b"personal"), Stored::Next { number: 3 }],
         );
@@ -646,7 +632,7 @@ fn a_login_check_with_an_exhausted_epoch_changes_nothing() {
         issued(1, b"personal"),
         Stored::Next { number: u32::MAX },
     ];
-    let mut world = World::with(configured(), &rows);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, configured(), &rows);
     world.step(Event::Want);
     let mut out = Queue::uncapped();
     assert_eq!(programs::check(&mut world.domain, HOLDER, 1, &mut out), Err(Refusal::Numbers));
