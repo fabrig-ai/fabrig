@@ -61,3 +61,15 @@ Acceptance:
 ## Report
 
 As common.md says, with each site: moved, or kept and why.
+
+## Answers
+
+2026-10-31. Which Git author identity should the commit use? The one every
+implementer commit on this run's trunk already carries: `Codex
+<noreply@openai.com>`. Set it for the commit only, never in a global
+config: `git -c user.name=Codex -c user.email=noreply@openai.com commit`
+(or the same two keys with `git config --local` in your own slot). Commit
+the staged change as it stands, then push the task branch
+`component-kit-4/stage-conformance`: it sits at the unchanged base, so the
+push is a fast-forward. Chain the push after the commit with `&&`, so a
+failed commit pushes nothing.
