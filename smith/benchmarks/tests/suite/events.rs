@@ -67,7 +67,8 @@ fn unread_resources_stay_null_and_do_not_change_terminals_or_response_usage() {
     let mut values = balanced();
     let original = observe(&values).sessions()[0].ended.clone().expect("authoritative terminal");
     assert!(original.cpu_ms.is_some() && original.peak_rss_bytes.is_some());
-    if let Event::SessionEnded(ended) = &mut values[7].event {
+    {
+        let ended = crate::common::edit::session_ended(&mut values[7]);
         ended.cpu_ms = None;
         ended.peak_rss_bytes = None;
     }
@@ -103,7 +104,8 @@ fn repeated_usage_is_immutable_but_duplicate_terminals_break_pairing() {
     let observer = observe(&values);
     assert_eq!(observer.tokens().expect("deduplicated")[1].usage.output, Measure::Observed { value: 5 });
     assert_eq!(passed(&observer, "paired"), Measure::Observed { value: false });
-    if let Event::ResponseCompleted(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[5]);
         value.usage.output_tokens = Some(6);
     }
     assert!(observe(&values).tokens().is_err());
@@ -111,7 +113,8 @@ fn repeated_usage_is_immutable_but_duplicate_terminals_break_pairing() {
 
 fn agent_exit_tracks_the_sent_answer_and_forced_pending_stays_unknown() {
     let mut values = balanced();
-    if let Event::SessionStarted(value) = &mut values[0].event {
+    {
+        let value = crate::common::edit::session_started(&mut values[0]);
         value.mode = smith_events::Mode::Agent;
     }
     let failed = record(include_str!("../../../crates/smith-events/golden/v4/status_failed.jsonl"));
@@ -126,7 +129,8 @@ fn agent_exit_tracks_the_sent_answer_and_forced_pending_stays_unknown() {
     assert!(matches!(observer.classify(Exit::Code(0), Forced::No).end, End::Failed { .. }));
     assert!(matches!(observer.classify(Exit::Code(1), Forced::No).end, End::HarnessError { .. }));
     assert_eq!(passed(&observer, "exit-agrees"), Measure::Observed { value: true });
-    if let Event::SessionEnded(value) = &mut values[7].event {
+    {
+        let value = crate::common::edit::session_ended(&mut values[7]);
         value.answered = false;
         value.exit = 1;
     }
@@ -152,13 +156,15 @@ fn agent_exit_tracks_the_sent_answer_and_forced_pending_stays_unknown() {
 fn child_and_compaction_usage_belongs_to_its_native_scope_and_run() {
     let mut values = balanced();
     let mut child = values[2].clone();
-    if let Event::ConversationOpened(value) = &mut child.event {
+    {
+        let value = crate::common::edit::conversation_opened(&mut child);
         value.conversation = 1;
         value.kind = smith_events::ConversationKind::Child;
         value.parent = Some(0);
     }
     let mut child_response = values[4].clone();
-    if let Event::ResponseCompleted(value) = &mut child_response.event {
+    {
+        let value = crate::common::edit::response_completed(&mut child_response);
         value.conversation = 1;
         value.response = 1;
         value.usage.output_tokens = Some(8);
@@ -170,7 +176,8 @@ fn child_and_compaction_usage_belongs_to_its_native_scope_and_run() {
     assert_eq!(records.len(), 3);
     assert!(matches!(&records[1].role, ScopeKind::Child { parent } if parent == "session-0/run-0/conversation-0"));
     assert_eq!(records[2].usage.output, Measure::Observed { value: 13 });
-    if let Event::ConversationOpened(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::conversation_opened(&mut values[5]);
         value.kind = smith_events::ConversationKind::Compaction;
     }
     let compacted = observe(&values).tokens().expect("compaction parent");
@@ -259,12 +266,14 @@ fn writer_ceiling_is_independent_and_preserves_every_semantic_cap() {
 
 fn passive_negatives_preserve_loss_scope_and_exact_spend() {
     let mut values = balanced();
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.spent = 4;
     }
     assert_eq!(passed(&observe(&values), "spend-sums"), Measure::Observed { value: false });
     let mut values = balanced();
-    if let Event::SessionEnded(value) = &mut values[7].event {
+    {
+        let value = crate::common::edit::session_ended(&mut values[7]);
         value.loss.events = 1;
         value.loss.channel = Some(2);
     }
@@ -285,14 +294,17 @@ fn passive_negatives_preserve_loss_scope_and_exact_spend() {
 
 fn observed_passive_contradictions_survive_loss_but_missing_records_do_not() {
     let mut values = balanced();
-    if let Event::SessionEnded(value) = &mut values[7].event {
+    {
+        let value = crate::common::edit::session_ended(&mut values[7]);
         value.loss.events = 1;
     }
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.spent = 2;
     }
     assert_eq!(passed(&observe(&values), "spend-sums"), Measure::Observed { value: false });
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.spent = 4;
     }
     assert!(matches!(passed(&observe(&values), "spend-sums"), Measure::Unavailable { .. }));
@@ -338,7 +350,8 @@ fn every_codec_golden_remains_readable_as_outside_recorded_bytes() {
 fn author_predicates_use_typed_records_and_missing_content_stays_unavailable() {
     use smith_bench::{Before, Count, EventCheck};
     let mut values = balanced();
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.completion = None;
     }
     let observer = observe(&values);
@@ -360,7 +373,8 @@ fn author_predicates_use_typed_records_and_missing_content_stays_unavailable() {
     assert!(!Count::AtMost(2).holds(3));
     let mut later = values[4].clone();
     later.t_ms = values[6].t_ms;
-    if let Event::ResponseCompleted(response) = &mut later.event {
+    {
+        let response = crate::common::edit::response_completed(&mut later);
         response.run = 1;
         response.response = 1;
     }
@@ -379,7 +393,8 @@ fn author_predicates_use_typed_records_and_missing_content_stays_unavailable() {
 fn block_cardinalities_use_completion_metadata_under_every_capture_policy() {
     use smith_bench::{Count, EventCheck};
     let mut values = balanced();
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.oversized = 2;
         value.cut = 3;
         // The content deliberately disagrees: cardinalities are metadata,
@@ -403,7 +418,8 @@ fn block_cardinalities_use_completion_metadata_under_every_capture_policy() {
             Measure::Observed { value: false }
         );
     }
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.oversized = u64::MAX;
         value.cut = u64::MAX;
     }
@@ -415,7 +431,8 @@ fn block_cardinalities_use_completion_metadata_under_every_capture_policy() {
     values.remove(4);
     assert!(matches!(observe(&values).check(&check, "task").passed, Measure::Unavailable { .. }));
     let mut lossy = balanced();
-    if let Event::SessionEnded(value) = &mut lossy[7].event {
+    {
+        let value = crate::common::edit::session_ended(&mut lossy[7]);
         value.loss.events = 1;
     }
     assert!(matches!(observe(&lossy).check(&check, "task").passed, Measure::Unavailable { .. }));
@@ -424,10 +441,12 @@ fn block_cardinalities_use_completion_metadata_under_every_capture_policy() {
 fn message_refusals_and_read_unread_each_settle_one_admission_attempt() {
     use smith_bench::EventCheck;
     let mut values = balanced();
-    if let Event::RunStarted(value) = &mut values[1].event {
+    {
+        let value = crate::common::edit::run_started(&mut values[1]);
         value.messages = 1;
     }
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.read = Some(7);
         value.unread = 0;
     }
@@ -443,7 +462,8 @@ fn message_refusals_and_read_unread_each_settle_one_admission_attempt() {
         }),
     };
     let mut rejected = received.clone();
-    if let Event::MessageReceived(value) = &mut rejected.event {
+    {
+        let value = crate::common::edit::message_received(&mut rejected);
         value.refused = Some(smith_events::MessageRefusal::NameInUse);
     }
     values.splice(2..2, [received, rejected]);
@@ -502,21 +522,24 @@ fn prompt_windows_use_exact_disjoint_usage_and_the_observed_request_model() {
         observe(&values).check(&EventCheck::PromptWithinWindow, "task").passed,
         Measure::Observed { value: true }
     );
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.usage.cache_write_tokens = Some(3);
     }
     assert_eq!(
         observe(&values).check(&EventCheck::PromptWithinWindow, "task").passed,
         Measure::Observed { value: false }
     );
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.usage.cache_write_tokens = None;
     }
     assert!(matches!(
         observe(&values).check(&EventCheck::PromptWithinWindow, "task").passed,
         Measure::Unavailable { .. }
     ));
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.usage.input_tokens = Some(u64::MAX);
         value.usage.cache_read_tokens = Some(u64::MAX);
         value.usage.cache_write_tokens = Some(u64::MAX);
@@ -525,7 +548,8 @@ fn prompt_windows_use_exact_disjoint_usage_and_the_observed_request_model() {
         observe(&values).check(&EventCheck::PromptWithinWindow, "task").passed,
         Measure::Observed { value: false }
     );
-    if let Event::ResponseStarted(value) = &mut values[3].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[3]);
         value.model.endpoint = Box::from(&b"foreign"[..]);
     }
     assert!(matches!(
@@ -537,7 +561,8 @@ fn prompt_windows_use_exact_disjoint_usage_and_the_observed_request_model() {
 fn child_run() -> Vec<Record> {
     let mut values = balanced();
     let mut opened = values[2].clone();
-    if let Event::ConversationOpened(value) = &mut opened.event {
+    {
+        let value = crate::common::edit::conversation_opened(&mut opened);
         value.conversation = 1;
         value.kind = smith_events::ConversationKind::Child;
         value.parent = Some(0);
@@ -545,7 +570,8 @@ fn child_run() -> Vec<Record> {
         value.share = Some(smith_events::Share { turns: 2, time_ms: 1000, spend: 10 });
     }
     let mut returned = record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
-    if let Event::ToolCompleted(value) = &mut returned.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut returned);
         value.run = 0;
         value.conversation = 0;
         value.call = Box::from(&b"child-call"[..]);
@@ -577,21 +603,24 @@ fn child_share_and_main_return_checks_join_the_parent_call_and_emission_order() 
     for check in [EventCheck::ChildShare { turns_at_most: 2 }, EventCheck::MainAfterChild] {
         assert_eq!(observe(&values).check(&check, "task").passed, Measure::Observed { value: true });
     }
-    if let Event::ToolCompleted(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut values[5]);
         value.child.as_mut().expect("child return").turns = 3;
     }
     assert_eq!(
         observe(&values).check(&EventCheck::ChildShare { turns_at_most: 2 }, "task").passed,
         Measure::Observed { value: false }
     );
-    if let Event::ToolCompleted(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut values[5]);
         value.call = Box::from(&b"foreign-call"[..]);
     }
     assert!(matches!(
         observe(&values).check(&EventCheck::ChildShare { turns_at_most: 2 }, "task").passed,
         Measure::Unavailable { .. }
     ));
-    if let Event::ToolCompleted(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut values[5]);
         value.call = Box::from(&b"child-call"[..]);
     }
     values.swap(5, 6);
@@ -605,13 +634,15 @@ fn a_capped_child_final_turn_requires_no_tools_and_its_captured_native_answer() 
     use smith_bench::EventCheck;
     let mut values = child_run();
     let mut request = values[3].clone();
-    if let Event::ResponseStarted(value) = &mut request.event {
+    {
+        let value = crate::common::edit::response_started(&mut request);
         value.conversation = 1;
         value.response = 1;
         value.tool_choice = smith_events::ToolChoice::None;
     }
     let mut response = values[6].clone();
-    if let Event::ResponseCompleted(value) = &mut response.event {
+    {
+        let value = crate::common::edit::response_completed(&mut response);
         value.conversation = 1;
         value.response = 1;
         let mut blocks = skein_lib::List::with_capacity(1);
@@ -623,14 +654,17 @@ fn a_capped_child_final_turn_requires_no_tools_and_its_captured_native_answer() 
         value.t_ms = u64::try_from(index).expect("small emission position");
     }
     assert_eq!(observe(&values).check(&EventCheck::FinalTurn, "task").passed, Measure::Observed { value: true });
-    if let Event::ResponseStarted(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[5]);
         value.tool_choice = smith_events::ToolChoice::Auto;
     }
     assert_eq!(observe(&values).check(&EventCheck::FinalTurn, "task").passed, Measure::Observed { value: false });
-    if let Event::ResponseStarted(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[5]);
         value.tool_choice = smith_events::ToolChoice::None;
     }
-    if let Event::ResponseCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[6]);
         value.completion = None;
     }
     assert!(matches!(observe(&values).check(&EventCheck::FinalTurn, "task").passed, Measure::Unavailable { .. }));
@@ -641,10 +675,12 @@ fn a_capped_child_final_turn_requires_no_tools_and_its_captured_native_answer() 
 
 fn cache_series() -> Vec<Record> {
     let mut values = balanced();
-    if let Event::ResponseStarted(value) = &mut values[3].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[3]);
         value.window = 1;
     }
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.usage.input_tokens = Some(1200);
         value.usage.cache_read_tokens = Some(0);
         value.usage.cache_write_tokens = Some(0);
@@ -653,11 +689,13 @@ fn cache_series() -> Vec<Record> {
     for response in 1..=10 {
         let mut start = values[3].clone();
         let mut end = values[4].clone();
-        if let Event::ResponseStarted(value) = &mut start.event {
+        {
+            let value = crate::common::edit::response_started(&mut start);
             value.response = response;
             value.turn = response + 1;
         }
-        if let Event::ResponseCompleted(value) = &mut end.event {
+        {
+            let value = crate::common::edit::response_completed(&mut end);
             value.response = response;
             value.usage.input_tokens = Some(0);
             value.usage.cache_read_tokens = Some(1200);
@@ -678,7 +716,8 @@ fn cache_reuse_sums_eligible_predecessors_with_exact_misses_and_window_boundarie
     assert!(matches!(measured.passed, Measure::Unavailable { .. }), "one repetition cannot decide a triplet");
     assert!(measured.evidence[0].contains("cache_read=12000; predecessor_prompt=12000; eligible=10; full_misses=0"));
     for position in [6, 8] {
-        if let Event::ResponseCompleted(value) = &mut values[position].event {
+        {
+            let value = crate::common::edit::response_completed(&mut values[position]);
             value.usage.input_tokens = Some(1200);
             value.usage.cache_read_tokens = Some(0);
         }
@@ -688,7 +727,8 @@ fn cache_reuse_sums_eligible_predecessors_with_exact_misses_and_window_boundarie
         assert_eq!(value.full_misses, if position == 6 { 1 } else { 2 });
     }
     // The first request of a new window never inherits the old predecessor.
-    if let Event::ResponseStarted(value) = &mut values[7].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[7]);
         value.window = 2;
     }
     for record in &mut values[9..] {
@@ -704,22 +744,26 @@ fn cache_reuse_sums_eligible_predecessors_with_exact_misses_and_window_boundarie
 
 fn cache_reuse_does_not_invent_usage_or_join_other_conversations() {
     let mut values = cache_series();
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.usage.cache_write_tokens = None;
     }
     assert!(matches!(observe(&values).cache_reuse(0.85, 1), Measure::Unavailable { .. }));
     let mut values = cache_series();
-    if let Event::ResponseStarted(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[5]);
         value.conversation = 7;
     }
-    if let Event::ResponseCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[6]);
         value.conversation = 7;
     }
     assert!(matches!(observe(&values).cache_reuse(0.85, 1), Measure::Unavailable { .. }));
     // A child on a separate thread supplies no predecessor to main.
     let mut values = balanced();
     let mut child = values[2].clone();
-    if let Event::ConversationOpened(value) = &mut child.event {
+    {
+        let value = crate::common::edit::conversation_opened(&mut child);
         value.conversation = 7;
         value.thread = 7;
         value.kind = smith_events::ConversationKind::Child;
@@ -727,11 +771,13 @@ fn cache_reuse_does_not_invent_usage_or_join_other_conversations() {
     }
     let mut request = values[3].clone();
     let mut response = values[4].clone();
-    if let Event::ResponseStarted(value) = &mut request.event {
+    {
+        let value = crate::common::edit::response_started(&mut request);
         value.conversation = 7;
         value.response = 7;
     }
-    if let Event::ResponseCompleted(value) = &mut response.event {
+    {
+        let value = crate::common::edit::response_completed(&mut response);
         value.conversation = 7;
         value.response = 7;
         value.usage.input_tokens = Some(1200);
@@ -760,10 +806,12 @@ fn spend_ceiling_uses_exact_currency_and_never_charges_terminals_again() {
     assert!(matches!(observe(&values).check_with_currency(&check, "task", 0).passed, Measure::Unavailable { .. }));
     let mut values = balanced();
     let large = (1_u64 << 53) + 1;
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.spent = large;
     }
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.spent = large;
     }
     let check = EventCheck::SpendWithin { ceiling_usd: 9_007_199_254_740_992.0 };
@@ -778,7 +826,8 @@ fn spend_ceiling_retains_over_budget_snapshots_and_multiple_run_totals() {
     let check = smith_bench::EventCheck::SpendWithin { ceiling_usd: 3.0 };
     let mut values = balanced();
     let mut budget = record(include_str!("../../../crates/smith-events/golden/v4/budget_ordinary.jsonl"));
-    if let Event::Budget(value) = &mut budget.event {
+    {
+        let value = crate::common::edit::budget(&mut budget);
         value.run = 0;
         value.spend.used = 4;
     }
@@ -882,7 +931,8 @@ fn observe_against(records: &[Record], original: Option<&Visible>) -> Observer {
 
 fn build_visible_budget() -> Vec<Record> {
     let mut values = balanced();
-    if let Event::RunStarted(value) = &mut values[1].event {
+    {
+        let value = crate::common::edit::run_started(&mut values[1]);
         value.budget = smith_events::Budget {
             turns: 10,
             spend: 100,
@@ -890,11 +940,13 @@ fn build_visible_budget() -> Vec<Record> {
             reserve: smith_events::Reserve { turns: 2, time_ms: 2000, spend: 10 },
         };
     }
-    if let Event::ResponseStarted(value) = &mut values[3].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[3]);
         value.tool_choice = smith_events::ToolChoice::Auto;
         value.prompt.as_mut().expect("captured prompt").system = Some(Box::from(&b"Host instructions\n## Budget\n\nAt open, you have 10 turns and 9 seconds of wall time. Spend is bounded too.\nKeep 2 turns and 2 seconds to finish. When the ordinary budget is spent, live children close and you finish on that reserve.\n"[..]));
     }
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.wind_down = false;
     }
     let budget = Record {
@@ -919,7 +971,8 @@ fn build_visible_budget() -> Vec<Record> {
 fn build_visible_child() -> Vec<Record> {
     let mut values = visible_budget();
     let mut opened = values[2].clone();
-    if let Event::ConversationOpened(value) = &mut opened.event {
+    {
+        let value = crate::common::edit::conversation_opened(&mut opened);
         value.kind = smith_events::ConversationKind::Child;
         value.conversation = 1;
         value.parent = Some(0);
@@ -927,23 +980,27 @@ fn build_visible_child() -> Vec<Record> {
         value.share = Some(smith_events::Share { turns: 2, time_ms: 1000, spend: 10 });
     }
     let mut request = values[3].clone();
-    if let Event::ResponseStarted(value) = &mut request.event {
+    {
+        let value = crate::common::edit::response_started(&mut request);
         value.conversation = 1;
         value.response = 1;
         value.prompt.as_mut().expect("child prompt").system = Some(Box::from(&b"Child instructions\n## Your share\n\nAt open, your share is 2 turns and 1 second. Your answer may hold at most 1024 bytes; anything past it is cut with a marker. Your last turn has no tools: answer with what you have.\n"[..]));
     }
     let mut response = values[4].clone();
-    if let Event::ResponseCompleted(value) = &mut response.event {
+    {
+        let value = crate::common::edit::response_completed(&mut response);
         value.conversation = 1;
         value.response = 1;
     }
     let mut snapshot = values[5].clone();
-    if let Event::Budget(value) = &mut snapshot.event {
+    {
+        let value = crate::common::edit::budget(&mut snapshot);
         value.turns.used = 2;
         value.time_ms.used = 8;
     }
     let mut returned = record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
-    if let Event::ToolCompleted(value) = &mut returned.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut returned);
         value.run = 0;
         value.conversation = 0;
         value.call = Box::from(&b"child-call"[..]);
@@ -963,11 +1020,13 @@ fn build_visible_child() -> Vec<Record> {
         });
     }
     let mut closed = values[6].clone();
-    if let Event::ConversationClosed(value) = &mut closed.event {
+    {
+        let value = crate::common::edit::conversation_closed(&mut closed);
         value.conversation = 1;
     }
     let mut rendered = values[3].clone();
-    if let Event::ResponseStarted(value) = &mut rendered.event {
+    {
+        let value = crate::common::edit::response_started(&mut rendered);
         value.response = 2;
         let prompt = value.prompt.as_mut().expect("rendered parent request");
         prompt.system = None;
@@ -984,7 +1043,8 @@ fn build_visible_child() -> Vec<Record> {
             .expect("rendered message");
     }
     let mut answered = values[4].clone();
-    if let Event::ResponseCompleted(value) = &mut answered.event {
+    {
+        let value = crate::common::edit::response_completed(&mut answered);
         value.response = 2;
         value.spent = 0;
         value.usage = smith_events::Usage {
@@ -1007,7 +1067,8 @@ fn budget_visibility_joins_immutable_openings_and_latest_child_usage_without_res
     assert_eq!(observe_visibility(&visible_budget()).check(&check, "task").passed, Measure::Observed { value: true });
     let mut values = visible_child();
     assert_eq!(observe_visibility(&values).check(&check, "task").passed, Measure::Observed { value: true });
-    if let Event::ResponseStarted(value) = &mut values[12].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[12]);
         let message = value.prompt.as_mut().expect("prompt").messages.get_mut(0).expect("rendered message");
         if let smith_events::Block::Result { text, .. } = message.blocks.get_mut(0).expect("rendered block") {
             *text = Box::from(&b"\n\nChild usage: used 2 turns and less than a second; stopped for budget: yes; ordinary left 7 turns and 7 seconds."[..]);
@@ -1019,12 +1080,14 @@ fn budget_visibility_joins_immutable_openings_and_latest_child_usage_without_res
         "an older snapshot is not the returned child's report"
     );
     let mut values = visible_child();
-    if let Event::ResponseStarted(value) = &mut values[12].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[12]);
         value.prompt.as_mut().expect("prompt").messages = skein_lib::List::with_capacity(0);
     }
     assert!(matches!(observe_visibility(&values).check(&check, "task").passed, Measure::Unavailable { .. }));
     let mut values = visible_child();
-    if let Event::ResponseStarted(value) = &mut values[12].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[12]);
         let message = value.prompt.as_mut().expect("prompt").messages.get_mut(0).expect("rendered message");
         if let smith_events::Block::Result { call, .. } = message.blocks.get_mut(0).expect("rendered block") {
             *call = Box::from(&b"foreign-rendered-call"[..]);
@@ -1037,7 +1100,8 @@ fn budget_visibility_joins_immutable_openings_and_latest_child_usage_without_res
     let mut values = visible_child();
     let mut later = values[9].clone();
     later.t_ms = values[12].t_ms;
-    if let Event::Budget(value) = &mut later.event {
+    {
+        let value = crate::common::edit::budget(&mut later);
         value.turns.used = 3;
         value.time_ms.used = 2000;
     }
@@ -1056,13 +1120,15 @@ fn budget_visibility_joins_immutable_openings_and_latest_child_usage_without_res
         );
     }
     let mut values = visible_child();
-    if let Event::ToolCompleted(value) = &mut values[10].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut values[10]);
         value.call = Box::from(&b"foreign"[..]);
     }
     assert!(matches!(observe_visibility(&values).check(&check, "task").passed, Measure::Unavailable { .. }));
     for part in 0..4 {
         let mut values = visible_child();
-        if let Event::ConversationOpened(value) = &mut values[6].event {
+        {
+            let value = crate::common::edit::conversation_opened(&mut values[6]);
             let share = value.share.as_mut().expect("effective share");
             match part {
                 0 => share.turns = 8,
@@ -1078,7 +1144,8 @@ fn budget_visibility_joins_immutable_openings_and_latest_child_usage_without_res
         );
     }
     let mut values = visible_child();
-    if let Event::ConversationOpened(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::conversation_opened(&mut values[6]);
         value.share.as_mut().expect("effective share").time_ms = 7995;
     }
     assert!(
@@ -1091,7 +1158,8 @@ fn budget_visibility_joins_immutable_openings_and_latest_child_usage_without_res
     }
     assert!(matches!(observe_visibility(&values).check(&check, "task").passed, Measure::Unavailable { .. }));
     let mut values = visible_child();
-    if let Event::ResponseStarted(value) = &mut values[3].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[3]);
         value.prompt.as_mut().expect("prompt").system = None;
     }
     assert!(matches!(observe_visibility(&values).check(&check, "task").passed, Measure::Unavailable { .. }));
@@ -1100,14 +1168,17 @@ fn budget_visibility_joins_immutable_openings_and_latest_child_usage_without_res
 fn budget_visibility_preserves_wind_down_metadata_and_native_request_choice() {
     let check = smith_bench::EventCheck::BudgetVisible;
     let mut values = visible_budget();
-    if let Event::Budget(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::budget(&mut values[5]);
         value.stage = smith_events::BudgetStage::WindDown;
     }
-    if let Event::RunCompleted(value) = &mut values[7].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[7]);
         value.wind_down = true;
     }
     let mut request = values[3].clone();
-    if let Event::ResponseStarted(value) = &mut request.event {
+    {
+        let value = crate::common::edit::response_started(&mut request);
         value.response = 1;
         value.tool_choice = smith_events::ToolChoice::Only;
         let prompt = value.prompt.as_mut().expect("prompt");
@@ -1122,22 +1193,26 @@ fn budget_visibility_preserves_wind_down_metadata_and_native_request_choice() {
         value.t_ms = u64::try_from(index).expect("small index");
     }
     assert_eq!(observe_visibility(&values).check(&check, "task").passed, Measure::Observed { value: true });
-    if let Event::ResponseStarted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[6]);
         value.tool_choice = smith_events::ToolChoice::Auto;
     }
     assert_eq!(observe_visibility(&values).check(&check, "task").passed, Measure::Observed { value: false });
-    if let Event::ResponseStarted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[6]);
         value.tool_choice = smith_events::ToolChoice::Only;
         value.prompt.as_mut().expect("prompt").messages = skein_lib::List::with_capacity(0);
     }
     assert_eq!(observe_visibility(&values).check(&check, "task").passed, Measure::Observed { value: false });
     let mut values = visible_budget();
-    if let Event::Budget(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::budget(&mut values[5]);
         value.reserve.turns = 3;
     }
     assert_eq!(observe_visibility(&values).check(&check, "task").passed, Measure::Observed { value: false });
     let mut values = visible_budget();
-    if let Event::Budget(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::budget(&mut values[5]);
         value.stage = smith_events::BudgetStage::Unknown(Box::from(&b"future"[..]));
     }
     assert!(matches!(observe_visibility(&values).check(&check, "task").passed, Measure::Unavailable { .. }));
@@ -1168,7 +1243,8 @@ fn headroom_uses_observed_model_and_admission_bounds_with_exact_half_warnings() 
         assert!(matches!(result.headroom[name].fraction_used, Measure::Unavailable { .. }));
     }
     let mut values = visible_budget();
-    if let Event::RunCompleted(value) = &mut values[7].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[7]);
         value.turns = u64::MAX;
     }
     assert_eq!(
@@ -1209,16 +1285,19 @@ fn headroom_uses_observed_model_and_admission_bounds_with_exact_half_warnings() 
 
 fn headroom_preserves_known_violations_and_missing_scope_uncertainty() {
     let mut values = visible_budget();
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.usage.input_tokens = Some(u64::MAX);
         value.usage.cache_read_tokens = Some(u64::MAX);
         value.usage.cache_write_tokens = Some(u64::MAX);
     }
-    if let Event::Budget(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::budget(&mut values[5]);
         value.turns.used = 11;
         value.spend.used = 101;
     }
-    if let Event::SessionEnded(value) = &mut values[8].event {
+    {
+        let value = crate::common::edit::session_ended(&mut values[8]);
         value.loss.events = 1;
     }
     let result = health(&values);
@@ -1228,7 +1307,8 @@ fn headroom_preserves_known_violations_and_missing_scope_uncertainty() {
         assert!(result.headroom[name].warning);
     }
     let mut values = visible_budget();
-    if let Event::SessionEnded(value) = &mut values[8].event {
+    {
+        let value = crate::common::edit::session_ended(&mut values[8]);
         value.loss.events = 1;
     }
     let result = health(&values);
@@ -1240,17 +1320,20 @@ fn headroom_preserves_known_violations_and_missing_scope_uncertainty() {
         let mut values = visible_budget();
         match mutation {
             0 => {
-                if let Event::ResponseCompleted(value) = &mut values[4].event {
+                {
+                    let value = crate::common::edit::response_completed(&mut values[4]);
                     value.usage.cache_write_tokens = None;
                 }
             }
             1 => {
-                if let Event::ResponseCompleted(value) = &mut values[4].event {
+                {
+                    let value = crate::common::edit::response_completed(&mut values[4]);
                     value.conversation = 99;
                 }
             }
             2 => {
-                if let Event::ResponseStarted(value) = &mut values[3].event {
+                {
+                    let value = crate::common::edit::response_started(&mut values[3]);
                     value.model.window_tokens += 1;
                 }
             }
@@ -1258,7 +1341,8 @@ fn headroom_preserves_known_violations_and_missing_scope_uncertainty() {
                 values.remove(4);
             }
             4 => {
-                if let Event::ConversationOpened(value) = &mut values[2].event {
+                {
+                    let value = crate::common::edit::conversation_opened(&mut values[2]);
                     value.model.window_tokens = 0;
                 }
             }
@@ -1273,7 +1357,8 @@ fn headroom_preserves_known_violations_and_missing_scope_uncertainty() {
         );
     }
     let mut values = visible_budget();
-    if let Event::Budget(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::budget(&mut values[5]);
         value.turns.limit = 9;
         value.spend.limit = 99;
     }
@@ -1288,15 +1373,18 @@ fn headroom_preserves_known_violations_and_missing_scope_uncertainty() {
 
 fn headroom_maxima_compare_each_conversation_ratio_instead_of_aggregating_usage() {
     let mut values = visible_child();
-    if let Event::ConversationOpened(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::conversation_opened(&mut values[6]);
         value.model.endpoint = Box::from(&b"another-endpoint"[..]);
         value.model.window_tokens = 100;
     }
-    if let Event::ResponseStarted(value) = &mut values[7].event {
+    {
+        let value = crate::common::edit::response_started(&mut values[7]);
         value.model.endpoint = Box::from(&b"another-endpoint"[..]);
         value.model.window_tokens = 100;
     }
-    if let Event::ResponseCompleted(value) = &mut values[8].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[8]);
         value.usage.input_tokens = Some(41);
     }
     let result = health(&values);
@@ -1348,29 +1436,35 @@ fn smoke_usage_sums_compare_optional_raw_counts_once_and_do_not_fill_null_with_z
         Event::ResponseCompleted(value) => value.usage.clone(),
         _ => panic!("response fixture"),
     };
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.usage = usage.clone();
     }
     let predicate = smith_bench::EventCheck::UsageSums;
     assert_eq!(observe(&values).check(&predicate, "task").passed, Measure::Observed { value: true });
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.usage.output_tokens = Some(6);
     }
     assert_eq!(observe(&values).check(&predicate, "task").passed, Measure::Observed { value: false });
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.usage.output_tokens = Some(5);
     }
-    if let Event::ResponseCompleted(value) = &mut values[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[4]);
         value.usage.cache_read_tokens = None;
     }
     assert!(matches!(observe(&values).check(&predicate, "task").passed, Measure::Unavailable { .. }));
     values = balanced();
-    if let Event::RunCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[6]);
         value.usage = usage;
     }
     values.insert(5, values[4].clone());
     assert_eq!(observe(&values).check(&predicate, "task").passed, Measure::Observed { value: true });
-    if let Event::ResponseCompleted(value) = &mut values[5].event {
+    {
+        let value = crate::common::edit::response_completed(&mut values[5]);
         value.conversation += 1;
     }
     assert_eq!(observe(&values).check(&predicate, "task").passed, Measure::Observed { value: false });
@@ -1415,16 +1509,19 @@ fn typed_event_stream_classification_usage_and_author_predicates() {
 
 fn emitted_inventory_compares_received_types_with_each_destination_loss() {
     let mut values = balanced();
-    if let Event::SessionEnded(ended) = &mut values[7].event {
+    {
+        let ended = crate::common::edit::session_ended(&mut values[7]);
         ended.emitted.get_mut(0).expect("one type").count += 1;
     }
     let mut observer = Observer::new(&LIMITS).expect("bounds");
     observer.feed(&bytes(&values)).expect("mismatched typed inventory");
     assert_eq!(passed(&observer, "nothing-lost"), Measure::Observed { value: false });
-    if let Event::SessionStarted(started) = &mut values[0].event {
+    {
+        let started = crate::common::edit::session_started(&mut values[0]);
         started.delivery = smith_events::Delivery::BestEffort;
     }
-    if let Event::SessionEnded(ended) = &mut values[7].event {
+    {
+        let ended = crate::common::edit::session_ended(&mut values[7]);
         ended.loss.events = 1;
     }
     let mut observer = Observer::new(&LIMITS).expect("bounds");
@@ -1443,7 +1540,8 @@ fn emitted_inventory_compares_received_types_with_each_destination_loss() {
 fn expected_entrance_refusal_requires_captured_reason_and_no_request() {
     let original = balanced();
     let mut values = vec![original[0].clone(), original[6].clone(), original[7].clone()];
-    if let Event::RunCompleted(value) = &mut values[1].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[1]);
         value.status = smith_events::Status::Refused;
         value.result = None;
         value.failure = Some(smith_events::AnswerFailure {
@@ -1468,7 +1566,8 @@ fn expected_entrance_refusal_requires_captured_reason_and_no_request() {
             reason: Some(Box::from(&b"budget reserve turns 2 must be below total turns 1"[..])),
         });
     }
-    if let Event::SessionEnded(value) = &mut values[2].event {
+    {
+        let value = crate::common::edit::session_ended(&mut values[2]);
         value.exit = 2;
     }
     let predicate = smith_bench::EventCheck::RunCompleted {
@@ -1484,11 +1583,13 @@ fn expected_entrance_refusal_requires_captured_reason_and_no_request() {
     );
     assert_eq!(observer.check(&predicate, "task").passed, Measure::Observed { value: true });
     assert_eq!(observer.check(&smith_bench::EventCheck::NoRequest, "task").passed, Measure::Observed { value: true });
-    if let Event::RunCompleted(value) = &mut values[1].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[1]);
         value.failure.as_mut().expect("invalid refusal").reason = Some(Box::from(&b"unrelated setting"[..]));
     }
     assert_eq!(observe_against(&values, None).check(&predicate, "task").passed, Measure::Observed { value: false });
-    if let Event::RunCompleted(value) = &mut values[1].event {
+    {
+        let value = crate::common::edit::run_completed(&mut values[1]);
         value.failure.as_mut().expect("invalid refusal").reason = None;
     }
     assert!(matches!(observe_against(&values, None).check(&predicate, "task").passed, Measure::Unavailable { .. }));

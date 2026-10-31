@@ -26,7 +26,8 @@ fn build_records() -> Vec<Record> {
         }),
     };
     let mut opened = baseline[2].clone();
-    if let Event::ConversationOpened(value) = &mut opened.event {
+    {
+        let value = crate::common::edit::conversation_opened(&mut opened);
         value.kind = smith_events::ConversationKind::Child;
         value.conversation = 1;
         value.parent = Some(0);
@@ -35,7 +36,8 @@ fn build_records() -> Vec<Record> {
     }
     let mut returned =
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
-    if let Event::ToolCompleted(value) = &mut returned.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut returned);
         value.run = 0;
         value.conversation = 0;
         value.call = b"child0".as_slice().into();
@@ -55,7 +57,8 @@ fn build_records() -> Vec<Record> {
         });
     }
     let mut request = baseline[3].clone();
-    if let Event::ResponseStarted(value) = &mut request.event {
+    {
+        let value = crate::common::edit::response_started(&mut request);
         value.response = 1;
         let prompt = value.prompt.as_mut().expect("captured request");
         prompt.messages = skein_lib::List::with_capacity(1);
@@ -67,7 +70,8 @@ fn build_records() -> Vec<Record> {
         prompt.messages.push(smith_events::Message { role: smith_events::Role::User, blocks }).expect("one message");
     }
     let mut response = baseline[4].clone();
-    if let Event::ResponseCompleted(value) = &mut response.event {
+    {
+        let value = crate::common::edit::response_completed(&mut response);
         value.response = 1;
     }
     values.extend([budget, opened, returned, request, response]);
@@ -122,7 +126,8 @@ fn checked(records: &mut [Record], check: &EventCheck) -> Measure<bool> {
 }
 
 fn writing_budget(records: &mut [Record]) {
-    if let Event::Budget(value) = &mut records[5].event {
+    {
+        let value = crate::common::edit::budget(&mut records[5]);
         value.call = Some(b"child0".as_slice().into());
     }
 }
@@ -132,7 +137,8 @@ fn told_values_equal_their_writing_steps_budget() {
     for (used_ms, time) in [(1500, "6 seconds"), (7000, "1 second"), (7999, "less than a second")] {
         let mut values = records();
         writing_budget(&mut values);
-        if let Event::Budget(value) = &mut values[5].event {
+        {
+            let value = crate::common::edit::budget(&mut values[5]);
             value.time_ms.used = used_ms;
         }
         told_text(&mut values, 6, time);
@@ -159,17 +165,20 @@ fn a_return_without_the_join_stays_unavailable() {
         writing_budget(&mut values);
         match field {
             "call" => {
-                if let Event::Budget(value) = &mut values[5].event {
+                {
+                    let value = crate::common::edit::budget(&mut values[5]);
                     value.call = Some(b"foreign".as_slice().into());
                 }
             }
             "run" => {
-                if let Event::Budget(value) = &mut values[5].event {
+                {
+                    let value = crate::common::edit::budget(&mut values[5]);
                     value.run = 1;
                 }
             }
             "prompt" => {
-                if let Event::ResponseStarted(value) = &mut values[8].event {
+                {
+                    let value = crate::common::edit::response_started(&mut values[8]);
                     value.prompt = None;
                 }
             }
@@ -201,13 +210,15 @@ fn writing_step_absence_stale_and_coincident_snapshots_cannot_prove_smith_told_v
         match change {
             "same-rounded" | "same-time" => {}
             "stale" => {
-                if let Event::Budget(value) = &mut values[5].event {
+                {
+                    let value = crate::common::edit::budget(&mut values[5]);
                     value.time_ms.used = 1499;
                 }
             }
             "absent" => values.retain(|record| !matches!(record.event, Event::Budget(_))),
             "wrong-run" => {
-                if let Event::Budget(value) = &mut values[5].event {
+                {
+                    let value = crate::common::edit::budget(&mut values[5]);
                     value.run = 1;
                 }
             }
@@ -233,7 +244,8 @@ fn model_report_keeps_the_last_told_value_and_excludes_post_report_budget_change
     told_text(&mut values, 6, "less than a second");
     report_text(&mut values, "ALPHA 6 0");
     let mut later = values[5].clone();
-    if let Event::Budget(value) = &mut later.event {
+    {
+        let value = crate::common::edit::budget(&mut later);
         value.turns.used = 9;
         value.time_ms.used = 9000;
     }
@@ -272,19 +284,22 @@ fn model_report_requires_observed_child_identity_captured_usage_and_result() {
 fn model_report_uses_the_last_of_two_observed_child_returns() {
     let mut values = records();
     let mut opened = values[6].clone();
-    if let Event::ConversationOpened(value) = &mut opened.event {
+    {
+        let value = crate::common::edit::conversation_opened(&mut opened);
         value.conversation = 2;
         value.call = Some(b"child1".as_slice().into());
     }
     let mut returned = values[7].clone();
-    if let Event::ToolCompleted(value) = &mut returned.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut returned);
         value.call = b"child1".as_slice().into();
         value.child.as_mut().expect("child").conversation = 2;
     }
     let mut second = records();
     told_text(&mut second, 5, "4 seconds");
     let mut request = second[8].clone();
-    if let Event::ResponseStarted(value) = &mut request.event {
+    {
+        let value = crate::common::edit::response_started(&mut request);
         value.response = 2;
         let block = value
             .prompt
@@ -301,7 +316,8 @@ fn model_report_uses_the_last_of_two_observed_child_returns() {
         }
     }
     let mut response = values[9].clone();
-    if let Event::ResponseCompleted(value) = &mut response.event {
+    {
+        let value = crate::common::edit::response_completed(&mut response);
         value.response = 2;
     }
     values.splice(10..10, [opened, returned, request, response]);

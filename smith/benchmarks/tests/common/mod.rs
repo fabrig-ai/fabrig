@@ -83,3 +83,5 @@ pub use observe::{captured, observe};
 use smith_bench as bench;
 mod request;
 pub use request::request;
+
+pub mod edit;

@@ -55,14 +55,16 @@ fn payload_bytes_come_from_the_observed_matching_terminal_not_input_or_another_r
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
     let mut end =
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
-    if let Event::ToolStarted(value) = &mut start.event {
+    {
+        let value = crate::common::edit::tool_started(&mut start);
         value.run = 0;
         value.conversation = 0;
         value.call = Box::from(&b"shell-call"[..]);
         value.tool = Box::from(&b"shell"[..]);
         value.input_bytes = 100_000;
     }
-    if let Event::ToolCompleted(value) = &mut end.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut end);
         value.run = 0;
         value.conversation = 0;
         value.call = Box::from(&b"shell-call"[..]);
@@ -77,11 +79,13 @@ fn payload_bytes_come_from_the_observed_matching_terminal_not_input_or_another_r
     }
     common::events::inventory(&mut values);
     assert_eq!(observed(&values, &check), Measure::Observed { value: true });
-    if let Event::ToolCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut values[6]);
         value.bytes = 10240;
     }
     assert_eq!(observed(&values, &check), Measure::Observed { value: false });
-    if let Event::ToolCompleted(value) = &mut values[6].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut values[6]);
         value.bytes = 10241;
         value.run = 1;
     }
@@ -124,7 +128,8 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
     let mut end =
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
-    if let Event::ToolStarted(value) = &mut start.event {
+    {
+        let value = crate::common::edit::tool_started(&mut start);
         value.run = 0;
         value.conversation = 0;
         value.call = Box::from(&b"timeout-call"[..]);
@@ -134,7 +139,8 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
         value.input_bytes = u64::try_from(input.len()).expect("small input");
         value.deadline_ms = Some(1000);
     }
-    if let Event::ToolCompleted(value) = &mut end.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut end);
         value.run = 0;
         value.conversation = 0;
         value.call = Box::from(&b"timeout-call"[..]);
@@ -156,32 +162,38 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
         assert!(verdict.evidence[0].contains("requested_seconds=9999 emitted_bound_ms=1000 duration_ms=1001"));
         for duration in [0, 999, 1251] {
             let mut changed = values.clone();
-            if let Event::ToolCompleted(value) = &mut changed[6].event {
+            {
+                let value = crate::common::edit::tool_completed(&mut changed[6]);
                 value.duration_ms = duration;
             }
             assert_eq!(observed_capture(&changed, &check, &capture).passed, Measure::Observed { value: false });
         }
         let mut changed = values.clone();
-        if let Event::ToolStarted(value) = &mut changed[5].event {
+        {
+            let value = crate::common::edit::tool_started(&mut changed[5]);
             value.deadline_ms = None;
         }
         assert!(matches!(observed_capture(&changed, &check, &capture).passed, Measure::Unavailable { .. }));
-        if let Event::ToolStarted(value) = &mut changed[5].event {
+        {
+            let value = crate::common::edit::tool_started(&mut changed[5]);
             value.deadline_ms = Some(2000);
         }
         assert_eq!(observed_capture(&changed, &check, &capture).passed, Measure::Observed { value: false });
         changed = values.clone();
-        if let Event::ToolCompleted(value) = &mut changed[6].event {
+        {
+            let value = crate::common::edit::tool_completed(&mut changed[6]);
             value.clamped = false;
         }
         assert_eq!(observed_capture(&changed, &check, &capture).passed, Measure::Observed { value: false });
-        if let Event::ToolCompleted(value) = &mut changed[6].event {
+        {
+            let value = crate::common::edit::tool_completed(&mut changed[6]);
             value.clamped = true;
             value.run = 1;
         }
         assert!(matches!(observed_capture(&changed, &check, &capture).passed, Measure::Unavailable { .. }));
         changed = values.clone();
-        if let Event::ToolStarted(value) = &mut changed[5].event {
+        {
+            let value = crate::common::edit::tool_started(&mut changed[5]);
             value.input = Some(Box::from(&br#"{"command":"sleep 600","timeout_seconds":1}"#[..]));
         }
         assert_eq!(observed_capture(&changed, &check, &capture).passed, Measure::Observed { value: false });
@@ -192,11 +204,13 @@ fn timeouts_require_the_native_equal_bound_exact_request_clamp_and_complete_join
             grace_ms: 250,
             command: None,
         };
-        if let Event::ToolCompleted(value) = &mut changed[6].event {
+        {
+            let value = crate::common::edit::tool_completed(&mut changed[6]);
             value.clamped = false;
         }
         assert_eq!(observed_capture(&changed, &unclamped, &capture).passed, Measure::Observed { value: true });
-        if let Event::ToolStarted(value) = &mut changed[5].event {
+        {
+            let value = crate::common::edit::tool_started(&mut changed[5]);
             value.input = Some(Box::from(&br#"{"command":"sleep 600","timeout_seconds":1,"output_bytes":99999}"#[..]));
         }
         assert_eq!(observed_capture(&changed, &unclamped, &capture).passed, Measure::Observed { value: false });
@@ -229,13 +243,15 @@ fn shell_records() -> (Record, Record) {
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
     let mut running =
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
-    if let Event::ToolStarted(value) = &mut shell.event {
+    {
+        let value = crate::common::edit::tool_started(&mut shell);
         value.run = 0;
         value.conversation = 0;
         value.call = b"shell-call".as_slice().into();
         value.tool = b"shell".as_slice().into();
     }
-    if let Event::ToolCompleted(value) = &mut running.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut running);
         value.run = 0;
         value.conversation = 0;
         value.call = b"shell-call".as_slice().into();
@@ -253,21 +269,25 @@ fn story() -> Vec<Record> {
     let mut records = common::events::balanced();
     let (shell, running) = shell_records();
     let mut request = records[FIRST_REQUEST_AT].clone();
-    if let Event::ResponseStarted(value) = &mut request.event {
+    {
+        let value = crate::common::edit::response_started(&mut request);
         value.response = 1;
     }
     let mut response = records[FIRST_RESPONSE_AT].clone();
-    if let Event::ResponseCompleted(value) = &mut response.event {
+    {
+        let value = crate::common::edit::response_completed(&mut response);
         value.response = 1;
     }
 
     let mut poll = shell.clone();
-    if let Event::ToolStarted(value) = &mut poll.event {
+    {
+        let value = crate::common::edit::tool_started(&mut poll);
         value.call = b"poll-call".as_slice().into();
         value.tool = b"job".as_slice().into();
     }
     let mut end = running.clone();
-    if let Event::ToolCompleted(value) = &mut end.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut end);
         value.call = b"poll-call".as_slice().into();
         value.tool = b"job".as_slice().into();
         value.verdict = Verdict::Exited;
@@ -289,7 +309,8 @@ fn job_running_passes_on_a_shell_call_answered_running() {
 #[test]
 fn job_running_fails_when_the_shell_finished_before_answering() {
     let mut records = story();
-    if let Event::ToolCompleted(value) = &mut records[SHELL_ANSWER_AT].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut records[SHELL_ANSWER_AT]);
         value.verdict = Verdict::Exited;
         value.job = None;
     }
@@ -363,7 +384,8 @@ fn job_terminal_fails_on_a_job_told_twice() {
 #[test]
 fn job_terminal_ignores_another_jobs_reported_terminal() {
     let mut records = story();
-    if let Event::ToolCompleted(value) = &mut records[JOB_TERMINAL_AT].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut records[JOB_TERMINAL_AT]);
         value.job = Some(OTHER_JOB_NUMBER);
     }
     assert_eq!(observed(&records, &EventCheck::JobTerminal), Measure::Observed { value: false });

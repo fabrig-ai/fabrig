@@ -82,7 +82,8 @@ fn small_window_requires_a_compaction_and_no_prompt_past_its_window() {
     assert!(task.event.contains(&compacted));
     assert!(task.event.contains(&smith_bench::EventCheck::PromptWithinWindow));
     let mut records = common::events::balanced();
-    if let smith_events::Event::SessionStarted(value) = &mut records[0].event {
+    {
+        let value = crate::common::edit::session_started(&mut records[0]);
         value
             .limits
             .push(smith_events::EffectiveLimit {
@@ -116,7 +117,8 @@ fn small_window_requires_a_compaction_and_no_prompt_past_its_window() {
         observer.check(&smith_bench::EventCheck::PromptWithinWindow, "task").passed,
         Measure::Observed { value: true }
     );
-    if let smith_events::Event::ResponseCompleted(value) = &mut records[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut records[4]);
         value.usage.input_tokens = Some(10_000);
     }
     assert_eq!(
@@ -298,7 +300,8 @@ fn follow_up_chat_judges_one_completion_per_exchange() {
     let mut received = common::events::record(include_str!(
         "../../../crates/smith-events/golden/v4/message_received_everything.jsonl"
     ));
-    if let smith_events::Event::MessageReceived(value) = &mut received.event {
+    {
+        let value = crate::common::edit::message_received(&mut received);
         value.run = 0;
         value.label = Some(b"person".as_slice().into());
         value.refused = None;

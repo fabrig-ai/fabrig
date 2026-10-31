@@ -68,7 +68,8 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
     assert!(matches!(observed(&records, &Capture::None).check(&path_check(), "").passed, Measure::Unavailable { .. }));
     for path in ["/spec/./rules.txt", "/spec//rules.txt", "../spec/rules.txt", "./../spec/rules.txt"] {
         let mut records = records.clone();
-        if let Event::ToolStarted(start) = &mut records[5].event {
+        {
+            let start = crate::common::edit::tool_started(&mut records[5]);
             start.input = Some(serde_json::to_vec(&serde_json::json!({"path":path})).expect("JSON").into());
         }
         assert_eq!(
@@ -78,7 +79,8 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
     }
     for path in ["spec/rules.txt", "/app/rules.txt", "/spec/../spec/rules.txt", "/spec/rules.txt.extra"] {
         let mut records = records.clone();
-        if let Event::ToolStarted(start) = &mut records[5].event {
+        {
+            let start = crate::common::edit::tool_started(&mut records[5]);
             start.input = Some(serde_json::to_vec(&serde_json::json!({"path":path})).expect("JSON").into());
         }
         assert_eq!(
@@ -88,7 +90,8 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
     }
     for input in [b"{bad".as_slice(), b"{\"path\":7}", b"{}"] {
         let mut records = records.clone();
-        if let Event::ToolStarted(start) = &mut records[5].event {
+        {
+            let start = crate::common::edit::tool_started(&mut records[5]);
             start.input = Some(input.into());
         }
         assert_eq!(
@@ -98,7 +101,8 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
     }
     for mutation in 0..5 {
         let mut records = records.clone();
-        if let Event::ToolCompleted(end) = &mut records[6].event {
+        {
+            let end = crate::common::edit::tool_completed(&mut records[6]);
             match mutation {
                 0 => end.run = 1,
                 1 => end.conversation = 1,
@@ -144,7 +148,8 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
         Measure::Unavailable { .. }
     ));
     let mut relative = records;
-    if let Event::ToolStarted(start) = &mut relative[5].event {
+    {
+        let start = crate::common::edit::tool_started(&mut relative[5]);
         start.input = Some(Box::from(&b"{\"path\":\"./input.txt\"}"[..]));
     }
     let relative_check =

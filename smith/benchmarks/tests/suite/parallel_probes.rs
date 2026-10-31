@@ -57,7 +57,8 @@ fn twenty_reads_must_be_in_one_response_and_content_absence_is_unknown() {
     assert_eq!(observe_wide(&records).check(&check, "task").passed, Measure::Observed { value: true });
     set_calls(&mut records[4], 10);
     let mut second = records[4].clone();
-    if let Event::ResponseCompleted(value) = &mut second.event {
+    {
+        let value = crate::common::edit::response_completed(&mut second);
         value.response = 1;
     }
     records.insert(5, second);
@@ -101,7 +102,8 @@ fn children(intervals: [(u64, u64, u64); 2]) -> Vec<Record> {
     for (index, (start, end, run)) in intervals.into_iter().enumerate() {
         let mut opening = opened.clone();
         opening.t_ms = start;
-        if let Event::ConversationOpened(value) = &mut opening.event {
+        {
+            let value = crate::common::edit::conversation_opened(&mut opening);
             value.run = run;
             value.conversation = u64::try_from(index + 1).expect("two children");
             value.kind = ConversationKind::Child;
@@ -110,7 +112,8 @@ fn children(intervals: [(u64, u64, u64); 2]) -> Vec<Record> {
         }
         let mut closure = closed.clone();
         closure.t_ms = end;
-        if let Event::ConversationClosed(value) = &mut closure.event {
+        {
+            let value = crate::common::edit::conversation_closed(&mut closure);
             value.run = run;
             value.conversation = u64::try_from(index + 1).expect("two children");
         }
@@ -124,4 +127,3 @@ fn children(intervals: [(u64, u64, u64); 2]) -> Vec<Record> {
     common::events::inventory(&mut records);
     records
 }
-

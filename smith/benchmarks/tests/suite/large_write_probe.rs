@@ -76,7 +76,8 @@ fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
     });
     assert_eq!(checked(&records), Measure::Observed { value: false });
     records = original.clone();
-    if let Event::ToolStarted(start) = &mut records[7].event {
+    {
+        let start = crate::common::edit::tool_started(&mut records[7]);
         start.input = None;
     }
     assert!(matches!(checked(&records), Measure::Unavailable { .. }));
@@ -113,7 +114,8 @@ fn protocol_only_oversized_write_records_identity_and_elided_path() {
     let directory = scratch.path().to_path_buf().join(format!("smith-protocol-oversized-{}", std::process::id()));
     fs::create_dir(&directory).expect("fresh workspace");
     let mut records = common::events::balanced();
-    if let Event::ResponseCompleted(value) = &mut records[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut records[4]);
         value.oversized = 1;
         let mut blocks = skein_lib::List::with_capacity(1);
         blocks
@@ -136,10 +138,12 @@ fn protocol_only_oversized_write_records_identity_and_elided_path() {
     for case in ["at-bound", "wrong-tool", "absent-content", "counter", "loss"] {
         records = original.clone();
         if case == "loss" {
-            if let Event::SessionEnded(end) = &mut records.last_mut().expect("ended").event {
+            {
+                let end = crate::common::edit::session_ended(records.last_mut().expect("ended"));
                 end.loss.events = 1;
             }
-        } else if let Event::ResponseCompleted(response) = &mut records[4].event {
+        } else {
+            let response = crate::common::edit::response_completed(&mut records[4]);
             match case {
                 "absent-content" => response.completion = None,
                 "counter" => response.oversized = 2,
@@ -204,17 +208,20 @@ fn saved_write_checks_content_size_pairing_and_capture_not_seed() {
         "encoded input size cannot replace content size"
     );
     let original = records.clone();
-    if let Event::ToolStarted(value) = &mut records[5].event {
+    {
+        let value = crate::common::edit::tool_started(&mut records[5]);
         value.input = None;
     }
     assert!(matches!(checked(&records, 1), Measure::Unavailable { .. }));
     records = original.clone();
-    if let Event::ToolCompleted(value) = &mut records[6].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut records[6]);
         value.conversation = 7;
     }
     assert_eq!(checked(&records, 1), Measure::Observed { value: false });
     records = original.clone();
-    if let Event::ToolStarted(value) = &mut records[5].event {
+    {
+        let value = crate::common::edit::tool_started(&mut records[5]);
         value.effect = Effect::Read;
     }
     assert!(matches!(checked(&records, 1), Measure::Unavailable { .. }));
@@ -222,7 +229,8 @@ fn saved_write_checks_content_size_pairing_and_capture_not_seed() {
     records.insert(7, records[6].clone());
     assert_eq!(checked(&records, 1), Measure::Observed { value: false });
     records = original.clone();
-    if let Event::SessionEnded(value) = &mut records.last_mut().expect("ended").event {
+    {
+        let value = crate::common::edit::session_ended(records.last_mut().expect("ended"));
         value.loss.events = 1;
     }
     assert!(matches!(checked(&records, 1), Measure::Unavailable { .. }));
@@ -238,7 +246,8 @@ fn oversized_pieces_replay_successful_edits_and_keep_failed_edit_measurement() {
     std::fs::create_dir(&directory).expect("fresh workspace");
     std::fs::write(directory.join("payload.txt"), "hello wide world").expect("saved pieces");
     let mut records = common::events::balanced();
-    if let Event::ResponseCompleted(value) = &mut records[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut records[4]);
         value.oversized = 1;
         let mut blocks = skein_lib::List::with_capacity(1);
         blocks
@@ -277,27 +286,32 @@ fn oversized_pieces_replay_successful_edits_and_keep_failed_edit_measurement() {
     };
     assert_eq!(checked(&records), Measure::Observed { value: true });
     let original = records.clone();
-    if let Event::ResponseCompleted(value) = &mut records[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut records[4]);
         value.completion = None;
     }
     assert!(matches!(checked(&records), Measure::Unavailable { .. }));
     records = original.clone();
-    if let Event::ResponseCompleted(value) = &mut records[4].event {
+    {
+        let value = crate::common::edit::response_completed(&mut records[4]);
         value.oversized = 0;
     }
     assert_eq!(checked(&records), Measure::Observed { value: false });
     records = original.clone();
-    if let Event::ToolCompleted(value) = &mut records[12].event {
+    {
+        let value = crate::common::edit::tool_completed(&mut records[12]);
         value.call = b"foreign".as_slice().into();
     }
     assert_eq!(checked(&records), Measure::Observed { value: false });
     records = original.clone();
-    if let Event::ToolStarted(value) = &mut records[11].event {
+    {
+        let value = crate::common::edit::tool_started(&mut records[11]);
         value.input = None;
     }
     assert!(matches!(checked(&records), Measure::Unavailable { .. }));
     records = original.clone();
-    if let Event::ToolStarted(value) = &mut records[9].event {
+    {
+        let value = crate::common::edit::tool_started(&mut records[9]);
         value.input = Some(br#"{"path":"payload.txt","edits":[{"old":"missing","new":"wrong"}]}"#.as_slice().into());
     }
     assert_eq!(checked(&records), Measure::Observed { value: false });
@@ -317,7 +331,8 @@ fn piece(records: &mut Vec<smith_events::Record>, tool: &str, call: &str, input:
     let mut completed = END.clone();
     started.t_ms = 4;
     completed.t_ms = 4;
-    if let Event::ToolStarted(value) = &mut started.event {
+    {
+        let value = crate::common::edit::tool_started(&mut started);
         value.run = 0;
         value.conversation = 0;
         value.call = call.as_bytes().into();
@@ -327,7 +342,8 @@ fn piece(records: &mut Vec<smith_events::Record>, tool: &str, call: &str, input:
         value.input_bytes = 32768;
         value.input = Some(serde_json::to_vec(input).expect("captured arguments").into());
     }
-    if let Event::ToolCompleted(value) = &mut completed.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut completed);
         value.run = 0;
         value.conversation = 0;
         value.call = call.as_bytes().into();
@@ -396,7 +412,8 @@ fn native_oversized_refusal_rejects_wrong_pairs_small_content_loss_and_absent_ca
         records = original.clone();
         match value {
             "run" | "conversation" | "call" | "terminal" => {
-                if let Event::ToolCompleted(end) = &mut records[6].event {
+                {
+                    let end = crate::common::edit::tool_completed(&mut records[6]);
                     match value {
                         "run" => end.run = 9,
                         "conversation" => end.conversation = 9,
@@ -408,7 +425,8 @@ fn native_oversized_refusal_rejects_wrong_pairs_small_content_loss_and_absent_ca
                 assert_eq!(checked(&records), Measure::Observed { value: false });
             }
             "small" | "capture" | "effect" => {
-                if let Event::ToolStarted(start) = &mut records[5].event {
+                {
+                    let start = crate::common::edit::tool_started(&mut records[5]);
                     match value {
                         "small" => {
                             start.input = Some(
@@ -429,7 +447,8 @@ fn native_oversized_refusal_rejects_wrong_pairs_small_content_loss_and_absent_ca
                 }
             }
             "loss" => {
-                if let Event::SessionEnded(end) = &mut records.last_mut().expect("ended").event {
+                {
+                    let end = crate::common::edit::session_ended(records.last_mut().expect("ended"));
                     end.loss.events = 1;
                 }
                 assert!(matches!(checked(&records), Measure::Unavailable { .. }));

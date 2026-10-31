@@ -2,7 +2,7 @@
 
 use smith_bench::agent::smith::events::Observer;
 use smith_bench::{CheckVerdict, EventCheck, Measure};
-use smith_events::{Block, Capture, Event, Record};
+use smith_events::{Block, Capture, Record};
 
 use crate::common;
 
@@ -12,7 +12,8 @@ fn check() -> EventCheck {
 
 fn fixture() -> Vec<Record> {
     let mut values = common::events::balanced();
-    if let Event::ResponseCompleted(response) = &mut values[4].event {
+    {
+        let response = crate::common::edit::response_completed(&mut values[4]);
         response.first_byte_ms = Some(31000);
         response.largest_gap_ms = Some(151_000);
         response.duration_ms = 61000;
@@ -61,7 +62,8 @@ fn native_measurements_export_the_raw_item_and_preset_findings_without_failing()
 fn exercise_floor_is_strict_and_short_calls_are_not_exercised() {
     for length in [1, 59999, 60000] {
         let mut values = fixture();
-        if let Event::ResponseCompleted(response) = &mut values[4].event {
+        {
+            let response = crate::common::edit::response_completed(&mut values[4]);
             response.duration_ms = length;
         }
         let verdict = observed(&values, &Capture::Everything);
@@ -69,7 +71,8 @@ fn exercise_floor_is_strict_and_short_calls_are_not_exercised() {
         assert!(verdict.evidence.iter().any(|line| line.contains("NotExercised") && line.contains("model deviation")));
     }
     let mut values = fixture();
-    if let Event::ResponseCompleted(response) = &mut values[4].event {
+    {
+        let response = crate::common::edit::response_completed(&mut values[4]);
         response.duration_ms = 60001;
     }
     assert_eq!(observed(&values, &Capture::Everything).passed, Measure::Observed { value: true });
@@ -79,7 +82,8 @@ fn exercise_floor_is_strict_and_short_calls_are_not_exercised() {
 fn absent_transport_content_wrong_join_and_failed_terminal_cannot_pass() {
     for field in ["first", "gap", "content", "response", "run", "conversation", "envelope", "unknown"] {
         let mut values = fixture();
-        if let Event::ResponseCompleted(response) = &mut values[4].event {
+        {
+            let response = crate::common::edit::response_completed(&mut values[4]);
             match field {
                 "first" => response.first_byte_ms = None,
                 "gap" => response.largest_gap_ms = None,
@@ -105,7 +109,8 @@ fn absent_transport_content_wrong_join_and_failed_terminal_cannot_pass() {
     }
     for outcome in [smith_events::Outcome::Failed, smith_events::Outcome::Cancelled] {
         let mut values = fixture();
-        if let Event::ResponseCompleted(response) = &mut values[4].event {
+        {
+            let response = crate::common::edit::response_completed(&mut values[4]);
             response.outcome = outcome;
         }
         assert_eq!(observed(&values, &Capture::Everything).passed, Measure::Observed { value: false });
@@ -113,7 +118,8 @@ fn absent_transport_content_wrong_join_and_failed_terminal_cannot_pass() {
     let mut values = fixture();
     let mut notice =
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/notice_everything.jsonl"));
-    if let Event::Notice(notice) = &mut notice.event {
+    {
+        let notice = crate::common::edit::notice(&mut notice);
         notice.kind = smith_events::NoticeKind::ReasoningDropped;
         notice.run = Some(0);
         notice.bytes = Some(65537);

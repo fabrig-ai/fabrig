@@ -1,7 +1,7 @@
 //! Process-tree controls exercise the harness codec, not a provider or product run.
 
 use smith_bench::{EventCheck, Measure};
-use smith_events::{Capture, Event, Record};
+use smith_events::{Capture, Record};
 
 use crate::common;
 
@@ -52,7 +52,8 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
     let mut end =
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
-    if let Event::ToolStarted(value) = &mut start.event {
+    {
+        let value = crate::common::edit::tool_started(&mut start);
         value.run = 0;
         value.conversation = 0;
         value.call = Box::from(&b"nested-call"[..]);
@@ -63,7 +64,8 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         value.input = Some(input.into_boxed_slice());
         value.deadline_ms = Some(1000);
     }
-    if let Event::ToolCompleted(value) = &mut end.event {
+    {
+        let value = crate::common::edit::tool_completed(&mut end);
         value.run = 0;
         value.conversation = 0;
         value.call = Box::from(&b"nested-call"[..]);
@@ -84,7 +86,8 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         assert_eq!(observed(&values, &check, &capture), Measure::Observed { value: true });
         for command in [Some("sleep 600"), Some("sh -c 'sleep 600'"), Some(""), None] {
             let mut wrong = values.clone();
-            if let Event::ToolStarted(value) = &mut wrong[5].event {
+            {
+                let value = crate::common::edit::tool_started(&mut wrong[5]);
                 let input = match command {
                     Some(command) => serde_json::json!({"command": command, "timeout_seconds": 1}),
                     None => serde_json::json!({"timeout_seconds": 1}),
@@ -100,7 +103,8 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         }
         for field in ["run", "conversation", "call", "tool"] {
             let mut wrong = values.clone();
-            if let Event::ToolCompleted(value) = &mut wrong[6].event {
+            {
+                let value = crate::common::edit::tool_completed(&mut wrong[6]);
                 match field {
                     "run" => value.run = 1,
                     "conversation" => value.conversation = 1,
@@ -118,7 +122,8 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         }
         assert!(matches!(observed(&wrong, &check, &capture), Measure::Unavailable { .. }));
         let mut wrong = values.clone();
-        if let Event::ToolStarted(value) = &mut wrong[5].event {
+        {
+            let value = crate::common::edit::tool_started(&mut wrong[5]);
             value.input = None;
         }
         assert!(matches!(observed(&wrong, &check, &capture), Measure::Unavailable { .. }));
