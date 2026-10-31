@@ -450,7 +450,7 @@ impl Clients {
     pub fn advance(
         &mut self,
         events: &mut Queue<root::Event>,
-        forges: &[crate::settings::Forge],
+        forges: &crate::forges::Forges,
         demo: Option<&crate::settings::Demo>,
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
@@ -542,7 +542,7 @@ impl Clients {
         now: Time,
         wall: Wall,
         events: &mut Queue<root::Event>,
-        forges: &[crate::settings::Forge],
+        forges: &crate::forges::Forges,
         demo: Option<&crate::settings::Demo>,
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
@@ -674,7 +674,7 @@ impl Clients {
     fn endings_step(
         &mut self,
         events: &mut Queue<root::Event>,
-        forges: &[crate::settings::Forge],
+        forges: &crate::forges::Forges,
         demo: Option<&crate::settings::Demo>,
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {

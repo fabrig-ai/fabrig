@@ -31,7 +31,7 @@ pub struct Workers {
     ending: Option<Closing>,
     pub(crate) component_closed: bool,
     pub(crate) encoding: Encoding,
-    pub(crate) forges: Box<[Forge]>,
+    pub(crate) forges: crate::forges::Forges,
     pub(crate) bad_parts: u64,
 }
 fn invalid(what: What) -> Problems {
@@ -47,6 +47,7 @@ impl Workers {
         forges: Box<[Forge]>,
         limits: &kit::Limits,
     ) -> Result<Self, Problems> {
+        let configured_count = forges.len();
         let mut workers = List::with_capacity(limits.names);
         for worker in &config.hosts.workers {
             let digest = match config::digest(files.contents(&worker.digest).ok_or(invalid(What::Unreadable))?) {
@@ -85,7 +86,10 @@ impl Workers {
             ending: None,
             component_closed: false,
             encoding,
-            forges,
+            forges: crate::forges::Forges::from_document(
+                forges,
+                u32::try_from(configured_count).expect("document forge count"),
+            ),
             bad_parts: 0,
         })
     }

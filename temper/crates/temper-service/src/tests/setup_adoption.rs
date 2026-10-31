@@ -389,7 +389,9 @@ fn old_form_fake_repositories_are_adopted_in_order_then_connected_with_the_files
         let Some(root::Event::Forge(_)) = service.engine.as_mut().expect("engine").events.pop() else {
             panic!("Forgejo connected event")
         };
-        assert!(service.engine.as_ref().expect("engine").workers.forges[0].api_token.is_none());
+        assert!(
+            service.engine.as_ref().expect("engine").workers.forges.get(1).expect("fixture forge").api_token.is_none()
+        );
     }
 }
 #[test]

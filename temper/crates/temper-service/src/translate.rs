@@ -24,7 +24,7 @@ pub fn limits(own: &crate::limits::Limits) -> Option<v1::Limits> {
 /// A workspace's remotes and programs, made from each configured forge.
 pub fn items(
     assignment: &engine::Assignment,
-    forges: &[settings::Forge],
+    forges: &crate::forges::Forges,
     tokens: &crate::forge::tokens::Tokens,
     limits: &v1::Limits,
 ) -> Result<Option<v1::Items>, v1::Problem> {
@@ -41,18 +41,11 @@ pub fn items(
 fn repository_item(
     repository: &engine::ForgeRepository,
     save: bool,
-    forges: &[settings::Forge],
+    forges: &crate::forges::Forges,
     tokens: &crate::forge::tokens::Tokens,
     limits: &v1::Limits,
 ) -> Result<v1::Repository, v1::Problem> {
-    let mut configured = None;
-    for forge in forges {
-        if forge.number == repository.provider.forge {
-            configured = Some(forge);
-            break;
-        }
-    }
-    let forge = configured.ok_or(problem(v1::Path::RepositoryRemote))?;
+    let forge = forges.get(repository.provider.forge).ok_or(problem(v1::Path::RepositoryRemote))?;
     let base = forge.git.as_ref();
     let length = base.len().checked_add(repository.owner.len()).ok_or(problem(v1::Path::RepositoryRemote))?;
     let length = length.checked_add(repository.name.len()).ok_or(problem(v1::Path::RepositoryRemote))?;

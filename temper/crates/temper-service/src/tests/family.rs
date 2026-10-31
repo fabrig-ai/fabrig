@@ -54,7 +54,7 @@ fn an_adopt_reaches_the_root_with_its_forges_host() {
     let forges = configured(b"https://forge.example:3000/git");
     let event = family::to_root(
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting())),
-        &forges,
+        &fixtures::forge_table(&forges),
         None,
         &w::CEILINGS,
     )
@@ -85,7 +85,7 @@ fn an_adopt_reaches_the_root_with_its_forges_host() {
 fn an_adopt_naming_no_configured_forge_reaches_the_root_with_no_host() {
     let event = family::to_root(
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting())),
-        &[],
+        &fixtures::forge_table(&[]),
         None,
         &w::CEILINGS,
     )
@@ -103,7 +103,9 @@ fn an_adopt_of_another_version_is_answered_undecodable() {
         ("malformed", 1, wire::CLIENT_VERSION, Box::new([]), REPLY),
         ("trailing", 1, wire::CLIENT_VERSION, trailing_adopt(), REPLY),
     ] {
-        let Err(answer) = family::to_root(exchange(family, version, record), &[], None, &w::CEILINGS) else {
+        let Err(answer) =
+            family::to_root(exchange(family, version, record), &fixtures::forge_table(&[]), None, &w::CEILINGS)
+        else {
             panic!("{row}: undecodable")
         };
         let kit::Event::Application(kit::FromApplication::Undecodable { to }) = *answer else {
@@ -149,7 +151,9 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
             scope,
             window: jig_domain_core::documents::Window { rows: 2, after: None },
         };
-        let Err(answer) = family::to_root(input, &[], None, &w::CEILINGS) else { panic!("{row}: unknown read") };
+        let Err(answer) = family::to_root(input, &fixtures::forge_table(&[]), None, &w::CEILINGS) else {
+            panic!("{row}: unknown read")
+        };
         let kit::Event::Application(kit::FromApplication::Read { reply, family, record }) = *answer else {
             panic!("{row}: read")
         };
@@ -168,7 +172,9 @@ fn demo_read(scope: people::ApplicationScope) -> kit::ToApplication {
     }
 }
 fn demo_record(input: kit::ToApplication, demo: &crate::settings::Demo) -> Box<[u8]> {
-    let Err(answer) = family::to_root(input, &[], Some(demo), &w::CEILINGS) else { panic!("demo read") };
+    let Err(answer) = family::to_root(input, &fixtures::forge_table(&[]), Some(demo), &w::CEILINGS) else {
+        panic!("demo read")
+    };
     let kit::Event::Application(kit::FromApplication::Read { reply, family, record }) = *answer else {
         panic!("read answer")
     };
@@ -243,9 +249,12 @@ fn a_configured_demo_does_not_answer_other_or_malformed_reads() {
         let mut input = demo_read(people::ApplicationScope::Deployment);
         let kit::ToApplication::Read { family: f, version: v, record: r, .. } = &mut input else { panic!("read") };
         (*f, *v, *r) = (family, version, record);
-        let Err(answer) =
-            family::to_root(input, &[], service.engine.as_ref().expect("engine").demo.as_ref(), &w::CEILINGS)
-        else {
+        let Err(answer) = family::to_root(
+            input,
+            &fixtures::forge_table(&[]),
+            service.engine.as_ref().expect("engine").demo.as_ref(),
+            &w::CEILINGS,
+        ) else {
             panic!("{row}: read answer")
         };
         let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("{row}: read") };
@@ -267,7 +276,9 @@ fn a_forge_family_watch_is_refused_unknown() {
             scope: people::ApplicationScope::Project(7),
             window: jig_domain_core::documents::Window { rows: 2, after: None },
         };
-        let Err(answer) = family::to_root(input, &[], None, &w::CEILINGS) else { panic!("{row}: refused watch") };
+        let Err(answer) = family::to_root(input, &fixtures::forge_table(&[]), None, &w::CEILINGS) else {
+            panic!("{row}: refused watch")
+        };
         let kit::Event::WatchRefused { watcher, why } = *answer else { panic!("{row}: refusal") };
         assert_eq!((watcher, why), expected, "{row}");
     }
@@ -417,7 +428,7 @@ fn a_request_under_an_owner_without_records_is_answered_undecodable() {
         let number = wire::number(owner);
         let Err(answer) = family::to_root(
             exchange(number, wire::CLIENT_VERSION, wire::requesting(&requesting())),
-            &[],
+            &fixtures::forge_table(&[]),
             None,
             &w::CEILINGS,
         ) else {
@@ -465,7 +476,7 @@ fn a_family_request_keeps_its_supplied_admission_scope() {
     let mut input = exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting()));
     let kit::ToApplication::Request { scope, .. } = &mut input else { panic!("request") };
     *scope = people::ApplicationScope::Deployment;
-    let event = family::to_root(input, &[], None, &w::CEILINGS).unwrap();
+    let event = family::to_root(input, &fixtures::forge_table(&[]), None, &w::CEILINGS).unwrap();
     let root::Event::Party(root::PartyInput::Application { scope, .. }) = event else { panic!("application") };
     assert_eq!(scope, people::ApplicationScope::Deployment);
 }
@@ -507,7 +518,7 @@ fn watch_exchange(family: u16, version: u32, record: Box<[u8]>) -> kit::ToApplic
 fn a_change_watch_reaches_the_root_with_its_scope_subject_and_window() {
     let event = family::to_root(
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, watching(CHANGE_TASK)),
-        &[],
+        &fixtures::forge_table(&[]),
         None,
         &w::CEILINGS,
     )
@@ -539,7 +550,9 @@ fn invalid_change_watches_are_refused_unknown_without_the_root() {
         ("trailing", wire::FORGE, wire::CLIENT_VERSION, trailing.finish()),
         ("zero task", wire::FORGE, wire::CLIENT_VERSION, watching(0)),
     ] {
-        let Err(answer) = family::to_root(watch_exchange(family, version, record), &[], None, &w::CEILINGS) else {
+        let Err(answer) =
+            family::to_root(watch_exchange(family, version, record), &fixtures::forge_table(&[]), None, &w::CEILINGS)
+        else {
             panic!("{row}: refused watch")
         };
         let kit::Event::WatchRefused { watcher, why } = *answer else { panic!("{row}: unknown") };
@@ -593,7 +606,7 @@ fn panel() -> forge::Panel {
         updates: forge::PanelUsed { used: 3, limit: 5 },
     }
 }
-fn decoded_panel(value: forge::Panel, forges: &[crate::settings::Forge]) -> w::ChangePanel {
+fn decoded_panel(value: forge::Panel, forges: &crate::forges::Forges) -> w::ChangePanel {
     let bytes = family::panel(value, forges, &w::CEILINGS).unwrap();
     wire::decode_change_panel(&bytes, &w::CEILINGS).expect("whole panel at CLIENT_VERSION")
 }
@@ -639,7 +652,7 @@ fn a_panel_encodes_and_decodes_back_whole() {
         },
     )
     .unwrap();
-    assert_eq!(decoded_panel(panel(), &[]), expected);
+    assert_eq!(decoded_panel(panel(), &fixtures::forge_table(&[])), expected);
 }
 fn repairing(reason: w::Reason) -> w::Step {
     w::Step::Repairing(w::Repairing::new(&w::CEILINGS, w::RepairingParts { reason }).unwrap())
@@ -688,7 +701,7 @@ fn every_panel_step_keeps_its_payload_on_the_wire() {
                 value.step = input.clone();
                 value.way = way;
                 value.in_landing = landing;
-                let got = decoded_panel(value.clone(), &[]);
+                let got = decoded_panel(value.clone(), &fixtures::forge_table(&[]));
                 assert_eq!(*got.step(), expected);
                 assert_eq!(*got.way(), expected_way);
                 assert_eq!(*got.in_landing(), landing);
@@ -713,7 +726,7 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
     ] {
         let mut value = panel();
         value.hold = input;
-        assert_eq!(*decoded_panel(value, &[]).hold(), expected);
+        assert_eq!(*decoded_panel(value, &fixtures::forge_table(&[])).hold(), expected);
     }
     for (input, expected) in [
         (change::Status::Unknown, w::Ci::Unknown),
@@ -723,7 +736,7 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
     ] {
         let mut value = panel();
         value.ci = input;
-        assert_eq!(*decoded_panel(value, &[]).ci(), expected);
+        assert_eq!(*decoded_panel(value, &fixtures::forge_table(&[])).ci(), expected);
     }
 }
 #[test]
@@ -776,7 +789,7 @@ fn a_panels_pull_address_uses_its_configured_forge_kind_and_base() {
             Some(web) => Some(web.into()),
             None => None,
         };
-        let got = decoded_panel(panel(), &forges).into_parts().pull.unwrap();
+        let got = decoded_panel(panel(), &fixtures::forge_table(&forges)).into_parts().pull.unwrap();
         assert_eq!(got.number(), 123, "{row}");
         assert_eq!(got.address(), expected, "{row}");
     }
@@ -804,7 +817,7 @@ fn a_panels_pull_address_past_its_bound_is_left_out_and_the_panel_still_delivere
             let mut value = panel();
             value.owner = owner.clone();
             value.name = name.clone();
-            let decoded = decoded_panel(value, &forges);
+            let decoded = decoded_panel(value, &fixtures::forge_table(&forges));
             assert_eq!(decoded.owner(), &*owner, "{row}");
             assert_eq!(decoded.name(), &*name, "{row}");
             let pull = decoded.into_parts().pull.unwrap();
@@ -827,7 +840,7 @@ fn a_panel_before_the_first_head_has_no_pull_or_running_delegate() {
     value.step = forge::PanelStep::Producing;
     value.ci = change::Status::Unknown;
     value.gates = Box::new([]);
-    let got = decoded_panel(value, &fixtures::forges()).into_parts();
+    let got = decoded_panel(value, &fixtures::forge_table(&fixtures::forges())).into_parts();
     assert_eq!((got.head, got.pull, got.runs, got.hold), (None, None, None, None));
     assert_eq!(got.step, w::Step::Producing);
     assert_eq!(got.ci, w::Ci::Unknown);
@@ -864,7 +877,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
     .unwrap();
     let event = family::to_root(
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
-        &[],
+        &fixtures::forge_table(&[]),
         None,
         &w::CEILINGS,
     )
@@ -896,7 +909,7 @@ fn forges_watches_name_the_deployment_subject() {
     let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Forges }).unwrap();
     let event = family::to_root(
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
-        &[],
+        &fixtures::forge_table(&[]),
         None,
         &w::CEILINGS,
     )
@@ -1176,7 +1189,7 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
         .unwrap();
         let event = family::to_root(
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-            &[],
+            &fixtures::forge_table(&[]),
             None,
             &w::CEILINGS,
         )
@@ -1270,7 +1283,7 @@ fn demo_start_reaches_the_root_with_its_admission_envelope() {
         reply_to, sign_in, key, digest, request, carried, ..
     })) = family::to_root(
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-        &[],
+        &fixtures::forge_table(&[]),
         None,
         &w::CEILINGS,
     )
@@ -1284,7 +1297,12 @@ fn demo_start_reaches_the_root_with_its_admission_envelope() {
 
 #[test]
 fn demo_read_tracks_not_started_running_and_ended() {
-    let Err(answer) = family::to_root(demo_read(people::ApplicationScope::Deployment), &[], None, &w::CEILINGS) else {
+    let Err(answer) = family::to_root(
+        demo_read(people::ApplicationScope::Deployment),
+        &fixtures::forge_table(&[]),
+        None,
+        &w::CEILINGS,
+    ) else {
         panic!("read")
     };
     let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("demo read") };
@@ -1297,9 +1315,12 @@ fn demo_read_tracks_not_started_running_and_ended() {
         (Some(forge::DemoState::Ended), Some(w::DemoState::Ended)),
     ] {
         demo.state = state;
-        let Err(answer) =
-            family::to_root(demo_read(people::ApplicationScope::Deployment), &[], Some(demo), &w::CEILINGS)
-        else {
+        let Err(answer) = family::to_root(
+            demo_read(people::ApplicationScope::Deployment),
+            &fixtures::forge_table(&[]),
+            Some(demo),
+            &w::CEILINGS,
+        ) else {
             panic!("read")
         };
         let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("demo read") };
@@ -1423,7 +1444,7 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                 let request = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
                 let result = family::to_root(
                     exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
-                    &[],
+                    &fixtures::forge_table(&[]),
                     None,
                     &w::CEILINGS,
                 );
@@ -1474,7 +1495,7 @@ fn install_without_a_back_is_admitted() {
     .unwrap();
     let event = family::to_root(
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
-        &[],
+        &fixtures::forge_table(&[]),
         None,
         &w::CEILINGS,
     )
@@ -1626,7 +1647,7 @@ fn accept_decodes_only_a_nonzero_installation_and_keeps_its_id() {
         .unwrap();
         let result = family::to_root(
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
-            &[],
+            &fixtures::forge_table(&[]),
             None,
             &w::CEILINGS,
         );
@@ -1677,7 +1698,7 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
     for mode in [forge::Mode::Fake, forge::Mode::Owned, forge::Mode::Connected] {
         let mut forges = configured(b"http://forge.example");
         forges[0].mode = mode;
-        let got = decoded_panel(panel(), &forges).into_parts().pull.unwrap();
+        let got = decoded_panel(panel(), &fixtures::forge_table(&forges)).into_parts().pull.unwrap();
         assert_eq!(
             got.address(),
             if mode == forge::Mode::Fake {
@@ -1728,7 +1749,9 @@ fn a_landing_view_encodes_to_its_panel() {
     forges[0].kind = crate::settings::Kind::Forgejo;
     forges[0].git = Box::from(b"https://git.example".as_slice());
     forges[0].web = Some(Box::from(b"https://forge.example".as_slice()));
-    let bytes = family::document(forge::Document::Landing(landing_view()), &forges, &w::CEILINGS).unwrap();
+    let bytes =
+        family::document(forge::Document::Landing(landing_view()), &fixtures::forge_table(&forges), &w::CEILINGS)
+            .unwrap();
     let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
     assert_eq!(
         (got.task(), got.project(), got.phase(), got.preparation(), got.stale_proofs(), got.turn()),
@@ -1764,7 +1787,7 @@ fn a_landings_view_encodes_to_its_list() {
             landed: Box::new([[3; 32]]),
         }]),
     };
-    let bytes = family::document(forge::Document::Landings(value), &[], &w::CEILINGS).unwrap();
+    let bytes = family::document(forge::Document::Landings(value), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let got = wire::decode_landings_panel(&bytes, &w::CEILINGS).unwrap();
     assert_eq!((got.project(), got.turn()), (7, &Some(61)));
     assert_eq!(got.landings().len(), 1);
@@ -1789,9 +1812,13 @@ fn the_landings_subject_names_no_task() {
                 )
                 .unwrap(),
             );
-            let got =
-                family::to_root(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record), &[], None, &w::CEILINGS)
-                    .unwrap();
+            let got = family::to_root(
+                watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
+                &fixtures::forge_table(&[]),
+                None,
+                &w::CEILINGS,
+            )
+            .unwrap();
             let root::Event::Party(root::PartyInput::Watch {
                 subject: jig_domain_core::documents::Watched::Application { subject, .. },
                 ..
@@ -1814,8 +1841,13 @@ fn the_landings_subject_names_no_task() {
         )
         .unwrap(),
     );
-    let got =
-        family::to_root(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record), &[], None, &w::CEILINGS).unwrap();
+    let got = family::to_root(
+        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
+        &fixtures::forge_table(&[]),
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
     let root::Event::Party(root::PartyInput::Watch { subject, .. }) = got else { panic!("landing watch") };
     assert_eq!(
         subject,
@@ -1836,9 +1868,12 @@ fn the_landings_subject_names_no_task() {
         )
         .unwrap(),
     );
-    let Err(refused) =
-        family::to_root(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record), &[], None, &w::CEILINGS)
-    else {
+    let Err(refused) = family::to_root(
+        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
+        &fixtures::forge_table(&[]),
+        None,
+        &w::CEILINGS,
+    ) else {
         panic!("zero landing task is refused")
     };
     let kit::Event::WatchRefused { watcher, why } = *refused else { panic!("unknown watch") };
@@ -1858,7 +1893,7 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
         let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
         let event = family::to_root(
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-            &[],
+            &fixtures::forge_table(&[]),
             None,
             &w::CEILINGS,
         )
@@ -1954,7 +1989,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
             let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
             let event = family::to_root(
                 exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-                &[],
+                &fixtures::forge_table(&[]),
                 None,
                 &w::CEILINGS,
             )

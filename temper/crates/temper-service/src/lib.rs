@@ -5,6 +5,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 pub mod diagnostics;
 pub mod forge;
+pub mod forges;
 pub use forge::ForgeRuntime;
 pub mod limits;
 pub mod settings;

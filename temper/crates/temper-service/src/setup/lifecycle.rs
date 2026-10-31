@@ -542,12 +542,7 @@ pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
     }
 }
 fn configured(engine: &crate::engine::Engine, number: u16) -> &crate::settings::Forge {
-    for forge in &engine.workers.forges {
-        if forge.number == number {
-            return forge;
-        }
-    }
-    unreachable!("configured setup forge")
+    engine.workers.forges.get(number).expect("configured setup forge")
 }
 pub(super) fn connect(engine: &mut crate::engine::Engine, forge: u16) {
     let expected = records::origin(connection::settings::Kind::GitHub, &configured(engine, forge).api);
@@ -708,10 +703,7 @@ pub(super) fn advance(engine: &mut crate::engine::Engine) {
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() || engine.setup.component.is_none() {
         return;
     }
-    let mut forges = List::with_capacity(engine.setup.env.limits.forges);
-    for forge in &engine.workers.forges {
-        forges.push(forge.number).expect("configured forges");
-    }
+    let forges = engine.workers.forges.numbers();
     for forge in &forges {
         if crate::forge::ended(engine, *forge) {
             continue;
@@ -825,7 +817,7 @@ pub(crate) fn restored(engine: &mut crate::engine::Engine) {
     if engine.setup.lifecycle.restored {
         return;
     }
-    for forge in &engine.workers.forges {
+    for forge in engine.workers.forges.iter() {
         if let Some(local) = engine.setup.lifecycle.local_mut(forge.number) {
             local.restored = true;
         }
@@ -1209,7 +1201,7 @@ pub(crate) fn take_read(engine: &mut crate::engine::Engine) -> Option<crate::Han
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
         return None;
     }
-    for configured in &engine.workers.forges {
+    for configured in engine.workers.forges.iter() {
         let forge = configured.number;
         if crate::forge::ended(engine, forge) {
             continue;
@@ -1267,7 +1259,7 @@ pub(crate) fn take_removal(engine: &mut crate::engine::Engine) -> Option<crate::
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
         return None;
     }
-    for configured in &engine.workers.forges {
+    for configured in engine.workers.forges.iter() {
         let forge = configured.number;
         if crate::forge::ended(engine, forge) {
             continue;

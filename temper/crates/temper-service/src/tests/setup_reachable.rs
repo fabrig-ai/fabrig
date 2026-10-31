@@ -257,7 +257,7 @@ fn sent(face: &mut Face, service: &mut crate::Service) {
         engine.events,
         engine.notes,
         engine.setup.answers,
-        engine.workers.forges[0].api_token.is_some()
+        engine.workers.forges.get(1).expect("fixture forge").api_token.is_some()
     );
 }
 
