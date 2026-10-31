@@ -119,7 +119,7 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                         position: name.position,
                     },
                     deadline,
-                    ask: host::Ask::Host { tool, effect: effect, body: Box::from(input.bytes()) },
+                    ask: host::Ask::Host { tool, effect, body: Box::from(input.bytes()) },
                 }));
             }
             smith::Request::WithdrawHost { relay } => {

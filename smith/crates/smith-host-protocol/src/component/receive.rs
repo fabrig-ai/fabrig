@@ -1,6 +1,8 @@
 //! Checked record dispatch (protocol/channel.md, sections 3–4).
 //! The channel phase admits a record before its handler changes the call,
 //! turn, live-piece or long-operation ledger. No host policy is interpreted.
+#![expect(clippy::manual_map, reason = "the strict step subset spells out optional value moves")]
+
 use super::{CallKey, Component, OpenEvent, Phase};
 use crate::Error;
 use alloc::boxed::Box;
@@ -40,7 +42,10 @@ impl Component {
                     LONG_DONE => self.long_done(&body)?,
                     UNAUTHORIZED | LIMITED | ACCOUNT_REFUSED => super::notices::decode(&self.bodies, kind, &body)?,
                     FACT => {
-                        smith_channel::Fact::decode(&self.bodies, &mut Reader::new(&body))?;
+                        match smith_channel::Fact::decode(&self.bodies, &mut Reader::new(&body)) {
+                            Ok(_) => (),
+                            Err(problem) => return Err(Error::Body(problem)),
+                        }
                         OpenEvent::Fact { body }
                     }
                     MESSAGE_REFUSED => self.message_refused(&body)?,
@@ -56,13 +61,19 @@ impl Component {
         if self.phase != Phase::Started {
             return Err(Error::Order);
         }
-        smith_channel::Admitted::decode(&self.bodies, &mut Reader::new(body))?;
+        match smith_channel::Admitted::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(_) => (),
+            Err(problem) => return Err(Error::Body(problem)),
+        }
         self.phase = Phase::Admitted;
         Ok(OpenEvent::Admitted)
     }
 
     fn answer(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
-        let record = smith_channel::Answer::decode(&self.bodies, &mut Reader::new(body))?;
+        let record = match smith_channel::Answer::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(record) => record,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
         let permitted = match record.result() {
             smith_channel::RunResult::Refused(_) => self.phase == Phase::Started,
             smith_channel::RunResult::Accepted(_)
@@ -78,7 +89,10 @@ impl Component {
     }
 
     fn call(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
-        let record = smith_channel::Call::decode(&self.bodies, &mut Reader::new(body))?;
+        let record = match smith_channel::Call::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(record) => record,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
         let key = CallKey::from_wire(record.name());
         if self.calls_by_name.contains_key(&key) || self.calls_by_name.len() >= self.calls_by_name.capacity() {
             return Err(Error::Calls);
@@ -93,7 +107,10 @@ impl Component {
     }
 
     fn withdraw(&self, body: &[u8]) -> Result<Option<OpenEvent>, Error> {
-        let record = smith_channel::Withdraw::decode(&self.bodies, &mut Reader::new(body))?;
+        let record = match smith_channel::Withdraw::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(record) => record,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
         let key = CallKey::from_wire(record.name());
         Ok(match self.calls_by_name.get(&key) {
             Some(call) => Some(OpenEvent::Withdraw { call: *call }),
@@ -103,7 +120,10 @@ impl Component {
     }
 
     fn waiting(&self, body: &[u8]) -> Result<OpenEvent, Error> {
-        let record = smith_channel::Waiting::decode(&self.bodies, &mut Reader::new(body))?;
+        let record = match smith_channel::Waiting::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(record) => record,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
         let read = match record.last_read() {
             Some(name) => Some(Token::new(*name)),
             None => None,
@@ -112,12 +132,14 @@ impl Component {
     }
 
     fn turn(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
-        let turn = smith_channel::Turn::decode(&self.bodies, &mut Reader::new(body))?;
+        let turn = match smith_channel::Turn::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(record) => record,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
         let sequence = self.sequence.checked_add(1).ok_or(Error::Value)?;
-        let value = match smith_protocol_channel::decode_turn(turn.body(), sequence, &self.transcript, &self.endpoints)
-        {
-            Ok(value) => value,
-            Err(_) => return Err(Error::Value),
+        let Ok(value) = smith_protocol_channel::decode_turn(turn.body(), sequence, &self.transcript, &self.endpoints)
+        else {
+            return Err(Error::Value);
         };
         self.sequence = value.sequence;
         self.live.turn(turn.number());
@@ -138,7 +160,10 @@ impl Component {
     }
 
     fn long(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
-        let record = smith_channel::Long::decode(&self.bodies, &mut Reader::new(body))?;
+        let record = match smith_channel::Long::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(record) => record,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
         let operation = match record.operation() {
             smith_channel::Operation::Check => smith_domain::Operation::Checks,
             smith_channel::Operation::Completion => smith_domain::Operation::Completion,
@@ -149,13 +174,19 @@ impl Component {
     }
 
     fn long_done(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
-        smith_channel::LongDone::decode(&self.bodies, &mut Reader::new(body))?;
+        match smith_channel::LongDone::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(_) => (),
+            Err(problem) => return Err(Error::Body(problem)),
+        }
         self.long_open = self.long_open.checked_sub(1).ok_or(Error::Order)?;
         Ok(OpenEvent::LongDone)
     }
 
     fn message_refused(&self, body: &[u8]) -> Result<OpenEvent, Error> {
-        let record = smith_channel::MessageRefused::decode(&self.bodies, &mut Reader::new(body))?;
+        let record = match smith_channel::MessageRefused::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(record) => record,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
         let reason = match record.reason() {
             smith_channel::MessageRefusal::TooLarge => smith_host_domain::MessageRefusal::TooLarge,
             smith_channel::MessageRefusal::Full => smith_host_domain::MessageRefusal::Full,
@@ -166,7 +197,10 @@ impl Component {
     }
 
     fn live(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
-        let piece = smith_channel::Live::decode(&self.bodies, &mut Reader::new(body))?;
+        let piece = match smith_channel::Live::decode(&self.bodies, &mut Reader::new(body)) {
+            Ok(record) => record,
+            Err(problem) => return Err(Error::Body(problem)),
+        };
         if self.live.check(&piece).is_err() {
             return Err(Error::Order);
         }

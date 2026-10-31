@@ -87,7 +87,7 @@ pub(crate) fn parent_answer(call: Call, reply: host::Reply) -> Option<smith::Eve
     match call {
         Call::Host(relay) => Some(smith::Event::HostReturned { relay, reply: translate::host_reply(reply)? }),
         Call::Delivery(owner) => match reply {
-            host::Reply::Delivery(delivery) => Some(smith::Event::Delivered { owner, delivery: delivery }),
+            host::Reply::Delivery(delivery) => Some(smith::Event::Delivered { owner, delivery }),
             host::Reply::Host { .. }
             | host::Reply::Busy
             | host::Reply::Unavailable
