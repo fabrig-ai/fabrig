@@ -30,7 +30,10 @@ impl Setup {
         }
         let bundle = scratch.path().join("bundle");
         std::fs::create_dir_all(bundle.join("0000000000000001")).expect("bundle directory");
-        support::write_private(&bundle.join("index.html"), b"<!doctype html><html><body>GitHub setup</body></html>");
+        support::write_private(
+            &bundle.join("index.html"),
+            b"<!doctype html><html><head></head><body>GitHub setup</body></html>",
+        );
         support::write_private(&bundle.join("0000000000000001/main.js"), b"// process fixture\n");
         Self { scratch, paths, bundle }
     }
@@ -72,9 +75,10 @@ impl Setup {
                 assert!(install.contains("/apps/"), "conversion reaches installation");
                 let made = App::new(&url, &install);
                 app_count_is_one(&checking, &made);
+                let read = wait_forges(&made.forge);
                 *app.borrow_mut() = Some(made);
                 // Do not visit the installation: the box stops after this kept read.
-                wait_forges()
+                read
             })),
         ]);
         let app = converted.borrow_mut().take().expect("one manifest conversion completed");
@@ -118,8 +122,9 @@ fn address(call: &Ended) -> String {
         .expect("loopback browser address")
         .to_owned()
 }
-fn wait_forges() -> Call {
-    Call::new(&["forge", "list", "--until", "settled", "--timeout", "20s"])
+fn wait_forges(forge: &str) -> Call {
+    let condition = format!("connected:{forge}");
+    Call::new(&["forge", "list", "--until", &condition, "--timeout", "20s"])
 }
 fn listed(app: &App, call: &Ended) {
     let text = String::from_utf8_lossy(&call.stdout);
@@ -137,7 +142,7 @@ fn a_github_set_up_cut_after_its_app_goes_on_after_a_restart() {
     let fixture = setup.paths[1].join("box/fake-backends/config/github.json");
     let complete = app.clone();
     let seen = setup.run(vec![
-        Step::Run(wait_forges()),
+        Step::Run(wait_forges(&forge)),
         Step::Then(Box::new(move |calls| {
             listed(&unfinished, calls.last().expect("unfinished forge read"));
             Call::new(&["forge", "install", &unfinished.forge, "--key", "github-go-on"])
@@ -195,7 +200,7 @@ fn a_github_started_over_names_the_app_as_the_persons() {
     let unfinished = app.clone();
     let fixture = setup.paths[1].join("box/fake-backends/config/github.json");
     let seen = setup.run(vec![
-        Step::Run(wait_forges()),
+        Step::Run(wait_forges(&app.forge)),
         Step::Then(Box::new(move |calls| {
             listed(&unfinished, calls.last().expect("unfinished forge read"));
             Call::new(&["forge", "remove", &unfinished.forge, "--key", "github-remove"])
