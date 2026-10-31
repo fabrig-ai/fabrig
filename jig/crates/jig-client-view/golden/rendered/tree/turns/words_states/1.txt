@@ -1,0 +1,31 @@
+== Task 8 == 
+Task 8:
+  - Task 8: Review:
+      ## Task 8: Review
+      * Open
+      Task 8: Review:
+        [1] Task 8: Review
+        Person 1
+        Active attempt 2
+      [2] Write
+  In project 4
+  Goal
+  Priority 1
+Task 8:
+  [3] Overview
+  [4] Activity (current)
+  [5] Plan
+  [6] History
+  [7] Budget and authority
+Activity:
+  ## Activity
+  For 0 min
+  Writing
+  - Conversation: (busy)
+      - Person:
+          By party 1
+          Pat
+          whole new words
+          * Sent
+  Start of the list
+  End of the list

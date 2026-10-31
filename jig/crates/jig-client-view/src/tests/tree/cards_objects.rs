@@ -7,10 +7,13 @@
 )]
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{Fixture, ReadPage, Watched};
+use crate::tests::kit::Goldens;
+pub(in crate::tests) use crate::tests::kit::card as render;
+pub(in crate::tests) use crate::tests::kit::list;
 use crate::tests::tree::cards::{CLIENT, contains, document, drive, limits, start, text, words};
 use crate::{JigBindings, decode, tree::cards};
 use skein_ui::Act;
-use skein_ui::{Builder, Role, State, Tree};
+use skein_ui::{Builder, Role, Tree};
 
 use crate::{
     Event, Request,
@@ -19,14 +22,6 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{Duration, Id, List, Wall};
 
-fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
-    let rows: Vec<T> = rows.into_iter().collect();
-    let mut out = List::with_capacity(u32::try_from(rows.len()).unwrap());
-    for row in rows {
-        assert!(out.push(row).is_ok());
-    }
-    out
-}
 fn chip() -> Chip {
     Chip {
         task: 8,
@@ -133,34 +128,6 @@ pub(in crate::tests) fn loaded(key: ObjectKey, value: ReadValue) -> (Fixture, Id
     let (d, id, _) = loaded_with_watch(key, value);
     (d, id)
 }
-pub(in crate::tests) fn render(
-    d: &Fixture,
-    id: Id<Object>,
-    words: &crate::words::Words,
-    bindings: &mut JigBindings,
-) -> Tree {
-    bindings.begin();
-    let mut b = Builder::new(&limits());
-    b.open(Role::Page);
-    cards::card(&mut b, &d.view(), id, &cards::Place::Elsewhere, words, bindings);
-    b.close();
-    let tree = b.finish();
-    crate::tests::tree::cards_access::check(&tree);
-    assert!(tree.len() <= crate::card_nodes(&CLIENT, &(CLIENT).client).unwrap().checked_add(1).unwrap());
-    let facts = d.objects().get(id).unwrap();
-    match facts.card {
-        crate::state::objects::Card::Deciding { .. } => {
-            assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&crate::JigStyle::Card.token())
-                && node.states.as_slice().contains(&State::Busy)));
-        }
-        crate::state::objects::Card::Open
-        | crate::state::objects::Card::Refused { .. }
-        | crate::state::objects::Card::Unknown { .. }
-        | crate::state::objects::Card::NotSent { .. }
-        | crate::state::objects::Card::Leaving { .. } => {}
-    }
-    tree
-}
 
 fn press(tree: &Tree, label: &[u8], bindings: &mut JigBindings) -> Action {
     let token = tree
@@ -175,50 +142,36 @@ fn press(tree: &Tree, label: &[u8], bindings: &mut JigBindings) -> Action {
 }
 
 fn result_value_payloads(words: &crate::words::Words, part: &Part) {
+    let mut goldens = Goldens::new("tree/cards_objects/result_value_payloads");
     let (d, _) = start();
-    for (value, whole) in [
-        (ResultValue::Report(DocumentText::complete(text(b"full report"))), b"full report".as_slice()),
-        (ResultValue::Words(DocumentText::complete(text(b"full words"))), b"full words"),
-        (
-            ResultValue::Verdict {
-                verdict: 2,
-                words: DocumentText::complete(text(b"explanation")),
-                fields: list([ResultField {
-                    name: b"field".as_slice().into(),
-                    value: b"full field".as_slice().into(),
-                }]),
-                tasks: list([]),
-                proposal: None,
-            },
-            b"full field",
-        ),
-        (
-            ResultValue::Connector { summary: DocumentText::complete(text(b"full connector")), part: part.clone() },
-            b"full connector",
-        ),
-        (
-            ResultValue::Choice {
-                option: 3,
-                by: crate::tests::tree::cards::party(),
-                reason: DocumentText::complete(text(b"full reason")),
-            },
-            b"full reason",
-        ),
-        (
-            ResultValue::Approved {
-                state: b"full state".as_slice().into(),
-                words: Some(DocumentText::complete(text(b"approved words"))),
-            },
-            b"full state",
-        ),
-        (ResultValue::Failure(DocumentText::complete(text(b"full failure"))), b"full failure"),
+    for value in [
+        ResultValue::Report(DocumentText::complete(text(b"full report"))),
+        ResultValue::Words(DocumentText::complete(text(b"full words"))),
+        ResultValue::Verdict {
+            verdict: 2,
+            words: DocumentText::complete(text(b"explanation")),
+            fields: list([ResultField { name: b"field".as_slice().into(), value: b"full field".as_slice().into() }]),
+            tasks: list([]),
+            proposal: None,
+        },
+        ResultValue::Connector { summary: DocumentText::complete(text(b"full connector")), part: part.clone() },
+        ResultValue::Choice {
+            option: 3,
+            by: crate::tests::tree::cards::party(),
+            reason: DocumentText::complete(text(b"full reason")),
+        },
+        ResultValue::Approved {
+            state: b"full state".as_slice().into(),
+            words: Some(DocumentText::complete(text(b"approved words"))),
+        },
+        ResultValue::Failure(DocumentText::complete(text(b"full failure"))),
     ] {
         let mut b = Builder::new(&limits());
         b.open(Role::Page);
         let mut bindings = JigBindings::new(64, CLIENT.client.text);
         cards::result::value_nodes(&mut b, &d.view(), &value, words, &mut bindings);
         b.close();
-        assert!(contains(&b.finish(), whole));
+        goldens.check(&b.finish());
     }
 }
 
@@ -312,6 +265,7 @@ fn input(tree: &Tree, label: &[u8], value: &[u8], bindings: &mut JigBindings) ->
 
 fn notice_scenarios(words: &crate::words::Words) {
     use crate::tree::notices::kept::Kind;
+    let mut goldens = Goldens::new("tree/cards_objects/notice_scenarios");
     for kind in [
         Kind::Link(jig_client::Link::Offline),
         Kind::Link(jig_client::Link::Live),
@@ -334,7 +288,7 @@ fn notice_scenarios(words: &crate::words::Words) {
         let tree = b.finish();
         crate::tests::tree::cards_access::check(&tree);
         assert_eq!(tree.nodes()[0].role, Role::Status);
-        assert!(tree.nodes()[0].name.is_some());
+        goldens.check(&tree);
         assert!(tree.len() > 1);
     }
     let (mut d, _) = start();
@@ -344,7 +298,7 @@ fn notice_scenarios(words: &crate::words::Words) {
     crate::tree::notices::notices(&mut b, &d.view(), words, &mut bindings);
     let tree = b.finish();
     crate::tests::tree::cards_access::check(&tree);
-    assert!(contains(&tree, b"Working set limit"));
+    goldens.check(&tree);
     let dismiss = press(&tree, b"Dismiss", &mut bindings);
     drive(&mut d, Event::Act { action: dismiss });
     assert!(d.notices().ids().is_empty());
@@ -385,6 +339,7 @@ fn note_loaded(note: Note) -> (Fixture, Id<Object>) {
 }
 
 fn closing_connectors_use_their_owners_words(words: &crate::words::Words) {
+    let mut goldens = Goldens::new("tree/cards_objects/closing_connectors_use");
     let mut b = Builder::new(&limits());
     let mut bindings = JigBindings::new(16, CLIENT.client.text);
     b.open(Role::Page);
@@ -410,22 +365,18 @@ fn closing_connectors_use_their_owners_words(words: &crate::words::Words) {
         b.splice(slot.id, own);
     }
     let tree = b.finish();
-    for fact in [b"Closing: 2 delegates".as_slice(), b"amber", b"blue", b"'s effects settling"] {
-        assert!(contains(&tree, fact));
-    }
-    assert!(!contains(&tree, b"1 effects"));
-    assert!(!contains(&tree, b"2 effects"));
+    goldens.check(&tree);
 }
 
 fn authority_refusal_uses_only_supplied_proposal_eligibility(words: &crate::words::Words) {
+    let mut goldens = Goldens::new("tree/cards_objects/authority_refusal_uses");
     for proposable in [None, Some(true), Some(false)] {
         let mut b = Builder::new(&limits());
         b.open(Role::Page);
         words.refusal(&mut b, &Refusal::Authority { lacking: Lacking::Approver, proposable }, CLIENT.client.text);
         b.close();
         let tree = b.finish();
-        assert!(contains(&tree, b"Proposal approval authority is missing"));
-        assert_eq!(contains(&tree, b"Nobody in this project may accept it"), proposable == Some(false));
+        goldens.check(&tree);
     }
 }
 
@@ -442,6 +393,7 @@ fn collective_recipients_name_every_supplied_role_in_order(words: &crate::words:
 
 #[test]
 fn approved_and_failed_results_show_only_their_supplied_owner_payloads() {
+    let mut goldens = Goldens::new("tree/cards_objects/approved_and_failed");
     let (domain, _) = start();
     let words = words();
     for explanation in [None, Some(text(b"")), Some(text(b"exact explanation"))] {
@@ -455,13 +407,7 @@ fn approved_and_failed_results_show_only_their_supplied_owner_payloads() {
         cards::result::value_nodes(&mut builder, &domain.view(), &value, words, &mut bindings);
         builder.close();
         let tree = builder.finish();
-        assert!(contains(&tree, &[0, 255, 1]));
-        assert!(!contains(&tree, document().party.name.bytes()));
-        if let Some(explanation) = explanation
-            && !explanation.bytes().is_empty()
-        {
-            assert!(contains(&tree, explanation.bytes()));
-        }
+        goldens.check(&tree);
     }
     let mut builder = Builder::new(&limits());
     builder.open(Role::Page);
@@ -475,8 +421,7 @@ fn approved_and_failed_results_show_only_their_supplied_owner_payloads() {
     );
     builder.close();
     let tree = builder.finish();
-    assert!(contains(&tree, b"Failed"));
-    assert!(contains(&tree, b"cannot complete"));
+    goldens.check(&tree);
 }
 
 fn specification(words: Text) -> SpecificationDocument {
@@ -490,6 +435,7 @@ fn specification(words: Text) -> SpecificationDocument {
 
 #[test]
 fn whole_specification_words_edit_preserves_parameters_and_input_identities() {
+    let mut goldens = Goldens::new("tree/cards_objects/whole_specification_words");
     let mut row = task_doc(&[ActKind::Amend]);
     row.spec.specification.parameters = list([
         ParameterDocument::Number { name: u32::MAX, value: u64::MAX },
@@ -504,10 +450,7 @@ fn whole_specification_words_edit_preserves_parameters_and_input_identities() {
     let words = words();
     let mut bindings = JigBindings::new(256, CLIENT.client.text);
     let tree = dialog(&domain, words, &mut bindings);
-    assert!(contains(&tree, UTF8_TEXTS[0]));
-    assert!(contains(&tree, b"Parameter 4294967295 has value 18446744073709551615"));
-    assert!(contains(&tree, b"Parameter 9 names connector 65535 resource 18446744073709551615"));
-    assert!(contains(&tree, b"Input task 18446744073709551615"));
+    goldens.check(&tree);
     drive(&mut domain, Event::Act { action: input(&tree, b"New specification", b"replacement", &mut bindings) });
     let out = drive(&mut domain, Event::Act { action: Action::Confirm });
     let sent = out
@@ -528,6 +471,7 @@ fn whole_specification_words_edit_preserves_parameters_and_input_identities() {
 
 #[test]
 fn cut_specification_is_shown_and_cannot_be_reconstructed_by_the_words_editor() {
+    let mut goldens = Goldens::new("tree/cards_objects/cut_specification_is");
     let mut row = task_doc(&[ActKind::Amend]);
     row.spec.cut = true;
     let (mut domain, id) = loaded(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
@@ -549,12 +493,12 @@ fn cut_specification_is_shown_and_cannot_be_reconstructed_by_the_words_editor() 
         words,
     );
     builder.close();
-    assert!(contains(&builder.finish(), b"The specification is incomplete"));
+    goldens.check(&builder.finish());
     drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
     drive(&mut domain, Event::Act { action: Action::Edit { field: Purpose::Reason, text: text(b"") } });
     let mut bindings = JigBindings::new(256, CLIENT.client.text);
     let tree = dialog(&domain, words, &mut bindings);
-    assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"New specification")));
+    goldens.check(&tree);
     assert!(drive(&mut domain, Event::Act { action: Action::Confirm }).is_empty());
 }
 
@@ -583,6 +527,7 @@ fn retained_task_facts_keep_person_revision_taker_and_full_executor_identity_ind
 
 #[test]
 fn specification_documents_keep_independent_text_and_list_loss_and_block_whole_edits() {
+    let mut goldens = Goldens::new("tree/cards_objects/specification_documents_keep");
     for mask in 0_u8..8 {
         let mut row = task_doc(&[ActKind::Amend]);
         row.spec.specification.parameters = list([ParameterDocument::Bytes {
@@ -598,15 +543,14 @@ fn specification_documents_keep_independent_text_and_list_loss_and_block_whole_e
         let mut builder = Builder::new(&limits());
         crate::tree::fragments::specification::document(&mut builder, &row.spec, words);
         let tree = builder.finish();
-        assert!(contains(&tree, UTF8_TEXTS[0]));
-        assert_eq!(contains(&tree, b"Only part of this text was supplied"), mask & 3 != 0);
+        goldens.check(&tree);
         let (mut domain, id) = loaded(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
         drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
         drive(&mut domain, Event::Act { action: Action::Edit { field: Purpose::Reason, text: text(b"") } });
         let mut bindings = JigBindings::new(256, CLIENT.client.text);
         let tree = dialog(&domain, words, &mut bindings);
         if mask != 0 {
-            assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"New specification")));
+            goldens.check(&tree);
             assert!(drive(&mut domain, Event::Act { action: Action::Confirm }).is_empty());
         } else {
             drive(
@@ -632,6 +576,7 @@ fn specification_documents_keep_independent_text_and_list_loss_and_block_whole_e
 #[test]
 #[expect(clippy::match_like_matches_macro, reason = "scenario matching stays explicit; matches is disallowed")]
 fn note_documents_keep_each_text_loss_and_reference_loss_without_reconstructing_corrections() {
+    let mut goldens = Goldens::new("tree/cards_objects/note_documents_keep");
     for mask in 0_u8..8 {
         for act in [ActKind::EditNote, ActKind::DeleteNote] {
             let note = Note {
@@ -652,8 +597,7 @@ fn note_documents_keep_each_text_loss_and_reference_loss_without_reconstructing_
             let mut builder = Builder::new(&limits());
             cards::card(&mut builder, &domain.view(), id, &cards::Place::Elsewhere, words, &mut bindings);
             let tree = builder.finish();
-            assert_eq!(contains(&tree, b"Only part of this text was supplied"), mask & 3 != 0);
-            assert_eq!(contains(&tree, b"This note has more references"), mask & 4 != 0);
+            goldens.check(&tree);
             drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act } });
             let tree = dialog(&domain, words, &mut bindings);
             let out = drive(&mut domain, Event::Act { action: Action::Confirm });
@@ -678,6 +622,7 @@ pub(crate) mod amendment_presence;
 #[test]
 #[expect(clippy::match_like_matches_macro, reason = "scenario matching stays explicit; matches is disallowed")]
 fn a_cut_note_shows_its_reference_loss_and_blocks_correction_but_keeps_exact_deletion() {
+    let mut goldens = Goldens::new("tree/cards_objects/a_cut_note");
     let words = words();
     let mut bindings = JigBindings::new(512, CLIENT.client.text);
     for act in [ActKind::EditNote, ActKind::DeleteNote] {
@@ -698,7 +643,7 @@ fn a_cut_note_shows_its_reference_loss_and_blocks_correction_but_keeps_exact_del
         let tree = dialog(&domain, words, &mut bindings);
         let outgoing = drive(&mut domain, Event::Act { action: Action::Confirm });
         if act == ActKind::EditNote {
-            assert!(contains(&tree, b"This note has more references"));
+            goldens.check(&tree);
             assert!(tree.nodes().iter().all(|node| node.value.is_none()));
             assert!(domain.confirmation().unwrap().missing.is_some());
             assert!(outgoing.iter().all(|request| match request {
@@ -726,6 +671,7 @@ pub(crate) mod instruction_facts;
 
 #[test]
 fn result_documents_keep_each_words_loss_fact_and_the_exact_change_kind_and_owner_part() {
+    let mut goldens = Goldens::new("tree/cards_objects/result_documents_keep");
     let (domain, _) = start();
     let words = words();
     let part = Part::Result { connector: 2, task: 8 };
@@ -763,12 +709,9 @@ fn result_documents_keep_each_words_loss_fact_and_the_exact_change_kind_and_owne
             cards::result::value_nodes(&mut builder, &domain.view(), &value, words, &mut bindings);
             builder.close();
             let tree = builder.finish();
-            assert!(contains(&tree, b"supplied words"));
-            assert_eq!(contains(&tree, b"Only part of this text was supplied"), cut);
+            goldens.check(&tree);
             if let ResultValue::Change { .. } = value {
-                assert!(contains(&tree, b"Change result kind 65535"));
-                assert!(contains(&tree, b"a/b"));
-                assert!(contains(&tree, b"\\x63\\xFF"));
+                goldens.check(&tree);
                 let slot = tree.nodes().iter().find_map(|node| node.slot).unwrap();
                 assert_eq!(bindings.owner_part(slot.token), Some(&raw));
                 assert_eq!(bindings.part(slot.token), None);
@@ -779,6 +722,7 @@ fn result_documents_keep_each_words_loss_fact_and_the_exact_change_kind_and_owne
 
 #[test]
 fn result_cards_distinguish_an_absent_completion_wall_from_epoch_and_render_supplied_metadata() {
+    let mut goldens = Goldens::new("tree/cards_objects/result_cards_distinguish");
     let (domain, _) = start();
     let words = words();
     for at in [None, Some(Wall::EPOCH)] {
@@ -804,15 +748,13 @@ fn result_cards_distinguish_an_absent_completion_wall_from_epoch_and_render_supp
         cards::result::facts(&mut builder, &domain.view(), &value, words, &mut bindings);
         builder.close();
         let tree = builder.finish();
-        assert_eq!(contains(&tree, b"Completion time not supplied"), at.is_none());
-        assert!(contains(&tree, b"whole report"));
-        assert!(contains(&tree, b"4294967295"));
-        assert!(contains(&tree, b"18446744073709551615"));
+        goldens.check(&tree);
     }
 }
 
 #[test]
 fn exact_owner_verdict_renders_payload_and_stored_followups_without_inventing_chip_rows() {
+    let mut goldens = Goldens::new("tree/cards_objects/exact_owner_verdict");
     let (domain, _) = start();
     let words = words();
     for cut in [false, true] {
@@ -840,13 +782,7 @@ fn exact_owner_verdict_renders_payload_and_stored_followups_without_inventing_ch
         cards::result::facts(&mut builder, &domain.view(), &value, words, &mut bindings);
         builder.close();
         let tree = builder.finish();
-        assert!(contains(&tree, b"Verdict 4294967295"));
-        assert!(contains(&tree, b"actual verdict words"));
-        assert!(contains(&tree, b"opaque field"));
-        assert!(contains(&tree, b"supplied value"));
-        assert!(contains(&tree, b"18446744073709551615"));
-        assert!(contains(&tree, b"Stored task"));
-        assert_eq!(contains(&tree, b"Only part of this text was supplied"), cut);
+        goldens.check(&tree);
         assert_eq!(value, before);
     }
 }
@@ -909,6 +845,7 @@ fn connector_effect_slots_keep_raw_numbers_separate_from_jig_proposal_makers() {
 
 #[test]
 fn moved_effect_facts_say_the_supplied_connector_proposal_without_inventing_a_maker() {
+    let mut goldens = Goldens::new("tree/cards_objects/moved_effect_facts");
     let words = words();
     for proposal in [0, u64::MAX] {
         let mut builder = Builder::new(&limits());
@@ -927,14 +864,8 @@ fn moved_effect_facts_say_the_supplied_connector_proposal_without_inventing_a_ma
         );
         builder.close();
         let tree = builder.finish();
-        let expected = words.say(
-            crate::words::phrases::jig::JigPhrase::PartOwnerProposal,
-            &[skein_ui::phrases::Hole::Number(proposal)],
-        );
-        assert!(contains(&tree, b"Connector 65535"));
-        assert!(contains(&tree, &expected));
-        assert!(!contains(&tree, b"by task"));
-        assert!(!contains(&tree, b"by party"));
+
+        goldens.check(&tree);
         assert!(tree.nodes().iter().all(|node| node.slot.is_none() && node.binding.is_none()));
     }
 }

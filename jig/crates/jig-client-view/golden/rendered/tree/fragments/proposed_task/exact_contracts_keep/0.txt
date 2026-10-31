@@ -1,0 +1,18 @@
+== jig == 
+Approval of exact state
+`\x6F\x70\x61\x71\x75\x65\xFF`
+Resource reference:
+  Connector 9
+  Resource reference
+  Part number 83
+  * Loading connector content (busy)
+Report word byte limit 4294967295
+Verdict contract
+Verdict choice 4294967295, word byte limit 83, follow-up limit 71
+`field/name`
+Field value byte limit 59
+Verdict choice 31, word byte limit 29, follow-up limit 23
+`\x6C\x61\x73\x74\xFF`
+Field value byte limit 19
+Some contract choices were omitted
+Change contract 65535, kind 65535, word byte limit 4294967295

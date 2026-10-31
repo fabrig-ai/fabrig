@@ -1,0 +1,7 @@
+== jig == 
+Tasks created:
+  * Tasks created
+  First task: 1
+  Last task: 18446744073709551615
+  Budget given to task: 2
+  Amount given: 18446744073709551615

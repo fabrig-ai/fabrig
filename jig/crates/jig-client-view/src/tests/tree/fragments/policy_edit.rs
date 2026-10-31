@@ -1,13 +1,11 @@
-#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect full semantic leaves")]
-use crate::tests::tree::cards::{contains, words};
+use crate::tests::kit::Goldens;
+use crate::tests::tree::cards::words;
 use crate::tree::fragments::policy_edit;
 use jig_client::contract::*;
 use skein_lib::{Duration, List};
 use skein_ui::{Builder, Role};
 fn pattern(last: OwnerPatternEnd) -> OwnerPattern {
-    let mut segments = List::with_capacity(2);
-    segments.push(Box::from(b"literal/slash".as_slice())).unwrap();
-    segments.push(Box::from(b"\xff".as_slice())).unwrap();
+    let segments = crate::tests::kit::list([Box::from(b"literal/slash".as_slice()), Box::from(b"\xff".as_slice())]);
     OwnerPattern { segments, last }
 }
 fn shown(value: &PolicyEdit) -> skein_ui::Tree {
@@ -40,61 +38,39 @@ fn shown(value: &PolicyEdit) -> skein_ui::Tree {
 }
 #[test]
 fn policy_requirements_keep_guard_freshness_judge_and_segment_boundaries_in_the_public_fragment() {
+    let mut goldens = Goldens::new("tree/fragments/policy_edit/policy_requirements_keep");
     for (guard, must_be_guarded) in
         [(PolicyGuard::Guarded, true), (PolicyGuard::Observed { freshness: Duration::from_nanos(u64::MAX) }, false)]
     {
         for last in
             [OwnerPatternEnd::Exact(Box::from(b"end".as_slice())), OwnerPatternEnd::Open(Box::from(b"end".as_slice()))]
         {
-            let exact = match &last {
-                OwnerPatternEnd::Exact(_) => true,
-                OwnerPatternEnd::Open(_) => false,
-            };
-            let mut requirements = List::with_capacity(1);
-            requirements
-                .push(PolicyRequirement {
-                    connector: u16::MAX,
-                    kind: u16::MAX,
-                    pattern: pattern(last),
-                    judge: PolicyJudge { connector: u16::MAX, requirement: u16::MAX, parameters: u32::MAX },
-                    guard,
-                    must_be_guarded,
-                })
-                .unwrap();
+            let requirements = crate::tests::kit::list([PolicyRequirement {
+                connector: u16::MAX,
+                kind: u16::MAX,
+                pattern: pattern(last),
+                judge: PolicyJudge { connector: u16::MAX, requirement: u16::MAX, parameters: u32::MAX },
+                guard,
+                must_be_guarded,
+            }]);
             let tree = shown(&PolicyEdit::Requirements { requirements });
-            for text in [b"literal/slash".as_slice(), b"\\xFF", b"65535", b"4294967295", b"end"] {
-                assert!(contains(&tree, text));
-            }
-            assert!(tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == b"literal/slash")));
-            assert_eq!(contains(&tree, b"Exact ending"), exact);
-            assert_eq!(contains(&tree, b"Open ending"), !exact);
-            assert_eq!(contains(&tree, b"Guard is required"), must_be_guarded);
-            assert_eq!(contains(&tree, b"Guard is not required"), !must_be_guarded);
-            match guard {
-                PolicyGuard::Guarded => {
-                    assert!(contains(&tree, b"Verdict checked at application"));
-                    assert!(!contains(&tree, b"Observed verdict freshness"));
-                }
-                PolicyGuard::Observed { .. } => assert!(contains(&tree, b"18446744073709551615")),
-            }
+            goldens.check(&tree);
         }
     }
 }
 #[test]
 fn policy_role_projection_permission_and_empty_replacement_reviews_keep_every_supplied_field() {
-    let mut mappings = List::with_capacity(1);
-    mappings.push(PolicyPermission { connector: u16::MAX, permission: u16::MAX, role: u32::MAX }).unwrap();
+    let mut goldens = Goldens::new("tree/fragments/policy_edit/policy_role_projection");
+    let mappings =
+        crate::tests::kit::list([PolicyPermission { connector: u16::MAX, permission: u16::MAX, role: u32::MAX }]);
     let tree = shown(&PolicyEdit::Permissions { mappings });
-    assert!(contains(&tree, b"Connector 65535 permission 65535 maps to role 4294967295"));
-    let mut grants = List::with_capacity(1);
-    grants
-        .push(OwnerGrant {
-            connector: 7,
-            kind: 9,
-            pattern: pattern(OwnerPatternEnd::Open(Box::from(b"end".as_slice()))),
-        })
-        .unwrap();
-    assert!(contains(&shown(&PolicyEdit::Projections { grants }), b"Effect connector 7 kind 9"));
+    goldens.check(&tree);
+    let grants = crate::tests::kit::list([OwnerGrant {
+        connector: 7,
+        kind: 9,
+        pattern: pattern(OwnerPatternEnd::Open(Box::from(b"end".as_slice()))),
+    }]);
+    goldens.check(&shown(&PolicyEdit::Projections { grants }));
     let tree = shown(&PolicyEdit::Role(PolicyEditRole {
         number: u32::MAX,
         authority: OwnerAuthority {
@@ -111,20 +87,10 @@ fn policy_role_projection_permission_and_empty_replacement_reviews_keep_every_su
         requests: u16::MAX,
         decides: u8::MAX,
     }));
-    for text in [
-        b"Replace role 4294967295".as_slice(),
-        b"Request flags: 65535",
-        b"Proposal decision flags: 255",
-        b"Period spend:",
-        b"18446744073709551615",
-    ] {
-        assert!(contains(&tree, text));
-    }
-    assert!(contains(&shown(&PolicyEdit::ProjectSpend { period_spend: u64::MAX }), b"Period spend:"));
+    goldens.check(&tree);
+    goldens.check(&shown(&PolicyEdit::ProjectSpend { period_spend: u64::MAX }));
     let tree = shown(&PolicyEdit::RoleSpend { role: 4, period_spend: u64::MAX });
-    for text in [b"Role 4".as_slice(), b"Period spend:", b"18446744073709551615"] {
-        assert!(contains(&tree, text));
-    }
+    goldens.check(&tree);
     for edit in [
         PolicyEdit::Requirements { requirements: List::with_capacity(0) },
         PolicyEdit::Projections { grants: List::with_capacity(0) },

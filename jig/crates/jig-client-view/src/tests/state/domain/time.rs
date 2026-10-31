@@ -2,6 +2,7 @@ use crate::state::store;
 use crate::tests::fixtures::Profile;
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Watched};
+pub(in crate::tests) use crate::tests::kit::text;
 use crate::tests::state::domain::spine::{LIMITS, drain, frame, open_token};
 use crate::{
     Event, Request,
@@ -31,10 +32,6 @@ fn tick(domain: &mut Fixture, limits: &Profile, now: Time) -> Box<[Request]> {
     let mut out = Queue::uncapped();
     crate::fire(&mut domain.ui, &Env { now, wall: Wall::EPOCH, limits: limits.view }, &mut out, &domain.client);
     drain(out)
-}
-
-fn text(bytes: &[u8]) -> Text {
-    Text::new(Box::from(bytes), 32).unwrap()
 }
 
 #[test]

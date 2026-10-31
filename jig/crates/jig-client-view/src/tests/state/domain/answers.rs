@@ -15,7 +15,7 @@ use crate::{
     tree::notices::kept::Kind,
 };
 use jig_client::contract::*;
-use skein_lib::{Id, List, Queue, Time, Token, Wall};
+use skein_lib::{Id, Queue, Time, Token, Wall};
 pub(crate) mod person_refresh;
 fn install(domain: &mut Fixture, body: Body) -> Id<Object> {
     let key = body.key();
@@ -51,9 +51,7 @@ fn read_token(rows: &[Request]) -> jig_client::Handle {
 
 #[test]
 fn refusals_keep_every_engine_fact_and_moved_reads_the_current_object_without_losing_the_refusal() {
-    let mut names = List::with_capacity(2);
-    names.push(7).unwrap();
-    names.push(5).unwrap();
+    let names = crate::tests::kit::list([7, 5]);
     let refusals = [
         Refusal::Circle { tasks: names.clone(), cut: true },
         Refusal::Kept { pending: names },

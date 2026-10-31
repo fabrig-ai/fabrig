@@ -13,5 +13,8 @@ jig-client.workspace = true
 skein-ui.workspace = true
 skein-lib.workspace = true
 
+[dev-dependencies]
+skein-ui-text.workspace = true
+
 [lints]
 workspace = true

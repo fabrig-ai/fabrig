@@ -1,5 +1,6 @@
 //! Page policies exercised through the client boundary.
 use crate::state::page;
+pub(in crate::tests) use crate::tests::kit::text;
 
 pub(crate) mod owner_effect_proposals;
 pub(crate) mod task_proposals;
@@ -19,9 +20,7 @@ use crate::{
 use jig_client::Link;
 use jig_client::contract::*;
 use skein_lib::{List, Time};
-fn text(value: &[u8]) -> Text {
-    Text::new(Box::from(value), LIMITS.client.text).unwrap()
-}
+
 pub(in crate::tests) fn project(number: u32, chats: bool) -> MeProject {
     MeProject {
         models: List::with_capacity(0),
@@ -42,6 +41,7 @@ pub(in crate::tests) fn project(number: u32, chats: bool) -> MeProject {
     }
 }
 
+#[test]
 fn the_frame_counts_needs_exactly_and_caps_updates_on_every_page() {
     let mut domain = Fixture::new(&LIMITS);
     let f = start(&mut domain, List::with_capacity(0));
@@ -71,6 +71,7 @@ fn the_frame_counts_needs_exactly_and_caps_updates_on_every_page() {
     assert_eq!(domain.frame_summary().project, Some(1));
     assert_eq!(Address::task(42), Address::Task { task: 42, section: TaskSection::Overview });
 }
+#[test]
 fn navigation_keeps_the_application_order_and_leaves_out_inapplicable_pages() {
     let mut domain = Fixture::new(&LIMITS);
     let mut navigation = Navigation::new(8);
@@ -151,6 +152,7 @@ fn each_malformed_arrangement_is_refused() {
     let value = arrangement(&[TaskSection::Plan], &[]);
     assert_eq!(domain.configure_arrangement(value.clone()), Err(value), "after the start");
 }
+#[test]
 fn non_work_pages_follow_their_causes_and_missing_tasks_do_not_reveal_visibility() {
     let mut domain = Fixture::new(&LIMITS);
     let f = start(&mut domain, List::with_capacity(0));
@@ -198,19 +200,18 @@ fn non_work_pages_follow_their_causes_and_missing_tasks_do_not_reveal_visibility
     assert!(delivered(&mut old, Time::ZERO, f, frame(7)).is_empty());
     assert_eq!(old.page(), &Page::OutOfDate);
     let mut other = Fixture::new(&LIMITS);
-    let mut kept = List::with_capacity(1);
-    kept.push(crate::state::store::Record::Draft {
+    let kept = crate::tests::kit::list([crate::state::store::Record::Draft {
         version: crate::state::store::STORE_VERSION,
         party: 8,
         task: 42,
         words: text(b"secret"),
         touched: 1,
-    })
-    .unwrap();
+    }]);
     let f = start(&mut other, kept);
     delivered(&mut other, Time::ZERO, f, frame(7));
     assert_eq!(other.page(), &Page::SomeoneElse);
 }
+#[test]
 fn deployment_without_a_role_is_missing_and_never_watched() {
     let mut domain = Fixture::new(&LIMITS);
     let f = start(&mut domain, List::with_capacity(0));
@@ -344,16 +345,6 @@ fn goal_line(number: u64, priority: u32, phase: Phase, changed: u64) -> TaskLine
     }
 }
 
-// One process per page family keeps startup costs within this session's share;
-// each scenario above still allocates its own state and retains every assertion.
-#[test]
-fn frame_navigation_and_non_work_pages_follow_owner_facts() {
-    the_frame_counts_needs_exactly_and_caps_updates_on_every_page();
-    navigation_keeps_the_application_order_and_leaves_out_inapplicable_pages();
-    non_work_pages_follow_their_causes_and_missing_tasks_do_not_reveal_visibility();
-    deployment_without_a_role_is_missing_and_never_watched();
-}
-
 pub(in crate::tests) fn read_named(requests: &[Request], expected: &Read) -> jig_client::Handle {
     for request in requests {
         if let Request::Client {
@@ -371,17 +362,14 @@ pub(in crate::tests) fn read_named(requests: &[Request], expected: &Read) -> jig
 fn goal_read_from_start_merges_live_watch_by_key() {
     let (mut domain, opened) = project_open(ProjectSection::Goals);
     let watch = open_token(&opened);
-    let mut live = List::with_capacity(1);
-    live.push(goal_line(9, 2, Phase::Running, 2)).unwrap();
+    let live = crate::tests::kit::list([goal_line(9, 2, Phase::Running, 2)]);
     drive(
         &mut domain,
         Time::ZERO,
         Watched { watch, event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows: live, more: false }))) },
     );
     let query = Read::Tasks { query: crate::state::queries::ended_goals(1, 2), live: None, ended: None };
-    let mut rows = List::with_capacity(2);
-    rows.push(goal_line(9, 99, Phase::Running, 1)).unwrap();
-    rows.push(goal_line(8, 1, Phase::Done, 1)).unwrap();
+    let rows = crate::tests::kit::list([goal_line(9, 99, Phase::Running, 1), goal_line(8, 1, Phase::Done, 1)]);
     drive(
         &mut domain,
         Time::ZERO,
@@ -505,8 +493,11 @@ fn note_reads_keep_full_writer_identity_and_optional_time_without_changing_the_n
             let Request::Client { asked: jig_client::Event::Read { handle: read, .. } } = opened[2] else {
                 panic!("notes read")
             };
-            let mut acts = List::with_capacity(1);
-            acts.push(Offered { effect: None, act: ActKind::DeleteNote, admission: Admission::Allowed }).unwrap();
+            let acts = crate::tests::kit::list([Offered {
+                effect: None,
+                act: ActKind::DeleteNote,
+                admission: Admission::Allowed,
+            }]);
             let note = Note {
                 number: 3,
                 revision: Revision { value: u64::MAX },
@@ -519,8 +510,7 @@ fn note_reads_keep_full_writer_identity_and_optional_time_without_changing_the_n
                 acts,
                 cut: true,
             };
-            let mut rows = List::with_capacity(1);
-            rows.push(note.clone()).unwrap();
+            let rows = crate::tests::kit::list([note.clone()]);
             drive(
                 &mut domain,
                 Time::ZERO,
@@ -679,8 +669,7 @@ fn task_watch_replacements_keep_served_goal_identity_and_whole_contract_loss_ind
     let opened = drive(&mut domain, Time::ZERO, Event::Went { place: Place::Jig(Address::task(8)) });
     let watch = open_token(&opened);
     let mut choices = List::with_capacity(2);
-    let mut fields = List::with_capacity(2);
-    fields.push(FieldRule { name: Box::from(*b"\xff\0/"), max: u32::MAX }).unwrap();
+    let fields = crate::tests::kit::list_in(2, [FieldRule { name: Box::from(*b"\xff\0/"), max: u32::MAX }]);
     choices.push(VerdictChoice { code: u32::MAX, words: u32::MAX, followups: u32::MAX, fields }).unwrap();
     let part = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Result, key: OwnerPartKey::Number(u64::MAX) };
     for (goal, contract) in [
@@ -720,9 +709,7 @@ fn task_authority_watch_replacements_keep_bitmap_pattern_and_loss_facts_whole() 
     row.authority.authority.notes = u8::MAX;
     row.authority.authority.delegation.kinds = List::with_capacity(2);
     row.authority.authority.delegation.kinds.push(OwnerAuthorityExecutor::Role(u32::MAX)).unwrap();
-    let mut segments = List::with_capacity(2);
-    segments.push(Box::from(*b"a/b")).unwrap();
-    segments.push(Box::from(*b"\xff\0")).unwrap();
+    let segments = crate::tests::kit::list([Box::from(*b"a/b"), Box::from(*b"\xff\0")]);
     row.authority.authority.grants = List::with_capacity(2);
     row.authority
         .authority
@@ -814,8 +801,7 @@ fn owner_goal_read_and_watch_keep_all_ten_counters_absent_clock_and_exact_budget
     };
     row.budget.funder = Funder::Task(u64::MAX);
     row.budget.deadline = Some(skein_lib::Wall::from_nanos(u64::MAX));
-    let mut rows = List::with_capacity(1);
-    rows.push(row.clone()).unwrap();
+    let rows = crate::tests::kit::list([row.clone()]);
     drive(
         &mut domain,
         Time::ZERO,
@@ -824,9 +810,7 @@ fn owner_goal_read_and_watch_keep_all_ten_counters_absent_clock_and_exact_budget
     let mut duplicate = row.clone();
     duplicate.changed = skein_lib::Wall::EPOCH;
     duplicate.phases = OwnerPhaseCounts::ZERO;
-    let mut rows = List::with_capacity(2);
-    rows.push(duplicate).unwrap();
-    rows.push(goal_line(8, 1, Phase::Done, 1)).unwrap();
+    let rows = crate::tests::kit::list([duplicate, goal_line(8, 1, Phase::Done, 1)]);
     drive(
         &mut domain,
         Time::ZERO,
@@ -1239,8 +1223,7 @@ fn naming_objects_anew_never_closes_a_sections_watch() {
         for key in keys {
             objects.push(*key).unwrap();
         }
-        let mut sections = List::with_capacity(1);
-        sections.push(Section::Task { task: 8, section: TaskSection::Plan }).unwrap();
+        let sections = crate::tests::kit::list([Section::Task { task: 8, section: TaskSection::Plan }]);
         let requests = drive(&mut domain, Time::ZERO, Event::Named { objects, sections });
         assert!(!requests.contains(&Request::Client { asked: jig_client::Event::Unwatch { handle: watch } }));
     }
@@ -1271,8 +1254,7 @@ fn an_empty_list_closes_every_sections_watch() {
 #[test]
 fn naming_sections_anew_never_closes_an_objects_watch() {
     let mut domain = application_page();
-    let mut objects = List::with_capacity(1);
-    objects.push(ObjectKey::Task(8)).unwrap();
+    let objects = crate::tests::kit::list([ObjectKey::Task(8)]);
     let opened = drive(&mut domain, Time::ZERO, Event::Named { objects, sections: List::with_capacity(0) });
     let watch = open_token(&opened);
     show_sections(&mut domain, &[Section::Task { task: 8, section: TaskSection::Plan }]);

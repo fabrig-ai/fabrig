@@ -2,6 +2,7 @@ use crate::state::{
     objects::{Objects, Source},
     windows::*,
 };
+pub(in crate::tests) use crate::tests::kit::text;
 use jig_client::contract::*;
 use jig_client::thread::window::{Edge, Edges, End};
 use skein_lib::{List, Wall};
@@ -13,9 +14,7 @@ fn rows<T>(values: impl IntoIterator<Item = T>) -> List<T> {
     }
     rows
 }
-fn text(bytes: &[u8]) -> Text {
-    Text::new(Box::from(bytes), 32).unwrap()
-}
+
 fn edges() -> Edges {
     Edges {
         before: Edge::More(Cursor::new(Box::from(b"before".as_slice()), 1024).expect("bounded opaque cursor")),

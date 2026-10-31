@@ -1,12 +1,14 @@
 use crate::state::address::{Address, TaskSection};
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 #[test]
 fn task_pages_keep_owner_requesters_and_live_retained_stored_links_without_filling_missing_facts() {
-    for (requester, caption) in [
-        (OwnerRequester::Task(u64::MAX), b"Requested by task 18446744073709551615".as_slice()),
-        (OwnerRequester::Person(u64::MAX), b"Requested by person 18446744073709551615".as_slice()),
-        (OwnerRequester::Deployment { project: u32::MAX }, b"Requested by deployment in project 4294967295".as_slice()),
+    let mut goldens = Goldens::new("tree/cards_objects/task_links/task_pages_keep");
+    for requester in [
+        OwnerRequester::Task(u64::MAX),
+        OwnerRequester::Person(u64::MAX),
+        OwnerRequester::Deployment { project: u32::MAX },
     ] {
         let mut supplied_chip = chip();
         supplied_chip.task = u64::MAX;
@@ -44,8 +46,7 @@ fn task_pages_keep_owner_requesters_and_live_retained_stored_links_without_filli
             let words = words();
             let (tree, mut bindings) = crate::tests::tree::pages::build(&domain, 3, words);
             crate::tests::tree::cards_access::check(&tree);
-            assert!(contains(&tree, caption));
-            assert!(contains(&tree, b"Some task lists are incomplete"));
+            goldens.check(&tree);
             assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
             let mut routes = 0_u32;
             for node in tree.nodes() {
@@ -58,25 +59,13 @@ fn task_pages_keep_owner_requesters_and_live_retained_stored_links_without_filli
                 }
             }
             assert_eq!(routes, 3, "each supplied input, dependency and reference links by its number");
-            match &link {
-                OwnerTaskLink::Live(_) => assert!(contains(&tree, b"Live task")),
-                OwnerTaskLink::Retained { at, .. } => {
-                    assert!(contains(&tree, b"Retained ended task"));
-                    assert_eq!(contains(&tree, b"Ended time unavailable"), at.is_none());
-                    assert_eq!(contains(&tree, b"Ended at 01:02"), at.is_some());
-                }
-                OwnerTaskLink::Stored { status, .. } => {
-                    assert!(contains(&tree, b"Stored task 18446744073709551615"));
-                    assert_eq!(contains(&tree, b"Stored status unavailable"), status.is_none());
-                    assert!(!contains(&tree, b"Only supplied linked title"), "a stored reference supplies no title");
-                }
-            }
         }
     }
 }
 
 #[test]
 fn aggregate_task_loss_prevents_partial_dependency_replacement_and_complete_links_keep_named_numbers() {
+    let mut goldens = Goldens::new("tree/cards_objects/task_links/aggregate_task_loss");
     for cut in [false, true] {
         let mut row = task_doc(&[ActKind::Amend]);
         row.cut = cut;
@@ -89,7 +78,7 @@ fn aggregate_task_loss_prevents_partial_dependency_replacement_and_complete_link
         let words = words();
         let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words, &mut bindings);
-        assert_eq!(contains(&tree, b"Some task lists are incomplete"), cut);
+        goldens.check(&tree);
         let mut selected = Vec::new();
         for node in tree.nodes() {
             if let Some(binding) = node.binding

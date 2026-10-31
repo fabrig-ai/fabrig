@@ -1,0 +1,21 @@
+== jig == 
+- Proposal:
+    ## Proposal
+    * Open
+    Pending proposal:
+      Proposal number: 18446744073709551615
+      Proposal project: 4294967295
+      By task 18446744073709551615
+      Proposed as holder
+      Waiting holder
+      Holder task: 31
+      Waiting since: 37
+      Proposal reason
+      ### whole proposal reason
+      Only part of this text was supplied
+      Proposed release
+      Stored task 8
+      Stored status unavailable
+      Release hold not supplied
+      Supplied funding offers
+    [1] Accept

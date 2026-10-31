@@ -1,0 +1,4 @@
+== jig == 
+LLM account signed out:
+  * LLM account signed out
+  Sign-out confirmed

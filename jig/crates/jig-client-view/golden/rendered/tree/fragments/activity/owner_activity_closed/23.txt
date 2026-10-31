@@ -1,0 +1,10 @@
+== jig == 
+Task activity:
+  Activity task: 18446744073709551615
+  Commit position: 18446744073709551615
+  Recorded at: 18446744073709551615
+  Run ended
+  Attempt: 7
+  End: failed
+  Class: lost
+  Spent: 0

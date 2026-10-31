@@ -1,0 +1,54 @@
+== Task 8 == 
+Task 8:
+  - Task 8: Review:
+      ## Task 8: Review
+      * Open
+      Task 8: Review:
+        [1] Task 8: Review
+        Person 1
+        Held
+        Held budget
+        Current revision 4
+  In project 4
+  Goal
+  Priority 1
+Task 8:
+  [2] Overview
+  [3] Activity
+  [4] Plan
+  [5] History
+  [6] Budget and authority (current)
+Budget and authority:
+  ## Budget and authority
+  Budget: 20:
+    Budget: 20
+    Spent directly: 0
+    Settled spend below: 0
+    Reserved for funded work: 0
+    Left: 20
+    Funded by
+    Funded by pool in project 4, person 1, period 3
+    Tool bits: 18446744073709551615
+    Delegate tasks: 4294967295
+    Delegate depth: 4294967295
+    Spend ceiling: 10
+    Note scope bits: 255
+    Keep default models
+    Grants
+    Connector: 65535
+    Kind: 65535
+    Literal segments
+    `a/b`
+    `\xFF\x00`
+    Open ending
+    `\xFF\x2F`
+    Allowed delegation executors
+    Role: 4294967295
+    Role: 4294967295
+    Note resources
+    Connector: 65535
+    Literal segments
+    `a/b`
+    `\xFF\x00`
+    Open ending
+    `\xFF\x2F`

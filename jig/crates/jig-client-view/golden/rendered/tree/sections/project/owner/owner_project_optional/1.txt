@@ -1,0 +1,437 @@
+== jig == 
+Project: Tally:
+  Resources:
+    ## Resources
+    - Resource role
+      Owned
+      Outbox reference:
+        Connector 65535
+        Outbox reference
+        `\xFF\x00\x2F`
+        `a/b`
+        
+        * Loading connector content (busy)
+    - Resource role
+      Participant
+      Outbox reference:
+        Connector 65535
+        Outbox reference
+        `\xFF\x00\x2F`
+        `a/b`
+        
+        * Loading connector content (busy)
+    - Resource role
+      Unavailable
+      Outbox reference:
+        Connector 65535
+        Outbox reference
+        `\xFF\x00\x2F`
+        `a/b`
+        
+        * Loading connector content (busy)
+    - Resource role
+      Context
+      Outbox reference:
+        Connector 65535
+        Outbox reference
+        `\xFF\x00\x2F`
+        `a/b`
+        
+        * Loading connector content (busy)
+  Policy:
+    ## Policy
+    Policy:
+        Tool bits: 18446744073709551615
+        Delegate tasks: 4294967295
+        Delegate depth: 4294967295
+        Spend ceiling: 18446744073709551615
+        Note scope bits: 255
+        Deadline: 0
+        Keep default models
+        Grants
+        Connector: 65535
+        Kind: 65535
+        Literal segments
+        `\xFF\x00\x2F`
+        `a/b`
+        
+        Open ending
+        `\xFE\x00\x2F`
+        Allowed delegation executors
+        Charter: 4294967295
+        Procedure: 4294967295
+        Role: 4294967295
+        Note resources
+        Connector: 65535
+        Literal segments
+        `\xFF\x00\x2F`
+        `a/b`
+        
+        Open ending
+        `\xFE\x00\x2F`
+        More are held than shown
+      Period spend: 18446744073709551615
+      Escalation role not supplied
+      Replace goal projection grants
+      Effect connector 65535 kind 65535
+      Literal segments
+      `\xFF\x00\x2F`
+      `a/b`
+      
+      Open ending
+      `\xFE\x00\x2F`
+      Effect connector 0 kind 0
+      Literal segments
+      `\xFF\x00\x2F`
+      `a/b`
+      
+      Open ending
+      `\xFE\x00\x2F`
+      Replace role 4294967295:
+        Replace role 4294967295
+          Tool bits: 18446744073709551615
+          Delegate tasks: 4294967295
+          Delegate depth: 4294967295
+          Spend ceiling: 18446744073709551615
+          Note scope bits: 255
+          Deadline: 0
+          Keep default models
+          Grants
+          Connector: 65535
+          Kind: 65535
+          Literal segments
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          Open ending
+          `\xFE\x00\x2F`
+          Allowed delegation executors
+          Charter: 4294967295
+          Procedure: 4294967295
+          Role: 4294967295
+          Note resources
+          Connector: 65535
+          Literal segments
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          Open ending
+          `\xFE\x00\x2F`
+          More are held than shown
+        Period spend: 18446744073709551615
+        Request flags: 65535
+        Proposal decision flags: 255
+      Replace effect requirements
+      Effect connector 65535 kind 65535
+      Literal segments
+      `\xFF\x00\x2F`
+      `a/b`
+      
+      Open ending
+      `\xFE\x00\x2F`
+      Judge connector 65535 requirement 65535 parameters 4294967295
+      Observed verdict freshness: 18446744073709551615 ns
+      Guard is required
+      Effect connector 0 kind 0
+      Literal segments
+      `\xFF\x00\x2F`
+      `a/b`
+      
+      Open ending
+      `\xFE\x00\x2F`
+      Judge connector 0 requirement 0 parameters 0
+      Verdict checked at application
+      Guard is not required
+      Permission mappings not supplied
+      Policy is incomplete
+  Roles and services:
+    ## Roles and services
+    - Member: 18446744073709551615:
+        Service
+        Held policy role 4294967295
+        Login
+        `~�!`
+        Only part of this text was supplied
+        Name
+        
+    - Member: 0:
+        Person
+        Held role: owner
+        Login
+        
+        Name
+        `!�~`
+        Only part of this text was supplied
+  Spend:
+    ## Spend
+    Ledger source:
+      Budget: 101
+      Spent directly: 103
+      Settled spend below: 107
+      Reserved for funded work: 109
+      Left: 113
+      Ledger source
+      Funded by project period 0, period 0
+      Parent funder
+      Funded by task 18446744073709551615
+      Ledger is closed
+      Period began: 0
+    Ledger source:
+      Budget: 101
+      Spent directly: 103
+      Settled spend below: 107
+      Reserved for funded work: 109
+      Left: 113
+      Ledger source
+      Funded by task 18446744073709551615
+      Parent funder
+      Funded by task 18446744073709551615
+      Ledger is closed
+      Period began: 0
+    Ledger source:
+      Budget: 101
+      Spent directly: 103
+      Settled spend below: 107
+      Reserved for funded work: 109
+      Left: 113
+      Ledger source
+      Funded by pool in project 4294967295, person 18446744073709551615, period 0
+      Parent funder
+      Funded by task 18446744073709551615
+      Ledger is closed
+      Period began: 0
+    Ledger source:
+      Budget: 101
+      Spent directly: 103
+      Settled spend below: 107
+      Reserved for funded work: 109
+      Left: 113
+      Ledger source
+      Funded by recurring task in project 0, task 18446744073709551615, period 18446744073709551615
+      Parent funder
+      Funded by task 18446744073709551615
+      Ledger is closed
+      Period began: 0
+    Ledger source:
+      Budget: 101
+      Spent directly: 103
+      Settled spend below: 107
+      Reserved for funded work: 109
+      Left: 113
+      Ledger source
+      Funded by project period 4294967295, period 18446744073709551615
+      Parent funder
+      Funded by task 18446744073709551615
+      Ledger is closed
+      Period began: 0
+    Configured pool period: 0:
+      Configured pool period: 0
+    - Spend:
+        Task 9: source chip:
+          [1] Task 9: source chip
+          Title is incomplete
+          Agent charter 4294967295
+          Preparing an activation
+        Funded by task 18446744073709551615
+        Budget: 101
+        Spent: 103
+        Spent below: 107
+        Reserved: 109
+    - Spend:
+        Task 0: source chip:
+          [2] Task 0: source chip
+          Title is incomplete
+          Agent charter 4294967295
+          Preparing an activation
+        Funded by pool in project 4294967295, person 18446744073709551615, period 0
+        Budget: 101
+        Spent: 103
+        Spent below: 107
+        Reserved: 109
+    - Spend:
+        Task 18446744073709551615: source chip:
+          [3] Task 18446744073709551615: source chip
+          Title is incomplete
+          Agent charter 4294967295
+          Preparing an activation
+        Funded by recurring task in project 0, task 18446744073709551615, period 18446744073709551615
+        Budget: 101
+        Spent: 103
+        Spent below: 107
+        Reserved: 109
+    - Spend:
+        Task 9: source chip:
+          [4] Task 9: source chip
+          Title is incomplete
+          Agent charter 4294967295
+          Preparing an activation
+        Funded by project period 4294967295, period 18446744073709551615
+        Budget: 101
+        Spent: 103
+        Spent below: 107
+        Reserved: 109
+  Recurring tasks:
+    ## Recurring tasks
+    Recurring template 4294967295:
+      Task 18446744073709551615: source chip:
+        [5] Task 18446744073709551615: source chip
+        Title is incomplete
+        Agent charter 4294967295
+        Preparing an activation
+      Recurring template 4294967295
+      - Proposed task 18446744073709551615
+        full template source
+        Only part of this text was supplied
+        Parameter 4294967295
+        ~�!
+        Only part of this text was supplied
+        Input task 18446744073709551615
+        Input task 0
+        The specification is incomplete
+        Project role 4294967295
+        Approval of exact state
+        `\xFF\x00\xFE`
+        Outbox reference:
+          Connector 65535
+          Outbox reference
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          * Loading connector content (busy)
+          Tool bits: 18446744073709551615
+          Delegate tasks: 4294967295
+          Delegate depth: 4294967295
+          Spend ceiling: 18446744073709551615
+          Note scope bits: 255
+          Deadline: 0
+          Keep default models
+          Grants
+          Connector: 65535
+          Kind: 65535
+          Literal segments
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          Open ending
+          `\xFE\x00\x2F`
+          Allowed delegation executors
+          Charter: 4294967295
+          Procedure: 4294967295
+          Role: 4294967295
+          Note resources
+          Connector: 65535
+          Literal segments
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          Open ending
+          `\xFE\x00\x2F`
+          More are held than shown
+        Budget 18446744073709551615
+        Funded by recurring task in project 4294967295, task 18446744073709551615, period 0
+        Wake policy:
+          Words
+          Wakes immediately
+          Notices
+          Does not wake
+          News
+          Does not wake
+          Each delegate result wakes
+          Questions wake
+          Answers wake
+          Timers wake
+        Priority 4294967295
+        After proposed task 18446744073709551615
+        After proposed task 0
+        Outbox reference:
+          Connector 65535
+          Outbox reference
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          * Loading connector content (busy)
+        Some proposed task facts were omitted
+      - Proposed task 0
+        full template source
+        Only part of this text was supplied
+        Parameter 4294967295
+        ~�!
+        Only part of this text was supplied
+        Input task 18446744073709551615
+        Input task 0
+        The specification is incomplete
+        Project role 4294967295
+        Approval of exact state
+        `\xFF\x00\xFE`
+        Outbox reference:
+          Connector 65535
+          Outbox reference
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          * Loading connector content (busy)
+          Tool bits: 18446744073709551615
+          Delegate tasks: 4294967295
+          Delegate depth: 4294967295
+          Spend ceiling: 18446744073709551615
+          Note scope bits: 255
+          Deadline: 0
+          Keep default models
+          Grants
+          Connector: 65535
+          Kind: 65535
+          Literal segments
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          Open ending
+          `\xFE\x00\x2F`
+          Allowed delegation executors
+          Charter: 4294967295
+          Procedure: 4294967295
+          Role: 4294967295
+          Note resources
+          Connector: 65535
+          Literal segments
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          Open ending
+          `\xFE\x00\x2F`
+          More are held than shown
+        Budget 18446744073709551615
+        Funded by recurring task in project 4294967295, task 18446744073709551615, period 0
+        Wake policy:
+          Words
+          Wakes immediately
+          Notices
+          Does not wake
+          News
+          Does not wake
+          Each delegate result wakes
+          Questions wake
+          Answers wake
+          Timers wake
+        Priority 4294967295
+        After proposed task 18446744073709551615
+        After proposed task 0
+        Outbox reference:
+          Connector 65535
+          Outbox reference
+          `\xFF\x00\x2F`
+          `a/b`
+          
+          * Loading connector content (busy)
+        Some proposed task facts were omitted
+      Budget 18446744073709551615
+      If the preceding batch is still live, wait for it to end
+      Current period 0
+      Period began at 0
+      Runs at the next period
+      Last batch period 18446744073709551615
+      Pending batch period 0
+      [6] Task 18446744073709551615
+      [7] Task 0
+      [8] Task 18446744073709551615
+      * Some recurring template facts were omitted
+  Project document is incomplete

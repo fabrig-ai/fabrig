@@ -1,11 +1,10 @@
 use crate::state::address::{Address, TaskSection};
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
-use crate::words::phrases::jig::JigPhrase;
-use jig_client::words::{DecisionWord as D, Word};
-use skein_ui::phrases::Hole;
 
 #[test]
 fn task_context_view_preserves_supplied_runtime_spend_slots_and_impact_without_claiming_missing_facts() {
+    let mut goldens = Goldens::new("tree/cards_objects/task_context/task_context_view");
     let reference = Part::Panel { connector: 2, task: u64::MAX };
     for present in [false, true] {
         let mut row = task_doc(&[ActKind::Cancel]);
@@ -44,17 +43,7 @@ fn task_context_view_preserves_supplied_runtime_spend_slots_and_impact_without_c
             let (tree, bindings) = crate::tests::tree::pages::build(&domain, 3, words());
             crate::tests::tree::cards_access::check(&tree);
             assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
-            if section == TaskSection::Activity {
-                assert_eq!(contains(&tree, b"supplied work"), present);
-            }
-            if section == TaskSection::Budget {
-                let caption = words().say(
-                    JigPhrase::SpentRun,
-                    &[Hole::Number(u64::MAX), Hole::Number(u64::MAX), Hole::Amount(u64::MAX)],
-                );
-                assert_eq!(contains(&tree, &caption), present);
-                assert!(contains(&tree, b"Budget: 20"));
-            }
+            goldens.check(&tree);
             if section == TaskSection::Overview || section == TaskSection::Panels {
                 let mut parts = 0;
                 for node in tree.nodes() {
@@ -70,9 +59,8 @@ fn task_context_view_preserves_supplied_runtime_spend_slots_and_impact_without_c
         drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Cancel } });
         let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words(), &mut bindings);
-        let caption =
-            words().say(JigPhrase::Word(Word::Decision(D::TasksRunning)), &[Hole::Number(u64::from(u32::MAX))]);
-        assert_eq!(contains(&tree, &caption), present);
+
+        goldens.check(&tree);
         let Some(crate::state::objects::Body::Task(retained)) = &domain.objects().get(id).unwrap().body else {
             panic!("whole task");
         };

@@ -1,0 +1,97 @@
+== jig == 
+Person task:
+  Task 8: source title:
+    [1] Task 8: source title
+    Title is incomplete
+    Agent charter 4294967295
+    Project role 4294967295
+  Person revision: 18446744073709551615
+  Requested by deployment in project 4294967295
+  question bytes
+  Only part of this text was supplied
+  Parameter 4294967295
+  ~�/
+  Only part of this text was supplied
+  Input task 18446744073709551615
+  The specification is incomplete
+  Role destination: 4294967295
+  Taker not supplied
+  Waiting time not supplied
+  Stall duration: 307445734
+  Deadline: 01:00
+  Shown results:
+    - Live task
+      Task 101: source title:
+        [2] Task 101: source title
+        Title is incomplete
+        Agent charter 4294967295
+        Project role 4294967295
+      Result not supplied
+    - Retained ended task
+      Task 102: source title:
+        [3] Task 102: source title
+        Title is incomplete
+        Agent charter 4294967295
+        Project role 4294967295
+      Ended time unavailable
+      Result not supplied
+    - Retained ended task
+      Task 103: source title:
+        [4] Task 103: source title
+        Title is incomplete
+        Agent charter 4294967295
+        Project role 4294967295
+      Ended at 01:00
+      Task 103: source title:
+        Task 103: source title:
+          [5] Task 103: source title
+          Title is incomplete
+          Agent charter 4294967295
+          Project role 4294967295
+        Completed
+        Completion time not supplied
+        Result owner details:
+          Task contract
+          Report word byte limit 3
+          Requested by person 18446744073709551615
+          Project role 4294967295
+          Choice maker not supplied
+          Delegate task references: 0
+          Follow-up task references: 0
+          Proposal not supplied
+          Some result metadata was omitted
+        Verdict 4294967295
+        result explanation
+        Only part of this text was supplied
+        field/a
+        ��/
+    - Stored task 104
+      Stored status unavailable
+      Result not supplied
+    - Stored task 105
+      Cancelled
+      Task 105: source title:
+        Task 105: source title:
+          [6] Task 105: source title
+          Title is incomplete
+          Agent charter 4294967295
+          Project role 4294967295
+        Completed
+        Completion time not supplied
+        Result owner details:
+          Task contract
+          Report word byte limit 3
+          Requested by person 18446744073709551615
+          Project role 4294967295
+          Choice maker not supplied
+          Delegate task references: 0
+          Follow-up task references: 0
+          Proposal not supplied
+          Some result metadata was omitted
+        Verdict 4294967295
+        result explanation
+        Only part of this text was supplied
+        field/a
+        ��/
+  Some shown results were omitted
+  Report word byte limit 3

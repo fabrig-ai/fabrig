@@ -1,0 +1,56 @@
+== jig == 
+- Person task: (busy)
+    ## Person task
+    In project 4294967295
+    * Being decided: review the confirmation
+    Person task:
+      Task 8: source title:
+        [1] Task 8: source title
+        Title is incomplete
+        Agent charter 4294967295
+        Project role 4294967295
+      Person revision: 18446744073709551615
+      Requested by deployment in project 4294967295
+      question bytes
+      Only part of this text was supplied
+      Parameter 4294967295
+      ~�/
+      Only part of this text was supplied
+      Input task 18446744073709551615
+      The specification is incomplete
+      Role destination: 4294967295
+      Taker not supplied
+      Waiting time not supplied
+      Stall duration: 307445734
+      Deadline: 01:00
+      Shown results:
+      Some shown results were omitted
+      Verdict contract
+      Verdict choice 4294967295, word byte limit 3, follow-up limit 4294967295
+      Verdict choice 7, word byte limit 4, follow-up limit 1
+      `field/a`
+      Field value byte limit 4294967295
+      Some contract choices were omitted
+Review before confirming:
+  Answer
+  Task 8: source title:
+    [2] Task 8: source title
+    Title is incomplete
+    Agent charter 4294967295
+    Project role 4294967295
+  Send the answer matching the task's contract
+  Verdict contract
+  Verdict choice 4294967295, word byte limit 3, follow-up limit 4294967295
+  Verdict choice 7, word byte limit 4, follow-up limit 1
+  `field/a`
+  Field value byte limit 4294967295
+  Some contract choices were omitted
+  Choose an option:
+    [3] ( ) Choice code: 4294967295
+    [-] ( ) Choice code: 7 (disabled)
+    This choice requires fields the person answer cannot carry
+  [4] Cannot do it
+  [5] Your reason: (empty)
+  * Choose an option
+  [-] Confirm (disabled)
+  [6] Dismiss

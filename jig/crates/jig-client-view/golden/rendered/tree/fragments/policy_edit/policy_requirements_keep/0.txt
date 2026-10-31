@@ -1,0 +1,11 @@
+== jig == 
+Replace effect requirements:
+  Replace effect requirements
+  Effect connector 65535 kind 65535
+  `literal/slash`
+  `\xFF`
+  Exact ending
+  `end`
+  Judge connector 65535 requirement 65535 parameters 4294967295
+  Verdict checked at application
+  Guard is required

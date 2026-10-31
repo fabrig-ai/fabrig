@@ -21,8 +21,7 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{List, Time, Wall};
 fn value(maker: Proposer, offered: ActKind) -> OwnerProposal {
-    let mut acts = List::with_capacity(2);
-    acts.push(Offered { effect: None, act: offered, admission: Admission::Allowed }).unwrap();
+    let acts = crate::tests::kit::list_in(2, [Offered { effect: None, act: offered, admission: Admission::Allowed }]);
     OwnerProposal {
         key: ProposalKey { proposer: maker, number: u64::MAX },
         project: u32::MAX,

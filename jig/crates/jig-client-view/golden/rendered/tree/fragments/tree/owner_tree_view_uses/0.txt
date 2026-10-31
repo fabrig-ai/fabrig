@@ -1,0 +1,98 @@
+== jig == 
+selected tree :
+  - selected tree 8 (expanded)
+    Task 8: Review:
+      [1] Task 8: Review
+      Title is incomplete
+      Agent charter 4294967295
+      Active attempt 18446744073709551615
+    [2] Fold subtree
+    - Task 9: Review: (expanded)
+        [3] Task 9: Review
+        Title is incomplete
+        Person 1
+        Held
+        Held budget
+        Current revision 4
+      selected tree 8
+      selected tree 4294967295
+      selected tree 18446744073709551615
+      selected tree 
+      [4] Fold subtree
+      selected tree 
+      Proposal from party 18446744073709551615, number 18446744073709551615
+      - Object:
+          ## Object
+          * Open
+          * Loading object
+      Proposal from task 18446744073709551615, number 18446744073709551615
+      selected tree 
+      Stored task 18446744073709551615
+      Stored status unavailable
+      Retained ended task
+      Task 17: Review:
+        [5] Task 17: Review
+        Title is incomplete
+        Person 1
+        Held
+        Held budget
+        Current revision 4
+      Ended at 00:00
+      - Task 10: Review: (expanded)
+          [6] Task 10: Review
+          Title is incomplete
+          Person 1
+          Held
+          Held budget
+          Current revision 4
+        selected tree 9
+        selected tree 2
+        selected tree 18446744073709551615
+        selected tree 
+        selected tree 
+        Proposal from party 18446744073709551615, number 18446744073709551615
+        - Object:
+            ## Object
+            * Open
+            * Loading object
+        Proposal from task 18446744073709551615, number 18446744073709551615
+        selected tree 
+        Stored task 18446744073709551615
+        Stored status unavailable
+        Retained ended task
+        Task 17: Review:
+          [7] Task 17: Review
+          Title is incomplete
+          Person 1
+          Held
+          Held budget
+          Current revision 4
+        Ended at 00:00
+selected tree :
+  selected tree 0
+  selected tree 1
+  selected tree 2
+  selected tree 3
+  selected tree 4
+  selected tree 5
+  selected tree 6
+  selected tree 7
+  selected tree 8
+  selected tree 9
+  selected tree 4294967295
+  selected tree 11
+selected tree :
+  selected tree 18446744073709551615
+  selected tree 1
+  selected tree 4294967295
+  selected tree 3
+  selected tree 4
+  selected tree 5
+  selected tree 6
+  selected tree 7
+  selected tree 8
+  selected tree 9
+  selected tree 4294967295
+  selected tree 17
+selected tree 19
+selected tree 

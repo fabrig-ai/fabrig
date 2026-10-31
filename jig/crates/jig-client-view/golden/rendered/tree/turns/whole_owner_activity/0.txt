@@ -1,0 +1,91 @@
+== Task 8 == 
+Task 8:
+  - Task 8: Review:
+      ## Task 8: Review
+      * Open
+      Task 8: Review:
+        [1] Task 8: Review
+        Person 1
+        Active attempt 2
+      [2] Write
+  In project 4
+  Goal
+  Priority 1
+Task 8:
+  [3] Overview
+  [4] Activity (current)
+  [5] Plan
+  [6] History
+  [7] Budget and authority
+Activity:
+  ## Activity
+  For 0 min
+  Writing
+  - Conversation:
+      - Conversation:
+          At 01:00
+          Task activity:
+            Activity task: 8
+            Commit position: 1
+            Recorded at: 01:00
+            Words recorded
+            Message: 11
+            From
+            Task: 7
+            Kind: proposal
+            Proposer number: 18446744073709551615
+            Proposal: 0
+            Proposal kind: amend
+            Whole words
+            `raw owner words`
+          * Sent
+      - Conversation:
+          At 01:00
+          Task activity:
+            Activity task: 8
+            Commit position: 2
+            Recorded at: 01:00
+            Committed turn reference
+            Archive reply: 18446744073709551615
+            Attempt: 2
+            Turn: 1
+            Last read message: 0
+          Archive cumulative spend: 19
+          Archive accepted at: 01:00
+          Archive read position not supplied
+          Attempt 2
+          Turn 1
+          Agent:
+            Agent
+            ### committed
+            reply
+            ReadFact:
+              Call 1
+              Using tool ReadFact
+              Call completed
+              whole tool result
+              [8] Open input and result for ReadFact
+              - Task 8: Review:
+                  ## Task 8: Review
+                  * Open
+                  Task 8: Review:
+                    [9] Task 8: Review
+                    Person 1
+                    Active attempt 2
+                  [10] Write
+              * Loading connector content (busy)
+          Call completed:
+            Call completed
+            Uninterpreted block: provider-fragment
+            Opaque bytes: 91
+            Call 1
+            Call failed
+            result summary
+          * Some turn content did not fit
+          Input tokens: 2
+          Output tokens: 3
+          Cache tokens read: 4
+          Cache tokens written: 5
+          Turn spent: 7
+  Start of the list
+  End of the list
