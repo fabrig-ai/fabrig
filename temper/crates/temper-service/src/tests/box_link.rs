@@ -275,7 +275,6 @@ fn forge_numbers_at_both_u16_bounds_are_read() {
     }
 }
 
-
 #[test]
 fn reset_diagnostics_reach_serves_named_notes() {
     let mut service = super::fixtures::demo_service();

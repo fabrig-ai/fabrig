@@ -73,7 +73,10 @@ fn start_reads_the_key(request: w::Request, expected: temper_engine_domain_forge
     let Some(jig_protocol_store::Event::Secret { value: Some(jig_protocol_store::SecretValue::Key(value)), .. }) =
         store.secrets(
             Token::new(PLAYGROUND_SOURCE),
-            jig_protocol_store::Secrets::Get { owner: jig_protocol_store::SecretOwner::Source, number: PLAYGROUND_SOURCE },
+            jig_protocol_store::Secrets::Get {
+                owner: jig_protocol_store::SecretOwner::Source,
+                number: PLAYGROUND_SOURCE,
+            },
         )
     else {
         panic!("the demo key is adoptable as a source")

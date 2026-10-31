@@ -651,7 +651,6 @@ fn landing_config(engine: &settings::Engine) -> domain::LandingPolicy {
 
 /// What the root's construction asserts, refused before it is made, each
 /// naming the configuration that breaks it (domain/root.md, 6).
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 pub fn root(
     core: jig_domain_core::Config,
     engine: &settings::Engine,

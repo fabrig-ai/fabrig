@@ -11,11 +11,11 @@ use skein_io as io;
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain as root;
 pub mod bundle;
-#[cfg(test)]
-mod playground_tests;
 pub mod fetch;
 mod github;
 pub mod google;
+#[cfg(test)]
+mod playground_tests;
 pub(crate) mod policy;
 pub(crate) mod printed;
 mod provider;
@@ -118,7 +118,11 @@ impl Clients {
             {
                 *carried = Some(core::Carried { number: 0, digest: skein_lib::sha256::digest(value.expose()) });
             }
-            self.playground_carries.push(kit::SecretsRequest::Carry { exchange: run, value, kind: kit::CarriedKind::Key });
+            self.playground_carries.push(kit::SecretsRequest::Carry {
+                exchange: run,
+                value,
+                kind: kit::CarriedKind::Key,
+            });
         } else {
             self.playground_carried(run, None);
         }
@@ -504,10 +508,7 @@ impl Clients {
                     ) {
                         Ok(mut value) => {
                             if let root::Event::Party(root::PartyInput::Application {
-                                request:
-                                    root::Application::Forge(
-                                        temper_engine_domain_forge::Ask::StartPlayground,
-                                    ),
+                                request: root::Application::Forge(temper_engine_domain_forge::Ask::StartPlayground),
                                 ..
                             }) = &value
                                 && let Some(demo) = demo
@@ -536,7 +537,9 @@ impl Clients {
                             if let kit::Event::Application(kit::FromApplication::Answered { .. }) = &*value
                                 && let Some(carried) = carried
                             {
-                                self.down(kit::Event::Application(kit::FromApplication::Unused { number: carried.number }));
+                                self.down(kit::Event::Application(kit::FromApplication::Unused {
+                                    number: carried.number,
+                                }));
                             }
                             self.down(*value);
                         }

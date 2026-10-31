@@ -266,7 +266,6 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 
 /// Real authority policy and an authenticated owner, rather than allow flags.
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "the fixture keeps deployment configuration together")]
 pub fn config(seed: u64) -> engine::Config {
     let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1)]));
     let rules = authority::Rules {

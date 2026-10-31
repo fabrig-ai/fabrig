@@ -217,7 +217,7 @@ impl Service {
             crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &settings.forges)
                 .expect("checked forge limits");
         forget_handover(&mut settings);
-        let notes = Queue::with_capacity(note_bound(&settings, &limits).expect("validated diagnostic room"));
+        let notes = Queue::with_capacity(settings.limits.forge.forges);
         let configured = crate::startup::application::configured(&settings);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let config = temper_engine_domain::Config {
@@ -310,7 +310,10 @@ impl Service {
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = self.engine.as_mut()?;
-        match engine.clients.playground_read() { Some(read) => Some(read), None => crate::setup::lifecycle::take_read(engine) }
+        match engine.clients.playground_read() {
+            Some(read) => Some(read),
+            None => crate::setup::lifecycle::take_read(engine),
+        }
     }
     pub fn handover_read(
         &mut self,
@@ -319,7 +322,11 @@ impl Service {
         answer: Result<Option<skein_lib::Secret>, crate::HandoverUnread>,
     ) {
         if let Some(engine) = &mut self.engine {
-            if engine.clients.owns_playground_read(run) { engine.clients.playground_read_answer(run, answer); } else { crate::setup::lifecycle::read(engine, forge, run, answer); }
+            if engine.clients.owns_playground_read(run) {
+                engine.clients.playground_read_answer(run, answer);
+            } else {
+                crate::setup::lifecycle::read(engine, forge, run, answer);
+            }
         }
     }
     pub fn take_handover_removal(&mut self) -> Option<crate::HandoverRemoval> {
@@ -1080,11 +1087,6 @@ impl Service {
             engine.clients.google_endpoints(runtime.endpoints);
         }
     }
-}
-
-// A diagnostic may name each kept forge.
-fn note_bound(settings: &settings::Engine, _root: &temper_engine_domain::Limits) -> Option<u32> {
-    Some(settings.limits.forge.forges)
 }
 
 #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]

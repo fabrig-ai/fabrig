@@ -1197,8 +1197,6 @@ fn new_project_and_invalid_setup_refusals_translate_to_the_wire() {
     }
 }
 
-
-
 #[test]
 fn playground_start_outcomes_encode_every_failure_and_unknown() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
@@ -1958,12 +1956,35 @@ fn end_playground_answers_reset() {
 #[test]
 fn legacy_start_is_refused_and_its_read_is_empty() {
     let request = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::StartDemo }).unwrap();
-    let Err(answer) = family::to_root(exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)), &fixtures::forge_table(&[]), None, None, &w::CEILINGS) else { panic!("refused start") };
-    let kit::Event::Application(kit::FromApplication::Answered { to, family, record }) = *answer else { panic!("start answer") };
+    let Err(answer) = family::to_root(
+        exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
+        &fixtures::forge_table(&[]),
+        None,
+        None,
+        &w::CEILINGS,
+    ) else {
+        panic!("refused start")
+    };
+    let kit::Event::Application(kit::FromApplication::Answered { to, family, record }) = *answer else {
+        panic!("start answer")
+    };
     assert_eq!((to, family), (REPLY, wire::FORGE));
     let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&record)).unwrap();
-    assert_eq!(answer.into_parts().outcome, w::Outcome::StartRefused(w::StartRefused::new(&w::CEILINGS, w::StartRefusedParts { why: w::StartRefusal::NotOffered }).unwrap()));
-    let Err(answer) = family::to_root(read_input(people::ApplicationScope::Deployment), &fixtures::forge_table(&[]), None, None, &w::CEILINGS) else { panic!("empty read") };
+    assert_eq!(
+        answer.into_parts().outcome,
+        w::Outcome::StartRefused(
+            w::StartRefused::new(&w::CEILINGS, w::StartRefusedParts { why: w::StartRefusal::NotOffered }).unwrap()
+        )
+    );
+    let Err(answer) = family::to_root(
+        read_input(people::ApplicationScope::Deployment),
+        &fixtures::forge_table(&[]),
+        None,
+        None,
+        &w::CEILINGS,
+    ) else {
+        panic!("empty read")
+    };
     let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("read answer") };
     assert!(record.is_none());
 }

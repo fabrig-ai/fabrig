@@ -51,5 +51,12 @@ pub(super) fn parse(
         let cue = text(document, &mut asked, b"cue", w::CEILINGS.demo_answer_cues_item, &path, problems)?;
         cues.push(cue).expect("bounded demo cues");
     }
-    Some(settings::Demo { provider, key_file, owner: b"playground".as_slice().into(), name: b"widget".as_slice().into(), landing: b"main".as_slice().into(), cues: cues.into_boxed() })
+    Some(settings::Demo {
+        provider,
+        key_file,
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        cues: cues.into_boxed(),
+    })
 }
