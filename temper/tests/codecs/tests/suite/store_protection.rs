@@ -1,15 +1,15 @@
-//! Protection survives all three durable paths at `STORE_VERSION` 10 in place.
+//! Protection survives all three durable paths at `STORE_VERSION` 11 in place.
 use skein_forge::api::Bypass;
-use temper_protocol_store::{STORE_VERSION, Undecodable, records, v10};
+use temper_protocol_store::{STORE_VERSION, Undecodable, records, v11};
 
 use crate::fixture;
 use crate::protection;
 
 #[test]
-fn protection_fields_have_v10_golden_bytes_and_round_trip() {
+fn protection_fields_have_v11_golden_bytes_and_round_trip() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
-    assert_eq!(STORE_VERSION, 10);
+    assert_eq!(STORE_VERSION, 11);
     for (name, flags, bypass) in [
         ("unset", 0, Bypass::Never),
         ("queue", 1, Bypass::Never),
@@ -23,7 +23,7 @@ fn protection_fields_have_v10_golden_bytes_and_round_trip() {
         let [answer, repository, application] = protection::rows(protection::rule(flags, bypass));
         let bytes = records::encode(&answer);
         let path = skein_scratch::paths::package()
-            .join("../../crates/temper-protocol-store/golden")
+            .join("../../crates/temper-protocol-store/golden/v11")
             .join(format!("protection-{name}.bin"));
         if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
             std::fs::write(&path, &bytes).expect("write protection golden");
@@ -90,10 +90,10 @@ fn protection_bounds_accept_the_limit_and_refuse_one_past() {
 fn protection_rejects_invalid_boolean_and_bypass_tags() {
     // Empty branch and contexts, zero approvals, then the five boolean facts and bypass.
     let valid = [0_u8; 18];
-    assert!(v10::Protection::decode(&v10::CEILINGS, &mut skein_lib::Reader::new(&valid)).is_ok());
+    assert!(v11::Protection::decode(&v11::CEILINGS, &mut skein_lib::Reader::new(&valid)).is_ok());
     for at in 12..18 {
         let mut invalid = valid;
         invalid[at] = if at == 17 { 3 } else { 2 };
-        assert!(v10::Protection::decode(&v10::CEILINGS, &mut skein_lib::Reader::new(&invalid)).is_err());
+        assert!(v11::Protection::decode(&v11::CEILINGS, &mut skein_lib::Reader::new(&invalid)).is_err());
     }
 }

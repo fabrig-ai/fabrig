@@ -4823,6 +4823,13 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         return;
     }
     match record {
+        // t-forge-map keeps it
+        Stored::Forge(_)
+        // t-forge-map keeps it
+        | Stored::ForgeNumber { .. }
+        // t-forge-map keeps it
+        | Stored::Playground(_) => {
+        }
         Stored::Landing(row) => {
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
@@ -5306,7 +5313,13 @@ impl Domain {
                 }
                 (position, inserted)
             }
-            Stored::Client(_)
+            // t-forge-map keeps it
+            Stored::Forge(_)
+            // t-forge-map keeps it
+            | Stored::ForgeNumber { .. }
+            // t-forge-map keeps it
+            | Stored::Playground(_)
+            | Stored::Client(_)
             | Stored::Flight { .. }
             | Stored::Writer(_)
             | Stored::Demo(_)

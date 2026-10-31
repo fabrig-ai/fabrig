@@ -196,3 +196,31 @@ fn flight_keys_name_task_then_entry_under_family_twenty_one() {
     assert_eq!(keys::flight(&trailing[..16]), None);
     assert_eq!(keys::flight(&[20]), None);
 }
+
+#[test]
+fn forge_and_playground_keys_follow_receipt_and_refuse_malformed_bytes() {
+    for number in [0, 1, u16::MAX] {
+        let key = Key::Forge(number);
+        let bytes = keys::encode(&key, 9).expect("forge key");
+        assert_eq!(bytes[0], 25);
+        assert_eq!(bytes.len(), 9);
+        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+        assert_eq!(keys::encode(&Key::Forge(number), 8), None);
+        let mut trailing = skein_lib::Writer::new(bytes.len() + 1);
+        trailing.put(&bytes).expect("key room");
+        trailing.put(&[0]).expect("trailing byte room");
+        assert_eq!(keys::decode(&trailing.finish(), &fixtures::LIMITS), None);
+    }
+    for (key, tag) in [(Key::ForgeNumber, 26), (Key::Playground, 27)] {
+        let bytes = keys::encode(&key, 1).expect("singleton key");
+        assert_eq!(bytes.as_ref(), &[tag]);
+        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
+        assert_eq!(keys::encode(&key, 0), None);
+        assert_eq!(keys::decode(&[tag, 0], &fixtures::LIMITS), None);
+    }
+    let mut too_wide = skein_kv::KeyWriter::new(9);
+    too_wide.tag(keys::FORGE).u64(65_536);
+    assert_eq!(keys::decode(&too_wide.finish().expect("small key"), &fixtures::LIMITS), None);
+    assert_eq!(keys::decode(&[keys::FORGE], &fixtures::LIMITS), None);
+    assert_eq!(keys::decode(&[28], &fixtures::LIMITS), None);
+}

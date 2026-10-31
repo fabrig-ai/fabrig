@@ -986,6 +986,14 @@ pub enum Stored {
         key: ReceiptKey,
         receipt: Receipt,
     },
+    /// A forge's durable setup and removal state (temper/docs/design/draft/playground-reset.md, 3 and 4).
+    Forge(ForgeRecord),
+    /// The last forge number given (temper/docs/design/draft/playground-reset.md, 3).
+    ForgeNumber {
+        last: u16,
+    },
+    /// The playground's durable progress (temper/docs/design/draft/playground-reset.md, 6.1).
+    Playground(Playground),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1031,6 +1039,9 @@ pub enum Key {
     },
     Landing(u64),
     Receipt(ReceiptKey),
+    Forge(u16),
+    ForgeNumber,
+    Playground,
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

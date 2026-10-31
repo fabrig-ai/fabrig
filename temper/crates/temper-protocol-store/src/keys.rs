@@ -10,6 +10,12 @@ pub const BINDING: u8 = 18;
 pub const DEMO_ACT: u8 = 19;
 /// A write with a committed attempt (protocol/store.md, 2).
 pub const FLIGHT: u8 = 21;
+/// Forge records (temper/docs/design/draft/playground-reset.md, 3).
+pub const FORGE: u8 = 25;
+/// Last forge number given (temper/docs/design/draft/playground-reset.md, 3).
+pub const FORGE_NUMBER: u8 = 26;
+/// Playground state (temper/docs/design/draft/playground-reset.md, 6.1).
+pub const PLAYGROUND: u8 = 27;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -78,9 +84,19 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
 
 /// Encode one relative key, or refuse it when it exceeds `limit`.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive encoder preserves ordered family tags")]
 pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);
     match key {
+        forge::Key::Forge(number) => {
+            writer.tag(FORGE).u64(u64::from(*number));
+        }
+        forge::Key::ForgeNumber => {
+            writer.tag(FORGE_NUMBER);
+        }
+        forge::Key::Playground => {
+            writer.tag(PLAYGROUND);
+        }
         forge::Key::Landing(task) => {
             writer.tag(23).u64(*task);
         }
@@ -185,6 +201,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
 pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
     let mut reader = KeyReader::new(bytes);
     let key = match reader.tag()? {
+        FORGE => forge::Key::Forge(u16::try_from(reader.u64()?).ok()?),
+        FORGE_NUMBER => forge::Key::ForgeNumber,
+        PLAYGROUND => forge::Key::Playground,
         0 => forge::Key::Call(forge::NamedCall {
             task: reader.u64()?,
             attempt: reader.u64()?,

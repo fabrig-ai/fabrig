@@ -8,7 +8,7 @@ fn schema_matches(crate_name: &str, family: &str, version: &str) {
         fs::read_to_string(root.join("schema").join(format!("{family}-{version}.schema"))).expect("family schema");
     let output = generate(&parse(&source).expect("schema valid"));
     let code = root.join("src/generated").join(format!("{version}.rs"));
-    let goldens = root.join("golden");
+    let goldens = if family == "store" { root.join("golden").join(version) } else { root.join("golden") };
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let again =
         "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'";
@@ -40,7 +40,7 @@ fn client_wire_schema_matches_generated_code_and_goldens() {
 
 #[test]
 fn store_schema_matches_generated_code_and_goldens() {
-    schema_matches("temper-protocol-store", "store", "v10");
+    schema_matches("temper-protocol-store", "store", "v11");
 }
 
 #[test]
