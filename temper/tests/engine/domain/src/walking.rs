@@ -364,7 +364,6 @@ pub fn config(seed: u64) -> engine::Config {
         forges: Box::new([configured_forge()]),
         under_box: false,
         playground: None,
-        demo: None,
     }
 }
 
@@ -803,8 +802,6 @@ impl World {
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
-                | engine::Request::StopGroup { .. }
-                | engine::Request::SetUpGroup { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::BoxGroup { .. }
@@ -923,8 +920,7 @@ impl World {
                 .referee
                 .result(&self.store.rows, person, task, &words)
                 .expect("committed result reaches person once"),
-            Delivery::DemoActed { .. }
-            | Delivery::DemoNote { .. }
+            Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
             | Delivery::Link { .. }
             | Delivery::ForgeCall { .. }
@@ -947,6 +943,7 @@ impl World {
             Delivery::Restart(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }

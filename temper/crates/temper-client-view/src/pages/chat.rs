@@ -206,15 +206,12 @@ pub(crate) fn speakers(task: &c::Task, me: Option<&c::Me>) -> Speakers {
 }
 
 pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Words) {
-    if !root.forge().demo_running() {
-        return;
-    }
-    let Some(demo) = root.forge().demo() else { return };
-    if project != demo.project {
+    let Some(demo) = root.forge().playground() else { return };
+    if Some(project) != demo.project || demo.state != temper_client_domain::forge::PlaygroundState::Running {
         return;
     }
     let Some(me) = root.pages().me(root.client()) else { return };
-    let project = match super::project_name(Some(me), root.forge().demo(), project, words) {
+    let project = match super::project_name(Some(me), root.forge().playground(), project, words) {
         Some(name) => name,
         None => words.say(Word::Project, &[Hole::Number(u64::from(project))]),
     };
@@ -231,7 +228,7 @@ pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Word
     b.close();
     let mut owner = false;
     for project in &me.projects {
-        if project.project == demo.project && project.role == c::HeldRole::Owner {
+        if Some(project.project) == demo.project && project.role == c::HeldRole::Owner {
             owner = true;
             break;
         }

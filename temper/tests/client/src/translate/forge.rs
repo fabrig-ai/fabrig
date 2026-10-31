@@ -421,7 +421,6 @@ pub fn incoming(
         | engine::Request::Worker(_)
         | engine::Request::Forge { .. }
         | engine::Request::Account(_)
-        | engine::Request::SetUpGroup { .. }
         | engine::Request::ForgeKept(_)
         | engine::Request::ForgeGone { .. }
         | engine::Request::BoxGroup { .. }
@@ -434,7 +433,6 @@ pub fn incoming(
         | engine::Request::Install { .. }
         | engine::Request::Accept { .. }
         | engine::Request::EraseCarried { .. }
-        | engine::Request::StopGroup { .. }
         | engine::Request::SetUp { .. }
         | engine::Request::Bound { .. }
         | engine::Request::Return { .. }
@@ -457,13 +455,13 @@ pub fn incoming(
         }
         Delivery::Application { to, outcome: value } => (to, value),
         Delivery::WebReply { to, reply } => return admission_reply(transport, to, reply, limits),
-        delivery @ (Delivery::DemoActed { .. }
-        | Delivery::DemoNote { .. }
+        delivery @ (Delivery::PlaygroundNote { .. }
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }
         | Delivery::Host(_)
         | Delivery::Link { .. }
         | Delivery::ProjectMade { .. }
+        | Delivery::ProjectReleased { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::ForgeCall { .. }
         | Delivery::Bound { .. }

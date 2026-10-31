@@ -254,7 +254,6 @@ pub(crate) fn adopted(domain: &mut Domain, token: Token, outcome: Option<forge::
             | forge::Answered::RemoveForge(_)
             | forge::Answered::StartPlayground(_)
             | forge::Answered::EndPlayground(_)
-            | forge::Answered::StartDemo(_)
             | forge::Answered::Connect(_)
             | forge::Answered::Install(_)
             | forge::Answered::Accept(_)
@@ -372,7 +371,7 @@ pub(crate) fn acted(
         | people::Outcome::AccountMovedIn { .. } => (false, None),
     };
     if let Some(why) = why {
-        emit(decision, &env.limits, Delivery::DemoNote { line: why.into() });
+        emit(decision, &env.limits, Delivery::PlaygroundNote { line: why.into() });
     }
     domain.work.push(Work::Forge(forge::Event::ResetActAnswered { key, keep }));
 }

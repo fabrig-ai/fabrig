@@ -512,13 +512,8 @@ impl Protocol {
                 }
                 other @ (top::Request::Settled { .. }
                 | top::Request::Bound { .. }
-                | top::Request::ListDemoActs
-                | top::Request::SendDemoAct(_)
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
-                | top::Request::DemoStart { .. }
-                | top::Request::StopGroup { .. }
-                | top::Request::SetUpGroup { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }
                 | top::Request::BoxGroup { .. }
@@ -540,6 +535,7 @@ impl Protocol {
                 | top::Request::ContinueRelease { .. }
                 | top::Request::EffectsSettled { .. }
                 | top::Request::Released { .. }
+                | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::WakeProcedure { .. }
@@ -686,9 +682,7 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
-        top::Stored::Demo(row) => top::Key::Demo(row.forge),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
-        top::Stored::DemoAct(row) => top::Key::DemoAct(row.key),
         top::Stored::Flight { task, entry } => top::Key::Flight { task: *task, entry: *entry },
         top::Stored::Release(row) => top::Key::Release(row.task),
         top::Stored::Application { token, .. } => top::Key::Application(*token),
