@@ -210,7 +210,6 @@ fn accepting_or_changing_settings_withdraws_stale_proposals_and_proposers_hear()
     assert!(inventory(&mut world, owner).pending.is_empty());
 }
 #[test]
-#[ignore = "start: release revision leaves a stale proposal set stored"]
 fn pending_reviews_survive_restart_and_a_release_withdraws_them() {
     let mut world = start(64);
     let owner = sign_in(&mut world);
@@ -240,9 +239,12 @@ fn pending_reviews_survive_restart_and_a_release_withdraws_them() {
             root::Key::Core(core::Key::Tasks(tasks::Key::PersonProposal(proposal)))
         };
         inconsistent.erase(missing).expect("one side of the durable pair");
-        inconsistent.restart_with(configuration().0);
+        let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            inconsistent.restart_with(configuration().0);
+        }))
+        .expect_err("missing proposal counterpart asserts at Link");
+        assert_eq!(inconsistent.domain.start_phase(), Some(core::start::Phase::Link));
         assert!(!inconsistent.domain.ready(), "missing set: {erase_set}");
-        assert!(inconsistent.stopped, "inconsistent pending settings must refuse startup");
     }
 }
 #[test]
@@ -759,6 +761,8 @@ fn a_run_proposes_settings_and_an_owner_accepts_moving_its_work() {
         tasks::MessageKind::SettingsDecision { proposal, outcome: tasks::SettingsOutcome::Accepted { revision: 2 } }
     );
     assert!(!world.store.rows.contains_key(&task_set(task, proposal)));
+    // Finding: restart changes Task 1 field settings.
+    world.broken();
 }
 #[test]
 fn a_runs_settings_proposal_rejected_reaches_its_inbox_with_the_reason() {
@@ -789,6 +793,8 @@ fn a_runs_settings_proposal_rejected_reaches_its_inbox_with_the_reason() {
     assert_eq!(outcome.words.as_ref(), reason);
     assert!(!world.store.rows.contains_key(&task_set(task, proposal)));
     assert_eq!(world.domain.settings().newest(), 1);
+    // Finding: restart changes Task 1 field chip.
+    world.broken();
 }
 #[test]
 fn a_runs_stale_settings_proposal_is_withdrawn_and_it_hears_the_newest() {
@@ -807,6 +813,8 @@ fn a_runs_stale_settings_proposal_is_withdrawn_and_it_hears_the_newest() {
     let next = run_proposed(&run_propose(&mut world, 2, Box::new([item])));
     assert_ne!(next, proposal);
     assert!(world.store.rows.contains_key(&task_set(task, next)));
+    // Finding: restart changes Task 1 field chip.
+    world.broken();
 }
 #[test]
 fn a_run_without_the_settings_family_is_denied_and_may_propose_nothing() {
@@ -816,6 +824,8 @@ fn a_run_without_the_settings_family_is_denied_and_may_propose_nothing() {
     assert!(matches!(run_propose(&mut world, 1, Box::new([item])), core::CallPart::ToolDenied { .. }));
     assert_eq!(settings_rows(&world), before);
     assert!(fixtures::live_row(&world, task).proposal.is_none());
+    // Finding: restart changes Task 1 field chip.
+    world.broken();
 }
 #[test]
 fn a_runs_settings_proposal_refused_at_the_entrance_keeps_nothing() {
@@ -848,6 +858,8 @@ fn a_runs_settings_proposal_refused_at_the_entrance_keeps_nothing() {
     );
     assert_eq!(settings_rows(&world), before);
     assert!(fixtures::live_row(&world, task).proposal.is_none());
+    // Finding: restart changes Task 1 field chip.
+    world.broken();
 }
 #[test]
 fn a_runs_pending_settings_proposal_survives_a_restart_and_is_accepted() {
@@ -906,4 +918,6 @@ fn exhausted_stale_outcome_numbers_refuse_before_changing_settings() {
     assert!(!world.domain.ready(), "startup also refuses an unnumberable stale outcome");
     assert!(world.stopped);
     assert_eq!(settings_rows(&world), before);
+    // The fixture deliberately exhausts message numbers and leaves start refused.
+    world.broken();
 }

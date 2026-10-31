@@ -1290,8 +1290,10 @@ fn replacement_rules_and_restore_preserve_a_project_above_the_new_ceiling() {
     assert!(out.is_empty());
     assert_eq!(domain.policy(1), Some(&original));
     let mut restored = Domain::new(rules, LIMITS).unwrap();
+    restored.start_restore();
     crate::step(&mut restored, Event::Restore { project: 1, policy: original.clone() }, &mut out);
     assert_eq!(out.pop(), Some(PolicyFact::Added { project: 1 }));
+    assert_eq!(restored.start_link(), Ok(()));
     assert_eq!(restored.policy(1), Some(&original));
     assert_eq!(restored.models(1, original.roles[0].number), Some(Models::NONE));
     let ask = PersonAsk {
@@ -1430,8 +1432,8 @@ fn explicit_start_policy_nested_fit_limits_remain_enforced() {
 }
 
 #[test]
-fn explicit_start_authority_phase_errors_do_not_mix_with_default() {
-    for bad in 0_u8..6 {
+fn authority_restore_requires_loading_and_start_begins_once() {
+    for bad in 0_u8..7 {
         let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
         let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
             if bad == 0 {
@@ -1454,6 +1456,10 @@ fn explicit_start_authority_phase_errors_do_not_mix_with_default() {
                 5 => {
                     apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
                     apply(&mut domain, Event::Restore { project: 1, policy: policy(authority()) });
+                }
+                6 => {
+                    domain.start_link().unwrap();
+                    domain.start_restore();
                 }
                 _ => unreachable!(),
             }

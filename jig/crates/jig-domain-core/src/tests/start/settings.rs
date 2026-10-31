@@ -242,7 +242,7 @@ fn held_rows_past_each_limit_keep_their_refusal_detail() {
 }
 
 #[test]
-fn a_proposal_without_its_tasks_counterpart_is_a_writer_rule() {
+fn a_proposal_requires_its_links_under_the_selected_start() {
     for selected in [false, true] {
         let (mut core, env) = loaded(selected);
         for row in settings_rows(&core).into_boxed() {
@@ -259,7 +259,11 @@ fn a_proposal_without_its_tasks_counterpart_is_a_writer_rule() {
         assert_eq!(restore(&mut core, &env, row), Restored::Live);
         assert!(!core.settings_proposals_consistent());
         if selected {
-            super::through_link(&mut core, &env, &mut Queue::uncapped());
+            let _panic = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+                super::through_link(&mut core, &env, &mut Queue::uncapped());
+            }))
+            .expect_err("a proposal requires its retained links");
+            assert_eq!(core.start_phase(), Some(Phase::Link));
             assert_eq!(core.start_failure(), None);
         } else {
             let _out = core.commit_restored_settings(&env, settings::writes_bound(&env.limits).expect("write bound"));

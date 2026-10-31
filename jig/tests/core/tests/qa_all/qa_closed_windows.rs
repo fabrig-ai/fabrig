@@ -63,6 +63,8 @@ fn unread_closed_tail_starts_without_counting_a_failure() {
     assert_eq!(world.assigned.as_ref().expect("same assignment").attempt, attempt);
     assert_eq!(world.assignments.len(), assignments + 1);
     unchanged(&world, tries, refused);
+    // The store deliberately keeps the closed transcript unreadable.
+    world.broken();
 }
 
 #[test]

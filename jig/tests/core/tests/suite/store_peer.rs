@@ -18,7 +18,7 @@ fn sign_in(number: u8) -> root::Event {
         identity: people::Identity {
             key: people::IdentityKey { provider: 0, subject: Box::from([number, 255]) },
             login: Box::from([number]),
-            name: Box::from([number, 0, 255]),
+            name: Box::from(b"snapshot party".as_slice()),
         },
     })
 }
