@@ -77,6 +77,8 @@ fn documents_give_the_box_its_whole_ordered_steps() {
     let serve_listeners = ["127.0.0.1:8367".parse().unwrap(), "127.0.0.1:8371".parse().unwrap()];
     let serve = serve.listening(Box::new(serve_listeners));
     let demo_group = Group {
+        kind: None,
+        remover: None,
         forge: 1,
         label: b"Playground".as_slice().into(),
         recorded: false,
@@ -119,6 +121,8 @@ fn documents_give_the_box_its_whole_ordered_steps() {
                 asked: Box::new([
                     demo_group.clone(),
                     Group {
+                        kind: None,
+                        remover: None,
                         forge: 2,
                         label: b"Forge 2 (Forgejo)".as_slice().into(),
                         recorded: true,
@@ -138,6 +142,8 @@ fn documents_give_the_box_its_whole_ordered_steps() {
             Steps {
                 always: Box::new([prepare1.clone(), fake1.clone(), serve.clone()]),
                 asked: Box::new([Group {
+                    kind: None,
+                    remover: None,
                     forge: 2,
                     label: b"Forge 2 (Forgejo)".as_slice().into(),
                     recorded: true,

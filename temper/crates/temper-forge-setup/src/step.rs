@@ -1,6 +1,7 @@
 //! The box's ordered commands; each hides whether it is once, long or link.
 use crate::{
     check::joined,
+    machine::{BoxKind, Machine},
     setup::{Mode, Setup},
 };
 use alloc::boxed::Box;
@@ -25,6 +26,8 @@ impl Stage {
 /// A dormant forge's steps and their place in the always chain.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Group {
+    pub kind: Option<BoxKind>,
+    pub remover: Option<Step>,
     pub forge: u16,
     /// Owned opaque bytes the box uses to name the group on the terminal (protocol/setup.md, 7.3).
     pub label: Box<[u8]>,
@@ -174,6 +177,8 @@ pub fn steps(
                     let digits = Decimal::of(u64::from(e.forge));
                     asked
                         .push(Group {
+                            kind: None,
+                            remover: None,
                             forge: e.forge,
                             label: joined(&[b"Forge ", digits.as_bytes(), b" (Forgejo)"]),
                             recorded: true,
@@ -211,4 +216,62 @@ pub fn steps(
     out.push(Step::new(bytes::copy_of(b"serve"), serve.into_boxed(), Kind::Long).listening(listeners))
         .expect("serve capacity");
     Steps { always: out.into_boxed(), asked: asked.into_boxed() }
+}
+
+/// The argument a slot names its forge by; the box puts the bound number in its place (temper/docs/design/draft/playground-reset.md, 3).
+pub const FORGE_ARGUMENT: &[u8] = b"$forge";
+
+/// The owned kind's slot and serve (temper/docs/design/draft/playground-reset.md, 3 and 4).
+#[must_use]
+pub fn kinds(
+    machine: &Machine,
+    flags: &[Box<[u8]>],
+    listeners: Box<[core::net::SocketAddr]>,
+    forgejo_listens: bool,
+) -> Steps {
+    let mut result = steps(&Setup { entries: Box::new([]) }, flags, listeners, forgejo_listens);
+    if let Some(owned) = &machine.owned {
+        let mut group = List::with_capacity(4);
+        if owned.fetch.forgejo || owned.fetch.runner {
+            group.push((Stage::Fetch, slot(b"fetch", flags, None))).expect("fetch");
+        }
+        group.push((Stage::Prepare, slot(b"prepare", flags, None))).expect("prepare");
+        let mut forgejo = slot(b"run", flags, Some(b"forgejo")).with_ready(owned.listen);
+        if forgejo_listens {
+            forgejo = forgejo.listening(Box::new([owned.listen]));
+        }
+        group.push((Stage::Run, forgejo)).expect("forgejo");
+        if owned.runner.is_some() {
+            group.push((Stage::Run, slot(b"run", flags, Some(b"runner")))).expect("runner");
+        }
+        result.asked = Box::new([Group {
+            kind: Some(BoxKind::Owned),
+            remover: Some(slot(b"remove", flags, None)),
+            forge: 0,
+            label: bytes::copy_of(b"Forgejo"),
+            recorded: true,
+            before: 0,
+            steps: group.into_boxed(),
+        }]);
+    }
+    result
+}
+fn slot(action: &[u8], flags: &[Box<[u8]>], run: Option<&[u8]>) -> Step {
+    let mut args = List::with_capacity(
+        u32::try_from(flags.len()).expect("bounded flags").checked_add(4).expect("bounded arguments"),
+    );
+    args.push(bytes::copy_of(b"forge")).expect("command");
+    args.push(bytes::copy_of(action)).expect("action");
+    for flag in flags {
+        args.push(flag.clone()).expect("flags counted");
+    }
+    args.push(bytes::copy_of(FORGE_ARGUMENT)).expect("forge argument");
+    let name = match run {
+        Some(which) => {
+            args.push(bytes::copy_of(which)).expect("run argument");
+            which
+        }
+        None => action,
+    };
+    Step::new(bytes::copy_of(name), args.into_boxed(), if run.is_some() { Kind::Long } else { Kind::Once })
 }
