@@ -1,5 +1,5 @@
 //! Headless product stories reuse the shipped binary, person and provider hosts.
-use super::{Process, Ran, Refusal, window};
+use super::{Process, Ran, Settling, window};
 use skein_io::kernel::Exit;
 use skein_lib::Duration;
 use skein_shell::{Clock, Host};
@@ -272,13 +272,13 @@ fn run_fixture(
         Streams::Pipes { .. } => None,
     };
     let mut world = real::World::new(window::Judge::new(
-        Refusal {
+        Settling {
             foreign: foreign.then(|| scratch.path().join("runtime")),
             trace: arguments
                 .windows(2)
                 .find(|pair| pair.first().is_some_and(|flag| *flag == "--trace"))
                 .map(|pair| (scratch.path().join(pair.get(1).expect("trace path")), false)),
-            ..Refusal::new(now, now.saturating_add(watching.budget(sign_in)))
+            ..Settling::new(now, now.saturating_add(watching.budget(sign_in)))
         },
         watching,
         master,

@@ -1,5 +1,5 @@
 //! Outside terminal observations on the existing shipped-binary world.
-use super::{Process, Refusal};
+use super::{Process, Settling};
 use skein_io::kernel::{Fd, Size};
 use skein_lib::{Duration, Time};
 use skein_shell::{Modes, resize_terminal, terminal_modes};
@@ -33,13 +33,13 @@ struct Watch {
 }
 
 pub(super) struct Judge {
-    pub common: Refusal,
+    pub common: Settling,
     watch: Option<Watch>,
     program: Option<super::program_interrupt::Watch>,
 }
 
 impl Judge {
-    pub fn new(common: Refusal, story: Story, master: Option<Fd>, scratch: &std::path::Path) -> Self {
+    pub fn new(common: Settling, story: Story, master: Option<Fd>, scratch: &std::path::Path) -> Self {
         let watch = match story {
             Story::None | Story::ProgramRun | Story::ProgramCheck => None,
             Story::Modes | Story::Resize => {
@@ -156,7 +156,7 @@ impl Story {
 #[test]
 fn resize_referee_uses_world_patience() {
     let now = Time::ZERO;
-    let referee = Refusal::new(now, now.saturating_add(Story::Resize.budget(false)));
+    let referee = Settling::new(now, now.saturating_add(Story::Resize.budget(false)));
     assert_eq!(referee.overdue(now.saturating_add(Duration::from_millis(1118))), None);
     let deadline = now.saturating_add(WORLD_PATIENCE);
     assert_eq!(referee.next_deadline(), Some(deadline));
