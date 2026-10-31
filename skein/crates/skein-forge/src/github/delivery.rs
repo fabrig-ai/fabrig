@@ -19,18 +19,16 @@ pub fn signature(header: &[u8]) -> Option<[u8; 32]> {
     if text.len() != 64 {
         return None;
     }
+    for byte in text {
+        if byte.is_ascii_uppercase() {
+            return None;
+        }
+    }
     let mut out = [0; 32];
     for (pair, slot) in text.chunks_exact(2).zip(&mut out) {
-        *slot = digit(*pair.first()?)?.checked_mul(16)?.checked_add(digit(*pair.get(1)?)?)?;
+        *slot = bytes::hex_value(*pair.first()?)?.checked_mul(16)?.checked_add(bytes::hex_value(*pair.get(1)?)?)?;
     }
     Some(out)
-}
-fn digit(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => byte.checked_sub(b'0'),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        _ => None,
-    }
 }
 /// The fake's header value; the component can hash the same body in pieces.
 #[must_use]
@@ -43,7 +41,7 @@ pub fn sign(secret: &[u8], body: &[u8]) -> [u8; 71] {
     }
     for (pair, byte) in out.get_mut(7..).expect("signature prefix").chunks_exact_mut(2).zip(mac.finish()) {
         for (slot, nibble) in pair.iter_mut().zip([byte / 16, byte % 16]) {
-            *slot = marker::hex(nibble);
+            *slot = bytes::hex_digit(nibble);
         }
     }
     out
