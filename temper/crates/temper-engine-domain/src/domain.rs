@@ -281,6 +281,9 @@ impl Domain {
             config.under_box,
         )
         .expect("valid forge configuration");
+        if let Some(machine) = config.machine.take() {
+            forge.set_machine(machine);
+        }
         forge.configure_demo(config.demo.take());
         let built = policy_translate::build_landing(
             &config.landing.deployment,

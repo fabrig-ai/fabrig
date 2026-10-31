@@ -232,6 +232,7 @@ impl Service {
             forge: forge_config,
             identities,
             forge_charter: settings.charter,
+            machine: None,
             forges: configured,
             under_box: box_line_bytes.is_some(),
             demo: demo_config,
