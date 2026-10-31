@@ -101,8 +101,8 @@ pub(crate) fn forget(
             last_reply: owner.last_reply.unwrap_or(0),
         }));
         let ended_at = owner.ended_at;
-        let update = tasks::Update { party, at: ended_at, task: owner.task, object: tasks::UpdateObject::Result };
-        let index = tasks::EndedByParty { party, label: owner.label, ended_at, task: owner.task };
+        let update = result_update(owner.task, party, ended_at);
+        let index = ended_by_party(owner.task, party, owner.label, ended_at);
         for key in [
             tasks::Key::Ended(owner.task),
             update.key(),
@@ -112,11 +112,25 @@ pub(crate) fn forget(
             out.push(crate::Request::Write(crate::Write::Erase(crate::Key::Tasks(key))));
         }
         if owner.listed {
-            let index =
-                tasks::EndedByProject { project: owner.project, label: owner.label, ended_at, task: owner.task };
+            let index = ended_by_project(owner.task, owner.project, owner.label, ended_at);
             out.push(crate::Request::Write(crate::Write::Erase(crate::Key::Tasks(index.key()))));
         }
     }
     out.push(crate::Request::Decided);
     crate::Requests::Out(out)
+}
+
+/// The result update named by an ended record or its cached owner.
+pub(crate) fn result_update(task: u64, party: u64, at: Wall) -> tasks::Update {
+    tasks::Update { party, at, task, object: tasks::UpdateObject::Result }
+}
+
+/// The requester index named by an ended record or its cached owner.
+pub(crate) fn ended_by_party(task: u64, party: u64, label: u32, ended_at: Wall) -> tasks::EndedByParty {
+    tasks::EndedByParty { party, label, ended_at, task }
+}
+
+/// The listed project index named by an ended record or its cached owner.
+pub(crate) fn ended_by_project(task: u64, project: u32, label: u32, ended_at: Wall) -> tasks::EndedByProject {
+    tasks::EndedByProject { project, label, ended_at, task }
 }

@@ -36,6 +36,7 @@ pub mod waits;
 pub use effects::{EffectKey, EffectOrigin, EffectPurpose};
 
 mod ended_marks;
+mod erasure;
 pub mod forget;
 mod funding;
 mod goal_of;
