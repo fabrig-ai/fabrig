@@ -1,5 +1,5 @@
 //! Connector vocabulary crossing the application's root in jig's terms.
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! The root translates numbered connectors' own types to these values;
 //! connector-owned payloads remain with their owner (domain/connectors.md, 2).
 

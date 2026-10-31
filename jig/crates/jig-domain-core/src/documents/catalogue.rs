@@ -1,5 +1,5 @@
 //! Public offers and payer readiness (client/domain/contract.md, 5.1 and 7.1).
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use super::{DocumentLimits, Missing, Text};
 use crate::{Core, Limits};
 use alloc::boxed::Box;

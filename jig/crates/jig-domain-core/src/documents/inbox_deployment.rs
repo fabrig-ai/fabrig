@@ -1,5 +1,5 @@
 //! Party pages (`client/domain/pages.md`, sections 3 and 4;
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! `contract.md`, 5 and 7.1). Entries are bounded cache views;
 //! needs count all live task projections across the party's projects. Reply
 //! read positions and stored inbox rows are supplied by their owners.

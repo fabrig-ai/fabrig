@@ -1,5 +1,5 @@
 //! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store.md, 11.2).
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use super::inbox_deployment::line_bound;
 use super::{Chip, Missing, TaskLink, Window};
 use crate::{Core, Limits};

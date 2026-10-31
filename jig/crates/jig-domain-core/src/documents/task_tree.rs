@@ -1,5 +1,5 @@
 //! Task pages, live trees and goal lines (`client/domain/pages.md`, 5 and 6.2).
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! Copies bounded rows from their owners. Trees fold every unshown live row into
 //! phase counts; held counts cover the whole subtree. Goal progress uses retained
 //! goal projections, including ended rows. Nothing here mutates a task or policy.

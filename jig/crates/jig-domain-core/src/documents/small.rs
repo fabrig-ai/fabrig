@@ -1,5 +1,5 @@
 //! Small live documents and the shared bounded chip construction.
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use super::{Chip, Count, ExecutorKind, Frame, FrameProjectRole, Missing, PhaseLine, Run, Text};
 use crate::{Core, Limits};
 use alloc::boxed::Box;

@@ -1,5 +1,5 @@
 //! The party's accounts (`client/domain/contract.md`, 5.1; `domain/accounts.md`, sections 3 and 5).
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use super::deployment::{AccountState, account_state};
 use super::inbox_deployment::line_bound;
 use super::{DocumentLimits, Missing, Text, Window};

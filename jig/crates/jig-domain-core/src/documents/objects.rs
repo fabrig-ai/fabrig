@@ -1,5 +1,5 @@
 //! Decision objects and retained rows (`client/domain/objects.md`, sections 4–8;
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! `client/domain/pages.md`, 5.2). Store readers supply retained rows. Routing
 //! trails and before/after history require those store rows; no trail is cached.
 #![expect(clippy::manual_map, reason = "step code uses explicit matches instead of closures")]

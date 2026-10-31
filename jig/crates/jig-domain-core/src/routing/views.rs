@@ -1,5 +1,5 @@
 //! Watch admission and construction in the core's vocabulary.
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! `client/domain/contract.md`, sections 3.2 and 7. Documents are made when
 //! views asks and moved into held outputs; no document remains in the core.
 //! The child owns pacing and provisional text, and knows no concrete subject.

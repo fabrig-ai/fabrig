@@ -1,5 +1,5 @@
 //! Fixed query keys and one bounded live scan per document (engine.md, 11.2).
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use super::{Cursor, DocumentLimits, ExecutorKind, Missing, TaskLine, Window};
 use crate::{Core, Limits};
 use core::cmp::Reverse;

@@ -1,5 +1,5 @@
 //! Read-only construction from bounded authenticated owner rows.
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use super::vocabulary::{row_bytes, row_owner, row_visible};
 use super::{Answer, Cursor, Filter, Group, Historical, Page, PageRow, Past, Position, Range, Read, Row, Scope, Why};
 use crate::documents::{self, Document, Missing, Proposer};

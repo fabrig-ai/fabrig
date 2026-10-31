@@ -1,5 +1,5 @@
 //! Project policy and notes (`client/domain/pages.md`, sections 6.1, 6.4, 6.5).
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! Notes' bodies are loaded on demand by their child; this module builds a
 //! document from that loaded entry without adding a mutable cache.
 //! Pool edits target the configured period independently of the observed

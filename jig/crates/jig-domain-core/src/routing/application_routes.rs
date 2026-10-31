@@ -1,6 +1,6 @@
 //! Connector-owned keyed requests and their synchronous party parts
 //! (`domain/connectors.md`, section 5.5; `domain/core.md`, section 5).
-//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 
 use crate::{Ask, Core, Event, Family, Held, Limits, Request, Requests, fresh};
 use alloc::boxed::Box;
