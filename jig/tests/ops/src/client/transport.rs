@@ -502,7 +502,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 ReadValue::Question(row) => row.ending.is_some(),
                 ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Ended(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
@@ -530,7 +530,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Ended(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::Question(_)
                 | ReadValue::Ended(_)
                 | ReadValue::History(_)

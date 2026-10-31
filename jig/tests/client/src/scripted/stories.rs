@@ -2,11 +2,11 @@
 use super::Scripted;
 use crate::{stories as fixture, test::list};
 use jig_client_domain::contract::{
-    ActKind, ActivityLine, Admission, Answer, AnswerOn, Ask, Beyond, Block, Call, DecideOn, Decision, DocumentText,
-    Ending, Executor, HeldRole, HoldCategory, InboxGroup, InboxReadGroup, Message, ObjectKey, Offered, Outcome,
-    OwnerActivity, OwnerActivityLine, OwnerChipEnding, OwnerChipPhase, OwnerHistorical, OwnerHistoricalValue,
-    OwnerHistoryHolder, OwnerMessageKind, OwnerMessageProposalKind, OwnerOutcome, OwnerProposalAction,
-    OwnerProposalChoice, OwnerProposalHistoryState, OwnerRequester, OwnerRunEnd, OwnerRunWhy, PersonAddress,
+    ActKind, DecodedActivityLine, Admission, Answer, AnswerOn, Ask, Beyond, Block, Call, DecideOn, Decision, DocumentText,
+    Ending, ChipExecutor, HeldRole, HoldCategory, InboxGroup, InboxReadGroup, Message, ObjectKey, Offered, Outcome,
+    Activity, ActivityLine, ChipEnding, ChipPhase, Ended, EndedValue,
+    HistoryHolder, MessageKind, MessageProposalKind, DocumentOutcome, ProposalAction,
+    ProposalChoice, ProposalHistoryState, Requester, RunEnd, RunWhy, PersonAddress,
     PersonAnswer, Phase, ProposeAction, Proposer, Read, ReadValue, Recipient, Result, ResultValue, RunStage, Runtime,
     Speaker, Task, Turn, TurnName, TurnRead, Usage,
 };
@@ -26,12 +26,12 @@ pub(super) fn profile(front: &mut Scripted) {
     let account = deployment.accounts.get_mut(0).expect("account");
     account.number = 0;
     account.generation = Some(1);
-    for change in [Change::Me(frame), Change::OwnerProject(Box::new(project)), Change::OwnerDeployment(deployment)] {
+    for change in [Change::Me(frame), Change::Project(Box::new(project)), Change::Deployment(deployment)] {
         front.engine.act(Time::ZERO, Wall::EPOCH, change).expect("seed owner profile fits");
     }
 }
 
-pub(super) fn historical(task: Task, report: &[u8]) -> ReadValue {
+pub(super) fn ended(task: Task, report: &[u8]) -> ReadValue {
     let mut document = fixture::reported(task, report);
     document.acts.clear();
     let result = Result {
@@ -42,9 +42,9 @@ pub(super) fn historical(task: Task, report: &[u8]) -> ReadValue {
         acts: list([]),
         details: None,
     };
-    ReadValue::Historical(Box::new(OwnerHistorical {
+    ReadValue::Ended(Box::new(Ended {
         key: ObjectKey::Task(document.chip.task),
-        value: OwnerHistoricalValue::Task { document: Box::new(document), result: Box::new(result) },
+        value: EndedValue::Task { document: Box::new(document), result: Box::new(result) },
         at: Some(Wall::EPOCH),
         by: None,
     }))
@@ -75,12 +75,12 @@ pub(super) fn request(front: &mut Scripted, party: u64, ask: &Ask, wall: Wall) {
             value.chip.task = *task;
             value.chip.title = document.chip.title;
             value.project = *project;
-            value.requester = OwnerRequester::Person(party);
+            value.requester = Requester::Person(party);
             value.hold.as_mut().expect("hold").reason = HoldCategory::Placed { hold: 1 };
-            value.chip.details.phase = OwnerChipPhase::Held { reason: HoldCategory::Placed { hold: 1 }, revision: 4 };
+            value.chip.details.phase = ChipPhase::Held { reason: HoldCategory::Placed { hold: 1 }, revision: 4 };
             value.chip.details.details.hold.as_mut().expect("chip hold").reason = HoldCategory::Placed { hold: 1 };
             (
-                OwnerOutcome::Stopped { task: *task },
+                DocumentOutcome::Stopped { task: *task },
                 vec![Change::Object { project: *project, key: ObjectKey::Task(*task), value: held }],
             )
         }
@@ -94,7 +94,7 @@ pub(super) fn request(front: &mut Scripted, party: u64, ask: &Ask, wall: Wall) {
             if released {
                 document.hold = None;
                 document.chip.phase = Phase::Due;
-                document.chip.details.phase = OwnerChipPhase::Active(RunStage::Due);
+                document.chip.details.phase = ChipPhase::Active(RunStage::Due);
                 document.chip.details.details.hold = None;
                 document.context.as_mut().expect("chat context").runtime = Runtime::Starting;
             }
@@ -113,15 +113,15 @@ pub(super) fn request(front: &mut Scripted, party: u64, ask: &Ask, wall: Wall) {
                     _ => None,
                 })
                 .unwrap_or_default();
-            rows.push(ActivityLine {
-                source: Box::new(OwnerActivityLine {
+            rows.push(DecodedActivityLine {
+                source: Box::new(ActivityLine {
                     task: *task,
                     position: document.activity,
                     at: wall,
-                    line: OwnerActivity::Words {
+                    line: Activity::Words {
                         message: document.activity,
-                        by: OwnerRequester::Person(party),
-                        kind: OwnerMessageKind::Words,
+                        by: Requester::Person(party),
+                        kind: MessageKind::Words,
                         words: words.clone(),
                     },
                 }),
@@ -129,9 +129,9 @@ pub(super) fn request(front: &mut Scripted, party: u64, ask: &Ask, wall: Wall) {
             });
             (
                 if released {
-                    OwnerOutcome::Released { task: *task }
+                    DocumentOutcome::Released { task: *task }
                 } else {
-                    OwnerOutcome::Said { task: *task, message: document.activity }
+                    DocumentOutcome::Said { task: *task, message: document.activity }
                 },
                 vec![
                     Change::Object {
@@ -151,7 +151,7 @@ pub(super) fn request(front: &mut Scripted, party: u64, ask: &Ask, wall: Wall) {
     };
     front
         .engine
-        .script(Rule { party: Some(party), ask: ask.clone(), answer: Answer::Done(Outcome::Owner(answer)), changes })
+        .script(Rule { party: Some(party), ask: ask.clone(), answer: Answer::Done(Outcome::Document(answer)), changes })
         .expect("seeded response fits");
 }
 
@@ -165,9 +165,9 @@ fn proposal_for(front: &mut Scripted, proposer: u64, holders: &[u64], words: &[u
     proposal.key.proposer = Proposer::Task(task.chip.task);
     proposal.reason = DocumentText::complete(fixture::text(b"this goal needs a holder"));
     proposal.waiting.holder = if holders.len() == 1 {
-        OwnerHistoryHolder::Person(1)
+        HistoryHolder::Person(1)
     } else {
-        OwnerHistoryHolder::Policy { project: 1, kind: OwnerMessageProposalKind::Batch }
+        HistoryHolder::Policy { project: 1, kind: MessageProposalKind::Batch }
     };
     let mut goal =
         fixture::project().recurring.get(0).expect("goal specification").batch.get(0).expect("one task").clone();
@@ -175,7 +175,7 @@ fn proposal_for(front: &mut Scripted, proposer: u64, holders: &[u64], words: &[u
     goal.spec.specification.words = DocumentText::complete(fixture::text(words));
     goal.budget = budget;
     goal.authority.authority.spend = budget;
-    proposal.action = OwnerProposalAction::Batch(list([goal]));
+    proposal.action = ProposalAction::Batch(list([goal]));
     proposal.funding.clear();
     task.proposals = list([proposal.key]);
     task.activity = 3;
@@ -186,7 +186,7 @@ fn proposal_for(front: &mut Scripted, proposer: u64, holders: &[u64], words: &[u
         Change::Object {
             project: 1,
             key: ObjectKey::Proposal(key),
-            value: ReadValue::OwnerProposal(Box::new(proposal)),
+            value: ReadValue::Proposal(Box::new(proposal)),
         },
         Change::Source(Source {
             party: 1,
@@ -204,21 +204,21 @@ fn proposal_for(front: &mut Scripted, proposer: u64, holders: &[u64], words: &[u
             party: proposer,
             read: Read::Activity { task: 1, before: None },
             rows: Rows::Activity(vec![
-                ActivityLine {
-                    source: Box::new(OwnerActivityLine {
+                DecodedActivityLine {
+                    source: Box::new(ActivityLine {
                         task: 1,
                         position: 3,
                         at: Wall::EPOCH,
-                        line: OwnerActivity::RunEnded { attempt: 1, end: OwnerRunEnd::Parked, spent: 1 },
+                        line: Activity::RunEnded { attempt: 1, end: RunEnd::Parked, spent: 1 },
                     }),
                     decoded: None,
                 },
-                ActivityLine {
-                    source: Box::new(OwnerActivityLine {
+                DecodedActivityLine {
+                    source: Box::new(ActivityLine {
                         task: 1,
                         position: 2,
                         at: Wall::EPOCH,
-                        line: OwnerActivity::RunBegan { attempt: 1, why: OwnerRunWhy::Made, resumed: false },
+                        line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false },
                     }),
                     decoded: None,
                 },
@@ -265,18 +265,18 @@ fn proposal_request(front: &mut Scripted, party: u64, ask: &Ask) -> bool {
     if !front.chat_projects.contains(&(party, *project)) {
         return false;
     }
-    let Some(ReadValue::OwnerProposal(proposal)) = front.engine.truth().objects.get(&ObjectKey::Proposal(*key)) else {
+    let Some(ReadValue::Proposal(proposal)) = front.engine.truth().objects.get(&ObjectKey::Proposal(*key)) else {
         return false;
     };
     let mut decided =
-        fixture::decided_proposal(proposal, OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(party) });
-    decided.by = Some(OwnerRequester::Person(party));
+        fixture::decided_proposal(proposal, ProposalHistoryState::Accepted { by: Requester::Person(party) });
+    decided.by = Some(Requester::Person(party));
     let Proposer::Task(task) = key.proposer else { return false };
     let mut changes = vec![
         Change::Object {
             project: *project,
             key: ObjectKey::Proposal(*key),
-            value: ReadValue::Historical(Box::new(decided)),
+            value: ReadValue::Ended(Box::new(decided)),
         },
         Change::Source(Source {
             party,
@@ -303,15 +303,15 @@ fn proposal_request(front: &mut Scripted, party: u64, ask: &Ask) -> bool {
         .expect("proposal activity")
         .clone();
     let Rows::Activity(rows) = &mut source.rows else { unreachable!("activity source") };
-    rows.push(ActivityLine {
-        source: Box::new(OwnerActivityLine {
+    rows.push(DecodedActivityLine {
+        source: Box::new(ActivityLine {
             task,
             position: 4,
             at: Wall::EPOCH,
-            line: OwnerActivity::Words {
+            line: Activity::Words {
                 message: 2,
-                by: OwnerRequester::Person(party),
-                kind: OwnerMessageKind::ProposalDecision { proposal: key.number, accepted: true },
+                by: Requester::Person(party),
+                kind: MessageKind::ProposalDecision { proposal: key.number, accepted: true },
                 words: fixture::text(b"Accepted"),
             },
         }),
@@ -323,11 +323,11 @@ fn proposal_request(front: &mut Scripted, party: u64, ask: &Ask) -> bool {
         .script(Rule {
             party: Some(party),
             ask: ask.clone(),
-            answer: Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::ProposalDecided {
                 proposal: *key,
                 by: party,
                 at: Wall::EPOCH,
-                choice: OwnerProposalChoice::Accepted,
+                choice: ProposalChoice::Accepted,
                 repeated: false,
             })),
             changes,
@@ -362,7 +362,7 @@ pub(super) fn roles(front: &mut Scripted, story: crate::harness::seed::RoleStory
     }
     front
         .engine
-        .act(Time::ZERO, Wall::EPOCH, Change::OwnerProject(Box::new(fixture::project())))
+        .act(Time::ZERO, Wall::EPOCH, Change::Project(Box::new(fixture::project())))
         .expect("role project fits");
     match story {
         RoleStory::Proposal => proposal_for(front, 3, &[1, 2], b"decide this goal", 150),
@@ -373,12 +373,12 @@ pub(super) fn roles(front: &mut Scripted, story: crate::harness::seed::RoleStory
 
 fn choice(front: &mut Scripted) {
     let mut source = fixture::person_confirmation::world(0, fixture::person_confirmation::Form::Choice);
-    let ReadValue::OwnerPersonTask(document) = &source.front().engine.truth().objects[&ObjectKey::PersonTask(9)] else {
+    let ReadValue::PersonTask(document) = &source.front().engine.truth().objects[&ObjectKey::PersonTask(9)] else {
         unreachable!("person task fixture")
     };
     let mut document = document.as_ref().clone();
     document.task.task = 2;
-    document.task.executor = Executor::Role { project: 1, role: 1 };
+    document.task.executor = ChipExecutor::Role { project: 1, role: 1 };
     document.address = PersonAddress::Role(1);
     document.taken_by = None;
     document.spec.specification.words = DocumentText::complete(fixture::text(b"first report or second report"));
@@ -387,7 +387,7 @@ fn choice(front: &mut Scripted) {
         Change::Object {
             project: 1,
             key: ObjectKey::PersonTask(2),
-            value: ReadValue::OwnerPersonTask(Box::new(document)),
+            value: ReadValue::PersonTask(Box::new(document)),
         },
         Change::Source(Source {
             party: 2,
@@ -417,7 +417,7 @@ fn role_request(front: &mut Scripted, party: u64, ask: &Ask) {
     if !front.chat_projects.contains(&(party, *project)) {
         return;
     }
-    let Some(ReadValue::OwnerPersonTask(document)) = front.engine.truth().objects.get(&ObjectKey::PersonTask(*task))
+    let Some(ReadValue::PersonTask(document)) = front.engine.truth().objects.get(&ObjectKey::PersonTask(*task))
     else {
         return;
     };
@@ -427,11 +427,11 @@ fn role_request(front: &mut Scripted, party: u64, ask: &Ask) {
             document.taken_by = Some(party);
             document.acts = list([Offered { effect: None, act: ActKind::Answer, admission: Admission::Allowed }]);
             (
-                OwnerOutcome::PersonTaken { task: *task },
+                DocumentOutcome::PersonTaken { task: *task },
                 vec![Change::Object {
                     project: *project,
                     key: ObjectKey::PersonTask(*task),
-                    value: ReadValue::OwnerPersonTask(Box::new(document)),
+                    value: ReadValue::PersonTask(Box::new(document)),
                 }],
             )
         }
@@ -451,9 +451,9 @@ fn role_request(front: &mut Scripted, party: u64, ask: &Ask) {
             };
             document.acts.clear();
             document.task.phase = Phase::Ended;
-            document.task.details.phase = OwnerChipPhase::Ended;
+            document.task.details.phase = ChipPhase::Ended;
             document.task.details.details.ended_at = Some(Wall::EPOCH);
-            document.task.details.details.ending = Some(OwnerChipEnding::Done(value.clone()));
+            document.task.details.details.ending = Some(ChipEnding::Done(value.clone()));
             let result = Result {
                 task: document.task.clone(),
                 ending: Ending::Done,
@@ -463,19 +463,19 @@ fn role_request(front: &mut Scripted, party: u64, ask: &Ask) {
                 details: None,
             };
             (
-                OwnerOutcome::PersonAnswered { task: *task },
+                DocumentOutcome::PersonAnswered { task: *task },
                 vec![
                     Change::Object {
                         project: *project,
                         key: ObjectKey::PersonTask(*task),
-                        value: ReadValue::Historical(Box::new(OwnerHistorical {
+                        value: ReadValue::Ended(Box::new(Ended {
                             key: ObjectKey::PersonTask(*task),
-                            value: OwnerHistoricalValue::PersonTask {
+                            value: EndedValue::PersonTask {
                                 document: Box::new(document),
                                 result: Box::new(result),
                             },
                             at: Some(Wall::EPOCH),
-                            by: Some(OwnerRequester::Person(party)),
+                            by: Some(Requester::Person(party)),
                         })),
                     },
                     Change::Source(Source {
@@ -496,7 +496,7 @@ fn role_request(front: &mut Scripted, party: u64, ask: &Ask) {
     };
     front
         .engine
-        .script(Rule { party: Some(party), ask: ask.clone(), answer: Answer::Done(Outcome::Owner(answer)), changes })
+        .script(Rule { party: Some(party), ask: ask.clone(), answer: Answer::Done(Outcome::Document(answer)), changes })
         .expect("person response fits");
 }
 
@@ -529,7 +529,7 @@ fn goal_proposal_request(front: &mut Scripted, party: u64, ask: &Ask) -> bool {
                 .script(Rule {
                     party: Some(party),
                     ask: ask.clone(),
-                    answer: Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal: 1, to: 0 })),
+                    answer: Answer::Done(Outcome::Document(DocumentOutcome::Proposed { proposal: 1, to: 0 })),
                     changes: vec![],
                 })
                 .expect("proposed goal response fits");

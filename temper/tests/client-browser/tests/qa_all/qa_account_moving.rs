@@ -18,7 +18,7 @@ fn request(written: bool) -> Box<[u8]> {
         )
     };
     let ask = w::Ask::AccountChange(
-        w::AskAccountChange::new(&w::CEILINGS, w::AskAccountChangeParts { holder: w::AccountHolder::Own, change })
+        w::AskAccountChange::new(&w::CEILINGS, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
             .expect("move request"),
     );
     let mut out = Writer::new(usize::try_from(ask.measure()).expect("ask fits"));

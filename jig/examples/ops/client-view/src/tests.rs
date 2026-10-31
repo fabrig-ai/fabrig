@@ -353,7 +353,7 @@ fn procedure_phase() -> ChipPhaseFacts {
             resources: list([]),
             resources_cut: false,
             resources_observed: false,
-            procedure: Some(Part { connector: 2, kind: PartKind::Procedure, key: PartKey::Number(9) }),
+            procedure: Some(jig_client::contract::Part { connector: 2, kind: PartKind::Procedure, key: PartKey::Number(9) }),
             live_delegates: 0,
             closing_connectors: None,
             ending: None,
@@ -436,7 +436,7 @@ fn task() -> Task {
             parts: list([]),
             closing: None,
             spend: list([]),
-            runtime: Runtime::Procedure { panel: Part::Panel { connector: 2, task: 9 } },
+            runtime: Runtime::Procedure { panel: ApplicationPart::Panel { connector: 2, task: 9 } },
             impact: Impact {
                 tasks: ImpactCounts {
                     waiting: 0,
@@ -819,7 +819,7 @@ fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenatio
             list([Box::<[u8]>::from(*b"/\0"), Box::<[u8]>::from([0xFF, 0])]),
             list([Box::<[u8]>::from([0xFF; 32]), Box::<[u8]>::from([0xFE; 32])]),
         ] {
-            let part = Part::Resource { connector, path };
+            let part = ApplicationPart::Resource { connector, path };
             if connector == 1 {
                 let mut out = Queue::uncapped();
                 observability::step(
@@ -1167,7 +1167,7 @@ fn effect_slots_load_infrastructure_without_loading_a_maker_effect_and_keep_obse
     tree_limits.text_bytes = tree_limits.nodes.checked_mul(tree_limits.text_per_node).unwrap();
     for connector in [1, 2] {
         for proposal in [0, u64::MAX] {
-            let part = Part::OwnerEffect { connector, proposal };
+            let part = ApplicationPart::OwnerEffect { connector, proposal };
             let mut builder = skein_ui::Builder::new(&tree_limits);
             builder.open(skein_ui::Role::Page);
             let mut bindings = crate::bindings::Bindings::new(0, 32, connector);
@@ -1219,7 +1219,7 @@ fn effect_facts_have_distinct_proposal_and_state_labels() {
     let limits = limits();
     let (jig_words, _, words) = phrasebooks();
     let tree_limits = Limits::of(&limits, &jig_words, &words, &words).unwrap().tree;
-    let part = Part::OwnerEffect { connector: 2, proposal: u64::MAX };
+    let part = ApplicationPart::OwnerEffect { connector: 2, proposal: u64::MAX };
     let mut root = ready();
     let offline = support::offline(&root);
     drive(&mut root, offline);

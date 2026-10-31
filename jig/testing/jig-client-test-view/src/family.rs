@@ -79,7 +79,7 @@ pub fn part(
     }
     match part {
         ApplicationPart::Connector { connector } => {
-            words.text(b, Word::Connector, &[Hole::Number(u64::from(*connector))])
+            words.text(b, Word::Connector, &[Hole::Number(u64::from(*connector))]);
         }
         ApplicationPart::Resource { path, .. } => {
             jig.text(b, jig_client_view::phrases::jig::JigPhrase::ResourceSegments, &[]);

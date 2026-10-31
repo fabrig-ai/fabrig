@@ -436,7 +436,7 @@ impl Checks {
             ReadValue::Proposal(value) => ObjectKey::Proposal(value.key),
             ReadValue::Me(_)
             | ReadValue::Tasks(_)
-            | ReadValue::Ended(_)
+            | ReadValue::EndedPage(_)
             | ReadValue::Question(_)
             | ReadValue::Result(_)
             | ReadValue::History(_)

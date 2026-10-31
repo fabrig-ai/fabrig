@@ -93,7 +93,7 @@ mod tests {
         let mut authority =
             a::Domain::new(config.core.defaults.rules.clone(), bounds).expect("fixture authority bounds");
         let given = |spend| a::Delegate {
-            executor: a::ChipExecutor::Charter(1),
+            executor: a::Executor::Charter(1),
             symbolic: Box::new([]),
             authority: a::Authority {
                 tools: a::Tools(0),

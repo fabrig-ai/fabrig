@@ -513,9 +513,9 @@ fn an_entrance_refusal_finishes_only_its_original_child_and_survives_a_duplicate
 fn outbox_subjects_copy_the_supplied_scope_and_numeric_entry_independently_of_effects() {
     use crate::{infrastructure as infra, observability as obs};
     let proposal = contract::ProposalKey { proposer: contract::Proposer::Task(17), number: 17 };
-    let effect = contract::Part::Effect { connector: 2, proposal };
+    let effect = contract::ApplicationPart::Effect { connector: 2, proposal };
     for scope in [contract::PartScope::Project(91), contract::PartScope::Deployment] {
-        let part = contract::Part::Outbox { connector: 2, scope, entry: 17 };
+        let part = contract::ApplicationPart::Outbox { connector: 2, scope, entry: 17 };
         let infrastructure = infra::documents::subject(&part, infra::Scope::Project(3)).unwrap();
         let observability = obs::documents::subject(&part, obs::Scope::Project(3)).unwrap();
         assert_eq!(infrastructure.kind, infra::Kind::Outbox(17));
@@ -546,7 +546,7 @@ fn resource_parts_bound_allocated_segments_and_whole_segment_bytes_in_both_conne
         let mut too_long = List::with_capacity(1);
         too_long.push(Box::<[u8]>::from([b'x'; 33])).unwrap();
         for (path, accepted) in [(valid, true), (empty_overallocated, false), (too_long, false)] {
-            let part = contract::Part::Resource { connector, path };
+            let part = contract::ApplicationPart::Resource { connector, path };
             if connector == 1 {
                 let mut side = crate::observability::Side::new(&limits.observability, &limits.client.domain);
                 let mut out = Queue::uncapped();
@@ -600,11 +600,11 @@ fn effect_parts_keep_connector_numbers_separate_from_maker_subjects() {
     let limits = limits();
     for connector in [1, 2, u16::MAX] {
         for number in [0, u64::MAX] {
-            let values = contract::Part::OwnerEffect { connector, proposal: number };
+            let values = contract::ApplicationPart::OwnerEffect { connector, proposal: number };
             assert_eq!(crate::parts::connector(&values), connector);
             for proposer in [contract::Proposer::Task(number), contract::Proposer::Party(number)] {
                 let key = contract::ProposalKey { proposer, number };
-                let maker_effect = contract::Part::Effect { connector, proposal: key };
+                let maker_effect = contract::ApplicationPart::Effect { connector, proposal: key };
                 assert_ne!(values, maker_effect);
                 for project in [0, u32::MAX] {
                     assert_eq!(

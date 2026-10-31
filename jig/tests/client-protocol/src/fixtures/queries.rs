@@ -42,7 +42,7 @@ pub fn person_batch_config(seed: u64) -> jig_test_domain::Config {
     let mut config = super::batch_config(seed);
     let mut rules = config.core.defaults.rules.clone();
     let mut policy = config.core.seed_projects[0].policy.policy.clone();
-    let kinds: Box<[a::ChipExecutor]> = Box::new([a::ChipExecutor::Charter(1), a::ChipExecutor::Role(0)]);
+    let kinds: Box<[a::Executor]> = Box::new([a::Executor::Charter(1), a::Executor::Role(0)]);
     rules.ceiling.delegation.kinds.clone_from(&kinds);
     policy.ceiling.delegation.kinds.clone_from(&kinds);
     policy.roles[0].authority.delegation.kinds = kinds;

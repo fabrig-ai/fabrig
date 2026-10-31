@@ -56,7 +56,7 @@ impl Offers {
             }
             ReadValue::Proposal(proposal) => self.owner_recipient(proposal.key, proposal.waiting.holder, judge),
             ReadValue::Tasks(_)
-            | ReadValue::Ended(_)
+            | ReadValue::EndedPage(_)
             | ReadValue::Task(_)
             | ReadValue::Escalation(_)
             | ReadValue::Question(_)

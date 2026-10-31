@@ -159,7 +159,7 @@ impl Scripted {
         task.settings.as_mut().expect("chat settings").run = Some(1);
         task.chip.phase = jig_client_domain::contract::Phase::Running;
         task.chip.details.phase =
-            jig_client_domain::contract::OwnerChipPhase::Active(jig_client_domain::contract::RunStage::Running {
+            jig_client_domain::contract::ChipPhase::Active(jig_client_domain::contract::RunStage::Running {
                 attempt: 1,
             });
         task.context.as_mut().expect("chat context").runtime =
@@ -217,7 +217,7 @@ impl Scripted {
                     key: ObjectKey::Task(task.chip.task),
                     value: self.chat_report.as_ref().map_or_else(
                         || ReadValue::Task(Box::new(task.clone())),
-                        |report| stories::historical(task.clone(), report),
+                        |report| stories::ended(task.clone(), report),
                     ),
                 }],
             })
@@ -368,7 +368,7 @@ impl Front<Test> for Scripted {
         match seed {
             Seed::Roles { story } => stories::roles(self, story),
             Seed::PendingGoal { words, budget } => stories::proposal(self, &words, budget),
-            Seed::OwnerProfile => stories::profile(self),
+            Seed::Profile => stories::profile(self),
             Seed::ChatResult { report } => self.chat_report = Some(report),
             Seed::Project(facts) => {
                 self.project_facts = true;
@@ -705,7 +705,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
                 | ReadValue::Inbox(_)
-                | ReadValue::Ended(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::Spend(_)
                 | ReadValue::Project(_)
                 | ReadValue::Notes(_)
@@ -724,7 +724,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Ended(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::Proposal(_)
                 | ReadValue::Escalation(_)
                 | ReadValue::Question(_)
