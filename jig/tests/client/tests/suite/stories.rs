@@ -70,7 +70,7 @@ fn a_held_chat_is_released() {
                 Step::See { find: Find::text(b"Being decided"), within: WITHIN },
                 Step::Press { find: Find::named(Role::Button, b"Confirm") },
                 Step::Press { find: Find::named(Role::Tab, b"Overview") },
-                Step::See { find: Find::text(b"Starting"), within: WITHIN },
+                Step::See { find: Find::text(b"Activation due"), within: WITHIN },
             ],
         );
         w.run(Until::Done);
@@ -153,11 +153,24 @@ fn two_tabs_deciding_one_thing_are_told_who_decided_first() {
         let a = w.client(7, stories::inbox());
         let b = w.tab(a);
         for c in [a, b] {
+            w.person(c, vec![Step::See { find: Find::named(Role::Button, b"Accept"), within: WITHIN }]);
+        }
+        w.run(Until::Done);
+        let accept = |client| {
+            w.tree(client)
+                .nodes()
+                .iter()
+                .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Accept"))
+                .expect("delivered proposal")
+                .id
+        };
+        let first_node = accept(a);
+        let second_node = accept(b);
+        w.fault(jig_client_world::Fault::TwoTabs { first: a, first_node, second: b, second_node });
+        for c in [a, b] {
             w.person(
                 c,
                 vec![
-                    Step::See { find: Find::named(Role::Button, b"Accept"), within: WITHIN },
-                    Step::Press { find: Find::named(Role::Button, b"Accept") },
                     Step::Press { find: Find::named(Role::Button, b"Confirm") },
                     Step::See { find: Find::text(b"Accepted"), within: WITHIN },
                 ],
@@ -165,12 +178,18 @@ fn two_tabs_deciding_one_thing_are_told_who_decided_first() {
         }
         w.run(Until::Done);
         assert_eq!(w.front().engine.commits().iter().filter(|c| c.key.is_some()).count(), 2);
+        assert!(w.front().engine.commits().iter().any(|commit| matches!(
+            commit.answer,
+            Some(jig_client::contract::Answer::Done(jig_client::contract::Outcome::Owner(
+                jig_client::contract::OwnerOutcome::ProposalDecided { repeated: true, .. }
+            )))
+        )));
         assert!([a, b].into_iter().any(|c| {
             w.tree(c)
                 .nodes()
                 .iter()
                 .flat_map(|n| &n.text)
-                .any(|r| r.text.windows(b"Decided first".len()).any(|part| part == b"Decided first"))
+                .any(|r| r.text.windows(b"Decided by person: 7".len()).any(|part| part == b"Decided by person: 7"))
         }));
     }
 }
@@ -265,7 +284,7 @@ fn a_goal_beyond_the_allotment_is_proposed_as_the_confirmation_said() {
                 Step::Press { find: Find::named(Role::Button, b"Set goal") },
                 Step::See { find: Find::text(b"proposed"), within: WITHIN },
                 Step::Press { find: Find::named(Role::Button, b"Confirm") },
-                Step::See { find: Find::text(b"Proposed by task"), within: WITHIN },
+                Step::See { find: Find::text(b"Proposed"), within: WITHIN },
             ],
         );
         w.run(Until::Done);
@@ -277,7 +296,9 @@ fn a_goal_beyond_the_allotment_is_proposed_as_the_confirmation_said() {
         );
         assert!(matches!(
             commits.iter().find(|c| c.key.is_some()).expect("incident fixture fits and exists").answer,
-            Some(jig_client_domain::contract::Answer::Done(jig_client_domain::contract::Outcome::Proposed { .. }))
+            Some(jig_client_domain::contract::Answer::Done(jig_client_domain::contract::Outcome::Owner(
+                jig_client_domain::contract::OwnerOutcome::Proposed { .. }
+            )))
         ));
     }
 }
@@ -307,7 +328,7 @@ fn a_procedure_only_goal_form_confirms_and_sends_the_supplied_executor_once() {
                 Step::See { find: Find::text(b"Connector 2, procedure 7"), within: WITHIN },
                 Step::See { find: Find::text(b"proposed"), within: WITHIN },
                 Step::Press { find: Find::named(Role::Button, b"Confirm") },
-                Step::See { find: Find::text(b"Proposed by"), within: WITHIN },
+                Step::See { find: Find::text(b"Proposed"), within: WITHIN },
             ],
         );
         let result = w.run(Until::Done);
@@ -364,7 +385,9 @@ fn a_procedure_only_goal_form_confirms_and_sends_the_supplied_executor_once() {
         );
         assert!(matches!(
             commits.iter().find(|c| c.key.is_some()).expect("the procedure goal has one keyed commit").answer,
-            Some(jig_client_domain::contract::Answer::Done(jig_client_domain::contract::Outcome::Proposed { .. }))
+            Some(jig_client_domain::contract::Answer::Done(jig_client_domain::contract::Outcome::Owner(
+                jig_client_domain::contract::OwnerOutcome::Proposed { .. }
+            )))
         ));
     }
 }
@@ -400,7 +423,7 @@ fn a_held_chat_is_released_at_the_text_shell() {
             Step::See { find: Find::text(b"Being decided"), within: WITHIN },
             Step::Press { find: Find::named(Role::Button, b"Confirm") },
             Step::Press { find: Find::named(Role::Tab, b"Overview") },
-            Step::See { find: Find::text(b"Starting"), within: WITHIN },
+            Step::See { find: Find::text(b"Activation due"), within: WITHIN },
         ],
     );
     let outcome = w.run(Until::Done);
@@ -438,7 +461,7 @@ fn a_family_page_shows_its_tasks_plan_and_not_a_second_one() {
         c,
         vec![
             Step::See { find: Find::named(Role::Region, b"Plan"), within: WITHIN },
-            Step::See { find: Find::text(b"Cannot show this part"), within: WITHIN },
+            Step::See { find: Find::text(b"Delegate ten"), within: WITHIN },
         ],
     );
     w.run(Until::Done);
@@ -457,7 +480,7 @@ fn a_project_s_tasks_section_watches_one_query_by_last_change() {
         .act(
             skein_lib::Time::ZERO,
             skein_lib::Wall::EPOCH,
-            jig_client_scripted_engine::Change::Project(Box::new(stories::project())),
+            jig_client_scripted_engine::Change::OwnerProject(Box::new(stories::project())),
         )
         .expect("query story fixture and delivery");
     let person = world.client(

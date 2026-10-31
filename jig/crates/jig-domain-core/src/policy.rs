@@ -282,7 +282,7 @@ impl Core {
         }
         let resize = self.resize(project, self.authority.policy(project).expect("existing policy"), &policy, limits)?;
         let mut facts = Queue::uncapped();
-        authority::step(&mut self.authority, authority::Event::Policy { project, policy }, &mut facts);
+        crate::routing::step::step_authority(self, authority::Event::Policy { project, policy }, &mut facts);
         match facts.pop().expect("policy update terminal") {
             authority::PolicyFact::Changed { .. } => {
                 assert!(self.permission_roles.insert(project, permissions).is_ok(), "admitted permission policy");
@@ -350,7 +350,7 @@ impl Core {
             }
         }
         let mut facts = Queue::uncapped();
-        authority::step(&mut self.authority, authority::Event::Restore { project, policy }, &mut facts);
+        crate::routing::step::step_authority(self, authority::Event::Restore { project, policy }, &mut facts);
         match facts.pop().expect("policy restore terminal") {
             authority::PolicyFact::Added { .. } => {
                 self.projects.push(project).expect("preflighted project room");

@@ -271,8 +271,8 @@ impl Core {
     pub(crate) fn tell_replaced_settings(&mut self, env: &Env<Limits>, rules: bool, charters: bool) {
         if rules {
             let mut facts = Queue::uncapped();
-            authority::step(
-                &mut self.authority,
+            crate::routing::step::step_authority(
+                self,
                 authority::Event::Rules(Box::new(self.current.rules().clone())),
                 &mut facts,
             );
@@ -296,9 +296,9 @@ impl Core {
             }
             let charters = charters.into_boxed();
             let mut tasks_out = Queue::uncapped();
-            tasks::step(
-                &mut self.tasks,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+            crate::routing::step::step_tasks(
+                self,
+                env,
                 tasks::Event::Charters {
                     newest: self.current.newest(),
                     charters,
@@ -313,12 +313,7 @@ impl Core {
         }
         let needs = crate::fleet_needs::current(self, &env.limits);
         let mut fleet_out = Queue::uncapped();
-        fleet::step(
-            &mut self.fleet,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.fleet },
-            fleet::Event::Needs(needs),
-            &mut fleet_out,
-        );
+        crate::routing::step::step_fleet(self, env, fleet::Event::Needs(needs), &mut fleet_out);
         assert!(fleet_out.is_empty(), "needs replacement retains running attempts");
     }
 

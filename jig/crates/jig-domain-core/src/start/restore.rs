@@ -42,12 +42,7 @@ impl Core {
                         return Restore::Refused;
                     }
                     let mut out = Queue::uncapped();
-                    tasks::step(
-                        &mut self.tasks,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                        tasks::Event::Restore { record: row },
-                        &mut out,
-                    );
+                    crate::routing::step::step_tasks(self, env, tasks::Event::Restore { record: row }, &mut out);
                     out.is_empty()
                 }
                 Record::People(people::Stored::Policy { project, name, value }) => {
@@ -55,23 +50,13 @@ impl Core {
                 }
                 Record::People(row) => {
                     let mut out = Queue::uncapped();
-                    people::step(
-                        &mut self.people,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-                        people::Event::Restore { record: row },
-                        &mut out,
-                    );
+                    crate::routing::step::step_people(self, env, people::Event::Restore { record: row }, &mut out);
                     out.is_empty()
                 }
                 Record::Notes(_) => true,
                 Record::Accounts(record) => {
                     let mut out = Queue::uncapped();
-                    accounts::step(
-                        &mut self.accounts,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.accounts },
-                        accounts::Event::Restore { record },
-                        &mut out,
-                    );
+                    crate::routing::step::step_accounts(self, env, accounts::Event::Restore { record }, &mut out);
                     out.is_empty()
                 }
             },

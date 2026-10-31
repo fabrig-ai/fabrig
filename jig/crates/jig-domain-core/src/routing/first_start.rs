@@ -26,7 +26,7 @@ pub(crate) fn start_seed(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Req
     for _ in 0..projects.len() {
         let (project, policy) = projects.pop().expect("configured project");
         let mut facts = Queue::uncapped();
-        authority::step(&mut core.authority, authority::Event::Restore { project, policy }, &mut facts);
+        crate::routing::step::step_authority(core, authority::Event::Restore { project, policy }, &mut facts);
         match facts.pop().expect("seed policy terminal") {
             authority::PolicyFact::Added { project: found } => assert!(found == project, "seed policy owner"),
             authority::PolicyFact::Refused { .. } => {
@@ -48,12 +48,7 @@ pub(crate) fn start_seed(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Req
             // The authority restore already owns this policy.
         } else {
             let mut child = Queue::uncapped();
-            people::step(
-                &mut core.people,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-                people::Event::Restore { record: record.clone() },
-                &mut child,
-            );
+            crate::routing::step::step_people(core, env, people::Event::Restore { record: record.clone() }, &mut child);
             assert!(child.is_empty(), "selected seed emits only explicit writes");
         }
         out.push(Request::Write(Write::Save(Record::People(record))));

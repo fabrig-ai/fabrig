@@ -21,7 +21,7 @@
 //! ClosingStream stream taken closed           Ended
 //! ```
 use crate::{Domain, End, Fact, Follow, Limits, Made, Refusal, Request, Window};
-use skein_lib::{Id, List, Queue, Token};
+use skein_lib::{Id, List, Lossy, Queue, Token};
 
 #[derive(Debug)]
 pub(crate) struct Watcher {
@@ -86,7 +86,7 @@ pub(crate) fn open(
     make(domain.watchers.get(id).expect("inserted"), &mut domain.facts, out);
     crate::text::offer_one(domain, id, out);
 }
-fn make(watch: &Watcher, facts: &mut crate::facts::Facts, out: &mut Queue<Request>) {
+fn make(watch: &Watcher, facts: &mut Lossy<Fact>, out: &mut Queue<Request>) {
     facts.push(Fact::Making);
     out.push(Request::Make { watcher: watch.token, subject: watch.subject, window: watch.window });
 }

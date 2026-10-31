@@ -620,7 +620,7 @@ fn draft_answer(offer: jig_client::shapes::Fall) -> skein_world::domain::Verdict
         Observation::Delivered {
             client: DRAFT_CLIENT,
             receipt: Receipt::Document {
-                value: Box::new(jig_client::contract::ReadValue::Proposal(Box::new(
+                value: Box::new(jig_client::contract::ReadValue::OwnerProposal(Box::new(
                     jig_client_world::stories::proposal(),
                 ))),
             },

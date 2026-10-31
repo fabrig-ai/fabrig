@@ -1,52 +1,21 @@
-//! Translations at the testing root's outside boundary. Only configuration,
-//! durable store rows and peer traffic enter here; no domain state is read.
-//! The conformance world can replace these translations and keep the referee
-//! (`domain/testing.md`, 4, 6).
+//! Core rows and released outputs translated into referee evidence
+//! (`jig/docs/design/domain/testing.md`, 5–6).
 pub mod acceptance;
 pub mod intents;
+pub mod peers;
 mod projects;
+mod snapshot;
+pub use snapshot::{proposal_decisions, snapshot};
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{Store, referee as r};
+use crate::referee as r;
+mod evidence;
+pub use evidence::*;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use jig_test_connector as connector;
-use jig_test_domain as root;
-
-/// Translate the test connector's stable identity at the outside boundary.
-#[must_use]
-pub fn effect_key(key: connector::Key) -> r::EffectKey {
-    r::EffectKey {
-        deployment: key.deployment,
-        task: key.task,
-        purpose: key.purpose,
-        origin: match key.origin {
-            connector::Purpose::Procedure => r::EffectOrigin::Procedure,
-            connector::Purpose::Projection => r::EffectOrigin::Projection,
-            connector::Purpose::Call { attempt, completion, position } => {
-                r::EffectOrigin::Call { attempt, completion, position }
-            }
-        },
-    }
-}
-
-fn connector_key(key: r::EffectKey) -> connector::Key {
-    connector::Key {
-        deployment: key.deployment,
-        task: key.task,
-        purpose: key.purpose,
-        origin: match key.origin {
-            r::EffectOrigin::Procedure => connector::Purpose::Procedure,
-            r::EffectOrigin::Projection => connector::Purpose::Projection,
-            r::EffectOrigin::Call { attempt, completion, position } => {
-                connector::Purpose::Call { attempt, completion, position }
-            }
-        },
-    }
-}
 
 fn pattern(base: &[Box<[u8]>], terminal: &[u8], open: bool) -> r::Pattern {
     r::Pattern { base: base.iter().map(|part| part.to_vec()).collect(), terminal: terminal.to_vec(), open }
@@ -145,10 +114,6 @@ fn name(value: &tasks::Name) -> r::Name {
     r::Name { connector: value.connector, path: value.path.iter().map(|part| part.to_vec()).collect() }
 }
 
-fn path(connector: u16, value: &connector::Path) -> r::Name {
-    r::Name { connector, path: value.segments().iter().map(|part| part.to_vec()).collect() }
-}
-
 fn source(value: tasks::Party) -> r::Source {
     match value {
         tasks::Party::Task(task) => r::Source::Task(task),
@@ -239,33 +204,32 @@ struct SeenFence {
 }
 
 impl SeenFence {
-    fn new(store: &Store, person: u64, seen: people::Seen) -> Self {
+    fn new(store: &Store<'_>, person: u64, seen: people::Seen) -> Self {
         let mut current = 0;
         let mut ended = false;
-        let records = store.rows.values().chain(store.pending.iter().flat_map(|pending| {
+        let records = store.rows.values().copied().chain(store.pending.iter().flat_map(|pending| {
             pending.writes.iter().filter_map(|write| match write {
-                root::Write::Save(record) => Some(record),
-                root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) => None,
+                Write::Save(record) => Some(*record),
+                Write::Other | Write::Erase(_) => None,
             })
         }));
         for record in records {
             match seen {
                 people::Seen::Results { .. } => {
-                    if let root::Record::Core(core::Record::People(people::Stored::ReadResults { party, through })) =
-                        record
+                    if let core::Record::People(people::Stored::ReadResults { party, through }) = record
                         && *party == person
                     {
                         current = current.max(*through);
                     }
                 }
                 people::Seen::Conversation { task, .. } => {
-                    if let root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row))) = record {
+                    if let core::Record::Tasks(tasks::Stored::Ended(row)) = record {
                         ended |= row.number == task;
                     }
-                    if let root::Record::Core(core::Record::People(
+                    if let core::Record::People(
                         people::Stored::ReadConversation { party, task: chat, through }
                         | people::Stored::EndedRead { party, task: chat, through },
-                    )) = record
+                    ) = record
                         && *party == person
                         && *chat == task
                     {
@@ -286,24 +250,21 @@ impl SeenFence {
     }
 }
 
-/// The testing root adapter, reusable with the ordinary referee by other worlds.
+/// Core evidence retained across commits and cold starts.
 #[derive(Clone, Debug)]
 pub struct Observer {
     pub referee: r::Referee,
-    intents: intents::Intents,
+    pub intents: intents::Intents,
     project_makes: projects::Makes,
     policy_generation: u64,
     roles: BTreeMap<(u32, u32), r::Scope>,
     decisions_by_role: BTreeMap<(u32, u32), u8>,
     applied: u64,
-    application_requests: bool,
     activity: BTreeMap<(u64, u64), tasks::ActivityLine>,
-    effects: [usize; 2],
-    reads: [usize; 2],
     // Seen uses a commit fence instead of a new Answer receipt.
     requests: BTreeMap<u64, (u64, [u8; 16], Option<SeenFence>)>,
-    proposals: BTreeMap<u64, (u16, connector::Effect)>,
-    accepted: BTreeMap<(u16, connector::Key), r::Source>,
+    proposals: BTreeMap<u64, (u16, Effect)>,
+    accepted: BTreeMap<(u16, r::EffectKey), r::Source>,
     settled_calls: BTreeSet<(u64, u64, u64)>,
     claims: BTreeSet<(u64, u64)>,
     // Durable fresh marks fence these attempts: their traffic is acknowledged
@@ -318,34 +279,11 @@ pub struct Observer {
     recorded: Option<Vec<r::Observed>>,
 }
 
-fn connector_policy(policy: &mut r::Policy, number: u16, connector: &connector::Config) {
-    let parts = connector.prefix.segments();
-    // The deployment prefix owns its complete subtree, but not the prefix object itself.
-    policy.owned.push((
-        number,
-        r::Pattern { base: parts.iter().map(|part| part.to_vec()).collect(), terminal: Vec::new(), open: true },
-    ));
-    for kind in &connector.kinds {
-        policy.kinds.insert(
-            (number, kind.kind),
-            r::Kind {
-                price: kind.price.unwrap_or(0),
-                recovery: match kind.recovery {
-                    connector::Recovery::Keyed => r::Recovery::Keyed,
-                    connector::Recovery::Conditional => r::Recovery::Conditional,
-                    connector::Recovery::Idempotent => r::Recovery::Idempotent,
-                    connector::Recovery::Unrecoverable => r::Recovery::Unrecoverable,
-                },
-            },
-        );
-    }
-}
-
 impl Observer {
     /// Capture policy from scenario configuration before constructing the root.
     #[must_use]
-    pub fn new(configuration: &root::Config) -> Self {
-        let deployment = &configuration.core.defaults.rules;
+    pub fn new(configuration: &core::Config, connectors: ConnectorPolicy) -> Self {
+        let deployment = &configuration.defaults.rules;
         let mut policy = r::Policy {
             deployment: scope(&deployment.ceiling),
             projects: BTreeMap::new(),
@@ -364,8 +302,7 @@ impl Observer {
         };
         let mut roles = BTreeMap::new();
         let mut decisions_by_role = BTreeMap::new();
-        // The testing application's configured projects are contiguous and small.
-        for seed in &configuration.core.seed_projects {
+        for seed in &configuration.seed_projects {
             let project = seed.number;
             {
                 let value = &seed.policy.policy;
@@ -395,9 +332,8 @@ impl Observer {
                 }
             }
         }
-        for (number, connector) in [(1, &configuration.first), (2, &configuration.second)] {
-            connector_policy(&mut policy, number, connector);
-        }
+        policy.kinds = connectors.kinds;
+        policy.owned = connectors.owned;
         // Enumerate the finite configured kind vocabulary rather than reuse an
         // authority decision function when checking a later observed effect.
         for &(connector, given) in policy.kinds.keys() {
@@ -413,10 +349,7 @@ impl Observer {
             roles,
             decisions_by_role,
             applied: 0,
-            application_requests: false,
             activity: BTreeMap::new(),
-            effects: [0; 2],
-            reads: [0; 2],
             requests: BTreeMap::new(),
             proposals: BTreeMap::new(),
             accepted: BTreeMap::new(),
@@ -430,7 +363,7 @@ impl Observer {
             applied_changes: BTreeSet::new(),
             forgetting: BTreeMap::new(),
             recorded: None,
-            intents: intents::Intents::configured(configuration),
+            intents: intents::Intents::default(),
             project_makes: projects::Makes::new(configuration),
         }
     }
@@ -444,12 +377,15 @@ impl Observer {
         }
     }
 
-    /// Translate boundary evidence for a referee owned by an enclosing harness.
+    /// Record evidence for a referee owned by an enclosing harness.
+    pub fn record(&mut self) {
+        self.recorded = Some(Vec::new());
+    }
+
+    /// Consume the observer and retain its independently configured referee.
     #[must_use]
-    pub fn recording(configuration: &root::Config) -> Self {
-        let mut observer = Self::new(configuration);
-        observer.recorded = Some(Vec::new());
-        observer
+    pub fn into_referee(self) -> r::Referee {
+        self.referee
     }
 
     /// Take observations in the order the neighbours and store produced them.
@@ -459,135 +395,34 @@ impl Observer {
     }
 
     /// Observe inbound peer traffic, before the root may decide it.
-    pub fn inbound(&mut self, store: &Store, now: u64, event: &mut root::Event) {
+    pub fn inbound(&mut self, store: &Store<'_>, now: u64, event: &mut core::Event) {
         self.project_makes.inbound(store, event);
-        for observed in self.intents.inbound_root(store, event) {
+        for observed in self.intents.inbound_core(store, event) {
             self.observe(now, observed);
         }
-        match event {
-            root::Event::Core(core::Event::People(people::Event::Ask { models: _, reply_to, sign_in, key, ask })) => {
-                let person = store.rows.values().find_map(|row| match row {
-                    root::Record::Core(core::Record::People(people::Stored::SignIn { number, person, .. }))
-                        if number == sign_in =>
-                    {
-                        Some(*person)
-                    }
-                    root::Record::Core(_) | root::Record::Connector { .. } => None,
-                });
-                if let Some(person) = person {
-                    let to = destination(reply_to);
-                    let seen = if let people::Ask::MarkSeen { seen } = ask {
-                        Some(SeenFence::new(store, person, *seen))
-                    } else {
-                        None
-                    };
-                    self.requests.insert(to, (person, *key, seen));
-                    if let people::Ask::ChangePolicy { project, change } = ask {
-                        self.policy_changes.insert((person, *key), (*project, change.clone()));
-                    }
+        if let core::Event::People(people::Event::Ask { models: _, reply_to, sign_in, key, ask }) = event {
+            let person = store.rows.values().copied().find_map(|row| match row {
+                core::Record::People(people::Stored::SignIn { number, person, .. }) if number == sign_in => {
+                    Some(*person)
+                }
+                core::Record::Core(_)
+                | core::Record::Tasks(_)
+                | core::Record::People(_)
+                | core::Record::Notes(_)
+                | core::Record::Accounts(_) => None,
+            });
+            if let Some(person) = person {
+                let to = destination(reply_to);
+                let seen = if let people::Ask::MarkSeen { seen } = ask {
+                    Some(SeenFence::new(store, person, *seen))
+                } else {
+                    None
+                };
+                self.requests.insert(to, (person, *key, seen));
+                if let people::Ask::ChangePolicy { project, change } = ask {
+                    self.policy_changes.insert((person, *key), (*project, change.clone()));
                 }
             }
-            root::Event::Turn { task, attempt, cumulative, .. }
-            | root::Event::Answer { task, attempt, cumulative, .. } => {
-                // Unknown host listings are discarded without a reservation or charge.
-                if self.claims.contains(&(*task, *attempt)) {
-                    self.observe(
-                        now,
-                        r::Observed::Completion { task: *task, attempt: *attempt, cumulative: *cumulative },
-                    );
-                }
-            }
-            root::Event::Connector {
-                number,
-                event:
-                    connector::Event::System(connector::SystemEvent::Applied {
-                        entry,
-                        result: connector::ApplyResult::Uncertain,
-                        ..
-                    }),
-            } => {
-                if let Some(key) = store.rows.values().find_map(|row| match row {
-                    root::Record::Connector { number: owner, record: connector::Record::Outbox(outbox) }
-                        if owner == number && outbox.number == *entry =>
-                    {
-                        Some(outbox.key)
-                    }
-                    root::Record::Core(_) | root::Record::Connector { .. } => None,
-                }) {
-                    self.observe(now, r::Observed::Uncertain { connector: *number, key: effect_key(key) });
-                }
-            }
-            root::Event::Application { .. } => {
-                if let Some(observed) = crate::application_observations::requested(store, event) {
-                    self.application_requests = true;
-                    self.observe(now, observed);
-                }
-            }
-            root::Event::Link { .. }
-            | root::Event::ResultRead { .. }
-            | root::Event::WatchApplication { .. }
-            | root::Event::ReadApplication { .. }
-            | root::Event::Stop
-            | root::Event::Timer(_)
-            | root::Event::Core(_)
-            | root::Event::Credential { .. }
-            | root::Event::Connector { .. }
-            | root::Event::ProjectionEffect { .. }
-            | root::Event::CallAnswered { .. }
-            | root::Event::TopicCall { .. }
-            | root::Event::EffectCall { .. }
-            | root::Event::StartRecord(_)
-            | root::Event::StartMissing { .. }
-            | root::Event::StartPageRefused { .. }
-            | root::Event::StartBegin { .. }
-            | root::Event::StartDone(_)
-            | root::Event::TranscriptLoaded { .. }
-            | root::Event::Committed { .. }
-            | root::Event::WriterRead { .. }
-            | root::Event::ConnectorTimer { .. }
-            | root::Event::Text { .. }
-            | root::Event::Failed { .. } => {}
-        }
-    }
-
-    /// Capture reads before decisions and arrivals before their results reach the root.
-    pub fn systems(&mut self, now: u64, systems: &[jig_test_system::System; 2]) {
-        for (index, system) in systems.iter().enumerate() {
-            let connector = u16::try_from(index + 1).expect("two systems");
-            for read in &system.reads()[self.reads[index]..] {
-                self.observe(
-                    now,
-                    r::Observed::Read {
-                        resource: r::Name { connector, path: read.resource.path.clone() },
-                        state: read.state,
-                        at: read.at,
-                    },
-                );
-            }
-            self.reads[index] = system.reads().len();
-            for effect in &system.observed()[self.effects[index]..] {
-                self.observe(
-                    now,
-                    r::Observed::Effect {
-                        connector,
-                        effect: r::EffectObserved {
-                            kind: effect.kind,
-                            key: effect.key,
-                            resources: effect
-                                .resources
-                                .iter()
-                                .map(|name| r::Name { connector, path: name.path.clone() })
-                                .collect(),
-                            condition: effect.condition,
-                            target: effect.target,
-                            before: effect.before.clone(),
-                            applied: effect.applied,
-                            copy: effect.copy,
-                        },
-                    },
-                );
-            }
-            self.effects[index] = system.observed().len();
         }
     }
 
@@ -598,7 +433,7 @@ impl Observer {
     }
 
     /// A restart changes future makes' configured policies, never an existing project's.
-    pub fn configure_projects(&mut self, config: &root::Config) {
+    pub fn configure_projects(&mut self, config: &core::Config) {
         self.project_makes.configure(config);
     }
 
@@ -669,7 +504,7 @@ impl Observer {
     }
 
     /// Compare the cold store with the receipts that outside observers saw.
-    pub fn cold(&mut self, now: u64, store: &Store) {
+    pub fn cold(&mut self, now: u64, store: &Store<'_>) {
         self.requests.retain(|_, (_, _, seen)| seen.is_none());
         // An uncommitted forget is lost with the old root. A start's mark may
         // reuse its number without forgetting the task.
@@ -677,64 +512,45 @@ impl Observer {
         let receipts = store
             .rows
             .values()
+            .copied()
             .filter_map(|row| match row {
-                root::Record::Core(core::Record::Tasks(tasks::Stored::Live(value) | tasks::Stored::Ended(value))) => {
+                core::Record::Tasks(tasks::Stored::Live(value) | tasks::Stored::Ended(value)) => {
                     Some(r::Receipt::Task(value.number))
                 }
-                root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
+                core::Record::Core(core::CoreRecord::RunProof(value)) => {
                     self.claims.insert((value.task, value.attempt));
                     if value.crossed {
                         self.crossed.insert((value.task, value.attempt));
                     }
                     Some(r::Receipt::Claim(value.task, value.attempt))
                 }
-                root::Record::Core(core::Record::Core(core::CoreRecord::Turn(value))) => {
+                core::Record::Core(core::CoreRecord::Turn(value)) => {
                     Some(r::Receipt::Turn(value.task, value.attempt, value.turn))
                 }
-                root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(value))) => {
+                core::Record::Core(core::CoreRecord::Terminal(value)) => {
                     Some(r::Receipt::Terminal(value.task, value.attempt))
                 }
-                root::Record::Core(core::Record::Core(core::CoreRecord::Call(value))) => Some(call(value.key)),
-                root::Record::Core(_) | root::Record::Connector { .. } => None,
+                core::Record::Core(core::CoreRecord::Call(value)) => Some(call(value.key)),
+                core::Record::Core(_)
+                | core::Record::Tasks(_)
+                | core::Record::People(_)
+                | core::Record::Notes(_)
+                | core::Record::Accounts(_) => None,
             })
-            .chain(store.rows.values().filter_map(|row| match row {
-                root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(value))) => {
-                    Some(r::Receipt::Ended(value.number))
-                }
-                root::Record::Core(_) | root::Record::Connector { .. } => None,
+            .chain(store.rows.values().copied().filter_map(|row| match row {
+                core::Record::Tasks(tasks::Stored::Ended(value)) => Some(r::Receipt::Ended(value.number)),
+                core::Record::Core(_)
+                | core::Record::Tasks(_)
+                | core::Record::People(_)
+                | core::Record::Notes(_)
+                | core::Record::Accounts(_) => None,
             }))
             .collect();
         self.observe(now, r::Observed::ColdStore { receipts });
     }
 
-    /// Expenses and lost turns retained independently by the scripted hosts.
-    pub fn workers(&mut self, now: u64, workers: &[jig_fake_workers::Worker]) {
-        let mut totals: BTreeMap<u64, (u64, u64)> = BTreeMap::new();
-        for worker in workers {
-            for ((task, attempt), expense) in &worker.expenses {
-                if expense.lost_turns > 0 {
-                    self.observe(
-                        now,
-                        r::Observed::LostTurns {
-                            task: *task,
-                            attempt: *attempt,
-                            turns: expense.lost_turns,
-                            spent: expense.lost,
-                        },
-                    );
-                }
-                let total = totals.entry(*task).or_default();
-                total.0 += expense.spent;
-                total.1 += expense.lost;
-            }
-        }
-        for (task, (spent, lost_bound)) in totals {
-            self.observe(now, r::Observed::Spend { task, spent, lost_bound });
-        }
-    }
-
     /// Observe the application records the store has just received.
-    pub fn submitted(&mut self, now: u64, store: &Store) {
+    pub fn submitted(&mut self, store: &Store<'_>) {
         self.intents.submitted(store);
         if let Some(pending) = store.pending.back() {
             for (person, _, seen) in self.requests.values_mut() {
@@ -743,14 +559,14 @@ impl Observer {
                 for write in &pending.writes {
                     let moves_position = match position {
                         people::Seen::Results { through } => matches!(write,
-                            root::Write::Save(root::Record::Core(core::Record::People(people::Stored::ReadResults { party, through: written })))
+                            Write::Save(core::Record::People(people::Stored::ReadResults { party, through: written }))
                                 if party == person && *written == through
                         ),
                         people::Seen::Conversation { task, through } => matches!(write,
-                            root::Write::Save(root::Record::Core(core::Record::People(
+                            Write::Save(core::Record::People(
                                 people::Stored::ReadConversation { party, task: chat, through: written }
                                 | people::Stored::EndedRead { party, task: chat, through: written }
-                            ))) if party == person && *chat == task && *written == through
+                            )) if party == person && *chat == task && *written == through
                         ),
                     };
                     if moves_position {
@@ -763,12 +579,12 @@ impl Observer {
             }
             let mut tasks = Vec::new();
             for write in &pending.writes {
-                if let root::Write::Erase(root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))) = write {
+                if let Write::Erase(core::Key::Tasks(tasks::Key::Ended(task))) = write {
                     for key in store.rows.keys() {
-                        if matches!(key, root::Key::Core(core::Key::People(people::Key::ReadConversation { task: chat, .. })) if chat == task)
+                        if matches!(key, core::Key::People(people::Key::ReadConversation { task: chat, .. }) if chat == task)
                         {
                             assert!(
-                                pending.writes.contains(&root::Write::Erase(key.clone())),
+                                pending.writes.contains(&Write::Erase(key.clone())),
                                 "read marker erases with its owner"
                             );
                         }
@@ -780,29 +596,23 @@ impl Observer {
                 self.forgetting.insert(pending.number, tasks);
             }
         }
-        if !self.application_requests {
-            return;
-        }
-        for observed in crate::application_observations::submitted(store) {
-            self.observe(now, observed);
-        }
     }
 
     /// Snapshot only the store's durable rows, including held acknowledgements.
-    pub fn durable(&mut self, now: u64, store: &Store) {
+    pub fn durable(&mut self, now: u64, store: &Store<'_>) {
         self.durable_at(now, store, store.applied);
     }
 
     /// Upgrade metadata and the start's mark do not change the referee's
     /// snapshot. At bootstrap, these repeat the seed's view.
-    pub fn fresh_mark(&mut self, now: u64, store: &Store) {
+    pub fn fresh_mark(&mut self, now: u64, store: &Store<'_>) {
         for number in self.applied + 1..=store.applied {
             self.durable_at(now, store, number);
         }
     }
 
     #[expect(clippy::too_many_lines, reason = "one boundary translation projects every durable family")]
-    fn durable_at(&mut self, now: u64, store: &Store, number: u64) {
+    fn durable_at(&mut self, now: u64, store: &Store<'_>, number: u64) {
         if number == self.applied {
             return;
         }
@@ -816,12 +626,12 @@ impl Observer {
         }
         // Apply only an externally requested policy edit whose durable answer
         // says it succeeded. Saved policy carriers are never an authority oracle.
-        for row in store.rows.values() {
-            if let root::Record::Core(core::Record::People(people::Stored::Answer {
+        for row in store.rows.values().copied() {
+            if let core::Record::People(people::Stored::Answer {
                 key,
                 outcome: people::Outcome::PolicyChanged { .. },
                 ..
-            })) = row
+            }) = row
                 && self.applied_changes.insert((key.person, key.key))
                 && let Some((project, change)) = self.policy_changes.get(&(key.person, key.key)).cloned()
             {
@@ -829,65 +639,30 @@ impl Observer {
             }
         }
         self.discarded.clear();
-        let mut snapshot = r::Snapshot::default();
-        let mut decisions = Vec::new();
+        let mut snapshot = snapshot(&store.rows);
+        snapshot.receipts.extend(store.effects.receipts.iter().cloned());
+        snapshot.attempts.extend(store.effects.attempts.iter().map(|(key, value)| (*key, *value)));
+        snapshot.held_effects.extend(store.effects.held_effects.iter().copied());
+        snapshot.settled_effects.extend(store.effects.settled_effects.iter().copied());
+        snapshot.decisions.clone_from(&store.effects.decisions);
+        self.proposals.extend(store.effects.proposals.clone());
+        for decision in &mut snapshot.decisions {
+            decision.accepted_by = self.accepted.get(&(decision.connector, decision.key)).copied();
+        }
+        let decisions = proposal_decisions(&store.rows);
         let mut task_acceptances = Vec::new();
-        let mut authority_acceptances = Vec::new();
         let mut words = Vec::new();
         let mut reached = Vec::new();
-        for row in store.rows.values() {
+        for row in store.rows.values().copied() {
             match row {
-                root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
-                    core::settings::Record::Revision { revision, history: false },
-                ))) => {
-                    snapshot.newest = snapshot.newest.max(revision.head.number);
-                }
-                root::Record::Core(core::Record::Tasks(tasks::Stored::PlacedHold(value))) => {
-                    snapshot.placed_holds.insert(
-                        value.number,
-                        r::PlacedHold {
-                            root: match value.scope {
-                                tasks::Scope::Subtree { task } => Some(task),
-                                tasks::Scope::Project => None,
-                            },
-                            lifted: value.lifted,
-                        },
-                    );
-                }
-                root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(value)))
-                    if matches!(value.state, tasks::PersonProposalState::Pending { .. }) =>
-                {
-                    snapshot.party_proposals.insert(value.number, value.proposer);
-                }
-                root::Record::Core(core::Record::Tasks(tasks::Stored::Live(value) | tasks::Stored::Ended(value))) => {
+                core::Record::Tasks(tasks::Stored::Live(value) | tasks::Stored::Ended(value)) => {
                     if matches!(
                         value.phase,
                         tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_)
                     ) {
                         self.discarded.insert((value.number, value.attempt));
                     }
-                    let mut snapshot_task = task(value);
-                    snapshot_task.tracked |= store.rows.contains_key(&root::Key::Core(core::Key::Core(
-                        core::CoreKey::Projection(core::ProjectionKey::Goal(value.number)),
-                    )));
-                    snapshot.tasks.insert(value.number, snapshot_task);
-                    snapshot.receipts.insert(r::Receipt::Task(value.number));
-                    if let tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(holder), entry, .. } =
-                        value.escalation
-                    {
-                        snapshot.receipts.insert(r::Receipt::Word(holder, entry));
-                    }
-                    if let Some(proposal) = &value.proposal
-                        && let tasks::ProposalState::Pending { holder: tasks::ProposalHolder::Task(holder), .. } =
-                            proposal.state
-                    {
-                        snapshot.receipts.insert(r::Receipt::Word(holder, proposal.number));
-                    }
-                    if matches!(value.phase, tasks::Phase::Ended(_)) {
-                        snapshot.receipts.insert(r::Receipt::Ended(value.number));
-                    }
                     for word in &value.inbox {
-                        snapshot.receipts.insert(r::Receipt::Word(value.number, word.number));
                         if matches!(word.from, tasks::Party::Person(_))
                             && matches!(word.kind, tasks::MessageKind::Words | tasks::MessageKind::Answer { .. })
                             && self.words.insert((value.number, word.number))
@@ -901,14 +676,11 @@ impl Observer {
                         }
                     }
                 }
-                root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(value))) => {
+                core::Record::Tasks(tasks::Stored::Activity(value)) => {
                     let kept = self.activity.entry((value.task, value.position)).or_insert_with(|| value.clone());
                     assert_eq!(kept, value, "immutable activity row changed");
                 }
-                root::Record::Core(core::Record::Tasks(tasks::Stored::History(value))) => {
-                    if let Some(accepted) = acceptance::task(value) {
-                        authority_acceptances.push(accepted);
-                    }
+                core::Record::Tasks(tasks::Stored::History(value)) => {
                     if value.change == tasks::Change::ProposalAccepted
                         && let Some(proposal) = &value.proposal
                         && let tasks::ProposalAction::Effect { connector, attempt, completion, position, .. } =
@@ -925,30 +697,7 @@ impl Observer {
                         ));
                     }
                 }
-                root::Record::Core(core::Record::Tasks(tasks::Stored::Writer(value))) => {
-                    let (task, attempt) = match value.writer {
-                        tasks::Writer::Run { task, attempt } => (task, attempt),
-                        tasks::Writer::Effect { entry } => (0, entry),
-                    };
-                    snapshot.writers.push((name(&value.resource), task, attempt));
-                }
-                root::Record::Core(core::Record::Tasks(tasks::Stored::Pool(value))) => {
-                    snapshot.pools.insert(name(&value.pool), value.slots);
-                }
-                root::Record::Core(core::Record::Tasks(
-                    tasks::Stored::Ledger(value) | tasks::Stored::ClosedLedger(value),
-                )) => {
-                    snapshot.balances.push((
-                        value.numbers.budget,
-                        value.numbers.spent,
-                        value.numbers.spent_below,
-                        value.numbers.reserved,
-                    ));
-                    if let tasks::Funder::Pool { person, .. } = value.funder {
-                        *snapshot.person_spend.entry(person).or_default() += value.numbers.spent;
-                    }
-                }
-                root::Record::Core(core::Record::People(people::Stored::Roles { project, holdings })) => {
+                core::Record::People(people::Stored::Roles { project, holdings }) => {
                     self.policy_generation = self.policy_generation.checked_add(1).expect("policy generation fits");
                     self.referee.policy.people.retain(|(number, _), _| number != project);
                     self.referee.policy.effect_accepters.retain(|(number, _)| number != project);
@@ -965,17 +714,7 @@ impl Observer {
                         }
                     }
                 }
-                root::Record::Core(core::Record::People(
-                    people::Stored::ReadConversation { party, task, through }
-                    | people::Stored::EndedRead { party, task, through },
-                )) => {
-                    snapshot.read_positions.insert((*party, *task), *through);
-                }
-                root::Record::Core(core::Record::People(people::Stored::SignIn { number, .. })) => {
-                    snapshot.receipts.insert(r::Receipt::SignIn(*number));
-                }
-                root::Record::Core(core::Record::People(people::Stored::Answer { key, ask, outcome, .. })) => {
-                    snapshot.receipts.insert(r::Receipt::Party(key.person, key.key));
+                core::Record::People(people::Stored::Answer { ask, outcome, .. }) => {
                     if let people::Ask::Say { task, .. } = ask.as_ref()
                         && let people::Outcome::Said { task: answered, message } = outcome
                     {
@@ -985,96 +724,25 @@ impl Observer {
                         }
                     }
                 }
-                root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
-                    snapshot.receipts.insert(r::Receipt::Claim(value.task, value.attempt));
+                core::Record::Core(core::CoreRecord::RunProof(value)) => {
                     self.claims.insert((value.task, value.attempt));
                     if value.crossed {
                         self.crossed.insert((value.task, value.attempt));
                     }
                 }
-                root::Record::Core(core::Record::Core(core::CoreRecord::Turn(value))) => {
-                    snapshot.receipts.insert(r::Receipt::Turn(value.task, value.attempt, value.turn));
-                }
-                root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(value))) => {
-                    snapshot.receipts.insert(r::Receipt::Terminal(value.task, value.attempt));
-                }
-                root::Record::Core(core::Record::Core(core::CoreRecord::Call(value))) => {
-                    snapshot.receipts.insert(call(value.key));
+                core::Record::Core(core::CoreRecord::Call(value)) => {
                     if let Some(settled) = &value.settled {
                         self.settled_calls.insert((value.key.task, value.key.attempt, settled.serial));
                     }
-                    if let core::CallPart::Delegated(members) = &value.part {
-                        snapshot.batches.push(members.iter().map(|member| member.task).collect());
-                    }
                 }
-                root::Record::Core(core::Record::Core(core::CoreRecord::ProposalDecision(value)))
-                    if value.choice == people::ProposalChoice::Accepted =>
-                {
-                    decisions.push(*value);
-                }
-                root::Record::Connector {
-                    number,
-                    record: connector::Record::Proposal { number: proposal, effect, .. },
-                } => {
-                    self.proposals.insert(*proposal, (*number, effect.clone()));
-                }
-                root::Record::Connector { number, record: connector::Record::Outbox(value) } => {
-                    if let Some(attempt) = value.attempt {
-                        snapshot.receipts.insert(r::Receipt::Outbox(*number, effect_key(value.key), attempt.number));
-                        snapshot
-                            .attempts
-                            .insert((*number, effect_key(value.key)), (attempt.number, attempt.deadline.as_nanos()));
-                    }
-                    if value.phase == connector::EffectPhase::Held {
-                        snapshot.held_effects.insert((*number, effect_key(value.key)));
-                    }
-                    snapshot.decisions.push(r::Decision {
-                        projection: value.key.origin == connector::Purpose::Projection,
-                        connector: *number,
-                        key: effect_key(value.key),
-                        kind: value.effect.kind,
-                        resources: value.effect.resources.iter().map(|resource| path(*number, resource)).collect(),
-                        condition: value.effect.condition,
-                        target: value.effect.target,
-                        judged_state: value.effect.state,
-                        accepted_by: self.accepted.get(&(*number, value.key)).copied(),
-                    });
-                }
-                root::Record::Connector { number, record: connector::Record::Made { key, .. } } => {
-                    snapshot.settled_effects.insert((*number, effect_key(*key)));
-                }
-                root::Record::Core(_) | root::Record::Connector { .. } => {}
+                core::Record::Core(_)
+                | core::Record::Tasks(_)
+                | core::Record::People(_)
+                | core::Record::Notes(_)
+                | core::Record::Accounts(_) => {}
             }
         }
         for accepted in decisions {
-            let key = root::Key::Core(core::Key::Tasks(tasks::Key::DecidedProposal(accepted.proposal)));
-            if let Some(root::Record::Core(core::Record::Tasks(tasks::Stored::DecidedProposal(proposal)))) =
-                store.rows.get(&key)
-                && let tasks::PersonAction::Amend { task, .. } = proposal.action
-            {
-                authority_acceptances.push((
-                    accepted.at,
-                    task,
-                    r::Acceptance { proposal: accepted.proposal, by: r::Source::Person(accepted.by) },
-                ));
-            }
-            if let Some((first, last)) = accepted.created {
-                for task in first..=last {
-                    if snapshot.tasks.get(&task).is_some_and(|row| {
-                        row.source
-                            == match accepted.proposer {
-                                people::Proposer::Task(task) => r::Source::Task(task),
-                                people::Proposer::Party(person) => r::Source::Person(person),
-                            }
-                    }) {
-                        snapshot.accepted_tasks.insert(
-                            task,
-                            r::Acceptance { proposal: accepted.proposal, by: r::Source::Person(accepted.by) },
-                        );
-                    }
-                }
-            }
-
             if let Some((connector, effect)) = self.proposals.get(&accepted.proposal) {
                 for decision in &mut snapshot.decisions {
                     if decision.connector == *connector
@@ -1092,14 +760,10 @@ impl Observer {
                             (decision.connector, decision.key),
                             r::Acceptance { proposal: accepted.proposal, by: r::Source::Person(accepted.by) },
                         );
-                        self.accepted.insert((*connector, connector_key(decision.key)), r::Source::Person(accepted.by));
+                        self.accepted.insert((*connector, decision.key), r::Source::Person(accepted.by));
                     }
                 }
             }
-        }
-        authority_acceptances.sort_by_key(|(at, ..)| *at);
-        for (_, task, accepted) in authority_acceptances {
-            snapshot.accepted_tasks.insert(task, accepted);
         }
         for (connector, task, attempt, completion, position, holder, proposal) in task_acceptances {
             for decision in &mut snapshot.decisions {
@@ -1113,9 +777,9 @@ impl Observer {
             }
         }
         for ((task, position), kept) in &self.activity {
-            let key = root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task: *task, position: *position }));
+            let key = core::Key::Tasks(tasks::Key::Activity { task: *task, position: *position });
             assert!(
-                matches!(store.rows.get(&key), Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(row)))) if row == kept),
+                matches!(store.rows.get(&key), Some(core::Record::Tasks(tasks::Stored::Activity(row))) if row == kept),
                 "immutable activity row disappeared"
             );
         }
@@ -1135,35 +799,19 @@ impl Observer {
         }
     }
 
-    /// A released output and the neighbours' receipt of its words or result.
-    pub fn delivered(&mut self, now: u64, delivery: &mut root::Delivery) {
-        if let root::Delivery::Core(core::Held::PeopleReply { to, reply }) = &mut *delivery {
+    /// Observe a released core output.
+    pub fn delivered(&mut self, now: u64, delivery: &mut core::Held) {
+        if let core::Held::PeopleReply { to, reply } = &mut *delivery {
             for observed in self.intents.reply(skein_lib::Token::new(destination(to)), reply) {
                 self.observe(now, observed);
             }
         }
         let mut requires = Vec::new();
         match delivery {
-            root::Delivery::Assigned { assignment, .. } => {
-                self.observe(
-                    now,
-                    r::Observed::Assigned {
-                        task: assignment.task,
-                        attempt: assignment.attempt,
-                        conversation: assignment.conversation,
-                        resumed: !assignment.transcript.is_empty(),
-                        budget: assignment.run.budget,
-                        settings: assignment.run.revision,
-                    },
-                );
-                for word in &assignment.messages {
-                    self.observe(now, r::Observed::Reached(r::Receipt::Word(assignment.task, word.number)));
-                }
-            }
-            root::Delivery::Core(core::Held::Cancel { run, attempt, .. }) => {
+            core::Held::Cancel { run, attempt, .. } => {
                 self.cancelled.insert((run.raw(), attempt.raw()));
             }
-            root::Delivery::Core(core::Held::AcknowledgeTurn { run, attempt, turn, .. }) => {
+            core::Held::AcknowledgeTurn { run, attempt, turn, .. } => {
                 let receipt = if self.crossed.contains(&(run.raw(), attempt.raw())) {
                     r::Receipt::Claim(run.raw(), attempt.raw())
                 } else if self.cancelled.contains(&(run.raw(), attempt.raw()))
@@ -1177,61 +825,72 @@ impl Observer {
                 };
                 requires.push(receipt);
             }
-            root::Delivery::Core(core::Held::Acknowledge { run, attempt, .. }) => {
+            core::Held::Acknowledge { run, attempt, .. } => {
                 requires.extend(self.terminal_receipt(run.raw(), attempt.raw()));
             }
-            root::Delivery::Core(core::Held::CallAnswer { key, .. }) => {
+            core::Held::CallAnswer { key, .. } => {
                 requires.push(call(*key));
             }
-            root::Delivery::CallAnswer { task, attempt, call: settled, writes, .. } => {
-                // Serial zero is a no-record answer; a settled body must be durable.
-                assert!(
-                    !*writes || settled.serial == 0 || self.settled_calls.contains(&(*task, *attempt, settled.serial)),
-                    "answer preceded its durable named-call record"
-                );
-            }
-            root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
+            core::Held::PeopleReply { to, reply } => {
                 self.reply_receipts(to, reply, &mut requires);
             }
-            root::Delivery::Message { task: run, word, .. } => {
-                requires.push(r::Receipt::Word(*run, word.number));
-                self.observe(now, r::Observed::Reached(r::Receipt::Word(*run, word.number)));
-            }
-            root::Delivery::Core(core::Held::Result { person, task, .. }) => {
+            core::Held::Result { person, task, .. } => {
                 requires.push(r::Receipt::Ended(*task));
                 self.observe(now, r::Observed::Result { task: *task, to: r::Source::Person(*person) });
             }
-            root::Delivery::System { connector, call: connector::SystemRequest::Apply { key, attempt, .. } } => {
-                requires.push(r::Receipt::Outbox(*connector, effect_key(*key), *attempt));
-            }
-            root::Delivery::Procedure { task, .. } => {
-                requires.push(r::Receipt::Task(*task));
-            }
-            root::Delivery::LostRead { task, attempt, .. } => {
-                requires.push(r::Receipt::Terminal(*task, *attempt));
-            }
-            root::Delivery::Application { to, number, outcome } => {
-                self.observe(
-                    now,
-                    r::Observed::ApplicationAnswered {
-                        reply: destination(to),
-                        connector: *number,
-                        outcome: crate::application_observations::encoded(outcome),
-                    },
-                );
-            }
-            root::Delivery::Core(_)
-            | root::Delivery::Fleet(_)
-            | root::Delivery::ApplicationDocument { .. }
-            | root::Delivery::ApplicationRead { .. }
-            | root::Delivery::Projection { .. }
-            | root::Delivery::Link { .. }
-            | root::Delivery::ProjectMade { .. }
-            | root::Delivery::CallBusy { .. }
-            | root::Delivery::Start(_)
-            | root::Delivery::System { .. } => {}
+            core::Held::Acted { .. }
+            | core::Held::Drained
+            | core::Held::Load(_)
+            | core::Held::ApplicationDelivery { .. }
+            | core::Held::ApplicationWatchEnded { .. }
+            | core::Held::ReadLoad { .. }
+            | core::Held::Read { .. }
+            | core::Held::Applied { .. }
+            | core::Held::CarriedUnused { .. }
+            | core::Held::Delivery { .. }
+            | core::Held::WatchEnded { .. }
+            | core::Held::MakeEffect { .. }
+            | core::Held::SettledCall { .. }
+            | core::Held::Assign { .. }
+            | core::Held::Sources { .. }
+            | core::Held::CheckSource { .. }
+            | core::Held::SignOutSource { .. }
+            | core::Held::SourceSignedOut { .. }
+            | core::Held::Grant { .. }
+            | core::Held::Relayed { .. }
+            | core::Held::Inbound { .. }
+            | core::Held::Relay { .. }
+            | core::Held::TaskTerminalAcknowledged { .. }
+            | core::Held::TaskTurnKept { .. }
+            | core::Held::Refuse { .. }
+            | core::Held::TurnBusy { .. }
+            | core::Held::StopRun { .. }
+            | core::Held::NotesLoad { .. }
+            | core::Held::NotesWritten { .. }
+            | core::Held::NotesDeleted { .. } => {}
         }
         self.observe(now, r::Observed::Released { requires });
+    }
+    /// A host's independently reported completion charge.
+    pub fn completion(&mut self, now: u64, task: u64, attempt: u64, cumulative: u64) {
+        if self.claims.contains(&(task, attempt)) {
+            self.observe(now, r::Observed::Completion { task, attempt, cumulative });
+        }
+    }
+    /// A prepared assignment released to a host.
+    pub fn assigned(&mut self, now: u64, assignment: Assignment, messages: &[tasks::Word]) {
+        let Assignment { task, attempt, conversation, resumed, budget, settings } = assignment;
+        self.observe(now, r::Observed::Assigned { task, attempt, conversation, resumed, budget, settings });
+        for word in messages {
+            self.observe(now, r::Observed::Reached(r::Receipt::Word(task, word.number)));
+        }
+    }
+    /// A settled named call's body must be durable before its answer.
+    pub fn call_answer(&self, task: u64, attempt: u64, serial: u64, writes: bool) {
+        assert!(
+            !writes || serial == 0 || self.settled_calls.contains(&(task, attempt, serial)),
+            "answer preceded its durable named-call record"
+        );
     }
 
     fn terminal_receipt(&self, run: u64, attempt: u64) -> Option<r::Receipt> {
@@ -1273,7 +932,7 @@ impl Observer {
     }
 }
 
-pub(crate) fn destination(to: &mut skein_lib::ReplyTo) -> u64 {
+pub fn destination(to: &mut skein_lib::ReplyTo) -> u64 {
     let token = std::mem::replace(to, skein_lib::ReplyTo::new(skein_lib::Token::new(0))).into_token();
     *to = skein_lib::ReplyTo::new(token);
     token.raw()
@@ -1318,89 +977,5 @@ fn person_scope(value: &people::Authority) -> r::Scope {
             .iter()
             .map(|resource| (resource.connector, person_pattern(&resource.pattern)))
             .collect(),
-    }
-}
-
-// The most held of this world's stories, all binaries counting:
-// 9,195,220 bytes at jig 4cd5d46966, in conformance's
-// client_settings::an_owner_moves_running_work_through_the_client_and_hears_both_counts.
-// The core crate's own most is 880,068 bytes.
-// A ceiling, a quarter above, rounded up to two significant digits
-// (skein's dynamic-memory draft, 7.1); it moves by hand only in the commit
-// of a real change that passes it, never on a type's size.
-const CORE_WORLD_HEAP_CEILING: u64 = 12_000_000;
-
-/// A conservative heap observation at each testing-root iteration. Test peers'
-/// allocations after construction are counted too; passing this check therefore
-/// bounds the engine even while those peers retain their independent ledgers.
-/// The engine's own tighter step peaks are measured separately in memory tests.
-pub struct Heap {
-    meter: skein_world::domain::heap::Meter,
-    maximum: u64,
-}
-
-impl std::fmt::Debug for Heap {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("Heap").field("maximum", &self.maximum).finish_non_exhaustive()
-    }
-}
-
-impl Default for Heap {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Heap {
-    /// Start before root construction, after the scenario built its configuration.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { meter: skein_world::domain::heap::Meter::new(), maximum: CORE_WORLD_HEAP_CEILING }
-    }
-
-    /// Heap observation of allocator-held bytes since construction.
-    #[must_use]
-    pub fn observed(&self) -> r::Observed {
-        r::Observed::Heap { held: self.meter.held(), maximum: self.maximum }
-    }
-}
-
-#[cfg(test)]
-mod activity_tests {
-    use super::*;
-
-    #[test]
-    fn activity_referee_rejects_changed_or_erased_lines() {
-        for erased in [false, true] {
-            let configuration = crate::effects::fixture(507, false).0;
-            let mut observer = Observer::new(&configuration);
-            let mut store = Store::new(&crate::world::limits(), &configuration.core.settings.models);
-            let row = root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(tasks::ActivityLine {
-                task: 1,
-                position: 1,
-                at: skein_lib::Wall::EPOCH,
-                line: tasks::Line::Milestone { position: 1 },
-            })));
-            let key = row.key();
-            store.rows.insert(key.clone(), row);
-            store.applied = 1;
-            observer.durable(0, &store);
-            if erased {
-                store.rows.remove(&key);
-            } else {
-                store.rows.insert(
-                    key,
-                    root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(tasks::ActivityLine {
-                        task: 1,
-                        position: 1,
-                        at: skein_lib::Wall::EPOCH,
-                        line: tasks::Line::Milestone { position: 2 },
-                    }))),
-                );
-            }
-            store.applied = 2;
-            let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| observer.durable(1, &store)));
-            assert!(rejected.is_err(), "referee must reject an immutable row changing or disappearing");
-        }
     }
 }

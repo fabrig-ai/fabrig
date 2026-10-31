@@ -154,8 +154,10 @@ fn every_operational_entrance_prevents_late_start() {
         Entrance {
             name: "person_task",
             input: |core, _| {
-                let _refused =
-                    core.person_task(Token::new(1), 1, 1, None, people::Ask::TakePerson { project: 1, task: 1 });
+                let _refused = core.person_task(
+                    crate::routing::party::Party { request: Token::new(1), person: 1, project: 1, role: None },
+                    crate::person_task::Action::Take { task: 1 },
+                );
             },
         },
         Entrance { name: "lost_channel", input: |core, env| core.lost_channel(env, Token::new(1)) },

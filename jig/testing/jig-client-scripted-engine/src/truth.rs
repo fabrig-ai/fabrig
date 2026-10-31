@@ -1,7 +1,7 @@
 //! The story's starting documents and atomic changes; contract.md, 5.
 //! Documents carry offers, revisions, terminal facts and parts in the client's vocabulary.
 use crate::{Bounds, Invalid, Source, payload};
-use jig_client_domain::contract::{Answer, Ask, Deployment, Me, Note, ObjectKey, Project, ReadValue, Tree};
+use jig_client_domain::contract::{Answer, Ask, Me, Note, ObjectKey, OwnerTree, ReadValue};
 use std::collections::BTreeMap;
 
 /// Client documents indexed by their identities, with parties and sign-ins.
@@ -18,17 +18,17 @@ pub struct Truth {
     pub objects: BTreeMap<ObjectKey, ReadValue>,
     /// Project context for object documents whose client carrier names only a task.
     pub object_projects: BTreeMap<ObjectKey, u32>,
-    pub projects: BTreeMap<u32, Project>,
-    /// Whole authentic projects, independent of ordinary fixtures.
+    /// Current project owner documents.
     pub owner_projects: BTreeMap<u32, jig_client_domain::contract::OwnerProject>,
-    pub deployment: Option<Deployment>,
     /// Whole deployment diagnostics supplied by their owner.
     pub owner_deployment: Option<jig_client_domain::contract::OwnerDeployment>,
     pub notes: BTreeMap<u64, Note>,
     pub sources: Vec<Source>,
     pub results_seen: BTreeMap<u64, u64>,
     pub replies_seen: BTreeMap<u64, Vec<jig_client_domain::contract::ReadPosition>>,
-    pub trees: BTreeMap<u64, Tree>,
+    pub inbox_selection: BTreeMap<u64, Vec<jig_client_domain::contract::OwnerInboxSelection>>,
+    pub accounts: BTreeMap<u64, jig_client_domain::contract::OwnerAccounts>,
+    pub trees: BTreeMap<u64, OwnerTree>,
 }
 
 /// One whole-document replacement made atomically with its story's decision.
@@ -67,8 +67,6 @@ pub enum Change {
     Forget {
         key: ObjectKey,
     },
-    /// Replace a project document.
-    Project(Box<Project>),
     /// Replace a whole owner project after its name changes.
     OwnerProject(Box<jig_client_domain::contract::OwnerProject>),
     /// Replace a revisioned note.
@@ -77,14 +75,12 @@ pub enum Change {
     DeleteNote {
         note: u64,
     },
-    /// Replace deployment hosts, accounts and capacities.
-    Deployment(Deployment),
     /// Replace whole owner deployment facts and bounded diagnostics.
     OwnerDeployment(jig_client_domain::contract::OwnerDeployment),
     /// Replace the retained rows of one scoped read; rows may span many protocol pages.
     Source(Source),
     /// Replace the authoritative subtree, including folded counts.
-    Tree(Tree),
+    Tree(OwnerTree),
     /// Replace committed inbox read positions for a party.
     Seen {
         party: u64,
@@ -111,11 +107,20 @@ impl Change {
                     return Err(Invalid::Identity);
                 }
                 payload::fits(value, bounds)
+                    && !matches!(
+                        value,
+                        ReadValue::Proposal(_)
+                            | ReadValue::Escalation(_)
+                            | ReadValue::PersonTask(_)
+                            | ReadValue::Ended(_)
+                            | ReadValue::Inbox(_)
+                            | ReadValue::Spend(_)
+                            | ReadValue::Project(_)
+                            | ReadValue::Deployment(_)
+                    )
             }
-            Self::Project(value) => payload::fits(value, bounds),
             Self::OwnerProject(value) => payload::fits(value, bounds),
             Self::Note(value) => payload::fits(value, bounds),
-            Self::Deployment(value) => payload::fits(value, bounds),
             Self::OwnerDeployment(value) => payload::fits(value, bounds),
             Self::SignIn { .. } | Self::SignedOut { .. } | Self::Forget { .. } | Self::DeleteNote { .. } => true,
         };
@@ -152,12 +157,6 @@ impl Truth {
             let project = self.project(*key).ok_or(Invalid::Identity)?;
             Change::Object { project, key: *key, value: value.clone() }.validate(bounds)?;
         }
-        for (number, project) in &self.projects {
-            if *number != project.number {
-                return Err(Invalid::Identity);
-            }
-            Change::Project(Box::new(project.clone())).validate(bounds)?;
-        }
         for (number, project) in &self.owner_projects {
             if *number != project.number {
                 return Err(Invalid::Identity);
@@ -172,9 +171,6 @@ impl Truth {
             }
             Change::Note(note.clone()).validate(bounds)?;
         }
-        if let Some(deployment) = &self.deployment {
-            Change::Deployment(deployment.clone()).validate(bounds)?;
-        }
         if let Some(deployment) = &self.owner_deployment {
             Change::OwnerDeployment(deployment.clone()).validate(bounds)?;
         }
@@ -182,7 +178,7 @@ impl Truth {
             source.validate(bounds)?;
         }
         for (task, tree) in &self.trees {
-            if *task != tree.task {
+            if *task != tree.root.task {
                 return Err(Invalid::Identity);
             }
             Change::Tree(tree.clone()).validate(bounds)?;
@@ -221,7 +217,7 @@ impl Truth {
                 self.replies_seen.insert(*party, replies.clone());
             }
             Change::Tree(tree) => {
-                self.trees.insert(tree.task, tree.clone());
+                self.trees.insert(tree.root.task, tree.clone());
             }
             Change::Me(frame) => {
                 self.frames.insert(frame.party.number, frame.clone());
@@ -246,9 +242,6 @@ impl Truth {
             Change::OwnerProject(project) => {
                 self.owner_projects.insert(project.number, (**project).clone());
             }
-            Change::Project(project) => {
-                self.projects.insert(project.number, (**project).clone());
-            }
             Change::Note(note) => {
                 self.notes.insert(note.number, note.clone());
             }
@@ -256,12 +249,7 @@ impl Truth {
                 self.notes.remove(note);
             }
             Change::OwnerDeployment(deployment) => {
-                self.deployment = None;
                 self.owner_deployment = Some(deployment.clone());
-            }
-            Change::Deployment(deployment) => {
-                self.owner_deployment = None;
-                self.deployment = Some(deployment.clone());
             }
         }
         Ok(())
@@ -289,6 +277,11 @@ impl Rule {
         }
         if !payload::fits(&self.ask, bounds) || !payload::fits(&self.answer, bounds) {
             return Err(Invalid::Payload);
+        }
+        if let Answer::Done(outcome) = &self.answer
+            && !crate::engine_set::outcome(outcome)
+        {
+            return Err(Invalid::Script);
         }
         for change in &self.changes {
             if matches!(change, Change::Request(_)) {

@@ -269,7 +269,7 @@ impl Composition {
     }
 
     pub(super) fn pump(&mut self, driver: &mut Driver) -> Vec<Incoming> {
-        self.component.fire(&self.env, &mut self.out);
+        self.component.fire(&self.env);
         loop {
             let mut active = false;
             let clients: Vec<_> = self.link_out.keys().copied().collect();

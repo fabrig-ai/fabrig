@@ -31,7 +31,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>,
     }
     let mut child = Queue::uncapped();
     core.people.mark_ended(
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
+        &env.with(env.limits.people),
         people::EndedMark { request, project: mark.project, last_reply: mark.last_reply, seen: through },
         &mut child,
     );
@@ -47,7 +47,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>,
         )
         .is_some()
     {
-        let mut erase = crate::forget::forget(core, env, work, &owner);
+        let mut erase = crate::forget::forget(core, work, &owner);
         // Route the mark first, then its erase, in this decision.
         let mut out = crate::routing::tag_ended_mark(core, env, child, work);
         while let Some(request) = erase.pop() {
