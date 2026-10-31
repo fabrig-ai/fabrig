@@ -7,13 +7,13 @@ use skein_echo_shell::Echo;
 use skein_io::Addr;
 use skein_io::kernel::{Complete, Submit};
 use skein_lib::{Queue, Time, Wall};
-use skein_world::Host;
+use skein_world::{Delegate, Host};
 
 /// A process of an echo world.
 #[derive(Debug)]
 pub enum Proc {
     Echo { svc: Box<Echo>, limits: service::Limits },
-    Client { client: Box<Client>, limits: client::Limits },
+    Client { client: Box<ClientHost> },
 }
 
 impl Proc {
@@ -26,7 +26,7 @@ impl Proc {
     /// A fake client under `limits`, its connections following `plans`.
     #[must_use]
     pub fn client(limits: client::Limits, plans: &[Plan]) -> Proc {
-        Proc::Client { client: Box::new(Client::new(&limits, plans)), limits }
+        Proc::Client { client: Box::new(ClientHost { client: Client::new(&limits, plans), limits }) }
     }
 
     /// The echo, if this is it.
@@ -42,79 +42,65 @@ impl Proc {
     #[must_use]
     pub fn as_client(&self) -> Option<&Client> {
         match self {
-            Proc::Client { client, .. } => Some(client),
+            Proc::Client { client, .. } => Some(&client.client),
             Proc::Echo { .. } => None,
         }
     }
 }
 
-impl Host for Proc {
-    fn state_digest(&self) -> Option<[u8; 32]> {
+impl Delegate for Proc {
+    fn host(&self) -> &dyn Host {
         match self {
-            Proc::Echo { svc, .. } => svc.state_digest(),
-            Proc::Client { .. } => None,
-        }
-    }
-    fn drain(&mut self) {
-        match self {
-            Proc::Echo { svc, .. } => svc.drain(),
-            Proc::Client { .. } => {}
+            Proc::Echo { svc, .. } => svc.as_ref(),
+            Proc::Client { client } => client.as_ref(),
         }
     }
 
-    fn iterate(&mut self, now: Time, wall: Wall) {
+    fn host_mut(&mut self) -> &mut dyn Host {
         match self {
-            Proc::Echo { svc, .. } => svc.iterate(now, wall),
-            Proc::Client { client, .. } => client::iterate(client, now, wall),
+            Proc::Echo { svc, .. } => svc.as_mut(),
+            Proc::Client { client } => client.as_mut(),
         }
+    }
+}
+
+/// A fake client's shell face, with the limits that price its ring.
+#[derive(Debug)]
+pub struct ClientHost {
+    pub client: Client,
+    limits: client::Limits,
+}
+
+impl Host for ClientHost {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        client::iterate(&mut self.client, now, wall);
     }
 
     fn completions(&mut self) -> &mut Queue<Complete> {
-        match self {
-            Proc::Echo { svc, .. } => svc.completions(),
-            Proc::Client { client, .. } => client.completions(),
-        }
+        self.client.completions()
     }
 
     fn submissions(&mut self) -> &mut Queue<Submit> {
-        match self {
-            Proc::Echo { svc, .. } => svc.submissions(),
-            Proc::Client { client, .. } => client.submissions(),
-        }
+        self.client.submissions()
     }
 
     fn work_pending(&self, now: Time) -> bool {
-        match self {
-            Proc::Echo { svc, .. } => svc.work_pending(now),
-            Proc::Client { client, .. } => client.work_pending(now),
-        }
+        self.client.work_pending(now)
     }
 
     fn next_deadline(&self) -> Option<Time> {
-        match self {
-            Proc::Echo { svc, .. } => svc.next_deadline(),
-            Proc::Client { client, .. } => client.next_deadline(),
-        }
+        self.client.next_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
-        match self {
-            Proc::Echo { svc, .. } => svc.next_policy_deadline(),
-            Proc::Client { client, .. } => client.next_policy_deadline(),
-        }
+        self.client.next_policy_deadline()
     }
 
     fn is_empty(&self) -> bool {
-        match self {
-            Proc::Echo { svc, .. } => svc.is_empty(),
-            Proc::Client { client, .. } => client.is_empty(),
-        }
+        self.client.is_empty()
     }
 
     fn operations(&self) -> u32 {
-        match self {
-            Proc::Echo { limits, .. } => service::operations(limits).expect("a small ring"),
-            Proc::Client { limits, .. } => client::operations(limits).expect("a small ring"),
-        }
+        client::operations(&self.limits).expect("a small ring")
     }
 }

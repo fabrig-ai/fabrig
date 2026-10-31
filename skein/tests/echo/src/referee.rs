@@ -219,7 +219,7 @@ impl Referee<Proc> for EchoReferee {
             match proc {
                 Proc::Client { client, .. } => {
                     if let Some(addr) = tell {
-                        client.dial(addr);
+                        client.client.dial(addr);
                     }
                 }
                 Proc::Echo { .. } => {
@@ -249,7 +249,7 @@ impl Referee<Proc> for EchoReferee {
                         self.listening = svc.svc.listening();
                     }
                 }
-                Proc::Client { client, .. } => done &= client.done(),
+                Proc::Client { client, .. } => done &= client.client.done(),
             }
         }
         self.done = done;
