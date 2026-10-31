@@ -1,0 +1,27 @@
+//! Document parts (jig/docs/design/client/domain/view.md, 4 and 7).
+pub(crate) mod account_catalogue;
+pub(crate) mod activity;
+pub(crate) mod amendment;
+pub mod authority;
+pub mod budget;
+pub(crate) mod chip;
+pub(crate) mod chip_phase;
+pub(crate) mod deployment;
+pub(crate) mod document_text;
+pub(crate) mod frame_facts;
+pub(crate) mod historical;
+pub(crate) mod historical_pages;
+pub(crate) mod history;
+pub(crate) mod instructions;
+pub(crate) mod milestone;
+pub(crate) mod outcome;
+pub(crate) mod person_task;
+pub(crate) mod policy_edit;
+pub(crate) mod proposal;
+pub(crate) mod proposed_task;
+pub(crate) mod result;
+pub(crate) mod runtime;
+pub(crate) mod specification;
+pub(crate) mod task_result;
+pub(crate) mod tree;
+pub(crate) mod wake;
