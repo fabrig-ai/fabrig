@@ -20,6 +20,8 @@
 //! - in the down pass, [`down`] for each request, while [`Io::takes`] one;
 //! - at the reclaim point, [`Io::reclaim`].
 //!
+//! [`stage::up`] and [`stage::down`] drive these passes with the submission checks.
+//!
 //! The records for the kernel go into the loop's `Queue<Submit>`; the
 //! kernel's completions come back as `Complete`s. [`operations`] is the size
 //! of the ring.
@@ -43,6 +45,7 @@ mod pipe;
 mod process;
 mod records;
 mod signals;
+pub mod stage;
 mod stream;
 #[cfg(test)]
 mod tests;
