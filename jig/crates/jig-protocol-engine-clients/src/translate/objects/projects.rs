@@ -5,32 +5,31 @@ use alloc::boxed::Box;
 use jig_domain_core::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer};
-pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) -> Result<w::OwnerProject, w::Problem> {
+pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) -> Result<w::Project, w::Problem> {
     let mut resources = List::with_capacity(value.resources.len());
     for row in &value.resources {
         resources
-            .push(w::OwnerProjectResource::new(
+            .push(w::ProjectResource::new(
                 limits,
-                w::OwnerProjectResourceParts {
+                w::ProjectResourceParts {
                     part: owner::part(&row.part, limits)?,
                     role: match row.role {
-                        d::ResourceRole::Owned => w::OwnerProjectResourceRole::Owned,
-                        d::ResourceRole::Participant => w::OwnerProjectResourceRole::Participant,
-                        d::ResourceRole::Unavailable => w::OwnerProjectResourceRole::Unavailable,
-                        d::ResourceRole::Context => w::OwnerProjectResourceRole::Context,
+                        d::ResourceRole::Owned => w::ProjectResourceRole::Owned,
+                        d::ResourceRole::Participant => w::ProjectResourceRole::Participant,
+                        d::ResourceRole::Unavailable => w::ProjectResourceRole::Unavailable,
+                        d::ResourceRole::Context => w::ProjectResourceRole::Context,
                     },
                 },
             )?)
             .expect("supplied rows fit");
     }
-    let resources =
-        owner_project_resource_pieces(&resources, limits.owner_project_resources, w::Path::OwnerProjectResources)?;
+    let resources = project_resource_pieces(&resources, limits.project_resources, w::Path::ProjectResources)?;
     let mut members = List::with_capacity(value.members.len());
     for row in &value.members {
         members
-            .push(w::OwnerProjectMember::new(
+            .push(w::ProjectMember::new(
                 limits,
-                w::OwnerProjectMemberParts {
+                w::ProjectMemberParts {
                     party: row.party,
                     kind: match row.kind {
                         jig_domain_people::Kind::Person => w::PartyKind::Person,
@@ -54,9 +53,9 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
     let mut spend = List::with_capacity(value.spend.len());
     for row in &value.spend {
         spend
-            .push(w::OwnerProjectSpend::new(
+            .push(w::ProjectSpend::new(
                 limits,
-                w::OwnerProjectSpendParts {
+                w::ProjectSpendParts {
                     chip: chips::chip(&row.chip, limits)?,
                     funder: owner::funder(row.funder, limits)?,
                     numbers: owner::numbers(row.numbers, limits)?,
@@ -64,17 +63,17 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
             )?)
             .expect("supplied rows fit");
     }
-    let spend = owner_project_spend_pieces(&spend, limits.owner_project_spend, w::Path::OwnerProjectSpend)?;
+    let spend = project_spend_pieces(&spend, limits.project_spend, w::Path::ProjectSpend)?;
     let mut recurring = List::with_capacity(value.recurring.len());
     for row in &value.recurring {
         recurring.push(recurrence(models, row, limits)?).expect("supplied rows fit");
     }
-    let recurring = recurring_pieces(&recurring, limits.owner_project_recurring, w::Path::OwnerProjectRecurring)?;
+    let recurring = recurring_pieces(&recurring, limits.project_recurring, w::Path::ProjectRecurring)?;
 
-    w::OwnerProject::new(
+    w::Project::new(
         limits,
-        w::OwnerProjectParts {
-            acts: task::offered(models, &value.acts, limits, limits.owner_project_acts, w::Path::OwnerProjectActs)?,
+        w::ProjectParts {
+            acts: task::offered(models, &value.acts, limits, limits.project_acts, w::Path::ProjectActs)?,
             number: value.number,
             name: owner::text(&value.name, limits)?,
             resources,
@@ -94,26 +93,18 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
         },
     )
 }
-pub fn policy(
-    models: &[crate::Model],
-    value: &d::Policy,
-    limits: &w::Limits,
-) -> Result<w::OwnerProjectPolicy, w::Problem> {
+pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) -> Result<w::ProjectPolicy, w::Problem> {
     let mut projections = List::with_capacity(value.projections.len());
     for row in &value.projections {
         projections.push(owner::grant(row, limits)?).expect("supplied rows fit");
     }
-    let projections = owner_grant_pieces(
-        &projections,
-        limits.owner_project_policy_projections,
-        w::Path::OwnerProjectPolicyProjections,
-    )?;
+    let projections = grant_pieces(&projections, limits.project_policy_projections, w::Path::ProjectPolicyProjections)?;
     let mut roles = List::with_capacity(value.roles.len());
     for row in &value.roles {
         roles
-            .push(w::OwnerProjectPolicyRole::new(
+            .push(w::ProjectPolicyRole::new(
                 limits,
-                w::OwnerProjectPolicyRoleParts {
+                w::ProjectPolicyRoleParts {
                     number: row.number,
                     authority: owner::authority(models, &row.authority, limits)?,
                     period_spend: row.period_spend,
@@ -123,8 +114,7 @@ pub fn policy(
             )?)
             .expect("supplied rows fit");
     }
-    let roles =
-        owner_project_policy_role_pieces(&roles, limits.owner_project_policy_roles, w::Path::OwnerProjectPolicyRoles)?;
+    let roles = project_policy_role_pieces(&roles, limits.project_policy_roles, w::Path::ProjectPolicyRoles)?;
     let mut requirements = List::with_capacity(value.requirements.len());
     for row in &value.requirements {
         requirements
@@ -155,8 +145,8 @@ pub fn policy(
     }
     let requirements = policy_requirement_pieces(
         &requirements,
-        limits.owner_project_policy_requirements,
-        w::Path::OwnerProjectPolicyRequirements,
+        limits.project_policy_requirements,
+        w::Path::ProjectPolicyRequirements,
     )?;
     let permissions = match &value.permissions {
         Some(rows) => {
@@ -177,9 +167,9 @@ pub fn policy(
         }
         None => None,
     };
-    w::OwnerProjectPolicy::new(
+    w::ProjectPolicy::new(
         limits,
-        w::OwnerProjectPolicyParts {
+        w::ProjectPolicyParts {
             templates: super::super::me::overrides(&value.templates, limits)?,
             ceiling: owner::authority(models, &value.ceiling, limits)?,
             period_spend: value.period_spend,
@@ -235,8 +225,8 @@ pub fn recurrence(
         },
     )
 }
-pub(super) fn owner_project_resource_pieces(
-    rows: &List<w::OwnerProjectResource>,
+pub(super) fn project_resource_pieces(
+    rows: &List<w::ProjectResource>,
     bound: u32,
     path: w::Path,
 ) -> Result<Box<[u8]>, w::Problem> {
@@ -251,8 +241,8 @@ pub(super) fn owner_project_resource_pieces(
     }
     super::super::pieces(&encoded, bound, path)
 }
-pub(super) fn owner_project_spend_pieces(
-    rows: &List<w::OwnerProjectSpend>,
+pub(super) fn project_spend_pieces(
+    rows: &List<w::ProjectSpend>,
     bound: u32,
     path: w::Path,
 ) -> Result<Box<[u8]>, w::Problem> {
@@ -279,11 +269,7 @@ pub(super) fn recurring_pieces(rows: &List<w::Recurring>, bound: u32, path: w::P
     }
     super::super::pieces(&encoded, bound, path)
 }
-pub(super) fn owner_grant_pieces(
-    rows: &List<w::OwnerGrant>,
-    bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn grant_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
         let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
@@ -295,8 +281,8 @@ pub(super) fn owner_grant_pieces(
     }
     super::super::pieces(&encoded, bound, path)
 }
-pub(super) fn owner_project_policy_role_pieces(
-    rows: &List<w::OwnerProjectPolicyRole>,
+pub(super) fn project_policy_role_pieces(
+    rows: &List<w::ProjectPolicyRole>,
     bound: u32,
     path: w::Path,
 ) -> Result<Box<[u8]>, w::Problem> {

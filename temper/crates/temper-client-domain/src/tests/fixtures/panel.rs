@@ -5,12 +5,12 @@ use jig_client::contract as c;
 use skein_lib::List;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-pub fn task(number: u64, project: u32, executor: c::Executor) -> c::Task {
+pub fn task(number: u64, project: u32, executor: c::ChipExecutor) -> c::Task {
     let mut task = chat::task();
     task.chip.task = number;
     task.project = project;
     task.chip.executor = executor;
-    chat::phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Idle));
+    chat::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
     task
 }
 /// Every heap field at its receiving bound, with optional facts populated.

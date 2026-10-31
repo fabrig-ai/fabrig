@@ -1,5 +1,5 @@
 //! Shared bounded activity windows (client/domain/client.md, 7).
-use crate::contract::{ActivityLine, Cursor};
+use crate::contract::{Cursor, DecodedActivityLine};
 use skein_lib::List;
 /// An end of the list or an opaque continuation for more rows.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -70,7 +70,7 @@ pub fn edges(current: Edges, incoming: Edges, dropped: u32, empty: bool, end: En
 /// Committed activity including words, run boundaries and turns.
 #[derive(Debug)]
 pub struct TurnWindow {
-    pub rows: List<ActivityLine>,
+    pub rows: List<DecodedActivityLine>,
     pub edges: Edges,
 }
 impl TurnWindow {
@@ -80,7 +80,7 @@ impl TurnWindow {
         Self { rows: List::with_capacity(capacity), edges: Edges { before: Edge::End, after: Edge::End } }
     }
     /// Slides from one end, returning the number dropped from the other.
-    pub fn slide(&mut self, incoming: List<ActivityLine>, incoming_edges: Edges, end: End) -> u32 {
+    pub fn slide(&mut self, incoming: List<DecodedActivityLine>, incoming_edges: Edges, end: End) -> u32 {
         let capacity = self.rows.capacity();
         let empty = self.rows.is_empty();
         let slide = plan(self.rows.len(), incoming.len(), capacity, end);
@@ -102,7 +102,7 @@ impl TurnWindow {
         slide.dropped
     }
     /// Adds live rows only if this window reaches their end.
-    pub fn live(&mut self, incoming: List<ActivityLine>, incoming_edges: Edges, end: End) -> bool {
+    pub fn live(&mut self, incoming: List<DecodedActivityLine>, incoming_edges: Edges, end: End) -> bool {
         if !self.edges.reaches(end) {
             return false;
         }
@@ -113,7 +113,7 @@ impl TurnWindow {
         true
     }
 }
-fn move_turnwindow(rows: List<ActivityLine>, start: u32, count: u32, out: &mut List<ActivityLine>) {
+fn move_turnwindow(rows: List<DecodedActivityLine>, start: u32, count: u32, out: &mut List<DecodedActivityLine>) {
     let until = start.saturating_add(count);
     for (index, row) in rows.into_boxed().into_iter().enumerate() {
         let index = u32::try_from(index).expect("a bounded list index fits u32");

@@ -25,9 +25,9 @@ fn key(proposer: Proposer) -> ProposalKey {
 }
 fn task(keys: &[ProposalKey], activity: u64) -> Task {
     let mut doc = crate::tests::tree::cards_objects::task_doc(&[]);
-    doc.chip.executor = Executor::Agent { charter: 2 };
+    doc.chip.executor = ChipExecutor::Agent { charter: 2 };
     doc.chip.phase = Phase::Running;
-    *doc.chip.details = crate::tests::fixtures::chip_phase(OwnerChipPhase::Active(RunStage::Running { attempt: 2 }));
+    *doc.chip.details = crate::tests::fixtures::chip_phase(ChipPhase::Active(RunStage::Running { attempt: 2 }));
     doc.context = None;
     doc.hold = None;
     doc.proposals = list(keys.iter().copied());
@@ -104,14 +104,14 @@ fn a_task_activity_renders_the_native_whole_pending_proposal_with_its_supplied_f
     let mut goldens = Goldens::new("tree/task_proposals/a_task_activity");
     let k = key(Proposer::Task(8));
     let (mut d, _, out) = opened(&[k]);
-    let native = OwnerProposal {
+    let native = Proposal {
         key: k,
         project: 4,
         reason: DocumentText::complete(text(b"native whole shared reason")),
-        action: OwnerProposalAction::Batch(list([])),
+        action: ProposalAction::Batch(list([])),
         as_holder: true,
-        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(1), since: Wall::EPOCH },
-        funding: list([OwnerFundingOffer {
+        waiting: ProposalWaiting { holder: HistoryHolder::Person(1), since: Wall::EPOCH },
+        funding: list([FundingOffer {
             source: Funder::Pool { project: 4, person: 1, period: 3 },
             needed: 150,
             left: Some(250),
@@ -119,10 +119,7 @@ fn a_task_activity_renders_the_native_whole_pending_proposal_with_its_supplied_f
         }]),
         acts: list([Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]),
     };
-    drive(
-        &mut d,
-        ReadPage { read: token(&out, k), result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(native))) },
-    );
+    drive(&mut d, ReadPage { read: token(&out, k), result: ReadResult::Value(ReadValue::Proposal(Box::new(native))) });
     let tree = build(&d);
     assert_eq!(cards(&tree, k), 1);
     goldens.check(&tree);

@@ -29,7 +29,7 @@ pub(super) fn own(
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
-    account: &c::OwnerAccountLine,
+    account: &c::AccountLine,
     text_bytes: u32,
 ) {
     draw(
@@ -37,7 +37,7 @@ pub(super) fn own(
         root,
         w,
         bindings,
-        Row { holder: c::AccountHolder::Own, account: account.number },
+        Row { holder: c::AskAccountHolder::Own, account: account.number },
         account.place,
         account.provider,
         account.provider_name.as_ref(),
@@ -58,7 +58,7 @@ pub(super) fn deployment(
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
-    account: &c::OwnerAccount,
+    account: &c::Account,
     text_bytes: u32,
 ) {
     draw(
@@ -66,7 +66,7 @@ pub(super) fn deployment(
         root,
         w,
         bindings,
-        Row { holder: c::AccountHolder::Deployment, account: account.number },
+        Row { holder: c::AskAccountHolder::Deployment, account: account.number },
         account.place,
         account.provider,
         account.provider_name.as_ref(),
@@ -97,10 +97,10 @@ fn draw(
     provider: Option<u32>,
     provider_text: Option<&c::DocumentText>,
     display: &c::DocumentText,
-    holder: c::OwnerAccountHolder,
+    holder: c::AccountHolder,
     plan: bool,
-    uses: Option<&List<c::OwnerAccountUse>>,
-    sources: &List<c::OwnerAccountSource>,
+    uses: Option<&List<c::AccountUse>>,
+    sources: &List<c::AccountSource>,
     manage: Option<&[u8]>,
     runs: Option<&List<c::Chip>>,
     waiting: Option<&List<c::Chip>>,
@@ -116,12 +116,12 @@ fn draw(
     let deciding = sources.get(0);
     let mut moving = false;
     for source in sources {
-        moving |= source.state == c::OwnerAccountState::Moving;
+        moving |= source.state == c::AccountState::Moving;
     }
     let pays = pays(w, plan, uses, bindings.counts().uses);
     let use_line: Box<[u8]> = match row.holder {
-        c::AccountHolder::Own => Box::new([]),
-        c::AccountHolder::Deployment => use_line(w, runs, waiting),
+        c::AskAccountHolder::Own => Box::new([]),
+        c::AskAccountHolder::Deployment => use_line(w, runs, waiting),
     };
     let models = models(root, w, provider, text_bytes / 4);
     b.open(Role::Disclosure);
@@ -189,18 +189,18 @@ fn draw(
         );
         b.run(Run::Plain, b". ");
         match source.kind {
-            c::OwnerAccountKind::SignIn => {
+            c::AccountKind::SignIn => {
                 b.run(Run::Plain, &named(w, W::PlanSignIn, words::provider_words(name.unwrap_or(b"")).1));
             }
-            c::OwnerAccountKind::Program => {
+            c::AccountKind::Program => {
                 b.run(Run::Plain, &named(w, W::CodeLogin, source.name.as_deref().unwrap_or(b"")));
             }
-            c::OwnerAccountKind::Key | c::OwnerAccountKind::None => super::kind(b, w, source.kind),
+            c::AccountKind::Key | c::AccountKind::None => super::kind(b, w, source.kind),
         }
         b.run(Run::Plain, &words::say(w, W::Separator, &[]));
         b.close();
         tag(b, w, source);
-        if source.kind == c::OwnerAccountKind::Program {
+        if source.kind == c::AccountKind::Program {
             program_hosts(b, root, w, source, false, bindings.counts());
         }
         if moving {
@@ -208,23 +208,23 @@ fn draw(
             continue;
         }
         match source.kind {
-            c::OwnerAccountKind::Key => {
+            c::AccountKind::Key => {
                 key_for(b, w, bindings, W::Replace, row, Some(source.number), busy);
                 button(b, root, w, bindings, W::Remove, row, Operation::RemoveKey { source: source.number }, busy);
             }
-            c::OwnerAccountKind::SignIn | c::OwnerAccountKind::Program => {
+            c::AccountKind::SignIn | c::AccountKind::Program => {
                 button(
                     b,
                     root,
                     w,
                     bindings,
-                    if source.kind == c::OwnerAccountKind::Program { W::ProgramSignOut } else { W::SignOut },
+                    if source.kind == c::AccountKind::Program { W::ProgramSignOut } else { W::SignOut },
                     row,
                     Operation::SignOut { source: source.number },
                     busy,
                 );
             }
-            c::OwnerAccountKind::None => {}
+            c::AccountKind::None => {}
         }
         ranks(b, root, w, bindings, row, Some(source.number), source.place, busy);
         b.close();
@@ -237,7 +237,7 @@ fn draw(
         pair(b, w, W::Models, &models);
     }
     pair(b, w, W::PaysFor, &pays);
-    if row.holder == c::AccountHolder::Deployment {
+    if row.holder == c::AskAccountHolder::Deployment {
         pair(b, w, W::UsedBy, &chips(w, runs, waiting));
         pair(b, w, W::WaitingFor, &chips(w, waiting, None));
     }
@@ -245,7 +245,7 @@ fn draw(
     if !moving {
         let mut has_key = false;
         for source in sources {
-            has_key |= source.kind == c::OwnerAccountKind::Key;
+            has_key |= source.kind == c::AccountKind::Key;
         }
         if !has_key && provider.is_some() {
             key_for(b, w, bindings, W::AddApiKey, row, None, busy);
@@ -298,7 +298,7 @@ fn draw(
         }
     }
     if let Some(doc) = accounts::document(root.client())
-        && row.holder == c::AccountHolder::Own
+        && row.holder == c::AskAccountHolder::Own
     {
         for signing in doc.signing.iter().take(usize::try_from(bindings.counts().sign_ins).expect("bounded sign-ins")) {
             for source in sources {
@@ -316,10 +316,10 @@ fn draw(
                 belongs |= source.number == last.source;
             }
             match last.end {
-                c::OwnerAccountEnd::Made { account, .. } | c::OwnerAccountEnd::Renewed { account, .. } => {
+                c::AccountEnd::Made { account, .. } | c::AccountEnd::Renewed { account, .. } => {
                     belongs = account == row.account;
                 }
-                c::OwnerAccountEnd::Refused { .. } | c::OwnerAccountEnd::Failed { .. } => {}
+                c::AccountEnd::Refused { .. } | c::AccountEnd::Failed { .. } => {}
             }
             if belongs {
                 super::end(b, w, &last.end, &doc.accounts);
@@ -339,11 +339,11 @@ fn caption(
     name: Option<&[u8]>,
     display: &c::DocumentText,
     plan: bool,
-    sources: &List<c::OwnerAccountSource>,
+    sources: &List<c::AccountSource>,
 ) -> Box<[u8]> {
     let (brand, plan_name) = words::provider_words(name.unwrap_or(b""));
     for source in sources {
-        if source.kind == c::OwnerAccountKind::Program {
+        if source.kind == c::AccountKind::Program {
             return words::join(&[
                 &named(w, W::Subscription, plan_name),
                 &words::say(w, W::Separator, &[]),
@@ -353,7 +353,7 @@ fn caption(
     }
     let mut signed = plan;
     for source in sources {
-        signed |= source.kind == c::OwnerAccountKind::SignIn;
+        signed |= source.kind == c::AccountKind::SignIn;
     }
     if signed {
         let separator = words::say(w, W::Separator, &[]);
@@ -370,18 +370,18 @@ fn holder_words(
     root: &Domain,
     w: &Words,
     name: Option<&[u8]>,
-    holder: c::OwnerAccountHolder,
-    sources: &List<c::OwnerAccountSource>,
+    holder: c::AccountHolder,
+    sources: &List<c::AccountSource>,
 ) -> Box<[u8]> {
     let owner = match holder {
-        c::OwnerAccountHolder::Deployment => words::say(w, W::HeldDeployment, &[]),
-        c::OwnerAccountHolder::Party(_) => match accounts::current_me(root.client()) {
+        c::AccountHolder::Deployment => words::say(w, W::HeldDeployment, &[]),
+        c::AccountHolder::Party(_) => match accounts::current_me(root.client()) {
             Some(me) => named(w, W::HeldBy, me.party.name.bytes()),
             None => named(w, W::HeldBy, &words::say(w, W::OwnHolder, &[])),
         },
     };
     for source in sources {
-        if source.kind == c::OwnerAccountKind::SignIn || source.kind == c::OwnerAccountKind::Program {
+        if source.kind == c::AccountKind::SignIn || source.kind == c::AccountKind::Program {
             return words::join(&[
                 words::provider_words(name.unwrap_or(b"")).0,
                 &words::say(w, W::Separator, &[]),
@@ -391,11 +391,11 @@ fn holder_words(
     }
     owner
 }
-fn tag(b: &mut Builder, w: &Words, source: &c::OwnerAccountSource) {
+fn tag(b: &mut Builder, w: &Words, source: &c::AccountSource) {
     b.open(Role::Status);
     b.style(if source.usable {
         crate::look::STATUS_ACTIVE
-    } else if let c::OwnerAccountState::Later { .. } = source.state {
+    } else if let c::AccountState::Later { .. } = source.state {
         crate::look::STATUS_RETRYING
     } else {
         crate::look::STATUS_HELD
@@ -407,24 +407,24 @@ fn tag(b: &mut Builder, w: &Words, source: &c::OwnerAccountSource) {
     b.close();
     b.close();
 }
-fn summary_state(w: &Words, source: Option<&c::OwnerAccountSource>) -> Box<[u8]> {
+fn summary_state(w: &Words, source: Option<&c::AccountSource>) -> Box<[u8]> {
     let word = match source {
         None => W::Unknown,
         Some(source) => {
-            if source.spent_until.is_some() && source.state != c::OwnerAccountState::Moving {
+            if source.spent_until.is_some() && source.state != c::AccountState::Moving {
                 W::Limited
             } else {
                 match source.state {
-                    c::OwnerAccountState::Moving => W::Moving,
-                    c::OwnerAccountState::Granted if source.usable => W::Ready,
-                    c::OwnerAccountState::Granted => W::Granted,
-                    c::OwnerAccountState::Later { .. } => W::Limited,
-                    c::OwnerAccountState::SignInAgain => W::NeedsSignIn,
-                    c::OwnerAccountState::Misconfigured => W::Misconfigured,
-                    c::OwnerAccountState::Unloaded { .. } => W::Unloaded,
-                    c::OwnerAccountState::Asking => W::Asking,
-                    c::OwnerAccountState::Cancelled => W::Cancelled,
-                    c::OwnerAccountState::Closing => W::Closing,
+                    c::AccountState::Moving => W::Moving,
+                    c::AccountState::Granted if source.usable => W::Ready,
+                    c::AccountState::Granted => W::Granted,
+                    c::AccountState::Later { .. } => W::Limited,
+                    c::AccountState::SignInAgain => W::NeedsSignIn,
+                    c::AccountState::Misconfigured => W::Misconfigured,
+                    c::AccountState::Unloaded { .. } => W::Unloaded,
+                    c::AccountState::Asking => W::Asking,
+                    c::AccountState::Cancelled => W::Cancelled,
+                    c::AccountState::Closing => W::Closing,
                 }
             }
         }
@@ -438,13 +438,13 @@ fn pair(b: &mut Builder, w: &Words, word: W, value: &[u8]) {
     crate::cards::text(b, Role::Description, value);
     b.close();
 }
-fn pays(w: &Words, plan: bool, uses: Option<&List<c::OwnerAccountUse>>, cap: u32) -> Box<[u8]> {
+fn pays(w: &Words, plan: bool, uses: Option<&List<c::AccountUse>>, cap: u32) -> Box<[u8]> {
     let Some(uses) = uses else { return words::say(w, if plan { W::PlanPays } else { W::OwnPays }, &[]) };
     let mut result = words::say(w, W::None, &[]);
     for (index, use_) in uses.iter().take(usize::try_from(cap).expect("bounded uses")).enumerate() {
         let (word, number) = match use_ {
-            c::OwnerAccountUse::Party(n) => (W::Party, *n),
-            c::OwnerAccountUse::Project(n) => (W::Project, u64::from(*n)),
+            c::AccountUse::Party(n) => (W::Party, *n),
+            c::AccountUse::Project(n) => (W::Project, u64::from(*n)),
         };
         let entry = words::join(&[
             &words::say(w, word, &[]),
@@ -532,7 +532,7 @@ fn signin(
     provider: Option<u32>,
     busy: bool,
 ) {
-    if row.holder == c::AccountHolder::Deployment {
+    if row.holder == c::AskAccountHolder::Deployment {
         return;
     }
     let Some(provider) = provider else { return };
@@ -587,20 +587,21 @@ fn notice(
     row: Row,
     provider: Option<u32>,
     provider_text: Option<&[u8]>,
-    source: &c::OwnerAccountSource,
-    sources: &List<c::OwnerAccountSource>,
+    source: &c::AccountSource,
+    sources: &List<c::AccountSource>,
     manage: Option<&[u8]>,
     busy: bool,
 ) {
     let mut declined = false;
-    if row.holder == c::AccountHolder::Own
+    if row.holder == c::AskAccountHolder::Own
         && let Some(doc) = accounts::document(root.client())
         && let Some(last) = &doc.last_end
     {
         match last.end {
-            c::OwnerAccountEnd::Made { account, declined: yes }
-            | c::OwnerAccountEnd::Renewed { account, declined: yes } => declined = yes && account == row.account,
-            c::OwnerAccountEnd::Refused { .. } | c::OwnerAccountEnd::Failed { .. } => {}
+            c::AccountEnd::Made { account, declined: yes } | c::AccountEnd::Renewed { account, declined: yes } => {
+                declined = yes && account == row.account;
+            }
+            c::AccountEnd::Refused { .. } | c::AccountEnd::Failed { .. } => {}
         }
     }
     if declined {
@@ -609,10 +610,9 @@ fn notice(
         key_for(b, w, bindings, W::KeyWayOnly, row, None, busy);
         return;
     }
-    let limited =
-        if let c::OwnerAccountState::Later { .. } = source.state { true } else { source.spent_until.is_some() };
+    let limited = if let c::AccountState::Later { .. } = source.state { true } else { source.spent_until.is_some() };
     if limited {
-        let reset = if let c::OwnerAccountState::Later { until } = source.state { until } else { None };
+        let reset = if let c::AccountState::Later { until } = source.state { until } else { None };
         if let Some(reset) = reset {
             b.open(Role::Paragraph);
             b.open(Role::Text);
@@ -634,13 +634,13 @@ fn notice(
                 b,
                 w,
                 Role::Paragraph,
-                if source.kind == c::OwnerAccountKind::SignIn { W::PlanLimited } else { W::Limited },
+                if source.kind == c::AccountKind::SignIn { W::PlanLimited } else { W::Limited },
             );
             usage(b, w, manage);
         }
         button(b, root, w, bindings, W::Resume, row, Operation::Resume { source: source.number }, busy);
         for next in sources {
-            if next.place > source.place && next.kind == c::OwnerAccountKind::Key {
+            if next.place > source.place && next.kind == c::AccountKind::Key {
                 button(
                     b,
                     root,
@@ -654,30 +654,30 @@ fn notice(
                 break;
             }
         }
-    } else if source.kind == c::OwnerAccountKind::Program {
+    } else if source.kind == c::AccountKind::Program {
         b.open(Role::Paragraph);
         b.open(Role::Text);
         state(b, w, source);
         b.close();
         b.close();
         let needs_check = program_hosts(b, root, w, source, true, bindings.counts());
-        if needs_check || source.state == c::OwnerAccountState::SignInAgain {
+        if needs_check || source.state == c::AccountState::SignInAgain {
             button(b, root, w, bindings, W::CheckAgain, row, Operation::CheckProgram { source: source.number }, busy);
         }
     } else {
         match source.state {
-            c::OwnerAccountState::SignInAgain => {
+            c::AccountState::SignInAgain => {
                 text(b, w, Role::Paragraph, W::SignedOutPlan);
                 signin(b, root, w, bindings, row, provider, busy);
             }
-            c::OwnerAccountState::Misconfigured => text(b, w, Role::Paragraph, W::MisconfiguredPlan),
-            c::OwnerAccountState::Moving
-            | c::OwnerAccountState::Asking
-            | c::OwnerAccountState::Granted
-            | c::OwnerAccountState::Later { .. }
-            | c::OwnerAccountState::Unloaded { .. }
-            | c::OwnerAccountState::Cancelled
-            | c::OwnerAccountState::Closing => {
+            c::AccountState::Misconfigured => text(b, w, Role::Paragraph, W::MisconfiguredPlan),
+            c::AccountState::Moving
+            | c::AccountState::Asking
+            | c::AccountState::Granted
+            | c::AccountState::Later { .. }
+            | c::AccountState::Unloaded { .. }
+            | c::AccountState::Cancelled
+            | c::AccountState::Closing => {
                 b.open(Role::Paragraph);
                 b.open(Role::Text);
                 state(b, w, source);
@@ -691,7 +691,7 @@ fn program_hosts(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
-    source: &c::OwnerAccountSource,
+    source: &c::AccountSource,
     notice: bool,
     counts: temper_client_domain::limits::AccountLimits,
 ) -> bool {
@@ -708,7 +708,7 @@ fn program_hosts(
             b.open(Role::Paragraph);
             b.name(&host.name);
             b.open(Role::Text);
-            if notice && login.state == Some(c::OwnerProgramState::NotSignedIn) {
+            if notice && login.state == Some(c::ProgramState::NotSignedIn) {
                 needs_check = true;
                 b.run(Run::Plain, &named(w, W::ProgramNeedsSignIn, &login.name));
             }
@@ -717,17 +717,17 @@ fn program_hosts(
             }
             b.run(Run::Plain, &host.name);
             match &login.state {
-                Some(c::OwnerProgramState::Failed { reason, detail }) => {
+                Some(c::ProgramState::Failed { reason, detail }) => {
                     b.run(Run::Plain, b": ");
                     super::super::account_programs::failure(b, w, *reason, detail, w.name_bytes);
                 }
-                Some(c::OwnerProgramState::SignedInOtherwise { method }) => {
+                Some(c::ProgramState::SignedInOtherwise { method }) => {
                     run(b, w, W::SignedInOtherwise);
                     b.run(Run::Plain, method);
                 }
-                Some(c::OwnerProgramState::Usable) => run(b, w, W::Ready),
+                Some(c::ProgramState::Usable) => run(b, w, W::Ready),
                 None => run(b, w, W::Unknown),
-                Some(c::OwnerProgramState::NotSignedIn) => {}
+                Some(c::ProgramState::NotSignedIn) => {}
             }
             if !host.connected {
                 run(b, w, W::NotInContact);
@@ -741,20 +741,20 @@ fn program_hosts(
             if login.cleanup {
                 run(b, w, W::Cleanup);
             }
-            if notice && login.state == Some(c::OwnerProgramState::NotSignedIn) {
+            if notice && login.state == Some(c::ProgramState::NotSignedIn) {
                 b.run(Run::Plain, b".");
             }
             if let Some(sign_out) = &login.sign_out {
                 match sign_out {
-                    c::OwnerProgramSignOut::SignedOut => run(b, w, W::SignedOut),
-                    c::OwnerProgramSignOut::Failed { reason, detail } => {
+                    c::ProgramSignOut::SignedOut => run(b, w, W::SignedOut),
+                    c::ProgramSignOut::Failed { reason, detail } => {
                         super::super::account_programs::failure(b, w, *reason, detail, w.name_bytes);
                     }
                 }
             }
             b.close();
             b.close();
-            if notice && login.state == Some(c::OwnerProgramState::NotSignedIn) {
+            if notice && login.state == Some(c::ProgramState::NotSignedIn) {
                 crate::cards::text(b, Role::Code, &named(w, W::ProgramCommand, &login.name));
             }
             break;
@@ -816,20 +816,16 @@ fn editing(page: &accounts::Accounts, row: Row) -> bool {
         None => false,
     }
 }
-fn needs_program(state: Option<&c::OwnerProgramState>) -> bool {
+fn needs_program(state: Option<&c::ProgramState>) -> bool {
     match state {
-        Some(c::OwnerProgramState::NotSignedIn | c::OwnerProgramState::Failed { .. }) => true,
-        None | Some(c::OwnerProgramState::Usable | c::OwnerProgramState::SignedInOtherwise { .. }) => false,
+        Some(c::ProgramState::NotSignedIn | c::ProgramState::Failed { .. }) => true,
+        None | Some(c::ProgramState::Usable | c::ProgramState::SignedInOtherwise { .. }) => false,
     }
 }
-fn program_failed(state: Option<&c::OwnerProgramState>) -> bool {
+fn program_failed(state: Option<&c::ProgramState>) -> bool {
     match state {
-        Some(c::OwnerProgramState::Failed { .. }) => true,
-        Some(
-            c::OwnerProgramState::Usable
-            | c::OwnerProgramState::NotSignedIn
-            | c::OwnerProgramState::SignedInOtherwise { .. },
-        )
+        Some(c::ProgramState::Failed { .. }) => true,
+        Some(c::ProgramState::Usable | c::ProgramState::NotSignedIn | c::ProgramState::SignedInOtherwise { .. })
         | None => false,
     }
 }

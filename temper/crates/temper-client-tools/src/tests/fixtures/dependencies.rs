@@ -13,9 +13,9 @@ pub(crate) fn goal_with_dependencies() -> c::Task {
     waiting.phase = c::Phase::Waiting;
     task.dependencies = List::with_capacity(DEPENDENCY_ROWS);
     for link in [
-        c::OwnerTaskLink::Stored { number: 43, status: Some(c::OwnerTaskStatus::Done) },
-        c::OwnerTaskLink::Live(running),
-        c::OwnerTaskLink::Retained { chip: waiting, at: None },
+        c::TaskLink::Stored { number: 43, status: Some(c::TaskStatus::Done) },
+        c::TaskLink::Live(running),
+        c::TaskLink::Retained { chip: waiting, at: None },
     ] {
         task.dependencies.push(link).expect("three dependencies");
     }
@@ -24,15 +24,15 @@ pub(crate) fn goal_with_dependencies() -> c::Task {
         c::Dependency {
             number: 45,
             pending: true,
-            added: Some(c::DependencyAdded { at: DEPENDENCY_ADDED_AT, by: c::OwnerRequester::Task(7) }),
+            added: Some(c::DependencyAdded { at: DEPENDENCY_ADDED_AT, by: c::Requester::Task(7) }),
             keeps: false,
             status: None,
         },
-        c::Dependency { number: 43, pending: false, added: None, keeps: false, status: Some(c::OwnerTaskStatus::Done) },
+        c::Dependency { number: 43, pending: false, added: None, keeps: false, status: Some(c::TaskStatus::Done) },
         c::Dependency {
             number: 44,
             pending: true,
-            added: Some(c::DependencyAdded { at: DEPENDENCY_ADDED_AT, by: c::OwnerRequester::Person(PARTY) }),
+            added: Some(c::DependencyAdded { at: DEPENDENCY_ADDED_AT, by: c::Requester::Person(PARTY) }),
             keeps: true,
             status: None,
         },

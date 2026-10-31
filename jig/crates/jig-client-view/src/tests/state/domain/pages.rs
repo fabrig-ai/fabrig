@@ -32,7 +32,7 @@ pub(in crate::tests) fn project(number: u32, chats: bool) -> MeProject {
         pool: Some(PoolLedger {
             source: Funder::Pool { project: number, person: 7, period: 1 },
             parent: None,
-            numbers: OwnerNumbers { budget: 20, spent: 0, spent_below: 0, reserved: 0 },
+            numbers: Numbers { budget: 20, spent: 0, spent_below: 0, reserved: 0 },
             left: 20,
             closed: false,
             began: None,
@@ -233,10 +233,10 @@ fn deployment_without_a_role_is_missing_and_never_watched() {
 fn task_sections_and_activity_sources_follow_the_executor() {
     use crate::state::{address::TaskSection, page::task};
     for executor in [
-        Executor::Agent { charter: 1 },
-        Executor::Procedure { connector: 2, kind: 3 },
-        Executor::Party { party: 7 },
-        Executor::Role { project: 1, role: 1 },
+        ChipExecutor::Agent { charter: 1 },
+        ChipExecutor::Procedure { connector: 2, kind: 3 },
+        ChipExecutor::Party { party: 7 },
+        ChipExecutor::Role { project: 1, role: 1 },
     ] {
         let mut document = super::confirmation::task();
         document.chip.executor = executor;
@@ -262,7 +262,7 @@ fn task_sections_and_activity_sources_follow_the_executor() {
         );
         assert!(domain.task_page().header.is_some());
         match executor {
-            Executor::Agent { .. } => {
+            ChipExecutor::Agent { .. } => {
                 assert_eq!(requests.len(), 2);
                 let Request::Client {
                     asked:
@@ -285,13 +285,16 @@ fn task_sections_and_activity_sources_follow_the_executor() {
                     panic!("agent activity read");
                 };
             }
-            Executor::Procedure { connector, .. } => {
+            ChipExecutor::Procedure { connector, .. } => {
                 assert_eq!(
                     requests.as_ref(),
-                    &[Request::ShowPart { part: Part::Panel { connector, task: 8 }, scope: PartScope::Project(1) }]
+                    &[Request::ShowPart {
+                        part: ApplicationPart::Panel { connector, task: 8 },
+                        scope: PartScope::Project(1)
+                    }]
                 );
             }
-            Executor::Party { .. } | Executor::Role { .. } => {
+            ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {
                 let Request::Client {
                     asked: jig_client::Event::Read { read: jig_client::Readable::Jig(Read::PersonTask { task: 8 }), .. },
                 } = requests[0]
@@ -325,9 +328,9 @@ fn goal_line(number: u64, priority: u32, phase: Phase, changed: u64) -> TaskLine
     TaskLine {
         chip,
         tracked: Some(priority),
-        phases: OwnerPhaseCounts::ZERO,
-        budget: OwnerBudget {
-            numbers: OwnerNumbers { budget: 20, spent: 0, spent_below: 0, reserved: 0 },
+        phases: PhaseCounts::ZERO,
+        budget: Budget {
+            numbers: Numbers { budget: 20, spent: 0, spent_below: 0, reserved: 0 },
             left: 20,
             funder: Funder::Pool { project: 1, person: 7, period: 3 },
             deadline: None,
@@ -337,7 +340,7 @@ fn goal_line(number: u64, priority: u32, phase: Phase, changed: u64) -> TaskLine
         last_activity: skein_lib::Wall::from_nanos(changed),
         ended_at: None,
         project: 1,
-        requester: OwnerRequester::Person(7),
+        requester: Requester::Person(7),
         label: 2,
         flags: TaskFlags { ended_by: EndedBy::Result, conversation: false, listed: true, retention: Retention::Kept },
         waits_on: WaitsOn::Nothing,
@@ -428,7 +431,7 @@ fn owner_started_chat_navigates_from_the_original_request_and_keeps_late_answers
             drive(&mut domain, Time::ZERO, Event::Went { place: Place::Elsewhere });
         }
         let answer =
-            Answer::Done(Outcome::Owner(OwnerOutcome::Created { first: u64::MAX, last: u64::MAX, given: None }));
+            Answer::Done(Outcome::Document(DocumentOutcome::Created { first: u64::MAX, last: u64::MAX, given: None }));
         drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: answer.clone() });
         assert!(domain.chats().starting.is_none());
         assert!(domain.fields().get(Purpose::NewChat).unwrap().text.bytes().is_empty());
@@ -566,20 +569,18 @@ fn task_watch_replacements_preserve_requester_kinds_and_missing_link_facts_with_
     let mut supplied = super::confirmation::task();
     let mut chip = supplied.chip.clone();
     chip.task = u64::MAX;
-    for requester in [
-        OwnerRequester::Task(u64::MAX),
-        OwnerRequester::Person(u64::MAX),
-        OwnerRequester::Deployment { project: u32::MAX },
-    ] {
+    for requester in
+        [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }]
+    {
         for cut in [false, true] {
             supplied.requester = requester;
             supplied.cut = cut;
             supplied.inputs = List::with_capacity(2);
-            supplied.inputs.push(OwnerTaskLink::Stored { number: u64::MAX, status: None }).unwrap();
+            supplied.inputs.push(TaskLink::Stored { number: u64::MAX, status: None }).unwrap();
             supplied.dependencies = List::with_capacity(2);
-            supplied.dependencies.push(OwnerTaskLink::Retained { chip: chip.clone(), at: None }).unwrap();
+            supplied.dependencies.push(TaskLink::Retained { chip: chip.clone(), at: None }).unwrap();
             supplied.references = List::with_capacity(2);
-            supplied.references.push(OwnerTaskLink::Live(chip.clone())).unwrap();
+            supplied.references.push(TaskLink::Live(chip.clone())).unwrap();
             drive(
                 &mut domain,
                 Time::ZERO,
@@ -593,8 +594,8 @@ fn task_watch_replacements_preserve_requester_kinds_and_missing_link_facts_with_
             assert_eq!(document.inputs.capacity(), 2);
             assert_eq!(document.dependencies.get(0).unwrap().number(), u64::MAX);
             assert_eq!(document.references.get(0).unwrap().number(), u64::MAX);
-            assert_eq!(document.inputs.get(0), Some(&OwnerTaskLink::Stored { number: u64::MAX, status: None }));
-            assert_eq!(document.dependencies.get(0), Some(&OwnerTaskLink::Retained { chip: chip.clone(), at: None }));
+            assert_eq!(document.inputs.get(0), Some(&TaskLink::Stored { number: u64::MAX, status: None }));
+            assert_eq!(document.dependencies.get(0), Some(&TaskLink::Retained { chip: chip.clone(), at: None }));
         }
     }
 }
@@ -614,7 +615,7 @@ fn watched_task_policies_replace_every_channel_without_merging_standing_interest
         WakeRule::Batch { count: u32::MAX, age: skein_lib::Duration::from_nanos(u64::MAX) },
     ] {
         for results in [ResultsWake::Never, ResultsWake::Each, ResultsWake::LastOrFailure] {
-            supplied.wake = OwnerWakePolicy {
+            supplied.wake = WakePolicy {
                 words: rule,
                 notices: rule,
                 news: rule,
@@ -671,7 +672,7 @@ fn task_watch_replacements_keep_served_goal_identity_and_whole_contract_loss_ind
     let mut choices = List::with_capacity(2);
     let fields = crate::tests::kit::list_in(2, [FieldRule { name: Box::from(*b"\xff\0/"), max: u32::MAX }]);
     choices.push(VerdictChoice { code: u32::MAX, words: u32::MAX, followups: u32::MAX, fields }).unwrap();
-    let part = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Result, key: OwnerPartKey::Number(u64::MAX) };
+    let part = Part { connector: u16::MAX, kind: PartKind::Result, key: PartKey::Number(u64::MAX) };
     for (goal, contract) in [
         (Some(8), TaskContractDocument::Report { words: u32::MAX }),
         (Some(u64::MAX), TaskContractDocument::Approval { state: Box::from(*b"\xff\0/"), part }),
@@ -708,16 +709,16 @@ fn task_authority_watch_replacements_keep_bitmap_pattern_and_loss_facts_whole() 
     row.authority.authority.tools = u64::MAX;
     row.authority.authority.notes = u8::MAX;
     row.authority.authority.delegation.kinds = List::with_capacity(2);
-    row.authority.authority.delegation.kinds.push(OwnerAuthorityExecutor::Role(u32::MAX)).unwrap();
+    row.authority.authority.delegation.kinds.push(AuthorityExecutor::Role(u32::MAX)).unwrap();
     let segments = crate::tests::kit::list([Box::from(*b"a/b"), Box::from(*b"\xff\0")]);
     row.authority.authority.grants = List::with_capacity(2);
     row.authority
         .authority
         .grants
-        .push(OwnerGrant {
+        .push(Grant {
             connector: u16::MAX,
             kind: u16::MAX,
-            pattern: OwnerPattern { segments, last: OwnerPatternEnd::Open(Box::from(*b"c/")) },
+            pattern: Pattern { segments, last: PatternEnd::Open(Box::from(*b"c/")) },
         })
         .unwrap();
     for cut in [false, true, false] {
@@ -756,8 +757,8 @@ fn task_budget_watch_replacements_keep_all_owner_numbers_funders_and_optional_de
     ] {
         for deadline in [None, Some(skein_lib::Wall::EPOCH), Some(skein_lib::Wall::from_nanos(u64::MAX))] {
             let mut row = super::confirmation::task();
-            row.budget = OwnerBudget {
-                numbers: OwnerNumbers { budget: u64::MAX, spent: u64::MAX - 1, spent_below: 7, reserved: 11 },
+            row.budget = Budget {
+                numbers: Numbers { budget: u64::MAX, spent: u64::MAX - 1, spent_below: 7, reserved: 11 },
                 left: 17,
                 funder,
                 deadline,
@@ -787,7 +788,7 @@ fn owner_goal_read_and_watch_keep_all_ten_counters_absent_clock_and_exact_budget
     let mut row = goal_line(9, u32::MAX, Phase::Running, 9);
     row.changed = skein_lib::Wall::EPOCH;
     row.held_below = u32::MAX;
-    row.phases = OwnerPhaseCounts {
+    row.phases = PhaseCounts {
         waiting: u32::MAX,
         idle: u32::MAX - 1,
         starting: u32::MAX - 2,
@@ -809,7 +810,7 @@ fn owner_goal_read_and_watch_keep_all_ten_counters_absent_clock_and_exact_budget
     );
     let mut duplicate = row.clone();
     duplicate.changed = skein_lib::Wall::EPOCH;
-    duplicate.phases = OwnerPhaseCounts::ZERO;
+    duplicate.phases = PhaseCounts::ZERO;
     let rows = crate::tests::kit::list([duplicate, goal_line(8, 1, Phase::Done, 1)]);
     drive(
         &mut domain,
@@ -1029,8 +1030,8 @@ fn an_arranged_task_section_its_document_does_not_offer_is_not_shown() {
             let value = Section::Task { task: 8, section };
             assert!(domain.shows(value), "{own:?}, {section:?}: loading");
             let mut document = super::confirmation::task();
-            document.chip.executor = Executor::Party { party: 7 };
-            document.budget.numbers = OwnerNumbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 };
+            document.chip.executor = ChipExecutor::Party { party: 7 };
+            document.budget.numbers = Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 };
             drive(
                 &mut domain,
                 Time::ZERO,
@@ -1092,21 +1093,21 @@ fn arranged_task() -> (Fixture, Box<[Request]>) {
 }
 #[test]
 fn an_arranged_task_page_opens_its_watch_once() {
-    let rows: [(Executor, Phase, &[Subject], &[Read]); 3] = [
+    let rows: [(ChipExecutor, Phase, &[Subject], &[Read]); 3] = [
         (
-            Executor::Agent { charter: 1 },
+            ChipExecutor::Agent { charter: 1 },
             Phase::Running,
             &[Subject::Tree { task: 8, window: LIMITS.client.rows }, Subject::Run { task: 8, turn: None, offset: 0 }],
             &[Read::Activity { task: 8, before: None }],
         ),
         (
-            Executor::Party { party: 7 },
+            ChipExecutor::Party { party: 7 },
             Phase::Held,
             &[Subject::Tree { task: 8, window: LIMITS.client.rows }],
             &[Read::PersonTask { task: 8 }],
         ),
         (
-            Executor::Party { party: 7 },
+            ChipExecutor::Party { party: 7 },
             Phase::Done,
             &[],
             &[Read::Ended { task: 8, after: None }, Read::PersonTask { task: 8 }],
@@ -1366,7 +1367,7 @@ pub(in crate::tests) fn finish_initial_inbox_reads(domain: &mut Fixture, out: &[
                 Time::ZERO,
                 ReadPage {
                     read: *read,
-                    result: ReadResult::Value(ReadValue::OwnerInbox(Box::new(OwnerInboxPage {
+                    result: ReadResult::Value(ReadValue::Inbox(Box::new(InboxPage {
                         selection: None,
                         cut: false,
                         rows: List::with_capacity(0),

@@ -93,29 +93,29 @@ pub fn tasks(record: w::Tasks, limits: &Limits) -> Result<c::Tasks, Undecodable>
     }
 }
 
-pub fn owner_deployment(record: w::OwnerDeployment, limits: &Limits) -> Result<c::OwnerDeployment, Undecodable> {
+pub fn deployment(record: w::Deployment, limits: &Limits) -> Result<c::Deployment, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::OwnerDeployment::new(limits.receiving(), record.into_parts()) {
+    let record = match w::Deployment::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match owner_deployment_fields(&record, limits) {
+    match deployment_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
 }
 
-pub fn owner_project(record: w::OwnerProject, limits: &Limits) -> Result<c::OwnerProject, Undecodable> {
+pub fn project(record: w::Project, limits: &Limits) -> Result<c::Project, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::OwnerProject::new(limits.receiving(), record.into_parts()) {
+    let record = match w::Project::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match owner_project_fields(&record, limits) {
+    match project_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }

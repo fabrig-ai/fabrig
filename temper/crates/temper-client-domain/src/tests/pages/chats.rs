@@ -43,7 +43,7 @@ fn the_chats_watch_live_lines_by_last_activity() {
     chats.configure(Some(&me), Some(fixtures::PROJECT), &limits, &mut out);
     let query = TaskQuery {
         project: Some(fixtures::PROJECT),
-        requester: Some(OwnerRequester::Person(fixtures::PARTY)),
+        requester: Some(Requester::Person(fixtures::PARTY)),
         label: Some(7),
         root: None,
         parent: None,
@@ -306,12 +306,12 @@ fn live_updates_do_not_replace_an_older_closed_page() {
 
 pub(super) fn chat_line() -> TaskLine {
     let task = fixtures::chat::task();
-    let ChipPhase { details, .. } = task.chip.details.as_ref();
+    let ChipPhaseFacts { details, .. } = task.chip.details.as_ref();
     let budget = details.budget.clone();
     TaskLine {
         chip: task.chip,
         project: fixtures::PROJECT,
-        requester: OwnerRequester::Person(fixtures::PARTY),
+        requester: Requester::Person(fixtures::PARTY),
         tracked: None,
         label: fixtures::chat::LABEL,
         flags: TaskFlags { ended_by: EndedBy::Result, conversation: true, listed: false, retention: Retention::Kept },
@@ -320,7 +320,7 @@ pub(super) fn chat_line() -> TaskLine {
         ended_at: None,
         budget,
         waits_on: WaitsOn::Nothing,
-        phases: OwnerPhaseCounts::ZERO,
+        phases: PhaseCounts::ZERO,
         held_below: 0,
         conversation: None,
     }

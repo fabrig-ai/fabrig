@@ -7,7 +7,7 @@ const NAME: [u8; 16] = [53; 16];
 const WAIT: Duration = Duration::from_secs(1);
 fn ask(replace: bool, digest: [u8; 32]) -> Ask {
     Ask::Jig(Box::new(c::Ask::AccountChange {
-        holder: c::AccountHolder::Own,
+        holder: c::AskAccountHolder::Own,
         change: if replace {
             c::AccountChange::ReplaceKey { source: 999, digest }
         } else {
@@ -69,7 +69,7 @@ fn an_unused_carried_key_is_erased() {
 fn a_finish_is_answered_not_waiting_and_its_held_address_erased() {
     let mut story = Story::live(fixtures::SEED);
     let address = skein_lib::Secret::new(Box::from(b"http://127.0.0.1:1455/auth/callback?code=c&state=s".as_slice()));
-    story.event(jig_client::accounts::finish_sign_in(STOP, NAME, c::AccountHolder::Own, 999, address));
+    story.event(jig_client::accounts::finish_sign_in(STOP, NAME, c::AskAccountHolder::Own, 999, address));
     assert!(story.run_until(|s| !s.answered(STOP).is_empty(), WAIT));
     assert_eq!(
         story.answered(STOP).as_slice(),

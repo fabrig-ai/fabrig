@@ -195,15 +195,15 @@ pub(super) fn walked_with_saves(no_event: bool) -> Saves {
     let before_press = walk.recorder.as_ref().expect("recording").save(&walk.page);
     let signing = walk.continue_with_chatgpt();
     let first = walk.recorder.as_ref().expect("recording").save(&walk.page);
-    let started = w::OwnerOutcome::AccountSignInStarted(
-        w::OwnerOutcomeAccountSignInStarted::new(
+    let started = w::DocumentOutcome::AccountSignInStarted(
+        w::OutcomeAccountSignInStarted::new(
             &w::CEILINGS,
-            w::OwnerOutcomeAccountSignInStartedParts { source: 43, address: ADDRESS.into() },
+            w::OutcomeAccountSignInStartedParts { source: 43, address: ADDRESS.into() },
         )
         .expect("sign-in started"),
     );
-    let outcome = w::Outcome::Owner(
-        w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value: started }).expect("owner outcome"),
+    let outcome = w::Outcome::Document(
+        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: started }).expect("owner outcome"),
     );
     let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
     let answer = w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer))));

@@ -12,5 +12,5 @@ pub fn jig_capacity(book: &Phrasebook) -> Option<u32> {
     for phrase in jig::ALL {
         largest = largest.max(book.capacity(phrase.id())?);
     }
-    Some(largest.max(crate::words::owner_words::phrase_bytes(book)?))
+    Some(largest.max(crate::words::document_words::phrase_bytes(book)?))
 }

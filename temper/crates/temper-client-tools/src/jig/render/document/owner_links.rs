@@ -1,7 +1,7 @@
 //! Concrete integer JSON for the client contract (contract.md, 5).
 use skein_json::writer::Encoder;
 pub(super) fn encode_owner_person_wait(
-    value: &jig_client::contract::OwnerPersonWait,
+    value: &jig_client::contract::PersonWait,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -23,19 +23,19 @@ pub(super) fn encode_owner_person_wait(
 }
 
 pub(super) fn encode_owner_prior_phase(
-    value: &jig_client::contract::OwnerPriorPhase,
+    value: &jig_client::contract::PriorPhase,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerPriorPhase::Waiting => out.string(b"waiting"),
-        jig_client::contract::OwnerPriorPhase::Active(field_0) => {
+        jig_client::contract::PriorPhase::Waiting => out.string(b"waiting"),
+        jig_client::contract::PriorPhase::Active(field_0) => {
             out.object_start();
             out.key(b"active");
             super::encode_run_stage(field_0, out, budget);
             out.object_end();
         }
-        jig_client::contract::OwnerPriorPhase::Closing(field_0) => {
+        jig_client::contract::PriorPhase::Closing(field_0) => {
             out.object_start();
             out.key(b"closing");
             super::encode_closing_stage(field_0, out, budget);
@@ -45,24 +45,24 @@ pub(super) fn encode_owner_prior_phase(
 }
 
 pub(super) fn encode_owner_requester(
-    value: &jig_client::contract::OwnerRequester,
+    value: &jig_client::contract::Requester,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerRequester::Task(field_0) => {
+        jig_client::contract::Requester::Task(field_0) => {
             out.object_start();
             out.key(b"task");
             out.unsigned(*(field_0));
             out.object_end();
         }
-        jig_client::contract::OwnerRequester::Person(field_0) => {
+        jig_client::contract::Requester::Person(field_0) => {
             out.object_start();
             out.key(b"person");
             out.unsigned(*(field_0));
             out.object_end();
         }
-        jig_client::contract::OwnerRequester::Deployment { project } => {
+        jig_client::contract::Requester::Deployment { project } => {
             out.object_start();
             out.key(b"deployment");
             out.object_start();
@@ -75,7 +75,7 @@ pub(super) fn encode_owner_requester(
 }
 
 pub(super) fn encode_owner_resource_line(
-    value: &jig_client::contract::OwnerResourceLine,
+    value: &jig_client::contract::ResourceLine,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -106,7 +106,7 @@ pub(super) fn encode_owner_resource_line(
 }
 
 pub(super) fn encode_owner_resource_scope(
-    value: &jig_client::contract::OwnerResourceScope,
+    value: &jig_client::contract::ResourceScope,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -119,12 +119,12 @@ pub(super) fn encode_owner_resource_scope(
 }
 
 pub(super) fn encode_owner_resource_writer(
-    value: &jig_client::contract::OwnerResourceWriter,
+    value: &jig_client::contract::ResourceWriter,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerResourceWriter::Run { task, attempt } => {
+        jig_client::contract::ResourceWriter::Run { task, attempt } => {
             out.object_start();
             out.key(b"run");
             out.object_start();
@@ -135,7 +135,7 @@ pub(super) fn encode_owner_resource_writer(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerResourceWriter::Effect { entry } => {
+        jig_client::contract::ResourceWriter::Effect { entry } => {
             out.object_start();
             out.key(b"effect");
             out.object_start();
@@ -148,18 +148,18 @@ pub(super) fn encode_owner_resource_writer(
 }
 
 pub(super) fn encode_owner_task_link(
-    value: &jig_client::contract::OwnerTaskLink,
+    value: &jig_client::contract::TaskLink,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerTaskLink::Live(field_0) => {
+        jig_client::contract::TaskLink::Live(field_0) => {
             out.object_start();
             out.key(b"live");
             super::encode_chip(field_0, out, budget);
             out.object_end();
         }
-        jig_client::contract::OwnerTaskLink::Retained { chip, at } => {
+        jig_client::contract::TaskLink::Retained { chip, at } => {
             out.object_start();
             out.key(b"retained");
             out.object_start();
@@ -175,7 +175,7 @@ pub(super) fn encode_owner_task_link(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerTaskLink::Stored { number, status } => {
+        jig_client::contract::TaskLink::Stored { number, status } => {
             out.object_start();
             out.key(b"stored");
             out.object_start();
@@ -195,14 +195,14 @@ pub(super) fn encode_owner_task_link(
 }
 
 pub(super) fn encode_owner_task_status(
-    value: jig_client::contract::OwnerTaskStatus,
+    value: jig_client::contract::TaskStatus,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     let value = &value;
     match value {
-        jig_client::contract::OwnerTaskStatus::Done => out.string(b"done"),
-        jig_client::contract::OwnerTaskStatus::Failed => out.string(b"failed"),
-        jig_client::contract::OwnerTaskStatus::Cancelled => out.string(b"cancelled"),
+        jig_client::contract::TaskStatus::Done => out.string(b"done"),
+        jig_client::contract::TaskStatus::Failed => out.string(b"failed"),
+        jig_client::contract::TaskStatus::Cancelled => out.string(b"cancelled"),
     }
 }

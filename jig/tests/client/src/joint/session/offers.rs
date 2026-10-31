@@ -31,13 +31,13 @@ pub(super) fn read(captured: &mut Option<Captured>, source: &reads::Answer, inco
     match (source, native) {
         (reads::Answer::Document(source), native) => {
             let (key, original, received) = match (source.as_ref(), native) {
-                (documents::Document::Proposal(source), client::ReadValue::OwnerProposal(native)) => {
+                (documents::Document::Proposal(source), client::ReadValue::Proposal(native)) => {
                     (client::ObjectKey::Proposal(native.key), &source.acts, &native.acts)
                 }
-                (documents::Document::Escalation(source), client::ReadValue::OwnerEscalation(native)) => {
+                (documents::Document::Escalation(source), client::ReadValue::Escalation(native)) => {
                     (client::ObjectKey::Escalation(source.task.chip.number), &source.acts, &native.acts)
                 }
-                (documents::Document::PersonTask(source), client::ReadValue::OwnerPersonTask(native)) => {
+                (documents::Document::PersonTask(source), client::ReadValue::PersonTask(native)) => {
                     (client::ObjectKey::PersonTask(source.task.number), &source.acts, &native.acts)
                 }
                 (documents::Document::Question(source), client::ReadValue::Question(native)) => (

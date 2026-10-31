@@ -194,7 +194,7 @@ pub fn wire_setting_policy(value: &c::SettingPolicy, limits: &w::Limits) -> Resu
 pub fn restore_setting_policy(value: &w::SettingPolicy, limits: &Limits) -> Result<c::SettingPolicy, w::Problem> {
     let mut projections = List::with_capacity(value.projections().len());
     for item in value.projections() {
-        projections.push(super::documents::owner_grant_fields(item)).expect("same capacity");
+        projections.push(super::documents::grant_fields(item)).expect("same capacity");
     }
     let mut roles = List::with_capacity(value.roles().len());
     for item in value.roles() {
@@ -217,7 +217,7 @@ pub fn restore_setting_policy(value: &w::SettingPolicy, limits: &Limits) -> Resu
             Some(item) => Some(*item),
             None => None,
         },
-        ceiling: super::documents::owner_authority_fields(value.ceiling(), limits)?,
+        ceiling: super::documents::authority_fields(value.ceiling(), limits)?,
         projections,
         period_spend: value.period_spend(),
         roles,
@@ -230,9 +230,9 @@ pub fn wire_rules(value: &c::Rules, limits: &w::Limits) -> Result<w::Rules, w::P
     let mut implies = List::with_capacity(value.implies.len());
     for item in &value.implies {
         implies
-            .push(w::OwnerKindImplication::new(
+            .push(w::KindImplication::new(
                 limits,
-                w::OwnerKindImplicationParts { connector: item.connector, kind: item.kind, implies: item.implies },
+                w::KindImplicationParts { connector: item.connector, kind: item.kind, implies: item.implies },
             )?)
             .expect("same capacity");
     }
@@ -256,7 +256,7 @@ pub fn restore_rules(value: &w::Rules, limits: &Limits) -> Result<c::Rules, w::P
     let mut implies = List::with_capacity(value.implies().len());
     for item in value.implies() {
         implies
-            .push(c::OwnerKindImplication { connector: item.connector(), kind: item.kind(), implies: item.implies() })
+            .push(c::KindImplication { connector: item.connector(), kind: item.kind(), implies: item.implies() })
             .expect("same capacity");
     }
     let mut requirements = List::with_capacity(value.requirements().len());
@@ -264,7 +264,7 @@ pub fn restore_rules(value: &w::Rules, limits: &Limits) -> Result<c::Rules, w::P
         requirements.push(super::documents::policy_requirement_fields(item)).expect("same capacity");
     }
     Ok(c::Rules {
-        ceiling: super::documents::owner_authority_fields(value.ceiling(), limits)?,
+        ceiling: super::documents::authority_fields(value.ceiling(), limits)?,
         period_spend: value.period_spend(),
         minimum_run_spend: value.minimum_run_spend(),
         maximum_run_spend: value.maximum_run_spend(),
@@ -899,7 +899,7 @@ fn decode_revision_item_pieces(values: &[u8], limits: &Limits) -> Result<List<c:
 fn restore_policy_edit_role(value: &w::PolicyEditRole, limits: &Limits) -> Result<c::PolicyEditRole, w::Problem> {
     Ok(c::PolicyEditRole {
         number: value.number(),
-        authority: super::documents::owner_authority_fields(value.authority(), limits)?,
+        authority: super::documents::authority_fields(value.authority(), limits)?,
         period_spend: value.period_spend(),
         requests: value.requests(),
         decides: value.decides(),
@@ -1047,29 +1047,29 @@ fn wire_task_contract(
         }
     })
 }
-fn wire_owner_part(value: &c::OwnerPart, limits: &w::Limits) -> Result<w::OwnerPart, w::Problem> {
+fn wire_owner_part(value: &c::Part, limits: &w::Limits) -> Result<w::Part, w::Problem> {
     let kind = match value.kind {
-        c::OwnerPartKind::Resource => w::OwnerPartKind::Resource,
-        c::OwnerPartKind::Pool => w::OwnerPartKind::Pool,
-        c::OwnerPartKind::Result => w::OwnerPartKind::Result,
-        c::OwnerPartKind::Procedure => w::OwnerPartKind::Procedure,
-        c::OwnerPartKind::Effect => w::OwnerPartKind::Effect,
-        c::OwnerPartKind::Outbox => w::OwnerPartKind::Outbox,
-        c::OwnerPartKind::Hold => w::OwnerPartKind::Hold,
+        c::PartKind::Resource => w::PartKind::Resource,
+        c::PartKind::Pool => w::PartKind::Pool,
+        c::PartKind::Result => w::PartKind::Result,
+        c::PartKind::Procedure => w::PartKind::Procedure,
+        c::PartKind::Effect => w::PartKind::Effect,
+        c::PartKind::Outbox => w::PartKind::Outbox,
+        c::PartKind::Hold => w::PartKind::Hold,
     };
     let key = match &value.key {
-        c::OwnerPartKey::Number(value) => {
-            w::OwnerPartKey::Number(w::OwnerPartKeyNumber::new(limits, w::OwnerPartKeyNumberParts { value: *value })?)
+        c::PartKey::Number(value) => {
+            w::PartKey::Number(w::PartKeyNumber::new(limits, w::PartKeyNumberParts { value: *value })?)
         }
-        c::OwnerPartKey::Path(values) => {
+        c::PartKey::Path(values) => {
             let mut rows = List::with_capacity(values.len());
             for value in values {
                 rows.push(bytes::copy_of(value)).expect("same capacity");
             }
-            w::OwnerPartKey::Path(w::OwnerPartKeyPath::new(limits, w::OwnerPartKeyPathParts { value: rows })?)
+            w::PartKey::Path(w::PartKeyPath::new(limits, w::PartKeyPathParts { value: rows })?)
         }
     };
-    w::OwnerPart::new(limits, w::OwnerPartParts { connector: value.connector, kind, key })
+    w::Part::new(limits, w::PartParts { connector: value.connector, kind, key })
 }
 
 // Count the bounded pieces before reserving the actual rows; an empty change allocates no rows.

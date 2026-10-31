@@ -45,8 +45,8 @@ pub(in crate::tests) fn change() -> Amendment {
         tracked: None,
     }
 }
-fn counts() -> PhaseCounts {
-    PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 }
+fn counts() -> ImpactCounts {
+    ImpactCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 }
 }
 pub(in crate::tests) fn task() -> Task {
     Task {
@@ -65,14 +65,14 @@ pub(in crate::tests) fn task() -> Task {
         lineage_chips: List::with_capacity(0),
         inputs: List::with_capacity(0),
         project: 1,
-        requester: OwnerRequester::Person(7),
+        requester: Requester::Person(7),
         lineage: List::with_capacity(0),
         spec: specification(text(b"spec")),
         spec_revision: Revision { value: 9 },
         person_revision: None,
         taken_by: None,
         instructions: Some(DocumentText::complete(text(b"instructions"))),
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Immediate,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -87,8 +87,8 @@ pub(in crate::tests) fn task() -> Task {
         cut: false,
         references: List::with_capacity(0),
         resources: List::with_capacity(0),
-        budget: OwnerBudget {
-            numbers: OwnerNumbers { budget: 10, spent: 0, spent_below: 0, reserved: 0 },
+        budget: Budget {
+            numbers: Numbers { budget: 10, spent: 0, spent_below: 0, reserved: 0 },
             left: 10,
             funder: Funder::Pool { project: 1, person: 7, period: 3 },
             deadline: None,
@@ -305,17 +305,14 @@ fn bounded_amendment_dimensions() {
     facts.deadline = Some(Wall::from_nanos(100));
     facts.tools = 1_u64 << 7_u32;
     facts.delegation.kinds = List::with_capacity(1);
-    facts.delegation.kinds.push(OwnerAuthorityExecutor::Role(4)).unwrap();
+    facts.delegation.kinds.push(AuthorityExecutor::Role(4)).unwrap();
     facts.notes = 1;
     facts.note_resources = List::with_capacity(1);
     facts
         .note_resources
-        .push(OwnerResourceScope {
+        .push(ResourceScope {
             connector: 1,
-            pattern: OwnerPattern {
-                segments: List::with_capacity(0),
-                last: OwnerPatternEnd::Exact(Box::from(*b"listed")),
-            },
+            pattern: Pattern { segments: List::with_capacity(0), last: PatternEnd::Exact(Box::from(*b"listed")) },
         })
         .unwrap();
     let mut maximum = facts.clone();
@@ -328,8 +325,8 @@ fn bounded_amendment_dimensions() {
             budget_left: 10,
             implications: List::with_capacity(0),
             grants: List::with_capacity(0),
-            authority: Box::new(OwnerAuthorityDocument::complete(facts.clone())),
-            ceiling: Box::new(OwnerAuthorityDocument::complete(maximum)),
+            authority: Box::new(AuthorityDocument::complete(facts.clone())),
+            ceiling: Box::new(AuthorityDocument::complete(maximum)),
         },
         beyond: Beyond::Proposed { to: Recipient::Party(9) },
     };
@@ -344,7 +341,7 @@ fn bounded_amendment_dimensions() {
             2 => outside.delegation.tasks = 6,
             3 => outside.deadline = Some(Wall::from_nanos(101)),
             4 => outside.tools = 1_u64 << 8_u32,
-            5 => *outside.delegation.kinds.get_mut(0).unwrap() = OwnerAuthorityExecutor::Role(5),
+            5 => *outside.delegation.kinds.get_mut(0).unwrap() = AuthorityExecutor::Role(5),
             6 => outside.note_resources.get_mut(0).unwrap().connector = 2,
             _ => unreachable!(),
         }
@@ -365,7 +362,7 @@ fn bounded_amendment_dimensions() {
     let mut narrower = existing.clone();
     narrower.spend = 19;
     draft.authority = Some(narrower);
-    assert_eq!(admission::amendment(&offer, &draft, &OwnerAuthorityDocument::complete(existing)), Admission::Allowed);
+    assert_eq!(admission::amendment(&offer, &draft, &AuthorityDocument::complete(existing)), Admission::Allowed);
 }
 
 #[test]
@@ -427,17 +424,17 @@ fn bounded_authority_drafts_use_literal_pattern_order_and_complete_source_facts(
             let (mut domain, _) = live();
             let mut row = task();
             let segments = crate::tests::kit::list_in(2, [Box::from(*b"env\0")]);
-            let current = OwnerGrant {
+            let current = Grant {
                 connector: u16::MAX,
                 kind: u16::MAX,
-                pattern: OwnerPattern { segments: segments.clone(), last: OwnerPatternEnd::Exact(Box::from(*b"a/b")) },
+                pattern: Pattern { segments: segments.clone(), last: PatternEnd::Exact(Box::from(*b"a/b")) },
             };
             row.authority.authority.grants = List::with_capacity(2);
             row.authority.authority.grants.push(current.clone()).unwrap();
             row.authority.cut = cuts & 1 != 0;
             let mut direct = row.authority.clone();
             direct.authority.spend = 15;
-            direct.authority.grants.get_mut(0).unwrap().pattern.last = OwnerPatternEnd::Open(Box::from(*b"a"));
+            direct.authority.grants.get_mut(0).unwrap().pattern.last = PatternEnd::Open(Box::from(*b"a"));
             direct.cut = cuts & 2 != 0;
             let mut ceiling = direct.clone();
             ceiling.authority.spend = 100;
@@ -498,9 +495,8 @@ fn bounded_authority_uses_only_supplied_connector_kind_implications_and_preserve
         for relation in 0_u8..4 {
             let (mut domain, _) = live();
             let mut row = task();
-            let pattern =
-                OwnerPattern { segments: List::with_capacity(0), last: OwnerPatternEnd::Exact(Box::from(*b"a/b\0")) };
-            let grant = OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern };
+            let pattern = Pattern { segments: List::with_capacity(0), last: PatternEnd::Exact(Box::from(*b"a/b\0")) };
+            let grant = Grant { connector: u16::MAX, kind: u16::MAX, pattern };
             row.authority.authority.grants = List::with_capacity(1);
             row.authority.authority.grants.push(grant).unwrap();
             let mut after = row.authority.authority.clone();
@@ -511,7 +507,7 @@ fn bounded_authority_uses_only_supplied_connector_kind_implications_and_preserve
             let mut ceiling = direct.clone();
             ceiling.authority.spend = 100;
             ceiling.authority.grants = after.grants.clone();
-            let entry = OwnerKindImplication {
+            let entry = KindImplication {
                 connector: if relation == 3 { 0 } else { u16::MAX },
                 kind: if relation == 2 { 0 } else { u16::MAX },
                 implies: if relation == 2 { u16::MAX } else { 0 },
@@ -605,11 +601,11 @@ fn intend_amend_release(domain: &mut Fixture, id: Id<Object>) -> Box<[Request]> 
     drive(domain, Time::ZERO, Event::Act { action: Act::AmendRelease { object: id.token() } })
 }
 
-fn bounded_grant() -> OwnerGrant {
-    OwnerGrant {
+fn bounded_grant() -> Grant {
+    Grant {
         connector: 1,
         kind: 2,
-        pattern: OwnerPattern { segments: List::with_capacity(0), last: OwnerPatternEnd::Exact(Box::from(*b"listed")) },
+        pattern: Pattern { segments: List::with_capacity(0), last: PatternEnd::Exact(Box::from(*b"listed")) },
     }
 }
 
@@ -620,14 +616,14 @@ pub(crate) mod cancel_reason;
 pub(in crate::tests) fn reread(domain: &mut Fixture, body: Body, what: Read) {
     let read = domain.request_read(Source::Window { number: 4 }, what).unwrap();
     let value = match body {
-        Body::OwnerEscalation(document) => ReadValue::OwnerEscalation(document),
+        Body::Escalation(document) => ReadValue::Escalation(document),
         Body::Task(document) => ReadValue::Task(document),
 
-        Body::OwnerPersonTask(document) => ReadValue::OwnerPersonTask(document),
-        Body::OwnerProposal(_)
+        Body::PersonTask(document) => ReadValue::PersonTask(document),
+        Body::Proposal(_)
         | Body::Question(_)
         | Body::Result(_)
-        | Body::Historical(_)
+        | Body::Ended(_)
         | Body::Chip(_)
         | Body::Note { .. } => unreachable!(),
     };

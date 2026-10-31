@@ -1,11 +1,10 @@
 //! Wire projections of reads facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, pieces, w};
 use super::{
-    wire_activity_line, wire_archived_turn, wire_history_row, wire_me, wire_note, wire_owner_deployment,
-    wire_owner_ended_page, wire_owner_escalation, wire_owner_historical, wire_owner_inbox_page, wire_owner_person_task,
-    wire_owner_project, wire_owner_proposal, wire_owner_spend_page, wire_question, wire_result_document,
-    wire_revision_answer, wire_revisions_page, wire_setting_document, wire_settings_document, wire_task,
-    wire_task_page,
+    wire_archived_turn, wire_decoded_activity_line, wire_deployment, wire_ended, wire_ended_page, wire_escalation,
+    wire_history_row, wire_inbox_page, wire_me, wire_note, wire_person_task, wire_project, wire_proposal,
+    wire_question, wire_result_document, wire_revision_answer, wire_revisions_page, wire_setting_document,
+    wire_settings_document, wire_spend_page, wire_task, wire_task_page,
 };
 pub(in crate::codec) fn wire_read_value(value: &c::ReadValue, limits: &w::Limits) -> Result<w::ReadValue, w::Problem> {
     Ok::<_, w::Problem>(match value {
@@ -17,23 +16,23 @@ pub(in crate::codec) fn wire_read_value(value: &c::ReadValue, limits: &w::Limits
         )?),
         c::ReadValue::Revisions(value) => w::ReadValue::Revisions(wire_revisions_page(value, limits)?),
         c::ReadValue::Tasks(value) => w::ReadValue::Tasks(wire_task_page(value, limits)?),
-        c::ReadValue::OwnerProject(value) => w::ReadValue::OwnerProject(wire_owner_project(value, limits)?),
-        c::ReadValue::Historical(value) => w::ReadValue::Historical(Box::new(wire_owner_historical(value, limits)?)),
+        c::ReadValue::Project(value) => w::ReadValue::Project(wire_project(value, limits)?),
+        c::ReadValue::Ended(value) => w::ReadValue::Ended(Box::new(wire_ended(value, limits)?)),
         c::ReadValue::Me(value) => w::ReadValue::Me(wire_me(value, limits)?),
         c::ReadValue::Turn(value) => w::ReadValue::Turn(wire_archived_turn(value, limits)?),
         c::ReadValue::Task(value) => w::ReadValue::Task(wire_task(value, limits)?),
-        c::ReadValue::OwnerProposal(value) => w::ReadValue::OwnerProposal(wire_owner_proposal(value, limits)?),
-        c::ReadValue::OwnerEscalation(value) => w::ReadValue::OwnerEscalation(wire_owner_escalation(value, limits)?),
+        c::ReadValue::Proposal(value) => w::ReadValue::Proposal(wire_proposal(value, limits)?),
+        c::ReadValue::Escalation(value) => w::ReadValue::Escalation(wire_escalation(value, limits)?),
         c::ReadValue::Question(value) => w::ReadValue::Question(wire_question(value, limits)?),
-        c::ReadValue::OwnerPersonTask(value) => w::ReadValue::OwnerPersonTask(wire_owner_person_task(value, limits)?),
+        c::ReadValue::PersonTask(value) => w::ReadValue::PersonTask(wire_person_task(value, limits)?),
         c::ReadValue::Result(value) => w::ReadValue::Result(wire_result_document(value, limits)?),
-        c::ReadValue::OwnerEnded(value) => w::ReadValue::OwnerEnded(wire_owner_ended_page(value, limits)?),
+        c::ReadValue::EndedPage(value) => w::ReadValue::EndedPage(wire_ended_page(value, limits)?),
         c::ReadValue::History(value) => w::ReadValue::History(wire_history_page(value, limits)?),
         c::ReadValue::Activity(value) => w::ReadValue::Activity(wire_activity_page(value, limits)?),
-        c::ReadValue::OwnerInbox(value) => w::ReadValue::OwnerInbox(wire_owner_inbox_page(value, limits)?),
-        c::ReadValue::OwnerSpend(value) => w::ReadValue::OwnerSpend(wire_owner_spend_page(value, limits)?),
+        c::ReadValue::Inbox(value) => w::ReadValue::Inbox(wire_inbox_page(value, limits)?),
+        c::ReadValue::Spend(value) => w::ReadValue::Spend(wire_spend_page(value, limits)?),
         c::ReadValue::Notes(value) => w::ReadValue::Notes(wire_note_page(value, limits)?),
-        c::ReadValue::OwnerDeployment(value) => w::ReadValue::OwnerDeployment(wire_owner_deployment(value, limits)?),
+        c::ReadValue::Deployment(value) => w::ReadValue::Deployment(wire_deployment(value, limits)?),
     })
 }
 
@@ -69,9 +68,9 @@ pub(in crate::codec) fn wire_activity_page(
         w::ActivityPageParts {
             cut: value.cut,
             rows: pieces(
-                value.rows.iter().map(|item| wire_activity_line(item, limits)),
-                w::ActivityLine::measure,
-                w::ActivityLine::encode,
+                value.rows.iter().map(|item| wire_decoded_activity_line(item, limits)),
+                w::DecodedActivityLine::measure,
+                w::DecodedActivityLine::encode,
             )?,
             before: value.before.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,
             after: value.after.as_ref().map(|item| wire_cursor(item, limits)).transpose()?,

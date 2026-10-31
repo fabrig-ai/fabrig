@@ -7,14 +7,14 @@ pub(crate) fn progress(side: &mut Side, client: &Client, out: &mut Queue<Request
 }
 /// A usable source of a provider other than the playground's, or any provider without a playground.
 #[must_use]
-pub fn usable_account(line: &c::OwnerAccountLine, playground_provider: Option<u32>) -> bool {
+pub fn usable_account(line: &c::AccountLine, playground_provider: Option<u32>) -> bool {
     if playground_provider.is_some() && line.provider == playground_provider {
         return false;
     }
     usable_sources(&line.sources)
 }
 
-fn usable_sources(sources: &skein_lib::List<c::OwnerAccountSource>) -> bool {
+fn usable_sources(sources: &skein_lib::List<c::AccountSource>) -> bool {
     for source in sources {
         if source.usable {
             return true;
@@ -28,8 +28,8 @@ fn usable_sources(sources: &skein_lib::List<c::OwnerAccountSource>) -> bool {
 /// `deployment` document (client/README.md, 3.5 and 4.8).
 #[must_use]
 pub fn other_model_usable(
-    accounts: &c::OwnerAccounts,
-    deployment: Option<&c::OwnerDeployment>,
+    accounts: &c::Accounts,
+    deployment: Option<&c::Deployment>,
     playground_provider: u32,
 ) -> bool {
     for line in &accounts.accounts {
@@ -47,13 +47,13 @@ pub fn other_model_usable(
 /// and uncut, in an owner's delivered, uncut `deployment` (client/README.md, 3.5, 4.8).
 #[must_use]
 #[expect(clippy::manual_find, reason = "step code uses bounded loops without closures")]
-pub fn deployment_model(deployment: &c::OwnerDeployment, playground_provider: u32) -> Option<&c::OwnerAccount> {
+pub fn deployment_model(deployment: &c::Deployment, playground_provider: u32) -> Option<&c::Account> {
     if deployment.cut {
         return None;
     }
     for account in &deployment.accounts {
         if !account.cut
-            && account.holder == c::OwnerAccountHolder::Deployment
+            && account.holder == c::AccountHolder::Deployment
             && account.provider != Some(playground_provider)
             && usable_sources(&account.sources)
         {
@@ -65,7 +65,7 @@ pub fn deployment_model(deployment: &c::OwnerDeployment, playground_provider: u3
 
 /// The owner's delivered, uncut deployment, through the playground's one live watch.
 #[must_use]
-pub fn owner_deployment<'a>(side: &Side, client: &'a Client) -> Option<&'a c::OwnerDeployment> {
+pub fn owner_deployment<'a>(side: &Side, client: &'a Client) -> Option<&'a c::Deployment> {
     if !owner(client) {
         return None;
     }
@@ -74,7 +74,7 @@ pub fn owner_deployment<'a>(side: &Side, client: &'a Client) -> Option<&'a c::Ow
     if document.state != jig_client::State::Live {
         return None;
     }
-    let Some(Latest::Jig(c::Delivery::OwnerDeployment(deployment))) = document.latest else { return None };
+    let Some(Latest::Jig(c::Delivery::Deployment(deployment))) = document.latest else { return None };
     if deployment.cut {
         return None;
     }

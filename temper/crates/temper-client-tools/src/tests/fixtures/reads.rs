@@ -75,7 +75,7 @@ pub(crate) fn task_line() -> c::TaskLine {
         ended_at: None,
         budget: task.budget,
         waits_on: task.waits_on,
-        phases: c::OwnerPhaseCounts {
+        phases: c::PhaseCounts {
             waiting: 0,
             idle: 0,
             starting: 0,
@@ -194,7 +194,7 @@ pub(crate) fn composite_call(argv: &[&str]) -> (Harness, u32) {
     root.serve(call, activity_too_large());
     root.deliver_subject(
         &client::Watchable::Jig(c::Subject::Tree { task: TASK, window: crate::limits::ROWS }),
-        c::Delivery::OwnerTree(Box::new(composite_tree())),
+        c::Delivery::Tree(Box::new(composite_tree())),
     );
     root.deliver_run(no_provisional());
     (root, call)
@@ -228,7 +228,7 @@ pub(crate) fn inbox_rows(group: c::InboxReadGroup, count: u32, more: bool) -> c:
         rows.push(crate::tests::documents::entry(object, PROJECT, u64::from(index), Wall::EPOCH, None))
             .expect("bounded inbox rows");
     }
-    c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(jig_client::contract::OwnerInboxPage {
+    c::ReadResult::Value(c::ReadValue::Inbox(Box::new(jig_client::contract::InboxPage {
         cut: false,
         rows,
         before: None,
@@ -240,7 +240,7 @@ pub(crate) fn inbox_answer(needs: u32, updates: u32, more: bool) -> crate::jig::
     let (mut root, call) = read_call(INBOX_CALL);
     root.serve(call, inbox_rows(c::InboxReadGroup::Needs, needs, false));
     root.serve(call, inbox_rows(c::InboxReadGroup::Updates, updates, more));
-    root.deliver_subject(&inbox_watch(), c::Delivery::OwnerInbox(Box::new(inbox_window(needs, updates, more))));
+    root.deliver_subject(&inbox_watch(), c::Delivery::Inbox(Box::new(inbox_window(needs, updates, more))));
     root.answer(call).expect("inbox answered once")
 }
 /// A full needs page leaves no room for the single update; a smaller page fits.
@@ -257,10 +257,10 @@ pub(crate) fn activity_words() -> c::ReadResult {
         rows.push(crate::tests::documents::line(
             u64::from(index).checked_add(1).expect("fixture position"),
             Wall::EPOCH,
-            jig_client::contract::OwnerActivity::Words {
+            jig_client::contract::Activity::Words {
                 message: u64::from(index),
-                by: jig_client::contract::OwnerRequester::Person((activity_party()).number),
-                kind: jig_client::contract::OwnerMessageKind::Words,
+                by: jig_client::contract::Requester::Person((activity_party()).number),
+                kind: jig_client::contract::MessageKind::Words,
                 words: turn_words(b"words"),
             },
         ))
@@ -276,7 +276,7 @@ pub(crate) fn activity_words() -> c::ReadResult {
 pub(crate) fn turn_call(path: Option<List<Box<[u8]>>>) -> c::ReadResult {
     let mut parts = List::with_capacity(TURN_REFERENCES);
     if let Some(path) = path {
-        parts.push(c::Part::Resource { connector: 4, path }).expect("one reference");
+        parts.push(c::ApplicationPart::Resource { connector: 4, path }).expect("one reference");
     }
     let mut blocks = List::with_capacity(CALL_RESULT_BLOCKS);
     blocks
@@ -349,8 +349,8 @@ pub(crate) fn extended<'a>(base: &[&'a str], extra: &[&'a str]) -> List<&'a str>
     argv
 }
 
-pub(crate) fn composite_tree() -> c::OwnerTree {
-    c::OwnerTree {
+pub(crate) fn composite_tree() -> c::Tree {
+    c::Tree {
         root: goal(TASK, c::WaitsOn::Nothing).chip,
         rows: List::with_capacity(EMPTY),
         folded: List::with_capacity(EMPTY),
@@ -406,15 +406,14 @@ fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box
             path.push(maximally_escaped_json_text(bytes)).expect("bounded path");
             left = left.checked_sub(bytes).expect("within payload");
         }
-        let key = w::OwnerPartKey::Path(
-            w::OwnerPartKeyPath::new(link.wire(), w::OwnerPartKeyPathParts { value: path }).expect("bounded path"),
+        let key = w::PartKey::Path(
+            w::PartKeyPath::new(link.wire(), w::PartKeyPathParts { value: path }).expect("bounded path"),
         );
-        let part =
-            w::OwnerPart::new(link.wire(), w::OwnerPartParts { connector: 4, kind: w::OwnerPartKind::Resource, key })
-                .expect("bounded resource");
-        let row = w::OwnerResourceLine::new(
+        let part = w::Part::new(link.wire(), w::PartParts { connector: 4, kind: w::PartKind::Resource, key })
+            .expect("bounded resource");
+        let row = w::ResourceLine::new(
             link.wire(),
-            w::OwnerResourceLineParts { part, kind: 1, taken: false, holder: None, writer: None, writer_lost: false },
+            w::ResourceLineParts { part, kind: 1, taken: false, holder: None, writer: None, writer_lost: false },
         )
         .expect("resource row");
         size = size.checked_add(4).expect("piece prefix").checked_add(row.measure()).expect("bounded pieces");
@@ -432,7 +431,7 @@ fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box
 /// The owner read's exact hold facts, including its independent revision.
 pub(crate) fn held_task(mut task: c::Task, reason: c::HoldCategory) -> c::Task {
     task.chip.phase = c::Phase::Held;
-    task.hold = Some(Box::new(c::OwnerChipHold {
+    task.hold = Some(Box::new(c::ChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -440,9 +439,9 @@ pub(crate) fn held_task(mut task: c::Task, reason: c::HoldCategory) -> c::Task {
         source: None,
         reason,
         revision: 9,
-        before: c::OwnerPriorPhase::Waiting,
+        before: c::PriorPhase::Waiting,
         escalation: None,
-        tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
     }));
     task

@@ -60,11 +60,11 @@ pub(crate) mod owner_person_task;
 pub(crate) mod owner_proposal;
 pub(crate) mod task_context;
 
-pub(crate) mod historical_pages;
+pub(crate) mod ended_pages;
 pub(crate) mod owner_deployment;
 pub(crate) mod owner_project;
 
-pub(crate) mod historical_objects;
+pub(crate) mod ended_objects;
 pub(crate) mod owner_effect_parts;
 pub(crate) mod owner_hold_parts;
 pub(crate) mod task_revisit;

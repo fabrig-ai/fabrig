@@ -1,7 +1,7 @@
 use super::*;
 fn semantic() -> HistoryRow {
     let task = task();
-    let before = OwnerAmendmentState {
+    let before = AmendmentState {
         addressed: None,
         taken_by: None,
         instructions: None,
@@ -13,19 +13,19 @@ fn semantic() -> HistoryRow {
     };
     let mut after = before.clone();
     after.instructions = Some(DocumentText::complete(text(b"")));
-    HistoryRow::Change(Box::new(OwnerHistoryLine {
+    HistoryRow::Change(Box::new(HistoryLine {
         task: 8,
         revision: u64::MAX,
-        by: OwnerRequester::Deployment { project: u32::MAX },
-        change: OwnerHistoryChange::Amended,
+        by: Requester::Deployment { project: u32::MAX },
+        change: HistoryChange::Amended,
         reason: DocumentText { bytes: text(b"source reason"), cut: true },
-        proposal: Some(OwnerProposalHistory {
+        proposal: Some(ProposalHistory {
             number: u64::MAX,
             proposer: u64::MAX,
-            action: OwnerRetainedAction::Release { task: 8 },
+            action: RetainedAction::Release { task: 8 },
             as_holder: true,
-            state: OwnerProposalHistoryState::Rejected {
-                by: OwnerRequester::Person(u64::MAX),
+            state: ProposalHistoryState::Rejected {
+                by: Requester::Person(u64::MAX),
                 reason: DocumentText::complete(text(b"independent proposal reason")),
             },
         }),
@@ -34,12 +34,12 @@ fn semantic() -> HistoryRow {
     }))
 }
 fn milestone() -> HistoryRow {
-    HistoryRow::Milestone(Box::new(OwnerMilestoneLine {
+    HistoryRow::Milestone(Box::new(MilestoneLine {
         task: 8,
         position: u64::MAX,
-        phase: OwnerMilestonePhase::Closing {
+        phase: MilestonePhase::Closing {
             stage: ClosingStage::Run { attempt: u64::MAX },
-            ending: OwnerChipEnding::Done(ResultValue::OwnerVerdict {
+            ending: ChipEnding::Done(ResultValue::OwnerVerdict {
                 verdict: u32::MAX,
                 words: DocumentText { bytes: text(b""), cut: true },
                 fields: List::with_capacity(1),

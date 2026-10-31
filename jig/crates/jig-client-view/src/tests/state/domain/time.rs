@@ -133,7 +133,7 @@ fn start(domain: &mut Fixture, limits: &Profile, kept: List<Record>) -> (jig_cli
                 Time::ZERO,
                 ReadPage {
                     read: *read,
-                    result: ReadResult::Value(ReadValue::OwnerInbox(Box::new(OwnerInboxPage {
+                    result: ReadResult::Value(ReadValue::Inbox(Box::new(InboxPage {
                         selection: None,
                         cut: false,
                         rows: List::with_capacity(0),

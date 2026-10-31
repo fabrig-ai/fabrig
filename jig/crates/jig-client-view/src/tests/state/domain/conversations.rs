@@ -4,8 +4,8 @@ use crate::state::objects::{Objects, Source};
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Reported, Watched};
 pub(in crate::tests) use crate::tests::kit::text;
 use jig_client::contract::{
-    ActivityLine, ActivityPage, Block, Call, Cursor, Message, ObjectKey, ProvisionalTurnName, Read, RunText, Speaker,
-    Turn, TurnName, TurnRead, Usage,
+    ActivityPage, Block, Call, Cursor, DecodedActivityLine, Message, ObjectKey, ProvisionalTurnName, Read, RunText,
+    Speaker, Turn, TurnName, TurnRead, Usage,
 };
 use jig_client::thread::{CallName, Fold, Thread};
 use skein_lib::{List, Wall};
@@ -168,7 +168,7 @@ fn routed_conversation() {
     );
     let task_watch = open_token(&opened);
     let mut document = crate::tests::state::domain::confirmation::task();
-    document.chip.executor = jig_client::contract::Executor::Agent { charter: 1 };
+    document.chip.executor = jig_client::contract::ChipExecutor::Agent { charter: 1 };
     document.context.as_mut().expect("supplied task context").runtime =
         Runtime::Running { attempt: 1, since: Wall::EPOCH, tool: None };
     document.activity = 1;
@@ -337,7 +337,7 @@ fn routed_words_join_the_original_request_and_clear_the_composer_only_once() {
     assert!(drain(out).is_empty());
     assert_eq!(domain.conversation().words.rows.get(0).unwrap().words, text(b"first"));
     domain.conversation.words.refused(OTHER_PENDING);
-    let answer = Answer::Done(Outcome::Owner(OwnerOutcome::Said { task: 8, message: 4 }));
+    let answer = Answer::Done(Outcome::Document(DocumentOutcome::Said { task: 8, message: 4 }));
     drive(&mut domain, Time::ZERO, AnsweredByEngine { request: submitted, answer: answer.clone() });
     assert_eq!(domain.conversation().words.rows.get(0).unwrap().state, jig_client::thread::Words::Sent { message: 4 });
     assert_eq!(domain.fields.get(field).unwrap().text.bytes(), b"");
@@ -379,7 +379,10 @@ fn routed_later_words(domain: &mut Fixture) {
     drive(
         domain,
         Time::ZERO,
-        AnsweredByEngine { request, answer: Answer::Done(Outcome::Owner(OwnerOutcome::Said { task: 8, message: 5 })) },
+        AnsweredByEngine {
+            request,
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::Said { task: 8, message: 5 })),
+        },
     );
     assert_eq!(domain.fields.get(field).unwrap().text.bytes(), b"later");
     assert_eq!(domain.fields.get(field).unwrap().writes, writes);
@@ -487,7 +490,8 @@ fn owner_said_receipts_join_only_the_pending_task_and_preserve_later_composer_ed
                     drive(&mut domain, Time::ZERO, Event::Act { action: Act::Edit { field, text: text(b"later") } });
                 }
                 let writes = domain.fields.get(field).unwrap().writes;
-                let answer = Answer::Done(Outcome::Owner(OwnerOutcome::Said { task: actual_task, message: u64::MAX }));
+                let answer =
+                    Answer::Done(Outcome::Document(DocumentOutcome::Said { task: actual_task, message: u64::MAX }));
                 drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: answer.clone() });
                 if actual_task == 8 {
                     assert_eq!(
@@ -798,15 +802,15 @@ const UTF8_TEXTS: [&[u8]; 8] =
 pub(crate) mod native;
 use native::{feed_run, fold_call, fold_current, native_run, stream};
 
-fn row(position: u64) -> ActivityLine {
-    ActivityLine {
-        source: Box::new(jig_client::contract::OwnerActivityLine {
+fn row(position: u64) -> DecodedActivityLine {
+    DecodedActivityLine {
+        source: Box::new(jig_client::contract::ActivityLine {
             task: 9,
             position,
             at: Wall::EPOCH,
-            line: jig_client::contract::OwnerActivity::RunBegan {
+            line: jig_client::contract::Activity::RunBegan {
                 attempt: 1,
-                why: jig_client::contract::OwnerRunWhy::Made,
+                why: jig_client::contract::RunWhy::Made,
                 resumed: false,
             },
         }),
@@ -814,7 +818,7 @@ fn row(position: u64) -> ActivityLine {
     }
 }
 
-fn calls(position: u64, number: u32) -> ActivityLine {
+fn calls(position: u64, number: u32) -> DecodedActivityLine {
     let blocks = crate::tests::kit::list_in(2, [Block::Call(engine_call())]);
     let messages = crate::tests::kit::list([Message { speaker: Speaker::Assistant, blocks }]);
     crate::tests::fixtures::archive(

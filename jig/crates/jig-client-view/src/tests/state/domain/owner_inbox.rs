@@ -15,24 +15,24 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{List, Time, Wall};
 
-fn entry(task: u64, object: OwnerInboxObject) -> OwnerInboxEntry {
-    OwnerInboxEntry {
+fn entry(task: u64, object: InboxObject) -> InboxEntry {
+    InboxEntry {
         reply: None,
-        task: OwnerTaskLink::Stored { number: task, status: None },
+        task: TaskLink::Stored { number: task, status: None },
         project: None,
         object,
         activity: None,
         at: None,
         unread: None,
-        cursor: OwnerInboxCursor::Number { number: u64::MAX },
+        cursor: InboxCursor::Number { number: u64::MAX },
     }
 }
-fn whole(needs: List<OwnerInboxEntry>, updates: List<OwnerInboxEntry>) -> OwnerInbox {
-    OwnerInbox {
+fn whole(needs: List<InboxEntry>, updates: List<InboxEntry>) -> Inbox {
+    Inbox {
         party: u64::MAX,
         needs,
         updates,
-        next: Some(OwnerInboxCursor::Number { number: 0 }),
+        next: Some(InboxCursor::Number { number: 0 }),
         cached_needs: u32::MAX,
         cached_updates: Count { value: 17, limited: true },
         results_seen: u64::MAX,
@@ -43,19 +43,19 @@ fn whole(needs: List<OwnerInboxEntry>, updates: List<OwnerInboxEntry>) -> OwnerI
 #[test]
 fn owner_inbox_six_raw_objects_full_width_makers_options_and_independent_cursors_survive() {
     let objects = [
-        OwnerInboxObject::Question { message: u64::MAX },
-        OwnerInboxObject::Proposal { proposer: Proposer::Task(u64::MAX), number: 7 },
-        OwnerInboxObject::Proposal { proposer: Proposer::Party(u64::MAX), number: 7 },
-        OwnerInboxObject::Escalation { revision: u64::MAX },
-        OwnerInboxObject::PersonTask,
-        OwnerInboxObject::Reply { message: u64::MAX },
-        OwnerInboxObject::Result { position: u64::MAX },
+        InboxObject::Question { message: u64::MAX },
+        InboxObject::Proposal { proposer: Proposer::Task(u64::MAX), number: 7 },
+        InboxObject::Proposal { proposer: Proposer::Party(u64::MAX), number: 7 },
+        InboxObject::Escalation { revision: u64::MAX },
+        InboxObject::PersonTask,
+        InboxObject::Reply { message: u64::MAX },
+        InboxObject::Result { position: u64::MAX },
     ];
     let mut ids = Vec::new();
     for object in objects {
         let row = entry(u64::MAX, object);
         assert_eq!(row.task_number(), u64::MAX);
-        assert_eq!(row.task, OwnerTaskLink::Stored { number: u64::MAX, status: None });
+        assert_eq!(row.task, TaskLink::Stored { number: u64::MAX, status: None });
         assert_eq!(row.object, object);
         let wrapped = InboxRow::Owner(Box::new(row.clone()));
         assert!(!ids.contains(&wrapped.identity()));
@@ -65,8 +65,7 @@ fn owner_inbox_six_raw_objects_full_width_makers_options_and_independent_cursors
         zero.activity = Some(0);
         zero.at = Some(Wall::EPOCH);
         zero.unread = Some(false);
-        zero.cursor =
-            OwnerInboxCursor::Inbox { task: 0, object: OwnerInboxObject::PersonTask, at: Some(Wall::from_nanos(1)) };
+        zero.cursor = InboxCursor::Inbox { task: 0, object: InboxObject::PersonTask, at: Some(Wall::from_nanos(1)) };
         assert_ne!(row, zero);
         assert_eq!(wrapped.identity(), InboxRow::Owner(Box::new(zero)).identity());
         assert_eq!(row.project, None);
@@ -74,18 +73,18 @@ fn owner_inbox_six_raw_objects_full_width_makers_options_and_independent_cursors
         assert_eq!(row.at, None);
         assert_eq!(row.unread, None);
     }
-    let a = entry(0, OwnerInboxObject::Escalation { revision: 1 });
-    let b = entry(0, OwnerInboxObject::Escalation { revision: 2 });
+    let a = entry(0, InboxObject::Escalation { revision: 1 });
+    let b = entry(0, InboxObject::Escalation { revision: 2 });
     assert_eq!(a.card_key(), b.card_key());
     assert_ne!(InboxRow::Owner(Box::new(a)).identity(), InboxRow::Owner(Box::new(b)).identity());
 }
 #[test]
 fn owner_inbox_whole_groups_aggregate_counts_live_winner_and_unknown_time_source_order_are_independent() {
     let mut page = PageInbox::new(3);
-    let a = entry(1, OwnerInboxObject::Question { message: 7 });
-    let mut b = entry(2, OwnerInboxObject::Escalation { revision: 9 });
+    let a = entry(1, InboxObject::Question { message: 7 });
+    let mut b = entry(2, InboxObject::Escalation { revision: 9 });
     b.at = Some(Wall::from_nanos(5));
-    let result = entry(3, OwnerInboxObject::Result { position: 42 });
+    let result = entry(3, InboxObject::Result { position: 42 });
     let source = whole(list([a.clone(), b.clone()]), list([result.clone()]));
     let unchanged = source.clone();
     page.owner(Box::new(source));
@@ -115,7 +114,7 @@ fn owner_inbox_whole_groups_aggregate_counts_live_winner_and_unknown_time_source
     page.owner_page(
         InboxReadGroup::Needs,
         query.clone(),
-        OwnerInboxPage {
+        InboxPage {
             selection: None,
             cut: true,
             rows: list([old]),
@@ -157,34 +156,30 @@ fn owner_inbox_read_group_original_goal_query_cut_and_opaque_cursor_are_preserve
             _ => None,
         })
         .unwrap();
-    let mut row = entry(3, OwnerInboxObject::Question { message: 5 });
+    let mut row = entry(3, InboxObject::Question { message: 5 });
     row.project = Some(1);
     let original = row.clone();
     let cursor = Cursor::new(Box::from(UTF8_TEXTS[1]), 3).unwrap();
-    let wrong = OwnerInboxPage {
+    let wrong = InboxPage {
         selection: None,
         cut: true,
-        rows: list([entry(3, OwnerInboxObject::Result { position: 9 })]),
+        rows: list([entry(3, InboxObject::Result { position: 9 })]),
         before: None,
         after: Some(cursor.clone()),
     };
-    drive(
-        &mut domain,
-        Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerInbox(Box::new(wrong))) },
-    );
+    drive(&mut domain, Time::ZERO, ReadPage { read, result: ReadResult::Value(ReadValue::Inbox(Box::new(wrong))) });
     assert_eq!(domain.inbox().needs_window.reading, None);
     assert!(domain.inbox().needs_window.rows.is_empty());
     let read = domain.read_again(read);
-    let context = list([OwnerInboxSelection { cursor: row.cursor, goals: list([3, 77]) }]);
-    let page = OwnerInboxPage {
+    let context = list([InboxSelection { cursor: row.cursor, goals: list([3, 77]) }]);
+    let page = InboxPage {
         selection: Some(context.clone()),
         cut: true,
         rows: list([row]),
         before: None,
         after: Some(cursor.clone()),
     };
-    drive(&mut domain, Time::ZERO, ReadPage { read, result: ReadResult::Value(ReadValue::OwnerInbox(Box::new(page))) });
+    drive(&mut domain, Time::ZERO, ReadPage { read, result: ReadResult::Value(ReadValue::Inbox(Box::new(page))) });
     assert_eq!(domain.inbox().rows.get(0), Some(&InboxRow::Owner(Box::new(original))));
     assert_eq!(domain.inbox().needs_window.query, Some(query));
     assert_eq!(domain.inbox().needs_window.selection, Some(context));
@@ -197,15 +192,15 @@ fn owner_inbox_read_group_original_goal_query_cut_and_opaque_cursor_are_preserve
 fn owner_inbox_live_goal_context_is_explicitly_pending_and_bounded_read_membership_is_not_invented() {
     let mut page = PageInbox::new(2);
     page.filter(Filter { project: None, kind: None, goal: Some(77) });
-    page.owner(Box::new(whole(list([entry(3, OwnerInboxObject::Question { message: 5 })]), List::with_capacity(2))));
+    page.owner(Box::new(whole(list([entry(3, InboxObject::Question { message: 5 })]), List::with_capacity(2))));
     assert!(page.goal_context_pending);
     assert!(page.rows.is_empty());
     let query = Read::Inbox { group: InboxReadGroup::Needs, project: None, kind: None, goal: Some(77), after: None };
-    let row = entry(3, OwnerInboxObject::Question { message: 5 });
+    let row = entry(3, InboxObject::Question { message: 5 });
     page.owner_page(
         InboxReadGroup::Needs,
         query,
-        OwnerInboxPage { selection: None, cut: false, rows: list([row.clone()]), before: None, after: None },
+        InboxPage { selection: None, cut: false, rows: list([row.clone()]), before: None, after: None },
     );
     assert_eq!(page.rows.get(0), Some(&InboxRow::Owner(Box::new(row))));
     assert!(page.goal_context_pending);
@@ -217,7 +212,7 @@ fn reply_preview_preserves_task_title_activity_and_read_position() {
     let line = TaskLine {
         chip: crate::tests::state::domain::objects::chip(8),
         project: 1,
-        requester: OwnerRequester::Person(1),
+        requester: Requester::Person(1),
         tracked: None,
         label: 1,
         flags: TaskFlags {
@@ -229,14 +224,14 @@ fn reply_preview_preserves_task_title_activity_and_read_position() {
         changed: Wall::EPOCH,
         last_activity: Wall::EPOCH,
         ended_at: None,
-        budget: OwnerBudget {
-            numbers: OwnerNumbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
+        budget: Budget {
+            numbers: Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
             left: 0,
             funder: Funder::Period { project: 1, period: 0 },
             deadline: None,
         },
         waits_on: WaitsOn::Nothing,
-        phases: OwnerPhaseCounts {
+        phases: PhaseCounts {
             waiting: 0,
             idle: 0,
             starting: 0,
@@ -251,18 +246,14 @@ fn reply_preview_preserves_task_title_activity_and_read_position() {
         held_below: 0,
         conversation: Some(ConversationRead { seen: 4, unread: Count { value: 5, limited: false } }),
     };
-    let mut row = entry(8, OwnerInboxObject::Reply { message: 9 });
+    let mut row = entry(8, InboxObject::Reply { message: 9 });
     row.reply = Some(Box::new(line.clone()));
     row.project = Some(1);
     row.activity = Some(0);
     let mut value = whole(List::with_capacity(0), list([row.clone()]));
     value.party = 7;
     value.results_seen = 0;
-    drive(
-        &mut domain,
-        Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerInbox(Box::new(value))) },
-    );
+    drive(&mut domain, Time::ZERO, Watched { watch, event: WatchEvent::Delivered(Delivery::Inbox(Box::new(value))) });
     let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
     let projected = domain.objects().get(id).unwrap();
     let reply = projected.reply.as_ref().unwrap();
@@ -294,17 +285,17 @@ fn owner_inbox_superseded_query_terminal_retires_without_replacing_the_new_filte
     drive(&mut domain, Time::ZERO, Event::Act { action: crate::state::action::Act::FilterInbox { filter: new } });
     let current = domain.inbox().needs_window.reading.unwrap();
     assert_ne!(token, crate::state::handles::handle(current));
-    let page = OwnerInboxPage {
+    let page = InboxPage {
         selection: None,
         cut: true,
-        rows: list([entry(3, OwnerInboxObject::Question { message: 5 })]),
+        rows: list([entry(3, InboxObject::Question { message: 5 })]),
         before: None,
         after: Some(Cursor::new(Box::from(b"obsolete".as_slice()), 1024).expect("bounded opaque cursor")),
     };
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read: token, result: ReadResult::Value(ReadValue::OwnerInbox(Box::new(page))) },
+        ReadPage { read: token, result: ReadResult::Value(ReadValue::Inbox(Box::new(page))) },
     );
     assert!(!domain.handles.pending(&query));
     assert_eq!(domain.inbox().filter, new);
@@ -315,16 +306,16 @@ fn owner_inbox_superseded_query_terminal_retires_without_replacing_the_new_filte
 }
 
 #[test]
-fn owner_inbox_live_supplied_cursor_roots_control_membership_without_reinterpreting_historical_context() {
+fn owner_inbox_live_supplied_cursor_roots_control_membership_without_reinterpreting_ended_context() {
     let mut page = PageInbox::new(2);
-    let mut a = entry(3, OwnerInboxObject::Question { message: 5 });
-    a.cursor = OwnerInboxCursor::Inbox { task: 3, object: a.object, at: None };
-    let mut b = entry(4, OwnerInboxObject::Escalation { revision: u64::MAX });
-    b.cursor = OwnerInboxCursor::Number { number: 4 };
+    let mut a = entry(3, InboxObject::Question { message: 5 });
+    a.cursor = InboxCursor::Inbox { task: 3, object: a.object, at: None };
+    let mut b = entry(4, InboxObject::Escalation { revision: u64::MAX });
+    b.cursor = InboxCursor::Number { number: 4 };
     let mut source = whole(list([a.clone(), b.clone()]), List::with_capacity(2));
     source.selection = Some(list([
-        OwnerInboxSelection { cursor: a.cursor, goals: list([3, 77, 88, u64::MAX]) },
-        OwnerInboxSelection { cursor: b.cursor, goals: List::with_capacity(4) },
+        InboxSelection { cursor: a.cursor, goals: list([3, 77, 88, u64::MAX]) },
+        InboxSelection { cursor: b.cursor, goals: List::with_capacity(4) },
     ]));
     for goal in [3, 77, 88, u64::MAX] {
         page.filter(Filter { project: None, kind: None, goal: Some(goal) });
@@ -337,13 +328,13 @@ fn owner_inbox_live_supplied_cursor_roots_control_membership_without_reinterpret
     assert!(page.rows.is_empty()); // b's task number supplies no inferred membership.
     page.filter(Filter { project: None, kind: None, goal: Some(77) });
     let query = Read::Inbox { group: InboxReadGroup::Needs, project: None, kind: None, goal: Some(77), after: None };
-    let mut stored = entry(9, OwnerInboxObject::Question { message: 1 });
-    stored.cursor = OwnerInboxCursor::Number { number: 9 };
-    let retained = list([OwnerInboxSelection { cursor: stored.cursor, goals: list([9, 77]) }]);
+    let mut stored = entry(9, InboxObject::Question { message: 1 });
+    stored.cursor = InboxCursor::Number { number: 9 };
+    let retained = list([InboxSelection { cursor: stored.cursor, goals: list([9, 77]) }]);
     page.owner_page(
         InboxReadGroup::Needs,
         query.clone(),
-        OwnerInboxPage {
+        InboxPage {
             selection: Some(retained.clone()),
             cut: true,
             rows: list([stored.clone()]),
@@ -354,15 +345,15 @@ fn owner_inbox_live_supplied_cursor_roots_control_membership_without_reinterpret
     assert_eq!(page.rows.len(), 2);
     assert_eq!(page.needs_window.selection, Some(retained.clone()));
     let mut conflicting = whole(list([stored.clone()]), List::with_capacity(2));
-    conflicting.selection = Some(list([OwnerInboxSelection { cursor: stored.cursor, goals: list([9, 88]) }]));
+    conflicting.selection = Some(list([InboxSelection { cursor: stored.cursor, goals: list([9, 88]) }]));
     page.owner(Box::new(conflicting));
     assert!(!page.goal_context_pending);
     assert!(page.rows.is_empty()); // Current watch is an actual negative, not a guessed one.
     assert!(page.needs_window.rows.is_empty());
     assert_eq!(page.needs_window.query, Some(query));
     assert_eq!(page.needs_window.selection, Some(retained));
-    source.selection = Some(list([OwnerInboxSelection {
-        cursor: OwnerInboxCursor::Inbox { task: 3, object: a.object, at: Some(Wall::EPOCH) },
+    source.selection = Some(list([InboxSelection {
+        cursor: InboxCursor::Inbox { task: 3, object: a.object, at: Some(Wall::EPOCH) },
         goals: list([77]),
     }]));
     page.owner(Box::new(source));

@@ -342,8 +342,11 @@ impl Client {
             }
             SigningTerminal::Stream => {
                 self.stream(event(&w::StreamEvent::Ended(
-                    w::Ended::new(&w::CEILINGS, w::EndedParts { watch: exchanges.watch, why: w::WatchEnd::SignedOut })
-                        .unwrap(),
+                    w::WatchEnded::new(
+                        &w::CEILINGS,
+                        w::WatchEndedParts { watch: exchanges.watch, why: w::WatchEnd::SignedOut },
+                    )
+                    .unwrap(),
                 )));
                 return;
             }
@@ -418,15 +421,15 @@ pub fn me() -> contract::Me {
         .unwrap();
     me
 }
-pub fn facts_chip(phase: contract::OwnerChipPhase, work: Option<contract::OwnerChipWork>) -> contract::Chip {
+pub fn facts_chip(phase: contract::ChipPhase, work: Option<contract::ChipWork>) -> contract::Chip {
     let mut chip = facts_task().chip;
-    let contract::ChipPhase { details, .. } = chip.details.as_mut();
+    let contract::ChipPhaseFacts { details, .. } = chip.details.as_mut();
     details.phase_since = PHASE_SINCE;
     details.ended_at = Some(ENDED_AT);
     details.retry = Some(RETRY_NOTICE);
     details.observation = None;
     if let Some(work) = work {
-        details.observation = Some(contract::OwnerChipObservation {
+        details.observation = Some(contract::ChipObservation {
             channel: Token::new(CHANNEL),
             work,
             since: OBSERVED_SINCE,
@@ -435,7 +438,7 @@ pub fn facts_chip(phase: contract::OwnerChipPhase, work: Option<contract::OwnerC
         });
     }
     let details = details.clone();
-    chip.details = Box::new(contract::ChipPhase { phase, details });
+    chip.details = Box::new(contract::ChipPhaseFacts { phase, details });
     chip
 }
 pub const PHASE_SINCE: Wall = Wall::from_nanos(11);
@@ -502,11 +505,13 @@ pub fn seen_answer() -> Box<[u8]> {
     let seen = w::SeenThrough::Conversation(
         w::SeenConversation::new(&w::CEILINGS, w::SeenConversationParts { task: SUBJECT_TASK, through: 1 }).unwrap(),
     );
-    let marked = w::OwnerOutcomeMarkedSeen::new(&w::CEILINGS, w::OwnerOutcomeMarkedSeenParts { seen }).unwrap();
-    let outcome =
-        w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value: w::OwnerOutcome::MarkedSeen(marked) })
-            .unwrap();
-    let done = w::Done::new(&w::CEILINGS, w::DoneParts { outcome: w::Outcome::Owner(outcome) }).unwrap();
+    let marked = w::OutcomeMarkedSeen::new(&w::CEILINGS, w::OutcomeMarkedSeenParts { seen }).unwrap();
+    let outcome = w::OutcomeDocument::new(
+        &w::CEILINGS,
+        w::OutcomeDocumentParts { value: w::DocumentOutcome::MarkedSeen(marked) },
+    )
+    .unwrap();
+    let done = w::Done::new(&w::CEILINGS, w::DoneParts { outcome: w::Outcome::Document(outcome) }).unwrap();
     let value = w::Final::Done(done);
     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut writer).unwrap();

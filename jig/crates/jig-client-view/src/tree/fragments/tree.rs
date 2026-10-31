@@ -12,7 +12,7 @@ use crate::{
     Borrowed, Config,
     state::{action::Act, ui::borrowed::task::PlanView},
 };
-use jig_client::contract::{Chip, ObjectKey, OwnerPhaseCounts, OwnerTree, OwnerTreeRow, Proposer};
+use jig_client::contract::{Chip, ObjectKey, PhaseCounts, Proposer, Tree, TreeRow};
 use skein_lib::{Set, Stack};
 #[derive(Clone, Copy, Debug)]
 enum Visit {
@@ -34,7 +34,7 @@ fn text(b: &mut Builder, words: &Words, p: P, holes: &[Hole]) {
     let saying = words.book().say(words.language(), p.id(), holes).expect("checked subtree words and typed holes");
     b.text(Run::Plain, &saying.text);
 }
-fn fold(b: &mut Builder, parent: u64, counts: OwnerPhaseCounts, held: u32, words: &Words) {
+fn fold(b: &mut Builder, parent: u64, counts: PhaseCounts, held: u32, words: &Words) {
     b.open(Role::Region);
     let name = words.book().say(words.language(), P::Fold.id(), &[]).expect("checked fold caption");
     b.name(&name.text);
@@ -78,7 +78,7 @@ fn control(
 }
 fn row(
     b: &mut Builder,
-    value: &OwnerTreeRow,
+    value: &TreeRow,
     expanded: bool,
     client: &Borrowed<'_>,
     words: &Words,
@@ -140,7 +140,7 @@ fn row(
 /// Render the retained tree without interpreting its source continuation.
 pub fn render(
     b: &mut Builder,
-    value: &OwnerTree,
+    value: &Tree,
     plan: &PlanView<'_>,
     client: &Borrowed<'_>,
     words: &Words,
@@ -221,7 +221,7 @@ pub fn render(
     text(b, words, P::Held, &[Hole::Number(u64::from(value.held_below))]);
     text(b, words, if value.next.is_some() { P::Next } else { P::End }, &[]);
 }
-fn hidden(row: &OwnerTreeRow, tree: &OwnerTree, plan: &PlanView<'_>) -> bool {
+fn hidden(row: &TreeRow, tree: &Tree, plan: &PlanView<'_>) -> bool {
     let mut parent = row.parent;
     for _ in 0..tree.rows.len() {
         let mut found = None;

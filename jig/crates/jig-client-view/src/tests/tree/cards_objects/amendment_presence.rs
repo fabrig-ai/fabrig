@@ -41,7 +41,7 @@ fn open(row: Task) -> (Fixture, Id<Object>) {
 fn amendment_dependency_and_wake_controls_preserve_only_prior_selected_changes() {
     let mut goldens = Goldens::new("tree/cards_objects/amendment_presence/amendment_dependency_and");
     let mut row = task_doc(&[ActKind::Amend]);
-    row.dependencies = list([OwnerTaskLink::Live(chip())]);
+    row.dependencies = list([TaskLink::Live(chip())]);
     row.wake.notices = WakeRule::Batch { count: 11, age: Duration::from_nanos(22) };
     row.wake.news = WakeRule::Immediate;
     row.wake.questions = true;

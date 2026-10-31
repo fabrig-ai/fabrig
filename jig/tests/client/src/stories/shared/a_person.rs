@@ -98,7 +98,7 @@ pub fn a_draft_survives_reload<F: Front<Test>>(world: &mut World<Test, F>) -> Cl
 /// An owner reads settings and returns to the project overview.
 pub fn reading_project_settings<F: Front<Test>>(world: &mut World<Test, F>) {
     world.seed(Seed::ChatProject { party: 1, project: 1 });
-    world.seed(Seed::OwnerProfile);
+    world.seed(Seed::Profile);
     let client = world.client(1, crate::stories::conversation());
     world.person(
         client,
@@ -123,7 +123,7 @@ pub fn reading_project_settings<F: Front<Test>>(world: &mut World<Test, F>) {
 /// An owner sees deployment capacity, accounts and configured connectors.
 pub fn reading_deployment<F: Front<Test>>(world: &mut World<Test, F>) {
     world.seed(Seed::ChatProject { party: 1, project: 1 });
-    world.seed(Seed::OwnerProfile);
+    world.seed(Seed::Profile);
     let client = world.client(1, RootAddress::Jig(Address::Deployment));
     world.person(
         client,
@@ -185,7 +185,7 @@ fn completed<F: Front<Test>>(world: &mut World<Test, F>, revisit: bool) {
     world.person(
         client,
         vec![
-            Step::See { find: Find::named(Role::Region, b"Historical object"), within: WITHIN },
+            Step::See { find: Find::named(Role::Region, b"Ended object"), within: WITHIN },
             Step::See { find: Find::text(b"finished"), within: WITHIN },
             Step::Gone { find: Find::exactly_named(Role::Button, b"Cancel"), within: WITHIN },
         ],

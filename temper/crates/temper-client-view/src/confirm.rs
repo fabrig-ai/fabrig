@@ -240,11 +240,11 @@ fn close(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings)
     b.close();
 }
 fn run_live(task: &jig_client::contract::Task) -> bool {
-    use jig_client::contract::{ChipPhase, OwnerChipPhase, RunStage};
+    use jig_client::contract::{ChipPhase, ChipPhaseFacts, RunStage};
     let stage = match task.chip.details.as_ref() {
-        ChipPhase { phase: OwnerChipPhase::Active(stage), .. } => Some(stage),
+        ChipPhaseFacts { phase: ChipPhase::Active(stage), .. } => Some(stage),
 
-        ChipPhase { .. } => None,
+        ChipPhaseFacts { .. } => None,
     };
     match stage {
         Some(RunStage::Claimed { .. } | RunStage::Running { .. }) => true,

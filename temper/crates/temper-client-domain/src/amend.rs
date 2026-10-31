@@ -7,7 +7,7 @@ pub struct Draft {
     revision: c::Revision,
     tracked: c::Tracking,
     spec: c::SpecificationDocument,
-    authority: Option<c::OwnerAuthority>,
+    authority: Option<c::Authority>,
     instructions: Option<c::DocumentText>,
     dependencies: List<u64>,
     llm: Option<c::LlmChoice>,

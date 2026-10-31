@@ -13,7 +13,7 @@ use jig_client::contract::*;
 use skein_lib::{Id, Wall, bytes::copy_of};
 use skein_ui::phrases::{HoleKind, PhraseLimits, Phrasebook, Segment, WallFormat};
 use skein_ui::{Builder, Tree};
-fn fixture(from: Option<OwnerRequester>) -> (Fixture, Id<Object>, Question) {
+fn fixture(from: Option<Requester>) -> (Fixture, Id<Object>, Question) {
     let mut value = question();
     value.from = from;
     value.words = DocumentText::complete(text(UTF8_TEXTS[0]));
@@ -55,7 +55,7 @@ fn selected() -> Words {
             Box::new([first, second]),
             &PhraseLimits {
                 languages: 2,
-                phrases: crate::words::owner_words::phrase_count(),
+                phrases: crate::words::document_words::phrase_count(),
                 holes: 4,
                 segments: 6000,
                 text_bytes: 100_000,
@@ -72,12 +72,12 @@ fn question_sender_cards_render_exact_closed_kinds_full_widths_and_no_claim_for_
     let mut goldens = Goldens::new("state/question_sender/question_sender_cards");
     for from in [
         None,
-        Some(OwnerRequester::Task(0)),
-        Some(OwnerRequester::Task(u64::MAX)),
-        Some(OwnerRequester::Person(0)),
-        Some(OwnerRequester::Person(u64::MAX)),
-        Some(OwnerRequester::Deployment { project: 0 }),
-        Some(OwnerRequester::Deployment { project: u32::MAX }),
+        Some(Requester::Task(0)),
+        Some(Requester::Task(u64::MAX)),
+        Some(Requester::Person(0)),
+        Some(Requester::Person(u64::MAX)),
+        Some(Requester::Deployment { project: 0 }),
+        Some(Requester::Deployment { project: u32::MAX }),
     ] {
         let (d, id, value) = fixture(from);
         let shown = tree(&d, id, words());
@@ -89,11 +89,7 @@ fn question_sender_cards_render_exact_closed_kinds_full_widths_and_no_claim_for_
 fn question_sender_selected_language_keeps_reordered_numeric_holes_whole_words_and_waiting_clock() {
     let mut goldens = Goldens::new("state/question_sender/question_sender_selected");
     let w = selected();
-    for from in [
-        OwnerRequester::Task(u64::MAX),
-        OwnerRequester::Person(u64::MAX),
-        OwnerRequester::Deployment { project: u32::MAX },
-    ] {
+    for from in [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }] {
         let (d, id, value) = fixture(Some(from));
         let shown = tree(&d, id, &w);
         goldens.check(&shown);

@@ -1,4 +1,4 @@
-use crate::tests::fixtures::{AnsweredByEngine, Ended, Fixture, ReadPage, Tick, Watched, one};
+use crate::tests::fixtures::{AnsweredByEngine, Ended as WatchEnded, Fixture, ReadPage, Tick, Watched, one};
 use crate::tests::state::domain::{objects, spine::drive};
 use crate::{
     Event, Request,
@@ -32,7 +32,7 @@ fn task_watch(domain: &mut Fixture, task: u64) -> jig_client::Handle {
     token.unwrap()
 }
 fn terminal(domain: &mut Fixture, watch: jig_client::Handle, end: WatchEnd) -> Box<[Request]> {
-    drive(domain, Time::ZERO, Ended { watch, end })
+    drive(domain, Time::ZERO, WatchEnded { watch, end })
 }
 fn task_read(output: &[Request]) -> jig_client::Handle {
     let mut token = None;
@@ -61,12 +61,12 @@ fn no_reads(output: &[Request]) {
         }
     }
 }
-fn historical() -> OwnerHistorical {
+fn ended() -> Ended {
     let mut document = crate::tests::state::domain::confirmation::task();
     document.context = None;
-    OwnerHistorical {
+    Ended {
         key: ObjectKey::Task(8),
-        value: OwnerHistoricalValue::Task {
+        value: EndedValue::Task {
             result: Box::new(Result {
                 task: document.chip.clone(),
                 ending: Ending::Done,
@@ -87,23 +87,23 @@ fn cancelled_task() -> Task {
     details.ending = Some(cancelled_ending());
     details.ended_at = Some(Wall::EPOCH);
     task.chip.phase = Phase::Ended;
-    task.chip.details = Box::new(ChipPhase { phase: OwnerChipPhase::Ended, details: Box::new(details) });
+    task.chip.details = Box::new(ChipPhaseFacts { phase: ChipPhase::Ended, details: Box::new(details) });
     task.context = None;
     task.result = Some(TaskResult::Ending(Box::new(cancelled_ending())));
     task
 }
-fn cancelled_ending() -> OwnerChipEnding {
-    OwnerChipEnding::Cancelled {
+fn cancelled_ending() -> ChipEnding {
+    ChipEnding::Cancelled {
         reason: DocumentText::complete(objects::text(b"cancelled")),
         result: None,
-        by: OwnerRequester::Person(CANCELLING_PARTY),
+        by: Requester::Person(CANCELLING_PARTY),
         at: Wall::EPOCH,
     }
 }
-fn cancelled_historical() -> OwnerHistorical {
-    let mut facts = historical();
-    let OwnerHistoricalValue::Task { document, result } = &mut facts.value else {
-        unreachable!("historical fixture holds a task");
+fn cancelled_ended() -> Ended {
+    let mut facts = ended();
+    let EndedValue::Task { document, result } = &mut facts.value else {
+        unreachable!("ended fixture holds a task");
     };
     **document = cancelled_task();
     result.task = document.chip.clone();
@@ -111,17 +111,13 @@ fn cancelled_historical() -> OwnerHistorical {
     result.value = None;
     facts
 }
-// The engine answers a retained Read::Task with its whole historical carrier.
-fn final_cancelled_read(domain: &mut Fixture, read: jig_client::Handle) -> OwnerHistorical {
-    let facts = cancelled_historical();
-    drive(
-        domain,
-        Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::Historical(Box::new(facts.clone()))) },
-    );
+// The engine answers a retained Read::Task with its whole ended carrier.
+fn final_cancelled_read(domain: &mut Fixture, read: jig_client::Handle) -> Ended {
+    let facts = cancelled_ended();
+    drive(domain, Time::ZERO, ReadPage { read, result: ReadResult::Value(ReadValue::Ended(Box::new(facts.clone()))) });
     facts
 }
-fn keeps_header_after_linger(domain: &mut Fixture, id: Id<Object>, facts: OwnerHistorical) {
+fn keeps_header_after_linger(domain: &mut Fixture, id: Id<Object>, facts: Ended) {
     let now = Time::from_nanos(crate::tests::state::domain::spine::LIMITS.linger.as_nanos());
     while let Some(deadline) = domain.next_deadline() {
         if deadline > now {
@@ -132,7 +128,7 @@ fn keeps_header_after_linger(domain: &mut Fixture, id: Id<Object>, facts: OwnerH
     assert_eq!(domain.task_page().header, Some(id));
     let kept = domain.objects().get(id).expect("the page keeps its own task");
     assert_eq!(kept.card, Card::Open);
-    assert_eq!(kept.body, Some(Body::Historical(Box::new(facts))));
+    assert_eq!(kept.body, Some(Body::Ended(Box::new(facts))));
 }
 #[test]
 fn an_ended_task_keeps_its_page_header_after_the_linger() {
@@ -162,7 +158,7 @@ fn a_confirmed_cancel_keeps_its_page_header_after_the_linger() {
         panic!("confirmed cancellation sends a request");
     };
     let request = *request;
-    let outcome = Outcome::Owner(OwnerOutcome::Cancelled { task: PAGE_TASK });
+    let outcome = Outcome::Document(DocumentOutcome::Cancelled { task: PAGE_TASK });
     let read = task_read(&terminal(&mut domain, watch, WatchEnd::SubjectEnded));
     drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: Answer::Done(outcome) });
     let facts = final_cancelled_read(&mut domain, read);
@@ -177,19 +173,19 @@ fn a_fresh_unknown_task_watch_reads_the_whole_retained_task_and_independent_resu
         assert_eq!(work_address(&domain), &Address::task(8));
         assert_eq!(domain.task_page().header, domain.objects().find(ObjectKey::Task(8)));
         assert!(domain.task_page().header.is_some());
-        let original = historical();
+        let original = ended();
         drive(
             &mut domain,
             Time::ZERO,
-            ReadPage { read, result: ReadResult::Value(ReadValue::Historical(Box::new(original.clone()))) },
+            ReadPage { read, result: ReadResult::Value(ReadValue::Ended(Box::new(original.clone()))) },
         );
         let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
         assert_eq!(domain.task_page().header, Some(id));
-        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Historical(Box::new(original.clone()))));
+        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Ended(Box::new(original.clone()))));
         assert_eq!(work_address(&domain), &Address::task(8));
         assert!(terminal(&mut domain, watch, end).is_empty());
         drive(&mut domain, Time::ZERO, ReadPage { read, result: ReadResult::None(ReadNone::Gone) });
-        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Historical(Box::new(original))));
+        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Ended(Box::new(original))));
         assert_eq!(work_address(&domain), &Address::task(8));
     }
 }
@@ -198,11 +194,11 @@ fn revisiting_an_already_retained_task_attaches_and_refreshes_its_new_page_heade
     let (mut domain, _) = objects::live();
     let watch = task_watch(&mut domain, 8);
     let read = task_read(&terminal(&mut domain, watch, WatchEnd::SubjectEnded));
-    let original = historical();
+    let original = ended();
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::Historical(Box::new(original.clone()))) },
+        ReadPage { read, result: ReadResult::Value(ReadValue::Ended(Box::new(original.clone()))) },
     );
     let output = drive(
         &mut domain,
@@ -216,14 +212,14 @@ fn revisiting_an_already_retained_task_attaches_and_refreshes_its_new_page_heade
     assert!(domain.shown() > before);
     let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
     assert_eq!(domain.task_page().header, Some(id));
-    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Historical(Box::new(original.clone()))));
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Ended(Box::new(original.clone()))));
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::Historical(Box::new(original.clone()))) },
+        ReadPage { read, result: ReadResult::Value(ReadValue::Ended(Box::new(original.clone()))) },
     );
     assert_eq!(domain.task_page().header, Some(id));
-    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Historical(Box::new(original))));
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Ended(Box::new(original))));
 }
 #[test]
 fn an_unknown_task_becomes_missing_only_after_its_retained_read_refuses_the_object() {
@@ -255,9 +251,7 @@ fn an_unknown_task_watch_closed_by_navigation_does_not_read_or_hide_the_new_page
 }
 #[test]
 fn a_retained_task_reply_abandoned_by_navigation_cannot_replace_the_new_page() {
-    for result in
-        [ReadResult::Value(ReadValue::Historical(Box::new(historical()))), ReadResult::None(ReadNone::Unknown)]
-    {
+    for result in [ReadResult::Value(ReadValue::Ended(Box::new(ended()))), ReadResult::None(ReadNone::Unknown)] {
         let (mut domain, _) = objects::live();
         let watch = task_watch(&mut domain, 8);
         let read = task_read(&terminal(&mut domain, watch, WatchEnd::Unknown));

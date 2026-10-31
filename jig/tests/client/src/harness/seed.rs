@@ -8,7 +8,7 @@ pub enum Seed {
     /// A signed-out owner with a project that permits starting conversations.
     ChatProject { party: u64, project: u32 },
     /// Project and deployment facts for the configured first owner.
-    OwnerProfile,
+    Profile,
     /// The next conversation completes with this retained report.
     ChatResult { report: Box<[u8]> },
     /// A pending worker proposal for a tracked goal, visible to its owner.
@@ -55,7 +55,7 @@ pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
     match seed {
         Seed::Project(_)
         | Seed::ChatProject { .. }
-        | Seed::OwnerProfile
+        | Seed::Profile
         | Seed::ChatResult { .. }
         | Seed::PendingGoal { .. }
         | Seed::Roles { .. } => {}

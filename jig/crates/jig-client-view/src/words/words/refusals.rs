@@ -29,9 +29,9 @@ impl Words {
             Refusal::Dependency { dependency, how } => self.text(
                 b,
                 match how {
-                    jig_client::contract::OwnerTaskStatus::Done => JigPhrase::DependencyDone,
-                    jig_client::contract::OwnerTaskStatus::Failed => JigPhrase::DependencyFailed,
-                    jig_client::contract::OwnerTaskStatus::Cancelled => JigPhrase::DependencyCancelled,
+                    jig_client::contract::TaskStatus::Done => JigPhrase::DependencyDone,
+                    jig_client::contract::TaskStatus::Failed => JigPhrase::DependencyFailed,
+                    jig_client::contract::TaskStatus::Cancelled => JigPhrase::DependencyCancelled,
                 },
                 &[Hole::Number(*dependency)],
             ),

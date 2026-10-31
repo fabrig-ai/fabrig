@@ -10,21 +10,19 @@ use skein_lib::Reader;
 mod part0;
 use part0::chip_fields;
 pub(crate) use part0::{
-    active_run, call_identity, closing_stage, document_text, failure_class, hold_category, owner_chip_phase,
-    person_address, proposal_key, recipient, retry_notice, run_stage,
+    active_run, call_identity, chip_phase, closing_stage, document_text, failure_class, hold_category, person_address,
+    proposal_key, recipient, retry_notice, run_stage,
 };
 #[path = "facts_part1.rs"]
 mod part1;
 pub(crate) use part1::party;
+pub(crate) use part1::{chip_hold, executor, numbers, part, person_wait, wake_policy};
 use part1::{chip_phase_fields, closing_fields, ending_fields, held_runtime_fields, hold_reason_fields};
-pub(crate) use part1::{
-    owner_chip_hold, owner_executor, owner_numbers, owner_part, owner_person_wait, owner_wake_policy,
-};
 #[path = "facts_part2.rs"]
 mod part2;
 pub(crate) use part2::dependencies;
-pub(crate) use part2::{funder, owner_budget, owner_requester, owner_resource_line};
-use part2::{owner_chip_details_fields, owner_chip_ending_fields, result_value_fields};
+pub(crate) use part2::{budget, funder, requester, resource_line};
+use part2::{chip_details_fields, chip_ending_fields, result_value_fields};
 
 #[derive(Debug)]
 struct Child {
@@ -34,13 +32,13 @@ struct Child {
 #[derive(Debug)]
 pub(crate) enum Node {
     Chip(Box<c::Chip>),
-    ChipPhase(Box<c::ChipPhase>),
+    ChipPhaseFacts(Box<c::ChipPhaseFacts>),
     Closing(Box<c::Closing>),
     Ending(Box<c::Ending>),
     HeldRuntime(Box<c::HeldRuntime>),
     HoldReason(Box<c::HoldReason>),
-    OwnerChipDetails(Box<c::OwnerChipDetails>),
-    OwnerChipEnding(Box<c::OwnerChipEnding>),
+    ChipDetails(Box<c::ChipDetails>),
+    ChipEnding(Box<c::ChipEnding>),
     ResultValue(Box<c::ResultValue>),
 }
 fn take_chip(index: u32, parent: u32, children: &mut Map<u32, Child>) -> Result<c::Chip, w::Problem> {
@@ -50,31 +48,31 @@ fn take_chip(index: u32, parent: u32, children: &mut Map<u32, Child>) -> Result<
     }
     match child.value {
         Node::Chip(value) => Ok(*value),
-        Node::ChipPhase(_)
+        Node::ChipPhaseFacts(_)
         | Node::Closing(_)
         | Node::Ending(_)
         | Node::HeldRuntime(_)
         | Node::HoldReason(_)
-        | Node::OwnerChipDetails(_)
-        | Node::OwnerChipEnding(_)
+        | Node::ChipDetails(_)
+        | Node::ChipEnding(_)
         | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
 
-fn take_chip_phase(index: u32, parent: u32, children: &mut Map<u32, Child>) -> Result<c::ChipPhase, w::Problem> {
+fn take_chip_phase(index: u32, parent: u32, children: &mut Map<u32, Child>) -> Result<c::ChipPhaseFacts, w::Problem> {
     let child = children.remove(&index).ok_or(piece_problem(skein_codec::Reason::Malformed))?;
     if child.parent != Some(parent) {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
     match child.value {
-        Node::ChipPhase(value) => Ok(*value),
+        Node::ChipPhaseFacts(value) => Ok(*value),
         Node::Chip(_)
         | Node::Closing(_)
         | Node::Ending(_)
         | Node::HeldRuntime(_)
         | Node::HoldReason(_)
-        | Node::OwnerChipDetails(_)
-        | Node::OwnerChipEnding(_)
+        | Node::ChipDetails(_)
+        | Node::ChipEnding(_)
         | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -87,12 +85,12 @@ fn take_closing(index: u32, parent: u32, children: &mut Map<u32, Child>) -> Resu
     match child.value {
         Node::Closing(value) => Ok(*value),
         Node::Chip(_)
-        | Node::ChipPhase(_)
+        | Node::ChipPhaseFacts(_)
         | Node::Ending(_)
         | Node::HeldRuntime(_)
         | Node::HoldReason(_)
-        | Node::OwnerChipDetails(_)
-        | Node::OwnerChipEnding(_)
+        | Node::ChipDetails(_)
+        | Node::ChipEnding(_)
         | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -105,12 +103,12 @@ fn take_ending(index: u32, parent: u32, children: &mut Map<u32, Child>) -> Resul
     match child.value {
         Node::Ending(value) => Ok(*value),
         Node::Chip(_)
-        | Node::ChipPhase(_)
+        | Node::ChipPhaseFacts(_)
         | Node::Closing(_)
         | Node::HeldRuntime(_)
         | Node::HoldReason(_)
-        | Node::OwnerChipDetails(_)
-        | Node::OwnerChipEnding(_)
+        | Node::ChipDetails(_)
+        | Node::ChipEnding(_)
         | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -119,12 +117,12 @@ pub(crate) fn ending(value: &w::Ending, limits: &Limits) -> Result<c::Ending, w:
     match root {
         Node::Ending(value) => Ok(*value),
         Node::Chip(_)
-        | Node::ChipPhase(_)
+        | Node::ChipPhaseFacts(_)
         | Node::Closing(_)
         | Node::HeldRuntime(_)
         | Node::HoldReason(_)
-        | Node::OwnerChipDetails(_)
-        | Node::OwnerChipEnding(_)
+        | Node::ChipDetails(_)
+        | Node::ChipEnding(_)
         | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -133,12 +131,12 @@ pub(crate) fn hold_reason(value: &w::HoldReason, limits: &Limits) -> Result<c::H
     match root {
         Node::HoldReason(value) => Ok(*value),
         Node::Chip(_)
-        | Node::ChipPhase(_)
+        | Node::ChipPhaseFacts(_)
         | Node::Closing(_)
         | Node::Ending(_)
         | Node::HeldRuntime(_)
-        | Node::OwnerChipDetails(_)
-        | Node::OwnerChipEnding(_)
+        | Node::ChipDetails(_)
+        | Node::ChipEnding(_)
         | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -146,20 +144,20 @@ fn take_owner_chip_details(
     index: u32,
     parent: u32,
     children: &mut Map<u32, Child>,
-) -> Result<c::OwnerChipDetails, w::Problem> {
+) -> Result<c::ChipDetails, w::Problem> {
     let child = children.remove(&index).ok_or(piece_problem(skein_codec::Reason::Malformed))?;
     if child.parent != Some(parent) {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
     match child.value {
-        Node::OwnerChipDetails(value) => Ok(*value),
+        Node::ChipDetails(value) => Ok(*value),
         Node::Chip(_)
-        | Node::ChipPhase(_)
+        | Node::ChipPhaseFacts(_)
         | Node::Closing(_)
         | Node::Ending(_)
         | Node::HeldRuntime(_)
         | Node::HoldReason(_)
-        | Node::OwnerChipEnding(_)
+        | Node::ChipEnding(_)
         | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -168,20 +166,20 @@ fn take_owner_chip_ending(
     index: u32,
     parent: u32,
     children: &mut Map<u32, Child>,
-) -> Result<c::OwnerChipEnding, w::Problem> {
+) -> Result<c::ChipEnding, w::Problem> {
     let child = children.remove(&index).ok_or(piece_problem(skein_codec::Reason::Malformed))?;
     if child.parent != Some(parent) {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
     match child.value {
-        Node::OwnerChipEnding(value) => Ok(*value),
+        Node::ChipEnding(value) => Ok(*value),
         Node::Chip(_)
-        | Node::ChipPhase(_)
+        | Node::ChipPhaseFacts(_)
         | Node::Closing(_)
         | Node::Ending(_)
         | Node::HeldRuntime(_)
         | Node::HoldReason(_)
-        | Node::OwnerChipDetails(_)
+        | Node::ChipDetails(_)
         | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -194,13 +192,13 @@ fn take_result_value(index: u32, parent: u32, children: &mut Map<u32, Child>) ->
     match child.value {
         Node::ResultValue(value) => Ok(*value),
         Node::Chip(_)
-        | Node::ChipPhase(_)
+        | Node::ChipPhaseFacts(_)
         | Node::Closing(_)
         | Node::Ending(_)
         | Node::HeldRuntime(_)
         | Node::HoldReason(_)
-        | Node::OwnerChipDetails(_)
-        | Node::OwnerChipEnding(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
+        | Node::ChipDetails(_)
+        | Node::ChipEnding(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
 
@@ -239,7 +237,7 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
             }
             w::Fact::ChipPhase(row) => (
                 *row.parent(),
-                Node::ChipPhase(Box::new(chip_phase_fields(row.value(), limits, index, &mut children)?)),
+                Node::ChipPhaseFacts(Box::new(chip_phase_fields(row.value(), limits, index, &mut children)?)),
             ),
             w::Fact::Closing(row) => {
                 (*row.parent(), Node::Closing(Box::new(closing_fields(row.value(), index, &mut children)?)))
@@ -255,13 +253,13 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
                 *row.parent(),
                 Node::HoldReason(Box::new(hold_reason_fields(row.value(), limits, index, &mut children)?)),
             ),
-            w::Fact::OwnerChipDetails(row) => (
+            w::Fact::ChipDetails(row) => (
                 *row.parent(),
-                Node::OwnerChipDetails(Box::new(owner_chip_details_fields(row.value(), limits, index, &mut children)?)),
+                Node::ChipDetails(Box::new(chip_details_fields(row.value(), limits, index, &mut children)?)),
             ),
-            w::Fact::OwnerChipEnding(row) => (
+            w::Fact::ChipEnding(row) => (
                 *row.parent(),
-                Node::OwnerChipEnding(Box::new(owner_chip_ending_fields(row.value(), limits, index, &mut children)?)),
+                Node::ChipEnding(Box::new(chip_ending_fields(row.value(), limits, index, &mut children)?)),
             ),
             w::Fact::ResultValue(row) => (
                 *row.parent(),
@@ -286,5 +284,5 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
     root.ok_or(piece_problem(skein_codec::Reason::Malformed))
 }
 
-pub(crate) use part1::{owner_failure_tries, owner_prior_phase};
+pub(crate) use part1::{failure_tries, prior_phase};
 pub(crate) use part2::result_field;

@@ -107,7 +107,7 @@ Spend:
       Spent: 103
       Spent below: 107
       Reserved: 109
-  Historical funding records:
+  Retained funding records:
     Funded by project period 4, period 777:
       Funded by project period 4, period 777
       Parent funder not supplied

@@ -17,7 +17,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
-use jig_client::contract::{AddressChange, Amendment, Executor, PersonAddress, ResultsWake, Task, Text, WakeRule};
+use jig_client::contract::{AddressChange, Amendment, ChipExecutor, PersonAddress, ResultsWake, Task, Text, WakeRule};
 /// The one property replaced by an input's whole value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
@@ -156,14 +156,14 @@ pub fn form(
     // Funding is kept with the document and may change independently of its spec revision.
     match &object.body {
         Some(Body::Task(doc)) => proposed_task::funder(b, doc.budget.funder, words),
-        Some(Body::OwnerEscalation(doc)) => proposed_task::funder(b, doc.task.budget.funder, words),
+        Some(Body::Escalation(doc)) => proposed_task::funder(b, doc.task.budget.funder, words),
 
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -173,14 +173,14 @@ pub fn form(
 fn authority_loss(b: &mut Builder, object: &Object, words: &Words, text_limit: u32, rows: u32) {
     let document = match &object.body {
         Some(Body::Task(doc)) => Some(&doc.authority),
-        Some(Body::OwnerEscalation(doc)) => Some(&doc.task.authority),
+        Some(Body::Escalation(doc)) => Some(&doc.task.authority),
 
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -195,15 +195,15 @@ fn authority_loss(b: &mut Builder, object: &Object, words: &Words, text_limit: u
 fn task_loss(b: &mut Builder, object: &Object, words: &Words) {
     match &object.body {
         Some(Body::Task(doc)) if doc.cut => words.text(b, JigPhrase::TaskListsCut, &[]),
-        Some(Body::OwnerEscalation(doc)) if doc.task.cut => words.text(b, JigPhrase::TaskListsCut, &[]),
+        Some(Body::Escalation(doc)) if doc.task.cut => words.text(b, JigPhrase::TaskListsCut, &[]),
         Some(
             Body::Task(_)
-            | Body::Historical(_)
+            | Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
-            | Body::OwnerEscalation(_)
+            | Body::Proposal(_)
+            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -213,16 +213,16 @@ fn task_loss(b: &mut Builder, object: &Object, words: &Words) {
 fn loss(b: &mut Builder, object: &Object, words: &Words) {
     match &object.body {
         Some(Body::Task(doc)) => crate::tree::fragments::instructions::before(b, doc.instructions.as_ref(), words),
-        Some(Body::OwnerEscalation(doc)) => {
+        Some(Body::Escalation(doc)) => {
             crate::tree::fragments::instructions::before(b, doc.task.instructions.as_ref(), words);
         }
 
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -230,14 +230,14 @@ fn loss(b: &mut Builder, object: &Object, words: &Words) {
     }
     let doc = match &object.body {
         Some(Body::Task(doc)) => Some(&doc.spec),
-        Some(Body::OwnerEscalation(doc)) => Some(&doc.task.spec),
+        Some(Body::Escalation(doc)) => Some(&doc.task.spec),
 
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -254,7 +254,7 @@ fn loss(b: &mut Builder, object: &Object, words: &Words) {
         words.text(b, JigPhrase::SpecificationCut, &[]);
     }
 }
-fn numbers(chips: &skein_lib::List<jig_client::contract::OwnerTaskLink>) -> skein_lib::List<u64> {
+fn numbers(chips: &skein_lib::List<jig_client::contract::TaskLink>) -> skein_lib::List<u64> {
     let mut numbers = skein_lib::List::with_capacity(chips.capacity());
     for chip in chips {
         numbers.push(chip.number()).expect("one number per supplied reference fits");
@@ -332,14 +332,14 @@ fn input(
 fn before(object: &Object) -> Option<Amendment> {
     Some(match &object.body {
         Some(Body::Task(doc)) => task_before(doc),
-        Some(Body::OwnerEscalation(doc)) => task_before(&doc.task),
+        Some(Body::Escalation(doc)) => task_before(&doc.task),
 
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -351,9 +351,9 @@ fn before(object: &Object) -> Option<Amendment> {
 fn task_address(doc: &Task) -> Option<AddressChange> {
     let revision = doc.person_revision?;
     let address = match doc.chip.executor {
-        Executor::Party { party } => PersonAddress::Party(party),
-        Executor::Role { project, role } if project == doc.project => PersonAddress::Role(role),
-        Executor::Role { .. } | Executor::Agent { .. } | Executor::Procedure { .. } => return None,
+        ChipExecutor::Party { party } => PersonAddress::Party(party),
+        ChipExecutor::Role { project, role } if project == doc.project => PersonAddress::Role(role),
+        ChipExecutor::Role { .. } | ChipExecutor::Agent { .. } | ChipExecutor::Procedure { .. } => return None,
     };
     Some(AddressChange { revision, address })
 }

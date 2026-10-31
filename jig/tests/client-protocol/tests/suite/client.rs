@@ -46,7 +46,7 @@ fn a_client_reads_the_project_me_names_by_its_handle() {
     story.read(PROJECT, Readable::Jig(contract::Read::Project { project }));
     assert!(story.run_until(|s| !s.pages(PROJECT).is_empty(), Duration::from_secs(1)));
     let pages = story.pages(PROJECT);
-    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::OwnerProject(page)))] = pages.as_slice() else {
+    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Project(page)))] = pages.as_slice() else {
         panic!("one project page");
     };
     assert_eq!(page.number, project);
@@ -312,8 +312,8 @@ fn a_cancel_with_a_grace_ends_the_task_once_its_grace_has_passed() {
     assert!(story.run_until(|s| !s.answered(CANCEL).is_empty(), PROOF_WAIT));
     assert_eq!(
         story.answered(CANCEL),
-        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::Cancelled { task }
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Cancelled { task }
         ))))]
     );
     assert!(story.heard_asked_to_finish(task));
@@ -344,8 +344,8 @@ fn an_owner_s_template_override_is_answered_policy_changed() {
     assert!(story.run_until(|s| !s.answered(OVERRIDE).is_empty(), PROOF_WAIT));
     assert_eq!(
         story.answered(OVERRIDE),
-        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::PolicyChanged { project: PROJECT_NUMBER }
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::PolicyChanged { project: PROJECT_NUMBER }
         ))))]
     );
 }
@@ -378,8 +378,8 @@ fn a_compound_answer_names_the_durable_words_before_its_release() {
     assert!(story.run_until(|s| !s.answered(COMPOUND).is_empty(), PROOF_WAIT));
     let answers = story.answered(COMPOUND);
     let [
-        Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::Compound { project, operations, first_message },
+        Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Compound { project, operations, first_message },
         )))),
     ] = answers.as_slice()
     else {
@@ -400,8 +400,8 @@ fn a_party_creates_a_batch_whose_as_allowed_task_hears_what_it_was_given() {
     assert!(story.run_until(|s| !s.answered(CREATE).is_empty(), PROOF_WAIT));
     assert_eq!(
         story.answered(CREATE),
-        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::Created {
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Created {
                 first: 1,
                 last: 2,
                 given: Some(contract::CreatedGiven { task: 1, amount: 20 })
@@ -444,30 +444,29 @@ fn a_party_proposes_a_batch_and_withdraws_it_before_it_is_decided() {
     assert!(story.run_until(|s| !s.answered(PROPOSE).is_empty(), PROOF_WAIT));
     assert_eq!(
         story.answered(PROPOSE),
-        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::Proposed { proposal: 1, to: 0 }
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Proposed { proposal: 1, to: 0 }
         ))))]
     );
     let key = contract::ProposalKey { proposer: contract::Proposer::Party(fixtures::FIRST_OWNER), number: 1 };
     story.read(PROPOSAL, Readable::Jig(contract::Read::Proposal { proposal: key }));
     assert!(story.run_until(|s| !s.pages(PROPOSAL).is_empty(), PROOF_WAIT));
     let pages = story.pages(PROPOSAL);
-    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::OwnerProposal(value)))] = pages.as_slice()
-    else {
+    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Proposal(value)))] = pages.as_slice() else {
         panic!("proposal document: {pages:?}")
     };
     assert_eq!(value.key, key);
     assert_eq!(
         value.waiting.holder,
-        contract::OwnerHistoryHolder::Policy { project: 1, kind: contract::OwnerMessageProposalKind::Batch }
+        contract::HistoryHolder::Policy { project: 1, kind: contract::MessageProposalKind::Batch }
     );
     assert_eq!(story.party_proposal(1).expect("durable party proposal").proposer, fixtures::FIRST_OWNER);
     story.send(WITHDRAW, Ask::Jig(Box::new(contract::Ask::Withdraw { project: 1, proposal: 1 })));
     assert!(story.run_until(|s| !s.answered(WITHDRAW).is_empty(), PROOF_WAIT));
     assert_eq!(
         story.answered(WITHDRAW),
-        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::Withdrawn { proposal: 1 }
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Withdrawn { proposal: 1 }
         ))))]
     );
     assert!(matches!(
@@ -523,8 +522,8 @@ fn me_serves_a_template_merged_with_its_project_s_override() {
     assert!(story.run_until(|s| !s.answered(OVERRIDE_TEMPLATE).is_empty(), ME_WAIT));
     assert_eq!(
         story.answered(OVERRIDE_TEMPLATE),
-        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::PolicyChanged { project: PROJECT_NUMBER }
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::PolicyChanged { project: PROJECT_NUMBER }
         ))))]
     );
     assert!(
@@ -535,8 +534,7 @@ fn me_serves_a_template_merged_with_its_project_s_override() {
     story.read(PROJECT, Readable::Jig(contract::Read::Project { project: PROJECT_NUMBER }));
     assert!(story.run_until(|s| !s.pages(PROJECT).is_empty(), ME_WAIT));
     let pages = story.pages(PROJECT);
-    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::OwnerProject(project)))] = pages.as_slice()
-    else {
+    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Project(project)))] = pages.as_slice() else {
         panic!("project page")
     };
     assert_eq!(project.policy.templates.as_slice(), &[override_goal]);
@@ -640,7 +638,7 @@ fn an_ended_task_is_read_through_its_requester_s_index_after_the_live_ones() {
     let mut query = fixtures::task_query(PROJECT_NUMBER);
     query.project = None;
     query.tracked = None;
-    query.requester = Some(contract::OwnerRequester::Person(fixtures::FIRST_OWNER));
+    query.requester = Some(contract::Requester::Person(fixtures::FIRST_OWNER));
     let page = query_read(&mut story, query);
     assert_eq!(page.live.iter().map(|line| line.chip.task).collect::<Vec<_>>(), [fixtures::SECOND_QUERY_TASK]);
     let contract::EndedGroup::Rows { rows, after, cut } = page.ended else { panic!("requester index") };
@@ -698,12 +696,14 @@ fn closing_a_chat_by_shapes_moves_its_delegate_then_cancels_it_after_its_grace()
     assert!(story.run_until(|s| s.phase(SHAPED_DELEGATE).is_some(), PROOF_WAIT));
     story.watch_delegate(SHAPED_DELEGATE);
     assert!(story.run_until(|s| s.delegate_requester().is_some(), PROOF_WAIT));
-    assert_eq!(story.delegate_requester(), Some(contract::OwnerRequester::Task(task)));
+    assert_eq!(story.delegate_requester(), Some(contract::Requester::Task(task)));
     let grace = close_shaped_chat(&mut story, task);
-    assert!(story.run_until(
-        |s| s.delegate_requester() == Some(contract::OwnerRequester::Person(fixtures::FIRST_OWNER)),
-        PROOF_WAIT
-    ));
+    assert!(
+        story.run_until(
+            |s| s.delegate_requester() == Some(contract::Requester::Person(fixtures::FIRST_OWNER)),
+            PROOF_WAIT
+        )
+    );
     assert_ne!(story.phase(task), Some(contract::Phase::Cancelled));
     assert!(story.run_until(|s| s.phase(task) == Some(contract::Phase::Cancelled), GRACE_PASSED));
     assert!(story.elapsed_since_answer(SHAPED_CLOSE) >= grace);
@@ -717,7 +717,7 @@ fn a_goal_past_the_first_bound_is_proposed_to_the_policy_s_role() {
     let words = contract::Text::new(b"goal".as_slice().into(), 32).expect("words fit");
     let draft = GoalDraft {
         words: words.clone(),
-        executor: contract::OwnerExecutor::Agent { charter: 1 },
+        executor: contract::Executor::Agent { charter: 1 },
         budget: 150,
         deadline: None,
         priority: Some(7),
@@ -733,8 +733,8 @@ fn a_goal_past_the_first_bound_is_proposed_to_the_policy_s_role() {
     assert!(story.run_until(|s| !s.answered(SHAPED_GOAL).is_empty(), PROOF_WAIT));
     assert_eq!(
         story.answered(SHAPED_GOAL),
-        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::Proposed { proposal: GOAL_PROPOSAL, to: 0 }
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Proposed { proposal: GOAL_PROPOSAL, to: 0 }
         ))))]
     );
 }
@@ -758,8 +758,8 @@ fn close_shaped_chat(story: &mut Story, task: u64) -> Duration {
     assert!(story.run_until(|s| !s.answered(SHAPED_CLOSE).is_empty(), PROOF_WAIT));
     assert_eq!(
         story.answered(SHAPED_CLOSE),
-        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::Compound {
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Compound {
                 project: PROJECT_NUMBER,
                 operations: 2,
                 first_message: CLOSE_FIRST_MESSAGE

@@ -47,14 +47,14 @@ fn account_digests_distinguish_changes_to_all_projected_account_facts() {
         let row = value.accounts.get_mut(0).expect("account");
         match change {
             0 => row.sources.get_mut(0).expect("source").spent_until = Some(skein_lib::Wall::from_nanos(101)),
-            1 => row.sources.get_mut(0).expect("source").state = c::OwnerAccountState::Granted,
+            1 => row.sources.get_mut(0).expect("source").state = c::AccountState::Granted,
             2 => row.uses = None,
             3 => row.place = 2,
             4 => row.cut = true,
             _ => {
-                value.last_end = Some(c::OwnerAccountLastEnd {
+                value.last_end = Some(c::AccountLastEnd {
                     source: f::SOURCE,
-                    end: c::OwnerAccountEnd::Failed { failure: c::OwnerAccountFailure::MissingScope { scope: 7 } },
+                    end: c::AccountEnd::Failed { failure: c::AccountFailure::MissingScope { scope: 7 } },
                 });
             }
         }
@@ -65,11 +65,10 @@ fn account_digests_distinguish_changes_to_all_projected_account_facts() {
 #[test]
 fn a_moving_source_and_a_refused_move_print_their_names() {
     let mut value = f::accounts();
-    value.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source").state =
-        c::OwnerAccountState::Moving;
-    value.last_end = Some(c::OwnerAccountLastEnd {
+    value.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source").state = c::AccountState::Moving;
+    value.last_end = Some(c::AccountLastEnd {
         source: f::SOURCE,
-        end: c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::NotOurs },
+        end: c::AccountEnd::Refused { refusal: c::AccountRefusal::NotOurs },
     });
     let printed = f::account_read(&mut f::account_root(false), value, None);
     assert_eq!(printed.status, 0, "{printed:?}");
@@ -283,9 +282,9 @@ fn account_projection_includes_configured_worker_login_facts() {
     let mut accounts = f::accounts();
     let mut programs = List::with_capacity(1);
     programs
-        .push(c::OwnerProgramLogin {
+        .push(c::ProgramLogin {
             name: b"work-login".as_slice().into(),
-            state: Some(c::OwnerProgramState::SignedInOtherwise { method: b"other-method".as_slice().into() }),
+            state: Some(c::ProgramState::SignedInOtherwise { method: b"other-method".as_slice().into() }),
             sign_out: None,
             cleanup: false,
             cut: false,
@@ -294,7 +293,7 @@ fn account_projection_includes_configured_worker_login_facts() {
     accounts.program_hosts = List::with_capacity(1);
     accounts
         .program_hosts
-        .push(c::OwnerProgramHost {
+        .push(c::ProgramHost {
             name: b"configured-worker".as_slice().into(),
             channel: 17,
             connected: true,
@@ -403,13 +402,13 @@ fn owner_accounts_include_each_supplied_deployment_host_login_state() {
     deployment.hosts = List::with_capacity(1);
     deployment
         .hosts
-        .push(c::OwnerHost {
+        .push(c::Host {
             name: Some(b"deployment-worker".as_slice().into()),
             awaiting_logins: false,
             rule: c::HostRule::Open,
             programs: List::with_capacity(1),
             channel: 17,
-            kind: c::OwnerHostKind::Worker,
+            kind: c::HostKind::Worker,
             slots: 1,
             used: 0,
             free: 1,
@@ -423,9 +422,9 @@ fn owner_accounts_include_each_supplied_deployment_host_login_state() {
         .expect("host room");
     let host = deployment.hosts.get_mut(0).expect("fixture host");
     host.programs
-        .push(c::OwnerProgramLogin {
+        .push(c::ProgramLogin {
             name: b"deployment-login".as_slice().into(),
-            state: Some(c::OwnerProgramState::NotSignedIn),
+            state: Some(c::ProgramState::NotSignedIn),
             sign_out: None,
             cleanup: false,
             cut: false,

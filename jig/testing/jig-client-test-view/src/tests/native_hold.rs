@@ -80,31 +80,31 @@ pub(super) fn ready() -> Domain {
     );
     root
 }
-fn origin() -> OwnerPart {
-    OwnerPart {
+fn origin() -> Part {
+    Part {
         connector: jig_client_test_domain::FIRST,
-        kind: OwnerPartKind::Resource,
-        key: OwnerPartKey::Path(list([Box::<[u8]>::from(*b"origin/only"), Box::<[u8]>::from([255, 0])])),
+        kind: PartKind::Resource,
+        key: PartKey::Path(list([Box::<[u8]>::from(*b"origin/only"), Box::<[u8]>::from([255, 0])])),
     }
 }
-fn task(account: Option<OwnerPart>) -> Task {
+fn task(account: Option<Part>) -> Task {
     let mut task = super::task();
     task.context = None;
-    task.chip.executor = Executor::Agent { charter: 1 };
+    task.chip.executor = ChipExecutor::Agent { charter: 1 };
     task.chip.phase = Phase::Held;
-    task.chip.details = Box::new(ChipPhase {
-        phase: OwnerChipPhase::Held { reason: HoldCategory::Drift, revision: 3 },
-        details: Box::new(OwnerChipDetails {
+    task.chip.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Held { reason: HoldCategory::Drift, revision: 3 },
+        details: Box::new(ChipDetails {
             dependencies: List::with_capacity(0),
             project: task.project,
-            executor: OwnerExecutor::Agent { charter: 1 },
+            executor: Executor::Agent { charter: 1 },
             phase_since: Wall::from_nanos(10),
             run_since: None,
             attempt: None,
             retry: None,
             wake: task.wake,
             person_wait: None,
-            hold: Some(OwnerChipHold {
+            hold: Some(ChipHold {
                 words: None,
                 placed: None,
                 circle: None,
@@ -112,9 +112,9 @@ fn task(account: Option<OwnerPart>) -> Task {
                 source: Some(origin()),
                 reason: HoldCategory::Drift,
                 revision: 3,
-                before: OwnerPriorPhase::Waiting,
+                before: PriorPhase::Waiting,
                 escalation: None,
-                tries: OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+                tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
                 hold_wait_since: None,
             }),
             budget: task.budget.clone(),
@@ -175,8 +175,7 @@ pub(super) fn view() -> View<'static> {
 #[test]
 fn a_supplied_native_hold_slot_reads_and_renders_its_actual_scoped_account() {
     let mut root = ready();
-    let account =
-        OwnerPart { connector: jig_client_test_domain::FIRST, kind: OwnerPartKind::Hold, key: OwnerPartKey::Number(9) };
+    let account = Part { connector: jig_client_test_domain::FIRST, kind: PartKind::Hold, key: PartKey::Number(9) };
     let original = task(Some(account.clone()));
     let rows = load(&mut root, original.clone());
     let subject = family::Subject { scope: family::Scope::Project(3), kind: family::Kind::Hold(9) };

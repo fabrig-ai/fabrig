@@ -15,7 +15,7 @@ use crate::{
     state::objects::{Object, Source},
 };
 use alloc::boxed::Box;
-use jig_client::contract::{self, Cursor, NoteScope, Part, Read, TaskLine, TaskQuery, Text};
+use jig_client::contract::{self, ApplicationPart, Cursor, NoteScope, Read, TaskLine, TaskQuery, Text};
 use jig_client::thread::window::End;
 use skein_lib::{Env, Id, List, Queue, Token};
 pub(crate) mod goals;
@@ -31,10 +31,10 @@ pub struct NoteFilter {
 /// Only current project context; pending goal requests survive leaving the page.
 #[derive(Debug)]
 pub struct ProjectPage {
-    /// Retained historical funding rows, independent of live project spend.
-    pub owner_spend: Option<Box<contract::OwnerSpendPage>>,
+    /// Retained funding rows, independent of live project spend.
+    pub owner_spend: Option<Box<contract::SpendPage>>,
     /// Whole owner facts, with no fabricated earlier document.
-    pub owner: Option<Box<contract::OwnerProject>>,
+    pub owner: Option<Box<contract::Project>>,
     /// The current read window, which may include both live and ended goals.
     pub ended: List<TaskLine>,
     /// Keyed display merge; the board's current row wins over a read row.
@@ -144,7 +144,7 @@ pub(crate) fn ask(domain: &mut Ui, number: u16, what: Read, out: &mut Queue<Requ
 pub(crate) fn show(
     domain: &mut Ui,
     _env: &Env<crate::Config>,
-    parts: List<Part>,
+    parts: List<ApplicationPart>,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
@@ -333,8 +333,8 @@ pub(crate) fn task_rows(
     domain.changed();
 }
 
-/// Install the complete historical source page in supplied order.
-pub(crate) fn owner_spend(domain: &mut Ui, page: Box<contract::OwnerSpendPage>) {
+/// Install the complete retained source page in supplied order.
+pub(crate) fn owner_spend(domain: &mut Ui, page: Box<contract::SpendPage>) {
     domain.project_page.spend_cut = page.cut;
     domain.project_page.spend_before.clone_from(&page.before);
     domain.project_page.spend_after.clone_from(&page.after);
@@ -343,7 +343,7 @@ pub(crate) fn owner_spend(domain: &mut Ui, page: Box<contract::OwnerSpendPage>) 
 }
 
 /// Receive only the original project's whole owner value; order stays supplied.
-pub(crate) fn owner_document(domain: &mut Ui, value: Box<contract::OwnerProject>) {
+pub(crate) fn owner_document(domain: &mut Ui, value: Box<contract::Project>) {
     if number(domain) != Some(value.number) {
         return;
     }

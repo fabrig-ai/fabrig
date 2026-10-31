@@ -20,18 +20,15 @@ use crate::{
 };
 use jig_client::contract::*;
 use skein_lib::{List, Time, Wall};
-fn value(maker: Proposer, offered: ActKind) -> OwnerProposal {
+fn value(maker: Proposer, offered: ActKind) -> Proposal {
     let acts = crate::tests::kit::list_in(2, [Offered { effect: None, act: offered, admission: Admission::Allowed }]);
-    OwnerProposal {
+    Proposal {
         key: ProposalKey { proposer: maker, number: u64::MAX },
         project: u32::MAX,
         reason: DocumentText { bytes: text(UTF8_TEXTS[1]), cut: true },
-        action: OwnerProposalAction::Batch(List::with_capacity(2)),
+        action: ProposalAction::Batch(List::with_capacity(2)),
         as_holder: false,
-        waiting: OwnerProposalWaiting {
-            holder: OwnerHistoryHolder::Person(u64::MAX),
-            since: Wall::from_nanos(u64::MAX),
-        },
+        waiting: ProposalWaiting { holder: HistoryHolder::Person(u64::MAX), since: Wall::from_nanos(u64::MAX) },
         funding: List::with_capacity(2),
         acts,
     }
@@ -45,7 +42,7 @@ fn owner_proposal_original_maker_keys_all_three_decisions_and_reason_survive_dou
             let supplied = value(maker, act);
             let key = ObjectKey::Proposal(supplied.key);
             let id = domain.objects.name(key, Source::Window { number: 4 }).unwrap();
-            assert!(domain.objects.put(key, Body::OwnerProposal(Box::new(supplied.clone()))));
+            assert!(domain.objects.put(key, Body::Proposal(Box::new(supplied.clone()))));
             let object = domain.objects().get(id).unwrap();
             assert_eq!(object.project, Some(u32::MAX));
             assert_eq!(objects::proposal::owner_facts(&object), Some(&supplied));
@@ -87,10 +84,10 @@ fn owner_proposal_original_maker_keys_all_three_decisions_and_reason_survive_dou
         assert_ne!(pending.get(0).unwrap().1, pending.get(1).unwrap().1);
         for (id, request) in pending.into_boxed() {
             let ObjectKey::Proposal(proposal) = domain.objects().get(id).unwrap().key else { panic!("proposal") };
-            let answer = Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+            let answer = Answer::Done(Outcome::Document(DocumentOutcome::ProposalDecided {
                 proposal,
                 by: 7,
-                choice: OwnerProposalChoice::Accepted,
+                choice: ProposalChoice::Accepted,
                 at: Wall::EPOCH,
                 repeated: false,
             }));
@@ -119,7 +116,7 @@ fn owner_proposal_native_read_consumes_once_watch_keeps_same_card_and_wrong_key_
     let out = drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(original.clone()))) },
+        ReadPage { read, result: ReadResult::Value(ReadValue::Proposal(Box::new(original.clone()))) },
     );
     assert!(!out.iter().any(side_or_send));
     let id = domain.objects().find(key).unwrap();
@@ -130,14 +127,14 @@ fn owner_proposal_native_read_consumes_once_watch_keeps_same_card_and_wrong_key_
     drive(
         &mut domain,
         Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(changed.clone()))) },
+        Watched { watch, event: WatchEvent::Delivered(Delivery::Proposal(Box::new(changed.clone()))) },
     );
     assert_eq!(domain.objects().find(key), Some(id));
     assert_eq!(objects::proposal::owner_facts(&domain.objects().get(id).unwrap()), Some(&changed));
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(original))) },
+        ReadPage { read, result: ReadResult::Value(ReadValue::Proposal(Box::new(original))) },
     );
     assert_eq!(
         objects::proposal::owner_facts(&domain.objects().get(id).unwrap()),
@@ -146,15 +143,15 @@ fn owner_proposal_native_read_consumes_once_watch_keeps_same_card_and_wrong_key_
     );
     let mut wrong = changed.clone();
     wrong.key.proposer = Proposer::Party(u64::MAX);
-    assert!(!domain.objects.put(key, Body::OwnerProposal(Box::new(wrong))));
+    assert!(!domain.objects.put(key, Body::Proposal(Box::new(wrong))));
     assert_eq!(objects::proposal::owner_facts(&domain.objects().get(id).unwrap()), Some(&changed));
     drive(&mut domain, Time::ZERO, Event::Act { action: Act::Intend { object: id.token(), act: ActKind::Accept } });
     changed.acts = List::with_capacity(2);
-    assert!(domain.objects.put(key, Body::OwnerProposal(Box::new(changed.clone()))));
+    assert!(domain.objects.put(key, Body::Proposal(Box::new(changed.clone()))));
     drive(
         &mut domain,
         Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(changed.clone()))) },
+        Watched { watch, event: WatchEvent::Delivered(Delivery::Proposal(Box::new(changed.clone()))) },
     );
     let out = drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm });
     assert!(!out.iter().any(sent));
@@ -171,7 +168,7 @@ fn owner_proposal_native_read_consumes_once_watch_keeps_same_card_and_wrong_key_
         [Admission::Refused(Refusal::NotOffered), Admission::Refused(Refusal::Limit { which: Limit::Objects })]
     {
         changed.acts.push(Offered { effect: None, act: ActKind::Reject, admission }).unwrap();
-        assert!(domain.objects.put(key, Body::OwnerProposal(Box::new(changed.clone()))));
+        assert!(domain.objects.put(key, Body::Proposal(Box::new(changed.clone()))));
         drive(&mut domain, Time::ZERO, Event::Act { action: Act::Intend { object: id.token(), act: ActKind::Reject } });
         assert!(!drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm }).iter().any(sent));
         changed.acts.clear();

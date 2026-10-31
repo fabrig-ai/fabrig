@@ -4,7 +4,7 @@ const FIRST_MESSAGE: u64 = 19;
 fn bounded_release() -> (Script, Ask, Answer) {
     let mut setup = live_script();
     let mut row = task();
-    row.hold = Some(Box::new(owner_hold(HoldCategory::Stopped, 7)));
+    row.hold = Some(Box::new(hold(HoldCategory::Stopped, 7)));
     row.acts = list(vec![Offered {
         effect: None,
         act: ActKind::Amend,
@@ -13,8 +13,8 @@ fn bounded_release() -> (Script, Ask, Answer) {
                 budget_left: 10,
                 implications: List::with_capacity(0),
                 grants: List::with_capacity(0),
-                authority: Box::new(owner_authority()),
-                ceiling: Box::new(owner_authority()),
+                authority: Box::new(authority()),
+                ceiling: Box::new(authority()),
             },
             beyond: Beyond::Refused(Refusal::NotOffered),
         },
@@ -39,7 +39,7 @@ fn bounded_release() -> (Script, Ask, Answer) {
         row.hold.as_ref().unwrap().revision(),
     );
     setup.truth.objects.insert(ObjectKey::Task(row.chip.task), ReadValue::Task(Box::new(row)));
-    let answer = Answer::Done(Outcome::Owner(OwnerOutcome::Compound {
+    let answer = Answer::Done(Outcome::Document(DocumentOutcome::Compound {
         project: PROJECT,
         operations: 2,
         first_message: FIRST_MESSAGE,

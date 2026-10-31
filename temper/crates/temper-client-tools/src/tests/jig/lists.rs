@@ -50,7 +50,7 @@ fn an_inbox_reads_on_in_needs_while_needs_has_more() {
     root.serve(call, fixtures::inbox_page(true));
     root.deliver_subject(
         &fixtures::inbox_watch(),
-        c::Delivery::OwnerInbox(Box::new(fixtures::inbox_window(fixtures::PAGE_ROWS, 0, true))),
+        c::Delivery::Inbox(Box::new(fixtures::inbox_window(fixtures::PAGE_ROWS, 0, true))),
     );
     let printed = root.answer(call).expect("read and window answered");
     fixtures::check_golden("inbox_needs_next", &printed.stdout);
@@ -131,12 +131,12 @@ fn a_kept_activity_is_parked_in_text_and_preserved_in_json() {
         let c::ReadResult::Value(c::ReadValue::Activity(mut page)) = fixtures::activity_words() else {
             panic!("activity")
         };
-        *page.rows.get_mut(0).expect("row") = c::ActivityLine {
-            source: Box::new(c::OwnerActivityLine {
+        *page.rows.get_mut(0).expect("row") = c::DecodedActivityLine {
+            source: Box::new(c::ActivityLine {
                 task: fixtures::TASK,
                 position: 1,
                 at: skein_lib::Wall::EPOCH,
-                line: c::OwnerActivity::Kept { attempt: 7, pending: skein_lib::List::with_capacity(0), question: None },
+                line: c::Activity::Kept { attempt: 7, pending: skein_lib::List::with_capacity(0), question: None },
             }),
             decoded: None,
         };
@@ -147,15 +147,15 @@ fn a_kept_activity_is_parked_in_text_and_preserved_in_json() {
 #[test]
 fn a_met_notice_keeps_its_dependency_and_removal_flag_in_json() {
     let c::ReadResult::Value(c::ReadValue::Activity(mut page)) = fixtures::activity_words() else { panic!("activity") };
-    *page.rows.get_mut(0).expect("row") = c::ActivityLine {
-        source: Box::new(c::OwnerActivityLine {
+    *page.rows.get_mut(0).expect("row") = c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
             task: fixtures::TASK,
             position: 1,
             at: skein_lib::Wall::EPOCH,
-            line: c::OwnerActivity::Words {
+            line: c::Activity::Words {
                 message: 2,
-                by: c::OwnerRequester::Task(12),
-                kind: c::OwnerMessageKind::Met { dependency: 12, removed: true },
+                by: c::Requester::Task(12),
+                kind: c::MessageKind::Met { dependency: 12, removed: true },
                 words: fixtures::act_text(b""),
             },
         }),
@@ -193,7 +193,7 @@ fn parent_tasks_keep_the_other_query_keys_and_continuation() {
         query,
         &c::TaskQuery {
             project: Some(3),
-            requester: Some(c::OwnerRequester::Person(fixtures::PARTY)),
+            requester: Some(c::Requester::Person(fixtures::PARTY)),
             root: None,
             parent: Some(41),
             label: Some(jig_client::shapes::GOAL),
@@ -226,13 +226,13 @@ fn tree_answer(folded: bool) -> crate::jig::Printed {
     let (mut root, call) = fixtures::read_call(&["task", "show", "41", "--tree"]);
     let mut task = fixtures::goal(41, c::WaitsOn::Nothing);
     task.chip.title = fixtures::document_text(b"Root");
-    let Latest::Jig(c::Delivery::OwnerTree(mut tree)) = fixtures::owner_tree_at(task.chip.clone()) else {
+    let Latest::Jig(c::Delivery::Tree(mut tree)) = fixtures::owner_tree_at(task.chip.clone()) else {
         panic!("owner tree")
     };
     tree.rows = List::with_capacity(2);
     for number in [42, 43] {
         tree.rows
-            .push(c::OwnerTreeRow {
+            .push(c::TreeRow {
                 chip: {
                     let mut chip = fixtures::goal(number, c::WaitsOn::Nothing).chip;
                     chip.title = fixtures::document_text(b"Delegate");
@@ -251,12 +251,12 @@ fn tree_answer(folded: bool) -> crate::jig::Printed {
     // Independent parents ensure the summary adds every fold, not just the root's.
     for (parent, waiting, running) in [(41, 1, 1), (42, 0, 1)] {
         tree.folded
-            .push(c::OwnerTreeFold {
+            .push(c::TreeFold {
                 parent,
-                phases: c::OwnerPhaseCounts {
+                phases: c::PhaseCounts {
                     waiting: if folded { waiting } else { 0 },
                     running: if folded { running } else { 0 },
-                    ..c::OwnerPhaseCounts::ZERO
+                    ..c::PhaseCounts::ZERO
                 },
                 held_below: 0,
             })
@@ -265,7 +265,7 @@ fn tree_answer(folded: bool) -> crate::jig::Printed {
     root.serve(call, fixtures::task_result(task));
     root.deliver_subject(
         &Watchable::Jig(c::Subject::Tree { task: 41, window: crate::limits::ROWS }),
-        c::Delivery::OwnerTree(tree),
+        c::Delivery::Tree(tree),
     );
     root.answer(call).expect("tree answer")
 }
@@ -328,7 +328,7 @@ fn inbox_questions_print_words_and_calls_within_and_past_the_text_bound() {
                 c::ReadResult::Value(c::ReadValue::Question(Box::new(c::Question {
                     task: task.chip,
                     message: 2,
-                    from: Some(c::OwnerRequester::Task(42)),
+                    from: Some(c::Requester::Task(42)),
                     words: text,
                     since: skein_lib::Wall::EPOCH,
                     acts: skein_lib::List::with_capacity(0),

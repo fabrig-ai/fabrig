@@ -1,12 +1,11 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
 use super::{
-    Box, Limits, List, Wall, c, chip_fields, chip_piece, live_delegate_piece, offered_piece,
-    owner_authority_document_fields, owner_task_link_piece, piece_problem, specification_document_fields,
-    spend_line_fields, subscriptions_fields, task_contract_document_fields, task_resource_piece, task_result_fields,
-    text, too_large, w,
+    Box, Limits, List, Wall, authority_document_fields, c, chip_fields, chip_piece, live_delegate_piece, offered_piece,
+    piece_problem, specification_document_fields, spend_line_fields, subscriptions_fields,
+    task_contract_document_fields, task_link_piece, task_resource_piece, task_result_fields, text, too_large, w,
 };
-pub(crate) fn phase_counts_fields(value: &w::PhaseCounts) -> c::PhaseCounts {
-    c::PhaseCounts {
+pub(crate) fn impact_counts_fields(value: &w::ImpactCounts) -> c::ImpactCounts {
+    c::ImpactCounts {
         ended: value.ended(),
         waiting: value.waiting(),
         running: value.running(),
@@ -19,10 +18,14 @@ pub(crate) fn phase_counts_fields(value: &w::PhaseCounts) -> c::PhaseCounts {
 }
 
 pub(crate) fn impact_fields(value: &w::Impact) -> c::Impact {
-    c::Impact { tasks: phase_counts_fields(value.tasks()), live_runs: value.live_runs(), proposals: value.proposals() }
+    c::Impact { tasks: impact_counts_fields(value.tasks()), live_runs: value.live_runs(), proposals: value.proposals() }
 }
 
-pub(crate) fn part_piece(bytes: &[u8], _limits: &Limits, _bound: u32) -> Result<List<c::Part>, w::Problem> {
+pub(crate) fn application_part_piece(
+    bytes: &[u8],
+    _limits: &Limits,
+    _bound: u32,
+) -> Result<List<c::ApplicationPart>, w::Problem> {
     if !bytes.is_empty() {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
@@ -33,12 +36,12 @@ pub(crate) fn closing_fields(value: &w::Closing, limits: &Limits) -> Result<c::C
     match crate::translate::facts::decode(value.rows(), limits)? {
         crate::translate::facts::Node::Closing(value) => Ok(*value),
         crate::translate::facts::Node::Chip(_)
-        | crate::translate::facts::Node::ChipPhase(_)
+        | crate::translate::facts::Node::ChipPhaseFacts(_)
         | crate::translate::facts::Node::Ending(_)
         | crate::translate::facts::Node::HeldRuntime(_)
         | crate::translate::facts::Node::HoldReason(_)
-        | crate::translate::facts::Node::OwnerChipDetails(_)
-        | crate::translate::facts::Node::OwnerChipEnding(_)
+        | crate::translate::facts::Node::ChipDetails(_)
+        | crate::translate::facts::Node::ChipEnding(_)
         | crate::translate::facts::Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -47,12 +50,12 @@ pub(crate) fn held_runtime_fields(value: &w::HeldRuntime, limits: &Limits) -> Re
     match crate::translate::facts::decode(value.rows(), limits)? {
         crate::translate::facts::Node::HeldRuntime(value) => Ok(*value),
         crate::translate::facts::Node::Chip(_)
-        | crate::translate::facts::Node::ChipPhase(_)
+        | crate::translate::facts::Node::ChipPhaseFacts(_)
         | crate::translate::facts::Node::Closing(_)
         | crate::translate::facts::Node::Ending(_)
         | crate::translate::facts::Node::HoldReason(_)
-        | crate::translate::facts::Node::OwnerChipDetails(_)
-        | crate::translate::facts::Node::OwnerChipEnding(_)
+        | crate::translate::facts::Node::ChipDetails(_)
+        | crate::translate::facts::Node::ChipEnding(_)
         | crate::translate::facts::Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -123,7 +126,7 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
         list2.push(spend_line_fields(item)).expect("reserved supplied list");
     }
     Ok(c::TaskContext {
-        parts: part_piece(value.parts(), limits, limits.client().rows)?,
+        parts: application_part_piece(value.parts(), limits, limits.client().rows)?,
         closing: opt1,
         spend: list2,
         runtime: runtime_fields(value.runtime(), limits)?,
@@ -162,7 +165,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         None => None,
     };
     let opt6 = match value.hold() {
-        Some(item) => Some(Box::new(crate::translate::facts::owner_chip_hold(item, limits)?)),
+        Some(item) => Some(Box::new(crate::translate::facts::chip_hold(item, limits)?)),
         None => None,
     };
     if value.proposals().len() > limits.client().rows {
@@ -201,24 +204,24 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         goal: opt0,
         priority: opt1,
         lineage_chips: chip_piece(value.lineage_chips(), limits, limits.client().rows)?,
-        inputs: owner_task_link_piece(value.inputs(), limits, limits.client().rows)?,
+        inputs: task_link_piece(value.inputs(), limits, limits.client().rows)?,
         project: value.project(),
-        requester: crate::translate::facts::owner_requester(value.requester()),
+        requester: crate::translate::facts::requester(value.requester()),
         lineage: list2,
         spec: specification_document_fields(value.spec(), limits)?,
         spec_revision: crate::translate::answers::revision(value.spec_revision()),
         person_revision: opt3,
         taken_by: opt4,
         instructions: opt5,
-        wake: crate::translate::facts::owner_wake_policy(value.wake()),
+        wake: crate::translate::facts::wake_policy(value.wake()),
         subscriptions: subscriptions_fields(value.subscriptions(), limits)?,
         result_contract: task_contract_document_fields(value.result_contract(), limits)?,
-        dependencies: owner_task_link_piece(value.dependencies(), limits, limits.client().rows)?,
-        references: owner_task_link_piece(value.references(), limits, limits.client().rows)?,
+        dependencies: task_link_piece(value.dependencies(), limits, limits.client().rows)?,
+        references: task_link_piece(value.references(), limits, limits.client().rows)?,
         cut: value.cut(),
         resources: task_resource_piece(value.resources(), limits, limits.client().rows)?,
-        budget: crate::translate::facts::owner_budget(value.budget()),
-        authority: owner_authority_document_fields(value.authority(), limits)?,
+        budget: crate::translate::facts::budget(value.budget()),
+        authority: authority_document_fields(value.authority(), limits)?,
         hold: opt6,
         proposals: list7,
         activity: value.activity(),

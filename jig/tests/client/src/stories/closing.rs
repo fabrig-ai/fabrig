@@ -16,16 +16,16 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
     let mut cancelled = task();
     cancelled.chip.task = CANCELLED;
     cancelled.chip.title = DocumentText::complete(text(b"Cancelled delegate"));
-    cancelled.requester = OwnerRequester::Task(CHAT);
+    cancelled.requester = Requester::Task(CHAT);
     let mut moved = task();
     moved.chip.task = MOVED;
     moved.chip.title = DocumentText::complete(text(b"Moved delegate"));
-    moved.requester = OwnerRequester::Task(CHAT);
+    moved.requester = Requester::Task(CHAT);
     chat.delegates = list([
         LiveDelegate { chip: cancelled.chip.clone(), takeover_budget: TAKEOVER_BUDGET },
         LiveDelegate { chip: moved.chip.clone(), takeover_budget: TAKEOVER_BUDGET },
     ]);
-    let ChipPhase { details, .. } = chat.chip.details.as_mut();
+    let ChipPhaseFacts { details, .. } = chat.chip.details.as_mut();
     details.live_delegates = 2;
     for value in [chat.clone(), cancelled.clone(), moved.clone()] {
         world
@@ -52,21 +52,21 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
         ]),
     };
     cancelled.chip.phase = Phase::Ended;
-    cancelled.result = Some(TaskResult::Ending(Box::new(OwnerChipEnding::Cancelled {
+    cancelled.result = Some(TaskResult::Ending(Box::new(ChipEnding::Cancelled {
         reason: DocumentText::complete(reason),
         result: None,
-        by: OwnerRequester::Person(PARTY),
+        by: Requester::Person(PARTY),
         at: Wall::EPOCH,
     })));
-    let ChipPhase { phase, details } = cancelled.chip.details.as_mut();
-    *phase = OwnerChipPhase::Ended;
+    let ChipPhaseFacts { phase, details } = cancelled.chip.details.as_mut();
+    *phase = ChipPhase::Ended;
     let Some(TaskResult::Ending(ending)) = &cancelled.result else { unreachable!("cancelled delegate") };
     details.ending = Some(*ending.clone());
     details.ended_at = Some(Wall::EPOCH);
-    moved.requester = OwnerRequester::Person(PARTY);
+    moved.requester = Requester::Person(PARTY);
     chat.chip.phase = Phase::Closing;
-    let ChipPhase { phase, details } = chat.chip.details.as_mut();
-    *phase = OwnerChipPhase::Closing(ClosingStage::Delegates);
+    let ChipPhaseFacts { phase, details } = chat.chip.details.as_mut();
+    *phase = ChipPhase::Closing(ClosingStage::Delegates);
     details.live_delegates = 0;
     chat.delegates.clear();
     world
@@ -75,7 +75,7 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
         .script(jig_client_scripted_engine::Rule {
             party: Some(PARTY),
             ask,
-            answer: Answer::Done(Outcome::Owner(OwnerOutcome::Compound {
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::Compound {
                 project: PROJECT,
                 operations: OPERATION_COUNT,
                 first_message: NO_MESSAGE,

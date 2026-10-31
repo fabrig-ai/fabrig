@@ -17,7 +17,7 @@ use crate::{
         objects::{Body, Object},
     },
 };
-use jig_client::contract::{ActKind, Effect, Impact, ObjectKey, OwnerChipHold, ReleaseEffect};
+use jig_client::contract::{ActKind, ChipHold, Effect, Impact, ObjectKey, ReleaseEffect};
 
 pub(crate) mod amendment;
 /// Build the domain's one object or goal confirmation, or nothing when closed.
@@ -108,24 +108,24 @@ fn end(b: &mut Builder, words: &Words, bindings: &mut JigBindings, dangerous: bo
 }
 fn context(b: &mut Builder, client: &Borrowed<'_>, object: &Object, words: &Words, bindings: &mut JigBindings) {
     match &object.body {
-        Some(Body::Historical(_)) => b.text(
+        Some(Body::Ended(_)) => b.text(
             Run::Plain,
             &words
                 .book()
-                .say(words.language(), crate::words::historical_words::HistoricalPhrase::Historical.id(), &[])
-                .expect("checked passive historical caption")
+                .say(words.language(), crate::words::ended_words::EndedPhrase::Ended.id(), &[])
+                .expect("checked passive ended caption")
                 .text,
         ),
         Some(Body::Task(task)) => crate::tree::cards::chip::chip(b, client, &task.chip, words, bindings),
         Some(Body::Chip(chip)) => crate::tree::cards::chip::chip(b, client, chip, words, bindings),
 
-        Some(Body::OwnerEscalation(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task.chip, words, bindings),
+        Some(Body::Escalation(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task.chip, words, bindings),
         Some(Body::Question(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task, words, bindings),
 
-        Some(Body::OwnerPersonTask(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task, words, bindings),
+        Some(Body::PersonTask(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task, words, bindings),
         Some(Body::Result(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task, words, bindings),
 
-        Some(Body::OwnerProposal(doc)) => words.proposer(b, doc.key.proposer),
+        Some(Body::Proposal(doc)) => words.proposer(b, doc.key.proposer),
         Some(Body::Note { document, .. }) => b.text(Run::Plain, document.description.bytes()),
         None => words.status(b, JigPhrase::LoadingObject, &[]),
     }
@@ -154,17 +154,17 @@ fn action(
         ActKind::Accept => {
             words.text(b, JigPhrase::WillAccept, &[]);
             match &object.body {
-                Some(Body::OwnerProposal(doc)) => {
+                Some(Body::Proposal(doc)) => {
                     crate::tree::fragments::proposal::render(b, client, doc, words, bindings);
                 }
 
                 Some(
                     Body::Task(_)
-                    | Body::Historical(_)
+                    | Body::Ended(_)
                     | Body::Chip(_)
-                    | Body::OwnerEscalation(_)
+                    | Body::Escalation(_)
                     | Body::Question(_)
-                    | Body::OwnerPersonTask(_)
+                    | Body::PersonTask(_)
                     | Body::Result(_)
                     | Body::Note { .. },
                 )
@@ -196,15 +196,15 @@ fn action(
                     common::field(b, client, Purpose::Answer, JigPhrase::AnswerField, words, bindings);
                 }
 
-                Some(Body::OwnerPersonTask(doc)) => {
+                Some(Body::PersonTask(doc)) => {
                     crate::tree::fragments::person_task::form(b, client, open.object, &doc.contract, words, bindings);
                 }
                 Some(
                     Body::Task(_)
-                    | Body::Historical(_)
+                    | Body::Ended(_)
                     | Body::Chip(_)
-                    | Body::OwnerProposal(_)
-                    | Body::OwnerEscalation(_)
+                    | Body::Proposal(_)
+                    | Body::Escalation(_)
                     | Body::Result(_)
                     | Body::Note { .. },
                 )
@@ -324,14 +324,14 @@ fn action(
 fn held(object: &Object) -> bool {
     match &object.body {
         Some(Body::Task(doc)) => doc.hold.is_some(),
-        Some(Body::OwnerEscalation(doc)) => doc.task.hold.is_some(),
+        Some(Body::Escalation(doc)) => doc.task.hold.is_some(),
 
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -355,17 +355,17 @@ fn release_object(b: &mut Builder, object: &Object, words: &Words, bindings: &mu
             }
         }
 
-        Some(Body::OwnerEscalation(doc)) => {
+        Some(Body::Escalation(doc)) => {
             if let Some(hold) = &doc.task.hold {
                 release_owner(b, hold, words, bindings);
             }
         }
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -374,9 +374,9 @@ fn release_object(b: &mut Builder, object: &Object, words: &Words, bindings: &mu
 }
 /// Release follows the supplied prior lifecycle and resets all failure counts
 /// (tasks.md, 9); only an uncertain entry needs the person's repeat choice.
-fn release_owner(b: &mut Builder, facts: &OwnerChipHold, words: &Words, bindings: &mut JigBindings) {
+fn release_owner(b: &mut Builder, facts: &ChipHold, words: &Words, bindings: &mut JigBindings) {
     crate::tree::fragments::chip::hold(b, facts, words, bindings);
-    words.text(b, JigPhrase::OwnerHoldRelease, &[]);
+    words.text(b, JigPhrase::HoldRelease, &[]);
     if let jig_client::contract::HoldCategory::Uncertain { .. } = facts.reason {
         words.text(b, JigPhrase::Word(Word::Decision(D::EngineFollowsChoice)), &[]);
         crate::tree::frame::control(
@@ -406,13 +406,13 @@ fn impact(object: &Object) -> Option<&Impact> {
             None => None,
         },
 
-        Some(Body::OwnerEscalation(doc)) => Some(&doc.task.context.as_ref()?.impact),
+        Some(Body::Escalation(doc)) => Some(&doc.task.context.as_ref()?.impact),
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -451,12 +451,12 @@ fn delegates(
     let doc = match &object.body {
         Some(Body::Task(doc)) => doc,
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
-            | Body::OwnerEscalation(_)
+            | Body::Proposal(_)
+            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )

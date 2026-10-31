@@ -2,7 +2,7 @@
 //! Replace: incident/service vocabulary and the application objects its pages name.
 //! Observability owns incident history and health (examples.md, 3 and 8).
 use alloc::boxed::Box;
-use jig_client::contract::{ObjectKey, Part, ProposalKey};
+use jig_client::contract::{ApplicationPart, ObjectKey, ProposalKey};
 use skein_lib::List;
 /// Scope supplied with every read and watch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -137,25 +137,30 @@ pub enum WatchEnd {
 }
 /// The subject for a part; resources and kinds need words only.
 #[must_use]
-pub fn subject(part: &Part, scope: Scope) -> Option<Subject> {
+pub fn subject(part: &ApplicationPart, scope: Scope) -> Option<Subject> {
     let kind = match part {
-        Part::Panel { task, .. } => Kind::Panel(*task),
-        Part::Result { task, .. } => Kind::Result(*task),
-        Part::Effect { proposal, .. } => Kind::Effect(*proposal),
-        Part::Outbox { scope, entry, .. } => {
+        ApplicationPart::Panel { task, .. } => Kind::Panel(*task),
+        ApplicationPart::Result { task, .. } => Kind::Result(*task),
+        ApplicationPart::Effect { proposal, .. } => Kind::Effect(*proposal),
+        ApplicationPart::Outbox { scope, entry, .. } => {
             let scope = match scope {
                 jig_client::contract::PartScope::Project(project) => Scope::Project(*project),
                 jig_client::contract::PartScope::Deployment => Scope::Deployment,
             };
             return Some(Subject { scope, kind: Kind::Outbox(*entry) });
         }
-        Part::Hold { task, .. } => Kind::Hold(*task),
-        Part::Project { project, .. } => {
+        ApplicationPart::Hold { task, .. } => Kind::Hold(*task),
+        ApplicationPart::Project { project, .. } => {
             return Some(Subject { scope: Scope::Project(*project), kind: Kind::Project(*project) });
         }
-        Part::Deployment { .. } => return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment }),
+        ApplicationPart::Deployment { .. } => {
+            return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment });
+        }
         // Connector proposal numbers do not name this side's typed maker effects.
-        Part::OwnerEffect { .. } | Part::Connector { .. } | Part::Resource { .. } | Part::Kind { .. } => return None,
+        ApplicationPart::OwnerEffect { .. }
+        | ApplicationPart::Connector { .. }
+        | ApplicationPart::Resource { .. }
+        | ApplicationPart::Kind { .. } => return None,
     };
     Some(Subject { scope, kind })
 }

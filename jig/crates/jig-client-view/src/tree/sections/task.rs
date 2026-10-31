@@ -14,7 +14,7 @@ use crate::{
         objects::Body,
     },
 };
-use jig_client::contract::{Executor, ObjectKey, Task};
+use jig_client::contract::{ChipExecutor, ObjectKey, Task};
 pub(crate) mod history;
 pub(crate) mod plan;
 /// The task's shared card and context, while any of its sections shows.
@@ -99,12 +99,12 @@ fn document(client: &Borrowed<'_>, number: u64) -> Option<Box<Task>> {
     match &objects.get(id)?.body {
         Some(Body::Task(doc)) => Some(doc.clone()),
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
-            | Body::OwnerProposal(_)
-            | Body::OwnerEscalation(_)
+            | Body::Proposal(_)
+            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -241,7 +241,7 @@ fn slots(b: &mut Builder, doc: &Task, section: TaskSection, words: &Words, bindi
 pub(crate) fn overview(b: &mut Builder, client: &Borrowed<'_>, doc: &Task, words: &Words, bindings: &mut JigBindings) {
     let objects = client.objects();
     {
-        let jig_client::contract::ChipPhase { details, .. } = doc.chip.details.as_ref();
+        let jig_client::contract::ChipPhaseFacts { details, .. } = doc.chip.details.as_ref();
         crate::tree::fragments::chip::render(b, details, client, words, bindings);
     }
     crate::tree::fragments::specification::document(b, &doc.spec, words);
@@ -293,28 +293,28 @@ pub(crate) fn overview(b: &mut Builder, client: &Borrowed<'_>, doc: &Task, words
     }
     slots(b, doc, TaskSection::Overview, words, bindings);
     match doc.chip.executor {
-        Executor::Agent { charter } => words.text(b, JigPhrase::Charter, &[Hole::Number(u64::from(charter))]),
-        Executor::Party { .. } | Executor::Role { .. } => {
+        ChipExecutor::Agent { charter } => words.text(b, JigPhrase::Charter, &[Hole::Number(u64::from(charter))]),
+        ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {
             if let Some(id) = objects.find(ObjectKey::PersonTask(doc.chip.task))
                 && !client.owes(id)
             {
                 cards::card(b, client, id, &cards::Place::TaskPage, words, bindings);
             }
         }
-        Executor::Procedure { .. } => {}
+        ChipExecutor::Procedure { .. } => {}
     }
 }
 fn task_link(
     b: &mut Builder,
     client: &Borrowed<'_>,
-    link: &jig_client::contract::OwnerTaskLink,
+    link: &jig_client::contract::TaskLink,
     words: &Words,
     bindings: &mut JigBindings,
 ) {
     crate::tree::fragments::result::link(b, client, link, words, bindings);
     match link {
-        jig_client::contract::OwnerTaskLink::Live(_) | jig_client::contract::OwnerTaskLink::Retained { .. } => {}
-        jig_client::contract::OwnerTaskLink::Stored { number, .. } => crate::tree::frame::control(
+        jig_client::contract::TaskLink::Live(_) | jig_client::contract::TaskLink::Retained { .. } => {}
+        jig_client::contract::TaskLink::Stored { number, .. } => crate::tree::frame::control(
             b,
             words,
             bindings,
@@ -326,12 +326,12 @@ fn task_link(
     }
 }
 fn activity(b: &mut Builder, client: &Borrowed<'_>, doc: &Task, words: &Words, bindings: &mut JigBindings) {
-    use jig_client::contract::ChipPhase;
+    use jig_client::contract::ChipPhaseFacts;
     let objects = client.objects();
     match doc.chip.executor {
-        Executor::Agent { .. } => {
+        ChipExecutor::Agent { .. } => {
             {
-                let ChipPhase { details, .. } = doc.chip.details.as_ref();
+                let ChipPhaseFacts { details, .. } = doc.chip.details.as_ref();
 
                 if let Some(observation) = &details.observation {
                     crate::tree::fragments::chip::observation(b, observation, words);
@@ -351,8 +351,8 @@ fn activity(b: &mut Builder, client: &Borrowed<'_>, doc: &Task, words: &Words, b
                 }
             }
         }
-        Executor::Procedure { .. } => slots(b, doc, TaskSection::Activity, words, bindings),
-        Executor::Party { .. } | Executor::Role { .. } => {
+        ChipExecutor::Procedure { .. } => slots(b, doc, TaskSection::Activity, words, bindings),
+        ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {
             if let Some(id) = objects.find(ObjectKey::PersonTask(doc.chip.task))
                 && !client.owes(id)
             {
@@ -380,9 +380,9 @@ pub(crate) fn budget(b: &mut Builder, doc: &Task, words: &Words, bindings: &mut 
         }
     }
     match doc.chip.executor {
-        Executor::Agent { .. } | Executor::Procedure { .. } => {
+        ChipExecutor::Agent { .. } | ChipExecutor::Procedure { .. } => {
             crate::tree::fragments::authority::document_words(b, &doc.authority, words, text_limit, rows);
         }
-        Executor::Party { .. } | Executor::Role { .. } => {}
+        ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {}
     }
 }

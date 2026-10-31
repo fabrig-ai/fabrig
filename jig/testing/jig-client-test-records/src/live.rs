@@ -52,11 +52,11 @@ pub fn tasks_record() -> w::Tasks {
     w::Tasks::new(&lim, w::TasksParts { rows: Box::from([]), more: false }).expect("literal fixture fits")
 }
 #[must_use]
-pub fn owner_deployment_record() -> w::OwnerDeployment {
+pub fn owner_deployment_record() -> w::Deployment {
     let lim = limits();
-    w::OwnerDeployment::new(
+    w::Deployment::new(
         &lim,
-        w::OwnerDeploymentParts {
+        w::DeploymentParts {
             skein_bools: [false, false, false, false],
             providers: Box::new([]),
             key_bytes: 256,
@@ -65,15 +65,12 @@ pub fn owner_deployment_record() -> w::OwnerDeployment {
             hosts: Box::from([]),
             attempts: Box::from([]),
             accounts: Box::from([]),
-            tasks: w::OwnerCapacity::new(&lim, w::OwnerCapacityParts { used: 7, limit: 7 })
-                .expect("literal fixture fits"),
-            workers: w::OwnerCapacity::new(&lim, w::OwnerCapacityParts { used: 7, limit: 7 })
-                .expect("literal fixture fits"),
-            attempts_capacity: w::OwnerCapacity::new(&lim, w::OwnerCapacityParts { used: 7, limit: 7 })
+            tasks: w::Capacity::new(&lim, w::CapacityParts { used: 7, limit: 7 }).expect("literal fixture fits"),
+            workers: w::Capacity::new(&lim, w::CapacityParts { used: 7, limit: 7 }).expect("literal fixture fits"),
+            attempts_capacity: w::Capacity::new(&lim, w::CapacityParts { used: 7, limit: 7 })
                 .expect("literal fixture fits"),
             waiting_attempts: 7,
-            proposals: w::OwnerCapacity::new(&lim, w::OwnerCapacityParts { used: 7, limit: 7 })
-                .expect("literal fixture fits"),
+            proposals: w::Capacity::new(&lim, w::CapacityParts { used: 7, limit: 7 }).expect("literal fixture fits"),
             projects: List::with_capacity(0),
             grace_bound: Duration::from_nanos(19),
             hello_refusals: List::with_capacity(0),
@@ -90,10 +87,10 @@ pub fn owner_deployment_record() -> w::OwnerDeployment {
     .expect("literal fixture fits")
 }
 #[must_use]
-pub fn owner_tree_record() -> w::OwnerTree {
-    w::OwnerTree::new(
+pub fn owner_tree_record() -> w::Tree {
+    w::Tree::new(
         &limits(),
-        w::OwnerTreeParts {
+        w::TreeParts {
             root: super::chip_record(),
             rows: Box::from([]),
             folded: List::with_capacity(0),
@@ -104,10 +101,10 @@ pub fn owner_tree_record() -> w::OwnerTree {
     .expect("literal fixture fits")
 }
 #[must_use]
-pub fn owner_inbox_record() -> w::OwnerInbox {
-    w::OwnerInbox::new(
+pub fn owner_inbox_record() -> w::Inbox {
+    w::Inbox::new(
         &limits(),
-        w::OwnerInboxParts {
+        w::InboxParts {
             party: 19,
             needs: Box::from([]),
             updates: Box::from([]),

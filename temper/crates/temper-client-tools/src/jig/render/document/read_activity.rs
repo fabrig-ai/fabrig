@@ -1,11 +1,15 @@
 //! Integer JSON for supplied read facts.
 use skein_json::writer::Encoder;
-pub(super) fn encode_activity(value: &jig_client::contract::ActivityLine, out: &mut Encoder, budget: &mut super::Cut) {
+pub(super) fn encode_activity(
+    value: &jig_client::contract::DecodedActivityLine,
+    out: &mut Encoder,
+    budget: &mut super::Cut,
+) {
     encode_activity_owner(&value.source, value.decoded.as_ref(), out, budget);
 }
 
 pub(super) fn encode_activity_line(
-    value: &jig_client::contract::ActivityLine,
+    value: &jig_client::contract::DecodedActivityLine,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -88,7 +92,7 @@ pub(super) fn encode_archived_turn(
 }
 
 fn encode_activity_owner(
-    source: &jig_client::contract::OwnerActivityLine,
+    source: &jig_client::contract::ActivityLine,
     decoded: Option<&jig_client::contract::ArchivedTurn>,
     out: &mut Encoder,
     budget: &mut super::Cut,

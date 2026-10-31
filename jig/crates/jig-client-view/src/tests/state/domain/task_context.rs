@@ -40,7 +40,7 @@ fn whole_task_context_absence_and_supplied_empty_are_distinct_in_original_reads(
 
 #[test]
 fn supplied_task_context_routes_only_its_whole_parts_and_impact_without_recreating_missing_facts() {
-    let part = Part::Panel { connector: 2, task: u64::MAX };
+    let part = ApplicationPart::Panel { connector: 2, task: u64::MAX };
     for present in [false, true] {
         let (mut domain, _) = objects::live();
         let opened = drive(
@@ -93,7 +93,7 @@ fn supplied_task_context_routes_only_its_whole_parts_and_impact_without_recreati
     }
 }
 
-fn finished(phase: Option<OwnerChipPhase>, prior: Option<OwnerPriorPhase>) -> bool {
+fn finished(phase: Option<ChipPhase>, prior: Option<PriorPhase>) -> bool {
     let (mut domain, _) = objects::live();
     let opened = drive(
         &mut domain,
@@ -132,14 +132,14 @@ fn finished(phase: Option<OwnerChipPhase>, prior: Option<OwnerPriorPhase>) -> bo
     );
     let mut row = crate::tests::state::domain::confirmation::task();
     row.context = None;
-    row.chip.executor = Executor::Agent { charter: 1 };
+    row.chip.executor = ChipExecutor::Agent { charter: 1 };
     row.activity = 0;
     if let Some(phase) = phase {
         let mut details = crate::tests::state::domain::chip_facts::details();
         details.project = row.project;
-        details.executor = OwnerExecutor::Agent { charter: 1 };
+        details.executor = Executor::Agent { charter: 1 };
         if let Some(before) = prior {
-            details.hold = Some(OwnerChipHold {
+            details.hold = Some(ChipHold {
                 words: None,
                 placed: None,
                 circle: None,
@@ -149,12 +149,12 @@ fn finished(phase: Option<OwnerChipPhase>, prior: Option<OwnerPriorPhase>) -> bo
                 revision: u64::MAX,
                 before,
                 escalation: None,
-                tries: OwnerFailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
+                tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
                 hold_wait_since: None,
             });
         }
         row.chip.phase = phase.compact();
-        row.chip.details = Box::new(ChipPhase { phase, details: Box::new(details) });
+        row.chip.details = Box::new(ChipPhaseFacts { phase, details: Box::new(details) });
     }
     drive(&mut domain, Time::ZERO, Watched { watch, event: WatchEvent::Delivered(Delivery::Task(Box::new(row))) });
     assert_eq!(domain.conversation().live.is_empty(), domain.conversation.run_finished);
@@ -171,11 +171,11 @@ fn owner_task_context_absence_finishes_provisional_runs_only_from_supplied_lifec
         (RunStage::Running { attempt: u64::MAX }, false),
         (RunStage::BackingOff { until: Wall::EPOCH }, true),
     ] {
-        assert_eq!(finished(Some(OwnerChipPhase::Active(stage)), None), ended);
+        assert_eq!(finished(Some(ChipPhase::Active(stage)), None), ended);
         assert_eq!(
             finished(
-                Some(OwnerChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX }),
-                Some(OwnerPriorPhase::Active(stage))
+                Some(ChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX }),
+                Some(PriorPhase::Active(stage))
             ),
             ended
         );
@@ -187,19 +187,19 @@ fn owner_task_context_absence_finishes_provisional_runs_only_from_supplied_lifec
         (ClosingStage::Releases, true),
         (ClosingStage::Settled, true),
     ] {
-        assert_eq!(finished(Some(OwnerChipPhase::Closing(stage)), None), ended);
+        assert_eq!(finished(Some(ChipPhase::Closing(stage)), None), ended);
         assert_eq!(
             finished(
-                Some(OwnerChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX }),
-                Some(OwnerPriorPhase::Closing(stage))
+                Some(ChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX }),
+                Some(PriorPhase::Closing(stage))
             ),
             ended
         );
     }
-    assert!(!finished(Some(OwnerChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX }), None));
+    assert!(!finished(Some(ChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX }), None));
     assert!(finished(
-        Some(OwnerChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX }),
-        Some(OwnerPriorPhase::Waiting)
+        Some(ChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX }),
+        Some(PriorPhase::Waiting)
     ));
-    assert!(finished(Some(OwnerChipPhase::Ended), None));
+    assert!(finished(Some(ChipPhase::Ended), None));
 }

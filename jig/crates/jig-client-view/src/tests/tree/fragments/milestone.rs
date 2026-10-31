@@ -11,17 +11,17 @@ use skein_lib::{List, Wall, bytes::copy_of};
 fn doc(bytes: &[u8], cut: bool) -> DocumentText {
     DocumentText { bytes: Text::new(copy_of(bytes), 8).unwrap(), cut }
 }
-fn part(capacity: u32) -> OwnerPart {
+fn part(capacity: u32) -> Part {
     let mut segments = List::with_capacity(capacity);
     if capacity >= 3 {
         for bytes in [b"a/b".as_slice(), &[255, 0], b""] {
             segments.push(copy_of(bytes)).unwrap();
         }
     }
-    OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(segments) }
+    Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Path(segments) }
 }
-fn line(phase: OwnerMilestonePhase) -> OwnerMilestoneLine {
-    OwnerMilestoneLine { task: u64::MAX, position: u64::MAX, phase, at: None }
+fn line(phase: MilestonePhase) -> MilestoneLine {
+    MilestoneLine { task: u64::MAX, position: u64::MAX, phase, at: None }
 }
 fn limits() -> crate::tests::fixtures::Profile {
     crate::tests::fixtures::Profile {
@@ -50,7 +50,7 @@ fn words(selected: bool) -> Words {
             languages,
             &PhraseLimits {
                 languages: 2,
-                phrases: crate::words::owner_words::phrase_count(),
+                phrases: crate::words::document_words::phrase_count(),
                 holes: 4,
                 segments: crate::tests::english_phrase_segments(2),
                 text_bytes: 100_000,
@@ -62,7 +62,7 @@ fn words(selected: bool) -> Words {
         0,
     )
 }
-fn build(value: &OwnerMilestoneLine, words: &Words) -> (Tree, JigBindings, Limits) {
+fn build(value: &MilestoneLine, words: &Words) -> (Tree, JigBindings, Limits) {
     let f = crate::tests::render_limits(&limits(), words).unwrap();
     let capacity = Limits {
         nodes: f.nodes,
@@ -100,7 +100,7 @@ fn build(value: &OwnerMilestoneLine, words: &Words) -> (Tree, JigBindings, Limit
 fn owner_milestone_all_five_phases_six_activation_and_five_closing_stages_keep_owner_coordinates() {
     let mut goldens = Goldens::new("tree/fragments/milestone/owner_milestone_all_five");
     let w = words(false);
-    let waiting = line(OwnerMilestonePhase::Waiting);
+    let waiting = line(MilestonePhase::Waiting);
     goldens.check(&build(&waiting, &w).0);
     for stage in [
         RunStage::Idle,
@@ -110,10 +110,10 @@ fn owner_milestone_all_five_phases_six_activation_and_five_closing_stages_keep_o
         RunStage::Running { attempt: u64::MAX },
         RunStage::BackingOff { until: Wall::from_nanos(u64::MAX) },
     ] {
-        let value = line(OwnerMilestonePhase::Active(stage));
+        let value = line(MilestonePhase::Active(stage));
         let tree = build(&value, &w).0;
         goldens.check(&tree);
-        assert_eq!(value.phase, OwnerMilestonePhase::Active(stage));
+        assert_eq!(value.phase, MilestonePhase::Active(stage));
     }
     for stage in [
         ClosingStage::Run { attempt: u64::MAX },
@@ -122,16 +122,15 @@ fn owner_milestone_all_five_phases_six_activation_and_five_closing_stages_keep_o
         ClosingStage::Releases,
         ClosingStage::Settled,
     ] {
-        let value =
-            line(OwnerMilestonePhase::Closing { stage, ending: OwnerChipEnding::Failed(doc(b"closing", false)) });
+        let value = line(MilestonePhase::Closing { stage, ending: ChipEnding::Failed(doc(b"closing", false)) });
         let tree = build(&value, &w).0;
         goldens.check(&tree);
     }
-    goldens.check(&build(&line(OwnerMilestonePhase::Ended(OwnerChipEnding::Failed(doc(b"end", false)))), &w).0);
+    goldens.check(&build(&line(MilestonePhase::Ended(ChipEnding::Failed(doc(b"end", false)))), &w).0);
     goldens.check(
         &build(
-            &line(OwnerMilestonePhase::Held {
-                before: OwnerPriorPhase::Waiting,
+            &line(MilestonePhase::Held {
+                before: PriorPhase::Waiting,
                 why: HoldCategory::Budget,
                 source: None,
                 ending: None,
@@ -163,8 +162,7 @@ fn owner_milestone_all_sixteen_hold_categories_and_six_failures_preserve_prior_w
         HoldCategory::Procedure,
     ];
     for why in reasons {
-        let value =
-            line(OwnerMilestonePhase::Held { before: OwnerPriorPhase::Waiting, why, source: None, ending: None });
+        let value = line(MilestonePhase::Held { before: PriorPhase::Waiting, why, source: None, ending: None });
         let tree = build(&value, &w).0;
         goldens.check(&tree);
     }
@@ -176,8 +174,8 @@ fn owner_milestone_all_sixteen_hold_categories_and_six_failures_preserve_prior_w
         HoldFailure::Lost,
         HoldFailure::Invalid,
     ] {
-        let value = line(OwnerMilestonePhase::Held {
-            before: OwnerPriorPhase::Active(RunStage::Running { attempt: u64::MAX }),
+        let value = line(MilestonePhase::Held {
+            before: PriorPhase::Active(RunStage::Running { attempt: u64::MAX }),
             why: HoldCategory::Failures { class },
             source: None,
             ending: None,
@@ -185,11 +183,11 @@ fn owner_milestone_all_sixteen_hold_categories_and_six_failures_preserve_prior_w
         let tree = build(&value, &w).0;
         goldens.check(&tree);
     }
-    let value = line(OwnerMilestonePhase::Held {
-        before: OwnerPriorPhase::Closing(ClosingStage::Run { attempt: u64::MAX }),
+    let value = line(MilestonePhase::Held {
+        before: PriorPhase::Closing(ClosingStage::Run { attempt: u64::MAX }),
         why: HoldCategory::Budget,
         source: Some(part(3)),
-        ending: Some(OwnerChipEnding::Failed(doc(b"pending", true))),
+        ending: Some(ChipEnding::Failed(doc(b"pending", true))),
     });
     let (tree, bindings, _) = build(&value, &w);
     goldens.check(&tree);
@@ -209,7 +207,7 @@ fn owner_milestone_task_and_position_are_full_width_and_optional_time_is_separat
     for task in [0, u64::MAX] {
         for position in [0, u64::MAX] {
             for at in [None, Some(Wall::from_nanos(0)), Some(Wall::from_nanos(u64::MAX))] {
-                let value = OwnerMilestoneLine { task, position, at, phase: OwnerMilestonePhase::Waiting };
+                let value = MilestoneLine { task, position, at, phase: MilestonePhase::Waiting };
                 let tree = build(&value, &w).0;
                 assert_eq!(value.task, task);
                 assert_eq!(value.position, position);
@@ -218,12 +216,8 @@ fn owner_milestone_task_and_position_are_full_width_and_optional_time_is_separat
             }
         }
     }
-    for by in [
-        OwnerRequester::Task(u64::MAX),
-        OwnerRequester::Person(u64::MAX),
-        OwnerRequester::Deployment { project: u32::MAX },
-    ] {
-        let value = line(OwnerMilestonePhase::Ended(OwnerChipEnding::Cancelled {
+    for by in [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }] {
+        let value = line(MilestonePhase::Ended(ChipEnding::Cancelled {
             reason: doc(b"stop", true),
             result: None,
             by,
@@ -248,7 +242,10 @@ fn owner_milestone_whole_results_keep_all_nine_variants_and_independent_approval
             tasks: List::with_capacity(3),
             proposal: None,
         },
-        ResultValue::Connector { summary: doc(b"summary", false), part: Part::Connector { connector: u16::MAX } },
+        ResultValue::Connector {
+            summary: doc(b"summary", false),
+            part: ApplicationPart::Connector { connector: u16::MAX },
+        },
         ResultValue::Change { kind: u16::MAX, part: part(3), words: doc(b"change", true) },
         ResultValue::Choice {
             option: u32::MAX,
@@ -260,7 +257,7 @@ fn owner_milestone_whole_results_keep_all_nine_variants_and_independent_approval
         ResultValue::Words(doc(b"words", false)),
     ];
     for value in values {
-        let source = line(OwnerMilestonePhase::Ended(OwnerChipEnding::Done(value)));
+        let source = line(MilestonePhase::Ended(ChipEnding::Done(value)));
         let original = source.clone();
         let tree = build(&source, &w).0;
         goldens.check(&tree);
@@ -273,7 +270,7 @@ fn owner_milestone_whole_results_keep_all_nine_variants_and_independent_approval
             Some(value) => value.cut,
             None => false,
         };
-        let value = line(OwnerMilestonePhase::Ended(OwnerChipEnding::Done(ResultValue::Approved {
+        let value = line(MilestonePhase::Ended(ChipEnding::Done(ResultValue::Approved {
             state: copy_of(&[255, 0, 254]),
             words: explanation,
         })));
@@ -285,21 +282,21 @@ fn owner_milestone_whole_results_keep_all_nine_variants_and_independent_approval
             absent = Some(tree.len());
         }
     }
-    let value = line(OwnerMilestonePhase::Ended(OwnerChipEnding::Failed(doc(b"failed", true))));
+    let value = line(MilestonePhase::Ended(ChipEnding::Failed(doc(b"failed", true))));
     goldens.check(&build(&value, &w).0);
 }
 #[test]
 fn owner_milestone_second_checked_language_and_full_fragment_preserve_raw_slots_and_reject_wrong_holes() {
     let mut goldens = Goldens::new("tree/fragments/milestone/owner_milestone_second");
     let w = words(true);
-    let value = line(OwnerMilestonePhase::Held {
-        before: OwnerPriorPhase::Closing(ClosingStage::Settled),
+    let value = line(MilestonePhase::Held {
+        before: PriorPhase::Closing(ClosingStage::Settled),
         why: HoldCategory::PoolLost { pool: u64::MAX },
         source: Some(part(3)),
-        ending: Some(OwnerChipEnding::Cancelled {
+        ending: Some(ChipEnding::Cancelled {
             reason: doc(UTF8_TEXTS[0], true),
             result: Some(ResultValue::Change { kind: u16::MAX, part: part(3), words: doc(UTF8_TEXTS[1], true) }),
-            by: OwnerRequester::Person(u64::MAX),
+            by: Requester::Person(u64::MAX),
             at: Wall::from_nanos(u64::MAX),
         }),
     });

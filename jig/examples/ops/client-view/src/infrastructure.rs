@@ -4,7 +4,7 @@ use crate::{
     bindings::{Bindings, Meaning},
     words::{Word, Words},
 };
-use jig_client::contract::{Part, Proposer};
+use jig_client::contract::{ApplicationPart, Proposer};
 use jig_client_view::Owner;
 use jig_ops_client_domain::{
     Action,
@@ -221,7 +221,7 @@ fn document_view(builder: &mut Builder, document: &Document, words: &Words, bind
 pub fn part(
     builder: &mut Builder,
     side: &infrastructure::Side,
-    part: &Part,
+    part: &ApplicationPart,
     words: &Words,
     jig_words: &jig_client_view::words::Words,
     bindings: &mut Bindings,
@@ -231,28 +231,28 @@ pub fn part(
         return;
     }
     match part {
-        Part::Connector { .. } => words.text(
+        ApplicationPart::Connector { .. } => words.text(
             builder,
             Word::Connector,
             &[Hole::Number(u64::from(jig_ops_domain_connectors::number(
                 jig_ops_domain_connectors::Connector::Infrastructure,
             )))],
         ),
-        Part::Resource { path, .. } => {
+        ApplicationPart::Resource { path, .. } => {
             words.text(builder, Word::Resource, &[Hole::Name(skein_lib::bytes::copy_of(b""))]);
             for segment in path {
                 jig_client_view::literal_segment::render(builder, segment);
             }
         }
-        Part::Kind { kind, .. } => words.text(builder, Word::Kind, &[Hole::Number(u64::from(*kind))]),
-        Part::Panel { .. }
-        | Part::Result { .. }
-        | Part::OwnerEffect { .. }
-        | Part::Effect { .. }
-        | Part::Outbox { .. }
-        | Part::Hold { .. }
-        | Part::Project { .. }
-        | Part::Deployment { .. } => match side.part(part) {
+        ApplicationPart::Kind { kind, .. } => words.text(builder, Word::Kind, &[Hole::Number(u64::from(*kind))]),
+        ApplicationPart::Panel { .. }
+        | ApplicationPart::Result { .. }
+        | ApplicationPart::OwnerEffect { .. }
+        | ApplicationPart::Effect { .. }
+        | ApplicationPart::Outbox { .. }
+        | ApplicationPart::Hold { .. }
+        | ApplicationPart::Project { .. }
+        | ApplicationPart::Deployment { .. } => match side.part(part) {
             Some(object) => {
                 let id = side.find(object.subject.clone()).expect("part is named");
                 show_object(builder, side, id, words, jig_words, bindings);

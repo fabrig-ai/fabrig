@@ -1,7 +1,7 @@
 //! An application-owned proposal section and dialog (client/domain/testing.md, 4).
 use crate::bindings::{Bindings, Meaning};
 use alloc::boxed::Box;
-use jig_client::contract::{ActKind, ObjectKey, OwnerProposal, ProposalKey};
+use jig_client::contract::{ActKind, ObjectKey, Proposal, ProposalKey};
 use jig_client_test_domain::{
     Domain,
     first::{
@@ -12,12 +12,12 @@ use jig_client_test_domain::{
 use jig_client_view::{objects::Body, phrases::jig::JigPhrase as P, words::Words};
 use skein_ui::{Builder, Region, Role, Run};
 const REGION: Region = Region { owner: skein_ui::Owner { number: 1 }, number: 30 };
-fn document(root: &Domain, key: ProposalKey) -> Option<OwnerProposal> {
+fn document(root: &Domain, key: ProposalKey) -> Option<Proposal> {
     let client = root.jig().borrow(root.client());
     let objects = client.objects();
     let id = objects.find(ObjectKey::Proposal(key))?;
     let object = objects.get(id)?;
-    let Some(Body::OwnerProposal(proposal)) = object.body else {
+    let Some(Body::Proposal(proposal)) = object.body else {
         return None;
     };
     Some(*proposal)
@@ -81,11 +81,11 @@ fn button(b: &mut Builder, words: &Words, phrase: P, act: Act, bindings: &mut Bi
     b.bind(bindings.insert(Meaning::Action(first::Act::Proposal(act))));
     b.close();
 }
-fn facts(b: &mut Builder, proposal: &OwnerProposal, kind: ActKind, words: &Words, hide: bool) {
+fn facts(b: &mut Builder, proposal: &Proposal, kind: ActKind, words: &Words, hide: bool) {
     if hide {
         return;
     }
-    let document = jig_client::contract::ReadValue::OwnerProposal(Box::new(proposal.clone()));
+    let document = jig_client::contract::ReadValue::Proposal(Box::new(proposal.clone()));
     let facts = jig_client::facts::decision(Some(&document), kind);
     for text in jig_client::words::decision(&facts, words.book(), words.language()).into_boxed() {
         b.text(Run::Plain, &text);

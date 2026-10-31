@@ -15,13 +15,17 @@ pub(super) fn encode_chip(value: &jig_client::contract::Chip, out: &mut Encoder,
     out.object_end();
 }
 
-pub(super) fn encode_chip_phase(value: &jig_client::contract::ChipPhase, out: &mut Encoder, budget: &mut super::Cut) {
+pub(super) fn encode_chip_phase(
+    value: &jig_client::contract::ChipPhaseFacts,
+    out: &mut Encoder,
+    budget: &mut super::Cut,
+) {
     encode_chip_phase_owner(&value.phase, &value.details, out, budget);
 }
 
 fn encode_chip_phase_owner(
-    phase: &jig_client::contract::OwnerChipPhase,
-    details: &jig_client::contract::OwnerChipDetails,
+    phase: &jig_client::contract::ChipPhase,
+    details: &jig_client::contract::ChipDetails,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {

@@ -5,7 +5,7 @@ use crate::{
     state::{action::Act, intents::Origin, page::IntentPurpose},
 };
 use alloc::boxed::Box;
-use jig_client::contract::{ActKind, Admission, Ask, OwnerProject, PolicyEdit, Refusal};
+use jig_client::contract::{ActKind, Admission, Ask, PolicyEdit, Project, Refusal};
 use skein_lib::{Queue, Token};
 /// One unsent review and the independent pending keyed request.
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct Form {
 }
 /// The complete offered source baseline needed for one typed replacement.
 #[must_use]
-pub fn supported(doc: &OwnerProject, ask: &Ask) -> bool {
+pub fn supported(doc: &Project, ask: &Ask) -> bool {
     let (project, kind, complete) = match ask {
         Ask::ChangePolicy { project, edit } => (*project, ActKind::ChangePolicy, policy_complete(doc, edit)),
         Ask::SetRoles { project, .. } => (*project, ActKind::SetRoles, !doc.cut),
@@ -103,7 +103,7 @@ pub(crate) fn service_role(domain: &mut Ui, role: jig_client::contract::HeldRole
 }
 /// Source admission for a role/name service form, before either input is chosen.
 #[must_use]
-pub fn service_offered(doc: &OwnerProject) -> bool {
+pub fn service_offered(doc: &Project) -> bool {
     for offer in &doc.acts {
         if offer.act == ActKind::MakeService {
             return match &offer.admission {
@@ -114,7 +114,7 @@ pub fn service_offered(doc: &OwnerProject) -> bool {
     }
     false
 }
-fn policy_complete(doc: &OwnerProject, edit: &PolicyEdit) -> bool {
+fn policy_complete(doc: &Project, edit: &PolicyEdit) -> bool {
     match edit {
         PolicyEdit::Templates { .. } => false,
         PolicyEdit::ProjectSpend { .. } => true,
@@ -145,7 +145,7 @@ fn policy_complete(doc: &OwnerProject, edit: &PolicyEdit) -> bool {
 }
 /// The unchanged source fields shown before a supported replacement.
 #[must_use]
-pub fn baseline(doc: &OwnerProject, ask: &Ask) -> Option<Ask> {
+pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
     if !supported(doc, ask) {
         return None;
     }

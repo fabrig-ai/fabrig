@@ -20,12 +20,12 @@ impl Ui {
                     match &self.borrow(lent).objects().get(id).expect("named task exists").body {
                         Some(Body::Task(task)) => return super::task::offered(&super::task::offers(task), section),
                         Some(
-                            Body::Historical(_)
+                            Body::Ended(_)
                             | Body::Chip(_)
-                            | Body::OwnerProposal(_)
-                            | Body::OwnerEscalation(_)
+                            | Body::Proposal(_)
+                            | Body::Escalation(_)
                             | Body::Question(_)
-                            | Body::OwnerPersonTask(_)
+                            | Body::PersonTask(_)
                             | Body::Result(_)
                             | Body::Note { .. },
                         )

@@ -6,7 +6,7 @@ use skein_ui::phrases::{
 };
 use skein_ui::{Builder, Role};
 
-use jig_client::contract::{OwnerWakePolicy, ResultsWake, Subscription, SubscriptionKind, Subscriptions, WakeRule};
+use jig_client::contract::{ResultsWake, Subscription, SubscriptionKind, Subscriptions, WakePolicy, WakeRule};
 use skein_lib::{Duration, List, Wall};
 
 fn builder(nodes: u32, book: &Phrasebook) -> Builder {
@@ -36,7 +36,7 @@ fn owner_wake_renderer_keeps_every_rule_result_and_independent_switch() {
     {
         for results in [ResultsWake::Never, ResultsWake::Each, ResultsWake::LastOrFailure] {
             for switches in 0_u8..8 {
-                let value = OwnerWakePolicy {
+                let value = WakePolicy {
                     words: rule,
                     notices: rule,
                     news: rule,
@@ -111,7 +111,7 @@ fn owner_wake_renderer_uses_checked_selected_language_with_reordered_holes() {
         &PhraseLimits { languages: 2, phrases: 27, holes: 2, segments: 200, text_bytes: 4000, hole_bytes: 0 },
     )
     .unwrap();
-    let value = OwnerWakePolicy {
+    let value = WakePolicy {
         words: WakeRule::Never,
         notices: WakeRule::Immediate,
         news: WakeRule::Batch { count: 7, age: Duration::from_nanos(13) },

@@ -49,7 +49,7 @@ fn program_details_past_the_wire_bound_are_refused() {
     };
     assert_eq!(
         programs::login(&row, &w::CEILINGS).err(),
-        Some(w::Problem { path: w::Path::OwnerProgramFailedDetail, reason: skein_codec::Reason::Bound })
+        Some(w::Problem { path: w::Path::ProgramFailedDetail, reason: skein_codec::Reason::Bound })
     );
 }
 #[test]
@@ -57,7 +57,7 @@ fn program_names_past_the_wire_bound_are_refused() {
     let row = d::ProgramLogin { name: Box::from([b'a'; 33]), state: None, sign_out: None, cleanup: false, cut: false };
     assert_eq!(
         programs::login(&row, &w::CEILINGS).err(),
-        Some(w::Problem { path: w::Path::OwnerProgramLoginName, reason: skein_codec::Reason::Bound })
+        Some(w::Problem { path: w::Path::ProgramLoginName, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -66,7 +66,7 @@ fn a_refused_worker_position_reaches_the_wire_record() {
     let mut value = super::fixtures::deployment_document();
     value.hello_refusals.get_mut(0).expect("fixture refusal").why = fleet::HelloRefusal::Position { worker: u32::MAX };
     let record = crate::translate::deployment::document(&value, &w::CEILINGS).expect("deployment record");
-    let w::OwnerHelloRefusal::Position(row) = record.hello_refusals().get(0).expect("wire refusal").why() else {
+    let w::HelloRefusal::Position(row) = record.hello_refusals().get(0).expect("wire refusal").why() else {
         panic!("position refusal");
     };
     assert_eq!(row.worker(), u32::MAX);
@@ -76,15 +76,13 @@ fn a_refused_worker_position_reaches_the_wire_record() {
 fn a_host_rule_reaches_the_wire() {
     use jig_domain_core::HostRule;
     for (rule, expected) in [
-        (HostRule::Open, w::OwnerHostRule::Open),
+        (HostRule::Open, w::HostRule::Open),
         (
             HostRule::Person(7),
-            w::OwnerHostRule::Person(
-                w::OwnerHostPerson::new(&w::CEILINGS, w::OwnerHostPersonParts { party: 7 }).expect("person"),
-            ),
+            w::HostRule::Person(w::HostPerson::new(&w::CEILINGS, w::HostPersonParts { party: 7 }).expect("person")),
         ),
-        (HostRule::Several, w::OwnerHostRule::Several),
-        (HostRule::Unknown, w::OwnerHostRule::Unknown),
+        (HostRule::Several, w::HostRule::Several),
+        (HostRule::Unknown, w::HostRule::Unknown),
     ] {
         let mut value = host();
         value.rule = rule;

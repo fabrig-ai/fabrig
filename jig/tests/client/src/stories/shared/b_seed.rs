@@ -26,7 +26,7 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
                 let mut task = crate::stories::conversations::chat(number, words, Wall::EPOCH);
                 task.flags.conversation = false;
                 task.flags.listed = true;
-                task.requester = c::OwnerRequester::Person(1);
+                task.requester = c::Requester::Person(1);
                 task.label = 2;
                 task.priority = Some(priority);
                 front
@@ -48,10 +48,7 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
                 admission: c::Admission::Allowed,
                 effect: None,
             }]);
-            front
-                .engine
-                .act(Time::ZERO, Wall::EPOCH, Change::OwnerProject(Box::new(project)))
-                .expect("project fact fits");
+            front.engine.act(Time::ZERO, Wall::EPOCH, Change::Project(Box::new(project))).expect("project fact fits");
         }
         Facts::GoalOffer { procedure } => {
             let mut frame = crate::stories::frame(1);
@@ -70,7 +67,7 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
             front.engine.act(Time::ZERO, Wall::EPOCH, Change::Me(frame)).expect("goal offer fits");
             front
                 .engine
-                .act(Time::ZERO, Wall::EPOCH, Change::OwnerProject(Box::new(crate::stories::project())))
+                .act(Time::ZERO, Wall::EPOCH, Change::Project(Box::new(crate::stories::project())))
                 .expect("project fits");
         }
         Facts::NoChatTemplate => {

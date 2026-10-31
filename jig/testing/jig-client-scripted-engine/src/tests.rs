@@ -6,8 +6,8 @@ use jig_client_domain::contract::Decision;
 use jig_client_domain::contract::*;
 use skein_lib::List;
 mod frame_facts;
-mod owner_project;
 mod policy;
+mod project;
 
 fn text(bytes: &[u8]) -> Text {
     Text::new(bytes.into(), 4096).expect("fixture text fits")
@@ -41,7 +41,7 @@ fn frame(number: u64) -> Me {
             pool: Some(PoolLedger {
                 source: Funder::Pool { project: 1, person: number, period: 1 },
                 parent: None,
-                numbers: OwnerNumbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
+                numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
                 left: 100,
                 closed: false,
                 began: None,
@@ -58,13 +58,13 @@ fn frame(number: u64) -> Me {
         deployment_role: Some(HeldRole::Policy { role: 1 }),
     }
 }
-pub(crate) fn owner_authority() -> OwnerAuthorityDocument {
-    OwnerAuthorityDocument {
-        authority: OwnerAuthority {
+pub(crate) fn authority() -> AuthorityDocument {
+    AuthorityDocument {
+        authority: Authority {
             models: None,
             tools: 0,
             grants: List::with_capacity(0),
-            delegation: OwnerDelegation { kinds: List::with_capacity(0), tasks: 10, depth: 10 },
+            delegation: Delegation { kinds: List::with_capacity(0), tasks: 10, depth: 10 },
             spend: 100,
             deadline: None,
             notes: 0,
@@ -104,14 +104,14 @@ fn final_answer(up: &Up) -> &Answer {
         }
     }
 }
-fn proposal() -> OwnerProposal {
-    OwnerProposal {
+fn proposal() -> Proposal {
+    Proposal {
         key: ProposalKey { proposer: Proposer::Task(8), number: 1 },
         project: 1,
         reason: DocumentText::complete(text(b"wider")),
-        action: OwnerProposalAction::Batch(list(vec![])),
+        action: ProposalAction::Batch(list(vec![])),
         as_holder: false,
-        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(1), since: Wall::EPOCH },
+        waiting: ProposalWaiting { holder: HistoryHolder::Person(1), since: Wall::EPOCH },
         funding: list(vec![]),
         acts: list(vec![Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]),
     }
@@ -119,7 +119,7 @@ fn proposal() -> OwnerProposal {
 fn proposal_engine() -> (Engine, Ask) {
     let mut setup = script();
     let p = proposal();
-    setup.truth.objects.insert(ObjectKey::Proposal(p.key), ReadValue::OwnerProposal(Box::new(p.clone())));
+    setup.truth.objects.insert(ObjectKey::Proposal(p.key), ReadValue::Proposal(Box::new(p.clone())));
     let ask = Ask::Decide {
         project: 1,
         on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
@@ -178,10 +178,10 @@ fn second_party_receives_the_first_proposal_decision() {
     let up = engine.poll(at(10_000_002));
     assert_eq!(
         final_answer(&up[1]),
-        &Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+        &Answer::Done(Outcome::Document(DocumentOutcome::ProposalDecided {
             proposal: proposal().key,
             by: 1,
-            choice: OwnerProposalChoice::Accepted,
+            choice: ProposalChoice::Accepted,
             at: Wall::EPOCH,
             repeated: true,
         }))
@@ -213,8 +213,8 @@ fn expired_key_can_make_another_decision() {
     drop(engine.poll(at(2_010_000_000)));
     assert_eq!(engine.commits().len(), 2);
 }
-fn counts() -> PhaseCounts {
-    PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 }
+fn counts() -> ImpactCounts {
+    ImpactCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 }
 }
 fn task() -> Task {
     Task {
@@ -230,23 +230,23 @@ fn task() -> Task {
         chip: Chip {
             task: 8,
             title: DocumentText::complete(text(b"chat")),
-            executor: Executor::Agent { charter: 1 },
+            executor: ChipExecutor::Agent { charter: 1 },
             phase: Phase::Running,
-            details: Box::new(chip_details(OwnerChipPhase::Active(RunStage::Running { attempt: 1 }))),
+            details: Box::new(chip_details(ChipPhase::Active(RunStage::Running { attempt: 1 }))),
         },
         goal: None,
         priority: None,
         lineage_chips: list(vec![]),
         inputs: list(vec![]),
         project: 1,
-        requester: OwnerRequester::Person(1),
+        requester: Requester::Person(1),
         lineage: list(vec![]),
         spec: specification(text(b"spec")),
         spec_revision: Revision { value: 1 },
         person_revision: None,
         taken_by: None,
         instructions: Some(DocumentText::complete(text(b"instructions"))),
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Immediate,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -261,13 +261,13 @@ fn task() -> Task {
         cut: false,
         references: list(vec![]),
         resources: list(vec![]),
-        budget: OwnerBudget {
-            numbers: OwnerNumbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
+        budget: Budget {
+            numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
             left: 100,
             funder: Funder::Period { project: 1, period: 3 },
             deadline: None,
         },
-        authority: owner_authority(),
+        authority: authority(),
         hold: None,
         proposals: list(vec![]),
         activity: 0,
@@ -289,10 +289,10 @@ fn task() -> Task {
 fn live_script() -> Script {
     let mut setup = script();
     setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(task())));
-    setup.truth.trees.insert(
-        8,
-        OwnerTree { root: task().chip, rows: list(vec![]), folded: list(vec![]), held_below: 0, next: None },
-    );
+    setup
+        .truth
+        .trees
+        .insert(8, Tree { root: task().chip, rows: list(vec![]), folded: list(vec![]), held_below: 0, next: None });
     setup
 }
 fn at(nanos: u64) -> Time {
@@ -300,7 +300,7 @@ fn at(nanos: u64) -> Time {
 }
 fn scenario_watch_subjects_coalescing_and_lifecycle() {
     let mut setup = live_script();
-    setup.truth.owner_deployment = Some(owner_deployment::empty());
+    setup.truth.deployment = Some(deployment::empty());
     let mut engine = Engine::new(setup, 5).expect("live truth");
     let subjects = vec![
         Subject::Me,
@@ -355,7 +355,7 @@ fn scenario_watch_subjects_coalescing_and_lifecycle() {
     assert_eq!(engine.poll(at(1_010_000_001)), vec![Up::Ended { token: Token::new(1), why: WatchEnd::Closed }]);
     let mut changed = task();
     changed.chip.phase = Phase::Done;
-    *changed.chip.details = chip_details(OwnerChipPhase::Ended);
+    *changed.chip.details = chip_details(ChipPhase::Ended);
     changed.context.as_mut().expect("supplied task context").runtime = Runtime::Ended;
     engine
         .act(
@@ -465,12 +465,12 @@ fn scenario_all_read_shapes_and_reverse_activity() {
         read: Read::Activity { task: 8, before: None },
         rows: Rows::Activity(
             (0..3)
-                .map(|position| ActivityLine {
-                    source: Box::new(OwnerActivityLine {
+                .map(|position| DecodedActivityLine {
+                    source: Box::new(ActivityLine {
                         task: 8,
                         position,
                         at: Wall::EPOCH,
-                        line: OwnerActivity::RunBegan { attempt: 1, why: OwnerRunWhy::Ready, resumed: true },
+                        line: Activity::RunBegan { attempt: 1, why: RunWhy::Ready, resumed: true },
                     }),
                     decoded: None,
                 })
@@ -582,7 +582,7 @@ fn amendment_release_checks_the_named_hold_separately_from_the_spec() {
     for stale_hold in [false, true] {
         let mut setup = script();
         let mut row = task();
-        row.hold = Some(Box::new(owner_hold(HoldCategory::Stopped, 7)));
+        row.hold = Some(Box::new(hold(HoldCategory::Stopped, 7)));
         row.acts = list(vec![Offered { effect: None, act: ActKind::Amend, admission: Admission::Allowed }]);
         setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
         let mut engine = Engine::new(setup, 1).unwrap();
@@ -639,7 +639,7 @@ fn specification(words: jig_client_domain::contract::Text) -> jig_client_domain:
     })
 }
 
-fn cursor_inbox_entry(number: u64, kind: InboxGroup, at: u64, _goal: Option<u64>) -> OwnerInboxEntry {
+fn cursor_inbox_entry(number: u64, kind: InboxGroup, at: u64, _goal: Option<u64>) -> InboxEntry {
     inbox_entry(
         match kind {
             InboxGroup::Questions => ObjectKey::Question { task: number, message: 1 },
@@ -701,7 +701,7 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
     };
     engine.read(Time::ZERO, 11, Token::new(1), needs.clone()).unwrap();
     let up = engine.poll(Time::ZERO);
-    let Up::Read { terminal: ReadResult::Value(ReadValue::OwnerInbox(page)), .. } = &up[0] else {
+    let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
         panic!("needs page");
     };
     assert_eq!(
@@ -712,7 +712,7 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
     let needs_cursor = page.after.clone().unwrap();
     engine.read(Time::ZERO, 11, Token::new(2), updates.clone()).unwrap();
     let up = engine.poll(Time::ZERO);
-    let Up::Read { terminal: ReadResult::Value(ReadValue::OwnerInbox(page)), .. } = &up[0] else {
+    let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
         panic!("updates page");
     };
     assert_eq!(page.rows.get(0).unwrap().card_key(), ObjectKey::Result(11));
@@ -726,7 +726,7 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
         }
         engine.read(Time::ZERO, 11, Token::new(token), query).unwrap();
         let up = engine.poll(Time::ZERO);
-        let Up::Read { terminal: ReadResult::Value(ReadValue::OwnerInbox(page)), .. } = &up[0] else {
+        let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
             panic!("independent continuation");
         };
         assert_eq!(page.rows.get(0).unwrap().card_key(), wanted);
@@ -740,7 +740,7 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
     assert!(matches!(engine.poll(Time::ZERO)[0], Up::Read { terminal: ReadResult::None(ReadNone::Gone), .. }));
     engine.open(Time::ZERO, 11, Token::new(6), Subject::Inbox { window: 1 }).unwrap();
     let up = engine.poll(Time::ZERO);
-    let Up::Watch { event: WatchEvent::Delivered(Delivery::OwnerInbox(value)), .. } = &up[1] else {
+    let Up::Watch { event: WatchEvent::Delivered(Delivery::Inbox(value)), .. } = &up[1] else {
         panic!("shared live watch");
     };
     assert_eq!(
@@ -769,7 +769,7 @@ fn activation_observations_and_prior_closing_are_admitted_whole_with_their_alloc
             started: None,
         }),
     };
-    *row.chip.details = chip_details(OwnerChipPhase::Active(active.stage));
+    *row.chip.details = chip_details(ChipPhase::Active(active.stage));
     row.context.as_mut().expect("supplied task context").runtime = Runtime::Active(active.clone());
     setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row.clone())));
     assert!(Engine::new(setup.clone(), 1).is_ok());
@@ -806,20 +806,20 @@ fn full_width_task_and_party_makers_remain_distinct_in_scripted_reads_decisions_
     for (index, key) in keys.iter().enumerate() {
         let mut row = proposal();
         row.key = *key;
-        row.action = OwnerProposalAction::Settings(Box::new(OwnerProposalActionSettings {
+        row.action = ProposalAction::Settings(Box::new(ProposalActionSettings {
             against: 1,
             items: list(vec![]),
             review: None,
             made: None,
         }));
         row.reason = DocumentText::complete(text(if index == 0 { b"task maker" } else { b"party maker" }));
-        setup.truth.objects.insert(ObjectKey::Proposal(*key), ReadValue::OwnerProposal(Box::new(row)));
+        setup.truth.objects.insert(ObjectKey::Proposal(*key), ReadValue::Proposal(Box::new(row)));
     }
     let mut engine = Engine::new(setup, 197).unwrap();
     for (index, key) in keys.iter().enumerate() {
         engine.read(Time::ZERO, 11, Token::new(index as u64 + 1), Read::Proposal { proposal: *key }).unwrap();
         let rows = engine.poll(Time::ZERO);
-        let Up::Read { terminal: ReadResult::Value(ReadValue::OwnerProposal(row)), .. } = &rows[0] else {
+        let Up::Read { terminal: ReadResult::Value(ReadValue::Proposal(row)), .. } = &rows[0] else {
             panic!("exact typed read")
         };
         assert_eq!(row.key, *key);
@@ -952,12 +952,12 @@ mod task_ending;
 
 mod task_hold;
 
+mod escalation;
 mod offered;
-mod owner_escalation;
-mod owner_person_task;
+mod person_task;
 
-mod historical_objects;
-mod owner_deployment;
+mod deployment;
+mod ended_objects;
 
 use jig_client_domain::contract::DecideOn;
 
@@ -971,7 +971,7 @@ mod propose;
 #[test]
 fn span_acceptance_uses_the_supplied_decision_wall() {
     for (seconds, expected) in [
-        (15, Answer::Done(Outcome::Owner(OwnerOutcome::Amended { task: 8 }))),
+        (15, Answer::Done(Outcome::Document(DocumentOutcome::Amended { task: 8 }))),
         (
             16,
             Answer::Refused {
@@ -1003,30 +1003,30 @@ fn inbox_entry(
     position: u64,
     at: Wall,
     reply: Option<Box<TaskLine>>,
-) -> OwnerInboxEntry {
+) -> InboxEntry {
     let (task, object) = match object {
-        ObjectKey::Question { task, message } => (task, OwnerInboxObject::Question { message }),
+        ObjectKey::Question { task, message } => (task, InboxObject::Question { message }),
         ObjectKey::Proposal(key) => (
             match key.proposer {
                 Proposer::Task(n) | Proposer::Party(n) => n,
             },
-            OwnerInboxObject::Proposal { proposer: key.proposer, number: key.number },
+            InboxObject::Proposal { proposer: key.proposer, number: key.number },
         ),
-        ObjectKey::Escalation(task) => (task, OwnerInboxObject::Escalation { revision: 1 }),
-        ObjectKey::PersonTask(task) => (task, OwnerInboxObject::PersonTask),
-        ObjectKey::Task(task) => (task, OwnerInboxObject::Reply { message: position }),
-        ObjectKey::Result(task) => (task, OwnerInboxObject::Result { position }),
+        ObjectKey::Escalation(task) => (task, InboxObject::Escalation { revision: 1 }),
+        ObjectKey::PersonTask(task) => (task, InboxObject::PersonTask),
+        ObjectKey::Task(task) => (task, InboxObject::Reply { message: position }),
+        ObjectKey::Result(task) => (task, InboxObject::Result { position }),
         ObjectKey::Note { .. } => unreachable!("notes have no inbox row"),
     };
-    let row = OwnerInboxEntry {
+    let row = InboxEntry {
         reply,
-        task: OwnerTaskLink::Stored { number: task, status: None },
+        task: TaskLink::Stored { number: task, status: None },
         project: Some(project),
         object,
         activity: None,
         at: Some(at),
         unread: None,
-        cursor: OwnerInboxCursor::Number { number: position },
+        cursor: InboxCursor::Number { number: position },
     };
     assert_eq!(row.group(), group);
     row
@@ -1041,19 +1041,19 @@ fn run_delivery(value: RunText) -> Delivery {
         call: None,
     }))
 }
-pub(crate) fn chip_details(phase: OwnerChipPhase) -> ChipPhase {
-    let ended_at = if matches!(phase, OwnerChipPhase::Ended) { Some(Wall::EPOCH) } else { None };
-    ChipPhase {
+pub(crate) fn chip_details(phase: ChipPhase) -> ChipPhaseFacts {
+    let ended_at = if matches!(phase, ChipPhase::Ended) { Some(Wall::EPOCH) } else { None };
+    ChipPhaseFacts {
         phase,
-        details: Box::new(OwnerChipDetails {
+        details: Box::new(ChipDetails {
             dependencies: List::with_capacity(0),
             project: 1,
-            executor: OwnerExecutor::Agent { charter: 1 },
+            executor: Executor::Agent { charter: 1 },
             phase_since: Wall::EPOCH,
             run_since: None,
             attempt: Some(1),
             retry: None,
-            wake: OwnerWakePolicy {
+            wake: WakePolicy {
                 words: WakeRule::Immediate,
                 notices: WakeRule::Never,
                 news: WakeRule::Never,
@@ -1064,8 +1064,8 @@ pub(crate) fn chip_details(phase: OwnerChipPhase) -> ChipPhase {
             },
             person_wait: None,
             hold: None,
-            budget: OwnerBudget {
-                numbers: OwnerNumbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
+            budget: Budget {
+                numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
                 left: 100,
                 funder: Funder::Period { project: 1, period: 1 },
                 deadline: None,
@@ -1083,8 +1083,8 @@ pub(crate) fn chip_details(phase: OwnerChipPhase) -> ChipPhase {
         }),
     }
 }
-fn owner_hold(reason: HoldCategory, revision: u64) -> OwnerChipHold {
-    OwnerChipHold {
+fn hold(reason: HoldCategory, revision: u64) -> ChipHold {
+    ChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -1092,28 +1092,28 @@ fn owner_hold(reason: HoldCategory, revision: u64) -> OwnerChipHold {
         source: None,
         reason,
         revision,
-        before: OwnerPriorPhase::Active(RunStage::Running { attempt: 1 }),
+        before: PriorPhase::Active(RunStage::Running { attempt: 1 }),
         escalation: None,
-        tries: OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
     }
 }
-fn turn_event(position: u64, name: TurnName, turn: TurnRead) -> ActivityLine {
-    ActivityLine {
-        source: Box::new(OwnerActivityLine {
+fn turn_event(position: u64, name: TurnName, turn: TurnRead) -> DecodedActivityLine {
+    DecodedActivityLine {
+        source: Box::new(ActivityLine {
             task: 8,
             position,
             at: Wall::EPOCH,
-            line: OwnerActivity::Turn { reply: position, attempt: name.attempt, turn: name.number, read: None },
+            line: Activity::Turn { reply: position, attempt: name.attempt, turn: name.number, read: None },
         }),
         decoded: Some(ArchivedTurn { task: 8, name, cumulative: 1, read: None, at: Wall::EPOCH, turn }),
     }
 }
 
 #[test]
-fn accounts_watch_delivers_the_signed_in_partys_owner_facts() {
+fn accounts_watch_delivers_the_signed_in_partys_facts() {
     let mut setup = script();
-    let expected = OwnerAccounts {
+    let expected = Accounts {
         program_hosts: list(vec![]),
         accounts: list(vec![]),
         signing: list(vec![]),
@@ -1131,10 +1131,7 @@ fn accounts_watch_delivers_the_signed_in_partys_owner_facts() {
         engine.poll(Time::ZERO),
         vec![
             Up::Watch { token: Token::new(1), event: WatchEvent::Opened },
-            Up::Watch {
-                token: Token::new(1),
-                event: WatchEvent::Delivered(Delivery::OwnerAccounts(Box::new(expected)))
-            }
+            Up::Watch { token: Token::new(1), event: WatchEvent::Delivered(Delivery::Accounts(Box::new(expected))) }
         ]
     );
 }
@@ -1143,10 +1140,7 @@ fn inbox_selections(truth: &mut Truth) {
         1,
         [(6, 9), (8, 9), (7, 9), (5, 8), (10, 9), (11, 9)]
             .into_iter()
-            .map(|(number, goal)| OwnerInboxSelection {
-                cursor: OwnerInboxCursor::Number { number },
-                goals: list(vec![goal]),
-            })
+            .map(|(number, goal)| InboxSelection { cursor: InboxCursor::Number { number }, goals: list(vec![goal]) })
             .collect(),
     );
 }
@@ -1167,10 +1161,10 @@ fn task_query_parent_uses_requester_and_ended_time_uses_terminal_phase() {
     let mut value = task();
     let mut query = query(1);
     query.parent = Some(42);
-    value.requester = OwnerRequester::Task(42);
+    value.requester = Requester::Task(42);
     value.lineage = list(vec![99]);
     assert!(crate::queries::selects(&query, &value));
-    value.requester = OwnerRequester::Person(42);
+    value.requester = Requester::Person(42);
     value.lineage = list(vec![42]);
     assert!(!crate::queries::selects(&query, &value));
     for phase in [
@@ -1205,7 +1199,7 @@ fn inbox_updates_at_the_same_time_use_descending_position_before_task() {
     let engine = Engine::new(setup, 1).expect("inbox source");
     let Rows::Inbox(rows) = engine.rows_for(1, &read) else { panic!("inbox rows") };
     assert_eq!(
-        rows.iter().map(OwnerInboxEntry::card_key).collect::<Vec<_>>(),
+        rows.iter().map(InboxEntry::card_key).collect::<Vec<_>>(),
         vec![ObjectKey::Result(9), ObjectKey::Result(1)]
     );
 }

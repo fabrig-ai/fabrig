@@ -583,7 +583,7 @@ impl Children {
                 records.differs = differs;
             }
         }
-        // Historical disagreements persist after the queue drains. Setup records
+        // Ended disagreements persist after the queue drains. Setup records
         // cease to count when the caller reuses their positions for the story.
         self.last_setup = setup;
         self.lock_change =

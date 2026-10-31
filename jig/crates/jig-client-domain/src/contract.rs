@@ -13,8 +13,7 @@ pub mod entrance;
 pub mod history_rows;
 pub mod live_call;
 pub mod llm;
-pub mod owner_part;
-pub mod owner_wake;
+pub mod part;
 pub mod policy_edit;
 pub mod proposed_task;
 pub mod reads;
@@ -26,6 +25,7 @@ pub mod specification;
 pub mod task_result;
 pub mod turn;
 pub mod versions;
+pub mod wake;
 pub mod watches;
 pub use admission_limits::*;
 pub use asks::*;
@@ -36,8 +36,7 @@ pub use entrance::*;
 pub use history_rows::*;
 pub use live_call::*;
 pub use llm::*;
-pub use owner_part::*;
-pub use owner_wake::*;
+pub use part::*;
 pub use policy_edit::*;
 pub use proposed_task::*;
 pub use reads::*;
@@ -47,71 +46,72 @@ pub use resource_names::*;
 pub use run_facts::*;
 pub use specification::*;
 pub use task_result::*;
+pub use wake::*;
 mod document_text;
 pub use document_text::*;
 pub use turn::*;
 pub use versions::*;
 pub use watches::*;
 
-pub mod owner_authority;
-pub use owner_authority::*;
+pub mod authority;
+pub use authority::*;
 
 pub mod result_details;
-pub use result_details::{OwnerRequester, OwnerTaskLink, OwnerTaskStatus, ResultDetails};
-pub mod owner_budget;
-pub use owner_budget::*;
+pub use result_details::{Requester, ResultDetails, TaskLink, TaskStatus};
+pub mod budget;
+pub use budget::*;
 
-pub mod owner_outcome;
-pub use owner_outcome::*;
+pub mod outcome;
+pub use outcome::*;
 
-pub mod owner_chip;
-pub use owner_chip::*;
+pub mod chip;
+pub use chip::*;
 
-pub mod owner_amendment;
-pub use owner_amendment::OwnerAmendmentState;
+pub mod amendment;
+pub use amendment::AmendmentState;
 
-pub mod owner_activity;
-pub use owner_activity::*;
+pub mod activity;
+pub use activity::*;
 
-pub mod owner_history;
-pub use owner_history::*;
+pub mod history;
+pub use history::*;
 
-pub mod owner_kind_order;
-pub use owner_kind_order::*;
+pub mod kind_order;
+pub use kind_order::*;
 
-pub mod owner_phase_counts;
-pub use owner_phase_counts::*;
+pub mod phase_counts;
+pub use phase_counts::*;
 
-pub mod owner_milestone;
-pub use owner_milestone::*;
+pub mod milestone;
+pub use milestone::*;
 
-pub mod owner_tree;
-pub use owner_tree::*;
+pub mod tree;
+pub use tree::*;
 
-pub mod owner_inbox;
-pub use owner_inbox::*;
+pub mod inbox;
+pub use inbox::*;
 
 mod task_hold;
 pub use task_hold::{HoldMode, HoldScope, PlacedHold};
 
-mod owner_proposal;
-pub use owner_proposal::{OwnerFundingOffer, OwnerProposal, OwnerProposalAction, OwnerProposalWaiting};
-pub mod owner_person_task;
-pub use owner_person_task::{OwnerPersonTask, OwnerShownResult};
+mod proposal;
+pub use proposal::{FundingOffer, Proposal, ProposalAction, ProposalWaiting};
+pub mod person_task;
+pub use person_task::{PersonTask, ShownResult};
 
-pub mod historical_pages;
-pub use historical_pages::*;
-pub mod owner_escalation;
-pub use owner_escalation::*;
-mod owner_project;
-pub use owner_project::*;
-pub mod owner_accounts;
-pub use owner_accounts::*;
+pub mod ended_pages;
+pub use ended_pages::*;
+pub mod escalation;
+pub use escalation::*;
+mod project;
+pub use project::*;
+pub mod accounts;
+pub use accounts::*;
 
-pub mod owner_deployment;
-pub use owner_deployment::*;
-pub mod owner_historical;
-pub use owner_historical::*;
+pub mod deployment;
+pub use deployment::*;
+pub mod ended;
+pub use ended::*;
 
 pub mod operations;
 pub use operations::*;

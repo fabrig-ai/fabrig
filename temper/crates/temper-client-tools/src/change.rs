@@ -338,8 +338,8 @@ fn has_change(task: &c::Task, result: Option<&c::Result>) -> bool {
     let Some(result) = result else { return false };
     let value = match &result.ending {
         c::Ending::Task(ending) => match ending.as_ref() {
-            c::OwnerChipEnding::Done(value) => Some(value),
-            c::OwnerChipEnding::Failed(_) | c::OwnerChipEnding::Cancelled { .. } => None,
+            c::ChipEnding::Done(value) => Some(value),
+            c::ChipEnding::Failed(_) | c::ChipEnding::Cancelled { .. } => None,
         },
         c::Ending::Done => result.value.as_ref(),
         c::Ending::Failed { .. }
@@ -483,9 +483,9 @@ fn ending(task: &c::Task, result: Option<&c::Result>) -> &'static [u8] {
         c::Ending::Cancelled { .. } => b"ended: cancelled",
         c::Ending::Failed { .. } => b"ended: failed",
         c::Ending::Task(ending) => match ending.as_ref() {
-            c::OwnerChipEnding::Cancelled { .. } => b"ended: cancelled",
-            c::OwnerChipEnding::Failed(_) => b"ended: failed",
-            c::OwnerChipEnding::Done(_) => b"ended",
+            c::ChipEnding::Cancelled { .. } => b"ended: cancelled",
+            c::ChipEnding::Failed(_) => b"ended: failed",
+            c::ChipEnding::Done(_) => b"ended",
         },
         c::Ending::Done | c::Ending::Withdrawn { .. } | c::Ending::Decided { .. } | c::Ending::Deleted => phase,
     }

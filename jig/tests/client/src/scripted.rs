@@ -146,7 +146,7 @@ impl Scripted {
             .expect("seed task number fits");
         let mut task = crate::stories::conversations::chat(number, words, Wall::EPOCH);
         task.project = project;
-        task.requester = jig_client_domain::contract::OwnerRequester::Person(party);
+        task.requester = jig_client_domain::contract::Requester::Person(party);
         task.spec = jig_client_domain::contract::SpecificationDocument {
             specification: jig_client_domain::contract::DocumentSpecification {
                 words: jig_client_domain::contract::DocumentText::complete(crate::stories::text(words)),
@@ -159,7 +159,7 @@ impl Scripted {
         task.settings.as_mut().expect("chat settings").run = Some(1);
         task.chip.phase = jig_client_domain::contract::Phase::Running;
         task.chip.details.phase =
-            jig_client_domain::contract::OwnerChipPhase::Active(jig_client_domain::contract::RunStage::Running {
+            jig_client_domain::contract::ChipPhase::Active(jig_client_domain::contract::RunStage::Running {
                 attempt: 1,
             });
         task.context.as_mut().expect("chat context").runtime =
@@ -217,7 +217,7 @@ impl Scripted {
                     key: ObjectKey::Task(task.chip.task),
                     value: self.chat_report.as_ref().map_or_else(
                         || ReadValue::Task(Box::new(task.clone())),
-                        |report| stories::historical(task.clone(), report),
+                        |report| stories::ended(task.clone(), report),
                     ),
                 }],
             })
@@ -368,7 +368,7 @@ impl Front<Test> for Scripted {
         match seed {
             Seed::Roles { story } => stories::roles(self, story),
             Seed::PendingGoal { words, budget } => stories::proposal(self, &words, budget),
-            Seed::OwnerProfile => stories::profile(self),
+            Seed::Profile => stories::profile(self),
             Seed::ChatResult { report } => self.chat_report = Some(report),
             Seed::Project(facts) => {
                 self.project_facts = true;
@@ -692,28 +692,28 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
         engine::Change::Forget { key } => seen.push(Observed::Stopped { card: crate::observe::key(*key), commit }),
         engine::Change::Object { key, value, .. } => {
             let terminal = match value {
-                ReadValue::Historical(p) => p.is_terminal(),
+                ReadValue::Ended(p) => p.is_terminal(),
                 ReadValue::Question(q) => q.ending.is_some(),
                 ReadValue::Task(t) => t.result.is_some(),
                 ReadValue::Result(_) => true,
-                ReadValue::OwnerPersonTask(_)
-                | ReadValue::OwnerProposal(_)
-                | ReadValue::OwnerEscalation(_)
+                ReadValue::PersonTask(_)
+                | ReadValue::Proposal(_)
+                | ReadValue::Escalation(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::OwnerInbox(_)
-                | ReadValue::OwnerEnded(_)
-                | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
+                | ReadValue::Inbox(_)
+                | ReadValue::EndedPage(_)
+                | ReadValue::Spend(_)
+                | ReadValue::Project(_)
                 | ReadValue::Notes(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
                 | ReadValue::Revisions(_)
-                | ReadValue::OwnerDeployment(_) => false,
+                | ReadValue::Deployment(_) => false,
             };
             if terminal {
                 seen.push(Observed::Stopped { card: crate::observe::key(*key), commit });
@@ -724,24 +724,24 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Historical(_)
-                | ReadValue::OwnerProposal(_)
-                | ReadValue::OwnerEscalation(_)
+                | ReadValue::EndedPage(_)
+                | ReadValue::Proposal(_)
+                | ReadValue::Escalation(_)
                 | ReadValue::Question(_)
-                | ReadValue::OwnerPersonTask(_)
+                | ReadValue::PersonTask(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::OwnerInbox(_)
-                | ReadValue::OwnerEnded(_)
-                | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
+                | ReadValue::Inbox(_)
+                | ReadValue::Ended(_)
+                | ReadValue::Spend(_)
+                | ReadValue::Project(_)
                 | ReadValue::Notes(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
                 | ReadValue::Revisions(_)
-                | ReadValue::OwnerDeployment(_) => {}
+                | ReadValue::Deployment(_) => {}
             }
         }
         engine::Change::Settings(_)
@@ -753,10 +753,10 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
         | engine::Change::SignIn { .. }
         | engine::Change::SignedOut { .. }
         | engine::Change::RemoveProject { .. }
-        | engine::Change::OwnerProject(_)
+        | engine::Change::Project(_)
         | engine::Change::Note(_)
         | engine::Change::DeleteNote { .. }
-        | engine::Change::OwnerDeployment(_)
+        | engine::Change::Deployment(_)
         | engine::Change::Tree(_)
         | engine::Change::Seen { .. } => {}
     }

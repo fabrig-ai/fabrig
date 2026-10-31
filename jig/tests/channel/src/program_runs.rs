@@ -321,11 +321,11 @@ impl skein_world::Referee<Proc> for Judge {
         let signed_out = procs.iter().any(|process| {
             let Proc::Client(client) = process else { return false };
             client.received.iter().any(|received| {
-                use jig_client::contract::{Answer, Outcome, OwnerOutcome};
+                use jig_client::contract::{Answer, DocumentOutcome, Outcome};
                 matches!(
                     received,
                     jig_client_protocol_world::native::Received::Answer {
-                        answer: Answer::Done(Outcome::Owner(OwnerOutcome::AccountSignedOut {
+                        answer: Answer::Done(Outcome::Document(DocumentOutcome::AccountSignedOut {
                             confirmed: true, failed_hosts,
                         })), ..
                     } if failed_hosts.is_empty()
@@ -414,7 +414,7 @@ impl Judge {
                 .find_map(|p| if let Proc::Client(client) = p { Some(client) } else { None })
                 .expect("client");
             let ask = jig_client::contract::Ask::SignOut {
-                holder: jig_client::contract::AccountHolder::Own,
+                holder: jig_client::contract::AskAccountHolder::Own,
                 source: self.accounts.source().expect("declared source"),
             };
             client.account_request(jig_client::Event::Send {

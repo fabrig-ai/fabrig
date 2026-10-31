@@ -24,8 +24,8 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::List;
 
-pub(in crate::tests) fn part() -> Part {
-    Part::Panel { connector: 2, task: 8 }
+pub(in crate::tests) fn part() -> ApplicationPart {
+    ApplicationPart::Panel { connector: 2, task: 8 }
 }
 
 pub(in crate::tests) fn chip(task: u64) -> Chip {
@@ -53,7 +53,7 @@ pub(in crate::tests) fn entered_arranged(
                 &mut d,
                 ReadPage {
                     read: *read,
-                    result: ReadResult::Value(ReadValue::OwnerInbox(Box::new(OwnerInboxPage {
+                    result: ReadResult::Value(ReadValue::Inbox(Box::new(InboxPage {
                         selection: None,
                         cut: false,
                         rows: List::with_capacity(0),
@@ -68,12 +68,12 @@ pub(in crate::tests) fn entered_arranged(
     let out = drive(&mut d, Event::Went { place: Place::Jig(address) });
     (d, out)
 }
-pub(in crate::tests) fn task(section: TaskSection, executor: Executor) -> (Fixture, Vec<Request>) {
+pub(in crate::tests) fn task(section: TaskSection, executor: ChipExecutor) -> (Fixture, Vec<Request>) {
     task_arranged(section, executor, crate::state::page::Arrangement::none())
 }
 fn task_arranged(
     section: TaskSection,
-    executor: Executor,
+    executor: ChipExecutor,
     arrangement: crate::state::page::Arrangement,
 ) -> (Fixture, Vec<Request>) {
     let (mut d, out) = entered_arranged(Address::Task { task: 8, section }, arrangement);
@@ -93,8 +93,8 @@ fn task_arranged(
     let mut doc = crate::tests::tree::cards_objects::task_doc(&[ActKind::Cancel]);
     doc.chip.executor = executor;
     doc.context.as_mut().expect("supplied task context").parts = list([part()]);
-    doc.inputs = list([OwnerTaskLink::Live(chip(9))]);
-    doc.dependencies = list([OwnerTaskLink::Live(chip(9))]);
+    doc.inputs = list([TaskLink::Live(chip(9))]);
+    doc.dependencies = list([TaskLink::Live(chip(9))]);
     let mut outputs = deliver(&mut d, watch, Delivery::Task(Box::new(doc)));
     outputs.extend(out);
     (d, outputs)
@@ -112,10 +112,10 @@ fn slot(tree: &Tree, bindings: &JigBindings) {
 fn task_sections(words: &Words) {
     let mut goldens = Goldens::new("tree/work_pages/task_sections");
     for executor in [
-        Executor::Agent { charter: 2 },
-        Executor::Procedure { connector: 2, kind: 1 },
-        Executor::Party { party: 1 },
-        Executor::Role { project: 4, role: 1 },
+        ChipExecutor::Agent { charter: 2 },
+        ChipExecutor::Procedure { connector: 2, kind: 1 },
+        ChipExecutor::Party { party: 1 },
+        ChipExecutor::Role { project: 4, role: 1 },
     ] {
         for section in [TaskSection::Overview, TaskSection::Activity, TaskSection::Budget, TaskSection::Panels] {
             let (d, _) = task(section, executor);
@@ -126,7 +126,7 @@ fn task_sections(words: &Words) {
             if section == TaskSection::Panels {
                 slot(&tree, &bindings);
             }
-            if section == TaskSection::Activity && executor == (Executor::Procedure { connector: 2, kind: 1 }) {
+            if section == TaskSection::Activity && executor == (ChipExecutor::Procedure { connector: 2, kind: 1 }) {
                 slot(&tree, &bindings);
             }
         }
@@ -143,15 +143,15 @@ pub(in crate::tests) fn recurring_task(number: u64, words: &[u8]) -> ProposedTas
             parameters: list([]),
             inputs: list([]),
         }),
-        executor: OwnerExecutor::Agent { charter: 2 },
+        executor: Executor::Agent { charter: 2 },
         budget: 5,
         contract: TaskContractDocument::Report { words: 32 },
-        authority: OwnerAuthorityDocument {
-            authority: OwnerAuthority {
+        authority: AuthorityDocument {
+            authority: Authority {
                 models: None,
                 tools: 0,
                 grants: list([]),
-                delegation: OwnerDelegation { kinds: list([]), tasks: 2, depth: 1 },
+                delegation: Delegation { kinds: list([]), tasks: 2, depth: 1 },
                 spend: 5,
                 deadline: None,
                 notes: 0,
@@ -162,7 +162,7 @@ pub(in crate::tests) fn recurring_task(number: u64, words: &[u8]) -> ProposedTas
         funder: Funder::Recurring { project: 4, task: 7, period: 3 },
         dependencies: list([]),
         resources: list([]),
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Immediate,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -178,7 +178,7 @@ pub(in crate::tests) fn recurring_task(number: u64, words: &[u8]) -> ProposedTas
 
 #[test]
 fn a_task_section_not_shown_builds_nothing() {
-    let (d, _) = task(TaskSection::Overview, Executor::Agent { charter: 2 });
+    let (d, _) = task(TaskSection::Overview, ChipExecutor::Agent { charter: 2 });
     let mut b = skein_ui::Builder::new(&crate::tests::tree::cards::limits());
     let mut bindings = JigBindings::new(64, crate::tests::tree::cards::CLIENT.client.text);
     b.open(Role::Page);
@@ -194,7 +194,7 @@ fn a_task_section_not_shown_builds_nothing() {
 }
 #[test]
 fn the_tabs_mark_the_addresss_own_section_current() {
-    let (d, _) = task(TaskSection::Plan, Executor::Agent { charter: 2 });
+    let (d, _) = task(TaskSection::Plan, ChipExecutor::Agent { charter: 2 });
     let (tree, mut bindings) = build(&d, 3, words());
     let tabs: Vec<_> = tree.nodes().iter().filter(|n| n.role == Role::Tab).collect();
     assert_eq!(tabs.len(), 6);
@@ -229,7 +229,7 @@ fn each_task_section_carries_its_region_name() {
         (TaskSection::Budget, JigRegion::TaskBudget, b"jig-task-budget".as_slice()),
         (TaskSection::Panels, JigRegion::TaskPanels, b"jig-task-panels".as_slice()),
     ] {
-        let (d, _) = task(section, Executor::Agent { charter: 2 });
+        let (d, _) = task(section, ChipExecutor::Agent { charter: 2 });
         let (tree, _) = build(&d, 3, words());
         let node = tree.nodes().iter().find(|n| n.region == Some(region.region())).unwrap();
         assert_eq!(node.role, Role::Region, "{section:?}");
@@ -242,7 +242,7 @@ fn each_task_section_carries_its_region_name() {
 fn arranged_task() -> Fixture {
     task_arranged(
         TaskSection::Plan,
-        Executor::Agent { charter: 2 },
+        ChipExecutor::Agent { charter: 2 },
         crate::state::page::Arrangement {
             task: list([
                 TaskSection::Overview,

@@ -3,7 +3,7 @@ use crate::{
     bindings::{Bindings, Meaning},
     words::{Word, Words},
 };
-use jig_client_domain::contract::{ObjectKey, Part, Proposer};
+use jig_client_domain::contract::{ApplicationPart, ObjectKey, Proposer};
 use jig_client_test_domain::{
     family::{Document, Kind, Scope, Subject},
     first::{self, Card, Value},
@@ -68,7 +68,7 @@ fn jig_slot(b: &mut Builder, key: ObjectKey, words: &Words, bindings: &mut Bindi
 pub fn part(
     b: &mut Builder,
     side: &first::Side,
-    part: &Part,
+    part: &ApplicationPart,
     words: &Words,
     jig: &jig_client_view::words::Words,
     bindings: &mut Bindings,
@@ -78,22 +78,24 @@ pub fn part(
         return;
     }
     match part {
-        Part::Connector { connector } => words.text(b, Word::Connector, &[Hole::Number(u64::from(*connector))]),
-        Part::Resource { path, .. } => {
+        ApplicationPart::Connector { connector } => {
+            words.text(b, Word::Connector, &[Hole::Number(u64::from(*connector))]);
+        }
+        ApplicationPart::Resource { path, .. } => {
             jig.text(b, jig_client_view::phrases::jig::JigPhrase::ResourceSegments, &[]);
             for segment in path {
                 jig_client_view::literal_segment::render(b, segment);
             }
         }
-        Part::Kind { kind, .. } => words.text(b, Word::Kind, &[Hole::Number(u64::from(*kind))]),
-        Part::Panel { .. }
-        | Part::Result { .. }
-        | Part::Effect { .. }
-        | Part::OwnerEffect { .. }
-        | Part::Outbox { .. }
-        | Part::Hold { .. }
-        | Part::Project { .. }
-        | Part::Deployment { .. } => {
+        ApplicationPart::Kind { kind, .. } => words.text(b, Word::Kind, &[Hole::Number(u64::from(*kind))]),
+        ApplicationPart::Panel { .. }
+        | ApplicationPart::Result { .. }
+        | ApplicationPart::Effect { .. }
+        | ApplicationPart::OwnerEffect { .. }
+        | ApplicationPart::Outbox { .. }
+        | ApplicationPart::Hold { .. }
+        | ApplicationPart::Project { .. }
+        | ApplicationPart::Deployment { .. } => {
             let Some(facts) = side.part(part) else {
                 words.status(b, Word::Unshowable, &[]);
                 return;

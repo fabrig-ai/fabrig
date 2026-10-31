@@ -47,8 +47,8 @@ fn lift_and_lifted_cross_the_native_boundary_without_losing_the_count() {
     else {
         panic!("done")
     };
-    let w::Outcome::Owner(outcome) = done.outcome() else { panic!("owner") };
-    let w::OwnerOutcome::Lifted(value) = outcome.value() else { panic!("lifted") };
+    let w::Outcome::Document(outcome) = done.outcome() else { panic!("owner") };
+    let w::DocumentOutcome::Lifted(value) = outcome.value() else { panic!("lifted") };
     assert_eq!((value.hold(), value.released()), (u64::MAX, u32::MAX));
 }
 
@@ -114,7 +114,7 @@ fn placed_hold_documents_preserve_the_smallest_and_full_owner_facts() {
             jig_protocol_engine_clients::translate::chips::held(&line, &w::CEILINGS).expect("document translation");
         let mut bytes = Writer::new(encoded.measure() as usize);
         encoded.encode(&mut bytes).expect("hold bytes");
-        let decoded = w::OwnerChipHold::decode(&w::CEILINGS, &mut Reader::new(&bytes.finish())).expect("decode");
+        let decoded = w::ChipHold::decode(&w::CEILINGS, &mut Reader::new(&bytes.finish())).expect("decode");
         assert_eq!(decoded, encoded);
         let value = decoded.placed().as_ref().expect("placed facts");
         assert_eq!(
@@ -140,7 +140,7 @@ fn a_lift_capacity_diagnostic_keeps_the_hold_identity() {
     };
     let record =
         jig_protocol_engine_clients::translate::deployment::person_refusal(&value, &w::CEILINGS).expect("diagnostic");
-    let w::OwnerPersonCapacityAction::Lift(action) = record.action() else { panic!("lift action") };
+    let w::PersonCapacityAction::Lift(action) = record.action() else { panic!("lift action") };
     assert_eq!(action.hold(), u64::MAX);
     assert_eq!(record.project(), &None);
 }

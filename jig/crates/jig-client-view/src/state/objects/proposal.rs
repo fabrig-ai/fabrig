@@ -5,16 +5,16 @@ use super::{Body, Object};
 /// Pending owner facts share the original typed proposal identity.
 #[must_use]
 #[cfg(test)]
-pub fn owner_facts(object: &Object) -> Option<&jig_client::contract::OwnerProposal> {
+pub fn owner_facts(object: &Object) -> Option<&jig_client::contract::Proposal> {
     match &object.body {
-        Some(Body::OwnerProposal(document)) => Some(document),
+        Some(Body::Proposal(document)) => Some(document),
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::OwnerEscalation(_)
+            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )

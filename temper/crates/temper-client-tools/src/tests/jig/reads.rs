@@ -230,15 +230,15 @@ fn task_json_names_the_nested_contract_fields() {
 fn an_ended_task_json_has_one_result_member() {
     use jig_client::contract as c;
     let report = c::ResultValue::Report(fixtures::document_text(b"Final task report"));
-    let ending = c::OwnerChipEnding::Done(report);
+    let ending = c::ChipEnding::Done(report);
     let mut task = fixtures::ended_task(c::Phase::Done);
     task.result = Some(c::TaskResult::Ending(Box::new(ending.clone())));
-    let historical = fixtures::historical_task_result(task.clone(), c::Ending::Task(Box::new(ending)));
+    let ended = fixtures::ended_task_result(task.clone(), c::Ending::Task(Box::new(ending)));
 
-    let direct = fixtures::read_answer(fixtures::TASK_JSON_CALL, historical.clone());
+    let direct = fixtures::read_answer(fixtures::TASK_JSON_CALL, ended.clone());
     let (mut root, call) = fixtures::waiting_call(fixtures::WAIT_TASK, fixtures::UNTIL_ENDED);
     root.end(call, &fixtures::task_watch(), c::WatchEnd::SubjectEnded);
-    root.serve(call, historical);
+    root.serve(call, ended);
     let waited = root.answer(call).expect("ended wait answered");
     assert_eq!(waited.stdout, fixtures::met_json(&direct.stdout));
     for answer in [direct, waited] {
@@ -328,9 +328,8 @@ fn dependency_waits_use_jigs_words_and_keep_their_counts() {
 fn a_circle_hold_keeps_its_json_category() {
     let mut latest = fixtures::chat_at(fixtures::TASK, jig_client::contract::RunStage::Idle, None);
     let task = fixtures::task_in(&mut latest);
-    let jig_client::contract::ChipPhase { phase, .. } = task.chip.details.as_mut();
-    *phase =
-        jig_client::contract::OwnerChipPhase::Held { reason: jig_client::contract::HoldCategory::Circle, revision: 1 };
+    let jig_client::contract::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
+    *phase = jig_client::contract::ChipPhase::Held { reason: jig_client::contract::HoldCategory::Circle, revision: 1 };
     let printed = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(task.clone()));
     assert!(skein_lib::bytes::find(&printed.stdout, br#""reason":"circle""#).is_some());
 }
@@ -339,8 +338,8 @@ fn a_placed_hold_keeps_its_number_in_json() {
     use jig_client::contract as c;
     let mut latest = fixtures::chat_at(fixtures::TASK, c::RunStage::Idle, None);
     let task = fixtures::task_in(&mut latest);
-    let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
-    *phase = c::OwnerChipPhase::Held { reason: c::HoldCategory::Placed { hold: u64::MAX }, revision: 1 };
+    let c::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
+    *phase = c::ChipPhase::Held { reason: c::HoldCategory::Placed { hold: u64::MAX }, revision: 1 };
     let printed = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(task.clone()));
     assert!(skein_lib::bytes::find(&printed.stdout, br#""reason":{"placed":{"hold":18446744073709551615}}"#).is_some());
 }
@@ -364,30 +363,22 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
         ),
         (
             "reserved engine channel",
-            c::TaskWaitRefused::Hello {
-                kind: c::OwnerHostKind::Engine,
-                at: AT,
-                why: c::OwnerHelloRefusal::ReservedChannel,
-            },
+            c::TaskWaitRefused::Hello { kind: c::HostKind::Engine, at: AT, why: c::HelloRefusal::ReservedChannel },
             "next run: refused, engine refused at 00:01: channel zero belongs to the engine's own host",
             r#"{"refused":{"hello":{"kind":"engine","at":60000000000,"why":"reserved_channel"}}}"#,
         ),
         (
             "worker capacity",
-            c::TaskWaitRefused::Hello {
-                kind: c::OwnerHostKind::Worker,
-                at: AT,
-                why: c::OwnerHelloRefusal::Workers { limit: 4 },
-            },
+            c::TaskWaitRefused::Hello { kind: c::HostKind::Worker, at: AT, why: c::HelloRefusal::Workers { limit: 4 } },
             "next run: refused, worker refused at 00:01: no room for another worker, limit 4",
             r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"workers":{"limit":4}}}}}"#,
         ),
         (
             "worker position",
             c::TaskWaitRefused::Hello {
-                kind: c::OwnerHostKind::Worker,
+                kind: c::HostKind::Worker,
                 at: AT,
-                why: c::OwnerHelloRefusal::Position { worker: 3 },
+                why: c::HelloRefusal::Position { worker: 3 },
             },
             "next run: refused, worker refused at 00:01: unconfigured or occupied worker position 3",
             r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"position":{"worker":3}}}}}"#,
@@ -395,9 +386,9 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
         (
             "worker stop bound",
             c::TaskWaitRefused::Hello {
-                kind: c::OwnerHostKind::Worker,
+                kind: c::HostKind::Worker,
                 at: AT,
-                why: c::OwnerHelloRefusal::StopBound { grace: skein_lib::Duration::from_nanos(2000) },
+                why: c::HelloRefusal::StopBound { grace: skein_lib::Duration::from_nanos(2000) },
             },
             "next run: refused, worker refused at 00:01: would not stop before the engine's grace ends, allowed grace 2000 ns",
             r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"stop_bound":{"grace":2000}}}}}"#,
@@ -405,9 +396,9 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
         (
             "worker agent window",
             c::TaskWaitRefused::Hello {
-                kind: c::OwnerHostKind::Worker,
+                kind: c::HostKind::Worker,
                 at: AT,
-                why: c::OwnerHelloRefusal::Agent { why: c::OwnerAgentShortfall::Window { charter: 2, model: 5 } },
+                why: c::HelloRefusal::Agent { why: c::AgentShortfall::Window { charter: 2, model: 5 } },
             },
             "next run: refused, worker refused at 00:01: agent window too small for charter 2, model position 5",
             r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"agent":{"why":{"window":{"charter":2,"model":5}}}}}}}"#,
@@ -445,9 +436,8 @@ fn a_document_at_its_byte_bound_prints_its_maximal_json_escapes() {
 fn an_unknown_run_watch_reads_the_authorized_ended_task_before_answering() {
     use jig_client::contract as c;
     let task = fixtures::ended_task(c::Phase::Done);
-    let ending = c::Ending::Task(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Report(fixtures::document_text(
-        b"finished",
-    )))));
+    let ending =
+        c::Ending::Task(Box::new(c::ChipEnding::Done(c::ResultValue::Report(fixtures::document_text(b"finished")))));
     for argv in [fixtures::CHAT_CALL, fixtures::TASK_CALL] {
         for json in [false, true] {
             for end_first in [false, true] {
@@ -457,7 +447,7 @@ fn an_unknown_run_watch_reads_the_authorized_ended_task_before_answering() {
                 let page = if argv.get(0) == Some(&"chat") {
                     fixtures::kept_conversation()
                 } else {
-                    fixtures::historical_task_result(task.clone(), ending.clone())
+                    fixtures::ended_task_result(task.clone(), ending.clone())
                 };
                 if end_first {
                     root.end(call, &fixtures::run_watch(), c::WatchEnd::Unknown);
@@ -468,7 +458,7 @@ fn an_unknown_run_watch_reads_the_authorized_ended_task_before_answering() {
                     root.end(call, &fixtures::run_watch(), c::WatchEnd::Unknown);
                 }
                 assert!(root.answer(call).is_none(), "authorized task read still pending");
-                root.serve(call, fixtures::historical_task_result(task.clone(), ending.clone()));
+                root.serve(call, fixtures::ended_task_result(task.clone(), ending.clone()));
                 let answer = root.answer(call).expect("verified terminal answer");
                 assert_eq!(answer.status, 0);
                 assert!(answer.stderr.is_empty());
@@ -481,7 +471,7 @@ fn an_unknown_run_watch_reads_the_authorized_ended_task_before_answering() {
                     let plain = fixtures::extended(fixtures::TASK_CALL, if json { &["--json"] } else { &[] });
                     let expected = fixtures::read_answer(
                         plain.as_slice(),
-                        fixtures::historical_task_result(task.clone(), ending.clone()),
+                        fixtures::ended_task_result(task.clone(), ending.clone()),
                     );
                     assert_eq!(answer.stdout, expected.stdout, "no run added to the ended task");
                 } else {
@@ -573,9 +563,9 @@ fn budget_held_owner_tasks_and_inbox_rows_share_the_recovery_words() {
     let mut latest = fixtures::chat_at(fixtures::TASK, c::RunStage::Idle, None);
     let mut task = fixtures::task_in(&mut latest).clone();
     task.chip.phase = c::Phase::Held;
-    let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
-    *phase = c::OwnerChipPhase::Held { reason: c::HoldCategory::Budget, revision: fixtures::HOLD };
-    task.hold = Some(Box::new(c::OwnerChipHold {
+    let c::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
+    *phase = c::ChipPhase::Held { reason: c::HoldCategory::Budget, revision: fixtures::HOLD };
+    task.hold = Some(Box::new(c::ChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -583,23 +573,23 @@ fn budget_held_owner_tasks_and_inbox_rows_share_the_recovery_words() {
         source: None,
         reason: c::HoldCategory::Budget,
         revision: fixtures::HOLD,
-        before: c::OwnerPriorPhase::Active(c::RunStage::Idle),
+        before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
     }));
     let (mut page, mut watched) = fixtures::owner_first_window(1, false);
-    page.rows.get_mut(0).unwrap().task = c::OwnerTaskLink::Live(task.chip.clone());
+    page.rows.get_mut(0).unwrap().task = c::TaskLink::Live(task.chip.clone());
     watched.needs = page.rows.clone();
     for (argv, result) in [
         (fixtures::TASK_CALL, fixtures::task_result(task)),
-        (fixtures::INBOX_CALL, ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(page)))),
+        (fixtures::INBOX_CALL, ReadResult::Value(c::ReadValue::Inbox(Box::new(page)))),
     ] {
         let (mut root, call) = fixtures::read_call(argv);
         root.serve(call, result);
         if argv == fixtures::INBOX_CALL {
             root.serve(call, fixtures::inbox_rows(c::InboxReadGroup::Updates, 0, false));
-            root.deliver_subject(&fixtures::inbox_watch(), c::Delivery::OwnerInbox(Box::new(watched.clone())));
+            root.deliver_subject(&fixtures::inbox_watch(), c::Delivery::Inbox(Box::new(watched.clone())));
         }
         let answer = root.answer(call).expect("held task or inbox answered");
         assert_eq!(answer.status, 0);
@@ -685,7 +675,7 @@ fn check_placed_hold(
             may_lift,
         };
 
-        task.hold = Some(Box::new(c::OwnerChipHold {
+        task.hold = Some(Box::new(c::ChipHold {
             placed: Some(placed.clone()),
             words: None,
             circle: None,
@@ -693,9 +683,9 @@ fn check_placed_hold(
             source: None,
             reason: c::HoldCategory::Placed { hold: 12 },
             revision: 7,
-            before: c::OwnerPriorPhase::Waiting,
+            before: c::PriorPhase::Waiting,
             escalation: None,
-            tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
             hold_wait_since: None,
         }));
 
@@ -801,7 +791,7 @@ fn connector_hold_words_reach_ctl_text_and_json_with_an_explicit_uncertainty_dec
         for json in [false, true] {
             let (_, _, mut task) = fixtures::task_read();
             task.chip.phase = c::Phase::Held;
-            task.hold = Some(Box::new(c::OwnerChipHold {
+            task.hold = Some(Box::new(c::ChipHold {
                 placed: None,
                 words: Some(c::DocumentText::complete(c::Text::new(Box::from(words), 64).expect("account fits"))),
                 circle: None,
@@ -809,9 +799,9 @@ fn connector_hold_words_reach_ctl_text_and_json_with_an_explicit_uncertainty_dec
                 source: None,
                 reason,
                 revision: fixtures::HOLD,
-                before: c::OwnerPriorPhase::Active(c::RunStage::Idle),
+                before: c::PriorPhase::Active(c::RunStage::Idle),
                 escalation: None,
-                tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+                tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
                 hold_wait_since: None,
             }));
             let argv = fixtures::extended(fixtures::TASK_CALL, if json { &["--json"] } else { &[] });

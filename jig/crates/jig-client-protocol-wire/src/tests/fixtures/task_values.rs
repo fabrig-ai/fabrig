@@ -32,22 +32,22 @@ pub fn task(limits: &Limits) -> Task {
             lineage_chips: Box::from([]),
             inputs: Box::from([]),
             project: u32::MAX,
-            requester: OwnerRequester::Person(owner_requester_person(limits)),
+            requester: Requester::Person(requester_person(limits)),
             lineage: List::with_capacity(0),
             spec: specification_document(limits),
             spec_revision: revision(limits),
             person_revision: None,
             taken_by: Some(u64::MAX),
             instructions: Some(document_text(limits)),
-            wake: owner_wake_policy(limits),
+            wake: wake_policy(limits),
             subscriptions: subscriptions(limits),
             result_contract: TaskContractDocument::Report(task_contract_document_report(limits)),
             dependencies: Box::from([]),
             references: Box::from([]),
             cut: true,
             resources: Box::from([]),
-            budget: owner_budget(limits),
-            authority: owner_authority_document(limits),
+            budget: budget(limits),
+            authority: authority_document(limits),
             hold: None,
             proposals: List::with_capacity(0),
             activity: u64::MAX,
@@ -91,37 +91,33 @@ pub fn task_contract_document_report(limits: &Limits) -> TaskContractDocumentRep
         .expect("bounded task_contract_document_report")
 }
 
-pub fn owner_delegation(limits: &Limits) -> OwnerDelegation {
-    OwnerDelegation::new(
-        limits,
-        OwnerDelegationParts { kinds: List::with_capacity(0), tasks: u32::MAX, depth: u32::MAX },
-    )
-    .expect("bounded owner_delegation")
+pub fn delegation(limits: &Limits) -> Delegation {
+    Delegation::new(limits, DelegationParts { kinds: List::with_capacity(0), tasks: u32::MAX, depth: u32::MAX })
+        .expect("bounded delegation")
 }
 
-pub fn owner_authority(limits: &Limits) -> OwnerAuthority {
-    OwnerAuthority::new(
+pub fn authority(limits: &Limits) -> Authority {
+    Authority::new(
         limits,
-        OwnerAuthorityParts {
+        AuthorityParts {
             models: None,
             tools: u64::MAX,
             grants: Box::from([]),
-            delegation: owner_delegation(limits),
+            delegation: delegation(limits),
             spend: u64::MAX,
             deadline: None,
             notes: u8::MAX,
             note_resources: Box::from([]),
         },
     )
-    .expect("bounded owner_authority")
+    .expect("bounded authority")
 }
 
-pub fn owner_authority_document(limits: &Limits) -> OwnerAuthorityDocument {
-    OwnerAuthorityDocument::new(limits, OwnerAuthorityDocumentParts { cut: false, authority: owner_authority(limits) })
-        .expect("bounded owner_authority_document")
+pub fn authority_document(limits: &Limits) -> AuthorityDocument {
+    AuthorityDocument::new(limits, AuthorityDocumentParts { cut: false, authority: authority(limits) })
+        .expect("bounded authority_document")
 }
 
-pub fn owner_requester_person(limits: &Limits) -> OwnerRequesterPerson {
-    OwnerRequesterPerson::new(limits, OwnerRequesterPersonParts { value: u64::MAX })
-        .expect("bounded owner_requester_person")
+pub fn requester_person(limits: &Limits) -> RequesterPerson {
+    RequesterPerson::new(limits, RequesterPersonParts { value: u64::MAX }).expect("bounded requester_person")
 }

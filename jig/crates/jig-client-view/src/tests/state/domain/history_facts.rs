@@ -13,11 +13,11 @@ use jig_client::thread::window::End;
 use skein_lib::{List, Time, Token, Wall};
 
 fn change(task: u64, revision: u64) -> HistoryRow {
-    HistoryRow::Change(Box::new(OwnerHistoryLine {
+    HistoryRow::Change(Box::new(HistoryLine {
         task,
         revision,
-        by: OwnerRequester::Deployment { project: u32::MAX },
-        change: OwnerHistoryChange::Amended,
+        by: Requester::Deployment { project: u32::MAX },
+        change: HistoryChange::Amended,
         reason: DocumentText { bytes: text(b""), cut: true },
         proposal: None,
         amendment: None,
@@ -25,10 +25,10 @@ fn change(task: u64, revision: u64) -> HistoryRow {
     }))
 }
 fn milestone(task: u64, position: u64) -> HistoryRow {
-    HistoryRow::Milestone(Box::new(OwnerMilestoneLine {
+    HistoryRow::Milestone(Box::new(MilestoneLine {
         task,
         position,
-        phase: OwnerMilestonePhase::Active(RunStage::Claimed { attempt: u64::MAX }),
+        phase: MilestonePhase::Active(RunStage::Claimed { attempt: u64::MAX }),
         at: Some(Wall::EPOCH),
     }))
 }

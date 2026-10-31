@@ -88,20 +88,20 @@ pub(crate) fn main(
             && let Some(Latest::Jig(tree)) = document.latest
         {
             let delegates = match tree {
-                c::Delivery::OwnerTree(tree) => !tree.rows.is_empty(),
+                c::Delivery::Tree(tree) => !tree.rows.is_empty(),
 
-                c::Delivery::OwnerProject(_)
+                c::Delivery::Project(_)
                 | c::Delivery::Me(_)
                 | c::Delivery::Task(_)
-                | c::Delivery::OwnerProposal(_)
+                | c::Delivery::Proposal(_)
                 | c::Delivery::Chips(_)
-                | c::Delivery::OwnerInbox(_)
+                | c::Delivery::Inbox(_)
                 | c::Delivery::Tasks(_)
                 | c::Delivery::Run(_)
                 | c::Delivery::RunState(_)
                 | c::Delivery::Settings(_)
-                | c::Delivery::OwnerDeployment(_)
-                | c::Delivery::OwnerAccounts(_) => false,
+                | c::Delivery::Deployment(_)
+                | c::Delivery::Accounts(_) => false,
             };
             if delegates || !page.cards.is_empty() {
                 super::task::plan(
@@ -148,7 +148,7 @@ fn lineage(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindin
         super::task::task_link(b, parent.task, words, bindings);
         text(b, Role::Paragraph, parent.title.bytes());
         b.close();
-    } else if let c::OwnerRequester::Task(parent) = task.requester {
+    } else if let c::Requester::Task(parent) = task.requester {
         b.open(Role::Slot);
         super::task::task_link(b, parent, words, bindings);
         b.close();

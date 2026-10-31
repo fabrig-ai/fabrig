@@ -558,11 +558,11 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
             receipts
         }
         client::Received::Answer { key, answer } => {
-            if matches!(answer, c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::MarkedSeen { .. }))) {
+            if matches!(answer, c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::MarkedSeen { .. }))) {
                 return Vec::new(); // A seen watermark has no kept request answer.
             }
             let mut receipts = vec![rules::Receipt::Party(party.expect("signed-in request"), *key)];
-            if let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, last, .. })) = answer {
+            if let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, last, .. })) = answer {
                 receipts.extend((*first..=*last).map(rules::Receipt::Task));
             }
             receipts
@@ -570,8 +570,8 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
         client::Received::Delivery(c::Delivery::RunState(run)) if run.committed_turn > 0 => {
             vec![rules::Receipt::Turn(run.task, run.attempt.expect("committed attempt"), run.committed_turn)]
         }
-        client::Received::Read(c::ReadValue::Historical(value)) => {
-            let c::OwnerHistoricalValue::Task { document, result } = &value.value else { return Vec::new() };
+        client::Received::Read(c::ReadValue::Ended(value)) => {
+            let c::EndedValue::Task { document, result } = &value.value else { return Vec::new() };
             let details = &document.chip.details.details;
             assert_eq!(result.task.task, document.chip.task, "result belongs to its task");
             vec![

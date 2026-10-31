@@ -66,8 +66,8 @@ fn me_names_the_models_a_create_chooses_from_and_the_task_shows_the_choice() {
     assert!(story.run_until(|s| !s.answered(CREATE).is_empty(), PROOF_WAIT));
     let answered = story.answered(CREATE);
     let [
-        Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::Created { first: task, .. },
+        Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Created { first: task, .. },
         )))),
     ] = answered.as_slice()
     else {
@@ -89,7 +89,7 @@ fn a_client_role_model_edit_changes_the_models_in_me() {
     story.read(project, Readable::Jig(contract::Read::Project { project: PROJECT_NUMBER }));
     assert!(story.run_until(|s| !s.pages(project).is_empty(), PROOF_WAIT));
     let pages = story.pages(project);
-    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::OwnerProject(page)))] = pages.as_slice() else {
+    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Project(page)))] = pages.as_slice() else {
         panic!("project page")
     };
     let role = page.policy.roles.get(0).expect("owner role");
@@ -112,8 +112,8 @@ fn a_client_role_model_edit_changes_the_models_in_me() {
     assert!(story.run_until(|s| !s.answered(key).is_empty() && me_models(s) == Some(vec![]), PROOF_WAIT));
     assert!(matches!(
         story.answered(key).as_slice(),
-        [Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-            contract::OwnerOutcome::PolicyChanged { .. }
+        [Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::PolicyChanged { .. }
         ))))]
     ));
 }

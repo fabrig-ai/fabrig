@@ -10,7 +10,7 @@ use crate::{
     Borrowed,
     state::{action::Act, fields::Purpose, page::project::goals::GoalForm},
 };
-use jig_client::contract::{Admission, ObjectKey, OwnerExecutor, TaskLine};
+use jig_client::contract::{Admission, Executor, ObjectKey, TaskLine};
 /// The one typed form property changed by an input's complete value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
@@ -52,7 +52,7 @@ pub(super) fn form(b: &mut Builder, client: &Borrowed<'_>, project: u32, words: 
                 words.text(b, JigPhrase::PoolLeft, &[Hole::Amount(left)]);
                 cards::common::field(b, client, Purpose::NewGoal, JigPhrase::GoalWords, words, bindings);
                 for charter in &creating.within.charters {
-                    choice(b, client, words, bindings, project, OwnerExecutor::Agent { charter: *charter }, left);
+                    choice(b, client, words, bindings, project, Executor::Agent { charter: *charter }, left);
                 }
                 for procedure in &creating.within.procedures {
                     choice(
@@ -61,7 +61,7 @@ pub(super) fn form(b: &mut Builder, client: &Borrowed<'_>, project: u32, words: 
                         words,
                         bindings,
                         project,
-                        OwnerExecutor::Procedure { connector: procedure.connector, code: procedure.code },
+                        Executor::Procedure { connector: procedure.connector, code: procedure.code },
                         left,
                     );
                 }
@@ -95,7 +95,7 @@ pub(super) fn choice(
     words: &Words,
     bindings: &mut JigBindings,
     project: u32,
-    executor: OwnerExecutor,
+    executor: Executor,
     pool_left: u64,
 ) {
     let form = match client.project_page().form.form {
@@ -103,7 +103,7 @@ pub(super) fn choice(
         Some(_) | None => GoalForm { project, executor, budget: pool_left, deadline: None, priority: 0 },
     };
     match executor {
-        OwnerExecutor::Agent { charter: number } => crate::tree::frame::control(
+        Executor::Agent { charter: number } => crate::tree::frame::control(
             b,
             words,
             bindings,
@@ -112,7 +112,7 @@ pub(super) fn choice(
             &[Hole::Number(u64::from(number))],
             Act::GoalForm { form },
         ),
-        OwnerExecutor::Procedure { connector, code } => crate::tree::frame::control(
+        Executor::Procedure { connector, code } => crate::tree::frame::control(
             b,
             words,
             bindings,
@@ -121,7 +121,7 @@ pub(super) fn choice(
             &[Hole::Number(u64::from(connector)), Hole::Number(u64::from(code))],
             Act::GoalForm { form },
         ),
-        OwnerExecutor::Person(_) => {}
+        Executor::Person(_) => {}
     }
 }
 

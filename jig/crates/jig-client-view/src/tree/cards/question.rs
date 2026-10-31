@@ -12,7 +12,7 @@ use crate::{
         objects::{Object, question::facts},
     },
 };
-use jig_client::contract::OwnerRequester;
+use jig_client::contract::Requester;
 use skein_lib::Id;
 /// Build the shared question; its answer field belongs to its open confirmation.
 pub fn question(
@@ -37,9 +37,9 @@ pub fn question(
     super::chip::chip(b, client, &document.task, words, bindings);
     if let Some(from) = document.from {
         let (phrase, number) = match from {
-            OwnerRequester::Task(number) => (JigPhrase::QuestionFromTask, number),
-            OwnerRequester::Person(number) => (JigPhrase::QuestionFromPerson, number),
-            OwnerRequester::Deployment { project } => (JigPhrase::QuestionFromDeployment, u64::from(project)),
+            Requester::Task(number) => (JigPhrase::QuestionFromTask, number),
+            Requester::Person(number) => (JigPhrase::QuestionFromPerson, number),
+            Requester::Deployment { project } => (JigPhrase::QuestionFromDeployment, u64::from(project)),
         };
         words.text(b, phrase, &[skein_ui::phrases::Hole::Number(number)]);
     }

@@ -77,7 +77,7 @@ fn deliver_panel(root: &mut f::Harness, panel: w::ChangePanel) {
 }
 fn task(ended: bool, change_result: bool) -> c::Task {
     let mut task = f::goal(2, c::WaitsOn::Nothing);
-    task.chip.executor = c::Executor::Procedure { connector: wire::FORGE, kind: 2 };
+    task.chip.executor = c::ChipExecutor::Procedure { connector: wire::FORGE, kind: 2 };
     task.result_contract = c::TaskContractDocument::Change { connector: wire::FORGE, kind: 1, words: f::LONG_WORDS };
     if ended {
         task.chip.phase = c::Phase::Ended;
@@ -87,11 +87,7 @@ fn task(ended: bool, change_result: bool) -> c::Task {
             value: if change_result {
                 Some(c::ResultValue::Change {
                     kind: 1,
-                    part: c::OwnerPart {
-                        connector: wire::FORGE,
-                        kind: c::OwnerPartKind::Resource,
-                        key: c::OwnerPartKey::Number(1),
-                    },
+                    part: c::Part { connector: wire::FORGE, kind: c::PartKind::Resource, key: c::PartKey::Number(1) },
                     words: f::document_text(b"2222222222222222222222222222222222222222"),
                 })
             } else {

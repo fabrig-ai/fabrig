@@ -88,7 +88,7 @@ fn plan_in(l: &Config, client: &jig_client::DomainLimits, card: u32, chip: u32) 
         .checked_add(26)?;
     older
         .max(crate::tree::fragments::tree::max_nodes_with_card(l, client, card)?.checked_add(6)?)
-        .checked_add(crate::tree::fragments::historical_pages::ended_nodes(l, client)?)
+        .checked_add(crate::tree::fragments::ended_pages::ended_nodes(l, client)?)
 }
 fn overview_in(l: &Config, client: &jig_client::DomainLimits, card: u32, chip: u32) -> Option<u32> {
     crate::tree::fragments::chip::max_nodes(l, client)?
@@ -240,7 +240,7 @@ fn settings_in(l: &Config, client: &jig_client::DomainLimits, card: u32, chip: u
         .checked_mul(client.rows)?;
     policy
         .checked_add(spend_in(l, client, card, chip)?)?
-        .checked_add(crate::tree::fragments::historical_pages::spend_nodes(l, client)?)?
+        .checked_add(crate::tree::fragments::ended_pages::spend_nodes(l, client)?)?
         .checked_add(recurring)?
         .checked_add(client.rows.checked_mul(24)?)?
         .checked_add(32)

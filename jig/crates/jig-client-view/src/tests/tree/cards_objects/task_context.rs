@@ -5,10 +5,10 @@ use crate::tests::tree::cards_objects::*;
 #[test]
 fn task_context_view_preserves_supplied_runtime_spend_slots_and_impact_without_claiming_missing_facts() {
     let mut goldens = Goldens::new("tree/cards_objects/task_context/task_context_view");
-    let reference = Part::Panel { connector: 2, task: u64::MAX };
+    let reference = ApplicationPart::Panel { connector: 2, task: u64::MAX };
     for present in [false, true] {
         let mut row = task_doc(&[ActKind::Cancel]);
-        row.chip.executor = Executor::Agent { charter: 1 };
+        row.chip.executor = ChipExecutor::Agent { charter: 1 };
         row.chip.title.cut = true;
         row.delegates = List::with_capacity(0);
         let context = row.context.as_mut().unwrap();

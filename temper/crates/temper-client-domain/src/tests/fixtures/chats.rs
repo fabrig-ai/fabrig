@@ -35,7 +35,7 @@ pub fn me() -> Me {
             llm: None,
         })
         .expect("one template");
-    let ReadValue::OwnerEscalation(held) = acts::held(ActKind::Release) else { panic!("held") };
+    let ReadValue::Escalation(held) = acts::held(ActKind::Release) else { panic!("held") };
     let mut authority = held.task.authority;
     authority.authority.delegation.depth = DEPTH;
     let mut charters = List::with_capacity(ONE);

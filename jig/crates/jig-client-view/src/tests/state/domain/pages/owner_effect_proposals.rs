@@ -4,14 +4,14 @@ use crate::tests::fixtures::{Fixture, ReadPage, Watched};
 use crate::tests::state::domain::pages::*;
 use skein_lib::Wall;
 
-fn proposal(proposer: Proposer, effect: u64) -> OwnerProposal {
+fn proposal(proposer: Proposer, effect: u64) -> Proposal {
     let acts = crate::tests::kit::list([Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]);
-    OwnerProposal {
+    Proposal {
         key: ProposalKey { proposer, number: 7 },
         project: 41,
         reason: DocumentText { bytes: text(UTF8_TEXT), cut: true },
-        action: OwnerProposalAction::Effect {
-            part: OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Effect, key: OwnerPartKey::Number(effect) },
+        action: ProposalAction::Effect {
+            part: Part { connector: u16::MAX, kind: PartKind::Effect, key: PartKey::Number(effect) },
             authority: crate::tests::state::domain::objects::owner_authority(),
             attempt: u64::MAX,
             completion: u32::MAX,
@@ -19,7 +19,7 @@ fn proposal(proposer: Proposer, effect: u64) -> OwnerProposal {
             purpose: 19,
         },
         as_holder: false,
-        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(7), since: Wall::EPOCH },
+        waiting: ProposalWaiting { holder: HistoryHolder::Person(7), since: Wall::EPOCH },
         funding: List::with_capacity(2),
         acts,
     }
@@ -31,7 +31,7 @@ fn named(domain: &mut Fixture, watch: jig_client::Handle, key: ProposalKey) -> j
         Time::ZERO,
         Watched {
             watch,
-            event: WatchEvent::Delivered(Delivery::OwnerInbox(Box::new(crate::tests::fixtures::inbox(entries)))),
+            event: WatchEvent::Delivered(Delivery::Inbox(Box::new(crate::tests::fixtures::inbox(entries)))),
         },
     );
     let mut found = None;
@@ -48,16 +48,16 @@ fn named(domain: &mut Fixture, watch: jig_client::Handle, key: ProposalKey) -> j
     found.unwrap()
 }
 
-fn exact(domain: &Fixture, value: &OwnerProposal) {
+fn exact(domain: &Fixture, value: &Proposal) {
     let id = domain.objects().find(ObjectKey::Proposal(value.key)).unwrap();
     let object = domain.objects().get(id).unwrap();
-    assert_eq!(object.body, Some(Body::OwnerProposal(Box::new(value.clone()))));
+    assert_eq!(object.body, Some(Body::Proposal(Box::new(value.clone()))));
     assert_eq!(object.project, Some(value.project));
     assert_eq!(object.card, Card::Open);
 }
 fn supplied(_generation: u32, effect: u64) -> Request {
     Request::ShowPart {
-        part: Part::OwnerEffect { connector: u16::MAX, proposal: effect },
+        part: ApplicationPart::OwnerEffect { connector: u16::MAX, proposal: effect },
         scope: PartScope::Project(41),
     }
 }
@@ -68,7 +68,7 @@ fn native_proposal_page_reads_and_watches_keep_whole_facts_scope_and_identity_wi
         let (mut domain, watch) = crate::tests::state::domain::objects::live();
         let original = proposal(proposer, u64::MAX);
         let read = named(&mut domain, watch, original.key);
-        let event = ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(original.clone()))) };
+        let event = ReadPage { read, result: ReadResult::Value(ReadValue::Proposal(Box::new(original.clone()))) };
         let output = drive(&mut domain, Time::ZERO, event.clone());
         assert_eq!(crate::tests::fixtures::parts(&output, LIMITS.client.parts).as_ref(), &[supplied(0, u64::MAX)]);
         exact(&domain, &original);
@@ -76,8 +76,7 @@ fn native_proposal_page_reads_and_watches_keep_whole_facts_scope_and_identity_wi
         let mut changed = proposal(proposer, 0);
         changed.reason = DocumentText::complete(text(b"new supplied facts"));
         changed.as_holder = true;
-        let delivery =
-            Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(changed.clone()))) };
+        let delivery = Watched { watch, event: WatchEvent::Delivered(Delivery::Proposal(Box::new(changed.clone()))) };
         let output = drive(&mut domain, Time::ZERO, delivery.clone());
         assert_eq!(crate::tests::fixtures::parts(&output, LIMITS.client.parts).as_ref(), &[supplied(0, 0)]);
         assert_eq!(domain.objects().find(ObjectKey::Proposal(changed.key)), Some(id));
@@ -109,13 +108,13 @@ fn native_proposal_page_reads_and_watches_refuse_part_capacity_while_preserving_
             drive(
                 &mut domain,
                 Time::ZERO,
-                Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(value.clone()))) },
+                Watched { watch, event: WatchEvent::Delivered(Delivery::Proposal(Box::new(value.clone()))) },
             )
         } else {
             drive(
                 &mut domain,
                 Time::ZERO,
-                ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(value.clone()))) },
+                ReadPage { read, result: ReadResult::Value(ReadValue::Proposal(Box::new(value.clone()))) },
             )
         };
         assert!(

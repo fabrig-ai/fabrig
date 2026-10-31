@@ -1,7 +1,7 @@
 //! One-terminal reads, bounded pages and opaque cursors; client/domain/contract.md, 6.
 //! A cursor is never decoded by the client. Live watches may overlap retained read pages.
 use super::{
-    ActivityLine, Bytes, HistoryRow, InboxGroup, Me, Note, NoteScope, ProposalKey, Question, Result, Task, Text,
+    Bytes, DecodedActivityLine, HistoryRow, InboxGroup, Me, Note, NoteScope, ProposalKey, Question, Result, Task, Text,
 };
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -133,7 +133,7 @@ pub enum Read {
 pub struct ActivityPage {
     /// The source page is incomplete, independent of row loss and continuations.
     pub cut: bool,
-    pub rows: List<ActivityLine>,
+    pub rows: List<DecodedActivityLine>,
     pub before: Option<Cursor>,
     pub after: Option<Cursor>,
 }
@@ -168,9 +168,9 @@ pub enum ReadValue {
     /// A task query's two groups.
     Tasks(Box<super::TaskPage>),
     /// Whole authentic project owner document.
-    OwnerProject(Box<super::OwnerProject>),
-    /// Whole historical facts for one existing object query.
-    Historical(Box<super::OwnerHistorical>),
+    Project(Box<super::Project>),
+    /// Whole ended facts for one existing object query.
+    Ended(Box<super::Ended>),
     /// The frame.
     Me(Box<Me>),
     /// A complete committed turn archive.
@@ -178,29 +178,29 @@ pub enum ReadValue {
     /// A task.
     Task(Box<Task>),
     /// Whole supplied pending owner proposal.
-    OwnerProposal(Box<super::OwnerProposal>),
+    Proposal(Box<super::Proposal>),
     /// A task owner’s whole escalation document.
-    OwnerEscalation(Box<super::OwnerEscalation>),
+    Escalation(Box<super::Escalation>),
     /// A question.
     Question(Box<Question>),
     /// Pending person work with owner contract and optional shown results.
-    OwnerPersonTask(Box<super::OwnerPersonTask>),
+    PersonTask(Box<super::PersonTask>),
     /// A result.
     Result(Box<Result>),
     /// Retained delegate endings without synthetic result details.
-    OwnerEnded(Box<super::OwnerEndedPage>),
+    EndedPage(Box<super::EndedPage>),
     /// History lines.
     History(Box<HistoryPage>),
     /// Committed activity.
     Activity(Box<ActivityPage>),
     /// Exact owner Inbox rows selected under the original query.
-    OwnerInbox(Box<super::OwnerInboxPage>),
+    Inbox(Box<super::InboxPage>),
     /// Retained whole funding records without inferred ledger facts.
-    OwnerSpend(Box<super::OwnerSpendPage>),
+    Spend(Box<super::SpendPage>),
     /// Notes.
     Notes(Box<NotePage>),
     /// Whole deployment-owned facts and diagnostics.
-    OwnerDeployment(Box<super::OwnerDeployment>),
+    Deployment(Box<super::Deployment>),
 }
 
 /// Why one read has no value.

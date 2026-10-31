@@ -275,9 +275,9 @@ fn member(
             w::NewDeadline::Span(value) => p::Deadline::Span(value.value()),
         },
         executor: match v.executor {
-            w::OwnerExecutor::Agent(v) => p::TaskExecutor::Agent { charter: v.charter() },
-            w::OwnerExecutor::Procedure(v) => p::TaskExecutor::Procedure { connector: v.connector(), code: v.code() },
-            w::OwnerExecutor::Person(v) => p::TaskExecutor::Person(match v.value() {
+            w::Executor::Agent(v) => p::TaskExecutor::Agent { charter: v.charter() },
+            w::Executor::Procedure(v) => p::TaskExecutor::Procedure { connector: v.connector(), code: v.code() },
+            w::Executor::Person(v) => p::TaskExecutor::Person(match v.value() {
                 w::PersonAddress::Party(v) => p::PersonAddress::Person(v.value()),
                 w::PersonAddress::Role(v) => p::PersonAddress::Role(v.value()),
             }),

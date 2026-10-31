@@ -414,9 +414,9 @@ fn ready_model_fixture() -> (d::Domain, skein_lib::Token) {
     f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Ready }) });
     (root, watch)
 }
-fn signing_document() -> jig_client::contract::OwnerAccounts {
+fn signing_document() -> jig_client::contract::Accounts {
     let mut doc =
-        super::accounts::card_document(b"openai", b"alice@example.com", jig_client::contract::OwnerAccountKind::SignIn);
+        super::accounts::card_document(b"openai", b"alice@example.com", jig_client::contract::AccountKind::SignIn);
     doc.accounts.clear();
     doc.usable = false;
     doc
@@ -441,7 +441,7 @@ fn ready_names_an_own_sign_in_under_way_without_a_connect_act() {
 fn ready_does_not_name_another_holders_sign_in() {
     let (mut root, watch) = ready_model_fixture();
     let mut doc = signing_document();
-    doc.signing.get_mut(0).unwrap().holder = jig_client::contract::OwnerAccountHolder::Deployment;
+    doc.signing.get_mut(0).unwrap().holder = jig_client::contract::AccountHolder::Deployment;
     super::accounts::deliver(&mut root, watch, doc);
     let view = f::page_view(&root);
     node(view.tree(), Role::Slot, "Model: none yet");
@@ -453,14 +453,14 @@ fn ready_names_a_usable_account_before_a_sign_in_under_way() {
     super::accounts::deliver(
         &mut root,
         watch,
-        super::accounts::card_document(b"openai", b"alice@example.com", jig_client::contract::OwnerAccountKind::SignIn),
+        super::accounts::card_document(b"openai", b"alice@example.com", jig_client::contract::AccountKind::SignIn),
     );
     let view = f::page_view(&root);
     node(view.tree(), Role::Paragraph, "Model: ChatGPT · alice@example.com · OpenAI · held by Pat");
     assert!(f::find(view.tree(), Role::Link, b"Connect a model").is_none());
 }
 
-fn configured_model_document() -> jig_client::contract::OwnerAccounts {
+fn configured_model_document() -> jig_client::contract::Accounts {
     let mut document = signing_document();
     document.signing.clear();
     document.usable = true;
@@ -652,7 +652,7 @@ fn model_choose_has_direct_ways_and_the_persons_default_holder() {
         assert!(f::find(tree, Role::Button, name.as_bytes()).is_none());
     }
     assert!(f::find(tree, Role::Region, b"Choose").is_none());
-    assert_eq!(root.pages().connect_model().unwrap().holder, c::AccountHolder::Own);
+    assert_eq!(root.pages().connect_model().unwrap().holder, c::AskAccountHolder::Own);
     assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICE)).count(), 2);
     assert_eq!(
         press(&root, Role::Link, "‹ Back"),
@@ -689,7 +689,7 @@ fn model_details_and_signing_use_one_back_to_their_choose() {
 }
 #[test]
 fn model_endings_have_their_heading_and_one_back() {
-    use jig_client::contract::{OwnerAccountEnd as E, OwnerAccountFailure as F, OwnerAccountRefusal as R};
+    use jig_client::contract::{AccountEnd as E, AccountFailure as F, AccountRefusal as R};
     for (end, heading) in [
         (E::Made { account: 1, declined: false }, "Signed in to ChatGPT as alice@example.com"),
         (E::Renewed { account: 1, declined: false }, "Signing in to ChatGPT"),
@@ -800,12 +800,12 @@ fn github_ready_has_the_same_checklist_and_project_control_as_owned_forgejo() {
         );
     }
 }
-fn ready_ending(end: jig_client::contract::OwnerAccountEnd, message: &str, key: bool) {
+fn ready_ending(end: jig_client::contract::AccountEnd, message: &str, key: bool) {
     use jig_client::contract as c;
     let (mut root, watch) = ready_model_fixture();
     let mut doc = signing_document();
     doc.signing.clear();
-    doc.last_end = Some(c::OwnerAccountLastEnd { source: 43, end });
+    doc.last_end = Some(c::AccountLastEnd { source: 43, end });
     super::accounts::deliver(&mut root, watch, doc);
     let view = f::page_view(&root);
     forge::words_in_order(view.tree(), &["Model: none yet", "Connect a model", message, "Continue with ChatGPT"]);
@@ -864,7 +864,7 @@ fn ready_ending(end: jig_client::contract::OwnerAccountEnd, message: &str, key: 
 #[test]
 fn ready_draws_a_declined_sign_in_with_retry_and_key() {
     ready_ending(
-        jig_client::contract::OwnerAccountEnd::Made { account: 1, declined: true },
+        jig_client::contract::AccountEnd::Made { account: 1, declined: true },
         "You signed in without plan usage.",
         true,
     );
@@ -872,8 +872,8 @@ fn ready_draws_a_declined_sign_in_with_retry_and_key() {
 #[test]
 fn ready_draws_a_held_sign_in_with_retry() {
     ready_ending(
-        jig_client::contract::OwnerAccountEnd::Refused {
-            refusal: jig_client::contract::OwnerAccountRefusal::Held { provider: 17 },
+        jig_client::contract::AccountEnd::Refused {
+            refusal: jig_client::contract::AccountRefusal::Held { provider: 17 },
         },
         "Another person here holds that ChatGPT account. To use one of yours, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
         false,
@@ -882,9 +882,7 @@ fn ready_draws_a_held_sign_in_with_retry() {
 #[test]
 fn ready_draws_a_misconfigured_sign_in_with_retry() {
     ready_ending(
-        jig_client::contract::OwnerAccountEnd::Failed {
-            failure: jig_client::contract::OwnerAccountFailure::Misconfigured,
-        },
+        jig_client::contract::AccountEnd::Failed { failure: jig_client::contract::AccountFailure::Misconfigured },
         "OpenAI refused temper’s sign-in. Check the configuration’s registration.",
         false,
     );

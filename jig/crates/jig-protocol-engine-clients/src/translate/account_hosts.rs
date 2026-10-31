@@ -25,5 +25,5 @@ pub(super) fn encode(
     Ok(out)
 }
 fn count_problem_value() -> w::Problem {
-    w::Problem { path: w::Path::OwnerOutcomeAccountSignedOutFailedHosts, reason: skein_codec::Reason::Bound }
+    w::Problem { path: w::Path::OutcomeAccountSignedOutFailedHosts, reason: skein_codec::Reason::Bound }
 }

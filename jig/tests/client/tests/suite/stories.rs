@@ -94,7 +94,7 @@ fn a_project_s_tasks_section_watches_one_query_by_last_change() {
         .act(
             skein_lib::Time::ZERO,
             skein_lib::Wall::EPOCH,
-            jig_client_scripted_engine::Change::OwnerProject(Box::new(stories::project())),
+            jig_client_scripted_engine::Change::Project(Box::new(stories::project())),
         )
         .expect("query story fixture and delivery");
     let person = world.client(

@@ -52,7 +52,7 @@ fn a_final_answer_reaches_the_child_that_asked_unread_and_once() {
             _ => None,
         })
         .unwrap();
-    let answer = Answer::Done(Outcome::Owner(contract::OwnerOutcome::AccountChanged));
+    let answer = Answer::Done(Outcome::Document(contract::DocumentOutcome::AccountChanged));
     let rows = drive(
         &mut root,
         Event::Client {
@@ -128,8 +128,8 @@ fn a_reload_parks_kept_requests_until_jig_confirms_their_party() {
                     up: jig_client::Up::Answer {
                         attempt,
                         envelope: RequestEnvelope::Final,
-                        answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
-                            contract::OwnerOutcome::AccountChanged
+                        answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Document(
+                            contract::DocumentOutcome::AccountChanged
                         )))),
                         why: None
                     }
@@ -527,7 +527,7 @@ fn family_capacities_refuse_overflow_and_resource_words_past_the_owner_bound() {
     bounds.first.retry = Duration::ZERO;
     assert!(!crate::valid(&bounds));
     let mut root = ready(27);
-    let part = contract::Part::Resource { connector: crate::FIRST, path: resource_path(&[b'x'; 33]) };
+    let part = contract::ApplicationPart::Resource { connector: crate::FIRST, path: resource_path(&[b'x'; 33]) };
     let rows = drive(
         &mut root,
         Event::First(first::Event::Show { part: part.clone(), scope: crate::family::Scope::Deployment }),
@@ -536,10 +536,10 @@ fn family_capacities_refuse_overflow_and_resource_words_past_the_owner_bound() {
     assert!(!root.first().contains(&part));
     let mut side = crate::second::Side::new(1, 1, 32, 1);
     assert!(!side.show(part));
-    let part = contract::Part::Kind { connector: crate::SECOND, kind: 1 };
+    let part = contract::ApplicationPart::Kind { connector: crate::SECOND, kind: 1 };
     assert!(side.show(part.clone()));
     assert!(side.show(part));
-    assert!(!side.show(contract::Part::Kind { connector: crate::SECOND, kind: 2 }));
+    assert!(!side.show(contract::ApplicationPart::Kind { connector: crate::SECOND, kind: 2 }));
 }
 
 fn restored_requests(count: u32) -> List<crate::store::Record> {
@@ -611,8 +611,8 @@ fn restored_own_scope_sends_and_retires_each_final_request_once() {
                     up: jig_client::Up::Answer {
                         attempt,
                         envelope: RequestEnvelope::Final,
-                        answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
-                            contract::OwnerOutcome::AccountChanged,
+                        answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Document(
+                            contract::DocumentOutcome::AccountChanged,
                         )))),
                         why: None,
                     },
@@ -825,7 +825,7 @@ fn whole_owner_parts_require_original_inner_identity_and_keep_unversioned_snapsh
     use crate::connector_values::{ClientDocument, ConnectorDocument};
     use crate::family::{Document, Kind, Scope, Subject};
     let mut root = ready(92);
-    let part = contract::Part::Panel { connector: crate::FIRST, task: 9 };
+    let part = contract::ApplicationPart::Panel { connector: crate::FIRST, task: 9 };
     let opened = drive(&mut root, Event::First(first::Event::Show { part, scope: Scope::Project(3) }));
     let subject = Subject { scope: Scope::Project(3), kind: Kind::Panel(9) };
     let watch = family_watch(&opened);

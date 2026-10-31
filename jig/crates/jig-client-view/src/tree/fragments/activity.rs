@@ -7,8 +7,8 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
 use jig_client::contract::{
-    HoldFailure, OwnerActivity, OwnerActivityLine, OwnerFailureTries, OwnerMessageKind, OwnerMessageProposalKind,
-    OwnerNewsClass, OwnerNoticeState, OwnerRequester, OwnerRunEnd, OwnerRunWhy, OwnerWord, OwnerWordResult,
+    Activity, ActivityLine, FailureTries, HoldFailure, MessageKind, MessageProposalKind, NewsClass, NoticeState,
+    Requester, RunEnd, RunWhy, Word, WordResult,
 };
 
 fn say(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
@@ -27,51 +27,51 @@ fn region(b: &mut Builder, words: &Words, phrase: P) {
     let value = words.book().say(words.language(), phrase.id(), &[]).expect("checked activity region name");
     b.name(&value.text);
 }
-fn identity(b: &mut Builder, value: OwnerRequester, words: &Words) {
+fn identity(b: &mut Builder, value: Requester, words: &Words) {
     match value {
-        OwnerRequester::Task(value) => number(b, words, P::TaskIdentity, value),
-        OwnerRequester::Person(value) => number(b, words, P::PersonIdentity, value),
-        OwnerRequester::Deployment { project } => number(b, words, P::DeploymentIdentity, u64::from(project)),
+        Requester::Task(value) => number(b, words, P::TaskIdentity, value),
+        Requester::Person(value) => number(b, words, P::PersonIdentity, value),
+        Requester::Deployment { project } => number(b, words, P::DeploymentIdentity, u64::from(project)),
     }
 }
-fn proposal_kind(b: &mut Builder, value: OwnerMessageProposalKind, words: &Words) {
+fn proposal_kind(b: &mut Builder, value: MessageProposalKind, words: &Words) {
     let phrase = match value {
-        OwnerMessageProposalKind::Settings => return,
-        OwnerMessageProposalKind::Batch => P::Batch,
-        OwnerMessageProposalKind::Effect => P::Effect,
-        OwnerMessageProposalKind::Amend => P::Amend,
-        OwnerMessageProposalKind::Widen => P::Widen,
-        OwnerMessageProposalKind::Release => P::Release,
+        MessageProposalKind::Settings => return,
+        MessageProposalKind::Batch => P::Batch,
+        MessageProposalKind::Effect => P::Effect,
+        MessageProposalKind::Amend => P::Amend,
+        MessageProposalKind::Widen => P::Widen,
+        MessageProposalKind::Release => P::Release,
     };
     caption(b, words, phrase);
 }
-fn notice(b: &mut Builder, value: OwnerNoticeState, words: &Words) {
+fn notice(b: &mut Builder, value: NoticeState, words: &Words) {
     let phrase = match value {
-        OwnerNoticeState::Held => P::Held,
-        OwnerNoticeState::Done => P::Done,
-        OwnerNoticeState::Failed => P::NoticeFailed,
-        OwnerNoticeState::Cancelled => P::NoticeCancelled,
+        NoticeState::Held => P::Held,
+        NoticeState::Done => P::Done,
+        NoticeState::Failed => P::NoticeFailed,
+        NoticeState::Cancelled => P::NoticeCancelled,
     };
     caption(b, words, phrase);
 }
-fn news(b: &mut Builder, value: OwnerNewsClass, words: &Words) {
+fn news(b: &mut Builder, value: NewsClass, words: &Words) {
     let phrase = match value {
-        OwnerNewsClass::Wakes => P::Wakes,
-        OwnerNewsClass::Kept => P::Kept,
-        OwnerNewsClass::Dropped => P::Dropped,
+        NewsClass::Wakes => P::Wakes,
+        NewsClass::Kept => P::Kept,
+        NewsClass::Dropped => P::Dropped,
     };
     caption(b, words, phrase);
 }
-fn result(b: &mut Builder, value: &OwnerWordResult, words: &Words) {
+fn result(b: &mut Builder, value: &WordResult, words: &Words) {
     match value {
-        OwnerWordResult::Approved { state, words_present } => {
+        WordResult::Approved { state, words_present } => {
             caption(b, words, P::Approved);
             caption(b, words, P::State);
             crate::words::literal_segment::render(b, state.bytes());
             caption(b, words, if *words_present { P::WordsPresent } else { P::WordsAbsent });
         }
-        OwnerWordResult::Report => caption(b, words, P::Report),
-        OwnerWordResult::Verdict { code, fields } => {
+        WordResult::Report => caption(b, words, P::Report),
+        WordResult::Verdict { code, fields } => {
             caption(b, words, P::Verdict);
             number(b, words, P::Code, u64::from(*code));
             for field in fields {
@@ -81,34 +81,34 @@ fn result(b: &mut Builder, value: &OwnerWordResult, words: &Words) {
                 crate::words::literal_segment::render(b, &field.value);
             }
         }
-        OwnerWordResult::Change { connector, kind, resource } => {
+        WordResult::Change { connector, kind, resource } => {
             caption(b, words, P::Change);
             number(b, words, P::Connector, u64::from(*connector));
             number(b, words, P::ChangeKind, u64::from(*kind));
             number(b, words, P::Resource, *resource);
         }
-        OwnerWordResult::Failed => caption(b, words, P::ResultFailed),
-        OwnerWordResult::Cancelled => caption(b, words, P::ResultCancelled),
+        WordResult::Failed => caption(b, words, P::ResultFailed),
+        WordResult::Cancelled => caption(b, words, P::ResultCancelled),
     }
 }
-fn kind(b: &mut Builder, value: &OwnerMessageKind, words: &Words) {
+fn kind(b: &mut Builder, value: &MessageKind, words: &Words) {
     match value {
-        OwnerMessageKind::Escalation { task, revision } => {
+        MessageKind::Escalation { task, revision } => {
             caption(b, words, P::Escalation);
             number(b, words, P::TaskIdentity, *task);
             number(b, words, P::Revision, *revision);
         }
-        OwnerMessageKind::Proposal { proposer, proposal, kind } => {
+        MessageKind::Proposal { proposer, proposal, kind } => {
             caption(b, words, P::Proposal);
             number(b, words, P::Proposer, *proposer);
             number(b, words, P::ProposalNumber, *proposal);
             proposal_kind(b, *kind, words);
         }
-        OwnerMessageKind::PersonStalled { task } => {
+        MessageKind::PersonStalled { task } => {
             caption(b, words, P::PersonStalled);
             number(b, words, P::TaskIdentity, *task);
         }
-        OwnerMessageKind::SettingsDecision { proposal, outcome } => {
+        MessageKind::SettingsDecision { proposal, outcome } => {
             caption(b, words, P::SettingsDecision);
             number(b, words, P::ProposalNumber, *proposal);
             match outcome {
@@ -123,24 +123,24 @@ fn kind(b: &mut Builder, value: &OwnerMessageKind, words: &Words) {
                 }
             }
         }
-        OwnerMessageKind::ProposalDecision { proposal, accepted } => {
+        MessageKind::ProposalDecision { proposal, accepted } => {
             caption(b, words, P::ProposalDecision);
             number(b, words, P::ProposalNumber, *proposal);
             caption(b, words, if *accepted { P::Accepted } else { P::Rejected });
         }
-        OwnerMessageKind::Words => caption(b, words, P::MessageWords),
-        OwnerMessageKind::EffectNotMade { entry } => {
+        MessageKind::Words => caption(b, words, P::MessageWords),
+        MessageKind::EffectNotMade { entry } => {
             caption(b, words, P::EffectNotMade);
             number(b, words, P::Entry, *entry);
         }
-        OwnerMessageKind::Amendment { revision } => {
+        MessageKind::Amendment { revision } => {
             caption(b, words, P::Amendment);
             number(b, words, P::Revision, *revision);
         }
-        OwnerMessageKind::QuestionAnswered { question } => number(b, words, P::QuestionAnswered, *question),
-        OwnerMessageKind::QuestionOwed => caption(b, words, P::QuestionOwed),
-        OwnerMessageKind::QuestionEnded { question } => number(b, words, P::QuestionEnded, *question),
-        OwnerMessageKind::Met { dependency, removed } => words.text(
+        MessageKind::QuestionAnswered { question } => number(b, words, P::QuestionAnswered, *question),
+        MessageKind::QuestionOwed => caption(b, words, P::QuestionOwed),
+        MessageKind::QuestionEnded { question } => number(b, words, P::QuestionEnded, *question),
+        MessageKind::Met { dependency, removed } => words.text(
             b,
             if *removed {
                 crate::words::phrases::jig::JigPhrase::DependencyRemoved
@@ -149,34 +149,34 @@ fn kind(b: &mut Builder, value: &OwnerMessageKind, words: &Words) {
             },
             &[Hole::Number(*dependency)],
         ),
-        OwnerMessageKind::Question => caption(b, words, P::Question),
-        OwnerMessageKind::Answer { question } => {
+        MessageKind::Question => caption(b, words, P::Question),
+        MessageKind::Answer { question } => {
             caption(b, words, P::Answer);
             number(b, words, P::QuestionNumber, *question);
         }
-        OwnerMessageKind::Notice { subscription, target, state } => {
+        MessageKind::Notice { subscription, target, state } => {
             caption(b, words, P::Notice);
             number(b, words, P::Subscription, *subscription);
             number(b, words, P::Target, *target);
             notice(b, *state, words);
         }
-        OwnerMessageKind::Timer { subscription } => {
+        MessageKind::Timer { subscription } => {
             caption(b, words, P::Timer);
             number(b, words, P::Subscription, *subscription);
         }
-        OwnerMessageKind::News { subscription, class } => {
+        MessageKind::News { subscription, class } => {
             caption(b, words, P::News);
             number(b, words, P::Subscription, *subscription);
             news(b, *class, words);
         }
-        OwnerMessageKind::Result(value) => {
+        MessageKind::Result(value) => {
             caption(b, words, P::Result);
             result(b, value, words);
         }
     }
 }
 /// Render every whole admitted message field. Absence of cut is not a fabricated loss flag.
-pub fn word(b: &mut Builder, value: &OwnerWord, words: &Words) {
+pub fn word(b: &mut Builder, value: &Word, words: &Words) {
     region(b, words, P::Word);
     number(b, words, P::Message, value.number);
     caption(b, words, P::From);
@@ -189,7 +189,7 @@ pub fn word(b: &mut Builder, value: &OwnerWord, words: &Words) {
     caption(b, words, if value.eligible { P::Eligible } else { P::Ineligible });
     b.close();
 }
-fn tries(b: &mut Builder, value: OwnerFailureTries, words: &Words) {
+fn tries(b: &mut Builder, value: FailureTries, words: &Words) {
     number(b, words, P::TransientTries, u64::from(value.transient));
     number(b, words, P::PermanentTries, u64::from(value.permanent));
     number(b, words, P::RunTries, u64::from(value.run));
@@ -197,21 +197,21 @@ fn tries(b: &mut Builder, value: OwnerFailureTries, words: &Words) {
     number(b, words, P::LostTries, u64::from(value.lost));
     number(b, words, P::InvalidTries, u64::from(value.invalid));
 }
-fn why(b: &mut Builder, value: OwnerRunWhy, words: &Words) {
+fn why(b: &mut Builder, value: RunWhy, words: &Words) {
     match value {
-        OwnerRunWhy::Made => caption(b, words, P::Made),
-        OwnerRunWhy::Ready => caption(b, words, P::Ready),
-        OwnerRunWhy::Message { message } => {
+        RunWhy::Made => caption(b, words, P::Made),
+        RunWhy::Ready => caption(b, words, P::Ready),
+        RunWhy::Message { message } => {
             caption(b, words, P::MessageCause);
             number(b, words, P::Message, message);
         }
-        OwnerRunWhy::Released => caption(b, words, P::Released),
-        OwnerRunWhy::Retry { tries: value } => {
+        RunWhy::Released => caption(b, words, P::Released),
+        RunWhy::Retry { tries: value } => {
             caption(b, words, P::Retry);
             tries(b, value, words);
         }
-        OwnerRunWhy::Narrowed => caption(b, words, P::Narrowed),
-        OwnerRunWhy::Changed => caption(b, words, P::Changed),
+        RunWhy::Narrowed => caption(b, words, P::Narrowed),
+        RunWhy::Changed => caption(b, words, P::Changed),
     }
 }
 fn failure(b: &mut Builder, value: HoldFailure, words: &Words) {
@@ -225,21 +225,21 @@ fn failure(b: &mut Builder, value: HoldFailure, words: &Words) {
     };
     caption(b, words, phrase);
 }
-fn end(b: &mut Builder, value: OwnerRunEnd, words: &Words) {
+fn end(b: &mut Builder, value: RunEnd, words: &Words) {
     match value {
-        OwnerRunEnd::Parked => caption(b, words, P::Parked),
-        OwnerRunEnd::Finished => caption(b, words, P::Finished),
-        OwnerRunEnd::Cancelled => caption(b, words, P::CancelledEnd),
-        OwnerRunEnd::Refused => caption(b, words, P::Refused),
-        OwnerRunEnd::Failed { class } => {
+        RunEnd::Parked => caption(b, words, P::Parked),
+        RunEnd::Finished => caption(b, words, P::Finished),
+        RunEnd::Cancelled => caption(b, words, P::CancelledEnd),
+        RunEnd::Refused => caption(b, words, P::Refused),
+        RunEnd::Failed { class } => {
             caption(b, words, P::FailedEnd);
             failure(b, class, words);
         }
     }
 }
-fn line(b: &mut Builder, value: &OwnerActivity, words: &Words) {
+fn line(b: &mut Builder, value: &Activity, words: &Words) {
     match value {
-        OwnerActivity::Words { message, by, kind: value, words: text } => {
+        Activity::Words { message, by, kind: value, words: text } => {
             caption(b, words, P::Words);
             number(b, words, P::Message, *message);
             caption(b, words, P::From);
@@ -248,29 +248,29 @@ fn line(b: &mut Builder, value: &OwnerActivity, words: &Words) {
             caption(b, words, P::WholeWords);
             crate::words::literal_segment::render(b, text.bytes());
         }
-        OwnerActivity::Heard(value) => {
+        Activity::Heard(value) => {
             caption(b, words, P::Heard);
             word(b, value, words);
         }
-        OwnerActivity::Notified { recipient, word: value } => {
+        Activity::Notified { recipient, word: value } => {
             caption(b, words, P::Notified);
             caption(b, words, P::Recipient);
             identity(b, *recipient, words);
             word(b, value, words);
         }
-        OwnerActivity::RunBegan { attempt, why: value, resumed } => {
+        Activity::RunBegan { attempt, why: value, resumed } => {
             caption(b, words, P::RunBegan);
             number(b, words, P::Attempt, *attempt);
             why(b, *value, words);
             caption(b, words, if *resumed { P::Resumed } else { P::NotResumed });
         }
-        OwnerActivity::RunEnded { attempt, end: value, spent } => {
+        Activity::RunEnded { attempt, end: value, spent } => {
             caption(b, words, P::RunEnded);
             number(b, words, P::Attempt, *attempt);
             end(b, *value, words);
             number(b, words, P::Spent, *spent);
         }
-        OwnerActivity::Turn { reply, attempt, turn, read } => {
+        Activity::Turn { reply, attempt, turn, read } => {
             caption(b, words, P::Turn);
             number(b, words, P::Reply, *reply);
             number(b, words, P::Attempt, *attempt);
@@ -280,11 +280,11 @@ fn line(b: &mut Builder, value: &OwnerActivity, words: &Words) {
                 None => caption(b, words, P::ReadAbsent),
             }
         }
-        OwnerActivity::Decided { revision } => {
+        Activity::Decided { revision } => {
             caption(b, words, P::Decided);
             number(b, words, P::Revision, *revision);
         }
-        OwnerActivity::Kept { attempt, pending, question } => {
+        Activity::Kept { attempt, pending, question } => {
             if let Some(question) = question {
                 number(b, words, P::KeptQuestion, *question);
             }
@@ -294,14 +294,14 @@ fn line(b: &mut Builder, value: &OwnerActivity, words: &Words) {
                 words.text(b, crate::words::phrases::jig::JigPhrase::KeptUntil, &[Hole::Number(*dependency)]);
             }
         }
-        OwnerActivity::Milestone { position } => {
+        Activity::Milestone { position } => {
             caption(b, words, P::Milestone);
             number(b, words, P::Position, *position);
         }
     }
 }
 /// Whole supplied task, commit position and clock plus its closed activity line.
-pub fn render(b: &mut Builder, value: &OwnerActivityLine, words: &Words) {
+pub fn render(b: &mut Builder, value: &ActivityLine, words: &Words) {
     region(b, words, P::Activity);
     number(b, words, P::Task, value.task);
     number(b, words, P::Position, value.position);

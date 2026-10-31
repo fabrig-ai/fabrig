@@ -1,14 +1,14 @@
 //! LLM account requests (client/domain/client.md, 6; domain/accounts.md, 5).
 use crate::{
     Ask, Event, Key,
-    contract::{AccountChange, AccountHolder},
+    contract::{AccountChange, AskAccountHolder},
 };
 use alloc::boxed::Box;
 use skein_lib::{RequestKey, Secret};
 
 /// An account change under the caller's engine name.
 #[must_use]
-pub fn account_change(key: Key, name: RequestKey, holder: AccountHolder, change: AccountChange) -> Event {
+pub fn account_change(key: Key, name: RequestKey, holder: AskAccountHolder, change: AccountChange) -> Event {
     Event::Send {
         key,
         name: Some(name),
@@ -21,7 +21,7 @@ pub fn account_change(key: Key, name: RequestKey, holder: AccountHolder, change:
 pub fn add_key(
     key: Key,
     name: RequestKey,
-    holder: AccountHolder,
+    holder: AskAccountHolder,
     provider: u32,
     join: Option<u32>,
     value: Secret,
@@ -37,7 +37,7 @@ pub fn add_key(
 
 /// Replace an account key, carrying its value once. Only its digest enters the typed ask.
 #[must_use]
-pub fn replace_key(key: Key, name: RequestKey, holder: AccountHolder, source: u32, value: Secret) -> Event {
+pub fn replace_key(key: Key, name: RequestKey, holder: AskAccountHolder, source: u32, value: Secret) -> Event {
     let change = AccountChange::ReplaceKey { source, digest: skein_lib::sha256::digest(value.expose()) };
     Event::Carry {
         key,
@@ -52,7 +52,7 @@ pub fn replace_key(key: Key, name: RequestKey, holder: AccountHolder, source: u3
 pub fn declare_program(
     key: Key,
     request: RequestKey,
-    holder: AccountHolder,
+    holder: AskAccountHolder,
     provider: u32,
     join: Option<u32>,
     name: Box<[u8]>,
@@ -61,13 +61,13 @@ pub fn declare_program(
 }
 /// Ask each host to refresh a declared program's inventory.
 #[must_use]
-pub fn check_program(key: Key, request: RequestKey, holder: AccountHolder, source: u32) -> Event {
+pub fn check_program(key: Key, request: RequestKey, holder: AskAccountHolder, source: u32) -> Event {
     account_change(key, request, holder, AccountChange::CheckProgram { source })
 }
 
 /// Move an account out once, returning its record (client/domain/client.md, 6).
 #[must_use]
-pub fn move_out(key: Key, name: RequestKey, holder: AccountHolder, account: u32) -> Event {
+pub fn move_out(key: Key, name: RequestKey, holder: AskAccountHolder, account: u32) -> Event {
     Event::Carry {
         key,
         name,
@@ -80,12 +80,12 @@ pub fn move_out(key: Key, name: RequestKey, holder: AccountHolder, account: u32)
 }
 /// Confirm a moved record was written (client/domain/client.md, 6).
 #[must_use]
-pub fn written(key: Key, name: RequestKey, holder: AccountHolder, number: u32) -> Event {
+pub fn written(key: Key, name: RequestKey, holder: AskAccountHolder, number: u32) -> Event {
     account_change(key, name, holder, AccountChange::Written { number })
 }
 /// Move a file's account in, carrying its bytes once (client/domain/client.md, 6).
 #[must_use]
-pub fn move_in(key: Key, name: RequestKey, holder: AccountHolder, file: Secret) -> Event {
+pub fn move_in(key: Key, name: RequestKey, holder: AskAccountHolder, file: Secret) -> Event {
     let digest = skein_lib::sha256::digest(file.expose());
     Event::Carry {
         key,
@@ -101,7 +101,7 @@ pub fn move_in(key: Key, name: RequestKey, holder: AccountHolder, file: Secret) 
 /// Finish the party's sign-in with its browser's address (domain/accounts.md, section 5).
 /// Only the digest enters the typed ask; the address is carried once.
 #[must_use]
-pub fn finish_sign_in(key: Key, name: RequestKey, holder: AccountHolder, source: u32, address: Secret) -> Event {
+pub fn finish_sign_in(key: Key, name: RequestKey, holder: AskAccountHolder, source: u32, address: Secret) -> Event {
     let change = AccountChange::FinishSignIn { source, digest: skein_lib::sha256::digest(address.expose()) };
     Event::Carry {
         key,

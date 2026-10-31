@@ -1,9 +1,9 @@
 //! Deployment account identity, ordered sources and payers (pages.md, 7).
 use super::{A, P, Words, account_state, field_number, text, wall};
-use jig_client::contract::{OwnerAccount, OwnerAccountHolder, OwnerAccountKind, OwnerAccountUse};
+use jig_client::contract::{Account, AccountHolder, AccountKind, AccountUse};
 use skein_ui::{Builder, Role};
 
-pub(super) fn details(b: &mut Builder, words: &Words, account: &OwnerAccount) {
+pub(super) fn details(b: &mut Builder, words: &Words, account: &Account) {
     if let Some(provider) = account.provider {
         field_number(b, words, P::AccountDetail(A::Provider), u64::from(provider));
     }
@@ -24,8 +24,8 @@ pub(super) fn details(b: &mut Builder, words: &Words, account: &OwnerAccount) {
         text(b, words, P::Cut, &[]);
     }
     match account.holder {
-        OwnerAccountHolder::Deployment => text(b, words, P::AccountDetail(A::HeldByDeployment), &[]),
-        OwnerAccountHolder::Party(party) => field_number(b, words, P::AccountDetail(A::HeldByParty), party),
+        AccountHolder::Deployment => text(b, words, P::AccountDetail(A::HeldByDeployment), &[]),
+        AccountHolder::Party(party) => field_number(b, words, P::AccountDetail(A::HeldByParty), party),
     }
     if account.plan {
         text(b, words, P::AccountDetail(A::Plan), &[]);
@@ -38,10 +38,10 @@ pub(super) fn details(b: &mut Builder, words: &Words, account: &OwnerAccount) {
             crate::words::literal_segment::render(b, name);
         }
         let kind = match source.kind {
-            OwnerAccountKind::SignIn => A::SignIn,
-            OwnerAccountKind::Key => A::Key,
-            OwnerAccountKind::Program => A::Program,
-            OwnerAccountKind::None => A::None,
+            AccountKind::SignIn => A::SignIn,
+            AccountKind::Key => A::Key,
+            AccountKind::Program => A::Program,
+            AccountKind::None => A::None,
         };
         text(b, words, P::AccountDetail(kind), &[]);
         account_state(b, words, source.state);
@@ -57,8 +57,8 @@ pub(super) fn details(b: &mut Builder, words: &Words, account: &OwnerAccount) {
         Some(uses) => {
             for payer in uses {
                 match payer {
-                    OwnerAccountUse::Party(party) => field_number(b, words, P::AccountDetail(A::PaysParty), *party),
-                    OwnerAccountUse::Project(project) => {
+                    AccountUse::Party(party) => field_number(b, words, P::AccountDetail(A::PaysParty), *party),
+                    AccountUse::Project(project) => {
                         field_number(b, words, P::AccountDetail(A::PaysProject), u64::from(*project));
                     }
                 }

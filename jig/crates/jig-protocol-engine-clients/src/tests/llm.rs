@@ -251,7 +251,7 @@ fn selector_ask(names: &[&[u8]]) -> w::Ask {
     }
     authority.models =
         Some(w::ModelSet::Names(w::ModelSetNames::new(&limits, w::ModelSetNamesParts { names: rows }).unwrap()));
-    value.authority = w::OwnerAuthority::new(&limits, authority).unwrap();
+    value.authority = w::Authority::new(&limits, authority).unwrap();
     role.value = w::PolicyEditRole::new(&limits, value).unwrap();
     ask.edit = w::PolicyEdit::Role(w::PolicyEditRoleValue::new(&limits, role).unwrap());
     w::Ask::ChangePolicy(w::ChangePolicy::new(&limits, ask).unwrap())
@@ -362,21 +362,21 @@ fn hello_refusals_reuse_the_deployment_context_through_server_bytes_and_client_t
     for (why, expected) in [
         (
             fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Turns { charter: 17 } },
-            c::OwnerHelloRefusal::Agent { why: c::OwnerAgentShortfall::Turns },
+            c::HelloRefusal::Agent { why: c::AgentShortfall::Turns },
         ),
         (
             fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Window { charter: 17, model: 2 } },
-            c::OwnerHelloRefusal::Agent { why: c::OwnerAgentShortfall::Window { charter: 17, model: 2 } },
+            c::HelloRefusal::Agent { why: c::AgentShortfall::Window { charter: 17, model: 2 } },
         ),
         (
             fleet::HelloRefusal::StopBound { grace: Duration::from_secs(10) },
-            c::OwnerHelloRefusal::StopBound { grace: Duration::from_secs(10) },
+            c::HelloRefusal::StopBound { grace: Duration::from_secs(10) },
         ),
-        (fleet::HelloRefusal::Position { worker: 7 }, c::OwnerHelloRefusal::Position { worker: 7 }),
-        (fleet::HelloRefusal::Workers { limit: 3 }, c::OwnerHelloRefusal::Workers { limit: 3 }),
+        (fleet::HelloRefusal::Position { worker: 7 }, c::HelloRefusal::Position { worker: 7 }),
+        (fleet::HelloRefusal::Workers { limit: 3 }, c::HelloRefusal::Workers { limit: 3 }),
     ] {
         for (kind, client_kind) in
-            [(fleet::HostKind::Engine, c::OwnerHostKind::Engine), (fleet::HostKind::Worker, c::OwnerHostKind::Worker)]
+            [(fleet::HostKind::Engine, c::HostKind::Engine), (fleet::HostKind::Worker, c::HostKind::Worker)]
         {
             assert_task_refusal_round_trip(
                 d::TaskWaitRefused::Hello { kind, at: Wall::from_nanos(1234), why },

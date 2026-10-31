@@ -221,16 +221,16 @@ pub(super) fn page(
             {
                 Some(question)
             }
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Historical(value))) => match value.value {
-                c::OwnerHistoricalValue::Question { question, .. } if (question.task.task, question.message) == key => {
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) => match value.value {
+                c::EndedValue::Question { question, .. } if (question.task.task, question.message) == key => {
                     Some(Box::new(question))
                 }
-                c::OwnerHistoricalValue::Task { .. }
-                | c::OwnerHistoricalValue::Proposal(_)
-                | c::OwnerHistoricalValue::PersonProposal { .. }
-                | c::OwnerHistoricalValue::Escalation { .. }
-                | c::OwnerHistoricalValue::Question { .. }
-                | c::OwnerHistoricalValue::PersonTask { .. } => None,
+                c::EndedValue::Task { .. }
+                | c::EndedValue::Proposal(_)
+                | c::EndedValue::PersonProposal { .. }
+                | c::EndedValue::Escalation { .. }
+                | c::EndedValue::Question { .. }
+                | c::EndedValue::PersonTask { .. } => None,
             },
             Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => None,
         };
@@ -271,7 +271,7 @@ pub(super) fn page(
         }
     }
     let more_inbox = match &page {
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page))) => page.after.is_some(),
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => page.after.is_some(),
         Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => true,
     };
     reading.pages.insert(local, page);
@@ -471,7 +471,7 @@ pub(crate) fn task_query(call: &Call, me: &c::Me) -> Option<c::TaskQuery> {
     let ended = value(call, 4).is_some();
     Some(c::TaskQuery {
         project: Some(project),
-        requester: if value(call, 3).is_some() { Some(c::OwnerRequester::Person(me.party.number)) } else { None },
+        requester: if value(call, 3).is_some() { Some(c::Requester::Person(me.party.number)) } else { None },
         root: None,
         parent: number(call, 7),
         label: match value(call, 1) {
@@ -593,9 +593,9 @@ fn terminal_read(
 fn next_question(reading: &Reading, maximum: u32) -> Option<(u64, u64)> {
     let mut keys = skein_lib::List::with_capacity(maximum);
     match reading.pages.get(&1) {
-        Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page)))) => {
+        Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page)))) => {
             for row in page.rows.as_slice().iter().take(usize::try_from(maximum).expect("rows fit")) {
-                if let c::OwnerInboxObject::Question { message } = row.object {
+                if let c::InboxObject::Question { message } = row.object {
                     keys.push((row.task.number(), message)).expect("one bounded page");
                 }
             }

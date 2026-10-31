@@ -1,6 +1,6 @@
 //! Wire projections of proposed task facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, list, pieces, w};
-use super::{wire_field_rule, wire_owner_part};
+use super::{wire_field_rule, wire_part};
 pub(in crate::codec) fn wire_task_contract_document(
     value: &c::TaskContractDocument,
     limits: &w::Limits,
@@ -9,10 +9,7 @@ pub(in crate::codec) fn wire_task_contract_document(
         c::TaskContractDocument::Approval { state, part } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(
                 limits,
-                w::TaskContractDocumentApprovalParts {
-                    state: bytes::copy_of(state),
-                    part: wire_owner_part(part, limits)?,
-                },
+                w::TaskContractDocumentApprovalParts { state: bytes::copy_of(state), part: wire_part(part, limits)? },
             )?)
         }
         c::TaskContractDocument::Report { words } => w::TaskContractDocument::Report(

@@ -232,7 +232,7 @@ struct Judge {
     handed: bool,
     source: Option<u32>,
     account: Option<u32>,
-    accounts: Option<c::OwnerAccounts>,
+    accounts: Option<c::Accounts>,
     confirmed: bool,
     restarts: u32,
 }
@@ -247,7 +247,7 @@ impl Judge {
         let mut answer = None;
         for received in &native.received[self.received..] {
             match received {
-                Received::Delivery(c::Delivery::OwnerAccounts(accounts)) => {
+                Received::Delivery(c::Delivery::Accounts(accounts)) => {
                     self.accounts = Some(accounts.as_ref().clone());
                 }
                 Received::Answer { answer: value, .. } => answer = Some(value.clone()),
@@ -259,7 +259,8 @@ impl Judge {
     }
     fn visit(&mut self, answer: Option<c::Answer>, peers: &mut [Process]) {
         if let Some(answer) = answer {
-            let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignInStarted { source, address })) = answer
+            let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted { source, address })) =
+                answer
             else {
                 panic!("sign-in: {answer:?}")
             };
@@ -273,7 +274,7 @@ impl Judge {
         if let Some(answer) = answer {
             assert_eq!(
                 answer,
-                c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignedOut {
+                c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignedOut {
                     confirmed: true,
                     failed_hosts: Box::new([]),
                 }))
@@ -289,15 +290,13 @@ impl Judge {
     fn usable(&mut self) -> bool {
         let Some(accounts) = &self.accounts else { return false };
         let Some(account) = accounts.accounts.iter().find(|a| {
-            a.sources
-                .iter()
-                .any(|s| Some(s.number) == self.source && s.usable && s.state == c::OwnerAccountState::Granted)
+            a.sources.iter().any(|s| Some(s.number) == self.source && s.usable && s.state == c::AccountState::Granted)
         }) else {
             return false;
         };
         assert!(account.plan, "a signed-in plan is granted");
-        assert!(matches!(account.holder, c::OwnerAccountHolder::Party(_)));
-        assert!(account.sources.iter().all(|s| s.kind == c::OwnerAccountKind::SignIn));
+        assert!(matches!(account.holder, c::AccountHolder::Party(_)));
+        assert!(account.sources.iter().all(|s| s.kind == c::AccountKind::SignIn));
         if let Some(previous) = self.account {
             assert_eq!(account.number, previous, "restored account identity");
         }
@@ -321,7 +320,7 @@ impl skein_world::Referee<Process> for Judge {
         match self.phase {
             Phase::Admission if native.account_sign_in_ready() => {
                 Self::watch(native);
-                native.ask_account_sign_in(SIGN_IN, c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 1 });
+                native.ask_account_sign_in(SIGN_IN, c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 1 });
                 self.phase = Phase::Address;
             }
             Phase::Address => self.visit(answer, peers),
@@ -370,7 +369,7 @@ impl skein_world::Referee<Process> for Judge {
                     native.ask_account_sign_in(
                         SIGN_OUT,
                         c::Ask::SignOut {
-                            holder: c::AccountHolder::Own,
+                            holder: c::AskAccountHolder::Own,
                             source: self.source.expect("signed-in source"),
                         },
                     );
@@ -481,7 +480,7 @@ fn evidence(procs: &[Process]) -> Outcome {
             matches!(
                 r,
                 Received::Answer {
-                    answer: c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignedOut {
+                    answer: c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignedOut {
                         confirmed: true,
                         ..
                     })),
@@ -494,11 +493,7 @@ fn evidence(procs: &[Process]) -> Outcome {
             .iter()
             .rev()
             .find_map(|r| {
-                if let Received::Delivery(c::Delivery::OwnerAccounts(a)) = r {
-                    Some(a.accounts.is_empty())
-                } else {
-                    None
-                }
+                if let Received::Delivery(c::Delivery::Accounts(a)) = r { Some(a.accounts.is_empty()) } else { None }
             })
             .expect("accounts document"),
         run_failure: host.store.borrow().rows.values().find_map(|row| {

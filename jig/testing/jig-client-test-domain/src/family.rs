@@ -1,7 +1,7 @@
 //! The connector's documents and one revision-naming keyed request. Application
 //! values and forms stay here, never in jig's requests (root.md, sections 6–7).
 use jig_client::contract::{
-    EntranceRefusal, ObjectKey, OwnerPart, OwnerPartKey, OwnerPartKind, Part, ProposalKey, Revision,
+    ApplicationPart, EntranceRefusal, ObjectKey, Part, PartKey, PartKind, ProposalKey, Revision,
 };
 use skein_lib::List;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -128,25 +128,29 @@ pub enum WatchEnd {
     Busy,
 }
 #[must_use]
-pub fn subject(part: &Part, scope: Scope) -> Option<Subject> {
+pub fn subject(part: &ApplicationPart, scope: Scope) -> Option<Subject> {
     let kind = match part {
-        Part::Panel { task, .. } => Kind::Panel(*task),
-        Part::Result { task, .. } => Kind::Result(*task),
-        Part::Effect { proposal, .. } => Kind::Effect(*proposal),
-        Part::OwnerEffect { proposal, .. } => Kind::OwnerEffect(*proposal),
-        Part::Outbox { scope, entry, .. } => {
+        ApplicationPart::Panel { task, .. } => Kind::Panel(*task),
+        ApplicationPart::Result { task, .. } => Kind::Result(*task),
+        ApplicationPart::Effect { proposal, .. } => Kind::Effect(*proposal),
+        ApplicationPart::OwnerEffect { proposal, .. } => Kind::OwnerEffect(*proposal),
+        ApplicationPart::Outbox { scope, entry, .. } => {
             let scope = match scope {
                 jig_client::contract::PartScope::Project(project) => Scope::Project(*project),
                 jig_client::contract::PartScope::Deployment => Scope::Deployment,
             };
             return Some(Subject { scope, kind: Kind::Outbox(*entry) });
         }
-        Part::Hold { task, .. } => Kind::Hold(*task),
-        Part::Project { project, .. } => {
+        ApplicationPart::Hold { task, .. } => Kind::Hold(*task),
+        ApplicationPart::Project { project, .. } => {
             return Some(Subject { scope: Scope::Project(*project), kind: Kind::Project(*project) });
         }
-        Part::Deployment { .. } => return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment }),
-        Part::Connector { .. } | Part::Resource { .. } | Part::Kind { .. } => return None,
+        ApplicationPart::Deployment { .. } => {
+            return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment });
+        }
+        ApplicationPart::Connector { .. } | ApplicationPart::Resource { .. } | ApplicationPart::Kind { .. } => {
+            return None;
+        }
     };
     Some(Subject { scope, kind })
 }
@@ -154,35 +158,35 @@ pub fn subject(part: &Part, scope: Scope) -> Option<Subject> {
 /// The explicit held-task account only (client/domain/root.md, section 6).
 /// A resource origin is a distinct reference and cannot supply this identity.
 #[must_use]
-pub fn owner_hold(part: &OwnerPart) -> Option<Part> {
+pub fn owner_hold(part: &Part) -> Option<ApplicationPart> {
     match part.kind {
-        OwnerPartKind::Hold => match part.key {
-            OwnerPartKey::Number(task) => Some(Part::Hold { connector: part.connector, task }),
-            OwnerPartKey::Path(_) => None,
+        PartKind::Hold => match part.key {
+            PartKey::Number(task) => Some(ApplicationPart::Hold { connector: part.connector, task }),
+            PartKey::Path(_) => None,
         },
-        OwnerPartKind::Resource
-        | OwnerPartKind::Pool
-        | OwnerPartKind::Result
-        | OwnerPartKind::Procedure
-        | OwnerPartKind::Effect
-        | OwnerPartKind::Outbox => None,
+        PartKind::Resource
+        | PartKind::Pool
+        | PartKind::Result
+        | PartKind::Procedure
+        | PartKind::Effect
+        | PartKind::Outbox => None,
     }
 }
 
 /// A connector-owned effect reference keeps its numbered namespace (root.md, 6).
 #[must_use]
-pub fn owner_effect(part: &OwnerPart) -> Option<Part> {
+pub fn owner_effect(part: &Part) -> Option<ApplicationPart> {
     match part.kind {
-        OwnerPartKind::Effect => match part.key {
-            OwnerPartKey::Number(proposal) => Some(Part::OwnerEffect { connector: part.connector, proposal }),
-            OwnerPartKey::Path(_) => None,
+        PartKind::Effect => match part.key {
+            PartKey::Number(proposal) => Some(ApplicationPart::OwnerEffect { connector: part.connector, proposal }),
+            PartKey::Path(_) => None,
         },
-        OwnerPartKind::Resource
-        | OwnerPartKind::Pool
-        | OwnerPartKind::Result
-        | OwnerPartKind::Procedure
-        | OwnerPartKind::Hold
-        | OwnerPartKind::Outbox => None,
+        PartKind::Resource
+        | PartKind::Pool
+        | PartKind::Result
+        | PartKind::Procedure
+        | PartKind::Hold
+        | PartKind::Outbox => None,
     }
 }
 

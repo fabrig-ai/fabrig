@@ -181,33 +181,35 @@ pub(crate) fn slots(view: &mut View<'_>, root: &Domain, b: &mut Builder) {
 fn second(
     b: &mut Builder,
     root: &Domain,
-    part: &jig_client_domain::contract::Part,
+    part: &jig_client_domain::contract::ApplicationPart,
     words: &words::Words,
     jig: &jig_client_view::words::Words,
 ) {
-    use jig_client_domain::contract::Part;
+    use jig_client_domain::contract::ApplicationPart;
     use skein_ui::phrases::Hole;
     if !root.second().contains(part) {
         words.status(b, words::Word::Unshowable, &[]);
         return;
     }
     match part {
-        Part::Connector { connector } => words.text(b, words::Word::Connector, &[Hole::Number(u64::from(*connector))]),
-        Part::Resource { path, .. } => {
+        ApplicationPart::Connector { connector } => {
+            words.text(b, words::Word::Connector, &[Hole::Number(u64::from(*connector))]);
+        }
+        ApplicationPart::Resource { path, .. } => {
             jig.text(b, jig_client_view::phrases::jig::JigPhrase::ResourceSegments, &[]);
             for segment in path {
                 jig_client_view::literal_segment::render(b, segment);
             }
         }
-        Part::Kind { kind, .. } => words.text(b, words::Word::Kind, &[Hole::Number(u64::from(*kind))]),
-        Part::Panel { .. }
-        | Part::Result { .. }
-        | Part::Effect { .. }
-        | Part::OwnerEffect { .. }
-        | Part::Outbox { .. }
-        | Part::Hold { .. }
-        | Part::Project { .. }
-        | Part::Deployment { .. } => words.status(b, words::Word::Unshowable, &[]),
+        ApplicationPart::Kind { kind, .. } => words.text(b, words::Word::Kind, &[Hole::Number(u64::from(*kind))]),
+        ApplicationPart::Panel { .. }
+        | ApplicationPart::Result { .. }
+        | ApplicationPart::Effect { .. }
+        | ApplicationPart::OwnerEffect { .. }
+        | ApplicationPart::Outbox { .. }
+        | ApplicationPart::Hold { .. }
+        | ApplicationPart::Project { .. }
+        | ApplicationPart::Deployment { .. } => words.status(b, words::Word::Unshowable, &[]),
     }
 }
 #[must_use]

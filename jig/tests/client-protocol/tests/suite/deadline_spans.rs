@@ -62,7 +62,7 @@ fn goal_fixture() -> (Story, c::Ask, c::Text) {
     let words = jig_client_world::stories::text(b"goal");
     let draft = shapes::GoalDraft {
         words: words.clone(),
-        executor: c::OwnerExecutor::Agent { charter: 1 },
+        executor: c::Executor::Agent { charter: 1 },
         budget: GOAL_BUDGET,
         deadline: None,
         priority: Some(7),
@@ -105,8 +105,8 @@ fn an_explicit_span_goal_proposal_can_follow_authority_refusal() {
     );
     assert_eq!(
         story.answered(PROPOSE),
-        vec![jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-            c::OwnerOutcome::Proposed { proposal: 1, to: 0 }
+        vec![jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::Proposed { proposal: 1, to: 0 }
         ))))]
     );
 }
@@ -150,7 +150,7 @@ fn a_named_span_replayed_after_time_moves_keeps_its_first_task() {
     lose_then_reload(&mut story, CREATE, ask.clone());
     let first = story.answered(CREATE);
     let [
-        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created {
+        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created {
             first: task,
             last,
             ..

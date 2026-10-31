@@ -77,7 +77,7 @@ pub enum JigPhrase {
     ProjectsPart,
     GoToTaskPart,
 
-    OwnerHoldRelease,
+    HoldRelease,
     QuestionFromTask,
     QuestionFromPerson,
     QuestionFromDeployment,
@@ -1125,7 +1125,7 @@ impl JigPhrase {
             Self::DependencyByTask => 7812,
             Self::DependencyByParty => 7813,
             Self::DependencyByDeployment => 7814,
-            Self::OwnerHoldRelease => 673,
+            Self::HoldRelease => 673,
             Self::NoticesPart => 680,
             Self::NothingKnown => 674,
             Self::LinkPart => 675,
@@ -1763,7 +1763,7 @@ impl JigPhrase {
             | Self::CircleRefused
             | Self::KeptAnswer
             | Self::ActWithdraw
-            | Self::OwnerHoldRelease
+            | Self::HoldRelease
             | Self::PageCut
             | Self::NoteChangedNotSupplied
             | Self::TaskListsCut
@@ -2471,7 +2471,7 @@ pub const ALL: [JigPhrase; 646] = [
     JigPhrase::PartyPart,
     JigPhrase::ProjectsPart,
     JigPhrase::GoToTaskPart,
-    JigPhrase::OwnerHoldRelease,
+    JigPhrase::HoldRelease,
     JigPhrase::QuestionFromTask,
     JigPhrase::QuestionFromPerson,
     JigPhrase::QuestionFromDeployment,
@@ -3065,5 +3065,5 @@ pub fn shapes(text: u32) -> Box<[PhraseShape]> {
     for phrase in ALL {
         rows.push(phrase.shape(text)).expect("all jig shapes fit");
     }
-    crate::words::owner_words::shapes(rows.into_boxed(), text)
+    crate::words::document_words::shapes(rows.into_boxed(), text)
 }

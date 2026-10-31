@@ -8,7 +8,7 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
 use crate::{Borrowed, Config};
-use jig_client::contract::{OwnerProposal, OwnerProposalAction};
+use jig_client::contract::{Proposal, ProposalAction};
 /// Closed action alternatives, with brief linked chips rather than expanded task cards.
 #[must_use]
 pub fn max_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
@@ -43,18 +43,18 @@ fn saying(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
         .expect("checked pending proposal sayings and typed holes");
     b.text(Run::Plain, &value.text);
 }
-/// Render the five exact supplied action kinds without historical joins or routing guesses.
+/// Render the five exact supplied action kinds without joins to prior state or routing guesses.
 pub fn action(
     b: &mut Builder,
     client: &Borrowed<'_>,
-    value: &OwnerProposalAction,
+    value: &ProposalAction,
     words: &Words,
     bindings: &mut JigBindings,
 ) {
     let text_limit = bindings.text_limit();
     match value {
-        OwnerProposalAction::Settings(_) => {}
-        OwnerProposalAction::Batch(tasks) => {
+        ProposalAction::Settings(_) => {}
+        ProposalAction::Batch(tasks) => {
             saying(b, words, P::Batch, &[]);
             for task in tasks {
                 crate::tree::cards::proposal::proposed_task(
@@ -66,7 +66,7 @@ pub fn action(
                 );
             }
         }
-        OwnerProposalAction::Effect { part, authority, attempt, completion, position, purpose } => {
+        ProposalAction::Effect { part, authority, attempt, completion, position, purpose } => {
             saying(b, words, P::Effect, &[]);
             crate::tree::fragments::proposed_task::part(b, part, words, bindings);
             crate::tree::fragments::authority::document_words(
@@ -81,7 +81,7 @@ pub fn action(
             saying(b, words, P::Position, &[Hole::Number(u64::from(*position))]);
             saying(b, words, P::Purpose, &[Hole::Number(*purpose)]);
         }
-        OwnerProposalAction::ProcedureEffect { part, authority, step, purpose } => {
+        ProposalAction::ProcedureEffect { part, authority, step, purpose } => {
             saying(b, words, P::Effect, &[]);
             crate::tree::fragments::proposed_task::part(b, part, words, bindings);
             crate::tree::fragments::authority::document_words(
@@ -94,7 +94,7 @@ pub fn action(
             saying(b, words, P::ProcedureStep, &[Hole::Number(*step)]);
             saying(b, words, P::Purpose, &[Hole::Number(*purpose)]);
         }
-        OwnerProposalAction::Amend { task, addressed, before, after, reason, release } => {
+        ProposalAction::Amend { task, addressed, before, after, reason, release } => {
             saying(b, words, P::Amend, &[]);
             crate::tree::fragments::result::link(b, client, task, words, bindings);
             match addressed {
@@ -112,7 +112,7 @@ pub fn action(
                 None => saying(b, words, P::ReleaseAbsent, &[]),
             }
         }
-        OwnerProposalAction::Widen { task, before, after } => {
+        ProposalAction::Widen { task, before, after } => {
             saying(b, words, P::Widen, &[]);
             crate::tree::fragments::result::link(b, client, task, words, bindings);
             saying(b, words, P::Before, &[]);
@@ -132,7 +132,7 @@ pub fn action(
                 client.client.domain_limits().rows,
             );
         }
-        OwnerProposalAction::Release { task, hold } => {
+        ProposalAction::Release { task, hold } => {
             saying(b, words, P::Release, &[]);
             crate::tree::fragments::result::link(b, client, task, words, bindings);
             match hold {
@@ -143,13 +143,7 @@ pub fn action(
     }
 }
 /// Whole pending envelope: original maker/key, independent waiting and funding facts.
-pub fn render(
-    b: &mut Builder,
-    client: &Borrowed<'_>,
-    value: &OwnerProposal,
-    words: &Words,
-    bindings: &mut JigBindings,
-) {
+pub fn render(b: &mut Builder, client: &Borrowed<'_>, value: &Proposal, words: &Words, bindings: &mut JigBindings) {
     b.open(Role::Region);
     let name = words.book().say(words.language(), P::Proposal.id(), &[]).expect("checked proposal region name");
     b.name(&name.text);

@@ -6,7 +6,7 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
 use crate::Config;
-use jig_client::contract::{OwnerAmendmentState, PersonAddress};
+use jig_client::contract::{AmendmentState, PersonAddress};
 
 /// Finite whole-node envelope shared by standalone and enclosing page renderers.
 #[must_use]
@@ -24,7 +24,7 @@ fn saying(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
 }
 /// Render only supplied owner facts, borrowing the normal checked language book.
 /// No request, revision, actor, project, clock, origin or subscription is inferred.
-pub fn render(b: &mut Builder, value: &OwnerAmendmentState, words: &Words, text_limit: u32, rows: u32) {
+pub fn render(b: &mut Builder, value: &AmendmentState, words: &Words, text_limit: u32, rows: u32) {
     b.open(Role::Region);
     let name = words.book().say(words.language(), P::State.id(), &[]).expect("checked amendment region name");
     b.name(&name.text);

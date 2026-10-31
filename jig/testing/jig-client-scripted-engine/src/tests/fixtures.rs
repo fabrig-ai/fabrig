@@ -39,10 +39,10 @@ pub(super) fn proposed_amendment(bounded: bool, changed: bool) -> (Script, Ask, 
         },
         reason: text(b"more work"),
     };
-    let answer = Answer::Done(Outcome::Owner(if changed {
-        OwnerOutcome::Amended { task: row.chip.task }
+    let answer = Answer::Done(Outcome::Document(if changed {
+        DocumentOutcome::Amended { task: row.chip.task }
     } else {
-        OwnerOutcome::Proposed { proposal: 1, to: 0 }
+        DocumentOutcome::Proposed { proposal: 1, to: 0 }
     }));
     setup.truth.objects.insert(ObjectKey::Task(row.chip.task), ReadValue::Task(Box::new(row)));
     setup.rules.push(Rule { party: Some(1), ask: ask.clone(), answer: answer.clone(), changes: vec![] });
@@ -68,10 +68,10 @@ pub(super) fn new_task(words: Text) -> NewTask {
     NewTask {
         llm: None,
         deadline: jig_client_domain::contract::NewDeadline::Named,
-        executor: OwnerExecutor::Agent { charter: 1 },
+        executor: Executor::Agent { charter: 1 },
         spec: Specification { asks: false, words, parameters: list(vec![]), inputs: list(vec![]) },
         contract: NewContract::Report { words: 128 },
-        authority: owner_authority().authority,
+        authority: authority().authority,
         budget: NewBudget::Named,
         wake: None,
         dependencies: List::with_capacity(0),
@@ -87,7 +87,7 @@ pub(super) fn create(project: u32, words: Text) -> Ask {
 pub(super) fn creating(frame: &mut Me) {
     frame.projects.get_mut(0).unwrap().creating = Some(Creating {
         within: CreateBounds {
-            authority: Box::new(owner_authority()),
+            authority: Box::new(authority()),
             pool_left: 100,
             charters: list(vec![1]),
             procedures: List::with_capacity(0),
@@ -109,13 +109,13 @@ pub(super) fn span_proposal() -> (Script, Ask) {
         spec: SpecificationDocument::complete(member.spec),
         executor: member.executor,
         contract: TaskContractDocument::Report { words: 128 },
-        authority: OwnerAuthorityDocument { authority: member.authority, cut: false },
+        authority: AuthorityDocument { authority: member.authority, cut: false },
         deadline: NewDeadline::Span(Duration::from_secs(5)),
         budget: 20,
         funder: Funder::Pool { project: 1, person: 1, period: 1 },
         dependencies: List::with_capacity(0),
         resources: List::with_capacity(0),
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Immediate,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -127,18 +127,18 @@ pub(super) fn span_proposal() -> (Script, Ask) {
         priority: None,
         cut: false,
     };
-    value.action = OwnerProposalAction::Batch(list(vec![task]));
+    value.action = ProposalAction::Batch(list(vec![task]));
     let ask = Ask::Decide {
         project: 1,
         on: DecideOn::Proposal { proposal: value.key, decision: Decision::Accepted, running: None },
     };
-    setup.truth.objects.insert(ObjectKey::Proposal(value.key), ReadValue::OwnerProposal(Box::new(value)));
+    setup.truth.objects.insert(ObjectKey::Proposal(value.key), ReadValue::Proposal(Box::new(value)));
     setup.truth.frames.get_mut(&1).unwrap().projects.get_mut(0).unwrap().creating.as_mut().unwrap().within.latest =
         Some(Wall::from_nanos(20_000_000_000));
     setup.rules.push(Rule {
         party: Some(1),
         ask: ask.clone(),
-        answer: Answer::Done(Outcome::Owner(OwnerOutcome::Amended { task: 8 })),
+        answer: Answer::Done(Outcome::Document(DocumentOutcome::Amended { task: 8 })),
         changes: vec![],
     });
     (setup, ask)

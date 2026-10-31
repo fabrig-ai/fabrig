@@ -1,10 +1,10 @@
 use super::*;
 use skein_lib::List;
-pub fn owner_deployment_record() -> w::OwnerDeployment {
+pub fn deployment_record() -> w::Deployment {
     jig_client_test_records::owner_deployment_record()
 }
-pub fn owner_deployment() -> c::OwnerDeployment {
-    c::OwnerDeployment {
+pub fn deployment() -> c::Deployment {
+    c::Deployment {
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -14,11 +14,11 @@ pub fn owner_deployment() -> c::OwnerDeployment {
         hosts: List::with_capacity(0),
         attempts: List::with_capacity(0),
         accounts: List::with_capacity(0),
-        tasks: c::OwnerCapacity { used: 7, limit: 7 },
-        workers: c::OwnerCapacity { used: 7, limit: 7 },
-        attempts_capacity: c::OwnerCapacity { used: 7, limit: 7 },
+        tasks: c::Capacity { used: 7, limit: 7 },
+        workers: c::Capacity { used: 7, limit: 7 },
+        attempts_capacity: c::Capacity { used: 7, limit: 7 },
         waiting_attempts: 7,
-        proposals: c::OwnerCapacity { used: 7, limit: 7 },
+        proposals: c::Capacity { used: 7, limit: 7 },
         projects: List::with_capacity(0),
         grace_bound: Duration::from_nanos(19),
         hello_refusals: List::with_capacity(0),
@@ -34,23 +34,23 @@ pub fn owner_deployment() -> c::OwnerDeployment {
         connectors_cut: false,
     }
 }
-pub fn owner_project_record() -> w::OwnerProject {
+pub fn project_record() -> w::Project {
     jig_client_test_records::owner_project_record()
 }
-pub fn owner_project() -> c::OwnerProject {
-    c::OwnerProject {
+pub fn project() -> c::Project {
+    c::Project {
         acts: List::with_capacity(0),
         number: 7,
         name: c::DocumentText::complete(c::Text::new(Box::from(*b"Tally"), 32).unwrap()),
         resources: List::with_capacity(0),
-        policy: c::OwnerProjectPolicy {
+        policy: c::ProjectPolicy {
             templates: List::with_capacity(0),
-            ceiling: c::OwnerAuthorityDocument {
-                authority: c::OwnerAuthority {
+            ceiling: c::AuthorityDocument {
+                authority: c::Authority {
                     models: Some(c::AuthorityModels::All),
                     tools: 7,
                     grants: List::with_capacity(0),
-                    delegation: c::OwnerDelegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
+                    delegation: c::Delegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
                     spend: 7,
                     deadline: None,
                     notes: 7,
@@ -78,11 +78,11 @@ pub fn owner_project() -> c::OwnerProject {
         cut: false,
     }
 }
-pub fn owner_with_account(until: Option<u64>) -> w::OwnerDeployment {
+pub fn with_account(until: Option<u64>) -> w::Deployment {
     let lim = *limits().wire();
-    let account = w::OwnerAccount::new(
+    let account = w::Account::new(
         &lim,
-        w::OwnerAccountParts {
+        w::AccountParts {
             provider_name: None,
             manage_usage: None,
             skein_bools: [false, true, false, true, false],
@@ -91,11 +91,11 @@ pub fn owner_with_account(until: Option<u64>) -> w::OwnerDeployment {
             uses: None,
             provider: None,
             display: w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from([]), cut: false }).unwrap(),
-            holder: w::OwnerAccountHolder::Deployment,
+            holder: w::AccountHolder::Deployment,
             sources: Box::from([]),
             generation: Some(0),
-            state: w::OwnerAccountState::Later(
-                w::OwnerAccountStateLater::new(&lim, w::OwnerAccountStateLaterParts { until }).unwrap(),
+            state: w::AccountState::Later(
+                w::AccountStateLater::new(&lim, w::AccountStateLaterParts { until }).unwrap(),
             ),
             spent_until: None,
             runs: Box::from([]),
@@ -108,21 +108,21 @@ pub fn owner_with_account(until: Option<u64>) -> w::OwnerDeployment {
     let bytes = bytes.finish();
     let mut piece = Writer::new(bytes.len().checked_add(4).unwrap());
     skein_codec::piece::write(&mut piece, &bytes).unwrap();
-    let mut parts = owner_deployment_record().into_parts();
+    let mut parts = deployment_record().into_parts();
     parts.accounts = piece.finish();
-    w::OwnerDeployment::new(&lim, parts).unwrap()
+    w::Deployment::new(&lim, parts).unwrap()
 }
-pub fn owner_account_expected(until: Option<u64>) -> c::OwnerDeployment {
+pub fn account_expected(until: Option<u64>) -> c::Deployment {
     let until = match until {
         Some(0) => Some(skein_lib::Wall::from_nanos(0)),
         Some(value) => Some(skein_lib::Wall::from_nanos(value)),
         None => None,
     };
-    let mut owner = owner_deployment();
+    let mut owner = deployment();
     owner.accounts = List::with_capacity(1);
     owner
         .accounts
-        .push(c::OwnerAccount {
+        .push(c::Account {
             provider_name: None,
             manage_usage: None,
             number: 1,
@@ -131,10 +131,10 @@ pub fn owner_account_expected(until: Option<u64>) -> c::OwnerDeployment {
             plan: false,
             provider: None,
             display: c::DocumentText { bytes: c::Text::new(Box::from([]), 32).unwrap(), cut: false },
-            holder: c::OwnerAccountHolder::Deployment,
+            holder: c::AccountHolder::Deployment,
             sources: List::with_capacity(0),
             generation: Some(0),
-            state: c::OwnerAccountState::Later { until },
+            state: c::AccountState::Later { until },
             usable: true,
             expiring: false,
             attention: true,

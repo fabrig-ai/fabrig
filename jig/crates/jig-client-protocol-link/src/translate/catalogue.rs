@@ -72,7 +72,7 @@ pub(super) fn readiness(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result
         };
         let Some(item) = item else { return Err(piece_problem(skein_codec::Reason::Malformed)) };
         let value = w::PayerReadiness::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let payer = super::accounts::owner_account_use(value.payer());
+        let payer = super::accounts::account_use(value.payer());
         for old in &rows {
             if old.provider == value.provider() && old.payer == payer {
                 return Err(piece_problem(skein_codec::Reason::Malformed));

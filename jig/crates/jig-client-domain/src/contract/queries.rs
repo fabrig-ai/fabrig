@@ -1,5 +1,5 @@
 //! The fixed task query and the single task line (contract.md, 5.1 and 6.1).
-use super::{Chip, Count, Cursor, OwnerBudget, OwnerPhaseCounts, OwnerRequester, TaskFlags};
+use super::{Budget, Chip, Count, Cursor, PhaseCounts, Requester, TaskFlags};
 use skein_lib::Wall;
 /// A query's order; ties go by task number.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -30,7 +30,7 @@ pub enum ExecutorKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TaskQuery {
     pub project: Option<u32>,
-    pub requester: Option<OwnerRequester>,
+    pub requester: Option<Requester>,
     pub root: Option<u64>,
     pub parent: Option<u64>,
     pub label: Option<u32>,
@@ -73,16 +73,16 @@ pub struct ConversationRead {
 pub struct TaskLine {
     pub chip: Chip,
     pub project: u32,
-    pub requester: OwnerRequester,
+    pub requester: Requester,
     pub tracked: Option<u32>,
     pub label: u32,
     pub flags: TaskFlags,
     pub changed: Wall,
     pub last_activity: Wall,
     pub ended_at: Option<Wall>,
-    pub budget: OwnerBudget,
+    pub budget: Budget,
     pub waits_on: WaitsOn,
-    pub phases: OwnerPhaseCounts,
+    pub phases: PhaseCounts,
     pub held_below: u32,
     pub conversation: Option<ConversationRead>,
 }

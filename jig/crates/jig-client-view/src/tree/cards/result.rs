@@ -154,11 +154,11 @@ pub fn reply(
         Some(crate::state::objects::Body::Chip(chip)) => super::chip::chip(b, client, chip, words, bindings),
         Some(crate::state::objects::Body::Task(task)) => super::chip::chip(b, client, &task.chip, words, bindings),
         Some(
-            crate::state::objects::Body::Historical(_)
-            | crate::state::objects::Body::OwnerProposal(_)
-            | crate::state::objects::Body::OwnerEscalation(_)
+            crate::state::objects::Body::Ended(_)
+            | crate::state::objects::Body::Proposal(_)
+            | crate::state::objects::Body::Escalation(_)
             | crate::state::objects::Body::Question(_)
-            | crate::state::objects::Body::OwnerPersonTask(_)
+            | crate::state::objects::Body::PersonTask(_)
             | crate::state::objects::Body::Result(_)
             | crate::state::objects::Body::Note { .. },
         )

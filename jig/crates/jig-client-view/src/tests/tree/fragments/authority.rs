@@ -7,45 +7,44 @@ use skein_ui::phrases::{Hole, Segment, WallFormat};
 use skein_ui::{Builder, Tree};
 
 use jig_client::contract::{
-    OwnerAuthority, OwnerAuthorityDocument, OwnerAuthorityExecutor, OwnerDelegation, OwnerGrant, OwnerPattern,
-    OwnerPatternEnd, OwnerResourceScope,
+    Authority, AuthorityDocument, AuthorityExecutor, Delegation, Grant, Pattern, PatternEnd, ResourceScope,
 };
 use skein_lib::{List, Wall, bytes::copy_of};
-fn fixture() -> OwnerAuthorityDocument {
+fn fixture() -> AuthorityDocument {
     let mut grants = List::with_capacity(1);
     let mut segments = List::with_capacity(3);
     for value in [&b"a/b"[..], &[255, 0, 128], &b""[..]] {
         segments.push(copy_of(value)).expect("segments fit");
     }
     grants
-        .push(OwnerGrant {
+        .push(Grant {
             connector: u16::MAX,
             kind: u16::MAX,
-            pattern: OwnerPattern { segments, last: OwnerPatternEnd::Exact(copy_of(b"tail/")) },
+            pattern: Pattern { segments, last: PatternEnd::Exact(copy_of(b"tail/")) },
         })
         .expect("grant fits");
     let mut kinds = List::with_capacity(3);
     for kind in [
-        OwnerAuthorityExecutor::Charter(u32::MAX),
-        OwnerAuthorityExecutor::Procedure(u32::MAX),
-        OwnerAuthorityExecutor::Role(u32::MAX),
+        AuthorityExecutor::Charter(u32::MAX),
+        AuthorityExecutor::Procedure(u32::MAX),
+        AuthorityExecutor::Role(u32::MAX),
     ] {
         kinds.push(kind).expect("executors fit");
     }
     let mut resources = List::with_capacity(1);
     resources
-        .push(OwnerResourceScope {
+        .push(ResourceScope {
             connector: 2,
-            pattern: OwnerPattern { segments: List::with_capacity(0), last: OwnerPatternEnd::Open(copy_of(b"*raw/")) },
+            pattern: Pattern { segments: List::with_capacity(0), last: PatternEnd::Open(copy_of(b"*raw/")) },
         })
         .expect("resource fits");
-    OwnerAuthorityDocument {
+    AuthorityDocument {
         cut: true,
-        authority: OwnerAuthority {
+        authority: Authority {
             models: None,
             tools: u64::MAX,
             grants,
-            delegation: OwnerDelegation { kinds, tasks: u32::MAX, depth: u32::MAX },
+            delegation: Delegation { kinds, tasks: u32::MAX, depth: u32::MAX },
             spend: u64::MAX,
             deadline: Some(Wall::from_nanos(120_000_000_000)),
             notes: u8::MAX,
@@ -56,7 +55,7 @@ fn fixture() -> OwnerAuthorityDocument {
 fn english() -> crate::words::Words {
     crate::tests::english_words()
 }
-fn render(value: &OwnerAuthorityDocument, words: &crate::words::Words, rows: u32) -> Tree {
+fn render(value: &AuthorityDocument, words: &crate::words::Words, rows: u32) -> Tree {
     let required = crate::tests::render_limits(
         &crate::tests::fixtures::Profile {
             view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
@@ -153,7 +152,7 @@ fn a_long_authority_shows_rows_of_grants_and_one_partial_mark() {
     let grant = value.authority.grants.get(0).unwrap().clone();
     value.authority.grants = List::with_capacity(3);
     for connector in GRANT_CONNECTORS {
-        value.authority.grants.push(OwnerGrant { connector, ..grant.clone() }).unwrap();
+        value.authority.grants.push(Grant { connector, ..grant.clone() }).unwrap();
     }
     value.authority.delegation.kinds.clear();
     let words = english();

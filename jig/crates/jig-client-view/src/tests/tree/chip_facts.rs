@@ -12,13 +12,13 @@ use crate::{Request, state::address::Address};
 use jig_client::contract::*;
 use skein_ui::{Builder, Tree};
 
-fn chip(phase: OwnerChipPhase, details: OwnerChipDetails) -> Chip {
+fn chip(phase: ChipPhase, details: ChipDetails) -> Chip {
     Chip {
         task: 8,
         title: DocumentText { bytes: text(b"partial title"), cut: true },
-        executor: Executor::Agent { charter: 1 },
+        executor: ChipExecutor::Agent { charter: 1 },
         phase: phase.compact(),
-        details: Box::new(ChipPhase { phase, details: Box::new(details) }),
+        details: Box::new(ChipPhaseFacts { phase, details: Box::new(details) }),
     }
 }
 fn brief(value: &Chip) -> Tree {
@@ -35,24 +35,24 @@ fn brief(value: &Chip) -> Tree {
 fn brief_exact_chips_show_title_loss_and_distinct_phase_without_inventing_ending_clock() {
     let mut goldens = Goldens::new("tree/chip_facts/brief_exact_chips");
     let cases = [
-        OwnerChipPhase::Waiting { dependencies: list([u64::MAX]), more: true, holds: true },
-        OwnerChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: Some(u64::MAX), since: None },
-        OwnerChipPhase::Closing(ClosingStage::Run { attempt: u64::MAX }),
-        OwnerChipPhase::Held { reason: HoldCategory::Uncertain { entry: u64::MAX }, revision: u64::MAX },
-        OwnerChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
-        OwnerChipPhase::Ended,
+        ChipPhase::Waiting { dependencies: list([u64::MAX]), more: true, holds: true },
+        ChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: Some(u64::MAX), since: None },
+        ChipPhase::Closing(ClosingStage::Run { attempt: u64::MAX }),
+        ChipPhase::Held { reason: HoldCategory::Uncertain { entry: u64::MAX }, revision: u64::MAX },
+        ChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
+        ChipPhase::Ended,
     ];
     for phase in cases {
         let mut details = crate::tests::tree::fragments::chip::details();
         match &phase {
-            OwnerChipPhase::Person { address, .. } => {
-                details.executor = OwnerExecutor::Person(*address);
+            ChipPhase::Person { address, .. } => {
+                details.executor = Executor::Person(*address);
             }
-            OwnerChipPhase::Active(_) => {
-                details.executor = OwnerExecutor::Agent { charter: u32::MAX };
+            ChipPhase::Active(_) => {
+                details.executor = Executor::Agent { charter: u32::MAX };
             }
             _ => {
-                details.executor = OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX };
+                details.executor = Executor::Procedure { connector: u16::MAX, code: u32::MAX };
             }
         }
         let tree = brief(&chip(phase, details));
@@ -63,14 +63,13 @@ fn brief_exact_chips_show_title_loss_and_distinct_phase_without_inventing_ending
 fn task_overview_expands_whole_metadata_but_nested_verdict_chips_stay_brief() {
     let mut goldens = Goldens::new("tree/chip_facts/task_overview_expands");
     let mut inner_details = crate::tests::tree::fragments::chip::details();
-    inner_details.ending =
-        Some(OwnerChipEnding::Failed(DocumentText::complete(text(b"nested ending remains carried"))));
-    let inner = chip(OwnerChipPhase::Ended, inner_details);
+    inner_details.ending = Some(ChipEnding::Failed(DocumentText::complete(text(b"nested ending remains carried"))));
+    let inner = chip(ChipPhase::Ended, inner_details);
     let mut details = crate::tests::tree::fragments::chip::details();
     details.resources_cut = true;
     details.resources_observed = false;
     details.ended_at = None;
-    details.ending = Some(OwnerChipEnding::Done(ResultValue::Verdict {
+    details.ending = Some(ChipEnding::Done(ResultValue::Verdict {
         verdict: u32::MAX,
         words: DocumentText { bytes: text(b"whole outer result"), cut: true },
         fields: list([]),
@@ -78,7 +77,7 @@ fn task_overview_expands_whole_metadata_but_nested_verdict_chips_stay_brief() {
         proposal: None,
     }));
     let mut doc = crate::tests::tree::cards_objects::task_doc(&[]);
-    doc.chip = chip(OwnerChipPhase::Ended, details);
+    doc.chip = chip(ChipPhase::Ended, details);
     let (mut client, out) = crate::tests::state::page_capacity::entered(Address::task(8));
     let watch =
         out.iter()

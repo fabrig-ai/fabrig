@@ -347,17 +347,13 @@ fn wire_error(problem: jig_client_protocol_wire::Problem, limits: &jig_client_pr
         Path::ModelEffortModel => bound(b"model_effort_model", limits.model_effort_model),
         Path::ModelSetNamesNames => bound(b"model_set_names_names", limits.model_set_names_names),
         Path::OwnedRecord => bound(b"owned_record", limits.owned_record),
-        Path::OwnerAuthorityGrants => bound(b"owner_authority_grants", limits.owner_authority_grants),
-        Path::OwnerAuthorityNoteResources => {
-            bound(b"owner_authority_note_resources", limits.owner_authority_note_resources)
-        }
-        Path::OwnerDelegationKinds => bound(b"owner_delegation_kinds", limits.owner_delegation_kinds),
-        Path::OwnerPartKeyPathValue => bound(b"owner_part_key_path_value", limits.owner_part_key_path_value),
-        Path::OwnerPatternEndExactValue => {
-            bound(b"owner_pattern_end_exact_value", limits.owner_pattern_end_exact_value)
-        }
-        Path::OwnerPatternEndOpenValue => bound(b"owner_pattern_end_open_value", limits.owner_pattern_end_open_value),
-        Path::OwnerPatternSegments => bound(b"owner_pattern_segments", limits.owner_pattern_segments),
+        Path::AuthorityGrants => bound(b"authority_grants", limits.authority_grants),
+        Path::AuthorityNoteResources => bound(b"authority_note_resources", limits.authority_note_resources),
+        Path::DelegationKinds => bound(b"delegation_kinds", limits.delegation_kinds),
+        Path::PartKeyPathValue => bound(b"part_key_path_value", limits.part_key_path_value),
+        Path::PatternEndExactValue => bound(b"pattern_end_exact_value", limits.pattern_end_exact_value),
+        Path::PatternEndOpenValue => bound(b"pattern_end_open_value", limits.pattern_end_open_value),
+        Path::PatternSegments => bound(b"pattern_segments", limits.pattern_segments),
         Path::RulesImplies => bound(b"rules_implies", limits.rules_implies),
         Path::RulesRequirements => bound(b"rules_requirements", limits.rules_requirements),
         Path::SettingModelEffort => bound(b"setting_model_effort_some", limits.setting_model_effort_some),

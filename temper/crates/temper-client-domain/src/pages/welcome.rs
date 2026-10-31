@@ -105,7 +105,7 @@ pub fn model_usable(root: &Domain) -> Option<bool> {
     let document = root.client().document(accounts::handle())?;
     let accounts = if document.state == State::Ended {
         None
-    } else if let Some(Latest::Jig(jig_client::contract::Delivery::OwnerAccounts(accounts))) = document.latest {
+    } else if let Some(Latest::Jig(jig_client::contract::Delivery::Accounts(accounts))) = document.latest {
         Some(accounts.as_ref())
     } else {
         return None;

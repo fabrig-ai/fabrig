@@ -44,86 +44,77 @@ pub fn read_wire_object_key_task() -> w::ObjectKeyTask {
 }
 
 #[must_use]
-pub fn read_wire_owner_escalation() -> w::OwnerEscalation {
+pub fn read_wire_owner_escalation() -> w::Escalation {
     let lim = w::CEILINGS;
-    w::OwnerEscalation::new(&lim, w::OwnerEscalationParts { acts: Box::from([]), task: task_record() })
+    w::Escalation::new(&lim, w::EscalationParts { acts: Box::from([]), task: task_record() })
         .expect("literal fixture fits")
 }
 
 #[must_use]
-pub fn read_wire_owner_historical() -> w::OwnerHistorical {
+pub fn read_wire_owner_ended() -> w::Ended {
     let lim = w::CEILINGS;
-    w::OwnerHistorical::new(
+    w::Ended::new(
         &lim,
-        w::OwnerHistoricalParts {
-            key: read_wire_object_key(),
-            value: read_wire_owner_historical_value(),
-            at: None,
-            by: None,
-        },
+        w::EndedParts { key: read_wire_object_key(), value: read_wire_owner_ended_value(), at: None, by: None },
     )
     .expect("literal fixture fits")
 }
 
 #[must_use]
-pub fn read_wire_owner_historical_value() -> w::OwnerHistoricalValue {
-    w::OwnerHistoricalValue::Task(read_wire_owner_historical_value_task())
+pub fn read_wire_owner_ended_value() -> w::EndedValue {
+    w::EndedValue::Task(read_wire_owner_ended_value_task())
 }
 
 #[must_use]
-pub fn read_wire_owner_historical_value_task() -> w::OwnerHistoricalValueTask {
+pub fn read_wire_owner_ended_value_task() -> w::EndedValueTask {
     let lim = w::CEILINGS;
-    w::OwnerHistoricalValueTask::new(
-        &lim,
-        w::OwnerHistoricalValueTaskParts { document: task_record(), result: read_wire_result() },
-    )
-    .expect("literal fixture fits")
-}
-
-#[must_use]
-pub fn read_wire_owner_history_holder() -> w::OwnerHistoryHolder {
-    w::OwnerHistoryHolder::Task(read_wire_owner_history_holder_task())
-}
-
-#[must_use]
-pub fn read_wire_owner_history_holder_task() -> w::OwnerHistoryHolderTask {
-    let lim = w::CEILINGS;
-    w::OwnerHistoryHolderTask::new(&lim, w::OwnerHistoryHolderTaskParts { value: 7 }).expect("literal fixture fits")
-}
-
-#[must_use]
-pub fn read_wire_owner_part() -> w::OwnerPart {
-    let lim = w::CEILINGS;
-    w::OwnerPart::new(
-        &lim,
-        w::OwnerPartParts { connector: 7, kind: read_wire_owner_part_kind(), key: read_wire_owner_part_key() },
-    )
-    .expect("literal fixture fits")
-}
-
-#[must_use]
-pub fn read_wire_owner_part_key() -> w::OwnerPartKey {
-    w::OwnerPartKey::Path(read_wire_owner_part_key_path())
-}
-
-#[must_use]
-pub fn read_wire_owner_part_key_path() -> w::OwnerPartKeyPath {
-    let lim = w::CEILINGS;
-    w::OwnerPartKeyPath::new(&lim, w::OwnerPartKeyPathParts { value: List::with_capacity(0) })
+    w::EndedValueTask::new(&lim, w::EndedValueTaskParts { document: task_record(), result: read_wire_result() })
         .expect("literal fixture fits")
 }
 
 #[must_use]
-pub fn read_wire_owner_part_kind() -> w::OwnerPartKind {
-    w::OwnerPartKind::Resource
+pub fn read_wire_owner_history_holder() -> w::HistoryHolder {
+    w::HistoryHolder::Task(read_wire_owner_history_holder_task())
 }
 
 #[must_use]
-pub fn read_wire_owner_person_task() -> w::OwnerPersonTask {
+pub fn read_wire_owner_history_holder_task() -> w::HistoryHolderTask {
     let lim = w::CEILINGS;
-    w::OwnerPersonTask::new(
+    w::HistoryHolderTask::new(&lim, w::HistoryHolderTaskParts { value: 7 }).expect("literal fixture fits")
+}
+
+#[must_use]
+pub fn read_wire_owner_part() -> w::Part {
+    let lim = w::CEILINGS;
+    w::Part::new(
         &lim,
-        w::OwnerPersonTaskParts {
+        w::PartParts { connector: 7, kind: read_wire_owner_part_kind(), key: read_wire_owner_part_key() },
+    )
+    .expect("literal fixture fits")
+}
+
+#[must_use]
+pub fn read_wire_owner_part_key() -> w::PartKey {
+    w::PartKey::Path(read_wire_owner_part_key_path())
+}
+
+#[must_use]
+pub fn read_wire_owner_part_key_path() -> w::PartKeyPath {
+    let lim = w::CEILINGS;
+    w::PartKeyPath::new(&lim, w::PartKeyPathParts { value: List::with_capacity(0) }).expect("literal fixture fits")
+}
+
+#[must_use]
+pub fn read_wire_owner_part_kind() -> w::PartKind {
+    w::PartKind::Resource
+}
+
+#[must_use]
+pub fn read_wire_owner_person_task() -> w::PersonTask {
+    let lim = w::CEILINGS;
+    w::PersonTask::new(
+        &lim,
+        w::PersonTaskParts {
             task: chip_record(),
             revision: read_wire_revision(),
             requester: read_wire_owner_requester(),
@@ -143,11 +134,11 @@ pub fn read_wire_owner_person_task() -> w::OwnerPersonTask {
 }
 
 #[must_use]
-pub fn read_wire_owner_proposal() -> w::OwnerProposal {
+pub fn read_wire_owner_proposal() -> w::Proposal {
     let lim = w::CEILINGS;
-    w::OwnerProposal::new(
+    w::Proposal::new(
         &lim,
-        w::OwnerProposalParts {
+        w::ProposalParts {
             key: read_wire_proposal_key(),
             project: 7,
             reason: read_wire_document_text(),
@@ -162,36 +153,33 @@ pub fn read_wire_owner_proposal() -> w::OwnerProposal {
 }
 
 #[must_use]
-pub fn read_wire_owner_proposal_action() -> w::OwnerProposalAction {
-    w::OwnerProposalAction::Batch(read_wire_owner_proposal_action_batch())
+pub fn read_wire_owner_proposal_action() -> w::ProposalAction {
+    w::ProposalAction::Batch(read_wire_owner_proposal_action_batch())
 }
 
 #[must_use]
-pub fn read_wire_owner_proposal_action_batch() -> w::OwnerProposalActionBatch {
+pub fn read_wire_owner_proposal_action_batch() -> w::ProposalActionBatch {
     let lim = w::CEILINGS;
-    w::OwnerProposalActionBatch::new(&lim, w::OwnerProposalActionBatchParts { value: Box::from([]) })
+    w::ProposalActionBatch::new(&lim, w::ProposalActionBatchParts { value: Box::from([]) })
         .expect("literal fixture fits")
 }
 
 #[must_use]
-pub fn read_wire_owner_proposal_waiting() -> w::OwnerProposalWaiting {
+pub fn read_wire_owner_proposal_waiting() -> w::ProposalWaiting {
     let lim = w::CEILINGS;
-    w::OwnerProposalWaiting::new(
-        &lim,
-        w::OwnerProposalWaitingParts { holder: read_wire_owner_history_holder(), since: 7 },
-    )
-    .expect("literal fixture fits")
+    w::ProposalWaiting::new(&lim, w::ProposalWaitingParts { holder: read_wire_owner_history_holder(), since: 7 })
+        .expect("literal fixture fits")
 }
 
 #[must_use]
-pub fn read_wire_owner_requester() -> w::OwnerRequester {
-    w::OwnerRequester::Task(read_wire_owner_requester_task())
+pub fn read_wire_owner_requester() -> w::Requester {
+    w::Requester::Task(read_wire_owner_requester_task())
 }
 
 #[must_use]
-pub fn read_wire_owner_requester_task() -> w::OwnerRequesterTask {
+pub fn read_wire_owner_requester_task() -> w::RequesterTask {
     let lim = w::CEILINGS;
-    w::OwnerRequesterTask::new(&lim, w::OwnerRequesterTaskParts { value: 7 }).expect("literal fixture fits")
+    w::RequesterTask::new(&lim, w::RequesterTaskParts { value: 7 }).expect("literal fixture fits")
 }
 
 #[must_use]

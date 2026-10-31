@@ -206,16 +206,15 @@ fn new_task(v: &c::NewTask, limits: &w::Limits) -> Result<w::NewTask, w::Problem
         named.push(asks::wire_owner_grant(grant, limits)?).expect("same capacity");
     }
     let executor = match v.executor {
-        c::OwnerExecutor::Agent { charter } => {
-            w::OwnerExecutor::Agent(w::OwnerExecutorAgent::new(limits, w::OwnerExecutorAgentParts { charter })?)
+        c::Executor::Agent { charter } => {
+            w::Executor::Agent(w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter })?)
         }
-        c::OwnerExecutor::Procedure { connector, code } => w::OwnerExecutor::Procedure(w::OwnerExecutorProcedure::new(
+        c::Executor::Procedure { connector, code } => {
+            w::Executor::Procedure(w::ExecutorProcedure::new(limits, w::ExecutorProcedureParts { connector, code })?)
+        }
+        c::Executor::Person(address) => w::Executor::Person(w::ExecutorPerson::new(
             limits,
-            w::OwnerExecutorProcedureParts { connector, code },
-        )?),
-        c::OwnerExecutor::Person(address) => w::OwnerExecutor::Person(w::OwnerExecutorPerson::new(
-            limits,
-            w::OwnerExecutorPersonParts { value: asks::wire_person_address(&address, limits)? },
+            w::ExecutorPersonParts { value: asks::wire_person_address(&address, limits)? },
         )?),
     };
     w::NewTask::new(
@@ -339,17 +338,17 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
             w::NewDeadline::Named => c::NewDeadline::Named,
             w::NewDeadline::Span(value) => c::NewDeadline::Span(value.value()),
         },
-        executor: super::facts::owner_executor(v.executor()),
+        executor: super::facts::executor(v.executor()),
         spec: super::pages::specification_fields(v.spec(), limits)?,
         contract,
-        authority: super::documents::owner_authority_fields(v.authority(), limits)?,
+        authority: super::documents::authority_fields(v.authority(), limits)?,
         budget: match v.budget() {
             w::NewBudget::Named => c::NewBudget::Named,
             w::NewBudget::AsAllowed(v) => c::NewBudget::AsAllowed { cap: *v.cap() },
         },
         wake: restore_wake(v.wake().as_ref()),
         dependencies,
-        named: super::documents::owner_grant_piece(v.named(), limits, limits.client().authority)?,
+        named: super::documents::grant_piece(v.named(), limits, limits.client().authority)?,
         tracked: *v.tracked(),
         label: v.label(),
         flags: c::TaskFlags {
@@ -421,7 +420,7 @@ pub(super) fn restore_propose(value: &w::Propose, limits: &crate::Limits) -> Res
     Ok(c::Ask::Propose { project: value.project(), action, reason })
 }
 
-fn restore_wake(value: Option<&w::OwnerWakePolicy>) -> Option<c::OwnerWakePolicy> {
+fn restore_wake(value: Option<&w::WakePolicy>) -> Option<c::WakePolicy> {
     let wake = value?;
-    Some(super::facts::owner_wake_policy(wake))
+    Some(super::facts::wake_policy(wake))
 }

@@ -77,15 +77,15 @@ fn named_control(
     }
     b.close();
 }
-fn kind(b: &mut Builder, w: &Words, value: c::OwnerAccountKind) {
+fn kind(b: &mut Builder, w: &Words, value: c::AccountKind) {
     run(
         b,
         w,
         match value {
-            c::OwnerAccountKind::SignIn => W::SignIn,
-            c::OwnerAccountKind::Key => W::Key,
-            c::OwnerAccountKind::Program => W::Program,
-            c::OwnerAccountKind::None => W::None,
+            c::AccountKind::SignIn => W::SignIn,
+            c::AccountKind::Key => W::Key,
+            c::AccountKind::Program => W::Program,
+            c::AccountKind::None => W::None,
         },
     );
 }
@@ -103,9 +103,9 @@ fn heading(
     provider: Option<u32>,
     name: Option<&[u8]>,
     display: &c::DocumentText,
-    held: c::OwnerAccountHolder,
+    held: c::AccountHolder,
     plan: bool,
-    sources: &skein_lib::List<c::OwnerAccountSource>,
+    sources: &skein_lib::List<c::AccountSource>,
     me: Option<&c::Me>,
 ) -> Box<[u8]> {
     let separator = words::say(w, W::Separator, &[]);
@@ -132,11 +132,11 @@ fn heading(
     let mut program_name = None;
     let mut sign_in = false;
     for source in sources {
-        program |= source.kind == c::OwnerAccountKind::Program;
-        if source.kind == c::OwnerAccountKind::Program && program_name.is_none() {
+        program |= source.kind == c::AccountKind::Program;
+        if source.kind == c::AccountKind::Program && program_name.is_none() {
             program_name = source.name.as_deref();
         }
-        sign_in |= source.kind == c::OwnerAccountKind::SignIn;
+        sign_in |= source.kind == c::AccountKind::SignIn;
     }
     let label = if program {
         named(w, W::Subscription, plan_name)
@@ -146,8 +146,8 @@ fn heading(
         named(w, W::ApiKeyBrand, brand)
     };
     let owner = match held {
-        c::OwnerAccountHolder::Deployment => words::say(w, W::HeldDeployment, &[]),
-        c::OwnerAccountHolder::Party(_) => match me {
+        c::AccountHolder::Deployment => words::say(w, W::HeldDeployment, &[]),
+        c::AccountHolder::Party(_) => match me {
             Some(me) => named(w, W::HeldBy, me.party.name.bytes()),
             None => named(w, W::HeldBy, &words::say(w, W::OwnHolder, &[])),
         },
@@ -170,14 +170,14 @@ fn heading(
         &owner,
     ])
 }
-pub(crate) fn unloaded(b: &mut Builder, w: &Words, at: c::OwnerAccountPlace, why: c::OwnerAccountUnread) {
+pub(crate) fn unloaded(b: &mut Builder, w: &Words, at: c::AccountPlace, why: c::AccountUnread) {
     run(b, w, W::Unloaded);
     run(
         b,
         w,
         match at {
-            c::OwnerAccountPlace::Directory => W::Directory,
-            c::OwnerAccountPlace::File => W::File,
+            c::AccountPlace::Directory => W::Directory,
+            c::AccountPlace::File => W::File,
         },
     );
     b.run(Run::Plain, b": ");
@@ -185,30 +185,30 @@ pub(crate) fn unloaded(b: &mut Builder, w: &Words, at: c::OwnerAccountPlace, why
         b,
         w,
         match why {
-            c::OwnerAccountUnread::Unreadable => W::Unreadable,
-            c::OwnerAccountUnread::Refused => W::Refused,
-            c::OwnerAccountUnread::Failed => W::Failed,
-            c::OwnerAccountUnread::Stalled => W::Stalled,
-            c::OwnerAccountUnread::TooLarge => W::TooLarge,
+            c::AccountUnread::Unreadable => W::Unreadable,
+            c::AccountUnread::Refused => W::Refused,
+            c::AccountUnread::Failed => W::Failed,
+            c::AccountUnread::Stalled => W::Stalled,
+            c::AccountUnread::TooLarge => W::TooLarge,
         },
     );
 }
-fn state(b: &mut Builder, w: &Words, source: &c::OwnerAccountSource) {
+fn state(b: &mut Builder, w: &Words, source: &c::AccountSource) {
     match source.state {
-        c::OwnerAccountState::Moving => run(b, w, W::Moving),
-        c::OwnerAccountState::Later { until } => {
+        c::AccountState::Moving => run(b, w, W::Moving),
+        c::AccountState::Later { until } => {
             run(b, w, W::Limited);
             if let Some(at) = until {
                 b.run(Run::Plain, &words::say(w, W::Until, &[Hole::Wall(at)]));
             }
         }
-        c::OwnerAccountState::Unloaded { at, why } => unloaded(b, w, at, why),
-        c::OwnerAccountState::Asking => run(b, w, W::Asking),
-        c::OwnerAccountState::Granted => run(b, w, if source.usable { W::Ready } else { W::Granted }),
-        c::OwnerAccountState::SignInAgain => run(b, w, W::NeedsSignIn),
-        c::OwnerAccountState::Misconfigured => run(b, w, W::Misconfigured),
-        c::OwnerAccountState::Cancelled => run(b, w, W::Cancelled),
-        c::OwnerAccountState::Closing => run(b, w, W::Closing),
+        c::AccountState::Unloaded { at, why } => unloaded(b, w, at, why),
+        c::AccountState::Asking => run(b, w, W::Asking),
+        c::AccountState::Granted => run(b, w, if source.usable { W::Ready } else { W::Granted }),
+        c::AccountState::SignInAgain => run(b, w, W::NeedsSignIn),
+        c::AccountState::Misconfigured => run(b, w, W::Misconfigured),
+        c::AccountState::Cancelled => run(b, w, W::Cancelled),
+        c::AccountState::Closing => run(b, w, W::Closing),
     }
     if source.expiring {
         b.run(Run::Plain, b" \xc2\xb7 ");
@@ -225,12 +225,12 @@ fn state(b: &mut Builder, w: &Words, source: &c::OwnerAccountSource) {
         b.run(Run::Plain, &words::say(w, W::UsageUntil, &[Hole::Wall(at)]));
     }
 }
-pub(crate) fn end(b: &mut Builder, w: &Words, end: &c::OwnerAccountEnd, rows: &skein_lib::List<c::OwnerAccountLine>) {
+pub(crate) fn end(b: &mut Builder, w: &Words, end: &c::AccountEnd, rows: &skein_lib::List<c::AccountLine>) {
     b.open(Role::Status);
     b.open(Role::Text);
     match end {
-        c::OwnerAccountEnd::Made { account, declined } | c::OwnerAccountEnd::Renewed { account, declined } => {
-            let (word, fallback) = if let c::OwnerAccountEnd::Renewed { .. } = end {
+        c::AccountEnd::Made { account, declined } | c::AccountEnd::Renewed { account, declined } => {
+            let (word, fallback) = if let c::AccountEnd::Renewed { .. } = end {
                 (W::RenewedNamed, W::Renewed)
             } else {
                 (W::MadeNamed, W::Made)
@@ -243,28 +243,28 @@ pub(crate) fn end(b: &mut Builder, w: &Words, end: &c::OwnerAccountEnd, rows: &s
                 run(b, w, W::Declined);
             }
         }
-        c::OwnerAccountEnd::Refused { refusal } => refused(b, w, *refusal),
-        c::OwnerAccountEnd::Failed { failure } => match failure {
-            c::OwnerAccountFailure::Later { after } => {
+        c::AccountEnd::Refused { refusal } => refused(b, w, *refusal),
+        c::AccountEnd::Failed { failure } => match failure {
+            c::AccountFailure::Later { after } => {
                 run(b, w, W::Later);
                 if let Some(after) = after {
                     b.run(Run::Plain, &words::say(w, W::After, &[Hole::Span(*after)]));
                 }
             }
-            c::OwnerAccountFailure::SignInAgain => run(b, w, W::NeedsSignIn),
-            c::OwnerAccountFailure::MissingScope { scope } => {
+            c::AccountFailure::SignInAgain => run(b, w, W::NeedsSignIn),
+            c::AccountFailure::MissingScope { scope } => {
                 run(b, w, W::Scope);
                 number(b, w, u64::from(*scope));
             }
-            c::OwnerAccountFailure::Misconfigured => run(b, w, W::Misconfigured),
-            c::OwnerAccountFailure::Unloaded { at, why } => unloaded(b, w, *at, *why),
-            c::OwnerAccountFailure::Cancelled => run(b, w, W::Cancelled),
+            c::AccountFailure::Misconfigured => run(b, w, W::Misconfigured),
+            c::AccountFailure::Unloaded { at, why } => unloaded(b, w, *at, *why),
+            c::AccountFailure::Cancelled => run(b, w, W::Cancelled),
         },
     }
     b.close();
     b.close();
 }
-fn named_end(b: &mut Builder, w: &Words, rows: &skein_lib::List<c::OwnerAccountLine>, account: u32, word: W) -> bool {
+fn named_end(b: &mut Builder, w: &Words, rows: &skein_lib::List<c::AccountLine>, account: u32, word: W) -> bool {
     for row in rows {
         if row.number != account {
             continue;
@@ -289,8 +289,8 @@ fn named_end(b: &mut Builder, w: &Words, rows: &skein_lib::List<c::OwnerAccountL
     }
     false
 }
-fn refused(b: &mut Builder, w: &Words, refusal: c::OwnerAccountRefusal) {
-    use c::OwnerAccountRefusal as R;
+fn refused(b: &mut Builder, w: &Words, refusal: c::AccountRefusal) {
+    use c::AccountRefusal as R;
     let word = match refusal {
         R::NotSignedIn => W::NotSignedIn,
         R::NotOurs => W::NotOurs,
@@ -299,14 +299,14 @@ fn refused(b: &mut Builder, w: &Words, refusal: c::OwnerAccountRefusal) {
         R::NotLimited => W::NotLimited,
         R::Uses => W::UsesRefused,
         R::NotKept { why } => match why {
-            c::OwnerAccountKeyFailure::TooLong => W::KeyLong,
-            c::OwnerAccountKeyFailure::NotStored => W::NotStored,
+            c::AccountKeyFailure::TooLong => W::KeyLong,
+            c::AccountKeyFailure::NotStored => W::NotStored,
         },
         R::Limit { bound } => match bound {
-            c::OwnerAccountBound::Accounts => W::LimitAccounts,
-            c::OwnerAccountBound::HolderAccounts => W::LimitHolder,
-            c::OwnerAccountBound::Sources => W::LimitSources,
-            c::OwnerAccountBound::SignIns => W::LimitSignIns,
+            c::AccountBound::Accounts => W::LimitAccounts,
+            c::AccountBound::HolderAccounts => W::LimitHolder,
+            c::AccountBound::Sources => W::LimitSources,
+            c::AccountBound::SignIns => W::LimitSignIns,
         },
         R::Held { provider } | R::Provider { provider } => {
             run(b, w, if let R::Held { .. } = refusal { W::Held } else { W::ProviderRefused });
@@ -415,7 +415,7 @@ fn signings_without_rows(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
-    doc: &c::OwnerAccounts,
+    doc: &c::Accounts,
     counts: temper_client_domain::limits::AccountLimits,
 ) {
     for signing in doc.signing.iter().take(usize::try_from(counts.sign_ins).expect("bounded sign-ins")) {
@@ -442,8 +442,8 @@ fn signings_without_rows(
         number(b, w, u64::from(signing.provider));
         b.run(Run::Plain, b" \xc2\xb7 ");
         match signing.holder {
-            c::OwnerAccountHolder::Deployment => run(b, w, W::Deployment),
-            c::OwnerAccountHolder::Party(party) => {
+            c::AccountHolder::Deployment => run(b, w, W::Deployment),
+            c::AccountHolder::Party(party) => {
                 run(b, w, W::Party);
                 number(b, w, party);
             }
@@ -520,8 +520,8 @@ pub(super) fn outcome(
             Some(jig_client::Outcome::Full { held, room_at }) => crate::cards::answers_full(b, w, *held, *room_at),
             Some(jig_client::Outcome::Lost) => text(b, w, Role::Alert, W::Lost),
             Some(jig_client::Outcome::Unsent) => text(b, w, Role::Alert, W::Unsent),
-            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountSignedOut { confirmed, failed_hosts },
+            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountSignedOut { confirmed, failed_hosts },
             ))))) => {
                 if *confirmed {
                     done(b, w, W::Confirmed);
@@ -530,8 +530,8 @@ pub(super) fn outcome(
                 }
                 super::account_programs::failures(b, w, failed_hosts, text_per_node);
             }
-            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountRemoved { confirmed, failed_hosts },
+            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountRemoved { confirmed, failed_hosts },
             ))))) => {
                 if *confirmed {
                     done(b, w, W::Removed);
@@ -540,11 +540,11 @@ pub(super) fn outcome(
                 }
                 super::account_programs::failures(b, w, failed_hosts, text_per_node);
             }
-            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountKeyKept { source },
+            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountKeyKept { source },
             ))))) => fact(b, w, W::Saved, u64::from(*source)),
-            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountProgramDeclared { source, name },
+            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountProgramDeclared { source, name },
             ))))) => {
                 fact(b, w, W::Source, u64::from(*source));
                 crate::cards::text(b, Role::Paragraph, &named(w, W::ProgramCommand, name));
@@ -641,7 +641,7 @@ fn confirmation(b: &mut Builder, root: &Domain, w: &Words, form: &accounts::Acco
     b.open(Role::Text);
     run(b, w, word);
     b.run(Run::Plain, b" \xc2\xb7 ");
-    run(b, w, if held == c::AccountHolder::Own { W::OwnHolder } else { W::DeploymentHolder });
+    run(b, w, if held == c::AskAccountHolder::Own { W::OwnHolder } else { W::DeploymentHolder });
     b.run(Run::Plain, b" \xc2\xb7 ");
     if let Some(account) = account {
         run(b, w, W::Account);
@@ -659,8 +659,8 @@ fn confirmation(b: &mut Builder, root: &Domain, w: &Words, form: &accounts::Acco
 }
 // One confirmation names its source's account even when that row is beyond the display cap.
 // Lookup allocates nothing; its input remains bounded by the admitted document.
-fn source_account(root: &Domain, form: &accounts::Accounts, holder: c::AccountHolder, source: u32) -> Option<u32> {
-    if holder == c::AccountHolder::Own {
+fn source_account(root: &Domain, form: &accounts::Accounts, holder: c::AskAccountHolder, source: u32) -> Option<u32> {
+    if holder == c::AskAccountHolder::Own {
         for row in &accounts::document(root.client())?.accounts {
             for entry in &row.sources {
                 if entry.number == source {
@@ -681,7 +681,7 @@ fn source_account(root: &Domain, form: &accounts::Accounts, holder: c::AccountHo
 }
 
 /// An account's heading as the accounts page draws it (5.5, An account).
-pub(crate) fn account_heading(root: &Domain, w: &Words, row: &c::OwnerAccountLine) -> Box<[u8]> {
+pub(crate) fn account_heading(root: &Domain, w: &Words, row: &c::AccountLine) -> Box<[u8]> {
     let supplied = provider_name(row.provider_name.as_ref()).unwrap_or(b"");
     let shown = crate::choice::provider_shown(root, row.provider, supplied, w);
     let name = if supplied.is_empty() { None } else { Some(shown.as_ref()) };
@@ -719,7 +719,7 @@ pub(crate) fn own_signing_name(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     let document = accounts::document(root.client())?;
     let me = accounts::current_me(root.client())?;
     for signing in &document.signing {
-        if signing.holder != c::OwnerAccountHolder::Party(me.party.number) {
+        if signing.holder != c::AccountHolder::Party(me.party.number) {
             continue;
         }
         for offer in &me.providers {
@@ -742,7 +742,7 @@ fn paste_way(root: &Domain, form: &accounts::request::Request) -> Option<account
         for way in &accounts::ways(
             &accounts::current_me(root.client())?.providers,
             root.forge().playground_provider(),
-            c::AccountHolder::Own,
+            c::AskAccountHolder::Own,
         ) {
             if let accounts::Way::SignIn { provider: number, .. } = *way
                 && number == provider
@@ -774,7 +774,7 @@ fn paste_restart(
 ) {
     let Some(way) = paste_way(root, form) else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
-    let ways = accounts::ways(&me.providers, root.forge().playground_provider(), c::AccountHolder::Own);
+    let ways = accounts::ways(&me.providers, root.forge().playground_provider(), c::AskAccountHolder::Own);
     let meaning = if root.pages().connect_model().is_some() {
         Meaning::Model(temper_client_domain::pages::connect_model::Act::SignIn {
             name: root.pages().account_name(),

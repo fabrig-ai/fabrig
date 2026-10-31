@@ -112,7 +112,7 @@ fn a_chat_the_agent_closes_ends() {
     assert!(printed.stdout.ends_with(b"met\n"), "{printed:?}");
 
     // The committed ended row must exist before opening another wait; this
-    // exercises real watch refusal and the authorized historical read path.
+    // exercises real watch refusal and the authorized ended read path.
     let key = temper_engine_domain::Key::Core(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Ended(task)));
     let Some(temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(row)))) =
         world.front().engine.store.rows.get(&key)

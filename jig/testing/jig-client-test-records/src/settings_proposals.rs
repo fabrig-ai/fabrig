@@ -52,10 +52,10 @@ pub fn review() -> c::SettingsReview {
     c::SettingsReview { newest: 6, items, cut: true }
 }
 #[must_use]
-pub fn pending() -> c::OwnerProposalActionSettings {
-    c::OwnerProposalActionSettings { against: 6, items: heads(), review: Some(review()), made: None }
+pub fn pending() -> c::ProposalActionSettings {
+    c::ProposalActionSettings { against: 6, items: heads(), review: Some(review()), made: None }
 }
 #[must_use]
-pub fn retained() -> c::OwnerRetainedActionSettings {
-    c::OwnerRetainedActionSettings { against: 6, items: heads(), made: Some(7) }
+pub fn retained() -> c::RetainedActionSettings {
+    c::RetainedActionSettings { against: 6, items: heads(), made: Some(7) }
 }

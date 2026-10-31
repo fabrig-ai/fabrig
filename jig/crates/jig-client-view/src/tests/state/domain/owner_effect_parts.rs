@@ -13,12 +13,12 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{List, Time, Token, Wall};
 
-fn source(maker: Proposer, part: OwnerPart) -> OwnerProposal {
-    OwnerProposal {
+fn source(maker: Proposer, part: Part) -> Proposal {
+    Proposal {
         key: ProposalKey { proposer: maker, number: 7 },
         project: 41,
         reason: DocumentText { bytes: objects::text(UTF8_TEXT), cut: true },
-        action: OwnerProposalAction::Effect {
+        action: ProposalAction::Effect {
             part,
             authority: objects::owner_authority(),
             attempt: u64::MAX,
@@ -27,13 +27,13 @@ fn source(maker: Proposer, part: OwnerPart) -> OwnerProposal {
             purpose: u64::MAX,
         },
         as_holder: false,
-        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(7), since: Wall::EPOCH },
+        waiting: ProposalWaiting { holder: HistoryHolder::Person(7), since: Wall::EPOCH },
         funding: List::with_capacity(2),
         acts: List::with_capacity(2),
     }
 }
-fn native(number: u64) -> OwnerPart {
-    OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Effect, key: OwnerPartKey::Number(number) }
+fn native(number: u64) -> Part {
+    Part { connector: u16::MAX, kind: PartKind::Effect, key: PartKey::Number(number) }
 }
 fn shown(domain: &mut Fixture, key: ProposalKey) -> (jig_client::Handle, jig_client::Handle) {
     drive(domain, Time::ZERO, Event::Went { place: Place::Elsewhere });
@@ -61,9 +61,9 @@ fn shown(domain: &mut Fixture, key: ProposalKey) -> (jig_client::Handle, jig_cli
     (read.unwrap(), watch.unwrap())
 }
 
-fn exact(domain: &Fixture, source: &OwnerProposal) {
+fn exact(domain: &Fixture, source: &Proposal) {
     let object = domain.objects().get(domain.objects().find(ObjectKey::Proposal(source.key)).unwrap()).unwrap();
-    assert_eq!(object.body, Some(Body::OwnerProposal(Box::new(source.clone()))));
+    assert_eq!(object.body, Some(Body::Proposal(Box::new(source.clone()))));
     assert_eq!(object.project, Some(source.project));
 }
 
@@ -77,18 +77,18 @@ fn application_native_effect_parts_preserve_raw_numbers_scope_whole_facts_and_th
         let output = drive(
             &mut domain,
             Time::ZERO,
-            ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(value.clone()))) },
+            ReadPage { read, result: ReadResult::Value(ReadValue::Proposal(Box::new(value.clone()))) },
         );
         assert_eq!(
             crate::tests::fixtures::parts(&output, LIMITS.client.parts).as_ref(),
             &[Request::ShowPart {
-                part: Part::OwnerEffect { connector: u16::MAX, proposal: u64::MAX },
+                part: ApplicationPart::OwnerEffect { connector: u16::MAX, proposal: u64::MAX },
 
                 scope: PartScope::Project(41),
             }]
         );
         exact(&domain, &value);
-        value.action = OwnerProposalAction::Effect {
+        value.action = ProposalAction::Effect {
             part: native(0),
             authority: objects::owner_authority(),
             attempt: 0,
@@ -99,12 +99,12 @@ fn application_native_effect_parts_preserve_raw_numbers_scope_whole_facts_and_th
         let output = drive(
             &mut domain,
             Time::ZERO,
-            Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(value.clone()))) },
+            Watched { watch, event: WatchEvent::Delivered(Delivery::Proposal(Box::new(value.clone()))) },
         );
         assert_eq!(
             crate::tests::fixtures::parts(&output, LIMITS.client.parts).as_ref(),
             &[Request::ShowPart {
-                part: Part::OwnerEffect { connector: u16::MAX, proposal: 0 },
+                part: ApplicationPart::OwnerEffect { connector: u16::MAX, proposal: 0 },
 
                 scope: PartScope::Project(41),
             }]
@@ -116,7 +116,7 @@ fn application_native_effect_parts_preserve_raw_numbers_scope_whole_facts_and_th
                 Time::ZERO,
                 ReadPage {
                     read,
-                    result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(source(maker, native(u64::MAX)))))
+                    result: ReadResult::Value(ReadValue::Proposal(Box::new(source(maker, native(u64::MAX)))))
                 }
             )
             .is_empty()
@@ -128,7 +128,7 @@ fn application_native_effect_parts_preserve_raw_numbers_scope_whole_facts_and_th
         let late = drive(
             &mut domain,
             Time::ZERO,
-            Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(value.clone()))) },
+            Watched { watch, event: WatchEvent::Delivered(Delivery::Proposal(Box::new(value.clone()))) },
         );
         assert!(crate::tests::fixtures::parts(&late, LIMITS.client.parts).is_empty());
         assert!(domain.objects().find(ObjectKey::Proposal(value.key)).is_none());
@@ -138,16 +138,11 @@ fn application_native_effect_parts_preserve_raw_numbers_scope_whole_facts_and_th
 #[test]
 fn native_effect_registration_refuses_other_kinds_and_paths_and_preserves_the_separate_maker_effect_key() {
     let mut invalid =
-        crate::tests::kit::list_in(7, [OwnerPart { key: OwnerPartKey::Path(List::with_capacity(0)), ..native(99) }]);
-    for kind in [
-        OwnerPartKind::Resource,
-        OwnerPartKind::Pool,
-        OwnerPartKind::Result,
-        OwnerPartKind::Procedure,
-        OwnerPartKind::Outbox,
-        OwnerPartKind::Hold,
-    ] {
-        invalid.push(OwnerPart { kind, ..native(99) }).unwrap();
+        crate::tests::kit::list_in(7, [Part { key: PartKey::Path(List::with_capacity(0)), ..native(99) }]);
+    for kind in
+        [PartKind::Resource, PartKind::Pool, PartKind::Result, PartKind::Procedure, PartKind::Outbox, PartKind::Hold]
+    {
+        invalid.push(Part { kind, ..native(99) }).unwrap();
     }
     for part in invalid.into_boxed() {
         let (mut domain, _) = objects::live();
@@ -156,7 +151,7 @@ fn native_effect_registration_refuses_other_kinds_and_paths_and_preserves_the_se
         let output = drive(
             &mut domain,
             Time::ZERO,
-            ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(value.clone()))) },
+            ReadPage { read, result: ReadResult::Value(ReadValue::Proposal(Box::new(value.clone()))) },
         );
         assert!(crate::tests::fixtures::parts(&output, LIMITS.client.parts).is_empty());
         exact(&domain, &value);
@@ -179,7 +174,7 @@ fn native_effect_parts_refuse_full_capacity_while_retaining_the_whole_pending_do
     let output = drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(value.clone()))) },
+        ReadPage { read, result: ReadResult::Value(ReadValue::Proposal(Box::new(value.clone()))) },
     );
     for request in output {
         if let Request::ShowPart { .. } = request {
@@ -191,7 +186,7 @@ fn native_effect_parts_refuse_full_capacity_while_retaining_the_whole_pending_do
     assert_eq!(domain.notices().get(*notice).unwrap().kind, crate::tree::notices::kept::Kind::Refused(Limit::Objects));
 }
 
-fn confirmed_accept(domain: &mut Fixture, object: Token, value: &OwnerProposal) -> jig_client::Key {
+fn confirmed_accept(domain: &mut Fixture, object: Token, value: &Proposal) -> jig_client::Key {
     assert!(
         drive(
             domain,
@@ -238,7 +233,7 @@ fn native_effect_card_refresh_registers_only_shown_current_facts_within_capacity
         drive(
             &mut domain,
             Time::ZERO,
-            ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(value.clone()))) },
+            ReadPage { read, result: ReadResult::Value(ReadValue::Proposal(Box::new(value.clone()))) },
         );
         let id = domain.objects().find(ObjectKey::Proposal(value.key)).unwrap();
         let request = confirmed_accept(&mut domain, id.token(), &value);
@@ -271,7 +266,7 @@ fn native_effect_card_refresh_registers_only_shown_current_facts_within_capacity
             assert!(left.contains(&Request::PartsLeft));
             assert!(domain.objects().find(ObjectKey::Proposal(value.key)).is_none());
         }
-        value.action = OwnerProposalAction::Effect {
+        value.action = ProposalAction::Effect {
             part: native(17),
             authority: objects::owner_authority(),
             attempt: 1,
@@ -281,14 +276,14 @@ fn native_effect_card_refresh_registers_only_shown_current_facts_within_capacity
         };
         let event = ReadPage {
             read: current_read.unwrap(),
-            result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(value.clone()))),
+            result: ReadResult::Value(ReadValue::Proposal(Box::new(value.clone()))),
         };
         let output = drive(&mut domain, Time::ZERO, event.clone());
         if shown_card && part_capacity > 0 {
             assert_eq!(
                 crate::tests::fixtures::parts(&output, LIMITS.client.parts).as_ref(),
                 &[Request::ShowPart {
-                    part: Part::OwnerEffect { connector: u16::MAX, proposal: 17 },
+                    part: ApplicationPart::OwnerEffect { connector: u16::MAX, proposal: 17 },
 
                     scope: PartScope::Project(41)
                 }]

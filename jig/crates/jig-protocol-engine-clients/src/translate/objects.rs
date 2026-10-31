@@ -4,33 +4,27 @@ use super::{deployment, owner, task, w};
 use alloc::boxed::Box;
 use jig_domain_core::{documents as d, reads};
 mod current;
+pub(super) mod ended;
 pub(super) mod goal;
-pub(super) mod historical;
 mod projects;
 pub(super) mod proposals;
 pub(crate) mod question_answer;
 pub use current::{escalation, person_task, question, result};
 pub use projects::project;
 pub use proposals::proposal;
-pub fn historical(
-    value: &reads::Ended,
-    models: &[crate::Model],
-    limits: &w::Limits,
-) -> Result<w::OwnerHistorical, w::Problem> {
-    let key = historical_key(&value.value, limits)?;
+pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) -> Result<w::Ended, w::Problem> {
+    let key = ended_key(&value.value, limits)?;
     let record = match &value.value {
-        reads::EndedValue::Task { document, result } => {
-            w::OwnerHistoricalValue::Task(w::OwnerHistoricalValueTask::new(
-                limits,
-                w::OwnerHistoricalValueTaskParts {
-                    document: task::document(document, models, limits)?,
-                    result: current::result(models, result, limits)?,
-                },
-            )?)
-        }
-        reads::EndedValue::Proposal(value) => w::OwnerHistoricalValue::Proposal(w::OwnerHistoricalValueProposal::new(
+        reads::EndedValue::Task { document, result } => w::EndedValue::Task(w::EndedValueTask::new(
             limits,
-            w::OwnerHistoricalValueProposalParts { value: historical::proposal_history(models, value, limits)? },
+            w::EndedValueTaskParts {
+                document: task::document(document, models, limits)?,
+                result: current::result(models, result, limits)?,
+            },
+        )?),
+        reads::EndedValue::Proposal(value) => w::EndedValue::Proposal(w::EndedValueProposal::new(
+            limits,
+            w::EndedValueProposalParts { value: ended::proposal_history(models, value, limits)? },
         )?),
         reads::EndedValue::PersonProposal { proposal, .. }
             if match proposal.action {
@@ -38,40 +32,40 @@ pub fn historical(
                 jig_domain_tasks::PersonAction::Batch(_) | jig_domain_tasks::PersonAction::Amend { .. } => false,
             } =>
         {
-            w::OwnerHistoricalValue::Proposal(w::OwnerHistoricalValueProposal::new(
+            w::EndedValue::Proposal(w::EndedValueProposal::new(
                 limits,
-                w::OwnerHistoricalValueProposalParts { value: historical::settings_history(models, proposal, limits)? },
+                w::EndedValueProposalParts { value: ended::settings_history(models, proposal, limits)? },
             )?)
         }
         reads::EndedValue::PersonProposal { proposal, decision } => {
-            w::OwnerHistoricalValue::PersonProposal(w::OwnerHistoricalValuePersonProposal::new(
+            w::EndedValue::PersonProposal(w::EndedValuePersonProposal::new(
                 limits,
-                w::OwnerHistoricalValuePersonProposalParts {
-                    proposal: historical::person_proposal(models, proposal, limits)?,
+                w::EndedValuePersonProposalParts {
+                    proposal: ended::person_proposal(models, proposal, limits)?,
                     decision: match *decision {
-                        Some(item) => Some(historical::proposal_decision(item, limits)?),
+                        Some(item) => Some(ended::proposal_decision(item, limits)?),
                         None => None,
                     },
                 },
             )?)
         }
         reads::EndedValue::Escalation { task: document, decision, hold } => {
-            w::OwnerHistoricalValue::Escalation(w::OwnerHistoricalValueEscalation::new(
+            w::EndedValue::Escalation(w::EndedValueEscalation::new(
                 limits,
-                w::OwnerHistoricalValueEscalationParts {
+                w::EndedValueEscalationParts {
                     task: task::document(document, models, limits)?,
-                    decision: historical::escalation_decision(decision, limits)?,
+                    decision: ended::escalation_decision(decision, limits)?,
                     hold: match hold {
-                        Some(item) => Some(historical::milestone(item, limits)?),
+                        Some(item) => Some(ended::milestone(item, limits)?),
                         None => None,
                     },
                 },
             )?)
         }
         reads::EndedValue::Question { question, answer, ending } => {
-            w::OwnerHistoricalValue::Question(w::OwnerHistoricalValueQuestion::new(
+            w::EndedValue::Question(w::EndedValueQuestion::new(
                 limits,
-                w::OwnerHistoricalValueQuestionParts {
+                w::EndedValueQuestionParts {
                     question: current::question(models, question, limits)?,
                     answer: match answer {
                         Some(item) => Some(question_answer::answer(item, limits)?),
@@ -84,22 +78,20 @@ pub fn historical(
                 },
             )?)
         }
-        reads::EndedValue::PersonTask { document, result } => {
-            w::OwnerHistoricalValue::PersonTask(w::OwnerHistoricalValuePersonTask::new(
-                limits,
-                w::OwnerHistoricalValuePersonTaskParts {
-                    document: person_task(models, document, limits)?,
-                    result: current::result(models, result, limits)?,
-                },
-            )?)
-        }
+        reads::EndedValue::PersonTask { document, result } => w::EndedValue::PersonTask(w::EndedValuePersonTask::new(
+            limits,
+            w::EndedValuePersonTaskParts {
+                document: person_task(models, document, limits)?,
+                result: current::result(models, result, limits)?,
+            },
+        )?),
         reads::EndedValue::Reply(_) | reads::EndedValue::Turn(_) => {
-            return Err(w::Problem { path: w::Path::OwnerHistoricalValue, reason: skein_codec::Reason::Tag });
+            return Err(w::Problem { path: w::Path::EndedValue, reason: skein_codec::Reason::Tag });
         }
     };
-    w::OwnerHistorical::new(
+    w::Ended::new(
         limits,
-        w::OwnerHistoricalParts {
+        w::EndedParts {
             key,
             value: record,
             at: match value.at {
@@ -122,14 +114,14 @@ pub fn document(
         reads::Answer::Document(value) => match value.as_ref() {
             d::Document::Frame(value) => w::ReadValue::Me(owner::frame(value, models, limits)?),
             d::Document::Task(value) => w::ReadValue::Task(task::document(value, models, limits)?),
-            d::Document::Proposal(value) => w::ReadValue::OwnerProposal(proposal(models, value, limits)?),
-            d::Document::Escalation(value) => w::ReadValue::OwnerEscalation(escalation(value, models, limits)?),
+            d::Document::Proposal(value) => w::ReadValue::Proposal(proposal(models, value, limits)?),
+            d::Document::Escalation(value) => w::ReadValue::Escalation(escalation(value, models, limits)?),
             d::Document::Question(value) => w::ReadValue::Question(question(models, value, limits)?),
-            d::Document::PersonTask(value) => w::ReadValue::OwnerPersonTask(person_task(models, value, limits)?),
+            d::Document::PersonTask(value) => w::ReadValue::PersonTask(person_task(models, value, limits)?),
             d::Document::Result(value) => w::ReadValue::Result(result(models, value, limits)?),
-            d::Document::Project(value) => w::ReadValue::OwnerProject(project(models, value, limits)?),
+            d::Document::Project(value) => w::ReadValue::Project(project(models, value, limits)?),
             d::Document::Settings(value) => w::ReadValue::Settings(super::settings::document(value, limits)?),
-            d::Document::Deployment(value) => w::ReadValue::OwnerDeployment(deployment::document(value, limits)?),
+            d::Document::Deployment(value) => w::ReadValue::Deployment(deployment::document(value, limits)?),
             d::Document::Chips(_)
             | d::Document::Run(_)
             | d::Document::Tree(_)
@@ -148,7 +140,7 @@ pub fn document(
             | reads::EndedValue::Escalation { .. }
             | reads::EndedValue::Question { .. }
             | reads::EndedValue::PersonTask { .. }
-            | reads::EndedValue::Reply(_) => w::ReadValue::Historical(Box::new(historical(value, models, limits)?)),
+            | reads::EndedValue::Reply(_) => w::ReadValue::Ended(Box::new(ended(value, models, limits)?)),
         },
         reads::Answer::Setting(_)
         | reads::Answer::Revision(_)
@@ -161,7 +153,7 @@ pub fn document(
     })
 }
 
-fn historical_key(value: &reads::EndedValue, limits: &w::Limits) -> Result<w::ObjectKey, w::Problem> {
+fn ended_key(value: &reads::EndedValue, limits: &w::Limits) -> Result<w::ObjectKey, w::Problem> {
     Ok(match value {
         reads::EndedValue::Task { document, .. } => {
             w::ObjectKey::Task(w::ObjectKeyTask::new(limits, w::ObjectKeyTaskParts { value: document.chip.number })?)
@@ -197,7 +189,7 @@ fn historical_key(value: &reads::EndedValue, limits: &w::Limits) -> Result<w::Ob
             w::ObjectKeyPersonTaskParts { value: document.task.number },
         )?),
         reads::EndedValue::Reply(_) | reads::EndedValue::Turn(_) => {
-            return Err(w::Problem { path: w::Path::OwnerHistoricalValue, reason: skein_codec::Reason::Tag });
+            return Err(w::Problem { path: w::Path::EndedValue, reason: skein_codec::Reason::Tag });
         }
     })
 }

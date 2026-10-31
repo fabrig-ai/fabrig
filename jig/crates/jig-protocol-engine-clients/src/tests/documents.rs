@@ -114,12 +114,12 @@ fn live_nested_pieces_past_the_wire_bounds_are_refused_naming_them() {
     let source = fixtures::deployment_document();
     let limits = fixtures::wire_limits();
     let rows = [
-        ("host runs", w::Limits { owner_host_runs: 0, ..limits }, w::Path::OwnerHostRuns),
-        ("deployment hosts", w::Limits { owner_deployment_hosts: 0, ..limits }, w::Path::OwnerDeploymentHosts),
-        ("deployment attempts", w::Limits { owner_deployment_attempts: 0, ..limits }, w::Path::OwnerDeploymentAttempts),
-        ("account runs", w::Limits { owner_account_runs: 0, ..limits }, w::Path::OwnerAccountRuns),
-        ("account waiting", w::Limits { owner_account_waiting: 0, ..limits }, w::Path::OwnerAccountWaiting),
-        ("deployment accounts", w::Limits { owner_deployment_accounts: 0, ..limits }, w::Path::OwnerDeploymentAccounts),
+        ("host runs", w::Limits { host_runs: 0, ..limits }, w::Path::HostRuns),
+        ("deployment hosts", w::Limits { deployment_hosts: 0, ..limits }, w::Path::DeploymentHosts),
+        ("deployment attempts", w::Limits { deployment_attempts: 0, ..limits }, w::Path::DeploymentAttempts),
+        ("account runs", w::Limits { account_runs: 0, ..limits }, w::Path::AccountRuns),
+        ("account waiting", w::Limits { account_waiting: 0, ..limits }, w::Path::AccountWaiting),
+        ("deployment accounts", w::Limits { deployment_accounts: 0, ..limits }, w::Path::DeploymentAccounts),
     ];
     for (label, limits, path) in rows {
         assert_eq!(
@@ -258,9 +258,9 @@ fn frame_with_creating_bounds() -> jig_domain_core::documents::Frame {
     frame
 }
 
-const CREATION_CAPACITY: [(jig_domain_people::CapacityAction, w::OwnerPersonCapacityAction); 2] = [
-    (jig_domain_people::CapacityAction::Create, w::OwnerPersonCapacityAction::Create),
-    (jig_domain_people::CapacityAction::Compound, w::OwnerPersonCapacityAction::Compound),
+const CREATION_CAPACITY: [(jig_domain_people::CapacityAction, w::PersonCapacityAction); 2] = [
+    (jig_domain_people::CapacityAction::Create, w::PersonCapacityAction::Create),
+    (jig_domain_people::CapacityAction::Compound, w::PersonCapacityAction::Compound),
 ];
 #[test]
 fn creating_and_compound_capacity_refusals_keep_the_operations_kind() {
@@ -315,13 +315,13 @@ fn added_dependencies_and_kept_waits_cross_both_client_translations() {
     let actual = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
     let first = actual.dependency_facts.get(0).unwrap();
     assert_eq!((first.number, first.pending, first.keeps), (7, true, true));
-    assert_eq!(first.added, Some(c::DependencyAdded { at: Wall::from_nanos(11), by: c::OwnerRequester::Person(13) }));
+    assert_eq!(first.added, Some(c::DependencyAdded { at: Wall::from_nanos(11), by: c::Requester::Person(13) }));
     let second = actual.dependency_facts.get(1).unwrap();
-    assert_eq!(second.status, Some(c::OwnerTaskStatus::Done));
-    assert_eq!(second.added.unwrap().by, c::OwnerRequester::Task(19));
+    assert_eq!(second.status, Some(c::TaskStatus::Done));
+    assert_eq!(second.added.unwrap().by, c::Requester::Task(19));
     let c::WaitsOn::Dependencies { pending, count } = actual.waits_on else { panic!("kept wait") };
     assert_eq!((pending.as_slice(), count), ([7].as_slice(), 1));
-    let c::ChipPhase { details, .. } = actual.chip.details.as_ref();
+    let c::ChipPhaseFacts { details, .. } = actual.chip.details.as_ref();
     assert_eq!(details.dependencies, actual.dependency_facts);
 }
 

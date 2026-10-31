@@ -4,7 +4,7 @@ use crate::{Scripted, Test, World, test::list};
 use jig_client_domain::contract::*;
 use skein_lib::Wall;
 
-fn readable(number: u32, words: &[u8]) -> ActivityLine {
+fn readable(number: u32, words: &[u8]) -> DecodedActivityLine {
     crate::stories::turn_event(
         9,
         u64::from(number),
@@ -22,12 +22,12 @@ fn readable(number: u32, words: &[u8]) -> ActivityLine {
 #[must_use]
 pub fn world(seed: u64) -> World<Test, Scripted> {
     let mut world = chat_ready(seed);
-    let unread = ActivityLine {
-        source: Box::new(OwnerActivityLine {
+    let unread = DecodedActivityLine {
+        source: Box::new(ActivityLine {
             task: 9,
             position: 2,
             at: Wall::EPOCH,
-            line: OwnerActivity::Turn { reply: 2, attempt: 1, turn: 2, read: None },
+            line: Activity::Turn { reply: 2, attempt: 1, turn: 2, read: None },
         }),
         decoded: Some(ArchivedTurn {
             task: 9,

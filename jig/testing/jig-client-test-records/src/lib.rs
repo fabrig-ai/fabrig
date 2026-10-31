@@ -11,32 +11,32 @@ pub fn limits() -> w::Limits {
     w::Limits {
         document_text_bytes: 32,
         tasks_rows: 4096,
-        owner_tree_rows: 4096,
-        owner_tree_row_dependencies: 4096,
-        owner_inbox_needs: 4096,
-        owner_inbox_updates: 4096,
-        owner_inbox_selection_some: 4096,
-        owner_deployment_hosts: 4096,
-        owner_deployment_attempts: 4096,
-        owner_deployment_accounts: 4096,
-        owner_accounts_accounts: 4096,
-        owner_accounts_signing: 4096,
-        owner_account_line_sources: 4096,
-        owner_account_sources: 4096,
-        owner_host_runs: 4096,
-        owner_account_runs: 4096,
-        owner_account_waiting: 4096,
+        tree_rows: 4096,
+        tree_row_dependencies: 4096,
+        inbox_needs: 4096,
+        inbox_updates: 4096,
+        inbox_selection_some: 4096,
+        deployment_hosts: 4096,
+        deployment_attempts: 4096,
+        deployment_accounts: 4096,
+        accounts_accounts: 4096,
+        accounts_signing: 4096,
+        account_line_sources: 4096,
+        account_sources: 4096,
+        host_runs: 4096,
+        account_runs: 4096,
+        account_waiting: 4096,
         run_text_text: 32,
         current_call_input: 32,
         current_call_tool: 32,
         call_identity_id: 32,
         cursor_value: 64,
-        owner_inbox_selection_goals: 2,
+        inbox_selection_goals: 2,
         me_projects: 512,
         document_specification_parameters: 2,
         document_specification_inputs: 2,
-        owner_part_key_path_value: 2,
-        owner_part_key_path_value_item: 32,
+        part_key_path_value: 2,
+        part_key_path_value_item: 32,
         ..w::CEILINGS
     }
 }
@@ -138,9 +138,8 @@ pub fn task_record() -> w::Task {
             lineage_chips: Box::from([]),
             inputs: Box::from([]),
             project: 7,
-            requester: w::OwnerRequester::Task(
-                w::OwnerRequesterTask::new(&lim, w::OwnerRequesterTaskParts { value: 7 })
-                    .expect("literal fixture fits"),
+            requester: w::Requester::Task(
+                w::RequesterTask::new(&lim, w::RequesterTaskParts { value: 7 }).expect("literal fixture fits"),
             ),
             lineage: List::with_capacity(0),
             spec: wire_specification_document(),
@@ -148,9 +147,9 @@ pub fn task_record() -> w::Task {
             person_revision: None,
             taken_by: None,
             instructions: None,
-            wake: w::OwnerWakePolicy::new(
+            wake: w::WakePolicy::new(
                 &lim,
-                w::OwnerWakePolicyParts {
+                w::WakePolicyParts {
                     words: w::WakeRule::Never,
                     notices: w::WakeRule::Never,
                     news: w::WakeRule::Never,
@@ -168,17 +167,14 @@ pub fn task_record() -> w::Task {
                     &lim,
                     w::TaskContractDocumentApprovalParts {
                         state: Box::from([]),
-                        part: w::OwnerPart::new(
+                        part: w::Part::new(
                             &lim,
-                            w::OwnerPartParts {
+                            w::PartParts {
                                 connector: 7,
-                                kind: w::OwnerPartKind::Resource,
-                                key: w::OwnerPartKey::Path(
-                                    w::OwnerPartKeyPath::new(
-                                        &lim,
-                                        w::OwnerPartKeyPathParts { value: List::with_capacity(0) },
-                                    )
-                                    .expect("literal fixture fits"),
+                                kind: w::PartKind::Resource,
+                                key: w::PartKey::Path(
+                                    w::PartKeyPath::new(&lim, w::PartKeyPathParts { value: List::with_capacity(0) })
+                                        .expect("literal fixture fits"),
                                 ),
                             },
                         )
@@ -191,12 +187,12 @@ pub fn task_record() -> w::Task {
             references: Box::from([]),
             cut: false,
             resources: Box::from([]),
-            budget: w::OwnerBudget::new(
+            budget: w::Budget::new(
                 &lim,
-                w::OwnerBudgetParts {
-                    numbers: w::OwnerNumbers::new(
+                w::BudgetParts {
+                    numbers: w::Numbers::new(
                         &lim,
-                        w::OwnerNumbersParts { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
+                        w::NumbersParts { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
                     )
                     .expect("literal fixture fits"),
                     left: 7,
@@ -243,21 +239,21 @@ pub fn wire_specification_document() -> w::SpecificationDocument {
     .expect("literal fixture fits")
 }
 #[must_use]
-pub fn wire_owner_authority_document() -> w::OwnerAuthorityDocument {
+pub fn wire_owner_authority_document() -> w::AuthorityDocument {
     let lim = limits();
-    w::OwnerAuthorityDocument::new(
+    w::AuthorityDocument::new(
         &lim,
-        w::OwnerAuthorityDocumentParts {
+        w::AuthorityDocumentParts {
             cut: false,
-            authority: w::OwnerAuthority::new(
+            authority: w::Authority::new(
                 &lim,
-                w::OwnerAuthorityParts {
+                w::AuthorityParts {
                     models: Some(w::ModelSet::All),
                     tools: 7,
                     grants: Box::from([]),
-                    delegation: w::OwnerDelegation::new(
+                    delegation: w::Delegation::new(
                         &lim,
-                        w::OwnerDelegationParts { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
+                        w::DelegationParts { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
                     )
                     .expect("literal fixture fits"),
                     spend: 7,
@@ -284,8 +280,8 @@ pub fn chip_root_fact() -> w::Fact {
                     w::ChipFieldsParts {
                         task: 7,
                         title: wire_text(b""),
-                        executor: w::Executor::Agent(
-                            w::ExecutorAgent::new(&lim, w::ExecutorAgentParts { charter: 7 })
+                        executor: w::ChipExecutor::Agent(
+                            w::ChipExecutorAgent::new(&lim, w::ChipExecutorAgentParts { charter: 7 })
                                 .expect("literal fixture fits"),
                         ),
                         phase: w::Phase::Waiting,
@@ -299,28 +295,28 @@ pub fn chip_root_fact() -> w::Fact {
     )
 }
 #[must_use]
-pub fn wire_owner_chip_details_row() -> w::OwnerChipDetailsRow {
+pub fn wire_owner_chip_details_row() -> w::ChipDetailsRow {
     let lim = limits();
-    w::OwnerChipDetailsRow::new(
+    w::ChipDetailsRow::new(
         &lim,
-        w::OwnerChipDetailsRowParts {
+        w::ChipDetailsRowParts {
             parent: Some(1),
-            value: w::OwnerChipDetailsFields::new(
+            value: w::ChipDetailsFields::new(
                 &lim,
-                w::OwnerChipDetailsFieldsParts {
+                w::ChipDetailsFieldsParts {
                     dependencies: List::with_capacity(0),
                     project: 7,
-                    executor: w::OwnerExecutor::Agent(
-                        w::OwnerExecutorAgent::new(&lim, w::OwnerExecutorAgentParts { charter: 7 })
+                    executor: w::Executor::Agent(
+                        w::ExecutorAgent::new(&lim, w::ExecutorAgentParts { charter: 7 })
                             .expect("literal fixture fits"),
                     ),
                     phase_since: 7,
                     run_since: None,
                     attempt: None,
                     retry: None,
-                    wake: w::OwnerWakePolicy::new(
+                    wake: w::WakePolicy::new(
                         &lim,
-                        w::OwnerWakePolicyParts {
+                        w::WakePolicyParts {
                             words: w::WakeRule::Never,
                             notices: w::WakeRule::Never,
                             news: w::WakeRule::Never,
@@ -333,12 +329,12 @@ pub fn wire_owner_chip_details_row() -> w::OwnerChipDetailsRow {
                     .expect("literal fixture fits"),
                     person_wait: None,
                     hold: None,
-                    budget: w::OwnerBudget::new(
+                    budget: w::Budget::new(
                         &lim,
-                        w::OwnerBudgetParts {
-                            numbers: w::OwnerNumbers::new(
+                        w::BudgetParts {
+                            numbers: w::Numbers::new(
                                 &lim,
-                                w::OwnerNumbersParts { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
+                                w::NumbersParts { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
                             )
                             .expect("literal fixture fits"),
                             left: 7,

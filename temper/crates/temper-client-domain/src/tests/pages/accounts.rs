@@ -38,7 +38,7 @@ fn unordered_offers() -> List<c::ProviderOffer> {
 #[test]
 fn account_ways_are_ordered_by_provider_then_sign_in_program_and_key() {
     assert_eq!(
-        accounts::ways(&unordered_offers(), None, c::AccountHolder::Own).as_slice(),
+        accounts::ways(&unordered_offers(), None, c::AskAccountHolder::Own).as_slice(),
         &[
             Way::SignIn { provider: PROVIDER, plan: true },
             Way::Program { provider: PROVIDER },
@@ -54,7 +54,7 @@ fn account_ways_are_ordered_by_provider_then_sign_in_program_and_key() {
 }
 #[test]
 fn account_ways_leave_out_the_playgrounds_provider() {
-    let ways = accounts::ways(&unordered_offers(), Some(PROVIDER + 1), c::AccountHolder::Own);
+    let ways = accounts::ways(&unordered_offers(), Some(PROVIDER + 1), c::AskAccountHolder::Own);
     for way in &ways {
         assert_ne!(way.provider(), PROVIDER + 1);
     }
@@ -62,7 +62,7 @@ fn account_ways_leave_out_the_playgrounds_provider() {
 #[test]
 fn deployment_account_ways_offer_keys_only() {
     assert_eq!(
-        accounts::ways(&unordered_offers(), None, c::AccountHolder::Deployment).as_slice(),
+        accounts::ways(&unordered_offers(), None, c::AskAccountHolder::Deployment).as_slice(),
         &[Way::Key { provider: PROVIDER }, Way::Key { provider: PROVIDER + 1 }, Way::Key { provider: PROVIDER + 2 },]
     );
 }
@@ -75,14 +75,14 @@ fn a_provider_with_no_offered_sources_offers_no_way() {
     provider.programs.clear();
     provider.programs_cut = true;
     providers.push(provider).unwrap();
-    assert!(accounts::ways(&providers, None, c::AccountHolder::Own).is_empty());
+    assert!(accounts::ways(&providers, None, c::AskAccountHolder::Own).is_empty());
 }
 
 #[test]
 fn adding_a_key_requires_the_value_written_for_that_row() {
     let mut root = own_accounts();
     key(&mut root, b"private-once");
-    let other = Row { holder: c::AccountHolder::Own, account: ACCOUNT + 1 };
+    let other = Row { holder: c::AskAccountHolder::Own, account: ACCOUNT + 1 };
     assert!(
         sends(act(
             &mut root,
@@ -124,14 +124,14 @@ pub(super) fn deliver(root: &mut crate::Domain, watch: Token, event: c::WatchEve
 pub(super) fn document(signing: bool) -> c::WatchEvent {
     let mut rows = List::with_capacity(1);
     if signing {
-        rows.push(c::OwnerAccountSignIn {
+        rows.push(c::AccountSignIn {
             source: SOURCE,
             provider: PROVIDER,
-            holder: c::OwnerAccountHolder::Party(fixtures::PARTY),
+            holder: c::AccountHolder::Party(fixtures::PARTY),
         })
         .unwrap();
     }
-    c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(Box::new(c::OwnerAccounts {
+    c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(c::Accounts {
         program_hosts: List::with_capacity(0),
         readiness: List::with_capacity(0),
         readiness_cut: false,
@@ -143,7 +143,7 @@ pub(super) fn document(signing: bool) -> c::WatchEvent {
         cut: false,
     })))
 }
-fn select(root: &mut crate::Domain, holder: c::AccountHolder) {
+fn select(root: &mut crate::Domain, holder: c::AskAccountHolder) {
     act(root, Act::KeyFor { row: Row { holder, account: ACCOUNT }, source: None });
 }
 pub(super) fn key(root: &mut crate::Domain, bytes: &[u8]) {
@@ -190,9 +190,9 @@ fn account_availability_is_unknown_before_the_first_account_delivery() {
 #[test]
 fn account_availability_reports_the_delivered_usable_account_projection() {
     let (mut root, _, watch) = opened(c::HeldRole::Member);
-    let c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(mut usable)) = document(false) else { unreachable!() };
+    let c::WatchEvent::Delivered(c::Delivery::Accounts(mut usable)) = document(false) else { unreachable!() };
     usable.usable = true;
-    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(usable)));
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(usable)));
     assert_eq!(root.pages().availability(root.client()), Some(true));
 }
 #[test]
@@ -269,7 +269,7 @@ fn losing_the_owner_role_clears_the_deployment_key_draft() {
 #[test]
 fn members_cannot_submit_a_key_for_the_deployment_holder() {
     let (mut root, _, _) = opened(c::HeldRole::Member);
-    select(&mut root, c::AccountHolder::Deployment);
+    select(&mut root, c::AskAccountHolder::Deployment);
     key(&mut root, b"private-draft");
     assert!(sends(submit(&mut root, Operation::AddKey { provider: PROVIDER })).is_empty());
 }
@@ -277,7 +277,7 @@ fn members_cannot_submit_a_key_for_the_deployment_holder() {
 fn changing_the_party_clears_the_deployment_account_draft() {
     let (mut root, me) = deployment_draft();
     deliver(&mut root, me, frame(c::HeldRole::Member, fixtures::PARTY));
-    select(&mut root, c::AccountHolder::Deployment);
+    select(&mut root, c::AskAccountHolder::Deployment);
     key(&mut root, b"private-draft");
     submit(&mut root, Operation::AddKey { provider: PROVIDER });
     deliver(&mut root, me, frame(c::HeldRole::Owner, fixtures::PARTY + 1));
@@ -313,7 +313,7 @@ fn adding_a_joined_key_sends_its_value_once_privately() {
     assert_eq!(
         ask,
         jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::AddKey {
                 provider: PROVIDER,
                 join: Some(ACCOUNT),
@@ -352,7 +352,7 @@ fn a_lost_key_send_refuses_a_different_retry_name() {
             &mut root,
             Act::Submit {
                 name: [98; 16],
-                row: Row { holder: c::AccountHolder::Own, account: ACCOUNT },
+                row: Row { holder: c::AskAccountHolder::Own, account: ACCOUNT },
                 operation: Operation::AddKey { provider: PROVIDER }
             }
         ))
@@ -396,7 +396,7 @@ fn an_again_answer_leaves_the_key_retry_unsent() {
 #[test]
 fn account_operations_send_the_row_holder_numbers_without_confirmation() {
     let (root, _, _) = opened(c::HeldRole::Owner);
-    for holder in [c::AccountHolder::Own, c::AccountHolder::Deployment] {
+    for holder in [c::AskAccountHolder::Own, c::AskAccountHolder::Deployment] {
         for (operation, ask) in [
             (Operation::Resume { source: SOURCE }, change(holder, c::AccountChange::Resume { source: SOURCE })),
             (
@@ -427,7 +427,7 @@ fn account_operations_send_the_row_holder_numbers_without_confirmation() {
 #[test]
 fn destructive_account_operations_wait_for_confirmation_before_sending() {
     let (root, _, _) = opened(c::HeldRole::Owner);
-    for holder in [c::AccountHolder::Own, c::AccountHolder::Deployment] {
+    for holder in [c::AskAccountHolder::Own, c::AskAccountHolder::Deployment] {
         for (operation, ask) in [
             (Operation::SignOut { source: SOURCE }, c::Ask::SignOut { holder, source: SOURCE }),
             (Operation::RemoveKey { source: SOURCE }, change(holder, c::AccountChange::RemoveKey { source: SOURCE })),
@@ -452,7 +452,7 @@ fn destructive_account_operations_wait_for_confirmation_before_sending() {
 fn key_operations_carry_the_row_holder_numbers_with_the_value() {
     let (root, _, _) = opened(c::HeldRole::Owner);
     let digest = skein_lib::sha256::digest(b"private-once");
-    for holder in [c::AccountHolder::Own, c::AccountHolder::Deployment] {
+    for holder in [c::AskAccountHolder::Own, c::AskAccountHolder::Deployment] {
         for (operation, ask) in [
             (
                 Operation::AddKey { provider: PROVIDER },
@@ -504,15 +504,15 @@ fn account_move_operations_forward_the_engines_zero_based_first_place() {
         let mut out = Queue::with_capacity(4);
         page.act(
             root.client(),
-            Act::Submit { name: NAME, row: Row { holder: c::AccountHolder::Own, account: ACCOUNT }, operation },
+            Act::Submit { name: NAME, row: Row { holder: c::AskAccountHolder::Own, account: ACCOUNT }, operation },
             &mut 0,
             &mut out,
         );
-        assert_operation_send(&mut out, change(c::AccountHolder::Own, change_));
+        assert_operation_send(&mut out, change(c::AskAccountHolder::Own, change_));
     }
 }
 
-fn change(holder: c::AccountHolder, change: c::AccountChange) -> c::Ask {
+fn change(holder: c::AskAccountHolder, change: c::AccountChange) -> c::Ask {
     c::Ask::AccountChange { holder, change }
 }
 #[test]
@@ -526,7 +526,7 @@ fn another_partys_restored_account_work_is_not_shown() {
         request: jig_client::Held {
             key: jig_client::Key { asker: pages::me_handle().asker, number: 991 },
             request: jig_client::Ask::Jig(Box::new(c::Ask::SignIn {
-                holder: c::AccountHolder::Own,
+                holder: c::AskAccountHolder::Own,
                 provider: PROVIDER,
             })),
         },
@@ -545,8 +545,8 @@ pub(super) fn started(root: &mut crate::Domain, pending: jig_client::Key) {
         &fixtures::env(&fixtures::limits()),
         jig_client::Told::Answered {
             key: pending,
-            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountSignInStarted {
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountSignInStarted {
                     source: SOURCE,
                     address: Box::from(b"https://issuer/visit".as_slice()),
                 },
@@ -563,13 +563,13 @@ fn current_accounts(role: c::HeldRole) -> (crate::Domain, Token, Token) {
 }
 fn deployment_draft() -> (crate::Domain, Token) {
     let (mut root, me, _) = opened(c::HeldRole::Owner);
-    select(&mut root, c::AccountHolder::Deployment);
+    select(&mut root, c::AskAccountHolder::Deployment);
     key(&mut root, b"private-draft");
     (root, me)
 }
 fn own_accounts() -> crate::Domain {
     let (mut root, _, _) = opened(c::HeldRole::Member);
-    select(&mut root, c::AccountHolder::Own);
+    select(&mut root, c::AskAccountHolder::Own);
     root
 }
 fn submitted_key() -> (crate::Domain, Sent) {
@@ -597,7 +597,7 @@ fn lost_key() -> (crate::Domain, jig_client::Ask) {
 }
 fn operation_page(
     client: &jig_client::Client,
-    holder: c::AccountHolder,
+    holder: c::AskAccountHolder,
 ) -> (accounts::Accounts, u64, Queue<pages::Request>) {
     let mut page = accounts::Accounts::default();
     let mut out = Queue::with_capacity(8);
@@ -630,7 +630,7 @@ fn assert_finished_operation(
 fn cancel_abandons_a_named_lost_account_act() {
     for envelope in [skein_lib::RequestEnvelope::Lost, skein_lib::RequestEnvelope::Again] {
         let (mut root, _, _) = opened(c::HeldRole::Member);
-        select(&mut root, c::AccountHolder::Own);
+        select(&mut root, c::AskAccountHolder::Own);
         key(&mut root, b"first-key");
         let attempt = sends(submit(&mut root, Operation::AddKey { provider: PROVIDER })).pop().unwrap().0;
         event(
@@ -649,7 +649,7 @@ fn cancel_abandons_a_named_lost_account_act() {
                 &mut root,
                 Act::Submit {
                     name: [99; 16],
-                    row: Row { holder: c::AccountHolder::Own, account: ACCOUNT },
+                    row: Row { holder: c::AskAccountHolder::Own, account: ACCOUNT },
                     operation: Operation::AddKey { provider: PROVIDER }
                 }
             ))
@@ -670,7 +670,7 @@ fn cancel_abandons_a_restored_lost_account_act() {
             jig_client::Told::Kept {
                 key,
                 request: jig_client::Ask::Jig(Box::new(c::Ask::SignIn {
-                    holder: c::AccountHolder::Own,
+                    holder: c::AskAccountHolder::Own,
                     provider: PROVIDER,
                 })),
             },
@@ -684,7 +684,7 @@ fn cancel_abandons_a_restored_lost_account_act() {
         );
         assert_eq!(root.pages().accounts().unwrap().request.pending.as_ref().unwrap().name, None);
         act(&mut root, Act::Cancel);
-        select(&mut root, c::AccountHolder::Own);
+        select(&mut root, c::AskAccountHolder::Own);
         assert_eq!(sends(submit(&mut root, Operation::Resume { source: SOURCE })).len(), 1);
     }
 }
@@ -698,12 +698,12 @@ fn typed_account_lists_outlive_the_task_window() {
         let mut sources = List::with_capacity(count);
         for source in 1..=count {
             sources
-                .push(c::OwnerAccountSource {
+                .push(c::AccountSource {
                     name: None,
                     place: source,
                     number: source,
-                    kind: c::OwnerAccountKind::Key,
-                    state: c::OwnerAccountState::Granted,
+                    kind: c::AccountKind::Key,
+                    state: c::AccountState::Granted,
                     usable: true,
                     expiring: false,
                     attention: false,
@@ -711,7 +711,7 @@ fn typed_account_lists_outlive_the_task_window() {
                 })
                 .unwrap();
         }
-        rows.push(c::OwnerAccountLine {
+        rows.push(c::AccountLine {
             number,
             place: number,
             uses: None,
@@ -722,20 +722,20 @@ fn typed_account_lists_outlive_the_task_window() {
             )),
             manage_usage: None,
             display: c::DocumentText::complete(c::Text::new(Box::from(b"Account".as_slice()), 32).unwrap()),
-            holder: c::OwnerAccountHolder::Party(fixtures::PARTY),
+            holder: c::AccountHolder::Party(fixtures::PARTY),
             sources,
             cut: false,
         })
         .unwrap();
         signing
-            .push(c::OwnerAccountSignIn {
+            .push(c::AccountSignIn {
                 source: number,
                 provider: PROVIDER,
-                holder: c::OwnerAccountHolder::Party(fixtures::PARTY),
+                holder: c::AccountHolder::Party(fixtures::PARTY),
             })
             .unwrap();
     }
-    let doc = c::OwnerAccounts {
+    let doc = c::Accounts {
         program_hosts: List::with_capacity(0),
         readiness: List::with_capacity(0),
         readiness_cut: false,
@@ -746,19 +746,19 @@ fn typed_account_lists_outlive_the_task_window() {
         settled: false,
         cut: false,
     };
-    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(Box::new(doc.clone()))));
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(doc.clone()))));
     assert_eq!(accounts::document(root.client()), Some(&doc));
 }
 
 #[test]
 fn key_for_another_row_or_source_drops_the_previous_value() {
     for (row, source) in [
-        (Row { holder: c::AccountHolder::Own, account: ACCOUNT + 1 }, None),
-        (Row { holder: c::AccountHolder::Own, account: ACCOUNT }, Some(SOURCE)),
-        (Row { holder: c::AccountHolder::Deployment, account: ACCOUNT }, None),
+        (Row { holder: c::AskAccountHolder::Own, account: ACCOUNT + 1 }, None),
+        (Row { holder: c::AskAccountHolder::Own, account: ACCOUNT }, Some(SOURCE)),
+        (Row { holder: c::AskAccountHolder::Deployment, account: ACCOUNT }, None),
     ] {
         let (mut root, _, _) = opened(c::HeldRole::Owner);
-        select(&mut root, c::AccountHolder::Own);
+        select(&mut root, c::AskAccountHolder::Own);
         key(&mut root, b"private-once");
         act(&mut root, Act::KeyFor { row, source });
         assert!(!root.pages().accounts().unwrap().request.has_key());
@@ -768,13 +768,13 @@ fn key_for_another_row_or_source_drops_the_previous_value() {
 fn key_for_the_same_field_preserves_its_value() {
     let mut root = own_accounts();
     key(&mut root, b"private-once");
-    select(&mut root, c::AccountHolder::Own);
+    select(&mut root, c::AskAccountHolder::Own);
     assert!(root.pages().accounts().unwrap().request.has_key());
 }
 #[test]
 fn a_rows_sign_in_sends_its_provider_and_follows_the_accounts_watch() {
     let (mut root, _, watch) = opened(c::HeldRole::Member);
-    let row = Row { holder: c::AccountHolder::Own, account: ACCOUNT };
+    let row = Row { holder: c::AskAccountHolder::Own, account: ACCOUNT };
     let sent =
         sends(act(&mut root, Act::Submit { name: NAME, row, operation: Operation::SignIn { provider: PROVIDER } }))
             .pop()
@@ -799,7 +799,7 @@ fn a_rows_sign_in_sends_its_provider_and_follows_the_accounts_watch() {
 #[test]
 fn a_deployment_row_cannot_sign_in() {
     let (mut root, _, _) = opened(c::HeldRole::Owner);
-    let row = Row { holder: c::AccountHolder::Deployment, account: ACCOUNT };
+    let row = Row { holder: c::AskAccountHolder::Deployment, account: ACCOUNT };
     assert!(
         sends(act(&mut root, Act::Submit { name: NAME, row, operation: Operation::SignIn { provider: PROVIDER } }))
             .is_empty()
@@ -809,7 +809,7 @@ fn a_deployment_row_cannot_sign_in() {
 #[test]
 fn a_pending_row_request_blocks_a_different_rows_act() {
     let (mut root, _) = submitted_key();
-    let row = Row { holder: c::AccountHolder::Own, account: ACCOUNT + 1 };
+    let row = Row { holder: c::AskAccountHolder::Own, account: ACCOUNT + 1 };
     assert!(
         sends(act(&mut root, Act::Submit { name: [99; 16], row, operation: Operation::Resume { source: SOURCE + 1 } }))
             .is_empty()

@@ -432,7 +432,10 @@ impl jig::render::Parts for Parts {
     }
     fn release_again_refusal(&self, task: &jig_client::contract::Task) -> Option<&'static [u8]> {
         if task.chip.executor
-            == (jig_client::contract::Executor::Procedure { connector: temper_client_protocol_wire::FORGE, kind: 2 })
+            == (jig_client::contract::ChipExecutor::Procedure {
+                connector: temper_client_protocol_wire::FORGE,
+                kind: 2,
+            })
         {
             Some(b"task release: a change has no run of its own to repeat: release its hold, and it decides afresh")
         } else {
@@ -448,10 +451,10 @@ impl jig::render::Parts for Parts {
             out.put(b"\n");
         }
     }
-    fn owner_part(&self, part: &jig_client::contract::OwnerPart, out: &mut jig::render::Text) {
+    fn owner_part(&self, part: &jig_client::contract::Part, out: &mut jig::render::Text) {
         crate::forge::part(part, out);
     }
-    fn part(&self, part: &jig_client::contract::Part, out: &mut jig::render::Text) {
+    fn part(&self, part: &jig_client::contract::ApplicationPart, out: &mut jig::render::Text) {
         crate::forge::result_part(part, out);
     }
     fn change_kind(&self, connector: u16, kind: u16, out: &mut jig::render::Text) {
@@ -460,7 +463,7 @@ impl jig::render::Parts for Parts {
     fn change(
         &self,
         kind: u16,
-        part: &jig_client::contract::OwnerPart,
+        part: &jig_client::contract::Part,
         words: &jig_client::contract::DocumentText,
         out: &mut jig::render::Text,
     ) {

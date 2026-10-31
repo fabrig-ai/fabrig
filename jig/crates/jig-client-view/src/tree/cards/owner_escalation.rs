@@ -26,14 +26,14 @@ pub fn card(
         return false;
     };
     let document = match &facts.body {
-        Some(Body::OwnerEscalation(document)) => document,
+        Some(Body::Escalation(document)) => document,
         Some(
-            Body::Historical(_)
+            Body::Ended(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
-            | Body::OwnerPersonTask(_)
+            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )

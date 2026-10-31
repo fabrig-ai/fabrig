@@ -48,7 +48,13 @@ fn received(value: &c::Text, left: &mut usize, cut: &mut bool, turn_text: u32) -
     c::Text::new(Box::from(&value.bytes()[..length]), turn_text).expect("receiving prefix")
 }
 #[expect(clippy::manual_map, reason = "fixtures spell out options under the step-code lints")]
-pub fn turn(position: u64, attempt: u64, number: u32, messages: &[c::Message], turn_text: u32) -> c::ActivityLine {
+pub fn turn(
+    position: u64,
+    attempt: u64,
+    number: u32,
+    messages: &[c::Message],
+    turn_text: u32,
+) -> c::DecodedActivityLine {
     let mut kept = List::with_capacity(u32::try_from(messages.len()).expect("messages fit"));
     let mut left = usize::try_from(turn_text).expect("receiving turn text fits");
     let mut cut = messages.len() > 3;
@@ -79,12 +85,12 @@ pub fn turn(position: u64, attempt: u64, number: u32, messages: &[c::Message], t
         }
         kept.push(c::Message { speaker: message.speaker, blocks }).expect("message");
     }
-    c::ActivityLine {
-        source: Box::new(c::OwnerActivityLine {
+    c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
             task: 1,
             position,
             at: Wall::EPOCH,
-            line: c::OwnerActivity::Turn { reply: position, attempt, turn: number, read: None },
+            line: c::Activity::Turn { reply: position, attempt, turn: number, read: None },
         }),
         decoded: Some(c::ArchivedTurn {
             task: 1,
@@ -102,8 +108,11 @@ pub fn turn(position: u64, attempt: u64, number: u32, messages: &[c::Message], t
         }),
     }
 }
-fn owner(task: u64, position: u64, line: c::OwnerActivity) -> c::ActivityLine {
-    c::ActivityLine { source: Box::new(c::OwnerActivityLine { task, position, at: Wall::EPOCH, line }), decoded: None }
+fn owner(task: u64, position: u64, line: c::Activity) -> c::DecodedActivityLine {
+    c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine { task, position, at: Wall::EPOCH, line }),
+        decoded: None,
+    }
 }
 fn result(summary: &[u8]) -> c::Message {
     message(c::Speaker::Person, &[c::Block::Result { call: 3, summary: text(summary), failed: false }])
@@ -114,33 +123,24 @@ pub fn activity(dark: bool, landed: bool, turn_text: u32) -> c::ActivityPage {
     let attempt = if dark { 4 } else { 1 };
     let mut rows = List::with_capacity(9);
     if dark {
-        rows.push(owner(task, 4, c::OwnerActivity::RunEnded { attempt, end: c::OwnerRunEnd::Parked, spent: 0 }))
-            .expect("parked");
+        rows.push(owner(task, 4, c::Activity::RunEnded { attempt, end: c::RunEnd::Parked, spent: 0 })).expect("parked");
     } else {
         if landed {
-            rows.push(owner(task, 9, c::OwnerActivity::RunEnded { attempt: 3, end: c::OwnerRunEnd::Parked, spent: 0 }))
+            rows.push(owner(task, 9, c::Activity::RunEnded { attempt: 3, end: c::RunEnd::Parked, spent: 0 }))
                 .expect("parked");
             rows.push(turn(8, 3, 1, &[
                 result(b"Begin the work your brief describes.\n\n2: Result from task 2:\n1a2b3c4abcdef0123456789abcdef0123456789abcd"),
                 message(c::Speaker::Assistant, &[c::Block::Text(text(LANDED)), call(3, b"wait", b"{}", None)]),
             ], turn_text)).expect("resumed turn");
-            rows.push(owner(
-                task,
-                7,
-                c::OwnerActivity::RunBegan { attempt: 3, why: c::OwnerRunWhy::Ready, resumed: true },
-            ))
-            .expect("resumed");
+            rows.push(owner(task, 7, c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: true }))
+                .expect("resumed");
             rows.push(owner(
                 task,
                 6,
-                c::OwnerActivity::Heard(c::OwnerWord {
+                c::Activity::Heard(c::Word {
                     number: 2,
-                    from: c::OwnerRequester::Task(2),
-                    kind: c::OwnerMessageKind::Result(c::OwnerWordResult::Change {
-                        connector: 1,
-                        kind: 1,
-                        resource: 2,
-                    }),
+                    from: c::Requester::Task(2),
+                    kind: c::MessageKind::Result(c::WordResult::Change { connector: 1, kind: 1, resource: 2 }),
                     words: text(MERGE),
                     at: Wall::EPOCH,
                     hits: 0,
@@ -149,8 +149,7 @@ pub fn activity(dark: bool, landed: bool, turn_text: u32) -> c::ActivityPage {
             ))
             .expect("heard");
         }
-        rows.push(owner(task, 5, c::OwnerActivity::RunEnded { attempt, end: c::OwnerRunEnd::Parked, spent: 0 }))
-            .expect("parked");
+        rows.push(owner(task, 5, c::Activity::RunEnded { attempt, end: c::RunEnd::Parked, spent: 0 })).expect("parked");
         rows.push(turn(4, attempt, 2, &[message(c::Speaker::Assistant, &[call(3, b"wait", b"{}", None)])], turn_text))
             .expect("waiting turn");
     }
@@ -174,9 +173,8 @@ pub fn activity(dark: bool, landed: bool, turn_text: u32) -> c::ActivityPage {
         )
     };
     rows.push(first).expect("first turn");
-    rows.push(owner(task, 2, c::OwnerActivity::RunBegan { attempt, why: c::OwnerRunWhy::Made, resumed: false }))
-        .expect("began");
-    rows.push(owner(task, 1, c::OwnerActivity::Milestone { position: 1 })).expect("initial milestone");
+    rows.push(owner(task, 2, c::Activity::RunBegan { attempt, why: c::RunWhy::Made, resumed: false })).expect("began");
+    rows.push(owner(task, 1, c::Activity::Milestone { position: 1 })).expect("initial milestone");
     for index in 0..rows.len() {
         let row = rows.get_mut(index).expect("bounded activity");
         row.source.task = task;

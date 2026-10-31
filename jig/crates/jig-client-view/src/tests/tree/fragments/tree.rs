@@ -26,8 +26,8 @@ fn chip(n: u64) -> Chip {
     c.title.cut = true;
     c
 }
-fn counts() -> OwnerPhaseCounts {
-    OwnerPhaseCounts {
+fn counts() -> PhaseCounts {
+    PhaseCounts {
         waiting: 1,
         idle: 2,
         starting: 3,
@@ -40,12 +40,12 @@ fn counts() -> OwnerPhaseCounts {
         cancelled: u32::MAX,
     }
 }
-fn source() -> OwnerTree {
+fn source() -> jig_client::contract::Tree {
     let mut rows = List::with_capacity(2);
     let proposals =
         crate::tests::kit::list_in(2, [ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX }]);
-    let dependencies = crate::tests::kit::list_in(2, [OwnerTaskLink::Stored { number: u64::MAX, status: None }]);
-    rows.push(OwnerTreeRow {
+    let dependencies = crate::tests::kit::list_in(2, [TaskLink::Stored { number: u64::MAX, status: None }]);
+    rows.push(TreeRow {
         chip: chip(9),
         parent: 8,
         depth: u32::MAX,
@@ -56,10 +56,10 @@ fn source() -> OwnerTree {
     })
     .unwrap();
     let folded = crate::tests::kit::list([
-        OwnerTreeFold { parent: 0, phases: counts(), held_below: 11 },
-        OwnerTreeFold { parent: u64::MAX, phases: OwnerPhaseCounts { idle: u32::MAX, ..counts() }, held_below: 17 },
+        TreeFold { parent: 0, phases: counts(), held_below: 11 },
+        TreeFold { parent: u64::MAX, phases: PhaseCounts { idle: u32::MAX, ..counts() }, held_below: 17 },
     ]);
-    OwnerTree {
+    jig_client::contract::Tree {
         root: chip(8),
         rows,
         folded,
@@ -67,10 +67,10 @@ fn source() -> OwnerTree {
         next: Some(Cursor::new(copy_of(UTF8_TEXTS[0]), 128).unwrap()),
     }
 }
-fn domain(value: &OwnerTree) -> Fixture {
+fn domain(value: &jig_client::contract::Tree) -> Fixture {
     domain_and_watch(value).0
 }
-fn domain_and_watch(value: &OwnerTree) -> (Fixture, jig_client::Handle) {
+fn domain_and_watch(value: &jig_client::contract::Tree) -> (Fixture, jig_client::Handle) {
     let (mut d, frame) = start();
     drive(&mut d, Watched { watch: frame, event: WatchEvent::Delivered(Delivery::Me(Box::new(document()))) });
     let asks = drive(&mut d, Event::Went { place: Place::Jig(Address::Task { task: 8, section: TaskSection::Plan }) });
@@ -107,10 +107,10 @@ fn domain_and_watch(value: &OwnerTree) -> (Fixture, jig_client::Handle) {
                 _ => None,
             })
             .unwrap();
-    drive(&mut d, Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) });
+    drive(&mut d, Watched { watch, event: WatchEvent::Delivered(Delivery::Tree(Box::new(value.clone()))) });
     (d, watch)
 }
-fn build(value: &OwnerTree, d: &Fixture, w: &Words, nodes: Option<u32>) -> Tree {
+fn build(value: &jig_client::contract::Tree, d: &Fixture, w: &Words, nodes: Option<u32>) -> Tree {
     let f = crate::tests::render_limits(&CLIENT, w).unwrap();
     let mut l = crate::tests::render_limits(&CLIENT, w).unwrap();
     l.nodes = nodes.unwrap_or(f.nodes);
@@ -139,13 +139,13 @@ fn owner_tree_view_preserves_all_link_metadata_without_fabricated_stored_chip_or
     let mut value = source();
     let w = words();
     for link in [
-        OwnerTaskLink::Live(chip(17)),
-        OwnerTaskLink::Retained { chip: chip(17), at: None },
-        OwnerTaskLink::Retained { chip: chip(17), at: Some(Wall::EPOCH) },
-        OwnerTaskLink::Stored { number: u64::MAX, status: None },
-        OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Done) },
-        OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Failed) },
-        OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Cancelled) },
+        TaskLink::Live(chip(17)),
+        TaskLink::Retained { chip: chip(17), at: None },
+        TaskLink::Retained { chip: chip(17), at: Some(Wall::EPOCH) },
+        TaskLink::Stored { number: u64::MAX, status: None },
+        TaskLink::Stored { number: u64::MAX, status: Some(TaskStatus::Done) },
+        TaskLink::Stored { number: u64::MAX, status: Some(TaskStatus::Failed) },
+        TaskLink::Stored { number: u64::MAX, status: Some(TaskStatus::Cancelled) },
     ] {
         value.rows.get_mut(0).unwrap().dependencies.clear();
         value.rows.get_mut(0).unwrap().dependencies.push(link).unwrap();
@@ -161,7 +161,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
     let mut value = source();
     let first = value.rows.get_mut(0).unwrap();
     first.proposals.push(ProposalKey { proposer: Proposer::Task(u64::MAX), number: u64::MAX }).unwrap();
-    first.dependencies.push(OwnerTaskLink::Retained { chip: chip(17), at: Some(Wall::EPOCH) }).unwrap();
+    first.dependencies.push(TaskLink::Retained { chip: chip(17), at: Some(Wall::EPOCH) }).unwrap();
     let mut second = first.clone();
     second.chip.task = 10;
     second.parent = 9;
@@ -169,8 +169,8 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
     value.rows.push(second).unwrap();
     let mut metadata = crate::tests::tree::fragments::chip::details();
     metadata.closing_connectors = Some(List::with_capacity(CLIENT.client.rows));
-    *value.root.details = ChipPhase {
-        phase: OwnerChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
+    *value.root.details = ChipPhaseFacts {
+        phase: ChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
         details: Box::new(metadata),
     };
     value.root.phase = Phase::Running;
@@ -194,7 +194,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
             Box::new([english, selected]),
             &PhraseLimits {
                 languages: 2,
-                phrases: crate::words::owner_words::phrase_count(),
+                phrases: crate::words::document_words::phrase_count(),
                 holes: 4,
                 segments: crate::tests::english_phrase_segments(2),
                 text_bytes: 100_000,
@@ -283,19 +283,19 @@ fn owner_tree_departure_keeps_a_separately_named_deciding_card_until_its_answer_
             })
             .unwrap();
     let acts = crate::tests::kit::list([Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]);
-    let proposal = OwnerProposal {
+    let proposal = Proposal {
         key,
         project: 4,
         reason: DocumentText::complete(crate::tests::tree::cards::text(b"supplied pending reason")),
-        action: OwnerProposalAction::Release { task: OwnerTaskLink::Live(chip(9)), hold: None },
+        action: ProposalAction::Release { task: TaskLink::Live(chip(9)), hold: None },
         as_holder: true,
-        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Task(9), since: Wall::EPOCH },
+        waiting: ProposalWaiting { holder: HistoryHolder::Task(9), since: Wall::EPOCH },
         funding: List::with_capacity(0),
         acts,
     };
     drive(
         &mut d,
-        Watched { watch: proposal_watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(proposal))) },
+        Watched { watch: proposal_watch, event: WatchEvent::Delivered(Delivery::Proposal(Box::new(proposal))) },
     );
     let id = d.objects().find(ObjectKey::Proposal(key)).unwrap();
     drive(&mut d, Event::Act { action: ClientAct::Intend { object: id.token(), act: ActKind::Accept } });
@@ -319,10 +319,7 @@ fn owner_tree_departure_keeps_a_separately_named_deciding_card_until_its_answer_
     );
     drive(&mut d, Event::Act { action: ClientAct::Fold { object: row.token(), open: true } });
     value.rows.get_mut(0).unwrap().proposals.clear();
-    drive(
-        &mut d,
-        Watched { watch: tree_watch, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) },
-    );
+    drive(&mut d, Watched { watch: tree_watch, event: WatchEvent::Delivered(Delivery::Tree(Box::new(value.clone()))) });
     assert!(!d.objects().get(id).unwrap().sources.is_empty());
     assert!(d.task_page().plan.owner.as_ref().unwrap().rows.get(0).unwrap().proposals.is_empty());
     let pending = deciding_tree_page(&d);
@@ -332,11 +329,11 @@ fn owner_tree_departure_keeps_a_separately_named_deciding_card_until_its_answer_
         &mut d,
         AnsweredByEngine {
             request,
-            answer: Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::ProposalDecided {
                 proposal: key,
                 by: 1,
                 at: Wall::EPOCH,
-                choice: OwnerProposalChoice::Accepted,
+                choice: ProposalChoice::Accepted,
                 repeated: false,
             })),
         },
@@ -379,7 +376,7 @@ fn a_tree_keeps_a_waiting_card_held_by_another_source_after_its_row_leaves() {
     let card = crate::tree::pages::object_key(key);
     assert_eq!(deciding_tree_page(&domain).nodes().iter().filter(|node| node.key == Some(card)).count(), 1);
     value.rows.get_mut(0).unwrap().proposals.clear();
-    drive(&mut domain, Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value))) });
+    drive(&mut domain, Watched { watch, event: WatchEvent::Delivered(Delivery::Tree(Box::new(value))) });
     assert_eq!(deciding_tree_page(&domain).nodes().iter().filter(|node| node.key == Some(card)).count(), 1);
 }
 

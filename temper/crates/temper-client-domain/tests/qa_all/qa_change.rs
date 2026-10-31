@@ -121,19 +121,16 @@ mod tests {
         let mut task = jig_client_protocol_link::translate::documents::task(record, &link).expect("translated task");
         task.chip.task = TASK;
         task.project = 1;
-        task.chip.executor = c::Executor::Procedure { connector: FORGE, kind: 2 };
+        task.chip.executor = c::ChipExecutor::Procedure { connector: FORGE, kind: 2 };
         task.priority = None;
         task.goal = None;
         task.chip.phase = c::Phase::Active;
-        let c::ChipPhase { phase, details, .. } = task.chip.details.as_mut();
-        *phase = c::OwnerChipPhase::Active(c::RunStage::Idle);
+        let c::ChipPhaseFacts { phase, details, .. } = task.chip.details.as_mut();
+        *phase = c::ChipPhase::Active(c::RunStage::Idle);
         details.project = 1;
-        details.executor = c::OwnerExecutor::Procedure { connector: FORGE, code: 2 };
-        details.procedure = Some(c::OwnerPart {
-            connector: FORGE,
-            kind: c::OwnerPartKind::Procedure,
-            key: c::OwnerPartKey::Number(TASK),
-        });
+        details.executor = c::Executor::Procedure { connector: FORGE, code: 2 };
+        details.procedure =
+            Some(c::Part { connector: FORGE, kind: c::PartKind::Procedure, key: c::PartKey::Number(TASK) });
         details.observation = None;
         details.ending = None;
         details.live_delegates = 0;
@@ -207,7 +204,7 @@ mod tests {
         Some(*watch)
     }
     fn tree(document: &c::Task) -> c::Delivery {
-        c::Delivery::OwnerTree(Box::new(c::OwnerTree {
+        c::Delivery::Tree(Box::new(c::Tree {
             root: document.chip.clone(),
             rows: List::with_capacity(0),
             folded: List::with_capacity(0),

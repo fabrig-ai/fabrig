@@ -2,14 +2,14 @@
 use super::{Limits, c, fixtures, w};
 use crate::translate::programs as decode;
 use skein_lib::{List, Writer};
-fn login(name: &[u8], state: Option<w::OwnerProgramState>) -> w::OwnerProgramLogin {
-    w::OwnerProgramLogin::new(
+fn login(name: &[u8], state: Option<w::ProgramState>) -> w::ProgramLogin {
+    w::ProgramLogin::new(
         &w::CEILINGS,
-        w::OwnerProgramLoginParts { name: name.into(), state, sign_out: None, cleanup: false, cut: false },
+        w::ProgramLoginParts { name: name.into(), state, sign_out: None, cleanup: false, cut: false },
     )
     .expect("literal login")
 }
-fn piece(row: &w::OwnerProgramLogin) -> Box<[u8]> {
+fn piece(row: &w::ProgramLogin) -> Box<[u8]> {
     let mut out = Writer::new(usize::try_from(row.measure()).expect("measure").checked_add(4).expect("piece prefix"));
     out.put(&row.measure().to_be_bytes()).expect("prefix");
     row.encode(&mut out).expect("measured login");
@@ -17,30 +17,25 @@ fn piece(row: &w::OwnerProgramLogin) -> Box<[u8]> {
 }
 #[test]
 fn program_inventory_preserves_every_login_state() {
-    let failed = w::OwnerProgramFailed::new(
+    let failed = w::ProgramFailed::new(
         &w::CEILINGS,
-        w::OwnerProgramFailedParts { reason: w::OwnerProgramFailure::Deadline, detail: b"bounded".as_slice().into() },
+        w::ProgramFailedParts { reason: w::ProgramFailure::Deadline, detail: b"bounded".as_slice().into() },
     )
     .expect("failure");
-    let method = w::OwnerProgramOtherwise::new(
-        &w::CEILINGS,
-        w::OwnerProgramOtherwiseParts { method: b"api-key".as_slice().into() },
-    )
-    .expect("method");
+    let method =
+        w::ProgramOtherwise::new(&w::CEILINGS, w::ProgramOtherwiseParts { method: b"api-key".as_slice().into() })
+            .expect("method");
     for (wire, native) in [
         (None, None),
-        (Some(w::OwnerProgramState::Usable), Some(c::OwnerProgramState::Usable)),
-        (Some(w::OwnerProgramState::NotSignedIn), Some(c::OwnerProgramState::NotSignedIn)),
+        (Some(w::ProgramState::Usable), Some(c::ProgramState::Usable)),
+        (Some(w::ProgramState::NotSignedIn), Some(c::ProgramState::NotSignedIn)),
         (
-            Some(w::OwnerProgramState::SignedInOtherwise(method)),
-            Some(c::OwnerProgramState::SignedInOtherwise { method: b"api-key".as_slice().into() }),
+            Some(w::ProgramState::SignedInOtherwise(method)),
+            Some(c::ProgramState::SignedInOtherwise { method: b"api-key".as_slice().into() }),
         ),
         (
-            Some(w::OwnerProgramState::Failed(failed)),
-            Some(c::OwnerProgramState::Failed {
-                reason: c::OwnerProgramFailure::Deadline,
-                detail: b"bounded".as_slice().into(),
-            }),
+            Some(w::ProgramState::Failed(failed)),
+            Some(c::ProgramState::Failed { reason: c::ProgramFailure::Deadline, detail: b"bounded".as_slice().into() }),
         ),
     ] {
         let mut room = 4096;
@@ -57,14 +52,12 @@ fn malformed_program_names_are_refused() {
 }
 #[test]
 fn malformed_payment_methods_are_refused() {
-    let method = w::OwnerProgramOtherwise::new(
-        &w::CEILINGS,
-        w::OwnerProgramOtherwiseParts { method: b"bad method".as_slice().into() },
-    )
-    .expect("wire bytes");
+    let method =
+        w::ProgramOtherwise::new(&w::CEILINGS, w::ProgramOtherwiseParts { method: b"bad method".as_slice().into() })
+            .expect("wire bytes");
     let mut room = 4096;
     let result = decode::logins(
-        &piece(&login(b"personal", Some(w::OwnerProgramState::SignedInOtherwise(method)))),
+        &piece(&login(b"personal", Some(w::ProgramState::SignedInOtherwise(method)))),
         &fixtures::limits(),
         &mut room,
     );
@@ -72,35 +65,34 @@ fn malformed_payment_methods_are_refused() {
 }
 #[test]
 fn native_program_budget_accepts_its_exact_bound() {
-    let mut room = List::<c::OwnerProgramLogin>::price(1).expect("one row").checked_add(1).expect("name");
-    let rows = decode::logins(&piece(&login(b"p", Some(w::OwnerProgramState::Usable))), &fixtures::limits(), &mut room)
-        .unwrap();
+    let mut room = List::<c::ProgramLogin>::price(1).expect("one row").checked_add(1).expect("name");
+    let rows =
+        decode::logins(&piece(&login(b"p", Some(w::ProgramState::Usable))), &fixtures::limits(), &mut room).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(room, 0);
 }
 #[test]
 fn native_program_budget_refuses_one_byte_less() {
-    let mut room = List::<c::OwnerProgramLogin>::price(1).expect("one row");
-    let result =
-        decode::logins(&piece(&login(b"p", Some(w::OwnerProgramState::Usable))), &fixtures::limits(), &mut room);
+    let mut room = List::<c::ProgramLogin>::price(1).expect("one row");
+    let result = decode::logins(&piece(&login(b"p", Some(w::ProgramState::Usable))), &fixtures::limits(), &mut room);
     assert_eq!(result.err(), Some(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }));
 }
 
 #[test]
 fn program_lists_over_the_native_budget_are_refused() {
-    let one = piece(&login(b"p", Some(w::OwnerProgramState::Usable)));
+    let one = piece(&login(b"p", Some(w::ProgramState::Usable)));
     let mut bytes = Writer::new(one.len().checked_mul(2).expect("two pieces"));
     bytes.put(&one).expect("first");
     bytes.put(&one).expect("second");
-    let mut room = List::<c::OwnerProgramLogin>::price(1).expect("one row").checked_add(1).expect("name");
+    let mut room = List::<c::ProgramLogin>::price(1).expect("one row").checked_add(1).expect("name");
     let result = decode::logins(&bytes.finish(), &fixtures::limits(), &mut room);
     assert_eq!(result.err(), Some(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }));
 }
 #[test]
 fn configured_host_names_stay_whole_below_the_text_limit() {
-    let row = w::OwnerProgramHost::new(
+    let row = w::ProgramHost::new(
         &w::CEILINGS,
-        w::OwnerProgramHostParts {
+        w::ProgramHostParts {
             name: b"configured-worker".as_slice().into(),
             channel: 17,
             connected: true,
@@ -123,22 +115,22 @@ fn configured_host_names_stay_whole_below_the_text_limit() {
 
 #[test]
 fn a_host_rule_survives_wire_receipt() {
-    let person = w::OwnerHostPerson::new(&w::CEILINGS, w::OwnerHostPersonParts { party: 7 }).expect("person");
+    let person = w::HostPerson::new(&w::CEILINGS, w::HostPersonParts { party: 7 }).expect("person");
     for (rule, expected) in [
-        (w::OwnerHostRule::Open, c::HostRule::Open),
-        (w::OwnerHostRule::Person(person), c::HostRule::Person(7)),
-        (w::OwnerHostRule::Several, c::HostRule::Several),
-        (w::OwnerHostRule::Unknown, c::HostRule::Unknown),
+        (w::HostRule::Open, c::HostRule::Open),
+        (w::HostRule::Person(person), c::HostRule::Person(7)),
+        (w::HostRule::Several, c::HostRule::Several),
+        (w::HostRule::Unknown, c::HostRule::Unknown),
     ] {
-        let row = w::OwnerHost::new(
+        let row = w::Host::new(
             &w::CEILINGS,
-            w::OwnerHostParts {
+            w::HostParts {
                 name: None,
                 skein_bools: [false, false, true, false],
                 rule,
                 programs: Box::new([]),
                 channel: 17,
-                kind: w::OwnerHostKind::Worker,
+                kind: w::HostKind::Worker,
                 slots: 1,
                 used: 0,
                 free: 1,
@@ -153,9 +145,8 @@ fn a_host_rule_survives_wire_receipt() {
         row.encode(&mut bytes).expect("row");
         let mut room = 4096;
         let limits = fixtures::limits();
-        let rows =
-            crate::translate::documents::owner_host_piece(&bytes.finish(), &limits, limits.client().rows, &mut room)
-                .expect("host receipt");
+        let rows = crate::translate::documents::host_piece(&bytes.finish(), &limits, limits.client().rows, &mut room)
+            .expect("host receipt");
         assert_eq!(rows.get(0).expect("host").rule, expected);
     }
 }

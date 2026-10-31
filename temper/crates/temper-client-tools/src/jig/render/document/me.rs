@@ -198,7 +198,7 @@ pub(super) fn encode_offered(value: &jig_client::contract::Offered, out: &mut En
 }
 
 pub(super) fn encode_owner_authority(
-    value: &jig_client::contract::OwnerAuthority,
+    value: &jig_client::contract::Authority,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {

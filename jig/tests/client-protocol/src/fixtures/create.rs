@@ -13,7 +13,7 @@ pub fn create_tasks() -> List<c::NewTask> {
             .push(c::NewTask {
                 llm: None,
                 deadline: jig_client_domain::contract::NewDeadline::Named,
-                executor: c::OwnerExecutor::Agent { charter: 1 },
+                executor: c::Executor::Agent { charter: 1 },
                 spec: c::Specification {
                     asks: false,
                     words: c::Text::new(b"Work".as_slice().into(), 32).expect("bounded spec"),
@@ -21,18 +21,18 @@ pub fn create_tasks() -> List<c::NewTask> {
                     inputs: List::with_capacity(0),
                 },
                 contract: c::NewContract::Report { words: 8 },
-                authority: c::OwnerAuthority {
+                authority: c::Authority {
                     models: None,
                     tools: 0,
                     grants: List::with_capacity(0),
-                    delegation: c::OwnerDelegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
+                    delegation: c::Delegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
                     spend: if allowed { 0 } else { 10 },
                     deadline: None,
                     notes: 0,
                     note_resources: List::with_capacity(0),
                 },
                 budget: if allowed { c::NewBudget::AsAllowed { cap: Some(20) } } else { c::NewBudget::Named },
-                wake: Some(c::OwnerWakePolicy {
+                wake: Some(c::WakePolicy {
                     words: c::WakeRule::Immediate,
                     notices: c::WakeRule::Never,
                     news: c::WakeRule::Never,

@@ -35,13 +35,13 @@ fn a_whole_policy_edit_enters_as_one_request_and_a_duplicate_joins_that_request(
             Time::ZERO,
             AnsweredByEngine {
                 request: *request,
-                answer: Answer::Done(Outcome::Owner(OwnerOutcome::PolicyChanged { project: u32::MAX }))
+                answer: Answer::Done(Outcome::Document(DocumentOutcome::PolicyChanged { project: u32::MAX }))
             }
         )
         .is_empty()
     );
     assert_eq!(
         domain.intents().get(skein_lib::Id::from_token(domain.intent(*request))).unwrap().answer,
-        Some(Answer::Done(Outcome::Owner(OwnerOutcome::PolicyChanged { project: u32::MAX })))
+        Some(Answer::Done(Outcome::Document(DocumentOutcome::PolicyChanged { project: u32::MAX })))
     );
 }

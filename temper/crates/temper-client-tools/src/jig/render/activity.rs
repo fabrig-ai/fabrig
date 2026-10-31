@@ -49,39 +49,39 @@ fn replay(call: &Call, out: &mut Text) {
     }
 }
 
-fn line(row: &c::ActivityLine, task: u64, call: &Call, limits: &Limits, out: &mut Text) {
+fn line(row: &c::DecodedActivityLine, task: u64, call: &Call, limits: &Limits, out: &mut Text) {
     match &row.decoded {
         Some(value) => turn::text(task, value.name, &value.turn, call, limits, out),
         None => owner(&row.source, out),
     }
 }
-fn owner(row: &c::OwnerActivityLine, out: &mut Text) {
+fn owner(row: &c::ActivityLine, out: &mut Text) {
     out.number(row.position);
     out.put(b" \xc2\xb7 ");
     match &row.line {
-        c::OwnerActivity::Words { words, .. } => out.words(words.bytes()),
-        c::OwnerActivity::Heard(word) | c::OwnerActivity::Notified { word, .. } => out.words(word.words.bytes()),
-        c::OwnerActivity::RunBegan { attempt, .. } => {
+        c::Activity::Words { words, .. } => out.words(words.bytes()),
+        c::Activity::Heard(word) | c::Activity::Notified { word, .. } => out.words(word.words.bytes()),
+        c::Activity::RunBegan { attempt, .. } => {
             out.put(b"run ");
             out.number(*attempt);
             out.put(b" began");
         }
-        c::OwnerActivity::RunEnded { attempt, .. } => {
+        c::Activity::RunEnded { attempt, .. } => {
             out.put(b"run ");
             out.number(*attempt);
             out.put(b" ended");
         }
-        c::OwnerActivity::Turn { attempt, turn: number, .. } => {
+        c::Activity::Turn { attempt, turn: number, .. } => {
             out.put(b"turn ");
             turn::name(c::TurnName { attempt: *attempt, number: *number }, out);
             out.put(b" unreadable");
         }
-        c::OwnerActivity::Decided { revision } => {
+        c::Activity::Decided { revision } => {
             out.put(b"decision ");
             out.number(*revision);
         }
-        c::OwnerActivity::Kept { .. } => out.put(b"parked"),
-        c::OwnerActivity::Milestone { .. } => out.put(b"phase changed"),
+        c::Activity::Kept { .. } => out.put(b"parked"),
+        c::Activity::Milestone { .. } => out.put(b"phase changed"),
     }
     out.put(b"\n");
 }
@@ -147,17 +147,17 @@ pub(super) fn run(delivery: &c::Delivery, text: Option<&c::RunText>, out: &mut T
             }
         }
 
-        c::Delivery::OwnerProject(_)
+        c::Delivery::Project(_)
         | c::Delivery::Me(_)
         | c::Delivery::Task(_)
-        | c::Delivery::OwnerProposal(_)
-        | c::Delivery::OwnerTree(_)
+        | c::Delivery::Proposal(_)
+        | c::Delivery::Tree(_)
         | c::Delivery::Chips(_)
-        | c::Delivery::OwnerInbox(_)
+        | c::Delivery::Inbox(_)
         | c::Delivery::Tasks(_)
         | c::Delivery::Settings(_)
-        | c::Delivery::OwnerDeployment(_)
-        | c::Delivery::OwnerAccounts(_) => unreachable!("run watch delivers a run"),
+        | c::Delivery::Deployment(_)
+        | c::Delivery::Accounts(_) => unreachable!("run watch delivers a run"),
     }
     if let Some(text) = text {
         out.put(b"provisional: ");

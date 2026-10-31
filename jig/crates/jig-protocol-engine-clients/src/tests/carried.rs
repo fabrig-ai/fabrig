@@ -185,7 +185,7 @@ fn every_carrying_request_names_its_values_kind() {
     rows.push((carrying(family(), value), crate::CarriedKind::Value)).expect("application row");
     for (change, kind) in changes {
         let ask = w::Ask::AccountChange(
-            w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AccountHolder::Own, change })
+            w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
                 .expect("account change"),
         );
         rows.push((keyed_value(w::Owner::Jig, 19, f::encode_ask(&ask), value), kind)).expect("account row");

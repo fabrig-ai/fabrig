@@ -14,7 +14,7 @@ fn task() -> c::NewTask {
     c::NewTask {
         llm: None,
         deadline: jig_client_domain::contract::NewDeadline::Named,
-        executor: c::OwnerExecutor::Person(c::PersonAddress::Role(PERSON_ROLE)),
+        executor: c::Executor::Person(c::PersonAddress::Role(PERSON_ROLE)),
         spec: c::Specification {
             asks: false,
             words: c::Text::new(b"Forged".as_slice().into(), SPEC_WORDS).expect("bounded specification"),
@@ -22,11 +22,11 @@ fn task() -> c::NewTask {
             inputs: List::with_capacity(0),
         },
         contract: c::NewContract::Report { words: RESULT_WORDS },
-        authority: c::OwnerAuthority {
+        authority: c::Authority {
             models: None,
             tools: 0,
             grants: List::with_capacity(0),
-            delegation: c::OwnerDelegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
+            delegation: c::Delegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
             spend: 0,
             deadline: None,
             notes: 0,

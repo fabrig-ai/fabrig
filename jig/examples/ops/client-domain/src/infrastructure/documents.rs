@@ -2,7 +2,7 @@
 //! Replace: infrastructure resources, procedures and the application's own forms.
 //! The owner supplies prices, end facts and drift (examples.md, 3 and 8).
 use alloc::boxed::Box;
-use jig_client::contract::{ObjectKey, Part, ProposalKey, Revision};
+use jig_client::contract::{ApplicationPart, ObjectKey, ProposalKey, Revision};
 use skein_lib::List;
 /// Scope supplied with every read and watch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -123,28 +123,32 @@ pub enum WatchEnd {
 }
 /// The subject for a part; resources and kinds need words only.
 #[must_use]
-pub fn subject(part: &Part, scope: Scope) -> Option<Subject> {
+pub fn subject(part: &ApplicationPart, scope: Scope) -> Option<Subject> {
     let kind = match part {
-        Part::Panel { task, .. } => Kind::Panel(*task),
-        Part::Result { task, .. } => Kind::Result(*task),
-        Part::Effect { proposal, .. } => Kind::Effect(*proposal),
-        Part::OwnerEffect { proposal, .. } => match scope {
+        ApplicationPart::Panel { task, .. } => Kind::Panel(*task),
+        ApplicationPart::Result { task, .. } => Kind::Result(*task),
+        ApplicationPart::Effect { proposal, .. } => Kind::Effect(*proposal),
+        ApplicationPart::OwnerEffect { proposal, .. } => match scope {
             Scope::Project(_) => Kind::OwnerEffect(*proposal),
             Scope::Deployment => return None,
         },
-        Part::Outbox { scope, entry, .. } => {
+        ApplicationPart::Outbox { scope, entry, .. } => {
             let scope = match scope {
                 jig_client::contract::PartScope::Project(project) => Scope::Project(*project),
                 jig_client::contract::PartScope::Deployment => Scope::Deployment,
             };
             return Some(Subject { scope, kind: Kind::Outbox(*entry) });
         }
-        Part::Hold { task, .. } => Kind::Hold(*task),
-        Part::Project { project, .. } => {
+        ApplicationPart::Hold { task, .. } => Kind::Hold(*task),
+        ApplicationPart::Project { project, .. } => {
             return Some(Subject { scope: Scope::Project(*project), kind: Kind::Project(*project) });
         }
-        Part::Deployment { .. } => return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment }),
-        Part::Connector { .. } | Part::Resource { .. } | Part::Kind { .. } => return None,
+        ApplicationPart::Deployment { .. } => {
+            return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment });
+        }
+        ApplicationPart::Connector { .. } | ApplicationPart::Resource { .. } | ApplicationPart::Kind { .. } => {
+            return None;
+        }
     };
     Some(Subject { scope, kind })
 }

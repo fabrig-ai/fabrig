@@ -72,7 +72,7 @@ fn frame_tree_uses_supplied_totals_goal_list_loss_and_all_pool_ledger_facts() {
     let ledger = PoolLedger {
         source: Funder::Pool { project: u32::MAX, person: u64::MAX, period: u64::MAX },
         parent: Some(Funder::Period { project: 18, period: 19 }),
-        numbers: OwnerNumbers { budget: 101, spent: 7, spent_below: 11, reserved: 13 },
+        numbers: Numbers { budget: 101, spent: 7, spent_below: 11, reserved: 13 },
         left: 17,
         closed: true,
         began: Some(Wall::from_nanos(60_000_000_000)),

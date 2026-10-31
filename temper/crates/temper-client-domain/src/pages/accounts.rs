@@ -14,7 +14,7 @@ pub use ways::{Way, ways};
 pub const KEY_BYTES: usize = 4096;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Row {
-    pub holder: c::AccountHolder,
+    pub holder: c::AskAccountHolder,
     pub account: u32,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,13 +33,13 @@ pub fn handle() -> Handle {
 
 /// Missing, behind and ended watches are unknown, rather than false availability.
 #[must_use]
-pub fn document(client: &Client) -> Option<&c::OwnerAccounts> {
+pub fn document(client: &Client) -> Option<&c::Accounts> {
     current_me(client)?;
     let doc = client.document(handle())?;
     if doc.state != State::Live {
         return None;
     }
-    if let Latest::Jig(c::Delivery::OwnerAccounts(accounts)) = doc.latest? { Some(accounts) } else { None }
+    if let Latest::Jig(c::Delivery::Accounts(accounts)) = doc.latest? { Some(accounts) } else { None }
 }
 
 #[derive(Debug)]
@@ -64,7 +64,7 @@ impl Accounts {
 
     pub(crate) fn configure(&mut self, owner: bool, next: &mut u64, out: &mut Queue<Request>) {
         let deployment_key = match self.key_for {
-            Some((row, _)) => row.holder == c::AccountHolder::Deployment,
+            Some((row, _)) => row.holder == c::AskAccountHolder::Deployment,
             None => false,
         };
         if !owner && self.deployment.is_some() && deployment_key {
@@ -95,7 +95,7 @@ impl Accounts {
     }
 
     #[must_use]
-    pub fn deployment<'a>(&self, client: &'a Client) -> Option<&'a c::OwnerDeployment> {
+    pub fn deployment<'a>(&self, client: &'a Client) -> Option<&'a c::Deployment> {
         if current_me(client)?.deployment_role != Some(c::HeldRole::Owner) {
             return None;
         }
@@ -103,7 +103,7 @@ impl Accounts {
         if doc.state != State::Live {
             return None;
         }
-        if let Latest::Jig(c::Delivery::OwnerDeployment(deployment)) = doc.latest? { Some(deployment) } else { None }
+        if let Latest::Jig(c::Delivery::Deployment(deployment)) = doc.latest? { Some(deployment) } else { None }
     }
 }
 

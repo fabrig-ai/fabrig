@@ -36,9 +36,9 @@ pub enum JigMeaning {
     /// Description search changes the current note scope only.
     NoteSearch { filter: crate::state::page::project::NoteFilter },
     /// A connector-owned part referred to by a slot, never an actionable node.
-    Part(jig_client::contract::Part),
+    ApplicationPart(jig_client::contract::ApplicationPart),
     /// A whole exact owner reference, with literal path segment boundaries.
-    OwnerPart(jig_client::contract::OwnerPart),
+    Part(jig_client::contract::Part),
 }
 #[derive(Debug)]
 struct Entry {
@@ -79,12 +79,12 @@ impl JigBindings {
     }
     /// Resolve a part slot's token for its connector's view root.
     #[must_use]
-    pub fn part(&self, token: Token) -> Option<&jig_client::contract::Part> {
+    pub fn part(&self, token: Token) -> Option<&jig_client::contract::ApplicationPart> {
         for entry in &self.entries {
             if entry.token == token {
                 match &entry.meaning {
-                    JigMeaning::Part(part) => return Some(part),
-                    JigMeaning::OwnerPart(_)
+                    JigMeaning::ApplicationPart(part) => return Some(part),
+                    JigMeaning::Part(_)
                     | JigMeaning::Action(_)
                     | JigMeaning::Field(_)
                     | JigMeaning::TaskNumber
@@ -102,12 +102,12 @@ impl JigBindings {
     }
     /// Resolve an exact reference slot's raw key; scope is supplied by its producer.
     #[must_use]
-    pub fn owner_part(&self, token: Token) -> Option<&jig_client::contract::OwnerPart> {
+    pub fn owner_part(&self, token: Token) -> Option<&jig_client::contract::Part> {
         for entry in &self.entries {
             if entry.token == token {
                 match &entry.meaning {
-                    JigMeaning::OwnerPart(part) => return Some(part),
-                    JigMeaning::Part(_)
+                    JigMeaning::Part(part) => return Some(part),
+                    JigMeaning::ApplicationPart(_)
                     | JigMeaning::Action(_)
                     | JigMeaning::Field(_)
                     | JigMeaning::TaskNumber
@@ -175,8 +175,8 @@ impl JigBindings {
                     },
                     JigMeaning::Field(_)
                     | JigMeaning::TaskNumber
+                    | JigMeaning::ApplicationPart(_)
                     | JigMeaning::Part(_)
-                    | JigMeaning::OwnerPart(_)
                     | JigMeaning::Priority
                     | JigMeaning::Amendment { .. }
                     | JigMeaning::ProjectSetting { .. }
@@ -197,7 +197,7 @@ pub fn decode(view: &mut JigBindings, token: Token, act: Act) -> Option<crate::s
     for entry in &view.entries {
         if entry.token == token {
             return match &entry.meaning {
-                JigMeaning::Part(_) | JigMeaning::OwnerPart(_) => None,
+                JigMeaning::ApplicationPart(_) | JigMeaning::Part(_) => None,
                 JigMeaning::ProjectPoolBudget { project, party } => match act {
                     Act::Input { value } => {
                         Some(crate::state::page::project::owner_form::action(jig_client::contract::Ask::SetPool {

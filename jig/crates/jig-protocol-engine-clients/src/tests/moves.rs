@@ -8,7 +8,7 @@ use skein_lib::{ReplyTo, Secret, Token, Writer};
 
 fn change(change: w::AccountChange) -> w::Ask {
     w::Ask::AccountChange(
-        w::AskAccountChange::new(&f::wire(), w::AskAccountChangeParts { holder: w::AccountHolder::Own, change })
+        w::AskAccountChange::new(&f::wire(), w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
             .unwrap(),
     )
 }
@@ -179,8 +179,8 @@ fn a_move_in_keeps_its_value_and_erases_a_replays_unused_value() {
         }
         exchange.reply(reply_to, p::Reply::Outcome(p::Outcome::AccountMovedIn { account: 19, renewed: false }));
         let w::Final::Done(done) = exchange.final_answer(owner) else { panic!("moved in") };
-        let w::Outcome::Owner(outcome) = done.outcome() else { panic!("owner outcome") };
-        let w::OwnerOutcome::AccountMovedIn(row) = outcome.value() else { panic!("moved-in outcome") };
+        let w::Outcome::Document(outcome) = done.outcome() else { panic!("owner outcome") };
+        let w::DocumentOutcome::AccountMovedIn(row) = outcome.value() else { panic!("moved-in outcome") };
         assert_eq!(row.account(), 19);
         assert!(!row.renewed());
         assert!(exchange.out.is_empty());

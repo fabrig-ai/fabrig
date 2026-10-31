@@ -14,16 +14,16 @@ pub fn decoded_turn(words: &[u8], cut: bool) -> c::TurnRead {
         cut,
     })
 }
-pub fn expected_activity_rows(rows: List<c::ActivityLine>) -> c::ActivityPage {
+pub fn expected_activity_rows(rows: List<c::DecodedActivityLine>) -> c::ActivityPage {
     c::ActivityPage { rows, cut: true, before: None, after: Some(raw_cursor(UTF8_TEXTS[0])) }
 }
-pub fn expected_turn_line(position: u64, at: u64, number: u32, turn: c::TurnRead) -> c::ActivityLine {
-    c::ActivityLine {
-        source: Box::new(c::OwnerActivityLine {
+pub fn expected_turn_line(position: u64, at: u64, number: u32, turn: c::TurnRead) -> c::DecodedActivityLine {
+    c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
             task: 7,
             position,
             at: Wall::from_nanos(at),
-            line: c::OwnerActivity::Turn {
+            line: c::Activity::Turn {
                 reply: position,
                 attempt: (c::TurnName { attempt: 44, number }).attempt,
                 turn: (c::TurnName { attempt: 44, number }).number,
@@ -71,7 +71,7 @@ pub fn cut_activity_record() -> w::ActivityPage {
 pub fn cut_activity_page() -> c::ActivityPage {
     expected_one_activity_line(expected_turn_line(10, 20, 1, decoded_turn(b"ab", true)))
 }
-pub fn expected_one_activity_line(row: c::ActivityLine) -> c::ActivityPage {
+pub fn expected_one_activity_line(row: c::DecodedActivityLine) -> c::ActivityPage {
     let mut rows = List::with_capacity(1);
     rows.push(row).unwrap();
     expected_activity_rows(rows)
@@ -80,18 +80,18 @@ pub fn expected_one_activity_line(row: c::ActivityLine) -> c::ActivityPage {
 pub fn archived_activity_record() -> w::ActivityPage {
     jig_client_test_records::archived_activity_record()
 }
-pub fn owner_turn_activity_record(turn: Option<w::TurnBytes>) -> w::ActivityPage {
+pub fn turn_activity_record(turn: Option<w::TurnBytes>) -> w::ActivityPage {
     jig_client_test_records::owner_turn_activity_record(turn)
 }
 pub fn archived_activity_page() -> c::ActivityPage {
     archived_activity_page_with_problem(c::TurnProblem::Version { found: 4 })
 }
 fn archived_activity_page_with_problem(why: c::TurnProblem) -> c::ActivityPage {
-    let source = c::OwnerActivityLine {
+    let source = c::ActivityLine {
         task: 7,
         position: 88,
         at: Wall::from_nanos(66),
-        line: c::OwnerActivity::Turn { reply: 999, attempt: 44, turn: 3, read: Some(77) },
+        line: c::Activity::Turn { reply: 999, attempt: 44, turn: 3, read: Some(77) },
     };
     let decoded = c::ArchivedTurn {
         task: 7,
@@ -101,7 +101,7 @@ fn archived_activity_page_with_problem(why: c::TurnProblem) -> c::ActivityPage {
         at: Wall::from_nanos(99),
         turn: c::TurnRead::Undecodable { why },
     };
-    expected_one_activity_line(c::ActivityLine { source: Box::new(source), decoded: Some(decoded) })
+    expected_one_activity_line(c::DecodedActivityLine { source: Box::new(source), decoded: Some(decoded) })
 }
 
 pub fn turn_limits(text: u32, document_bytes: u64) -> Limits {
@@ -118,15 +118,15 @@ const UTF8_TEXTS: [&[u8]; 1] = [b"~\0\x01"];
 // One byte above the wire's carried-turn ceiling; the marker reports the original size.
 pub const MARKER_BYTES: u64 = 8 * 1024 * 1024 + 1;
 
-pub fn owner_turn_pages() -> [(&'static str, w::ActivityPage, c::ActivityPage); 2] {
+pub fn turn_pages() -> [(&'static str, w::ActivityPage, c::ActivityPage); 2] {
     let large = w::TurnTooLarge::new(&w::CEILINGS, w::TurnTooLargeParts { bytes: MARKER_BYTES }).unwrap();
     [
         (
             "too large",
-            owner_turn_activity_record(Some(w::TurnBytes::TooLarge(large))),
+            turn_activity_record(Some(w::TurnBytes::TooLarge(large))),
             archived_activity_page_with_problem(c::TurnProblem::TooLarge { bytes: MARKER_BYTES }),
         ),
-        ("unread", owner_turn_activity_record(None), {
+        ("unread", turn_activity_record(None), {
             let mut page = archived_activity_page();
             page.rows.get_mut(0).unwrap().decoded = None;
             page

@@ -42,7 +42,7 @@ pub fn failed_result() -> d::ResultDoc {
         cut: true,
     }
 }
-pub fn historical_task() -> reads::Ended {
+pub fn ended_task() -> reads::Ended {
     reads::Ended {
         value: reads::EndedValue::Task { document: Box::new(task_with_hold()), result: Box::new(failed_result()) },
         at: Some(Wall::from_nanos(67)),

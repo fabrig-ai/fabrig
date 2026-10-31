@@ -49,19 +49,19 @@ pub enum Subject {
 pub enum Delivery {
     Settings(Box<super::SettingsDocument>),
     /// Whole authentic project owner document.
-    OwnerProject(Box<super::OwnerProject>),
+    Project(Box<super::Project>),
     /// The frame.
     Me(Box<Me>),
     /// A task.
     Task(Box<Task>),
     /// Whole supplied pending owner proposal.
-    OwnerProposal(Box<super::OwnerProposal>),
+    Proposal(Box<super::Proposal>),
     /// Whole subtree owner facts.
-    OwnerTree(Box<super::OwnerTree>),
+    Tree(Box<super::Tree>),
     /// The named chips.
     Chips(List<Chip>),
     /// Whole exact owner Inbox, preserving both allocated groups.
-    OwnerInbox(Box<super::OwnerInbox>),
+    Inbox(Box<super::Inbox>),
     /// Filtered live project tasks.
     Tasks(Box<super::Tasks>),
     /// Whole current run, including a call independent of provisional writing.
@@ -69,9 +69,9 @@ pub enum Delivery {
     /// Provisional text delivered by the stream, independent of owner documents.
     Run(Box<RunText>),
     /// Whole deployment-owned facts and diagnostics.
-    OwnerDeployment(Box<super::OwnerDeployment>),
+    Deployment(Box<super::Deployment>),
     /// Whole party account facts.
-    OwnerAccounts(Box<super::OwnerAccounts>),
+    Accounts(Box<super::Accounts>),
 }
 
 /// Current owner run state; absent writing does not assert a call ended.

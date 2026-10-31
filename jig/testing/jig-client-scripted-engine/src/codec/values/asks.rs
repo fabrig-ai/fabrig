@@ -1,7 +1,7 @@
 //! Wire projections of asks facts (client/domain/testing.md, 4).
 use super::super::{c, list, w};
 use super::{
-    wire_note_scope, wire_outcome_moved_to_newest, wire_outcome_settings_changed, wire_owner_outcome,
+    wire_document_outcome, wire_note_scope, wire_outcome_moved_to_newest, wire_outcome_settings_changed,
     wire_person_address, wire_revision,
 };
 pub(in crate::codec) fn wire_address_change(
@@ -38,9 +38,9 @@ pub(in crate::codec) fn wire_outcome(value: &c::Outcome, limits: &w::Limits) -> 
             w::Outcome::SettingsChanged(wire_outcome_settings_changed(value, limits)?)
         }
         c::Outcome::MovedToNewest(value) => w::Outcome::MovedToNewest(wire_outcome_moved_to_newest(value, limits)?),
-        c::Outcome::Owner(value) => w::Outcome::Owner(w::OutcomeOwner::new(
+        c::Outcome::Document(value) => w::Outcome::Document(w::OutcomeDocument::new(
             limits,
-            w::OutcomeOwnerParts { value: wire_owner_outcome(value, limits)? },
+            w::OutcomeDocumentParts { value: wire_document_outcome(value, limits)? },
         )?),
         c::Outcome::Made { what } => {
             w::Outcome::Made(w::OutcomeMade::new(limits, w::OutcomeMadeParts { what: wire_made(what, limits)? })?)

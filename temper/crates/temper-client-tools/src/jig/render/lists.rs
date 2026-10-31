@@ -53,29 +53,29 @@ pub(super) fn chip(chip: &c::Chip, book: &Phrasebook, out: &mut Text) {
 pub(super) fn tree(delivery: &c::Delivery, project: Option<u32>, book: &Phrasebook, out: &mut Text) {
     out.put(b"tree:\n");
     match delivery {
-        c::Delivery::OwnerTree(tree) => {
+        c::Delivery::Tree(tree) => {
             chip(&tree.root, book, out);
             for row in &tree.rows {
                 chip(&row.chip, book, out);
             }
             tree_cut(tree, project, book, out);
         }
-        c::Delivery::OwnerProject(_)
+        c::Delivery::Project(_)
         | c::Delivery::Me(_)
         | c::Delivery::Task(_)
-        | c::Delivery::OwnerProposal(_)
+        | c::Delivery::Proposal(_)
         | c::Delivery::Chips(_)
-        | c::Delivery::OwnerInbox(_)
+        | c::Delivery::Inbox(_)
         | c::Delivery::Tasks(_)
         | c::Delivery::Run(_)
         | c::Delivery::RunState(_)
         | c::Delivery::Settings(_)
-        | c::Delivery::OwnerDeployment(_)
-        | c::Delivery::OwnerAccounts(_) => unreachable!("tree watch delivers a tree"),
+        | c::Delivery::Deployment(_)
+        | c::Delivery::Accounts(_) => unreachable!("tree watch delivers a tree"),
     }
 }
 // The owner's counters retain their field order, independently of visible rows.
-fn tree_cut(tree: &c::OwnerTree, _project: Option<u32>, book: &Phrasebook, out: &mut Text) {
+fn tree_cut(tree: &c::Tree, _project: Option<u32>, book: &Phrasebook, out: &mut Text) {
     let mut counts = [0u64; 10];
     for fold in &tree.folded {
         let p = fold.phases;
@@ -127,7 +127,7 @@ fn tree_cut(tree: &c::OwnerTree, _project: Option<u32>, book: &Phrasebook, out: 
     }
     out.put(b"); read on with: ");
     let project = {
-        let c::ChipPhase { details, .. } = tree.root.details.as_ref();
+        let c::ChipPhaseFacts { details, .. } = tree.root.details.as_ref();
         details.project
     };
     let values = Box::new([
@@ -223,10 +223,10 @@ pub(super) fn inboxes(reading: &Reading, limits: &crate::jig::Limits, book: &Phr
             continue;
         }
         match page {
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page))) => {
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => {
                 for row in page.rows.as_slice().iter().take(usize::try_from(rows).expect("rows fit")) {
                     owner_inbox_row(row, book, out);
-                    if let c::OwnerInboxObject::Question { message } = row.object {
+                    if let c::InboxObject::Question { message } = row.object {
                         question(reading, (row.task.number(), message), out);
                     }
                 }
@@ -268,7 +268,7 @@ pub(super) fn inbox_cursor(reading: &Reading, rows: u32) -> Option<c::Cursor> {
 }
 fn inbox_page(page: &Readout) -> (u32, Option<&c::Cursor>) {
     match page {
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page))) => (page.rows.len(), page.after.as_ref()),
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => (page.rows.len(), page.after.as_ref()),
         Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {
             unreachable!("validated inbox page")
         }
@@ -284,10 +284,10 @@ fn group_cursor(group: u8, after: Option<&c::Cursor>) -> c::Cursor {
     bytes.put(after).expect("whole cursor");
     c::Cursor::new(bytes.finish(), u32::MAX).expect("bounded cursor")
 }
-pub(super) fn owner_inbox_row(row: &c::OwnerInboxEntry, book: &Phrasebook, out: &mut Text) {
+pub(super) fn owner_inbox_row(row: &c::InboxEntry, book: &Phrasebook, out: &mut Text) {
     object(row.card_key(), out);
-    if let c::OwnerTaskLink::Live(chip) | c::OwnerTaskLink::Retained { chip, .. } = &row.task
-        && let c::OwnerChipPhase::Held { reason: c::HoldCategory::Budget, .. } = (&(chip.details.as_ref()).phase)
+    if let c::TaskLink::Live(chip) | c::TaskLink::Retained { chip, .. } = &row.task
+        && let c::ChipPhase::Held { reason: c::HoldCategory::Budget, .. } = (&(chip.details.as_ref()).phase)
     {
         super::document::budget_hold_text(chip.task, book, out);
     }

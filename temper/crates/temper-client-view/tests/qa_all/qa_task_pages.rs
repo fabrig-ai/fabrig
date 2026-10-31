@@ -121,19 +121,16 @@ mod tests {
         let mut task = jig_client_protocol_link::translate::documents::task(record, &link).expect("translated task");
         task.chip.task = TASK;
         task.project = 1;
-        task.chip.executor = c::Executor::Procedure { connector: FORGE, kind: 2 };
+        task.chip.executor = c::ChipExecutor::Procedure { connector: FORGE, kind: 2 };
         task.priority = None;
         task.goal = None;
         task.chip.phase = c::Phase::Active;
-        let c::ChipPhase { phase, details, .. } = task.chip.details.as_mut();
-        *phase = c::OwnerChipPhase::Active(c::RunStage::Idle);
+        let c::ChipPhaseFacts { phase, details, .. } = task.chip.details.as_mut();
+        *phase = c::ChipPhase::Active(c::RunStage::Idle);
         details.project = 1;
-        details.executor = c::OwnerExecutor::Procedure { connector: FORGE, code: 2 };
-        details.procedure = Some(c::OwnerPart {
-            connector: FORGE,
-            kind: c::OwnerPartKind::Procedure,
-            key: c::OwnerPartKey::Number(TASK),
-        });
+        details.executor = c::Executor::Procedure { connector: FORGE, code: 2 };
+        details.procedure =
+            Some(c::Part { connector: FORGE, kind: c::PartKind::Procedure, key: c::PartKey::Number(TASK) });
         details.observation = None;
         details.ending = None;
         details.live_delegates = 0;
@@ -206,7 +203,7 @@ mod tests {
         (root, task_watch, tree_watch, after)
     }
     fn tree(document: &c::Task) -> c::Delivery {
-        c::Delivery::OwnerTree(Box::new(c::OwnerTree {
+        c::Delivery::Tree(Box::new(c::Tree {
             root: document.chip.clone(),
             rows: List::with_capacity(0),
             folded: List::with_capacity(0),
@@ -257,14 +254,14 @@ mod tests {
         task.chip.title = c::DocumentText::complete(
             c::Text::new(format!("ended child {number}").into_bytes().into(), 32).expect("title"),
         );
-        task.chip.executor = c::Executor::Agent { charter: 1 };
-        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
-        details.executor = c::OwnerExecutor::Agent { charter: 1 };
+        task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
+        details.executor = c::Executor::Agent { charter: 1 };
         details.procedure = None;
         c::TaskLine {
             chip: task.chip,
             project: 1,
-            requester: c::OwnerRequester::Task(parent),
+            requester: c::Requester::Task(parent),
             tracked: None,
             label: task.label,
             flags: task.flags,
@@ -273,7 +270,7 @@ mod tests {
             ended_at: Some(Wall::EPOCH),
             budget: task.budget,
             waits_on: c::WaitsOn::Nothing,
-            phases: c::OwnerPhaseCounts::ZERO,
+            phases: c::PhaseCounts::ZERO,
             held_below: 0,
             conversation: None,
         }
@@ -282,20 +279,20 @@ mod tests {
     fn words(bytes: &[u8]) -> c::DocumentText {
         c::DocumentText::complete(c::Text::new(bytes.into(), 32).expect("fixture words fit"))
     }
-    fn phase(task: &mut c::Task, value: c::OwnerChipPhase) {
+    fn phase(task: &mut c::Task, value: c::ChipPhase) {
         task.chip.phase = value.compact();
-        let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
+        let c::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
         *phase = value;
     }
-    fn details(task: &mut c::Task) -> &mut c::OwnerChipDetails {
-        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
+    fn details(task: &mut c::Task) -> &mut c::ChipDetails {
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
         details
     }
     fn agent() -> c::Task {
         let mut task = document();
-        phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Idle));
-        task.chip.executor = c::Executor::Agent { charter: 1 };
-        details(&mut task).executor = c::OwnerExecutor::Agent { charter: 1 };
+        phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+        task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+        details(&mut task).executor = c::Executor::Agent { charter: 1 };
         details(&mut task).procedure = None;
         details(&mut task).attempt = None;
         details(&mut task).run_since = None;
@@ -317,10 +314,10 @@ mod tests {
         task
     }
     fn end(task: &mut c::Task) {
-        finish(task, c::OwnerChipEnding::Failed(words(b"ended")));
+        finish(task, c::ChipEnding::Failed(words(b"ended")));
     }
-    fn finish(task: &mut c::Task, ending: c::OwnerChipEnding) {
-        phase(task, c::OwnerChipPhase::Ended);
+    fn finish(task: &mut c::Task, ending: c::ChipEnding) {
+        phase(task, c::ChipPhase::Ended);
         details(task).ending = Some(ending.clone());
         details(task).ended_at = Some(Wall::EPOCH);
         task.result = Some(c::TaskResult::Ending(Box::new(ending)));
@@ -453,7 +450,7 @@ mod tests {
         child.chip.task = 21;
         child.chip.title = words(b"Tree row takes precedence");
         let mut rows = List::with_capacity(1);
-        rows.push(c::OwnerTreeRow {
+        rows.push(c::TreeRow {
             chip: child.chip,
             parent: TASK,
             depth: 1,
@@ -466,7 +463,7 @@ mod tests {
         drop(deliver(
             &mut root,
             tree_watch,
-            c::Delivery::OwnerTree(Box::new(c::OwnerTree {
+            c::Delivery::Tree(Box::new(c::Tree {
                 root: task.chip,
                 rows,
                 folded: List::with_capacity(0),
@@ -486,9 +483,9 @@ mod tests {
     #[test]
     fn agent_lineage_falls_back_only_to_a_task_requester() {
         for (requester, parent) in [
-            (c::OwnerRequester::Task(12), Some("Task 12")),
-            (c::OwnerRequester::Person(73), None),
-            (c::OwnerRequester::Deployment { project: 1 }, None),
+            (c::Requester::Task(12), Some("Task 12")),
+            (c::Requester::Person(73), None),
+            (c::Requester::Deployment { project: 1 }, None),
         ] {
             let mut task = agent();
             task.requester = requester;
@@ -515,11 +512,11 @@ mod tests {
     fn agent_run_headings_follow_phase_even_without_observed_work() {
         let since = Wall::from_nanos(1_792_640_880_000_000_000);
         for (value, expected) in [
-            (c::OwnerChipPhase::Active(c::RunStage::Claimed { attempt: 2 }), "Run 2 · live now"),
-            (c::OwnerChipPhase::Active(c::RunStage::Running { attempt: 2 }), "Run 2 · live now"),
-            (c::OwnerChipPhase::Closing(c::ClosingStage::Run { attempt: 2 }), "Run 2 · live now"),
-            (c::OwnerChipPhase::Closing(c::ClosingStage::Delegates), "Run 2 · waiting"),
-            (c::OwnerChipPhase::Active(c::RunStage::BackingOff { until: since }), "Run 2 · waiting"),
+            (c::ChipPhase::Active(c::RunStage::Claimed { attempt: 2 }), "Run 2 · live now"),
+            (c::ChipPhase::Active(c::RunStage::Running { attempt: 2 }), "Run 2 · live now"),
+            (c::ChipPhase::Closing(c::ClosingStage::Run { attempt: 2 }), "Run 2 · live now"),
+            (c::ChipPhase::Closing(c::ClosingStage::Delegates), "Run 2 · waiting"),
+            (c::ChipPhase::Active(c::RunStage::BackingOff { until: since }), "Run 2 · waiting"),
         ] {
             let mut task = agent();
             phase(&mut task, value.clone());
@@ -538,17 +535,13 @@ mod tests {
     #[test]
     fn never_run_agent_endings_show_result_without_a_run_heading() {
         for (ending, status, said) in [
+            (c::ChipEnding::Done(c::ResultValue::Report(words(b"Complete report"))), "Completed", "Complete report"),
+            (c::ChipEnding::Failed(words(b"Failure reason")), "Failed", "Failure reason"),
             (
-                c::OwnerChipEnding::Done(c::ResultValue::Report(words(b"Complete report"))),
-                "Completed",
-                "Complete report",
-            ),
-            (c::OwnerChipEnding::Failed(words(b"Failure reason")), "Failed", "Failure reason"),
-            (
-                c::OwnerChipEnding::Cancelled {
+                c::ChipEnding::Cancelled {
                     reason: words(b"Cancellation reason"),
                     result: None,
-                    by: c::OwnerRequester::Person(73),
+                    by: c::Requester::Person(73),
                     at: Wall::EPOCH,
                 },
                 "Cancelled",
@@ -581,7 +574,7 @@ mod tests {
     #[test]
     fn goal_budget_uses_supplied_amounts_without_recomputing_left() {
         let mut task = goal();
-        task.budget.numbers = c::OwnerNumbers { budget: 100, spent: 7, spent_below: 31, reserved: 19 };
+        task.budget.numbers = c::Numbers { budget: 100, spent: 7, spent_below: 31, reserved: 19 };
         task.budget.left = 43;
         task.budget.funder = c::Funder::Pool { project: 1, person: 73, period: 1 };
         task.budget.deadline = None;
@@ -647,15 +640,15 @@ mod tests {
         task.cut = true;
         task.dependencies = List::with_capacity(2);
         task.dependencies
-            .push(c::OwnerTaskLink::Stored { number: 21, status: Some(c::OwnerTaskStatus::Done) })
+            .push(c::TaskLink::Stored { number: 21, status: Some(c::TaskStatus::Done) })
             .expect("dependency");
-        task.dependencies.push(c::OwnerTaskLink::Stored { number: 22, status: None }).expect("dependency");
+        task.dependencies.push(c::TaskLink::Stored { number: 22, status: None }).expect("dependency");
         task.dependency_facts = List::with_capacity(2);
         task.dependency_facts
             .push(c::Dependency {
                 number: 22,
                 pending: true,
-                added: Some(c::DependencyAdded { at: Wall::EPOCH, by: c::OwnerRequester::Person(73) }),
+                added: Some(c::DependencyAdded { at: Wall::EPOCH, by: c::Requester::Person(73) }),
                 keeps: true,
                 status: None,
             })
@@ -664,9 +657,9 @@ mod tests {
             .push(c::Dependency {
                 number: 21,
                 pending: false,
-                added: Some(c::DependencyAdded { at: Wall::EPOCH, by: c::OwnerRequester::Task(12) }),
+                added: Some(c::DependencyAdded { at: Wall::EPOCH, by: c::Requester::Task(12) }),
                 keeps: false,
-                status: Some(c::OwnerTaskStatus::Done),
+                status: Some(c::TaskStatus::Done),
             })
             .expect("facts");
         let (root, _, _, _) = opened(task);
@@ -748,16 +741,16 @@ mod tests {
         let (mut root, _, tree_watch, requests) = opened(task.clone());
         let mut folded = List::with_capacity(1);
         folded
-            .push(c::OwnerTreeFold {
+            .push(c::TreeFold {
                 parent: TASK,
-                phases: c::OwnerPhaseCounts { running: 17, ..c::OwnerPhaseCounts::ZERO },
+                phases: c::PhaseCounts { running: 17, ..c::PhaseCounts::ZERO },
                 held_below: 0,
             })
             .expect("one fold");
         drop(deliver(
             &mut root,
             tree_watch,
-            c::Delivery::OwnerTree(Box::new(c::OwnerTree {
+            c::Delivery::Tree(Box::new(c::Tree {
                 root: task.chip,
                 rows: List::with_capacity(0),
                 folded,

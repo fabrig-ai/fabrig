@@ -67,7 +67,7 @@ fn settled_note_answer(act: ActKind, cut: bool, goldens: &mut Goldens) {
         })
         .unwrap();
     goldens.check(&render(&domain, id, words, &mut bindings));
-    let answer = Answer::Done(Outcome::Owner(OwnerOutcome::NoteEdited { name: 77 }));
+    let answer = Answer::Done(Outcome::Document(DocumentOutcome::NoteEdited { name: 77 }));
     drive(&mut domain, AnsweredByEngine { request, answer: answer.clone() });
     let facts = domain.objects().get(id).unwrap();
     assert_eq!(facts.answer.as_ref(), Some(&answer));

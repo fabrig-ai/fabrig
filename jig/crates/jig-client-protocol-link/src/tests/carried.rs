@@ -64,7 +64,7 @@ fn move_out(h: &mut Harness, attempt: Token) {
             attempt,
             key: CARRIED_KEY,
             ask: Ask::Jig(Box::new(c::Ask::AccountChange {
-                holder: c::AccountHolder::Own,
+                holder: c::AskAccountHolder::Own,
                 change: c::AccountChange::MoveOut { account: u32::MAX },
             })),
             value: None,

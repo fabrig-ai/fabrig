@@ -3,13 +3,13 @@
 //! kept. See client/domain/pages.md, 7, and client/domain/root.md, 6.
 use crate::{Request, Ui};
 use alloc::boxed::Box;
-use jig_client::contract::{OwnerDeployment, Part};
+use jig_client::contract::{ApplicationPart, Deployment};
 use skein_lib::{Env, List, Queue};
 /// Latest deployment document for the admitted page.
 #[derive(Debug)]
 pub struct DeploymentPage {
     /// The latest deployment owner facts.
-    pub owner: Option<Box<OwnerDeployment>>,
+    pub owner: Option<Box<Deployment>>,
 }
 impl DeploymentPage {
     pub(crate) const fn new() -> Self {
@@ -21,7 +21,7 @@ impl DeploymentPage {
 pub(crate) fn owner_document(
     domain: &mut Ui,
     env: &Env<crate::Config>,
-    doc: Box<OwnerDeployment>,
+    doc: Box<Deployment>,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
@@ -33,7 +33,7 @@ pub(crate) fn owner_document(
         if parts.room() == 0 {
             break;
         }
-        parts.push(Part::Deployment { connector: *connector }).expect("configured reference fits");
+        parts.push(ApplicationPart::Deployment { connector: *connector }).expect("configured reference fits");
     }
     domain.deployment_page.owner = Some(doc);
     crate::state::page::project::show(domain, env, parts, out, lent);
@@ -51,7 +51,7 @@ pub(crate) fn watched(
     let mut parts = List::with_capacity(client.domain_limits().parts.saturating_add(1));
     if let Some(owner) = projected.owner {
         for connector in &owner.connectors {
-            if parts.push(Part::Deployment { connector: *connector }).is_err() {
+            if parts.push(ApplicationPart::Deployment { connector: *connector }).is_err() {
                 break;
             }
         }

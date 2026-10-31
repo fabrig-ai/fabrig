@@ -48,24 +48,24 @@ pub fn frame_two_projects_record() -> w::Me {
     w::Me::new(&lim, parts).expect("literal fixture fits")
 }
 #[must_use]
-pub fn owner_phase_records() -> [w::OwnerChipPhase; 6] {
+pub fn owner_phase_records() -> [w::ChipPhase; 6] {
     let lim = limits();
     [
-        w::OwnerChipPhase::Waiting(
-            w::OwnerChipPhaseWaiting::new(
+        w::ChipPhase::Waiting(
+            w::ChipPhaseWaiting::new(
                 &lim,
-                w::OwnerChipPhaseWaitingParts { dependencies: List::with_capacity(0), more: false, holds: false },
+                w::ChipPhaseWaitingParts { dependencies: List::with_capacity(0), more: false, holds: false },
             )
             .expect("literal fixture fits"),
         ),
-        w::OwnerChipPhase::Active(
-            w::OwnerChipPhaseActive::new(&lim, w::OwnerChipPhaseActiveParts { value: w::RunStage::Idle })
+        w::ChipPhase::Active(
+            w::ChipPhaseActive::new(&lim, w::ChipPhaseActiveParts { value: w::RunStage::Idle })
                 .expect("literal fixture fits"),
         ),
-        w::OwnerChipPhase::Person(
-            w::OwnerChipPhasePerson::new(
+        w::ChipPhase::Person(
+            w::ChipPhasePerson::new(
                 &lim,
-                w::OwnerChipPhasePersonParts {
+                w::ChipPhasePersonParts {
                     address: w::PersonAddress::Role(
                         w::PersonAddressRole::new(&lim, w::PersonAddressRoleParts { value: 17 })
                             .expect("literal fixture fits"),
@@ -76,14 +76,14 @@ pub fn owner_phase_records() -> [w::OwnerChipPhase; 6] {
             )
             .expect("literal fixture fits"),
         ),
-        w::OwnerChipPhase::Closing(
-            w::OwnerChipPhaseClosing::new(&lim, w::OwnerChipPhaseClosingParts { value: w::ClosingStage::Effects })
+        w::ChipPhase::Closing(
+            w::ChipPhaseClosing::new(&lim, w::ChipPhaseClosingParts { value: w::ClosingStage::Effects })
                 .expect("literal fixture fits"),
         ),
-        w::OwnerChipPhase::Held(
-            w::OwnerChipPhaseHeld::new(
+        w::ChipPhase::Held(
+            w::ChipPhaseHeld::new(
                 &lim,
-                w::OwnerChipPhaseHeldParts {
+                w::ChipPhaseHeldParts {
                     reason: w::HoldCategory::Uncertain(
                         w::HoldCategoryUncertain::new(&lim, w::HoldCategoryUncertainParts { entry: 29 })
                             .expect("literal fixture fits"),
@@ -93,11 +93,11 @@ pub fn owner_phase_records() -> [w::OwnerChipPhase; 6] {
             )
             .expect("literal fixture fits"),
         ),
-        w::OwnerChipPhase::Ended,
+        w::ChipPhase::Ended,
     ]
 }
 #[must_use]
-pub fn owner_chip_record(phase: w::OwnerChipPhase, compact: w::Phase) -> w::Chip {
+pub fn owner_chip_record(phase: w::ChipPhase, compact: w::Phase) -> w::Chip {
     let lim = limits();
     let mut root = match chip_root_fact() {
         w::Fact::Chip(value) => value.into_parts(),
@@ -106,8 +106,8 @@ pub fn owner_chip_record(phase: w::OwnerChipPhase, compact: w::Phase) -> w::Chip
         | w::Fact::Ending(_)
         | w::Fact::HeldRuntime(_)
         | w::Fact::HoldReason(_)
-        | w::Fact::OwnerChipDetails(_)
-        | w::Fact::OwnerChipEnding(_)
+        | w::Fact::ChipDetails(_)
+        | w::Fact::ChipEnding(_)
         | w::Fact::ResultValue(_) => unreachable!("literal chip root"),
     };
     let mut fields = root.value.into_parts();
@@ -126,7 +126,7 @@ pub fn owner_chip_record(phase: w::OwnerChipPhase, compact: w::Phase) -> w::Chip
             )
             .expect("literal fixture fits"),
         ),
-        w::Fact::OwnerChipDetails(Box::new(wire_owner_chip_details_row())),
+        w::Fact::ChipDetails(Box::new(wire_owner_chip_details_row())),
     ])
 }
 #[must_use]
@@ -142,11 +142,11 @@ pub fn task_with_hold_record() -> w::Task {
     w::Task::new(&lim, parts).expect("literal fixture fits")
 }
 #[must_use]
-pub fn hold_record() -> w::OwnerChipHold {
+pub fn hold_record() -> w::ChipHold {
     let lim = limits();
-    w::OwnerChipHold::new(
+    w::ChipHold::new(
         &lim,
-        w::OwnerChipHoldParts {
+        w::ChipHoldParts {
             words: None,
             placed: None,
             circle: None,
@@ -157,11 +157,11 @@ pub fn hold_record() -> w::OwnerChipHold {
                     .expect("literal fixture fits"),
             ),
             revision: 31,
-            before: w::OwnerPriorPhase::Waiting,
+            before: w::PriorPhase::Waiting,
             escalation: None,
-            tries: w::OwnerFailureTries::new(
+            tries: w::FailureTries::new(
                 &lim,
-                w::OwnerFailureTriesParts { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13 },
+                w::FailureTriesParts { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13 },
             )
             .expect("literal fixture fits"),
             hold_wait_since: Some(17),

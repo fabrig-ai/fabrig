@@ -2,12 +2,12 @@
 use skein_json::writer::Encoder;
 #[expect(clippy::too_many_lines, reason = "one exhaustive encoding of jig's owner message vocabulary")]
 pub(super) fn encode_owner_message_kind(
-    value: &jig_client::contract::OwnerMessageKind,
+    value: &jig_client::contract::MessageKind,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerMessageKind::SettingsDecision { proposal, outcome } => {
+        jig_client::contract::MessageKind::SettingsDecision { proposal, outcome } => {
             out.object_start();
             out.key(b"settings_decision");
             out.object_start();
@@ -32,7 +32,7 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::Escalation { task, revision } => {
+        jig_client::contract::MessageKind::Escalation { task, revision } => {
             out.object_start();
             out.key(b"escalation");
             out.object_start();
@@ -43,10 +43,10 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::Proposal { proposer, proposal, kind } => {
+        jig_client::contract::MessageKind::Proposal { proposer, proposal, kind } => {
             encode_message_proposal(*proposer, *proposal, *kind, out, budget);
         }
-        jig_client::contract::OwnerMessageKind::PersonStalled { task } => {
+        jig_client::contract::MessageKind::PersonStalled { task } => {
             out.object_start();
             out.key(b"person_stalled");
             out.object_start();
@@ -55,7 +55,7 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::ProposalDecision { proposal, accepted } => {
+        jig_client::contract::MessageKind::ProposalDecision { proposal, accepted } => {
             out.object_start();
             out.key(b"proposal_decision");
             out.object_start();
@@ -66,8 +66,8 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::Words => out.string(b"words"),
-        jig_client::contract::OwnerMessageKind::EffectNotMade { entry } => {
+        jig_client::contract::MessageKind::Words => out.string(b"words"),
+        jig_client::contract::MessageKind::EffectNotMade { entry } => {
             out.object_start();
             out.key(b"effect_not_made");
             out.object_start();
@@ -76,7 +76,7 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::Amendment { revision } => {
+        jig_client::contract::MessageKind::Amendment { revision } => {
             out.object_start();
             out.key(b"amendment");
             out.object_start();
@@ -85,7 +85,7 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::Met { dependency, removed } => {
+        jig_client::contract::MessageKind::Met { dependency, removed } => {
             out.object_start();
             out.key(b"met");
             out.object_start();
@@ -96,9 +96,9 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::Question => out.string(b"question"),
-        jig_client::contract::OwnerMessageKind::QuestionOwed => out.string(b"question_owed"),
-        jig_client::contract::OwnerMessageKind::Answer { question } => {
+        jig_client::contract::MessageKind::Question => out.string(b"question"),
+        jig_client::contract::MessageKind::QuestionOwed => out.string(b"question_owed"),
+        jig_client::contract::MessageKind::Answer { question } => {
             out.object_start();
             out.key(b"answer");
             out.object_start();
@@ -107,7 +107,7 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::QuestionAnswered { question } => {
+        jig_client::contract::MessageKind::QuestionAnswered { question } => {
             out.object_start();
             out.key(b"question_answered");
             out.object_start();
@@ -116,7 +116,7 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::QuestionEnded { question } => {
+        jig_client::contract::MessageKind::QuestionEnded { question } => {
             out.object_start();
             out.key(b"question_ended");
             out.object_start();
@@ -125,10 +125,10 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::Notice { subscription, target, state } => {
+        jig_client::contract::MessageKind::Notice { subscription, target, state } => {
             encode_message_notice(*subscription, *target, *state, out, budget);
         }
-        jig_client::contract::OwnerMessageKind::Timer { subscription } => {
+        jig_client::contract::MessageKind::Timer { subscription } => {
             out.object_start();
             out.key(b"timer");
             out.object_start();
@@ -137,7 +137,7 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::News { subscription, class } => {
+        jig_client::contract::MessageKind::News { subscription, class } => {
             out.object_start();
             out.key(b"news");
             out.object_start();
@@ -148,7 +148,7 @@ pub(super) fn encode_owner_message_kind(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerMessageKind::Result(field_0) => {
+        jig_client::contract::MessageKind::Result(field_0) => {
             out.object_start();
             out.key(b"result");
             encode_owner_word_result(field_0, out, budget);
@@ -158,55 +158,55 @@ pub(super) fn encode_owner_message_kind(
 }
 
 pub(super) fn encode_owner_message_proposal_kind(
-    value: jig_client::contract::OwnerMessageProposalKind,
+    value: jig_client::contract::MessageProposalKind,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     let value = &value;
     match value {
-        jig_client::contract::OwnerMessageProposalKind::Settings => out.string(b"settings"),
-        jig_client::contract::OwnerMessageProposalKind::Batch => out.string(b"batch"),
-        jig_client::contract::OwnerMessageProposalKind::Effect => out.string(b"effect"),
-        jig_client::contract::OwnerMessageProposalKind::Amend => out.string(b"amend"),
-        jig_client::contract::OwnerMessageProposalKind::Widen => out.string(b"widen"),
-        jig_client::contract::OwnerMessageProposalKind::Release => out.string(b"release"),
+        jig_client::contract::MessageProposalKind::Settings => out.string(b"settings"),
+        jig_client::contract::MessageProposalKind::Batch => out.string(b"batch"),
+        jig_client::contract::MessageProposalKind::Effect => out.string(b"effect"),
+        jig_client::contract::MessageProposalKind::Amend => out.string(b"amend"),
+        jig_client::contract::MessageProposalKind::Widen => out.string(b"widen"),
+        jig_client::contract::MessageProposalKind::Release => out.string(b"release"),
     }
 }
 
 pub(super) fn encode_owner_news_class(
-    value: jig_client::contract::OwnerNewsClass,
+    value: jig_client::contract::NewsClass,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     let value = &value;
     match value {
-        jig_client::contract::OwnerNewsClass::Wakes => out.string(b"wakes"),
-        jig_client::contract::OwnerNewsClass::Kept => out.string(b"kept"),
-        jig_client::contract::OwnerNewsClass::Dropped => out.string(b"dropped"),
+        jig_client::contract::NewsClass::Wakes => out.string(b"wakes"),
+        jig_client::contract::NewsClass::Kept => out.string(b"kept"),
+        jig_client::contract::NewsClass::Dropped => out.string(b"dropped"),
     }
 }
 
 pub(super) fn encode_owner_notice_state(
-    value: jig_client::contract::OwnerNoticeState,
+    value: jig_client::contract::NoticeState,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     let value = &value;
     match value {
-        jig_client::contract::OwnerNoticeState::Held => out.string(b"held"),
-        jig_client::contract::OwnerNoticeState::Done => out.string(b"done"),
-        jig_client::contract::OwnerNoticeState::Failed => out.string(b"failed"),
-        jig_client::contract::OwnerNoticeState::Cancelled => out.string(b"cancelled"),
+        jig_client::contract::NoticeState::Held => out.string(b"held"),
+        jig_client::contract::NoticeState::Done => out.string(b"done"),
+        jig_client::contract::NoticeState::Failed => out.string(b"failed"),
+        jig_client::contract::NoticeState::Cancelled => out.string(b"cancelled"),
     }
 }
 
 pub(super) fn encode_owner_word_result(
-    value: &jig_client::contract::OwnerWordResult,
+    value: &jig_client::contract::WordResult,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerWordResult::Approved { state, words_present } => {
+        jig_client::contract::WordResult::Approved { state, words_present } => {
             out.object_start();
             out.key(b"approved");
             out.object_start();
@@ -217,8 +217,8 @@ pub(super) fn encode_owner_word_result(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerWordResult::Report => out.string(b"report"),
-        jig_client::contract::OwnerWordResult::Verdict { code, fields } => {
+        jig_client::contract::WordResult::Report => out.string(b"report"),
+        jig_client::contract::WordResult::Verdict { code, fields } => {
             out.object_start();
             out.key(b"verdict");
             out.object_start();
@@ -233,7 +233,7 @@ pub(super) fn encode_owner_word_result(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerWordResult::Change { connector, kind, resource } => {
+        jig_client::contract::WordResult::Change { connector, kind, resource } => {
             out.object_start();
             out.key(b"change");
             out.object_start();
@@ -246,15 +246,15 @@ pub(super) fn encode_owner_word_result(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerWordResult::Failed => out.string(b"failed"),
-        jig_client::contract::OwnerWordResult::Cancelled => out.string(b"cancelled"),
+        jig_client::contract::WordResult::Failed => out.string(b"failed"),
+        jig_client::contract::WordResult::Cancelled => out.string(b"cancelled"),
     }
 }
 
 fn encode_message_proposal(
     proposer: u64,
     proposal: u64,
-    kind: jig_client::contract::OwnerMessageProposalKind,
+    kind: jig_client::contract::MessageProposalKind,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -274,7 +274,7 @@ fn encode_message_proposal(
 fn encode_message_notice(
     subscription: u64,
     target: u64,
-    state: jig_client::contract::OwnerNoticeState,
+    state: jig_client::contract::NoticeState,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -294,7 +294,7 @@ fn encode_message_notice(
 #[cfg(test)]
 mod tests {
     use super::encode_owner_message_kind;
-    use jig_client::contract::{OwnerMessageKind, SettingsOutcome};
+    use jig_client::contract::{MessageKind, SettingsOutcome};
     use skein_json::writer::{Encoder, Limits};
 
     #[test]
@@ -308,7 +308,7 @@ mod tests {
             (SettingsOutcome::Rejected, br#"{"settings_decision":{"proposal":3,"outcome":"rejected"}}"#),
             (SettingsOutcome::Stale { newest: 8 }, br#"{"settings_decision":{"proposal":3,"outcome":{"stale":8}}}"#),
         ] {
-            let kind = OwnerMessageKind::SettingsDecision { proposal: 3, outcome };
+            let kind = MessageKind::SettingsDecision { proposal: 3, outcome };
             let mut budget = super::super::Cut { room: 0, left: 0, turn: None, subject: false, digest: None };
             let mut measured = Encoder::measure(&limits);
             encode_owner_message_kind(&kind, &mut measured, &mut budget);

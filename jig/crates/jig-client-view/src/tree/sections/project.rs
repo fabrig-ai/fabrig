@@ -158,10 +158,10 @@ fn inbox_cards(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: 
 }
 
 /// Retained funding and earlier period rows preserve the original spend window.
-fn historical_spend(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
+fn ended_spend(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
     let page = client.project_page();
     if let Some(spend) = &page.owner_spend {
-        crate::tree::fragments::historical_pages::spend_render(b, spend, words);
+        crate::tree::fragments::ended_pages::spend_render(b, spend, words);
     }
     crate::tree::pages::cut(b, words, page.spend_cut);
     crate::tree::pages::work::cursors(

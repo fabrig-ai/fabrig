@@ -1,39 +1,36 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
-    Box, Limits, List, Wall, address_change_fields, c, cursor_fields, owner_amendment_state_fields,
-    owner_authority_document_fields, owner_authority_fields, owner_history_holder_fields, owner_period_times_fields,
-    owner_task_link_fields, proposed_task_piece, text, too_large, w,
+    Box, Limits, List, Wall, address_change_fields, amendment_state_fields, authority_document_fields,
+    authority_fields, c, cursor_fields, history_holder_fields, period_times_fields, proposed_task_piece,
+    task_link_fields, text, too_large, w,
 };
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_funding_record_fields(value: &w::OwnerFundingRecord) -> c::OwnerFundingRecord {
+pub(crate) fn funding_record_fields(value: &w::FundingRecord) -> c::FundingRecord {
     let opt0 = match value.period() {
-        Some(item) => Some(owner_period_times_fields(item)),
+        Some(item) => Some(period_times_fields(item)),
         None => None,
     };
     let opt1 = match value.parent() {
         Some(item) => Some(crate::translate::facts::funder(item)),
         None => None,
     };
-    c::OwnerFundingRecord {
+    c::FundingRecord {
         period: opt0,
         funder: crate::translate::facts::funder(value.funder()),
         parent: opt1,
-        numbers: crate::translate::facts::owner_numbers(value.numbers()),
+        numbers: crate::translate::facts::numbers(value.numbers()),
         made: value.made(),
         closed: value.closed(),
     }
 }
 
-pub(crate) fn owner_spend_page_fields(
-    value: &w::OwnerSpendPage,
-    limits: &Limits,
-) -> Result<c::OwnerSpendPage, w::Problem> {
+pub(crate) fn spend_page_fields(value: &w::SpendPage, limits: &Limits) -> Result<c::SpendPage, w::Problem> {
     if value.rows().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.rows().len());
     for item in value.rows() {
-        list0.push(owner_funding_record_fields(item)).expect("reserved supplied list");
+        list0.push(funding_record_fields(item)).expect("reserved supplied list");
     }
     let opt1 = match value.before() {
         Some(item) => Some(cursor_fields(item, limits)?),
@@ -43,7 +40,7 @@ pub(crate) fn owner_spend_page_fields(
         Some(item) => Some(cursor_fields(item, limits)?),
         None => None,
     };
-    Ok(c::OwnerSpendPage { rows: list0, before: opt1, after: opt2, cut: value.cut() })
+    Ok(c::SpendPage { rows: list0, before: opt1, after: opt2, cut: value.cut() })
 }
 
 pub(crate) fn parameter_fields(value: &w::Parameter, limits: &Limits) -> Result<c::Parameter, w::Problem> {
@@ -85,7 +82,7 @@ pub(crate) fn amendment_fields(value: &w::Amendment, limits: &Limits) -> Result<
         None => None,
     };
     let opt2 = match value.wake() {
-        Some(item) => Some(crate::translate::facts::owner_wake_policy(item)),
+        Some(item) => Some(crate::translate::facts::wake_policy(item)),
         None => None,
     };
     let opt3 = match value.dependencies() {
@@ -102,7 +99,7 @@ pub(crate) fn amendment_fields(value: &w::Amendment, limits: &Limits) -> Result<
         None => None,
     };
     let opt4 = match value.authority() {
-        Some(item) => Some(owner_authority_fields(item, limits)?),
+        Some(item) => Some(authority_fields(item, limits)?),
         None => None,
     };
     let opt5 = match value.instructions() {
@@ -125,32 +122,32 @@ pub(crate) fn amendment_fields(value: &w::Amendment, limits: &Limits) -> Result<
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_proposal_action_fields(
-    value: &w::OwnerProposalAction,
+pub(crate) fn proposal_action_fields(
+    value: &w::ProposalAction,
     limits: &Limits,
-) -> Result<c::OwnerProposalAction, w::Problem> {
+) -> Result<c::ProposalAction, w::Problem> {
     Ok(match value {
-        w::OwnerProposalAction::Settings(row) => c::OwnerProposalAction::Settings(Box::new(
+        w::ProposalAction::Settings(row) => c::ProposalAction::Settings(Box::new(
             crate::translate::settings_proposals::restore_owner_proposal_action_settings(row, limits)?,
         )),
-        w::OwnerProposalAction::Batch(row) => {
-            c::OwnerProposalAction::Batch(proposed_task_piece(row.value(), limits, limits.client().rows)?)
+        w::ProposalAction::Batch(row) => {
+            c::ProposalAction::Batch(proposed_task_piece(row.value(), limits, limits.client().rows)?)
         }
-        w::OwnerProposalAction::Effect(row) => c::OwnerProposalAction::Effect {
-            part: crate::translate::facts::owner_part(row.part()),
-            authority: owner_authority_document_fields(row.authority(), limits)?,
+        w::ProposalAction::Effect(row) => c::ProposalAction::Effect {
+            part: crate::translate::facts::part(row.part()),
+            authority: authority_document_fields(row.authority(), limits)?,
             attempt: row.attempt(),
             completion: row.completion(),
             position: row.position(),
             purpose: row.purpose(),
         },
-        w::OwnerProposalAction::ProcedureEffect(row) => c::OwnerProposalAction::ProcedureEffect {
-            part: crate::translate::facts::owner_part(row.part()),
-            authority: owner_authority_document_fields(row.authority(), limits)?,
+        w::ProposalAction::ProcedureEffect(row) => c::ProposalAction::ProcedureEffect {
+            part: crate::translate::facts::part(row.part()),
+            authority: authority_document_fields(row.authority(), limits)?,
             step: row.step(),
             purpose: row.purpose(),
         },
-        w::OwnerProposalAction::Amend(row) => {
+        w::ProposalAction::Amend(row) => {
             let opt0 = match row.addressed() {
                 Some(item) => Some(address_change_fields(item)),
                 None => None,
@@ -159,33 +156,30 @@ pub(crate) fn owner_proposal_action_fields(
                 Some(item) => Some(*item),
                 None => None,
             };
-            c::OwnerProposalAction::Amend {
-                task: owner_task_link_fields(row.task(), limits)?,
+            c::ProposalAction::Amend {
+                task: task_link_fields(row.task(), limits)?,
                 addressed: opt0,
-                before: Box::new(owner_amendment_state_fields(row.before(), limits)?),
-                after: Box::new(owner_amendment_state_fields(row.after(), limits)?),
+                before: Box::new(amendment_state_fields(row.before(), limits)?),
+                after: Box::new(amendment_state_fields(row.after(), limits)?),
                 reason: crate::translate::facts::document_text(row.reason(), limits)?,
                 release: opt1,
             }
         }
-        w::OwnerProposalAction::Widen(row) => c::OwnerProposalAction::Widen {
-            task: owner_task_link_fields(row.task(), limits)?,
-            before: owner_authority_document_fields(row.before(), limits)?,
-            after: owner_authority_document_fields(row.after(), limits)?,
+        w::ProposalAction::Widen(row) => c::ProposalAction::Widen {
+            task: task_link_fields(row.task(), limits)?,
+            before: authority_document_fields(row.before(), limits)?,
+            after: authority_document_fields(row.after(), limits)?,
         },
-        w::OwnerProposalAction::Release(row) => {
+        w::ProposalAction::Release(row) => {
             let opt0 = match row.hold() {
-                Some(item) => Some(Box::new(crate::translate::facts::owner_chip_hold(item, limits)?)),
+                Some(item) => Some(Box::new(crate::translate::facts::chip_hold(item, limits)?)),
                 None => None,
             };
-            c::OwnerProposalAction::Release { task: owner_task_link_fields(row.task(), limits)?, hold: opt0 }
+            c::ProposalAction::Release { task: task_link_fields(row.task(), limits)?, hold: opt0 }
         }
     })
 }
 
-pub(crate) fn owner_proposal_waiting_fields(value: &w::OwnerProposalWaiting) -> c::OwnerProposalWaiting {
-    c::OwnerProposalWaiting {
-        holder: owner_history_holder_fields(value.holder()),
-        since: Wall::from_nanos(value.since()),
-    }
+pub(crate) fn proposal_waiting_fields(value: &w::ProposalWaiting) -> c::ProposalWaiting {
+    c::ProposalWaiting { holder: history_holder_fields(value.holder()), since: Wall::from_nanos(value.since()) }
 }

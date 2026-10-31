@@ -363,7 +363,7 @@ fn the_test_clients_family_revision_and_durable_outcome_are_observed() {
 #[test]
 fn the_test_clients_sent_words_are_found_in_committed_activity() {
     use jig_client_domain::contract::{
-        ActivityLine, Answer, Ask, Outcome, OwnerActivity, OwnerActivityLine, OwnerMessageKind, OwnerRequester, Read,
+        Activity, ActivityLine, Answer, Ask, DecodedActivityLine, MessageKind, Outcome, Read, Requester,
     };
     use jig_client_world::stories;
     let mut w = stories::chat_ready(21);
@@ -372,19 +372,22 @@ fn the_test_clients_sent_words_are_found_in_committed_activity() {
         .script(jig_client_scripted_engine::Rule {
             party: Some(7),
             ask: Ask::Message { project: 1, task: 9, words: stories::text(b"Words") },
-            answer: Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Said { task: 9, message: 1 })),
+            answer: Answer::Done(Outcome::Document(jig_client::contract::DocumentOutcome::Said {
+                task: 9,
+                message: 1,
+            })),
             changes: vec![jig_client_scripted_engine::Change::Source(jig_client_scripted_engine::Source {
                 party: 7,
                 read: Read::Activity { task: 9, before: None },
-                rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
-                    source: Box::new(OwnerActivityLine {
+                rows: jig_client_scripted_engine::Rows::Activity(vec![DecodedActivityLine {
+                    source: Box::new(ActivityLine {
                         task: 9,
                         position: 1,
                         at: skein_lib::Wall::EPOCH,
-                        line: OwnerActivity::Words {
-                            by: OwnerRequester::Person(7),
+                        line: Activity::Words {
+                            by: Requester::Person(7),
                             message: 1,
-                            kind: OwnerMessageKind::Words,
+                            kind: MessageKind::Words,
                             words: stories::text(b"Words"),
                         },
                     }),
@@ -638,7 +641,7 @@ fn draft_answer(offer: jig_client::shapes::Fall) -> skein_world::domain::Verdict
         Observation::Delivered {
             client: DRAFT_CLIENT,
             receipt: Receipt::Document {
-                value: Box::new(jig_client::contract::ReadValue::OwnerProposal(Box::new(
+                value: Box::new(jig_client::contract::ReadValue::Proposal(Box::new(
                     jig_client_world::stories::proposal(),
                 ))),
             },

@@ -9,9 +9,9 @@ use skein_ui::{Builder, Role, Run};
 
 use crate::{Borrowed, Config};
 use jig_client::contract::{
-    ClosingStage, DocumentText, HoldCategory, HoldFailure, OwnerChipDetails, OwnerChipEnding, OwnerChipHold,
-    OwnerChipObservation, OwnerChipWork, OwnerEscalationHolder, OwnerHoldEscalation, OwnerPersonWait, OwnerPriorPhase,
-    OwnerRequester, OwnerResourceLine, OwnerResourceWriter, ResultValue, RetryNotice, RunStage,
+    ChipDetails, ChipEnding, ChipHold, ChipObservation, ChipWork, ClosingStage, DocumentText, EscalationHolder,
+    HoldCategory, HoldEscalation, HoldFailure, PersonWait, PriorPhase, Requester, ResourceLine, ResourceWriter,
+    ResultValue, RetryNotice, RunStage,
 };
 use skein_lib::Wall;
 
@@ -42,7 +42,7 @@ fn document(b: &mut Builder, value: &DocumentText, words: &Words) {
         text(b, words, P::Cut, &[]);
     }
 }
-pub(crate) fn resource(b: &mut Builder, value: &OwnerResourceLine, words: &Words, bindings: &mut JigBindings) {
+pub(crate) fn resource(b: &mut Builder, value: &ResourceLine, words: &Words, bindings: &mut JigBindings) {
     b.open(Role::Region);
     let name = words
         .book()
@@ -56,17 +56,17 @@ pub(crate) fn resource(b: &mut Builder, value: &OwnerResourceLine, words: &Words
         number(b, words, P::Holder, holder);
     }
     match value.writer {
-        Some(OwnerResourceWriter::Run { task, attempt }) => {
+        Some(ResourceWriter::Run { task, attempt }) => {
             number(b, words, P::WriterTask, task);
             number(b, words, P::WriterAttempt, attempt);
         }
-        Some(OwnerResourceWriter::Effect { entry }) => number(b, words, P::WriterEffect, entry),
+        Some(ResourceWriter::Effect { entry }) => number(b, words, P::WriterEffect, entry),
         None => {}
     }
     text(b, words, if value.writer_lost { P::WriterLost } else { P::WriterKept }, &[]);
     b.close();
 }
-fn person_wait(b: &mut Builder, value: &OwnerPersonWait, words: &Words) {
+fn person_wait(b: &mut Builder, value: &PersonWait, words: &Words) {
     wall(b, words, P::WaitSince, value.since);
     text(b, words, P::Stall, &[Hole::Span(value.stall)]);
     wall(b, words, P::Deadline, value.deadline);
@@ -112,10 +112,10 @@ pub(crate) fn reason(b: &mut Builder, value: HoldCategory, words: &Words) {
         HoldCategory::Procedure => text(b, words, P::HoldProcedure, &[]),
     }
 }
-pub(crate) fn prior(b: &mut Builder, value: OwnerPriorPhase, words: &Words) {
+pub(crate) fn prior(b: &mut Builder, value: PriorPhase, words: &Words) {
     match value {
-        OwnerPriorPhase::Waiting => text(b, words, P::PriorWaiting, &[]),
-        OwnerPriorPhase::Active(stage) => match stage {
+        PriorPhase::Waiting => text(b, words, P::PriorWaiting, &[]),
+        PriorPhase::Active(stage) => match stage {
             RunStage::Idle => text(b, words, P::PriorIdle, &[]),
             RunStage::Due => text(b, words, P::PriorDue, &[]),
             RunStage::Preparing => text(b, words, P::PriorPreparing, &[]),
@@ -123,7 +123,7 @@ pub(crate) fn prior(b: &mut Builder, value: OwnerPriorPhase, words: &Words) {
             RunStage::Running { attempt } => number(b, words, P::PriorRunning, attempt),
             RunStage::BackingOff { until } => wall(b, words, P::PriorBackingOff, until),
         },
-        OwnerPriorPhase::Closing(stage) => match stage {
+        PriorPhase::Closing(stage) => match stage {
             ClosingStage::Run { attempt } => number(b, words, P::PriorClosingRun, attempt),
             ClosingStage::Delegates => text(b, words, P::PriorDelegates, &[]),
             ClosingStage::Effects => text(b, words, P::PriorEffects, &[]),
@@ -132,14 +132,14 @@ pub(crate) fn prior(b: &mut Builder, value: OwnerPriorPhase, words: &Words) {
         },
     }
 }
-fn escalation(b: &mut Builder, value: &OwnerHoldEscalation, words: &Words) {
+fn escalation(b: &mut Builder, value: &HoldEscalation, words: &Words) {
     match value {
-        OwnerHoldEscalation::Routing => text(b, words, P::Routing, &[]),
-        OwnerHoldEscalation::Waiting { holder, entry, since } => {
+        HoldEscalation::Routing => text(b, words, P::Routing, &[]),
+        HoldEscalation::Waiting { holder, entry, since } => {
             match holder {
-                OwnerEscalationHolder::Task(task) => number(b, words, P::EscalationTask, *task),
-                OwnerEscalationHolder::Person(person) => number(b, words, P::EscalationPerson, *person),
-                OwnerEscalationHolder::Role { project, role } => {
+                EscalationHolder::Task(task) => number(b, words, P::EscalationTask, *task),
+                EscalationHolder::Person(person) => number(b, words, P::EscalationPerson, *person),
+                EscalationHolder::Role { project, role } => {
                     number(b, words, P::EscalationProject, u64::from(*project));
                     number(b, words, P::EscalationRole, u64::from(*role));
                 }
@@ -147,13 +147,13 @@ fn escalation(b: &mut Builder, value: &OwnerHoldEscalation, words: &Words) {
             number(b, words, P::Entry, *entry);
             wall(b, words, P::EscalationSince, *since);
         }
-        OwnerHoldEscalation::Rejected { by, reason } => {
+        HoldEscalation::Rejected { by, reason } => {
             number(b, words, P::RejectedBy, *by);
             document(b, reason, words);
         }
     }
 }
-pub(crate) fn hold(b: &mut Builder, value: &OwnerChipHold, words: &Words, bindings: &mut JigBindings) {
+pub(crate) fn hold(b: &mut Builder, value: &ChipHold, words: &Words, bindings: &mut JigBindings) {
     if let Some(account) = &value.account {
         crate::tree::fragments::proposed_task::part(b, account, words, bindings);
     }
@@ -201,19 +201,19 @@ pub const fn observation_nodes() -> u32 {
 
 /// Show only the supplied observation, preserving all seven work kinds and
 /// each independent clock. Channel identity remains an opaque contract fact.
-pub fn observation(b: &mut Builder, value: &OwnerChipObservation, words: &Words) {
+pub fn observation(b: &mut Builder, value: &ChipObservation, words: &Words) {
     match &value.work {
-        OwnerChipWork::Preparing => text(b, words, P::Preparing, &[]),
-        OwnerChipWork::Starting => text(b, words, P::Starting, &[]),
-        OwnerChipWork::Active => text(b, words, P::Active, &[]),
-        OwnerChipWork::Writing => text(b, words, P::Writing, &[]),
-        OwnerChipWork::Tool { call, tool } => {
+        ChipWork::Preparing => text(b, words, P::Preparing, &[]),
+        ChipWork::Starting => text(b, words, P::Starting, &[]),
+        ChipWork::Active => text(b, words, P::Active, &[]),
+        ChipWork::Writing => text(b, words, P::Writing, &[]),
+        ChipWork::Tool { call, tool } => {
             text(b, words, P::Tool, &[]);
             crate::words::literal_segment::render(b, call);
             crate::words::literal_segment::render(b, tool);
         }
-        OwnerChipWork::Waiting => text(b, words, P::Waiting, &[]),
-        OwnerChipWork::Ending => text(b, words, P::Ending, &[]),
+        ChipWork::Waiting => text(b, words, P::Waiting, &[]),
+        ChipWork::Ending => text(b, words, P::Ending, &[]),
     }
     wall(b, words, P::ObservedSince, value.since);
     wall(b, words, P::ReportedAt, value.reported_at);
@@ -249,20 +249,20 @@ fn result_value(
 }
 /// The departure caption and its supplied reason, author and time.
 /// The complete result payload is rendered by the document's content below this state.
-pub(crate) fn ending_summary(b: &mut Builder, value: &OwnerChipEnding, words: &Words) {
+pub(crate) fn ending_summary(b: &mut Builder, value: &ChipEnding, words: &Words) {
     match value {
-        OwnerChipEnding::Done(_) => text(b, words, P::Done, &[]),
-        OwnerChipEnding::Failed(reason) => {
+        ChipEnding::Done(_) => text(b, words, P::Done, &[]),
+        ChipEnding::Failed(reason) => {
             text(b, words, P::Failed, &[]);
             document(b, reason, words);
         }
-        OwnerChipEnding::Cancelled { reason, by, at, .. } => {
+        ChipEnding::Cancelled { reason, by, at, .. } => {
             text(b, words, P::Cancelled, &[]);
             document(b, reason, words);
             match by {
-                OwnerRequester::Task(task) => number(b, words, P::RequesterTask, *task),
-                OwnerRequester::Person(person) => number(b, words, P::RequesterPerson, *person),
-                OwnerRequester::Deployment { project } => number(b, words, P::RequesterDeployment, u64::from(*project)),
+                Requester::Task(task) => number(b, words, P::RequesterTask, *task),
+                Requester::Person(person) => number(b, words, P::RequesterPerson, *person),
+                Requester::Deployment { project } => number(b, words, P::RequesterDeployment, u64::from(*project)),
             }
             wall(b, words, P::CancelledAt, *at);
         }
@@ -270,16 +270,16 @@ pub(crate) fn ending_summary(b: &mut Builder, value: &OwnerChipEnding, words: &W
 }
 pub(crate) fn ending(
     b: &mut Builder,
-    value: &OwnerChipEnding,
+    value: &ChipEnding,
     client: &Borrowed<'_>,
     words: &Words,
     bindings: &mut JigBindings,
 ) {
     ending_summary(b, value, words);
     match value {
-        OwnerChipEnding::Done(result) => result_value(b, result, client, words, bindings),
-        OwnerChipEnding::Failed(_) => {}
-        OwnerChipEnding::Cancelled { result, .. } => {
+        ChipEnding::Done(result) => result_value(b, result, client, words, bindings),
+        ChipEnding::Failed(_) => {}
+        ChipEnding::Cancelled { result, .. } => {
             if let Some(result) = result {
                 result_value(b, result, client, words, bindings);
             }
@@ -288,13 +288,7 @@ pub(crate) fn ending(
 }
 /// Render metadata without changing domain state, routing or issuing any read.
 /// A borrowed `Ui` is used only by the existing supplied `ResultValue` fragment.
-pub fn render(
-    b: &mut Builder,
-    value: &OwnerChipDetails,
-    client: &Borrowed<'_>,
-    words: &Words,
-    bindings: &mut JigBindings,
-) {
+pub fn render(b: &mut Builder, value: &ChipDetails, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
     b.open(Role::Region);
     let name = words
         .book()

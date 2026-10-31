@@ -496,24 +496,24 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
         engine::Change::Forget { key } => out.push(Observed::Stopped { card: observe::key(*key), commit }),
         engine::Change::Object { key, value, .. } => {
             let terminal = match value {
-                ReadValue::Historical(value) => value.is_terminal(),
+                ReadValue::Ended(value) => value.is_terminal(),
                 ReadValue::Task(task) => task.result.is_some(),
                 ReadValue::Result(_) => true,
                 ReadValue::Question(row) => row.ending.is_some(),
                 ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::OwnerEnded(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::OwnerInbox(_)
-                | ReadValue::OwnerProposal(_)
-                | ReadValue::OwnerPersonTask(_)
-                | ReadValue::OwnerEscalation(_)
-                | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
+                | ReadValue::Inbox(_)
+                | ReadValue::Proposal(_)
+                | ReadValue::PersonTask(_)
+                | ReadValue::Escalation(_)
+                | ReadValue::Spend(_)
+                | ReadValue::Project(_)
                 | ReadValue::Notes(_)
-                | ReadValue::OwnerDeployment(_)
+                | ReadValue::Deployment(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
@@ -530,20 +530,20 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Historical(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::Question(_)
-                | ReadValue::OwnerEnded(_)
+                | ReadValue::Ended(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::OwnerInbox(_)
-                | ReadValue::OwnerProposal(_)
-                | ReadValue::OwnerPersonTask(_)
-                | ReadValue::OwnerEscalation(_)
-                | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
+                | ReadValue::Inbox(_)
+                | ReadValue::Proposal(_)
+                | ReadValue::PersonTask(_)
+                | ReadValue::Escalation(_)
+                | ReadValue::Spend(_)
+                | ReadValue::Project(_)
                 | ReadValue::Notes(_)
-                | ReadValue::OwnerDeployment(_)
+                | ReadValue::Deployment(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
@@ -559,10 +559,10 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
         | engine::Change::SignIn { .. }
         | engine::Change::SignedOut { .. }
         | engine::Change::RemoveProject { .. }
-        | engine::Change::OwnerProject(_)
+        | engine::Change::Project(_)
         | engine::Change::Note(_)
         | engine::Change::DeleteNote { .. }
-        | engine::Change::OwnerDeployment(_)
+        | engine::Change::Deployment(_)
         | engine::Change::Tree(_)
         | engine::Change::Seen { .. } => {}
     }

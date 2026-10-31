@@ -49,7 +49,7 @@ pub(crate) fn way_out(task: &c::Task, out: &mut Text) {
     out.put(b" REASON");
 }
 
-fn recovery(hold: &c::OwnerChipHold) -> &'static [u8] {
+fn recovery(hold: &c::ChipHold) -> &'static [u8] {
     match hold.reason {
         c::HoldCategory::Exceeded(value) if value.bound == c::Bound::Items => {
             b"reduce calls per response or raise agent.json's calls_per_response, then "
@@ -74,7 +74,7 @@ fn recovery(hold: &c::OwnerChipHold) -> &'static [u8] {
     }
 }
 
-fn budget(hold: Option<&c::OwnerChipHold>) -> bool {
+fn budget(hold: Option<&c::ChipHold>) -> bool {
     if let Some(hold) = hold {
         return hold.reason == c::HoldCategory::Budget;
     }

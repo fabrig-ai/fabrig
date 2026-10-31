@@ -25,10 +25,10 @@ pub struct Amendment {
     /// Retarget a person task, with admission decided by its engine document.
     pub addressed: Option<AddressChange>,
     pub spec: Option<super::Specification>,
-    pub wake: Option<super::OwnerWakePolicy>,
+    pub wake: Option<super::WakePolicy>,
     /// Replaces the whole list: new names add dependencies, omitted names remove them (tasks.md, 7).
     pub dependencies: Option<List<u64>>,
-    pub authority: Option<super::OwnerAuthority>,
+    pub authority: Option<super::Authority>,
     pub instructions: Option<Text>,
     pub tracked: Option<Tracking>,
     /// A new LLM choice for the task's next runs.
@@ -226,24 +226,24 @@ pub enum Ask {
     },
     /// Start an LLM account sign-in.
     SignIn {
-        holder: AccountHolder,
+        holder: AskAccountHolder,
         provider: u32,
     },
     /// Change the holder's LLM account. Key values travel in the envelope only.
     AccountChange {
-        holder: AccountHolder,
+        holder: AskAccountHolder,
         change: AccountChange,
     },
     /// End an LLM account sign-in for a source.
     SignOut {
-        holder: AccountHolder,
+        holder: AskAccountHolder,
         source: u32,
     },
 }
 
 /// The holder of an LLM account sign-in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum AccountHolder {
+pub enum AskAccountHolder {
     Own,
     Deployment,
 }
@@ -254,7 +254,7 @@ pub enum Outcome {
     SettingsChanged(super::OutcomeSettingsChanged),
     MovedToNewest(super::OutcomeMovedToNewest),
     /// Whole committed owner facts, without inferred names or explanations.
-    Owner(super::OwnerOutcome),
+    Document(super::DocumentOutcome),
     /// A named thing was made.
     Made {
         what: Made,
@@ -325,7 +325,7 @@ pub enum AccountChange {
     },
     SetUses {
         account: u32,
-        uses: Option<Box<[super::OwnerAccountUse]>>,
+        uses: Option<Box<[super::AccountUse]>>,
     },
     MoveOut {
         account: u32,

@@ -76,12 +76,12 @@ impl Words {
         }
     }
     fn host_refused(&self, b: &mut Builder, why: jig_client::contract::TaskWaitRefused) {
-        use jig_client::contract::{OpenProgram, OwnerHostKind, TaskWaitRefused as R};
+        use jig_client::contract::{HostKind, OpenProgram, TaskWaitRefused as R};
         match why {
             R::Hello { kind, at, why } => {
                 let phrase = match kind {
-                    OwnerHostKind::Engine => P::RefusedEngineAt,
-                    OwnerHostKind::Worker => P::RefusedWorkerAt,
+                    HostKind::Engine => P::RefusedEngineAt,
+                    HostKind::Worker => P::RefusedWorkerAt,
                 };
                 self.text(b, phrase, &[Hole::Wall(self.adjusted_wall(at))]);
                 crate::tree::fragments::deployment::hello_refusal(b, self, why);

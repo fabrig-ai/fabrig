@@ -1,12 +1,12 @@
 //! Concrete integer JSON for the client contract (contract.md, 5).
 use skein_json::writer::Encoder;
 pub(super) fn encode_owner_chip_phase(
-    value: &jig_client::contract::OwnerChipPhase,
+    value: &jig_client::contract::ChipPhase,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerChipPhase::Waiting { dependencies, more, holds } => {
+        jig_client::contract::ChipPhase::Waiting { dependencies, more, holds } => {
             out.object_start();
             out.key(b"waiting");
             out.object_start();
@@ -23,13 +23,13 @@ pub(super) fn encode_owner_chip_phase(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerChipPhase::Active(field_0) => {
+        jig_client::contract::ChipPhase::Active(field_0) => {
             out.object_start();
             out.key(b"active");
             super::encode_run_stage(field_0, out, budget);
             out.object_end();
         }
-        jig_client::contract::OwnerChipPhase::Person { address, taken_by, since } => {
+        jig_client::contract::ChipPhase::Person { address, taken_by, since } => {
             out.object_start();
             out.key(b"person");
             out.object_start();
@@ -52,13 +52,13 @@ pub(super) fn encode_owner_chip_phase(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerChipPhase::Closing(field_0) => {
+        jig_client::contract::ChipPhase::Closing(field_0) => {
             out.object_start();
             out.key(b"closing");
             super::encode_closing_stage(field_0, out, budget);
             out.object_end();
         }
-        jig_client::contract::OwnerChipPhase::Held { reason, revision } => {
+        jig_client::contract::ChipPhase::Held { reason, revision } => {
             out.object_start();
             out.key(b"held");
             out.object_start();
@@ -69,21 +69,21 @@ pub(super) fn encode_owner_chip_phase(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerChipPhase::Ended => out.string(b"ended"),
+        jig_client::contract::ChipPhase::Ended => out.string(b"ended"),
     }
 }
 
 pub(super) fn encode_owner_chip_work(
-    value: &jig_client::contract::OwnerChipWork,
+    value: &jig_client::contract::ChipWork,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerChipWork::Preparing => out.string(b"preparing"),
-        jig_client::contract::OwnerChipWork::Starting => out.string(b"starting"),
-        jig_client::contract::OwnerChipWork::Active => out.string(b"active"),
-        jig_client::contract::OwnerChipWork::Writing => out.string(b"writing"),
-        jig_client::contract::OwnerChipWork::Tool { call, tool } => {
+        jig_client::contract::ChipWork::Preparing => out.string(b"preparing"),
+        jig_client::contract::ChipWork::Starting => out.string(b"starting"),
+        jig_client::contract::ChipWork::Active => out.string(b"active"),
+        jig_client::contract::ChipWork::Writing => out.string(b"writing"),
+        jig_client::contract::ChipWork::Tool { call, tool } => {
             out.object_start();
             out.key(b"tool");
             out.object_start();
@@ -94,13 +94,13 @@ pub(super) fn encode_owner_chip_work(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerChipWork::Waiting => out.string(b"waiting"),
-        jig_client::contract::OwnerChipWork::Ending => out.string(b"ending"),
+        jig_client::contract::ChipWork::Waiting => out.string(b"waiting"),
+        jig_client::contract::ChipWork::Ending => out.string(b"ending"),
     }
 }
 
 pub(super) fn encode_owner_delegation(
-    value: &jig_client::contract::OwnerDelegation,
+    value: &jig_client::contract::Delegation,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -119,24 +119,24 @@ pub(super) fn encode_owner_delegation(
 }
 
 pub(super) fn encode_owner_escalation_holder(
-    value: &jig_client::contract::OwnerEscalationHolder,
+    value: &jig_client::contract::EscalationHolder,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerEscalationHolder::Task(field_0) => {
+        jig_client::contract::EscalationHolder::Task(field_0) => {
             out.object_start();
             out.key(b"task");
             out.unsigned(*(field_0));
             out.object_end();
         }
-        jig_client::contract::OwnerEscalationHolder::Person(field_0) => {
+        jig_client::contract::EscalationHolder::Person(field_0) => {
             out.object_start();
             out.key(b"person");
             out.unsigned(*(field_0));
             out.object_end();
         }
-        jig_client::contract::OwnerEscalationHolder::Role { project, role } => {
+        jig_client::contract::EscalationHolder::Role { project, role } => {
             out.object_start();
             out.key(b"role");
             out.object_start();
@@ -151,12 +151,12 @@ pub(super) fn encode_owner_escalation_holder(
 }
 
 pub(super) fn encode_owner_executor(
-    value: &jig_client::contract::OwnerExecutor,
+    value: &jig_client::contract::Executor,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerExecutor::Agent { charter } => {
+        jig_client::contract::Executor::Agent { charter } => {
             out.object_start();
             out.key(b"agent");
             out.object_start();
@@ -165,7 +165,7 @@ pub(super) fn encode_owner_executor(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerExecutor::Procedure { connector, code } => {
+        jig_client::contract::Executor::Procedure { connector, code } => {
             out.object_start();
             out.key(b"procedure");
             out.object_start();
@@ -176,7 +176,7 @@ pub(super) fn encode_owner_executor(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerExecutor::Person(field_0) => {
+        jig_client::contract::Executor::Person(field_0) => {
             out.object_start();
             out.key(b"person");
             super::encode_person_address(field_0, out, budget);
@@ -186,7 +186,7 @@ pub(super) fn encode_owner_executor(
 }
 
 pub(super) fn encode_owner_failure_tries(
-    value: &jig_client::contract::OwnerFailureTries,
+    value: &jig_client::contract::FailureTries,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {

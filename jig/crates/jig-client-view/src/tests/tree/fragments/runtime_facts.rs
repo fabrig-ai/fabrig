@@ -30,7 +30,7 @@ fn active(stage: RunStage) -> ActiveRun {
         observation: None,
     }
 }
-fn ready(runtime: Runtime, details: ChipPhase, phase: Phase) -> Fixture {
+fn ready(runtime: Runtime, details: ChipPhaseFacts, phase: Phase) -> Fixture {
     let (mut d, out) = entered(Address::Task { task: 8, section: TaskSection::Activity });
     let watch =
         out.iter()
@@ -46,7 +46,7 @@ fn ready(runtime: Runtime, details: ChipPhase, phase: Phase) -> Fixture {
             })
             .unwrap();
     let mut task = task_doc(&[]);
-    task.chip.executor = Executor::Agent { charter: 2 };
+    task.chip.executor = ChipExecutor::Agent { charter: 2 };
     task.chip.phase = phase;
     *task.chip.details = details;
     task.context.as_mut().expect("supplied task context").runtime = runtime;
@@ -120,7 +120,7 @@ fn current_identity(id: &[u8]) -> CallIdentity {
 fn shown(value: ActiveRun) -> Tree {
     let d = ready(
         Runtime::Active(value.clone()),
-        crate::tests::fixtures::chip_phase(OwnerChipPhase::Active(value.stage)),
+        crate::tests::fixtures::chip_phase(ChipPhase::Active(value.stage)),
         Phase::Running,
     );
     build(&d, 3, words()).0

@@ -17,30 +17,27 @@ pub fn read_wire_note_page() -> w::NotePage {
 }
 
 #[must_use]
-pub fn read_wire_owner_ended_page() -> w::OwnerEndedPage {
+pub fn read_wire_owner_ended_page() -> w::EndedPage {
     let lim = w::CEILINGS;
-    w::OwnerEndedPage::new(&lim, w::OwnerEndedPageParts { rows: Box::from([]), before: None, after: None, cut: false })
+    w::EndedPage::new(&lim, w::EndedPageParts { rows: Box::from([]), before: None, after: None, cut: false })
         .expect("literal fixture fits")
 }
 
 #[must_use]
-pub fn read_wire_owner_inbox_page() -> w::OwnerInboxPage {
+pub fn read_wire_owner_inbox_page() -> w::InboxPage {
     let lim = w::CEILINGS;
-    w::OwnerInboxPage::new(
+    w::InboxPage::new(
         &lim,
-        w::OwnerInboxPageParts { selection: None, cut: false, rows: Box::from([]), before: None, after: None },
+        w::InboxPageParts { selection: None, cut: false, rows: Box::from([]), before: None, after: None },
     )
     .expect("literal fixture fits")
 }
 
 #[must_use]
-pub fn read_wire_owner_spend_page() -> w::OwnerSpendPage {
+pub fn read_wire_owner_spend_page() -> w::SpendPage {
     let lim = w::CEILINGS;
-    w::OwnerSpendPage::new(
-        &lim,
-        w::OwnerSpendPageParts { rows: List::with_capacity(0), before: None, after: None, cut: false },
-    )
-    .expect("literal fixture fits")
+    w::SpendPage::new(&lim, w::SpendPageParts { rows: List::with_capacity(0), before: None, after: None, cut: false })
+        .expect("literal fixture fits")
 }
 
 #[must_use]

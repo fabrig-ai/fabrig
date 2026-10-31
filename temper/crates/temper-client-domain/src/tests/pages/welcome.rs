@@ -179,7 +179,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
     )
 }
 fn account(root: &mut Domain, watch: Token, provider: u32, usable: bool) -> Queue<Request> {
-    deliver(root, watch, c::Delivery::OwnerAccounts(Box::new(playground::accounts(Some(provider), usable, false))))
+    deliver(root, watch, c::Delivery::Accounts(Box::new(playground::accounts(Some(provider), usable, false))))
 }
 fn moved(mut out: Queue<Request>, replace: bool) -> bool {
     while let Some(request) = out.pop() {
@@ -585,7 +585,7 @@ fn without_a_playground_model_usable_reads_the_documents_usable() {
         answer(&mut root, false);
         let mut document = playground::accounts(Some(18), line_usable, false);
         document.usable = document_usable;
-        deliver(&mut root, accounts, c::Delivery::OwnerAccounts(Box::new(document)));
+        deliver(&mut root, accounts, c::Delivery::Accounts(Box::new(document)));
         assert_eq!(pages::welcome::model_usable(&root), Some(document_usable));
     }
 }
@@ -599,7 +599,7 @@ fn with_a_playground_model_usable_reads_other_providers_lines() {
         answer(&mut root, true);
         let mut document = playground::accounts(Some(provider), line_usable, false);
         document.usable = document_usable;
-        deliver(&mut root, accounts, c::Delivery::OwnerAccounts(Box::new(document)));
+        deliver(&mut root, accounts, c::Delivery::Accounts(Box::new(document)));
         assert_eq!(pages::welcome::model_usable(&root), Some(expected));
     }
 }

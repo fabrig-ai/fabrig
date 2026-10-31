@@ -26,7 +26,9 @@ fn answer(peer: &Peer, socket: Token) -> w::KeyedAnswer {
         .expect("wire answer")
 }
 fn end(watch: u64, why: w::WatchEnd) -> w::StreamEvent {
-    w::StreamEvent::Ended(w::Ended::new(&fixtures::limits().wire, w::EndedParts { watch, why }).expect("ending"))
+    w::StreamEvent::Ended(
+        w::WatchEnded::new(&fixtures::limits().wire, w::WatchEndedParts { watch, why }).expect("ending"),
+    )
 }
 fn second_stream(peer: &mut Peer) -> [u8; 16] {
     let spent = peer.printed_link();

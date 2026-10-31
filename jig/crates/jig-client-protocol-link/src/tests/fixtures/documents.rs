@@ -11,11 +11,11 @@ pub fn chip() -> c::Chip {
     c::Chip {
         task: 7,
         title: document_text(b""),
-        executor: c::Executor::Agent { charter: 7 },
+        executor: c::ChipExecutor::Agent { charter: 7 },
         phase: c::Phase::Waiting,
-        details: Box::new(c::ChipPhase {
-            phase: c::OwnerChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
-            details: Box::new(owner_chip_details()),
+        details: Box::new(c::ChipPhaseFacts {
+            phase: c::ChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
+            details: Box::new(chip_details()),
         }),
     }
 }
@@ -76,7 +76,7 @@ pub fn task() -> c::Task {
         lineage_chips: List::with_capacity(0),
         inputs: List::with_capacity(0),
         project: 7,
-        requester: c::OwnerRequester::Task(7),
+        requester: c::Requester::Task(7),
         lineage: List::with_capacity(0),
         spec: c::SpecificationDocument {
             specification: c::DocumentSpecification {
@@ -91,7 +91,7 @@ pub fn task() -> c::Task {
         person_revision: None,
         taken_by: None,
         instructions: None,
-        wake: c::OwnerWakePolicy {
+        wake: c::WakePolicy {
             words: c::WakeRule::Never,
             notices: c::WakeRule::Never,
             news: c::WakeRule::Never,
@@ -103,28 +103,24 @@ pub fn task() -> c::Task {
         subscriptions: c::Subscriptions { entries: List::with_capacity(0) },
         result_contract: c::TaskContractDocument::Approval {
             state: Box::from([]),
-            part: c::OwnerPart {
-                connector: 7,
-                kind: c::OwnerPartKind::Resource,
-                key: c::OwnerPartKey::Path(List::with_capacity(0)),
-            },
+            part: c::Part { connector: 7, kind: c::PartKind::Resource, key: c::PartKey::Path(List::with_capacity(0)) },
         },
         dependencies: List::with_capacity(0),
         references: List::with_capacity(0),
         cut: false,
         resources: List::with_capacity(0),
-        budget: c::OwnerBudget {
-            numbers: c::OwnerNumbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
+        budget: c::Budget {
+            numbers: c::Numbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
             left: 7,
             funder: c::Funder::Task(7),
             deadline: None,
         },
-        authority: c::OwnerAuthorityDocument {
-            authority: c::OwnerAuthority {
+        authority: c::AuthorityDocument {
+            authority: c::Authority {
                 models: Some(c::AuthorityModels::All),
                 tools: 7,
                 grants: List::with_capacity(0),
-                delegation: c::OwnerDelegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
+                delegation: c::Delegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
                 spend: 7,
                 deadline: None,
                 notes: 7,
@@ -308,7 +304,7 @@ pub fn decoded_live_call_expected() -> c::LiveCall {
 
 pub fn task_with_resource_path(count: u32) -> w::Task {
     let mut wire = *limits().wire();
-    wire.owner_part_key_path_value = count;
+    wire.part_key_path_value = count;
     let mut parts = task_record().into_parts();
     let w::TaskContractDocument::Approval(approval) = parts.result_contract else { panic!("approval fixture") };
     let mut approval = approval.into_parts();
@@ -317,9 +313,8 @@ pub fn task_with_resource_path(count: u32) -> w::Task {
     for _ in 0..count {
         path.push(Box::from(b"segment".as_slice())).unwrap();
     }
-    part.key =
-        w::OwnerPartKey::Path(w::OwnerPartKeyPath::new(&wire, w::OwnerPartKeyPathParts { value: path }).unwrap());
-    approval.part = w::OwnerPart::new(&wire, part).unwrap();
+    part.key = w::PartKey::Path(w::PartKeyPath::new(&wire, w::PartKeyPathParts { value: path }).unwrap());
+    approval.part = w::Part::new(&wire, part).unwrap();
     parts.result_contract =
         w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(&wire, approval).unwrap());
     w::Task::new(&wire, parts).unwrap()
@@ -333,20 +328,17 @@ pub fn task_with_authority_grants(count: u32) -> (w::Task, c::Task) {
             .authority
             .authority
             .grants
-            .push(c::OwnerGrant {
+            .push(c::Grant {
                 connector: u16::MAX,
                 kind: u16::MAX,
-                pattern: c::OwnerPattern {
-                    segments: List::with_capacity(0),
-                    last: c::OwnerPatternEnd::Open(Box::new([])),
-                },
+                pattern: c::Pattern { segments: List::with_capacity(0), last: c::PatternEnd::Open(Box::new([])) },
             })
             .unwrap();
     }
     let mut parts = task_record().into_parts();
-    parts.authority = w::OwnerAuthorityDocument::new(
+    parts.authority = w::AuthorityDocument::new(
         &w::CEILINGS,
-        w::OwnerAuthorityDocumentParts {
+        w::AuthorityDocumentParts {
             cut: false,
             authority: translate::asks::wire_owner_authority(&expected.authority.authority, &w::CEILINGS).unwrap(),
         },

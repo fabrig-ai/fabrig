@@ -159,13 +159,10 @@ pub(crate) fn wire_results_wake(value: c::ResultsWake) -> w::ResultsWake {
     }
 }
 
-pub(crate) fn wire_owner_wake_policy(
-    value: &c::OwnerWakePolicy,
-    limits: &w::Limits,
-) -> Result<w::OwnerWakePolicy, w::Problem> {
-    w::OwnerWakePolicy::new(
+pub(crate) fn wire_owner_wake_policy(value: &c::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
+    w::WakePolicy::new(
         limits,
-        w::OwnerWakePolicyParts {
+        w::WakePolicyParts {
             words: wire_wake_rule(&value.words, limits)?,
             notices: wire_wake_rule(&value.notices, limits)?,
             news: wire_wake_rule(&value.news, limits)?,
@@ -177,37 +174,31 @@ pub(crate) fn wire_owner_wake_policy(
     )
 }
 
-pub(crate) fn wire_owner_pattern_end(
-    value: &c::OwnerPatternEnd,
-    limits: &w::Limits,
-) -> Result<w::OwnerPatternEnd, w::Problem> {
+pub(crate) fn wire_owner_pattern_end(value: &c::PatternEnd, limits: &w::Limits) -> Result<w::PatternEnd, w::Problem> {
     Ok(match value {
-        c::OwnerPatternEnd::Exact(value) => w::OwnerPatternEnd::Exact(w::OwnerPatternEndExact::new(
+        c::PatternEnd::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact::new(
             limits,
-            w::OwnerPatternEndExactParts { value: bytes::copy_of(value) },
+            w::PatternEndExactParts { value: bytes::copy_of(value) },
         )?),
-        c::OwnerPatternEnd::Open(value) => w::OwnerPatternEnd::Open(w::OwnerPatternEndOpen::new(
+        c::PatternEnd::Open(value) => w::PatternEnd::Open(w::PatternEndOpen::new(
             limits,
-            w::OwnerPatternEndOpenParts { value: bytes::copy_of(value) },
+            w::PatternEndOpenParts { value: bytes::copy_of(value) },
         )?),
     })
 }
 
-pub(crate) fn wire_owner_pattern(value: &c::OwnerPattern, limits: &w::Limits) -> Result<w::OwnerPattern, w::Problem> {
+pub(crate) fn wire_owner_pattern(value: &c::Pattern, limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
     let mut list0 = List::with_capacity(value.segments.len());
     for item in &value.segments {
         list0.push(bytes::copy_of(item)).expect("reserved supplied list");
     }
-    w::OwnerPattern::new(
-        limits,
-        w::OwnerPatternParts { segments: list0, last: wire_owner_pattern_end(&value.last, limits)? },
-    )
+    w::Pattern::new(limits, w::PatternParts { segments: list0, last: wire_owner_pattern_end(&value.last, limits)? })
 }
 
-pub(crate) fn wire_owner_grant(value: &c::OwnerGrant, limits: &w::Limits) -> Result<w::OwnerGrant, w::Problem> {
-    w::OwnerGrant::new(
+pub(crate) fn wire_owner_grant(value: &c::Grant, limits: &w::Limits) -> Result<w::Grant, w::Problem> {
+    w::Grant::new(
         limits,
-        w::OwnerGrantParts {
+        w::GrantParts {
             connector: value.connector,
             kind: value.kind,
             pattern: wire_owner_pattern(&value.pattern, limits)?,
@@ -215,7 +206,7 @@ pub(crate) fn wire_owner_grant(value: &c::OwnerGrant, limits: &w::Limits) -> Res
     )
 }
 
-pub(super) fn wire_owner_grant_piece(rows: &List<w::OwnerGrant>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn wire_owner_grant_piece(rows: &List<w::Grant>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut length = 0_u32;
     for row in rows {
         length = length.checked_add(row.measure()).ok_or(too_large())?;
@@ -235,48 +226,43 @@ pub(super) fn wire_owner_grant_piece(rows: &List<w::OwnerGrant>, limits: &w::Lim
 }
 
 pub(crate) fn wire_owner_authority_executor(
-    value: c::OwnerAuthorityExecutor,
+    value: c::AuthorityExecutor,
     limits: &w::Limits,
-) -> Result<w::OwnerAuthorityExecutor, w::Problem> {
+) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
-        c::OwnerAuthorityExecutor::Charter(value) => w::OwnerAuthorityExecutor::Charter(
-            w::OwnerAuthorityExecutorCharter::new(limits, w::OwnerAuthorityExecutorCharterParts { value })?,
-        ),
-        c::OwnerAuthorityExecutor::Procedure(value) => w::OwnerAuthorityExecutor::Procedure(
-            w::OwnerAuthorityExecutorProcedure::new(limits, w::OwnerAuthorityExecutorProcedureParts { value })?,
-        ),
-        c::OwnerAuthorityExecutor::Role(value) => w::OwnerAuthorityExecutor::Role(w::OwnerAuthorityExecutorRole::new(
+        c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
-            w::OwnerAuthorityExecutorRoleParts { value },
+            w::AuthorityExecutorCharterParts { value },
         )?),
+        c::AuthorityExecutor::Procedure(value) => w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure::new(
+            limits,
+            w::AuthorityExecutorProcedureParts { value },
+        )?),
+        c::AuthorityExecutor::Role(value) => {
+            w::AuthorityExecutor::Role(w::AuthorityExecutorRole::new(limits, w::AuthorityExecutorRoleParts { value })?)
+        }
     })
 }
 
-pub(crate) fn wire_owner_delegation(
-    value: &c::OwnerDelegation,
-    limits: &w::Limits,
-) -> Result<w::OwnerDelegation, w::Problem> {
+pub(crate) fn wire_owner_delegation(value: &c::Delegation, limits: &w::Limits) -> Result<w::Delegation, w::Problem> {
     let mut list0 = List::with_capacity(value.kinds.len());
     for item in &value.kinds {
         list0.push(wire_owner_authority_executor(*item, limits)?).expect("reserved supplied list");
     }
-    w::OwnerDelegation::new(limits, w::OwnerDelegationParts { kinds: list0, tasks: value.tasks, depth: value.depth })
+    w::Delegation::new(limits, w::DelegationParts { kinds: list0, tasks: value.tasks, depth: value.depth })
 }
 
 pub(crate) fn wire_owner_resource_scope(
-    value: &c::OwnerResourceScope,
+    value: &c::ResourceScope,
     limits: &w::Limits,
-) -> Result<w::OwnerResourceScope, w::Problem> {
-    w::OwnerResourceScope::new(
+) -> Result<w::ResourceScope, w::Problem> {
+    w::ResourceScope::new(
         limits,
-        w::OwnerResourceScopeParts { connector: value.connector, pattern: wire_owner_pattern(&value.pattern, limits)? },
+        w::ResourceScopeParts { connector: value.connector, pattern: wire_owner_pattern(&value.pattern, limits)? },
     )
 }
 
-fn wire_owner_resource_scope_piece(
-    rows: &List<w::OwnerResourceScope>,
-    limits: &w::Limits,
-) -> Result<Box<[u8]>, w::Problem> {
+fn wire_owner_resource_scope_piece(rows: &List<w::ResourceScope>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut length = 0_u32;
     for row in rows {
         length = length.checked_add(row.measure()).ok_or(too_large())?;
@@ -296,10 +282,7 @@ fn wire_owner_resource_scope_piece(
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn wire_owner_authority(
-    value: &c::OwnerAuthority,
-    limits: &w::Limits,
-) -> Result<w::OwnerAuthority, w::Problem> {
+pub(crate) fn wire_owner_authority(value: &c::Authority, limits: &w::Limits) -> Result<w::Authority, w::Problem> {
     let mut list0 = List::with_capacity(value.grants.len());
     for item in &value.grants {
         list0.push(wire_owner_grant(item, limits)?).expect("reserved supplied list");
@@ -312,9 +295,9 @@ pub(crate) fn wire_owner_authority(
     for item in &value.note_resources {
         list2.push(wire_owner_resource_scope(item, limits)?).expect("reserved supplied list");
     }
-    w::OwnerAuthority::new(
+    w::Authority::new(
         limits,
-        w::OwnerAuthorityParts {
+        w::AuthorityParts {
             models: super::model_sets::encode(value.models.as_ref(), limits)?,
             tools: value.tools,
             grants: wire_owner_grant_piece(&list0, limits)?,
@@ -713,10 +696,10 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
     })
 }
 
-fn account_holder(value: c::AccountHolder) -> w::AccountHolder {
+fn account_holder(value: c::AskAccountHolder) -> w::AskAccountHolder {
     match value {
-        c::AccountHolder::Own => w::AccountHolder::Own,
-        c::AccountHolder::Deployment => w::AccountHolder::Deployment,
+        c::AskAccountHolder::Own => w::AskAccountHolder::Own,
+        c::AskAccountHolder::Deployment => w::AskAccountHolder::Deployment,
     }
 }
 
@@ -793,7 +776,7 @@ fn account_change(value: &c::AccountChange, limits: &w::Limits) -> Result<w::Acc
 
 fn account_set_uses(
     account: u32,
-    uses: Option<&[c::OwnerAccountUse]>,
+    uses: Option<&[c::AccountUse]>,
     limits: &w::Limits,
 ) -> Result<w::AccountChange, w::Problem> {
     Ok(w::AccountChange::SetUses(w::AccountChangeSetUses::new(
@@ -816,15 +799,14 @@ fn account_set_uses(
                         List::with_capacity(u32::try_from(uses.len()).expect("account uses bounded by the wire"));
                     for use_ in uses {
                         rows.push(match use_ {
-                            c::OwnerAccountUse::Party(value) => w::OwnerAccountUse::Party(
-                                w::OwnerAccountUseParty::new(limits, w::OwnerAccountUsePartyParts { party: *value })?,
-                            ),
-                            c::OwnerAccountUse::Project(value) => {
-                                w::OwnerAccountUse::Project(w::OwnerAccountUseProject::new(
-                                    limits,
-                                    w::OwnerAccountUseProjectParts { project: *value },
-                                )?)
-                            }
+                            c::AccountUse::Party(value) => w::AccountUse::Party(w::AccountUseParty::new(
+                                limits,
+                                w::AccountUsePartyParts { party: *value },
+                            )?),
+                            c::AccountUse::Project(value) => w::AccountUse::Project(w::AccountUseProject::new(
+                                limits,
+                                w::AccountUseProjectParts { project: *value },
+                            )?),
                         })
                         .expect("reserved uses");
                     }

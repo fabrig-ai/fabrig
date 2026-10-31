@@ -23,13 +23,13 @@ pub(crate) fn proposal_key(value: &w::ProposalKey) -> c::ProposalKey {
     c::ProposalKey { proposer: proposer(value.proposer()), number: value.number() }
 }
 
-pub(crate) fn owner_proposal_choice(value: &w::OwnerProposalChoice) -> c::OwnerProposalChoice {
+pub(crate) fn proposal_choice(value: &w::ProposalChoice) -> c::ProposalChoice {
     match value {
-        w::OwnerProposalChoice::Accepted => c::OwnerProposalChoice::Accepted,
-        w::OwnerProposalChoice::Rejected => c::OwnerProposalChoice::Rejected,
-        w::OwnerProposalChoice::Passed => c::OwnerProposalChoice::Passed,
-        w::OwnerProposalChoice::Withdrawn => c::OwnerProposalChoice::Withdrawn,
-        w::OwnerProposalChoice::Stale => c::OwnerProposalChoice::Stale,
+        w::ProposalChoice::Accepted => c::ProposalChoice::Accepted,
+        w::ProposalChoice::Rejected => c::ProposalChoice::Rejected,
+        w::ProposalChoice::Passed => c::ProposalChoice::Passed,
+        w::ProposalChoice::Withdrawn => c::ProposalChoice::Withdrawn,
+        w::ProposalChoice::Stale => c::ProposalChoice::Stale,
     }
 }
 
@@ -37,19 +37,19 @@ pub(crate) fn revision(value: &w::Revision) -> c::Revision {
     c::Revision { value: value.value() }
 }
 
-pub(crate) fn owner_escalation_choice(value: &w::OwnerEscalationChoice) -> c::OwnerEscalationChoice {
+pub(crate) fn escalation_choice(value: &w::EscalationChoice) -> c::EscalationChoice {
     match value {
-        w::OwnerEscalationChoice::Released => c::OwnerEscalationChoice::Released,
-        w::OwnerEscalationChoice::Rejected => c::OwnerEscalationChoice::Rejected,
-        w::OwnerEscalationChoice::Passed => c::OwnerEscalationChoice::Passed,
+        w::EscalationChoice::Released => c::EscalationChoice::Released,
+        w::EscalationChoice::Rejected => c::EscalationChoice::Rejected,
+        w::EscalationChoice::Passed => c::EscalationChoice::Passed,
     }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields")]
-pub(crate) fn owner_outcome(value: &w::OwnerOutcome, limits: &Limits) -> Result<c::OwnerOutcome, w::Problem> {
+pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> Result<c::DocumentOutcome, w::Problem> {
     Ok(match value {
-        w::OwnerOutcome::ProjectRemoved(row) => c::OwnerOutcome::ProjectRemoved { project: row.project() },
-        w::OwnerOutcome::Created(row) => c::OwnerOutcome::Created {
+        w::DocumentOutcome::ProjectRemoved(row) => c::DocumentOutcome::ProjectRemoved { project: row.project() },
+        w::DocumentOutcome::Created(row) => c::DocumentOutcome::Created {
             first: row.first(),
             last: row.last(),
             given: match row.given() {
@@ -57,88 +57,90 @@ pub(crate) fn owner_outcome(value: &w::OwnerOutcome, limits: &Limits) -> Result<
                 None => None,
             },
         },
-        w::OwnerOutcome::Compound(row) => c::OwnerOutcome::Compound {
+        w::DocumentOutcome::Compound(row) => c::DocumentOutcome::Compound {
             project: row.project(),
             operations: row.operations(),
             first_message: row.first_message(),
         },
-        w::OwnerOutcome::MarkedSeen(row) => c::OwnerOutcome::MarkedSeen { seen: seen(row.seen()) },
-        w::OwnerOutcome::NoteEdited(row) => c::OwnerOutcome::NoteEdited { name: row.name() },
-        w::OwnerOutcome::ServiceMade(row) => c::OwnerOutcome::ServiceMade { person: row.person() },
-        w::OwnerOutcome::Adopted(row) => c::OwnerOutcome::Adopted { project: row.project() },
-        w::OwnerOutcome::Stopped(row) => c::OwnerOutcome::Stopped { task: row.task() },
-        w::OwnerOutcome::Cancelled(row) => c::OwnerOutcome::Cancelled { task: row.task() },
-        w::OwnerOutcome::Lifted(row) => c::OwnerOutcome::Lifted { hold: row.hold(), released: row.released() },
-        w::OwnerOutcome::Released(row) => c::OwnerOutcome::Released { task: row.task() },
-        w::OwnerOutcome::PersonTaken(row) => c::OwnerOutcome::PersonTaken { task: row.task() },
-        w::OwnerOutcome::PersonHandedBack(row) => c::OwnerOutcome::PersonHandedBack { task: row.task() },
-        w::OwnerOutcome::PersonAnswered(row) => c::OwnerOutcome::PersonAnswered { task: row.task() },
-        w::OwnerOutcome::Moved(row) => c::OwnerOutcome::Moved { task: row.task() },
-        w::OwnerOutcome::ProposalDecided(row) => c::OwnerOutcome::ProposalDecided {
+        w::DocumentOutcome::MarkedSeen(row) => c::DocumentOutcome::MarkedSeen { seen: seen(row.seen()) },
+        w::DocumentOutcome::NoteEdited(row) => c::DocumentOutcome::NoteEdited { name: row.name() },
+        w::DocumentOutcome::ServiceMade(row) => c::DocumentOutcome::ServiceMade { person: row.person() },
+        w::DocumentOutcome::Adopted(row) => c::DocumentOutcome::Adopted { project: row.project() },
+        w::DocumentOutcome::Stopped(row) => c::DocumentOutcome::Stopped { task: row.task() },
+        w::DocumentOutcome::Cancelled(row) => c::DocumentOutcome::Cancelled { task: row.task() },
+        w::DocumentOutcome::Lifted(row) => c::DocumentOutcome::Lifted { hold: row.hold(), released: row.released() },
+        w::DocumentOutcome::Released(row) => c::DocumentOutcome::Released { task: row.task() },
+        w::DocumentOutcome::PersonTaken(row) => c::DocumentOutcome::PersonTaken { task: row.task() },
+        w::DocumentOutcome::PersonHandedBack(row) => c::DocumentOutcome::PersonHandedBack { task: row.task() },
+        w::DocumentOutcome::PersonAnswered(row) => c::DocumentOutcome::PersonAnswered { task: row.task() },
+        w::DocumentOutcome::Moved(row) => c::DocumentOutcome::Moved { task: row.task() },
+        w::DocumentOutcome::ProposalDecided(row) => c::DocumentOutcome::ProposalDecided {
             proposal: proposal_key(row.proposal()),
             by: row.by(),
             at: Wall::from_nanos(row.at()),
-            choice: owner_proposal_choice(row.choice()),
+            choice: proposal_choice(row.choice()),
             repeated: row.repeated(),
         },
-        w::OwnerOutcome::Said(row) => c::OwnerOutcome::Said { task: row.task(), message: row.message() },
-        w::OwnerOutcome::QuestionAnswered(row) => {
-            c::OwnerOutcome::QuestionAnswered { task: row.task(), question: row.question(), message: row.message() }
+        w::DocumentOutcome::Said(row) => c::DocumentOutcome::Said { task: row.task(), message: row.message() },
+        w::DocumentOutcome::QuestionAnswered(row) => {
+            c::DocumentOutcome::QuestionAnswered { task: row.task(), question: row.question(), message: row.message() }
         }
-        w::OwnerOutcome::Amended(row) => c::OwnerOutcome::Amended { task: row.task() },
-        w::OwnerOutcome::Proposed(row) => c::OwnerOutcome::Proposed { proposal: row.proposal(), to: row.to() },
-        w::OwnerOutcome::Withdrawn(row) => c::OwnerOutcome::Withdrawn { proposal: row.proposal() },
-        w::OwnerOutcome::RolesSet(row) => c::OwnerOutcome::RolesSet { project: row.project() },
-        w::OwnerOutcome::Renamed(row) => c::OwnerOutcome::Renamed { project: row.project() },
-        w::OwnerOutcome::ProjectMade(row) => c::OwnerOutcome::ProjectMade { project: row.project() },
-        w::OwnerOutcome::PolicyChanged(row) => c::OwnerOutcome::PolicyChanged { project: row.project() },
-        w::OwnerOutcome::AccountSignInStarted(row) => {
-            c::OwnerOutcome::AccountSignInStarted { source: row.source(), address: bytes::copy_of(row.address()) }
+        w::DocumentOutcome::Amended(row) => c::DocumentOutcome::Amended { task: row.task() },
+        w::DocumentOutcome::Proposed(row) => c::DocumentOutcome::Proposed { proposal: row.proposal(), to: row.to() },
+        w::DocumentOutcome::Withdrawn(row) => c::DocumentOutcome::Withdrawn { proposal: row.proposal() },
+        w::DocumentOutcome::RolesSet(row) => c::DocumentOutcome::RolesSet { project: row.project() },
+        w::DocumentOutcome::Renamed(row) => c::DocumentOutcome::Renamed { project: row.project() },
+        w::DocumentOutcome::ProjectMade(row) => c::DocumentOutcome::ProjectMade { project: row.project() },
+        w::DocumentOutcome::PolicyChanged(row) => c::DocumentOutcome::PolicyChanged { project: row.project() },
+        w::DocumentOutcome::AccountSignInStarted(row) => {
+            c::DocumentOutcome::AccountSignInStarted { source: row.source(), address: bytes::copy_of(row.address()) }
         }
-        w::OwnerOutcome::AccountKeyKept(row) => c::OwnerOutcome::AccountKeyKept { source: row.source() },
-        w::OwnerOutcome::AccountProgramDeclared(row) => {
+        w::DocumentOutcome::AccountKeyKept(row) => c::DocumentOutcome::AccountKeyKept { source: row.source() },
+        w::DocumentOutcome::AccountProgramDeclared(row) => {
             if !c::valid_program_name(row.name()) {
                 return Err(super::piece_problem(skein_codec::Reason::Malformed));
             }
-            c::OwnerOutcome::AccountProgramDeclared { source: row.source(), name: bytes::copy_of(row.name()) }
+            c::DocumentOutcome::AccountProgramDeclared { source: row.source(), name: bytes::copy_of(row.name()) }
         }
-        w::OwnerOutcome::AccountFinishing(row) => c::OwnerOutcome::AccountFinishing { source: row.source() },
-        w::OwnerOutcome::AccountMovedIn(row) => {
-            c::OwnerOutcome::AccountMovedIn { account: row.account(), renewed: row.renewed() }
+        w::DocumentOutcome::AccountFinishing(row) => c::DocumentOutcome::AccountFinishing { source: row.source() },
+        w::DocumentOutcome::AccountMovedIn(row) => {
+            c::DocumentOutcome::AccountMovedIn { account: row.account(), renewed: row.renewed() }
         }
-        w::OwnerOutcome::AccountChanged => c::OwnerOutcome::AccountChanged,
-        w::OwnerOutcome::AccountRemoved(row) => c::OwnerOutcome::AccountRemoved {
+        w::DocumentOutcome::AccountChanged => c::DocumentOutcome::AccountChanged,
+        w::DocumentOutcome::AccountRemoved(row) => c::DocumentOutcome::AccountRemoved {
             confirmed: row.confirmed(),
             failed_hosts: super::account_hosts::decode(row.failed_hosts(), row.confirmed(), limits)?,
         },
-        w::OwnerOutcome::AccountSignedOut(row) => c::OwnerOutcome::AccountSignedOut {
+        w::DocumentOutcome::AccountSignedOut(row) => c::DocumentOutcome::AccountSignedOut {
             confirmed: row.confirmed(),
             failed_hosts: super::account_hosts::decode(row.failed_hosts(), row.confirmed(), limits)?,
         },
-        w::OwnerOutcome::PoolSet(row) => c::OwnerOutcome::PoolSet { project: row.project(), person: row.person() },
-        w::OwnerOutcome::EscalationDecided(row) => c::OwnerOutcome::EscalationDecided {
+        w::DocumentOutcome::PoolSet(row) => {
+            c::DocumentOutcome::PoolSet { project: row.project(), person: row.person() }
+        }
+        w::DocumentOutcome::EscalationDecided(row) => c::DocumentOutcome::EscalationDecided {
             task: row.task(),
             revision: revision(row.revision()),
             by: row.by(),
             at: Wall::from_nanos(row.at()),
-            choice: owner_escalation_choice(row.choice()),
+            choice: escalation_choice(row.choice()),
         },
     })
 }
 
-pub(crate) fn owner_pattern_end(value: &w::OwnerPatternEnd) -> c::OwnerPatternEnd {
+pub(crate) fn pattern_end(value: &w::PatternEnd) -> c::PatternEnd {
     match value {
-        w::OwnerPatternEnd::Exact(row) => c::OwnerPatternEnd::Exact(bytes::copy_of(row.value())),
-        w::OwnerPatternEnd::Open(row) => c::OwnerPatternEnd::Open(bytes::copy_of(row.value())),
+        w::PatternEnd::Exact(row) => c::PatternEnd::Exact(bytes::copy_of(row.value())),
+        w::PatternEnd::Open(row) => c::PatternEnd::Open(bytes::copy_of(row.value())),
     }
 }
 
-pub(crate) fn owner_pattern(value: &w::OwnerPattern) -> c::OwnerPattern {
+pub(crate) fn pattern(value: &w::Pattern) -> c::Pattern {
     let mut list0 = List::with_capacity(value.segments().len());
     for item in value.segments() {
         list0.push(bytes::copy_of(item)).expect("reserved supplied list");
     }
-    c::OwnerPattern { segments: list0, last: owner_pattern_end(value.last()) }
+    c::Pattern { segments: list0, last: pattern_end(value.last()) }
 }
 
 pub(crate) fn note_scope(value: &w::NoteScope) -> c::NoteScope {
@@ -148,7 +150,7 @@ pub(crate) fn note_scope(value: &w::NoteScope) -> c::NoteScope {
         w::NoteScope::Resource(row) => c::NoteScope::Resource {
             project: row.project(),
             connector: row.connector(),
-            pattern: owner_pattern(row.pattern()),
+            pattern: pattern(row.pattern()),
         },
         w::NoteScope::Task(row) => c::NoteScope::Task { project: row.project(), task: row.task() },
     }
@@ -208,7 +210,7 @@ pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
 
 pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
     Ok(match value {
-        w::Outcome::Owner(row) => c::Outcome::Owner(owner_outcome(row.value(), limits)?),
+        w::Outcome::Document(row) => c::Outcome::Document(document_outcome(row.value(), limits)?),
         w::Outcome::Made(row) => c::Outcome::Made { what: made(row.what()) },
         w::Outcome::MovedToNewest(value) => c::Outcome::MovedToNewest(c::OutcomeMovedToNewest {
             newest: value.newest(),
@@ -231,12 +233,12 @@ pub(crate) fn held_role(value: &w::HeldRole) -> c::HeldRole {
     }
 }
 
-pub(crate) fn executor(value: &w::Executor) -> c::Executor {
+pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {
     match value {
-        w::Executor::Agent(row) => c::Executor::Agent { charter: row.charter() },
-        w::Executor::Procedure(row) => c::Executor::Procedure { connector: row.connector(), kind: row.kind() },
-        w::Executor::Party(row) => c::Executor::Party { party: row.party() },
-        w::Executor::Role(row) => c::Executor::Role { project: row.project(), role: row.role() },
+        w::ChipExecutor::Agent(row) => c::ChipExecutor::Agent { charter: row.charter() },
+        w::ChipExecutor::Procedure(row) => c::ChipExecutor::Procedure { connector: row.connector(), kind: row.kind() },
+        w::ChipExecutor::Party(row) => c::ChipExecutor::Party { party: row.party() },
+        w::ChipExecutor::Role(row) => c::ChipExecutor::Role { project: row.project(), role: row.role() },
     }
 }
 
@@ -488,9 +490,9 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         w::Refusal::Dependency(value) => c::Refusal::Dependency {
             dependency: value.dependency(),
             how: match value.how() {
-                w::OwnerTaskStatus::Done => c::OwnerTaskStatus::Done,
-                w::OwnerTaskStatus::Failed => c::OwnerTaskStatus::Failed,
-                w::OwnerTaskStatus::Cancelled => c::OwnerTaskStatus::Cancelled,
+                w::TaskStatus::Done => c::TaskStatus::Done,
+                w::TaskStatus::Failed => c::TaskStatus::Failed,
+                w::TaskStatus::Cancelled => c::TaskStatus::Cancelled,
             },
         },
         w::Refusal::Stale(value) => c::Refusal::Stale(super::settings::restore_refusal_stale(value)?),
@@ -656,17 +658,17 @@ fn original_nonzero_recipient_survives_wire_decoding_and_contract_translation() 
     )
     .expect("existing small client fixture bounds");
     for to in [7, 91, u32::MAX] {
-        let original = w::OwnerOutcome::Proposed(
-            w::OwnerOutcomeProposed::new(limits.wire(), w::OwnerOutcomeProposedParts { proposal: 31, to })
+        let original = w::DocumentOutcome::Proposed(
+            w::OutcomeProposed::new(limits.wire(), w::OutcomeProposedParts { proposal: 31, to })
                 .expect("recipient record"),
         );
         let mut out = Writer::new(usize::try_from(original.measure()).expect("small result"));
         original.encode(&mut out).expect("measured room");
         let bytes = out.finish();
-        let decoded = w::OwnerOutcome::decode(limits.wire(), &mut Reader::new(&bytes)).expect("real record decoder");
+        let decoded = w::DocumentOutcome::decode(limits.wire(), &mut Reader::new(&bytes)).expect("real record decoder");
         assert_eq!(
-            owner_outcome(&decoded, &limits).expect("contract translation"),
-            c::OwnerOutcome::Proposed { proposal: 31, to }
+            document_outcome(&decoded, &limits).expect("contract translation"),
+            c::DocumentOutcome::Proposed { proposal: 31, to }
         );
     }
 }

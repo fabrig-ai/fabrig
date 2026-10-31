@@ -1,39 +1,39 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
-use super::{Limits, List, Reader, Wall, c, owner_task_link_fields, piece_problem, too_large, w};
+use super::{Limits, List, Reader, Wall, c, piece_problem, task_link_fields, too_large, w};
 pub(crate) fn store_fill_fields(value: &w::StoreFill) -> c::StoreFill {
     c::StoreFill { bytes: value.bytes(), mark: value.mark() }
 }
 
-pub(crate) fn owner_host_kind_fields(value: &w::OwnerHostKind) -> c::OwnerHostKind {
+pub(crate) fn host_kind_fields(value: &w::HostKind) -> c::HostKind {
     match value {
-        w::OwnerHostKind::Worker => c::OwnerHostKind::Worker,
-        w::OwnerHostKind::Engine => c::OwnerHostKind::Engine,
+        w::HostKind::Worker => c::HostKind::Worker,
+        w::HostKind::Engine => c::HostKind::Engine,
     }
 }
 
-pub(crate) fn owner_attempt_state_fields(value: &w::OwnerAttemptState) -> c::OwnerAttemptState {
+pub(crate) fn attempt_state_fields(value: &w::AttemptState) -> c::AttemptState {
     match value {
-        w::OwnerAttemptState::Waiting => c::OwnerAttemptState::Waiting,
-        w::OwnerAttemptState::Adopted => c::OwnerAttemptState::Adopted,
-        w::OwnerAttemptState::Claimed => c::OwnerAttemptState::Claimed,
-        w::OwnerAttemptState::Cancelled => c::OwnerAttemptState::Cancelled,
-        w::OwnerAttemptState::Handed => c::OwnerAttemptState::Handed,
-        w::OwnerAttemptState::Acknowledged => c::OwnerAttemptState::Acknowledged,
-        w::OwnerAttemptState::Stray => c::OwnerAttemptState::Stray,
-        w::OwnerAttemptState::Kept => c::OwnerAttemptState::Kept,
-        w::OwnerAttemptState::Fenced => c::OwnerAttemptState::Fenced,
-        w::OwnerAttemptState::Closed => c::OwnerAttemptState::Closed,
+        w::AttemptState::Waiting => c::AttemptState::Waiting,
+        w::AttemptState::Adopted => c::AttemptState::Adopted,
+        w::AttemptState::Claimed => c::AttemptState::Claimed,
+        w::AttemptState::Cancelled => c::AttemptState::Cancelled,
+        w::AttemptState::Handed => c::AttemptState::Handed,
+        w::AttemptState::Acknowledged => c::AttemptState::Acknowledged,
+        w::AttemptState::Stray => c::AttemptState::Stray,
+        w::AttemptState::Kept => c::AttemptState::Kept,
+        w::AttemptState::Fenced => c::AttemptState::Fenced,
+        w::AttemptState::Closed => c::AttemptState::Closed,
     }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_run_location_fields(value: &w::OwnerRunLocation) -> c::OwnerRunLocation {
+pub(crate) fn run_location_fields(value: &w::RunLocation) -> c::RunLocation {
     match value {
-        w::OwnerRunLocation::None => c::OwnerRunLocation::None,
-        w::OwnerRunLocation::Connected(row) => {
-            c::OwnerRunLocation::Connected { channel: row.channel(), kind: owner_host_kind_fields(row.kind()) }
+        w::RunLocation::None => c::RunLocation::None,
+        w::RunLocation::Connected(row) => {
+            c::RunLocation::Connected { channel: row.channel(), kind: host_kind_fields(row.kind()) }
         }
-        w::OwnerRunLocation::Adrift(row) => {
+        w::RunLocation::Adrift(row) => {
             let opt0 = match row.channel() {
                 Some(item) => Some(*item),
                 None => None,
@@ -46,33 +46,29 @@ pub(crate) fn owner_run_location_fields(value: &w::OwnerRunLocation) -> c::Owner
                 Some(item) => Some(*item),
                 None => None,
             };
-            c::OwnerRunLocation::Adrift { channel: opt0, until: opt1, remaining: opt2 }
+            c::RunLocation::Adrift { channel: opt0, until: opt1, remaining: opt2 }
         }
     }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_host_run_fields(value: &w::OwnerHostRun, limits: &Limits) -> Result<c::OwnerHostRun, w::Problem> {
+pub(crate) fn host_run_fields(value: &w::HostRun, limits: &Limits) -> Result<c::HostRun, w::Problem> {
     let opt0 = match value.grace_until() {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
     };
-    Ok(c::OwnerHostRun {
-        task: owner_task_link_fields(value.task(), limits)?,
+    Ok(c::HostRun {
+        task: task_link_fields(value.task(), limits)?,
         attempt: value.attempt(),
         kept: value.kept(),
         listed: value.listed(),
-        state: owner_attempt_state_fields(value.state()),
-        location: owner_run_location_fields(value.location()),
+        state: attempt_state_fields(value.state()),
+        location: run_location_fields(value.location()),
         grace_until: opt0,
     })
 }
 
-pub(crate) fn owner_host_run_piece(
-    bytes: &[u8],
-    limits: &Limits,
-    bound: u32,
-) -> Result<List<c::OwnerHostRun>, w::Problem> {
+pub(crate) fn host_run_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::HostRun>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -92,8 +88,8 @@ pub(crate) fn owner_host_run_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerHostRun::decode(limits.wire(), &mut Reader::new(&item))?;
-        let row = owner_host_run_fields(&row, limits)?;
+        let row = w::HostRun::decode(limits.wire(), &mut Reader::new(&item))?;
+        let row = host_run_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -102,11 +98,7 @@ pub(crate) fn owner_host_run_piece(
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_host_fields(
-    value: &w::OwnerHost,
-    limits: &Limits,
-    room: &mut u64,
-) -> Result<c::OwnerHost, w::Problem> {
+pub(crate) fn host_fields(value: &w::Host, limits: &Limits, room: &mut u64) -> Result<c::Host, w::Problem> {
     let opt0 = match value.grace_until() {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
@@ -119,18 +111,18 @@ pub(crate) fn owner_host_fields(
         Some(name) => Some(crate::translate::programs::name(name, room)?),
         None => None,
     };
-    Ok(c::OwnerHost {
+    Ok(c::Host {
         name,
         awaiting_logins: value.awaiting_logins(),
         rule: match value.rule() {
-            w::OwnerHostRule::Open => c::HostRule::Open,
-            w::OwnerHostRule::Person(person) => c::HostRule::Person(person.party()),
-            w::OwnerHostRule::Several => c::HostRule::Several,
-            w::OwnerHostRule::Unknown => c::HostRule::Unknown,
+            w::HostRule::Open => c::HostRule::Open,
+            w::HostRule::Person(person) => c::HostRule::Person(person.party()),
+            w::HostRule::Several => c::HostRule::Several,
+            w::HostRule::Unknown => c::HostRule::Unknown,
         },
         programs: crate::translate::programs::logins(value.programs(), limits, room)?,
         channel: value.channel(),
-        kind: owner_host_kind_fields(value.kind()),
+        kind: host_kind_fields(value.kind()),
         slots: value.slots(),
         used: value.used(),
         free: value.free(),
@@ -138,71 +130,70 @@ pub(crate) fn owner_host_fields(
         connected: value.connected(),
         grace_until: opt0,
         grace_remaining: opt1,
-        runs: owner_host_run_piece(value.runs(), limits, limits.client().rows)?,
+        runs: host_run_piece(value.runs(), limits, limits.client().rows)?,
         cut: value.cut(),
     })
 }
 
-pub(crate) fn owner_host_piece(
+pub(crate) fn host_piece(
     bytes: &[u8],
     limits: &Limits,
     bound: u32,
     room: &mut u64,
-) -> Result<List<c::OwnerHost>, w::Problem> {
+) -> Result<List<c::Host>, w::Problem> {
     let count = super::piece_count(bytes)?;
     if count > bound {
         return Err(too_large());
     }
-    super::charge(room, List::<c::OwnerHost>::price(bound))?;
+    super::charge(room, List::<c::Host>::price(bound))?;
     let mut rows = List::with_capacity(bound);
     let mut reader = Reader::new(bytes);
     for _ in 0..count {
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else {
             return Err(piece_problem(skein_codec::Reason::Malformed));
         };
-        let row = w::OwnerHost::decode(limits.wire(), &mut Reader::new(&item))?;
-        rows.push(owner_host_fields(&row, limits, room)?).expect("counted host pieces");
+        let row = w::Host::decode(limits.wire(), &mut Reader::new(&item))?;
+        rows.push(host_fields(&row, limits, room)?).expect("counted host pieces");
     }
     Ok(rows)
 }
 
-pub(crate) fn owner_account_place_fields(value: &w::OwnerAccountPlace) -> c::OwnerAccountPlace {
+pub(crate) fn account_place_fields(value: &w::AccountPlace) -> c::AccountPlace {
     match value {
-        w::OwnerAccountPlace::Directory => c::OwnerAccountPlace::Directory,
-        w::OwnerAccountPlace::File => c::OwnerAccountPlace::File,
+        w::AccountPlace::Directory => c::AccountPlace::Directory,
+        w::AccountPlace::File => c::AccountPlace::File,
     }
 }
 
-pub(crate) fn owner_account_unread_fields(value: &w::OwnerAccountUnread) -> c::OwnerAccountUnread {
+pub(crate) fn account_unread_fields(value: &w::AccountUnread) -> c::AccountUnread {
     match value {
-        w::OwnerAccountUnread::Unreadable => c::OwnerAccountUnread::Unreadable,
-        w::OwnerAccountUnread::Refused => c::OwnerAccountUnread::Refused,
-        w::OwnerAccountUnread::Failed => c::OwnerAccountUnread::Failed,
-        w::OwnerAccountUnread::Stalled => c::OwnerAccountUnread::Stalled,
-        w::OwnerAccountUnread::TooLarge => c::OwnerAccountUnread::TooLarge,
+        w::AccountUnread::Unreadable => c::AccountUnread::Unreadable,
+        w::AccountUnread::Refused => c::AccountUnread::Refused,
+        w::AccountUnread::Failed => c::AccountUnread::Failed,
+        w::AccountUnread::Stalled => c::AccountUnread::Stalled,
+        w::AccountUnread::TooLarge => c::AccountUnread::TooLarge,
     }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_account_state_fields(value: &w::OwnerAccountState) -> c::OwnerAccountState {
+pub(crate) fn account_state_fields(value: &w::AccountState) -> c::AccountState {
     match value {
-        w::OwnerAccountState::Asking => c::OwnerAccountState::Asking,
-        w::OwnerAccountState::Granted => c::OwnerAccountState::Granted,
-        w::OwnerAccountState::Later(row) => {
+        w::AccountState::Asking => c::AccountState::Asking,
+        w::AccountState::Granted => c::AccountState::Granted,
+        w::AccountState::Later(row) => {
             let opt0 = match row.until() {
                 Some(item) => Some(Wall::from_nanos(*item)),
                 None => None,
             };
-            c::OwnerAccountState::Later { until: opt0 }
+            c::AccountState::Later { until: opt0 }
         }
-        w::OwnerAccountState::SignInAgain => c::OwnerAccountState::SignInAgain,
-        w::OwnerAccountState::Misconfigured => c::OwnerAccountState::Misconfigured,
-        w::OwnerAccountState::Unloaded(row) => c::OwnerAccountState::Unloaded {
-            at: owner_account_place_fields(row.at()),
-            why: owner_account_unread_fields(row.why()),
-        },
-        w::OwnerAccountState::Cancelled => c::OwnerAccountState::Cancelled,
-        w::OwnerAccountState::Closing => c::OwnerAccountState::Closing,
-        w::OwnerAccountState::Moving => c::OwnerAccountState::Moving,
+        w::AccountState::SignInAgain => c::AccountState::SignInAgain,
+        w::AccountState::Misconfigured => c::AccountState::Misconfigured,
+        w::AccountState::Unloaded(row) => {
+            c::AccountState::Unloaded { at: account_place_fields(row.at()), why: account_unread_fields(row.why()) }
+        }
+        w::AccountState::Cancelled => c::AccountState::Cancelled,
+        w::AccountState::Closing => c::AccountState::Closing,
+        w::AccountState::Moving => c::AccountState::Moving,
     }
 }

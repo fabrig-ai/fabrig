@@ -127,7 +127,7 @@ fn encode_lacking_unguarded(connector: u16, kind: u16, out: &mut Encoder, _budge
 }
 
 fn encode_lacking_task_kind(
-    executor: Option<&jig_client::contract::Executor>,
+    executor: Option<&jig_client::contract::ChipExecutor>,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {

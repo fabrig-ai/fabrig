@@ -198,9 +198,9 @@ fn sparse_current_hold_facts_keep_only_supplied_categories_and_numeric_identitie
         }
     }
     for part in [
-        Part::Panel { connector: 2, task: 123 },
-        Part::Result { connector: 2, task: 123 },
-        Part::Hold { connector: 2, task: 123 },
+        ApplicationPart::Panel { connector: 2, task: 123 },
+        ApplicationPart::Result { connector: 2, task: 123 },
+        ApplicationPart::Hold { connector: 2, task: 123 },
     ] {
         let tree = render(Refusal::Moved {
             now: Revision { value: 23 },
@@ -218,7 +218,7 @@ fn outbox_hold_facts_show_the_actual_entry_scope_without_a_proposal_identity() {
             now: Revision { value: 9 },
             what: Moved::Hold {
                 reason: Some(CurrentHold::Document(Box::new(HoldReason::EffectUncertain {
-                    part: Part::Outbox { connector: 2, scope, entry: u64::MAX },
+                    part: ApplicationPart::Outbox { connector: 2, scope, entry: u64::MAX },
                 }))),
             },
         });

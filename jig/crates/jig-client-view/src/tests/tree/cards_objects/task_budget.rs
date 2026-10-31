@@ -36,8 +36,8 @@ fn task_budget_page_renders_all_owner_funders_numbers_and_deadline_presence_with
     ] {
         for deadline in [None, Some(Wall::EPOCH), Some(Wall::from_nanos(u64::MAX))] {
             let mut row = task_doc(&[]);
-            row.budget = OwnerBudget {
-                numbers: OwnerNumbers { budget: u64::MAX, spent: 4, spent_below: 7, reserved: 11 },
+            row.budget = Budget {
+                numbers: Numbers { budget: u64::MAX, spent: 4, spent_below: 7, reserved: 11 },
                 left: 17,
                 funder,
                 deadline,

@@ -53,9 +53,9 @@ fn ready_task(task: u64) -> (Fixture, jig_client::Handle, jig_client::Handle, ji
             .unwrap();
     let mut doc = crate::tests::tree::cards_objects::task_doc(&[ActKind::Message]);
     doc.chip.task = task;
-    doc.chip.executor = Executor::Agent { charter: 2 };
+    doc.chip.executor = ChipExecutor::Agent { charter: 2 };
     doc.chip.phase = Phase::Running;
-    *doc.chip.details = crate::tests::fixtures::chip_phase(OwnerChipPhase::Active(RunStage::Running { attempt: 2 }));
+    *doc.chip.details = crate::tests::fixtures::chip_phase(ChipPhase::Active(RunStage::Running { attempt: 2 }));
     doc.context.as_mut().expect("supplied task context").runtime =
         Runtime::Running { attempt: 2, since: Wall::EPOCH, tool: None };
     doc.hold = None;
@@ -163,7 +163,10 @@ fn words_states(words: &Words) {
     goldens.check(&build(&d, 3, words).0);
     drive(
         &mut d,
-        AnsweredByEngine { request, answer: Answer::Done(Outcome::Owner(OwnerOutcome::Said { task: 8, message: 12 })) },
+        AnsweredByEngine {
+            request,
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::Said { task: 8, message: 12 })),
+        },
     );
     goldens.check(&build(&d, 3, words).0);
 }
@@ -363,7 +366,7 @@ fn raw_live_call_controls_use_selected_normal_language_and_checked_capacity() {
         Box::new([first, selected]),
         &PhraseLimits {
             languages: 2,
-            phrases: crate::words::owner_words::phrase_count(),
+            phrases: crate::words::document_words::phrase_count(),
             holes: 4,
             segments: 8000,
             text_bytes: 100_000,
@@ -601,8 +604,8 @@ fn whole_owner_activity_and_fetched_archive_keep_numeric_senders_references_and_
     let mut goldens = Goldens::new("tree/turns/whole_owner_activity");
     let (mut domain, _, _, read) = ready();
     let words = words();
-    let source = |position, line, decoded| ActivityLine {
-        source: Box::new(OwnerActivityLine { task: 8, position, at: Wall::EPOCH, line }),
+    let source = |position, line, decoded| DecodedActivityLine {
+        source: Box::new(ActivityLine { task: 8, position, at: Wall::EPOCH, line }),
         decoded,
     };
     drive(
@@ -614,7 +617,7 @@ fn whole_owner_activity_and_fetched_archive_keep_numeric_senders_references_and_
                 rows: list([
                     source(
                         2,
-                        OwnerActivity::Turn { reply: u64::MAX, attempt: 2, turn: 1, read: Some(0) },
+                        Activity::Turn { reply: u64::MAX, attempt: 2, turn: 1, read: Some(0) },
                         Some(ArchivedTurn {
                             task: 8,
                             name: TurnName { attempt: 2, number: 1 },
@@ -626,13 +629,13 @@ fn whole_owner_activity_and_fetched_archive_keep_numeric_senders_references_and_
                     ),
                     source(
                         1,
-                        OwnerActivity::Words {
+                        Activity::Words {
                             message: 11,
-                            by: OwnerRequester::Task(7),
-                            kind: OwnerMessageKind::Proposal {
+                            by: Requester::Task(7),
+                            kind: MessageKind::Proposal {
                                 proposer: u64::MAX,
                                 proposal: 0,
-                                kind: OwnerMessageProposalKind::Amend,
+                                kind: MessageProposalKind::Amend,
                             },
                             words: text(b"raw owner words"),
                         },

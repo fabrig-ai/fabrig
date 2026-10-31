@@ -41,7 +41,7 @@ fn policy_edit(value: &w::PolicyEdit, limits: &Limits) -> Result<c::PolicyEdit, 
             let value = value.value();
             c::PolicyEdit::Role(c::PolicyEditRole {
                 number: value.number(),
-                authority: documents::owner_authority_fields(value.authority(), limits)?,
+                authority: documents::authority_fields(value.authority(), limits)?,
                 period_spend: value.period_spend(),
                 requests: value.requests(),
                 decides: value.decides(),
@@ -51,7 +51,7 @@ fn policy_edit(value: &w::PolicyEdit, limits: &Limits) -> Result<c::PolicyEdit, 
             requirements: documents::policy_requirement_piece(value.requirements(), limits, limits.client().rows)?,
         },
         w::PolicyEdit::Projections(value) => c::PolicyEdit::Projections {
-            grants: documents::owner_grant_piece(value.grants(), limits, limits.client().authority)?,
+            grants: documents::grant_piece(value.grants(), limits, limits.client().authority)?,
         },
         w::PolicyEdit::Permissions(value) => {
             let mut mappings = List::with_capacity(value.mappings().len());
@@ -259,10 +259,10 @@ pub fn restore_table(
     })
 }
 
-fn account_holder(value: &w::AccountHolder) -> c::AccountHolder {
+fn account_holder(value: &w::AskAccountHolder) -> c::AskAccountHolder {
     match value {
-        w::AccountHolder::Own => c::AccountHolder::Own,
-        w::AccountHolder::Deployment => c::AccountHolder::Deployment,
+        w::AskAccountHolder::Own => c::AskAccountHolder::Own,
+        w::AskAccountHolder::Deployment => c::AskAccountHolder::Deployment,
     }
 }
 
@@ -311,8 +311,8 @@ fn account_change(value: &w::AccountChange) -> Result<c::AccountChange, w::Probl
                     let mut rows = List::with_capacity(uses.len());
                     for use_ in uses {
                         rows.push(match use_ {
-                            w::OwnerAccountUse::Party(value) => c::OwnerAccountUse::Party(value.party()),
-                            w::OwnerAccountUse::Project(value) => c::OwnerAccountUse::Project(value.project()),
+                            w::AccountUse::Party(value) => c::AccountUse::Party(value.party()),
+                            w::AccountUse::Project(value) => c::AccountUse::Project(value.project()),
                         })
                         .expect("reserved uses");
                     }

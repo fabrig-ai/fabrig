@@ -85,47 +85,47 @@ fn settings_proposal_records_and_arms_round_trip() {
     }
     {
         let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_owner_proposal_action_settings_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_proposal_action_settings_smallest.bin"
         );
         let mut input = Reader::new(bytes);
-        let value = w::OwnerProposalActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
+        let value = w::ProposalActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
         let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
         value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_owner_proposal_action_settings_smallest");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_proposal_action_settings_smallest");
     }
     {
         let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_owner_proposal_action_settings_full.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_proposal_action_settings_full.bin"
         );
         let mut input = Reader::new(bytes);
-        let value = w::OwnerProposalActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
+        let value = w::ProposalActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
         let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
         value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_owner_proposal_action_settings_full");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_proposal_action_settings_full");
     }
     {
         let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_owner_retained_action_settings_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_retained_action_settings_smallest.bin"
         );
         let mut input = Reader::new(bytes);
-        let value = w::OwnerRetainedActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
+        let value = w::RetainedActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
         let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
         value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_owner_retained_action_settings_smallest");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_retained_action_settings_smallest");
     }
     {
         let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/record_owner_retained_action_settings_full.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/record_retained_action_settings_full.bin"
         );
         let mut input = Reader::new(bytes);
-        let value = w::OwnerRetainedActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
+        let value = w::RetainedActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
         let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
         value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_owner_retained_action_settings_full");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_retained_action_settings_full");
     }
     {
         let bytes = include_bytes!(
@@ -275,69 +275,67 @@ fn settings_proposal_records_and_arms_round_trip() {
     }
     {
         let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/enum_owner_proposal_action_settings_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/enum_proposal_action_settings_smallest.bin"
         );
         let mut input = Reader::new(bytes);
-        let value = w::OwnerProposalAction::decode(&w::CEILINGS, &mut input).expect("golden record");
+        let value = w::ProposalAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
         let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
         value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_owner_proposal_action_settings_smallest");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_proposal_action_settings_smallest");
+    }
+    {
+        let bytes =
+            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_proposal_action_settings_full.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::ProposalAction::decode(&w::CEILINGS, &mut input).expect("golden record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        value.encode(&mut out).expect("measured");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_proposal_action_settings_full");
     }
     {
         let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/enum_owner_proposal_action_settings_full.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/enum_retained_action_settings_smallest.bin"
         );
         let mut input = Reader::new(bytes);
-        let value = w::OwnerProposalAction::decode(&w::CEILINGS, &mut input).expect("golden record");
+        let value = w::RetainedAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
         let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
         value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_owner_proposal_action_settings_full");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_retained_action_settings_smallest");
+    }
+    {
+        let bytes =
+            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_retained_action_settings_full.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::RetainedAction::decode(&w::CEILINGS, &mut input).expect("golden record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        value.encode(&mut out).expect("measured");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_retained_action_settings_full");
     }
     {
         let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/enum_owner_retained_action_settings_smallest.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/enum_message_proposal_kind_settings_smallest.bin"
         );
         let mut input = Reader::new(bytes);
-        let value = w::OwnerRetainedAction::decode(&w::CEILINGS, &mut input).expect("golden record");
+        let value = w::MessageProposalKind::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
         let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
         value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_owner_retained_action_settings_smallest");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_message_proposal_kind_settings_smallest");
     }
     {
         let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/enum_owner_retained_action_settings_full.bin"
+            "../../../../crates/jig-client-protocol-wire/golden/enum_message_proposal_kind_settings_full.bin"
         );
         let mut input = Reader::new(bytes);
-        let value = w::OwnerRetainedAction::decode(&w::CEILINGS, &mut input).expect("golden record");
+        let value = w::MessageProposalKind::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
         let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
         value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_owner_retained_action_settings_full");
-    }
-    {
-        let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/enum_owner_message_proposal_kind_settings_smallest.bin"
-        );
-        let mut input = Reader::new(bytes);
-        let value = w::OwnerMessageProposalKind::decode(&w::CEILINGS, &mut input).expect("golden record");
-        assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
-        value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_owner_message_proposal_kind_settings_smallest");
-    }
-    {
-        let bytes = include_bytes!(
-            "../../../../crates/jig-client-protocol-wire/golden/enum_owner_message_proposal_kind_settings_full.bin"
-        );
-        let mut input = Reader::new(bytes);
-        let value = w::OwnerMessageProposalKind::decode(&w::CEILINGS, &mut input).expect("golden record");
-        assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
-        value.encode(&mut out).expect("measured");
-        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_owner_message_proposal_kind_settings_full");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_message_proposal_kind_settings_full");
     }
     {
         let bytes =
@@ -384,25 +382,25 @@ fn settings_proposal_records_and_arms_round_trip() {
 #[test]
 fn original_proposal_recipient_round_trips_and_old_short_bodies_are_rejected() {
     for to in [0, 7, 91, u32::MAX] {
-        let value = w::OwnerOutcomeProposed::new(&w::CEILINGS, w::OwnerOutcomeProposedParts { proposal: 31, to })
-            .expect("scalar role");
+        let value =
+            w::OutcomeProposed::new(&w::CEILINGS, w::OutcomeProposedParts { proposal: 31, to }).expect("scalar role");
         assert_eq!(value.measure(), 12);
         let mut out = Writer::new(12);
         value.encode(&mut out).expect("exact room");
         let bytes = out.finish();
         let mut reader = Reader::new(&bytes);
-        let read = w::OwnerOutcomeProposed::decode(&w::CEILINGS, &mut reader).expect("complete new record");
+        let read = w::OutcomeProposed::decode(&w::CEILINGS, &mut reader).expect("complete new record");
         assert_eq!((read.proposal(), read.to()), (31, to));
         assert!(reader.is_empty());
         for length in 8..12 {
             let mut reader = Reader::new(&bytes[..length]);
-            let found = w::OwnerOutcomeProposed::decode(&w::CEILINGS, &mut reader).expect_err("old/truncated to");
-            assert_eq!(found.path, w::Path::OwnerOutcomeProposedTo);
+            let found = w::OutcomeProposed::decode(&w::CEILINGS, &mut reader).expect_err("old/truncated to");
+            assert_eq!(found.path, w::Path::OutcomeProposedTo);
         }
         let mut extra = bytes.into_vec();
         extra.push(0);
         let mut reader = Reader::new(&extra);
-        let found = w::OwnerOutcomeProposed::decode(&w::CEILINGS, &mut reader).expect_err("trailing byte");
-        assert_eq!(found.path, w::Path::OwnerOutcomeProposedTail);
+        let found = w::OutcomeProposed::decode(&w::CEILINGS, &mut reader).expect_err("trailing byte");
+        assert_eq!(found.path, w::Path::OutcomeProposedTail);
     }
 }

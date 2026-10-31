@@ -8,7 +8,7 @@ pub(crate) mod status;
 use crate::state::intents::Progress;
 use crate::words::phrases::jig::JigPhrase;
 use alloc::boxed::Box;
-use jig_client::contract::{Actor, Decision, Ending, Executor, Made, Outcome, OwnerExecutor, ProposalKey, Proposer};
+use jig_client::contract::{Actor, ChipExecutor, Decision, Ending, Executor, Made, Outcome, ProposalKey, Proposer};
 use jig_client::{
     Link,
     contract::Phase,
@@ -127,27 +127,27 @@ impl Words {
         self.status(b, JigPhrase::AnswersFull, &[Hole::Number(u64::from(held)), Hole::Wall(room_at)]);
     }
     /// Say the executor kind; its connector content belongs in a slot.
-    pub fn executor(&self, b: &mut Builder, executor: Executor) {
+    pub fn executor(&self, b: &mut Builder, executor: ChipExecutor) {
         let phrase = match executor {
-            Executor::Agent { .. } => JigPhrase::Agent,
-            Executor::Procedure { .. } => JigPhrase::Procedure,
-            Executor::Party { .. } => JigPhrase::Person,
-            Executor::Role { .. } => JigPhrase::RoleExecutor,
+            ChipExecutor::Agent { .. } => JigPhrase::Agent,
+            ChipExecutor::Procedure { .. } => JigPhrase::Procedure,
+            ChipExecutor::Party { .. } => JigPhrase::Person,
+            ChipExecutor::Role { .. } => JigPhrase::RoleExecutor,
         };
         self.text(b, phrase, &[]);
     }
     /// Say the complete requested goal executor, with only supplied numbers.
-    pub fn goal_executor(&self, b: &mut Builder, executor: OwnerExecutor) {
+    pub fn goal_executor(&self, b: &mut Builder, executor: Executor) {
         match executor {
-            OwnerExecutor::Agent { charter: number } => {
+            Executor::Agent { charter: number } => {
                 self.text(b, JigPhrase::Charter, &[Hole::Number(u64::from(number))]);
             }
-            OwnerExecutor::Procedure { connector, code } => self.text(
+            Executor::Procedure { connector, code } => self.text(
                 b,
                 JigPhrase::CreateProcedure,
                 &[Hole::Number(u64::from(connector)), Hole::Number(u64::from(code))],
             ),
-            OwnerExecutor::Person(_) => {}
+            Executor::Person(_) => {}
         }
     }
     /// Show an amount in the engine's units.
@@ -281,7 +281,7 @@ impl Words {
             Outcome::SettingsChanged(value) => {
                 self.text(b, JigPhrase::SettingsChanged, &[Hole::Number(u64::from(value.revision))]);
             }
-            Outcome::Owner(value) => crate::tree::fragments::outcome::render(b, value, self),
+            Outcome::Document(value) => crate::tree::fragments::outcome::render(b, value, self),
             Outcome::Made { what } => match what {
                 Made::Tasks { tasks } => {
                     for task in tasks {

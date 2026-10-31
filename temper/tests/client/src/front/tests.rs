@@ -325,7 +325,7 @@ fn the_joint_world_delivers_the_components_owner_documents() {
                 Event::Root(RootEvent::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched {
                     watch, event: c::WatchEvent::Delivered(delivery)
                 } } }) if *watch == Token::new(number) && matches!((number, delivery),
-                    (91, c::Delivery::OwnerInbox(_)) | (92, c::Delivery::OwnerDeployment(_)) | (93, c::Delivery::OwnerAccounts(_)))
+                    (91, c::Delivery::Inbox(_)) | (92, c::Delivery::Deployment(_)) | (93, c::Delivery::Accounts(_)))
             )
         }), "component document {number}: {callbacks:?}");
     }

@@ -1,0 +1,13 @@
+== jig == 
+Ended object:
+  Ended record time not supplied
+  Ended record sender not supplied
+  Ended task proposal
+  Proposal: 18446744073709551615
+  Raw task-origin proposer: 18446744073709551615
+  Proposed as holder
+  Retained release
+  Task: 18446744073709551615
+  Proposal pending
+  Holder task: 18446744073709551615
+  Pending since: 01:00

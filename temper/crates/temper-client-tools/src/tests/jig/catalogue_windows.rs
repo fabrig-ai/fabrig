@@ -64,7 +64,7 @@ fn readiness(count: u32, value: c::Readiness) -> List<c::PayerReadiness> {
     for provider in 0..count {
         rows.push(c::PayerReadiness {
             provider,
-            payer: c::OwnerAccountUse::Party(f::PARTY),
+            payer: c::AccountUse::Party(f::PARTY),
             readiness: value,
             settled: None,
         })

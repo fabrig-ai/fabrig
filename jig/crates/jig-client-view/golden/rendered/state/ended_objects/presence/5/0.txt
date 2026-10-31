@@ -1,0 +1,154 @@
+== jig == 
+- Ended object:
+    ## Ended object
+    In project 4
+    * Leaving
+    Ended object:
+      Ended record time not supplied
+      Ended record sender not supplied
+      Ended task
+      Project: 4
+      Task 8: Review:
+        [1] Task 8: Review
+        Person 1
+        Held
+        Held budget
+        Current revision 4
+      Project: 4:
+        Project: 4
+        Person 1
+        Phase since: 01:00
+        Wake policy:
+          Words
+          Does not wake
+          Notices
+          Wakes immediately
+          News
+          Wakes after 4294967295 messages or 30 ns of oldest message age
+          The last delegate result or a failure wakes
+          Questions wake
+          Answers do not wake
+          Timers wake
+        Held budget
+        Hold revision: 4
+        Prior stage waiting
+        Transient tries: 0
+        Permanent tries: 0
+        Run tries: 0
+        Agent tries: 0
+        Lost tries: 0
+        Invalid tries: 0
+        Hold wait began: 01:00
+        Budget: 100:
+          Budget: 100
+          Spent directly: 2
+          Settled spend below: 3
+          Reserved for funded work: 5
+          Left: 7
+          Funded by
+          Funded by task 18446744073709551615
+        Activity through: 18446744073709551615
+        Resource holder and writer facts unavailable
+        Live delegates: 0
+        Closing connectors unavailable
+        Run work unobserved
+      whole task specification
+      whole task instructions
+      Result expected
+      Report word byte limit 32
+      Requested by person 1
+      Wake policy:
+        Words
+        Wakes immediately
+        Notices
+        Does not wake
+        News
+        Does not wake
+        Each delegate result wakes
+        Questions do not wake
+        Answers do not wake
+        Timers do not wake
+      Subscriptions:
+      Stored task 9
+      Stored status unavailable
+      [2] Task 9
+      - Result:
+          ## Result
+          * Open
+          Task 9: Review:
+            Task 9: Review:
+              [3] Task 9: Review
+              Person 1
+              Held
+              Held budget
+              Current revision 4
+            Completed
+            Completion time not supplied
+            Verdict 1
+            whole kept verdict
+            - Proposal:
+                ## Proposal
+                * Open
+                Pending proposal:
+                  Proposal number: 7
+                  Proposal project: 4
+                  By task 9
+                  Not proposed as holder
+                  Waiting holder
+                  Holder person: 1
+                  Waiting since: 01:00
+                  Proposal reason
+                  whole kept proposal
+                  Proposed batch
+                  Supplied funding offers
+      Stored task 9
+      Stored status unavailable
+      [4] Task 9
+      - Result:
+          ## Result
+          * Open
+          Task 9: Review:
+            Task 9: Review:
+              [5] Task 9: Review
+              Person 1
+              Held
+              Held budget
+              Current revision 4
+            Completed
+            Completion time not supplied
+            Verdict 1
+            whole kept verdict
+            - Proposal:
+                ## Proposal
+                * Open
+                Pending proposal:
+                  Proposal number: 7
+                  Proposal project: 4
+                  By task 9
+                  Not proposed as holder
+                  Waiting holder
+                  Holder person: 1
+                  Waiting since: 01:00
+                  Proposal reason
+                  whole kept proposal
+                  Proposed batch
+                  Supplied funding offers
+      Budget: 20:
+        Budget: 20
+        Spent directly: 0
+        Settled spend below: 0
+        Reserved for funded work: 0
+        Left: 20
+        Funded by
+        Funded by pool in project 4, person 1, period 3
+      Task 8: Review:
+        Task 8: Review:
+          [6] Task 8: Review
+          Person 1
+          Held
+          Held budget
+          Current revision 4
+        Completed
+        Completion time not supplied
+        independent result
+        Only part of this text was supplied

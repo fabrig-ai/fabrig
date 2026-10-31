@@ -6,7 +6,7 @@ use skein_lib::{List, Wall};
 fn question_offer_admission_checks_encoded_entries() {
     let mut supplied = Question {
         task: task().chip,
-        from: Some(OwnerRequester::Person(u64::MAX)),
+        from: Some(Requester::Person(u64::MAX)),
         message: u64::MAX,
         words: DocumentText::complete(text(b"whole original words")),
         since: Wall::from_nanos(u64::MAX),
