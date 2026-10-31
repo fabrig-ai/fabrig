@@ -1,5 +1,6 @@
 //! Cold restart evidence through the native person, ctl and the owned Forgejo
-//! (domain/landing.md, 7 and 15).
+//! (temper/docs/design/domain/landing.md, 7 and 15;
+//! temper/docs/design/draft/playground-reset.md, 3).
 use super::{
     ANSWER, ChatJudge, ChatPhase, Ending, LANDING, Process, WITHIN, ctl, fake_llm,
     forgejo::{JobBarrier, Throwaway},
@@ -13,7 +14,6 @@ use skein_world::{Referee, end_to_end::Streams, real};
 use std::{cell::Cell, fs, path::Path};
 
 const SETUP_CALLS: usize = super::NATIVE_SETUP_CALLS + 2;
-const TRANSITION_READS: u8 = 8;
 
 #[derive(Debug)]
 pub struct Reads {
@@ -32,6 +32,17 @@ fn reads(root: &Path, landing: u64, change: u64) -> Reads {
         landing: read(root, &["landing", "show", &landing.to_string()]),
         change: read(root, &["change", "show", &change.to_string()]),
     }
+}
+
+/// Initialize the store without queue requirements before seeding the forge record.
+#[must_use]
+pub fn start(scratch: &super::Scratch, barrier: &JobBarrier) -> Throwaway {
+    let forge = Throwaway::start_bare(scratch);
+    let path = scratch.path().join("temper.json");
+    let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    config["application"]["landing"]["projects"] = json!([]);
+    write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
+    forge.with_repository(scratch, 20, &barrier.gate_workflow(super::forgejo::WORKFLOW))
 }
 
 /// Select turn landing for the seeded project, whose policy names stock policy 1.
@@ -76,7 +87,6 @@ struct Judge<'a> {
     previous: Option<&'a Proof>,
     retry: bool,
     ready: bool,
-    observations: u8,
     advanced: Option<(String, String)>,
     poll: Time,
     progress: (u32, super::patience::Patience),
@@ -89,12 +99,12 @@ impl Judge<'_> {
         {
             let landing = previous.reads.landing["task"].as_u64().expect("landing task");
             let change = previous.reads.change["task"].as_u64().expect("change task");
-            let waited = read(self.root, &["change", "show", &change.to_string(), "--until", "landed"]);
-            assert_eq!(waited["met"], true, "the change landed");
-            let change = waited["change"].clone();
+            // Let the outer world drive its peers and binary pipes between reads.
+            let change = read(self.root, &["change", "show", &change.to_string()]);
+            if change["step"] != "landed" {
+                return false;
+            }
             let landing = read(self.root, &["landing", "show", &landing.to_string()]);
-            self.observations += 1;
-            assert!(self.observations <= TRANSITION_READS, "landing settles after the change lands");
             if landing["phase"] != "landed" {
                 return false;
             }
@@ -111,12 +121,20 @@ impl Judge<'_> {
             eprintln!("turn restart: main advanced after the pull opened");
         }
         let Some(run) = self.barrier.waiting(self.previous.map(|proof| proof.run)) else { return false };
-        self.observations += 1;
-        assert!(self.observations <= TRANSITION_READS, "held job reaches its durable proof and pending status");
         let actual = forge.repository_observation("acme", "widget", &format!("actions/runs/{run}"));
         assert_eq!(actual["id"], run, "marker names the forge's actual run");
-        assert_eq!(actual["workflow_id"], "gate.yaml");
         assert_eq!(actual["status"], "running");
+        if actual["workflow_id"] == "check.yaml" {
+            // The change cannot prepare until its CI passes. Release that job
+            // only after Forgejo has checked the pull against the moved main.
+            let pull = forge.repository_observation("acme", "widget", "pulls/1");
+            if pull["mergeable"] != true || pull["base"]["sha"] != self.advanced.as_ref().expect("main advanced").1 {
+                return false;
+            }
+            self.barrier.release(run);
+            return false;
+        }
+        assert_eq!(actual["workflow_id"], "gate.yaml");
         let (landing, change) = if let Some(previous) = self.previous {
             (
                 previous.reads.landing["task"].as_u64().expect("landing task"),
@@ -297,7 +315,6 @@ fn run_to(
         previous,
         retry,
         ready: false,
-        observations: 0,
         advanced: None,
         poll: clock.now().now,
         progress: (0, progress),

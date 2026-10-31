@@ -60,7 +60,10 @@ impl JobBarrier {
     pub(super) fn waiting(&self, previous: Option<u64>) -> Option<u64> {
         fs::read_dir(self.directory.join("started")).expect("started jobs").find_map(|entry| {
             let run = entry.expect("job marker").file_name().to_str().expect("run id").parse().expect("numeric run");
-            (Some(run) != previous && self.started(run)).then_some(run)
+            (Some(run) != previous
+                && self.started(run)
+                && !self.directory.join("release").join(run.to_string()).is_file())
+            .then_some(run)
         })
     }
 }
@@ -86,7 +89,7 @@ impl Throwaway {
 
     #[must_use]
     pub fn start_with_job_sleep(scratch: &Scratch, sleep_seconds: u64) -> Self {
-        Self::start_bare(scratch).with_repository(scratch, sleep_seconds)
+        Self::start_bare(scratch).with_repository(scratch, sleep_seconds, WORKFLOW)
     }
 
     /// Keep the test's delivery receiver bound before configuring Forgejo's hook.
@@ -94,16 +97,17 @@ impl Throwaway {
     pub fn start_receiving(scratch: &Scratch) -> (Self, TcpListener) {
         let [listener] = super::reserve_listeners(&[]);
         let address = listener.local_addr().expect("delivery receiver address");
-        let fixture = Self::start_bare_with_webhooks(scratch, Some(address)).with_repository(scratch, 60);
+        let fixture = Self::start_bare_with_webhooks(scratch, Some(address)).with_repository(scratch, 60, WORKFLOW);
         (fixture, listener)
     }
 
-    fn with_repository(mut self, scratch: &Scratch, sleep_seconds: u64) -> Self {
+    #[must_use]
+    pub(super) fn with_repository(mut self, scratch: &Scratch, sleep_seconds: u64, workflow: &str) -> Self {
         let began = skein_shell::Clock::new().now().now;
         seed(scratch.path(), &mut self.instance);
         stage("seed forge", began);
         let person = person_token(&self.instance);
-        let repository = repository(&self.instance, &person, sleep_seconds);
+        let repository = repository(&self.instance, &person, sleep_seconds, workflow);
         owned::adopt(scratch.path(), &self.instance, &person, self.webhooks);
         self.person = Some(person);
         self.repository = Some(repository);
@@ -449,7 +453,7 @@ fn person_token(instance: &Instance) -> Token {
     stage("person", began);
     Token::new(value["sha1"].as_str().expect("person token").into())
 }
-fn repository(instance: &Instance, person: &Token, sleep_seconds: u64) -> u64 {
+fn repository(instance: &Instance, person: &Token, sleep_seconds: u64, workflow: &str) -> u64 {
     let began = skein_shell::Clock::new().now().now;
     request(instance, person, "POST", "/api/v1/orgs", &json!({"username":"acme","visibility":"private"}), 201);
     let value = request(
@@ -464,7 +468,7 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64) -> u64 {
     // The hinted job sleeps 5 s, outlasting its overridden 3 s settle window
     // (protocol/setup.md 13.4).
     let check = format!("test ! -e slow || sleep {sleep_seconds}\ntest -s README.md\n");
-    for (path, content) in [("check.sh", check.as_str()), (".forgejo/workflows/check.yaml", WORKFLOW)] {
+    for (path, content) in [("check.sh", check.as_str()), (".forgejo/workflows/check.yaml", workflow)] {
         let length = skein_lib::base64::encoded_len(
             skein_lib::base64::Alphabet::Standard,
             u32::try_from(content.len()).expect("workflow length"),
@@ -487,7 +491,7 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64) -> u64 {
     stage("repository", began);
     value["id"].as_u64().expect("repository id")
 }
-const WORKFLOW: &str = r#"on: { push: { branches: ['temper/**'] } }
+pub(super) const WORKFLOW: &str = r#"on: { push: { branches: ['temper/**'] } }
 jobs:
   check:
     runs-on: temper-host
