@@ -276,6 +276,8 @@ pub struct Observer {
     // Durable fresh marks fence these attempts: their traffic is acknowledged
     // and discarded without a turn or terminal row (engine.md, 7.2 and 8).
     crossed: BTreeSet<(u64, u64)>,
+    cancelled: BTreeSet<(u64, u64)>,
+    discarded: BTreeSet<(u64, u64)>,
     words: BTreeSet<(u64, u64)>,
     policy_changes: BTreeMap<(u64, [u8; 16]), (u32, people::PolicyChange)>,
     applied_changes: BTreeSet<(u64, [u8; 16])>,
@@ -383,6 +385,8 @@ impl Observer {
             accepted: BTreeMap::new(),
             settled_calls: BTreeSet::new(),
             crossed: BTreeSet::new(),
+            cancelled: BTreeSet::new(),
+            discarded: BTreeSet::new(),
             words: BTreeSet::new(),
             policy_changes: BTreeMap::new(),
             applied_changes: BTreeSet::new(),
@@ -760,6 +764,7 @@ impl Observer {
                 self.policy_change(project, &change);
             }
         }
+        self.discarded.clear();
         let mut snapshot = r::Snapshot::default();
         let mut decisions = Vec::new();
         let mut task_acceptances = Vec::new();
@@ -791,6 +796,12 @@ impl Observer {
                     snapshot.party_proposals.insert(value.number, value.proposer);
                 }
                 root::Record::Core(core::Record::Tasks(tasks::Stored::Live(value) | tasks::Stored::Ended(value))) => {
+                    if matches!(
+                        value.phase,
+                        tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_)
+                    ) {
+                        self.discarded.insert((value.number, value.attempt));
+                    }
                     let mut snapshot_task = task(value);
                     snapshot_task.tracked |= store.rows.contains_key(&root::Key::Core(core::Key::Core(
                         core::CoreKey::Projection(core::ProjectionKey::Goal(value.number)),
@@ -1099,9 +1110,18 @@ impl Observer {
                     self.observe(now, r::Observed::Reached(r::Receipt::Word(assignment.task, word.number)));
                 }
             }
+            root::Delivery::Core(core::Held::Cancel { run, attempt, .. }) => {
+                self.cancelled.insert((run.raw(), attempt.raw()));
+            }
             root::Delivery::Core(core::Held::AcknowledgeTurn { run, attempt, turn, .. }) => {
                 let receipt = if self.crossed.contains(&(run.raw(), attempt.raw())) {
                     r::Receipt::Claim(run.raw(), attempt.raw())
+                } else if self.cancelled.contains(&(run.raw(), attempt.raw()))
+                    && self.discarded.contains(&(run.raw(), attempt.raw()))
+                {
+                    // A cancelled attempt's discarded body has no Turn row (fleet's turn.rs).
+                    requires.push(r::Receipt::Claim(run.raw(), attempt.raw()));
+                    r::Receipt::Task(run.raw())
                 } else {
                     r::Receipt::Turn(run.raw(), attempt.raw(), *turn)
                 };

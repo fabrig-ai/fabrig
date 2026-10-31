@@ -172,6 +172,7 @@ pub struct Neighbours {
     pub calls: Vec<core::CallPart>,
     pub hold_writes: bool,
     pub pending_writes: Vec<(u16, connector::SystemRequest)>,
+    pub pending_asks: Vec<(u8, people::Ask)>,
     pub next_fault: jig_test_system::Fault,
     pub scenario: Option<Scenario>,
     pub children: Vec<u64>,
@@ -356,6 +357,7 @@ impl Application for Testing {
             calls: Vec::new(),
             hold_writes: false,
             pending_writes: Vec::new(),
+            pending_asks: Vec::new(),
             next_fault: jig_test_system::Fault::None,
             scenario: config.scenario,
             children: Vec::new(),
@@ -676,6 +678,9 @@ impl Application for Testing {
             }
         }
         if ready {
+            for (key, ask) in std::mem::take(&mut peers.pending_asks) {
+                events.push(Input::Event(scenarios::party_ask(peers, key, ask)));
+            }
             if !peers.account_ready {
                 peers.account_ready = true;
                 events.push(Input::Event(root::Event::Core(core::Event::Period {
