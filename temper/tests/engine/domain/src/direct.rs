@@ -45,6 +45,9 @@ pub struct Driver {
 impl Driver {
     /// Replace the cold-start configuration together with the root it describes.
     pub fn reopen(&mut self, configuration: engine::Config) {
+        self.store.crash(0);
+        self.stopped = false;
+        self.out.clear();
         self.restart_config = crate::oracle::config::copy(&configuration);
         self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
         self.events.clear();

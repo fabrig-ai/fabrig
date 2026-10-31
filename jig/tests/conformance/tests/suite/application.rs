@@ -83,10 +83,17 @@ fn admitted_application_routes_and_its_core_part_share_the_commit_barrier() {
 
 #[test]
 fn application_replay_after_a_durable_restart_does_not_repeat_a_decision() {
-    let config = jig_core_world::stories::offers::member_configuration(715);
-    let (_, mut limits) = jig_core_world::effects::fixture(715, false);
+    let mut configured = jig_core_world::world::config(715);
+    let mut limits = jig_core_world::world::limits();
     limits.core.authority.roles = 2;
-    let mut world = World::configured(715, false, config, limits);
+    let policy = &mut configured.core.seed_projects[0].policy.policy;
+    let mut member = policy.roles[0].clone();
+    member.number = people::Role::Member.number();
+    member.period_spend = 0;
+    member.requests = jig_domain_authority::Requests(0);
+    member.decides = jig_domain_authority::Proposals(0);
+    policy.roles = Box::new([policy.roles[0].clone(), member]);
+    let mut world = World::configured(715, false, configured, limits);
     let sign_in = world.sign_in.expect("signed in owner");
     let value = connector::ApplicationRequest { object: 1, revision: 0, value: 14, release: None };
     let commit = world.store.applied + 1;
@@ -94,7 +101,7 @@ fn application_replay_after_a_durable_restart_does_not_repeat_a_decision() {
     world.send(ask(sign_in, 11, value));
     assert_eq!(world.reached_cut, Some(Cut::Durable(commit)));
     assert!(world.application_answers.is_empty(), "durability alone has not delivered the completion");
-    world.restart_with(jig_core_world::stories::offers::member_configuration(715));
+    world.restart(715, false);
     let writes = world.store.applied;
     world.send(ask(sign_in, 11, value));
     let now = connector::ApplicationObject { revision: 1, value: 14 };

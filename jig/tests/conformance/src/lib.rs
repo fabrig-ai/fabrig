@@ -172,12 +172,12 @@ pub struct Neighbours {
     pub calls: Vec<core::CallPart>,
     pub hold_writes: bool,
     pub pending_writes: Vec<(u16, connector::SystemRequest)>,
+    pub pending_asks: Vec<(u8, people::Ask)>,
     pub next_fault: jig_test_system::Fault,
     pub scenario: Option<Scenario>,
     pub children: Vec<u64>,
     pub initial_assignments: usize,
     pub pending_proposal: Option<u64>,
-    narrow_reply: Option<people::Reply>,
     pub saved_deadline: Option<Wall>,
     fault: negative::Fault,
     routes: Vec<jig_conformance::referee::Observed>,
@@ -357,12 +357,12 @@ impl Application for Testing {
             calls: Vec::new(),
             hold_writes: false,
             pending_writes: Vec::new(),
+            pending_asks: Vec::new(),
             next_fault: jig_test_system::Fault::None,
             scenario: config.scenario,
             children: Vec::new(),
             initial_assignments: 0,
             pending_proposal: None,
-            narrow_reply: None,
             saved_deadline: None,
             fault: config.fault,
             routes: Vec::new(),
@@ -592,9 +592,6 @@ impl Application for Testing {
                 Vec::new()
             }
             root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
-                if to == skein_lib::ReplyTo::new(skein_lib::Token::new(scenarios::NARROW_REPLY)) {
-                    peers.narrow_reply = Some(reply.clone());
-                }
                 peers.answers += 1;
                 peers.peers.reply(to, &reply);
                 Vec::new()
@@ -681,6 +678,9 @@ impl Application for Testing {
             }
         }
         if ready {
+            for (key, ask) in std::mem::take(&mut peers.pending_asks) {
+                events.push(Input::Event(scenarios::party_ask(peers, key, ask)));
+            }
             if !peers.account_ready {
                 peers.account_ready = true;
                 events.push(Input::Event(root::Event::Core(core::Event::Period {

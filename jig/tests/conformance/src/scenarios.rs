@@ -29,16 +29,23 @@ fn authority(world: &World) -> tasks::Authority {
 }
 
 const PARTY_REPLY_BASE: u64 = 6000;
-pub(crate) const NARROW_REPLY: u64 = PARTY_REPLY_BASE + 43;
 
 fn ask(world: &mut World, key: u8, ask: people::Ask) {
-    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
+    if world.domain.ready() {
+        world.send(party_ask(&world.peers, key, ask));
+    } else {
+        world.peers.pending_asks.push((key, ask));
+    }
+}
+
+pub(crate) fn party_ask(peers: &crate::Neighbours, key: u8, ask: people::Ask) -> root::Event {
+    root::Event::Core(core::Event::People(people::Event::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(PARTY_REPLY_BASE + u64::from(key))),
-        sign_in: world.peers.peers.parties[0].sign_in.expect("scripted sign-in"),
+        sign_in: peers.peers.parties[0].sign_in.expect("scripted sign-in"),
         key: [key; 16],
         ask,
-    })));
+    }))
 }
 
 fn effect(world: &mut World, completion: u32, proposal: bool) {
@@ -572,22 +579,6 @@ impl Continuation {
                     }
                     return Ok(false);
                 }
-                Action::AcceptProposal => {
-                    if self.phase == 0
-                        && matches!(world.peers.narrow_reply, None | Some(people::Reply::Again(people::Again::NotReady)))
-                    {
-                        atomic(world, Action::NarrowPolicy)?;
-                        self.phase = 1;
-                        return Ok(true);
-                    }
-                    check(
-                        world.peers.narrow_reply
-                            == Some(people::Reply::Outcome(people::Outcome::PolicyChanged { project: 1 })),
-                        "the policy edit must finish before its proposal is decided",
-                    )?;
-                    atomic(world, self.action)?;
-                    return Ok(false);
-                }
                 Action::Late
                 | Action::Effect(_)
                 | Action::DeliverLate
@@ -597,7 +588,8 @@ impl Continuation {
                 | Action::CheckDeadline
                 | Action::ChangeJudge
                 | Action::ShrinkPool
-                | Action::NarrowPolicy => {
+                | Action::NarrowPolicy
+                | Action::AcceptProposal => {
                     atomic(world, self.action)?;
                     return Ok(false);
                 }

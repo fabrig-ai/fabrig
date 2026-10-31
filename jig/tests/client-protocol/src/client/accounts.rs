@@ -117,10 +117,9 @@ impl Story {
     pub fn project_paid_copy(&mut self, task: u64, number: u64) {
         use jig_domain_tasks as tasks;
         let row = self.task_record(task).expect("source task").clone();
-        let core = self.engine.driver.world.domain.core_mut();
-        assert!(core.counters.deployment().tasks < number, "fresh fixture task number");
-        while core.counters.deployment().tasks < number {
-            jig_domain_core::fresh(&mut core.counters, jig_domain_core::Family::Task).expect("fixture task allocation");
+        let counters = &mut self.engine.driver.world.domain.core_mut().counters;
+        for _ in counters.deployment().tasks..number {
+            jig_domain_core::fresh(counters, jig_domain_core::Family::Task).expect("fixture task number");
         }
         let period = match row.funder {
             tasks::Funder::Pool { period, .. } | tasks::Funder::Period { period, .. } => period,
