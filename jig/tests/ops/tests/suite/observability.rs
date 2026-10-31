@@ -6,6 +6,105 @@ fn key() -> obs::Key {
     obs::Key::procedure([1; 16], 7, 3)
 }
 
+fn watch_spec(template: Option<u64>) -> jig_ops_world::direct::Driver {
+    use jig_domain_core as core;
+    use jig_domain_people as people;
+    use jig_ops_domain as root;
+    use skein_lib::{ReplyTo, Token};
+
+    let mut world = jig_ops_world::direct::Driver::started(917);
+    let people::Ask::Create { project, mut batch } = jig_ops_world::conformance::chat(b"watch checkout") else {
+        panic!("task creation fixture");
+    };
+    let mut parameters = vec![
+        people::Parameter::Bytes { name: 1, value: b"production".as_slice().into() },
+        people::Parameter::Bytes { name: 2, value: b"checkout".as_slice().into() },
+    ];
+    if let Some(value) = template {
+        parameters.push(people::Parameter::Number { name: 3, value });
+    }
+    let member = batch.first_mut().expect("one requested task");
+    member.executor = people::TaskExecutor::Procedure { connector: 1, code: 1 };
+    member.flags = people::Flags::PLAIN;
+    member.llm = None;
+    member.parameters = parameters.into_boxed_slice();
+    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(102)),
+        sign_in: world.sign_in,
+        key: [2; 16],
+        ask: people::Ask::Create { project, batch },
+    })));
+    world.settle();
+    world
+}
+
+fn assert_watch_spec_refused(world: &jig_ops_world::direct::Driver) {
+    use jig_domain_core as core;
+    use jig_domain_tasks as tasks;
+    use jig_ops_domain as root;
+
+    let task = world
+        .transactions
+        .iter()
+        .rev()
+        .flat_map(|(_, writes)| writes.iter().rev())
+        .find_map(|write| match write {
+            root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))) if row.number == 1 => {
+                Some(row)
+            }
+            root::Write::CopySettingsRevision(_)
+            | root::Write::Wires
+            | root::Write::Save(_)
+            | root::Write::Erase(_) => None,
+        })
+        .expect("created watch procedure");
+    assert!(matches!(task.phase, tasks::Phase::Held { why: tasks::Hold::Procedure, .. }), "{:?}", task.phase);
+    assert!(
+        world.transactions.iter().flat_map(|(_, writes)| writes).all(|write| !matches!(
+            write,
+            root::Write::Save(root::Record::Observability(obs::Record::Watch(_) | obs::Record::Subscription { .. }))
+        )),
+        "a refused watch creates no watch or subscription"
+    );
+}
+
+#[test]
+fn a_watch_spec_without_a_template_is_refused() {
+    assert_watch_spec_refused(&watch_spec(None));
+}
+
+#[test]
+fn a_watch_spec_with_an_out_of_range_template_is_refused() {
+    for template in [65_536, 70_000, u64::MAX] {
+        assert_watch_spec_refused(&watch_spec(Some(template)));
+    }
+}
+
+#[test]
+fn a_watch_spec_preserves_templates_in_the_u16_range() {
+    use jig_ops_domain as root;
+
+    for template in [0_u16, 1, u16::MAX] {
+        let world = watch_spec(Some(u64::from(template)));
+        let watch = world
+            .transactions
+            .iter()
+            .flat_map(|(_, writes)| writes)
+            .find_map(|write| match write {
+                root::Write::Save(root::Record::Observability(obs::Record::Watch(watch))) if watch.task == 1 => {
+                    Some(watch)
+                }
+                root::Write::CopySettingsRevision(_)
+                | root::Write::Wires
+                | root::Write::Save(_)
+                | root::Write::Erase(_) => None,
+            })
+            .expect("valid watch spec starts a watch");
+        assert_eq!(watch.template, template);
+    }
+}
+
 #[test]
 fn an_alert_is_classified_for_each_subscriber_and_its_echo_is_dropped() {
     let mut world = World::new(0);
