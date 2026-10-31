@@ -264,7 +264,7 @@ pub(super) fn person_proposal_accept(
     match proposal.action {
         tasks::ProposalAction::Effect { connector, .. } | tasks::ProposalAction::ProcedureEffect { connector, .. } => {
             routed.work.push(Work::Event(Event::EffectStart {
-                owner: request,
+                owner: core.effect_owner(),
                 connector,
                 origin: crate::EffectOrigin::Accept {
                     to: ReplyTo::new(request),

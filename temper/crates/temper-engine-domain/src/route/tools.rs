@@ -44,12 +44,12 @@ pub(crate) fn relay_payload(
         && env.wall < *deadline
     {
         let deadline = *deadline;
+        let owner = domain.core.effect_owner();
         domain.work.push(Work::Core(core::Event::EffectStart {
-            owner: Token::new(domain.next_effect_owner),
+            owner,
             connector: domain.config.forge_connector,
             origin: core::EffectOrigin::Call { to: reply_to, key, deadline },
         }));
-        domain.next_effect_owner = domain.next_effect_owner.checked_add(1).expect("transient effect owner");
         return;
     }
     match call_answer(domain, key) {

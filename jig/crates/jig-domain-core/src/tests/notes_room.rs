@@ -127,10 +127,10 @@ fn refused_notes_room_returns_due_without_a_replacement_load() {
     same_accounting(&before, row);
     assert_eq!(core.counters.deployment().runs, runs);
     assert!(core.contexts.is_empty());
-    assert!(core.result_reads.is_empty());
+    assert!((core.result_read_flights() == 0));
     assert!(core.dependency_results.is_empty());
     assert!(core.transcripts.is_empty());
-    assert!(core.note_routes.is_empty());
+    assert!((core.note_flights() == 0));
     assert!(core.pending_note_briefs.is_empty(), "the one-shot activation marker was consumed");
     assert_eq!(core.due.len(), DEFERRED);
 }
@@ -248,7 +248,7 @@ fn preparation_with_a_transcript_requests_one_load_then_reaches_the_brief() {
         }
     }
     assert_eq!(loads, 1, "only one transcript load leaves the core");
-    assert!(core.note_routes.is_empty());
+    assert!((core.note_flights() == 0));
     let out = watch_outputs(
         &mut core,
         &limits,

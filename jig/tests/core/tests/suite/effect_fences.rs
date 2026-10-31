@@ -43,8 +43,8 @@ fn description() -> core::connector::EffectDescription {
     }
 }
 
-fn begin(core: &mut core::Core, env: &Env<core::Limits>, origin: core::EffectOrigin) -> authority::Judge {
-    let owner = Token::new(9900);
+fn begin(core: &mut core::Core, env: &Env<core::Limits>, origin: core::EffectOrigin) -> (Token, authority::Judge) {
+    let owner = core.effect_owner();
     let _requests = core::step(core, env, core::Event::EffectStart { owner, connector: 1, origin });
     let mut requests = core::step(
         core,
@@ -55,19 +55,19 @@ fn begin(core: &mut core::Core, env: &Env<core::Limits>, origin: core::EffectOri
         if let core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Judge { judge, .. }), .. } =
             requests.pop().expect("request count")
         {
-            return judge;
+            return (owner, judge);
         }
     }
     panic!("the described effect asks its external judge");
 }
 
-fn verdict(core: &mut core::Core, env: &Env<core::Limits>, judge: authority::Judge) -> Vec<core::Request> {
+fn verdict(core: &mut core::Core, env: &Env<core::Limits>, judge: (Token, authority::Judge)) -> Vec<core::Request> {
     let mut requests = core::step(
         core,
         env,
         core::Event::EffectConnector(core::connector::Event::Verdict {
-            owner: Token::new(9900),
-            judge,
+            owner: judge.0,
+            judge: judge.1,
             verdict: authority::Verdict::Met,
             at: env.wall,
             guarded: false,
@@ -313,7 +313,7 @@ fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
     let key = world.call_key(1);
     for busy in [true, false] {
         let (mut core, env) = recovered(&world, 135, true);
-        let owner = Token::new(9950);
+        let owner = core.effect_owner();
         let _requests = core::step(
             &mut core,
             &env,
@@ -414,7 +414,7 @@ fn describe_effect(
     origin: core::EffectOrigin,
     waits_for_dependencies: bool,
 ) -> Vec<core::Request> {
-    let owner = Token::new(9900);
+    let owner = core.effect_owner();
     let _requests = core::step(core, env, core::Event::EffectStart { owner, connector: 1, origin });
     let mut description = description();
     description.waits_for_dependencies = waits_for_dependencies;
@@ -538,7 +538,7 @@ fn a_kept_tasks_refused_effect_is_denied_rather_than_kept() {
     let &(task, attempt) = world.assignments.iter().find(|(number, _)| *number == task).expect("kept run still live");
     let (mut core, env) = plan_core(&world, SEED);
     let key = core::CallKey { task, attempt, completion: 1, position: 0 };
-    let owner = Token::new(9900);
+    let owner = core.effect_owner();
     let origin = core::EffectOrigin::Call { to: ReplyTo::new(Token::new(9952)), key, deadline: env.wall };
     let _requests = core::step(&mut core, &env, core::Event::EffectStart { owner, connector: 1, origin });
     let mut description = description();
@@ -573,7 +573,9 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
     let judge = outputs
         .into_iter()
         .find_map(|request| match request {
-            core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Judge { judge, .. }), .. } => Some(judge),
+            core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Judge { owner, judge, .. }), .. } => {
+                Some((owner, judge))
+            }
             core::Request::Write(_)
             | core::Request::Ask { .. }
             | core::Request::Held(_)

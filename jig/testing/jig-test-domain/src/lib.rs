@@ -827,7 +827,7 @@ impl Domain {
 }
 
 fn effect_payload(domain: &mut Domain, effect: connector::Effect) -> Token {
-    let token = domain.hub_link.fresh();
+    let token = domain.core.effect_owner();
     assert!(domain.effects.insert(token, effect).is_ok(), "admitted effect room");
     token
 }

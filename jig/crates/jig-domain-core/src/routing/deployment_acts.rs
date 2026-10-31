@@ -67,10 +67,10 @@ pub(super) fn route(
             }
         }
         people::Act::AddKey { provider, join, digest } => {
-            account(core, work, request, people::AccountChange::AddKey { provider, join, digest });
+            account(core, work, out, request, people::AccountChange::AddKey { provider, join, digest });
         }
         people::Act::RemoveAccount { account: number } => {
-            account(core, work, request, people::AccountChange::Remove { account: number });
+            account(core, work, out, request, people::AccountChange::Remove { account: number });
         }
         people::Act::Adopt { project, adoption } => {
             if !core.projects.as_slice().contains(&project) {
@@ -83,11 +83,26 @@ pub(super) fn route(
         }
     }
 }
-fn account(core: &mut Core, work: &mut Queue<Work>, request: Token, change: people::AccountChange) {
+fn account(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    out: &mut Queue<Request>,
+    request: Token,
+    change: people::AccountChange,
+) {
     let holder = accounts::Holder::Deployment;
+    let request = core.fly(crate::flight::Flight::Key { request, route: None });
     match super::key_routes::admitted(core, request, holder, None, change) {
         Ok(change) => work.push(Work::Event(Event::Account(accounts::Event::Change { request, holder, change }))),
-        Err(why) => refused(work, request, why),
+        Err(why) => {
+            let outcome = people::Outcome::Refused(why);
+            let (request, unused) =
+                super::key_routes::finished(core, request, &outcome).expect("admitted account continuation");
+            if let Some(number) = unused {
+                out.push(super::application_routes::unused(number));
+            }
+            work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
+        }
     }
 }
 fn refused(work: &mut Queue<Work>, request: Token, why: people::Refusal) {

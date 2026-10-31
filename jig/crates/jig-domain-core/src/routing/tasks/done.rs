@@ -17,7 +17,7 @@ pub(super) fn done(
     out: &mut Queue<Request>,
 ) {
     let token = reply_to.into_token();
-    match core.land(token) {
+    match core.land_task(token) {
         Some(flight) => complete(core, env, flight, pending, out),
         None => {
             if let Some(attempt) = core.claiming.remove(&token.raw()) {
@@ -104,6 +104,25 @@ pub(super) fn complete(
         | Flight::Made { .. }
         | Flight::PersonEscalation(_)
         | Flight::Internal(_)
+        | Flight::Delegating { .. }
+        | Flight::Saying { .. }
+        | Flight::Party { .. }
+        | Flight::PartyPart { .. }
+        | Flight::EndedMark { .. }
+        | Flight::Key { .. }
+        | Flight::Application { .. }
+        | Flight::Watch { .. }
+        | Flight::ResultRead(_)
+        | Flight::CreatingInputs { .. }
+        | Flight::Creating { .. }
+        | Flight::AwaitingResources(_)
+        | Flight::CreatingDelegates { .. }
+        | Flight::EffectStaging
+        | Flight::Effect { .. }
+        | Flight::Note(_)
+        | Flight::Workspace { .. }
+        | Flight::ProcedureCreation { .. }
+        | Flight::SettingsOffering { .. }
         | Flight::Retired => {}
     }
 }

@@ -41,7 +41,7 @@ fn pending(core: &mut Core, limits: &Limits) -> Token {
     );
     while let Some(row) = out.pop() {
         if let people::Request::Route { request, .. } = row {
-            return request;
+            return core.fly(Flight::Party { request });
         }
     }
     panic!("one pending party request")
@@ -293,4 +293,117 @@ fn internal_repair_and_delegate_refusals_notify_each_connector_in_order() {
         assert!(out.is_empty());
         assert!(core.flights.is_empty());
     }
+}
+
+#[test]
+fn an_ended_load_resumes_its_party_and_a_stale_load_leaves_the_next_read_pending() {
+    let (mut core, limits) = core();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let request = pending(&mut core, &limits);
+    let stale = core.fly(Flight::ResultRead(routing::result_reads::ResultRead {
+        why: routing::result_reads::ReadFor::DeploymentClose { request, project: 1 },
+        ids: Box::new([12]),
+        at: 0,
+        results: List::with_capacity(0),
+    }));
+    let mut out = step(&mut core, &env, Event::EndedTaskLoaded { request: stale, row: None, busy: true });
+    let Some(Request::Held(held)) = out.pop() else { panic!("load answer") };
+    let Held::PeopleReply { to, reply } = *held else { panic!("party load answer") };
+    assert_eq!(to, ReplyTo::new(Token::new(77)));
+    assert_eq!(reply, people::Reply::Again(people::Again::Busy));
+    let current = core.fly(Flight::ResultRead(routing::result_reads::ResultRead {
+        why: routing::result_reads::ReadFor::Preparation { task: 1, last_message: 0 },
+        ids: Box::new([13]),
+        at: 0,
+        results: List::with_capacity(0),
+    }));
+    assert_ne!(stale, current);
+    assert!(step(&mut core, &env, Event::EndedTaskLoaded { request: stale, row: None, busy: true }).is_empty());
+    assert!(core.flights.get(skein_lib::Id::from_token(current)).is_some());
+    drop(core.take_result_read(current));
+    assert!(core.flights.is_empty());
+}
+
+#[test]
+fn a_refused_staged_effect_releases_its_owner_and_late_descriptions_leave_the_next_owner_untouched() {
+    let (mut core, limits) = core();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let owner = core.effect_owner();
+    assert!(!core.quiescent(true));
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::EffectStart { owner, connector: 1, origin: EffectOrigin::Projection { goal: 99, entry: None } },
+    );
+    let Some(Request::Ask { connector: 1, ask: Ask::Effect(connector::Ask::Drop { owner: dropped, .. }) }) = out.pop()
+    else {
+        panic!("staged effect dropped")
+    };
+    assert_eq!(dropped, owner);
+    assert!(core.flights.is_empty());
+    let current = core.effect_owner();
+    assert_ne!(owner, current);
+    assert!(step(&mut core, &env, Event::EffectConnector(connector::Event::DescribeBusy { owner })).is_empty());
+    assert!(core.flights.get(skein_lib::Id::from_token(current)).is_some());
+    drop(core.land_kind(current, crate::flight::Kind::EffectStaging));
+    assert!(core.flights.is_empty());
+}
+
+#[test]
+fn an_application_part_uses_the_people_childs_request_when_its_core_handle_differs() {
+    let (mut core, limits) = core();
+    let waiting = pending(&mut core, &limits);
+    let staged = core.effect_owner();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::Application {
+            reply_to: ReplyTo::new(Token::new(91)),
+            sign_in: 9,
+            key: [2; 16],
+            scope: people::ApplicationScope::Own,
+            connector: 1,
+            digest: [3; 32],
+            owner: Token::new(92),
+            carried: None,
+        },
+    );
+    let mut admitted = None;
+    while let Some(row) = out.pop() {
+        if let Request::Ask { ask: Ask::Application { request, token, .. }, .. } = row {
+            admitted = Some((request, token));
+        }
+    }
+    let (request, token) = admitted.expect("application admitted");
+    for through in [0, 1] {
+        let seen = people::Seen::Results { through };
+        let mut part =
+            step(&mut core, &env, Event::ApplicationPart { request, ask: Box::new(people::Ask::MarkSeen { seen }) });
+        let Some(Request::Ask { connector: 1, ask: Ask::ApplicationPartAnswered { request: found, outcome } }) =
+            part.pop()
+        else {
+            panic!("application part answer")
+        };
+        assert_eq!(found, request);
+        assert_eq!(outcome, people::Outcome::MarkedSeen { seen });
+        assert!(part.is_empty());
+    }
+    let mut out = step(&mut core, &env, Event::ApplicationFinished { request, outcome: Ok(token) });
+    assert!(out.pop().is_some());
+    assert!(core.application_mut(request).is_none());
+    assert!(
+        step(
+            &mut core,
+            &env,
+            Event::ApplicationPart {
+                request,
+                ask: Box::new(people::Ask::MarkSeen { seen: people::Seen::Results { through: 2 } }),
+            }
+        )
+        .is_empty()
+    );
+    drop(core.land_kind(waiting, crate::flight::Kind::Party));
+    drop(core.land_kind(staged, crate::flight::Kind::EffectStaging));
+    assert!(core.flights.is_empty());
 }

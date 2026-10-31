@@ -116,7 +116,7 @@ pub(super) fn proposal_decided(
     out: &mut Queue<Request>,
 ) {
     let token = reply_to.into_token();
-    let (token, route) = match core.land(token) {
+    let (token, route) = match core.land_task(token) {
         Some(Flight::PersonProposal(route)) => {
             if let Some(event) =
                 core.task_proposal_decided_for_person(token, proposer, number, outcome, env.wall, route)
