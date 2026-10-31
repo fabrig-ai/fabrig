@@ -148,7 +148,9 @@ fn page(store: &Store, load: Token, range: &transport::Range) -> root::Event {
         let root::Record::Core(record) = record else { continue };
         if !match &range.scope {
             transport::Scope::Tasks { query } => transport::ended::position(query, &record.key()),
-            transport::Scope::SettingsHistory { .. }
+            transport::Scope::EndedTasks
+            | transport::Scope::TaskRows { .. }
+            | transport::Scope::SettingsHistory { .. }
             | transport::Scope::Task { .. }
             | transport::Scope::Proposal { .. }
             | transport::Scope::Escalation { .. }
