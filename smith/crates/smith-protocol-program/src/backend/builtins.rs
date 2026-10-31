@@ -2,7 +2,7 @@
 //! Uses the bounded call ledger: a result waits for its call's Completed owner.
 
 use super::Complete;
-use super::{Backend, Below, State, policy, stream};
+use super::{Backend, Below, policy, stream};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
@@ -42,7 +42,7 @@ impl Backend {
             self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
             return;
         }
-        self.state = State::Running;
+        self.startup.initialized(&mut self.io);
         if !self.compaction() {
             self.remember_session();
         }

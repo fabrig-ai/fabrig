@@ -37,7 +37,7 @@ impl Backend {
     pub(super) fn resume_input(&mut self) -> Option<()> {
         // A retry of an already recorded invocation has consumed this tail.
         // Only a newly restored window needs the parked-wait explanation.
-        let restored = self.recorded_session.is_none() || self.recorded_session != self.running_session;
+        let restored = self.startup.recorded().is_none() || self.startup.recorded() != self.startup.running_session();
         let Complete { prompt, observation, .. } = self.current.request_mut()?;
         let capture = observation.is_some();
         let prefix = if restored && parked_wait(prompt) {
@@ -61,8 +61,8 @@ impl Backend {
     }
 
     pub(super) fn exit_failure(&self) -> llm::Failure {
-        if self.state == State::Starting
-            && self.resuming
+        if self.startup.phase() == State::Starting
+            && self.startup.resuming()
             && !self.stderr_wrapped
             && self.stderr.to_boxed().starts_with(b"No conversation found with session ID")
         {

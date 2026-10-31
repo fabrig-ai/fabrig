@@ -53,11 +53,11 @@ fn the_session_id_is_a_v4_uuid() {
 #[test]
 fn a_new_window_stops_the_old_session() {
     let mut backend = backend();
-    backend.state = State::Running;
+    fixtures::initialized(&mut backend);
     fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
     fixtures::attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
     let session::Opening::New { id } = session::opening(&ordinary(), None, None) else { panic!("new") };
-    backend.running_session = Some(id);
+    fixtures::new_window(id, &mut backend);
     fixtures::claim_completion(COMPLETION, &mut backend);
     fixtures::retain_request(request(&backend), &mut backend);
     let mut next = request(&backend);
@@ -67,7 +67,7 @@ fn a_new_window_stops_the_old_session() {
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.from_domain(&env(0), next, &mut up, &mut below);
-    assert!(backend.switching);
+    assert!(backend.startup.switching());
     assert!(below.iter().any(|effect| match effect {
         Below::Io(io::Request::Signal { signal: kernel::Signal::Interrupt, .. }) => true,
         _ => false,
@@ -151,7 +151,7 @@ fn a_compaction_renders_the_window_as_one_message() {
 #[test]
 fn a_compaction_s_text_is_its_summary() {
     let mut backend = backend();
-    backend.state = State::Running;
+    fixtures::initialized(&mut backend);
     fixtures::claim_completion(COMPLETION, &mut backend);
     fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
     fixtures::attach_pipes(Pipes { input: Some(Token::new(31)), ..backend.process.pipes() }, &mut backend);
@@ -179,27 +179,27 @@ fn a_compaction_s_text_is_its_summary() {
 #[test]
 fn the_program_s_own_compaction_passes() {
     let mut backend = backend();
-    backend.state = State::Running;
+    fixtures::initialized(&mut backend);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.line(&env(0), br#"{"type":"system","subtype":"compact_boundary"}"#, &mut up, &mut below);
     assert!(up.is_empty());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 #[test]
 fn a_pending_window_keeps_the_stop_grace() {
     let mut backend = backend();
-    backend.state = State::Running;
-    backend.switching = true;
+    fixtures::initialized(&mut backend);
+    backend.startup.switch(&mut backend.io);
     fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
     fixtures::attach_pipes(Pipes { input: Some(Token::new(31)), ..backend.process.pipes() }, &mut backend);
     backend.turns.result = true;
-    backend.deadline = Some(env(1).now);
+    backend.stopping.begin(stopping::Action::Close, Some(env(1).now));
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
-    assert_eq!(backend.deadline, Some(env(1).now));
+    assert_eq!(backend.stopping.next_deadline(), Some(env(1).now));
     assert!(below.is_empty(), "pending window starts nothing until the stopped invocation settles");
     backend.fire(&env(1), &mut up, &mut below);
     assert!(below.iter().any(|effect| match effect {

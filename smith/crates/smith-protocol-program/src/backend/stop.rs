@@ -14,37 +14,15 @@ use smith_protocol_llm::ToDomain;
 
 pub(super) const INTERRUPTED: &[u8] = b"not run: the program turn was interrupted";
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Stop {
-    /// No backend stop is awaiting the program's result.
-    None,
-    /// Cancel or close signals the program, then closes input at its result.
-    Closing,
-    /// End a held wait and close input after its session has recorded the turn.
-    Parking,
-    /// A finishing Complete waits for the result before sending its note.
-    WindDown,
-    /// End an in-flight completion so the domain can issue its finishing note.
-    Yielding,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum WindDown {
-    Ordinary,
-    /// A one-shot domain request waits for startup or a window switch to settle.
-    YieldRequested,
-    Finishing,
-}
-
 impl Backend {
     /// Whether the backend can act on a domain yield request without
     /// repeating an interrupt already waiting on its result (smith/docs/design/protocol/programs.md 5.9).
     #[must_use]
     fn can_yield_for_wind_down(&self) -> bool {
-        self.state == State::Running
+        self.startup.phase() == State::Running
             && self.current.owner().is_some()
-            && self.stop == Stop::None
-            && self.winding != WindDown::Finishing
+            && !self.stopping.waiting()
+            && self.stopping.intent() != super::stopping::Intent::Finishing
             && !self.turns.result
     }
 
@@ -59,13 +37,13 @@ impl Backend {
         if !self.can_yield_for_wind_down() {
             return;
         }
-        self.winding = WindDown::Ordinary;
+        self.stopping.intend(super::stopping::Intent::Ordinary);
         if self.active_turn() {
             self.stop(env, true, true, up, below);
-            if self.state == State::Ending {
+            if self.startup.phase() == State::Ending {
                 return;
             }
-            self.stop = Stop::Yielding;
+            self.stopping.begin(super::stopping::Action::Yield, self.stopping.next_deadline());
         } else {
             self.deliver(env, up, below);
         }
@@ -100,10 +78,11 @@ impl Backend {
     ) -> Option<Complete> {
         let choice = &request.prompt.choice;
         match choice {
-            llm::ToolChoice::Only(_) | llm::ToolChoice::None if self.winding == WindDown::Ordinary => {}
+            llm::ToolChoice::Only(_) | llm::ToolChoice::None
+                if self.stopping.intent() == super::stopping::Intent::Ordinary => {}
             llm::ToolChoice::Only(_) | llm::ToolChoice::Auto | llm::ToolChoice::None => return Some(request),
         }
-        self.winding = WindDown::Finishing;
+        self.stopping.intend(super::stopping::Intent::Finishing);
         let active = self.active_turn();
         self.current.retain(request, up);
         // Keep the neutral prompt in its existing ownership term until the
@@ -112,7 +91,7 @@ impl Backend {
             return None;
         }
         self.stop(env, active, true, up, below);
-        if self.stop == Stop::None {
+        if !self.stopping.waiting() {
             self.completion_deadline(env, true, up);
         }
         self.flush(below);
@@ -180,10 +159,12 @@ impl Backend {
     ) {
         self.cancel_native();
         self.flush_deltas(env.now);
-        let waiting = self.stop != Stop::None;
-        let was_keeping = match self.stop {
-            Stop::WindDown | Stop::Yielding | Stop::Parking => true,
-            Stop::None | Stop::Closing => false,
+        let waiting = self.stopping.waiting();
+        let was_keeping = match self.stopping.action() {
+            Some(super::stopping::Action::Finish | super::stopping::Action::Yield | super::stopping::Action::Park) => {
+                true
+            }
+            None | Some(super::stopping::Action::Close) => false,
         };
         if keeping && active && !waiting && self.process.child().is_some() {
             match self.interrupt.prepare(self.settings.input_bytes, &mut self.io) {
@@ -195,14 +176,20 @@ impl Backend {
                 }
                 None => {
                     self.fail(env, llm::Failure::Invalid, b"smith: interrupt input exceeds its bound", up, below);
-                    if self.stop == Stop::None {
+                    if !self.stopping.waiting() {
                         self.stop(env, active, false, up, below);
                     }
                     return;
                 }
             }
         }
-        self.stop = if keeping { Stop::WindDown } else { Stop::Closing };
+        let until = if self.process.child().is_some() || self.process.spawning() {
+            Some(env.now.saturating_add(self.settings.grace))
+        } else {
+            None
+        };
+        self.stopping
+            .begin(if keeping { super::stopping::Action::Finish } else { super::stopping::Action::Close }, until);
         if active && let Some(child) = self.process.child() {
             if !keeping && (!waiting || was_keeping) {
                 self.io.push(io::Request::Signal {
@@ -213,13 +200,6 @@ impl Backend {
             }
         } else if !waiting {
             self.finish_stop();
-        }
-        if !waiting {
-            self.deadline = if self.process.child().is_some() || self.process.spawning() {
-                Some(env.now.saturating_add(self.settings.grace))
-            } else {
-                None
-            };
         }
     }
 
@@ -240,21 +220,21 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        if self.stop == Stop::WindDown {
+        if self.stopping.action() == Some(super::stopping::Action::Finish) {
             self.outgoing = None;
             self.written = 0;
             if !self.render_finishing_input(env, up, below) {
                 return;
             }
         }
-        let yielding = self.stop == Stop::Yielding;
+        let yielding = self.stopping.action() == Some(super::stopping::Action::Yield);
         if yielding {
             // A complete assistant message retains its text and usage. A partial
             // message has no completion to charge (smith/docs/design/protocol/programs.md 5.5, 5.9).
             self.turns.interrupted();
         }
         self.finish_stop();
-        if self.state == State::Running && !self.switching {
+        if self.startup.phase() == State::Running && !self.startup.switching() {
             self.completion_deadline(env, true, up);
         }
     }
@@ -264,14 +244,14 @@ impl Backend {
         for pending in calls.into_boxed() {
             match pending {
                 mcp::Up::Call { call, .. } => {
-                    self.server.as_mut().expect("held MCP call").answer(
+                    self.startup.server_mut().expect("held MCP call").answer(
                         call,
                         mcp::Answer::Error(INTERRUPTED.into()),
                         &mut self.io,
                     );
                 }
                 mcp::Up::Prompt { call, .. } => {
-                    self.server.as_mut().expect("held permission prompt").verdict(
+                    self.startup.server_mut().expect("held permission prompt").verdict(
                         call,
                         mcp::Verdict::Deny { message: INTERRUPTED.into() },
                         &mut self.io,
@@ -285,7 +265,7 @@ impl Backend {
             if !call.answered
                 && let Some(rpc) = call.rpc.take()
             {
-                self.server.as_mut().expect("correlated MCP call").answer(
+                self.startup.server_mut().expect("correlated MCP call").answer(
                     rpc,
                     mcp::Answer::Error(INTERRUPTED.into()),
                     &mut self.io,
@@ -303,20 +283,20 @@ impl Backend {
             call.answer = None;
             call.answered = true;
         }
-        match self.stop {
-            Stop::Closing | Stop::Parking => {
+        match self.stopping.action() {
+            Some(super::stopping::Action::Close | super::stopping::Action::Park) => {
                 if let Some(input) = self.process.pipes().input {
                     self.io.push(io::Request::Close { entity: input });
                 }
             }
-            Stop::WindDown => {
+            Some(super::stopping::Action::Finish) => {
                 let closed = self.turns.closed;
                 self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
                 self.turns.closed = closed;
                 self.send_input();
             }
-            Stop::Yielding | Stop::None => {}
+            Some(super::stopping::Action::Yield) | None => {}
         }
-        self.stop = Stop::None;
+        self.stopping.result();
     }
 }

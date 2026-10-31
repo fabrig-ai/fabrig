@@ -12,7 +12,7 @@ fn failed(committed: bool, residue: bool) -> file::Event {
 }
 fn prepared() -> Backend {
     let mut backend = super::super::fixtures::backend();
-    backend.state = State::Ending;
+    backend.startup.close(&mut backend.io);
     backend.settings.directory = Some(super::super::Root { file: Token::new(40), descriptor: kernel::Fd::new(41) });
     backend.files.run = Some(Token::new(42));
     backend.files.run_descriptor = Some(kernel::Fd::new(43));

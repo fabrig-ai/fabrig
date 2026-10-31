@@ -1,8 +1,8 @@
 //! Open stream boundaries (protocol/programs.md 5.9).
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust step harness, programming-model.md 10.2")]
-use super::fixtures::{active as running, env, request};
 use super::*;
 use crate::backend::fixtures::COMPLETION;
+use fixtures::{active as running, env, request};
 
 fn running_with_queues() -> (Backend, Queue<ToDomain>, Queue<Below>) {
     (running(), Queue::with_capacity(32), Queue::with_capacity(64))
@@ -63,7 +63,7 @@ fn an_open_result_completes_text_and_keeps_input_open() {
             .count(),
         0
     );
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn an_interrupted_open_turn_yields_without_failure() {
     assert_eq!(completed(&up).stop, llm::Stop::EndTurn);
     assert!(completed(&up).content.is_empty());
     assert!(backend.pending_failure.is_none());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
     assert!(interrupt_sent(&below));
 }
 
@@ -132,8 +132,8 @@ fn an_open_final_request_enters_the_wind_down() {
     prompt.choice = llm::ToolChoice::None;
     prompt.messages = Box::new([user(b"Reply now with what you have")]);
     backend.resume(&env(0), Complete::from_request(next), &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
-    assert!(backend.winding == stop::WindDown::Finishing);
-    assert_eq!(backend.state, State::Running);
+    assert!(backend.stopping.intent() == stopping::Intent::Finishing);
+    assert_eq!(backend.startup.phase(), State::Running);
     let line: serde_json::Value =
         serde_json::from_slice(backend.outgoing.as_ref().expect("finishing input")).expect("user line");
     assert_eq!(line["message"]["content"], "Reply now with what you have\n");
@@ -212,16 +212,16 @@ fn a_yield_without_an_outstanding_completion_is_ignored() {
     backend.from_domain(&env(0), FromDomain::Yield { owner: COMPLETION }, &mut up, &mut below);
     assert!(up.is_empty());
     assert!(below.is_empty());
-    assert!(backend.stop == stop::Stop::None);
+    assert!(!backend.stopping.waiting());
 }
 
 #[test]
 fn a_yield_during_startup_waits_for_the_running_boundary() {
     let (mut backend, mut up, mut below) = running_with_queues();
-    backend.state = State::Starting;
+    fixtures::preparing(&mut backend);
     backend.from_domain(&env(0), FromDomain::Yield { owner: COMPLETION }, &mut up, &mut below);
     assert!(!interrupt_sent(&below));
-    backend.state = State::Running;
+    fixtures::initialized(&mut backend);
     backend.fire(&env(0), &mut up, &mut below);
     assert!(interrupt_sent(&below));
     assert!(up.is_empty());

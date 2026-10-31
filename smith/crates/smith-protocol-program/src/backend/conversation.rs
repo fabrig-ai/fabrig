@@ -89,7 +89,7 @@ impl Backend {
             }
             return;
         }
-        if self.stop != super::stop::Stop::None {
+        if self.stopping.waiting() {
             if kind == Some(b"result") {
                 // Note rendering reuses the parser's workspace term.
                 drop(document);
@@ -98,7 +98,7 @@ impl Backend {
             }
             return;
         }
-        if self.switching {
+        if self.startup.switching() {
             return;
         }
         if kind == Some(b"stream_event") {
@@ -263,7 +263,7 @@ impl Backend {
         if self.native.is_some() {
             return;
         }
-        if self.switching {
+        if self.startup.switching() {
             return;
         }
         let Some(owner) = self.current.owner() else {
@@ -337,7 +337,7 @@ impl Backend {
             return;
         }
         self.match_calls();
-        self.deadline = None;
+        self.stopping.release_alarm();
         if text > 0 {
             up.push(ToDomain::Text { owner, bytes: text });
         }
@@ -347,7 +347,7 @@ impl Backend {
         self.current.settle(super::current::Terminal::Completed { completion }, up);
         self.flush_builtins(up);
         if self.compaction() {
-            self.switching = true;
+            self.startup.switch(&mut self.io);
             self.stop(env, false, false, up, below);
         }
     }
@@ -377,8 +377,8 @@ impl Backend {
         for call in held.into_boxed() {
             match call {
                 mcp::Up::Call { call, tool, input } => {
-                    if self.state == State::Ending || self.stop != super::stop::Stop::None {
-                        self.server.as_mut().expect("stopped MCP call").answer(
+                    if self.startup.phase() == State::Ending || self.stopping.waiting() {
+                        self.startup.server_mut().expect("stopped MCP call").answer(
                             call,
                             mcp::Answer::Error(super::stop::INTERRUPTED.into()),
                             &mut self.io,
@@ -396,7 +396,7 @@ impl Backend {
                         None if self.turns.accepting_calls() => {
                             self.calls.push(mcp::Up::Call { call, tool, input }).expect("held MCP calls");
                         }
-                        None => self.server.as_mut().expect("MCP call").answer(
+                        None => self.startup.server_mut().expect("MCP call").answer(
                             call,
                             mcp::Answer::Error(b"smith: this call was not in the model's message".as_slice().into()),
                             &mut self.io,
@@ -414,9 +414,9 @@ impl Backend {
 
     pub(super) fn completion_active(&self) -> bool {
         self.current.owner().is_some()
-            && self.state == State::Running
-            && !self.switching
-            && self.stop == super::stop::Stop::None
+            && self.startup.phase() == State::Running
+            && !self.startup.switching()
+            && !self.stopping.waiting()
     }
 
     pub(super) fn completion_deadline(
@@ -426,13 +426,13 @@ impl Backend {
         up: &mut Queue<ToDomain>,
     ) {
         if self.completion_active() {
-            self.deadline = None;
+            self.stopping.release_alarm();
             self.current.progress(env.now, head, up);
         }
     }
 
     pub(super) fn answer_calls(&mut self) {
-        if self.state == State::Ending || self.stop != super::stop::Stop::None {
+        if self.startup.phase() == State::Ending || self.stopping.waiting() {
             return;
         }
         for index in 0..self.ledger.len() {
@@ -441,7 +441,7 @@ impl Backend {
                 && let Some(rpc) = call.rpc
                 && let Some(answer) = call.answer.take()
             {
-                self.server.as_mut().expect("MCP reply").answer(rpc, answer, &mut self.io);
+                self.startup.server_mut().expect("MCP reply").answer(rpc, answer, &mut self.io);
                 call.answered = true;
             }
         }

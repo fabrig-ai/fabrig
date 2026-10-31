@@ -9,7 +9,7 @@ use alloc::string::ToString;
 #[test]
 fn a_resume_names_the_window_s_session() {
     let mut backend = launchable();
-    let id = backend.names.session;
+    let id = backend.startup.session();
     let spawn = backend.launch_spec().expect("resume spawn");
     assert!(spawn.args.windows(2).any(|pair| pair[0].as_ref() == b"--resume" && pair[1].as_ref() == id));
     assert!(!spawn.args.iter().any(|argument| argument.as_ref() == b"--session-id"));
@@ -43,7 +43,7 @@ fn stderr_failure(backend: &mut Backend, detail: &[u8]) -> llm::Failure {
 #[test]
 fn a_missing_session_is_gone() {
     let mut backend = launchable();
-    backend.state = State::Starting;
+    fixtures::preparing(&mut backend);
     fixtures::exited_process(Some(1), &mut backend);
     assert_eq!(
         stderr_failure(&mut backend, b"No conversation found with session ID: example"),
@@ -54,13 +54,13 @@ fn a_missing_session_is_gone() {
         stderr_failure(&mut backend, b"Other failure: No conversation found with session ID"),
         llm::Failure::Program { exit: Some(1) }
     );
-    backend.state = State::Running;
+    fixtures::initialized(&mut backend);
     assert_eq!(
         stderr_failure(&mut backend, b"No conversation found with session ID"),
         llm::Failure::Program { exit: Some(1) }
     );
-    backend.state = State::Starting;
-    backend.resuming = false;
+    fixtures::preparing(&mut backend);
+    fixtures::fresh_window(&mut backend);
     assert_eq!(
         stderr_failure(&mut backend, b"No conversation found with session ID"),
         llm::Failure::Program { exit: Some(1) }
@@ -70,7 +70,7 @@ fn a_missing_session_is_gone() {
 #[test]
 fn a_park_while_waiting_interrupts() {
     let mut backend = launchable();
-    backend.state = State::Running;
+    fixtures::initialized(&mut backend);
     fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
     fixtures::attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
     fixtures::answered_completion(&mut backend); // The wait completion was delivered; its held RPC remains unanswered.
@@ -79,7 +79,7 @@ fn a_park_while_waiting_interrupts() {
     held.name = b"foo".as_slice().into();
     backend.ledger.push(held).ok().expect("ledger");
     fixtures::connect_server(&mut backend);
-    let server = backend.server.as_mut().expect("server");
+    let server = backend.startup.server_mut().expect("server");
     server.from_io(
         env(0).now,
         io::Event::Stream {
@@ -158,7 +158,7 @@ fn launch_from_listener(
 
 fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backend, [u8; 16]) {
     let mut backend = launchable();
-    backend.state = State::Starting;
+    fixtures::preparing(&mut backend);
     fixtures::claim_completion(COMPLETION, &mut backend);
     backend.open_runs(env(0).now, below);
     for (file, descriptor) in [(Token::new(42), kernel::Fd::new(43)), (Token::new(44), kernel::Fd::new(45))] {
@@ -173,7 +173,7 @@ fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backe
         );
     }
     let first = launch_from_listener(&mut backend, 0, up, below);
-    let id = backend.running_session.expect("window ID");
+    let id = backend.startup.running_session().expect("window ID");
     assert!(first.args.windows(2).any(|pair| pair[0].as_ref() == b"--resume" && pair[1].as_ref() == session::uuid(id)));
     backend.from_io(
         &env(0),
@@ -234,11 +234,11 @@ fn a_retry_after_a_stopped_process_resumes() {
         backend.from_io(&env(1), BelowEvent::Io(io::Event::Closed { owner }), &mut up, &mut below);
         no_spawn(&below);
     }
-    assert!(backend.switching, "the MCP listener still belongs to the old process");
+    assert!(backend.startup.switching(), "the MCP listener still belongs to the old process");
     backend.from_io(&env(1), BelowEvent::Io(io::Event::Closed { owner: backend.first }), &mut up, &mut below);
     no_spawn(&below);
     assert!(up.is_empty(), "the old result has no terminal for the retry");
-    assert!(backend.resuming);
+    assert!(backend.startup.resuming());
     assert!(!backend.closed());
     assert!(backend.settings.directory.is_some());
     let spawn = launch_from_listener(&mut backend, 1, &mut up, &mut below);
@@ -311,11 +311,10 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
         let session::Opening::New { id } = session::opening(prompt, None, None) else { panic!("new") };
         fixtures::retain_request(request, &mut backend);
-        backend.running_session = Some(id);
-        backend.names.session = session::uuid(id);
-        backend.resuming = false;
+        fixtures::new_window(id, &mut backend);
+        fixtures::fresh_window(&mut backend);
         fixtures::claim_completion(COMPLETION, &mut backend);
-        backend.state = State::Starting;
+        fixtures::preparing(&mut backend);
         fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
         fixtures::attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
         backend.launch_spec().expect("new spawn");
@@ -325,7 +324,7 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         if init_first {
             backend.admit_init(&env(0), init, &mut up, &mut below);
         }
-        assert_eq!(backend.recorded_session, None);
+        assert_eq!(backend.startup.recorded(), None);
         backend.from_io(
             &env(0),
             BelowEvent::Io(io::Event::Output {
@@ -339,20 +338,20 @@ fn a_first_call_retry_resumes_the_recorded_session() {
             &mut below,
         );
         if !init_first {
-            assert_eq!(backend.recorded_session, None, "input alone does not record the ID");
+            assert_eq!(backend.startup.recorded(), None, "input alone does not record the ID");
             backend.admit_init(&env(0), init, &mut up, &mut below);
         }
-        assert_eq!(backend.recorded_session, Some(id));
+        assert_eq!(backend.startup.recorded(), Some(id));
         backend.fire(&env(1), &mut up, &mut below);
         let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("head timeout") };
         assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Head });
         let retry = first_request(&backend);
         backend.from_domain(&env(1), retry, &mut up, &mut below);
-        assert!(backend.switching);
+        assert!(backend.startup.switching());
         for owner in [backend.token(Owner::Program), Token::new(31), Token::new(32), Token::new(33)] {
             backend.from_io(&env(1), BelowEvent::Io(io::Event::Closed { owner }), &mut up, &mut below);
         }
-        assert!(backend.resuming);
+        assert!(backend.startup.resuming());
         let spawn = backend.launch_spec().expect("retry spawn");
         assert!(
             spawn.args.windows(2).any(|pair| pair[0].as_ref() == b"--resume" && pair[1].as_ref() == session::uuid(id))
@@ -366,7 +365,7 @@ fn a_first_call_retry_resumes_the_recorded_session() {
 #[test]
 fn a_wrapped_missing_prefix_stays_a_program_error() {
     let mut backend = launchable();
-    backend.state = State::Starting;
+    fixtures::preparing(&mut backend);
     fixtures::exited_process(Some(1), &mut backend);
     let prefix = b"No conversation found with session ID";
     backend.stderr = Tail::with_capacity(u32::try_from(prefix.len()).expect("prefix length"));

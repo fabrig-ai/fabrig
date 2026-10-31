@@ -5,7 +5,7 @@
 
 use super::Complete;
 use super::Owner;
-use super::{Backend, Below, State, policy, stop};
+use super::{Backend, Below, State, policy};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_io::{digest, file};
@@ -52,7 +52,7 @@ impl Backend {
                 | None => {}
             }
         }
-        self.server.as_mut().expect("permission server").verdict(
+        self.startup.server_mut().expect("permission server").verdict(
             call,
             mcp::Verdict::Allow { updated_input },
             &mut self.io,
@@ -99,7 +99,7 @@ impl Backend {
 
     pub(super) fn native_event(&mut self, event: file::Event, up: &mut Queue<ToDomain>) {
         let snapshot = self.native.take().expect("one native file terminal");
-        if snapshot.cancelled || self.state == State::Ending || self.stop != stop::Stop::None {
+        if snapshot.cancelled || self.startup.phase() == State::Ending || self.stopping.waiting() {
             return;
         }
         match event {
@@ -130,7 +130,7 @@ impl Backend {
             | file::Event::Cancelled { .. } => {}
         }
         match snapshot.after {
-            After::Allow { call, input } => self.server.as_mut().expect("snapshot permission server").verdict(
+            After::Allow { call, input } => self.startup.server_mut().expect("snapshot permission server").verdict(
                 call,
                 mcp::Verdict::Allow { updated_input: input },
                 &mut self.io,

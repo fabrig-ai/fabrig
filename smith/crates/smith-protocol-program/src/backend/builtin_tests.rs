@@ -4,11 +4,11 @@
     clippy::disallowed_types,
     reason = "ordinary backend harness, programming-model.md 10.2"
 )]
-use super::fixtures::records as active;
-use super::fixtures::{env, request};
 use super::*;
 use crate::backend::fixtures::COMPLETION;
 use alloc::{vec, vec::Vec};
+use fixtures::records as active;
+use fixtures::{env, request};
 use smith_domain::tools::{Effect, Grants};
 
 const READ: &[u8] = br#"{"type":"assistant","message":{"id":"one","content":[{"type":"tool_use","id":"r","name":"Read","input":{"file_path":"a"}}]}}"#;
@@ -134,14 +134,14 @@ fn init_contract(tools: &[&str], granted: bool, contract: bool) -> (Backend, Que
 fn a_contract_init_may_list_structured_output() {
     let (backend, up) = init_contract(&["StructuredOutput"], false, true);
     assert!(up.is_empty());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 #[test]
 fn a_contract_init_may_omit_structured_output() {
     let (backend, up) = init_contract(&[], false, true);
     assert!(up.is_empty());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 #[test]
@@ -194,7 +194,7 @@ fn structured_output_is_the_finish_from_its_result() {
     assert!(backend.ledger.is_empty(), "no workspace call or result is owed");
     assert!(up.is_empty(), "no BuiltinResult or second completion");
     assert!(below.is_empty(), "neither a permission prompt nor an MCP answer");
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 #[test]
@@ -209,7 +209,7 @@ fn a_structured_call_without_its_wrapped_outcome_fails() {
         let line = serde_json::to_vec(&result).expect("result JSON");
         backend.line(&env(0), &line, &mut up, &mut below);
         let Some(ToDomain::Failed { .. }) = up.pop() else { panic!("missing outcome fails") };
-        assert_eq!(backend.state, State::Ending);
+        assert_eq!(backend.startup.phase(), State::Ending);
         assert!(up.is_empty(), "the held call was never delivered as a built-in");
     }
 }
@@ -235,7 +235,7 @@ fn an_init_without_a_granted_built_in_fails() {
     failed(up.pop(), b"smith: the program lacks a granted built-in tool: Grep");
     let (backend, up) = init(&["mcp__smith__permission_prompt", "Read", "Glob", "Grep"], true);
     assert!(up.is_empty());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 #[test]
@@ -373,7 +373,7 @@ fn a_host_schema_refusal_names_the_tool_at_startup() {
     let mut below = Queue::with_capacity(64);
     backend.prepare_invocation(&env(0), &mut up, &mut below);
     failed(up.pop(), b"smith: MCP tool input schema is not an object: host_action");
-    assert!(backend.server.is_none());
+    assert!(backend.startup.server().is_none());
     for request in &below {
         if let Below::Io(io::Request::Listen { .. }) = request {
             panic!("schema refusal starts no listener");
@@ -509,7 +509,7 @@ fn a_structured_result_requires_exactly_its_outcome_member() {
                 .expect("result JSON");
         backend.line(&env(0), &line, &mut up, &mut below);
         let Some(ToDomain::Failed { .. }) = up.pop() else { panic!("invalid wrapper fails") };
-        assert_eq!(backend.state, State::Ending);
+        assert_eq!(backend.startup.phase(), State::Ending);
     }
 }
 
@@ -548,14 +548,14 @@ fn a_host_combinator_is_named_before_listening() {
         let mut below = Queue::with_capacity(64);
         backend.prepare_invocation(&env(0), &mut up, &mut below);
         failed(up.pop(), b"smith: MCP tool input schema is not an object: host_action");
-        assert!(backend.server.is_none());
+        assert!(backend.startup.server().is_none());
     }
 }
 
 #[test]
 fn launch_wraps_the_unchanged_contract_within_its_bound() {
     let mut backend = fixtures::resumable();
-    backend.resuming = false;
+    fixtures::fresh_window(&mut backend);
     fixtures::retain_request(report_request(&backend), &mut backend);
     let spawn = backend.launch_spec().expect("launch");
     let flag = spawn.args.iter().position(|argument| argument.as_ref() == b"--json-schema").expect("schema flag");
@@ -605,7 +605,7 @@ fn native_prompt(backend: &mut Backend, id: &str, name: &str, input: serde_json:
     let prompt = serde_json::json!({"jsonrpc":"2.0","id":1_u32,"method":"tools/call","params":{
         "name":"permission_prompt","arguments":{"tool_name":name,"input":input,"tool_use_id":id}
     }});
-    backend.server.as_mut().expect("server").from_io(
+    backend.startup.server_mut().expect("server").from_io(
         env(0).now,
         io::Event::Stream {
             owner: Token::new(101),
@@ -613,7 +613,7 @@ fn native_prompt(backend: &mut Backend, id: &str, name: &str, input: serde_json:
         },
         &mut backend.io,
     );
-    let prompt = backend.server.as_mut().expect("server").up().expect("prompt");
+    let prompt = backend.startup.server_mut().expect("server").up().expect("prompt");
     backend.permission(prompt);
 }
 
@@ -786,15 +786,18 @@ fn closing_settles_the_native_load_before_private_cleanup() {
     let mut below = Queue::with_capacity(64);
     backend.close(&env(0), &mut up, &mut below);
     let Some(ToDomain::Cancelled { .. }) = up.pop() else { panic!("cancel terminal") };
-    backend.settings.directory = None;
-    backend.cleanup(env(0).now, &mut below);
+    fixtures::settle_connected_invocation(&mut backend, &mut up, &mut below);
     assert!(!backend.closed(), "snapshot still owes its terminal");
-    backend.native_event(
-        file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"cancelled".as_slice().into() },
+    backend.from_io(
+        &env(0),
+        BelowEvent::File {
+            event: file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"cancelled".as_slice().into() },
+            descriptor: None,
+        },
         &mut up,
+        &mut below,
     );
     assert!(up.is_empty(), "cancelled snapshot teaches nothing");
-    backend.cleanup(env(0).now, &mut below);
     assert!(backend.closed());
 }
 
@@ -846,7 +849,7 @@ fn queued_native_snapshots_keep_result_order_and_message_owners() {
 fn server_call(backend: &mut Backend, id: u32) {
     let call =
         serde_json::json!({"jsonrpc":"2.0", "id":id, "method":"tools/call", "params":{"name":"foo", "arguments":{}}});
-    backend.server.as_mut().expect("server").from_io(
+    backend.startup.server_mut().expect("server").from_io(
         env(0).now,
         io::Event::Stream {
             owner: Token::new(101),
@@ -854,7 +857,7 @@ fn server_call(backend: &mut Backend, id: u32) {
         },
         &mut backend.io,
     );
-    let call = backend.server.as_mut().expect("server").up().expect("RPC");
+    let call = backend.startup.server_mut().expect("server").up().expect("RPC");
     backend.calls.push(call).expect("held RPC");
     backend.match_calls();
 }
