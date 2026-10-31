@@ -5,18 +5,10 @@ pub const PUBLIC: &[u8] = b"app.example.com";
 pub const EXCHANGE: Token = Token::new(11);
 pub const OTHER: Token = Token::new(12);
 pub fn env() -> Env<Limits> {
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients_http;
     Env {
         now: Time::ZERO,
         wall: Wall::EPOCH,
-        limits: Limits {
-            calls: limits.calls,
-            streams: limits.streams,
-            body: limits.body,
-            read: limits.read,
-            send: limits.send,
-            event: limits.event,
-        },
+        limits: Limits { calls: 4, streams: 2, body: 131_328, read: 16_384, send: 16_384, event: 87_416 },
     }
 }
 pub fn mount() -> Mount {

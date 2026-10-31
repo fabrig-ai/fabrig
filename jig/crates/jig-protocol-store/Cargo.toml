@@ -23,9 +23,7 @@ jig-domain-fleet.workspace = true
 
 [dev-dependencies]
 skein-oauth.workspace = true
-jig-store-world = { path = "../../tests/store" }
 jig-test-patches-smith.workspace = true
-jig-protocol-config.workspace = true
 jig-test-patches.workspace = true
 jig-test-patches-jig.workspace = true
 skein-fake-machine.workspace = true
