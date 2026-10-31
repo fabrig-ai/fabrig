@@ -290,6 +290,11 @@ pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
     b.text(Run::Plain, b"FORGE \xc2\xb7 ");
     w.text(b, Word::ForgeNotFinished, &[]);
     b.close();
+    super::forges::removal_words(b, w, row);
+    let removing = match &root.forge().setup_form().removal {
+        Some(removal) => removal.forge == row.number && removal.request.is_some(),
+        None => false,
+    };
     for act in &connect::unfinished_acts(row) {
         let (word, act) = match act {
             connect::UnfinishedAct::GoOn => (
@@ -303,20 +308,13 @@ pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
                 (Word::ForgeStartOver, forge::forges::Act::StartOver { forge: row.number })
             }
         };
-        flow::control(b, Control::Button { name: &w.say(word, &[]), to: bindings.insert(Meaning::Forges(act)) });
-    }
-    if let Some(removal) = &root.forge().setup_form().removal
-        && removal.forge == row.number
-    {
-        text(b, w, Role::Paragraph, Word::ForgeRemoveConfirm);
-        super::forges::removal_words(b, w, row);
-        flow::control(
-            b,
-            Control::PrimaryButton {
-                name: &w.say(Word::ForgeRemove, &[]),
-                to: bindings.insert(Meaning::Forges(forge::forges::Act::ConfirmRemove)),
-            },
-        );
+        let name = w.say(word, &[]);
+        let control = if removing {
+            Control::Disabled { name: &name }
+        } else {
+            Control::Button { name: &name, to: bindings.insert(Meaning::Forges(act)) }
+        };
+        flow::control(b, control);
     }
     b.close();
 }
@@ -1553,16 +1551,18 @@ fn admin_form(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBin
     }
     text(b, w, Role::Paragraph, Word::AdminLabelHint);
     b.close();
-    flow::control(
-        b,
-        Control::PrimaryButton {
-            name: &w.say(Word::AdminTitle, &[]),
-            to: bindings.insert(match number {
-                Some(number) => Meaning::ConnectAdmin(number),
-                None => Meaning::Forges(forge::forges::Act::ConnectManaged),
-            }),
+    let name = w.say(Word::AdminTitle, &[]);
+    let control = match number {
+        Some(number) => Control::PrimaryButton { name: &name, to: bindings.insert(Meaning::ConnectAdmin(number)) },
+        None => match managed_place(&draft.place) {
+            Some(place) => Control::PrimaryButton {
+                name: &name,
+                to: bindings.insert(Meaning::Forges(forge::forges::Act::Managed { place })),
+            },
+            None => Control::PrimaryDisabled { name: &name },
         },
-    );
+    };
+    flow::control(b, control);
 }
 fn admin_stage(stage: forge::forges::SetupStage) -> &'static [u8] {
     use forge::forges::SetupStage;
@@ -1671,4 +1671,60 @@ fn admin_ready(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
         }
     }
     b.close();
+}
+
+/// The address field supplies the managed connection's public endpoint (temper/docs/design/draft/playground-reset.md, 3).
+fn managed_place(draft: &forge::admin::PlaceDraft) -> Option<forge::forges::Managed> {
+    use forge::admin::PlaceField;
+    let address = draft.fields.get(PlaceField::Host.index())?.as_ref();
+    let (authority, secure) = match address.strip_prefix(b"http://") {
+        Some(authority) => (authority, false),
+        None => (address.strip_prefix(b"https://").unwrap_or(address), true),
+    };
+    let authority = authority.strip_suffix(b"/").unwrap_or(authority);
+    if authority.is_empty() {
+        return None;
+    }
+    for byte in authority {
+        if byte.is_ascii_whitespace() || b"/?#@".contains(byte) {
+            return None;
+        }
+    }
+    let (host, port) = if authority.starts_with(b"[") {
+        let end = skein_lib::bytes::find(authority, b"]")?;
+        let host = authority.get(1..end)?;
+        let rest = authority.get(end.checked_add(1)?..)?;
+        (host, if rest.is_empty() { None } else { Some(rest.strip_prefix(b":")?) })
+    } else if let Some(colon) = skein_lib::bytes::find(authority, b":") {
+        (authority.get(..colon)?, Some(authority.get(colon.checked_add(1)?..)?))
+    } else {
+        (authority, None)
+    };
+    if host.is_empty() {
+        return None;
+    }
+    let port = match port {
+        Some(port) => {
+            let port = u16::try_from(skein_ui::number(port)?).ok()?;
+            if port == 0 {
+                return None;
+            }
+            port
+        }
+        None => {
+            if secure {
+                443
+            } else {
+                80
+            }
+        }
+    };
+    let web = draft.fields.get(PlaceField::Web.index())?;
+    Some(forge::forges::Managed {
+        host: copy_of(host),
+        port,
+        tls: if secure { Some(copy_of(host)) } else { None },
+        git: draft.fields.get(PlaceField::Git.index())?.clone(),
+        web: if web.is_empty() { None } else { Some(web.clone()) },
+    })
 }

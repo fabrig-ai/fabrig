@@ -160,12 +160,7 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
     let mut root = f::demo_forges_root(Address::Forges, rows);
     assert!(d::forge::listed::playground(&root).is_some());
     let view = f::page_view(&root);
-    let row = f::find(
-        view.tree(),
-        Role::Disclosure,
-        "Playground forge · the playground’s, until a forge of yours connects · acme/shop".as_bytes(),
-    )
-    .unwrap();
+    let row = f::find(view.tree(), Role::Disclosure, b"Playground forge").unwrap();
     assert!(!view.tree().nodes().iter().find(|n| n.id == row).unwrap().states.as_slice().contains(&State::Expanded));
     f::root_event(
         &mut root,

@@ -2314,3 +2314,58 @@ fn an_unfinished_github_offers_go_on_before_start_over() {
         }))
     );
 }
+
+#[test]
+fn the_managed_address_sets_host_port_and_tls() {
+    for (address, host, port, tls) in [
+        (b"https://forge.example:8443/".as_slice(), b"forge.example".as_slice(), 8443, true),
+        (b"http://forge.example:3000", b"forge.example", 3000, false),
+        (b"forge.example", b"forge.example", 443, true),
+        (b"http://[::1]:3000", b"::1", 3000, false),
+    ] {
+        let mut root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Managed) }, List::with_capacity(0));
+        let mut view = f::page_view(&root);
+        let id = node(view.tree(), Role::TextField, b"Its address");
+        let action = crate::act(&mut view, id, Act::Input { value: address.into() }).unwrap();
+        f::root_event(&mut root, d::Event::Act { action });
+        let d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::Managed { place })) =
+            press(&root, Role::Button, b"Connect as its admin")
+        else {
+            panic!("managed connect")
+        };
+        assert_eq!(place.host.as_ref(), host);
+        assert_eq!(place.port, port);
+        assert_eq!(place.tls.as_deref(), if tls { Some(host) } else { None });
+    }
+}
+#[test]
+fn an_invalid_managed_address_cannot_send() {
+    for address in [
+        b"".as_slice(),
+        b"https://",
+        b"http://forge.example:0",
+        b"https://forge.example:65536",
+        b"https://forge.example/path",
+        b"https://person@forge.example",
+    ] {
+        let mut root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Managed) }, List::with_capacity(0));
+        let mut view = f::page_view(&root);
+        let id = node(view.tree(), Role::TextField, b"Its address");
+        let action = crate::act(&mut view, id, Act::Input { value: address.into() }).unwrap();
+        f::root_event(&mut root, d::Event::Act { action });
+        let view = f::page_view(&root);
+        assert!(has_state(view.tree(), Role::Button, b"Connect as its admin", State::Disabled));
+    }
+}
+
+#[test]
+fn starting_over_waits_for_the_removal_without_sending_twice() {
+    let mut root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, github_rows(false));
+    let action = press(&root, Role::Button, b"Start over");
+    f::root_event(&mut root, d::Event::Act { action });
+    let view = f::page_view(&root);
+    assert!(root.forge().setup_form().removal.as_ref().unwrap().request.is_some());
+    assert!(has_state(view.tree(), Role::Button, b"Start over", State::Disabled));
+    assert!(f::find(view.tree(), Role::Button, b"Remove").is_none());
+    words_in_order(view.tree(), &["The GitHub App stays yours: delete it in its settings.", "Start over"]);
+}

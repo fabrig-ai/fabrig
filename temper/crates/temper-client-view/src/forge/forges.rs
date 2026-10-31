@@ -62,10 +62,8 @@ pub(crate) fn main(
                 connect::text(b, w, Role::Heading { level: 2 }, Word::ForgePlaygroundHeading);
                 b.open(Role::Disclosure);
                 b.style(look::FORGE_ROW);
-                b.name(&w.say(
-                    Word::ForgePlaygroundSummary,
-                    &[Hole::Name(demo.owner.clone()), Hole::Name(demo.name.clone())],
-                ));
+                b.name(&w.say(Word::ForgePlayground, &[]));
+                b.description(&forge::words::full_name(&demo.owner, &demo.name));
                 account(b, w, row);
                 b.close();
             }
@@ -378,10 +376,11 @@ pub(crate) fn removal_words(b: &mut Builder, w: &Words, row: &Row) {
         },
     };
     connect::text(b, w, Role::Paragraph, word);
-    if row.kind == Kind::GitHub
-        && let Some(web) = &row.web
-    {
-        let mut web = web.as_ref();
+    if row.kind == Kind::GitHub {
+        let mut web = match &row.web {
+            Some(web) => web.as_ref(),
+            None => b"https://github.com",
+        };
         while let Some(prefix) = web.strip_suffix(b"/") {
             web = prefix;
         }

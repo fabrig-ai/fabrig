@@ -1017,15 +1017,21 @@ fn the_banner_is_one_line_with_its_set_up_link() {
         let view = f::page_view(&root);
         let mut region = None;
         for (index, node) in view.tree().nodes().iter().enumerate() {
-            if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") { region = Some(index); }
+            if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") {
+                region = Some(index);
+            }
         }
         let region = region.expect("playground banner");
         let end = region.checked_add(usize::try_from(view.tree().nodes().get(region).unwrap().size).unwrap()).unwrap();
         let mut paragraphs = 0_u32;
         let mut links = 0_u32;
         for node in view.tree().nodes().get(region..end).unwrap() {
-            if node.role == Role::Paragraph { paragraphs = paragraphs.checked_add(1).unwrap(); }
-            if node.role == Role::Link { links = links.checked_add(1).unwrap(); }
+            if node.role == Role::Paragraph {
+                paragraphs = paragraphs.checked_add(1).unwrap();
+            }
+            if node.role == Role::Link {
+                links = links.checked_add(1).unwrap();
+            }
         }
         assert_eq!(paragraphs, 1);
         assert_eq!(links, 1);
