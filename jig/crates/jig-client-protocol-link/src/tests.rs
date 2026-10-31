@@ -74,7 +74,7 @@ mod placed_holds;
 #[test]
 fn construction_refuses_each_unrepresentable_limit() {
     let base = fixtures::limits();
-    assert!(Limits::new(base.client(), base.exchanges()).is_ok());
+    Limits::new(base.client(), base.exchanges()).expect("valid limits reconstruct");
     assert_eq!(Limits::new(base.client(), 0), Err(Unusable::Limits));
     let cases = [
         jig_client_domain::Limits { document_bytes: u64::MAX, ..base.client() },

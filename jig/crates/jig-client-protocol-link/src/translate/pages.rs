@@ -183,15 +183,14 @@ pub(crate) fn turn_fields(value: &[u8], limits: &Limits) -> c::TurnRead {
     let bytes = u32::try_from(limits.client().document_bytes)
         .expect("validated document bytes")
         .min(limits.receiving().activity_turn_turn);
-    super::turn::decode(value, limits, bytes)
+    let turn =
+        c::TurnLimits { messages: limits.client().rows, blocks: limits.client().rows, text: limits.client().turn_text };
+    super::turn::decode(value, &jig_protocol_transcript::Limits::new(bytes, turn))
 }
 
 /// An archived turn its page carries, within the archive's bound (`turn::archive`).
 pub(crate) fn carried_turn_fields(value: &[u8], limits: &Limits) -> c::TurnRead {
-    let bytes = u32::try_from(limits.client().document_bytes)
-        .expect("validated document bytes")
-        .min(limits.receiving().turn_carried_bytes);
-    super::turn::decode(value, limits, bytes)
+    super::turn::decode(value, limits.archived_turn())
 }
 
 pub(crate) fn task_page(value: w::TaskPage, limits: &Limits) -> Result<c::TaskPage, Undecodable> {

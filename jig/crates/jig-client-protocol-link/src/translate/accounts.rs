@@ -199,7 +199,7 @@ pub(crate) fn owner_accounts(value: w::OwnerAccounts, limits: &Limits) -> Result
 /// document by its bytes and account counts (client/domain/client.md, 14), and its domain prices
 /// each document it holds at twice its byte limit (`jig_client_domain::limits`).
 pub(crate) fn document_room(limits: &Limits) -> u64 {
-    limits.client().document_bytes.saturating_mul(2)
+    limits.document_room()
 }
 /// Takes `bytes` from the document's room; a document they would pass is too large.
 pub(crate) fn charge(room: &mut u64, bytes: Option<u64>) -> Result<(), w::Problem> {

@@ -12,7 +12,7 @@ pub(super) fn decode(
     if confirmed && !rows.is_empty() {
         return Err(super::piece_problem(skein_codec::Reason::Malformed));
     }
-    let mut room = limits.client().document_bytes.checked_mul(2).ok_or(super::too_large())?;
+    let mut room = limits.document_room();
     super::documents::charge(&mut room, List::<c::AccountHostFailure>::price(rows.len()))?;
     let mut out = List::with_capacity(rows.len());
     for row in rows {

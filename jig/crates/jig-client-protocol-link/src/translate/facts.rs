@@ -240,10 +240,7 @@ fn take_result_value(index: u32, parent: u32, children: &mut Map<u32, Child>) ->
 
 pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> {
     let mut reader = Reader::new(bytes);
-    let bound = match u32::try_from(limits.client().document_bytes.checked_div(4).ok_or(too_large())?) {
-        Ok(value) => value,
-        Err(problem) => return Err(size_problem(problem)),
-    };
+    let bound = limits.fact_rows();
     let mut rows = Map::with_capacity(bound);
     let mut sum = 0_u64;
     for _ in 0..=bound {
@@ -321,10 +318,6 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
     root.ok_or(piece_problem(skein_codec::Reason::Malformed))
-}
-
-fn size_problem(_: core::num::TryFromIntError) -> w::Problem {
-    too_large()
 }
 
 pub(crate) use part1::{owner_failure_tries, owner_prior_phase};

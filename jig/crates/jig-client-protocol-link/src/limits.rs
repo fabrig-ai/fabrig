@@ -6,7 +6,14 @@ pub struct Limits {
     client: jig_client_domain::Limits,
     exchanges: u32,
     wire: w::Limits,
-    receiving: w::Limits,
+    receiving: Receiving,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Receiving {
+    wire: w::Limits,
+    document_room: u64,
+    fact_rows: u32,
+    archived_turn: jig_protocol_transcript::Limits,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unusable {
@@ -29,6 +36,20 @@ impl Limits {
         }
         let wire = wire(&client).ok_or(Unusable::Limits)?;
         let receiving = receiving(wire, &client).ok_or(Unusable::Limits)?;
+        let turn = jig_client_domain::contract::TurnLimits {
+            messages: client.rows,
+            blocks: client.rows,
+            text: client.turn_text,
+        };
+        let receiving = Receiving {
+            wire: receiving,
+            document_room: client.document_bytes.saturating_mul(2),
+            fact_rows: wire.owned_record.checked_div(4).expect("nonzero piece prefix"),
+            archived_turn: jig_protocol_transcript::Limits::new(
+                wire.owned_record.min(receiving.turn_carried_bytes),
+                turn,
+            ),
+        };
         let value = Self { client, exchanges, wire, receiving };
         if !value.valid() {
             return Err(Unusable::Limits);
@@ -49,7 +70,16 @@ impl Limits {
     }
     #[must_use]
     pub fn receiving(&self) -> &w::Limits {
-        &self.receiving
+        &self.receiving.wire
+    }
+    pub(crate) fn document_room(&self) -> u64 {
+        self.receiving.document_room
+    }
+    pub(crate) fn fact_rows(&self) -> u32 {
+        self.receiving.fact_rows
+    }
+    pub(crate) fn archived_turn(&self) -> &jig_protocol_transcript::Limits {
+        &self.receiving.archived_turn
     }
     fn valid(&self) -> bool {
         self.exchanges != 0

@@ -93,7 +93,7 @@ fn document_decodes_borrow_the_kept_bounds() {
     assert_eq!(bounds.call_input, limits.client().text);
     assert_eq!(documents::frame(fixtures::frame_record(), &limits), Ok(fixtures::frame()));
     assert_eq!(documents::frame(fixtures::frame_record(), &limits), Ok(fixtures::frame()));
-    assert!(core::ptr::eq(bounds, limits.receiving()));
+    assert!(core::ptr::eq(bounds, limits.receiving()), "decoders retain the same receiving bounds");
 }
 #[test]
 fn invalid_receiving_limits_are_refused_at_construction() {
