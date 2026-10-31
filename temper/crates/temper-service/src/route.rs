@@ -12,7 +12,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         root::Request::PlaygroundActs { .. } => {}
         root::Request::ResetAct { .. } => {}
         root::Request::ForgeKept(record) => crate::forges::record(engine, record),
-        root::Request::ForgeGone { .. } => {}
+        root::Request::ForgeGone { forge } => crate::forge::gone::request(engine, forge),
         root::Request::BoxGroup { forge, kind, request } => {
             let mut out = skein_lib::Queue::with_capacity(3);
             engine.box_link.group(forge, kind, request, &mut out);

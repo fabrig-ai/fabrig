@@ -321,9 +321,10 @@ fn plaintext_outside_loopback_is_refused_when_the_record_is_kept() {
     let mut service = service(b"127.0.0.1");
     let mut remote = record(b"192.0.2.7");
     remote.number = NUMBER + 1;
+    let pending = service.engine.as_ref().unwrap().forge.io.len();
     crate::route::request(service.engine.as_mut().unwrap(), root::Request::ForgeKept(remote));
     let engine = service.engine.as_ref().unwrap();
     assert!(engine.workers.forges.get(NUMBER + 1).is_none());
     assert!(engine.forge.component.start(NUMBER + 1).is_none());
-    assert!(engine.forge.io.is_empty());
+    assert_eq!(engine.forge.io.len(), pending);
 }
