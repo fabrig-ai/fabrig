@@ -2100,7 +2100,7 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
             let saved = domain.roles.insert(project, holdings);
             assert!(saved.is_ok(), "restored roles admitted");
         }
-        Stored::Deletion { .. } => {},
+        Stored::Deletion { .. } => {}
         Stored::Policy { .. } | Stored::EndedRead { .. } => {
             unreachable!("root does not restore on-demand records into people")
         }
