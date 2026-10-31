@@ -1216,25 +1216,14 @@ impl Kernel {
 pub(crate) fn owns(token: Token) -> bool {
     token.raw() & (15_u64 << 60) == PREFIX
 }
-pub(crate) fn tag(mut request: io::Request) -> io::Request {
-    match &mut request {
-        io::Request::Listen { owner, .. }
-        | io::Request::Connect { owner, .. }
-        | io::Request::Bind { owner, .. }
-        | io::Request::Spawn { owner, .. }
-        | io::Request::Usage { owner }
-        | io::Request::Window { owner, .. } => {
+pub(crate) fn tag(request: io::Request) -> io::Request {
+    match request.owner() {
+        Some(owner) => {
             assert!(owner.raw() < (1_u64 << 60_u32), "bounded accounts exchange slots");
-            *owner = Token::new(owner.raw() | PREFIX);
+            request.with_owner(Token::new(owner.raw() | PREFIX))
         }
-        io::Request::Reject { .. }
-        | io::Request::Stream { .. }
-        | io::Request::Output { .. }
-        | io::Request::Signal { .. }
-        | io::Request::Close { .. }
-        | io::Request::Abort { .. } => {}
+        None => request,
     }
-    request
 }
 pub(crate) fn untag(mut event: io::Event) -> io::Event {
     match &mut event {

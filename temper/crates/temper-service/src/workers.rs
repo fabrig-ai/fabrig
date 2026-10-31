@@ -164,7 +164,7 @@ impl Workers {
         self.down(now, delivery(now, channel, down, values), events);
     }
     pub fn up(&mut self, now: Time, event: io::Event, events: &mut Queue<root::Event>) -> bool {
-        let Some(owner) = owner(&event) else {
+        let Some(owner) = event.owner() else {
             return false;
         };
         match event {
@@ -286,21 +286,7 @@ fn listeners_open(listeners: &List<(Token, io::Addr, Option<Token>)>) -> bool {
 }
 #[must_use]
 pub fn owner(event: &io::Event) -> Option<Token> {
-    match event {
-        io::Event::Listening { owner, .. }
-        | io::Event::Accepted { owner, .. }
-        | io::Event::Connecting { owner, .. }
-        | io::Event::Connected { owner }
-        | io::Event::Stream { owner, .. }
-        | io::Event::Output { owner, .. }
-        | io::Event::Spawned { owner, .. }
-        | io::Event::Exited { owner, .. }
-        | io::Event::Usage { owner, .. }
-        | io::Event::Window { owner, .. }
-        | io::Event::Failed { owner, .. }
-        | io::Event::Closed { owner } => Some(*owner),
-        io::Event::Resized | io::Event::Shutdown { .. } => None,
-    }
+    event.owner()
 }
 
 fn delivery(now: Time, channel: Token, down: host::LinkDown, values: &Values) -> kit::Event {
