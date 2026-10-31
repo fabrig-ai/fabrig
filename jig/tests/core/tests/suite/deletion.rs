@@ -257,12 +257,7 @@ fn restart_world(world: &mut World) {
 
 pub(super) fn finish(world: &mut World) {
     settle_hosts(world);
-    assert!(
-        !world.stopped,
-        "phase {:?}; failure {:?}",
-        world.domain.start_phase(),
-        world.domain.start_failure()
-    );
+    assert!(!world.stopped, "phase {:?}; failure {:?}", world.domain.start_phase(), world.domain.start_failure());
     assert!(
         !world.store.rows.contains_key(&deletion()),
         "deletion reached its last step: {:?}; live {:?}; busy {:?}",
