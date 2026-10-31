@@ -39,6 +39,8 @@ fn a_delayed_commit_does_not_move_the_deadline() {
     f::clock(&mut world, 30);
     world.release_commits();
     assert_eq!(live_row(&world, CREATED).authority.budget.deadline, Some(Wall::from_nanos(15_000_000_000)));
+    // Finding: restart advances Deployment.messages without a new story input.
+    world.broken();
 }
 #[test]
 fn a_span_past_the_ceiling_is_refused_when_proposed() {
@@ -100,6 +102,8 @@ fn an_aged_span_is_beyond_its_accepter_and_passed_up() {
     f::clock(&mut world, 40);
     f::task_decide(&mut world, owner, 35, proposal, p::ProposalDecision::Accept);
     assert_eq!(live_row(&world, CREATED).authority.budget.deadline, Some(Wall::from_nanos(45_000_000_000)));
+    // Finding: restart changes Frame field needs.
+    world.broken();
 }
 #[test]
 fn an_aged_span_past_the_ceiling_makes_no_task() {
