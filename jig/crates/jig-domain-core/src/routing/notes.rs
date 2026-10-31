@@ -21,7 +21,7 @@ pub(super) fn route_notes(
     event: notes::Event,
 ) -> Queue<Request> {
     let mut child = Queue::uncapped();
-    notes::step(&mut core.notes, &Env { now: env.now, wall: env.wall, limits: env.limits.notes }, event, &mut child);
+    crate::routing::step::step_notes(core, env, event, &mut child);
     tag_notes(core, work, child)
 }
 

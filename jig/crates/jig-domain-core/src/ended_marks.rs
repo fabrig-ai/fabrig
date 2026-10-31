@@ -31,7 +31,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>,
     }
     let mut child = Queue::uncapped();
     core.people.mark_ended(
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
+        &env.with(env.limits.people),
         people::EndedMark { request, project: mark.project, last_reply: mark.last_reply, seen: through },
         &mut child,
     );

@@ -438,12 +438,7 @@ pub(super) fn move_to_newest(
 fn move_tasks(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, from: Option<u32>) -> Moved {
     use jig_domain_tasks as tasks;
     let mut child = Queue::uncapped();
-    tasks::step(
-        &mut core.tasks,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-        tasks::Event::MoveToNewest { from },
-        &mut child,
-    );
+    crate::routing::step::step_tasks(core, env, tasks::Event::MoveToNewest { from }, &mut child);
     let mut counts = None;
     for _ in 0..child.len() {
         let request = child.pop().expect("move output count");
