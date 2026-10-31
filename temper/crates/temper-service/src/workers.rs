@@ -45,9 +45,9 @@ impl Workers {
         files: &Files,
         encoding: Encoding,
         forges: Box<[Forge]>,
+        forge_limit: u32,
         limits: &kit::Limits,
     ) -> Result<Self, Problems> {
-        let configured_count = forges.len();
         let mut workers = List::with_capacity(limits.names);
         for worker in &config.hosts.workers {
             let digest = match config::digest(files.contents(&worker.digest).ok_or(invalid(What::Unreadable))?) {
@@ -86,10 +86,7 @@ impl Workers {
             ending: None,
             component_closed: false,
             encoding,
-            forges: crate::forges::Forges::from_document(
-                forges,
-                u32::try_from(configured_count).expect("document forge count"),
-            ),
+            forges: crate::forges::Forges::from_document(forges, forge_limit),
             bad_parts: 0,
         })
     }
@@ -577,6 +574,7 @@ impl Workers {
                 deployment,
             },
             ::core::mem::replace(&mut settings.forges, Box::new([])),
+            settings.limits.forge.forges,
             &worker_limits,
         )?;
         Ok(workers)

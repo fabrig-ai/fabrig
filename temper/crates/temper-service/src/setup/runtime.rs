@@ -265,7 +265,7 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, record: &ForgeRecord) {
         return;
     }
     let Some(runtime) = &engine.setup.runtime else { return };
-    let Some(source) = engine.forges.get(record.number) else { return };
+    let Some(source) = engine.workers.forges.get(record.number) else { return };
     let document = runtime.endpoints.contains_key(&record.number);
     let entry = runtime.entry(record);
     let Some(forge) = runtime.forge(record, source, entry.as_ref()) else { return };

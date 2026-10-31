@@ -597,7 +597,7 @@ fn configured(engine: &crate::engine::Engine, number: u16) -> Option<&crate::set
     {
         return None;
     }
-    engine.forges.get(number)
+    engine.workers.forges.get(number)
 }
 pub(super) fn connect(engine: &mut crate::engine::Engine, forge: u16) {
     let Some(config) = configured(engine, forge) else { return };
@@ -762,7 +762,7 @@ pub(super) fn advance(engine: &mut crate::engine::Engine) {
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() || engine.setup.component.is_none() {
         return;
     }
-    let forges = engine.forges.numbers();
+    let forges = engine.workers.forges.numbers();
     for forge in &forges {
         if crate::forge::ended(engine, *forge) {
             continue;
@@ -876,7 +876,7 @@ pub(crate) fn restored(engine: &mut crate::engine::Engine) {
     if engine.setup.lifecycle.restored {
         return;
     }
-    for forge in engine.forges.iter() {
+    for forge in engine.workers.forges.iter() {
         if let Some(local) = engine.setup.lifecycle.local_mut(forge.number) {
             local.restored = true;
         }
@@ -1262,7 +1262,7 @@ pub(crate) fn take_read(engine: &mut crate::engine::Engine) -> Option<crate::Han
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
         return None;
     }
-    for entry in engine.forges.iter() {
+    for entry in engine.workers.forges.iter() {
         let forge = entry.number;
         if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
             continue;
@@ -1320,7 +1320,7 @@ pub(crate) fn take_removal(engine: &mut crate::engine::Engine) -> Option<crate::
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
         return None;
     }
-    for entry in engine.forges.iter() {
+    for entry in engine.workers.forges.iter() {
         let forge = entry.number;
         if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
             continue;

@@ -211,7 +211,7 @@ fn an_install_can_evict_a_manifests_state_while_its_page_lives() {
     // The slug above only made an Install-purpose state; no App remains in this host-state fixture.
     service.engine.as_mut().expect("engine").forge_records.rows = crate::forge::records::Loader::new(
         &fixtures::engine().limits,
-        &service.engine.as_ref().expect("engine").forges,
+        &service.engine.as_ref().expect("engine").workers.forges,
     )
     .rows;
     start(&mut service, 3, host::Plan::Convert { forge: 1, code: code(), state });
@@ -704,7 +704,7 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     let engine = service.engine.as_mut().unwrap();
     let expected = records::origin(
         skein_forge_connection::settings::Kind::GitHub,
-        &engine.forges.get(1).expect("fixture forge").api,
+        &engine.workers.forges.get(1).expect("fixture forge").api,
     );
     assert!(
         records::access(
@@ -1983,7 +1983,7 @@ fn insert_runtime_forge(engine: &mut crate::engine::Engine, record: &domain::For
     source.git = record.place.git.clone();
     source.transport = crate::settings::Transport::Plaintext;
     source.api_token = None;
-    assert!(engine.forges.insert(source));
+    assert!(engine.workers.forges.insert(source));
 }
 #[test]
 fn a_kept_owned_record_is_served_by_the_host_with_its_entry() {
@@ -2116,7 +2116,7 @@ fn a_kept_github_record_uses_its_resolved_tls_endpoint() {
     let (_, endpoints) = tls_forges();
     let mut endpoint = endpoints.into_boxed().into_iter().next().unwrap();
     endpoint.number = 2;
-    let source = engine.forges.get_mut(2).unwrap();
+    let source = engine.workers.forges.get_mut(2).unwrap();
     source.api = jig_protocol_config::Address::Host { name: b"first.test".as_slice().into(), port: 443 };
     source.transport = crate::settings::Transport::Tls { server_name: b"first.test".as_slice().into(), trust: None };
     engine.setup.resolved(endpoint);
