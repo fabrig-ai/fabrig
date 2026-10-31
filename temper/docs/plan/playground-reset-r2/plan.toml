@@ -37,6 +37,20 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/draft/playground-reset.md, 6.3"
 
+[[part]]
+id = "forge-remove"
+title = "RemoveForge: any forge ended at once, its work cancelled, its group and records gone, kept until whole; a set up started over"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 4"
+
+[[part]]
+id = "playground"
+title = "The playground as ordinary records, made when chosen, and its reset to an empty store"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 6"
+
 [[slice]]
 id = 1
 story = "A forge made by SetUp or Connect is a record restored at the next start, and a deleted project leaves no row but its spend"
@@ -47,4 +61,10 @@ walk = false
 id = 2
 story = "A group's file starts and removes its forge's steps, and the client speaks the new requests"
 parts = ["box-groups", "client"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A forge removed ends whole across a restart; the playground made when chosen and reset to the welcome's Forge step"
+parts = ["forge-remove", "playground"]
 walk = false
