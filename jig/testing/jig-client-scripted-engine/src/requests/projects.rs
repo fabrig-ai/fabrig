@@ -75,14 +75,9 @@ impl<A: Application> Engine<A> {
                 .any(|p| Some(p.project) != project && p.name.bytes().eq_ignore_ascii_case(name.bytes()))
         }) || self
             .truth
-            .projects
+            .owner_projects
             .values()
-            .any(|p| Some(p.number) != project && p.name.bytes().eq_ignore_ascii_case(name.bytes()))
-            || self
-                .truth
-                .owner_projects
-                .values()
-                .any(|p| Some(p.number) != project && p.name.bytes().eq_ignore_ascii_case(name.bytes()));
+            .any(|p| Some(p.number) != project && p.name.bytes().eq_ignore_ascii_case(name.bytes()));
         if taken {
             return Ok(refused(Refusal::NameTaken));
         }
@@ -116,11 +111,6 @@ impl<A: Application> Engine<A> {
                 changes.push(Change::Me(frame));
             }
         }
-        if let Some(value) = self.truth.projects.get(&project) {
-            let mut value = value.clone();
-            value.name = name.clone();
-            changes.push(Change::Project(Box::new(value)));
-        }
         if let Some(value) = self.truth.owner_projects.get(&project) {
             let mut value = value.clone();
             value.name = DocumentText::complete(name.clone());
@@ -132,9 +122,8 @@ impl<A: Application> Engine<A> {
         let me = self.truth.frames.get(&party).expect("authenticated party has a frame");
         let highest = self
             .truth
-            .projects
+            .owner_projects
             .keys()
-            .chain(self.truth.owner_projects.keys())
             .chain(self.truth.object_projects.values())
             .copied()
             .chain(self.truth.frames.values().flat_map(|frame| frame.projects.iter().map(|p| p.project)))

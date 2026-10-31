@@ -3,7 +3,7 @@ use crate::{Bounds, Engine, Invalid, Script, owner_project};
 use jig_client_domain::contract::*;
 use skein_lib::{List, Time, Token};
 const PROJECT_NAME_BYTES: u64 = 3; // Kit.
-fn source() -> OwnerProject {
+pub(super) fn source() -> OwnerProject {
     OwnerProject {
         number: 1,
         name: DocumentText::complete(super::text(b"Kit")),
@@ -121,7 +121,6 @@ fn owner_project_kit_original_public_read_keeps_whole_source_and_rejects_unadmit
     let out = engine.poll(Time::ZERO);
     assert!(out.iter().any(|up|matches!(up,crate::Up::Read {terminal:ReadResult::Value(ReadValue::OwnerProject(received)),..} if received.as_ref()==&value)));
     assert_eq!(engine.truth().owner_projects.get(&1), Some(&value));
-    assert!(engine.truth().projects.is_empty());
     let mut short = script();
     short.truth.owner_projects.insert(1, value.clone());
     short.bounds.document_bytes = envelope - 1;

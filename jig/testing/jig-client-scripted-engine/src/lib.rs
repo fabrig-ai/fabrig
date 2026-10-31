@@ -13,6 +13,7 @@
 #![forbid(unsafe_code)]
 mod admission;
 mod application;
+mod engine_set;
 mod faults;
 pub mod offered;
 pub mod owner_wake;
@@ -391,6 +392,8 @@ impl<A: Application> Engine<A> {
                     }
                     Up::Watch { .. } | Up::App { .. } | Up::Ended { .. } => {}
                 }
+                #[cfg(test)]
+                crate::tests::engine_value(&due.up);
                 out.push(due.up);
             } else {
                 held.push(due);
