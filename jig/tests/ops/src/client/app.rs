@@ -321,21 +321,6 @@ impl App for Ops {
         match event {
             Event::Jig(event) => observe::jig_received(event),
             Event::Client { event: jig_client::Event::Up { up } } => client_received(up),
-            Event::Infrastructure(
-                infra::Event::Read { result: infra::ReadResult::Value(doc), .. }
-                | infra::Event::Watch { event: infra::WatchEvent::Delivered(doc), .. },
-            ) => {
-                if let infra::Document::Environment(env) = doc.as_ref()
-                    && let Some(end) = env.end
-                {
-                    vec![Receipt::Card {
-                        key: environment_key(env.project, env.number),
-                        revisions: vec![(0, end.revision.value)],
-                    }]
-                } else {
-                    vec![]
-                }
-            }
             Event::SignedOut => vec![Receipt::Parked],
             Event::Start { .. }
             | Event::Went { .. }
@@ -356,7 +341,7 @@ impl App for Ops {
             .filter_map(|(_, n)| {
                 n.key.filter(|k| {
                     matches!(Owner::from_opaque(k.owner), Some(Owner::Application { number: connector }) if connector == number(Connector::Infrastructure))
-                        && matches!(k.kind, 2 | 12)
+                        && k.kind == 12
                         && n.role == Role::Item
                 })
             })
@@ -364,17 +349,6 @@ impl App for Ops {
         family.map(CardKey::of).or_else(|| observe::jig_card(tree, node))
     }
 }
-#[must_use]
-pub(super) fn environment_key(project: u32, environment: u64) -> CardKey {
-    CardKey::of(
-        view::infrastructure::key(&infra::Subject {
-            scope: infra::Scope::Project(project),
-            kind: infra::Kind::Environment(environment),
-        })
-        .expect("legacy numeric environment key"),
-    )
-}
-
 fn client_limits() -> jig_client::Limits {
     const OWNERS: [jig_client::Spoken; 2] = [
         jig_client::Spoken { family: number(Connector::Observability), version: jig_ops_client_protocol_wire::VERSION },
@@ -417,10 +391,6 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
                 result: jig_client::Readout::Jig(result.clone()),
             })
         }
-        Up::FamilyDelivered { record, .. } if record.family == 2 => infrastructure_received(&record.bytes),
-        Up::ReadDone { result: jig_client::Readout::Family { family: 2, record: Some(bytes) }, .. } => {
-            infrastructure_read_received(bytes)
-        }
         Up::Served { .. } | Up::WatchEnded { .. } => observe::up_received(up),
         Up::SignedOut => vec![Receipt::Parked],
         Up::SignedIn
@@ -430,27 +400,6 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
         | Up::ReadDone { .. } => vec![],
     }
 }
-pub(crate) fn infrastructure_received(bytes: &[u8]) -> Vec<Receipt> {
-    let doc = domain::wire::infrastructure::document_value(bytes).expect("whole infrastructure receipt");
-    infrastructure_document_received(&doc)
-}
-
-pub(crate) fn infrastructure_read_received(bytes: &[u8]) -> Vec<Receipt> {
-    let result = domain::wire::infrastructure::read_answer_value(bytes);
-    let infra::ReadResult::Value(doc) = result else { return vec![] };
-    infrastructure_document_received(&doc)
-}
-
-fn infrastructure_document_received(doc: &infra::Document) -> Vec<Receipt> {
-    if let infra::Document::Environment(env) = doc
-        && let Some(end) = env.end
-    {
-        vec![Receipt::Card { key: environment_key(env.project, env.number), revisions: vec![(0, end.revision.value)] }]
-    } else {
-        vec![]
-    }
-}
-
 fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::Ask) -> Sent {
     let (card, revision) = match ask {
         infra::Ask::NativeMoveEnd { object, revision, .. } => (
@@ -462,9 +411,6 @@ fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::As
             }),
             revision.value,
         ),
-        infra::Ask::MoveEnd { project, environment, revision, .. } => {
-            (environment_key(*project, *environment), revision.value)
-        }
     };
     Sent { attempt, key, card: Some(card), revision: Some((0, revision)), words: None }
 }
@@ -575,11 +521,12 @@ mod tests {
 
     #[test]
     fn both_ops_routes_keep_infrastructure_requests() {
-        let ask = infra::Ask::MoveEnd {
+        let ask = infra::Ask::NativeMoveEnd {
+            object: skein_lib::Token::new(7),
             project: PROJECT,
-            environment: TASK,
+            environment: super::super::stories::environment_name(),
             revision: Revision { value: 5 },
-            until: skein_lib::Wall::from_nanos(100),
+            until: 100,
         };
         for request in requests(jig_client::Ask::Family {
             scope: Scope::Project(PROJECT),
@@ -592,27 +539,23 @@ mod tests {
             let sent = Ops::sent(&request).expect("infrastructure request observed");
             assert_eq!(
                 (sent.attempt, sent.key, sent.card, sent.revision, sent.words),
-                (ATTEMPT, REQUEST_KEY, Some(environment_key(PROJECT, TASK)), Some((0, 5)), None),
+                (
+                    ATTEMPT,
+                    REQUEST_KEY,
+                    Some(CardKey::of(skein_ui::Key {
+                        owner: (jig_client_view::Owner::Application { number: 2 }).opaque(),
+                        kind: 12,
+                        a: 0,
+                        b: 7
+                    })),
+                    Some((0, 5)),
+                    None
+                ),
                 "{request:?}"
             );
         }
     }
 
-    #[test]
-    fn application_read_receipt_unwraps_its_versioned_read_answer() {
-        let document = infra::Document::Environment(super::super::stories::environment_document());
-        let bytes = domain::wire::infrastructure::read_answer(&infra::ReadResult::Value(Box::new(document)))
-            .expect("fixture read answer fits");
-        let receipts = client_received(&jig_client::Up::ReadDone {
-            read: skein_lib::Token::new(7),
-            result: jig_client::Readout::Family { family: 2, record: Some(bytes) },
-        });
-        let [Receipt::Card { key, revisions }] = receipts.as_slice() else {
-            panic!("one versioned environment receipt");
-        };
-        assert_eq!(*key, environment_key(1, 7));
-        assert_eq!(*revisions, vec![(0, 5)]);
-    }
     #[test]
     fn native_link_receipts_keep_version_refusals_and_ended_sessions() {
         let cases = [

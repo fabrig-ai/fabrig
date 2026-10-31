@@ -6,7 +6,7 @@ pub(crate) fn value_encode(value: &d::Value) -> Result<w::ObservabilityNativeVal
     Ok(match value {
         d::Value::Service { service, fact } => {
             let parts = w::ObservabilityNativeValueServiceParts {
-                service: crate::wire::observability_documents::service_encode(service)?,
+                service: crate::wire::observability_values::service_encode(service)?,
                 fact: crate::wire::observability_native::fact_encode(fact)?,
             };
             let Ok(value) = w::ObservabilityNativeValueService::new(&w::CEILINGS, parts) else { return Err(Invalid) };
@@ -16,7 +16,7 @@ pub(crate) fn value_encode(value: &d::Value) -> Result<w::ObservabilityNativeVal
             let parts = w::ObservabilityNativeValueAlertParts {
                 alert: crate::wire::observability_native::alert_encode(alert)?,
                 raised: (*raised).as_nanos(),
-                state: crate::wire::observability_documents::state_encode(*state),
+                state: crate::wire::observability_values::state_encode(*state),
                 fact: match fact {
                     Some(item) => Some(crate::wire::observability_native::fact_encode(item)?),
                     None => None,
@@ -102,7 +102,7 @@ pub(crate) fn value_decode(value: w::ObservabilityNativeValue) -> d::Value {
         w::ObservabilityNativeValue::Service(value) => {
             let value = value.into_parts();
             d::Value::Service {
-                service: crate::wire::observability_documents::service_decode(value.service),
+                service: crate::wire::observability_values::service_decode(value.service),
                 fact: crate::wire::observability_native::fact_decode(value.fact),
             }
         }
@@ -111,7 +111,7 @@ pub(crate) fn value_decode(value: w::ObservabilityNativeValue) -> d::Value {
             d::Value::Alert {
                 alert: crate::wire::observability_native::alert_decode(value.alert),
                 raised: skein_lib::Wall::from_nanos(value.raised),
-                state: crate::wire::observability_documents::state_decode(value.state),
+                state: crate::wire::observability_values::state_decode(value.state),
                 fact: match value.fact {
                     Some(item) => Some(crate::wire::observability_native::fact_decode(item)),
                     None => None,
@@ -178,7 +178,7 @@ pub(crate) fn value_decode(value: w::ObservabilityNativeValue) -> d::Value {
 
 pub(crate) fn document_encode(value: &d::Document) -> Result<w::ObservabilityNativeDocument, Invalid> {
     let parts = w::ObservabilityNativeDocumentParts {
-        subject: crate::wire::observability_documents::subject_encode(&(value.subject))?,
+        subject: crate::wire::observability_values::subject_encode(&(value.subject))?,
         value: value_encode(&(value.value))?,
     };
     let Ok(value) = w::ObservabilityNativeDocument::new(&w::CEILINGS, parts) else { return Err(Invalid) };
@@ -187,7 +187,7 @@ pub(crate) fn document_encode(value: &d::Document) -> Result<w::ObservabilityNat
 pub(crate) fn document_decode(value: w::ObservabilityNativeDocument) -> d::Document {
     let value = value.into_parts();
     d::Document {
-        subject: crate::wire::observability_documents::subject_decode(value.subject),
+        subject: crate::wire::observability_values::subject_decode(value.subject),
         value: value_decode(value.value),
     }
 }

@@ -178,7 +178,7 @@ pub(crate) fn value_decode(value: w::InfrastructureNativeValue) -> d::Value {
 
 pub(crate) fn document_encode(value: &d::Document) -> Result<w::InfrastructureNativeDocument, Invalid> {
     let parts = w::InfrastructureNativeDocumentParts {
-        subject: crate::wire::infrastructure_documents::subject_encode(&(value.subject))?,
+        subject: crate::wire::infrastructure_values::subject_encode(&(value.subject))?,
         value: value_encode(&(value.value))?,
     };
     let Ok(value) = w::InfrastructureNativeDocument::new(&w::CEILINGS, parts) else { return Err(Invalid) };
@@ -187,7 +187,7 @@ pub(crate) fn document_encode(value: &d::Document) -> Result<w::InfrastructureNa
 pub(crate) fn document_decode(value: w::InfrastructureNativeDocument) -> d::Document {
     let value = value.into_parts();
     d::Document {
-        subject: crate::wire::infrastructure_documents::subject_decode(value.subject),
+        subject: crate::wire::infrastructure_values::subject_decode(value.subject),
         value: value_decode(value.value),
     }
 }

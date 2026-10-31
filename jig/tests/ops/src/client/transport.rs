@@ -225,15 +225,16 @@ impl Front<Ops> for Scripted {
                     }
                     jig_client::Ask::Family { record, .. } => {
                         let ask = domain::wire::ask_value(&record.bytes).expect("whole infrastructure request");
-                        let infra::Ask::MoveEnd { project, environment, revision, until } = &ask else {
-                            panic!("native environments use joint front")
-                        };
+                        let infra::Ask::NativeMoveEnd { project, environment, revision, until, .. } = &ask;
                         let mut canonical = Sha256::new();
                         canonical.update(b"Ops.MoveEnd.v1");
                         canonical.update(project.to_be_bytes());
-                        canonical.update(environment.to_be_bytes());
+                        canonical.update(u64::try_from(environment.pool.len()).expect("pool length").to_be_bytes());
+                        canonical.update(&environment.pool);
+                        canonical.update(u64::try_from(environment.name.len()).expect("name length").to_be_bytes());
+                        canonical.update(&environment.name);
                         canonical.update(revision.value.to_be_bytes());
-                        canonical.update(until.as_nanos().to_be_bytes());
+                        canonical.update(until.to_be_bytes());
                         self.engine
                             .send_application(
                                 now,
