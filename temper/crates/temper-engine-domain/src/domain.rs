@@ -20,11 +20,28 @@ use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as forge_change;
 
+/// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 9.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum StartStop {
+    /// jig's start refused a fit at this phase (jig/docs/design/domain/engine.md, 6).
+    Core { phase: Option<jig_domain_core::start::Phase>, failure: jig_domain_core::start::Failure },
+    /// A startup page could not be read.
+    Load(loads::RestoreFailure),
+    /// The forge's restored records do not fit its limits.
+    ForgeFit { phase: Option<jig_domain_core::start::Phase>, failure: forge::RestoreFit },
+    /// The deployment's namespace binding was refused.
+    Binding,
+}
+
 /// Core, forge, journal and bounded child-requested continuation bindings.
 /// The core owns policy and current proofs; the forge owns connector payloads
 /// and timer decisions. Every outbound envelope passes through the journal
 /// (jig's domain/root.md, sections 2–4).
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the journal door, header, pending switch, sweep page and opened milestone are independent"
+)]
 pub struct Domain {
     revision: u64,
     held_bytes: u64,
@@ -34,6 +51,8 @@ pub struct Domain {
     pub(crate) settling: crate::settling::Phase,
     #[cfg(test)]
     pub(crate) empty_resumes: u32,
+    #[cfg(test)]
+    pub(crate) start_phases: Queue<jig_domain_core::start::Phase>,
     pub(crate) limits: Limits,
     /// Step/fire scratch, empty between calls.
     scratch: Queue<Request>,
@@ -49,7 +68,13 @@ pub struct Domain {
     pub(crate) door_count: u32,
     pub(crate) startup_range: Option<Range>,
     pub(crate) start_wall: Option<Wall>,
-    pub(crate) load_failure: Option<loads::Failure>,
+    pub(crate) start_stop: Option<StartStop>,
+    pub(crate) opened: bool,
+    pub(crate) start_pending: bool,
+    pub(crate) startup_fill: Option<u64>,
+    pub(crate) sweep_rows: Queue<crate::Record>,
+    pub(crate) sweep_page: bool,
+    pub(crate) sweep_next: Option<crate::Key>,
     pub(crate) core_header_loaded: bool,
     pub(crate) restored_commits: Option<u64>,
     pub(crate) brief_connectors: Slab<BriefConnector>,
@@ -91,6 +116,30 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The phase the start is in, none before the start and once decisions open.
+    #[must_use]
+    pub fn start_phase(&self) -> Option<jig_domain_core::start::Phase> {
+        self.core.start_phase()
+    }
+
+    /// First unmade core run-proof link before startup can open.
+    #[must_use]
+    pub fn core_missing_proof_link(&self) -> Option<(jig_domain_core::Key, jig_domain_core::Key)> {
+        self.core.missing_proof_link()
+    }
+
+    /// First task's charter absent from its held settings at startup.
+    #[must_use]
+    pub fn core_missing_charter_link(&self) -> Option<(jig_domain_core::Key, u32, u32)> {
+        self.core.missing_charter_link()
+    }
+
+    /// The start's stop, kept until the service reports it.
+    #[must_use]
+    pub fn start_stop(&self) -> Option<StartStop> {
+        self.start_stop.clone()
+    }
+
     /// The transcript and turn bytes the root and its core hold now
     /// (domain/root.md, 4.1): the root's running total and the core's
     /// `transcript_bytes`. A person's read pages waiting in `store_answers`
@@ -331,11 +380,11 @@ impl Domain {
         let mut core = Core::new(config.core, &core_limits(limits))?;
         // temper/docs/design/domain/agent.md, 8.2: the person answers in their inbox.
         core.person_answers();
-        let core_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: core_limits(limits) };
-        let configured = jig_domain_core::step(
-            &mut core,
-            &core_env,
-            jig_domain_core::Event::Tasks(tasks::Event::Kinds {
+        let mut configured = Queue::uncapped();
+        tasks::step(
+            &mut core.tasks,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
+            tasks::Event::Kinds {
                 connector: root_config.forge_connector,
                 kinds: Box::new([tasks::Kind {
                     connector: root_config.forge_connector,
@@ -347,24 +396,10 @@ impl Domain {
                         forge::resources::HoldKind::Shared => unreachable!("private branch kind takes exclusive holds"),
                     },
                 }]),
-            }),
+            },
+            &mut configured,
         );
-        match configured {
-            jig_domain_core::Requests::Out(mut output) => {
-                match output.pop() {
-                    Some(jig_domain_core::Request::Decided) => {}
-                    Some(
-                        jig_domain_core::Request::Write(_)
-                        | jig_domain_core::Request::Ask { .. }
-                        | jig_domain_core::Request::Held(_)
-                        | jig_domain_core::Request::Now(_)
-                        | jig_domain_core::Request::ProjectMade { .. },
-                    )
-                    | None => unreachable!("configuration decides nothing"),
-                }
-                assert!(output.is_empty(), "configuration emits no request");
-            }
-        }
+        assert!(configured.is_empty(), "configuration emits no request");
         Ok(Domain {
             revision: 0,
             held_bytes: 0,
@@ -377,6 +412,8 @@ impl Domain {
             settling: crate::settling::Phase::Running,
             #[cfg(test)]
             empty_resumes: 0,
+            #[cfg(test)]
+            start_phases: Queue::uncapped(),
             journal: Journal::uncapped(1, 0),
             sent_commit: 0,
             durable_commit: 0,
@@ -385,7 +422,13 @@ impl Domain {
             door_count: 0,
             startup_range: None,
             start_wall: None,
-            load_failure: None,
+            start_stop: None,
+            opened: false,
+            start_pending: false,
+            startup_fill: None,
+            sweep_rows: Queue::uncapped(),
+            sweep_page: false,
+            sweep_next: None,
             core_header_loaded: false,
             restored_commits: None,
             core,
@@ -442,65 +485,44 @@ impl Domain {
     pub fn forge_fit_failure(&self) -> Option<&forge::RestoreFit> {
         self.forge.restore_fit_failure()
     }
-    /// Retained compatibility link result.
+    /// First unmade connector link before startup reconciliation.
     #[must_use]
-    pub const fn forge_restore_failure(&self) -> Option<forge::Unresolved> {
-        match self.forge.reconciliation() {
-            Ok(()) => None,
-            Err(why) => Some(why),
-        }
+    pub fn forge_missing_link(&self) -> Option<forge::MissingLink> {
+        self.forge.missing_link(&self.core.tasks)
     }
-
-    /// A restore refusal retains its named settings value, project or child for startup diagnostics.
-    #[must_use]
-    pub fn restore_failure(&self) -> Option<jig_domain_core::RestartRequest> {
-        self.core.restore_failure()
-    }
-
-    /// The failed startup load, retained after the restart script refuses it.
-    #[must_use]
-    pub fn restore_load_failure(&self) -> Option<loads::RestoreFailure> {
-        Some(loads::RestoreFailure { range: loads::kind(self.startup_range.as_ref()?), failure: self.load_failure? })
-    }
-
-    /// Identify the core's refused restart step, including a live range that
-    /// no longer fits the configured limits.
-    #[must_use]
-    pub fn restart_failure(&self) -> Option<jig_domain_core::RestartStep> {
-        self.core.restart_failure()
-    }
-
-    /// The restart owner currently awaiting its terminal, for startup probes.
-    #[must_use]
-    pub fn restart_step(&self) -> Option<jig_domain_core::RestartStep> {
-        self.core.restart_step()
-    }
-
-    /// Decisions open only after the core's restart script completes.
+    /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 9.1).
     #[must_use]
     pub fn ready(&self) -> bool {
-        self.core.restart_ready() && !self.journal.stopped()
+        self.opened && self.start_stop().is_none() && !self.journal.stopped()
     }
 
-    /// Stored connector rows are available for reconciliation before fresh reads finish.
-    #[must_use]
-    pub fn connectors_restored(&self) -> bool {
-        use jig_domain_core::RestartStep;
-        match self.core.restart_step() {
+    pub(crate) fn start_runtime(&self) -> bool {
+        use jig_domain_core::start::Phase;
+        match self.start_phase() {
             Some(
-                RestartStep::LoadCore
-                | RestartStep::LoadInbox
-                | RestartStep::RestoreConnector { .. }
-                | RestartStep::Switch,
+                Phase::LoadCore
+                | Phase::LoadInbox
+                | Phase::RestoreConnector { .. }
+                | Phase::Link
+                | Phase::Sweep
+                | Phase::Switch
+                | Phase::Wires,
             ) => false,
-            Some(
-                RestartStep::AdoptRuns
-                | RestartStep::ReadAfresh { .. }
-                | RestartStep::SettleOutbox { .. }
-                | RestartStep::Open,
-            ) => !self.journal.stopped(),
-            None => self.ready(),
+            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) => true,
+            None => self.opened,
         }
+    }
+
+    pub(crate) fn stop_start(&mut self, stop: StartStop) {
+        if self.start_stop.is_none() {
+            self.start_stop = Some(stop);
+            self.stop_pending = true;
+        }
+    }
+
+    pub(crate) fn stop_core(&mut self) {
+        let failure = self.core.start_failure().expect("a refused row records its start fit failure");
+        self.stop_start(StartStop::Core { phase: self.start_phase(), failure });
     }
 
     /// Pure shell idle query: no immediate internal handoff or issued store operation
@@ -632,16 +654,20 @@ fn finish_close(
     out: &mut Queue<Request>,
     finishing_only: bool,
 ) -> bool {
-    if domain.core.restart_failure().is_some() {
+    if domain.start_stop().is_some() {
         out.push(Request::Stop);
         return false;
     }
-    let requests = jig_domain_core::finish_decision(&mut domain.core, &environment_core(env));
+    let requests = if domain.start_runtime() {
+        jig_domain_core::finish_decision(&mut domain.core, &environment_core(env))
+    } else {
+        jig_domain_core::Requests::Out(Queue::uncapped())
+    };
     let finished = only_decided(&requests);
     route_core_requests(domain, env, &mut decision, requests);
     route_into(domain, env, &mut decision);
-    let persist_header =
-        domain.core_header_loaded && domain.core.restart_step() != Some(jig_domain_core::RestartStep::LoadCore);
+    let persist_header = domain.core_header_loaded
+        && (domain.start_phase() != Some(jig_domain_core::start::Phase::LoadCore) || domain.startup_range.is_none());
     let empty = finished
         && decision.empty()
         && !(persist_header && domain.core.counters.dirty())
@@ -781,7 +807,7 @@ pub fn release(domain: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>
         out.push(Request::Stop);
         return;
     }
-    if domain.forge_fit_failure().is_some() {
+    if domain.start_stop().is_some() {
         return;
     }
     if domain.door_pass {
@@ -837,7 +863,7 @@ pub(crate) fn send_commit(domain: &mut Domain, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if domain.journal.stopped() || domain.core.restart_failure().is_some() {
+    if domain.journal.stopped() || domain.start_stop().is_some() {
         return;
     }
     if !domain.store_answers.is_empty() && domain.work.is_empty() {
@@ -926,7 +952,10 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>) {
 
 pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     domain.settled = None;
-    if domain.journal.stopped() || domain.core.restart_failure().is_some() {
+    if domain.journal.stopped() || domain.start_stop().is_some() {
+        return;
+    }
+    if !domain.start_runtime() {
         return;
     }
     // A timer that cannot be admitted stays due and fires again next pass.
@@ -1031,14 +1060,12 @@ fn released_into(
         Delivery::ForgeCommitted { entry } => {
             domain.work.push(Work::Forge(forge::Event::Committed { entry }));
         }
-        Delivery::Restart(jig_domain_core::RestartStep::Switch) => {
-            out.push(Request::Store(crate::StoreRequest::Switch));
+        Delivery::Start(continuation) => {
+            let mut output = Queue::uncapped();
+            let action = domain.core.start_resume(&environment_core(env), continuation, &mut output);
+            route_core_requests(domain, env, decision, jig_domain_core::Requests::Out(output));
+            domain.work.push(Work::Start(action));
         }
-        Delivery::Restart(jig_domain_core::RestartStep::AdoptRuns) => {
-            let request = domain.core.restart_done(jig_domain_core::RestartStep::Switch);
-            domain.work.push(Work::Restart(request));
-        }
-        Delivery::Restart(_) => unreachable!("root holds only switch and mark continuations"),
         Delivery::Fleet(event) => domain.work.push(Work::Fleet(event)),
         Delivery::NotesLoad { owner, range } => crate::route::held::notes_load(domain, env, decision, owner, range),
         Delivery::Relay { task, attempt, word, .. } => {

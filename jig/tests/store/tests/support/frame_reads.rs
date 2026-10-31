@@ -145,6 +145,9 @@ pub(crate) fn decode(
     for _ in 0..STEPS {
         if let Some(event) = above.pop() {
             match event {
+                Event::Page { .. } | Event::PageRefused { .. } => {
+                    unreachable!("a start's pages need a start-mode store")
+                }
                 Event::Turns { turns, .. } => return Some(turns.first().expect("selected turn").transcript.clone()),
                 Event::Unread { .. } => return None,
                 Event::Site { owner, of, key, site, at, mut patcher } => {
@@ -165,7 +168,6 @@ pub(crate) fn decode(
                 | Event::Committed { .. }
                 | Event::Failed { .. }
                 | Event::FrameTooLarge { .. }
-                | Event::Restored { .. }
                 | Event::Loaded { .. }
                 | Event::Read { .. }
                 | Event::Got { .. }

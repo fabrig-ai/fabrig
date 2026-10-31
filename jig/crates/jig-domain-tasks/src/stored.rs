@@ -7,7 +7,6 @@ use crate::{
 };
 use skein_lib::{Env, Queue};
 
-pub(crate) mod admission;
 pub(crate) mod failure;
 pub(crate) mod fit;
 

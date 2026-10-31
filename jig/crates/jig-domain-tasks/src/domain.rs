@@ -33,20 +33,12 @@ pub(crate) enum Startup {
     Failed,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum RestoreMode {
-    Admission,
-    LoadFitLink,
-}
-
 /// Bounded live task arena, indexed waits, retry timers, finite period/pool ledgers,
 /// configured charters and deterministic retry randomness. Keeps bounded historical stubs,
 /// transport receipt, connector state or mutable root shadow ledger. (domain/tasks.md, sections 2, 4–5 and 10).
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) startup: Startup,
-    restore_mode: RestoreMode,
-    restore_consumed: bool,
     pub(crate) restore_failure: Option<crate::RestoreFailure>,
     pub(crate) waits: crate::waits::Index,
     pub(crate) circle_changes: crate::waits::CircleChanges,
@@ -110,24 +102,7 @@ pub fn view_phase(phase: &Phase) -> u32 {
 }
 
 impl Domain {
-    pub(crate) fn consume_restore_input(&mut self) {
-        self.restore_consumed = true;
-    }
-
-    /// Select load/fit/link restoration once, before any operational input
-    /// (jig/docs/design/domain/engine.md, 6). Existing callers retain stored admission checks.
-    /// Kinds and charters may be configured before selection.
-    /// Panics if operational input has arrived or this entry has already been selected.
-    pub fn start_restore(&mut self) {
-        assert!(
-            self.startup == Startup::Restoring && !self.restore_consumed && self.restore_mode == RestoreMode::Admission,
-            "start_restore must be selected once before restoration input"
-        );
-        self.restore_mode = RestoreMode::LoadFitLink;
-    }
-
-    /// First keyed fit failure from a selected start; admission restoration retains none
-    /// (jig/docs/design/domain/engine.md, 6).
+    /// First keyed fit failure (jig/docs/design/domain/engine.md, 6).
     #[must_use]
     pub fn restore_failure(&self) -> Option<crate::RestoreFailure> {
         self.restore_failure.clone()
@@ -255,8 +230,6 @@ impl Domain {
         validate_charters(limits, &charters, &efforts);
         Domain {
             startup: Startup::Restoring,
-            restore_mode: RestoreMode::Admission,
-            restore_consumed: false,
             restore_failure: None,
             waits: crate::waits::Index::new(limits),
             circle_changes: crate::waits::CircleChanges::new(limits),
@@ -571,14 +544,6 @@ impl Domain {
 /// effects before external replies.
 #[expect(clippy::too_many_lines, reason = "the closed task event vocabulary dispatches to focused handlers")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "only Kinds and Charters are configuration; all other event arrivals consume mode selection (engine.md, 6)"
-    )]
-    match &event {
-        Event::Kinds { .. } | Event::Charters { .. } => {}
-        _ => domain.consume_restore_input(),
-    }
     let output_start = out.len();
     let held = crate::settings::before(domain);
     match event {
@@ -804,20 +769,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::MetNotice { task, dependency, removed, by, message } => {
             crate::wake::met(domain, env, task, dependency, removed, by, message, out);
         }
-        Event::Restore { record } => match domain.restore_mode {
-            RestoreMode::Admission => crate::stored::admission::restore(domain, env, record, out),
-            RestoreMode::LoadFitLink => crate::stored::restore(domain, env, record, out),
-        },
-        Event::Check => match domain.restore_mode {
-            RestoreMode::Admission => crate::stored::admission::check(domain, env, out),
-            RestoreMode::LoadFitLink => crate::stored::check(domain, env, out),
-        },
+        Event::Restore { record } => crate::stored::restore(domain, env, record, out),
+        Event::Check => crate::stored::check(domain, env, out),
         Event::Restored => {
             let replay = domain.checked();
-            match domain.restore_mode {
-                RestoreMode::Admission => crate::stored::admission::restored(domain, env, out),
-                RestoreMode::LoadFitLink => crate::stored::restored(domain, env, out),
-            }
+            crate::stored::restored(domain, env, out);
             if replay && domain.ready() {
                 crate::proposals::rearm_all(domain, env);
                 crate::proposals::wake_restored(domain, env, out);
@@ -838,7 +794,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 /// bounded closing/readiness cascades into an uncapped output queue. The caller drives later
 /// iterations while due; wall correction does not reproject an already armed deadline.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    domain.consume_restore_input();
     let output_start = out.len();
     if !domain.ready() {
         return;

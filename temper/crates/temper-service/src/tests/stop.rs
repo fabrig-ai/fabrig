@@ -308,7 +308,7 @@ fn an_unknown_flight_key_is_named_in_lowercase_hex() {
 #[test]
 fn missing_forge_links_panic_before_startup_wires() {
     use temper_engine_domain::{Record, Write};
-    use temper_engine_domain_forge::Stored;
+    use temper_engine_domain_forge::{Key, MissingLink, Need, RecordKind, Stored};
     const ABSENT_TASK: u64 = 999;
     // Same completed-restart horizon as the service's startup stories.
     const PASSES: u32 = 256;
@@ -322,18 +322,24 @@ fn missing_forge_links_panic_before_startup_wires() {
     );
     drop(previous.store.above.pop().expect("fixture commit answer"));
     let mut service = fixtures::restarting_from(previous);
-    let panic = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+    std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
         for _ in 0..PASSES {
             fixtures::turn(&mut service);
         }
     }))
     .expect_err("required forge link is a writer bug");
-    let message = panic.downcast_ref::<String>().expect("formatted link assertion");
-    assert!(message.contains("forge link Names -> Task { task: 999, retired: None }"), "{message}");
+    assert_eq!(
+        service.engine.as_ref().expect("linking engine").domain.forge_missing_link(),
+        Some(MissingLink {
+            kind: RecordKind::Names,
+            key: Key::Names(ABSENT_TASK),
+            need: Need::Task { task: ABSENT_TASK, retired: None },
+        })
+    );
     assert_eq!(service.end(), None, "no startup refusal");
     let engine = service.engine.as_ref().expect("linking engine");
-    assert_eq!(engine.domain.forge_restore_failure(), None, "no compatibility refusal recorded");
+    assert_eq!(engine.domain.start_stop(), None, "no startup refusal recorded");
     assert!(!engine.store.component.mark_durable(), "no start wires before link");
-    assert!(!engine.domain.connectors_restored(), "no adoption before link");
+    assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Link), "no adoption before link");
     assert!(!engine.domain.ready(), "no decisions before link");
 }

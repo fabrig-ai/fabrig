@@ -78,6 +78,10 @@ fn random_host_worlds_draw_link_store_and_cold_restart_faults() {
             let peers = world.peers.as_ref().expect("peers");
             assert!(peers.workers.iter().all(|worker| worker.expenses.values().all(|cost| cost.spent <= 10)));
             assert!(peers.parties[0].quiescent());
+            if engine {
+                // Engine 6 step 3 settles live engine claims (seed 18); their phase, reserve and activity change durably.
+                world.broken();
+            }
         });
     }
 }

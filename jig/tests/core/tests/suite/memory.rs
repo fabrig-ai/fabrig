@@ -19,12 +19,22 @@ fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceilin
     let measured = meter.end();
     meter.check(measured, bound, &limits.core);
 
-    domain.restart_begin(false);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core };
+    let mut out = skein_lib::Queue::uncapped();
+    let mut action = domain.start_begin(false, env.wall);
+    for _ in 0_u16..64 {
+        use core::start::{Action, Phase, SweepInput};
+        action = match action {
+            Action::Step(Phase::Sweep) => domain.start_sweep(&env, SweepInput::Finished, &mut out),
+            Action::Step(phase) => domain.start_done(&env, phase, &mut out),
+            Action::Commit(token) => domain.start_resume(&env, token, &mut out),
+            Action::Idle => break,
+            Action::Refused(why) => panic!("memory fixture start refused {why:?}"),
+        };
+        out.clear();
+    }
+    assert!(domain.start_opened());
     for event in [
-        core::Event::People(people::Event::Restored),
-        core::Event::Tasks(tasks::Event::Check),
-        core::Event::Tasks(tasks::Event::Restored),
         core::Event::Fleet(fleet::Event::Loaded),
         core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
             form: accounts::Form::Credential(accounts::Scheme::Bearer),

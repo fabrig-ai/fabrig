@@ -1113,8 +1113,7 @@ pub struct TaskRecord {
     pub added: Box<[Added]>,
     /// `Exact` still-live subset of dependencies, bounded by `Limits::dependencies`; removed once
     /// per dependency end in the same decision. A waiting task waits for them; an active one is
-    /// kept by them (domain/tasks.md, 5.7). Default restoration checks its shape and live
-    /// coverage; `Domain::start_restore` checks fit and required links.
+    /// kept by them (domain/tasks.md, 5.7). Restoration checks fit and required links.
     pub waiting_on: Box<[u64]>,
     /// Resources currently held or awaited; a connector may pass a failed delegate's hold to its tree root during release.
     pub holdings: Box<[Holding]>,
@@ -1199,7 +1198,7 @@ pub enum Stored {
     /// Committed change read on demand, never restored as live state.
     History(crate::History),
     /// Current bounded live task state, emitted on mutation and admitted once at startup.
-    Live(/** Owned boxed live task row; selected startup checks precede activation. */ Box<TaskRecord>),
+    Live(/** Owned boxed live task row; fit and link checks precede activation. */ Box<TaskRecord>),
     /// Historical final task state; root loads it for authenticated result reads, never as
     /// live startup state.
     Ended(
@@ -1331,8 +1330,8 @@ pub enum Refusal {
     /// Valid finishing declines to cancel still-live delegates; activation and charge remain
     /// unadmitted.
     LiveDelegates,
-    /// Default startup shape, graph or funding refusal; the explicit `start_restore`
-    /// entry refuses configuration fit failures. Historical families stay outside startup.
+    /// A retained row does not fit the configured bounds.
+    /// Historical families stay outside startup.
     Restore,
     /// A turn's read fence was not an offered unread message.
     Read,

@@ -183,10 +183,12 @@ fn a_charter_for_workers_never_runs_in_the_engines_slots() {
 
 #[test]
 fn a_charter_for_the_engine_never_runs_on_a_worker() {
-    let world = host_world(147, jig_domain_fleet::Kinds::Engine);
+    let mut world = host_world(147, jig_domain_fleet::Kinds::Engine);
     let peers = world.peers.as_ref().expect("peers");
     assert_eq!(peers.workers[0].seen.len(), 1, "engine received the assignment");
     assert!(peers.workers[1].seen.is_empty(), "worker slot stays free");
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+    world.broken();
 }
 
 #[test]
@@ -296,6 +298,8 @@ fn a_charter_both_kinds_may_run_claims_the_engine_when_only_its_slot_is_free() {
     let mut world = both_host_world(149);
     world.delegate_agent(2, b"use the free engine slot");
     assert_eq!(first_claim_host(&world), jig_domain_fleet::HostKind::Engine);
+    // Engine 6 step 3 ends the engine claim; engine 11.5 recomputes Cancel impact from the changed live runs.
+    world.broken();
 }
 
 #[test]
@@ -311,6 +315,8 @@ fn a_claim_for_the_engine_is_placed_only_on_the_engine() {
     world.release_commits();
     assert_eq!(world.assigned.as_ref().expect("delegate assigned").task, task);
     assert_eq!(current_claim_host(&world), jig_domain_fleet::HostKind::Engine);
+    // Engine 6 step 3 ends the engine claim; engine 11.5 recomputes Cancel impact from the changed live runs.
+    world.broken();
 }
 
 #[test]

@@ -96,7 +96,7 @@ pub(crate) fn walk_map(
     Ok(pages::Walked { rows: found.into_boxed(), next: None })
 }
 
-fn load_map(store: &mut Store, map: KeptMap, range: Range) -> Result<pages::Page, Failure> {
+pub(crate) fn load_map(store: &mut Store, map: KeptMap, range: Range) -> Result<pages::Page, Failure> {
     let mut limits = pages::map_limits(store, map);
     limits.key = limits.key.checked_add(1).ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::CursorLength)))?;
     let mut above = Queue::uncapped();

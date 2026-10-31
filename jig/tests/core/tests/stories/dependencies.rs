@@ -62,6 +62,7 @@ fn a_kept_delegate_is_woken_by_its_last_dependencys_met() {
         dependency_text.as_ref(),
         format!("waited for task {dependency}, added 123456 by task {}: done\ntask {dependency}: report\nprerequisite done\n\n", parent.0).as_bytes(),
     );
+    world.close();
 }
 
 fn amend_delegate(world: &mut World, parent: (u64, u64), target: u64, dependency: u64) {
@@ -94,6 +95,7 @@ fn an_agents_circular_dependency_amendment_names_the_circle() {
     assert_eq!(problem.why, tasks::Refusal::Circle { cut: false });
     assert_eq!(problem.blocked_by.as_deref(), Some([first, second].as_slice()));
     assert!(live_row(&world, first).dependencies.is_empty());
+    world.close();
 }
 
 #[test]
@@ -124,6 +126,7 @@ fn an_agents_failed_dependency_amendment_names_the_ended_task() {
     assert_eq!(problem.why, tasks::Refusal::DependencyEnded { how: tasks::Status::Failed });
     assert_eq!(problem.blocked_by.as_deref(), Some([dependency].as_slice()));
     assert!(live_row(&world, kept).dependencies.is_empty());
+    world.close();
 }
 
 fn member_world(seed: u64) -> World {
@@ -239,6 +242,7 @@ fn a_members_added_dependencies_must_be_within_their_tree() {
     person_amend(&mut world, member_sign_in, 207, kept, &[inside]);
     assert_eq!(world.people_answers.last(), Some(&amended));
     assert_eq!(live_row(&world, kept).dependencies.as_ref(), [inside]);
+    world.close();
 }
 
 #[test]
@@ -267,6 +271,7 @@ fn an_earlier_compound_move_brings_an_added_dependency_within_reach() {
     );
     assert_eq!(live_row(&world, kept).dependencies.as_ref(), [outside]);
     assert_eq!(live_row(&world, outside).requester, live_row(&world, world.assignments[0].0).requester);
+    world.close();
 }
 
 // These stories observe the store load and externally durable rows, rather than
@@ -341,6 +346,7 @@ fn an_ended_dependency_load_waits_then_adds_done_as_met() {
     world.store.ask(jig_test_store::StoreOut::Now(load));
     world.drain();
     assert_met(&world, target, dependency, tasks::Party::Task(parent.0));
+    world.close();
 }
 
 #[test]
@@ -359,6 +365,7 @@ fn a_waiting_amendment_rechecks_its_revision_after_loading() {
     assert!(matches!(world.answers.last().map(|answer| &answer.2),
         Some(core::CallPart::Moved { task, now: people::Moved::Spec { revision: 1 } }) if *task == target));
     assert_eq!(live_row(&world, target), &before);
+    world.close();
 }
 
 #[test]
@@ -383,6 +390,7 @@ fn a_cancelled_added_dependency_is_refused_by_name() {
     amend_delegate(&mut world, parent, target, dependency);
     assert_ended_refusal(&world, dependency, tasks::Status::Cancelled);
     assert_eq!(live_row(&world, target), &before);
+    world.close();
 }
 
 #[test]
@@ -396,6 +404,7 @@ fn an_unknown_added_dependency_is_refused_by_name() {
     };
     assert_eq!((problem.task, problem.why), (Some(UNKNOWN), tasks::Refusal::Unknown));
     assert_eq!(live_row(&world, target), &before);
+    world.close();
 }
 
 #[test]
@@ -410,6 +419,7 @@ fn a_done_former_delegate_named_by_a_sibling_is_met() {
     assert_met(&world, target, dependency, tasks::Party::Task(parent.0));
     // The introduction was to the sibling, not to the parent amender.
     assert!(live_row(&world, sibling).references.contains(&dependency));
+    world.close();
 }
 
 #[test]
@@ -434,6 +444,7 @@ fn another_subtrees_ended_task_is_refused_unchanged() {
     assert_eq!(problem.why, tasks::Refusal::Dependencies);
     assert_eq!(problem.blocked_by.as_deref(), Some([dependency].as_slice()));
     assert_eq!(live_row(&world, target), &before);
+    world.close();
 }
 
 #[test]
@@ -451,6 +462,7 @@ fn a_person_adds_an_ended_dependency_from_its_stored_row() {
         Some(&people::Reply::Outcome(people::Outcome::Amended { task: target, released: false }))
     );
     assert_met(&world, target, dependency, tasks::Party::Person(person));
+    world.close();
 }
 
 #[test]
@@ -472,4 +484,5 @@ fn a_members_ended_dependency_outside_their_tree_is_refused_unchanged() {
     // The owner reaches the whole project, so the same done row is met.
     person_amend(&mut world, owner_sign_in, 212, kept, &[outside]);
     assert_met(&world, kept, outside, tasks::Party::Person(owner));
+    world.close();
 }

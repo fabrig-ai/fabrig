@@ -187,6 +187,7 @@ fn saved_resources_keep_the_forge_in_their_path() {
 fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::forge;
     let (mut domain, env) = crate::tests::resume_fixture::root();
+    domain.forge.restore_begin(env.wall);
     let mut out = skein_lib::Queue::uncapped();
     for number in [1, 3] {
         forge::step(

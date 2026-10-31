@@ -84,7 +84,7 @@ fn pause(world: &mut World) {
     world.hold_restore_pages = true;
     world.restart_with(jig_core_world::effects::fixture(SEED, false).0);
     assert!(world.store.loading(), "the requested original store page remains outstanding");
-    assert_eq!(world.restart_steps, [core::RestartStep::LoadCore]);
+    assert_eq!(world.restart_steps, [core::start::Phase::LoadCore]);
 }
 
 #[test]
@@ -101,8 +101,22 @@ fn a_paused_restore_answers_an_ask_not_ready_without_a_commit_or_retained_answer
     assert_eq!(world.commits.len(), commits, "NotReady must not submit a commit");
     assert_eq!(world.store.rows, rows, "no business mutation or retained keyed answer");
     assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
+    world.hold_restart_reads = true;
     world.finish_restore_pages();
     assert_eq!(world.store.rows, with_start_mark(&rows), "whole original restored facts and the start's mark");
+    assert!(!world.domain.ready());
+    let applied = world.store.applied;
+    let commits = world.commits.len();
+    world.send(ask(&world, sign_in, 7101));
+    assert_eq!(reply(&mut world, 7101).1, people::Reply::Again(people::Again::NotReady));
+    world.send(self::sign_in(7102));
+    assert_eq!(reply(&mut world, 7102).1, people::Reply::Again(people::Again::NotReady));
+    assert_eq!(world.store.applied, applied);
+    assert_eq!(world.commits.len(), commits);
+    assert_eq!(world.store.rows, with_start_mark(&rows));
+    world.hold_restart_reads = false;
+    world.drain();
+    assert!(world.domain.ready());
     world.send(ask(&world, sign_in, 7101));
     assert!(matches!(reply(&mut world, 7101).1, people::Reply::Outcome(people::Outcome::Created { .. })));
 }
@@ -119,6 +133,8 @@ fn a_paused_restore_answers_sign_in_not_ready_without_changing_durable_rows() {
     assert_eq!(world.store.applied, applied, "NotReady sign-in must not commit");
     assert_eq!(world.commits.len(), commits, "NotReady sign-in must not submit a commit");
     assert_eq!(world.store.rows, rows, "NotReady sign-in leaves the complete durable store unchanged");
+    world.finish_restore_pages();
+    assert!(world.domain.ready());
 }
 
 #[test]
@@ -133,13 +149,13 @@ fn paused_polls_preserve_multiple_whole_pages_and_repeated_release_is_safe() {
     for _ in 0..4 {
         world.drain();
         assert!(world.store.loading());
-        assert_eq!(world.restart_steps, [core::RestartStep::LoadCore]);
+        assert_eq!(world.restart_steps, [core::start::Phase::LoadCore]);
         assert_eq!(world.store.rows, rows);
     }
     assert!(!world.trace[trace_start..].iter().any(|line| line.starts_with("store page")));
     world.finish_restore_pages();
     assert!(!world.store.loading());
-    assert_eq!(world.restart_steps.last(), Some(&core::RestartStep::ReadAfresh { connector: 2 }));
+    assert_eq!(world.restart_steps.last(), Some(&core::start::Phase::ReadAfresh { connector: 2 }));
     let rows = with_start_mark(&rows);
     assert_eq!(world.store.rows, rows);
     let pages: Vec<_> =
@@ -210,6 +226,10 @@ fn a_held_restore_expires_sign_ins_at_the_current_external_wall_time() {
     assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
     let release_at = world.wall_time();
     world.finish_restore_pages();
+    assert!(world.domain.ready());
+    let marked = with_start_mark(&rows);
+    assert_eq!(world.store.rows, marked, "the captured start precedes expiry; runtime deadlines wait for Open");
+    world.advance(Duration::ZERO);
     let mut expected = rows;
     assert!(expected.remove(&root::Key::Core(core::Key::People(people::Key::SignIn(sign_in)))).is_some());
     let header = expected
@@ -220,11 +240,11 @@ fn a_held_restore_expires_sign_ins_at_the_current_external_wall_time() {
         })
         .expect("whole original deployment header");
     assert_eq!(header.commits, applied);
-    header.commits += 1;
-    assert_eq!(world.store.rows, with_start_mark(&expected), "restore erases the expired sign-in, then marks");
+    header.commits += 2;
+    assert_eq!(world.store.rows, expected, "the runtime deadline erases the expired sign-in after Open");
     let snapshots = world.store_peer.as_mut().expect("store peer").take();
     assert_eq!(snapshots.len(), 2);
-    assert_eq!(snapshots[0].rows, expected);
+    assert_eq!(snapshots[0].rows, marked);
     assert_eq!(snapshots[0].commit, applied + 1);
     assert_eq!(snapshots[1].rows, world.store.rows);
     assert_eq!(snapshots[1].commit, world.store.applied);
@@ -235,4 +255,25 @@ fn a_held_restore_expires_sign_ins_at_the_current_external_wall_time() {
     }
     world.send(ask(&world, sign_in, 7104));
     assert_eq!(reply(&mut world, 7104).1, people::Reply::SignedOut);
+}
+
+#[test]
+fn an_expiry_sweep_resumes_its_pages_only_after_each_durable_erase() {
+    let (mut world, first) = world();
+    world.send(sign_in(7110));
+    let (second, _) = reply(&mut world, 7110);
+    let second = second.expect("another live sign-in");
+    assert_ne!(first, second);
+    let (now, wall) = world.clocks();
+    world.set_clock(now, skein_lib::Wall::from_nanos(wall.as_nanos() + Duration::from_secs(75).as_nanos()));
+    world.store_delay = 5;
+    world.restart_with(jig_core_world::effects::fixture(SEED, false).0);
+    assert!(world.domain.ready());
+    assert!(!world.stopped);
+    for sign_in in [first, second] {
+        let key = root::Key::Core(core::Key::People(people::Key::SignIn(sign_in)));
+        assert!(!world.store.rows.contains_key(&key));
+        assert!(world.commits.iter().any(|writes| writes.contains(&root::Write::Erase(key.clone()))));
+    }
+    assert_eq!(world.restart_steps.iter().filter(|phase| **phase == core::start::Phase::Sweep).count(), 1);
 }

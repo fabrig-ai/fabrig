@@ -122,6 +122,7 @@ fn unsupported_and_oversized_instruction_edits_leave_the_task_unchanged() {
         let mut corrupt = before;
         corrupt.instructions = Some(oversized().into_boxed_slice());
         let mut fresh = Harness::new();
+        fresh.domain = crate::Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
         let out = fresh.send(Event::Restore { record: Stored::Live(Box::new(corrupt)) });
         assert!(out.iter().any(|r| match r {
             Request::RestoreRefused { .. } => true,

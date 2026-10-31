@@ -87,20 +87,6 @@ pub(crate) fn save_sources(
     }
 }
 
-pub(crate) fn normalize(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let mut numbers = List::with_capacity(domain.accounts.capacity());
-    for (number, _) in &domain.accounts {
-        numbers.push(*number).expect("one per account");
-    }
-    for number in &numbers {
-        let holder = domain.accounts.get(number).expect("a listed account").holder;
-        let order = accounts(domain, holder);
-        save_accounts(domain, &order, out);
-        let order = sources(domain, *number);
-        save_sources(domain, env, *number, &order, out);
-    }
-}
-
 /// Appending is a live change: retain sparse stored places while there is room after them.
 /// At the last representable place, the explicit change saves a dense order first.
 pub(crate) fn append_place(domain: &mut Domain, env: &Env<Limits>, account: u32, out: &mut Queue<Request>) -> u32 {

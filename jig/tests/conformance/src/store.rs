@@ -1,41 +1,32 @@
-//! Restart flights routed through the real store (store.md 7.2 and 14).
-use super::{Neighbours, Store, StoreOut, connector, core, root};
+//! Start flights routed through the real store (protocol/store.md, 7.1 and 14).
+use super::{Neighbours, Store, StoreOut, core, root};
 use jig_conformance::Input;
 impl Neighbours {
-    pub(super) fn restart(
+    pub(super) fn start(
         &mut self,
         store: &mut Store,
-        step: core::RestartStep,
+        phase: core::start::Phase,
         census: Option<core::Census>,
     ) -> Vec<Input<root::Event, root::Record>> {
-        self.restart_steps.push(step);
-        match step {
-            core::RestartStep::LoadCore | core::RestartStep::LoadInbox | core::RestartStep::RestoreConnector { .. } => {
-                store.ask(StoreOut::Restart { step, census });
-                Vec::new()
+        use core::start::Phase;
+        self.start_phases.push(phase);
+        let position = match phase {
+            Phase::LoadCore => Some(0),
+            Phase::RestoreConnector { connector } => Some(u32::from(connector)),
+            Phase::ReadAfresh { connector } => Some(2 + u32::from(connector)),
+            Phase::LoadInbox | Phase::Sweep | Phase::Switch => None,
+            Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::SettleOutbox { .. } | Phase::Open => {
+                panic!("root performs internal start phases")
             }
-            core::RestartStep::Switch => {
-                if store.generation_pending {
-                    store.ask(StoreOut::Restart { step, census: None });
-                    Vec::new()
-                } else {
-                    vec![Input::Event(root::Event::Switched)]
-                }
-            }
-            core::RestartStep::ReadAfresh { connector: number } => {
-                self.restart_reads.insert(number, step);
-                vec![Input::Event(root::Event::Connector {
-                    number,
-                    event: connector::Event::Restart(connector::RestartStep::FreshRead {
-                        resource: jig_test_connector_world::path(1, 1),
-                    }),
-                })]
-            }
-            core::RestartStep::SettleOutbox { connector: number } => vec![Input::Event(root::Event::Connector {
-                number,
-                event: connector::Event::Restart(connector::RestartStep::SettleOutbox),
-            })],
-            core::RestartStep::AdoptRuns | core::RestartStep::Open => panic!("root performs synchronous restart step"),
+        };
+        if let Some(position) = position {
+            self.routes.push(jig_conformance::referee::Observed::RestartStage { position });
+        }
+        if matches!(phase, Phase::ReadAfresh { .. }) || (phase == Phase::Switch && !store.generation_pending) {
+            vec![Input::Event(root::Event::StartDone(phase))]
+        } else {
+            store.ask(StoreOut::Start { phase, census });
+            Vec::new()
         }
     }
 }

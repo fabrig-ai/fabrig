@@ -123,6 +123,8 @@ fn an_in_process_crossed_claim_yet_to_commit_a_turn_is_not_started() {
     assert!(fresh_windows::proof(&world).attempt > attempt, "retry must place a new claim");
     fresh_windows::fresh(&world);
     assert_eq!(fresh_windows::tail(&world), None);
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+    world.broken();
 }
 
 #[test]

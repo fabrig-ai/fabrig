@@ -202,6 +202,10 @@ fn an_own_scope_watch_is_admitted_on_the_sign_in_alone() {
 #[test]
 fn a_deployment_scope_watch_without_a_deployment_role_is_refused() {
     let mut world = world(885);
+    world.send(root::Event::Core(core::Event::People(jig_domain_people::Event::Roles {
+        project: jig_domain_people::DEPLOYMENT,
+        holdings: Box::new([]),
+    })));
     let env = skein_lib::Env {
         now: skein_lib::Time::ZERO,
         wall: skein_lib::Wall::EPOCH,

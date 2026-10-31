@@ -30,6 +30,7 @@ pub(super) struct Store {
     pub(super) component: protocol::Store,
     env: Env<protocol::Limits>,
     routes: route::Routes,
+    restoring: Option<jig_domain_core::start::Phase>,
     pub(super) above: Queue<protocol::Event>,
     pub(super) routed: Queue<Up>,
     pub(super) secrets: Queue<protocol::Event>,
@@ -101,15 +102,13 @@ impl Store {
         let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let [store, secrets, transcripts] = &mut drivers;
         let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], seed);
+        let component =
+            protocol::Store::on_directory(limits, jig_test_store::application(&application.connector), models, seeded);
         Self {
-            component: protocol::Store::on_directory(
-                limits,
-                jig_test_store::application(&application.connector),
-                models,
-                seeded,
-            ),
+            component,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
             routes,
+            restoring: None,
             above: Queue::uncapped(),
             routed: Queue::uncapped(),
             secrets: Queue::uncapped(),
@@ -182,6 +181,14 @@ impl Store {
         }
     }
     pub(super) fn down(&mut self, out: StoreOut) -> bool {
+        if let StoreOut::Start { phase, .. } = &out {
+            if self.restoring == Some(*phase) {
+                assert_eq!(*phase, jig_domain_core::start::Phase::Sweep, "only sweep resumes a paused walk");
+                return true;
+            }
+            assert!(self.restoring.is_none(), "one start walk at a time");
+            self.restoring = Some(*phase);
+        }
         if let Some(request) = route::down(&mut self.routes, out) {
             self.ask(request);
             true
@@ -497,7 +504,18 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             }
             // This shell prints no per-open progress lines.
             protocol::Event::Patched { .. } => {}
-            protocol::Event::OpenRefused { .. } => crate::stop::unavailable(engine, b"deployment"),
+            protocol::Event::OpenRefused { why, .. } => {
+                let failure = engine
+                    .store
+                    .component
+                    .start_open_failure()
+                    .cloned()
+                    .unwrap_or(protocol::restore::OpenFailure::Refused(why));
+                engine.end = Some(crate::End::Stopped(crate::Stop::StoreOpen {
+                    phase: engine.domain.core_mut().start_phase(),
+                    failure,
+                }));
+            }
             event @ (protocol::Event::SecretsNotReady { owner }
             | protocol::Event::Kept { owner }
             | protocol::Event::Stale { owner }
@@ -511,42 +529,71 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                     engine.store.secrets.push(event);
                 }
             }
+            protocol::Event::Corrupt { .. } => {
+                unreachable!("the service opens its store in start mode")
+            }
+            protocol::Event::PageRefused { failure, .. } => {
+                engine.end = Some(crate::End::Stopped(crate::Stop::StorePage {
+                    phase: engine.domain.core_mut().start_phase(),
+                    failure,
+                }));
+            }
             // This shell never hands patch sets; routing answers Site with NoSite.
-            other @ (protocol::Event::Site { .. }
+            other @ (protocol::Event::Page { .. }
+            | protocol::Event::Site { .. }
             | protocol::Event::Committed { .. }
             | protocol::Event::Failed { .. }
             | protocol::Event::FrameTooLarge { .. }
-            | protocol::Event::Restored { .. }
             | protocol::Event::Loaded { .. }
             | protocol::Event::Read { .. }
             | protocol::Event::Got { .. }
             | protocol::Event::Turns { .. }
-            | protocol::Event::Unread { .. }
-            | protocol::Event::Corrupt { .. }) => route::up(&mut engine.store.routes, other, &mut engine.store.routed),
+            | protocol::Event::Unread { .. }) => route::up(&mut engine.store.routes, other, &mut engine.store.routed),
+        }
+        if engine.end.is_some() {
+            return;
         }
     }
+    answer_routed(engine);
+}
+
+fn answer_routed(engine: &mut crate::Engine) {
     for _ in 0..engine.store.routed.len() {
         let up = engine.store.routed.pop().expect("store routing");
+        // A sweep erase and its held continuation must finish before the next
+        // row or page. Commit terminals still pass the paused walk.
+        if engine.domain.core_mut().start_phase() == Some(jig_domain_core::start::Phase::Sweep)
+            && !engine.domain.quiescent()
+            && match &up {
+                Up::Root(root::Event::Committed { .. } | root::Event::Failed { .. }) => false,
+                Up::Ask(_) | Up::Root(_) => true,
+            }
+        {
+            engine.store.routed.push(up);
+            continue;
+        }
         match up {
             Up::Root(root::Event::Failed { number }) => crate::stop::failed(engine, number),
-            Up::Root(
-                event @ (root::Event::RestartDone(_)
-                | root::Event::Core(jig_domain_core::Event::People(jig_domain_people::Event::Restored))),
-            ) => engine.events.push(event),
-            Up::Root(event) => {
-                engine.blocked = false;
-                engine.step(event);
+            Up::Root(root::Event::StartDone(phase)) => {
+                assert_eq!(engine.store.restoring.take(), Some(phase), "the selected walk finishes once");
+                engine.events.push(root::Event::StartDone(phase));
             }
-            Up::Restore(row) => {
+
+            Up::Root(root::Event::StartRecord(row)) => {
                 if row.key() == root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)) {
                     engine.first_periods.truncate(0);
                 }
                 engine.root_steps = engine.root_steps.wrapping_add(1);
-                if !root::restore_record(&mut engine.domain, &engine.env, row) {
-                    crate::stop::invalid_restore(engine);
-                }
+                root::start_record(&mut engine.domain, &engine.env, row);
+            }
+            Up::Root(event) => {
+                engine.blocked = false;
+                engine.step(event);
             }
             Up::Ask(request) => engine.store.ask(request),
+        }
+        if engine.domain.start_failure().is_some() || engine.domain.start_page_failure().is_some() {
+            crate::stop::invalid_restore(engine);
         }
         if engine.end.is_some() {
             break;

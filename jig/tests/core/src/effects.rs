@@ -15,7 +15,6 @@ use jig_test_store::{StoreOut, Up};
 use jig_test_system::{Fault, System};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::VecDeque;
-mod bootstrap;
 mod constructors;
 mod deliveries;
 mod store;
@@ -41,9 +40,11 @@ pub struct AssignedTranscript {
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independently held peer traffic and crash cuts")]
 pub struct World {
+    pub(crate) broken: bool,
+    pub(crate) oracle_closed: bool,
+    pub(crate) restart_config: (root::Config, root::Limits),
     startup: Option<fn(&mut root::Domain)>,
-    bootstrap_owners: Vec<people::InitialOwner>,
-    fixture_accounts: Box<[root::Record]>,
+    fixture_rows: Box<[root::Record]>,
     pub domain: root::Domain,
     pub store: Store,
     pub systems: [System; 2],
@@ -110,7 +111,7 @@ pub struct World {
     pub lose_answer: bool,
     pub trace: Vec<String>,
     tracing: bool,
-    pub restart_steps: Vec<core::RestartStep>,
+    pub restart_steps: Vec<core::start::Phase>,
     pub restore_ranges: Vec<core::RestoreRange>,
     pub census_ended: u32,
     pub hold_restart_reads: bool,
@@ -139,8 +140,8 @@ pub struct World {
     /// Referee observations, independent of the root state.
     pub observer: crate::observations::Observer,
     heap: crate::observations::Heap,
-    restoring: Option<(core::RestartStep, usize)>,
-    restart_reads: std::collections::BTreeMap<u16, core::RestartStep>,
+    restoring: Option<(core::start::Phase, usize)>,
+    restart_reads: std::collections::BTreeMap<u16, core::start::Phase>,
     events: VecDeque<root::Event>,
     limits: root::Limits,
     /// Pause at a selected transaction boundary, with its traffic retained.
@@ -280,16 +281,31 @@ impl World {
             self.observer.observe(self.wall, crate::referee::Observed::Tick);
             let env = self.env();
             self.observer.systems(self.wall, &self.systems);
-            if let Some(mut event) = self.events.pop_front() {
-                self.observer.inbound(&self.store, self.wall, &mut event);
-                if let Some(offers) = &mut self.offers {
-                    offers.inbound(&mut event);
-                }
-                if let Some(watches) = &mut self.watches {
-                    watches.inbound(&event);
-                }
-                if let Some(reads) = &mut self.reads {
-                    reads.inbound(&event);
+            let sweep_waits = self.domain.start_phase() == Some(core::start::Phase::Sweep)
+                && !self.domain.quiescent()
+                && self.events.front().is_some_and(|event| {
+                    matches!(event, root::Event::StartRecord(_) | root::Event::StartDone(core::start::Phase::Sweep))
+                });
+            if !sweep_waits && let Some(mut event) = self.events.pop_front() {
+                self.start_input(&event);
+                if !matches!(
+                    event,
+                    root::Event::StartBegin { .. }
+                        | root::Event::StartRecord(_)
+                        | root::Event::StartMissing { .. }
+                        | root::Event::StartPageRefused { .. }
+                        | root::Event::StartDone(_)
+                ) {
+                    self.observer.inbound(&self.store, self.wall, &mut event);
+                    if let Some(offers) = &mut self.offers {
+                        offers.inbound(&mut event);
+                    }
+                    if let Some(watches) = &mut self.watches {
+                        watches.inbound(&event);
+                    }
+                    if let Some(reads) = &mut self.reads {
+                        reads.inbound(&event);
+                    }
                 }
                 if self.tracing {
                     self.trace.push(format!("input {event:?}"));
@@ -305,14 +321,15 @@ impl World {
                     self.trace.push(format!("output {request:?}"));
                 }
                 match request {
-                    root::Request::Restart(step) => self.restart_step(step),
+                    root::Request::Start { phase, census } => self.start_step(phase, census),
+
                     root::Request::Commit { number, mut writes } => {
                         let mut rows = Vec::new();
                         while let Some(write) = writes.pop() {
                             rows.push(write);
                         }
                         rows.extend(
-                            std::mem::take(&mut self.fixture_accounts).into_vec().into_iter().map(root::Write::Save),
+                            std::mem::take(&mut self.fixture_rows).into_vec().into_iter().map(root::Write::Save),
                         );
                         if let Some(watches) = &mut self.watches {
                             watches.commit(number, &rows);
@@ -401,6 +418,9 @@ impl World {
                     root::Request::Busy { event } => self.busy_events.push(*event),
                     root::Request::Stop => self.stopped = true,
                 }
+            }
+            if !self.hold_restart_reads && !self.restart_reads.is_empty() && self.domain.quiescent() {
+                self.answer_restart_reads();
             }
             if !self.stopped {
                 match self.store.tick(false) {

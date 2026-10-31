@@ -121,12 +121,12 @@ fn a_failed_commit_never_reaches_the_component() {
 fn slow_pages_hold_a_restore_answer_for_their_ticks() {
     let mut store = committed();
     store.fault(Fault::SlowPages { by: 2 });
-    store.ask(StoreOut::Restart { step: core::RestartStep::LoadCore, census: None });
+    store.ask(StoreOut::Start { phase: core::start::Phase::LoadCore, census: None });
     assert!(store.answers().is_empty());
     store.tick(false).expect("page tick");
     assert!(store.answers().is_empty());
     store.tick(false).expect("page tick");
-    assert!(store.answers().iter().any(|answer| matches!(answer, Up::Restore(_))));
+    assert!(store.answers().iter().any(|answer| matches!(answer, Up::Root(root::Event::StartRecord(_)))));
 }
 #[test]
 fn a_fork_replays_to_the_same_rows() {
@@ -172,18 +172,7 @@ fn the_walks_closed_proof_restores_until_the_next_attempt() {
     let limits = jig_core_world::world::limits().core;
     let mut engine =
         core::Core::new(jig_core_world::effects::fixture(f::SEED, false).0.core, &limits).expect("core configuration");
-    engine
-        .restoring_proofs
-        .insert(
-            closed.task,
-            core::RestoringProof {
-                attempt: closed.attempt,
-                turn: closed.turn.expect("committed turn").turn,
-                run_spent: 2,
-                last_answer: closed.terminal.as_ref().map(|terminal| terminal.attempt),
-            },
-        )
-        .expect("one proof");
+    let _loading = engine.start_begin(false, skein_lib::Wall::EPOCH);
     assert!(engine.restore_proof(closed.clone(), limits.tasks.result_bytes));
     assert_eq!(engine.proofs.get(&closed.task), Some(&closed));
     world.restart_with_patch_sets(f::SEED, false, f::AFTER);

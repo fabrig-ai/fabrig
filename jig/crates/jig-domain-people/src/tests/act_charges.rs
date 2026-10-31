@@ -1,13 +1,11 @@
 #![expect(clippy::disallowed_macros, reason = "step tests are ordinary Rust (testing-strategy.md, section 4)")]
-use super::{valid, valid_outcome};
+use super::valid;
 use crate::tests::LIMITS;
 use crate::*;
 
 #[test]
-fn largest_acts_and_kept_refusals_are_valid() {
-    // Each row makes a different act the largest; the 64-task Kept refusal is
-    // the largest retained outcome at one configured host (people.md, 5.3).
-    const REFUSAL_TASKS: usize = 64;
+fn largest_acts_are_valid() {
+    // Each row makes a different act the largest.
     let name_bytes = u32::try_from(NAME_BYTES).unwrap();
     let long_reason = name_bytes * 2;
     let short_adoption = u32::try_from(size_of::<Box<[u8]>>() * 2).unwrap();
@@ -31,10 +29,8 @@ fn largest_acts_and_kept_refusals_are_valid() {
         let close =
             Act::Close { project: 1, task: 1, grace: None, reason: vec![0; usize::try_from(words).unwrap()].into() };
         let project = Act::MakeProject { maker: 1, name: "a".repeat(NAME_BYTES).into(), policy: 1 };
-        let outcome = Outcome::Refused(Refusal::Kept { pending: vec![1; REFUSAL_TASKS].into() });
         for act in [adopt, close, project] {
             valid(&limits, &act).unwrap();
-            assert!(valid_outcome(&limits, &act, &outcome));
         }
     }
 }

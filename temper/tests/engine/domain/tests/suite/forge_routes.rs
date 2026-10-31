@@ -202,6 +202,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
     assert!(world.store.rows.values().any(|stored| matches!(stored,
         Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
             if row.task == c && matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))));
+    world.close();
 }
 
 fn live_task(world: &World, task: u64) -> &tasks::TaskRecord {
@@ -275,6 +276,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
         )),
         "the chat still owns the change result"
     );
+    world.close();
 }
 
 #[test]
@@ -321,6 +323,7 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
         )),
         "stalled change must not report a landing"
     );
+    world.close();
 }
 
 #[test]
@@ -410,6 +413,7 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
     assert!(world.store.rows.values().any(|stored| matches!(stored,
         Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
             if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })))));
+    world.close();
 }
 
 #[test]
@@ -499,6 +503,7 @@ fn a_branch_read_sent_before_the_push_and_answered_missing_after_it_does_not_hol
         change.change.state
     );
     assert_eq!(world.merges, 1);
+    world.close();
 }
 
 #[test]
@@ -596,6 +601,7 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
                 && change.verdicts.iter().any(|report| Some(report.head) == change.change.last_head
                     && report.status == temper_engine_domain_forge_change::Status::Passed))
     )));
+    world.close();
 }
 
 #[test]
@@ -732,6 +738,7 @@ fn check_gate_repair(no_ci: bool) {
         Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
             if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })
                 && change.change.repairs == 1))));
+    world.close();
 }
 
 /// Temper 03.1's fake workflow step and log literals, read by hand.
@@ -829,6 +836,7 @@ fn a_failed_ci_repair_brief_names_the_failed_step_and_its_logs_end() {
     let words = ci_words(&repair);
     assert!(contains(words, BUILD_STEP), "{}", String::from_utf8_lossy(words));
     assert!(contains(words, BUILD_LOG_END), "{}", String::from_utf8_lossy(words));
+    world.close();
 }
 
 #[test]
@@ -844,6 +852,7 @@ fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
     );
     assert!(contains(words, JOB_LOG_END), "{}", String::from_utf8_lossy(words));
     assert!(!contains(words, b"Failed step: "), "{}", String::from_utf8_lossy(words));
+    world.close();
 }
 
 #[test]
@@ -861,6 +870,7 @@ fn an_unreadable_failed_job_log_is_named_and_repair_still_runs() {
     assert_eq!(words.windows(b"Description:".len()).filter(|part| *part == b"Description:").count(), 2);
     assert_eq!(words.windows(b"Link:".len()).filter(|part| *part == b"Link:").count(), 2);
     assert!(words.ends_with(b"Repair the failed check.\n"), "{}", String::from_utf8_lossy(words));
+    world.close();
 }
 
 #[test]
@@ -900,6 +910,7 @@ fn a_required_section_missing_sends_the_task_back_to_due_without_spending_a_try(
     assert_eq!(repair.attempt, 0, "no claim was made");
     assert_eq!(repair.tries, tasks::Tries::NONE, "preparation consumed no try");
     assert_eq!(world.assigned.len(), 2, "repair was never assigned");
+    world.close();
 }
 
 #[test]
@@ -998,6 +1009,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
                 assert!(!words.windows(b"make the fix".len()).any(|part| part == b"make the fix"));
                 assert!(!words.windows(b"Small fix".len()).any(|part| part == b"Small fix"));
             }
+            world.close();
             return;
         }
     }
@@ -1124,6 +1136,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
         })
         .collect();
     assert_eq!(reviews, [review], "only one review task is needed");
+    world.close();
 }
 
 #[test]
@@ -1273,9 +1286,11 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
         })
         .collect();
     assert_eq!(reviews, [review], "wakes cannot make a second review task");
+    world.close();
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one conflict, its resolution and cold restart/readback")]
 fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
     let (mut world, _chat, producer, branch) = change_world(false, 1000, None);
     assert!(matches!(
@@ -1377,6 +1392,7 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
         )),
         "resolved change did not land"
     );
+    world.close();
 }
 
 #[test]
@@ -1626,6 +1642,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         "new review must approve repaired head; forge={:?}",
         world.store.rows.values().filter(|row| matches!(row, Record::Forge { .. })).collect::<Vec<_>>()
     );
+    world.close();
 }
 
 #[test]
@@ -1720,6 +1737,7 @@ fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_
         [&merge_id.as_bytes()[..32]],
         "one result after recovery"
     );
+    world.close();
 }
 
 #[test]
@@ -1841,6 +1859,7 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
         "deployment repair and waiting change land; forge={:?}",
         world.store.rows.values().filter(|row| matches!(row, Record::Forge { .. })).collect::<Vec<_>>()
     );
+    world.close();
 }
 
 fn adoption_chat(world: &World) -> people::Ask {
@@ -2013,6 +2032,7 @@ fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
             .iter()
             .any(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Home))
     );
+    world.close();
 }
 
 #[test]
@@ -2116,6 +2136,7 @@ fn a_saved_repository_tag_becomes_a_concrete_checkout_in_the_next_attempt() {
     assert!(second.workspace.repositories.iter().any(|repository| repository.tag == forge_top::tag(1, 3)
         && matches!(repository.start, engine::ForgeStart::Saved(ref branch)
             if branch.as_ref() == b"temper/1/s1")));
+    world.close();
 }
 
 #[test]
@@ -2160,6 +2181,7 @@ fn a_goal_ending_while_its_issue_is_opening_eventually_closes_that_issue() {
         )),
         "ended goal's issue did not close"
     );
+    world.close();
 }
 
 #[test]
@@ -2216,6 +2238,7 @@ fn a_goal_subscription_receives_the_connectors_landing_news() {
             .iter()
             .any(|word| matches!(word.kind, tasks::MessageKind::News { class: tasks::NewsClass::Wakes, .. }))
     );
+    world.close();
 }
 
 fn subscribe_chat(world: &mut World, topic: forge_top::Topic, key: u8) -> u64 {
@@ -2305,6 +2328,7 @@ fn a_pull_subscription_receives_the_connectors_state_news() {
         },
     })));
     await_new_forge_news(&mut world, task, before);
+    world.close();
 }
 
 fn ci_subscription_story(restart: bool) {
@@ -2364,6 +2388,7 @@ fn ci_subscription_story(restart: bool) {
         },
     })));
     await_new_forge_news(&mut world, task, before);
+    world.close();
 }
 
 #[test]
@@ -2415,6 +2440,7 @@ fn a_participation_subscription_receives_the_connectors_comment_news() {
         },
     })));
     await_new_forge_news(&mut world, task, before);
+    world.close();
 }
 
 #[test]
@@ -2502,6 +2528,7 @@ fn an_authorized_forge_read_returns_a_bounded_typed_answer() {
             "read answers have no durable connector Call either"
         );
     }
+    world.close();
 }
 
 #[test]
@@ -2587,6 +2614,7 @@ fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
         matches!(world.answers.last(), Some(temper_engine_domain::CallAnswer::ForgeEffect { entry: observed, outcome: Some(skein_forge_client::Outcome::Made { .. }), .. }) if *observed == entry)
     );
     assert_named_call_writer_oracle(&world);
+    world.close();
 }
 
 #[test]
@@ -2671,6 +2699,7 @@ fn an_explicit_forge_effect_proposal_is_retained_until_its_holder_accepts() {
         world.tick();
     }
     assert_eq!(issue_count(&mut world), 1);
+    world.close();
 }
 
 fn issue_effect_call(world: &mut World, assignment: &engine::Assignment) -> engine::Event {
@@ -2953,6 +2982,7 @@ fn a_tracked_goals_changes_install_landing_and_current_head_ci_topics_without_ag
         1,
         "one durable interest for the whole subtree"
     );
+    world.close();
 }
 
 #[test]
@@ -3008,6 +3038,7 @@ fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
             wakes,
             "only an overlapping landing makes a new goal run due: {path:?}"
         );
+        world.close();
     }
 }
 
@@ -3083,6 +3114,7 @@ fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
     }
     assert_eq!(issue_count(&mut world), 1);
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))), "nothing to find after restart");
+    world.close();
 }
 
 #[test]
@@ -3122,6 +3154,8 @@ fn settling_places_no_run_and_answers_a_call_busy() {
     assert_eq!(world.busy_calls, 1, "a run’s call is answered busy");
     world.release_write_answers();
     drain_stop(&mut world);
+    world.restart(true, false);
+    world.close();
 }
 
 #[test]
@@ -3158,6 +3192,7 @@ fn a_write_unanswered_past_its_lifetime_stops_unsettled_naming_it() {
     assert_eq!(issue_count(&mut world), 1, "the next start finds the issue rather than writing twice");
     assert!(flights::rows(&world).is_empty(), "restart settles and erases the flight");
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))));
+    world.close();
 }
 
 #[test]
@@ -3226,6 +3261,8 @@ fn a_stop_waits_for_a_sent_merge_to_be_proved() {
     );
     assert!(world.unsettled.is_empty());
     assert_eq!(world.merges, 1);
+    world.restart(true, true);
+    world.close();
 }
 
 // The oracle reads real root-written rows; identity legality belongs to their writer.

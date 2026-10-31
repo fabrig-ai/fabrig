@@ -12,9 +12,10 @@ const MARK_WRITES: usize = 2;
 
 #[test]
 fn every_start_takes_the_switch_step_and_commits_its_wires() {
-    let (running, _) = Driver::chat();
-    for (label, mut store) in [(FIRST_START, Store::new()), (RESTART, running.store)] {
+    let (mut running, _) = Driver::chat();
+    for (label, mut store) in [(FIRST_START, Store::new()), (RESTART, running.take_store())] {
         store.crash(9761);
+        let pending = store.pending_generation;
         let mut driver = Driver::cold(store, walking::config(91), &walking::limits());
         for _ in 0..STEPS {
             if driver.store.pending.front().is_some_and(|(_, writes)| writes.contains(&Write::Wires)) {
@@ -32,18 +33,23 @@ fn every_start_takes_the_switch_step_and_commits_its_wires() {
         assert!(writes.contains(&Write::Wires), "{label}");
         assert!(writes.iter().any(|write| matches!(write,
             Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))) if header.commits == mark)), "{label}: header and wires in one commit");
-        assert_eq!(driver.switches, vec![driver.loads.len()], "{label}: exactly one switch after all loads");
+        let switches = if pending { vec![driver.loads.len()] } else { Vec::new() };
+        assert_eq!(driver.switches, switches, "{label}: only a pending generation asks the store to switch");
         assert_eq!(
             driver.loads.last().map(|(_, range)| range),
-            Some(&Range::Forge),
-            "{label}: forge restored before switch"
+            Some(&Range::Core(engine::CoreRange::Sweep)),
+            "{label}: sweep finished before switch"
         );
         driver.store.tick(true).expect("mark becomes durable with its answer held");
         for _ in 0..STEPS {
             driver.advance(false);
         }
         assert!(!driver.root.ready(), "{label}: held mark holds the script");
-        assert!(!driver.root.connectors_restored(), "{label}: adoption remains behind Switch");
+        assert_eq!(
+            driver.root.start_phase(),
+            Some(core::start::Phase::Wires),
+            "{label}: adoption remains behind Switch"
+        );
         assert!(driver.store.pending.is_empty(), "{label}: adoption issued no later decision");
         assert!(driver.delivered.is_empty(), "{label}: no run delivery before the mark");
         let number = driver.store.release_held().expect("held mark answer");
@@ -52,7 +58,7 @@ fn every_start_takes_the_switch_step_and_commits_its_wires() {
         driver.pump();
         assert!(driver.root.ready(), "{label}: durable mark releases the script");
         assert_eq!(driver.store.header().id, walking::config(91).core.deployment, "{label}: deployment retained");
-        let wires = driver.store.into_wires();
+        let wires = driver.take_store().into_wires();
         let kept: Vec<_> = wires.wires().iter().map(|wire| (wire.name(), wire.version())).collect();
         let expected: Vec<_> =
             temper_service::store::WIRES.iter().map(|wire| (wire.name.as_bytes(), wire.version)).collect();

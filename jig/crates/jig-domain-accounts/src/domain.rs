@@ -132,12 +132,6 @@ enum Choice {
     Held(u32),
     Empty,
 }
-/// Restoration entrances select the start contract (jig/docs/design/domain/engine.md, 6).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum StartMode {
-    Default,
-    LoadAndLink,
-}
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) accounts: Map<u32, Account>,
@@ -166,9 +160,6 @@ pub struct Domain {
     facts: Queue<Fact>,
     ended: Queue<Ended>,
     lost: u64,
-    pub(crate) unrestored: u64,
-    start_mode: StartMode,
-    restore_consumed: bool,
     pub(crate) restore_failure: Option<crate::RestoreLimit>,
     now: Time,
     phase: Phase,
@@ -200,27 +191,10 @@ impl Domain {
             facts: Queue::with_capacity(limits.facts),
             ended: Queue::with_capacity(limits.facts),
             lost: 0,
-            unrestored: 0,
-            start_mode: StartMode::Default,
-            restore_consumed: false,
             restore_failure: None,
             now: Time::ZERO,
             phase: Phase::New,
         }
-    }
-    /// Select load/fit/link once before any operational input (engine.md, 6).
-    ///
-    /// # Panics
-    /// Repeated selection or selection after operational input is a programmer error.
-    pub fn start_restore(&mut self) {
-        assert!(
-            self.start_mode == StartMode::Default && !self.restore_consumed && self.phase == Phase::New,
-            "accounts start restore is selected once before any operational input"
-        );
-        self.start_mode = StartMode::LoadAndLink;
-    }
-    pub(crate) fn consume_restore(&mut self) {
-        self.restore_consumed = true;
     }
     pub(crate) fn last_place(&self, holder: Holder) -> u32 {
         let mut next = 0;
@@ -306,12 +280,7 @@ impl Domain {
     pub fn restore_finished(&self) -> bool {
         self.phase == Phase::Wanted
     }
-    /// Default restoration counts rejected rows and empty accounts; start mode counts its first fit failure.
-    #[must_use]
-    pub const fn unrestored(&self) -> u64 {
-        self.unrestored
-    }
-    /// The first opted-in start fit failure; default restoration has no fit diagnostic.
+    /// The first start fit failure.
     #[must_use]
     pub const fn restore_limit(&self) -> Option<crate::RestoreLimit> {
         self.restore_failure
@@ -482,7 +451,6 @@ impl Domain {
 }
 
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    domain.consume_restore();
     domain.now = env.now;
     match event {
         Event::Restore { record } => restore(domain, env, record),
@@ -584,30 +552,18 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
     if domain.phase != Phase::New {
         return;
     }
-    match domain.start_mode {
-        StartMode::Default => crate::restore::restore(domain, env, record),
-        StartMode::LoadAndLink => crate::restore::load(domain, env, record),
-    }
+    crate::restore::load(domain, env, record);
 }
 /// Finish restoration and name every party source before the component is asked for grants.
 fn want(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.phase != Phase::New {
         return;
     }
-    match domain.start_mode {
-        StartMode::Default => {
-            domain.phase = Phase::Wanted;
-            crate::restore::finish(domain, env, out);
-            crate::ordering::normalize(domain, env, out);
-        }
-        StartMode::LoadAndLink => {
-            crate::restore::link(domain, env);
-            if domain.restore_failure.is_some() {
-                return;
-            }
-            domain.phase = Phase::Wanted;
-        }
+    crate::restore::link(domain, env);
+    if domain.restore_failure.is_some() {
+        return;
     }
+    domain.phase = Phase::Wanted;
     none_accounts(domain, env, out);
     domain.counted(out);
     for (number, source) in &domain.sources {
@@ -967,7 +923,6 @@ fn failed(entry: &mut Source, env: &Env<Limits>, failure: Failure) {
 }
 /// One expired source, after component inputs so a grant arriving now wins.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    domain.consume_restore();
     domain.now = env.now;
     if let Some(number) = domain.credential_alarms.expire(env.now) {
         domain.credentials.remove(&number).expect("credential alarm names a grant");

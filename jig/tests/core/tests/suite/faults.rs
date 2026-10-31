@@ -151,7 +151,11 @@ fn a_cold_restart_retries_a_party_request_and_retained_host_traffic() {
 #[test]
 fn every_startup_sign_in_chat_and_assignment_commit_restarts_on_either_side_of_durability() {
     for engine in [false, true] {
-        let reference = faults::workers(307, 1, engine);
+        let mut reference = faults::workers(307, 1, engine);
+        // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+        if engine {
+            reference.broken();
+        }
         for number in 1..=reference.store.applied {
             for cut in [Cut::Submitted(number), Cut::Durable(number)] {
                 let mut world = faults::workers_at(307, 1, engine, Some(cut));
@@ -178,6 +182,10 @@ fn every_startup_sign_in_chat_and_assignment_commit_restarts_on_either_side_of_d
                     })
                     .count();
                 assert_eq!(made, 1, "one keyed chat at {cut:?}, engine {engine}");
+                // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+                if engine {
+                    world.broken();
+                }
             }
         }
     }

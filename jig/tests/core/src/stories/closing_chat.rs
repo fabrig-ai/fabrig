@@ -186,4 +186,5 @@ fn a_chat_that_does_not_finish_within_its_grace_is_cancelled(
     };
     assert!(matches!(row.phase, tasks::Phase::Ended(tasks::Ending::Cancelled { at, .. }) if at >= until));
     assert!(live(&world, kept).grace.is_none(), "kept work survived old chat cancellation");
+    world.close();
 }

@@ -6,6 +6,7 @@ mod config;
 mod heap_ceilings;
 pub mod link;
 pub mod observations;
+mod oracle;
 mod scenarios;
 pub mod stories;
 pub mod systems;
@@ -98,6 +99,7 @@ pub struct Domain {
 /// Independent worker, party and store evidence; retained across crashes.
 #[expect(clippy::struct_excessive_bools, reason = "each startup request has independent request and reply evidence")]
 pub struct Peers {
+    oracle: oracle::Replies,
     pub policy: r::Policy,
     /// Advanced at each independently requested policy edit.
     pub policy_generation: u64,
@@ -268,6 +270,7 @@ impl Application for Temper {
             &config.limits,
         );
         Peers {
+            oracle: oracle::Replies::default(),
             seed: config.seed,
             scenario: config.scenario,
             story: config.story,
@@ -512,6 +515,7 @@ impl Application for Temper {
                 if let engine::Delivery::Document { watcher, .. } = &delivery {
                     events.push(engine::Event::Party(engine::PartyInput::Delivered { watcher: *watcher }));
                 }
+                peers.oracle.receive(&delivery);
                 scenarios::queries::delivered(peers, store, &delivery);
                 scenarios::lifecycle::delivered(peers, &delivery);
                 delivered(peers, clock, delivery);
@@ -658,6 +662,11 @@ impl Application for Temper {
                 )) = record
                 {
                     for word in &task.inbox {
+                        if matches!(word.kind, tasks::MessageKind::Result(_))
+                            && let tasks::Party::Task(child) = word.from
+                        {
+                            peers.observed.push(r::Observed::Result { task: child, to: r::Source::Task(task.number) });
+                        }
                         if matches!(word.from, tasks::Party::Person(_))
                             && peers.words.insert((task.number, word.number))
                         {

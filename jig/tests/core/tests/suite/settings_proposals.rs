@@ -238,10 +238,16 @@ fn pending_reviews_survive_restart_and_a_release_withdraws_them() {
         } else {
             root::Key::Core(core::Key::Tasks(tasks::Key::PersonProposal(proposal)))
         };
-        inconsistent.erase(missing).expect("one side of the durable pair");
-        inconsistent.restart_with(configuration().0);
+        let removed = inconsistent.erase(missing).expect("one side of the durable pair");
+        let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            inconsistent.restart_with(configuration().0);
+        }))
+        .expect_err("missing proposal counterpart asserts at Link");
+        assert_eq!(inconsistent.domain.start_phase(), Some(core::start::Phase::Link));
         assert!(!inconsistent.domain.ready(), "missing set: {erase_set}");
-        assert!(inconsistent.stopped, "inconsistent pending settings must refuse startup");
+        inconsistent.seed(Box::new([removed]));
+        inconsistent.restart_with(configuration().0);
+        assert!(inconsistent.domain.ready());
     }
 }
 #[test]
@@ -758,6 +764,8 @@ fn a_run_proposes_settings_and_an_owner_accepts_moving_its_work() {
         tasks::MessageKind::SettingsDecision { proposal, outcome: tasks::SettingsOutcome::Accepted { revision: 2 } }
     );
     assert!(!world.store.rows.contains_key(&task_set(task, proposal)));
+    // Engine 6 step 3 ends the engine claim, releasing its run revision (engine 17.4); task revision stays held.
+    world.broken();
 }
 #[test]
 fn a_runs_settings_proposal_rejected_reaches_its_inbox_with_the_reason() {
@@ -788,6 +796,8 @@ fn a_runs_settings_proposal_rejected_reaches_its_inbox_with_the_reason() {
     assert_eq!(outcome.words.as_ref(), reason);
     assert!(!world.store.rows.contains_key(&task_set(task, proposal)));
     assert_eq!(world.domain.settings().newest(), 1);
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+    world.broken();
 }
 #[test]
 fn a_runs_stale_settings_proposal_is_withdrawn_and_it_hears_the_newest() {
@@ -806,6 +816,8 @@ fn a_runs_stale_settings_proposal_is_withdrawn_and_it_hears_the_newest() {
     let next = run_proposed(&run_propose(&mut world, 2, Box::new([item])));
     assert_ne!(next, proposal);
     assert!(world.store.rows.contains_key(&task_set(task, next)));
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+    world.broken();
 }
 #[test]
 fn a_run_without_the_settings_family_is_denied_and_may_propose_nothing() {
@@ -815,6 +827,8 @@ fn a_run_without_the_settings_family_is_denied_and_may_propose_nothing() {
     assert!(matches!(run_propose(&mut world, 1, Box::new([item])), core::CallPart::ToolDenied { .. }));
     assert_eq!(settings_rows(&world), before);
     assert!(fixtures::live_row(&world, task).proposal.is_none());
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+    world.broken();
 }
 #[test]
 fn a_runs_settings_proposal_refused_at_the_entrance_keeps_nothing() {
@@ -847,6 +861,8 @@ fn a_runs_settings_proposal_refused_at_the_entrance_keeps_nothing() {
     );
     assert_eq!(settings_rows(&world), before);
     assert!(fixtures::live_row(&world, task).proposal.is_none());
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+    world.broken();
 }
 #[test]
 fn a_runs_pending_settings_proposal_survives_a_restart_and_is_accepted() {
@@ -887,8 +903,7 @@ fn exhausted_stale_outcome_numbers_refuse_before_changing_settings() {
         panic!("deployment header")
     };
     numbers.messages = u64::MAX;
-    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: world.wall_time(), limits: run_configuration().1 };
-    assert!(root::restore_record(&mut world.domain, &env, header));
+    world.domain.core_mut().counters = core::Counters::new(*numbers);
     let before = settings_rows(&world);
     let direct = run_charter(&world, b"Direct change");
     assert_eq!(
@@ -906,4 +921,6 @@ fn exhausted_stale_outcome_numbers_refuse_before_changing_settings() {
     assert!(!world.domain.ready(), "startup also refuses an unnumberable stale outcome");
     assert!(world.stopped);
     assert_eq!(settings_rows(&world), before);
+    // The fixture deliberately exhausts message numbers and leaves start refused.
+    world.broken();
 }

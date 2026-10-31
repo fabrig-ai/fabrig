@@ -455,11 +455,7 @@ fn record_bytes(row: &ProjectionRecord) -> Option<u64> {
     }
 }
 
-fn valid_number(number: u64, maximum: u64) -> bool {
-    number != 0 && number <= maximum
-}
-
-fn phase_within(phase: &tasks::Phase, limits: &Limits) -> bool {
+pub(crate) fn phase_within(phase: &tasks::Phase, limits: &Limits) -> bool {
     match tasks::phase_bytes(phase) {
         Some(bytes) => bytes <= u64::from(limits.tasks.result_bytes) * 2,
         None => false,
@@ -467,122 +463,5 @@ fn phase_within(phase: &tasks::Phase, limits: &Limits) -> bool {
 }
 
 pub(crate) fn restore(core: &mut Core, limits: &Limits, row: ProjectionRecord) -> bool {
-    match row {
-        ProjectionRecord::Goal { goal, pending, changed, fed_at } => {
-            restore_goal(core, limits, goal, pending, changed, fed_at)
-        }
-        ProjectionRecord::Task { goal, task } => restore_task(core, limits, goal, task),
-        ProjectionRecord::Milestone { goal, milestone } => restore_milestone(core, limits, goal, milestone),
-    }
-}
-
-fn restore_goal(
-    core: &mut Core,
-    limits: &Limits,
-    goal: ProjectionGoal,
-    pending: Box<[u16]>,
-    changed: bool,
-    fed_at: Option<u64>,
-) -> bool {
-    let deployment = core.counters.deployment();
-    let fed_after = match fed_at {
-        Some(number) => number > deployment.commits,
-        None => false,
-    };
-    if !valid_number(goal.number, deployment.tasks)
-        || core.authority.policy(goal.project).is_none()
-        || goal.words.len() > usize::try_from(limits.tasks.spec_bytes).expect("u32 fits usize")
-        || !phase_within(&goal.phase, limits)
-        || fed_after
-        || pending.len() > core.connectors.len()
-        || core.projections.contains_key(&goal.number)
-    {
-        return false;
-    }
-    let closing = match goal.phase {
-        tasks::Phase::Ended(_) => true,
-        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => false,
-    };
-    let untracked = match core.tasks.task(goal.number) {
-        Some(task) => task.tracked.is_none(),
-        None => false,
-    };
-    if !closing && !untracked && !pending.is_empty() {
-        return false;
-    }
-    let mut seen = List::with_capacity(limits.connectors);
-    for connector in &pending {
-        if !core.connectors.contains(connector) || seen.as_slice().contains(connector) {
-            return false;
-        }
-        seen.push(*connector).expect("bounded restored connector cohort");
-    }
-    core.projections
-        .insert(
-            goal.number,
-            Box::new(Projection { goal, pending, changed, fed_at, plan: Box::new([]), milestones: Box::new([]) }),
-        )
-        .is_ok()
-}
-
-fn restore_task(core: &mut Core, limits: &Limits, goal: u64, task: ProjectionTask) -> bool {
-    if !valid_number(task.number, core.counters.deployment().tasks)
-        || task.words.len() > usize::try_from(limits.tasks.spec_bytes).expect("u32 fits usize")
-        || !phase_within(&task.phase, limits)
-    {
-        return false;
-    }
-    let Some(state) = core.projections.get_mut(&goal) else { return false };
-    let mut plan = List::with_capacity(limits.tasks.tree_tasks);
-    for old in &state.plan {
-        if old.number == task.number || plan.push(old.clone()).is_err() {
-            return false;
-        }
-    }
-    if plan.push(task).is_err() {
-        return false;
-    }
-    state.plan = plan.into_boxed();
-    true
-}
-
-fn restore_milestone(core: &mut Core, limits: &Limits, goal: u64, milestone: ProjectionMilestone) -> bool {
-    let (task, position, shape) = match milestone.identity {
-        MilestoneId::Lifecycle { task, position } => {
-            (task, position, milestone.phase.is_some() && milestone.change.is_none() && milestone.words.is_empty())
-        }
-        MilestoneId::Revision { task, revision } => {
-            (task, revision, milestone.phase.is_none() && milestone.change.is_some())
-        }
-    };
-    let valid_phase = match &milestone.phase {
-        Some(phase) => phase_within(phase, limits),
-        None => true,
-    };
-    if !valid_number(task, core.counters.deployment().tasks)
-        || position == 0
-        || !shape
-        || !valid_phase
-        || milestone.words.len()
-            > usize::try_from(limits.tasks.message_bytes.max(limits.tasks.result_bytes)).expect("u32 fits usize")
-    {
-        return false;
-    }
-    let Some(state) = core.projections.get_mut(&goal) else { return false };
-    let Ok(count) = u32::try_from(state.milestones.len()) else { return false };
-    if count >= core.routes {
-        return false;
-    }
-    let mut milestones =
-        List::with_capacity(count.checked_add(1).expect("validated milestone count leaves room for one"));
-    for old in &state.milestones {
-        if old.identity == milestone.identity || milestones.push(old.clone()).is_err() {
-            return false;
-        }
-    }
-    if milestones.push(milestone).is_err() {
-        return false;
-    }
-    state.milestones = milestones.into_boxed();
-    true
+    crate::start::projections::start_restore(core, limits, row)
 }

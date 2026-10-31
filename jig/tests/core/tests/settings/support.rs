@@ -23,10 +23,29 @@ pub(super) fn configuration() -> (root::Config, root::Limits) {
     engine.charters[0].policy.instructions = Box::from(b"Answer within the granted authority.".as_slice());
     let mut config = world::config(SEED);
     config.core = jig_protocol_config::core(&engine, [31; 16], SEED);
+    // Auxiliary parties have configured roles even when they cannot decide settings.
+    for project in &mut config.core.seed_projects {
+        auxiliary_roles(&mut project.policy.policy);
+    }
+    let numbers: Vec<_> = config.core.defaults.policies.iter().map(|(number, _)| *number).collect();
+    for number in numbers {
+        auxiliary_roles(&mut config.core.defaults.policies.get_mut(&number).expect("fixture policy").policy);
+    }
     let mut limits = world::limits();
     limits.core = engine.limits.core;
     peers::journal(&mut limits);
     (config, limits)
+}
+fn auxiliary_roles(policy: &mut jig_domain_authority::Policy) {
+    let mut roles = policy.roles.to_vec();
+    for number in [people::Role::Member.number(), people::Role::Observer.number()] {
+        let mut role = roles[0].clone();
+        role.number = number;
+        role.requests = jig_domain_authority::Requests(0);
+        role.decides = jig_domain_authority::Proposals(0);
+        roles.push(role);
+    }
+    policy.roles = roles.into_boxed_slice();
 }
 pub(super) fn start(history: u32) -> World {
     let (config, mut limits) = configuration();
@@ -110,7 +129,7 @@ pub(super) fn restart(world: &mut World, config: root::Config) {
         "restart trace: {:?}; steps: {:?}; failure: {:?}",
         world.trace,
         world.restart_steps,
-        world.domain.restore_failure()
+        world.domain.start_failure()
     );
 }
 

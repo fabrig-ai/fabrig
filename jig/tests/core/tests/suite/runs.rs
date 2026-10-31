@@ -252,6 +252,8 @@ fn a_closed_windows_unread_tail_starts_fresh_without_counting() {
     let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
     *resumed = true;
     assert_eq!(activity, f::activity(&control));
+    // The store deliberately keeps the closed transcript unreadable.
+    world.broken();
 }
 
 fn an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh() {
@@ -717,6 +719,8 @@ fn a_transcript_read_as_unread_fails_the_run_and_the_next_starts_fresh() {
     assert_eq!(world.assignments.len(), assigned + 1);
     assert!(!fresh.run.policy.resume);
     assert!(fresh.transcript.is_empty());
+    // The store deliberately keeps the transcript unreadable after the run recovers.
+    world.broken();
 }
 
 fn park_chat(world: &mut World, spent: u64) {

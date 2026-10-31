@@ -1026,8 +1026,7 @@ fn people_new_work(event: &people::Event) -> bool {
         | people::Event::Waiting { .. }
         | people::Event::ApplyRoles { .. }
         | people::Event::Decided { .. }
-        | people::Event::Restore { .. }
-        | people::Event::Restored => false,
+        | people::Event::Restore { .. } => false,
     }
 }
 

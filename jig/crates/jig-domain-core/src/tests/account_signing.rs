@@ -40,7 +40,7 @@ fn signed_in(core: &mut Core, env: &Env<Limits>) {
     let mut out = Queue::uncapped();
     let person = people::Stored::Person { number: 1, identity: identity.clone() };
     people::step(&mut core.people, &env, people::Event::Restore { record: person }, &mut out);
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     let reply_to = ReplyTo::new(Token::new(100));
     let kind = people::Kind::Person;
     people::step(

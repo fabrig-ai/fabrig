@@ -322,8 +322,7 @@ fn references_refuse_before_mutation_and_first_failure_stops_recovery() {
 
 #[test]
 fn application_expiry_uses_one_explicit_start_observation() {
-    let mut d = domain();
-    d.restore_begin(Wall::from_nanos(100));
+    let mut d = restoring_domain(Wall::from_nanos(100));
     for token in 0..100 {
         restore(&mut d, application(token, Wall::from_nanos(100)));
     }
@@ -338,7 +337,8 @@ fn application_expiry_uses_one_explicit_start_observation() {
     assert_eq!(d.restore_fit_failure().unwrap().set, RestoreSet::Rows(RecordKind::Application));
     let mut direct = domain();
     restore(&mut direct, application(1, Wall::EPOCH));
-    assert!(direct.application_outcome(Token::new(1)).is_some(), "explicit compatibility default");
+    assert_eq!(direct.application_outcome(Token::new(1)), None, "expired decoded row swept");
+    assert_eq!(direct.restore_fit_failure(), None);
 }
 
 #[test]
@@ -416,8 +416,7 @@ fn adopted_outcome() -> ApplicationOutcome {
 }
 #[test]
 fn expired_adopted_history_neither_counts_nor_links_an_absent_repository() {
-    let mut d = domain();
-    d.restore_begin(Wall::from_nanos(100));
+    let mut d = restoring_domain(Wall::from_nanos(100));
     for token in 0..100 {
         restore(&mut d, Stored::Application { token, until: Wall::from_nanos(100), outcome: adopted_outcome() });
     }
@@ -427,16 +426,11 @@ fn expired_adopted_history_neither_counts_nor_links_an_absent_repository() {
 }
 #[test]
 fn nonexpired_adopted_history_still_asserts_its_missing_repository() {
-    let mut d = domain();
-    d.restore_begin(Wall::from_nanos(100));
+    let mut d = restoring_domain(Wall::from_nanos(100));
     restore(&mut d, Stored::Application { token: 1, until: Wall::from_nanos(101), outcome: adopted_outcome() });
     assert_eq!(
         d.missing_link(&reconcile::empty_tasks()),
-        Some(MissingLink {
-            kind: RecordKind::Application,
-            key: Some(Key::Application(1)),
-            need: Need::Repository(REPO)
-        })
+        Some(MissingLink { kind: RecordKind::Application, key: Key::Application(1), need: Need::Repository(REPO) })
     );
 }
 #[test]
@@ -447,7 +441,7 @@ fn a_fitting_zero_call_still_asserts_its_missing_task_link() {
         d.missing_link(&reconcile::empty_tasks()),
         Some(MissingLink {
             kind: RecordKind::Call,
-            key: Some(Key::Call(NamedCall { task: 0, attempt: 1, completion: 1, position: 1 })),
+            key: Key::Call(NamedCall { task: 0, attempt: 1, completion: 1, position: 1 }),
             need: Need::Task { task: 0, retired: None }
         })
     );
@@ -577,6 +571,7 @@ fn a_zero_capacity_table_refuses_its_first_row() {
             false,
         )
         .unwrap();
+        d.restore_begin(Wall::EPOCH);
         let mut out = Queue::uncapped();
         step(&mut d, &Env { limits, ..env() }, Event::Restore { record: row(kind, 1) }, &mut out);
         assert_eq!(
@@ -636,40 +631,48 @@ fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
 }
 
 #[test]
-fn missing_links_keep_their_source_key_across_lower_insertions_and_replacements() {
+fn missing_links_scan_retained_keys_after_lower_insertions_and_replacements() {
     use RecordKind as K;
     const FIRST: u32 = 2;
     const LOWER: u32 = 1;
-    for kind in [
-        K::Call,
-        K::ProposedEffect,
-        K::Repository,
-        K::Hold,
-        K::Names,
-        K::Subscription,
-        K::BranchHead,
-        K::PullState,
-        K::Ci,
-        K::Entry,
-        K::Change,
-        K::Issue,
-        K::Release,
-        K::Application,
-        K::Landing,
-        K::Receipt,
-        K::Flight,
-        K::Writer,
-        K::Demo,
+    for (kind, expected_row) in [
+        (K::Call, FIRST),
+        (K::ProposedEffect, LOWER),
+        (K::Repository, LOWER),
+        (K::Hold, LOWER),
+        (K::Names, FIRST),
+        (K::Subscription, LOWER),
+        (K::BranchHead, LOWER),
+        (K::PullState, LOWER),
+        (K::Ci, FIRST),
+        (K::Entry, LOWER),
+        (K::Change, LOWER),
+        (K::Issue, LOWER),
+        (K::Release, FIRST),
+        (K::Application, LOWER),
+        (K::Landing, LOWER),
+        (K::Receipt, LOWER),
+        (K::Flight, FIRST),
+        (K::Writer, FIRST),
+        (K::Demo, FIRST),
     ] {
         let mut d = domain();
         let first = unlinked_row(kind, FIRST);
-        let expected = stored_key(&first);
+        let expected = stored_key(&unlinked_row(kind, expected_row));
         restore(&mut d, first);
         restore(&mut d, unlinked_row(kind, LOWER));
         restore(&mut d, unlinked_row(kind, LOWER));
         assert_eq!(d.restore_fit_failure(), None, "{kind:?}");
         let missing = d.missing_link(&reconcile::empty_tasks()).expect("first row has an unmade link");
         assert_eq!(missing.kind, kind);
-        assert_eq!(missing.key, Some(expected));
+        assert_eq!(missing.key, expected);
     }
+}
+
+#[test]
+#[should_panic(expected = "restore_begin precedes every restored row")]
+fn restoring_a_row_requires_the_start_observation() {
+    let mut d = domain();
+    let mut out = Queue::uncapped();
+    step(&mut d, &env(), Event::Restore { record: application(1, Wall::EPOCH) }, &mut out);
 }

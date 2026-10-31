@@ -229,14 +229,14 @@ fn an_owner_outranks_a_maintainers_stop() {
         project: 1,
         holdings: Box::new([
             people::Holding { person: s.owner, role: people::Role::Member },
-            people::Holding { person: 2, role: people::Role::Maintainer },
+            people::Holding { person: 3, role: people::Role::Maintainer },
         ]),
     })));
     let owner = second_party(&mut s.world, b"owner", people::Role::Owner);
     let number = stop(&mut s, maintainer);
     let member = s.owner_sign_in;
     release(&mut s, member, 59);
-    refusal(&s.world, owner_refusal(number, 2));
+    refusal(&s.world, owner_refusal(number, 3));
     release(&mut s, owner, 60);
     resumed(&s, number);
 }
@@ -249,7 +249,7 @@ fn a_compound_release_is_refused_whole_by_the_owners_rule() {
         project: 1,
         holdings: Box::new([
             people::Holding { person: s.owner, role: people::Role::Member },
-            people::Holding { person: 2, role: people::Role::Maintainer },
+            people::Holding { person: 3, role: people::Role::Maintainer },
         ]),
     })));
     let number = stop(&mut s, maintainer);
@@ -264,7 +264,7 @@ fn a_compound_release_is_refused_whole_by_the_owners_rule() {
     ask_as(&mut s.world, s.owner_sign_in, 61, people::Ask::Compound { project: 1, operations });
     assert_eq!(
         s.world.people_answers.last(),
-        Some(&people::Reply::Outcome(people::Outcome::CompoundRefused { at: 1, why: owner_refusal(number, 2) }))
+        Some(&people::Reply::Outcome(people::Outcome::CompoundRefused { at: 1, why: owner_refusal(number, 3) }))
     );
     assert_eq!(live_row(&s.world, s.goal), &before);
 }
@@ -313,7 +313,7 @@ fn a_roleless_hold_owner_is_unknown_and_a_member_outranks_their_former_role() {
     let number = stop(&mut s, sign_in);
     s.world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: 1,
-        holdings: Box::new([people::Holding { person: 2, role: people::Role::Member }]),
+        holdings: Box::new([people::Holding { person: 3, role: people::Role::Member }]),
     })));
     ask_as(&mut s.world, sign_in, 62, people::Ask::Lift { hold: number, revision: 0, with_tasks: true });
     refusal(&s.world, people::Refusal::Unknown);

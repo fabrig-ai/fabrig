@@ -16,6 +16,8 @@ pub mod store_peer;
 /// The testing application's real store and world faults.
 pub use jig_test_store_files::{Fault, Store};
 
+pub mod oracle;
+
 pub mod observations;
 pub mod referee;
 

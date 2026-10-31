@@ -137,6 +137,9 @@ impl World {
                     };
                     self.down(store::Request::Secrets { owner: exchange, request });
                     match self.above.pop().expect("secrets answer") {
+                        store::Event::Page { .. } | store::Event::PageRefused { .. } => {
+                            unreachable!("a start's pages need a start-mode store")
+                        }
                         store::Event::Secret { value, .. } => self.keys.read(
                             exchange,
                             value.map(|value| {
@@ -156,7 +159,6 @@ impl World {
                         | store::Event::Committed { .. }
                         | store::Event::Failed { .. }
                         | store::Event::FrameTooLarge { .. }
-                        | store::Event::Restored { .. }
                         | store::Event::Loaded { .. }
                         | store::Event::Read { .. }
                         | store::Event::Got { .. }

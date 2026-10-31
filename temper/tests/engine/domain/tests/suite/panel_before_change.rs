@@ -42,7 +42,7 @@ fn before_change() -> Driver {
     let mut driver = Driver::configured(store, [walking::config(71), walking::config(71)], &limits);
     driver.forge = Some(ForgeStand::new());
     driver.settle();
-    assert!(driver.root.ready() && !driver.stopped, "restored root: {:?}", driver.root.restart_failure());
+    assert!(driver.root.ready() && !driver.stopped, "restored root: {:?}", driver.root.start_phase());
     driver.sign_in();
     driver.settle();
     driver.send(root::Event::Party(root::PartyInput::Application {

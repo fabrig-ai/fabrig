@@ -11,12 +11,13 @@ use crate::fresh_windows;
 use fresh_windows as f;
 
 const WIRES: &[Wire] = &[Wire { name: "channel", version: 3 }, Wire { name: "fixture", version: 7 }];
-const RESTORES: &[core::RestartStep] = &[
-    core::RestartStep::LoadCore,
-    core::RestartStep::LoadInbox,
-    core::RestartStep::RestoreConnector { connector: 1 },
-    core::RestartStep::RestoreConnector { connector: 2 },
-    core::RestartStep::Switch,
+const RESTORES: &[core::start::Phase] = &[
+    core::start::Phase::LoadCore,
+    core::start::Phase::LoadInbox,
+    core::start::Phase::RestoreConnector { connector: 1 },
+    core::start::Phase::RestoreConnector { connector: 2 },
+    core::start::Phase::Sweep,
+    core::start::Phase::Switch,
 ];
 
 fn before() -> World {
@@ -47,14 +48,25 @@ fn mark(world: &World, since: usize) -> &[root::Write] {
     marks[0]
 }
 
+fn wires(world: &mut World) -> Box<[u8]> {
+    world
+        .store
+        .retained()
+        .into_iter()
+        .find_map(|(key, value)| {
+            (jig_protocol_store::keys::decode_own(&key) == Some(jig_protocol_store::keys::Own::Wires)).then_some(value)
+        })
+        .expect("component wires row")
+}
+
 fn durable_mark(world: World, since: usize, last: u64) {
     assert_eq!(world.store.applied, last + 1, "the mark is the next numbered commit");
     assert_eq!(mark(&world, since).len(), 2, "wires and deployment header alone");
-    assert_eq!(world.domain.restart_step(), Some(core::RestartStep::Switch), "no adoption before mark acknowledgement");
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Wires), "no adoption before mark acknowledgement");
     let mut world = world;
     world.release_commits();
     assert!(world.domain.ready());
-    let bytes = world.store.into_wires();
+    let bytes = wires(&mut world);
     let row = component_v3::Wires::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).expect("component wires");
     let wires: Vec<_> = row.wires().iter().map(|wire| (wire.name().to_vec(), wire.version())).collect();
     assert_eq!(wires, [(b"channel".to_vec(), 3), (b"fixture".to_vec(), 7)]);
@@ -105,33 +117,45 @@ fn a_start_with_nothing_pending_takes_the_switch_step_and_commits_its_wires() {
 
 #[test]
 fn a_first_start_takes_the_switch_step() {
-    let world = World::first_start(world::config(f::SEED), world::limits());
+    let mut world = World::first_start(world::config(f::SEED), world::limits());
     let restores = &world.restart_steps[..RESTORES.len()];
     assert_eq!(restores, RESTORES);
     assert_eq!(world.store.switch_requests, 0);
     assert_eq!(mark(&world, 0).len(), 2);
     assert!(world.domain.ready());
-    let bytes = world.store.into_wires();
+    let bytes = wires(&mut world);
     let row = component_v3::Wires::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).expect("empty wires row");
     assert!(row.wires().is_empty(), "an empty shell wire list is still committed");
 }
 
 #[test]
-fn a_restart_refused_before_the_switch_leaves_the_old_generation_active() {
+fn a_live_set_past_lowered_limits_leaves_the_old_generation_active() {
     let mut world = before();
     let source = world.store.generation_contents(b"generations/1");
     let rows = world.store.rows.clone();
     let last = world.store.applied;
     let mut limits = world::limits();
-    limits.core.policy_bytes = 1; // The saved project policy exceeds one byte.
+    limits.core.authority.projects = 0;
     world.store.patch_sets(f::AFTER);
     let mut config = jig_core_world::effects::fixture(f::SEED, false).0;
     // Projects already exist in the store; this build seeds no new policies.
     config.core.seed_projects = Box::new([]);
+    config.core.defaults.policies = skein_lib::Map::with_capacity(0);
     world.restart_with_limits(config, limits);
     assert!(world.stopped);
-    assert_eq!(world.domain.restore_failure(), Some(core::RestartRequest::ProjectPolicy { project: 1 }));
-    assert!(!world.restart_steps.contains(&core::RestartStep::Switch));
+    assert_eq!(
+        world.domain.start_failure(),
+        Some((
+            Some(core::start::Phase::LoadCore),
+            core::start::Failure::LiveSet {
+                set: core::start::LiveSet::Projects,
+                key: core::Key::People(jig_domain_people::Key::Policy(1)),
+                held: 1,
+                limit: 0,
+            }
+        ))
+    );
+    assert!(!world.restart_steps.contains(&core::start::Phase::Switch));
     assert_eq!(world.store.switch_requests, 0);
     assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
@@ -140,6 +164,8 @@ fn a_restart_refused_before_the_switch_leaves_the_old_generation_active() {
     assert_eq!(world.store.applied, last);
     assert_eq!(world.store.rows, rows);
     assert!(!world.store.generation_pending);
+    // The lowered policy limit deliberately refuses the restart.
+    world.broken();
 }
 
 #[test]
@@ -153,6 +179,8 @@ fn a_refused_store_switch_stops_the_start() {
     assert!(world.stopped);
     assert!(!world.domain.ready());
     assert!(world.commits[since..].is_empty(), "no mark after refusal");
+    // The deliberately stale pending flag leaves the start stopped after Switch refusal.
+    world.broken();
 }
 
 #[test]
@@ -162,8 +190,10 @@ fn a_failed_mark_never_adopts_the_runs() {
     world.store.fault(Fault::Fail { commit: next });
     world.finish_switch();
     assert!(world.stopped);
-    assert_eq!(world.domain.restart_step(), Some(core::RestartStep::Switch));
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Wires));
     assert_eq!(world.restart_steps, RESTORES);
+    // The Wires commit is deliberately failed and the store remains failed.
+    world.broken();
 }
 
 #[test]
@@ -174,7 +204,9 @@ fn stopping_before_the_mark_does_not_commit_it() {
     world.finish_switch();
     assert!(world.domain.stopping());
     assert_eq!(world.store.applied, before);
-    assert_eq!(world.domain.restart_step(), Some(core::RestartStep::Switch));
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Switch));
+    world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
+    assert!(world.domain.ready());
 }
 
 #[test]
@@ -187,29 +219,26 @@ fn stopping_with_the_mark_held_does_not_adopt_runs() {
     world.release_commits();
     assert!(world.domain.stopping());
     assert_eq!(world.store.applied, mark);
-    assert_eq!(world.domain.restart_step(), Some(core::RestartStep::Switch));
-}
-
-#[test]
-fn a_broken_task_set_refuses_before_the_switch() {
-    let mut world = before();
-    let mut row = jig_core_world::fixtures::live_row(&world, world.task()).clone();
-    // Valid on its own, but its declared root is absent from the restored set.
-    row.root = u64::MAX;
-    world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
-    refuses_before_switch(world, core::RestoreChild::Tasks);
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Wires));
+    assert!(!world.domain.ready());
+    assert!(!world.restart_steps.contains(&core::start::Phase::AdoptRuns));
+    world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
+    assert!(world.domain.ready());
 }
 
 // Every refusal must leave A byte-for-byte reopenable by the earlier build.
-fn refuses_before_switch(mut world: World, child: core::RestoreChild) {
+fn refuses_before_switch(mut world: World) {
+    // Each caller deliberately seeds an unmade link and inspects the unfinished copy.
+    world.broken();
     world.store.crash(f::SEED);
     let source = world.store.generation_contents(b"generations/1");
     let last = world.store.applied;
     let assignments = world.assignments.clone();
-    world.restart_with_patch_sets(f::SEED, false, f::AFTER);
-    assert!(world.stopped);
-    assert_eq!(world.domain.restart_failure(), Some(core::RestartStep::Switch));
-    assert_eq!(world.domain.restore_failure(), Some(core::RestartRequest::Unresolved { child, records: 1 }));
+    let linked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        world.restart_with_patch_sets(f::SEED, false, f::AFTER);
+    }));
+    assert!(linked.is_err(), "a stored record links its owner before switching");
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Link));
     assert_eq!(world.store.switch_requests, 0);
     assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
@@ -217,10 +246,10 @@ fn refuses_before_switch(mut world: World, child: core::RestoreChild) {
     assert_eq!(world.assignments, assignments);
     assert!(!world.restart_steps.iter().any(|step| matches!(
         step,
-        core::RestartStep::Switch
-            | core::RestartStep::AdoptRuns
-            | core::RestartStep::ReadAfresh { .. }
-            | core::RestartStep::SettleOutbox { .. }
+        core::start::Phase::Switch
+            | core::start::Phase::AdoptRuns
+            | core::start::Phase::ReadAfresh { .. }
+            | core::start::Phase::SettleOutbox { .. }
     )));
     world.store.patch_sets(f::BEFORE);
     world.store.crash(f::SEED);
@@ -229,18 +258,15 @@ fn refuses_before_switch(mut world: World, child: core::RestoreChild) {
     // including every map, through the earlier build's actual store open.
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
     assert!(!world.store.generation_pending);
+    std::panic::resume_unwind(linked.expect_err("required project link"));
 }
 
-const PERSON: u64 = 1;
-const ABSENT_PERSON: u64 = 2;
-const ABSENT_TASK: u64 = 999;
-const ABSENT_ACCOUNT: u32 = 999;
-const ORPHAN_SOURCE: u32 = 998;
 const PROJECT: u32 = 1;
+const ORPHAN_SOURCE: u32 = 97;
 
 fn orphan_source() -> root::Record {
     root::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Source {
-        account: ABSENT_ACCOUNT,
+        account: 98,
         number: ORPHAN_SOURCE,
         place: 0,
         kind: jig_domain_accounts::Kind::Key,
@@ -250,59 +276,32 @@ fn orphan_source() -> root::Record {
 }
 
 #[test]
-fn a_patched_account_the_accounts_child_would_leave_refuses_before_the_switch() {
+fn an_account_source_without_its_account_panics_at_link_on_the_active_generation() {
     let mut world = before();
     world.seed(Box::new([orphan_source()]));
-    refuses_before_switch(world, core::RestoreChild::Accounts);
-}
-
-#[test]
-fn an_account_left_with_nothing_pending_does_not_refuse_the_start() {
-    let mut world = before();
-    world.seed(Box::new([orphan_source()]));
-    world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
-    assert!(world.domain.ready());
-    assert_eq!(world.domain.restore_failure(), None);
-    assert_eq!(world.domain.accounts().unrestored(), 1);
-    assert!(world.domain.accounts().source(ORPHAN_SOURCE).is_none());
+    let linked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
+    }));
+    assert!(linked.is_err(), "the active generation also links each account source");
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Link));
+    assert_eq!(world.domain.accounts().restore_limit(), None);
+    assert!(world.domain.accounts().source(ORPHAN_SOURCE).is_some(), "the source is retained until its link is made");
     assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
     assert_eq!(world.store.switch_requests, 0);
+    // The seeded source deliberately names an absent account and leaves Link unfinished.
+    world.broken();
 }
 
 #[test]
-fn a_task_naming_a_project_the_copy_does_not_hold_refuses_before_the_switch() {
+#[should_panic(expected = "Tasks(Live(1)) links missing project 1")]
+fn a_task_naming_a_missing_project_panics_before_the_switch() {
     let mut world = before();
     let row = jig_core_world::fixtures::live_row(&world, world.task()).clone();
+    assert_eq!(row.number, 1);
     // Leave the task and its funding internally consistent, but without its project.
     world.erase(root::Key::Core(core::Key::People(jig_domain_people::Key::Policy(PROJECT))));
     world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
-    refuses_before_switch(world, core::RestoreChild::Tasks);
-}
-
-#[test]
-fn a_task_naming_a_party_the_copy_does_not_hold_refuses_before_the_switch() {
-    let mut world = before();
-    let mut row = jig_core_world::fixtures::live_row(&world, world.task()).clone();
-    row.grace = Some(jig_domain_tasks::Grace {
-        by: jig_domain_tasks::Party::Person(ABSENT_PERSON),
-        until: skein_lib::Wall::from_nanos(Duration::from_secs(60).as_nanos()),
-        reason: Box::new([]),
-        message: 1,
-    });
-    row.last_message = 1;
-    world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
-    refuses_before_switch(world, core::RestoreChild::Tasks);
-}
-
-#[test]
-fn a_read_position_over_a_conversation_the_copy_does_not_hold_refuses_before_the_switch() {
-    let mut world = before();
-    world.seed(Box::new([root::Record::Core(core::Record::People(jig_domain_people::Stored::ReadConversation {
-        party: PERSON,
-        task: ABSENT_TASK,
-        through: 1,
-    }))]));
-    refuses_before_switch(world, core::RestoreChild::People);
+    refuses_before_switch(world);
 }
 
 #[test]
@@ -321,8 +320,8 @@ fn a_crash_during_the_restore_patches_a_fresh_copy_next() {
     world.store.fault(Fault::Hold { commits: 1 });
     world.finish_restore_pages();
     let first_copy_commit = world.store.applied;
-    assert_eq!(world.restart_steps, [core::RestartStep::LoadCore]);
-    assert_eq!(world.domain.restart_step(), Some(core::RestartStep::LoadInbox));
+    assert_eq!(world.restart_steps, RESTORES[..RESTORES.len() - 2]);
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Link));
     assert_eq!(world.domain.settings().newest(), 2);
     assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
     assert_eq!(world.store.generation_contents(b"generations/1"), source);

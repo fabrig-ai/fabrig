@@ -147,10 +147,10 @@ fn repository_rows(repository: skein_forge::api::Repository) -> [Stored; 7] {
             position: skein_forge_client::Position { at: Time::ZERO, comment: 0, review: 0, review_page: 0 },
             listed: Time::ZERO,
             comment_after: 0,
-            comment_page: 0,
+            comment_page: 1,
             comment_scanning: false,
             comment_repair: false,
-            review_page: 0,
+            review_page: 1,
             comments: Box::new([]),
             reviews: Box::new([]),
             cached: Box::new(skein_forge_client::Cached { item: None, pull: None, tip: None }),
@@ -454,7 +454,7 @@ fn production_link_asserts_a_missing_task() {
         d.missing_link(&empty_tasks()),
         Some(MissingLink {
             kind: RecordKind::Names,
-            key: Some(Key::Names(TASK)),
+            key: Key::Names(TASK),
             need: Need::Task { task: TASK, retired: None }
         })
     );
@@ -477,7 +477,7 @@ fn production_link_asserts_a_missing_repository() {
         d.missing_link(&empty_tasks()),
         Some(MissingLink {
             kind: RecordKind::Ci,
-            key: Some(Key::Ci { repository: OTHER_REPOSITORY, head: [3; 32] }),
+            key: Key::Ci { repository: OTHER_REPOSITORY, head: [3; 32] },
             need: Need::Repository(OTHER_REPOSITORY)
         })
     );
@@ -488,7 +488,7 @@ fn production_link_asserts_a_missing_configured_forge() {
     let mut d = domain();
     let mut repository = adopted();
     repository.provider.forge = OTHER_FORGE;
-    let key = Some(Key::Repository(repository.provider));
+    let key = Key::Repository(repository.provider);
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     assert_eq!(
         d.missing_link(&empty_tasks()),
@@ -504,7 +504,7 @@ fn production_link_asserts_a_missing_flight_entry() {
         d.missing_link(&empty_tasks()),
         Some(MissingLink {
             kind: RecordKind::Flight,
-            key: Some(Key::Flight { task: TASK, entry: ENTRY }),
+            key: Key::Flight { task: TASK, entry: ENTRY },
             need: Need::Entry { task: TASK, entry: ENTRY }
         })
     );
@@ -535,7 +535,7 @@ fn production_link_keeps_failed_issue_history_without_a_goal() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut d, Event::Restore { record: failed_history(desired) });
         d.reconcile(&empty_tasks());
-        assert_eq!(d.reconciliation(), Ok(()));
+        assert_eq!(d.missing_link(&empty_tasks()), None);
         let out = outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Wall });
         assert!(!has_projection_effect(&out));
         assert!(d.issue(TASK).expect("retained diagnostic").failed);
@@ -548,7 +548,7 @@ fn production_link_requires_a_failed_issues_repository() {
     outputs(&mut d, Event::Restore { record: failed_history(true) });
     assert_eq!(
         d.missing_link(&empty_tasks()),
-        Some(MissingLink { kind: RecordKind::Issue, key: Some(Key::Issue(TASK)), need: Need::Repository(REPO) })
+        Some(MissingLink { kind: RecordKind::Issue, key: Key::Issue(TASK), need: Need::Repository(REPO) })
     );
 }
 
@@ -557,7 +557,7 @@ fn production_link_preserves_pending_closing_entry_and_flight() {
     let (mut d, _) = closing_history(Some(ENTRY), REPO);
     outputs(&mut d, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
     d.reconcile(&empty_tasks());
-    assert_eq!(d.reconciliation(), Ok(()));
+    assert_eq!(d.missing_link(&empty_tasks()), None);
 }
 
 #[test]
@@ -573,7 +573,7 @@ fn production_link_preserves_retired_demo_owners() {
         outputs(&mut d, Event::Restore { record });
     }
     d.reconcile(&empty_tasks());
-    assert_eq!(d.reconciliation(), Ok(()));
+    assert_eq!(d.missing_link(&empty_tasks()), None);
 }
 
 #[test]
@@ -585,17 +585,25 @@ fn production_link_requires_a_live_unfinished_issues_goal() {
         d.missing_link(&empty_tasks()),
         Some(MissingLink {
             kind: RecordKind::Issue,
-            key: Some(Key::Issue(TASK)),
+            key: Key::Issue(TASK),
             need: Need::Task { task: TASK, retired: Some(REPO.forge) }
         })
     );
 }
 
 #[test]
-#[should_panic(expected = "forge link")]
+#[should_panic(expected = "for Names(7)")]
 fn reconcile_panics_on_a_missing_link() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Names { task: TASK, resources: Box::new([]) } });
+    assert_eq!(
+        d.missing_link(&empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::Names,
+            key: Key::Names(TASK),
+            need: Need::Task { task: TASK, retired: None },
+        })
+    );
     d.reconcile(&empty_tasks());
 }
 
@@ -615,14 +623,14 @@ fn a_missing_link_names_its_row_after_rows_with_multiple_or_no_links() {
         d.missing_link(&empty_tasks()),
         Some(MissingLink {
             kind: RecordKind::Names,
-            key: Some(Key::Names(OTHER_TASK)),
+            key: Key::Names(OTHER_TASK),
             need: Need::Task { task: OTHER_TASK, retired: None },
         })
     );
 }
 
 #[test]
-fn calls_with_the_same_target_keep_the_first_restored_keys_identity() {
+fn calls_with_the_same_target_name_the_first_retained_key() {
     const FIRST_ATTEMPT: u64 = 2;
     const LOWER_ATTEMPT: u64 = 1;
     let mut d = domain();
@@ -641,20 +649,22 @@ fn calls_with_the_same_target_keep_the_first_restored_keys_identity() {
         d.missing_link(&empty_tasks()),
         Some(MissingLink {
             kind: RecordKind::Call,
-            key: Some(Key::Call(NamedCall { task: TASK, attempt: FIRST_ATTEMPT, completion: 1, position: 1 })),
+            key: Key::Call(NamedCall { task: TASK, attempt: LOWER_ATTEMPT, completion: 1, position: 1 }),
             need: Need::Task { task: TASK, retired: None },
         })
     );
 }
 
 #[test]
-fn opaque_client_links_report_repository_and_writer_keys_but_cannot_recover_live_keys() {
+fn opaque_client_links_report_every_referencing_key() {
     for row in repository_rows(OTHER_REPOSITORY) {
         if let Stored::Client(client) = row {
             let expected = match &client {
-                skein_forge_client::Stored::Live(_) => None,
+                skein_forge_client::Stored::Live(row) => {
+                    Key::Client(skein_forge_client::Key::Live(row.watch.resource.clone()))
+                }
                 skein_forge_client::Stored::Repository(row) => {
-                    Some(Key::Client(skein_forge_client::Key::Repository(row.repository)))
+                    Key::Client(skein_forge_client::Key::Repository(row.repository))
                 }
                 skein_forge_client::Stored::Writer(_) => unreachable!("repository fixtures"),
             };
@@ -678,11 +688,7 @@ fn opaque_client_links_report_repository_and_writer_keys_but_cannot_recover_live
     );
     assert_eq!(
         d.missing_link(&empty_tasks()),
-        Some(MissingLink {
-            kind: RecordKind::Client,
-            key: Some(Key::Writer(OTHER_FORGE)),
-            need: Need::Forge(OTHER_FORGE),
-        })
+        Some(MissingLink { kind: RecordKind::Client, key: Key::Writer(OTHER_FORGE), need: Need::Forge(OTHER_FORGE) })
     );
 }
 
