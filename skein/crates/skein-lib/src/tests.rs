@@ -9,6 +9,7 @@ mod containers;
 mod crypto_rng;
 mod decimal;
 mod digest;
+mod growth;
 mod handles;
 mod held;
 mod hex;

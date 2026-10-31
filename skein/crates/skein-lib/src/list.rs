@@ -8,6 +8,8 @@ use core::hash::{Hash, Hasher};
 use core::mem::size_of;
 use core::slice;
 
+use crate::growth::grown;
+
 /// A sequence that grows up to a capacity fixed when it is made, and refuses
 /// past it. It allocates as it fills, never past its capacity and never shrinking.
 #[derive(Debug)]
@@ -15,8 +17,6 @@ pub struct List<T> {
     items: Vec<T>,
     capacity: u32,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> List<T> {
     #[must_use]
@@ -73,7 +73,7 @@ impl<T> List<T> {
     fn grow(&mut self) {
         if self.items.len() == self.items.capacity() {
             let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-            let target = self.items.len().saturating_mul(2).max(GROWTH_FLOOR).min(cap);
+            let target = grown(self.items.len(), 0, cap);
             let additional = target.checked_sub(self.items.len()).expect("room for another item");
             self.items.reserve_exact(additional);
         }

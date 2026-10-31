@@ -7,7 +7,7 @@ worst_case 0
 io_resume 13
 earliest 1
 lifecycle 1
-growth_floor 5
+growth_floor 1
 pop_loop 4
 hex_decimal 7
 host_dispatch 4

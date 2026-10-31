@@ -9,8 +9,10 @@
 use alloc::vec::Vec;
 use core::hash::{Hash, Hasher};
 use core::mem::size_of;
+use core::{iter, slice};
 
 use crate::Id;
+use crate::growth::grown;
 
 /// Entities of one kind, named by `Id<T>`.
 ///
@@ -44,7 +46,28 @@ enum Slot<T> {
     Spent,
 }
 
-const GROWTH_FLOOR: usize = 4;
+/// Occupied entities in slot order, including retired ones until reclaim.
+#[derive(Debug)]
+pub struct SlabIter<'a, T> {
+    slots: iter::Enumerate<slice::Iter<'a, Slot<T>>>,
+}
+
+impl<'a, T> Iterator for SlabIter<'a, T> {
+    type Item = (Id<T>, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for (slot, entry) in self.slots.by_ref() {
+            match entry {
+                Slot::Occupied { generation, retired: _, value } => {
+                    let slot = u32::try_from(slot).expect("fewer slots than the capacity");
+                    return Some((Id::new(slot, *generation), value));
+                }
+                Slot::Vacant { .. } | Slot::Spent => {}
+            }
+        }
+        None
+    }
+}
 
 impl<T> Slab<T> {
     /// Starts without allocating; slots and lists grow as they fill, up to
@@ -121,6 +144,12 @@ impl<T> Slab<T> {
         }
     }
 
+    /// Occupied entities in slot order, including retired ones until `reclaim`.
+    #[must_use]
+    pub fn iter(&self) -> SlabIter<'_, T> {
+        SlabIter { slots: self.slots.iter().enumerate() }
+    }
+
     /// The entity `id` names, or `None` if it has been reclaimed.
     #[must_use]
     pub fn get_mut(&mut self, id: Id<T>) -> Option<&mut T> {
@@ -177,8 +206,17 @@ impl<T> Slab<T> {
 
 /// Additional storage for a full buffer that has room below its cap.
 fn growth(len: usize, capacity: u32) -> usize {
-    let target = len.saturating_mul(2).max(GROWTH_FLOOR).min(index(capacity));
+    let target = grown(len, 0, index(capacity));
     target.checked_sub(len).expect("room for another item")
+}
+
+impl<'a, T> IntoIterator for &'a Slab<T> {
+    type Item = (Id<T>, &'a T);
+    type IntoIter = SlabIter<'a, T>;
+
+    fn into_iter(self) -> SlabIter<'a, T> {
+        self.iter()
+    }
 }
 
 fn index(slot: u32) -> usize {
