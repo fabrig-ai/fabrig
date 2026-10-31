@@ -575,6 +575,8 @@ pub(crate) fn answer(engine: &mut Engine) {
             event @ (jig_protocol_store::Event::Committed { .. }
             | jig_protocol_store::Event::Failed { .. }
             | jig_protocol_store::Event::FrameTooLarge { .. }
+            | jig_protocol_store::Event::Page { .. }
+            | jig_protocol_store::Event::PageRefused { .. }
             | jig_protocol_store::Event::Restored { .. }
             | jig_protocol_store::Event::Loaded { .. }
             | jig_protocol_store::Event::Read { .. }

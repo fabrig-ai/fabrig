@@ -760,6 +760,7 @@ impl Clients {
     fn secret_answer(&mut self, answer: jig_protocol_store::Event) {
         use jig_protocol_store::Event;
         let event = match answer {
+            Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Kept { owner } => kit::SecretsAnswer::Kept { owner: self.owner(owner) },
             Event::Erased { owner } => kit::SecretsAnswer::Erased { owner: self.owner(owner) },
             Event::Carried { owner, number } => {

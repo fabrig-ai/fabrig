@@ -332,7 +332,7 @@ fn missing_forge_links_panic_before_startup_wires() {
     assert!(message.contains("forge link Names -> Task { task: 999, retired: None }"), "{message}");
     assert_eq!(service.end(), None, "no startup refusal");
     let engine = service.engine.as_ref().expect("linking engine");
-    assert_eq!(engine.domain.forge_restore_failure(), None, "no compatibility refusal recorded");
+    assert_eq!(engine.domain.start_stop(), None, "no startup refusal recorded");
     assert!(!engine.store.component.mark_durable(), "no start wires before link");
     assert!(!engine.domain.connectors_restored(), "no adoption before link");
     assert!(!engine.domain.ready(), "no decisions before link");
