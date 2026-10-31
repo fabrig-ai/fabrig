@@ -339,6 +339,7 @@ impl World {
     }
 
     #[expect(clippy::wildcard_enum_match_arm, reason = "the world records only its scripted root deliveries")]
+    #[expect(clippy::too_many_lines, reason = "one dispatch handles the root's requests and scripted deliveries")]
     fn collect(&mut self) {
         for _ in 0..self.out.len() {
             let request = match self.protocol.play(self.out.pop().expect("counted root output")) {
