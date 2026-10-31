@@ -105,9 +105,8 @@ mod tests {
                 if index < 2 { io::Request::Listen { owner, addr } } else { io::Request::Connect { owner, addr } };
             io::down(&mut io, &env, request, &mut submits);
         }
-        while io.is_ready() {
-            io::resume(&mut io, &env, &mut events, &mut submits);
-        }
+        let mut completions = Queue::with_capacity(0);
+        io::stage::up(&mut io, &env, &mut completions, &mut events, &mut submits);
         let mut result = Vec::new();
         while let Some(event) = events.pop() {
             result.push(event);

@@ -5,8 +5,7 @@ use skein_io::{
     self as io,
     kernel::{Signal, Target},
 };
-use skein_lib::Token;
-use std::collections::VecDeque;
+use skein_lib::{Queue, Token};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Phase {
@@ -42,7 +41,7 @@ impl Closing {
             Some(Request::Close { entity: BROWSER })
         }
     }
-    pub fn browser_closed(&mut self, owner: Token, requests: &mut VecDeque<io::Request>) {
+    pub fn browser_closed(&mut self, owner: Token, requests: &mut Queue<io::Request>) {
         if owner == BROWSER && self.phase == Phase::Browser {
             self.phase = Phase::Child;
             if let Some(child) = self.browser {
@@ -51,21 +50,21 @@ impl Closing {
         }
     }
     /// The run's existing closing deadline forces the browser child first.
-    pub fn force(&mut self, requests: &mut VecDeque<io::Request>) {
+    pub fn force(&mut self, requests: &mut Queue<io::Request>) {
         match self.phase {
             Phase::Browser | Phase::Child => {
                 if let Some(child) = self.browser {
                     if self.phase == Phase::Browser {
                         end(child, requests);
                     }
-                    requests.push_back(io::Request::Close { entity: child });
+                    requests.push(io::Request::Close { entity: child });
                 }
                 self.phase = Phase::Forced;
             }
             Phase::Open | Phase::Forced | Phase::Server => {}
         }
     }
-    pub fn io_event(&mut self, event: &io::Event, requests: &mut VecDeque<io::Request>) {
+    pub fn io_event(&mut self, event: &io::Event, requests: &mut Queue<io::Request>) {
         match event {
             io::Event::Spawned { owner, child, .. } => {
                 if *owner == PROCESS {
@@ -74,7 +73,7 @@ impl Closing {
                         Phase::Child | Phase::Forced => {
                             end(*child, requests);
                             if self.phase == Phase::Forced {
-                                requests.push_back(io::Request::Close { entity: *child });
+                                requests.push(io::Request::Close { entity: *child });
                             }
                         }
                         Phase::Open | Phase::Browser | Phase::Server => {}
@@ -111,7 +110,7 @@ impl Closing {
         }
         self.advance(requests);
     }
-    pub fn advance(&mut self, requests: &mut VecDeque<io::Request>) {
+    pub fn advance(&mut self, requests: &mut Queue<io::Request>) {
         if self.active() && self.browser_exited && self.phase != Phase::Server {
             self.phase = Phase::Server;
             if let Some(child) = self.server {
@@ -120,6 +119,6 @@ impl Closing {
         }
     }
 }
-fn end(child: Token, requests: &mut VecDeque<io::Request>) {
-    requests.push_back(io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child });
+fn end(child: Token, requests: &mut Queue<io::Request>) {
+    requests.push(io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child });
 }

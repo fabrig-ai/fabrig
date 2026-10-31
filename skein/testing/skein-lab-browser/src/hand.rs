@@ -725,9 +725,9 @@ impl Hand {
         self.closed(super::BROWSER)?;
         self.rt.proxy.stop();
         if let Some(entity) = self.rt.signals.take() {
-            self.rt.requests.push_back(io::Request::Close { entity });
+            self.rt.requests.push(io::Request::Close { entity });
         }
-        self.rt.requests.push_back(io::Request::Close { entity: self.rt.output });
+        self.rt.requests.push(io::Request::Close { entity: self.rt.output });
         let deadline = self.rt.deadline("the hand shutdown", Duration::from_secs(8));
         while !self.rt.settled() {
             self.pump()?;
