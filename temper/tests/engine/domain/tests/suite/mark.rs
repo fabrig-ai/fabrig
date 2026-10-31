@@ -26,7 +26,7 @@ fn the_forge_reaches_no_forge_before_the_mark() {
         request: engine::Application::Forge(forge::Ask::Adopt(fixtures::adoption(1))),
     }));
     running.settle();
-    let mut store = running.store;
+    let mut store = running.take_store();
     let change = temper_engine_forge_world::changes::change_row();
     let entry = Entry {
         number: ENTRY,

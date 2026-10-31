@@ -808,13 +808,7 @@ impl Referee<Proc> for Judge {
             github_cues(state, peer, service, caller, children);
         }
         service.address = peer.address();
-        Lifecycle::release(
-            caller,
-            service.links(),
-            workers.iter().all(
-                |proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0),
-            ),
-        );
+        Lifecycle::release(caller, service.links(), story_ready(service, workers));
         if !caller.released && service.is_empty() {
             self.fail_startup(service.early_exit(engine_index), caller, workers, caller_end);
             self.finish_peers(peer, children);
@@ -923,7 +917,7 @@ impl Referee<Proc> for Judge {
             || (peer.address().is_some() && service.address.is_none())
             || (service.links() != 0
                 && !caller.released
-                && workers.iter().all(|proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0)))
+                && story_ready(service, workers))
             || (caller.watching.is_some() && (!service.watching() || service.delivered() && !caller.watched))
             || (caller.is_empty() && self.children.settled(children) && !self.lifecycle.stopping)
             || (service.is_empty() && !self.lifecycle.finished && (!caller.released || caller.is_empty()))
@@ -945,6 +939,13 @@ impl Referee<Proc> for Judge {
     fn passed(&self) -> bool {
         self.lifecycle.passed(self.failure.is_some())
     }
+}
+
+fn story_ready(service: &ServiceHost, workers: &[Proc]) -> bool {
+    service.fixture_ready()
+        && workers
+            .iter()
+            .all(|proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0))
 }
 
 fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], children: &[Proc]) {

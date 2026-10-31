@@ -14,7 +14,7 @@ use crate::{
 };
 use skein_lib::Token;
 
-mod selection;
+mod reports;
 
 const DUE: u64 = 1;
 const RUNNING: u64 = 2;
@@ -82,29 +82,6 @@ fn a_delegates_words_from_a_person_restore() {
     assert_eq!(cold.domain.task(DELEGATE).expect("restored delegate").inbox[0].from, crate::Party::Person(PERSON));
 }
 
-#[test]
-fn a_delegates_question_or_answer_from_a_person_refuses() {
-    for kind in [crate::MessageKind::Question, crate::MessageKind::Answer { question: WORD }] {
-        let source = delegate_with_person_word(kind);
-        refused_delegate(&source);
-    }
-}
-
-#[test]
-fn a_delegates_words_from_person_zero_refuse() {
-    let mut source = delegate_with_person_word(crate::MessageKind::Words);
-    let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DELEGATE)) else { panic!("delegate fixture") };
-    row.inbox[0].from = crate::Party::Person(0);
-    refused_delegate(&source);
-}
-
-fn refused_delegate(source: &Harness) {
-    let mut cold = Harness::new();
-    cold.domain = Domain::new(&LIMITS, 91, source.domain.newest(), super::charters(), Box::new([0]));
-    let row = source.stored.get(&Key::Live(DELEGATE)).expect("delegate row").clone();
-    refusal(&cold.send(Event::Restore { record: row }), Refusal::Restore);
-}
-
 fn refusal(out: &[Request], why: Refusal) {
     let [Request::RestoreRefused { problem }] = out else { panic!("one restore refusal: {out:?}") };
     assert_eq!(problem.why, why);
@@ -119,75 +96,6 @@ fn lifecycle(request: &Request) -> bool {
         | Request::Release { .. } => true,
         _ => false,
     }
-}
-
-fn refused_at_check(mut cold: Harness) {
-    refusal(&cold.send(Event::Check), Refusal::Restore);
-    assert!(!cold.domain.checked());
-    assert!(cold.send(Event::Restored).is_empty(), "failed checks never replay");
-}
-
-#[test]
-fn a_broken_task_link_refuses_at_check() {
-    let mut source = one_task();
-    let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("live fixture") };
-    row.root = UNNAMED;
-    refused_at_check(cold(&source));
-}
-
-#[test]
-fn a_stub_named_by_no_live_task_refuses_at_check() {
-    let mut cold = cold(&one_task());
-    cold.send(Event::Restore {
-        record: Stored::Stub(Stub { task: UNNAMED, phase: Status::Done, result: Token::new(UNNAMED) }),
-    });
-    refused_at_check(cold);
-}
-
-#[test]
-fn a_writer_without_a_holder_refuses_at_check() {
-    let mut cold = cold(&one_task());
-    cold.send(Event::Restore {
-        record: Stored::Writer(WriterSlot {
-            number: 1,
-            resource: Name { connector: 1, path: Box::new([b"writer".as_slice().into()]) },
-            writer: Writer::Effect { entry: 1 },
-            lost: false,
-        }),
-    });
-    refused_at_check(cold);
-}
-
-#[test]
-fn unrepresentable_eventual_funding_refuses_at_check() {
-    let mut source = one_task();
-    let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("live fixture") };
-    row.numbers.spent = 1;
-    let funder = row.funder;
-    let Some(Stored::Ledger(row)) = source.stored.get_mut(&Key::Ledger(funder)) else { panic!("ledger fixture") };
-    row.numbers.budget = u64::MAX;
-    row.numbers.reserved = 0;
-    row.numbers.spent_below = u64::MAX;
-    refused_at_check(cold(&source));
-}
-
-#[test]
-fn restored_before_check_refuses_and_never_replays() {
-    let mut cold = cold(&one_task());
-    refusal(&cold.send(Event::Restored), Refusal::NotReady);
-    assert!(cold.send(Event::Check).is_empty());
-    assert!(cold.send(Event::Restored).is_empty());
-    assert!(!cold.domain.checked());
-}
-
-#[test]
-fn restoring_another_row_after_check_refuses_the_start() {
-    let source = one_task();
-    let mut cold = cold(&source);
-    cold.send(Event::Check);
-    let out = cold.send(Event::Restore { record: source.stored[&Key::Live(DUE)].clone() });
-    refusal(&out, Refusal::NotReady);
-    assert!(cold.send(Event::Restored).is_empty());
 }
 
 fn replay_fixture() -> Harness {
@@ -226,6 +134,14 @@ fn replay_fixture() -> Harness {
 
 #[test]
 fn checked_tasks_replay_each_lifecycle_request_exactly_once() {
+    #[derive(Debug, PartialEq, Eq)]
+    enum Replay {
+        Activate(u64),
+        Adopt(u64),
+        Stop(u64),
+        Close(u64),
+        Release(u64),
+    }
     let mut cold = replay_fixture();
     assert!(cold.send(Event::Check).is_empty());
     assert!(cold.domain.checked());
@@ -236,85 +152,27 @@ fn checked_tasks_replay_each_lifecycle_request_exactly_once() {
         .into_iter()
         .filter(lifecycle)
         .map(|request| match request {
-            Request::Activate { context } => ("activate", context.task),
-            Request::Adopt { task, attempt: ATTEMPT, kept: 0 } => ("adopt", task),
-            Request::Stop { task, attempt: ATTEMPT } => ("stop", task),
-            Request::Close { task, ending: Ending::Failed { .. } } => ("close", task),
-            Request::Release { task, ending: Ending::Failed { .. } } => ("release", task),
+            Request::Activate { context } => Replay::Activate(context.task),
+            Request::Adopt { task, attempt: ATTEMPT, kept: 0 } => Replay::Adopt(task),
+            Request::Stop { task, attempt: ATTEMPT } => Replay::Stop(task),
+            Request::Close { task, ending: Ending::Failed { .. } } => Replay::Close(task),
+            Request::Release { task, ending: Ending::Failed { .. } } => Replay::Release(task),
             other => panic!("unexpected replay {other:?}"),
         })
         .collect();
     assert_eq!(
         lifecycle,
         [
-            ("activate", DUE),
-            ("adopt", RUNNING),
-            ("adopt", STOPPING),
-            ("stop", STOPPING),
-            ("close", EFFECTS),
-            ("release", RELEASING)
+            Replay::Activate(DUE),
+            Replay::Adopt(RUNNING),
+            Replay::Adopt(STOPPING),
+            Replay::Stop(STOPPING),
+            Replay::Close(EFFECTS),
+            Replay::Release(RELEASING)
         ]
     );
     assert!(cold.domain.ready());
     assert!(cold.send(Event::Restored).is_empty(), "duplicate completion cannot replay work");
-}
-
-#[test]
-fn a_circle_waiter_is_held_and_written_at_check() {
-    use crate::{Hold, HoldKind, Holding, Kind, Party, Taken};
-    const HOLDER: u64 = 1;
-    const DELEGATE: u64 = 2;
-    const WAITER: u64 = 3;
-    let name = Name { connector: 1, path: Box::new([b"resource".as_slice().into()]) };
-    let kinds = Box::new([Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
-    let mut source = Harness::new();
-    source.send(Event::Kinds { connector: 1, kinds: kinds.clone() });
-    let mut holder = task(HOLDER, &[]);
-    holder.holdings = Box::new([Holding::Write { resource: name.clone(), kind: 1 }]);
-    let mut waiter = task(WAITER, &[]);
-    waiter.holdings = Box::new([Holding::Write { resource: name, kind: 1 }]);
-    source.make(vec![holder, waiter]);
-    source.send(Event::Make {
-        reply_to: super::revisions::to(),
-        creator: Party::Task(HOLDER),
-        batch: Box::new([task(DELEGATE, &[])]),
-    });
-    let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DELEGATE)) else { panic!("delegate fixture") };
-    row.dependencies = Box::new([WAITER]);
-    row.waiting_on = Box::new([WAITER]);
-    row.phase = Phase::Waiting;
-    row.holds_taken = false;
-    let mut cold = cold(&source);
-    let out = cold.send(Event::Check);
-    assert!(cold.domain.checked(), "{out:?}");
-    assert!(
-        out.iter().any(|request| match request {
-            Request::Save { record: Stored::Live(row) } if row.number == WAITER => match row.phase {
-                Phase::Held { why: Hold::Circle, .. } => true,
-                _ => false,
-            },
-            _ => false,
-        }),
-        "the repaired hold is durable before switching: {out:?}"
-    );
-    assert!(!out.iter().any(lifecycle), "no replay at Check");
-}
-
-fn cold_load_fit_link(source: &Harness) -> Harness {
-    let mut cold = Harness::new();
-    cold.domain = Domain::new(&LIMITS, 91, source.domain.newest(), super::charters(), Box::new([0]));
-    cold.domain.start_restore();
-    cold.stored.clear();
-    for (key, hold) in &source.domain.hold_kinds {
-        cold.send(Event::Kinds {
-            connector: key.connector,
-            kinds: Box::new([crate::Kind { connector: key.connector, kind: key.kind, hold: *hold }]),
-        });
-    }
-    for row in source.stored.values().filter(|row| row.key().live()) {
-        cold.send(Event::Restore { record: row.clone() });
-    }
-    cold
 }
 
 #[test]
@@ -334,7 +192,7 @@ fn a_delegates_words_do_not_repeat_person_admission() {
 }
 
 fn loaded_delegate(source: &Harness) {
-    let mut restored = cold_load_fit_link(source);
+    let mut restored = cold(source);
     assert!(restored.send(Event::Check).is_empty());
     assert!(restored.domain.checked());
     assert_eq!(
@@ -352,12 +210,12 @@ fn a_broken_task_link_panics_at_link() {
     let mut source = one_task();
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("live fixture") };
     row.root = UNNAMED;
-    cold_load_fit_link(&source).send(Event::Check);
+    cold(&source).send(Event::Check);
 }
 
 #[test]
 fn a_stub_is_retained_without_rejudging_reciprocal_references() {
-    let mut cold = cold_load_fit_link(&one_task());
+    let mut cold = cold(&one_task());
     cold.send(Event::Restore {
         record: Stored::Stub(Stub { task: UNNAMED, phase: Status::Done, result: Token::new(UNNAMED) }),
     });
@@ -368,7 +226,7 @@ fn a_stub_is_retained_without_rejudging_reciprocal_references() {
 #[test]
 #[should_panic(expected = "restore Writer(1): missing hold owner")]
 fn a_writer_without_a_holder_panics_at_link() {
-    let mut cold = cold_load_fit_link(&one_task());
+    let mut cold = cold(&one_task());
     cold.send(Event::Restore {
         record: Stored::Writer(WriterSlot {
             number: 1,

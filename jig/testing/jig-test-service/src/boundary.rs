@@ -29,6 +29,9 @@ pub enum Stop {
     CommitFailed { number: u64 },
     Start(Problems),
     Listener,
+    StoreOpen { phase: Option<core::start::Phase>, failure: jig_protocol_store::restore::OpenFailure },
+    StorePage { phase: Option<core::start::Phase>, failure: jig_protocol_store::restore::Failure },
+    StartCore { phase: Option<core::start::Phase>, failure: core::start::Failure },
 }
 #[derive(Debug)]
 pub enum PartyOutput {

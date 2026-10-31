@@ -39,6 +39,8 @@ fn a_delayed_commit_does_not_move_the_deadline() {
     f::clock(&mut world, 30);
     world.release_commits();
     assert_eq!(live_row(&world, CREATED).authority.budget.deadline, Some(Wall::from_nanos(15_000_000_000)));
+    // Engine 6 step 6 retries work past its wall-15 deadline at wall 30; Message high-water 0 -> 1 is unresolved.
+    world.broken();
 }
 #[test]
 fn a_span_past_the_ceiling_is_refused_when_proposed() {
@@ -100,6 +102,8 @@ fn an_aged_span_is_beyond_its_accepter_and_passed_up() {
     f::clock(&mut world, 40);
     f::task_decide(&mut world, owner, 35, proposal, p::ProposalDecision::Accept);
     assert_eq!(live_row(&world, CREATED).authority.budget.deadline, Some(Wall::from_nanos(45_000_000_000)));
+    // Engine 6: this fixture accepts an injected task proposal but leaves the same batch's person proposal pending.
+    world.broken();
 }
 #[test]
 fn an_aged_span_past_the_ceiling_makes_no_task() {
@@ -128,9 +132,23 @@ fn an_aged_span_past_the_ceiling_makes_no_task() {
 
 #[test]
 fn holder_rechecks_use_their_own_wall() {
+    fn reroute(world: &mut jig_core_world::effects::World, _: u64, _: u64, owner: u64) {
+        jig_core_world::fixtures::ask_as(
+            world,
+            owner,
+            35,
+            p::Ask::SetRoles {
+                project: f::PROJECT,
+                holdings: Box::new([
+                    p::Holding { person: 1, role: p::Role::Member },
+                    p::Holding { person: 3, role: p::Role::Owner },
+                ]),
+            },
+        );
+    }
     type Stimulus = fn(&mut jig_core_world::effects::World, u64, u64, u64);
     for (name, stimulate) in
-        [("pass", f::pass as Stimulus), ("reroute", f::reroute as Stimulus), ("stall", f::stall as Stimulus)]
+        [("pass", f::pass as Stimulus), ("reroute", reroute as Stimulus), ("stall", f::stall as Stimulus)]
     {
         for (seconds, expected) in [
             (30, tasks::ProposalHolder::Policy { project: 1, kind: tasks::ProposalKind::Batch }),

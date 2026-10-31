@@ -531,10 +531,7 @@ fn restart_with(d: &mut Driver, configuration: engine::Config) {
     assert!(d.root.ready() && !d.stopped);
 }
 fn reopen(d: &mut Driver, configuration: engine::Config) {
-    d.root = engine::Domain::new(configuration, &d.env.limits).expect("restart config");
-    d.events.clear();
-    d.delivered.clear();
-    d.send(engine::Event::Restart { pending: false });
+    d.reopen(configuration);
     d.pump();
 }
 fn assert_erased(d: &Driver, rows: &[forge::DemoAct]) {
@@ -787,15 +784,19 @@ fn a_bad_release_template_stops_before_a_demo_end_is_replayed() {
     let mut configuration = config(false);
     configuration.core.defaults.templates[0].grace = Some(Duration::from_secs(6));
     reopen(&mut d, configuration);
+    d.broken("invalid stored template deliberately refuses startup before admission");
     assert!(d.stopped);
     assert_eq!(
-        d.root.restore_failure(),
-        Some(core::RestartRequest::Settings {
-            failure: core::settings::Failure {
-                setting: core::settings::Setting::Template(1),
-                fault: core::settings::Fault::Grace
-            },
-            changed: false,
+        d.root.start_stop(),
+        Some(engine::StartStop::Core {
+            phase: Some(core::start::Phase::LoadCore),
+            failure: core::start::Failure::Settings {
+                failure: core::settings::Failure {
+                    setting: core::settings::Setting::Template(1),
+                    fault: core::settings::Fault::Grace
+                },
+                changed: false,
+            }
         })
     );
     assert_eq!(kept_acts(&d), vec![row]);

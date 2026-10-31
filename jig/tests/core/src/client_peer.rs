@@ -122,7 +122,6 @@ impl ClientPeer {
             },
             root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
-            | root::Delivery::Restart(_)
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
@@ -131,6 +130,7 @@ impl ClientPeer {
             | root::Delivery::Fleet(_)
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
+            | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => false,
         }
     }

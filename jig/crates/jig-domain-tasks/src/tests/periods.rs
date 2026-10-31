@@ -40,28 +40,20 @@ fn supplied_period_boundaries_preserve_the_opening_wall_across_duplicates_and_re
 }
 
 #[test]
-fn cold_restore_refuses_a_period_without_its_actual_opening_fact() {
+fn restoring_period_facts_does_not_repeat_funding_shape_admission() {
     let test = Harness::new();
-    let mut row = *test.domain.funding(Funder::Period { project: 1, period: 0 }).unwrap();
-    let original = row;
-    for invalid in [false, true] {
-        row = original;
-        if invalid {
-            row.funder = Funder::Pool { project: 1, period: 0, person: 9 };
-            row.parent = Some(original.funder);
-        } else {
-            row.period = None;
-        }
+    let original = *test.domain.funding(Funder::Period { project: 1, period: 0 }).unwrap();
+    let mut without_opening = original;
+    without_opening.period = None;
+    let mut pool_with_opening = original;
+    pool_with_opening.funder = Funder::Pool { project: 1, period: 0, person: 9 };
+    pool_with_opening.parent = Some(original.funder);
+    for row in [without_opening, pool_with_opening] {
         let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
         let mut out = Queue::uncapped();
         step(&mut domain, &test.env, Event::Restore { record: Stored::Ledger(row) }, &mut out);
-        let mut refused = false;
-        while let Some(request) = out.pop() {
-            if let Request::RestoreRefused { .. } = request {
-                refused = true;
-            }
-        }
-        assert!(refused);
+        assert!(out.is_empty());
+        assert_eq!(domain.funding(row.funder), Some(&row));
     }
 }
 
@@ -87,21 +79,14 @@ fn a_closed_period_leaves_memory_and_saves_under_closed_ledger() {
 }
 
 #[test]
-fn a_restored_closed_ledger_refuses_the_start() {
+#[should_panic(expected = "restore ClosedLedger(Period { project: 1, period: 0 }): historical row in live load")]
+fn a_closed_ledger_is_outside_the_live_restore_ranges() {
     let test = Harness::new();
     let mut row = *test.domain.funding(Funder::Period { project: 1, period: 0 }).unwrap();
     row.closed = true;
     let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
     let mut out = Queue::uncapped();
     step(&mut domain, &test.env, Event::Restore { record: Stored::ClosedLedger(row) }, &mut out);
-    let mut refused = false;
-    while let Some(request) = out.pop() {
-        if let Request::RestoreRefused { .. } = request {
-            refused = true;
-        }
-    }
-    assert!(refused);
-    assert!(!domain.ready());
 }
 
 #[test]
@@ -213,7 +198,6 @@ fn cold_restore_retains_period_facts_without_rejudging_family_shape() {
             row.period = None;
         }
         let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
-        domain.start_restore();
         let mut out = Queue::uncapped();
         step(&mut domain, &test.env, Event::Restore { record: Stored::Ledger(row) }, &mut out);
         let mut refused = false;

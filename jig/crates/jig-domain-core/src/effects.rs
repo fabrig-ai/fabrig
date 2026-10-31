@@ -424,6 +424,7 @@ pub(crate) fn connector(
         | connector::Event::SectionReady { .. }
         | connector::Event::WorkspaceReady { .. }
         | connector::Event::Adopted { .. }
+        // The root maps connector completion to start_done for the phase it is serving.
         | connector::Event::RestartDone { .. } => {}
     }
     end(&mut out);

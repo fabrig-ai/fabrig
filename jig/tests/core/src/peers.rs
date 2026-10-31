@@ -221,7 +221,6 @@ impl Peers {
             }
             root::Delivery::Application { .. }
             | root::Delivery::LostRead { .. }
-            | root::Delivery::Restart(_)
             | root::Delivery::Core(_)
             | root::Delivery::Fleet(_)
             | root::Delivery::ApplicationDocument { .. }
@@ -231,6 +230,7 @@ impl Peers {
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::System { .. }
+            | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => {}
         }
     }

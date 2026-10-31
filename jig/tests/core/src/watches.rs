@@ -202,14 +202,16 @@ impl Parties {
             | root::Event::Failed { .. }
             | root::Event::Connector { .. }
             | root::Event::Stop
-            | root::Event::Switched
-            | root::Event::RestartBegin { .. }
-            | root::Event::RestartDone(_)
             | root::Event::ConnectorTimer { .. }
             | root::Event::ProjectionEffect { .. }
             | root::Event::TopicCall { .. }
             | root::Event::EffectCall { .. }
             | root::Event::CallAnswered { .. }
+            | root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_)
             | root::Event::TranscriptLoaded { .. } => {}
         }
     }
@@ -363,7 +365,6 @@ impl Parties {
             root::Delivery::Core(_)
             | root::Delivery::ApplicationRead { .. }
             | root::Delivery::Application { .. }
-            | root::Delivery::Restart(_)
             | root::Delivery::Fleet(_)
             | root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
@@ -374,6 +375,7 @@ impl Parties {
             | root::Delivery::CallAnswer { .. }
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
+            | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => {}
         }
     }

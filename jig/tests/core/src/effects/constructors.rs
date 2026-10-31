@@ -92,7 +92,7 @@ impl World {
     #[must_use]
     pub fn first_start(configuration: root::Config, limits: root::Limits) -> World {
         let mut world = Self::empty(configuration, &limits);
-        world.send(root::Event::RestartBegin { pending: world.store.generation_pending });
+        world.send(root::Event::StartBegin { pending: world.store.generation_pending });
         world
     }
 
@@ -101,11 +101,8 @@ impl World {
     pub fn first_start_with_accounts(configuration: root::Config, limits: &root::Limits) -> World {
         let rows = crate::fixtures::account_rows(&configuration.core.settings.llm_providers);
         let mut world = Self::empty(configuration, limits);
-        let env = world.env();
-        for row in rows {
-            assert!(root::restore_record(&mut world.domain, &env, row));
-        }
-        world.send(root::Event::RestartBegin { pending: world.store.generation_pending });
+        world.fixture_rows = rows;
+        world.send(root::Event::StartBegin { pending: world.store.generation_pending });
         world
     }
 
@@ -228,7 +225,7 @@ impl World {
     }
 
     fn configured_with_rows_and_sets(
-        seed: u64,
+        _seed: u64,
         requirement: bool,
         configuration: root::Config,
         limits: &root::Limits,
@@ -237,46 +234,23 @@ impl World {
         startup: (jig_protocol_store::PatchSets, Option<fn(&mut root::Domain)>),
     ) -> World {
         let (sets, setup) = startup;
-        // This domain only journals roles before the exact effect configuration
-        // is installed and restored below; its bootstrap needs no effect grants.
-        let bootstrap = crate::world::config(seed);
-        let mut world = Self::empty_with_sets(bootstrap, limits, sets);
-        world.creating = crate::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
-        world.initial_ask = initial;
-        world.send(root::Event::Core(core::Event::People(people::Event::Roles { project: 1, holdings: Box::new([]) })));
         let projects: Vec<_> = configuration
             .core
             .seed_projects
             .iter()
             .map(|project| (project.number, project.policy.policy.period_spend))
             .collect();
-        world.observer = crate::observations::Observer::new(&configuration);
-        world.bootstrap_owners = configuration.core.owners.to_vec();
-        world.observer.durable(world.wall, &world.store);
-        world.store.reconfigure(18, &configuration.core.settings.models);
-        let mut rows = rows.into_vec();
-        rows.extend(crate::fixtures::project_policy_rows(&configuration.core));
-        rows.extend(
-            root::initial_settings(&configuration.core.defaults).into_vec().into_iter().map(root::Record::Core),
-        );
-        world.seed(rows.into_boxed_slice());
-        world.move_provider =
-            configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
-        world.domain = root::Domain::new(configuration, limits);
+        let mut world = Self::empty_with_sets(configuration, limits, sets);
+        world.initial_ask = initial;
+        world.fixture_rows = rows;
         world.startup = setup;
         if let Some(setup) = setup {
             setup(&mut world.domain);
         }
-        world.send(root::Event::RestartBegin { pending: world.store.generation_pending });
+        world.send(root::Event::StartBegin { pending: world.store.generation_pending });
         world.hello_engine();
         for (project, budget) in projects {
             world.send(root::Event::Core(core::Event::Period { project, period: 1, budget, next: None }));
-            if project != 1 {
-                world.send(root::Event::Core(core::Event::People(people::Event::Roles {
-                    project,
-                    holdings: Box::new([]),
-                })));
-            }
         }
         world.events.extend([
             root::Event::Core(core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
@@ -327,12 +301,14 @@ impl World {
         let creating = crate::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
         let initial_ask = initial_request(&configuration, &creating);
         let protocol = crate::protocol::Stand::with_models(limits.core, &configuration.core.settings.models);
-        let store = Store::with_patch_sets(limits, &configuration.core.settings.models, sets);
+        let store = Store::starting_with_patch_sets(limits, &configuration.core.settings.models, sets);
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
+            broken: false,
+            oracle_closed: false,
+            restart_config: (crate::oracle::configuration(&configuration), *limits),
             startup: None,
-            bootstrap_owners: Vec::new(),
-            fixture_accounts: Box::new([]),
+            fixture_rows: Box::new([]),
             domain: root::Domain::new(configuration, limits),
             store,
             systems: [System::new(), System::new()],
@@ -469,16 +445,16 @@ impl World {
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
         }
-        world.fixture_accounts.clone_from(&rows);
-        let env = world.env();
-        for row in rows {
-            assert!(root::restore_record(&mut world.domain, &env, row));
-        }
+        world.fixture_rows = rows;
         let mut peers = peers;
         peers.creating = Some(world.creating.clone());
         world.peers = Some(peers);
         world.cut = cut;
-        world.events.push_back(root::Event::RestartBegin { pending: world.store.generation_pending });
+        world.events.push_back(root::Event::StartBegin { pending: world.store.generation_pending });
+        world.drain();
+        if world.reached_cut.is_some() {
+            return world;
+        }
         world.hello_engine();
         world.events.push_back(root::Event::Core(core::Event::Account(accounts::Event::Component(
             accounts::FromComponent::Granted {

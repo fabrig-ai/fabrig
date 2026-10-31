@@ -17,6 +17,7 @@ pub struct Routes {
     commit: u64,
     limits: engine::loads::Limits,
     families: families::Bounds,
+    page_failure: Option<store::restore::Failure>,
 }
 #[derive(Debug)]
 pub(super) struct Flight {
@@ -40,7 +41,13 @@ impl Routes {
             commit: 0,
             limits: limits.loads,
             families,
+            page_failure: None,
         }
+    }
+    /// The store's typed cause for the refused startup page.
+    #[must_use]
+    pub(crate) fn page_failure(&self) -> Option<&store::restore::Failure> {
+        self.page_failure.as_ref()
     }
     /// Whether every routed load has had its terminal.
     #[must_use]
@@ -126,7 +133,7 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
             let offset = routes.continuation(&range, after.as_ref());
             let owner = routes.token()?;
             let flight = Flight { root, range, after, most, bytes, offset, waiting: true, cursor: None };
-            let request = if ranges::restarting(&flight.range) {
+            let request = if ranges::starting(&flight.range) {
                 ranges::request(owner, &flight).expect("usable translated startup request")
             } else {
                 ranges::request(owner, &flight)?
@@ -140,12 +147,32 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
 /// Every store terminal is accepted independently of journal room.
 pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
     match event {
+        store::Event::Page { owner, items, next } => {
+            let Some(flight) = routes.pending.get(&owner) else { return };
+            let root_owner = flight.root;
+            let mut rows = List::with_capacity(u32::try_from(items.len()).expect("bounded startup items"));
+            for item in items {
+                match item {
+                    store::restore::Item::Row(row) => rows.push(row).expect("one row per item"),
+                    store::restore::Item::MissingLink { record, target } => {
+                        root(into, engine::StoreInput::MissingLink { owner: root_owner, record, target });
+                    }
+                }
+            }
+            page(routes, owner, rows.into_boxed(), next, None, into);
+        }
+        store::Event::PageRefused { owner, failure } => {
+            if let Some(flight) = routes.pending.remove(&owner) {
+                routes.page_failure = Some(failure);
+                root(into, engine::StoreInput::Unloaded { owner: flight.root });
+            }
+        }
         store::Event::Committed { number, fill } => root(into, engine::StoreInput::Committed { number, fill }),
         store::Event::Failed { number } => root(into, engine::StoreInput::Uncommitted { number }),
         store::Event::FrameTooLarge { number, task, bytes, limit } => {
             into.push(Up::FrameTooLarge { number, task, bytes, limit });
         }
-        store::Event::Restored { owner, rows, next } | store::Event::Loaded { owner, rows, next } => {
+        store::Event::Loaded { owner, rows, next } => {
             page(routes, owner, rows, next, None, into);
         }
         store::Event::Got { owner, mut row } => {
@@ -247,7 +274,7 @@ fn page(
         if !ranges::keeps(&flight.range, &key) {
             continue;
         }
-        if !ranges::restarting(&flight.range)
+        if !ranges::starting(&flight.range)
             && let Some(after) = &flight.after
         {
             let (Some(position), Some(start)) =
@@ -276,11 +303,11 @@ fn page(
         last = Some(key);
         decoded.push(record).expect("checked prefix");
     }
-    if cutting && (ranges::restarting(&flight.range) || decoded.is_empty()) {
+    if cutting && (ranges::starting(&flight.range) || decoded.is_empty()) {
         page_failed(routes, &flight, into);
         return;
     }
-    let startup_next = if ranges::restarting(&flight.range) {
+    let startup_next = if ranges::starting(&flight.range) {
         match &cursor {
             Some(cursor) => {
                 let Some(key) = startup_cursor(&flight, cursor, &routes.families) else {
@@ -310,7 +337,7 @@ fn page(
         continue_filtered(routes, owner, flight, scanned, cursor, offset, into);
         return;
     }
-    let next = if ranges::restarting(&flight.range) {
+    let next = if ranges::starting(&flight.range) {
         startup_next
     } else if cutting || more {
         last
@@ -341,7 +368,7 @@ fn continue_filtered(
     offset: Option<u64>,
     into: &mut Queue<Up>,
 ) {
-    if !ranges::restarting(&flight.range)
+    if !ranges::starting(&flight.range)
         && let Some(next) = &cursor
         && (next.after.is_empty() || flight.cursor.as_ref() == Some(next))
     {
@@ -352,7 +379,7 @@ fn continue_filtered(
     flight.cursor = cursor;
     flight.offset = offset;
     let request = ranges::request(owner, &flight);
-    if ranges::restarting(&flight.range) {
+    if ranges::starting(&flight.range) {
         assert!(request.is_some(), "usable translated continuation request");
     }
     if let Some(request) = request {
@@ -390,7 +417,7 @@ fn startup_cursor(flight: &Flight, cursor: &store::Cursor, bounds: &families::Bo
 }
 
 fn page_failed(routes: &Routes, flight: &Flight, into: &mut Queue<Up>) {
-    if ranges::restarting(&flight.range) {
+    if ranges::starting(&flight.range) {
         root(into, engine::StoreInput::Unloaded { owner: flight.root });
     } else {
         stop(routes, into);

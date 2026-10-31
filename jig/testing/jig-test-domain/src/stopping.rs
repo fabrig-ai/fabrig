@@ -12,7 +12,7 @@ pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
     match event {
         // A start interrupted at its mark must not create the mark or adopt
         // runs after the core has reported its drain (engine.md, 6.1).
-        Event::Switched | Event::RestartDone(core::RestartStep::Switch) => Err(()),
+        Event::StartDone(core::start::Phase::Switch) => Err(()),
         event @ (Event::Connector { .. }
         | Event::ConnectorTimer { .. }
         | Event::WriterRead { .. }
@@ -28,8 +28,11 @@ pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
         | Event::WatchApplication { .. }
         | Event::ReadApplication { .. }
         | Event::Application { .. }
-        | Event::RestartBegin { .. }
-        | Event::RestartDone(_)
+        | Event::StartBegin { .. }
+        | Event::StartRecord(_)
+        | Event::StartMissing { .. }
+        | Event::StartPageRefused { .. }
+        | Event::StartDone(_)
         | Event::Timer(_)
         | Event::Core(_)
         | Event::Credential { .. }

@@ -1,90 +1,78 @@
 //! Store transport, fixture writes and cold restart.
 use super::{Fault, StoreOut, Up, World, connector, core, fixture, root, tasks};
 impl World {
-    /// Rebuild all live components from the real store, preserving the systems.
-    pub(super) fn restart_step(&mut self, step: core::RestartStep) {
-        self.restart_steps.push(step);
-        match step {
-            core::RestartStep::LoadCore | core::RestartStep::LoadInbox | core::RestartStep::RestoreConnector { .. } => {
-                self.load_restart(step);
+    /// Serve the phase selected by the core (jig/docs/design/domain/engine.md, 6).
+    pub(super) fn start_step(&mut self, phase: core::start::Phase, census: Option<core::Census>) {
+        use core::start::Phase;
+        if phase == Phase::Sweep && self.restoring.is_some_and(|(selected, _)| selected == Phase::Sweep) {
+            return;
+        }
+        self.restart_steps.push(phase);
+        match phase {
+            Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Sweep => {
+                if phase == Phase::LoadCore {
+                    self.restore_ranges.extend(core::RestoreRange::LIVE);
+                    let env = self.env();
+                    for row in self.fixture_rows.clone() {
+                        root::start_record(&mut self.domain, &env, row);
+                    }
+                }
+                self.restoring = Some((phase, 0));
+                self.store.pause_pages(self.hold_restore_pages);
+                self.store.ask(StoreOut::Start { phase, census });
             }
-            core::RestartStep::Switch if self.hold_switch => {}
-            core::RestartStep::Switch => {
+            Phase::Switch if self.hold_switch => {}
+            Phase::Switch => {
                 if self.store.generation_pending {
-                    self.store.ask(StoreOut::Restart { step, census: None });
+                    self.store.ask(StoreOut::Start { phase, census: None });
                 } else {
-                    self.events.push_back(root::Event::Switched);
+                    self.events.push_back(root::Event::StartDone(phase));
                 }
             }
-            core::RestartStep::ReadAfresh { connector: number } => {
-                self.restart_reads.insert(number, step);
-                self.events.push_back(root::Event::Connector {
-                    number,
-                    event: connector::Event::Restart(connector::RestartStep::FreshRead {
-                        resource: jig_test_connector_world::path(1, 1),
-                    }),
-                });
-            }
-            core::RestartStep::SettleOutbox { connector: number } => {
-                self.events.push_back(root::Event::Connector {
-                    number,
-                    event: connector::Event::Restart(connector::RestartStep::SettleOutbox),
-                });
-            }
-            core::RestartStep::AdoptRuns | core::RestartStep::Open => panic!("root performs its synchronous step"),
+            Phase::Link
+            | Phase::Wires
+            | Phase::AdoptRuns
+            | Phase::ReadAfresh { .. }
+            | Phase::SettleOutbox { .. }
+            | Phase::Open => panic!("root performs its synchronous phase"),
         }
     }
 
     /// Serve a previously captured Switch after inspecting the restored copy.
     pub fn finish_switch(&mut self) {
         self.hold_switch = false;
-        // The request was already recorded when captured.
         self.restart_steps.pop();
-        self.restart_step(core::RestartStep::Switch);
+        self.start_step(core::start::Phase::Switch, None);
         self.drain();
-    }
-    fn load_restart(&mut self, step: core::RestartStep) {
-        let census = if step == core::RestartStep::LoadInbox {
-            Some(root::inbox_census(&mut self.domain, &self.limits))
-        } else {
-            None
-        };
-        if step == core::RestartStep::LoadCore {
-            self.restore_ranges.extend(core::RestoreRange::LIVE);
-        }
-        self.restoring = Some((step, 0));
-        self.store.pause_pages(self.hold_restore_pages);
-        self.store.ask(StoreOut::Restart { step, census });
     }
 
     pub(super) fn restore_pages(&mut self) {
         for answer in self.store.answers() {
             match answer {
-                Up::Restore(row) => {
-                    let (step, count) = self.restoring.as_mut().expect("one restart flight");
-                    *count += 1;
-                    if *step == core::RestartStep::LoadInbox
-                        && let root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Ended(_))) = row
-                    {
-                        self.census_ended += 1;
-                    }
-                    if self.tracing && *count % 2 == 0 {
-                        self.trace.push(format!("store page {step:?} 2 rows"));
-                    }
-                    let env = self.env();
-                    let restored = root::restore_record(&mut self.domain, &env, row.clone());
-                    assert!(restored || self.domain.restore_failure().is_some(), "restored {row:?}");
-                }
-                Up::Root(event) => {
-                    if let root::Event::RestartDone(step) = &event {
-                        let (_, count) = self.restoring.take().expect("restart completion");
-                        if self.tracing && count % 2 != 0 {
-                            self.trace.push(format!("store page {step:?} 1 rows"));
-                        }
-                    }
-                    self.events.push_back(event);
-                }
+                Up::Root(event) => self.events.push_back(event),
                 Up::Ask(_) => panic!("adapter follows its own page continuations"),
+            }
+        }
+    }
+
+    pub(super) fn start_input(&mut self, event: &root::Event) {
+        if let root::Event::StartRecord(row) = event {
+            let (phase, count) = self.restoring.as_mut().expect("one start load");
+            *count += 1;
+            if *phase == core::start::Phase::LoadInbox
+                && matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(_))))
+            {
+                self.census_ended += 1;
+            }
+            if self.tracing && *count % 2 == 0 {
+                self.trace.push(format!("store page {phase:?} 2 rows"));
+            }
+        } else if let root::Event::StartDone(phase) = event
+            && self.restoring.is_some_and(|(selected, _)| selected == *phase)
+        {
+            let (_, count) = self.restoring.take().expect("start load completion");
+            if self.tracing && count % 2 != 0 {
+                self.trace.push(format!("store page {phase:?} 1 rows"));
             }
         }
     }
@@ -133,8 +121,11 @@ impl World {
     }
     fn refresh_fixture_header(&mut self) {
         let header = self.store.rows[&root::Key::Core(core::Key::Core(core::CoreKey::Deployment))].clone();
-        let env = self.env();
-        assert!(root::restore_record(&mut self.domain, &env, header));
+        let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = header else {
+            unreachable!("fixture header is the deployment");
+        };
+        self.domain.core_mut().counters = core::Counters::new(header);
+        *self.domain.journal_mut() = skein_lib::Journal::uncapped(self.limits.journal.release, header.commits);
     }
 
     /// Install the connector's fixed hold vocabulary, retained across cold starts.
@@ -161,15 +152,22 @@ impl World {
         self.drain();
     }
 
-    pub fn finish_restart_reads(&mut self) {
-        let reads = std::mem::take(&mut self.pending_reads);
-        for (number, call) in reads {
-            let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
-            self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
-            if let Some(step) = self.restart_reads.remove(&number) {
-                self.events.push_back(root::Event::RestartDone(step));
+    pub(super) fn answer_restart_reads(&mut self) {
+        for (number, call) in std::mem::take(&mut self.pending_reads) {
+            if self.restart_reads.contains_key(&number) {
+                let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
+                self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
+            } else {
+                self.pending_reads.push((number, call));
             }
         }
+        for (_, phase) in std::mem::take(&mut self.restart_reads) {
+            self.events.push_back(root::Event::StartDone(phase));
+        }
+    }
+
+    pub fn finish_restart_reads(&mut self) {
+        self.answer_restart_reads();
         self.hold_restart_reads = false;
         self.drain();
     }
@@ -213,6 +211,7 @@ impl World {
     }
 
     pub fn restart_with(&mut self, config: root::Config) {
+        self.restart_config = (crate::oracle::configuration(&config), self.limits);
         self.observer.observe(self.wall, crate::referee::Observed::Restart);
         self.store.reconfigure(18, &config.core.settings.models);
         // The observer may resume A after a crashed pending copy whose
@@ -251,9 +250,12 @@ impl World {
             peers.restart();
         }
         self.cut = None;
-        self.events.push_back(root::Event::RestartBegin { pending: self.store.generation_pending });
-        self.hello_engine();
+        self.events.push_back(root::Event::StartBegin { pending: self.store.generation_pending });
         self.drain();
+        if self.domain.ready() {
+            self.hello_engine();
+            self.drain();
+        }
         self.lose_answer = false;
     }
 }

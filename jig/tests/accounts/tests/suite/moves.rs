@@ -11,7 +11,11 @@ const ALICE: Holder = Holder::Party(9);
 const BOB: Holder = Holder::Party(4);
 const CARRIED: u64 = 1 << 63;
 fn fresh(rows: &[Stored]) -> World {
-    World::with(providers(vec![provider(1, true, true), provider(2, false, true)]), rows)
+    World::with_start(
+        jig_accounts_world::LIMITS,
+        providers(vec![provider(1, true, true), provider(2, false, true)]),
+        rows,
+    )
 }
 fn started(rows: &[Stored]) -> World {
     let mut world = fresh(rows);
@@ -300,7 +304,7 @@ fn moving_out_needs_a_signed_in_source_with_a_record() {
 #[test]
 fn while_moving_sign_out_removal_renewal_and_another_move_are_refused() {
     // Two slots let a sign-in or arrival reach its subject while a move occupies one.
-    let mut world = World::with_limits(
+    let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
         providers(vec![provider(1, true, true)]),
         &rows(true),
@@ -526,7 +530,7 @@ fn a_restart_after_a_move_in_before_its_first_grant_refreshes_again() {
 
 #[test]
 fn a_move_out_waits_for_a_key_keep_joining_its_account() {
-    let mut world = World::with_limits(
+    let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
         providers(vec![provider(1, true, true)]),
         &rows(false),
@@ -559,7 +563,7 @@ fn a_move_out_waits_for_a_key_keep_joining_its_account() {
 
 #[test]
 fn a_key_keep_cannot_join_an_account_while_its_source_moves() {
-    let mut world = World::with_limits(
+    let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
         providers(vec![provider(1, true, true)]),
         &rows(false),
@@ -600,7 +604,7 @@ fn a_returned_moves_refresh_needing_sign_in_lifts_its_moving_hold() {
 
 #[test]
 fn a_move_in_checks_its_subject_again_after_adoption() {
-    let mut world = World::with_limits(
+    let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
         providers(vec![provider(1, true, true)]),
         &rows(false),
@@ -619,7 +623,7 @@ fn a_move_in_checks_its_subject_again_after_adoption() {
     moving_fact(&world, 6);
     assert!(world.domain.source(arriving).is_none());
 
-    let mut world = World::with_limits(
+    let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
         providers(vec![provider(1, true, true)]),
         &[],

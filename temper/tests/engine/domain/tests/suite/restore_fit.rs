@@ -8,7 +8,7 @@ fn binding(number: u8) -> Record {
     Record::Forge { row: Box::new(forge::Stored::Binding { address: Box::new([number]), subject: Box::new([]) }) }
 }
 fn driver(pending: bool) -> Driver {
-    let mut store = Driver::new(Store::new()).store;
+    let mut store = Driver::new(Store::new()).take_store();
     store.pending_generation = pending;
     let mut limits = walking::limits();
     limits.forge.bindings = 3;
@@ -34,6 +34,7 @@ fn forge_page(driver: &mut Driver, previous: Option<Token>) -> Token {
 fn a_forge_fit_failure_names_its_step_and_releases_no_wires() {
     for pending in [false, true] {
         let mut driver = driver(pending);
+        driver.broken("overfull bindings deliberately refuse restore fit");
         driver.store.seed((1..=5).map(binding).collect(), Box::new([]));
         for _ in 0_u32..400 {
             driver.advance(true);
@@ -50,11 +51,11 @@ fn a_forge_fit_failure_names_its_step_and_releases_no_wires() {
             limit: 3,
         };
         assert_eq!(driver.root.forge_fit_failure(), Some(&first));
+        assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::RestoreConnector { connector: 0 }));
         assert_eq!(
-            driver.root.restart_failure(),
-            Some(jig_domain_core::RestartStep::RestoreConnector { connector: 0 })
+            driver.root.start_stop(),
+            Some(root::StartStop::ForgeFit { phase: driver.root.start_phase(), failure: first })
         );
-        assert_eq!(driver.root.restore_load_failure(), None, "own set diagnosis stays distinct from load decoding");
         let loads = driver.loads.len();
         for _ in 0_u32..3 {
             driver.send(root::Event::Resume);
@@ -77,7 +78,7 @@ fn a_forge_fit_failure_names_its_step_and_releases_no_wires() {
         assert!(driver.host_requests.is_empty());
         assert!(driver.immediate.is_empty(), "no connection/setup outputs: {:?}", driver.immediate);
         assert!(!driver.transactions.iter().flatten().any(|write| matches!(write, Write::Wires)));
-        assert!(!driver.root.connectors_restored());
+        assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::RestoreConnector { connector: 0 }));
         assert!(!driver.root.ready());
     }
 }
@@ -95,6 +96,7 @@ fn application_pages_use_the_restart_entry_wall_observation() {
     for later in [50, 200] {
         for over_limit in [false, true] {
             let mut driver = driver(false);
+            driver.broken("scripted application pages replace the store inventory and may refuse fit");
             let owner = forge_page(&mut driver, None);
             // Equality expires; future-at-start rows stay, despite alternating clock movement between pages.
             let count = driver.env.limits.forge.applications;

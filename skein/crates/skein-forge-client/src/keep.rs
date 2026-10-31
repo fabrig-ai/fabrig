@@ -153,6 +153,9 @@ impl Keep {
             Some(_) | None => None,
         }
     }
+    pub(crate) fn live_keys(&self) -> Box<[Resource]> {
+        keys(self)
+    }
 }
 fn valid_resource(r: &Resource, l: &Limits) -> bool {
     match &r.what {

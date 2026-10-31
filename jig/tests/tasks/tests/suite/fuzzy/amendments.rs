@@ -55,8 +55,8 @@ fn slot() -> Holding {
     Holding::Slot { pool: name(2), kind: 2 }
 }
 
-fn population(seed: u64, load_fit_link: bool) -> World {
-    let mut world = if load_fit_link { World::new_start_restore(seed, LIMITS) } else { World::new(seed, LIMITS) };
+fn population(seed: u64) -> World {
+    let mut world = World::new(seed, LIMITS);
     world.configure_holds(
         1,
         vec![
@@ -136,22 +136,58 @@ fn done(world: &World, dependency: u64) -> bool {
         Some(Stored::Ended(row)) if matches!(row.phase, Phase::Ended(jig_domain_tasks::Ending::Done(_))))
 }
 
+#[derive(Clone, Copy)]
+enum Draw {
+    Amend,
+    HoldRelease,
+    Claim,
+    End,
+    Cancel,
+    Restart,
+    Compound,
+}
+
+#[derive(Clone, Copy)]
+enum DependencyChange {
+    Add,
+    Drop,
+    Replace,
+}
+
 fn draw(world: &World, random: &mut Rng) -> Operation {
     let task = pick(random, &live(world));
-    match random.below(13) {
-        0..=5 => {
+    let choices = [
+        Draw::Amend,
+        Draw::Amend,
+        Draw::Amend,
+        Draw::Amend,
+        Draw::Amend,
+        Draw::Amend,
+        Draw::HoldRelease,
+        Draw::Claim,
+        Draw::Claim,
+        Draw::End,
+        Draw::Cancel,
+        Draw::Restart,
+        Draw::Compound,
+    ];
+    let choice = choices.get(usize::try_from(random.below(13)).expect("small draw")).expect("draw choice");
+    match choice {
+        Draw::Amend => {
             let mut dependencies = world.record(task).dependencies.to_vec();
-            match random.below(3) {
-                0 => {
+            let changes = [DependencyChange::Add, DependencyChange::Drop, DependencyChange::Replace];
+            let change = changes.get(usize::try_from(random.below(3)).expect("small draw")).expect("dependency draw");
+            match change {
+                DependencyChange::Add => {
                     let candidate = pick(random, &live(world));
                     if !dependencies.contains(&candidate) {
                         dependencies.push(candidate);
                     }
                 }
-                1 => {
+                DependencyChange::Drop => {
                     dependencies.pop();
                 }
-                2 => {
+                DependencyChange::Replace => {
                     if random.chance(500)
                         && let Some(operation) = draw_met(world, random)
                     {
@@ -161,16 +197,15 @@ fn draw(world: &World, random: &mut Rng) -> Operation {
                     // Ended names deliberately exercise both met and refusal.
                     dependencies.push(random.below(6) + 1);
                 }
-                _ => unreachable!(),
             }
             Operation::Amend { task, dependencies }
         }
-        6 => Operation::HoldRelease { task },
-        7 | 8 => Operation::Claim { task },
-        9 => Operation::End { task, failed: random.chance(200) },
-        10 => Operation::Cancel { task },
-        11 => Operation::Restart,
-        12 => {
+        Draw::HoldRelease => Operation::HoldRelease { task },
+        Draw::Claim => Operation::Claim { task },
+        Draw::End => Operation::End { task, failed: random.chance(200) },
+        Draw::Cancel => Operation::Cancel { task },
+        Draw::Restart => Operation::Restart,
+        Draw::Compound => {
             let mut operations = Vec::new();
             for at in 0..=random.below(3) {
                 let number = pick(random, &live(world));
@@ -203,7 +238,6 @@ fn draw(world: &World, random: &mut Rng) -> Operation {
             }
             Operation::Compound(operations)
         }
-        _ => unreachable!(),
     }
 }
 
@@ -474,15 +508,10 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
 
 #[test]
 fn random_amendments_preserve_the_promise_and_leave_no_circle() {
-    sweep(false);
+    sweep();
 }
 
-#[test]
-fn load_fit_link_random_amendments_preserve_the_promise_and_leave_no_circle() {
-    sweep(true);
-}
-
-fn sweep(load_fit_link: bool) {
+fn sweep() {
     let mut random = Rng::new(DRAW_SOURCE);
     let mut seeds = BTreeSet::new();
     while seeds.len() < DRAWN_SEEDS {
@@ -493,7 +522,7 @@ fn sweep(load_fit_link: bool) {
     let tracing = std::env::var_os("JIG_WORLD_TRACE").is_some();
     for seed in seeds {
         eprintln!("amendment seed={seed}");
-        let mut world = population(seed, load_fit_link);
+        let mut world = population(seed);
         let mut random = Rng::new(seed);
         let mut attempt = 0;
         let mut left = BTreeSet::new();

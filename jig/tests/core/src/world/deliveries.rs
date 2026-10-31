@@ -20,7 +20,7 @@ impl World {
                     }));
                 }
             }
-            root::Delivery::Restart(_) => panic!("walking fixture uses the restored-marker path"),
+
             root::Delivery::Core(core::Held::Load(load)) => self.store.ask(jig_test_store::StoreOut::Now(*load)),
             root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
                 self.store.ask(jig_test_store::StoreOut::NotesLoad { owner, range });
@@ -212,6 +212,7 @@ impl World {
             | root::Delivery::CallAnswer { .. }
             | root::Delivery::Core(_)
             | root::Delivery::Fleet(_)
+            | root::Delivery::Start(_)
             | root::Delivery::System { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::LostRead { .. }) => {

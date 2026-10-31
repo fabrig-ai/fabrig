@@ -58,6 +58,11 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    restart_config: engine::Config,
+    oracle_documents: Vec<(Token, forge_top::Document)>,
+    broken: bool,
+    oracle_running: bool,
+    oracle_peer: Option<(Token, u32, u32)>,
     creating: jig_core_world::fixtures::Creating,
     pub root: engine::Domain,
     pub env: Env<engine::Limits>,
@@ -730,9 +735,8 @@ impl World {
         fake::grant(&mut fake, b"org/repo", 2, raw::Permission::Write);
         fake::grant(&mut fake, b"org/repo", 7, raw::Permission::Read);
         let fake_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fake_config };
-        if let Some(documents) = documents {
-            limits.documents = paths::document_limits(documents, &limits);
-        }
+        // Match production's derived document bounds to the admitted authorities.
+        limits.documents = paths::document_limits(documents.unwrap_or(limits.documents), &limits);
         // Keep each forge scenario's complete decision in one journal cohort.
         limits.journal.writes = if stock.is_some_and(|(_, _, deployment)| deployment.is_some()) {
             DEPLOYMENT_FORGE_WRITES
@@ -782,6 +786,11 @@ impl World {
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
         let period_budget = config.core.defaults.rules.period_spend;
         Self {
+            restart_config: crate::oracle::config::copy(&config),
+            oracle_documents: Vec::new(),
+            broken: false,
+            oracle_running: false,
+            oracle_peer: None,
             creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -832,6 +841,22 @@ impl World {
     }
 
     pub fn send(&mut self, event: engine::Event) {
+        if crate::waits_for_start(&self.root, &event) {
+            self.events.push_back(event);
+            return;
+        }
+        if let engine::Event::Worker(engine::WorkerInput::Link {
+            channel,
+            link: engine::Link::Hello { worker, hello },
+        }) = &event
+        {
+            self.oracle_peer = Some((*channel, *worker, hello.slots));
+        }
+        if let engine::Event::Worker(engine::WorkerInput::Link { channel, link: engine::Link::Lost }) = &event
+            && self.oracle_peer.is_some_and(|(peer, _, _)| peer == *channel)
+        {
+            self.oracle_peer = None;
+        }
         self.immediate.push_back(event);
         self.flush();
     }
@@ -869,6 +894,7 @@ impl World {
             None,
             StoryLimits { brief: Some(self.env.limits.brief), forge_charter, ..StoryLimits::default() },
         );
+        self.restart_config = fresh.restart_config;
         std::mem::swap(&mut self.root, &mut fresh.root);
         std::mem::swap(&mut self.out, &mut fresh.out);
         self.events.clear();
@@ -953,6 +979,7 @@ impl World {
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    self.events.extend(self.store.take_missing(owner).into_iter().map(engine::Event::Store));
                     self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
                         owner,
                         rows,
@@ -1098,6 +1125,7 @@ impl World {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());
                     }
                     Delivery::Panel { watcher, panel } => self.panels.push((watcher, *panel)),
+                    Delivery::ForgeDocument { watcher, document } => self.oracle_documents.push((watcher, *document)),
                     Delivery::Link {
                         down: host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error: true, text }, .. },
                         ..
@@ -1244,11 +1272,20 @@ impl World {
 
     fn tick_with_reply_cut(&mut self, target: Option<u64>) -> bool {
         let mut lost = false;
-        self.env.now = self.env.now.saturating_add(Duration::from_millis(100));
+        if self.oracle_running {
+            if !self.pending.is_empty()
+                && let Some(due) = self.fake.next_deadline()
+            {
+                self.env.now = self.env.now.max(due);
+            }
+        } else {
+            self.env.now = self.env.now.saturating_add(Duration::from_millis(100));
+        }
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
         self.fake_env.now = self.env.now;
         self.fake_env.wall = self.env.wall;
-        if let Some(event) = self.events.pop_front() {
+        if let Some(index) = self.events.iter().position(|event| !crate::waits_for_start(&self.root, event)) {
+            let event = self.events.remove(index).expect("selected eligible input");
             self.send(event);
         }
         if let Some((_, writes)) = self.store.pending.front() {
@@ -1308,7 +1345,9 @@ impl World {
         temper_engine_domain_world::poll(&mut self.root, &self.env, &mut self.out);
         self.collect();
         self.flush();
-        engine::fire(&mut self.root, &self.env);
+        if !self.oracle_running {
+            engine::fire(&mut self.root, &self.env);
+        }
         engine::release(&mut self.root, &self.env, &mut self.out);
         self.collect();
         self.flush();
@@ -1795,6 +1834,157 @@ pub fn add_reader(policy: &mut authority::Policy) {
 }
 
 impl World {
+    /// A deliberately broken fixture; the story names its writer finding.
+    pub fn broken(&mut self) {
+        self.broken = true;
+    }
+
+    /// Settle, read the public documents, crash the same store, and compare.
+    pub fn close(&mut self) {
+        if self.broken {
+            return;
+        }
+        self.oracle_running = true;
+        self.oracle_settle();
+        let forges = self.root.forges();
+        let mut snapshot = crate::oracle::Snapshot::new(&self.store.rows, self.env.wall);
+        for (sign_in, read) in &snapshot.queries {
+            snapshot.answers.push(self.oracle_read(*sign_in, read.clone()));
+        }
+        let subjects = crate::oracle::forge_subjects(&self.store.rows);
+        let mut documents = Vec::new();
+        for (sign_in, project, subject) in &subjects {
+            documents.push(self.oracle_document(*sign_in, *project, *subject));
+        }
+        self.oracle_settle();
+        self.store.crash(0);
+        snapshot.compare_rows(&self.store.rows);
+        let store = std::mem::take(&mut self.store);
+        let mut fresh =
+            crate::direct::Driver::cold(store, crate::oracle::config::copy(&self.restart_config), &self.env.limits);
+        std::mem::swap(&mut self.root, &mut fresh.root);
+        std::mem::swap(&mut self.out, &mut fresh.out);
+        std::mem::swap(&mut self.events, &mut fresh.events);
+        std::mem::swap(&mut self.store, &mut fresh.store);
+        fresh.broken = crate::oracle::Fixture::Broken;
+        self.drained = None;
+        self.period = Some(1);
+        self.events.push_back(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
+        if let Some((channel, worker, slots)) = self.oracle_peer {
+            self.events.push_back(protocol::hello_at(
+                channel, worker, slots,
+                self.assigned.iter().filter(|assignment| {
+                    matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))),
+                        Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))))
+                        if matches!(task.phase, tasks::Phase::Active(tasks::Active::Claimed { attempt } | tasks::Active::Running { attempt }) if attempt == assignment.attempt))
+                }).map(|assignment| protocol::hosting(assignment.task, assignment.attempt, host::Phase::Active)).collect(),
+            ));
+        }
+        self.oracle_settle();
+        snapshot.compare_rows(&self.store.rows);
+        crate::oracle::compare_forges(forges, self.root.forges());
+        for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
+            let answer = self.oracle_read(*sign_in, read.clone());
+            snapshot.compare_answer(index, answer);
+        }
+        for ((sign_in, project, subject), before) in subjects.iter().zip(documents) {
+            let after = self.oracle_document(*sign_in, *project, *subject);
+            crate::oracle::compare_forge(*project, *subject, before, after);
+        }
+        self.oracle_settle();
+        self.oracle_running = false;
+    }
+
+    fn oracle_settle(&mut self) {
+        // These are the world's held terminals, not new actions from surviving peers.
+        self.release_write_answers();
+        if let Some(reads) = self.held_reads.take() {
+            for read in reads {
+                self.out.push(read);
+            }
+            self.collect();
+        }
+        let mut quiet = 0;
+        for _ in 0..STEPS {
+            let commit = self.store.applied;
+            self.tick();
+            // A hosted attempt may keep a future fleet deadline armed. No
+            // timer is fired merely to close a story; all immediate terminals drain.
+            if self.root.ready()
+                && self.root.held_bytes() == 0
+                && self.events.is_empty()
+                && self.immediate.is_empty()
+                && self.pending.is_empty()
+                && self.store.idle()
+                && self.store.held.is_empty()
+                && self.store.applied == commit
+            {
+                quiet += 1;
+                if quiet == 2 {
+                    return;
+                }
+            } else {
+                quiet = 0;
+            }
+        }
+        panic!(
+            "restart oracle forge world did not settle: ready={} held={} events={} immediate={:?} pending={:?} store_idle={} held_commits={} phase={:?} stop={:?} first={:?}",
+            self.root.ready(),
+            self.root.held_bytes(),
+            self.events.len(),
+            self.immediate,
+            self.pending,
+            self.store.idle(),
+            self.store.held.len(),
+            self.root.start_phase(),
+            self.root.start_stop(),
+            self.events.front()
+        );
+    }
+
+    fn oracle_read(&mut self, sign_in: u64, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {
+        const REPLY: Token = Token::new(0x4e32);
+        self.reads.clear();
+        self.send(engine::Event::Party(engine::PartyInput::Read { reply_to: ReplyTo::new(REPLY), sign_in, read }));
+        for _ in 0..STEPS {
+            if let Some(index) = self.reads.iter().position(|(reply, _)| *reply == ReplyTo::new(REPLY)) {
+                return self.reads.remove(index).1;
+            }
+            self.tick();
+        }
+        panic!("restart oracle party read did not answer");
+    }
+
+    fn oracle_document(&mut self, sign_in: u64, project: u32, subject: u64) -> Option<forge_top::Document> {
+        const WATCH: Token = Token::new(0x4e33);
+        self.oracle_documents.clear();
+        self.panels.retain(|(watcher, _)| *watcher != WATCH);
+        self.send(engine::Event::Party(engine::PartyInput::Watch {
+            watcher: WATCH,
+            sign_in,
+            subject: documents::Watched::Application {
+                scope: people::ApplicationScope::Project(project),
+                connector: self.restart_config.core.connectors[0],
+                subject: Token::new(subject),
+            },
+            window: documents::Window { rows: self.env.limits.documents.rows, after: None },
+        }));
+        self.oracle_settle();
+        let answer = self
+            .oracle_documents
+            .iter()
+            .rev()
+            .find_map(|(watcher, doc)| (*watcher == WATCH).then(|| doc.clone()))
+            .or_else(|| {
+                self.panels.iter().rev().find_map(|(watcher, panel)| {
+                    (*watcher == WATCH).then(|| forge_top::Document::Change(panel.clone()))
+                })
+            });
+        self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: WATCH }));
+        self.oracle_settle();
+        answer
+    }
+
     /// One authenticated read through the root and its real store routing.
     #[must_use]
     pub fn party_read(&mut self, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {

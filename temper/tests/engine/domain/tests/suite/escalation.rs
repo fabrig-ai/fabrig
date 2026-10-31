@@ -39,7 +39,7 @@ fn archives(world: &World) -> Vec<&EscalationDecisionRecord> {
 
 #[test]
 fn priced_failure_is_read_then_requester_release_starts_one_fresh_attempt() {
-    let world = settled(Story::Release);
+    let mut world = settled(Story::Release);
     assert!(world.referee.done());
     assert!(world.pages > 2, "real child startup and named historical read use the ordered store");
     let decisions = archives(&world);
@@ -48,11 +48,12 @@ fn priced_failure_is_read_then_requester_release_starts_one_fresh_attempt() {
     assert_eq!(decisions[0].by, decisions[0].requester);
     assert_eq!(decisions[0].decision, people::EscalationDecision::Release);
     world.referee.final_state(&world.store.rows).expect("lifetime cost 3 + new-attempt cost 2");
+    world.close();
 }
 
 #[test]
 fn requester_passes_to_final_role_second_owner_releases_and_final_pass_refuses() {
-    let world = settled(Story::PassRelease);
+    let mut world = settled(Story::PassRelease);
     // Passing keeps the hold's revision (jig 00de0b8c): the final decision's
     // archive replaces the pass's at the same revision.
     let decisions = archives(&world);
@@ -68,11 +69,12 @@ fn requester_passes_to_final_role_second_owner_releases_and_final_pass_refuses()
         }))
     )));
     assert!(world.referee.done());
+    world.close();
 }
 
 #[test]
 fn rejection_retains_a_bounded_reason_and_never_assigns_a_retry() {
-    let world = settled(Story::Reject);
+    let mut world = settled(Story::Reject);
     assert_eq!(archives(&world).len(), 1);
     let rejected = world
         .store
@@ -98,12 +100,13 @@ fn rejection_retains_a_bounded_reason_and_never_assigns_a_retry() {
             .any(|row| matches!(row, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(_)))))
     );
     assert!(world.referee.done(), "same-key replay, key conflict and stale-key outcome all settled");
+    world.close();
 }
 
 #[test]
 fn both_owner_races_return_the_same_first_committed_winner() {
     for story in [Story::RaceRelease, Story::RaceReject] {
-        let world = settled(story);
+        let mut world = settled(story);
         let decisions = archives(&world);
         assert_eq!(decisions.len(), 1, "the final decision replaces the pass's archive (jig 00de0b8c)");
         let final_decision = decisions[0];
@@ -127,20 +130,22 @@ fn both_owner_races_return_the_same_first_committed_winner() {
         assert!(terminals.len() >= 3, "winner, different-choice loser and fresh stale-key call all replied");
         assert!(terminals.iter().all(|(task, by, _)| *task == final_decision.task && *by == final_decision.by));
         assert!(world.referee.done());
+        world.close();
     }
 }
 
 #[test]
 fn held_and_decision_commit_cuts_restore_paged_real_children_and_exact_scripts() {
     for cut in [Cut::Held, Cut::Decision] {
-        let world =
+        let mut world =
             run_replayed(Settings { cut, commit_delay: 1, page_delay: 1, ..Settings::calm(9101, Story::PassRelease) });
         assert_eq!(world.restarts, 1);
         assert!(world.pages > 8, "one-row startup and named archive pages are actual requests");
         assert!(world.referee.done());
         world.referee.final_state(&world.store.rows).expect("no repeated charge or failed hold reopen");
+        world.close();
     }
-    let world = run_replayed(Settings {
+    let mut world = run_replayed(Settings {
         cut: Cut::Decision,
         commit_delay: 1,
         page_delay: 0,
@@ -195,6 +200,7 @@ fn held_and_decision_commit_cuts_restore_paged_real_children_and_exact_scripts()
         }
         assert_eq!(before.clone().commit(&altered), Err(expected), "unassigned topology corruption {corruption}");
     }
+    world.close();
 }
 
 #[test]
@@ -206,6 +212,8 @@ fn saturated_facts_change_no_decision_or_durable_result() {
         saturated.run();
         assert_eq!(observed.trace, saturated.trace);
         assert_eq!(observed.store.rows, saturated.store.rows);
+        observed.close();
+        saturated.close();
     }
 }
 
@@ -252,7 +260,7 @@ fn before_decision(world: &World, archive: &EscalationDecisionRecord) -> Referee
 
 #[test]
 fn referee_rejects_split_or_missing_decision_cohorts_and_duplicate_revision_effects() {
-    let world = settled(Story::Release);
+    let mut world = settled(Story::Release);
     let archive = archives(&world)[0];
     let writes = world
         .transactions
@@ -307,11 +315,12 @@ fn referee_rejects_split_or_missing_decision_cohorts_and_duplicate_revision_effe
         }
     }
     assert_eq!(before_decision(&world, archive).commit(&altered), Err("archive differs from scripted winner"));
+    world.close();
 }
 
 #[test]
 fn referee_rejects_missing_terminal_evidence_duplicate_outputs_and_double_funding() {
-    let world = settled(Story::Release);
+    let mut world = settled(Story::Release);
     let archive = archives(&world)[0];
     let terminal = world
         .store
@@ -350,11 +359,12 @@ fn referee_rejects_missing_terminal_evidence_duplicate_outputs_and_double_fundin
         }
     }
     assert_eq!(world.referee.final_state(&rows), Err("expense lost doubled or posted to wrong funding source"));
+    world.close();
 }
 
 #[test]
 fn key_conflict_requires_immediate_refusal_and_preserves_the_saved_winner() {
-    let world = settled(Story::Release);
+    let mut world = settled(Story::Release);
     let archive = archives(&world)[0];
     let to = Token::new(999);
     let key = people::RequestKey { person: archive.by, key: [10; 16] };
@@ -394,15 +404,17 @@ fn key_conflict_requires_immediate_refusal_and_preserves_the_saved_winner() {
     referee
         .replied(&world.store.rows, to, people::Reply::Refused(people::Refusal::KeyConflict))
         .expect("direct refusal with the original durable winner unchanged");
+    world.close();
 }
 
 #[test]
 fn a_historical_query_retries_busy_with_a_fresh_reply_right() {
     let settings =
         Settings { cut: Cut::Held, commit_delay: 2, page_delay: 2, ..Settings::calm(9208, Story::RaceRelease) };
-    let world = run_replayed(settings);
+    let mut world = run_replayed(settings);
     assert!(world.referee.done());
     assert!(world.referee.busy_asks() > 0, "the retained seed exercises named-query pressure");
+    world.close();
 }
 
 #[test]
@@ -545,4 +557,5 @@ fn writer_store_oracle_rejects_held_entry_actor_high_water_and_fallback_mutation
     }
     assert_eq!(changed, 1);
     assert_eq!(store_rules(&altered), Err("rejection actor exceeds durable actor high-water mark"));
+    world.close();
 }

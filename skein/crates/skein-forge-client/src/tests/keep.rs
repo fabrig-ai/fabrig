@@ -6,6 +6,44 @@ use crate::{Condition, Effect, Entry, Event, Key, Limits, Made, Outcome, Resourc
 use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Change, Error, Op, Read, Write};
 use skein_lib::{List, Token};
+
+#[test]
+fn live_keys_follow_keep_order_after_restore_and_drop_a_retired_row() {
+    use super::fixtures::{Harness, recovery};
+    use crate::{RecoveryClock, Request};
+
+    let other_repo = api::Repository { repository: 6, ..REPO };
+    let other = Resource { repository: other_repo, what: What::Repository };
+    let mut h = Harness::new(LIMITS);
+    assert!(h.domain.live_keys().is_empty());
+    let template = recovery::live();
+    for key in [other.clone(), issue(), pull()] {
+        let mut row = template.clone();
+        row.watch = watch(key, false);
+        assert!(h.step(Event::Restore { record: Stored::Live(row) }).is_empty());
+    }
+    for repository in [other_repo, REPO] {
+        let record = crate::RepositoryRecord { repository, ..recovery::repository() };
+        assert!(h.step(Event::Restore { record: Stored::Repository(record) }).is_empty());
+    }
+    assert!(h.step(Event::Restored { clock: RecoveryClock::Monotonic }).is_empty());
+    assert!(!h.domain.restoration_failed());
+    let keys = h.domain.live_keys();
+    assert_eq!(keys.as_ref(), &[pull(), issue(), other.clone()]);
+    for key in &keys {
+        assert_eq!(h.domain.cached(key), Some(template.cached.as_ref()));
+    }
+
+    let requests = h.step(Event::Keep {
+        owner: Token::new(1),
+        watches: Box::new([watch(pull(), false), watch(other.clone(), false)]),
+    });
+    assert!(requests.contains(&Request::Kept { owner: Token::new(1), result: Ok(()) }));
+    assert!(requests.contains(&Request::Erase { key: Key::Live(issue()) }));
+    assert_eq!(h.domain.live_keys().as_ref(), &[pull(), other]);
+    assert!(h.domain.cached(&issue()).is_none());
+}
+
 #[test]
 fn watch_batches_are_atomic_and_leaving_an_outstanding_resource_consumes_its_terminal() {
     let mut h = Harness::new();

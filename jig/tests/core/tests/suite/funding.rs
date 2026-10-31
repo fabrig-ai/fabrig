@@ -202,7 +202,7 @@ fn a_raised_project_funds_its_next_chat() {
     world.sign_in = Some(second);
     ask(&mut world, 9, chat);
     assert!(matches!(world.people_answers.last(), Some(people::Reply::Outcome(people::Outcome::Created { .. }))));
-    let pool = tasks::Funder::Pool { project: 1, person: 2, period: 1 };
+    let pool = tasks::Funder::Pool { project: 1, person: 3, period: 1 };
     assert_eq!(ledger(&world, pool).parent, Some(period));
     assert_eq!(ledger(&world, pool).numbers.budget, 500);
     assert_eq!(ledger(&world, pool).numbers.reserved, 100);
@@ -224,7 +224,7 @@ fn a_cut_below_what_is_used_funds_nothing_more_and_takes_nothing_back() {
     let mut world = World::configured(605, false, world::config(605), world::limits());
     jig_core_world::fixtures::finish_chat(&mut world, 25, b"finished chat");
     jig_core_world::fixtures::second_party(&mut world, b"second-party", people::Role::Owner);
-    ask(&mut world, 13, people::Ask::SetPool { project: 1, person: 2, budget: 250 });
+    ask(&mut world, 13, people::Ask::SetPool { project: 1, person: 3, budget: 250 });
     let period = tasks::Funder::Period { project: 1, period: 1 };
     let pool = tasks::Funder::Pool { project: 1, person: 1, period: 1 };
     let before = *ledger(&world, period);
@@ -287,7 +287,7 @@ fn a_roles_raise_resizes_its_parties_pools_one_set_by_hand_among_them() {
     world::edit_role(&mut config.core, |role| role.period_spend = 400);
     let mut world = World::configured(607, false, config, world::limits());
     jig_core_world::fixtures::second_party(&mut world, b"second-party", people::Role::Owner);
-    ask(&mut world, 14, people::Ask::SetPool { project: 1, person: 2, budget: 250 });
+    ask(&mut world, 14, people::Ask::SetPool { project: 1, person: 3, budget: 250 });
     ask(
         &mut world,
         15,
@@ -299,7 +299,7 @@ fn a_roles_raise_resizes_its_parties_pools_one_set_by_hand_among_them() {
     );
     let pools = [
         tasks::Funder::Pool { project: 1, person: 1, period: 1 },
-        tasks::Funder::Pool { project: 1, person: 2, period: 1 },
+        tasks::Funder::Pool { project: 1, person: 3, period: 1 },
     ];
     let before = [*ledger(&world, pools[0]), *ledger(&world, pools[1])];
     assert_eq!(before[0].numbers.reserved, 100);
@@ -333,11 +333,11 @@ fn a_roles_raise_past_the_periods_room_is_refused_whole_and_writes_nothing() {
     let owner = world.sign_in;
     jig_core_world::fixtures::second_party(&mut world, b"second-party", people::Role::Owner);
     world.sign_in = owner;
-    ask(&mut world, 17, people::Ask::SetPool { project: 1, person: 2, budget: 400 });
+    ask(&mut world, 17, people::Ask::SetPool { project: 1, person: 3, budget: 400 });
     let period = tasks::Funder::Period { project: 1, period: 1 };
     let pools = [
         tasks::Funder::Pool { project: 1, person: 1, period: 1 },
-        tasks::Funder::Pool { project: 1, person: 2, period: 1 },
+        tasks::Funder::Pool { project: 1, person: 3, period: 1 },
     ];
     let ledgers = [*ledger(&world, period), *ledger(&world, pools[0]), *ledger(&world, pools[1])];
     assert_eq!(ledgers[0].numbers.reserved, 800);
@@ -388,10 +388,10 @@ fn a_roles_cut_keeps_each_pool_at_what_it_used() {
     jig_core_world::fixtures::finish_chat(&mut world, 25, b"finished chat");
     jig_core_world::fixtures::second_party(&mut world, b"second-party", people::Role::Owner);
     ask(&mut world, 19, people::Ask::SetPool { project: 1, person: 1, budget: 25 });
-    ask(&mut world, 20, people::Ask::SetPool { project: 1, person: 2, budget: 500 });
+    ask(&mut world, 20, people::Ask::SetPool { project: 1, person: 3, budget: 500 });
     let period = tasks::Funder::Period { project: 1, period: 1 };
     let first = tasks::Funder::Pool { project: 1, person: 1, period: 1 };
-    let second = tasks::Funder::Pool { project: 1, person: 2, period: 1 };
+    let second = tasks::Funder::Pool { project: 1, person: 3, period: 1 };
     let first_before = *ledger(&world, first);
     let mut second_expected = *ledger(&world, second);
     let mut period_expected = *ledger(&world, period);
@@ -432,13 +432,13 @@ fn a_roles_cut_funds_a_hand_set_pools_raise_from_another_pools_cut() {
     let mut world = World::configured(610, false, config, world::limits());
     jig_core_world::fixtures::second_party(&mut world, b"second-party", people::Role::Owner);
     ask(&mut world, 22, people::Ask::SetPool { project: 1, person: 1, budget: 250 });
-    ask(&mut world, 23, people::Ask::SetPool { project: 1, person: 2, budget: 500 });
+    ask(&mut world, 23, people::Ask::SetPool { project: 1, person: 3, budget: 500 });
     let period = tasks::Funder::Period { project: 1, period: 1 };
     let period_before = *ledger(&world, period);
     assert_eq!(period_before.numbers.reserved, period_before.numbers.budget);
     let pools = [
         tasks::Funder::Pool { project: 1, person: 1, period: 1 },
-        tasks::Funder::Pool { project: 1, person: 2, period: 1 },
+        tasks::Funder::Pool { project: 1, person: 3, period: 1 },
     ];
     let before = [*ledger(&world, pools[0]), *ledger(&world, pools[1])];
     ask(

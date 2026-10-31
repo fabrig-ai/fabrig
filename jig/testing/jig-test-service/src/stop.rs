@@ -142,7 +142,13 @@ pub(super) fn failed(engine: &mut Engine, number: u64) {
     engine.end = Some(End::Stopped(Stop::CommitFailed { number }));
 }
 pub(super) fn invalid_restore(engine: &mut Engine) {
-    unavailable(engine, b"deployment");
+    if let Some((phase, failure)) = engine.domain.start_page_failure() {
+        engine.end = Some(End::Stopped(Stop::StorePage { phase: Some(*phase), failure: failure.clone() }));
+    } else if let Some((phase, failure)) = engine.domain.start_failure() {
+        engine.end = Some(End::Stopped(Stop::StartCore { phase, failure }));
+    } else {
+        unavailable(engine, b"deployment");
+    }
 }
 pub(super) fn unavailable(engine: &mut Engine, member: &[u8]) {
     let mut problems = Problems::empty();

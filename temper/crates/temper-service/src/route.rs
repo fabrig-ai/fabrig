@@ -77,7 +77,13 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 engine.forge.down(skein_forge_connection::Request::Call { call, repository, op });
             }
         }
-        root::Request::ToChild(released) => engine.events.push(root::Event::Released(released)),
+        root::Request::ToChild(released) => {
+            if engine.start_runtime() {
+                engine.events.push(root::Event::Released(released));
+            } else {
+                engine.step(root::Event::Released(released));
+            }
+        }
         root::Request::Busy(event) => {
             use temper_engine_domain_forge::Event;
             #[expect(clippy::wildcard_enum_match_arm, reason = "only the routing producers below cross this boundary")]
@@ -314,7 +320,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Fleet(_)
             | root::Delivery::ReadLoad { .. }
             | root::Delivery::NotesLoad { .. }
-            | root::Delivery::Restart(_)
+            | root::Delivery::Start(_)
             | root::Delivery::Load { .. }
             | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
         },

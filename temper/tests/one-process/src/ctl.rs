@@ -40,7 +40,12 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
         })
         .collect();
     let host = OneShot::with_text_files(
-        Invocation { directory: Some(b"private".as_slice().into()), parsed },
+        Invocation {
+            directory: Some(
+                spawn.args[0].strip_prefix(b"/client/").expect("caller directory under client root").into(),
+            ),
+            parsed,
+        },
         Startup {
             parent: Some(inherited.roots[0].1),
             file_parent: inherited.roots.iter().find(|(name, _)| name.as_ref() == b"file_parent").map(|(_, fd)| *fd),
@@ -86,6 +91,7 @@ pub(crate) struct Answer {
 }
 pub(crate) struct Caller {
     root: Fd,
+    directory: Box<[u8]>,
     close_root: Option<Fd>,
     expected: Option<Exit>,
     browser: Option<browse::Browser>,
@@ -106,6 +112,12 @@ pub(crate) struct Caller {
     submissions: Queue<Submit>,
 }
 impl Caller {
+    pub(crate) fn restartable(inherited: &Inherited) -> Self {
+        let mut caller = Self::oracle(inherited.roots[0].1);
+        caller.submit(Op::Close { fd: inherited.signal });
+        caller
+    }
+
     pub(crate) fn owns(token: Token) -> bool {
         token.raw() & TAG == TAG
     }
@@ -127,9 +139,15 @@ impl Caller {
         caller.expected = Some(Exit::Code(0));
         caller
     }
+    pub(crate) fn oracle(root: Fd) -> Self {
+        let mut caller = Self::scripted(root);
+        caller.directory = b"/client/oracle-private".as_slice().into();
+        caller
+    }
     pub(crate) fn scripted(root: Fd) -> Self {
         Self {
             root,
+            directory: b"/client/private".as_slice().into(),
             close_root: Some(root),
             expected: None,
             browser: None,
@@ -177,7 +195,7 @@ impl Caller {
             self.submit(kind);
             return;
         }
-        let mut words = vec![b"/client/private".as_slice().into()];
+        let mut words = vec![self.directory.clone()];
         words.extend(command.words);
         self.link = Some(command.input);
         self.started = true;

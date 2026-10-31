@@ -3,7 +3,7 @@ use crate::{Domain, Key, Limits, Name, Stored, Topic};
 use skein_forge::api::Repository;
 use skein_lib::List;
 
-/// A restored record's family, retained for compatibility diagnostics.
+/// A restored record's family.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RecordKind {
     Call,
@@ -30,14 +30,8 @@ pub enum RecordKind {
     Landing,
     Receipt,
 }
-/// Compatibility diagnostic; missing required links assert during reconciliation.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Unresolved {
-    pub records: u32,
-    pub first: RecordKind,
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Need {
+pub enum Need {
     Forge(u16),
     Demo(u16),
     Repository(Repository),
@@ -48,20 +42,18 @@ pub(crate) enum Need {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Reference {
     kind: RecordKind,
-    row: u32,
     client_repository: bool,
     need: Need,
 }
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct MissingLink {
-    pub(crate) kind: RecordKind,
-    pub(crate) key: Option<Key>,
-    pub(crate) need: Need,
+pub struct MissingLink {
+    pub kind: RecordKind,
+    pub key: Key,
+    pub need: Need,
 }
 #[derive(Debug)]
 pub(crate) struct Reconciliation {
     references: List<Reference>,
-    pub(crate) verdict: Result<(), Unresolved>,
 }
 // Retain the opaque client's references too: families can arrive in any order.
 pub(crate) fn capacity(l: &Limits) -> Option<u32> {
@@ -84,13 +76,39 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)?)?
         .checked_add(1) // Demo: configured demo's forge.
 }
+pub(super) fn names_forge(resources: &[Name]) -> Option<u16> {
+    let mut retired = None;
+    if let Some(name) = resources.first() {
+        retired = Some(name.forge);
+    }
+    for name in resources {
+        if retired != Some(name.forge) {
+            retired = None;
+        }
+    }
+    retired
+}
+impl Need {
+    pub(super) fn repository(self, repository: Repository) -> bool {
+        self == Self::Repository(repository)
+    }
+    pub(super) fn task(self, task: u64, retired: Option<u16>) -> bool {
+        self == Self::Task { task, retired }
+    }
+    pub(super) fn name(self, name: &Name) -> bool {
+        self.repository(Repository { forge: name.forge, repository: name.repository })
+    }
+    pub(super) fn entry(self, entry: &skein_forge_client::Entry) -> bool {
+        self.repository(entry.repository) || self.task(entry.task, Some(entry.repository.forge))
+    }
+}
 impl Reconciliation {
     pub(crate) fn new(l: &Limits) -> Self {
-        Self { references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")), verdict: Ok(()) }
+        Self { references: List::with_capacity(capacity(l).expect("checked reconciliation capacity")) }
     }
     fn need(&mut self, kind: RecordKind, need: Need) -> Result<(), crate::RestoreFit> {
         let held = self.references.len();
-        match self.references.push(Reference { kind, row: 0, client_repository: false, need }) {
+        match self.references.push(Reference { kind, client_repository: false, need }) {
             Ok(()) => Ok(()),
             Err(_) => Err(crate::RestoreFit {
                 family: Some(kind),
@@ -117,21 +135,6 @@ impl Reconciliation {
         self.repository(kind, entry.repository)?;
         self.task(kind, entry.task, Some(entry.repository.forge))?;
         Ok(())
-    }
-    pub(crate) fn len(&self) -> u32 {
-        self.references.len()
-    }
-    /// Keep ordinals aligned with the retained table's key order as rows arrive.
-    pub(crate) fn locate(&mut self, before: u32, row: u32, inserted: bool) {
-        let kind = self.references.get(before).expect("new row has references").kind;
-        for index in 0..self.references.len() {
-            let reference = self.references.get_mut(index).expect("bounded reference index");
-            if index >= before {
-                reference.row = row;
-            } else if inserted && reference.kind == kind && reference.row >= row {
-                reference.row = reference.row.checked_add(1).expect("row ordinal fits retained table capacity");
-            }
-        }
     }
     pub(crate) fn restore(&mut self, row: &Stored) -> Result<(), crate::RestoreFit> {
         let before = self.references.len();
@@ -167,15 +170,7 @@ impl Reconciliation {
                 Ok(())
             }
             Stored::Names { task, resources } => {
-                let mut retired = None;
-                if let Some(name) = resources.first() {
-                    retired = Some(name.forge);
-                }
-                for name in resources {
-                    if retired != Some(name.forge) {
-                        retired = None;
-                    }
-                }
+                let retired = names_forge(resources);
                 self.task(RecordKind::Names, *task, retired)?;
                 for name in resources {
                     self.name(RecordKind::Names, name)?;
@@ -256,9 +251,10 @@ impl Domain {
         if let Some(missing) = self.missing_link(tasks) {
             panic!("forge link {:?} -> {:?} for {:?}", missing.kind, missing.need, missing.key);
         }
-        self.reconciliation.verdict = Ok(());
     }
-    pub(crate) fn missing_link(&self, tasks: &jig_domain_tasks::Domain) -> Option<MissingLink> {
+    /// The first required restored link whose target is absent (jig/docs/design/domain/engine.md, 6).
+    #[must_use]
+    pub fn missing_link(&self, tasks: &jig_domain_tasks::Domain) -> Option<MissingLink> {
         if self.restore_fit_failure().is_some() {
             return None;
         }
@@ -272,21 +268,12 @@ impl Domain {
             if !self.reference_resolves(reference.need, live) {
                 return Some(MissingLink {
                     kind: reference.kind,
-                    key: self.restored_link_key(
-                        reference.kind,
-                        reference.row,
-                        reference.need,
-                        reference.client_repository,
-                    ),
+                    key: self.restored_link_key(reference.kind, reference.need, reference.client_repository),
                     need: reference.need,
                 });
             }
         }
         None
-    }
-    /// Retained compatibility result; missing targets panic before this can report failure.
-    pub const fn reconciliation(&self) -> Result<(), Unresolved> {
-        self.reconciliation.verdict
     }
     fn configured_forge(&self, forge: u16) -> bool {
         self.configured.contains_key(&forge) || self.identities.contains_key(&forge)

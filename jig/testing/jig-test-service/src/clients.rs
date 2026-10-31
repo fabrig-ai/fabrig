@@ -445,16 +445,18 @@ impl Clients {
                 self.committed(*number);
                 None
             }
-            root::Event::Link { .. }
+            root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_)
+            | root::Event::Link { .. }
             | root::Event::ResultRead { .. }
             | root::Event::Stop
             | root::Event::ReadApplication { .. }
             | root::Event::Application { .. }
             | root::Event::WriterRead { .. }
             | root::Event::ConnectorTimer { .. }
-            | root::Event::Switched
-            | root::Event::RestartBegin { .. }
-            | root::Event::RestartDone(..)
             | root::Event::Timer(..)
             | root::Event::Credential { .. }
             | root::Event::Connector { .. }
@@ -562,14 +564,16 @@ impl Clients {
             root::Event::WatchApplication { watcher, .. } => {
                 Some(kit::Event::WatchRefused { watcher, why: core::WatchRefusal::Busy })
             }
-            root::Event::Link { .. }
+            root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_)
+            | root::Event::Link { .. }
             | root::Event::ResultRead { .. }
             | root::Event::Stop
             | root::Event::WriterRead { .. }
             | root::Event::ConnectorTimer { .. }
-            | root::Event::Switched
-            | root::Event::RestartBegin { .. }
-            | root::Event::RestartDone(..)
             | root::Event::Timer(..)
             | root::Event::Credential { .. }
             | root::Event::Connector { .. }
@@ -614,6 +618,7 @@ impl Clients {
     fn secret_answer(&mut self, answer: jig_protocol_store::Event) {
         use jig_protocol_store::Event;
         let event = match answer {
+            Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Kept { owner } => kit::SecretsAnswer::Kept { owner: self.owner(owner) },
             Event::Erased { owner } => kit::SecretsAnswer::Erased { owner: self.owner(owner) },
             Event::Carried { owner, number } => {
@@ -646,7 +651,6 @@ impl Clients {
             | Event::Committed { .. }
             | Event::Failed { .. }
             | Event::FrameTooLarge { .. }
-            | Event::Restored { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }
             | Event::Got { .. }

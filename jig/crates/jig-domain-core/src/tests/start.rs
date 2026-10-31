@@ -1,5 +1,11 @@
 //! Start selection and phase discipline (jig/docs/design/domain/engine.md, 6).
+mod connectors;
+mod inbox;
+mod links;
+mod projections;
 mod rows;
+mod runs;
+mod settings;
 use super::{Core, Env, Queue, Time, Wall, config, limits, tasks};
 use crate::start::{Action, Failure, Phase, SweepInput};
 use crate::{Key, Request, Write, people};
@@ -76,43 +82,15 @@ fn every_operational_entrance_consumes_selection() {
         },
         Entrance { name: "record_call", input: |core, _| core.record_call(call_key(), crate::CallPart::Controlled) },
         Entrance {
-            name: "restore_call",
-            input: |core, _| {
-                let _accepted = core.restore_call(call_key(), crate::CallPart::Controlled);
-            },
-        },
-        Entrance {
             name: "retire_calls",
             input: |core, _| {
                 let _retired = core.retire_calls(1, 1, 1, 1);
             },
         },
         Entrance {
-            name: "restore_proof",
-            input: |core, env| {
-                let _accepted = core.restore_proof(proof(), env.limits.tasks.result_bytes);
-            },
-        },
-        Entrance {
-            name: "restore_task_row",
-            input: |core, _| {
-                let _accepted = core.restore_task_row(&tasks::Stored::Stub(tasks::Stub {
-                    task: 1,
-                    phase: tasks::Status::Done,
-                    result: Token::new(1),
-                }));
-            },
-        },
-        Entrance {
-            name: "restore_core",
-            input: |core, env| {
-                let _accepted =
-                    core.restore_core(crate::CoreRecord::Deployment(core.counters.deployment()), &env.limits);
-            },
-        },
-        Entrance {
             name: "restore_policy",
             input: |core, env| {
+                let _begin = core.start_begin(false, env.wall);
                 let configured = config(41);
                 let value = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
                     .expect("bounded policy");
@@ -127,29 +105,10 @@ fn every_operational_entrance_consumes_selection() {
             },
         },
         Entrance {
-            name: "restore_inbox_row",
-            input: |core, env| {
-                let _accepted = core.restore_inbox_row(
-                    &env.limits,
-                    &crate::Record::Tasks(tasks::Stored::Stub(tasks::Stub {
-                        task: 1,
-                        phase: tasks::Status::Done,
-                        result: Token::new(1),
-                    })),
-                );
-            },
-        },
-        Entrance {
             name: "census",
             input: |core, env| {
-                let mut out = Queue::uncapped();
-                people::step(
-                    &mut core.people,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-                    people::Event::Restored,
-                    &mut out,
-                );
-                core.restart = crate::restart::Restart::Waiting(crate::RestartStep::LoadInbox);
+                let _begin = core.start_begin(false, env.wall);
+                finish_core_load(core, env, &mut Queue::uncapped());
                 let _census = core.census(&env.limits);
             },
         },
@@ -166,36 +125,6 @@ fn every_operational_entrance_consumes_selection() {
                     setting: crate::settings::Setting::Rules,
                     fault: crate::settings::Fault::Shape,
                 });
-            },
-        },
-        Entrance {
-            name: "restart_begin",
-            input: |core, _| {
-                let _step = core.restart_begin(false);
-            },
-        },
-        Entrance {
-            name: "restart_done",
-            input: |core, _| {
-                let _step = core.restart_done(crate::RestartStep::LoadCore);
-            },
-        },
-        Entrance {
-            name: "restart_refuse",
-            input: |core, _| {
-                let _refused = core.restart_refuse();
-            },
-        },
-        Entrance {
-            name: "restart_checked",
-            input: |core, _| {
-                assert!(!core.restart_checked());
-            },
-        },
-        Entrance {
-            name: "restart_admit_claims",
-            input: |core, _| {
-                assert!(!core.restart_admit_claims());
             },
         },
         Entrance {
@@ -467,19 +396,6 @@ fn refused_start_cannot_be_selected_again() {
 }
 
 #[test]
-fn start_and_restart_selections_cannot_mix() {
-    for completion in [false, true] {
-        let limits = limits();
-        let mut core = Core::new(config(41), &limits).expect("valid core configuration");
-        let _begin = core.start_begin(false, Wall::EPOCH);
-        let mixed = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            if completion { core.restart_done(crate::RestartStep::LoadCore) } else { core.restart_begin(false) }
-        }));
-        let _panic = mixed.expect_err("start and restart selections cannot mix");
-    }
-}
-
-#[test]
 fn actual_stored_call_capacity_keeps_its_key() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
@@ -651,6 +567,32 @@ fn every_start_reaches_switch_and_waits_for_wires() {
 }
 
 #[test]
+fn core_owned_people_rows_survive_sweep() {
+    let limits = limits();
+    let configured = config(41);
+    let value = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("bounded policy");
+    let stored = [
+        people::Stored::Policy { project: 1, name: Box::from("Project 1"), value },
+        people::Stored::EndedRead { task: 2, party: 1, through: 0 },
+    ];
+    let mut core = Core::new(configured, &limits).expect("valid core configuration");
+    let env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
+    let mut out = Queue::uncapped();
+    step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
+    through_link(&mut core, &env, &mut out);
+    for row in stored {
+        match core.start_sweep(&env, SweepInput::Record(row), &mut out) {
+            Action::Idle => {}
+            Action::Step(_) | Action::Commit(_) | Action::Refused(_) => panic!("core-owned row remains stored"),
+        }
+        assert!(out.is_empty());
+        assert_eq!(core.start_phase(), Some(Phase::Sweep));
+    }
+    step_phase(core.start_sweep(&env, SweepInput::Finished, &mut out), Phase::Switch);
+    assert!(out.is_empty());
+}
+
+#[test]
 fn frozen_expiry_and_stale_cleanup_continuation() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
@@ -739,28 +681,6 @@ fn first_failure_is_sticky() {
         }
     }
     assert_eq!(core.start_failure(), Some(first));
-}
-
-#[test]
-#[should_panic]
-#[expect(
-    clippy::should_panic_without_expect,
-    reason = "the selection invariant is checked without matching panic text"
-)]
-fn direct_resource_input_prevents_late_start_selection() {
-    let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
-    let name = tasks::Name { connector: core.connectors[0], path: Box::new([Box::from(b"resource".as_slice())]) };
-    let mut out = Queue::uncapped();
-    tasks::step(
-        &mut core.tasks,
-        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
-        tasks::Event::Resource { name: name.clone(), hold: tasks::HoldKind::Shared },
-        &mut out,
-    );
-    assert!(out.is_empty());
-    assert_eq!(core.tasks.resource_hold(&name), Some(tasks::HoldKind::Shared));
-    core.tasks.start_restore();
 }
 
 fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) {

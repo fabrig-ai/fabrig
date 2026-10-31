@@ -903,16 +903,12 @@ pub enum Event {
         /// `Busy`/`NotReady` pressure.
         outcome: Outcome,
     },
-    /// Load one saved row while restoring; invalid input emits one `RestoreRefused` and permanently
-    /// fails this instance.
+    /// Load one decoded row during the start. A representation bound failure emits one
+    /// `RestoreRefused` and permanently fails this instance.
     Restore {
-        /// One saved row, admitted once during restoring; duplicate/oversized rows fail
-        /// restoration.
+        /// One saved row, admitted once during loading; duplicate keys panic.
         record: Stored,
     },
-    /// Finish restoration, validate all person references and reproject sign-in deadlines; erase
-    /// expired entries. Repeating after ready/failed is ignored.
-    Restored,
 }
 
 /// Child-to-root outputs; persistence joins the root's decision, and the root withholds external
@@ -978,11 +974,11 @@ pub enum Request {
         outcome: Outcome,
     },
     /// Terminal restoration failure; a failed instance cannot become ready through more rows or
-    /// `Restored`.
+    /// start completion.
     RestoreRefused {
         /** Record key that made restoration fail. */
         key: Key,
-        /** Restore admission/reference reason; this instance stays unready. */
+        /** Restore representation bound reason; this instance stays unready. */
         refusal: Refusal,
     },
 }

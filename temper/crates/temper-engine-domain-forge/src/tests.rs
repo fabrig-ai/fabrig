@@ -121,6 +121,11 @@ fn client_limits_must_be_coherent_and_their_capacities_representable() {
     }
 }
 
+fn restoring_domain(started: Wall) -> Domain {
+    let mut d = domain();
+    d.restore_begin(started);
+    d
+}
 fn domain() -> Domain {
     Domain::new(
         &LIMITS,
@@ -136,6 +141,9 @@ fn domain() -> Domain {
     .expect("valid connector")
 }
 fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
+    if let Event::Restore { .. } = &event {
+        d.restore_begin(Wall::EPOCH);
+    }
     let mut out = Queue::uncapped();
     step(d, &env(), event, &mut out);
     let mut values = skein_lib::List::with_capacity(out.len());

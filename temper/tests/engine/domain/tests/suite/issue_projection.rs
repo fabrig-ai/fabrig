@@ -432,7 +432,7 @@ fn restart_failed_history(mut world: World, goal: u64, defaults: &jig_domain_cor
     restarted.fake_env = world.fake_env;
     advance(&mut restarted);
     assert!(restarted.root.ready(), "writer-produced failed Issue reaches ready after goal end and home change");
-    assert_eq!(restarted.root.forge_restore_failure(), None);
+    assert_eq!(restarted.root.start_stop(), None);
     assert_eq!(issue(&restarted, goal), &historical, "failed projection remains diagnostic history");
     assert!(restarted.issue_write_times.is_empty(), "no failed projection retried");
 }

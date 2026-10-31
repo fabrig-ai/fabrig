@@ -417,103 +417,11 @@ impl Core {
     #[must_use]
     pub fn restore_task_row(&mut self, row: &jig_domain_tasks::Stored) -> bool {
         self.start_input();
-        match self.start.mode {
-            crate::start::StartMode::Default => {
-                if !self.task_row_admitted(row) {
-                    return false;
-                }
-            }
-            crate::start::StartMode::LoadAndLink => {
-                assert!(self.start_loading(), "task rows load before Link");
-                assert!(row.key().live(), "historical task row in live load: {:?}", row.key());
-            }
+        {
+            assert!(self.start_loading(), "task rows load before Link");
+            assert!(row.key().live(), "historical task row in live load: {:?}", row.key());
         }
         self.remember_task_proof(row)
-    }
-
-    fn task_row_admitted(&mut self, row: &jig_domain_tasks::Stored) -> bool {
-        use jig_domain_tasks as tasks;
-
-        let deployment = self.counters.deployment();
-        match row {
-            tasks::Stored::PersonProposal(proposal) => {
-                for member in proposal.batch() {
-                    if member.number > deployment.tasks {
-                        return false;
-                    }
-                }
-                proposal.number <= deployment.messages
-                    && proposal.proposer <= deployment.people
-                    && match proposal.action {
-                        tasks::PersonAction::Settings { .. } => proposal.project == jig_domain_people::DEPLOYMENT,
-                        tasks::PersonAction::Batch(_) | tasks::PersonAction::Amend { .. } => {
-                            self.authority.policy(proposal.project).is_some()
-                        }
-                    }
-            }
-            tasks::Stored::PlacedHold(hold) => {
-                self.authority.policy(hold.project).is_some() && supported_placed_hold(hold, &deployment)
-            }
-            tasks::Stored::Stub(stub) => stub.task <= deployment.tasks,
-            tasks::Stored::Live(task) => {
-                let number = match task.executor {
-                    jig_domain_tasks::Executor::Agent { charter } => Some(charter),
-                    jig_domain_tasks::Executor::Procedure { .. } | jig_domain_tasks::Executor::Person(_) => None,
-                };
-                if let Some(number) = number {
-                    let mut versions = true;
-                    for revision in [Some(task.settings.task), task.settings.run].into_iter().flatten() {
-                        if !self.held(revision) {
-                            self.restore_failure =
-                                Some(crate::RestartRequest::UnheldRevision { task: task.number, revision });
-                            let _refused = self.restart_refuse();
-                            return false;
-                        }
-                        versions &= self.charter_at(number, revision).is_some();
-                    }
-                    let valid = versions
-                        && match self.charter_at(number, task.settings.task) {
-                            Some(charter) => match &task.llm {
-                                Some(choice) => crate::llm::takes(&self.settings.models, &charter.policy, choice),
-                                None => true,
-                            },
-                            None => false,
-                        };
-                    if !valid {
-                        let _request = self.refuse_settings(crate::settings::Failure {
-                            setting: crate::settings::Setting::Charter(number),
-                            fault: crate::settings::Fault::Reference,
-                        });
-                        return false;
-                    }
-                }
-
-                if !supported_task(task, self)
-                    || !supported_proposal(task, &deployment)
-                    || task.number > deployment.tasks
-                    || !supported_requester(task.requester, deployment.people, deployment.tasks)
-                {
-                    return false;
-                }
-                if task.attempt > deployment.runs && matches_agent(task.executor) {
-                    return false;
-                }
-                true
-            }
-            tasks::Stored::Ledger(_) | tasks::Stored::Writer(_) | tasks::Stored::Pool(_) => true,
-            tasks::Stored::Result(_)
-            | tasks::Stored::EndedByParty(_)
-            | tasks::Stored::EndedByProject(_)
-            | tasks::Stored::EndedDelegate(_)
-            | tasks::Stored::Delegate(_)
-            | tasks::Stored::Update(_)
-            | tasks::Stored::Ended(_)
-            | tasks::Stored::ClosedLedger(_)
-            | tasks::Stored::DecidedProposal(_)
-            | tasks::Stored::History(_)
-            | tasks::Stored::Activity(_)
-            | tasks::Stored::Milestone(_) => false,
-        }
     }
 
     #[expect(clippy::wildcard_enum_match_arm, reason = "only live tasks carry run-proof correlation")]
@@ -539,6 +447,12 @@ impl Core {
                         )
                         .is_err()
                 {
+                    let _refused = self.start_room(
+                        crate::start::LiveSet::RunProofs,
+                        Key::Tasks(tasks::Key::Live(task.number)),
+                        self.restoring_proofs.len(),
+                        self.restoring_proofs.capacity(),
+                    );
                     return false;
                 }
                 true
@@ -547,31 +461,14 @@ impl Core {
         }
     }
 
-    fn call_record_admitted(&self, record: &CallRecord, limits: &Limits) -> bool {
-        if let Some(call) = &record.settled {
-            if call.serial == 0 || call.serial > self.counters.deployment().calls || !call.valid(limits) {
-                return false;
-            }
-            for (_, previous) in &self.call_settled {
-                if call.serial == previous.serial {
-                    return false;
-                }
-            }
-        }
-        record.part.valid(&self.counters.deployment(), limits, self.authority.limits())
-    }
-
     /// Retain one of the core's own live rows. The root wraps store bytes and
     /// routes connector rows separately; it cannot alter this live decision.
     pub fn restore_core(&mut self, record: CoreRecord, limits: &Limits) -> Restored {
         self.start_input();
-        match self.start.mode {
-            crate::start::StartMode::Default => {}
-            crate::start::StartMode::LoadAndLink => {
-                assert!(self.start_loading(), "core rows load before Link");
-                if let CoreRecord::Deployment(_) = &record {
-                    assert!(self.counters.loading(), "duplicate {:?}", Key::Core(CoreKey::Deployment));
-                }
+        {
+            assert!(self.start_loading(), "core rows load before Link");
+            if let CoreRecord::Deployment(_) = &record {
+                assert!(self.counters.loading(), "duplicate {:?}", Key::Core(CoreKey::Deployment));
             }
         }
         match record {
@@ -590,38 +487,26 @@ impl Core {
                 }
             }
             CoreRecord::Deployment(deployment) => {
-                // A cold load restores names independently of configuration. A live
-                // counter refresh does not begin a project-policy restoration.
-                if self.restart_step() == Some(crate::RestartStep::LoadCore) {
-                    self.names = skein_lib::Map::with_capacity(limits.authority.projects);
-                }
                 self.counters = Counters::new(deployment);
                 Restored::Deployment { commits: deployment.commits }
             }
             CoreRecord::Call(record) => {
-                match self.start.mode {
-                    crate::start::StartMode::Default => {
-                        if !self.call_record_admitted(&record, limits) {
-                            return Restored::Rejected;
-                        }
-                    }
-                    crate::start::StartMode::LoadAndLink => {
-                        let excess = match record.part.excess(limits, self.authority.limits()) {
-                            Some(excess) => Some(excess),
-                            None => match &record.settled {
-                                Some(call) => call.excess(limits),
-                                None => None,
-                            },
-                        };
-                        if let Some((held, limit)) = excess {
-                            let _refused = self.start_refuse(crate::start::Failure::LiveSet {
-                                set: crate::start::LiveSet::Calls,
-                                key: Key::Core(CoreKey::Call(record.key)),
-                                held,
-                                limit,
-                            });
-                            return Restored::Rejected;
-                        }
+                {
+                    let excess = match record.part.excess(limits, self.authority.limits()) {
+                        Some(excess) => Some(excess),
+                        None => match &record.settled {
+                            Some(call) => call.excess(limits),
+                            None => None,
+                        },
+                    };
+                    if let Some((held, limit)) = excess {
+                        let _refused = self.start_refuse(crate::start::Failure::LiveSet {
+                            set: crate::start::LiveSet::Calls,
+                            key: Key::Core(CoreKey::Call(record.key)),
+                            held,
+                            limit,
+                        });
+                        return Restored::Rejected;
                     }
                 }
                 if self.restore_call(record.key, record.part) {
@@ -648,73 +533,6 @@ impl Core {
             | CoreRecord::ProposalDecision(_)
             | CoreRecord::EscalationDecision(_) => Restored::Archive,
         }
-    }
-}
-
-fn matches_agent(executor: jig_domain_tasks::Executor) -> bool {
-    match executor {
-        jig_domain_tasks::Executor::Agent { .. } => true,
-        jig_domain_tasks::Executor::Procedure { .. } | jig_domain_tasks::Executor::Person(_) => false,
-    }
-}
-
-fn supported_task(task: &jig_domain_tasks::TaskRecord, core: &Core) -> bool {
-    use jig_domain_tasks as tasks;
-    let executor = match task.executor {
-        tasks::Executor::Agent { charter } => core.charter_at(charter, task.settings.task).is_some(),
-        tasks::Executor::Procedure { code, .. } => code != 0,
-        tasks::Executor::Person(tasks::PersonAddress::Person(person)) => person != 0,
-        tasks::Executor::Person(tasks::PersonAddress::Role(_)) => true,
-    };
-    task.number != 0 && task.result_position == 0 && executor
-}
-
-fn supported_proposal(task: &jig_domain_tasks::TaskRecord, deployment: &Deployment) -> bool {
-    use jig_domain_tasks as tasks;
-    let Some(proposal) = &task.proposal else { return true };
-    if proposal.number == 0 || proposal.number > deployment.messages || proposal.proposer != task.number {
-        return false;
-    }
-    let holder = match proposal.state {
-        tasks::ProposalState::Pending { holder, .. } => holder,
-        tasks::ProposalState::Accepted { .. }
-        | tasks::ProposalState::Rejected { .. }
-        | tasks::ProposalState::Withdrawn => return false,
-    };
-    let holder_valid = match holder {
-        tasks::ProposalHolder::Task(number) => number != 0 && number <= deployment.tasks,
-        tasks::ProposalHolder::Person(number) => number != 0 && number <= deployment.people,
-        tasks::ProposalHolder::Policy { project, .. } => project == proposal.project,
-    };
-    if !holder_valid {
-        return false;
-    }
-    match &proposal.action {
-        tasks::ProposalAction::Settings { .. } => true,
-        tasks::ProposalAction::Effect { attempt, completion, .. } => {
-            *attempt != 0 && *attempt <= deployment.runs && *completion != 0
-        }
-        tasks::ProposalAction::ProcedureEffect { step, .. } => *step != 0,
-        tasks::ProposalAction::Batch(batch) => {
-            for member in batch {
-                if member.number == 0 || member.number > deployment.tasks {
-                    return false;
-                }
-            }
-            true
-        }
-        tasks::ProposalAction::Amend { task, .. }
-        | tasks::ProposalAction::Widen { task, .. }
-        | tasks::ProposalAction::ReleasePlaced { task, .. }
-        | tasks::ProposalAction::Release { task } => *task != 0 && *task <= deployment.tasks,
-    }
-}
-
-fn supported_requester(requester: jig_domain_tasks::Party, people: u64, tasks: u64) -> bool {
-    match requester {
-        jig_domain_tasks::Party::Person(person) => person != 0 && person <= people,
-        jig_domain_tasks::Party::Task(task) => task != 0 && task <= tasks,
-        jig_domain_tasks::Party::Deployment { .. } => true,
     }
 }
 
@@ -903,15 +721,6 @@ impl RunProof {
             terminal: None,
         }
     }
-}
-
-fn supported_placed_hold(hold: &jig_domain_tasks::PlacedHold, deployment: &Deployment) -> bool {
-    hold.number != 0
-        && hold.number <= deployment.messages
-        && match hold.owner {
-            jig_domain_tasks::Owner::Party { person } => person != 0 && person <= deployment.people,
-            jig_domain_tasks::Owner::Task { task } => task != 0 && task <= deployment.tasks,
-        }
 }
 
 fn settings_refusal_valid(why: &jig_domain_people::Refusal) -> bool {

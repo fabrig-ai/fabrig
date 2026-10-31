@@ -31,7 +31,8 @@ impl Joint {
             }]),
         };
         let row = engine::Record::Core(jig_domain_core::Record::People(membership));
-        first.store.seed(Box::new([row]), Box::new([]));
-        Self::with_engine(seed, &limits, first.store, [walking::config(seed), walking::config(seed)], &bounds, 1)
+        let mut store = first.take_store();
+        store.seed(Box::new([row]), Box::new([]));
+        Self::with_engine(seed, &limits, store, [walking::config(seed), walking::config(seed)], &bounds, 1)
     }
 }

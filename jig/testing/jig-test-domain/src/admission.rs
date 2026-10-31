@@ -65,7 +65,7 @@ pub fn class(event: &Event) -> Class {
         Event::WatchApplication { .. }
         | Event::ReadApplication { .. }
         | Event::Application { .. }
-        | Event::RestartBegin { .. }
+        | Event::StartBegin { .. }
         | Event::Credential { .. }
         | Event::ProjectionEffect { .. }
         | Event::TopicCall { .. }
@@ -73,8 +73,10 @@ pub fn class(event: &Event) -> Class {
         Event::ResultRead { .. }
         | Event::Stop
         | Event::ConnectorTimer { .. }
-        | Event::Switched
-        | Event::RestartDone(..)
+        | Event::StartRecord(_)
+        | Event::StartMissing { .. }
+        | Event::StartPageRefused { .. }
+        | Event::StartDone(_)
         | Event::CallAnswered { .. }
         | Event::Text { .. }
         | Event::Turn { .. }
@@ -145,8 +147,10 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             step(domain, env, event);
             Ok(())
         }
-        event @ (Event::Switched
-        | Event::RestartDone(_)
+        event @ (Event::StartRecord(_)
+        | Event::StartMissing { .. }
+        | Event::StartPageRefused { .. }
+        | Event::StartDone(_)
         | Event::TranscriptLoaded { .. }
         | Event::Core(
             core::Event::ReadLoaded { .. }
@@ -174,7 +178,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         | Event::Application { .. }
         | Event::WriterRead { .. }
         | Event::ConnectorTimer { .. }
-        | Event::RestartBegin { .. }
+        | Event::StartBegin { .. }
         | Event::Timer(..)
         | Event::Core(..)
         | Event::Credential { .. }
@@ -258,9 +262,11 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::Application { .. }
         | Event::WriterRead { .. }
         | Event::ConnectorTimer { .. }
-        | Event::RestartBegin { .. }
-        | Event::Switched
-        | Event::RestartDone(..)
+        | Event::StartBegin { .. }
+        | Event::StartRecord(_)
+        | Event::StartMissing { .. }
+        | Event::StartPageRefused { .. }
+        | Event::StartDone(_)
         | Event::Timer(..)
         | Event::Core(..)
         | Event::Credential { .. }
@@ -353,6 +359,7 @@ mod expiry_tests {
     fn wall_expiry_is_taken_at_the_watermark() {
         let mut env = fixtures::env();
         let mut domain = fixtures::domain();
+        domain.core.people.start_restore(env.wall);
         let expiry = Wall::from_nanos(10);
         let mut ignored = Queue::uncapped();
         for record in [
@@ -373,12 +380,10 @@ mod expiry_tests {
                 &mut ignored,
             );
         }
-        people::step(
-            &mut domain.core.people,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
-            people::Event::Restored,
-            &mut ignored,
-        );
+        let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
+        assert!(domain.core.people.start_link(&people_env));
+        domain.core.people.start_sweep();
+        assert!(domain.core.people.start_complete(&people_env));
         assert!(domain.core.people.ready());
         let commits = fixtures::fill_to_watermark(&mut domain, &env);
         for _ in 0..commits {

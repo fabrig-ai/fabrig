@@ -239,5 +239,5 @@ pub fn first_start_over(
     driver.period_sent = true;
     driver.settle();
     assert_eq!(driver.store.applied, FIRST_START_COMMITS, "first-start rows and start mark");
-    driver.store
+    driver.take_store()
 }

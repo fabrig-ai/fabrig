@@ -65,6 +65,7 @@ fn internal_output_envelopes_do_not_constrain_admission() {
             false,
         )
         .expect("internal output does not bound admission");
+        domain.restore_begin(Wall::EPOCH);
         let environment = Env { limits, ..env() };
         let mut out = Queue::uncapped();
         step(&mut domain, &environment, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
