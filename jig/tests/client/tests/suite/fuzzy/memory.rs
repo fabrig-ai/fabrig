@@ -79,19 +79,17 @@ fn full_task() -> jig_client_domain::contract::Task {
     task.context.as_mut().expect("supplied task context").parts = jig_client_world::test::list(
         (1..=8).map(|n| jig_client_domain::contract::Part::Panel { connector: jig_client_test_domain::FIRST, task: n }),
     );
-    task.resources = jig_client_world::test::list((1..=8).map(|n| {
-        jig_client_domain::contract::OwnerResourceLine {
-            part: jig_client_domain::contract::OwnerPart {
-                connector: jig_client_test_domain::SECOND,
-                kind: jig_client_domain::contract::OwnerPartKind::Resource,
-                key: jig_client_domain::contract::OwnerPartKey::Number(n),
-            },
-            kind: 1,
-            taken: false,
-            holder: None,
-            writer: None,
-            writer_lost: false,
-        }
+    task.resources = jig_client_world::test::list((1..=8).map(|n| jig_client_domain::contract::OwnerResourceLine {
+        part: jig_client_domain::contract::OwnerPart {
+            connector: jig_client_test_domain::SECOND,
+            kind: jig_client_domain::contract::OwnerPartKind::Resource,
+            key: jig_client_domain::contract::OwnerPartKey::Number(n),
+        },
+        kind: 1,
+        taken: false,
+        holder: None,
+        writer: None,
+        writer_lost: false,
     }));
     task.spec.specification.words.bytes = stories::text(&[b's'; 32]);
     task.instructions = Some(jig_client_domain::contract::DocumentText::complete(stories::text(&[b'i'; 32])));
