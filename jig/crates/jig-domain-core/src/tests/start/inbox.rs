@@ -4,7 +4,7 @@ use crate::tests::fixtures;
 use crate::{CoreRecord, Limits, Record, Restored, start::LiveSet};
 use skein_lib::Map;
 
-fn loaded() -> (Core, Env<Limits>) {
+pub(super) fn loaded() -> (Core, Env<Limits>) {
     let limits = limits();
     let mut core = Core::new(config(401), &limits).expect("configured core");
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
@@ -38,7 +38,7 @@ fn loaded() -> (Core, Env<Limits>) {
     (core, env)
 }
 
-fn inbox(core: &mut Core, env: &Env<Limits>) {
+pub(super) fn inbox(core: &mut Core, env: &Env<Limits>) {
     {
         step_phase(core.start_done(env, Phase::LoadCore, &mut Queue::uncapped()), Phase::LoadInbox);
         assert!(!core.people.ready());
@@ -47,7 +47,7 @@ fn inbox(core: &mut Core, env: &Env<Limits>) {
     assert_eq!(census.results.as_ref(), [crate::ReadResults { party: 1, after: 0 }]);
 }
 
-fn ended() -> tasks::TaskRecord {
+pub(super) fn ended() -> tasks::TaskRecord {
     let mut row = fixtures::ended_report(2, tasks::Party::Person(1));
     row.last_reply = 0;
     row.replies = Box::new([]);
@@ -55,7 +55,7 @@ fn ended() -> tasks::TaskRecord {
 }
 
 #[test]
-fn selected_census_uses_its_phase_and_clears_progress_when_done() {
+fn start_census_uses_its_phase_and_clears_progress_when_done() {
     let (mut core, env) = loaded();
     inbox(&mut core, &env);
     assert!(core.restore_inbox_row(&env.limits, &Record::Tasks(tasks::Stored::Ended(Box::new(ended())))));
@@ -65,7 +65,7 @@ fn selected_census_uses_its_phase_and_clears_progress_when_done() {
 }
 
 #[test]
-fn row_rules_do_not_refuse_selected_loading() {
+fn row_rules_do_not_refuse_start_loading() {
     let mut past_counter = ended();
     past_counter.result_position = 101;
     let mut header = ended();
@@ -213,7 +213,7 @@ fn unknown_requester_does_not_take_a_census_party_slot() {
 }
 
 #[test]
-fn question_membership_is_supplied_by_the_selected_census_index() {
+fn question_membership_is_supplied_by_the_start_census_index() {
     {
         let (mut core, env) = loaded();
         let (source, _) = crate::tests::watch_core();

@@ -460,29 +460,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
 }
 
 fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::Env<crate::Limits>, Token) {
-    use jig_domain_people as people;
-    use skein_lib::Env;
-    let mut domain = fixtures::domain();
-    let env = fixtures::env();
-    domain.core.people.start_restore(env.wall);
-    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
-    let mut ignored = Queue::uncapped();
-    for record in [
-        people::Stored::Person {
-            number: 1,
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: Box::new([1]) },
-                login: b"owner".as_slice().into(),
-                name: b"Owner".as_slice().into(),
-            },
-        },
-        people::Stored::SignIn { number: 1, person: 1, expires: expiry },
-    ] {
-        people::step(&mut domain.core.people, &people_env, people::Event::Restore { record }, &mut ignored);
-    }
-    assert!(domain.core.people.start_link(&people_env));
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&people_env));
+    let (mut domain, env) = super::start::with_sign_in(expiry);
     let watcher = Token::new(901);
     crate::step(
         &mut domain,

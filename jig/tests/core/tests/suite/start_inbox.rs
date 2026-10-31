@@ -3,7 +3,6 @@ use jig_core_world::{
     effects::{World, fixture},
     fixtures::{ask_as, chat, people_member},
 };
-use jig_domain_accounts as accounts;
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -139,44 +138,7 @@ fn load_core(rows: &BTreeMap<root::Key, root::Record>, limits: &root::Limits) ->
 
 fn load_record(domain: &mut core::Core, limits: &root::Limits, record: core::Record) {
     let env = core_env(limits);
-    match record {
-        core::Record::Core(row) => assert_ne!(domain.restore_core(row, &limits.core), core::Restored::Rejected),
-        core::Record::People(people::Stored::Policy { project, name, value }) => {
-            assert!(domain.restore_policy(&limits.core, project, name, value));
-        }
-        core::Record::People(row) => {
-            let mut out = Queue::uncapped();
-            people::step(
-                &mut domain.people,
-                &Env { now: env.now, wall: env.wall, limits: limits.core.people },
-                people::Event::Restore { record: row },
-                &mut out,
-            );
-            assert!(out.is_empty());
-        }
-        core::Record::Tasks(row) => {
-            assert!(domain.restore_task_row(&row));
-            let mut out = Queue::uncapped();
-            tasks::step(
-                &mut domain.tasks,
-                &Env { now: env.now, wall: env.wall, limits: limits.core.tasks },
-                tasks::Event::Restore { record: row },
-                &mut out,
-            );
-            assert!(out.is_empty());
-        }
-        core::Record::Accounts(row) => {
-            let mut out = Queue::uncapped();
-            accounts::step(
-                &mut domain.accounts,
-                &Env { now: env.now, wall: env.wall, limits: limits.core.accounts },
-                accounts::Event::Restore { record: row },
-                &mut out,
-            );
-            assert!(out.is_empty());
-        }
-        core::Record::Notes(_) => panic!("no notes in live core ranges"),
-    }
+    assert_ne!(domain.restore(&env, record), core::Restore::Refused);
 }
 
 fn core_env(limits: &root::Limits) -> Env<core::Limits> {
@@ -202,12 +164,12 @@ fn load_inbox(domain: &mut core::Core, rows: &BTreeMap<root::Key, root::Record>,
         match record {
             core::Record::People(people::Stored::EndedRead { task, .. }) => {
                 positions += 1;
-                assert!(domain.restore_inbox_row(&limits.core, record));
+                assert_eq!(domain.restore(&core_env(limits), record.clone()), core::Restore::Kept);
                 let root::Record::Core(ended) = &rows[&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(*task)))]
                 else {
                     panic!("ended owner")
                 };
-                assert!(domain.restore_inbox_row(&limits.core, ended));
+                assert_eq!(domain.restore(&core_env(limits), ended.clone()), core::Restore::Kept);
             }
             core::Record::Tasks(tasks::Stored::Result(result)) => {
                 let root::Record::Core(ended) =
@@ -215,10 +177,10 @@ fn load_inbox(domain: &mut core::Core, rows: &BTreeMap<root::Key, root::Record>,
                 else {
                     panic!("result owner")
                 };
-                assert!(domain.restore_inbox_row(&limits.core, ended));
+                assert_eq!(domain.restore(&core_env(limits), ended.clone()), core::Restore::Kept);
             }
             core::Record::Tasks(tasks::Stored::Activity(_)) => {
-                assert!(domain.restore_inbox_row(&limits.core, record));
+                assert_eq!(domain.restore(&core_env(limits), record.clone()), core::Restore::Kept);
             }
             other @ (core::Record::Core(_)
             | core::Record::Tasks(_)

@@ -1,4 +1,4 @@
-//! Direct selected-start projection rows become ordinary serving feeds.
+//! Direct started-start projection rows become ordinary serving feeds.
 use jig_core_world::world;
 use jig_domain_core::{
     self as core,
@@ -25,13 +25,16 @@ impl Harness {
         let mut header = h.core.counters.deployment();
         header.commits = 1;
         assert_eq!(
-            h.core.restore_core(core::CoreRecord::Deployment(header), &h.env.limits),
-            core::Restored::Deployment { commits: 1 }
+            h.core.restore(&h.env, core::Record::Core(core::CoreRecord::Deployment(header))),
+            core::Restore::Deployment { commits: 1 }
         );
         h
     }
     fn row(&mut self, row: core::ProjectionRecord) {
-        assert_eq!(self.core.restore_core(core::CoreRecord::Projection(row), &self.env.limits), core::Restored::Live);
+        assert_eq!(
+            self.core.restore(&self.env, core::Record::Core(core::CoreRecord::Projection(row))),
+            core::Restore::Kept
+        );
     }
     fn link(&mut self) -> Action {
         assert_step(&self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
@@ -139,7 +142,7 @@ fn a_fit_refusal_names_the_stored_projection_key() {
     let limit = h.env.limits.tasks.spec_bytes;
     goal.words = vec![b'x'; usize::try_from(limit + 1).expect("fixture bytes")].into_boxed_slice();
     let key = core::Key::Core(core::CoreKey::Projection(row.key()));
-    assert_eq!(h.core.restore_core(core::CoreRecord::Projection(row), &h.env.limits), core::Restored::Rejected);
+    assert_eq!(h.core.restore(&h.env, core::Record::Core(core::CoreRecord::Projection(row))), core::Restore::Refused);
     let expected = core::start::Failure::LiveSet {
         set: core::start::LiveSet::Projections,
         key,

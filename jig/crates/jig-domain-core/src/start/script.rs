@@ -73,20 +73,18 @@ impl Core {
             Phase::Switch => Phase::Wires,
             Phase::Wires => return self.start_commit(Phase::AdoptRuns),
             Phase::AdoptRuns => {
-                if let Some(claim) = self.adopted.iter().next() {
-                    #[expect(
-                        clippy::wildcard_enum_match_arm,
-                        reason = "the adoption queue contains only restored claims"
-                    )]
-                    let task = match claim {
-                        crate::fleet::Event::Adopt { run, .. } | crate::fleet::Event::Cross { run, .. } => run.raw(),
-                        _ => unreachable!("adopted queue contains restored claims"),
-                    };
-                    assert!(
-                        self.adopted.is_empty(),
-                        "{:?} restored claim delivered before reads",
-                        Key::Tasks(tasks::Key::Live(task))
-                    );
+                // Each restored claim is delivered once before the fleet opens placement.
+                for _ in 0..self.adopted.len() {
+                    let event = self.adopted.pop().expect("restored claims are bounded by live tasks");
+                    let crate::Requests::Out(mut child) = crate::step(self, env, crate::Event::Fleet(event));
+                    for _ in 0..child.len() {
+                        out.push(child.pop().expect("bounded fleet outputs"));
+                    }
+                }
+                let crate::Requests::Out(mut child) =
+                    crate::step(self, env, crate::Event::Fleet(crate::fleet::Event::Loaded));
+                for _ in 0..child.len() {
+                    out.push(child.pop().expect("bounded fleet outputs"));
                 }
                 match self.connectors.first() {
                     Some(&connector) => Phase::ReadAfresh { connector },
@@ -123,7 +121,8 @@ impl Core {
             return Action::Idle;
         }
         match input {
-            SweepInput::Record(record) => {
+            SweepInput::Next => {
+                let Some(record) = self.start.sweep.pop() else { return Action::Idle };
                 match &record {
                     // The sweep erases only expired rows (jig/docs/design/domain/engine.md, 6).
                     people::Stored::Policy { .. } | people::Stored::EndedRead { .. } => return Action::Idle,
@@ -154,7 +153,10 @@ impl Core {
                 }
                 self.start_commit(Phase::Sweep)
             }
-            SweepInput::Finished => self.start_ask(Phase::Switch),
+            SweepInput::Finished => {
+                assert!(self.start.sweep.is_empty(), "sweep rows finish before the switch");
+                self.start_ask(Phase::Switch)
+            }
         }
     }
 

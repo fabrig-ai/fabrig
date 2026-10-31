@@ -54,7 +54,7 @@ pub struct Config {
     pub charter_endpoints: Box<[jig_protocol_charter::EndpointName]>,
 }
 
-/// The application's admission gate, distinct from the core's selected phase.
+/// The application's admission gate, distinct from the core's start phase.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum StartState {
     Unselected,
@@ -217,9 +217,8 @@ impl Domain {
     #[must_use]
     pub fn ready(&self) -> bool {
         match self.start.state {
-            StartState::Unselected => true,
             StartState::Starting => self.core.start_opened(),
-            StartState::Stopped => false,
+            StartState::Unselected | StartState::Stopped => false,
         }
     }
 

@@ -72,14 +72,14 @@ fn restore(core: &mut Core, limits: &Limits, row: ProjectionRecord) -> Restored 
     core.restore_core(CoreRecord::Projection(row), limits)
 }
 fn retained(row: ProjectionRecord, header: bool) {
-    let (mut selected, limits) = loaded();
+    let (mut started, limits) = loaded();
     if header {
-        assert_eq!(restore(&mut selected, &limits, goal(1)), Restored::Live);
+        assert_eq!(restore(&mut started, &limits, goal(1)), Restored::Live);
     }
-    assert_eq!(restore(&mut selected, &limits, row), Restored::Live);
-    assert_eq!(selected.start_failure(), None);
-    selected.start_projections_link();
-    assert_eq!(selected.projections.len(), 1);
+    assert_eq!(restore(&mut started, &limits, row), Restored::Live);
+    assert_eq!(started.start_failure(), None);
+    started.start_projections_link();
+    assert_eq!(started.projections.len(), 1);
 }
 
 #[test]
@@ -194,11 +194,11 @@ fn pieces_in_any_order_finalize_to_the_default_projection() {
     }
     expected.start_projections_link();
     for order in [[1, 4, 2, 3, 0], [4, 0, 3, 2, 1], [0, 1, 2, 3, 4]] {
-        let (mut selected, _) = loaded();
+        let (mut started, _) = loaded();
         for index in order {
-            assert_eq!(restore(&mut selected, &limits, rows[index].clone()), Restored::Live);
+            assert_eq!(restore(&mut started, &limits, rows[index].clone()), Restored::Live);
         }
-        let assembly = selected.start.projections.as_ref().expect("assembly").get(&1).expect("goal pieces");
+        let assembly = started.start.projections.as_ref().expect("assembly").get(&1).expect("goal pieces");
         assert_eq!(
             assembly.tasks.get(&2),
             match &rows[2] {
@@ -207,9 +207,9 @@ fn pieces_in_any_order_finalize_to_the_default_projection() {
             }
         );
         assert_eq!(assembly.milestones.len(), 2);
-        selected.start_projections_link();
-        assert_eq!(selected.projections.get(&1), expected.projections.get(&1));
-        assert!(selected.start.projections.is_none());
+        started.start_projections_link();
+        assert_eq!(started.projections.get(&1), expected.projections.get(&1));
+        assert!(started.start.projections.is_none());
     }
 }
 

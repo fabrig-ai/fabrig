@@ -154,7 +154,7 @@ pub enum Delivery {
     Now(core::Now),
     /// A connector retains this event until a later engine can take it.
     Busy(Box<root::Event>),
-    /// A core-selected start phase and its optional inbox range.
+    /// A phase of the core's start and its optional inbox range.
     Start { phase: core::start::Phase, census: Option<core::Census> },
 }
 

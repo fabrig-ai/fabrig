@@ -122,7 +122,7 @@ impl Counters {
 
     /// The bootstrap header cannot be written until the core's live load has
     /// established whether a durable header already exists (domain/engine.md, 6).
-    pub(crate) fn begin_restore(&mut self) {
+    pub(crate) fn begin_start(&mut self) {
         self.header = Header::Loading;
     }
 

@@ -445,7 +445,7 @@ impl Core {
     }
 
     /// Add a project from its committed row alone before admitting party requests.
-    pub fn restore_policy(
+    pub(crate) fn restore_policy(
         &mut self,
         limits: &Limits,
         project: u32,

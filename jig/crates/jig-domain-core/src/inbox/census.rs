@@ -170,7 +170,7 @@ impl Core {
     }
 
     #[must_use]
-    pub fn restore_inbox_row(&mut self, limits: &Limits, record: &crate::Record) -> bool {
+    pub(crate) fn restore_inbox_row(&mut self, limits: &Limits, record: &crate::Record) -> bool {
         self.start_input();
         {
             assert!(

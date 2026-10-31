@@ -57,11 +57,11 @@ fn policy() -> people::PolicyValue {
 #[test]
 fn stored_policy_names_and_project_counters_are_writers_rules() {
     for (project, name) in [(0, "Zero"), (1, ""), (11, "Project")] {
-        let (mut selected, env) = loaded();
-        assert!(selected.restore_policy(&env.limits, project, name.into(), policy()));
-        assert_eq!(selected.names.get(&project).expect("stored name").as_ref(), name);
-        assert!(selected.authority.policy(project).is_some());
-        assert_eq!(selected.start_failure(), None);
+        let (mut started, env) = loaded();
+        assert!(started.restore_policy(&env.limits, project, name.into(), policy()));
+        assert_eq!(started.names.get(&project).expect("stored name").as_ref(), name);
+        assert!(started.authority.policy(project).is_some());
+        assert_eq!(started.start_failure(), None);
     }
     {
         let (mut core, env) = loaded();
