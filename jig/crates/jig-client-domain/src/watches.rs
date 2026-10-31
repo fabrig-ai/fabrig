@@ -4,7 +4,6 @@ use crate::{
     contract::{WatchEnd, WatchEvent},
     domain::tell,
 };
-use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token};
 #[derive(Debug)]
 pub(crate) struct Watch {
@@ -95,12 +94,6 @@ impl Domain {
             return;
         }
         let (latest, streamed) = match latest {
-            Latest::Jig(crate::contract::Delivery::Run(value)) => {
-                let Some(text) = crate::text::merge(w, *value, env.limits.turn_bytes) else {
-                    return;
-                };
-                (Latest::Jig(crate::contract::Delivery::Run(Box::new(text))), true)
-            }
             Latest::Jig(crate::contract::Delivery::RunState(mut state)) => {
                 if let Some(value) = state.writing.take() {
                     let Some(text) = crate::text::merge(w, value, env.limits.turn_bytes) else {

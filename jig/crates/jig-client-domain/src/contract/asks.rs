@@ -1,9 +1,9 @@
 //! Each visible act is one ask; client/domain/contract.md, 3.2 and 4.
 //! Requests carry jig facts alone and their outcomes are durable.
 //! Adoption uses the connector's application request (client/domain/pages.md, 6.5).
-use super::{Actor, Authority, Decision, HeldRole, NoteScope, Part, Party, ProposalKey, Refusal, Revision, Text};
+use super::{Decision, HeldRole, NoteScope, ProposalKey, Refusal, Revision, Text};
 use alloc::boxed::Box;
-use skein_lib::{Duration, List, Wall};
+use skein_lib::{Duration, List};
 
 /// A person destination change names the independent person-task revision (domain/tasks.md, 7).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -35,15 +35,6 @@ pub struct Amendment {
     pub llm: Option<super::LlmChoice>,
 }
 
-/// The kinds of news that wake an agent.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct WakePolicy {
-    pub words: bool,
-    pub results: bool,
-    pub topics: List<u16>,
-    pub subscriptions: List<Part>,
-}
-
 /// A person task answer matching its contract.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PersonAnswer {
@@ -71,26 +62,6 @@ pub enum SeenThrough {
 pub struct Holding {
     pub party: u64,
     pub role: HeldRole,
-}
-
-/// The project policy as facts.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Policy {
-    pub ceiling: Authority,
-    pub period: u64,
-    pub spend: u64,
-    pub roles: List<RolePolicy>,
-    pub requirements: List<Part>,
-    pub deciders: List<Decider>,
-}
-
-/// What a project role may give, allot and decide.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RolePolicy {
-    pub number: u16,
-    pub authority: Authority,
-    pub allotment: u64,
-    pub decisions: List<u16>,
 }
 
 /// The policy role for a kind of proposal past a tree.
@@ -291,24 +262,6 @@ pub enum Outcome {
     Made {
         what: Made,
     },
-    /// The act became a proposal.
-    Proposed {
-        proposal: ProposalKey,
-    },
-    /// A decision was made.
-    Decided {
-        by: Actor,
-        how: Decision,
-        at: Wall,
-    },
-    /// Another party decided first.
-    DecidedFirst {
-        by: Party,
-        how: Decision,
-        at: Wall,
-    },
-    /// The requested change was made.
-    Changed,
 }
 
 /// What an ask made, named for its client.

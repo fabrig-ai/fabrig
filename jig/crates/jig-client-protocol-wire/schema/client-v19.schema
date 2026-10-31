@@ -11,12 +11,12 @@ family jig-client-wire 19
 # The task's next-run wait, with source deadlines already translated to wall time.
 # Shared admission vocabulary precedes the task wait that reuses it.
 # Remaining documents and stream (protocol/client.md, 3 and 7).
-# Account deadlines follow the optional-wall contract (rulings 190 and 191).
+# Account deadlines follow the optional-wall contract.
 # Account changes share the account documents' payer type and ACCOUNT_USES bound.
 # Small store (protocol/client.md, 10); TableEntry.request has Keyed.request's ceiling.
-# A read value preserves the contract variant as well as its existing document (ruling 208).
-# Chips.rows and OwnerInbox.needs/updates/selection: jig_client_view::Limits::document_bytes; each item is a length-prefixed piece (rulings 182 and 184).
-# A delivery preserves its contract variant and the whole document (ruling 211).
+# A read value preserves the contract variant as well as its existing document.
+# Chips.rows and OwnerInbox.needs/updates/selection: jig_client_view::Limits::document_bytes; each item is a length-prefixed piece.
+# A delivery preserves its contract variant and the whole document.
 # Settings and revision history (protocol/client.md, section 3).
 record Family { number: u16 }
 enum Owner { jig, family: Family }
@@ -81,7 +81,6 @@ record PartScopeProject { value: u32 }
 enum PartScope { project: PartScopeProject, deployment }
 record PartConnector { connector: u16 }
 record PartResource { connector: u16 path: list 32 bytes 65536 }
-record PartKind { connector: u16 kind: u16 }
 record PartPanel { connector: u16 task: u64 }
 record PartResult { connector: u16 task: u64 }
 record PartEffect { connector: u16 proposal: ProposalKey }
@@ -90,8 +89,6 @@ record PartOutbox { connector: u16 scope: PartScope entry: u64 }
 record PartHold { connector: u16 task: u64 }
 record PartProject { connector: u16 project: u32 }
 record PartDeployment { connector: u16 }
-enum Part { connector: PartConnector, resource: PartResource, kind: PartKind, panel: PartPanel, result: PartResult, effect: PartEffect, owner_effect: PartOwnerEffect, outbox: PartOutbox, hold: PartHold, project: PartProject, deployment: PartDeployment }
-record WakePolicy { words: bool results: bool topics: list 32 u16 subscriptions: bytes 16777216 }
 record RecipientTask { value: u64 }
 record RecipientParty { value: u64 }
 record RecipientRole { project: u32 role: u32 }
@@ -170,19 +167,7 @@ record ResultField { name: bytes 65536 value: bytes 65536 }
 record ChipFields { task: u64 title: DocumentText executor: Executor phase: Phase details: u32 }
 record ChipRow { parent: option u32 value: ChipFields }
 record ChipPhaseOwnerFields { phase: OwnerChipPhase details: u32 }
-record ChipPhaseActiveFields { value: ActiveRun }
-record ChipPhaseWaitingFields { dependencies: list 32 u64 hold: option Part }
-record ChipPhaseIdleFields { wake: WakePolicy }
-record ChipPhaseRunningFields { attempt: u64 since: u64 tool: option text 65536 }
-record ChipPhaseWaitingForWordsFields { attempt: u64 since: u64 }
-record ChipPhaseBackingOffFields { at: u64 attempt: u64 tries: u32 class: FailureClass reason: text 65536 }
-record ChipPhaseProcedureFields { panel: Part }
-record ChipPhasePersonFields { addressed: Recipient taken: option TakenBy since: option u64 }
-record ChipPhaseClosingFields { value: u32 }
-record ChipPhaseHeldFields { reason: u32 since: u64 revision: Revision was: option u32 }
-record ChipPhaseEndedFields { how: u32 at: u64 }
-enum ChipPhaseFields { owner: ChipPhaseOwnerFields, active: ChipPhaseActiveFields, waiting: ChipPhaseWaitingFields, idle: ChipPhaseIdleFields, starting, running: ChipPhaseRunningFields, waiting_for_words: ChipPhaseWaitingForWordsFields, backing_off: ChipPhaseBackingOffFields, procedure: ChipPhaseProcedureFields, person: ChipPhasePersonFields, closing: ChipPhaseClosingFields, held: ChipPhaseHeldFields, ended: ChipPhaseEndedFields }
-record ChipPhaseRow { parent: option u32 value: ChipPhaseFields }
+record ChipPhaseRow { parent: option u32 value: ChipPhaseOwnerFields }
 record ClosingFields { delegates: u32 connectors: option list 32 u16 stage: option ClosingStage ending: option u32 }
 record ClosingRow { parent: option u32 value: ClosingFields }
 record EndingTaskFields { value: u32 }
@@ -199,16 +184,10 @@ record HeldRuntimeRow { parent: option u32 value: HeldRuntimeFields }
 record HoldReasonTriesFields { failures: list 32 AttemptFailure }
 record HoldReasonStalledFields { since: u64 waiting: text 65536 }
 record HoldReasonDependencyFields { task: u64 how: u32 }
-record HoldReasonDriftFields { part: Part }
-record HoldReasonEffectFailedFields { part: Part }
-record HoldReasonEffectUncertainFields { part: Part }
 record HoldReasonBudgetFields { spent: u64 limit: u64 }
 record HoldReasonDeadlineFields { at: u64 }
 record HoldReasonStoppedFields { by: Party at: u64 }
-record HoldReasonResourceFields { resource: Part holder: Actor }
-record HoldReasonPoolFields { part: Part }
-record HoldReasonProcedureFields { part: Part }
-enum HoldReasonFields { tries: HoldReasonTriesFields, stalled: HoldReasonStalledFields, dependency: HoldReasonDependencyFields, drift: HoldReasonDriftFields, effect_failed: HoldReasonEffectFailedFields, effect_uncertain: HoldReasonEffectUncertainFields, budget: HoldReasonBudgetFields, deadline: HoldReasonDeadlineFields, stopped: HoldReasonStoppedFields, resource: HoldReasonResourceFields, pool: HoldReasonPoolFields, procedure: HoldReasonProcedureFields }
+enum HoldReasonFields { tries: HoldReasonTriesFields, stalled: HoldReasonStalledFields, dependency: HoldReasonDependencyFields, budget: HoldReasonBudgetFields, deadline: HoldReasonDeadlineFields, stopped: HoldReasonStoppedFields }
 record HoldReasonRow { parent: option u32 value: HoldReasonFields }
 record OwnerChipDetailsFields { project: u32 executor: OwnerExecutor phase_since: u64 run_since: option u64 attempt: option u64 retry: option RetryNotice wake: OwnerWakePolicy person_wait: option OwnerPersonWait hold: option OwnerChipHold budget: OwnerBudget activity: u64 resources: bytes 16777216 resources_cut: bool resources_observed: bool procedure: option OwnerPart live_delegates: u32 closing_connectors: option list 32 u16 ending: option u32 ended_at: option u64 observation: option OwnerChipObservation dependencies: list 32 Dependency }
 record OwnerChipDetailsRow { parent: option u32 value: OwnerChipDetailsFields }
@@ -220,13 +199,12 @@ record OwnerChipEndingRow { parent: option u32 value: OwnerChipEndingFields }
 record ResultValueReportFields { value: DocumentText }
 record ResultValueOwnerVerdictFields { verdict: u32 words: DocumentText fields: list 32 ResultField }
 record ResultValueVerdictFields { verdict: u32 words: DocumentText fields: list 32 ResultField tasks: list 32 u32 proposal: option ProposalKey }
-record ResultValueConnectorFields { summary: DocumentText part: Part }
 record ResultValueChangeFields { kind: u16 part: OwnerPart words: DocumentText }
 record ResultValueChoiceFields { option: u32 by: Party reason: DocumentText }
 record ResultValueApprovedFields { state: bytes 65536 words: option DocumentText }
 record ResultValueFailureFields { value: DocumentText }
 record ResultValueWordsFields { value: DocumentText }
-enum ResultValueFields { report: ResultValueReportFields, owner_verdict: ResultValueOwnerVerdictFields, verdict: ResultValueVerdictFields, connector: ResultValueConnectorFields, change: ResultValueChangeFields, choice: ResultValueChoiceFields, approved: ResultValueApprovedFields, failure: ResultValueFailureFields, words: ResultValueWordsFields }
+enum ResultValueFields { report: ResultValueReportFields, owner_verdict: ResultValueOwnerVerdictFields, verdict: ResultValueVerdictFields, change: ResultValueChangeFields, choice: ResultValueChoiceFields, approved: ResultValueApprovedFields, failure: ResultValueFailureFields, words: ResultValueWordsFields }
 record ResultValueRow { parent: option u32 value: ResultValueFields }
 enum Fact { chip: ChipRow, chip_phase: ChipPhaseRow, closing: ClosingRow, ending: EndingRow, held_runtime: HeldRuntimeRow, hold_reason: HoldReasonRow, owner_chip_details: boxed OwnerChipDetailsRow, owner_chip_ending: OwnerChipEndingRow, result_value: ResultValueRow }
 record Chip { rows: bytes 16777216 }
@@ -401,12 +379,7 @@ record MadeMovingOut { account: u32 number: u32 record: secret 131072 }
 enum Made { tasks: MadeTasks, service: MadeService, person_result: MadePersonResult, note: MadeNote, moving_out: MadeMovingOut }
 record OutcomeOwner { value: OwnerOutcome }
 record OutcomeMade { what: Made }
-record OutcomeProposed { proposal: ProposalKey }
-record OutcomeDecided { by: Actor how: Decision at: u64 }
-record OutcomeDecidedFirst { by: Party how: Decision at: u64 }
-record Grant { connector: u16 kind: u16 pattern: OwnerPattern }
 record LackingBudget { needed: u64 left: u64 }
-record LackingGrant { value: Grant }
 record LackingGrantKind { kind: u16 }
 record LackingAgain { required: bool }
 record LackingRequired { connector: u16 kind: u16 }
@@ -417,7 +390,7 @@ record LackingDepth { needed: option u32 allowed: u32 }
 record LackingDeadline { asked: option u64 latest: option u64 }
 record LackingTasks { needed: option u32 left: u32 }
 record LackingHoldOwner { hold: u64 owner: HoldOwner }
-enum Lacking { approver, budget: LackingBudget, grant: LackingGrant, grant_kind: LackingGrantKind, funding, tool, scope, reference, resource_access, resource_unavailable, shape, again: LackingAgain, account, writer, required: LackingRequired, failed: LackingFailed, unguarded: LackingUnguarded, task_kind: LackingTaskKind, depth: LackingDepth, deadline: LackingDeadline, tasks: LackingTasks, models, hold_owner: LackingHoldOwner }
+enum Lacking { approver, budget: LackingBudget, grant_kind: LackingGrantKind, funding, tool, scope, reference, resource_access, resource_unavailable, shape, again: LackingAgain, account, writer, required: LackingRequired, failed: LackingFailed, unguarded: LackingUnguarded, task_kind: LackingTaskKind, depth: LackingDepth, deadline: LackingDeadline, tasks: LackingTasks, models, hold_owner: LackingHoldOwner }
 enum AdmissionLimit { goals, operations, grace, words, identity, roles, arithmetic, duplicate, empty, batch, project_live_tasks, live_tasks, tree, depth, delegates, subscription, dependencies, cycle, spec, contract, authority, inputs, attempts, live_delegates, restore, read, turn, hold_kind, hold_taken, holds, inbox_full, notes, revision, question, priority, policy, resource, service, accounts, holder_accounts, sources, sign_ins, projects, settings_proposals, placed_holds, project_placed_holds, party_placed_holds, exemptions }
 record LimitAdmission { which: AdmissionLimit }
 record LimitLiveTasks { project: u32 limit: u32 }
@@ -567,16 +540,9 @@ record ObjectKeyPersonTask { value: u64 }
 record ObjectKeyResult { value: u64 }
 record ObjectKeyNote { project: u32 note: u64 }
 enum ObjectKey { task: ObjectKeyTask, proposal: ObjectKeyProposal, escalation: ObjectKeyEscalation, question: ObjectKeyQuestion, person_task: ObjectKeyPersonTask, result: ObjectKeyResult, note: ObjectKeyNote }
-record ActivityOwner { source: OwnerActivityLine decoded: option ArchivedTurn }
-record ActivityWords { by: Party message: u64 words: text 65536 }
-record ActivityRunBegan { attempt: u64 how: RunBeginning why: text 65536 }
-record ActivityRunEnded { attempt: u64 how: RunEnding spent: u64 }
-record ActivityTurn { name: TurnName turn: bytes 65536 }
 record ActivityResult { result: ResultDocument }
-record ActivityNews { topic: u16 summary: text 65536 part: option Part }
 record ActivityDecision { object: ObjectKey by: Actor how: Decision }
-enum Activity { owner: ActivityOwner, words: ActivityWords, run_began: ActivityRunBegan, run_ended: ActivityRunEnded, turn: ActivityTurn, result: ActivityResult, news: ActivityNews, decision: ActivityDecision }
-record ActivityLine { position: u64 at: u64 event: Activity }
+record ActivityLine { source: OwnerActivityLine decoded: option ArchivedTurn }
 record ActivityPage { cut: bool rows: bytes 16777216 before: option Cursor after: option Cursor }
 record SpendLine { task: u64 attempt: option u64 spent: u64 }
 record Hold { revision: Revision reason: HoldReason before: Phase since: u64 result: option ResultValue spend: list 32 SpendLine placed: option PlacedLine }
@@ -585,8 +551,6 @@ record HistoryChangeAmended { before: text 65536 after: text 65536 }
 record HistoryChangeHeld { value: Hold }
 record HistoryChangeCancelled { reason: text 65536 }
 record HistoryChangeMoved { from: Actor to: Actor reason: text 65536 }
-enum HistoryChange { made: HistoryChangeMade, amended: HistoryChangeAmended, held: HistoryChangeHeld, released, cancelled: HistoryChangeCancelled, moved: HistoryChangeMoved }
-record HistoryLine { position: u64 task: u64 by: Actor at: u64 change: HistoryChange }
 enum OwnerHistoryChange { cancelled, released, amended, moved, proposed, proposal_passed, proposal_accepted, proposal_rejected, proposal_withdrawn }
 record ParameterDocumentNumber { name: u32 value: u64 }
 record ParameterDocumentBytes { name: u32 value: DocumentText }
@@ -626,21 +590,18 @@ record OwnerMilestonePhaseHeld { before: OwnerPriorPhase why: HoldCategory sourc
 record OwnerMilestonePhaseEnded { value: OwnerChipEnding }
 enum OwnerMilestonePhase { waiting, active: OwnerMilestonePhaseActive, closing: OwnerMilestonePhaseClosing, held: OwnerMilestonePhaseHeld, ended: OwnerMilestonePhaseEnded }
 record OwnerMilestoneLine { task: u64 position: u64 phase: OwnerMilestonePhase at: option u64 }
-record HistoryRowLine { value: HistoryLine }
 record HistoryRowChange { value: OwnerHistoryLine }
 record HistoryRowMilestone { value: OwnerMilestoneLine }
-enum HistoryRow { line: HistoryRowLine, change: boxed HistoryRowChange, milestone: HistoryRowMilestone }
+enum HistoryRow { change: boxed HistoryRowChange, milestone: HistoryRowMilestone }
 record HistoryPage { cut: bool rows: bytes 16777216 before: option Cursor after: option Cursor }
 record RuntimeActive { value: ActiveRun }
-record RuntimeWaiting { dependencies: list 32 u64 hold: option Part }
 record RuntimeRunning { attempt: u64 since: u64 tool: option text 65536 }
 record RuntimeWaitingForWords { attempt: u64 since: u64 }
 record RuntimeBackingOff { at: u64 attempt: u64 tries: u32 class: FailureClass reason: text 65536 }
-record RuntimeProcedure { panel: Part }
 record RuntimePerson { addressed: Recipient since: option u64 }
 record RuntimeClosing { value: Closing }
 record RuntimeHeld { was: option HeldRuntime }
-enum Runtime { active: RuntimeActive, waiting: RuntimeWaiting, idle, starting, running: RuntimeRunning, waiting_for_words: RuntimeWaitingForWords, backing_off: RuntimeBackingOff, procedure: RuntimeProcedure, person: RuntimePerson, closing: RuntimeClosing, held: RuntimeHeld, ended }
+enum Runtime { active: RuntimeActive, idle, starting, running: RuntimeRunning, waiting_for_words: RuntimeWaitingForWords, backing_off: RuntimeBackingOff, person: RuntimePerson, closing: RuntimeClosing, held: RuntimeHeld, ended }
 record Count { value: u32 limited: bool }
 record WhomPerson { value: u64 }
 record WhomRole { project: u32 role: u32 }
@@ -652,13 +613,7 @@ enum WaitsOn { party: WaitsOnParty, delegates, news, nothing, dependencies: Wait
 record ConversationRead { seen: u64 unread: Count }
 record OwnerPhaseCounts { waiting: u32 idle: u32 starting: u32 running: u32 backing_off: u32 closing: u32 held: u32 done: u32 failed: u32 cancelled: u32 }
 record TaskLine { chip: Chip project: u32 requester: OwnerRequester tracked: option u32 label: u32 flags: TaskFlags changed: u64 last_activity: u64 ended_at: option u64 budget: OwnerBudget waits_on: WaitsOn phases: OwnerPhaseCounts held_below: u32 conversation: option ConversationRead }
-record InboxEntry { reply: option TaskLine lineage: bytes 16777216 goal: option u64 recipient: option Recipient stall: option u64 object: ObjectKey project: u32 group: InboxGroup position: u64 at: u64 }
-record InboxPage { cut: bool rows: bytes 16777216 before: option Cursor after: option Cursor }
-record Budget { total: u64 own: u64 ended: u64 reserved: u64 left: u64 funder: Actor }
-record Pool { party: u64 period: u64 budget: Budget }
 record TaskSpend { chip: Chip spent: u64 }
-record SpendPeriod { period: u64 budget: Budget pools: list 32 Pool tasks: bytes 16777216 }
-record SpendPage { cut: bool rows: bytes 16777216 before: option Cursor after: option Cursor }
 record NoteAuthorParty { party: u64 }
 record NoteAuthorTask { task: u64 attempt: u64 }
 enum NoteAuthor { party: NoteAuthorParty, task: NoteAuthorTask }
@@ -688,21 +643,12 @@ record MeModel { name: text 4096 provider: option u32 window: u32 output: u32 ef
 record ProviderOffer { provider: u32 name: DocumentText sign_in: bool key: bool programs: list 32 text 32 programs_cut: bool none: bool signed_in_plan: bool manage_usage: option bytes 2048 key_bytes: u32 }
 enum Readiness { usable, unavailable, unknown }
 record Me { party: MeParty projects: bytes 16777216 needs: Needs needs_total: u32 updates: Count results_seen: u64 cut: bool retention: duration deployment_role: option HeldRole providers: bytes 16777216 providers_cut: bool key_bytes: u32 redirect_bytes: u32 }
-record WriterSlot { resource: Part task: u64 attempt: option u64 }
 record LiveDelegate { chip: Chip takeover_budget: u64 }
-record Steering { addressed: option Recipient person_revision: option Revision taken_by: option u64 revision: Revision spec: SpecificationDocument instructions: option DocumentText wake: OwnerWakePolicy dependencies: list 32 u64 authority: OwnerAuthorityDocument budget: Budget }
 record Passed { by: Actor at: u64 reason: text 65536 lacking: option Lacking }
-record Escalation { ending: option Ending task: Chip hold: Hold steering: Steering impact: Impact waiting: Recipient trail: bytes 16777216 acts: bytes 16777216 }
-record TaskContext { escalation: option Escalation parts: bytes 16777216 closing: option Closing spend: list 32 SpendLine runtime: Runtime impact: Impact writer_slots: bytes 16777216 }
+record TaskContext { parts: bytes 16777216 closing: option Closing spend: list 32 SpendLine runtime: Runtime impact: Impact writer_slots: bytes 16777216 }
 record TaskResultDocument { value: ResultDocument }
 record TaskResultEnding { value: OwnerChipEnding }
 enum TaskResult { document: boxed TaskResultDocument, ending: TaskResultEnding }
-record TaskResourcePart { value: Part }
-record TaskResourceOwner { value: OwnerResourceLine }
-enum TaskResource { part: TaskResourcePart, owner: TaskResourceOwner }
-record TaskHoldDocument { value: Hold }
-record TaskHoldOwner { value: OwnerChipHold }
-enum TaskHold { document: TaskHoldDocument, owner: TaskHoldOwner }
 record SubscriptionKindTask { target: u64 held: bool result: bool }
 record SubscriptionKindTimer { at: u64 period: option duration }
 record SubscriptionKindTopic { connector: u16 topic: u64 }
@@ -736,11 +682,9 @@ enum TaskWaitRefused { hello: TaskWaitHello, program: TaskWaitRefusedProgram }
 record TaskRunWaitRefused { value: TaskWaitRefused }
 enum TaskRunWait { account: TaskWaitAccount, credential, host, refused: TaskRunWaitRefused }
 record TaskSettings { task: u32 run: option u32 newest: u32 }
-record Task { settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: OwnerRequester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: OwnerWakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: OwnerBudget authority: OwnerAuthorityDocument hold: option TaskHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency }
+record Task { settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: OwnerRequester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: OwnerWakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: OwnerBudget authority: OwnerAuthorityDocument hold: option OwnerChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency }
 record TreeNode { chip: Chip parent: option u64 dependencies: list 32 u64 proposals: list 32 ProposalKey spend: u64 folded: PhaseCounts held_below: u32 }
-record Tree { task: u64 nodes: bytes 16777216 folded: PhaseCounts held_below: u32 }
 record ReadPosition { task: u64 through: u64 }
-record Inbox { entries: bytes 16777216 needs: Needs updates: Count results_seen: u64 replies_seen: list 32 ReadPosition more: bool }
 record Tasks { rows: bytes 16777216 more: bool }
 record EndedRows { rows: bytes 16777216 after: option Cursor cut: bool }
 enum EndedGroup { rows: EndedRows, none }
@@ -754,13 +698,6 @@ record ProvisionalTurnName { attempt: u64 number: u32 retry: u32 }
 record WritingCall { id: text 256 tool: text 64 from: u32 through: u32 input: text 65536 cut: bool }
 record RunText { attempt: u64 began: option u64 turn: ProvisionalTurnName from: u32 through: u32 text: text 65536 cut: bool call: option LiveCall writing: option WritingCall }
 record RunState { task: u64 attempt: option u64 committed_turn: u32 writing: option RunText call: option CurrentCall }
-record ProposalActionBatch { tasks: bytes 16777216 own: bool }
-record ProposalActionEffect { part: Part }
-record Authority { models: option ModelSet budget: u64 grants: bytes 16777216 task_kinds: list 32 Executor depth: u32 tasks: u32 deadline: option u64 tools: list 32 u16 note_scopes: bytes 16777216 }
-record ProposalActionWiden { before: Authority after: Authority }
-record ProposalActionAmend { task: u64 before: text 65536 change: Amendment }
-enum ProposalAction { batch: ProposalActionBatch, effect: ProposalActionEffect, widen: ProposalActionWiden, amend: ProposalActionAmend }
-record Proposal { key: ProposalKey project: u32 proposer: Proposer why: text 65536 action: ProposalAction needs: Authority funding: Budget waiting: Recipient trail: bytes 16777216 since: u64 acts: bytes 16777216 ending: option Ending }
 record OwnerProposalActionBatch { value: bytes 16777216 }
 record OwnerProposalActionEffect { part: OwnerPart authority: OwnerAuthorityDocument attempt: u64 completion: u32 position: u32 purpose: u64 }
 record OwnerProposalActionProcedureEffect { part: OwnerPart authority: OwnerAuthorityDocument step: u64 purpose: u64 }
@@ -778,17 +715,12 @@ record OwnerEscalation { acts: bytes 16777216 task: Task }
 record Question { task: Chip from: option OwnerRequester message: u64 words: DocumentText since: u64 acts: bytes 16777216 ending: option Ending }
 record OptionLine { number: u32 words: text 65536 words_max: u32 followups: u32 fields: list 32 FieldRule }
 record PersonContractChoice { options: bytes 16777216 }
-record PersonContractApproval { state: text 65536 part: Part }
-enum PersonContract { choice: PersonContractChoice, approval: PersonContractApproval, words }
-record PersonTask { task: Chip revision: Revision requester: Actor spec: SpecificationDocument contract: PersonContract inputs: bytes 16777216 addressed: Recipient taken: option TakenBy since: option u64 stall: option duration deadline: option u64 acts: bytes 16777216 ending: option Ending }
+enum PersonContract { choice: PersonContractChoice, words }
 record OwnerShownResult { task: OwnerTaskLink result: option ResultDocument }
 record OwnerPersonTask { task: Chip revision: Revision requester: OwnerRequester spec: SpecificationDocument address: PersonAddress taken_by: option u64 since: option u64 stall: option duration deadline: option u64 contract: TaskContractDocument results: bytes 16777216 cut: bool acts: bytes 16777216 }
-record RolePolicy { number: u16 authority: Authority allotment: u64 decisions: list 32 u16 }
 record Decider { kind: u16 role: u16 }
-record Policy { ceiling: Authority period: u64 spend: u64 roles: bytes 16777216 requirements: bytes 16777216 deciders: list 32 Decider }
 enum RecurringOverlap { skip, wait }
 record Recurring { chip: Chip key: u32 batch: bytes 16777216 budget: u64 overlap: RecurringOverlap current_period: u64 began: option u64 next: option u64 last_period: u64 pending_period: option u64 last_batch: list 32 u64 cut: bool }
-record Project { period: u64 spend_lines: bytes 16777216 number: u32 name: text 65536 policy: Policy roles: list 32 Holding spend: Budget pools: list 32 Pool resources: bytes 16777216 services: list 32 Party recurring: bytes 16777216 parts: bytes 16777216 acts: bytes 16777216 }
 enum OwnerProjectResourceRole { owned, participant, unavailable, context }
 record OwnerProjectResource { part: OwnerPart role: OwnerProjectResourceRole }
 record OwnerProjectPolicyRole { number: u32 authority: OwnerAuthorityDocument period_spend: u64 requests: u16 decides: u8 }
@@ -828,10 +760,6 @@ record SubjectInbox { window: u32 }
 record SubjectTasks { query: TaskQuery window: u32 }
 record SubjectRun { task: u64 turn: option ProvisionalTurnName offset: u32 }
 enum Subject { me, task: SubjectTask, tree: SubjectTree, chips: SubjectChips, inbox: SubjectInbox, tasks: SubjectTasks, run: SubjectRun, deployment, accounts, settings }
-record Host { number: u64 connected: bool grace: option u64 used: u32 free: u32 runs: bytes 16777216 refused: option text 65536 }
-record Account { number: u32 usable: bool reason: option text 65536 runs: bytes 16777216 waiting: bytes 16777216 }
-record Capacity { project: option u32 live: u32 limit: u32 }
-record Deployment { hosts: bytes 16777216 accounts: bytes 16777216 capacity: list 32 Capacity proposals: u32 refusals: bytes 16777216 parts: bytes 16777216 }
 record StoreFill { bytes: u64 mark: u64 }
 record OwnerCapacity { used: u32 limit: u32 }
 record OwnerProjectCapacity { project: u32 tasks: OwnerCapacity proposals: u32 }
