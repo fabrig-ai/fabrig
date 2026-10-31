@@ -561,6 +561,8 @@ impl Machine {
             let name = match &event {
                 Event::Installation { .. } => "installation",
                 Event::Fact { .. } => "fact",
+                Event::Refused { .. } => "refused",
+                Event::Removed { .. } => "removed",
                 Event::GitToken { .. } => "git-token",
                 Event::Answered(_) => "answered",
                 Event::Stopped { .. } => "stopped",
@@ -597,6 +599,7 @@ impl Machine {
                     assert!(self.fake.is_some(), "GitHub log fixture");
                     self.hints.push(hint);
                 }
+                Event::Refused { .. } | Event::Removed { .. } => panic!("runtime lifecycle not requested"),
                 Event::Listening { .. } | Event::ListenerLost => panic!("webhooks absent"),
                 Event::Closed => {
                     assert!(!self.closed, "one close");

@@ -55,6 +55,8 @@ fn a_github_forge_connects_through_listing_minting_and_identity() {
         | Event::Stopped { .. }
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Closed => panic!("token collection"),
     }
     assert!(world.close());

@@ -172,6 +172,8 @@ fn github_starts_list_mint_both_scopes_then_check_identity() {
             assert!(token.expose() == CONTENTS, "only Contents goes up");
         }
         Event::Installation { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::Answered(_)
         | Event::Hint(_)

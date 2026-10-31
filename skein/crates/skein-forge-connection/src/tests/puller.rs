@@ -284,6 +284,8 @@ fn page_gap_emits_once_and_rereads_installations() {
         | Event::ListenerLost
         | Event::Connected { .. }
         | Event::Stopped { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Closed => unreachable!("fact"),
     }
     assert_eq!(requests(&h, b"GET /app/installations?"), 1);
@@ -350,6 +352,8 @@ fn repository_row_reads_whole_and_sends_its_installation_change() {
             assert_eq!(account.as_ref().expect("account").id, 22);
         }
         Event::Answered(_)
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::GitToken { .. }
         | Event::Hint(_)
@@ -372,6 +376,8 @@ fn refused_hint_blocks_remaining_deliveries_until_offer_and_admission() {
         Event::Hint(hint) => hint,
         Event::Answered(_)
         | Event::Installation { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::GitToken { .. }
         | Event::Listening { .. }
@@ -389,6 +395,8 @@ fn refused_hint_blocks_remaining_deliveries_until_offer_and_admission() {
         Event::Hint(hint) => hint,
         Event::Answered(_)
         | Event::Installation { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::GitToken { .. }
         | Event::Listening { .. }
@@ -584,6 +592,8 @@ fn puller_holding_a_hint_stays_under_the_growth_ceiling() {
         Event::Hint(hint) => hint,
         Event::Answered(_)
         | Event::Installation { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::GitToken { .. }
         | Event::Listening { .. }

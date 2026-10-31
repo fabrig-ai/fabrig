@@ -13,7 +13,7 @@ pub mod limits;
 mod puller;
 pub mod settings;
 pub mod start;
-pub use boundary::{Account, Answered, Change, Event, Fact, Request, StartRead, Stopped, Value};
+pub use boundary::{Account, AddRefused, Answered, Change, Event, Fact, Request, StartRead, Stopped, Value};
 pub use component::{Component, Diagnostics};
 pub use limits::{Limits, Shared, Unusable};
 pub use settings::{Access, Settings};

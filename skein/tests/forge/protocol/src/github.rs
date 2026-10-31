@@ -269,6 +269,7 @@ impl Github {
                     assert!(self.answers.insert(answer.call.raw(), answer).is_none(), "one terminal");
                 }
                 Event::Connected { .. } => self.connected += 1,
+                Event::Refused { .. } | Event::Removed { .. } => panic!("runtime lifecycle not requested"),
                 Event::Closed => self.closed = true,
                 Event::Installation { .. } | Event::GitToken { .. } | Event::Fact { .. } => {}
                 Event::Stopped { why, .. } => panic!("GitHub stopped: {why:?}, seed {}", self.seed),

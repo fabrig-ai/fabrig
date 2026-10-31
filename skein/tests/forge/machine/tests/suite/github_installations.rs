@@ -44,6 +44,8 @@ fn changes(world: &Machine) -> Vec<InstallationChange<'_>> {
             | Event::Stopped { .. }
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Refused { .. }
+            | Event::Removed { .. }
             | Event::Closed => panic!("installation collection"),
         })
         .collect()
@@ -122,6 +124,8 @@ fn overflow_keeps_a_later_accepted_installation() {
         | Event::Stopped { .. }
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Closed => panic!("fact collection"),
     }
     assert_eq!(world.connected_forges(), &[FORGE]);

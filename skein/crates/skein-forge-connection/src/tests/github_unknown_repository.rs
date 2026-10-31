@@ -487,6 +487,8 @@ fn discovery_waits_for_installation_changes_and_git_tokens() {
     match up.pop().expect("first lifecycle change") {
         Event::Installation { change, .. } => assert_eq!(change, crate::Change::Renamed),
         Event::GitToken { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::Answered(_)
         | Event::Hint(_)
@@ -502,6 +504,8 @@ fn discovery_waits_for_installation_changes_and_git_tokens() {
     match up.pop().expect("token follows changes") {
         Event::GitToken { .. } => {}
         Event::Installation { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::Answered(_)
         | Event::Hint(_)

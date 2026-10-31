@@ -394,6 +394,7 @@ impl Joint {
                 Event::Listening { .. } => {}
                 Event::ListenerLost => panic!("hook listener lost"),
                 Event::Connected { .. } => self.connected += 1,
+                Event::Refused { .. } | Event::Removed { .. } => panic!("runtime lifecycle not requested"),
                 Event::Closed => self.closed = true,
             }
         }

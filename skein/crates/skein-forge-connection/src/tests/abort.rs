@@ -43,6 +43,8 @@ fn abort_ends_each_call_in_flight_as_its_deadline_would_and_then_says_closed() {
         match event {
             Event::Answered(answer) => ended.push(answer.call.raw()).expect("two calls"),
             other @ (Event::Installation { .. }
+            | Event::Refused { .. }
+            | Event::Removed { .. }
             | Event::Fact { .. }
             | Event::GitToken { .. }
             | Event::Hint(_)
@@ -143,6 +145,8 @@ fn matches_closed(event: Option<Event>) -> bool {
         Some(
             Event::Answered(_)
             | Event::Installation { .. }
+            | Event::Refused { .. }
+            | Event::Removed { .. }
             | Event::Fact { .. }
             | Event::GitToken { .. }
             | Event::Hint(_)

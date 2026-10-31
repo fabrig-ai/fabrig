@@ -173,3 +173,47 @@ fn renewal_local_signing_refusal_stops_invalid_key() {
     assert_eq!(h.stopped(), Some((fixtures::FORGE, crate::Stopped::Invalid { value: crate::Value::Key })));
     assert_eq!(h.connected_count, 1);
 }
+
+#[test]
+fn runtime_forge_tables_keep_their_initial_size_as_slots_are_reused() {
+    let limits = fixtures::limits();
+    let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+    let mut settings = fixtures::settings();
+    settings.forges = List::with_capacity(0);
+    let mut c = Component::new(settings, &limits, &fixtures::shared()).expect("fixture limits");
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
+    for generation in 0_u16..8 {
+        let mut forge = fixtures::github_settings().forges.into_boxed().into_iter().next().expect("forge");
+        forge.number = generation;
+        forge.access = None;
+        c.down(&env, Request::Add { forge }, &mut up, &mut io);
+        assert_eq!(c.position(generation), Some(0), "reuse the first free slot");
+        c.down(&env, Request::Remove { forge: generation }, &mut up, &mut io);
+        let Some(Event::Removed { forge }) = up.pop() else { panic!("removed at once") };
+        assert_eq!(forge, generation);
+        assert!(up.is_empty() && io.is_empty());
+        assert!(c.github.get(0).expect("slot").is_none(), "installation state dropped");
+        assert!(c.settings.forges.get(0).is_none(), "settings dropped");
+        assert_eq!(c.settings.forges.len(), limits.forges);
+        assert_eq!(c.starts.len(), limits.forges);
+        assert_eq!(c.github.len(), limits.forges);
+        assert_eq!(c.own_tokens.len(), limits.forges);
+        assert_eq!(c.own_plans.len(), limits.forges);
+        assert_eq!(c.removing.len(), limits.forges);
+    }
+}
+#[test]
+fn removal_drops_installations_and_tokens_before_io_settles() {
+    let mut h = renewing();
+    assert!(!h.component.test_github().rows.is_empty());
+    h.send(Request::Remove { forge: fixtures::FORGE });
+    assert!(h.component.github.get(0).expect("forge slot").is_none());
+    assert!(h.component.settings.forges.get(0).expect("draining forge").access.is_none());
+    assert!(h.component.own_plans.get(0).expect("forge slot").is_none());
+    assert!(*h.component.removing.get(0).expect("forge slot"));
+    assert_eq!(h.component.starts.get(0), Some(&Start::Unconnected));
+    h.run(skein_lib::Duration::ZERO);
+    assert!(h.component.settings.forges.get(0).is_none());
+    assert!(h.component.own_tokens.get(0).expect("forge slot").is_none());
+}

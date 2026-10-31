@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use skein_io::Addr;
 use skein_lib::{List, Secret};
 
-/// Owner inputs held by the component until close.
+/// Owner inputs; each forge is held until removed or the component closes.
 #[derive(Debug)]
 pub struct Settings {
     /// At most `Limits::forges`, numbers unique.
@@ -40,7 +40,7 @@ pub struct LogOrigin {
 }
 
 /// What lets the component act on a forge as its user (forge-connection.md,
-/// 3.5): handed at construction or by `Request::Connect`, replaced whole,
+/// 3.5): handed at construction, by `Request::Add` or by `Request::Connect`, replaced whole,
 /// never logged.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Access {
@@ -126,4 +126,47 @@ pub fn owned_bytes(settings: &Settings) -> Option<u64> {
         }
     }
     Some(total)
+}
+
+/// Runtime forge slots, fixed at construction
+/// (temper/docs/design/draft/playground-reset.md, 3 and 4).
+#[derive(Debug)]
+pub(crate) struct Forges {
+    pub(crate) slots: List<Option<Forge>>,
+}
+impl Forges {
+    pub(crate) fn len(&self) -> u32 {
+        self.slots.len()
+    }
+    pub(crate) fn get(&self, at: u32) -> Option<&Forge> {
+        self.slots.get(at)?.as_ref()
+    }
+    pub(crate) fn get_mut(&mut self, at: u32) -> Option<&mut Forge> {
+        self.slots.get_mut(at)?.as_mut()
+    }
+}
+/// The owner's common settings beside reusable forge slots.
+#[derive(Debug)]
+pub(crate) struct Serving {
+    pub(crate) forges: Forges,
+    pub(crate) webhooks: Option<crate::hooks::Webhooks>,
+    pub(crate) word: Box<[u8]>,
+    pub(crate) user_agent: Box<[u8]>,
+}
+impl Serving {
+    pub(crate) fn new(settings: Settings, capacity: u32) -> Self {
+        let mut slots = List::with_capacity(capacity);
+        for forge in settings.forges.into_boxed() {
+            slots.push(Some(forge)).expect("checked forge count");
+        }
+        for _ in slots.len()..capacity {
+            slots.push(None).expect("fixed forge slots");
+        }
+        Self {
+            forges: Forges { slots },
+            webhooks: settings.webhooks,
+            word: settings.word,
+            user_agent: settings.user_agent,
+        }
+    }
 }

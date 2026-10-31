@@ -50,6 +50,8 @@ fn changes(gh: &mut GitHub) -> List<(u64, Option<Account>, Change)> {
                 | Event::ListenerLost
                 | Event::Connected { .. }
                 | Event::Stopped { .. }
+                | Event::Refused { .. }
+                | Event::Removed { .. }
                 | Event::Closed,
             ) => unreachable!("changes"),
             None => break,
@@ -81,6 +83,8 @@ fn fact(gh: &mut GitHub) -> Option<Fact> {
             | Event::ListenerLost
             | Event::Connected { .. }
             | Event::Stopped { .. }
+            | Event::Refused { .. }
+            | Event::Removed { .. }
             | Event::Closed,
         ) => unreachable!("fact"),
     }

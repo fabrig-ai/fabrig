@@ -470,6 +470,8 @@ fn calls_are_not_connected_before_connect_then_wait_until_connected() {
                 answered = true;
             }
             connection::Event::Installation { .. }
+            | connection::Event::Refused { .. }
+            | connection::Event::Removed { .. }
             | connection::Event::Fact { .. }
             | connection::Event::GitToken { .. }
             | connection::Event::Hint(_)

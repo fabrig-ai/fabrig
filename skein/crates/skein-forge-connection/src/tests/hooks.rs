@@ -327,3 +327,139 @@ fn past_streams(io: &mut Queue<skein_io::Request>) -> Option<skein_io::Request> 
     }
     None
 }
+
+/// One webhook peer on the listener fixture's existing scripted stream.
+struct HookPeer {
+    owner: Token,
+    socket: Token,
+    wire: skein_world::stream::Wire,
+    aborted: bool,
+}
+impl HookPeer {
+    fn new(h: &mut Listening, socket: Token) -> Self {
+        h.component.up(&h.env, skein_io::Event::Accepted { owner: h.owner, socket, peer: BOUND }, &mut h.up, &mut h.io);
+        let Some(skein_io::Request::Bind { socket: bound, owner }) = h.io.pop() else { panic!("bind webhook") };
+        assert_eq!(bound, socket);
+        let mut peer = Self { owner, socket, wire: skein_world::stream::Wire::new(socket.raw()), aborted: false };
+        peer.pump(h);
+        peer
+    }
+    fn write(&mut self, h: &mut Listening, bytes: &[u8]) {
+        self.wire.write(bytes);
+        self.pump(h);
+    }
+    fn pump(&mut self, h: &mut Listening) {
+        for _ in 0_u32..1024 {
+            h.component.fire(&h.env, &mut h.up, &mut h.io);
+            for _ in 0..h.io.len() {
+                match h.io.pop().expect("queued hook request") {
+                    skein_io::Request::Stream { stream, down } => {
+                        assert_eq!(stream, self.socket);
+                        self.wire.take(down);
+                    }
+                    skein_io::Request::Abort { entity } => {
+                        assert_eq!(entity, self.socket);
+                        self.aborted = true;
+                    }
+                    skein_io::Request::Close { entity } => assert_eq!(entity, self.socket),
+                    other @ (skein_io::Request::Connect { .. }
+                    | skein_io::Request::Listen { .. }
+                    | skein_io::Request::Bind { .. }
+                    | skein_io::Request::Reject { .. }
+                    | skein_io::Request::Output { .. }
+                    | skein_io::Request::Spawn { .. }
+                    | skein_io::Request::Signal { .. }
+                    | skein_io::Request::Usage { .. }
+                    | skein_io::Request::Window { .. }) => panic!("only webhook traffic: {other:?}"),
+                }
+            }
+            if let Some(up) = self.wire.answer() {
+                h.component.up(&h.env, skein_io::Event::Stream { owner: self.owner, up }, &mut h.up, &mut h.io);
+            }
+        }
+    }
+}
+
+#[test]
+fn remove_cancels_a_webhook_body_and_call_then_the_path_answers_unknown() {
+    const API_SOCKET: Token = Token::new(700);
+    let mut h = Listening::new();
+    h.bound();
+    assert!(h.up.pop().is_some(), "listener announced");
+    let forge = fixtures::hook_settings().forges.into_boxed().into_iter().next().expect("hook forge");
+    h.component.down(&h.env, Request::Add { forge }, &mut h.up, &mut h.io);
+    let Some(skein_io::Request::Connect { owner: api_owner, .. }) = h.io.pop() else { panic!("start connect") };
+    h.component.up(&h.env, skein_io::Event::Connecting { owner: api_owner, socket: API_SOCKET }, &mut h.up, &mut h.io);
+    h.component.down(
+        &h.env,
+        Request::Call {
+            call: Token::new(1),
+            repository: fixtures::REPO,
+            op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings),
+        },
+        &mut h.up,
+        &mut h.io,
+    );
+    let mut peer = HookPeer::new(&mut h, Token::new(91));
+    peer.write(&mut h, &fixtures::signed_head(fixtures::PULL_PAYLOAD, Some(b"pull_request")));
+    assert!(h.up.is_empty(), "the authenticated body waits");
+    h.component.down(&h.env, Request::Remove { forge: fixtures::FORGE }, &mut h.up, &mut h.io);
+    let Some(Event::Answered(answer)) = h.up.pop() else { panic!("call ended") };
+    assert_eq!((answer.call, answer.result), (Token::new(1), Err(skein_forge::api::Error::NotConnected)));
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: peer.socket }));
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: API_SOCKET }));
+    assert!(h.up.is_empty(), "Removed waits for both sockets");
+    h.component.up(&h.env, skein_io::Event::Closed { owner: api_owner }, &mut h.up, &mut h.io);
+    assert!(h.up.is_empty(), "webhook still in flight");
+    h.component.up(&h.env, skein_io::Event::Closed { owner: peer.owner }, &mut h.up, &mut h.io);
+    let Some(Event::Removed { forge }) = h.up.pop() else { panic!("Removed after io settles") };
+    assert_eq!(forge, fixtures::FORGE);
+    assert!(h.up.is_empty());
+    h.component.up(
+        &h.env,
+        skein_io::Event::Stream {
+            owner: peer.owner,
+            up: skein_lib::stream::Up::Bytes(Box::from(fixtures::PULL_PAYLOAD)),
+        },
+        &mut h.up,
+        &mut h.io,
+    );
+    let mut next = HookPeer::new(&mut h, Token::new(92));
+    next.write(&mut h, &fixtures::signed_head(fixtures::PULL_PAYLOAD, Some(b"pull_request")));
+    assert!(next.wire.received.starts_with(b"HTTP/1.1 404"), "removed path answers as an unknown forge");
+    assert!(h.up.is_empty(), "no old hint or second Removed");
+}
+
+#[test]
+fn remove_drops_a_refused_webhook_hint_and_late_refusal_cannot_revive_it() {
+    let mut h = Listening::new();
+    h.bound();
+    drop(h.up.pop());
+    let forge = fixtures::hook_settings().forges.into_boxed().into_iter().next().expect("hook forge");
+    h.component.down(&h.env, Request::Add { forge }, &mut h.up, &mut h.io);
+    let Some(skein_io::Request::Connect { owner: api_owner, .. }) = h.io.pop() else { panic!("start connect") };
+    let mut peer = HookPeer::new(&mut h, Token::new(91));
+    peer.write(&mut h, &fixtures::signed_head(fixtures::PULL_PAYLOAD, Some(b"pull_request")));
+    peer.write(&mut h, fixtures::PULL_PAYLOAD);
+    let Some(Event::Hint(hint)) = h.up.pop() else { panic!("verified hint") };
+    h.component.down(&h.env, Request::RefusedHint(hint.clone()), &mut h.up, &mut h.io);
+    h.component.down(&h.env, Request::Remove { forge: fixtures::FORGE }, &mut h.up, &mut h.io);
+    peer.pump(&mut h);
+    assert!(peer.aborted);
+    assert!(h.up.is_empty(), "waits for the held hint's socket and start");
+    for owner in [peer.owner, api_owner] {
+        h.component.up(&h.env, skein_io::Event::Closed { owner }, &mut h.up, &mut h.io);
+    }
+    assert!(matches_removed(h.up.pop()));
+    h.component.down(&h.env, Request::RefusedHint(hint), &mut h.up, &mut h.io);
+    h.component.down(&h.env, Request::Offer, &mut h.up, &mut h.io);
+    assert!(h.up.is_empty());
+}
+fn matches_removed(event: Option<Event>) -> bool {
+    if let Some(Event::Removed { forge }) = event {
+        assert_eq!(forge, fixtures::FORGE);
+        true
+    } else {
+        false
+    }
+}

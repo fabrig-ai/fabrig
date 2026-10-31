@@ -22,14 +22,7 @@ impl Component {
     ) {
         let (call, id) = holder;
         let number = self.waiting.get(id).expect("call").repository.forge;
-        let mut position = None;
-        for at in 0..self.settings.forges.len() {
-            if self.settings.forges.get(at).expect("forge").number == number {
-                position = Some(at);
-                break;
-            }
-        }
-        let at = position.expect("call forge");
+        let at = self.position(number).expect("call forge");
         let forge = self.settings.forges.get(at).expect("forge");
         let mut matched = None;
         for index in 0..forge.log_origins.len() {

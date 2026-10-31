@@ -95,8 +95,34 @@ impl Hooks {
     }
     pub fn refused(&mut self, hinted: Hinted) {
         if let Some(id) = self.connections.get(&hinted.connection) {
-            self.slab.get_mut(*id).expect("indexed hook").refused(hinted.hint);
+            let c = self.slab.get_mut(*id).expect("indexed hook");
+            if c.forge == Some(hinted.hint.repository.forge) && !c.closing.sent() {
+                c.refused(hinted.hint);
+            }
         }
+    }
+    pub fn remove(&mut self, forge: u16, io: &mut Queue<skein_io::Request>) {
+        for (_, id) in &self.connections {
+            let c = self.slab.get_mut(*id).expect("indexed hook");
+            if c.forge == Some(forge) {
+                c.hint = None;
+                c.mac = None;
+                c.decoder = None;
+                c.decoded = None;
+                if c.closing != Closing::Aborted {
+                    c.closing = Closing::Aborted;
+                    io.push(skein_io::Request::Abort { entity: c.socket });
+                }
+            }
+        }
+    }
+    pub fn has_forge(&self, forge: u16) -> bool {
+        for (_, id) in &self.connections {
+            if self.slab.get(*id).expect("indexed hook").forge == Some(forge) {
+                return true;
+            }
+        }
+        false
     }
     pub fn offer(&mut self) {
         for (_, id) in &self.connections {
@@ -134,7 +160,7 @@ impl Hooks {
     pub fn drive(
         &mut self,
         env: &Env<Limits>,
-        settings: &crate::settings::Settings,
+        settings: &crate::settings::Serving,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {

@@ -57,6 +57,11 @@ pub struct Answered {
 /// From the routing.
 #[derive(Debug)]
 pub enum Request {
+    /// Serves one more forge, as one handed at construction
+    /// (temper/docs/design/draft/playground-reset.md, 3).
+    Add { forge: crate::settings::Forge },
+    /// Ends a forge whole; `Event::Removed` answers once nothing of it is in flight.
+    Remove { forge: u16 },
     /// Hands or replaces a forge's access (forge-connection.md, 3.5): at most one
     /// Connected and at most one Stopped per generation, including refusal after Ready.
     /// A replacement suppresses the old generation's remaining events.
@@ -89,6 +94,10 @@ pub enum Request {
 /// To the routing; io's requests go in a queue of their own.
 #[derive(Debug)]
 pub enum Event {
+    /// An addition refused whole, before any io.
+    Refused { forge: u16, why: AddRefused },
+    /// The forge's calls ended and all its io settled; its slot is free.
+    Removed { forge: u16 },
     /// A call's one terminal.
     Answered(Answered),
     /// A retained installation's lifecycle, with its current or last known account.
@@ -155,4 +164,13 @@ pub enum Value {
     User,
     /// A webhook secret on a GitHub forge, with no listener, empty, or past `hook_secret_bytes`.
     Secret,
+}
+
+/// Why a runtime forge addition was refused
+/// (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum AddRefused {
+    Served,
+    Full,
+    Invalid,
 }

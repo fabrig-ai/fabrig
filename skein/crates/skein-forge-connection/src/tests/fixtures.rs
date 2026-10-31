@@ -131,6 +131,7 @@ pub struct Harness {
     pub component_heap: Option<super::github_files::CallHeap>,
     pub connected_count: u32,
     pub closed: bool,
+    pub lifecycle: List<Event>,
 }
 #[derive(Debug)]
 pub struct Peer {
@@ -145,7 +146,7 @@ impl Harness {
     }
     pub fn with(limits: Limits, shared: Shared, settings: Settings) -> Self {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let mut endpoints = List::with_capacity(settings.forges.len());
+        let mut endpoints = List::with_capacity(32);
         for forge in &settings.forges {
             endpoints.push((forge.address, forge.number)).expect("configured endpoints");
         }
@@ -173,6 +174,7 @@ impl Harness {
             component_heap: None,
             connected_count: 0,
             closed: false,
+            lifecycle: List::with_capacity(32),
         };
         h.component.begin(&h.env, &mut h.up, &mut h.io);
         h.drain();
@@ -185,6 +187,19 @@ impl Harness {
         self.component.forgejo_tables().keep_repository(repository, row);
     }
     pub fn send(&mut self, request: crate::Request) {
+        if let crate::Request::Add { forge } = &request {
+            let mut known = false;
+            for at in 0..self.endpoints.len() {
+                let endpoint = self.endpoints.get_mut(at).expect("fixture endpoint");
+                if endpoint.1 == forge.number {
+                    endpoint.0 = forge.address;
+                    known = true;
+                }
+            }
+            if !known {
+                self.endpoints.push((forge.address, forge.number)).expect("fixture endpoints");
+            }
+        }
         let span = self.start_component();
         self.component.down(&self.env, request, &mut self.up, &mut self.io);
         self.count_component(span);
@@ -225,6 +240,9 @@ impl Harness {
                     self.git_tokens.as_mut().expect("GitHub fixture").push(event).expect("fixture tokens fit");
                 }
                 Event::Hint(hint) => self.hints.push(hint).expect("fixture hints fit"),
+                event @ (Event::Refused { .. } | Event::Removed { .. }) => {
+                    self.lifecycle.push(event).expect("fixture lifecycle");
+                }
                 Event::Listening { .. } | Event::ListenerLost => panic!("webhooks absent"),
                 Event::Closed => {
                     assert!(!self.closed, "closed once");
@@ -846,7 +864,7 @@ pub fn hook_head(body: &[u8], event: Option<&[u8]>, signature: &[u8]) -> Box<[u8
 #[derive(Debug)]
 pub struct HookHarness {
     connection: crate::hooks::connection::Hooked,
-    settings: Settings,
+    settings: crate::settings::Serving,
     env: Env<Limits>,
     wire: skein_world::stream::Wire,
     closed: bool,
@@ -857,7 +875,7 @@ pub fn hook() -> HookHarness {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
     HookHarness {
         connection: crate::hooks::connection::Hooked::new(skein_lib::Token::new(100), &env),
-        settings: hook_settings(),
+        settings: crate::settings::Serving::new(hook_settings(), env.limits.forges),
         env,
         wire: skein_world::stream::Wire::new(1),
         closed: false,
@@ -923,6 +941,8 @@ impl HookHarness {
                 match up.pop().expect("queued event") {
                     Event::Hint(_) => self.hints = self.hints.saturating_add(1),
                     Event::Installation { .. }
+                    | Event::Refused { .. }
+                    | Event::Removed { .. }
                     | Event::Fact { .. }
                     | Event::GitToken { .. }
                     | Event::Connected { .. }

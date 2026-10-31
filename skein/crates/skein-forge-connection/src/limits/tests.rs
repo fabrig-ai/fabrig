@@ -379,6 +379,7 @@ fn valid_refuses_socket_slots_past_u32() {
     let shared = Shared { calls: u32::MAX, ..fixtures::shared() };
     assert!(super::capacity_bound(&limits, &shared, super::Forges { forgejo: 0, github: 1 }).is_none());
     refuses_limits(limits, shared, fixtures::github_settings());
+    refuses_limits(limits, shared, fixtures::settings());
 }
 
 #[test]
@@ -397,7 +398,10 @@ fn valid_refuses_a_log_page_past_u32() {
 
 #[test]
 fn valid_ignores_heap_call_tables() {
-    let limits = super::Limits { connections: u32::MAX, ..fixtures::limits() };
-    let shared = Shared { calls: u32::MAX, rows: u32::MAX, answer_bytes: u32::MAX, ..fixtures::shared() };
+    let limits = fixtures::limits();
+    // Runtime GitHub additions reserve one connection per forge from construction.
+    let connections = u32::MAX.checked_sub(limits.forges).expect("room for reserved connections");
+    let limits = super::Limits { connections, ..limits };
+    let shared = Shared { calls: connections, rows: u32::MAX, answer_bytes: u32::MAX, ..fixtures::shared() };
     assert_eq!(check(&limits, &shared, &fixtures::settings()), Ok(()));
 }

@@ -77,6 +77,8 @@ fn expiry(h: &Harness, index: usize) -> Wall {
     match tokens(h).get(index).expect("Contents event") {
         Event::GitToken { expires, .. } => *expires,
         Event::Installation { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::Answered(_)
         | Event::Hint(_)
@@ -586,6 +588,8 @@ fn renewed_contents_follows_changes_once() {
             assert!(token.expose() == NEW_CONTENTS);
         }
         Event::Installation { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::Answered(_)
         | Event::Hint(_)

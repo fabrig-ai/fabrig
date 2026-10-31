@@ -40,6 +40,8 @@ fn expiry(world: &Machine, index: usize) -> Wall {
         | Event::Stopped { .. }
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Closed => panic!("token history"),
     }
 }

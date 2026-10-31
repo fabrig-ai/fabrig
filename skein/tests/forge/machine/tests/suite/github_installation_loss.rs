@@ -50,6 +50,8 @@ fn changes(world: &Machine) -> Vec<(u64, Change)> {
             | Event::Stopped { .. }
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Refused { .. }
+            | Event::Removed { .. }
             | Event::Closed => panic!("installation history"),
         })
         .collect()
@@ -76,6 +78,8 @@ fn acceptance_after_empty_start_checks_identity_without_reconnecting() {
             assert!(!token.is_empty());
         }
         Event::Installation { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
         | Event::Fact { .. }
         | Event::Answered(_)
         | Event::Hint(_)

@@ -724,7 +724,9 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
                 crate::forge::tokens::token(engine, forge, installation, account, token, expires);
             }
             // temper-21 names unknown log origins, without deciding on them.
-            skein_forge_connection::Event::Fact { fact: skein_forge_connection::Fact::Origin { .. }, .. } => {}
+            skein_forge_connection::Event::Refused { .. }
+            | skein_forge_connection::Event::Removed { .. }
+            | skein_forge_connection::Event::Fact { fact: skein_forge_connection::Fact::Origin { .. }, .. } => {}
             // temper-21 logs gaps, without deciding on them.
             skein_forge_connection::Event::Fact { fact: skein_forge_connection::Fact::Gap, .. } => {}
             skein_forge_connection::Event::Fact {

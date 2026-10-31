@@ -461,7 +461,7 @@ fn retry_after_states(limits: &crate::Limits, waiting: crate::start::Start) {
 }
 
 #[test]
-fn an_unconfigured_forge_is_unavailable_at_zero_cost() {
+fn an_unconfigured_forge_is_not_connected_at_zero_cost() {
     use skein_forge::api;
     let mut settings = fixtures::settings();
     settings.forges = skein_lib::List::with_capacity(0);
@@ -475,7 +475,7 @@ fn an_unconfigured_forge_is_unavailable_at_zero_cost() {
             cost: 0,
             free: 0,
             rate: None,
-            result: Err(api::Error::Unavailable)
+            result: Err(api::Error::NotConnected)
         })
     );
     assert_eq!((h.answers.len(), h.connections_opened()), (1, 0));

@@ -1100,6 +1100,8 @@ mod tests {
             | Event::ListenerLost
             | Event::Connected { .. }
             | Event::Stopped { .. }
+            | Event::Refused { .. }
+            | Event::Removed { .. }
             | Event::Closed => unreachable!("lifecycle"),
         }
         let mut changes = List::with_capacity(ROWS.saturating_add(1));
@@ -1118,6 +1120,8 @@ mod tests {
                     | Event::Listening { .. }
                     | Event::ListenerLost
                     | Event::Stopped { .. }
+                    | Event::Refused { .. }
+                    | Event::Removed { .. }
                     | Event::Closed => unreachable!("change output"),
                 }
             }
@@ -1162,6 +1166,8 @@ mod tests {
             | Event::ListenerLost
             | Event::Connected { .. }
             | Event::Stopped { .. }
+            | Event::Refused { .. }
+            | Event::Removed { .. }
             | Event::Closed => unreachable!("fact"),
         }
         assert!(io.is_empty());
@@ -1186,7 +1192,9 @@ mod tests {
             | Event::Listening { .. }
             | Event::ListenerLost
             | Event::Connected { .. }
-            | Event::Stopped { .. } => unreachable!("Closed last"),
+            | Event::Stopped { .. }
+            | Event::Refused { .. }
+            | Event::Removed { .. } => unreachable!("Closed last"),
         }
         component.fire(&env, &mut up, &mut io);
         assert!(up.is_empty());
@@ -1313,6 +1321,8 @@ mod tests {
             | Event::ListenerLost
             | Event::Connected { .. }
             | Event::Stopped { .. }
+            | Event::Refused { .. }
+            | Event::Removed { .. }
             | Event::Closed => unreachable!("one fact"),
         }
         env.now = env.now.saturating_add(limits.start_backoff);

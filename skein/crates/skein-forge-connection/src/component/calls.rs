@@ -62,15 +62,8 @@ impl Component {
                 continue;
             }
             let forge = waiting.repository.forge;
-            let mut at = None;
-            for n in 0..self.settings.forges.len() {
-                if self.settings.forges.get(n).expect("forge").number == forge {
-                    at = Some(n);
-                    break;
-                }
-            }
-            let Some(at) = at else {
-                self.finish(call, id, Err(api::Error::Unavailable), up);
+            let Some(at) = self.position(forge) else {
+                self.finish(call, id, Err(api::Error::NotConnected), up);
                 continue;
             };
             if waiting.connection.is_none() {

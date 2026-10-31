@@ -308,6 +308,8 @@ impl Listener {
                         self.event_order.push("closed");
                     }
                     Event::Installation { .. }
+                    | Event::Refused { .. }
+                    | Event::Removed { .. }
                     | Event::Fact { .. }
                     | Event::GitToken { .. }
                     | Event::Connected { .. }

@@ -377,6 +377,7 @@ impl World {
                     self.seen.minted_tokens += 1;
                     self.seen.installations += 1;
                 }
+                Event::Refused { .. } | Event::Removed { .. } => panic!("runtime lifecycle not requested"),
                 Event::Closed => self.closed = true,
                 Event::Stopped { .. } | Event::ListenerLost => panic!("full fixture stopped: {event:?}"),
             }

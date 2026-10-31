@@ -101,8 +101,9 @@ pub(crate) struct Held {
 #[derive(Debug)]
 pub struct Component {
     hooks: crate::hooks::Hooks,
-    settings: Settings,
+    settings: crate::settings::Serving,
     starts: List<Start>,
+    removing: List<bool>,
     github: List<Option<Box<crate::installations::GitHub>>>,
     forgejo_tables: Tables,
     github_tables: skein_forge::github::plans::tables::Tables,
@@ -123,49 +124,37 @@ pub struct Component {
 impl Component {
     pub fn new(settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
         limits::check(limits, shared, &settings)?;
+        let settings = crate::settings::Serving::new(settings, limits.forges);
         let mut github = List::with_capacity(limits.forges);
-        let mut reserved = 0_u32;
         let mut starts = List::with_capacity(limits.forges);
         let mut own_tokens = List::with_capacity(limits.forges);
         let mut own_plans = List::with_capacity(limits.forges);
-        for forge in &settings.forges {
-            let state =
-                if forge.access.is_some() { initial(forge.kind, limits.start_backoff) } else { Start::Unconnected };
-            let state_github = match forge.kind {
-                crate::settings::Kind::Forgejo => None,
-                crate::settings::Kind::GitHub => {
-                    reserved = reserved.checked_add(1).expect("checked connection count");
-                    let mut github = crate::installations::GitHub::new(limits.installations);
-                    github.said_origins = Queue::with_capacity(limits.log_origins);
-                    Some(Box::new(github))
+        let mut removing = List::with_capacity(limits.forges);
+        for at in 0..limits.forges {
+            let mut state = Start::Unconnected;
+            let mut state_github = None;
+            if let Some(forge) = settings.forges.get(at) {
+                if forge.access.is_some() {
+                    state = initial(forge.kind, limits.start_backoff);
                 }
-            };
-            github.push(state_github).expect("checked forge count");
-            starts.push(state).expect("checked forge count");
-            own_tokens.push(None).expect("checked forge count");
-            own_plans.push(None).expect("checked forge count");
-        }
-        let mut forgejo = false;
-        let mut has_github = false;
-        for forge in &settings.forges {
-            match forge.kind {
-                crate::settings::Kind::Forgejo => forgejo = true,
-                crate::settings::Kind::GitHub => has_github = true,
+                if forge.kind == crate::settings::Kind::GitHub {
+                    state_github = Some(new_github(limits));
+                }
             }
+            github.push(state_github).expect("fixed forge slots");
+            starts.push(state).expect("fixed forge slots");
+            own_tokens.push(None).expect("fixed forge slots");
+            own_plans.push(None).expect("fixed forge slots");
+            removing.push(false).expect("fixed forge slots");
         }
         Ok(Self {
             hooks: crate::hooks::Hooks::new(limits),
             settings,
             starts,
+            removing,
             github,
-            forgejo_tables: Tables::new(
-                if forgejo { limits.repositories } else { 0 },
-                if forgejo { limits.users } else { 0 },
-            ),
-            github_tables: skein_forge::github::plans::tables::Tables::new(
-                if has_github { limits.repositories } else { 0 },
-                if has_github { limits.users } else { 0 },
-            ),
+            forgejo_tables: Tables::new(limits.repositories, limits.users),
+            github_tables: skein_forge::github::plans::tables::Tables::new(limits.repositories, limits.users),
             waiting: Slab::with_capacity(shared.calls),
             calls: Map::with_capacity(shared.calls),
             held: Map::with_capacity(shared.calls),
@@ -173,9 +162,11 @@ impl Component {
             lifecycle: Lifecycle::Live,
             diagnostics: Diagnostics { long_bodies: 0, malformed: 0 },
             shared: *shared,
-            connections: Map::with_capacity(limits.connections.checked_add(reserved).expect("checked connections")),
+            connections: Map::with_capacity(
+                limits.connections.checked_add(limits.forges).expect("checked connections"),
+            ),
             connection_slab: Slab::with_capacity(
-                limits.connections.checked_add(reserved).expect("checked connections"),
+                limits.connections.checked_add(limits.forges).expect("checked connections"),
             ),
             own_tokens,
             own_plans,
@@ -222,7 +213,8 @@ impl Component {
             self.hooks.begin(settings, io);
         }
         for at in 0..self.starts.len() {
-            if self.settings.forges.get(at).expect("configured forge").access.is_some() {
+            let Some(forge) = self.settings.forges.get(at) else { continue };
+            if forge.access.is_some() {
                 *self.starts.get_mut(at).expect("configured start") =
                     initial(self.settings.forges.get(at).expect("forge").kind, env.limits.start_backoff);
             }
@@ -247,6 +239,14 @@ impl Component {
             Lifecycle::Aborting | Lifecycle::Closed => return,
         }
         match request {
+            Request::Add { forge } => {
+                self.add(forge, env, up);
+                self.drive(env, up, io);
+            }
+            Request::Remove { forge } => {
+                self.remove(forge, up, io);
+                self.drive(env, up, io);
+            }
             Request::Connect { forge, access } => {
                 self.connect(env, forge, access, up, io);
                 self.drive(env, up, io);
@@ -335,7 +335,9 @@ impl Component {
         self.held = Map::with_capacity(self.held.capacity());
         self.holders = Map::with_capacity(self.holders.capacity());
         for at in 0..self.starts.len() {
-            self.settings.forges.get_mut(at).expect("forge").access = None;
+            if let Some(forge) = self.settings.forges.get_mut(at) {
+                forge.access = None;
+            }
             if let Some(github) = self.github.get_mut(at).expect("forge slot") {
                 github.forget();
             }
@@ -379,13 +381,122 @@ impl Component {
             self.hooks.refused(hint);
         }
     }
-    fn installations(&mut self, forge: u16, accepted: &[u64]) {
+    fn position(&self, number: u16) -> Option<u32> {
         for at in 0..self.settings.forges.len() {
-            if self.settings.forges.get(at).expect("forge").number == forge
-                && let Some(github) = self.github.get_mut(at).expect("forge slot")
+            if let Some(forge) = self.settings.forges.get(at)
+                && forge.number == number
+                && !*self.removing.get(at).expect("forge slot")
             {
-                github.accept(accepted);
+                return Some(at);
             }
+        }
+        None
+    }
+    fn add(&mut self, forge: crate::settings::Forge, env: &Env<Limits>, up: &mut Queue<Event>) {
+        let mut free = None;
+        for at in 0..self.settings.forges.len() {
+            if let Some(served) = self.settings.forges.get(at) {
+                if served.number == forge.number {
+                    up.push(Event::Refused { forge: forge.number, why: crate::AddRefused::Served });
+                    return;
+                }
+            } else if free.is_none() {
+                free = Some(at);
+            }
+        }
+        let Some(at) = free else {
+            up.push(Event::Refused { forge: forge.number, why: crate::AddRefused::Full });
+            return;
+        };
+        if limits::check_added(&env.limits, &self.shared, forge.kind).is_err()
+            || limits::check_forge(
+                &env.limits,
+                &self.shared,
+                self.settings.webhooks.is_some(),
+                &self.settings.user_agent,
+                &forge,
+            )
+            .is_err()
+        {
+            up.push(Event::Refused { forge: forge.number, why: crate::AddRefused::Invalid });
+            return;
+        }
+        *self.starts.get_mut(at).expect("forge slot") =
+            if forge.access.is_some() { initial(forge.kind, env.limits.start_backoff) } else { Start::Unconnected };
+        *self.github.get_mut(at).expect("forge slot") = match forge.kind {
+            crate::settings::Kind::GitHub => Some(new_github(&env.limits)),
+            crate::settings::Kind::Forgejo => None,
+        };
+        *self.settings.forges.slots.get_mut(at).expect("forge slot") = Some(forge);
+    }
+    fn remove(&mut self, number: u16, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+        let Some(at) = self.position(number) else {
+            // A repeated remove while the first drains shares its one terminal.
+            for slot in self.settings.forges.slots.iter().flatten() {
+                if slot.number == number {
+                    return;
+                }
+            }
+            up.push(Event::Removed { forge: number });
+            return;
+        };
+        *self.removing.get_mut(at).expect("forge slot") = true;
+        self.settings.forges.get_mut(at).expect("forge").access = None;
+        *self.starts.get_mut(at).expect("forge slot") = Start::Unconnected;
+        *self.own_plans.get_mut(at).expect("forge slot") = None;
+        *self.github.get_mut(at).expect("forge slot") = None;
+        for _ in 0..self.calls.len() {
+            let mut next = None;
+            for (call, id) in &self.calls {
+                if self.waiting.get(*id).expect("indexed call").repository.forge == number {
+                    next = Some((*call, *id));
+                    break;
+                }
+            }
+            let Some((call, id)) = next else { break };
+            self.finish(call, id, Err(api::Error::NotConnected), up);
+        }
+        self.hooks.remove(number, io);
+        self.abort_removed(io);
+    }
+    fn abort_removed(&mut self, io: &mut Queue<skein_io::Request>) {
+        for at in 0..self.removing.len() {
+            if !*self.removing.get(at).expect("forge slot") {
+                continue;
+            }
+            let forge = self.settings.forges.get(at).expect("removing forge").number;
+            for (_, id) in &self.connections {
+                let c = self.connection_slab.get_mut(*id).expect("indexed connection");
+                if c.forge == forge {
+                    c.abort(io);
+                }
+            }
+        }
+    }
+    fn removed(&mut self, up: &mut Queue<Event>) {
+        for at in 0..self.removing.len() {
+            if !*self.removing.get(at).expect("forge slot") {
+                continue;
+            }
+            let forge = self.settings.forges.get(at).expect("removing forge").number;
+            let mut pending = self.hooks.has_forge(forge);
+            for (_, id) in &self.connections {
+                if self.connection_slab.get(*id).expect("indexed connection").forge == forge {
+                    pending = true;
+                }
+            }
+            if !pending {
+                *self.settings.forges.slots.get_mut(at).expect("forge slot") = None;
+                *self.removing.get_mut(at).expect("forge slot") = false;
+                up.push(Event::Removed { forge });
+            }
+        }
+    }
+    fn installations(&mut self, forge: u16, accepted: &[u64]) {
+        if let Some(at) = self.position(forge)
+            && let Some(github) = self.github.get_mut(at).expect("forge slot")
+        {
+            github.accept(accepted);
         }
     }
     fn connect(
@@ -396,16 +507,7 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
-        let mut position = None;
-        for at in 0..self.settings.forges.len() {
-            if self.settings.forges.get(at).expect("configured forge").number == number {
-                position = Some(at);
-                break;
-            }
-        }
-        let Some(at) = position else {
-            return;
-        };
+        let Some(at) = self.position(number) else { return };
         let forge = self.settings.forges.get_mut(at).expect("configured forge");
         let mut checked = limits::access(&env.limits, forge.kind, self.settings.webhooks.is_some(), &access);
         if checked.is_ok()
@@ -538,7 +640,7 @@ impl Component {
                 if self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::Forgejo {
                     *self.own_plans.get_mut(at).expect("configured forge") = None;
                 }
-                if self.lifecycle == Lifecycle::Live && !closing {
+                if self.lifecycle == Lifecycle::Live && !closing && !*self.removing.get(at).expect("forge slot") {
                     match self.settings.forges.get(at).expect("forge").kind {
                         crate::settings::Kind::Forgejo => {
                             self.start_heard(at, skein_forge::forgejo::plans::start::Heard::Unanswered, env, up);
@@ -622,7 +724,11 @@ impl Component {
     fn drive_own(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
         self.wake = None;
         for at in 0..self.starts.len() {
-            if self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::GitHub {
+            let Some(forge) = self.settings.forges.get(at) else { continue };
+            if *self.removing.get(at).expect("forge slot") {
+                continue;
+            }
+            if forge.kind == crate::settings::Kind::GitHub {
                 self.drive_github(at, env, up, io);
                 continue;
             }
@@ -731,11 +837,13 @@ impl Component {
                 self.connection_slab.get_mut(*id).expect("indexed connection").abort(io);
             }
         }
+        self.abort_removed(io);
         if self.settings.webhooks.is_some() {
             self.hooks.drive(env, &self.settings, up, io);
         }
         self.drive_own(env, up, io);
         self.drive_calls(env, up, io);
+        self.removed(up);
         match self.lifecycle {
             Lifecycle::Closing | Lifecycle::Aborting => {
                 if self.connections.is_empty() && self.hooks.closed() {
@@ -824,15 +932,10 @@ impl Component {
     pub fn github_tables(&mut self) -> &mut skein_forge::github::plans::tables::Tables {
         &mut self.github_tables
     }
-    /// The pure start, in configured forge order.
+    /// The current start of a served forge.
     #[must_use]
     pub fn start(&self, forge: u16) -> Option<Start> {
-        for (at, settings) in self.settings.forges.as_slice().iter().enumerate() {
-            if settings.number == forge {
-                return self.starts.as_slice().get(at).copied();
-            }
-        }
-        None
+        self.starts.get(self.position(forge)?).copied()
     }
 }
 
@@ -943,4 +1046,10 @@ impl Component {
         }
         count
     }
+}
+
+fn new_github(limits: &Limits) -> Box<crate::installations::GitHub> {
+    let mut github = crate::installations::GitHub::new(limits.installations);
+    github.said_origins = Queue::with_capacity(limits.log_origins);
+    Box::new(github)
 }

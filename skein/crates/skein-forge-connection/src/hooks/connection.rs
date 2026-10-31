@@ -1,6 +1,6 @@
 //! One streaming, authenticated webhook connection (forge-connection.md, 5 and 8).
 use super::Hinted;
-use crate::{Event, Limits, limits, settings::Settings};
+use crate::{Event, Limits, limits, settings::Serving};
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_forge::forgejo::plans::hint;
@@ -54,7 +54,7 @@ pub(crate) struct Hooked {
     pub(super) decoded: Option<Delivery>,
     pub(super) mac: Option<Hmac>,
     pub(super) signature: [u8; 64],
-    pub(super) forge: u16,
+    pub(super) forge: Option<u16>,
     pub(super) malformed: bool,
     pub(super) ended: bool,
     pub(super) done: bool,
@@ -77,7 +77,7 @@ impl Hooked {
             decoded: None,
             mac: None,
             signature: [0; 64],
-            forge: 0,
+            forge: None,
             malformed: false,
             ended: false,
             done: false,
@@ -137,10 +137,10 @@ impl Hooked {
             }),
         );
     }
-    fn call(&mut self, env: &Env<Limits>, settings: &Settings, call: http::Call) {
+    fn call(&mut self, env: &Env<Limits>, settings: &Serving, call: http::Call) {
         let forge = delivery::hook_forge(&call.target);
         let mut secret = None;
-        for configured in &settings.forges {
+        for configured in settings.forges.slots.iter().flatten() {
             if Some(configured.number) == forge {
                 secret = match &configured.access {
                     Some(access) => access.webhook_secret.as_ref(),
@@ -168,7 +168,7 @@ impl Hooked {
             self.down(env, http::Request::Discard);
             return;
         }
-        self.forge = forge.expect("configured forge");
+        self.forge = forge;
         self.mac = Some(Hmac::new(secret.expect("configured secret").expose()));
         self.decoder = match call.header(delivery::EVENT_HEADER) {
             Some(event) => decode::decoder(event, &limits::hook_documents(&env.limits)),
@@ -224,7 +224,7 @@ impl Hooked {
         };
         if status == 204 {
             self.hint = match self.decoded.take() {
-                Some(delivery) => hint::hint(self.forge, word, &delivery),
+                Some(delivery) => hint::hint(self.forge.expect("authenticated forge"), word, &delivery),
                 None => None,
             };
         }
@@ -253,7 +253,7 @@ impl Hooked {
         &mut self,
         owner: Token,
         env: &Env<Limits>,
-        settings: &Settings,
+        settings: &Serving,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
