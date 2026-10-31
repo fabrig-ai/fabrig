@@ -146,7 +146,7 @@ pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: Jo
         let ended = kit.jobs.held.remove(&job.0).expect("one terminal read");
         match ended.state {
             State::Ended { head, tail, dropped, end, .. } => {
-                answer(kit::session(kit), read, head, tail, dropped, end, &mut domain.facts, out);
+                answer(kit::session(kit), read, &head, &tail, dropped, end, &mut domain.facts, out);
             }
             State::Running | State::Cancelling => unreachable!("checked ended"),
         }
@@ -264,7 +264,7 @@ pub(crate) fn done(
     }
     if let Some(reader) = job.reader.take() {
         let read = kit.jobs.reads.remove(&reader).expect("an active read owns its reply right");
-        answer(kit::session(kit), read, head, tail, dropped, end, &mut domain.facts, out);
+        answer(kit::session(kit), read, &head, &tail, dropped, end, &mut domain.facts, out);
     } else {
         assert!(ended, "only cancellation answers an unpolled job");
         job.state = State::Ended { head, tail, dropped, end, at: env.now };
@@ -383,8 +383,8 @@ fn tell(session: Token, number: JobNumber, job: &Job, facts: &mut facts::Facts) 
 fn answer(
     session: Token,
     read: JobRead,
-    head: Box<[u8]>,
-    tail: Box<[u8]>,
+    head: &[u8],
+    tail: &[u8],
     dropped: u64,
     end: JobEnd,
     facts: &mut facts::Facts,
