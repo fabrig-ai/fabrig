@@ -1,6 +1,6 @@
 //! Handles and slabs (lib.md, 3): a handle's round trip through a token, a
-//! full slab, and a retired entity reachable until it is reclaimed, its
-//! handle stale after.
+//! full slab, a retired entity reachable until it is reclaimed, its handle
+//! stale after, and the slab walked in slot order.
 
 use crate::{Id, Slab};
 
@@ -74,4 +74,44 @@ fn a_slab_hands_out_slots_in_the_order_it_did() {
         assert_eq!((id.slot(), id.generation()), parts);
     }
     assert_eq!(slab.get(reused_second), Some(&'d'), "a reused slot keeps its generation across growth");
+}
+
+/// The slab's entities as its iterator visits them, with their handles.
+fn walked(slab: &Slab<char>) -> Box<[(Id<char>, char)]> {
+    let mut seen = crate::List::uncapped();
+    for (id, value) in slab {
+        seen.push((id, *value)).expect("an uncapped list");
+    }
+    assert_eq!(slab.iter().size_hint(), (seen.as_slice().len(), Some(seen.as_slice().len())), "an exact hint");
+    seen.into_boxed()
+}
+
+#[test]
+fn an_empty_slab_walks_nothing() {
+    assert_eq!(*walked(&Slab::with_capacity(4)), []);
+    assert_eq!(*walked(&Slab::with_capacity(0)), []);
+}
+
+#[test]
+fn a_slab_walks_its_entities_in_slot_order_retired_ones_until_reclaimed() {
+    let mut slab = Slab::with_capacity(4);
+    let first = slab.insert('a').expect("room");
+    let second = slab.insert('b').expect("room");
+    let third = slab.insert('c').expect("room");
+    assert_eq!(*walked(&slab), [(first, 'a'), (second, 'b'), (third, 'c')]);
+    slab.retire(second);
+    assert_eq!(*walked(&slab), [(first, 'a'), (second, 'b'), (third, 'c')], "a retired entity is still reachable");
+    slab.reclaim();
+    assert_eq!(*walked(&slab), [(first, 'a'), (third, 'c')]);
+    let reused = slab.insert('d').expect("the reclaimed slot");
+    let fourth = slab.insert('e').expect("a fresh slot");
+    assert_eq!(*walked(&slab), [(first, 'a'), (reused, 'd'), (third, 'c'), (fourth, 'e')], "slot order");
+    assert_ne!(reused, second, "the reused slot names its new entity");
+    for (id, value) in &slab {
+        assert_eq!(slab.get(id), Some(value), "each handle reaches what it was walked with");
+    }
+    slab.retire(first);
+    slab.retire(fourth);
+    slab.reclaim();
+    assert_eq!(*walked(&slab), [(reused, 'd'), (third, 'c')], "vacant slots at either end are skipped");
 }

@@ -1,5 +1,6 @@
 //! Entity storage (lib.md, 3): slots and lists grow as
-//! they fill, never past the admission limit for their entity kind.
+//! they fill, never past the admission limit for their entity kind, and
+//! the entities are walked in slot order.
 
 #![expect(
     clippy::disallowed_types,
@@ -8,7 +9,9 @@
 
 use alloc::vec::Vec;
 use core::hash::{Hash, Hasher};
+use core::iter::Enumerate;
 use core::mem::size_of;
+use core::slice;
 
 use crate::Id;
 use crate::growth::grown;
@@ -147,6 +150,12 @@ impl<T> Slab<T> {
         self.retired.push(id.slot());
     }
 
+    /// Its entities with their handles, in slot order, those retired since
+    /// the last `reclaim` included: their handles still reach them.
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter { slots: self.slots.iter().enumerate(), left: self.len }
+    }
+
     /// Frees the slots of every retired entity: the reclaim point, once per
     /// iteration, after every step.
     pub fn reclaim(&mut self) {
@@ -171,6 +180,53 @@ impl<T> Slab<T> {
             };
             self.len = self.len.checked_sub(1).expect("a retired entity was counted");
         }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Slab<T> {
+    type Item = (Id<T>, &'a T);
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Iter<'a, T> {
+        self.iter()
+    }
+}
+
+/// A slab's entities with their handles, in slot order: what
+/// [`Slab::iter`] walks. An entity retired but not yet reclaimed is
+/// visited, as its handle still reaches it.
+#[derive(Debug)]
+#[must_use = "an iterator visits nothing until it is walked"]
+pub struct Iter<'a, T> {
+    slots: Enumerate<slice::Iter<'a, Slot<T>>>,
+    /// The entities not yet visited.
+    left: u32,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = (Id<T>, &'a T);
+
+    fn next(&mut self) -> Option<(Id<T>, &'a T)> {
+        if self.left == 0 {
+            return None;
+        }
+        // Bounded by the slots: each is visited once.
+        for (slot, entry) in &mut self.slots {
+            match entry {
+                Slot::Occupied { generation, retired: _, value } => {
+                    self.left = self.left.checked_sub(1).expect("each occupied slot holds a counted entity");
+                    let slot = u32::try_from(slot).expect("fewer slots than the capacity");
+                    return Some((Id::new(slot, *generation), value));
+                }
+                Slot::Vacant { .. } | Slot::Spent => {}
+            }
+        }
+        unreachable!("the slots hold every entity counted")
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let left = index(self.left);
+        (left, Some(left))
     }
 }
 

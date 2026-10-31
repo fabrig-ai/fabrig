@@ -66,7 +66,7 @@ pub use requests::{
 pub use rng::Rng;
 pub use secret::Secret;
 pub use set::Set;
-pub use slab::Slab;
+pub use slab::{Iter as SlabIter, Slab};
 pub use stack::Stack;
 pub use time::{Duration, Time, Wall, earliest};
 pub use token::{ReplyTo, Token};
