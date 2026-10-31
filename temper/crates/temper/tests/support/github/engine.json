@@ -173,27 +173,7 @@
       "bundle": null,
       "public": null
     }},
-    "forges": [
-      {{
-        "number": 1,
-        "kind": "github",
-        "api": {{
-          "socket": "{proc.forge.ready.address}"
-        }},
-        "transport": "plaintext",
-        "git": "http://{proc.forge.ready.address}",
-        "web": "http://{proc.forge.ready.address}"
-      }}
-    ],
-    "identities": [
-      {{
-        "number": 1,
-        "forge": 1,
-        "login": null,
-        "author": null
-      }}
-    ],
-    "setup": [],
+    "machine": {{"github": {{"api": {{"socket": "{proc.forge.ready.address}"}}, "transport": "plaintext", "remote": "http://{proc.forge.ready.address}", "web": "http://{proc.forge.ready.address}"}}}},
     "demo": null, "sign_in": null,
     "landing": {{
       "deployment": [],
