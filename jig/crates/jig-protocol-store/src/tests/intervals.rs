@@ -12,9 +12,9 @@ fn key_bytes(key: &Key) -> Box<[u8]> {
     keys::encode(key, fixtures::KEY_LIMIT).expect("within the key limit")
 }
 
-// The existing generated sample count plus two explicit late-interval keys.
+// Seeded keys plus explicit late-interval keys.
 const SAMPLES: u32 = 500;
-const BOUNDARY_KEYS: u32 = 2;
+const BOUNDARY_KEYS: u32 = 3;
 // A census and the combined core/tasks request, beside LIVE's single ranges.
 const EXTRA_REQUESTS: u32 = 2;
 fn samples() -> core::ops::Range<u32> {
@@ -45,6 +45,7 @@ fn cursor_keys() -> Box<[Key]> {
     for key in [
         Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector: 1, key: [0; 16] })),
         Key::Tasks(jig_domain_tasks::Key::PlacedHold(TASK)),
+        Key::People(jig_domain_people::Key::Deletion(7)),
     ] {
         keys.push(key).expect("counted boundary keys");
     }

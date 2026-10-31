@@ -35,10 +35,6 @@ impl Deletions {
     pub(crate) fn route(&mut self, active: bool) -> bool {
         core::mem::replace(&mut self.routing, active)
     }
-
-    pub(crate) fn in_route(&self) -> bool {
-        self.routing
-    }
 }
 impl Deleting {
     fn new(step: people::DeletionStep) -> Self {

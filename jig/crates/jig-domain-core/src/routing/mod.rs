@@ -376,6 +376,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");
+    crate::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
     core.start_collect_failure();
     if core.start_failure().is_some() {
@@ -531,13 +532,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::RunText { run, attempt, turn, retry, offset, text, call } => {
             view_routes::run_text(core, env, run, attempt, turn, retry, offset, text, call)
         }
-        Event::Tasks(event) => {
-            let Requests::Out(mut out) = route_tasks(core, env, work, event);
-            if !core.deletions.in_route() {
-                crate::deletion::advance(core, env, &mut out);
-            }
-            Requests::Out(out)
-        }
+        Event::Tasks(event) => route_tasks(core, env, work, event),
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
@@ -711,6 +706,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
             made_outputs(core, env, out)
         }
     };
+    crate::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
     Requests::Out(out)
 }
