@@ -1408,7 +1408,7 @@ pub enum Accepted {
 /// notifications have no reply destination and may be ignored if stale. (domain/tasks.md, sections 4–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
-    /// Close project rows (temper/docs/design/draft/playground-reset.md, 5).
+    /// Close project rows (jig/docs/design/protocol/store.md, 11.1).
     CloseProject { project: u32 },
     /// Root-checked placement; the root numbers it and judges standing, the child judges room.
     Place { reply_to: ReplyTo, hold: crate::PlacedHold },

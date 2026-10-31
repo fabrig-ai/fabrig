@@ -1,4 +1,4 @@
-//! Kept project deletion (temper/docs/design/draft/playground-reset.md, 5).
+//! Kept project deletion (jig/docs/design/protocol/store.md, 11.1).
 use crate::{Core, Limits, Request, Requests};
 use skein_lib::{Env, Queue, Token};
 
@@ -7,7 +7,7 @@ use skein_lib::{Env, Queue, Token};
 pub(crate) struct Deletions {}
 
 impl Core {
-    /// Whether a project takes requests (temper/docs/design/draft/playground-reset.md, 5, "Closed at once").
+    /// Whether a project takes requests (jig/docs/design/domain/people.md, 5.2).
     #[must_use]
     pub fn open_project(&self, project: u32) -> bool {
         self.projects.as_slice().contains(&project)

@@ -62,11 +62,10 @@ pub struct Filter {
 /// Identity of a store query, independent of its continuation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Scope {
-    /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store.md, 11.1;
-    /// temper/docs/design/draft/playground-reset.md, 5).
+    /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store.md, 11.1).
     EndedTasks,
     /// Task-first history, milestones, activity, terminals, decisions and ended reads
-    /// (jig/docs/design/protocol/store.md, 11.1; temper/docs/design/draft/playground-reset.md, 5).
+    /// (jig/docs/design/protocol/store.md, 11.1).
     TaskRows { task: u64 },
     /// Dense inclusive revision interval; held newest and tag-9 predecessors.
     SettingsHistory { first: u32, last: u32, newest: u32, whole: bool },

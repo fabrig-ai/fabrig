@@ -567,12 +567,12 @@ fn role_spend_round_trips_in_a_stored_answer() {
 }
 
 #[test]
-fn project_spend_answer_bytes_from_before_role_spend_still_decode() {
-    // people-v13: Row/Answer, key, ChangePolicy/ProjectSpend, no models,
+fn project_spend_answer_bytes_keep_their_layout_in_people_14() {
+    // people-v14: Row/Answer, key, ChangePolicy/ProjectSpend, no models,
     // PolicyChanged and its project, then the answer's wall time.
     let mut before = skein_lib::Writer::new(58);
     for field in [
-        [0, 13, 6].as_slice(),
+        [0, 14, 6].as_slice(),
         &2_u64.to_be_bytes(),
         &[7; 16],
         &[21, 0, 0, 0, 1, 0],
