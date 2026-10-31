@@ -247,7 +247,7 @@ impl Component {
     }
 
     /// Limits and public provider templates have passed the driver's validation.
-    /// The durable installation is supplied before work starts; page_rows is the secrets store's page bound.
+    /// The durable installation is supplied before work starts; `page_rows` is the secrets store's page bound.
     #[must_use]
     pub fn new(
         application: Box<[u8]>,
