@@ -59,6 +59,7 @@ pub(super) fn person_note_change(change: people::NoteChange) -> notes::Change {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "notes outputs are routed in one exhaustive dispatch")]
 pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Queue<notes::Request>) -> Requests {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
