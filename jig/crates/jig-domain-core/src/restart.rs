@@ -334,6 +334,7 @@ impl Core {
                 None => RestartStep::Open,
             },
             RestartStep::Open => {
+                self.opened = true;
                 self.restart = Restart::Open;
                 return RestartRequest::Idle;
             }

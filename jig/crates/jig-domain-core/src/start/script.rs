@@ -70,6 +70,7 @@ impl Core {
                 None => Phase::Open,
             },
             Phase::Open => {
+                self.opened = true;
                 self.start.phase = None;
                 return Action::Idle;
             }
