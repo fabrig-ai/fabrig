@@ -63,17 +63,12 @@ impl Source {
 }
 impl Rows {
     pub(crate) fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
-        let fits = match self {
-            Self::Tasks(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Ended(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::History(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Activity(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Inbox(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Spend(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Notes(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-        };
-        if fits { Ok(()) } else { Err(Invalid::Payload) }
+        for start in 0..self.len() {
+            crate::codec::read(&self.page(start, start + 1, None, None), bounds)?;
+        }
+        Ok(())
     }
+
     fn matches(&self, read: &Read) -> bool {
         matches!(
             (self, read),
@@ -190,7 +185,7 @@ impl<A: crate::Application> Engine<A> {
         let terminal = if !self.online(now) {
             ReadResult::None(ReadNone::Unreachable)
         } else if let Some(party) = self.truth.sign_ins.get(&sign_in).copied() {
-            self.read_value(party, read).map_or_else(ReadResult::None, ReadResult::Value)
+            self.read_value(party, read).map_or_else(|why| ReadResult::None(crate::codec::none(why)), ReadResult::Value)
         } else {
             ReadResult::None(ReadNone::SignedOut)
         };
@@ -318,7 +313,7 @@ impl<A: crate::Application> Engine<A> {
                     )
                 });
             }
-            if payload::fits(&page, &self.bounds) && crate::engine_set::read(&page) {
+            if let Ok(page) = crate::codec::read(&page, &self.bounds) {
                 if before.is_some() {
                     self.positions.insert(self.next_position, Position { party, read: query.clone(), index: start });
                 }
@@ -342,8 +337,9 @@ impl<A: crate::Application> Engine<A> {
             unreachable!("activity rows")
         };
         for row in rows {
-            if let jig_client_domain::contract::Activity::Owner { source, decoded } = row.event
-                && source.task == task
+            let source = row.source;
+            let decoded = row.decoded;
+            if source.task == task
                 && matches!(source.line, jig_client_domain::contract::OwnerActivity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
             {
                 let archive = decoded.ok_or(ReadNone::Malformed)?;
@@ -404,11 +400,7 @@ impl<A: crate::Application> Engine<A> {
     }
     fn checked_read(&self, value: Option<ReadValue>) -> core::result::Result<ReadValue, ReadNone> {
         let value = value.ok_or(ReadNone::Unknown)?;
-        if payload::fits(&value, &self.bounds) && crate::engine_set::read(&value) {
-            Ok(value)
-        } else {
-            Err(ReadNone::Busy)
-        }
+        crate::codec::read(&value, &self.bounds).map_err(|_| ReadNone::Busy)
     }
     pub(crate) fn read_visible(&self, party: u64, read: &Read) -> bool {
         let key = match read {

@@ -9,6 +9,10 @@ publish.workspace = true
 
 [dependencies]
 jig-client-domain.workspace = true
+jig-client-protocol-wire.workspace = true
+jig-client-protocol-link.workspace = true
+skein-codec.workspace = true
+smith-transcript.workspace = true
 skein-lib.workspace = true
 jig-client-view.workspace = true
 

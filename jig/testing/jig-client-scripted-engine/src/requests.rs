@@ -50,12 +50,21 @@ impl<A: crate::Application> Engine<A> {
                 Answer::Refused { refusal: Refusal::KeyConflict, at: None }
             };
             let commit = old.commit;
-            self.answer(now, commit, attempt, answer);
+            self.answer(now, commit, attempt, crate::codec::answer(&answer, &self.bounds)?);
             return Ok(());
         }
+        let previous_truth = self.truth.clone();
         let (answer, changes) = match self.decide(party, &ask, wall) {
             Ok(decision) => decision,
             Err(error) => {
+                self.attempts.remove(&attempt);
+                return Err(error);
+            }
+        };
+        let answer = match crate::codec::answer(&answer, &self.bounds) {
+            Ok(answer) => answer,
+            Err(error) => {
+                self.truth = previous_truth;
                 self.attempts.remove(&attempt);
                 return Err(error);
             }
