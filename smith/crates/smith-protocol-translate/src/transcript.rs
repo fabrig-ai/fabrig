@@ -575,45 +575,6 @@ fn size_part(what: &wire::SizePart) -> tools::SizePart {
     }
 }
 
-#[cfg(test)]
-mod edit_tests {
-    use super::{outcome, record, tools, wire};
-
-    #[test]
-    fn an_edit_failure_index_counts_from_one_at_transcript_admission() {
-        let zero = wire::Outcome::EditFailed(
-            wire::EditFailed::new(&wire::CEILINGS, wire::EditFailedParts { edit: 0, why: wire::Mismatch::NoMatch })
-                .expect("codec-shaped value"),
-        );
-        assert_eq!(outcome(&zero, &wire::CEILINGS, 256), Err(record::Refusal::Malformed));
-        let two = wire::Outcome::EditFailed(
-            wire::EditFailed::new(&wire::CEILINGS, wire::EditFailedParts { edit: 2, why: wire::Mismatch::NoMatch })
-                .expect("bounded value"),
-        );
-        assert_eq!(
-            outcome(&two, &wire::CEILINGS, 256),
-            Ok(tools::Outcome::EditFailed { edit: 2, why: tools::Mismatch::NoMatch })
-        );
-    }
-}
-
-#[cfg(test)]
-mod found_tests {
-    use super::found_piece;
-    use smith_domain_session::record;
-    use smith_transcript::CEILINGS;
-
-    #[test]
-    fn a_found_piece_whose_hits_pass_its_end_is_malformed() {
-        assert_eq!(found_piece(&[0, 0, 0, 2, 1], &CEILINGS, 100), Err(record::Refusal::Malformed));
-    }
-
-    #[test]
-    fn a_found_piece_past_the_tools_hit_count_is_too_large() {
-        assert_eq!(found_piece(&[0; 12], &CEILINGS, 0), Err(record::Refusal::TooLarge));
-    }
-}
-
 fn exit(source: &wire::Exit) -> tools::Exit {
     match source {
         wire::Exit::Code(code) => tools::Exit::Code { code: code.code() },
@@ -663,4 +624,43 @@ fn listed_outcome(listed: &wire::Listed) -> Result<tools::Outcome, record::Refus
         }
     }
     Ok(tools::Outcome::Listed { entries: entries.into_boxed(), more: listed.more() })
+}
+
+#[cfg(test)]
+mod edit_tests {
+    use super::{outcome, record, tools, wire};
+
+    #[test]
+    fn an_edit_failure_index_counts_from_one_at_transcript_admission() {
+        let zero = wire::Outcome::EditFailed(
+            wire::EditFailed::new(&wire::CEILINGS, wire::EditFailedParts { edit: 0, why: wire::Mismatch::NoMatch })
+                .expect("codec-shaped value"),
+        );
+        assert_eq!(outcome(&zero, &wire::CEILINGS, 256), Err(record::Refusal::Malformed));
+        let two = wire::Outcome::EditFailed(
+            wire::EditFailed::new(&wire::CEILINGS, wire::EditFailedParts { edit: 2, why: wire::Mismatch::NoMatch })
+                .expect("bounded value"),
+        );
+        assert_eq!(
+            outcome(&two, &wire::CEILINGS, 256),
+            Ok(tools::Outcome::EditFailed { edit: 2, why: tools::Mismatch::NoMatch })
+        );
+    }
+}
+
+#[cfg(test)]
+mod found_tests {
+    use super::found_piece;
+    use smith_domain_session::record;
+    use smith_transcript::CEILINGS;
+
+    #[test]
+    fn a_found_piece_whose_hits_pass_its_end_is_malformed() {
+        assert_eq!(found_piece(&[0, 0, 0, 2, 1], &CEILINGS, 100), Err(record::Refusal::Malformed));
+    }
+
+    #[test]
+    fn a_found_piece_past_the_tools_hit_count_is_too_large() {
+        assert_eq!(found_piece(&[0; 12], &CEILINGS, 0), Err(record::Refusal::TooLarge));
+    }
 }

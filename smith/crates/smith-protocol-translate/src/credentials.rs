@@ -1,8 +1,6 @@
-//! Bounded credential generations below the agent domain
-//! (protocol/channel.md, section 6; domain/host.md, section 7).
-//!
-//! This table retains at most two generations per account. The domain sees
-//! only names and validity; `value` is for the service's LLM preparation.
+//! Bounded credential forms below the domain (protocol/channel.md, section 6).
+//! Conversion retains no state. Callers store values below the domain and
+//! expose only grant names, validity and renewal policy above it.
 
 use alloc::boxed::Box;
 use core::fmt;
@@ -88,5 +86,28 @@ mod tests {
         for (index, (name, expected)) in rows.into_iter().enumerate() {
             assert_eq!(program_name(name), Ok(expected), "row {index}");
         }
+    }
+}
+
+use smith_channel as channel;
+
+/// Renewal policy already carried by the existing wire form (protocol/channel.md, section 6).
+pub(crate) fn renewable(value: &channel::GrantValue) -> bool {
+    match value {
+        channel::GrantValue::Credential(credential) => match credential.scheme() {
+            channel::Scheme::Key => false,
+            channel::Scheme::Bearer => true,
+        },
+        channel::GrantValue::Program(_) | channel::GrantValue::Withdrawn(_) => true,
+    }
+}
+
+/// Refresh conversion used after the channel retains the value (protocol/channel.md, section 6).
+/// Expose only a refreshed grant name and validity to the domain.
+pub fn refreshed_grant(value: &channel::Grant) -> smith_domain::Grant {
+    smith_domain::Grant {
+        name: smith_domain::GrantName { account: value.account(), generation: value.generation() },
+        valid: value.valid(),
+        renewable: renewable(value.value()),
     }
 }
