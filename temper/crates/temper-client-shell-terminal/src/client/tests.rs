@@ -1,5 +1,6 @@
 use super::*;
 use crate::tests::fixtures as common;
+use jig_client::contract as c;
 mod fixtures;
 #[path = "../../tests/support/mod.rs"]
 mod machine;

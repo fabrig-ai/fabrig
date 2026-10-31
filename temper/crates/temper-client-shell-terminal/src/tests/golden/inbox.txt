@@ -29,7 +29,7 @@ Kind:
   Why:
     “It touches sign-in.”
   Budget:
-    Funds 40 from your pool · 120 left, 80 after
+    Funded by pool in project 1, person 7, period 3 · Funding needed: 40 · Funding left: 120 · Funding after: 80
 - Question
   Project 1
   [18] Task 9

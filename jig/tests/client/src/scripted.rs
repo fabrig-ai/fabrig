@@ -617,10 +617,6 @@ impl Front<Test> for Scripted {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the observation table classifies every scripted change without inspecting client state"
-)]
 fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>) {
     match change {
         engine::Change::Source(source) => {

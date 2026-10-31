@@ -24,8 +24,8 @@ fn turn(value: &c::Turn) -> Result<Box<[u8]>, w::Problem> {
             c::Speaker::Tool | c::Speaker::System => return Err(problem()),
         };
         let mut blocks = Vec::new();
-        for block in &message.blocks {
-            let block = match block {
+        for block_source in &message.blocks {
+            let block = match block_source {
                 c::Block::Text(value) => t::Block::Text(
                     t::Text::new(limits, t::TextParts { text: bytes::copy_of(value.bytes()), replay: None })
                         .map_err(|_| problem())?,
@@ -42,21 +42,7 @@ fn turn(value: &c::Turn) -> Result<Box<[u8]>, w::Problem> {
                     )
                     .map_err(|_| problem())?,
                 ),
-                c::Block::Result { call, summary, failed } => {
-                    let said =
-                        t::Said::new(limits, t::SaidParts { text: bytes::copy_of(summary.bytes()), error: *failed })
-                            .map_err(|_| problem())?;
-                    t::Block::Result(
-                        t::ToolResult::new(
-                            limits,
-                            t::ToolResultParts {
-                                id: bytes::copy_of(skein_lib::Decimal::of(*call).as_bytes()),
-                                returned: t::Returned::Said(said),
-                            },
-                        )
-                        .map_err(|_| problem())?,
-                    )
-                }
+                c::Block::Result { call, summary, failed } => result(*call, summary, *failed)?,
                 c::Block::Opaque { dialect, size } => {
                     let dialect = core::str::from_utf8(dialect.bytes())
                         .map_err(|_| problem())?
@@ -78,6 +64,12 @@ fn turn(value: &c::Turn) -> Result<Box<[u8]>, w::Problem> {
                 }
             };
             blocks.push(block);
+            if let c::Block::Call(call) = block_source
+                && let Some(outcome) = &call.outcome
+                && !has_result(value, call.number)
+            {
+                blocks.push(result(call.number, outcome, call.failed)?);
+            }
         }
         messages.push(
             t::Message::new(limits, t::MessageParts { role, blocks: List::from_boxed(blocks.into_boxed_slice()) })
@@ -113,4 +105,26 @@ fn turn(value: &c::Turn) -> Result<Box<[u8]>, w::Problem> {
     )
     .map_err(|_| problem())?;
     encoded(&turn, t::Turn::measure, t::Turn::encode)
+}
+
+fn has_result(turn: &c::Turn, number: u64) -> bool {
+    turn.messages.iter().any(|message| {
+        message.blocks.iter().any(|block| matches!(block, c::Block::Result { call, .. } if *call == number))
+    })
+}
+
+fn result(call: u64, text: &c::Text, failed: bool) -> Result<t::Block, w::Problem> {
+    let limits = &t::CEILINGS;
+    let said = t::Said::new(limits, t::SaidParts { text: bytes::copy_of(text.bytes()), error: failed })
+        .map_err(|_| problem())?;
+    Ok(t::Block::Result(
+        t::ToolResult::new(
+            limits,
+            t::ToolResultParts {
+                id: bytes::copy_of(skein_lib::Decimal::of(call).as_bytes()),
+                returned: t::Returned::Said(said),
+            },
+        )
+        .map_err(|_| problem())?,
+    ))
 }

@@ -21,13 +21,13 @@ impl FrameState<'_> {
     }
 }
 
-/// Checks each allocation this spine itself keeps from the frame. Other whole
+/// Checks each populated frame field this spine shows. Other whole
 /// documents arrive within the decoding owner's `document_bytes` budget.
 #[must_use]
 pub fn fits(frame: &Me, limits: &crate::Limits) -> bool {
     if !frame.party.name.bytes.fits(limits.text)
         || !frame.party.login.bytes.fits(limits.text)
-        || frame.projects.capacity() > limits.projects
+        || frame.projects.len() > limits.projects
     {
         return false;
     }

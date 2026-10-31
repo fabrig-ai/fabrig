@@ -400,11 +400,6 @@ fn whole_document_limits_keep_unknown_owner_facts_unknown() {
     bound.jig.kept = bound.client.domain.requests.requests - 1;
     assert!(!crate::valid(&bound));
 }
-#[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the same exhaustive scoped lifecycle is checked independently for both connector families"
-)]
 fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Document; 1] {
     use crate::observability::{documents::*, values};
     let values = values::Document {
@@ -467,34 +462,6 @@ fn application_navigation_is_forwarded_before_start_and_retains_order() {
     );
     start(&mut root, List::with_capacity(0));
     assert!(crate::configure_navigation(&mut root, Navigation::new(0)).is_err());
-}
-
-fn connector_parts(number: u16) -> List<contract::Part> {
-    let mut parts = List::with_capacity(9);
-    for part in [
-        contract::Part::Connector { connector: number },
-        contract::Part::Resource {
-            connector: number,
-            path: {
-                let mut path = List::with_capacity(1);
-                path.push(Box::<[u8]>::from(*b"service")).unwrap();
-                path
-            },
-        },
-        contract::Part::Kind { connector: number, kind: 1 },
-        contract::Part::Panel { connector: number, task: 9 },
-        contract::Part::Result { connector: number, task: 9 },
-        contract::Part::Effect {
-            connector: number,
-            proposal: contract::ProposalKey { proposer: contract::Proposer::Task(9), number: 2 },
-        },
-        contract::Part::Hold { connector: number, task: 9 },
-        contract::Part::Project { connector: number, project: 3 },
-        contract::Part::Deployment { connector: number },
-    ] {
-        parts.push(part).unwrap();
-    }
-    parts
 }
 
 #[test]

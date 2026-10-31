@@ -579,7 +579,6 @@ pub fn arranged_proposal_world(seed: u64) -> World<Test, Scripted> {
     lead.proposals = list([proposal().key]);
     let context = lead.context.as_mut().expect("task fixture supplies context");
     context.impact.tasks.running = 1;
-    context.parts = list([Part::Panel { connector: jig_client_test_domain::FIRST, task: 9 }]);
     world
         .front()
         .engine
@@ -987,6 +986,7 @@ fn incident_delegate() -> Task {
     let mut delegate = task();
     delegate.chip.task = 10;
     delegate.chip.title = DocumentText::complete(text(b"Delegate ten"));
+    delegate.chip.executor = Executor::Procedure { connector: jig_client_test_domain::FIRST, kind: 1 };
     delegate.chip.details = Box::new(owner_chip(
         OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
         Some(OwnerPart {
@@ -996,8 +996,6 @@ fn incident_delegate() -> Task {
         }),
     ));
     delegate.requester = OwnerRequester::Task(9);
-    delegate.context.as_mut().expect("supplied task context").parts =
-        list([Part::Panel { connector: jig_client_test_domain::FIRST, task: 10 }]);
     delegate.proposals = list([proposal().key]);
     delegate
 }

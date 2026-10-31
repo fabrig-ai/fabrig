@@ -482,7 +482,7 @@ fn source_facts(source: &engine::Source, commit: u64, out: &mut Vec<Observed>) {
     if let (Read::Activity { task, .. }, engine::Rows::Activity(rows)) = (&source.read, &source.rows) {
         let mut messages = vec![];
         for row in rows {
-            if let Some((message, words)) = row.event.word_message() {
+            if let Some((message, words)) = row.word_message() {
                 messages.push(message);
                 out.push(Observed::Kept { task: *task, message, words: words.bytes().to_vec(), commit });
             }
