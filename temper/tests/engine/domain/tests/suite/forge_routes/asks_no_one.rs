@@ -40,7 +40,6 @@ fn push(world: &mut World, branch: &[u8]) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_changes_delegates_hold_no_message_family() {
     let (mut world, _, producer, branch) = change_world(false, PASSES, None);
     holds_no_message(&world, producer.task);
@@ -111,7 +110,6 @@ fn assert_reply(world: &World, target: u64, change: u64, chat: u64, kind: &tasks
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn words_to_a_change_are_answered_naming_its_requester() {
     let (mut world, chat, producer, _) = change_world(true, PASSES, None);
     let change = change_task(&world, producer.task);
@@ -131,7 +129,6 @@ fn words_to_a_change_are_answered_naming_its_requester() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_question_to_a_change_is_answered_in_the_answer_form() {
     let (mut world, chat, producer, _) = change_world(true, PASSES, None);
     let change = change_task(&world, producer.task);
@@ -149,7 +146,6 @@ fn a_question_to_a_change_is_answered_in_the_answer_form() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_retried_step_answers_once() {
     // Lose the acknowledgement of the atomic step commit, then restore it.
     let (mut world, chat, producer, _) = change_world(true, PASSES, None);
@@ -173,7 +169,6 @@ fn a_retried_step_answers_once() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn replies_past_the_batch_are_capped() {
     let (mut world, chat, producer, _) = change_world(true, PASSES, None);
     let change = change_task(&world, producer.task);
@@ -229,7 +224,6 @@ fn replies_past_the_batch_are_capped() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_hold_notice_keeps_its_place_before_replies() {
     use super::reviews::{finish_review, next_assignment, review_world};
     const FAILURE: &[u8] = b"cannot judge the second review";

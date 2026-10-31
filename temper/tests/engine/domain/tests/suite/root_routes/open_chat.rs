@@ -169,7 +169,6 @@ fn client_limits() -> jig_client::DomainLimits {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_open_chats_finish_parks_with_its_reply_and_spends_no_try() {
     let (mut driver, run) = parked_chat();
     assert_eq!(committed_replies(&driver, run.task, REPLY), 1);
@@ -181,7 +180,6 @@ fn an_open_chats_finish_parks_with_its_reply_and_spends_no_try() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_persons_words_wake_a_parked_open_chat_once() {
     const WORD: u8 = 61;
     const NEXT_REPLY: &[u8] = b"And here is my next reply";
@@ -228,7 +226,6 @@ fn delegation_driver() -> Driver {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn closing_an_open_chat_keeps_its_turns_and_settles_its_delegates() {
     const REASON: &[u8] = b"Chat closed";
     let mut driver = delegation_driver();
@@ -312,7 +309,6 @@ fn assert_ended_conversation(driver: &mut Driver, task: u64) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goals_delegate_still_ends_by_its_result_beside_open_chats() {
     const RESULT: &[u8] = b"goal delegate done";
     let mut driver = delegation_driver();
@@ -355,7 +351,6 @@ fn a_goals_delegate_still_ends_by_its_result_beside_open_chats() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_open_chat_on_a_program_endpoint_starts() {
     let mut driver = Driver::configured(Store::new(), [open_config(91), open_config(91)], &limits());
     let mut program_bounds = protocol::bounds();
@@ -402,7 +397,6 @@ fn an_open_chat_on_a_program_endpoint_starts() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_open_chat_that_meets_a_bound_is_held_and_stays_open() {
     let (mut driver, run) = open_chat();
     super::exceeded::meets_bound(&mut driver, &run, host::Bound::Reasoning);
