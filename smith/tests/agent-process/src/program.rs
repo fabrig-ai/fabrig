@@ -4,7 +4,7 @@
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::kernel::{self, Exit, Spawn};
-use skein_lib::{Duration, Queue, Reader, Secret, Time, Wall};
+use skein_lib::{Duration, Queue, Reader, Secret, Time};
 use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Referee};
 use smith_fake_claude::{Fake, Story};

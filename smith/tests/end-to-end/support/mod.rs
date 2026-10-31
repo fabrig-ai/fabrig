@@ -2,8 +2,8 @@
 //! over Skein's real loop (testing.md, sections 2.3 and 5). Only outside
 //! observations are kept; no local or agent state is available.
 
-use skein_io::kernel::{Complete, Exit, Submit};
-use skein_lib::{Duration, Queue, Time, Wall};
+use skein_io::kernel::Exit;
+use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Delegate, Host};
 use skein_world::{
     Referee,

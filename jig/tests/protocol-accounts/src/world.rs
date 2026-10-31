@@ -2,8 +2,7 @@
 use crate::{fixtures, owner::Owner, referee::Judge, visitor::Visitor};
 use skein_fake_oauth as fake;
 use skein_fake_peers::{Transport, oauth as peer};
-use skein_io::kernel;
-use skein_lib::{Queue, Time, Wall, bytes};
+use skein_lib::{Wall, bytes};
 use skein_world::{Delegate, Host, Memory, Outcome, World};
 use std::net::Ipv4Addr;
 

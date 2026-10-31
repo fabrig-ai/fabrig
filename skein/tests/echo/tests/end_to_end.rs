@@ -5,8 +5,8 @@
 use skein_echo_world::proc::Proc;
 use skein_echo_world::scenarios::{client_limits, plan};
 use skein_io::Addr;
-use skein_io::kernel::{Complete, Exit, Signal, Submit};
-use skein_lib::{Duration, Queue, Time, Wall};
+use skein_io::kernel::{Exit, Signal};
+use skein_lib::{Duration, Time};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Command, Mode, StartError};
 use skein_world::{Deadline, Delegate, Expired, Host, Referee, real};

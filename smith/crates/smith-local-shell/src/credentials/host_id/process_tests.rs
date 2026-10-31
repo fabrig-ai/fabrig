@@ -2,7 +2,7 @@
 use super::*;
 use crate::credentials::tests::Files;
 use skein_io::kernel;
-use skein_lib::{Duration, Queue, Time, Wall};
+use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Delegate, Host};
 use skein_world::{
     Referee,

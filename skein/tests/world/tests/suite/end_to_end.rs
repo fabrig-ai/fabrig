@@ -1,7 +1,7 @@
 //! Binary startup and outside observations over the world's shared ring.
 
-use skein_io::kernel::{Complete, Exit, Op, Signal, Submit};
-use skein_lib::{Duration, Queue, Time, Wall};
+use skein_io::kernel::{Exit, Op, Signal};
+use skein_lib::{Duration, Queue, Time};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Cleanup, Command, Containment, Mode, StartError};
 use skein_world::{Deadline, Delegate, Expired, Host, Referee, real};

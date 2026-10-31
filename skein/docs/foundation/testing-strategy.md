@@ -1,6 +1,6 @@
 # Testing strategy
 
-Provisional, 2026-10-03, revised 2026-10-30. How code in skein and in
+Provisional, 2026-10-03, revised 2026-10-31. How code in skein and in
 every service built on it is tested. Read it with programming-model.md,
 whose terms it uses, before writing or reviewing tests.
 
@@ -412,12 +412,13 @@ The harness checks, in every world and in the simulator:
   - **A world that ends by itself** is one whose processes settle with
     nothing injected after the last word. One that ends on a shutdown the
     referee injects has its last word after the shutdown has arrived.
-  - **How it is checked.** Each process tells the harness its earliest
-    deadline outside io's own (shell.md, 12). After
+  - **How it is checked.** Each process tells the harness its
+    deadlines in two parts: io's own, its mechanism deadline, and its
+    earliest outside io's own, its policy deadline (shell.md, 12). After
     the last word, the harness fails the world, naming the process and
-    its deadline, when time has to reach that deadline before the world
-    settles: when the replaying tiers move the clock to it, or when the
-    real loop wakes for it.
+    its policy deadline, when time has to reach that deadline before the
+    world settles: when the replaying tiers move the clock to it, or
+    when the real loop wakes for it.
   - A fault that stalls an operation meets io's close deadline while it
     closes, or its stall deadline while it is open, which the invariant
     allows: both fire only on a stall, and bound it.
