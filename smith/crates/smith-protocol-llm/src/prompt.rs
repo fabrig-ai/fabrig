@@ -313,28 +313,7 @@ fn inventory(input: &llm::Prompt, application: &[ToolSchema], limits: &Limits) -
 
 fn served_unique(descriptor: &llm::Served, previous: &[llm::Served]) -> Result<(), Error> {
     for prior in previous {
-        let repeated = match descriptor {
-            llm::Served::Host(tool) => match prior {
-                llm::Served::Host(other) => tool.name == other.name,
-                llm::Served::Finish | llm::Served::Deliver | llm::Served::SubAgent | llm::Served::Wait => false,
-            },
-            llm::Served::Finish => match prior {
-                llm::Served::Finish => true,
-                llm::Served::Host(_) | llm::Served::Deliver | llm::Served::SubAgent | llm::Served::Wait => false,
-            },
-            llm::Served::Deliver => match prior {
-                llm::Served::Deliver => true,
-                llm::Served::Host(_) | llm::Served::Finish | llm::Served::SubAgent | llm::Served::Wait => false,
-            },
-            llm::Served::SubAgent => match prior {
-                llm::Served::SubAgent => true,
-                llm::Served::Host(_) | llm::Served::Finish | llm::Served::Deliver | llm::Served::Wait => false,
-            },
-            llm::Served::Wait => match prior {
-                llm::Served::Wait => true,
-                llm::Served::Host(_) | llm::Served::Finish | llm::Served::Deliver | llm::Served::SubAgent => false,
-            },
-        };
+        let repeated = served_name(descriptor) == served_name(prior);
         if repeated {
             return Err(Error::Invalid);
         }

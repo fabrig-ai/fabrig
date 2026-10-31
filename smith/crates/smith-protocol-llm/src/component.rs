@@ -676,21 +676,6 @@ impl Component {
                     &self.limits.adapter,
                 ),
             };
-            // The completion adapter resolves host declarations itself.
-            let mut hosted = false;
-            for offered in active.context.served() {
-                match offered {
-                    llm::Served::Host(tool) if tool.name.as_ref() == name.as_ref() => hosted = true,
-                    llm::Served::Host(_)
-                    | llm::Served::Wait
-                    | llm::Served::Deliver
-                    | llm::Served::Finish
-                    | llm::Served::SubAgent => {}
-                }
-            }
-            if hosted {
-                continue;
-            }
             match u32::try_from(position) {
                 Ok(position) => {
                     resolved
